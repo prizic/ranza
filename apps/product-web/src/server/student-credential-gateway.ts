@@ -1,5 +1,5 @@
 import "server-only";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { createProductWebClient } from "../lib/supabase/server";
 import {
@@ -7,6 +7,7 @@ import {
   type ActivationClaim,
   type ActivationPort,
 } from "./student-activation-flow";
+import { signInStudent, type StudentSignInPort } from "./student-signin-flow";
 
 export function studentCredentialEnvironment() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -83,6 +84,7 @@ export async function exchangeStudentActivation(input: {
           throw new Error("Activation unavailable");
       },
       bind: (claim) => rpc("finish_student_activation", claimArgs(claim)),
+      confirm: (claim) => rpc("confirm_student_pin", claimArgs(claim)),
       setPassword: async (claim, password) => {
         const result = await admin.auth.admin.updateUserById(
           claim.auth_user_id,
@@ -103,5 +105,73 @@ export async function exchangeStudentActivation(input: {
     return await activateStudent(port, input, pepper);
   } catch {
     return false;
+  }
+}
+
+export async function exchangeStudentSignIn(input: {
+  accessId: string;
+  pin: string;
+  network: string;
+}) {
+  const correlationId = randomUUID();
+  try {
+    const { pepper } = studentCredentialEnvironment();
+    const admin = createStudentCredentialAdmin();
+    const session = await createProductWebClient();
+    const port: StudentSignInPort = {
+      attempt: async (credentialKey, networkKey) => {
+        const result = await admin.rpc("student_credential_attempt", {
+          credential_key: credentialKey,
+          network_key: networkKey,
+        });
+        if (result.error) throw new Error("Sign-in unavailable");
+        return result.data === true;
+      },
+      lookup: async (accessId) => {
+        const result = await admin.rpc("student_signin_lookup", {
+          student_access_id: accessId,
+        });
+        if (result.error) throw new Error("Sign-in unavailable");
+        return result.data;
+      },
+      authenticate: async (email, password) => {
+        const result = await session.auth.signInWithPassword({
+          email,
+          password,
+        });
+        return result.error ? null : (result.data.user?.id ?? null);
+      },
+      accept: async (studentId) => {
+        const result = await session.rpc("accept_student_session", {
+          target_student_id: studentId,
+        });
+        return !result.error && result.data === true;
+      },
+      failure: async (accessId) => {
+        await admin.rpc("student_activation_failure", {
+          student_access_id: accessId,
+        });
+      },
+      signOut: async () => {
+        await session.auth.signOut({ scope: "local" });
+      },
+      audit: async (event) => {
+        console.info(JSON.stringify({ app: "product-web", ...event }));
+      },
+    };
+    return {
+      success: await signInStudent(port, input, pepper, correlationId),
+      correlationId,
+    };
+  } catch {
+    console.info(
+      JSON.stringify({
+        app: "product-web",
+        correlationId,
+        action: "student.sign_in",
+        result: "denied",
+      }),
+    );
+    return { success: false, correlationId };
   }
 }

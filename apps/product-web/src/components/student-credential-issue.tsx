@@ -39,6 +39,9 @@ export function StudentCredentialIssue({
       <button type="submit" name="operation" value="issue" disabled={pending}>
         {t.issue}
       </button>
+      <button type="submit" name="operation" value="recover" disabled={pending}>
+        {t.recover}
+      </button>
     </form>
   );
 }

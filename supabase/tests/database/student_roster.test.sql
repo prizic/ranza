@@ -34,9 +34,14 @@ select is((select count(*) from public.student_branch_history),1::bigint,'Former
 reset role;
 select set_config('request.jwt.claims','{}',true);
 update public.students set auth_user_id='71000000-0000-4000-8000-000000000002' where external_reference='A-1';
+insert into private.student_credentials(student_id,auth_user_id,auth_identifier,activation_hash,activation_expires_at,activated_at)
+select id,auth_user_id,'roster-student@example.test','scrypt-v1$'||repeat('a',32)||'$'||repeat('b',64),now()+interval '1 day',now()-interval '1 hour'
+from public.students where external_reference='A-1';
+insert into auth.sessions(id,user_id,created_at,updated_at) values
+('75000000-0000-4000-8000-000000000001','71000000-0000-4000-8000-000000000002',clock_timestamp(),clock_timestamp());
 select throws_ok($$insert into public.student_branch_history(operator_id,student_id,branch_id,started_at) select operator_id,id,'73000000-0000-4000-8000-000000000001',clock_timestamp() from public.students where external_reference='A-1'$$,'23P01',null,'Overlapping assignments are rejected');
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"71000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
+select set_config('request.jwt.claims','{"sub":"71000000-0000-4000-8000-000000000002","role":"authenticated","session_id":"75000000-0000-4000-8000-000000000001"}',true);
 select ok(private.is_active_student_in_branch('72000000-0000-4000-8000-000000000001','73000000-0000-4000-8000-000000000002'),'Student can access current Branch');
 select ok(not private.is_active_student_in_branch('72000000-0000-4000-8000-000000000001','73000000-0000-4000-8000-000000000001'),'Transferred Student loses previous Branch access');
 select throws_ok($$select public.manage_student_roster('archive','72000000-0000-4000-8000-000000000001',(select id from public.students),null)$$,'42501','Roster access denied','Student cannot mutate roster');

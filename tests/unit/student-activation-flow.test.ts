@@ -36,6 +36,10 @@ describe("one-time Student activation", () => {
       setPassword: async () => {
         events.push("pin");
       },
+      confirm: async () => {
+        events.push("ready");
+        return true;
+      },
       signIn: async () => {
         events.push("session");
       },
@@ -52,7 +56,7 @@ describe("one-time Student activation", () => {
       activation.activateStudent(port, input, "p".repeat(64)),
     ]);
     expect(results.filter(Boolean)).toHaveLength(1);
-    expect(events).toEqual(["identity", "bind", "pin", "session"]);
+    expect(events).toEqual(["identity", "bind", "pin", "ready", "session"]);
   });
   it("returns the same failure for unknown, invalid, expired and rate-limited attempts", async () => {
     const issued = await issueActivationCode();
@@ -69,6 +73,7 @@ describe("one-time Student activation", () => {
       },
       bind: async () => false,
       setPassword: async () => {},
+      confirm: async () => true,
       signIn: async () => {},
       abandon: async () => {},
     };
@@ -122,6 +127,7 @@ describe("one-time Student activation", () => {
       setPassword: async () => {
         passwordWrites++;
       },
+      confirm: async () => true,
       signIn: async () => {},
       abandon: async () => {
         abandoned = true;

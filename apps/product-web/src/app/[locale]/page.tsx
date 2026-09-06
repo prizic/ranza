@@ -23,7 +23,15 @@ export default async function ProductWebPage({
   ] as const;
   return (
     <LocalizedShell locale={locale}>
+      <a href={`/${locale}/student/sign-in`}>
+        {studentCredentialCopy[locale].signIn}
+      </a>
       <a href={`/${locale}/activate`}>{studentCredentialCopy[locale].title}</a>
+      <form action={`/${locale}/student/sign-out`} method="post">
+        <button type="submit" name="operation" value="signout">
+          {studentCredentialCopy[locale].signOut}
+        </button>
+      </form>
       <section className="dayline" aria-label={today}>
         <span>{today}</span>
         <BidiText>IST-01 · 21:15 · TRY 1,250.00</BidiText>
