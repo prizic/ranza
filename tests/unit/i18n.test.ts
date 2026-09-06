@@ -10,6 +10,7 @@ import {
   localizeHref,
   messagesFor,
 } from "../../packages/i18n/src/index";
+import { controlAuthMessagesFor } from "../../packages/i18n/src/control-auth";
 
 describe("locale contract", () => {
   it("defaults locale negotiation to Turkish", () => {
@@ -57,5 +58,16 @@ describe("locale contract", () => {
       expect(messages.states.maintenance.action).toBeTruthy();
       expect(messages.product.install.title).toBeTruthy();
     }
+  });
+
+  it("ships localized control-plane invitation messages", () => {
+    const titles = (["tr", "en", "ar"] as const).map((locale) => {
+      const messages = controlAuthMessagesFor(locale);
+      expect(messages.acceptInvite.action).toBeTruthy();
+      expect(messages.setPassword.errors.tooLong).toBeTruthy();
+      expect(messages.signIn.invalidInvite).toBeTruthy();
+      return messages.acceptInvite.title;
+    });
+    expect(new Set(titles).size).toBe(3);
   });
 });

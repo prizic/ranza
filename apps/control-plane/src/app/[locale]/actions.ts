@@ -6,17 +6,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { operatorControl } from "../../lib/operator-control";
+import { formText, localeFromFormData } from "../../lib/form-data";
 import { createControlPlaneClient } from "../../lib/supabase/server";
-
-function text(formData: FormData, name: string): string {
-  const value = formData.get(name);
-  return typeof value === "string" ? value : "";
-}
-
-function localeFrom(formData: FormData): ApplicationLocale {
-  const locale = text(formData, "locale");
-  return locale === "en" || locale === "ar" ? locale : "tr";
-}
 
 function resultPath(
   locale: ApplicationLocale,
@@ -32,11 +23,11 @@ function resultPath(
 }
 
 export async function requestOperatorExportAction(formData: FormData) {
-  const locale = localeFrom(formData);
+  const locale = localeFromFormData(formData);
   await operatorControl(locale);
   const client = await createControlPlaneClient(randomUUID());
   const { error } = await client.rpc("request_operator_export", {
-    target_operator_id: text(formData, "operatorId"),
+    target_operator_id: formText(formData, "operatorId"),
   });
   if (error) throw error;
   revalidatePath(`/${locale}`);
@@ -44,15 +35,15 @@ export async function requestOperatorExportAction(formData: FormData) {
 }
 
 export async function approveLifecyclePolicyAction(formData: FormData) {
-  const locale = localeFrom(formData);
+  const locale = localeFromFormData(formData);
   await operatorControl(locale);
   const client = await createControlPlaneClient(randomUUID());
   const { error } = await client.rpc("approve_operator_lifecycle_policy", {
-    anonymize_days: Number(text(formData, "anonymizeDays")),
-    archive_days: Number(text(formData, "archiveDays")),
-    delete_days: Number(text(formData, "deleteDays")),
-    export_hours: Number(text(formData, "exportHours")),
-    target_operator_id: text(formData, "operatorId"),
+    anonymize_days: Number(formText(formData, "anonymizeDays")),
+    archive_days: Number(formText(formData, "archiveDays")),
+    delete_days: Number(formText(formData, "deleteDays")),
+    export_hours: Number(formText(formData, "exportHours")),
+    target_operator_id: formText(formData, "operatorId"),
   });
   if (error) throw error;
   revalidatePath(`/${locale}`);
@@ -60,12 +51,12 @@ export async function approveLifecyclePolicyAction(formData: FormData) {
 }
 
 export async function planLifecycleAction(formData: FormData) {
-  const locale = localeFrom(formData);
+  const locale = localeFromFormData(formData);
   await operatorControl(locale);
   const client = await createControlPlaneClient(randomUUID());
   const { error } = await client.rpc("plan_operator_lifecycle", {
-    target_action: text(formData, "lifecycleAction"),
-    target_operator_id: text(formData, "operatorId"),
+    target_action: formText(formData, "lifecycleAction"),
+    target_operator_id: formText(formData, "operatorId"),
   });
   if (error) throw error;
   revalidatePath(`/${locale}`);
@@ -73,13 +64,13 @@ export async function planLifecycleAction(formData: FormData) {
 }
 
 export async function executeLifecycleAction(formData: FormData) {
-  const locale = localeFrom(formData);
+  const locale = localeFromFormData(formData);
   await operatorControl(locale);
   const client = await createControlPlaneClient(randomUUID());
   const { error } = await client.rpc("execute_operator_lifecycle", {
-    target_idempotency_key: text(formData, "idempotencyKey"),
-    target_operator_id: text(formData, "operatorId"),
-    target_run_id: text(formData, "runId"),
+    target_idempotency_key: formText(formData, "idempotencyKey"),
+    target_operator_id: formText(formData, "operatorId"),
+    target_run_id: formText(formData, "runId"),
   });
   if (error) throw error;
   revalidatePath(`/${locale}`);
@@ -87,67 +78,67 @@ export async function executeLifecycleAction(formData: FormData) {
 }
 
 export async function signInAction(formData: FormData) {
-  const locale = localeFrom(formData);
+  const locale = localeFromFormData(formData);
   const client = await createControlPlaneClient();
   const { error } = await client.auth.signInWithPassword({
-    email: text(formData, "email"),
-    password: text(formData, "password"),
+    email: formText(formData, "email"),
+    password: formText(formData, "password"),
   });
   if (error) redirect(`/${locale}/sign-in?error=invalid`);
   redirect(`/${locale}/mfa`);
 }
 
 export async function signOutAction(formData: FormData) {
-  const locale = localeFrom(formData);
+  const locale = localeFromFormData(formData);
   const client = await createControlPlaneClient();
   await client.auth.signOut();
   redirect(`/${locale}/sign-in`);
 }
 
 export async function createOperatorAction(formData: FormData) {
-  const locale = localeFrom(formData);
+  const locale = localeFromFormData(formData);
   const { actor, service } = await operatorControl(locale);
   await service.createOperator(actor, {
-    defaultLocale: text(formData, "defaultLocale") as ApplicationLocale,
-    name: text(formData, "name"),
+    defaultLocale: formText(formData, "defaultLocale") as ApplicationLocale,
+    name: formText(formData, "name"),
   });
   revalidatePath(`/${locale}`);
   redirect(resultPath(locale, "created"));
 }
 
 export async function setOperatorStatusAction(formData: FormData) {
-  const locale = localeFrom(formData);
+  const locale = localeFromFormData(formData);
   const { actor, service } = await operatorControl(locale);
   await service.setOperatorStatus(actor, {
-    currentStatus: text(formData, "currentStatus") as OperatorStatus,
-    operatorId: text(formData, "operatorId"),
-    status: text(formData, "status") as OperatorStatus,
+    currentStatus: formText(formData, "currentStatus") as OperatorStatus,
+    operatorId: formText(formData, "operatorId"),
+    status: formText(formData, "status") as OperatorStatus,
   });
   revalidatePath(`/${locale}`);
   redirect(resultPath(locale, "updated"));
 }
 
 export async function createBranchAction(formData: FormData) {
-  const locale = localeFrom(formData);
+  const locale = localeFromFormData(formData);
   const { actor, service } = await operatorControl(locale);
   await service.createBranch(actor, {
-    defaultLocale: text(formData, "defaultLocale") as ApplicationLocale,
-    name: text(formData, "name"),
-    operatorId: text(formData, "operatorId"),
-    residenceClassification: text(formData, "residenceClassification") as
+    defaultLocale: formText(formData, "defaultLocale") as ApplicationLocale,
+    name: formText(formData, "name"),
+    operatorId: formText(formData, "operatorId"),
+    residenceClassification: formText(formData, "residenceClassification") as
       "male" | "female" | "mixed" | "other",
-    timezone: text(formData, "timezone"),
+    timezone: formText(formData, "timezone"),
   });
   revalidatePath(`/${locale}`);
   redirect(resultPath(locale, "created"));
 }
 
 export async function archiveBranchAction(formData: FormData) {
-  const locale = localeFrom(formData);
+  const locale = localeFromFormData(formData);
   const { actor, service } = await operatorControl(locale);
   await service.archiveBranch(actor, {
-    branchId: text(formData, "branchId"),
-    operatorId: text(formData, "operatorId"),
+    branchId: formText(formData, "branchId"),
+    operatorId: formText(formData, "operatorId"),
   });
   revalidatePath(`/${locale}`);
   redirect(resultPath(locale, "updated"));

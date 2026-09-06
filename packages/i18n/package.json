@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./control-auth": "./src/control-auth.ts",
     "./leads": "./src/leads.ts"
   },
   "scripts": {
