@@ -32,6 +32,9 @@ export default async function ProductWebPage({
           {studentCredentialCopy[locale].signOut}
         </button>
       </form>
+      <a href={`/${locale}/student/attendance`}>
+        {messages.navigation.attendance}
+      </a>
       <section className="dayline" aria-label={today}>
         <span>{today}</span>
         <BidiText>IST-01 · 21:15 · TRY 1,250.00</BidiText>

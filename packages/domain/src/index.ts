@@ -4,6 +4,20 @@ export { mealTypes, parseMealSelection, summarizeMealResponses } from "./meals";
 export type { MealType } from "./meals";
 
 export {
+  attendanceDeclarations,
+  buildAttendanceBoard,
+  parseAttendanceDeclaration,
+} from "./attendance";
+export type {
+  AttendanceBoard,
+  AttendanceBoardRow,
+  AttendanceDeclaration,
+  AttendanceResponse,
+  AttendanceRosterStudent,
+  AttendanceStatus,
+} from "./attendance";
+
+export {
   featureCatalog,
   resolveCapability,
   validateFeatureConfiguration,
