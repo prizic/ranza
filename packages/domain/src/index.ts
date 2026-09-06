@@ -1,5 +1,7 @@
 export { parseStudentDraft } from "./student-roster";
 export { selectAnnouncementContent } from "./announcements";
+export { announcementFollowupCsv } from "./announcement-export";
+export type { AnnouncementFollowupRow } from "./announcement-export";
 export type { AnnouncementContent } from "./announcements";
 export type { StudentDraft } from "./student-roster";
 export { mealTypes, parseMealSelection, summarizeMealResponses } from "./meals";

@@ -68,6 +68,20 @@ export default async function StaffAnnouncementsPage({
         ))}
       </nav>
       <form action={manageAnnouncementAction} className="control-card">
+        <p>{t.reviseHint}</p>
+        <label>
+          {t.revisionOf}
+          <select name="announcement" defaultValue="">
+            <option value="">{t.chooseRevision}</option>
+            {(announcements ?? [])
+              .filter((item) => item.status === "published")
+              .map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.source_content.slice(0, 80)}
+                </option>
+              ))}
+          </select>
+        </label>
         <input name="locale" type="hidden" value={locale} />
         <input name="operator" type="hidden" value={operator} />
         <label>
@@ -116,6 +130,9 @@ export default async function StaffAnnouncementsPage({
         </fieldset>
         <button name="operation" value="draft" type="submit">
           {t.draft}
+        </button>
+        <button name="operation" value="revise" type="submit">
+          {t.revise}
         </button>
       </form>
       {(announcements ?? []).map((item) => {
@@ -167,6 +184,18 @@ export default async function StaffAnnouncementsPage({
           </article>
         );
       })}
+      <section className="control-card">
+        <h2>{t.history}</h2>
+        <ul>
+          {(revisions ?? []).map((revision) => (
+            <li key={revision.id}>
+              <a href={`/${locale}/staff/announcements/${revision.id}`}>
+                {t.history} · {revision.revision_number}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
     </LocalizedShell>
   );
 }
