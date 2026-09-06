@@ -17,7 +17,7 @@ export async function publishMealDayAction(formData: FormData) {
       .getAll("meal")
       .filter((value): value is string => typeof value === "string"),
     target_branch_id: branchId,
-    target_deadline_at: new Date(deadline).toISOString(),
+    target_deadline_at: new Date(`${deadline}Z`).toISOString(),
     target_operator_id: String(formData.get("operatorId") ?? ""),
     target_service_date: String(formData.get("serviceDate") ?? ""),
   });

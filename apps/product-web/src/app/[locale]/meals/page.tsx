@@ -5,13 +5,17 @@ import { notFound, redirect } from "next/navigation";
 import { LocalizedShell } from "../../../components/localized-shell";
 import { createProductWebClient } from "../../../lib/supabase/server";
 import { submitMealResponseAction } from "./actions";
+import { MealSubmitButton } from "./submit-button";
 
 const copy = {
   tr: {
     breakfast: "Kahvaltı",
     dinner: "Akşam yemeği",
-    empty: "Bugün yemek istemiyorum",
+    empty: "Hiçbir seçenek işaretlemezseniz sıfır öğün yanıtı kaydedilir.",
+    failed: "Son tarih geçti veya yanıt kaydedilemedi.",
     lunch: "Öğle yemeği",
+    none: "Açık bir yemek günü yok.",
+    pending: "Kaydediliyor…",
     save: "Yanıtı kaydet",
     saved: "Yanıtınız kaydedildi.",
     title: "Yarınki yemekler",
@@ -19,8 +23,11 @@ const copy = {
   en: {
     breakfast: "Breakfast",
     dinner: "Dinner",
-    empty: "I do not want a meal",
+    empty: "Leave every option clear to submit an explicit zero-meal response.",
+    failed: "The deadline passed or the response could not be saved.",
     lunch: "Lunch",
+    none: "No Meal Day is open.",
+    pending: "Saving…",
     save: "Save response",
     saved: "Your response was saved.",
     title: "Next-day meals",
@@ -28,8 +35,11 @@ const copy = {
   ar: {
     breakfast: "الإفطار",
     dinner: "العشاء",
-    empty: "لا أريد وجبة",
+    empty: "اترك كل الخيارات فارغة لإرسال رد صريح بدون وجبات.",
+    failed: "انتهت المهلة أو تعذر حفظ الرد.",
     lunch: "الغداء",
+    none: "لا يوجد يوم وجبات مفتوح.",
+    pending: "جارٍ الحفظ…",
     save: "حفظ الرد",
     saved: "تم حفظ ردك.",
     title: "وجبات اليوم التالي",
@@ -99,12 +109,10 @@ export default async function MealsPage({
           <StatusMessage tone="success">{labels.saved}</StatusMessage>
         ) : null}
         {query.result === "failed" ? (
-            <StatusMessage tone="warning">
-            The deadline passed or the response could not be saved.
-          </StatusMessage>
+          <StatusMessage tone="warning">{labels.failed}</StatusMessage>
         ) : null}
         {!day ? (
-          <StatusMessage>No Meal Day is open.</StatusMessage>
+          <StatusMessage>{labels.none}</StatusMessage>
         ) : (
           <form action={submitMealResponseAction} className="control-form">
             <input name="locale" type="hidden" value={locale} />
@@ -123,14 +131,11 @@ export default async function MealsPage({
                 {labels[offering.meal_type as "breakfast" | "lunch" | "dinner"]}
               </label>
             ))}
-            <p>
-              {(offerings ?? []).length === 0
-                ? labels.empty
-                : "Leave all choices clear to submit an explicit zero-meal response."}
-            </p>
-            <button className="button" type="submit">
-              {labels.save}
-            </button>
+            <p>{labels.empty}</p>
+            <MealSubmitButton
+              label={labels.save}
+              pendingLabel={labels.pending}
+            />
           </form>
         )}
       </section>
