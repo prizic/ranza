@@ -1,0 +1,38 @@
+{
+  "name": "ranza",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "check": "pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "db:reset": "supabase db reset",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:test": "supabase test db",
+    "dev": "turbo run dev --parallel",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "lint": "turbo run lint && pnpm lint:boundaries",
+    "lint:boundaries": "depcruise --config .dependency-cruiser.cjs apps packages",
+    "smoke": "node scripts/health-smoke.mjs --production",
+    "test": "node scripts/health-smoke.mjs",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "26.4.1",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "dependency-cruiser": "18.2.0",
+    "eslint": "10.0.0",
+    "globals": "17.12.0",
+    "prettier": "3.9.6",
+    "turbo": "2.10.12",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.69.0"
+  }
+}
