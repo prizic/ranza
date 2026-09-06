@@ -1,0 +1,52 @@
+{
+  "name": "ranza",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "check": "pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "db:reset": "supabase db reset",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:test": "supabase test db",
+    "dev": "turbo run dev --parallel",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "lint": "turbo run lint && pnpm lint:boundaries",
+    "lint:boundaries": "depcruise --config .dependency-cruiser.cjs apps packages",
+    "readiness:report": "node scripts/readiness-report.mjs",
+    "readiness:security": "node scripts/security-static-check.mjs",
+    "readiness:staging-smoke": "node scripts/staging-smoke.mjs",
+    "smoke": "node scripts/health-smoke.mjs --production",
+    "test": "pnpm test:unit && pnpm test:boundaries && node scripts/health-smoke.mjs && pnpm test:e2e",
+    "test:boundaries": "node scripts/dependency-boundaries.mjs",
+    "test:e2e": "playwright test",
+    "test:unit": "vitest run",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "26.4.1",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "dependency-cruiser": "18.2.0",
+    "eslint": "10.0.0",
+    "globals": "17.12.0",
+    "jsdom": "^30.0.1",
+    "prettier": "3.9.6",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "turbo": "2.10.12",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.69.0",
+    "vitest": "^5.0.0"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@ranza/control-plane",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev",
+    "lint": "eslint .",
+    "start": "next start",
+    "typecheck": "next typegen && tsc --noEmit"
+  },
+  "dependencies": {
+    "@ranza/config": "workspace:*",
+    "@ranza/database": "workspace:*",
+    "@ranza/domain": "workspace:*",
+    "@ranza/i18n": "workspace:*",
+    "@ranza/observability": "workspace:*",
+    "@ranza/ui": "workspace:*",
+    "@supabase/ssr": "^0.12.6",
+    "@supabase/supabase-js": "^2.115.0",
+    "next": "16.3.4",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  }
+}

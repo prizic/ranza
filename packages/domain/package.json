@@ -1,0 +1,23 @@
+{
+  "name": "@ranza/domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./balance": "./src/balance.ts",
+    "./balance-export": "./src/balance-export.ts",
+    "./capacity": "./src/capacity.ts",
+    "./meals": "./src/meals.ts",
+    "./meal-export": "./src/meal-export.ts",
+    "./operator-lifecycle": "./src/operator-lifecycle.ts",
+    "./attendance-export": "./src/attendance-export.ts",
+    "./leads": "./src/leads.ts",
+    "./student-csv-import": "./src/student-csv-import.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit"
+  }
+}

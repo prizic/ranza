@@ -1,0 +1,69 @@
+.storefront-suite {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 1.5rem;
+  margin-block: 3rem;
+}
+.storefront-suite article {
+  border-block-start: 2px solid var(--accent);
+  padding-block: 1.2rem;
+}
+.storefront-suite h2 {
+  font-size: 1.25rem;
+}
+.contact-section {
+  margin-block-start: 4rem;
+  scroll-margin-top: 2rem;
+}
+.lead-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+.lead-wide {
+  grid-column: 1 / -1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.lead-form select,
+.lead-form textarea {
+  width: 100%;
+  min-height: 2.8rem;
+  padding: 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+}
+.lead-form input {
+  min-width: 0;
+}
+.lead-form details {
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+}
+.lead-form summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.lead-form details p {
+  margin-block: 1rem;
+}
+.consent-label {
+  display: flex;
+  align-items: start;
+  gap: 0.6rem;
+}
+.consent-label input {
+  flex: 0 0 auto;
+  width: 1.3rem;
+  height: 1.3rem;
+  margin-top: 0.2rem;
+}
+@media (max-width: 700px) {
+  .lead-form {
+    grid-template-columns: 1fr;
+  }
+}
