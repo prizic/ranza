@@ -28,7 +28,7 @@ export default async function AnnouncementHistoryPage({
   const status = ["all", "acknowledged", "unacknowledged", "inactive"].includes(
     query.status ?? "",
   )
-    ? query.status!
+    ? (query.status ?? "all")
     : "all";
   const client = await createProductWebClient();
   const { data: auth } = await client.auth.getUser();
