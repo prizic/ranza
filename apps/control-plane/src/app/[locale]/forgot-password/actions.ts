@@ -1,23 +1,25 @@
 "use server";
 
+import { parseServerEnvironment } from "@ranza/config";
 import { redirect } from "next/navigation";
 
 import { formText, localeFromFormData } from "../../../lib/form-data";
 import { createControlPlaneClient } from "../../../lib/supabase/server";
 
 function recoveryRedirect(locale: string): string {
-  const configuredOrigin = process.env.CONTROL_PLANE_ORIGIN;
-  const origin = new URL(configuredOrigin ?? "http://localhost:3002");
+  const environment = parseServerEnvironment({
+    ...process.env,
+    CONTROL_PLANE_ORIGIN: process.env.CONTROL_PLANE_ORIGIN || undefined,
+  });
   if (
-    origin.username ||
-    origin.password ||
-    origin.search ||
-    origin.hash ||
-    origin.pathname !== "/" ||
-    (origin.protocol !== "https:" && origin.hostname !== "localhost")
+    environment.NODE_ENV === "production" &&
+    !environment.CONTROL_PLANE_ORIGIN
   ) {
-    throw new Error("The Control Plane origin is invalid.");
+    throw new Error("Control Plane origin is required in production");
   }
+  const origin = new URL(
+    environment.CONTROL_PLANE_ORIGIN ?? "http://localhost:3002",
+  );
   return new URL(`/${locale}/auth/confirm`, origin).toString();
 }
 

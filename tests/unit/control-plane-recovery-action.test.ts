@@ -49,3 +49,20 @@ it("uses the same generic completion state when Supabase returns an error", asyn
     digest: expect.stringContaining("/tr/forgot-password?sent=1"),
   });
 });
+
+it("fails closed when the production Control Plane origin is missing", async () => {
+  vi.stubEnv("CONTROL_PLANE_ORIGIN", "");
+  vi.stubEnv("NODE_ENV", "production");
+  const resetPasswordForEmail = vi.fn();
+  createControlPlaneClient.mockResolvedValue({
+    auth: { resetPasswordForEmail },
+  });
+  const formData = new FormData();
+  formData.set("locale", "en");
+  formData.set("email", "admin@example.com");
+
+  await expect(requestPasswordRecoveryAction(formData)).rejects.toThrow(
+    "Control Plane origin is required in production",
+  );
+  expect(resetPasswordForEmail).not.toHaveBeenCalled();
+});

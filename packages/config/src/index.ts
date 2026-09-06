@@ -1,6 +1,21 @@
 import { z } from "zod";
 
 const optionalNonEmptyString = z.string().trim().min(1).optional();
+const optionalOrigin = z
+  .url()
+  .refine((value) => {
+    const url = new URL(value);
+    const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+    return (
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      url.pathname === "/" &&
+      (url.protocol === "https:" || (url.protocol === "http:" && loopback))
+    );
+  }, "Must be an HTTPS origin or an HTTP loopback origin")
+  .optional();
 
 export const publicEnvironmentSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.url().optional(),
@@ -10,6 +25,7 @@ export const publicEnvironmentSchema = z.object({
 
 export const serverEnvironmentSchema = publicEnvironmentSchema.extend({
   ATTENDANCE_SCHEDULER_SECRET: optionalNonEmptyString,
+  CONTROL_PLANE_ORIGIN: optionalOrigin,
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
