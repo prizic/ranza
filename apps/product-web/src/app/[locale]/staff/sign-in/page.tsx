@@ -7,7 +7,7 @@ import { requestStaffSignIn } from "../actions";
 
 const copy = {
   ar: {
-    action: "إرسال رابط الدخول أو الرمز",
+    action: "إرسال رابط الدخول",
     email: "البريد الإلكتروني للعمل",
     error: "تعذّر التحقق من البريد الإلكتروني أو عضوية المشغّل.",
     intro: "استخدم البريد الإلكتروني الذي سجله مدير السكن.",
@@ -15,7 +15,7 @@ const copy = {
     title: "دخول فريق السكن",
   },
   en: {
-    action: "Send sign-in link or code",
+    action: "Send sign-in link",
     email: "Work email",
     error: "The email or Operator membership could not be verified.",
     intro: "Use the email registered by your dormitory administrator.",
@@ -23,7 +23,7 @@ const copy = {
     title: "Dormitory team sign-in",
   },
   tr: {
-    action: "Giriş bağlantısı veya kodu gönder",
+    action: "Giriş bağlantısı gönder",
     email: "İş e-postası",
     error: "E-posta veya Operatör üyeliği doğrulanamadı.",
     intro: "Yurt yöneticinizin kaydettiği e-posta adresini kullanın.",
