@@ -2,6 +2,7 @@ import { isSupportedLocale } from "@ranza/i18n";
 import { StatusMessage } from "@ranza/ui";
 import { notFound, redirect } from "next/navigation";
 import { LocalizedShell } from "../../../../components/localized-shell";
+import { StudentCredentialIssue } from "../../../../components/student-credential-issue";
 import { createProductWebClient } from "../../../../lib/supabase/server";
 import { manageRoster } from "./actions";
 
@@ -202,6 +203,9 @@ export default async function RosterPage({
             {student.status === "active" ? t.active : t.inactive} · {t.id}:{" "}
             <bdi dir="ltr">{student.access_id}</bdi>
           </p>
+          {student.status === "active" && (
+            <StudentCredentialIssue studentId={student.id} locale={locale} />
+          )}
           <form action={manageRoster}>
             {hidden("edit", student)}
             {fields(student)}
