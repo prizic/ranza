@@ -43,7 +43,7 @@ export function LocalizedShell({
           label: messages.navigation.announcements,
         },
         {
-          href: `${localizeHref(locale, "/")}#balance`,
+          href: localizeHref(locale, "/balance"),
           label: messages.navigation.balance,
         },
         {

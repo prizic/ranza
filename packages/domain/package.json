@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./balance": "./src/balance.ts",
     "./capacity": "./src/capacity.ts",
     "./meals": "./src/meals.ts",
     "./leads": "./src/leads.ts"
