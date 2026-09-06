@@ -1,6 +1,6 @@
 begin;
 
-select plan(15);
+select plan(20);
 
 select has_table('public', 'operators', 'Operators are migrated');
 select has_table('public', 'branches', 'Branches are migrated');
@@ -29,6 +29,14 @@ values
 
 insert into private.platform_memberships (auth_user_id, role, status)
 values ('11111111-1111-4111-8111-111111111111', 'platform_admin', 'active');
+
+insert into auth.sessions (id, user_id, created_at, updated_at)
+values (
+  '55555555-5555-4555-8555-555555555555',
+  '11111111-1111-4111-8111-111111111111',
+  now(),
+  now()
+);
 
 insert into public.operators (id, name, status, default_locale, archived_at)
 values (
@@ -71,7 +79,27 @@ select throws_ok(
 
 select set_config(
   'request.jwt.claims',
-  '{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated","aal":"aal1"}',
+  '{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated","aal":"aal1","session_id":"55555555-5555-4555-8555-555555555555"}',
+  true
+);
+select results_eq(
+  $$ select count(*)::bigint from public.operators $$,
+  array[0::bigint],
+  'a Platform Admin without AAL2 cannot read Operators'
+);
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated","aal":"aal2"}',
+  true
+);
+select results_eq(
+  $$ select count(*)::bigint from public.operators $$,
+  array[0::bigint],
+  'a Platform Admin without a live Session cannot read Operators'
+);
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated","aal":"aal2","session_id":"55555555-5555-4555-8555-555555555555"}',
   true
 );
 select results_eq(
@@ -89,6 +117,26 @@ select throws_ok(
   '42501',
   null,
   'production lifecycle deletion is unavailable'
+);
+
+reset role;
+select throws_ok(
+  $$ update public.audit_events set action = 'tampered' where operator_id = '33333333-3333-4333-8333-333333333333' $$,
+  '55000',
+  'Audit events are append-only',
+  'privileged callers cannot update Audit Events'
+);
+select throws_ok(
+  $$ delete from public.audit_events where operator_id = '33333333-3333-4333-8333-333333333333' $$,
+  '55000',
+  'Audit events are append-only',
+  'privileged callers cannot delete Audit Events'
+);
+select throws_ok(
+  $$ truncate public.audit_events $$,
+  '55000',
+  'Audit events are append-only',
+  'privileged callers cannot truncate Audit Events'
 );
 
 select * from finish();

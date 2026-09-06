@@ -15,6 +15,9 @@ insert into auth.users(id,instance_id,aud,role,email,encrypted_password) values
 insert into private.platform_memberships(auth_user_id,role,status) values
 ('14000000-0000-4000-8000-000000000001','platform_admin','active'),
 ('14000000-0000-4000-8000-000000000002','platform_admin','active');
+insert into auth.sessions(id,user_id,created_at,updated_at) values
+('15000000-0000-4000-8000-000000000001','14000000-0000-4000-8000-000000000001',now(),now()),
+('15000000-0000-4000-8000-000000000002','14000000-0000-4000-8000-000000000002',now(),now());
 insert into public.operators(id,name,status) values
 ('24000000-0000-4000-8000-000000000001','Lifecycle Operator','active'),
 ('24000000-0000-4000-8000-000000000002','Other Operator','active');
@@ -23,15 +26,15 @@ set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"14000000-0000-4000-8000-000000000003","role":"authenticated"}',true);
 select throws_ok($$select public.request_operator_export('24000000-0000-4000-8000-000000000001')$$,'42501','Operator export denied','non-platform caller cannot request an export');
 
-select set_config('request.jwt.claims','{"sub":"14000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+select set_config('request.jwt.claims','{"sub":"14000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2","session_id":"15000000-0000-4000-8000-000000000001"}',true);
 select lives_ok($$select public.request_operator_export('24000000-0000-4000-8000-000000000001')$$,'Platform Admin queues a scoped full export');
 select results_eq($$select status from public.operator_data_exports$$,array['queued'::text],'new full export is asynchronous');
 select results_eq($$select encryption_mode from public.operator_data_exports$$,array['platform_managed_at_rest'::text],'archive declares at-rest encryption');
 
-select set_config('request.jwt.claims','{"sub":"14000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
+select set_config('request.jwt.claims','{"sub":"14000000-0000-4000-8000-000000000002","role":"authenticated","aal":"aal2","session_id":"15000000-0000-4000-8000-000000000002"}',true);
 select results_eq($$select count(*)::bigint from public.operator_data_exports$$,array[0::bigint],'another Platform Admin cannot read the requesters export identifier');
 
-select set_config('request.jwt.claims','{"sub":"14000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+select set_config('request.jwt.claims','{"sub":"14000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2","session_id":"15000000-0000-4000-8000-000000000001"}',true);
 select lives_ok($$select public.approve_operator_lifecycle_policy('24000000-0000-4000-8000-000000000001',30,365,2555,24)$$,'approved configurable retention policy is recorded');
 update public.operators set status='archived' where id='24000000-0000-4000-8000-000000000001';
 select results_eq($$select state from public.operator_data_lifecycle where operator_id='24000000-0000-4000-8000-000000000001'$$,array['retained'::text],'archive moves data into an explicit retained lifecycle');
