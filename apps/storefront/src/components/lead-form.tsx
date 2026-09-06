@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Script from "next/script";
 import type { SupportedLocale } from "@ranza/i18n";
 import { leadMessagesFor } from "@ranza/i18n/leads";
@@ -34,6 +34,10 @@ export function LeadForm({
     correlationId?: string;
     errors?: LeadErrors;
   } | null>(null);
+  useEffect(() => {
+    if (!result) return;
+    requestAnimationFrame(() => summary.current?.focus());
+  }, [result]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending) return;
@@ -71,7 +75,6 @@ export function LeadForm({
       setPending(false);
       setToken("");
       if (widget.current) window.turnstile?.reset(widget.current);
-      requestAnimationFrame(() => summary.current?.focus());
     }
   }
   return (
