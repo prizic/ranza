@@ -1,0 +1,10 @@
+.superpowers/
+.scratch/
+.env*
+!.env.example
+node_modules/
+.next/
+.turbo/
+coverage/
+dist/
+.DS_Store

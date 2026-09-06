@@ -1,0 +1,3 @@
+# Build Ranza as a shared vertical SaaS
+
+Ranza will initially serve independent private student-dormitory operators of any size in Turkey through one multi-tenant product and one release line. Branding, permissions, and paid capabilities may vary through configuration and entitlements, but Prizic will not fork the product for individual customers. The initial product will support Turkish, English, and Arabic. This preserves the concrete dormitory workflows identified in the product research, prevents customer deployments from fragmenting, and supports the goal of a focused profitable SaaS; expansion beyond this market will wait until at least 10 Dormitory Operators are paying.

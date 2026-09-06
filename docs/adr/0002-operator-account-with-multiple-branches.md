@@ -1,0 +1,3 @@
+# Model an Operator with multiple Branches
+
+One Dormitory Operator can contain multiple Branches—including separate male and female residences—and one Manager can oversee more than one Branch. The Operator holds one subscription and receives one consolidated invoice across its Branches. Operator-wide owners and authorized Managers can access all Branches, while Branch staff are restricted to assigned Branches. A Student has one active home Branch at a time and can transfer without losing history. Ranza will therefore model the Operator-to-Branch hierarchy explicitly instead of assuming every customer manages one building or duplicating identities per Branch.
