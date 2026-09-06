@@ -9,6 +9,7 @@ export const publicEnvironmentSchema = z.object({
 });
 
 export const serverEnvironmentSchema = publicEnvironmentSchema.extend({
+  ATTENDANCE_SCHEDULER_SECRET: optionalNonEmptyString,
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),

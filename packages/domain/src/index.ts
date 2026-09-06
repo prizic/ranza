@@ -16,6 +16,7 @@ export {
   attendanceDeclarations,
   buildAttendanceBoard,
   parseAttendanceDeclaration,
+  snapshotAttendance,
 } from "./attendance";
 export type {
   AttendanceBoard,
@@ -24,6 +25,7 @@ export type {
   AttendanceResponse,
   AttendanceRosterStudent,
   AttendanceStatus,
+  AttendanceSnapshot,
 } from "./attendance";
 
 export {
