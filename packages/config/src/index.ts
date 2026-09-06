@@ -12,6 +12,7 @@ export const serverEnvironmentSchema = publicEnvironmentSchema.extend({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
+  RANZA_SCHEDULER_SECRET: optionalNonEmptyString,
   SENTRY_DSN: z.url().optional(),
   SUPABASE_SERVICE_ROLE_KEY: optionalNonEmptyString,
   WIFI_ENCRYPTION_KEY_V1: optionalNonEmptyString,
