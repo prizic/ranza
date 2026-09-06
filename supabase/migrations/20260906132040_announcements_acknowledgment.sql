@@ -184,18 +184,18 @@ language sql security invoker set search_path='' as $$select private.archive_ann
 
 create function private.acknowledge_announcement(target_revision_id uuid) returns timestamptz
 language plpgsql security definer set search_path='' as $$
-declare r public.announcement_revisions%rowtype; student_id uuid; recorded_at timestamptz;
+declare r public.announcement_revisions%rowtype; current_student_id uuid; recorded_at timestamptz;
 begin
   select * into r from public.announcement_revisions where id=target_revision_id;
   perform 1 from public.announcements where id=r.announcement_id for update;
-  student_id:=private.current_student_id();
-  if student_id is null or not private.can_read_announcement_revision(target_revision_id)
-    or not exists(select 1 from public.announcement_recipients recipient where recipient.revision_id=target_revision_id and recipient.student_id=acknowledge_announcement.student_id) then
+  current_student_id:=private.current_student_id();
+  if current_student_id is null or not private.can_read_announcement_revision(target_revision_id)
+    or not exists(select 1 from public.announcement_recipients recipient where recipient.revision_id=target_revision_id and recipient.student_id=current_student_id) then
     raise exception 'Acknowledgment denied' using errcode='42501'; end if;
   insert into public.announcement_acknowledgements(revision_id,student_id,operator_id)
-  values(r.id,student_id,r.operator_id) on conflict do nothing;
+  values(r.id,current_student_id,r.operator_id) on conflict do nothing;
   select a.acknowledged_at into recorded_at from public.announcement_acknowledgements a
-  where a.revision_id=r.id and a.student_id=acknowledge_announcement.student_id;
+  where a.revision_id=r.id and a.student_id=current_student_id;
   return recorded_at;
 end;
 $$;
