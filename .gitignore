@@ -8,4 +8,8 @@ node_modules/
 .turbo/
 coverage/
 dist/
+.vercel/
+*.tsbuildinfo
+supabase/.branches/
+supabase/.temp/
 .DS_Store
