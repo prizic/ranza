@@ -8,6 +8,8 @@ insert into auth.users(id,email) values
 ('c1000000-0000-4000-8000-000000000004','final-outsider@test.invalid');
 insert into private.platform_memberships(auth_user_id,role)
 values('c1000000-0000-4000-8000-000000000001','platform_admin');
+insert into auth.sessions(id,user_id,created_at,updated_at) values
+('c7000000-0000-4000-8000-000000000001','c1000000-0000-4000-8000-000000000001',now(),now());
 insert into public.operators(id,name,status) values
 ('c2000000-0000-4000-8000-000000000001','Finalization Operator','active'),
 ('c2000000-0000-4000-8000-000000000002','Other Finalization Operator','active');
@@ -25,7 +27,7 @@ insert into public.student_branch_history(operator_id,student_id,branch_id,start
 ('c2000000-0000-4000-8000-000000000001','c5000000-0000-4000-8000-000000000002','c3000000-0000-4000-8000-000000000001',clock_timestamp()-interval '2 days');
 
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"c1000000-0000-4000-8000-000000000001"}',true);
+select set_config('request.jwt.claims','{"sub":"c1000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2","session_id":"c7000000-0000-4000-8000-000000000001"}',true);
 insert into public.operator_entitlements(operator_id,capability_key,catalog_version,allowed_modes)
 values('c2000000-0000-4000-8000-000000000001','attendance',1,array['standard']);
 set local role postgres;

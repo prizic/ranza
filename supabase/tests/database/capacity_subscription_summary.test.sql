@@ -39,6 +39,14 @@ values
 insert into private.platform_memberships (auth_user_id, role)
 values ('11000000-0000-4000-8000-000000000005', 'platform_admin');
 
+insert into auth.sessions (id, user_id, created_at, updated_at)
+values (
+  '15000000-0000-4000-8000-000000000005',
+  '11000000-0000-4000-8000-000000000005',
+  now(),
+  now()
+);
+
 insert into public.operators (id, name, status)
 values
   ('21000000-0000-4000-8000-000000000001', 'Capacity Operator', 'active'),
@@ -142,7 +150,7 @@ select results_eq(
   'capacity changes are audited'
 );
 
-select set_config('request.jwt.claims', '{"sub":"11000000-0000-4000-8000-000000000005","role":"authenticated","aal":"aal2"}', true);
+select set_config('request.jwt.claims', '{"sub":"11000000-0000-4000-8000-000000000005","role":"authenticated","aal":"aal2","session_id":"15000000-0000-4000-8000-000000000005"}', true);
 insert into public.subscriptions (
   id, operator_id, status, starts_on, pricing_reference
 ) values (

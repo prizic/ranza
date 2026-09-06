@@ -10,6 +10,8 @@ insert into auth.users(id,email) values
 ('b1000000-0000-4000-8000-000000000006','wifi-inactive@test.invalid');
 insert into private.platform_memberships(auth_user_id,role)
 values('b1000000-0000-4000-8000-000000000001','platform_admin');
+insert into auth.sessions(id,user_id,created_at,updated_at) values
+('b6000000-0000-4000-8000-000000000001','b1000000-0000-4000-8000-000000000001',now(),now());
 insert into public.operators(id,name,status) values
 ('b2000000-0000-4000-8000-000000000001','Wi-Fi Operator','active'),
 ('b2000000-0000-4000-8000-000000000002','Other Wi-Fi Operator','active');
@@ -31,7 +33,7 @@ insert into public.student_branch_history(operator_id,student_id,branch_id) valu
 ('b2000000-0000-4000-8000-000000000001','b5000000-0000-4000-8000-000000000003','b3000000-0000-4000-8000-000000000001');
 
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"b1000000-0000-4000-8000-000000000001"}',true);
+select set_config('request.jwt.claims','{"sub":"b1000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2","session_id":"b6000000-0000-4000-8000-000000000001"}',true);
 insert into public.operator_entitlements(operator_id,capability_key,catalog_version,allowed_modes)
 values('b2000000-0000-4000-8000-000000000001','wifi',1,array['protected','public_qr']);
 

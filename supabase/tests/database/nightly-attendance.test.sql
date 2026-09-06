@@ -9,6 +9,8 @@ insert into auth.users(id,email) values
 ('a1000000-0000-4000-8000-000000000005','attendance-outsider@test.invalid');
 insert into private.platform_memberships(auth_user_id,role)
 values('a1000000-0000-4000-8000-000000000001','platform_admin');
+insert into auth.sessions(id,user_id,created_at,updated_at) values
+('a6000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000001',now(),now());
 insert into public.operators(id,name,status) values
 ('a2000000-0000-4000-8000-000000000001','Attendance Operator','active'),
 ('a2000000-0000-4000-8000-000000000002','Other Operator','active');
@@ -29,7 +31,7 @@ insert into public.student_branch_history(operator_id,student_id,branch_id) valu
 ('a2000000-0000-4000-8000-000000000002','a5000000-0000-4000-8000-000000000003','a3000000-0000-4000-8000-000000000002');
 
 set local role authenticated;
-select set_config('request.jwt.claims','{"sub":"a1000000-0000-4000-8000-000000000001"}',true);
+select set_config('request.jwt.claims','{"sub":"a1000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2","session_id":"a6000000-0000-4000-8000-000000000001"}',true);
 insert into public.operator_entitlements(operator_id,capability_key,catalog_version,allowed_modes) values
 ('a2000000-0000-4000-8000-000000000001','attendance',1,array['standard']),
 ('a2000000-0000-4000-8000-000000000002','attendance',1,array['standard']);
