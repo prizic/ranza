@@ -159,9 +159,46 @@ export async function POST(request: Request) {
       results.push({ id: job.id, status: "failed" });
     }
   }
+  const { data: lifecycleRuns, error: lifecycleDiscoveryError } = await client
+    .from("operator_lifecycle_runs")
+    .select("id")
+    .in("status", ["queued", "failed"])
+    .lt("attempt_count", 3)
+    .or(
+      `next_attempt_at.is.null,next_attempt_at.lte.${new Date().toISOString()}`,
+    )
+    .order("requested_at")
+    .limit(10);
+  if (lifecycleDiscoveryError)
+    return NextResponse.json(
+      { correlationId, error: "lifecycle_discovery_failed", results },
+      { status: 503 },
+    );
+  const lifecycleResults: Array<{
+    attempt: number;
+    claimed: boolean;
+    id: string;
+    status: string;
+  }> = [];
+  for (const run of lifecycleRuns ?? []) {
+    const { data, error } = await client.rpc("process_operator_lifecycle_run", {
+      target_correlation_id: `${correlationId}:${run.id}`.slice(0, 128),
+      target_run_id: run.id,
+    });
+    const outcome = Array.isArray(data) ? data[0] : null;
+    lifecycleResults.push({
+      attempt: Number(outcome?.attempt ?? 0),
+      claimed: !error && outcome?.claimed === true,
+      id: run.id,
+      status: error
+        ? "worker_error"
+        : String(outcome?.run_status ?? "not_claimed"),
+    });
+  }
   return NextResponse.json({
     correlationId,
     expired: expired?.length ?? 0,
+    lifecycleResults,
     results,
   });
 }
