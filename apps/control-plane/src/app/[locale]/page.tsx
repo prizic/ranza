@@ -1,14 +1,19 @@
 import { formatNumber, isSupportedLocale } from "@ranza/i18n";
 import { BidiText, StatusMessage } from "@ranza/ui";
 import { notFound } from "next/navigation";
+import { randomUUID } from "node:crypto";
 
 import { LocalizedShell } from "../../components/localized-shell";
 import { readOperators } from "../../lib/operator-control";
 import { hasControlPlaneDatabase } from "../../lib/supabase/server";
 import {
   archiveBranchAction,
+  approveLifecyclePolicyAction,
   createBranchAction,
   createOperatorAction,
+  executeLifecycleAction,
+  planLifecycleAction,
+  requestOperatorExportAction,
   setOperatorStatusAction,
   signOutAction,
 } from "./actions";
@@ -163,6 +168,123 @@ export default async function ControlPlanePage({
                 {operator.status}
               </strong>
             </header>
+            <div className="lifecycle-actions">
+              <form action={requestOperatorExportAction}>
+                <input name="locale" type="hidden" value={locale} />
+                <input name="operatorId" type="hidden" value={operator.id} />
+                <button className="button button-secondary" type="submit">
+                  Request full export
+                </button>
+              </form>
+              {operator.latestExport ? (
+                operator.latestExport.status === "ready" ? (
+                  <a
+                    className="button button-secondary"
+                    href={`/api/operator-exports/${operator.latestExport.id}/download?operator=${operator.id}`}
+                  >
+                    Download export
+                  </a>
+                ) : (
+                  <span>Export: {operator.latestExport.status}</span>
+                )
+              ) : null}
+              <span>
+                Data lifecycle: {operator.lifecycle?.state ?? operator.status}
+              </span>
+            </div>
+            <form
+              action={approveLifecyclePolicyAction}
+              className="control-form compact-form"
+            >
+              <h3>Approved retention policy</h3>
+              <input name="locale" type="hidden" value={locale} />
+              <input name="operatorId" type="hidden" value={operator.id} />
+              <label>
+                Archive retention days
+                <input
+                  defaultValue="30"
+                  min="1"
+                  name="archiveDays"
+                  type="number"
+                />
+              </label>
+              <label>
+                Anonymize after days
+                <input
+                  defaultValue="365"
+                  min="1"
+                  name="anonymizeDays"
+                  type="number"
+                />
+              </label>
+              <label>
+                Delete after days
+                <input
+                  defaultValue="2555"
+                  min="1"
+                  name="deleteDays"
+                  type="number"
+                />
+              </label>
+              <label>
+                Export retention hours
+                <input
+                  defaultValue="24"
+                  max="168"
+                  min="1"
+                  name="exportHours"
+                  type="number"
+                />
+              </label>
+              <button className="button button-secondary" type="submit">
+                Approve policy
+              </button>
+            </form>
+            {operator.status === "archived" &&
+            operator.lifecycle?.policyVersion ? (
+              <div className="lifecycle-actions">
+                {(["anonymize", "delete"] as const).map((action) => (
+                  <form action={planLifecycleAction} key={action}>
+                    <input name="locale" type="hidden" value={locale} />
+                    <input
+                      name="operatorId"
+                      type="hidden"
+                      value={operator.id}
+                    />
+                    <input
+                      name="lifecycleAction"
+                      type="hidden"
+                      value={action}
+                    />
+                    <button className="button button-secondary" type="submit">
+                      Dry run {action}
+                    </button>
+                  </form>
+                ))}
+              </div>
+            ) : null}
+            {operator.lifecycleRuns
+              .filter((run) => run.isDryRun && run.status === "planned")
+              .map((run) => (
+                <form
+                  action={executeLifecycleAction}
+                  className="control-form compact-form"
+                  key={run.id}
+                >
+                  <input name="locale" type="hidden" value={locale} />
+                  <input name="operatorId" type="hidden" value={operator.id} />
+                  <input name="runId" type="hidden" value={run.id} />
+                  <input
+                    name="idempotencyKey"
+                    type="hidden"
+                    value={randomUUID()}
+                  />
+                  <span>Dry-run manifest ready: {run.action}</span>
+                  <button className="button" type="submit">
+                    Queue approved execution
+                  </button>
+                </form>
+              ))}
             {operator.status !== "archived" ? (
               <div className="lifecycle-actions">
                 {operator.status !== "active" ? (
