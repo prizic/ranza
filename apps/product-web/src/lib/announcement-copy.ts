@@ -1,5 +1,16 @@
 export const announcementCopy = {
   en: {
+    revise: "Publish new revision",
+    revisionOf: "Announcement to revise",
+    chooseRevision: "Choose a published announcement",
+    reviseHint:
+      "Enter the complete revised message, translations and audience. Publishing a revision requires every active recipient to acknowledge it again.",
+    history: "Revision history and follow-up",
+    export: "Export CSV",
+    all: "All recipients",
+    filter: "Filter",
+    recipient: "Recipient",
+    resolved: "Recipient resolved at",
     title: "Announcements",
     draft: "Save draft",
     publish: "Publish",
@@ -28,6 +39,17 @@ export const announcementCopy = {
     draftStatus: "Draft",
   },
   tr: {
+    revise: "Yeni revizyonu yayınla",
+    revisionOf: "Güncellenecek duyuru",
+    chooseRevision: "Yayınlanmış duyuru seçin",
+    reviseHint:
+      "Güncel iletinin tamamını, çevirileri ve hedef kitleyi girin. Yeni revizyonda aktif alıcıların yeniden onaylaması gerekir.",
+    history: "Revizyon geçmişi ve takip",
+    export: "CSV dışa aktar",
+    all: "Tüm alıcılar",
+    filter: "Filtrele",
+    recipient: "Alıcı",
+    resolved: "Alıcı belirleme zamanı",
     title: "Duyurular",
     draft: "Taslağı kaydet",
     publish: "Yayınla",
@@ -55,6 +77,17 @@ export const announcementCopy = {
     draftStatus: "Taslak",
   },
   ar: {
+    revise: "نشر إصدار جديد",
+    revisionOf: "الإعلان المراد تعديله",
+    chooseRevision: "اختر إعلانًا منشورًا",
+    reviseHint:
+      "أدخل الرسالة المعدلة كاملة والترجمات والجمهور. يجب على المستلمين النشطين الإقرار بالإصدار الجديد مجددًا.",
+    history: "سجل الإصدارات والمتابعة",
+    export: "تصدير CSV",
+    all: "جميع المستلمين",
+    filter: "تصفية",
+    recipient: "المستلم",
+    resolved: "وقت تحديد المستلم",
     title: "الإعلانات",
     draft: "حفظ المسودة",
     publish: "نشر",
