@@ -3,6 +3,7 @@ import { BidiText, StatusMessage } from "@ranza/ui";
 import { notFound } from "next/navigation";
 
 import { LocalizedShell } from "../../components/localized-shell";
+import { studentCredentialCopy } from "../../lib/student-credential-copy";
 
 export default async function ProductWebPage({
   params,
@@ -22,6 +23,7 @@ export default async function ProductWebPage({
   ] as const;
   return (
     <LocalizedShell locale={locale}>
+      <a href={`/${locale}/activate`}>{studentCredentialCopy[locale].title}</a>
       <section className="dayline" aria-label={today}>
         <span>{today}</span>
         <BidiText>IST-01 · 21:15 · TRY 1,250.00</BidiText>
