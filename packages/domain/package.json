@@ -9,6 +9,7 @@
     "./capacity": "./src/capacity.ts",
     "./meals": "./src/meals.ts",
     "./meal-export": "./src/meal-export.ts",
+    "./attendance-export": "./src/attendance-export.ts",
     "./leads": "./src/leads.ts"
   },
   "scripts": {

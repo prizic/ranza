@@ -32,19 +32,18 @@ create table public.attendance_snapshot_students (
 create table public.background_job_runs (
   id uuid primary key default gen_random_uuid(),
   job_key text not null check (char_length(job_key) between 8 and 200),
-  attempt integer not null check (attempt > 0),
+  attempt integer not null default 1 check (attempt > 0),
   operator_id uuid,
   branch_id uuid,
   target_session_id uuid references public.attendance_sessions(id) on delete restrict,
   status text not null check (status in ('running','succeeded','failed','exhausted')),
-  source text not null check (source in ('scheduler','staff_retry')),
+  source text not null default 'scheduler' check (source in ('scheduler','staff_retry')),
   correlation_id text not null check (char_length(correlation_id) between 8 and 128),
   started_at timestamptz not null default clock_timestamp(),
   completed_at timestamptz,
   duration_ms integer check (duration_ms is null or duration_ms >= 0),
   error_reference text,
-  foreign key(branch_id,operator_id) references public.branches(id,operator_id) on delete restrict,
-  unique(job_key,attempt)
+  foreign key(branch_id,operator_id) references public.branches(id,operator_id) on delete restrict
 );
 
 create index attendance_snapshots_branch_date_idx
@@ -56,6 +55,9 @@ on public.background_job_runs(target_session_id,started_at desc);
 create index background_job_runs_failed_idx
 on public.background_job_runs(status,started_at desc)
 where status in ('failed','exhausted');
+create unique index background_job_runs_attendance_attempt_unique
+on public.background_job_runs(target_session_id,attempt)
+where target_session_id is not null;
 
 alter table public.attendance_snapshots enable row level security;
 alter table public.attendance_snapshot_students enable row level security;

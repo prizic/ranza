@@ -60,3 +60,45 @@ export async function retryAttendanceFinalization(form: FormData) {
   revalidatePath(`/${locale}/staff/attendance`);
   redirect(`${path}&result=finalized`);
 }
+
+export async function correctAttendance(form: FormData) {
+  const rawLocale = form.get("locale");
+  const locale = isSupportedLocale(rawLocale) ? rawLocale : "tr";
+  const branch = String(form.get("branch") ?? "");
+  const session = String(form.get("session") ?? "");
+  const student = String(form.get("student") ?? "");
+  const status = String(form.get("status") ?? "");
+  const reason = String(form.get("reason") ?? "");
+  const path = `/${locale}/staff/attendance?branch=${encodeURIComponent(branch)}`;
+  const client = await createProductWebClient();
+  const { data: auth } = await client.auth.getUser();
+  if (!auth.user) redirect(`/${locale}/staff/sign-in`);
+  const { error } = await client.rpc("correct_attendance", {
+    correction_reason: reason,
+    new_status: status,
+    target_session_id: session,
+    target_student_id: student,
+  });
+  if (error) redirect(`${path}&result=correction-denied`);
+  revalidatePath(`/${locale}/staff/attendance`);
+  redirect(`${path}&result=corrected`);
+}
+
+export async function reopenAttendance(form: FormData) {
+  const rawLocale = form.get("locale");
+  const locale = isSupportedLocale(rawLocale) ? rawLocale : "tr";
+  const branch = String(form.get("branch") ?? "");
+  const session = String(form.get("session") ?? "");
+  const reason = String(form.get("reason") ?? "");
+  const path = `/${locale}/staff/attendance?branch=${encodeURIComponent(branch)}`;
+  const client = await createProductWebClient();
+  const { data: auth } = await client.auth.getUser();
+  if (!auth.user) redirect(`/${locale}/staff/sign-in`);
+  const { error } = await client.rpc("reopen_attendance", {
+    reopen_reason: reason,
+    target_session_id: session,
+  });
+  if (error) redirect(`${path}&result=reopen-denied`);
+  revalidatePath(`/${locale}/staff/attendance`);
+  redirect(`${path}&result=reopened`);
+}

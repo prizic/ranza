@@ -54,21 +54,10 @@ create table public.meal_corrections (
 );
 create index meal_corrections_latest_idx on public.meal_corrections(snapshot_id,student_id,corrected_at desc,id desc);
 
-create table public.background_job_runs (
-  id uuid primary key default gen_random_uuid(),
-  job_key text not null check(char_length(job_key) between 4 and 200),
-  operator_id uuid references public.operators(id) on delete restrict,
-  branch_id uuid,
-  target_id uuid,
-  status text not null check(status in ('running','succeeded','failed')),
-  correlation_id text not null unique check(char_length(correlation_id) between 8 and 200),
-  started_at timestamptz not null default clock_timestamp(),
-  finished_at timestamptz,
-  error_reference text,
-  result_summary jsonb not null default '{}' check(jsonb_typeof(result_summary)='object'),
-  foreign key(branch_id,operator_id) references public.branches(id,operator_id) on delete restrict,
-  check ((status='running' and finished_at is null) or (status<>'running' and finished_at is not null))
-);
+alter table public.background_job_runs
+  add column target_id uuid,
+  add column finished_at timestamptz,
+  add column result_summary jsonb not null default '{}' check(jsonb_typeof(result_summary)='object');
 create index background_job_runs_status_idx on public.background_job_runs(status,started_at desc);
 create index background_job_runs_branch_idx on public.background_job_runs(operator_id,branch_id,started_at desc);
 
