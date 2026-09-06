@@ -1,4 +1,6 @@
 export { parseStudentDraft } from "./student-roster";
+export { selectAnnouncementContent } from "./announcements";
+export type { AnnouncementContent } from "./announcements";
 export type { StudentDraft } from "./student-roster";
 export { mealTypes, parseMealSelection, summarizeMealResponses } from "./meals";
 export type { MealType } from "./meals";
