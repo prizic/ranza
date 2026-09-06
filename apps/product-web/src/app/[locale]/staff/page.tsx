@@ -95,6 +95,16 @@ export default async function StaffPage({
                 : "Student roster"}
           </a>
         ) : null}
+        {capabilities.includes("workflow.manage") ||
+        capabilities.includes("workflow.read") ? (
+          <a href={`/${locale}/staff/meals?branch=${selectedBranchId}`}>
+            {locale === "tr"
+              ? "Yemek yanıtları"
+              : locale === "ar"
+                ? "ردود الوجبات"
+                : "Meal responses"}
+          </a>
+        ) : null}
         <h2>Staff access</h2>
         <p>{selected.operator_role.replace("_", " ")}</p>
         <ul>
