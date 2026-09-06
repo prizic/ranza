@@ -115,6 +115,16 @@ export default async function StaffPage({
                 : "Meal responses"}
           </a>
         ) : null}
+        {capabilities.includes("workflow.manage") ||
+        capabilities.includes("workflow.read") ? (
+          <a href={`/${locale}/staff/wifi?branch=${selectedBranchId}`}>
+            {locale === "tr"
+              ? "Şube Wi-Fi"
+              : locale === "ar"
+                ? "شبكة Wi-Fi للفرع"
+                : "Branch Wi-Fi"}
+          </a>
+        ) : null}
         <h2>Staff access</h2>
         <p>{selected.operator_role.replace("_", " ")}</p>
         <ul>

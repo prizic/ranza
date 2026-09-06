@@ -115,6 +115,7 @@ test.describe("Product Web PWA", () => {
     await page.evaluate(async () => {
       await fetch("/ar");
       await fetch("/tr", { headers: { Authorization: "Bearer smoke-test" } });
+      await fetch("/tr/wifi?branch=copied-url");
     });
 
     const cachedRequests = await page.evaluate(async () => {
@@ -126,5 +127,6 @@ test.describe("Product Web PWA", () => {
     });
 
     expect(cachedRequests.some((url) => /\/(tr|ar)$/.test(url))).toBe(false);
+    expect(cachedRequests.some((url) => url.includes("/wifi"))).toBe(false);
   });
 });
