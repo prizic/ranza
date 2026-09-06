@@ -19,7 +19,8 @@
     "lint": "turbo run lint && pnpm lint:boundaries",
     "lint:boundaries": "depcruise --config .dependency-cruiser.cjs apps packages",
     "smoke": "node scripts/health-smoke.mjs --production",
-    "test": "node scripts/health-smoke.mjs",
+    "test": "pnpm test:boundaries && node scripts/health-smoke.mjs",
+    "test:boundaries": "node scripts/dependency-boundaries.mjs",
     "typecheck": "turbo run typecheck"
   },
   "devDependencies": {

@@ -23,7 +23,7 @@ module.exports = {
       name: "domain-is-framework-independent",
       severity: "error",
       from: { path: "^packages/domain/" },
-      to: { path: "^(next|@supabase/)" },
+      to: { path: "(^|node_modules/)(next(?:/|$)|@supabase/)" },
     },
     {
       name: "domain-is-the-base-layer",
@@ -70,7 +70,7 @@ module.exports = {
   ],
   options: {
     doNotFollow: { path: "node_modules" },
-    exclude: "(^|/)(node_modules|.next|dist)/",
+    exclude: "(^|/)(.next|dist)/",
     tsConfig: { fileName: "tsconfig.json" },
   },
 };
