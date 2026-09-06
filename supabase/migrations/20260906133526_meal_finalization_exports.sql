@@ -199,13 +199,16 @@ group by snapshot.id,snapshot.operator_id,snapshot.branch_id,snapshot.meal_day_i
 
 create function public.meal_export_rows(target_meal_day_id uuid)
 returns table(student_access_id text,student_name text,response_status text,selected_meals text[],corrected boolean)
-language plpgsql stable security definer set search_path='' as $$
+language plpgsql security definer set search_path='' as $$
 declare snapshot public.meal_snapshots%rowtype;
 begin
   select * into snapshot from public.meal_snapshots where meal_day_id=target_meal_day_id;
   if snapshot.id is null or not private.has_active_branch_access(snapshot.operator_id,snapshot.branch_id) then
     raise exception 'Meal export denied' using errcode='42501';
   end if;
+  insert into public.audit_events(operator_id,branch_id,actor_user_id,actor_type,action,target_type,target_id,after_summary,correlation_id)
+  values(snapshot.operator_id,snapshot.branch_id,auth.uid(),'operator_staff','meal.exported','meal_snapshot',snapshot.id,
+    jsonb_build_object('meal_day_id',target_meal_day_id,'format','csv'),private.current_correlation_id());
   return query select status.student_access_id,status.student_name,status.response_status,status.selected_meals,status.corrected
   from public.meal_final_student_status status where status.meal_day_id=target_meal_day_id order by status.student_name,status.student_id;
 end;

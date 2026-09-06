@@ -1,5 +1,5 @@
 begin;
-select plan(26);
+select plan(27);
 select has_table('public','meal_snapshots','Meal Snapshots are migrated');
 select has_table('public','meal_snapshot_students','eligible roster snapshots are migrated');
 select has_table('public','meal_corrections','Meal Corrections are migrated');
@@ -66,6 +66,7 @@ select lives_ok($$select public.correct_meal_selection('64000000-0000-4000-8000-
 select results_eq($$select cutoff_offering_totals->>'lunch' from public.meal_final_totals$$,array['0'::text],'original cutoff total remains immutable');
 select results_eq($$select offering_totals->>'lunch' from public.meal_final_totals$$,array['1'::text],'effective kitchen total includes correction');
 select results_eq($$select count(*)::bigint from public.meal_export_rows('64000000-0000-4000-8000-000000000001')$$,array[3::bigint],'authorized export includes every eligible Student');
+select results_eq($$select count(*)::bigint from public.audit_events where action='meal.exported'$$,array[1::bigint],'authorized export is audited once');
 select results_eq($$select response_status from public.meal_export_rows('64000000-0000-4000-8000-000000000001') where student_access_id='rz-final-2'$$,array['zero_meal'::text],'export preserves explicit zero response');
 select set_config('request.jwt.claims','{"sub":"14000000-0000-4000-8000-000000000005","role":"authenticated"}',true);
 select throws_ok($$select * from public.meal_export_rows('64000000-0000-4000-8000-000000000001')$$,'42501','Meal export denied','manipulated cross-Operator export is denied');
