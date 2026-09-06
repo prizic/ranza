@@ -27,6 +27,15 @@ export function LocalizedShell({
       }))}
       navigation={[
         {
+          href: localizeHref(locale, "/operations"),
+          label:
+            locale === "tr"
+              ? "Operasyon ve destek"
+              : locale === "ar"
+                ? "العمليات والدعم"
+                : "Operations and support",
+        },
+        {
           href: localizeHref(locale, "/leads"),
           label: leadMessagesFor(locale).leads,
         },

@@ -1,0 +1,11 @@
+begin;
+select plan(7);
+select is(private.redacted_audit_summary('{"password":"secret","pin":"1234","status":"active","name":"Student","count":3}'::jsonb),'{"status":"active","count":3}'::jsonb,'Only allowlisted summaries survive');
+select is(private.redacted_audit_summary('{"status":"secret","mode":"password"}'::jsonb),'{}'::jsonb,'Arbitrary values in allowed keys do not leak');
+select ok(not has_table_privilege('authenticated','private.operational_signals','SELECT'),'Raw health signals remain private');
+select ok(not has_table_privilege('authenticated','private.support_job_retries','SELECT'),'Retry records remain private');
+select ok(not has_function_privilege('anon','public.platform_health(uuid,uuid)','EXECUTE'),'Anonymous callers cannot inspect health');
+select ok(not has_function_privilege('authenticated','public.record_operational_signal(text,text)','EXECUTE'),'Untrusted callers cannot spoof health');
+select throws_ok($$select public.start_support_context('00000000-0000-0000-0000-000000000001','Valid support reason')$$,'42501','Platform access denied','Missing verified platform identity is denied');
+select * from finish();
+rollback;

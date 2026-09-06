@@ -66,6 +66,7 @@ async function currentActor(locale: string): Promise<PlatformActor> {
   if (error || !data) redirect(`/${locale}/forbidden`);
 
   const assurance = await client.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (assurance.data?.currentLevel !== "aal2") redirect(`/${locale}/mfa`);
   return {
     mfaRequired: data.mfa_required,
     mfaVerified: assurance.data?.currentLevel === "aal2",

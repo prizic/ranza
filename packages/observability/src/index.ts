@@ -1,4 +1,8 @@
 import type { ApplicationName } from "@ranza/domain";
+export {
+  summarizeOperationalSignals,
+  type OperationalSignal,
+} from "./operations";
 
 export interface HealthPayload {
   application: ApplicationName;

@@ -94,7 +94,7 @@ export async function signInAction(formData: FormData) {
     password: text(formData, "password"),
   });
   if (error) redirect(`/${locale}/sign-in?error=invalid`);
-  redirect(`/${locale}`);
+  redirect(`/${locale}/mfa`);
 }
 
 export async function signOutAction(formData: FormData) {
