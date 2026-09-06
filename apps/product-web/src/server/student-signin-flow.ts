@@ -5,9 +5,7 @@ import {
 
 export interface StudentSignInPort {
   attempt(credential: string, network: string): Promise<boolean>;
-  lookup(
-    accessId: string,
-  ): Promise<{
+  lookup(accessId: string): Promise<{
     student_id: string;
     auth_user_id: string;
     auth_identifier: string;
