@@ -6,6 +6,7 @@ import {
 } from "@ranza/i18n";
 import { AppShell } from "@ranza/ui";
 import type { ReactNode } from "react";
+import { leadMessagesFor } from "@ranza/i18n/leads";
 
 export function LocalizedShell({
   children,
@@ -25,6 +26,10 @@ export function LocalizedShell({
         locale: item,
       }))}
       navigation={[
+        {
+          href: localizeHref(locale, "/leads"),
+          label: leadMessagesFor(locale).leads,
+        },
         {
           current: true,
           href: localizeHref(locale, "/"),
