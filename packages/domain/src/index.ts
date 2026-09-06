@@ -4,6 +4,8 @@ export type { AnnouncementContent } from "./announcements";
 export type { StudentDraft } from "./student-roster";
 export { mealTypes, parseMealSelection, summarizeMealResponses } from "./meals";
 export type { MealType } from "./meals";
+export { buildMealExportCsv, mealExportHeaders } from "./meal-export";
+export type { MealExportRow } from "./meal-export";
 export {
   balanceEntryTypes,
   formatMinorUnits,

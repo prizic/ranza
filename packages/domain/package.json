@@ -8,6 +8,7 @@
     "./balance": "./src/balance.ts",
     "./capacity": "./src/capacity.ts",
     "./meals": "./src/meals.ts",
+    "./meal-export": "./src/meal-export.ts",
     "./leads": "./src/leads.ts"
   },
   "scripts": {
