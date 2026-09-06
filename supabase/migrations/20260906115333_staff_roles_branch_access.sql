@@ -97,6 +97,25 @@ to authenticated;
 grant update (display_name, preferred_locale) on table public.profiles
 to authenticated;
 
+-- Membership changes take effect on the next request before the asynchronous
+-- Auth session revocation worker runs.
+create function private.has_pending_session_revocation(target_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from private.session_revocation_requests as request
+    where request.auth_user_id = target_user_id
+      and request.status in ('pending', 'processing')
+  );
+$$;
+revoke all on function private.has_pending_session_revocation(uuid) from public, anon;
+grant execute on function private.has_pending_session_revocation(uuid) to authenticated;
+
 create function private.has_active_operator_access(target_operator_id uuid)
 returns boolean
 language sql
@@ -112,7 +131,8 @@ as $$
       and membership.operator_id = target_operator_id
       and membership.status = 'active'
       and operator.status = 'active'
-  );
+  )
+  and not private.has_pending_session_revocation((select auth.uid()));
 $$;
 
 create function private.has_active_branch_access(
@@ -151,7 +171,8 @@ as $$
             and assignment.status = 'active'
         )
       )
-  );
+  )
+  and not private.has_pending_session_revocation((select auth.uid()));
 $$;
 
 create function private.is_operator_owner(target_operator_id uuid)
@@ -171,7 +192,8 @@ as $$
       and membership.access_scope = 'operator_wide'
       and membership.status = 'active'
       and operator.status = 'active'
-  );
+  )
+  and not private.has_pending_session_revocation((select auth.uid()));
 $$;
 
 create function private.is_own_membership(target_membership_id uuid)
