@@ -30,7 +30,13 @@ export interface OperatorView {
     residenceClassification: ResidenceClassification;
     status: BranchStatus;
     timezone: string;
+    billableBeds: number;
   }>;
+  billableBeds: number;
+  currentSubscription: null | {
+    pricingReference: string;
+    status: string;
+  };
   defaultLocale: "tr" | "en" | "ar";
   id: string;
   name: string;
@@ -145,6 +151,8 @@ export async function readOperators(locale: string): Promise<OperatorView[]> {
   const [
     { data: operators, error: operatorError },
     { data: branches, error: branchError },
+    { data: capacity, error: capacityError },
+    { data: subscriptions, error: subscriptionError },
   ] = await Promise.all([
     client
       .from("operators")
@@ -156,14 +164,26 @@ export async function readOperators(locale: string): Promise<OperatorView[]> {
         "id, operator_id, name, status, timezone, default_locale, residence_classification",
       )
       .order("created_at", { ascending: true }),
+    client
+      .from("branch_capacity_summary")
+      .select("operator_id, branch_id, billable_beds"),
+    client
+      .from("subscriptions")
+      .select("operator_id, status, pricing_reference")
+      .eq("is_current", true),
   ]);
   if (operatorError) throw operatorError;
   if (branchError) throw branchError;
+  if (capacityError) throw capacityError;
+  if (subscriptionError) throw subscriptionError;
 
-  return (operators ?? []).map((operator) => ({
-    branches: (branches ?? [])
+  return (operators ?? []).map((operator) => {
+    const operatorBranches = (branches ?? [])
       .filter((branch) => branch.operator_id === operator.id)
       .map((branch) => ({
+        billableBeds:
+          capacity?.find((summary) => summary.branch_id === branch.id)
+            ?.billable_beds ?? 0,
         defaultLocale: branch.default_locale as "tr" | "en" | "ar",
         id: String(branch.id),
         name: String(branch.name),
@@ -171,12 +191,28 @@ export async function readOperators(locale: string): Promise<OperatorView[]> {
           branch.residence_classification as ResidenceClassification,
         status: branch.status as BranchStatus,
         timezone: String(branch.timezone),
-      })),
-    defaultLocale: operator.default_locale as "tr" | "en" | "ar",
-    id: String(operator.id),
-    name: String(operator.name),
-    status: operator.status as OperatorStatus,
-  }));
+      }));
+    const subscription = subscriptions?.find(
+      (item) => item.operator_id === operator.id,
+    );
+    return {
+      billableBeds: operatorBranches.reduce(
+        (total, branch) => total + branch.billableBeds,
+        0,
+      ),
+      branches: operatorBranches,
+      currentSubscription: subscription
+        ? {
+            pricingReference: String(subscription.pricing_reference),
+            status: String(subscription.status),
+          }
+        : null,
+      defaultLocale: operator.default_locale as "tr" | "en" | "ar",
+      id: String(operator.id),
+      name: String(operator.name),
+      status: operator.status as OperatorStatus,
+    };
+  });
 }
 
 export type { BranchDraft };
