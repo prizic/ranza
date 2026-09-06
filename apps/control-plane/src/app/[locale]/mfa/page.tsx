@@ -3,6 +3,9 @@ import { notFound, redirect } from "next/navigation";
 import { LocalizedShell } from "../../../components/localized-shell";
 import { createControlPlaneClient } from "../../../lib/supabase/server";
 import { MfaForm } from "./form";
+
+export const dynamic = "force-dynamic";
+
 export default async function MfaPage({ params }: PageProps<"/[locale]/mfa">) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
