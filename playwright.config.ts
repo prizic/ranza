@@ -5,7 +5,9 @@ export default defineConfig({
   fullyParallel: false,
   reporter: "line",
   testDir: "./tests/e2e",
-  workers: 2,
+  // The three Next dev servers are shared by both browser projects. Serial
+  // workers avoid cross-project cold-compile navigation aborts in CI.
+  workers: 1,
   use: {
     screenshot: "only-on-failure",
     trace: "off",
