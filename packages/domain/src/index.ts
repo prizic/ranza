@@ -1,3 +1,14 @@
+export {
+  featureCatalog,
+  resolveCapability,
+  validateFeatureConfiguration,
+} from "./entitlements";
+export type {
+  Entitlement,
+  FeatureConfiguration,
+  FeatureDefinition,
+} from "./entitlements";
+
 export const applicationNames = [
   "storefront",
   "product-web",
