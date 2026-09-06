@@ -1,3 +1,6 @@
+export { parseStudentDraft } from "./student-roster";
+export type { StudentDraft } from "./student-roster";
+
 export {
   featureCatalog,
   resolveCapability,
