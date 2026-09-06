@@ -117,8 +117,13 @@ create function private.publish_meal_day(
 declare day_id uuid; branch_timezone text;
 begin
   if auth.uid() is null
-    or not private.can_manage_student_branch(target_operator_id, target_branch_id)
-    or not private.capability_enabled(target_operator_id, 'meals', target_branch_id) then
+    or not private.can_manage_student_branch(target_operator_id, target_branch_id) then
+    raise exception 'Meal publication denied' using errcode = '42501';
+  end if;
+  perform 1 from public.operator_entitlements entitlement
+  where entitlement.operator_id = target_operator_id and entitlement.capability_key = 'meals'
+  for share;
+  if not found or not private.capability_enabled(target_operator_id, 'meals', target_branch_id) then
     raise exception 'Meal publication denied' using errcode = '42501';
   end if;
   select timezone into branch_timezone from public.branches
@@ -156,14 +161,23 @@ $$;
 
 create function private.submit_meal_response(target_meal_day_id uuid, selected_meals text[])
 returns jsonb language plpgsql security definer set search_path = '' as $$
-declare day public.meal_days%rowtype; student public.students%rowtype; saved_response_id uuid; response_version integer;
+declare day public.meal_days%rowtype; student public.students%rowtype; current_branch_id uuid; saved_response_id uuid; response_version integer;
 begin
   select * into day from public.meal_days where id = target_meal_day_id for update;
-  select * into student from public.students where id = private.current_student_id();
-  if auth.uid() is null or day.id is null or student.id is null
-    or student.operator_id <> day.operator_id
-    or not private.is_active_student_in_branch(day.operator_id, day.branch_id)
-    or not private.capability_enabled(day.operator_id, 'meals', day.branch_id) then
+  select * into student from public.students where id = private.current_student_id() for share;
+  select history.branch_id into current_branch_id
+  from public.student_branch_history history
+  where history.student_id = student.id and history.ended_at is null
+    and history.started_at <= statement_timestamp()
+  for share;
+  if auth.uid() is null or day.id is null or student.id is null or student.status <> 'active'
+    or student.operator_id <> day.operator_id or current_branch_id is distinct from day.branch_id then
+    raise exception 'Meal response denied' using errcode = '42501';
+  end if;
+  perform 1 from public.operator_entitlements entitlement
+  where entitlement.operator_id = day.operator_id and entitlement.capability_key = 'meals'
+  for share;
+  if not found or not private.capability_enabled(day.operator_id, 'meals', day.branch_id) then
     raise exception 'Meal response denied' using errcode = '42501';
   end if;
   if day.status <> 'published' or clock_timestamp() >= day.deadline_at then
