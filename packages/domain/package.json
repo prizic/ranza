@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./capacity": "./src/capacity.ts",
+    "./meals": "./src/meals.ts",
     "./leads": "./src/leads.ts"
   },
   "scripts": {
