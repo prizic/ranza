@@ -665,3 +665,76 @@ h1 {
     animation-iteration-count: 1 !important;
   }
 }
+
+.attendance-context,
+.attendance-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 1rem;
+  margin-block: 1.5rem;
+}
+
+.attendance-context > div,
+.attendance-totals article,
+.attendance-form,
+.schedule-form {
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.attendance-totals article {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.attendance-totals strong {
+  font-size: 2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.attendance-form fieldset {
+  display: grid;
+  gap: 0.75rem;
+  margin-block-end: 1rem;
+  border: 0;
+  padding: 0;
+}
+
+.attendance-form label,
+.schedule-form label {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.schedule-form {
+  display: grid;
+  gap: 1rem;
+  max-width: 36rem;
+  margin-block: 2rem;
+}
+
+.schedule-form input {
+  min-height: 2.5rem;
+  margin-inline-start: auto;
+  padding: 0.4rem 0.6rem;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.attendance-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+}
+
+.attendance-table th,
+.attendance-table td {
+  padding: 0.85rem;
+  border-block-end: 1px solid var(--line);
+  text-align: start;
+}

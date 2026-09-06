@@ -2,6 +2,20 @@ export { parseStudentDraft } from "./student-roster";
 export type { StudentDraft } from "./student-roster";
 
 export {
+  attendanceDeclarations,
+  buildAttendanceBoard,
+  parseAttendanceDeclaration,
+} from "./attendance";
+export type {
+  AttendanceBoard,
+  AttendanceBoardRow,
+  AttendanceDeclaration,
+  AttendanceResponse,
+  AttendanceRosterStudent,
+  AttendanceStatus,
+} from "./attendance";
+
+export {
   featureCatalog,
   resolveCapability,
   validateFeatureConfiguration,

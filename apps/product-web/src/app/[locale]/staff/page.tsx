@@ -86,6 +86,16 @@ export default async function StaffPage({
         </StatusMessage>
       ) : null}
       <section className="control-card">
+        {capabilities.includes("workflow.read") ||
+        capabilities.includes("workflow.manage") ? (
+          <a href={`/${locale}/staff/attendance?branch=${selectedBranchId}`}>
+            {locale === "tr"
+              ? "Gece yoklaması"
+              : locale === "ar"
+                ? "الحضور الليلي"
+                : "Nightly attendance"}
+          </a>
+        ) : null}
         {capabilities.includes("roster.manage") ? (
           <a href={`/${locale}/staff/roster?branch=${selectedBranchId}`}>
             {locale === "tr"
