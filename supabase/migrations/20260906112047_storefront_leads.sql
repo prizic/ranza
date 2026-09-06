@@ -32,7 +32,7 @@ begin
   if auth.uid() is null or coalesce(auth.jwt()->>'aal', '') <> 'aal2'
      or to_regclass('private.platform_memberships') is null then return false; end if;
   if not exists (select 1 from auth.sessions where id = nullif(auth.jwt()->>'session_id', '')::uuid and user_id = auth.uid()) then return false; end if;
-  execute 'select exists (select 1 from private.platform_memberships where user_id = $1 and role in (''platform_admin'', ''support'') and status = ''active'')'
+  execute 'select exists (select 1 from private.platform_memberships where auth_user_id = $1 and role in (''platform_admin'', ''platform_support'', ''support'') and status = ''active'')'
     into allowed using auth.uid();
   return allowed;
 end;
