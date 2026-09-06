@@ -1,5 +1,7 @@
 export { parseStudentDraft } from "./student-roster";
 export type { StudentDraft } from "./student-roster";
+export { mealTypes, parseMealSelection, summarizeMealResponses } from "./meals";
+export type { MealType } from "./meals";
 
 export {
   featureCatalog,
