@@ -15,6 +15,21 @@ interface AccessRow {
   operator_id: string;
 }
 
+interface BalanceSummary {
+  account_id: string | null;
+  currency: string;
+  display_name: string;
+  overdue_balance: string;
+  remaining_balance: string;
+  student_id: string;
+}
+
+function moneyFilter(value: unknown): string | null {
+  return typeof value === "string" && /^-?\d{1,12}(?:\.\d{1,2})?$/.test(value)
+    ? value
+    : null;
+}
+
 export default async function StaffBalancesPage({
   params,
   searchParams,
@@ -43,16 +58,22 @@ export default async function StaffBalancesPage({
   const canManage = (access ?? []).some(
     (row) => row.branch_id === branchId && row.capability === "finance.manage",
   );
-  const { data: summaries, error: summaryError } = await client
-    .from("branch_student_balance_summary")
-    .select(
-      "student_id,display_name,currency,remaining_balance,overdue_balance",
-    )
-    .eq("branch_id", branchId)
-    .order("display_name");
+  const minimumRemaining = moneyFilter(query.minimumRemaining);
+  const maximumRemaining = moneyFilter(query.maximumRemaining);
+  const overdueOnly = query.overdueOnly === "true";
+  const { data: summaries, error: summaryError } = canManage
+    ? await client.rpc("list_branch_balances", {
+        maximum_remaining: maximumRemaining,
+        minimum_remaining: minimumRemaining,
+        overdue_only: overdueOnly,
+        target_branch_id: branchId,
+        target_operator_id: branch.operator_id,
+      })
+    : { data: [], error: null };
   if (summaryError) throw summaryError;
+  const summaryRows = (summaries ?? []) as BalanceSummary[];
   const selectedId = typeof query.student === "string" ? query.student : null;
-  const selected = (summaries ?? []).find(
+  const selected = summaryRows.find(
     (student) => student.student_id === selectedId,
   );
   const { data: entries, error: entryError } = selected
@@ -84,8 +105,49 @@ export default async function StaffBalancesPage({
             {query.result}
           </StatusMessage>
         ) : null}
+        <form className="control-form" method="get">
+          <input name="branch" type="hidden" value={branchId} />
+          <label>
+            Minimum remaining Balance
+            <input
+              defaultValue={minimumRemaining ?? ""}
+              inputMode="decimal"
+              name="minimumRemaining"
+            />
+          </label>
+          <label>
+            Maximum remaining Balance
+            <input
+              defaultValue={maximumRemaining ?? ""}
+              inputMode="decimal"
+              name="maximumRemaining"
+            />
+          </label>
+          <label>
+            <input
+              defaultChecked={overdueOnly}
+              name="overdueOnly"
+              type="checkbox"
+              value="true"
+            />
+            Overdue only
+          </label>
+          <button className="button button-secondary" type="submit">
+            Filter
+          </button>
+        </form>
+        {canManage ? (
+          <p>
+            <a
+              className="button button-secondary"
+              href={`/api/balances/export?operator=${branch.operator_id}&branch=${branchId}`}
+            >
+              Export finance history (CSV)
+            </a>
+          </p>
+        ) : null}
         <ul>
-          {(summaries ?? []).map((student) => (
+          {summaryRows.map((student) => (
             <li key={student.student_id}>
               <a
                 href={`/${locale}/staff/balances?branch=${branchId}&student=${student.student_id}`}
