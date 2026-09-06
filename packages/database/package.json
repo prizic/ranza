@@ -11,5 +11,8 @@
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ranza/domain": "workspace:*"
   }
 }

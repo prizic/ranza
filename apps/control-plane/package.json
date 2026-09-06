@@ -10,6 +10,9 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@ranza/config": "workspace:*",
+    "@ranza/database": "workspace:*",
+    "@ranza/domain": "workspace:*",
     "@ranza/i18n": "workspace:*",
     "@ranza/observability": "workspace:*",
     "@ranza/ui": "workspace:*",
