@@ -41,6 +41,14 @@ export interface OperatorView {
   id: string;
   name: string;
   status: OperatorStatus;
+  latestExport: null | { expiresAt: string; id: string; status: string };
+  lifecycle: null | { state: string; policyVersion: number | null };
+  lifecycleRuns: Array<{
+    action: string;
+    id: string;
+    isDryRun: boolean;
+    status: string;
+  }>;
 }
 
 async function currentActor(locale: string): Promise<PlatformActor> {
@@ -153,6 +161,9 @@ export async function readOperators(locale: string): Promise<OperatorView[]> {
     { data: branches, error: branchError },
     { data: capacity, error: capacityError },
     { data: subscriptions, error: subscriptionError },
+    { data: exports, error: exportError },
+    { data: lifecycles, error: lifecycleError },
+    { data: lifecycleRuns, error: lifecycleRunError },
   ] = await Promise.all([
     client
       .from("operators")
@@ -171,11 +182,25 @@ export async function readOperators(locale: string): Promise<OperatorView[]> {
       .from("subscriptions")
       .select("operator_id, status, pricing_reference")
       .eq("is_current", true),
+    client
+      .from("operator_data_exports")
+      .select("id,operator_id,status,expires_at")
+      .order("requested_at", { ascending: false }),
+    client
+      .from("operator_data_lifecycle")
+      .select("operator_id,state,policy_version"),
+    client
+      .from("operator_lifecycle_runs")
+      .select("id,operator_id,action,is_dry_run,status")
+      .order("requested_at", { ascending: false }),
   ]);
   if (operatorError) throw operatorError;
   if (branchError) throw branchError;
   if (capacityError) throw capacityError;
   if (subscriptionError) throw subscriptionError;
+  if (exportError) throw exportError;
+  if (lifecycleError) throw lifecycleError;
+  if (lifecycleRunError) throw lifecycleRunError;
 
   return (operators ?? []).map((operator) => {
     const operatorBranches = (branches ?? [])
@@ -209,6 +234,40 @@ export async function readOperators(locale: string): Promise<OperatorView[]> {
         : null,
       defaultLocale: operator.default_locale as "tr" | "en" | "ar",
       id: String(operator.id),
+      latestExport: (() => {
+        const item = exports?.find(
+          (value) => value.operator_id === operator.id,
+        );
+        return item
+          ? {
+              expiresAt: String(item.expires_at),
+              id: String(item.id),
+              status: String(item.status),
+            }
+          : null;
+      })(),
+      lifecycle: (() => {
+        const item = lifecycles?.find(
+          (value) => value.operator_id === operator.id,
+        );
+        return item
+          ? {
+              policyVersion:
+                item.policy_version == null
+                  ? null
+                  : Number(item.policy_version),
+              state: String(item.state),
+            }
+          : null;
+      })(),
+      lifecycleRuns: (lifecycleRuns ?? [])
+        .filter((value) => value.operator_id === operator.id)
+        .map((value) => ({
+          action: String(value.action),
+          id: String(value.id),
+          isDryRun: Boolean(value.is_dry_run),
+          status: String(value.status),
+        })),
       name: String(operator.name),
       status: operator.status as OperatorStatus,
     };

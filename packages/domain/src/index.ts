@@ -26,6 +26,12 @@ export {
   toSignedMinorUnits,
 } from "./balance";
 export type { BalanceEntryType, PostableBalanceEntryType } from "./balance";
+
+export {
+  buildLifecycleDryRunManifest,
+  operatorArchiveSections,
+} from "./operator-lifecycle";
+export type { DestructiveLifecycleAction } from "./operator-lifecycle";
 export { balanceExportHeaders, buildBalanceExportCsv } from "./balance-export";
 export type { BalanceExportHeader, BalanceExportRow } from "./balance-export";
 

@@ -1,6 +1,7 @@
 "use server";
 
 import type { ApplicationLocale, OperatorStatus } from "@ranza/domain";
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -17,8 +18,72 @@ function localeFrom(formData: FormData): ApplicationLocale {
   return locale === "en" || locale === "ar" ? locale : "tr";
 }
 
-function resultPath(locale: ApplicationLocale, result: "created" | "updated") {
+function resultPath(
+  locale: ApplicationLocale,
+  result:
+    | "created"
+    | "updated"
+    | "export-requested"
+    | "policy-approved"
+    | "dry-run"
+    | "lifecycle-queued",
+) {
   return `/${locale}?result=${result}`;
+}
+
+export async function requestOperatorExportAction(formData: FormData) {
+  const locale = localeFrom(formData);
+  await operatorControl(locale);
+  const client = await createControlPlaneClient(randomUUID());
+  const { error } = await client.rpc("request_operator_export", {
+    target_operator_id: text(formData, "operatorId"),
+  });
+  if (error) throw error;
+  revalidatePath(`/${locale}`);
+  redirect(resultPath(locale, "export-requested"));
+}
+
+export async function approveLifecyclePolicyAction(formData: FormData) {
+  const locale = localeFrom(formData);
+  await operatorControl(locale);
+  const client = await createControlPlaneClient(randomUUID());
+  const { error } = await client.rpc("approve_operator_lifecycle_policy", {
+    anonymize_days: Number(text(formData, "anonymizeDays")),
+    archive_days: Number(text(formData, "archiveDays")),
+    delete_days: Number(text(formData, "deleteDays")),
+    export_hours: Number(text(formData, "exportHours")),
+    target_operator_id: text(formData, "operatorId"),
+  });
+  if (error) throw error;
+  revalidatePath(`/${locale}`);
+  redirect(resultPath(locale, "policy-approved"));
+}
+
+export async function planLifecycleAction(formData: FormData) {
+  const locale = localeFrom(formData);
+  await operatorControl(locale);
+  const client = await createControlPlaneClient(randomUUID());
+  const { error } = await client.rpc("plan_operator_lifecycle", {
+    target_action: text(formData, "lifecycleAction"),
+    target_operator_id: text(formData, "operatorId"),
+  });
+  if (error) throw error;
+  revalidatePath(`/${locale}`);
+  redirect(resultPath(locale, "dry-run"));
+}
+
+export async function executeLifecycleAction(formData: FormData) {
+  const locale = localeFrom(formData);
+  await operatorControl(locale);
+  const client = await createControlPlaneClient(randomUUID());
+  const { error } = await client.rpc("execute_operator_lifecycle", {
+    target_idempotency_key: text(formData, "idempotencyKey"),
+    target_operator_id: text(formData, "operatorId"),
+    target_run_id: text(formData, "runId"),
+  });
+  if (error) throw error;
+  revalidatePath(`/${locale}`);
+  redirect(resultPath(locale, "lifecycle-queued"));
 }
 
 export async function signInAction(formData: FormData) {
