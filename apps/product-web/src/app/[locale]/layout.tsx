@@ -14,6 +14,11 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "#18332d" };
 
+// Product routes read the authenticated Supabase session and must resolve at
+// request time; never prerender an auth-bearing page during a deploy.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export function generateStaticParams() {
   return supportedLocales.map((locale) => ({ locale }));
 }
