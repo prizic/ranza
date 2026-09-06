@@ -115,6 +115,15 @@ export default async function StaffPage({
                 : "Meal responses"}
           </a>
         ) : null}
+        {capabilities.includes("finance.manage") ? (
+          <a href={`/${locale}/staff/balances?branch=${selectedBranchId}`}>
+            {locale === "tr"
+              ? "Öğrenci bakiyeleri"
+              : locale === "ar"
+                ? "أرصدة الطلاب"
+                : "Student Balances"}
+          </a>
+        ) : null}
         <h2>Staff access</h2>
         <p>{selected.operator_role.replace("_", " ")}</p>
         <ul>
