@@ -1,5 +1,15 @@
 export const studentCredentialCopy = {
   en: {
+    signIn: "Student sign in",
+    currentPin: "PIN",
+    signInHint:
+      "Use your Access ID and PIN. If you forgot your PIN, ask dormitory staff for a new one-time recovery code.",
+    signInError:
+      "Sign-in could not be completed. Check your details, wait 15 minutes, or ask staff for help.",
+    signOut: "Sign out of this device",
+    signOutError:
+      "Sign-out could not be completed. Please try again before leaving this device.",
+    recover: "Reset PIN and revoke all sessions",
     title: "Activate your account",
     accessId: "Student Access ID",
     code: "Activation Code",
@@ -18,6 +28,16 @@ export const studentCredentialCopy = {
     back: "Return to Ranza",
   },
   tr: {
+    signIn: "Öğrenci girişi",
+    currentPin: "PIN",
+    signInHint:
+      "Erişim kimliğinizi ve PIN’inizi kullanın. PIN’i unuttuysanız yurt personelinden tek kullanımlık kurtarma kodu isteyin.",
+    signInError:
+      "Giriş yapılamadı. Bilgileri kontrol edin, 15 dakika bekleyin veya personelden yardım isteyin.",
+    signOut: "Bu cihazdan çıkış yap",
+    signOutError:
+      "Çıkış tamamlanamadı. Bu cihazı bırakmadan önce tekrar deneyin.",
+    recover: "PIN’i sıfırla ve tüm oturumları kapat",
     title: "Hesabınızı etkinleştirin",
     accessId: "Öğrenci erişim kimliği",
     code: "Etkinleştirme kodu",
@@ -36,6 +56,15 @@ export const studentCredentialCopy = {
     back: "Ranza’ya dön",
   },
   ar: {
+    signIn: "دخول الطالب",
+    currentPin: "رمز PIN",
+    signInHint:
+      "استخدم معرف الدخول ورمز PIN. إذا نسيته، اطلب من موظفي السكن رمز استعادة للاستخدام مرة واحدة.",
+    signInError:
+      "تعذر تسجيل الدخول. تحقق من البيانات أو انتظر 15 دقيقة أو اطلب مساعدة الموظفين.",
+    signOut: "تسجيل الخروج من هذا الجهاز",
+    signOutError: "تعذر تسجيل الخروج. حاول مرة أخرى قبل ترك هذا الجهاز.",
+    recover: "إعادة تعيين PIN وإلغاء جميع الجلسات",
     title: "تفعيل حسابك",
     accessId: "معرف دخول الطالب",
     code: "رمز التفعيل",

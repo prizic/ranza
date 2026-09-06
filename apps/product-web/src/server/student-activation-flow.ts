@@ -20,6 +20,7 @@ export interface ActivationPort {
   ensureIdentity(claim: ActivationClaim): Promise<void>;
   bind(claim: ActivationClaim): Promise<boolean>;
   setPassword(claim: ActivationClaim, password: string): Promise<void>;
+  confirm(claim: ActivationClaim): Promise<boolean>;
   signIn(claim: ActivationClaim, password: string): Promise<void>;
   abandon(claim: ActivationClaim): Promise<void>;
 }
@@ -57,6 +58,7 @@ export async function activateStudent(
     if (!(await port.bind(claim))) throw new Error("Activation unavailable");
     const password = deriveStudentPassword(claim.student_id, input.pin, pepper);
     await port.setPassword(claim, password);
+    if (!(await port.confirm(claim))) throw new Error("Activation unavailable");
     await port.signIn(claim, password);
     return true;
   } catch {
