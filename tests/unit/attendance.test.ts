@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildAttendanceBoard,
   parseAttendanceDeclaration,
+  snapshotAttendance,
 } from "../../packages/domain/src/attendance";
 
 describe("nightly attendance", () => {
@@ -46,5 +47,29 @@ describe("nightly attendance", () => {
 
   it("returns zero percent for an empty eligible roster", () => {
     expect(buildAttendanceBoard([], []).responsePercentage).toBe(0);
+  });
+
+  it("freezes explicit and missing responses into snapshot totals", () => {
+    expect(
+      snapshotAttendance(
+        [
+          { id: "student-1", name: "Ada" },
+          { id: "student-2", name: "Ece" },
+          { id: "student-3", name: "Mert" },
+        ],
+        [
+          {
+            declaration: "staying",
+            studentId: "student-1",
+            updatedAt: "2026-09-06T21:00:00Z",
+          },
+          {
+            declaration: "away",
+            studentId: "student-2",
+            updatedAt: "2026-09-06T21:01:00Z",
+          },
+        ],
+      ),
+    ).toEqual({ away: 1, eligible: 3, staying: 1, unconfirmed: 1 });
   });
 });

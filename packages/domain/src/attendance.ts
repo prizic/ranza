@@ -28,6 +28,13 @@ export interface AttendanceBoard {
   unconfirmed: number;
 }
 
+export interface AttendanceSnapshot {
+  away: number;
+  eligible: number;
+  staying: number;
+  unconfirmed: number;
+}
+
 export function parseAttendanceDeclaration(
   value: unknown,
 ): AttendanceDeclaration {
@@ -64,5 +71,18 @@ export function buildAttendanceBoard(
     staying,
     total,
     unconfirmed: total - answered,
+  };
+}
+
+export function snapshotAttendance(
+  roster: readonly AttendanceRosterStudent[],
+  responses: readonly AttendanceResponse[],
+): AttendanceSnapshot {
+  const board = buildAttendanceBoard(roster, responses);
+  return {
+    away: board.away,
+    eligible: board.total,
+    staying: board.staying,
+    unconfirmed: board.unconfirmed,
   };
 }
