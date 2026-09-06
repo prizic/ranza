@@ -23,6 +23,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm smoke
+      - run: pnpm readiness:security
+      - run: pnpm readiness:report -- --output artifacts/readiness.json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-readiness-${{ github.sha }}
+          path: artifacts/readiness.json
 
   database:
     runs-on: ubuntu-latest
