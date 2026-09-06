@@ -9,6 +9,43 @@ export const studentCsvHeaders = [
 export const studentCsvTemplate =
   `${studentCsvHeaders.join(",")}\r\n` + 'STU-001,"Ayşe Kaya",tr\r\n';
 
+export interface StudentImportErrorExportRow {
+  displayName: string;
+  errors: readonly string[];
+  externalReference: string;
+  preferredLocale: string;
+  rowNumber: number;
+}
+
+export const studentImportErrorHeaders = [
+  "row_number",
+  "external_reference",
+  "display_name",
+  "preferred_locale",
+  "errors",
+] as const;
+
+function csvField(value: string): string {
+  return /[",\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
+}
+
+export function buildStudentImportErrorCsv(
+  rows: readonly StudentImportErrorExportRow[],
+): string {
+  const records = rows.map((row) =>
+    [
+      String(row.rowNumber),
+      row.externalReference,
+      row.displayName,
+      row.preferredLocale,
+      row.errors.join("|"),
+    ]
+      .map(csvField)
+      .join(","),
+  );
+  return `${studentImportErrorHeaders.join(",")}\r\n${records.map((row) => `${row}\r\n`).join("")}`;
+}
+
 export type StudentCsvErrorCode =
   | "DUPLICATE_EXTERNAL_REFERENCE"
   | "INVALID_COLUMN_COUNT"

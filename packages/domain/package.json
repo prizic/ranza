@@ -11,7 +11,8 @@
     "./meals": "./src/meals.ts",
     "./meal-export": "./src/meal-export.ts",
     "./attendance-export": "./src/attendance-export.ts",
-    "./leads": "./src/leads.ts"
+    "./leads": "./src/leads.ts",
+    "./student-csv-import": "./src/student-csv-import.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

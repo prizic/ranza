@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildStudentImportErrorCsv,
   StudentCsvParseError,
   createStudentImportKey,
   parseStudentCsv,
@@ -106,5 +107,22 @@ describe("Student CSV import", () => {
         { maxRows: 1 },
       ),
     ).toThrow(StudentCsvParseError);
+  });
+
+  it("exports stable UTF-8 row errors for correction", () => {
+    expect(
+      buildStudentImportErrorCsv([
+        {
+          displayName: 'Ayşe, "A"',
+          errors: ["INVALID_LOCALE", "EXISTING_EXTERNAL_REFERENCE"],
+          externalReference: "STU-1",
+          preferredLocale: "xx",
+          rowNumber: 3,
+        },
+      ]),
+    ).toBe(
+      "row_number,external_reference,display_name,preferred_locale,errors\r\n" +
+        '3,STU-1,"Ayşe, ""A""",xx,INVALID_LOCALE|EXISTING_EXTERNAL_REFERENCE\r\n',
+    );
   });
 });

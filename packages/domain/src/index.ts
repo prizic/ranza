@@ -44,6 +44,22 @@ export type {
   AttendanceStatus,
   AttendanceSnapshot,
 } from "./attendance";
+export {
+  buildStudentImportErrorCsv,
+  createStudentImportKey,
+  parseStudentCsv,
+  StudentCsvParseError,
+  studentCsvHeaders,
+  studentCsvTemplate,
+  studentImportErrorHeaders,
+} from "./student-csv-import";
+export type {
+  StudentImportErrorExportRow,
+  StudentCsvErrorCode,
+  StudentCsvPreview,
+  StudentCsvPreviewRow,
+  StudentCsvRowError,
+} from "./student-csv-import";
 
 export {
   featureCatalog,
