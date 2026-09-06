@@ -7,6 +7,17 @@ export type { MealType } from "./meals";
 export { buildMealExportCsv, mealExportHeaders } from "./meal-export";
 export type { MealExportRow } from "./meal-export";
 export {
+  attendanceStudentExportHeaders,
+  attendanceTotalsExportHeaders,
+  buildAttendanceStudentCsv,
+  buildAttendanceTotalsCsv,
+} from "./attendance-export";
+export type {
+  AttendanceExportStatus,
+  AttendanceStudentExportRow,
+  AttendanceTotalsExportRow,
+} from "./attendance-export";
+export {
   balanceEntryTypes,
   formatMinorUnits,
   remainingBalance,

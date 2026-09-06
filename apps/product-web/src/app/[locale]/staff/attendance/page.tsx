@@ -9,6 +9,8 @@ import { createProductWebClient } from "../../../../lib/supabase/server";
 
 import {
   configureAttendanceSchedule,
+  correctAttendance,
+  reopenAttendance,
   retryAttendanceFinalization,
 } from "./actions";
 
@@ -42,9 +44,11 @@ interface Snapshot {
 }
 
 interface SnapshotRow {
-  display_name: string;
-  response_updated_at: string | null;
-  status: "staying" | "away" | "unconfirmed";
+  corrected: boolean;
+  correction_reason: string | null;
+  cutoff_status: "staying" | "away" | "unconfirmed";
+  effective_status: "staying" | "away" | "unconfirmed";
+  student_name: string;
   student_id: string;
 }
 
@@ -117,10 +121,12 @@ export default async function StaffAttendancePage({
   const liveRows = (boardData ?? []) as BoardRow[];
   const { data: snapshotRows, error: snapshotRowsError } = snapshot
     ? await client
-        .from("attendance_snapshot_students")
-        .select("student_id,display_name,status,response_updated_at")
+        .from("attendance_final_student_status")
+        .select(
+          "student_id,student_name,cutoff_status,effective_status,corrected,correction_reason",
+        )
         .eq("snapshot_id", snapshot.id)
-        .order("display_name")
+        .order("student_name")
         .returns<SnapshotRow[]>()
     : { data: [], error: null };
   if (snapshotRowsError) throw snapshotRowsError;
@@ -133,17 +139,25 @@ export default async function StaffAttendancePage({
   };
   const totals = snapshot
     ? {
-        away_total: snapshot.away_count,
+        away_total: (snapshotRows ?? []).filter(
+          (row) => row.effective_status === "away",
+        ).length,
         response_percentage:
           snapshot.eligible_count === 0
             ? 0
             : Math.round(
-                ((snapshot.staying_count + snapshot.away_count) /
+                ((snapshotRows ?? []).filter(
+                  (row) => row.effective_status !== "unconfirmed",
+                ).length /
                   snapshot.eligible_count) *
                   100,
               ),
-        staying_total: snapshot.staying_count,
-        unconfirmed_total: snapshot.unconfirmed_count,
+        staying_total: (snapshotRows ?? []).filter(
+          (row) => row.effective_status === "staying",
+        ).length,
+        unconfirmed_total: (snapshotRows ?? []).filter(
+          (row) => row.effective_status === "unconfirmed",
+        ).length,
       }
     : liveTotals;
   const canConfigure =
@@ -173,7 +187,9 @@ export default async function StaffAttendancePage({
       {result ? (
         <StatusMessage
           tone={
-            result === "saved" || result === "finalized" ? "success" : "warning"
+            ["saved", "finalized", "corrected", "reopened"].includes(result)
+              ? "success"
+              : "warning"
           }
         >
           {result === "saved"
@@ -184,22 +200,56 @@ export default async function StaffAttendancePage({
                 : locale === "ar"
                   ? "تم تثبيت سجل الحضور."
                   : "Attendance was finalized."
-              : locale === "tr"
-                ? "İşlem tamamlanamadı."
-                : locale === "ar"
-                  ? "تعذّر إكمال العملية."
-                  : "The operation could not be completed."}
+              : result === "corrected"
+                ? locale === "tr"
+                  ? "Yoklama düzeltmesi kaydedildi."
+                  : locale === "ar"
+                    ? "تم حفظ تصحيح الحضور."
+                    : "Attendance correction saved."
+                : result === "reopened"
+                  ? locale === "tr"
+                    ? "Yeniden açma kaydı oluşturuldu."
+                    : locale === "ar"
+                      ? "تم تسجيل إعادة الفتح."
+                      : "Reopen event recorded."
+                  : locale === "tr"
+                    ? "İşlem tamamlanamadı."
+                    : locale === "ar"
+                      ? "تعذّر إكمال العملية."
+                      : "The operation could not be completed."}
         </StatusMessage>
       ) : null}
       {snapshot ? (
-        <StatusMessage tone="success">
-          {locale === "tr"
-            ? `Kesin kayıt · sürüm ${snapshot.version}`
-            : locale === "ar"
-              ? `السجل النهائي · الإصدار ${snapshot.version}`
-              : `Final Snapshot · version ${snapshot.version}`}{" "}
-          <BidiText>{snapshot.finalized_at}</BidiText>
-        </StatusMessage>
+        <>
+          <StatusMessage tone="success">
+            {locale === "tr"
+              ? `Kesin kayıt · sürüm ${snapshot.version}`
+              : locale === "ar"
+                ? `السجل النهائي · الإصدار ${snapshot.version}`
+                : `Final Snapshot · version ${snapshot.version}`}{" "}
+            <BidiText>{snapshot.finalized_at}</BidiText>
+          </StatusMessage>
+          <nav aria-label="Attendance exports" className="branch-switcher">
+            <a
+              href={`/api/attendance-sessions/${sessionId}/export?kind=students`}
+            >
+              {locale === "tr"
+                ? "Öğrenci CSV"
+                : locale === "ar"
+                  ? "CSV الطلاب"
+                  : "Student CSV"}
+            </a>
+            <a
+              href={`/api/attendance-sessions/${sessionId}/export?kind=totals`}
+            >
+              {locale === "tr"
+                ? "Toplamlar CSV"
+                : locale === "ar"
+                  ? "CSV الإجماليات"
+                  : "Totals CSV"}
+            </a>
+          </nav>
+        </>
       ) : session.cutoff_at <= new Date().toISOString() ? (
         <form action={retryAttendanceFinalization}>
           <input name="locale" type="hidden" value={locale} />
@@ -250,27 +300,83 @@ export default async function StaffAttendancePage({
               <th>{copy.profile}</th>
               <th>Status</th>
               <th>Last update</th>
+              {snapshot && canConfigure ? <th>Correction</th> : null}
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => {
               const lastUpdated = snapshot
-                ? (row as SnapshotRow).response_updated_at
+                ? null
                 : (row as BoardRow).last_updated_at;
+              const status = snapshot
+                ? (row as SnapshotRow).effective_status
+                : (row as BoardRow).status;
               return (
                 <tr key={row.student_id}>
                   <th scope="row">
                     {snapshot
-                      ? (row as SnapshotRow).display_name
+                      ? (row as SnapshotRow).student_name
                       : (row as BoardRow).student_name}
                   </th>
                   <td>
-                    {row.status === "staying"
+                    {status === "staying"
                       ? copy.staying
-                      : row.status === "away"
+                      : status === "away"
                         ? copy.away
                         : copy.unconfirmed}
+                    {snapshot && (row as SnapshotRow).corrected ? (
+                      <span
+                        title={
+                          (row as SnapshotRow).correction_reason ?? undefined
+                        }
+                      >
+                        {" · ✓"}
+                      </span>
+                    ) : null}
                   </td>
+                  {snapshot && canConfigure ? (
+                    <td>
+                      <form
+                        action={correctAttendance}
+                        className="schedule-form"
+                      >
+                        <input name="locale" type="hidden" value={locale} />
+                        <input name="branch" type="hidden" value={branchId} />
+                        <input name="session" type="hidden" value={sessionId} />
+                        <input
+                          name="student"
+                          type="hidden"
+                          value={row.student_id}
+                        />
+                        <select defaultValue={status} name="status" required>
+                          <option value="staying">{copy.staying}</option>
+                          <option value="away">{copy.away}</option>
+                          <option value="unconfirmed">
+                            {copy.unconfirmed}
+                          </option>
+                        </select>
+                        <input
+                          minLength={4}
+                          name="reason"
+                          placeholder={
+                            locale === "tr"
+                              ? "Düzeltme nedeni"
+                              : locale === "ar"
+                                ? "سبب التصحيح"
+                                : "Correction reason"
+                          }
+                          required
+                        />
+                        <button className="button" type="submit">
+                          {locale === "tr"
+                            ? "Düzelt"
+                            : locale === "ar"
+                              ? "تصحيح"
+                              : "Correct"}
+                        </button>
+                      </form>
+                    </td>
+                  ) : null}
                   <td>
                     {lastUpdated ? (
                       <BidiText>
@@ -290,6 +396,28 @@ export default async function StaffAttendancePage({
           </tbody>
         </table>
       </div>
+      {snapshot && canConfigure ? (
+        <form action={reopenAttendance} className="schedule-form">
+          <input name="locale" type="hidden" value={locale} />
+          <input name="branch" type="hidden" value={branchId} />
+          <input name="session" type="hidden" value={sessionId} />
+          <label>
+            {locale === "tr"
+              ? "Yeniden açma nedeni"
+              : locale === "ar"
+                ? "سبب إعادة الفتح"
+                : "Reopen reason"}
+            <input minLength={4} name="reason" required />
+          </label>
+          <button className="button" type="submit">
+            {locale === "tr"
+              ? "İnceleme için yeniden aç"
+              : locale === "ar"
+                ? "إعادة الفتح للمراجعة"
+                : "Reopen for review"}
+          </button>
+        </form>
+      ) : null}
       {canConfigure ? (
         <form action={configureAttendanceSchedule} className="schedule-form">
           <input name="locale" type="hidden" value={locale} />
