@@ -9,6 +9,7 @@ import { createProductWebClient } from "../../../../lib/supabase/server";
 import { readProtectedWifi } from "../../../../server/protected-wifi";
 
 import { saveProtectedWifi } from "./actions";
+import { PublicWifiManagement } from "../../../../components/public-wifi-management";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -53,6 +54,9 @@ export default async function StaffWifiPage({
 
   return (
     <LocalizedShell locale={locale}>
+      {branch.operator_role === "owner" && (
+        <PublicWifiManagement branchId={branchId} locale={locale} />
+      )}
       <section className="branch-context">
         <div>
           <span>{copy.branch}</span>
