@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { LocalizedShell } from "../../../components/localized-shell";
 import { createProductWebClient } from "../../../lib/supabase/server";
+import { announcementCopy } from "../../../lib/announcement-copy";
 
 interface StaffAccessRow {
   branch_id: string;
@@ -96,6 +97,13 @@ export default async function StaffPage({
                 : "Nightly attendance"}
           </a>
         ) : null}
+        {capabilities.includes("workflow.manage") && (
+          <a
+            href={`/${locale}/staff/announcements?operator=${selected.operator_id}`}
+          >
+            {announcementCopy[locale].manage}
+          </a>
+        )}
         {capabilities.includes("roster.manage") ? (
           <a href={`/${locale}/staff/roster?branch=${selectedBranchId}`}>
             {locale === "tr"
