@@ -3,25 +3,28 @@ import { NextResponse } from "next/server";
 
 import { createControlPlaneClient } from "../../../../lib/supabase/server";
 
-const INVITE_COOKIE = "ranza_platform_invite_token";
-const INVITE_COOKIE_MAX_AGE_SECONDS = 10 * 60;
+const TOKEN_COOKIE = "__Host-ranza_platform_setup_token";
+const TYPE_COOKIE = "__Host-ranza_platform_setup_type";
+const SETUP_COOKIE_MAX_AGE_SECONDS = 10 * 60;
+type SetupOtpType = "invite" | "recovery";
 
 function secureRedirect(request: Request, pathname: string) {
   const response = NextResponse.redirect(new URL(pathname, request.url));
   response.headers.set("Cache-Control", "no-store, max-age=0");
+  response.headers.set("Content-Security-Policy", "frame-ancestors 'none'");
   response.headers.set("Referrer-Policy", "no-referrer");
+  response.headers.set("X-Frame-Options", "DENY");
   return response;
 }
 
-function inviteTokenFrom(request: Request): string | null {
+function cookieValue(request: Request, cookieName: string): string | null {
   const cookieHeader = request.headers.get("cookie");
   if (!cookieHeader) return null;
   for (const cookie of cookieHeader.split(";")) {
     const [name, ...valueParts] = cookie.trim().split("=");
-    if (name === INVITE_COOKIE) {
+    if (name === cookieName) {
       try {
-        const value = decodeURIComponent(valueParts.join("="));
-        return value && value.length <= 2048 ? value : null;
+        return decodeURIComponent(valueParts.join("=")) || null;
       } catch {
         return null;
       }
@@ -30,15 +33,28 @@ function inviteTokenFrom(request: Request): string | null {
   return null;
 }
 
-function expireInviteCookie(response: NextResponse) {
-  response.cookies.set(INVITE_COOKIE, "", {
+function setupCookieOptions(maxAge: number) {
+  return {
     httpOnly: true,
-    maxAge: 0,
-    path: "/",
-    sameSite: "strict",
+    maxAge,
+    path: "/" as const,
+    sameSite: "strict" as const,
     secure: true,
-  });
+  };
+}
+
+function expireSetupCookies(response: NextResponse) {
+  response.cookies.set(TOKEN_COOKIE, "", setupCookieOptions(0));
+  response.cookies.set(TYPE_COOKIE, "", setupCookieOptions(0));
   return response;
+}
+
+function isSetupType(value: string | null): value is SetupOtpType {
+  return value === "invite" || value === "recovery";
+}
+
+function isTokenHash(value: string | null): value is string {
+  return Boolean(value && /^[a-f0-9]{64}$/i.test(value));
 }
 
 export async function GET(
@@ -52,18 +68,24 @@ export async function GET(
   const type = url.searchParams.get("type");
   const invalidPath = `/${locale}/sign-in?error=invalid-invite`;
 
-  if (!tokenHash || type !== "invite") {
-    return secureRedirect(request, invalidPath);
+  if (!isTokenHash(tokenHash) || !isSetupType(type)) {
+    return expireSetupCookies(secureRedirect(request, invalidPath));
   }
 
-  const response = secureRedirect(request, `/${locale}/auth/accept`);
-  response.cookies.set(INVITE_COOKIE, tokenHash, {
-    httpOnly: true,
-    maxAge: INVITE_COOKIE_MAX_AGE_SECONDS,
-    path: "/",
-    sameSite: "strict",
-    secure: true,
-  });
+  const acceptPath = `/${locale}/auth/accept${
+    type === "recovery" ? "?type=recovery" : ""
+  }`;
+  const response = secureRedirect(request, acceptPath);
+  response.cookies.set(
+    TOKEN_COOKIE,
+    tokenHash,
+    setupCookieOptions(SETUP_COOKIE_MAX_AGE_SECONDS),
+  );
+  response.cookies.set(
+    TYPE_COOKIE,
+    type,
+    setupCookieOptions(SETUP_COOKIE_MAX_AGE_SECONDS),
+  );
   return response;
 }
 
@@ -73,22 +95,25 @@ export async function POST(
 ) {
   const { locale: requestedLocale } = await params;
   const locale = isSupportedLocale(requestedLocale) ? requestedLocale : "tr";
-  const tokenHash = inviteTokenFrom(request);
+  const tokenHash = cookieValue(request, TOKEN_COOKIE);
+  const type = cookieValue(request, TYPE_COOKIE);
   const invalidPath = `/${locale}/sign-in?error=invalid-invite`;
-  if (!tokenHash) {
-    return expireInviteCookie(secureRedirect(request, invalidPath));
+  const expectedOrigin = new URL(request.url).origin;
+  if (
+    request.headers.get("origin") !== expectedOrigin ||
+    !isTokenHash(tokenHash) ||
+    !isSetupType(type)
+  ) {
+    return expireSetupCookies(secureRedirect(request, invalidPath));
   }
 
   const client = await createControlPlaneClient();
   const { error } = await client.auth.verifyOtp({
     token_hash: tokenHash,
-    type: "invite",
+    type,
   });
 
-  return expireInviteCookie(
-    secureRedirect(
-      request,
-      error ? invalidPath : `/${locale}/set-password`,
-    ),
+  return expireSetupCookies(
+    secureRedirect(request, error ? invalidPath : `/${locale}/set-password`),
   );
 }

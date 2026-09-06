@@ -10,8 +10,7 @@ export type InviteCompletionFailure =
   | "update-failed";
 
 export type InviteCompletionResult =
-  | { ok: true }
-  | { ok: false; reason: InviteCompletionFailure };
+  { ok: true } | { ok: false; reason: InviteCompletionFailure };
 
 interface InviteAuthPort {
   getUser(): Promise<{
@@ -29,7 +28,7 @@ export async function completePlatformInvite(
   password: string,
   confirmation: string,
 ): Promise<InviteCompletionResult> {
-  if (password.length < MIN_PASSWORD_LENGTH) {
+  if (Array.from(password).length < MIN_PASSWORD_LENGTH) {
     return { ok: false, reason: "password-too-short" };
   }
   if (new TextEncoder().encode(password).byteLength > MAX_PASSWORD_BYTES) {

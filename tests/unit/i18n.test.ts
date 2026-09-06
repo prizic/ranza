@@ -64,6 +64,8 @@ describe("locale contract", () => {
     const titles = (["tr", "en", "ar"] as const).map((locale) => {
       const messages = controlAuthMessagesFor(locale);
       expect(messages.acceptInvite.action).toBeTruthy();
+      expect(messages.acceptRecovery.action).toBeTruthy();
+      expect(messages.forgotPassword.sent).toBeTruthy();
       expect(messages.setPassword.errors.tooLong).toBeTruthy();
       expect(messages.signIn.invalidInvite).toBeTruthy();
       return messages.acceptInvite.title;

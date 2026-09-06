@@ -10,10 +10,15 @@ export const metadata: Metadata = { referrer: "no-referrer" };
 
 export default async function AcceptInvitePage({
   params,
+  searchParams,
 }: PageProps<"/[locale]/auth/accept">) {
-  const { locale } = await params;
+  const [{ locale }, query] = await Promise.all([params, searchParams]);
   if (!isSupportedLocale(locale)) notFound();
-  const messages = controlAuthMessagesFor(locale).acceptInvite;
+  const authMessages = controlAuthMessagesFor(locale);
+  const messages =
+    query.type === "recovery"
+      ? authMessages.acceptRecovery
+      : authMessages.acceptInvite;
 
   return (
     <LocalizedShell locale={locale}>

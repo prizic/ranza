@@ -2,6 +2,15 @@ import type { SupportedLocale } from "./index";
 
 interface ControlAuthMessages {
   acceptInvite: { action: string; description: string; title: string };
+  acceptRecovery: { action: string; description: string; title: string };
+  forgotPassword: {
+    action: string;
+    backToSignIn: string;
+    description: string;
+    emailLabel: string;
+    sent: string;
+    title: string;
+  };
   setPassword: {
     action: string;
     confirmationLabel: string;
@@ -17,16 +26,30 @@ interface ControlAuthMessages {
     passwordLabel: string;
     title: string;
   };
-  signIn: { invalidInvite: string };
+  signIn: { forgotPassword: string; invalidInvite: string };
 }
 
 const messages: Record<SupportedLocale, ControlAuthMessages> = {
   ar: {
     acceptInvite: {
       action: "قبول الدعوة",
-      description:
-        "تابع لتأكيد هذه الدعوة لمرة واحدة وإنشاء كلمة مرور المنصة.",
+      description: "تابع لتأكيد هذه الدعوة لمرة واحدة وإنشاء كلمة مرور المنصة.",
       title: "قبول دعوتك الآمنة",
+    },
+    acceptRecovery: {
+      action: "متابعة استعادة الحساب",
+      description:
+        "تابع لتأكيد رابط الاستعادة هذا وإنشاء كلمة مرور جديدة للمنصة.",
+      title: "استعادة حساب المنصة",
+    },
+    forgotPassword: {
+      action: "إرسال رابط الاستعادة",
+      backToSignIn: "العودة إلى تسجيل الدخول",
+      description:
+        "أدخل بريد حساب المنصة. إذا كان الحساب مؤهلاً، سنرسل رابط إعداد آمنًا.",
+      emailLabel: "البريد الإلكتروني",
+      sent: "إذا كان الحساب مؤهلاً، فقد أرسلنا رابط إعداد آمنًا.",
+      title: "استعادة كلمة المرور",
     },
     setPassword: {
       action: "حفظ كلمة المرور والمتابعة",
@@ -47,6 +70,7 @@ const messages: Record<SupportedLocale, ControlAuthMessages> = {
       title: "إنشاء كلمة المرور",
     },
     signIn: {
+      forgotPassword: "هل نسيت كلمة المرور؟",
       invalidInvite:
         "رابط الدعوة غير صالح أو منتهي الصلاحية. اطلب رابط إعداد جديدًا.",
     },
@@ -57,6 +81,21 @@ const messages: Record<SupportedLocale, ControlAuthMessages> = {
       description:
         "Continue to confirm this one-time invitation and create your platform password.",
       title: "Accept your secure invitation",
+    },
+    acceptRecovery: {
+      action: "Continue account recovery",
+      description:
+        "Continue to confirm this recovery link and create a new platform password.",
+      title: "Recover your platform account",
+    },
+    forgotPassword: {
+      action: "Send recovery link",
+      backToSignIn: "Return to sign in",
+      description:
+        "Enter your platform account email. If the account is eligible, we will send a secure setup link.",
+      emailLabel: "Email",
+      sent: "If the account is eligible, a secure setup link has been sent.",
+      title: "Recover your password",
     },
     setPassword: {
       action: "Save password and continue",
@@ -77,6 +116,7 @@ const messages: Record<SupportedLocale, ControlAuthMessages> = {
       title: "Create your password",
     },
     signIn: {
+      forgotPassword: "Forgot your password?",
       invalidInvite:
         "This invitation link is invalid or has expired. Request a fresh setup link.",
     },
@@ -87,6 +127,21 @@ const messages: Record<SupportedLocale, ControlAuthMessages> = {
       description:
         "Bu tek kullanımlık daveti doğrulamak ve platform parolanızı oluşturmak için devam edin.",
       title: "Güvenli davetinizi kabul edin",
+    },
+    acceptRecovery: {
+      action: "Hesap kurtarmaya devam et",
+      description:
+        "Bu kurtarma bağlantısını doğrulamak ve yeni bir platform parolası oluşturmak için devam edin.",
+      title: "Platform hesabınızı kurtarın",
+    },
+    forgotPassword: {
+      action: "Kurtarma bağlantısı gönder",
+      backToSignIn: "Girişe dön",
+      description:
+        "Platform hesabınızın e-posta adresini girin. Hesap uygunsa güvenli bir kurulum bağlantısı göndereceğiz.",
+      emailLabel: "E-posta",
+      sent: "Hesap uygunsa güvenli bir kurulum bağlantısı gönderildi.",
+      title: "Parolanızı kurtarın",
     },
     setPassword: {
       action: "Parolayı kaydet ve devam et",
@@ -107,6 +162,7 @@ const messages: Record<SupportedLocale, ControlAuthMessages> = {
       title: "Parolanızı oluşturun",
     },
     signIn: {
+      forgotPassword: "Parolanızı mı unuttunuz?",
       invalidInvite:
         "Bu davet bağlantısı geçersiz veya süresi dolmuş. Yeni bir kurulum bağlantısı isteyin.",
     },

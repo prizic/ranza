@@ -1,7 +1,8 @@
-import { isSupportedLocale } from "@ranza/i18n";
+import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { controlAuthMessagesFor } from "@ranza/i18n/control-auth";
 import { FormField, StatusMessage } from "@ranza/ui";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 
 import { LocalizedShell } from "../../../components/localized-shell";
 import { signInAction } from "../actions";
@@ -38,6 +39,11 @@ export default async function SignInPage({
             Sign in
           </button>
         </form>
+        <p>
+          <Link href={localizeHref(locale, "/forgot-password")}>
+            {authMessages.signIn.forgotPassword}
+          </Link>
+        </p>
       </section>
     </LocalizedShell>
   );

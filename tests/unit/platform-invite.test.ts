@@ -21,6 +21,14 @@ describe("completePlatformInvite", () => {
     expect(auth.updateUser).not.toHaveBeenCalled();
   });
 
+  it("counts Unicode code points for the 12-character minimum", async () => {
+    const auth = authPort();
+    await expect(
+      completePlatformInvite(auth, "🙂".repeat(6), "🙂".repeat(6)),
+    ).resolves.toEqual({ ok: false, reason: "password-too-short" });
+    expect(auth.updateUser).not.toHaveBeenCalled();
+  });
+
   it("rejects mismatched confirmation without updating the user", async () => {
     const auth = authPort();
 
