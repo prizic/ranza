@@ -152,6 +152,12 @@ export default async function ControlPlanePage({
               <div>
                 <h2>{operator.name}</h2>
                 <BidiText>{operator.id}</BidiText>
+                <p>
+                  <strong>{operator.billableBeds}</strong> Billable Beds ·{" "}
+                  {operator.currentSubscription
+                    ? `${operator.currentSubscription.status} · ${operator.currentSubscription.pricingReference}`
+                    : "Subscription not configured"}
+                </p>
               </div>
               <strong className={`lifecycle-status status-${operator.status}`}>
                 {operator.status}
@@ -194,7 +200,8 @@ export default async function ControlPlanePage({
                     <strong>{branch.name}</strong>
                     <small>
                       {branch.residenceClassification} · {branch.timezone} ·{" "}
-                      {branch.defaultLocale}
+                      {branch.defaultLocale} · {branch.billableBeds} Billable
+                      Beds
                     </small>
                   </div>
                   {branch.status === "active" ? (

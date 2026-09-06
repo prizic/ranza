@@ -110,6 +110,9 @@ importers:
       '@ranza/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@ranza/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@ranza/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n

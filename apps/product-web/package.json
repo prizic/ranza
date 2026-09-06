@@ -12,6 +12,7 @@
   "dependencies": {
     "@ranza/auth": "workspace:*",
     "@ranza/config": "workspace:*",
+    "@ranza/domain": "workspace:*",
     "@ranza/i18n": "workspace:*",
     "@ranza/observability": "workspace:*",
     "@ranza/ui": "workspace:*",
