@@ -1,0 +1,64 @@
+name: Formal pilot readiness evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      journeys_evidence:
+        description: Immutable production-like journey run URL
+        required: true
+      accessibility_evidence:
+        description: Locale, RTL, WCAG and keyboard report URL
+        required: true
+      performance_evidence:
+        description: 1,000-Student plan and latency report URL
+        required: true
+      security_evidence:
+        description: Security/redaction review URL
+        required: true
+      restore_evidence:
+        description: Backup/restore rehearsal URL
+        required: true
+      rollback_evidence:
+        description: Rollback/feature-disable rehearsal URL
+        required: true
+      approvals_evidence:
+        description: Written legal/commercial approvals URL
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    environment: pilot-staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          cache: pnpm
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm readiness:security
+      - run: pnpm readiness:staging-smoke
+        env:
+          RANZA_STAGING_CONTROL_URL: ${{ vars.RANZA_STAGING_CONTROL_URL }}
+          RANZA_STAGING_PRODUCT_URL: ${{ vars.RANZA_STAGING_PRODUCT_URL }}
+          RANZA_STAGING_STOREFRONT_URL: ${{ vars.RANZA_STAGING_STOREFRONT_URL }}
+      - run: pnpm readiness:report -- --output artifacts/readiness.json
+        env:
+          RANZA_EVIDENCE_ACCESSIBILITY: ${{ inputs.accessibility_evidence }}
+          RANZA_EVIDENCE_APPROVALS: ${{ inputs.approvals_evidence }}
+          RANZA_EVIDENCE_JOURNEYS: ${{ inputs.journeys_evidence }}
+          RANZA_EVIDENCE_PERFORMANCE: ${{ inputs.performance_evidence }}
+          RANZA_EVIDENCE_RESTORE: ${{ inputs.restore_evidence }}
+          RANZA_EVIDENCE_ROLLBACK: ${{ inputs.rollback_evidence }}
+          RANZA_EVIDENCE_SECURITY: ${{ inputs.security_evidence }}
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: formal-pilot-readiness-${{ github.sha }}
+          path: artifacts/readiness.json
