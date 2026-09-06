@@ -12,6 +12,9 @@ export const mealExportHeaders = [
   "response_status",
   "selected_meals",
   "corrected",
+  "record_type",
+  "total",
+  "value",
 ] as const;
 
 function csvField(value: string): string {
@@ -26,9 +29,32 @@ export function buildMealExportCsv(rows: readonly MealExportRow[]): string {
       row.responseStatus,
       row.selectedMeals.join("|"),
       String(row.corrected),
+      "student",
+      "",
+      "",
     ]
       .map(csvField)
       .join(","),
   );
-  return `${mealExportHeaders.join(",")}\r\n${records.map((row) => `${row}\r\n`).join("")}`;
+  const totals = [
+    ["eligible_students", rows.length],
+    [
+      "responded",
+      rows.filter((row) => row.responseStatus !== "unconfirmed").length,
+    ],
+    [
+      "zero_meal",
+      rows.filter((row) => row.responseStatus === "zero_meal").length,
+    ],
+    [
+      "unconfirmed",
+      rows.filter((row) => row.responseStatus === "unconfirmed").length,
+    ],
+    ...["breakfast", "lunch", "dinner"].map((meal) => [
+      meal,
+      rows.filter((row) => row.selectedMeals.includes(meal)).length,
+    ]),
+    ["corrections", rows.filter((row) => row.corrected).length],
+  ].map(([key, value]) => `,,,,,total,${key},${value}`);
+  return `${mealExportHeaders.join(",")}\r\n${[...records, ...totals].map((row) => `${row}\r\n`).join("")}`;
 }

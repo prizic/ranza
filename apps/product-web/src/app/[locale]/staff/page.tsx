@@ -87,6 +87,15 @@ export default async function StaffPage({
         </StatusMessage>
       ) : null}
       <section className="control-card">
+        {selected.operator_role === "owner" ? (
+          <a href={`/${locale}/staff/exports?operator=${selected.operator_id}`}>
+            {locale === "tr"
+              ? "Verileri dışa aktar"
+              : locale === "ar"
+                ? "تصدير البيانات"
+                : "Export Operator data"}
+          </a>
+        ) : null}
         {capabilities.includes("workflow.read") ||
         capabilities.includes("workflow.manage") ? (
           <a href={`/${locale}/staff/attendance?branch=${selectedBranchId}`}>
