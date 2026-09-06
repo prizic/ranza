@@ -104,6 +104,12 @@ importers:
 
   apps/product-web:
     dependencies:
+      '@ranza/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@ranza/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@ranza/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
@@ -113,6 +119,12 @@ importers:
       '@ranza/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@supabase/ssr':
+        specifier: ^0.12.6
+        version: 0.12.6(@supabase/supabase-js@2.115.0)
+      '@supabase/supabase-js':
+        specifier: ^2.115.0
+        version: 2.115.0
       next:
         specifier: 16.3.4
         version: 16.3.4(@playwright/test@1.63.0)(@types/node@26.4.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
