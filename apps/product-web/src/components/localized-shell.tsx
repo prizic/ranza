@@ -35,7 +35,7 @@ export function LocalizedShell({
           label: messages.navigation.attendance,
         },
         {
-          href: `${localizeHref(locale, "/")}#meals`,
+          href: localizeHref(locale, "/meals"),
           label: messages.navigation.meals,
         },
         {
