@@ -415,13 +415,53 @@ h1 {
 }
 
 .control-form input,
-.control-form select {
+.control-form select,
+.control-form textarea {
   min-height: 2.8rem;
   padding: 0.55rem 0.75rem;
   border: 1px solid var(--line);
   border-radius: 0.4rem;
   background: white;
   color: var(--ink);
+}
+
+.control-form textarea {
+  resize: vertical;
+}
+
+.wifi-form {
+  max-width: 42rem;
+  margin-block: 2rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.wifi-details {
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.wifi-details dl {
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.35fr) 1fr;
+  gap: 0;
+}
+
+.wifi-details dt,
+.wifi-details dd {
+  margin: 0;
+  padding-block: 0.8rem;
+  border-block-end: 1px solid var(--line);
+}
+
+.wifi-details dt {
+  color: var(--ink-muted);
+  font-weight: 700;
 }
 
 .button-secondary {

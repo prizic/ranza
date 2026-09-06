@@ -14,6 +14,7 @@ export const serverEnvironmentSchema = publicEnvironmentSchema.extend({
     .default("development"),
   SENTRY_DSN: z.url().optional(),
   SUPABASE_SERVICE_ROLE_KEY: optionalNonEmptyString,
+  WIFI_ENCRYPTION_KEY_V1: optionalNonEmptyString,
 });
 
 export function parsePublicEnvironment(input: unknown) {

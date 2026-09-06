@@ -31,6 +31,7 @@ export async function POST(
     headers: {
       Location: `/${locale}/student/sign-in`,
       "Cache-Control": "no-store",
+      "Clear-Site-Data": '"cache"',
     },
   });
 }
