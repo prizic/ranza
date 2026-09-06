@@ -26,6 +26,8 @@ export {
   toSignedMinorUnits,
 } from "./balance";
 export type { BalanceEntryType, PostableBalanceEntryType } from "./balance";
+export { balanceExportHeaders, buildBalanceExportCsv } from "./balance-export";
+export type { BalanceExportHeader, BalanceExportRow } from "./balance-export";
 
 export {
   attendanceDeclarations,

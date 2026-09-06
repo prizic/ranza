@@ -1,5 +1,5 @@
 begin;
-select plan(25);
+select plan(33);
 select has_table('public','student_balance_accounts','Balance Accounts are migrated');
 select has_table('public','student_balance_entries','Balance Entries are migrated');
 select has_view('public','student_balance_summary','remaining Balance view exists');
@@ -47,6 +47,25 @@ select throws_ok($$ select public.post_balance_entry('23000000-0000-4000-8000-00
 select lives_ok($$ select public.reverse_balance_entry((select id from public.student_balance_entries where idempotency_key='balance-credit-001'),'Credit entered by mistake','balance-reversal-001') $$,'finance staff append an exact linked reversal');
 select results_eq($$ select remaining_balance from public.student_balance_summary $$,array[70.25::numeric],'a reversal exactly offsets the original');
 select throws_ok($$ select public.reverse_balance_entry((select id from public.student_balance_entries where idempotency_key='balance-credit-001'),'Second reversal','balance-reversal-002') $$,'23505','Balance entry already has a reversal','one original entry cannot be reversed twice');
+select has_function('public','list_branch_balances',array['uuid','uuid','numeric','numeric','boolean'],'scoped Balance list RPC exists');
+select has_function('public','export_branch_balances',array['uuid','uuid'],'scoped Balance export RPC exists');
+select ok(not has_function_privilege('anon','public.list_branch_balances(uuid,uuid,numeric,numeric,boolean)','execute'),'anonymous callers cannot list Balances');
+select ok(not has_function_privilege('anon','public.export_branch_balances(uuid,uuid)','execute'),'anonymous callers cannot export Balances');
+select results_eq(
+  $$ select student_id from public.list_branch_balances('23000000-0000-4000-8000-000000000001','33000000-0000-4000-8000-000000000001',70,null,true) $$,
+  array['53000000-0000-4000-8000-000000000001'::uuid],
+  'remaining and overdue filters compose inside the authorized Branch query'
+);
+select results_eq(
+  $$ select count(*)::bigint from public.export_branch_balances('23000000-0000-4000-8000-000000000001','33000000-0000-4000-8000-000000000001') $$,
+  array[5::bigint],
+  'finance export returns immutable original and Reversal history'
+);
+select results_eq($$ select count(*)::bigint from public.audit_events where action='balance.exported' $$,array[1::bigint],'a successful finance export is audited once');
+select throws_ok(
+  $$ select * from public.export_branch_balances('23000000-0000-4000-8000-000000000099','33000000-0000-4000-8000-000000000001') $$,
+  '42501','Balance export denied','manipulated Operator and Branch scope is rejected'
+);
 
 select set_config('request.jwt.claims','{"sub":"13000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
 select results_eq($$ select remaining_balance from public.student_balance_summary $$,array[70.25::numeric],'a Student sees their own Remaining Balance');
