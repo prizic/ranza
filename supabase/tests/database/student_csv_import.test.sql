@@ -1,11 +1,12 @@
 begin;
-select plan(17);
+select plan(19);
 
 select has_table('private', 'roster_imports', 'Import batches are private');
 select has_table('private', 'roster_import_rows', 'Staged Student data is private');
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password) values
-('81000000-0000-4000-8000-000000000001','00000000-0000-0000-0000-000000000000','authenticated','authenticated','csv-owner@example.test','');
+('81000000-0000-4000-8000-000000000001','00000000-0000-0000-0000-000000000000','authenticated','authenticated','csv-owner@example.test',''),
+('81000000-0000-4000-8000-000000000002','00000000-0000-0000-0000-000000000000','authenticated','authenticated','csv-outsider@example.test','');
 insert into public.operators (id,name,status) values
 ('82000000-0000-4000-8000-000000000001','CSV Operator','active'),
 ('82000000-0000-4000-8000-000000000002','Other CSV Operator','active');
@@ -118,6 +119,14 @@ select ok(
       and (after_summary::text like '%Ayşe%' or after_summary::text like '%S-1%')
   ),
   'Audit summaries contain no Student names or external references'
+);
+
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"81000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
+select is((select count(*) from public.student_import_runs),0::bigint,'Import run history is hidden from unauthorized staff');
+select throws_ok(
+  $$select public.student_roster_import_preview(null)$$,
+  '42501','Roster import access denied','Preview scope is independently enforced'
 );
 
 select * from finish();

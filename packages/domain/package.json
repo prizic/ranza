@@ -12,7 +12,8 @@
     "./meal-export": "./src/meal-export.ts",
     "./operator-lifecycle": "./src/operator-lifecycle.ts",
     "./attendance-export": "./src/attendance-export.ts",
-    "./leads": "./src/leads.ts"
+    "./leads": "./src/leads.ts",
+    "./student-csv-import": "./src/student-csv-import.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

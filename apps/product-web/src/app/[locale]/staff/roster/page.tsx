@@ -170,6 +170,15 @@ export default async function RosterPage({
       <h1>
         {t.title} · {selected.branch_name}
       </h1>
+      <p>
+        <a href={`/${locale}/staff/roster/import?branch=${selected.branch_id}`}>
+          {locale === "tr"
+            ? "CSV ile içe aktar"
+            : locale === "ar"
+              ? "استيراد CSV"
+              : "Import CSV"}
+        </a>
+      </p>
       <nav aria-label={t.to}>
         {branches.map((b) => (
           <a
