@@ -15,9 +15,11 @@ for (const locale of ["tr", "en", "ar"]) {
     await page.locator('button[type="submit"]').click();
     // Unconfigured local infrastructure must produce a recoverable failure,
     // never a false persisted-success message.
-    await expect(page.getByRole("alert")).toBeVisible();
+    // The first request in a Next dev server may include a cold route compile.
+    const submissionAlert = page.locator('.status-message[role="alert"]');
+    await expect(submissionAlert).toBeVisible({ timeout: 30_000 });
     await expect(page.locator("#lead-name")).toHaveValue("Ada Demir");
-    await expect(page.getByRole("alert")).toBeFocused();
+    await expect(submissionAlert).toBeFocused();
     await expect(page.locator("html")).toHaveAttribute(
       "dir",
       locale === "ar" ? "rtl" : "ltr",
