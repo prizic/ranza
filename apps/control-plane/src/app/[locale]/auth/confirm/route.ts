@@ -54,7 +54,8 @@ function isSetupType(value: string | null): value is SetupOtpType {
 }
 
 function isTokenHash(value: string | null): value is string {
-  return Boolean(value && /^[a-f0-9]{64}$/i.test(value));
+  // GoTrue OTP hashes are SHA-224 (56 hex); 64 tolerated if that changes.
+  return Boolean(value && /^[a-f0-9]{56,64}$/i.test(value));
 }
 
 export async function GET(

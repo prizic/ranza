@@ -16,7 +16,8 @@ afterEach(() => {
   createControlPlaneClient.mockReset();
 });
 
-const tokenHash = "a".repeat(64);
+// Real GoTrue tokens are SHA-224 hex; a 64-char fixture hid a length bug.
+const tokenHash = "a".repeat(56);
 
 function context(locale = "en") {
   return { params: Promise.resolve({ locale }) };
