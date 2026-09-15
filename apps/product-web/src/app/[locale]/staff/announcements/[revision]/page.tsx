@@ -1,5 +1,6 @@
 import type { AnnouncementFollowupRow } from "@ranza/domain";
 import { isSupportedLocale } from "@ranza/i18n";
+import { Badge, Button, Card, EmptyState } from "@ranza/ui";
 import { notFound, redirect } from "next/navigation";
 import { LocalizedShell } from "../../../../../components/localized-shell";
 import { createProductWebClient } from "../../../../../lib/supabase/server";
@@ -48,27 +49,35 @@ export default async function AnnouncementHistoryPage({
     }).format(new Date(value));
   return (
     <LocalizedShell locale={locale}>
-      <h1>
-        {t.history} · {detail.revision_number}
-      </h1>
-      <p
-        lang={detail.source_locale}
-        dir={detail.source_locale === "ar" ? "rtl" : "ltr"}
-        style={{ whiteSpace: "pre-wrap" }}
-      >
-        {detail.source_content}
-      </p>
-      <p>
-        {t.published}:{" "}
-        <time dateTime={detail.published_at}>{date(detail.published_at)}</time>
-      </p>
-      {detail.archived_at && (
-        <p>
-          {t.archived}:{" "}
-          <time dateTime={detail.archived_at}>{date(detail.archived_at)}</time>
+      <header className="page-intro page-intro-compact">
+        <h1>
+          {t.history} · {detail.revision_number}
+        </h1>
+      </header>
+      <Card className="announcement-card">
+        <p
+          lang={detail.source_locale}
+          dir={detail.source_locale === "ar" ? "rtl" : "ltr"}
+          style={{ whiteSpace: "pre-wrap" }}
+        >
+          {detail.source_content}
         </p>
-      )}
-      <form method="get">
+        <p>
+          {t.published}:{" "}
+          <time dateTime={detail.published_at}>
+            {date(detail.published_at)}
+          </time>
+        </p>
+        {detail.archived_at && (
+          <p>
+            {t.archived}:{" "}
+            <time dateTime={detail.archived_at}>
+              {date(detail.archived_at)}
+            </time>
+          </p>
+        )}
+      </Card>
+      <form method="get" className="filter-bar">
         <label>
           {t.filter}
           <select name="status" defaultValue={status}>
@@ -81,16 +90,28 @@ export default async function AnnouncementHistoryPage({
             ))}
           </select>
         </label>
-        <button type="submit">{t.filter}</button>
+        <Button type="submit">{t.filter}</Button>
       </form>
-      <a href={`/api/announcements/${revision}/export?status=${status}`}>
+      <a
+        className="button button-secondary"
+        href={`/api/announcements/${revision}/export?status=${status}`}
+      >
         {t.export}
       </a>
-      <ul>
+      {detail.recipients.length === 0 ? (
+        <EmptyState
+          title={t.history}
+          description={t[status as keyof typeof t] as string}
+        />
+      ) : null}
+      <ul className="recipient-list">
         {detail.recipients.map((recipient) => (
-          <li key={recipient.student_id} className="control-card">
+          <li
+            key={recipient.student_id}
+            className="card card-compact card-default"
+          >
             <strong>{recipient.display_name}</strong>
-            <p>{t[recipient.status]}</p>
+            <Badge>{t[recipient.status]}</Badge>
             <p>
               {t.resolved}:{" "}
               <time dateTime={recipient.resolved_at}>

@@ -1,6 +1,14 @@
 import { selectAuthorizedBranch } from "@ranza/auth";
 import { isSupportedLocale } from "@ranza/i18n";
-import { BidiText, StatusMessage } from "@ranza/ui";
+import {
+  Badge,
+  BidiText,
+  Button,
+  Card,
+  Input,
+  StatusMessage,
+  Table,
+} from "@ranza/ui";
 import { notFound, redirect } from "next/navigation";
 
 import { LocalizedShell } from "../../../../components/localized-shell";
@@ -166,7 +174,7 @@ export default async function StaffAttendancePage({
 
   return (
     <LocalizedShell locale={locale}>
-      <section className="branch-context">
+      <Card className="branch-context" tone="strong">
         <div>
           <span>{copy.branch}</span>
           <h2>{branch.branch_name}</h2>
@@ -183,7 +191,7 @@ export default async function StaffAttendancePage({
             </a>
           ))}
         </nav>
-      </section>
+      </Card>
       {result ? (
         <StatusMessage
           tone={
@@ -255,13 +263,13 @@ export default async function StaffAttendancePage({
           <input name="locale" type="hidden" value={locale} />
           <input name="branch" type="hidden" value={branchId} />
           <input name="session" type="hidden" value={sessionId} />
-          <button className="button" type="submit">
+          <Button type="submit">
             {locale === "tr"
               ? "Güvenli kesinleştirmeyi yeniden dene"
               : locale === "ar"
                 ? "إعادة محاولة التثبيت الآمن"
                 : "Retry safe finalization"}
-          </button>
+          </Button>
         </form>
       ) : null}
       {latestJob?.status === "failed" || latestJob?.status === "exhausted" ? (
@@ -275,7 +283,11 @@ export default async function StaffAttendancePage({
           <BidiText>{latestJob.correlation_id}</BidiText>
         </StatusMessage>
       ) : null}
-      <section className="attendance-totals" aria-label={copy.title}>
+      <Card
+        className="attendance-totals"
+        aria-label={copy.title}
+        density="compact"
+      >
         <article>
           <strong>{totals.staying_total}</strong>
           <span>{copy.staying}</span>
@@ -292,155 +304,167 @@ export default async function StaffAttendancePage({
           <strong>{totals.response_percentage}%</strong>
           <span>Response</span>
         </article>
-      </section>
-      <div className="table-scroll">
-        <table className="attendance-table">
-          <thead>
-            <tr>
-              <th>{copy.profile}</th>
-              <th>Status</th>
-              <th>Last update</th>
-              {snapshot && canConfigure ? <th>Correction</th> : null}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => {
-              const lastUpdated = snapshot
-                ? null
-                : (row as BoardRow).last_updated_at;
-              const status = snapshot
-                ? (row as SnapshotRow).effective_status
-                : (row as BoardRow).status;
-              return (
-                <tr key={row.student_id}>
-                  <th scope="row">
-                    {snapshot
-                      ? (row as SnapshotRow).student_name
-                      : (row as BoardRow).student_name}
-                  </th>
-                  <td>
+      </Card>
+      <Table className="attendance-table" label={copy.title}>
+        <thead>
+          <tr>
+            <th>{copy.profile}</th>
+            <th>Status</th>
+            {snapshot && canConfigure ? <th>Correction</th> : null}
+            <th>Last update</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const lastUpdated = snapshot
+              ? null
+              : (row as BoardRow).last_updated_at;
+            const status = snapshot
+              ? (row as SnapshotRow).effective_status
+              : (row as BoardRow).status;
+            return (
+              <tr key={row.student_id}>
+                <th scope="row">
+                  {snapshot
+                    ? (row as SnapshotRow).student_name
+                    : (row as BoardRow).student_name}
+                </th>
+                <td>
+                  <Badge
+                    tone={
+                      status === "staying"
+                        ? "success"
+                        : status === "away"
+                          ? "warning"
+                          : "neutral"
+                    }
+                  >
                     {status === "staying"
                       ? copy.staying
                       : status === "away"
                         ? copy.away
                         : copy.unconfirmed}
-                    {snapshot && (row as SnapshotRow).corrected ? (
-                      <span
-                        title={
-                          (row as SnapshotRow).correction_reason ?? undefined
-                        }
-                      >
-                        {" · ✓"}
-                      </span>
-                    ) : null}
-                  </td>
-                  {snapshot && canConfigure ? (
-                    <td>
-                      <form
-                        action={correctAttendance}
-                        className="schedule-form"
-                      >
-                        <input name="locale" type="hidden" value={locale} />
-                        <input name="branch" type="hidden" value={branchId} />
-                        <input name="session" type="hidden" value={sessionId} />
-                        <input
-                          name="student"
-                          type="hidden"
-                          value={row.student_id}
-                        />
-                        <select defaultValue={status} name="status" required>
-                          <option value="staying">{copy.staying}</option>
-                          <option value="away">{copy.away}</option>
-                          <option value="unconfirmed">
-                            {copy.unconfirmed}
-                          </option>
-                        </select>
-                        <input
-                          minLength={4}
-                          name="reason"
-                          placeholder={
-                            locale === "tr"
-                              ? "Düzeltme nedeni"
-                              : locale === "ar"
-                                ? "سبب التصحيح"
-                                : "Correction reason"
-                          }
-                          required
-                        />
-                        <button className="button" type="submit">
-                          {locale === "tr"
-                            ? "Düzelt"
-                            : locale === "ar"
-                              ? "تصحيح"
-                              : "Correct"}
-                        </button>
-                      </form>
-                    </td>
+                  </Badge>
+                  {snapshot && (row as SnapshotRow).corrected ? (
+                    <span
+                      title={
+                        (row as SnapshotRow).correction_reason ?? undefined
+                      }
+                    >
+                      {" · ✓"}
+                    </span>
                   ) : null}
+                </td>
+                {snapshot && canConfigure ? (
                   <td>
-                    {lastUpdated ? (
-                      <BidiText>
-                        {new Intl.DateTimeFormat(locale, {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                          timeZone: branch.timezone,
-                        }).format(new Date(lastUpdated))}
-                      </BidiText>
-                    ) : (
-                      "—"
-                    )}
+                    <form action={correctAttendance} className="schedule-form">
+                      <input name="locale" type="hidden" value={locale} />
+                      <input name="branch" type="hidden" value={branchId} />
+                      <input name="session" type="hidden" value={sessionId} />
+                      <Input
+                        name="student"
+                        type="hidden"
+                        value={row.student_id}
+                      />
+                      <select defaultValue={status} name="status" required>
+                        <option value="staying">{copy.staying}</option>
+                        <option value="away">{copy.away}</option>
+                        <option value="unconfirmed">{copy.unconfirmed}</option>
+                      </select>
+                      <Input
+                        aria-label={
+                          locale === "tr"
+                            ? "Düzeltme nedeni"
+                            : locale === "ar"
+                              ? "سبب التصحيح"
+                              : "Correction reason"
+                        }
+                        minLength={4}
+                        name="reason"
+                        placeholder={
+                          locale === "tr"
+                            ? "Düzeltme nedeni"
+                            : locale === "ar"
+                              ? "سبب التصحيح"
+                              : "Correction reason"
+                        }
+                        required
+                      />
+                      <Button type="submit">
+                        {locale === "tr"
+                          ? "Düzelt"
+                          : locale === "ar"
+                            ? "تصحيح"
+                            : "Correct"}
+                      </Button>
+                    </form>
                   </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                ) : null}
+                <td>
+                  {lastUpdated ? (
+                    <BidiText>
+                      {new Intl.DateTimeFormat(locale, {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                        timeZone: branch.timezone,
+                      }).format(new Date(lastUpdated))}
+                    </BidiText>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </Table>
       {snapshot && canConfigure ? (
-        <form action={reopenAttendance} className="schedule-form">
-          <input name="locale" type="hidden" value={locale} />
-          <input name="branch" type="hidden" value={branchId} />
-          <input name="session" type="hidden" value={sessionId} />
-          <label>
-            {locale === "tr"
-              ? "Yeniden açma nedeni"
-              : locale === "ar"
-                ? "سبب إعادة الفتح"
-                : "Reopen reason"}
-            <input minLength={4} name="reason" required />
-          </label>
-          <button className="button" type="submit">
-            {locale === "tr"
-              ? "İnceleme için yeniden aç"
-              : locale === "ar"
-                ? "إعادة الفتح للمراجعة"
-                : "Reopen for review"}
-          </button>
-        </form>
+        <Card>
+          <form action={reopenAttendance} className="schedule-form">
+            <input name="locale" type="hidden" value={locale} />
+            <input name="branch" type="hidden" value={branchId} />
+            <input name="session" type="hidden" value={sessionId} />
+            <label>
+              {locale === "tr"
+                ? "Yeniden açma nedeni"
+                : locale === "ar"
+                  ? "سبب إعادة الفتح"
+                  : "Reopen reason"}
+              <Input minLength={4} name="reason" required />
+            </label>
+            <Button type="submit">
+              {locale === "tr"
+                ? "İnceleme için yeniden aç"
+                : locale === "ar"
+                  ? "إعادة الفتح للمراجعة"
+                  : "Reopen for review"}
+            </Button>
+          </form>
+        </Card>
       ) : null}
       {canConfigure ? (
-        <form action={configureAttendanceSchedule} className="schedule-form">
-          <input name="locale" type="hidden" value={locale} />
-          <input name="branch" type="hidden" value={branchId} />
-          <label>
-            {copy.branch}
-            <input defaultValue={branch.timezone} name="timezone" required />
-          </label>
-          <label>
-            {copy.cutoff}
-            <input
-              defaultValue="1320"
-              max="1439"
-              min="0"
-              name="cutoffMinute"
-              required
-              type="number"
-            />
-          </label>
-          <button className="button" type="submit">
-            {copy.submit}
-          </button>
-        </form>
+        <Card>
+          <form action={configureAttendanceSchedule} className="schedule-form">
+            <input name="locale" type="hidden" value={locale} />
+            <input name="branch" type="hidden" value={branchId} />
+            <label>
+              {copy.branch}
+              <Input defaultValue={branch.timezone} name="timezone" required />
+            </label>
+            <label>
+              {copy.cutoff}
+              <Input
+                defaultValue="1320"
+                max="1439"
+                min="0"
+                name="cutoffMinute"
+                required
+                type="number"
+              />
+            </label>
+            <Button type="submit">{copy.submit}</Button>
+          </form>
+        </Card>
       ) : null}
     </LocalizedShell>
   );

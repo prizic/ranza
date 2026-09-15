@@ -9,7 +9,7 @@ export default async function MissingPage({
   if (!isSupportedLocale(locale)) notFound();
   const messages = messagesFor(locale);
   return (
-    <main className="state-page">
+    <main className="state-page state-page-not-found">
       <FeedbackState
         actionHref={localizeHref(locale, "/")}
         actionLabel={messages.states.notFound.action}

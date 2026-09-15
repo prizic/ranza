@@ -3,6 +3,7 @@ import {
   type AnnouncementContent,
 } from "@ranza/domain";
 import { isSupportedLocale } from "@ranza/i18n";
+import { Badge, Button, Card, EmptyState, StatusMessage } from "@ranza/ui";
 import { notFound, redirect } from "next/navigation";
 import { LocalizedShell } from "../../../components/localized-shell";
 import { createProductWebClient } from "../../../lib/supabase/server";
@@ -35,10 +36,18 @@ export default async function AnnouncementsPage({
   const t = announcementCopy[locale];
   return (
     <LocalizedShell locale={locale}>
-      <h1>{t.title}</h1>
-      {(error || query.result === "failed") && <p role="alert">{t.error}</p>}
-      {query.result === "saved" && <p role="status">{t.saved}</p>}
-      {!error && items.length === 0 && <p>{t.empty}</p>}
+      <header className="page-intro page-intro-compact">
+        <h1>{t.title}</h1>
+      </header>
+      {(error || query.result === "failed") && (
+        <StatusMessage tone="warning">{t.error}</StatusMessage>
+      )}
+      {query.result === "saved" && (
+        <StatusMessage tone="success">{t.saved}</StatusMessage>
+      )}
+      {!error && items.length === 0 && (
+        <EmptyState title={t.title} description={t.empty} />
+      )}
       {items.map((item) => {
         const display = selectAnnouncementContent(
           {
@@ -50,11 +59,11 @@ export default async function AnnouncementsPage({
           item.operator_locale,
         );
         return (
-          <article className="control-card" key={item.id}>
+          <Card className="announcement-card" key={item.id}>
             {display.fallback && (
-              <p role="note">
+              <Badge tone="info">
                 {t.fallback}: {t[display.locale]}
-              </p>
+              </Badge>
             )}
             <p
               lang={display.locale}
@@ -69,15 +78,15 @@ export default async function AnnouncementsPage({
               )}
             </time>
             {item.acknowledged_at ? (
-              <p>{t.acknowledged}</p>
+              <Badge tone="success">{t.acknowledged}</Badge>
             ) : (
               <form action={acknowledgeAnnouncementAction}>
                 <input type="hidden" name="locale" value={locale} />
                 <input type="hidden" name="revision" value={item.id} />
-                <button type="submit">{t.acknowledge}</button>
+                <Button type="submit">{t.acknowledge}</Button>
               </form>
             )}
-          </article>
+          </Card>
         );
       })}
     </LocalizedShell>

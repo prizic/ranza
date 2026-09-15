@@ -1,5 +1,5 @@
 import { isSupportedLocale } from "@ranza/i18n";
-import { BidiText, StatusMessage } from "@ranza/ui";
+import { BidiText, Card, EmptyState, StatusMessage } from "@ranza/ui";
 import { notFound, redirect } from "next/navigation";
 
 import { LocalizedShell } from "../../../components/localized-shell";
@@ -68,8 +68,10 @@ export default async function BalancePage({
   const labels = copy[locale];
   return (
     <LocalizedShell locale={locale}>
-      <section className="control-card">
-        <h2>{labels.title}</h2>
+      <header className="page-intro page-intro-compact">
+        <h1>{labels.title}</h1>
+      </header>
+      <Card className="ledger-card">
         <StatusMessage tone="warning">{labels.disclaimer}</StatusMessage>
         {(summaries ?? []).map((summary) => (
           <p key={summary.account_id}>
@@ -82,7 +84,7 @@ export default async function BalancePage({
           </p>
         ))}
         {(entries ?? []).length === 0 ? (
-          <p>{labels.empty}</p>
+          <EmptyState title={labels.title} description={labels.empty} />
         ) : (
           <ul>
             {(entries ?? []).map((entry) => (
@@ -102,7 +104,7 @@ export default async function BalancePage({
             ))}
           </ul>
         )}
-      </section>
+      </Card>
     </LocalizedShell>
   );
 }

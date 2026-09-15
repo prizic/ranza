@@ -9,7 +9,7 @@ export default async function MaintenancePage({
   if (!isSupportedLocale(locale)) notFound();
   const messages = messagesFor(locale);
   return (
-    <main className="state-page">
+    <main className="state-page state-page-maintenance">
       <FeedbackState
         actionHref={localizeHref(locale, "/")}
         actionLabel={messages.states.maintenance.action}

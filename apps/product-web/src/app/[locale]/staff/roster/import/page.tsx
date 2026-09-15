@@ -1,6 +1,14 @@
 import { selectAuthorizedBranch } from "@ranza/auth";
 import { isSupportedLocale } from "@ranza/i18n";
-import { StatusMessage } from "@ranza/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Input,
+  StatusMessage,
+  Table,
+} from "@ranza/ui";
 import { notFound, redirect } from "next/navigation";
 
 import { LocalizedShell } from "../../../../../components/localized-shell";
@@ -129,10 +137,17 @@ export default async function StudentImportPage({
     : null;
   return (
     <LocalizedShell locale={locale}>
-      <a href={`/${locale}/staff/roster?branch=${branchId}`}>{t.back}</a>
-      <h1>
-        {t.title} · {branch.branch_name}
-      </h1>
+      <a
+        className="text-link"
+        href={`/${locale}/staff/roster?branch=${branchId}`}
+      >
+        {t.back}
+      </a>
+      <header className="page-intro page-intro-compact">
+        <h1>
+          {t.title} · {branch.branch_name}
+        </h1>
+      </header>
       {query.error ? (
         <StatusMessage tone="warning">
           {locale === "tr"
@@ -149,20 +164,25 @@ export default async function StudentImportPage({
           {String(query.result)}
         </StatusMessage>
       ) : null}
-      <section className="control-card">
-        <a href="/api/student-import/template">{t.template}</a>
+      <Card>
+        <a
+          className="button button-secondary"
+          href="/api/student-import/template"
+        >
+          {t.template}
+        </a>
         <p>
           external_reference, display_name, preferred_locale (tr/en/ar) · UTF-8
           · max 1,000 rows / 5 MB
         </p>
-        <form action={previewStudentImport}>
+        <form action={previewStudentImport} className="control-form">
           {hidden()}
-          <input accept=".csv,text/csv" name="csv" required type="file" />
-          <button type="submit">{t.upload}</button>
+          <Input accept=".csv,text/csv" name="csv" required type="file" />
+          <Button type="submit">{t.upload}</Button>
         </form>
-      </section>
+      </Card>
       {preview && currentRun ? (
-        <section className="control-card">
+        <Card>
           <h2>
             {preview.status} · {preview.valid_count}/{preview.row_count}{" "}
             {t.valid}
@@ -173,54 +193,57 @@ export default async function StudentImportPage({
           {preview.status === "staged" ? (
             <form action={confirmStudentImport}>
               {hidden(currentRun.import_key)}
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th></th>
-                      <th>#</th>
-                      <th>Reference</th>
-                      <th>Name</th>
-                      <th>Locale</th>
-                      <th>Status</th>
+              <Table label={t.title}>
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>#</th>
+                    <th>Reference</th>
+                    <th>Name</th>
+                    <th>Locale</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.rows.map((row) => (
+                    <tr key={row.rowNumber}>
+                      <td>
+                        {row.errors.length === 0 ? (
+                          <input
+                            aria-label={`${t.confirm}: ${row.displayName}`}
+                            defaultChecked
+                            name="row"
+                            type="checkbox"
+                            value={row.rowNumber}
+                          />
+                        ) : null}
+                      </td>
+                      <td>{row.rowNumber}</td>
+                      <td>
+                        <bdi>{row.externalReference}</bdi>
+                      </td>
+                      <td>{row.displayName}</td>
+                      <td>{row.preferredLocale}</td>
+                      <td>
+                        {row.errors.length === 0 ? (
+                          <Badge tone="success">{t.valid}</Badge>
+                        ) : (
+                          `${t.invalid}: ${row.errors.join(", ")}`
+                        )}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {preview.rows.map((row) => (
-                      <tr key={row.rowNumber}>
-                        <td>
-                          {row.errors.length === 0 ? (
-                            <input
-                              defaultChecked
-                              name="row"
-                              type="checkbox"
-                              value={row.rowNumber}
-                            />
-                          ) : null}
-                        </td>
-                        <td>{row.rowNumber}</td>
-                        <td>
-                          <bdi>{row.externalReference}</bdi>
-                        </td>
-                        <td>{row.displayName}</td>
-                        <td>{row.preferredLocale}</td>
-                        <td>
-                          {row.errors.length === 0
-                            ? t.valid
-                            : `${t.invalid}: ${row.errors.join(", ")}`}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <button type="submit">{t.confirm}</button>
+                  ))}
+                </tbody>
+              </Table>
+              <Button type="submit">{t.confirm}</Button>
             </form>
           ) : null}
           {preview.status === "staged" ? (
             <form action={cancelStudentImport}>
               {hidden(currentRun.import_key)}
-              <button type="submit">{t.cancel}</button>
+              <Button tone="danger" type="submit">
+                {t.cancel}
+              </Button>
             </form>
           ) : null}
           {preview.error_reference ? (
@@ -228,11 +251,14 @@ export default async function StudentImportPage({
               <bdi>{preview.error_reference}</bdi>
             </p>
           ) : null}
-        </section>
+        </Card>
       ) : null}
-      <section className="control-card">
+      <Card>
         <h2>{t.history}</h2>
-        <ul>
+        {(runs ?? []).length === 0 ? (
+          <EmptyState title={t.history} description={t.history} />
+        ) : null}
+        <ul className="import-history">
           {(runs ?? []).map((run) => (
             <li key={run.id}>
               <a href={`?branch=${branchId}&run=${run.id}`}>
@@ -244,7 +270,7 @@ export default async function StudentImportPage({
             </li>
           ))}
         </ul>
-      </section>
+      </Card>
     </LocalizedShell>
   );
 }

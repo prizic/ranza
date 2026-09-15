@@ -1,4 +1,5 @@
 import { isSupportedLocale } from "@ranza/i18n";
+import { Badge, Button, Card, EmptyState, StatusMessage } from "@ranza/ui";
 import { notFound, redirect } from "next/navigation";
 import { LocalizedShell } from "../../../../components/localized-shell";
 import { createProductWebClient } from "../../../../lib/supabase/server";
@@ -73,24 +74,34 @@ export default async function ExportsPage({
   const t = copy[locale];
   return (
     <LocalizedShell locale={locale}>
-      <section className="control-card">
-        <h2>{t.title}</h2>
+      <header className="page-intro page-intro-compact">
+        <h1>{t.title}</h1>
         <p>{t.info}</p>
+      </header>
+      <Card>
         {query.result || error ? (
-          <p role="status">
+          <StatusMessage
+            tone={query.result === "queued" && !error ? "success" : "warning"}
+          >
             {query.result === "queued" && !error ? t.queued : t.denied}
-          </p>
+          </StatusMessage>
         ) : null}
         <form action={requestExportAction}>
           <input type="hidden" name="locale" value={locale} />
           <input type="hidden" name="operator" value={operatorId} />
-          <button>{t.request}</button>
+          <Button>{t.request}</Button>
         </form>
-        <ul>
+        {(exports as ExportRow[] | null)?.length ? null : (
+          <EmptyState title={t.title} description={t.info} />
+        )}
+        <ul className="export-list">
           {(exports as ExportRow[] | null)?.map((item) => (
             <li key={item.id}>
-              {item.requested_at} · {item.status} · {t.expiry}:{" "}
-              {item.expires_at}
+              {item.requested_at} ·{" "}
+              <Badge tone={item.status === "ready" ? "success" : "info"}>
+                {item.status}
+              </Badge>{" "}
+              · {t.expiry}: {item.expires_at}
               {item.status === "ready" &&
               Date.parse(item.expires_at) > Date.now() ? (
                 <>
@@ -106,7 +117,7 @@ export default async function ExportsPage({
             </li>
           ))}
         </ul>
-      </section>
+      </Card>
     </LocalizedShell>
   );
 }

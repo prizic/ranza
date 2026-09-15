@@ -1,5 +1,5 @@
 import { isSupportedLocale } from "@ranza/i18n";
-import { FormField, StatusMessage } from "@ranza/ui";
+import { Button, Card, FormField, StatusMessage } from "@ranza/ui";
 import { notFound } from "next/navigation";
 
 import { LocalizedShell } from "../../../../components/localized-shell";
@@ -42,9 +42,11 @@ export default async function StaffSignInPage({
 
   return (
     <LocalizedShell locale={locale}>
-      <section className="control-card">
-        <h2>{messages.title}</h2>
+      <header className="page-intro page-intro-compact">
+        <h1>{messages.title}</h1>
         <p>{messages.intro}</p>
+      </header>
+      <Card className="auth-card">
         {query.sent ? (
           <StatusMessage tone="success">{messages.sent}</StatusMessage>
         ) : null}
@@ -59,11 +61,9 @@ export default async function StaffSignInPage({
             name="email"
             type="email"
           />
-          <button className="button" type="submit">
-            {messages.action}
-          </button>
+          <Button type="submit">{messages.action}</Button>
         </form>
-      </section>
+      </Card>
     </LocalizedShell>
   );
 }

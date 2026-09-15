@@ -1,5 +1,5 @@
 import { isSupportedLocale } from "@ranza/i18n";
-import { StatusMessage } from "@ranza/ui";
+import { Card, EmptyState, StatusMessage } from "@ranza/ui";
 import { notFound, redirect } from "next/navigation";
 
 import { LocalizedShell } from "../../../components/localized-shell";
@@ -103,8 +103,10 @@ export default async function MealsPage({
   const labels = copy[locale];
   return (
     <LocalizedShell locale={locale}>
-      <section className="control-card">
-        <h2>{labels.title}</h2>
+      <header className="page-intro page-intro-compact">
+        <h1>{labels.title}</h1>
+      </header>
+      <Card className="meal-card">
         {query.result === "saved" ? (
           <StatusMessage tone="success">{labels.saved}</StatusMessage>
         ) : null}
@@ -112,7 +114,7 @@ export default async function MealsPage({
           <StatusMessage tone="warning">{labels.failed}</StatusMessage>
         ) : null}
         {!day ? (
-          <StatusMessage>{labels.none}</StatusMessage>
+          <EmptyState title={labels.title} description={labels.none} />
         ) : (
           <form action={submitMealResponseAction} className="control-form">
             <input name="locale" type="hidden" value={locale} />
@@ -138,7 +140,7 @@ export default async function MealsPage({
             />
           </form>
         )}
-      </section>
+      </Card>
     </LocalizedShell>
   );
 }

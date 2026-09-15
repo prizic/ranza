@@ -1,6 +1,13 @@
 import { selectAuthorizedBranch } from "@ranza/auth";
 import { isSupportedLocale } from "@ranza/i18n";
-import { StatusMessage } from "@ranza/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Input,
+  StatusMessage,
+} from "@ranza/ui";
 import { notFound, redirect } from "next/navigation";
 
 import { LocalizedShell } from "../../../../components/localized-shell";
@@ -84,7 +91,7 @@ export default async function StaffMealsPage({
   if (finalError) throw finalError;
   return (
     <LocalizedShell locale={locale}>
-      <section className="control-card">
+      <Card>
         <h2>Meal Day · {branch.branch_name}</h2>
         {query.result === "published" ? (
           <StatusMessage tone="success">Meal Day published.</StatusMessage>
@@ -101,11 +108,11 @@ export default async function StaffMealsPage({
             <input name="branchId" type="hidden" value={branchId} />
             <label>
               Service date
-              <input name="serviceDate" required type="date" />
+              <Input name="serviceDate" required type="date" />
             </label>
             <label>
               Immutable UTC deadline
-              <input name="deadlineAt" required type="datetime-local" />
+              <Input name="deadlineAt" required type="datetime-local" />
             </label>
             {(["breakfast", "lunch", "dinner"] as const).map((meal) => (
               <label key={meal}>
@@ -113,14 +120,12 @@ export default async function StaffMealsPage({
                 {meal}
               </label>
             ))}
-            <button className="button" type="submit">
-              Publish
-            </button>
+            <Button type="submit">Publish</Button>
           </form>
         ) : null}
-      </section>
+      </Card>
       {totals ? (
-        <section className="control-card">
+        <Card>
           <h2>{totals.service_date}</h2>
           <p>
             Breakfast {totals.breakfast} · Lunch {totals.lunch} · Dinner{" "}
@@ -133,19 +138,20 @@ export default async function StaffMealsPage({
           <ul>
             {(statuses ?? []).map((status) => (
               <li key={status.student_id}>
-                {status.display_name} · {status.response_status} ·{" "}
-                {(status.selected_meals as string[]).join(", ") || "no meals"}
+                {status.display_name} · <Badge>{status.response_status}</Badge>{" "}
+                · {(status.selected_meals as string[]).join(", ") || "no meals"}
               </li>
             ))}
           </ul>
-        </section>
+        </Card>
       ) : (
-        <StatusMessage>
-          No Meal Day has been published for this Branch.
-        </StatusMessage>
+        <EmptyState
+          title="Meal Day"
+          description="No Meal Day has been published for this Branch."
+        />
       )}
       {snapshot ? (
-        <section className="control-card">
+        <Card>
           <h2>Final kitchen count</h2>
           <p>Finalized {snapshot.finalized_at}</p>
           <p>
@@ -207,22 +213,22 @@ export default async function StaffMealsPage({
                     ))}
                     <label>
                       Correction reason
-                      <input
+                      <Input
                         maxLength={500}
                         minLength={4}
                         name="reason"
                         required
                       />
                     </label>
-                    <button className="button button-secondary" type="submit">
+                    <Button tone="secondary" type="submit">
                       Record correction
-                    </button>
+                    </Button>
                   </form>
                 ) : null}
               </li>
             ))}
           </ul>
-        </section>
+        </Card>
       ) : null}
     </LocalizedShell>
   );

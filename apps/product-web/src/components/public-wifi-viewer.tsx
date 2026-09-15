@@ -1,4 +1,5 @@
 "use client";
+import { Card, EmptyState, StatusMessage } from "@ranza/ui";
 import { useEffect, useRef, useState } from "react";
 import { publicWifiCopy } from "../lib/public-wifi-copy";
 import { wifiCopy } from "../lib/wifi-copy";
@@ -40,13 +41,13 @@ export function PublicWifiViewer({ locale }: { locale: "tr" | "en" | "ar" }) {
     return () => controller.abort();
   }, []);
   return (
-    <section className="control-card">
+    <Card className="public-wifi-card">
       <h1>{t.title}</h1>
       <p>{t.note}</p>
       {loading ? (
-        <p role="status">{t.loading}</p>
+        <StatusMessage>{t.loading}</StatusMessage>
       ) : !details ? (
-        <p role="alert">{t.error}</p>
+        <EmptyState title={t.title} description={t.error} />
       ) : (
         <dl>
           <dt>{fields.networkName}</dt>
@@ -61,6 +62,6 @@ export function PublicWifiViewer({ locale }: { locale: "tr" | "en" | "ar" }) {
           <dd>{details.instructions}</dd>
         </dl>
       )}
-    </section>
+    </Card>
   );
 }

@@ -1,5 +1,12 @@
 import { isSupportedLocale } from "@ranza/i18n";
-import { StatusMessage } from "@ranza/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Input,
+  StatusMessage,
+} from "@ranza/ui";
 import { notFound, redirect } from "next/navigation";
 import { LocalizedShell } from "../../../../components/localized-shell";
 import { StudentCredentialIssue } from "../../../../components/student-credential-issue";
@@ -126,7 +133,7 @@ export default async function RosterPage({
     <>
       <label>
         {t.name}
-        <input
+        <Input
           name="displayName"
           defaultValue={student?.display_name}
           required
@@ -136,7 +143,7 @@ export default async function RosterPage({
       </label>
       <label>
         {t.reference}
-        <input
+        <Input
           name="externalReference"
           defaultValue={student?.external_reference ?? ""}
           maxLength={120}
@@ -166,12 +173,22 @@ export default async function RosterPage({
   );
   return (
     <LocalizedShell locale={locale}>
-      <a href={`/${locale}/staff?branch=${selected.branch_id}`}>{t.back}</a>
-      <h1>
-        {t.title} · {selected.branch_name}
-      </h1>
+      <a
+        className="text-link"
+        href={`/${locale}/staff?branch=${selected.branch_id}`}
+      >
+        {t.back}
+      </a>
+      <header className="page-intro page-intro-compact">
+        <h1>
+          {t.title} · {selected.branch_name}
+        </h1>
+      </header>
       <p>
-        <a href={`/${locale}/staff/roster/import?branch=${selected.branch_id}`}>
+        <a
+          className="button button-secondary"
+          href={`/${locale}/staff/roster/import?branch=${selected.branch_id}`}
+        >
           {locale === "tr"
             ? "CSV ile içe aktar"
             : locale === "ar"
@@ -179,7 +196,7 @@ export default async function RosterPage({
               : "Import CSV"}
         </a>
       </p>
-      <nav aria-label={t.to}>
+      <nav aria-label={t.to} className="branch-switcher">
         {branches.map((b) => (
           <a
             key={b.branch_id}
@@ -196,38 +213,45 @@ export default async function RosterPage({
         <StatusMessage tone="success">{t.done}</StatusMessage>
       )}
       {query.error && <StatusMessage tone="warning">{t.error}</StatusMessage>}
-      <section className="control-card">
+      <Card>
         <h2>{t.add}</h2>
-        <form action={manageRoster}>
+        <form action={manageRoster} className="control-form">
           {hidden("create")}
           {fields()}
-          <button type="submit">{t.add}</button>
+          <Button type="submit">{t.add}</Button>
         </form>
-      </section>
-      {!roster.data?.length && <p>{t.empty}</p>}
+      </Card>
+      {!roster.data?.length && (
+        <EmptyState title={t.title} description={t.empty} />
+      )}
       {(roster.data ?? []).map(({ student }) => (
-        <section className="control-card" key={student.id}>
+        <Card className="roster-card" key={student.id}>
           <h2>{student.display_name}</h2>
           <p>
-            {student.status === "active" ? t.active : t.inactive} · {t.id}:{" "}
-            <bdi dir="ltr">{student.access_id}</bdi>
+            <Badge tone={student.status === "active" ? "success" : "neutral"}>
+              {student.status === "active" ? t.active : t.inactive}
+            </Badge>{" "}
+            · {t.id}: <bdi dir="ltr">{student.access_id}</bdi>
           </p>
           {student.status === "active" && (
             <StudentCredentialIssue studentId={student.id} locale={locale} />
           )}
-          <form action={manageRoster}>
+          <form action={manageRoster} className="control-form">
             {hidden("edit", student)}
             {fields(student)}
-            <button type="submit">{t.save}</button>
+            <Button type="submit">{t.save}</Button>
           </form>
           <form action={manageRoster}>
             {hidden(
               student.status === "active" ? "archive" : "reactivate",
               student,
             )}
-            <button type="submit">
+            <Button
+              tone={student.status === "active" ? "danger" : "secondary"}
+              type="submit"
+            >
               {student.status === "active" ? t.archive : t.reactivate}
-            </button>
+            </Button>
           </form>
           {student.status === "active" &&
             branches.some(
@@ -235,7 +259,7 @@ export default async function RosterPage({
                 b.operator_id === selected.operator_id &&
                 b.branch_id !== selected.branch_id,
             ) && (
-              <form action={manageRoster}>
+              <form action={manageRoster} className="control-form">
                 {hidden("transfer", student)}
                 <label>
                   {t.to}
@@ -253,10 +277,12 @@ export default async function RosterPage({
                       ))}
                   </select>
                 </label>
-                <button type="submit">{t.transfer}</button>
+                <Button tone="secondary" type="submit">
+                  {t.transfer}
+                </Button>
               </form>
             )}
-        </section>
+        </Card>
       ))}
     </LocalizedShell>
   );

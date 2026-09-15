@@ -15,7 +15,7 @@ export default async function PublicWifiPage({
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
   return (
-    <main>
+    <main className="public-wifi-page">
       <PublicWifiViewer locale={locale} />
     </main>
   );

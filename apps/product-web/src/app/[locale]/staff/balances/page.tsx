@@ -1,6 +1,14 @@
 import { selectAuthorizedBranch } from "@ranza/auth";
 import { isSupportedLocale } from "@ranza/i18n";
-import { BidiText, StatusMessage } from "@ranza/ui";
+import {
+  Badge,
+  BidiText,
+  Button,
+  Card,
+  EmptyState,
+  Input,
+  StatusMessage,
+} from "@ranza/ui";
 import { randomUUID } from "node:crypto";
 import { notFound, redirect } from "next/navigation";
 
@@ -88,8 +96,10 @@ export default async function StaffBalancesPage({
   if (entryError) throw entryError;
   return (
     <LocalizedShell locale={locale}>
-      <section className="control-card">
-        <h2>Student Balances · {branch.branch_name}</h2>
+      <header className="page-intro page-intro-compact">
+        <h1>Student Balances · {branch.branch_name}</h1>
+      </header>
+      <Card>
         <StatusMessage tone="warning">
           Ranza records money activity reported by the dormitory. It never
           collects, transfers, settles, or receipts money.
@@ -109,7 +119,7 @@ export default async function StaffBalancesPage({
           <input name="branch" type="hidden" value={branchId} />
           <label>
             Minimum remaining Balance
-            <input
+            <Input
               defaultValue={minimumRemaining ?? ""}
               inputMode="decimal"
               name="minimumRemaining"
@@ -117,7 +127,7 @@ export default async function StaffBalancesPage({
           </label>
           <label>
             Maximum remaining Balance
-            <input
+            <Input
               defaultValue={maximumRemaining ?? ""}
               inputMode="decimal"
               name="maximumRemaining"
@@ -132,9 +142,9 @@ export default async function StaffBalancesPage({
             />
             Overdue only
           </label>
-          <button className="button button-secondary" type="submit">
+          <Button tone="secondary" type="submit">
             Filter
-          </button>
+          </Button>
         </form>
         {canManage ? (
           <p>
@@ -146,7 +156,13 @@ export default async function StaffBalancesPage({
             </a>
           </p>
         ) : null}
-        <ul>
+        {summaryRows.length === 0 ? (
+          <EmptyState
+            title="Student Balances"
+            description="No balance records match these filters."
+          />
+        ) : null}
+        <ul className="ledger-list">
           {summaryRows.map((student) => (
             <li key={student.student_id}>
               <a
@@ -162,9 +178,9 @@ export default async function StaffBalancesPage({
             </li>
           ))}
         </ul>
-      </section>
+      </Card>
       {selected && canManage ? (
-        <section className="control-card">
+        <Card>
           <h2>{selected.display_name}</h2>
           <form action={postBalanceEntryAction} className="control-form">
             <input name="locale" type="hidden" value={locale} />
@@ -185,7 +201,7 @@ export default async function StaffBalancesPage({
             </label>
             <label>
               Amount
-              <input
+              <Input
                 inputMode="decimal"
                 name="amount"
                 pattern="[+-]?[0-9]+([.][0-9]{1,2})?"
@@ -194,7 +210,7 @@ export default async function StaffBalancesPage({
             </label>
             <label>
               Currency
-              <input
+              <Input
                 defaultValue="TRY"
                 maxLength={3}
                 minLength={3}
@@ -204,7 +220,7 @@ export default async function StaffBalancesPage({
             </label>
             <label>
               Effective date
-              <input
+              <Input
                 defaultValue={new Date().toISOString().slice(0, 10)}
                 name="effectiveDate"
                 required
@@ -213,26 +229,27 @@ export default async function StaffBalancesPage({
             </label>
             <label>
               Due date (charges only)
-              <input name="dueDate" type="date" />
+              <Input name="dueDate" type="date" />
             </label>
             <label>
               Description
-              <input
+              <Input
                 maxLength={500}
                 minLength={2}
                 name="description"
                 required
               />
             </label>
-            <button className="button" type="submit">
-              Record entry
-            </button>
+            <Button type="submit">Record entry</Button>
           </form>
           <ul>
             {(entries ?? []).map((entry) => (
               <li key={entry.id}>
                 <strong>
-                  {entry.entry_type} · {entry.amount} {entry.currency}
+                  <Badge>{entry.entry_type}</Badge> ·{" "}
+                  <BidiText>
+                    {entry.amount} {entry.currency}
+                  </BidiText>
                 </strong>
                 <p>{entry.description}</p>
                 {entry.entry_type !== "reversal" ? (
@@ -252,17 +269,17 @@ export default async function StaffBalancesPage({
                     />
                     <label>
                       Reversal reason
-                      <input minLength={2} name="description" required />
+                      <Input minLength={2} name="description" required />
                     </label>
-                    <button className="button button-secondary" type="submit">
+                    <Button tone="secondary" type="submit">
                       Reverse
-                    </button>
+                    </Button>
                   </form>
                 ) : null}
               </li>
             ))}
           </ul>
-        </section>
+        </Card>
       ) : null}
     </LocalizedShell>
   );

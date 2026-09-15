@@ -704,6 +704,278 @@ h1 {
   }
 }
 
+/* Product workflow surfaces */
+.main-content > .card,
+.main-content > .empty-state,
+.main-content > .table-scroll,
+.main-content > .filter-bar,
+.main-content > .recipient-list,
+.main-content > .ledger-list,
+.main-content > .export-list,
+.main-content > .import-history {
+  margin-block: 1.5rem;
+}
+
+.page-intro-compact {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  margin-block-end: 2rem;
+}
+
+.page-intro-compact h1,
+.section-title {
+  max-width: 18ch;
+  font-size: clamp(2.15rem, 6vw, 4.25rem);
+}
+
+.auth-card {
+  width: min(34rem, 100%);
+}
+
+.control-form,
+.filter-bar {
+  display: grid;
+  gap: 1rem;
+}
+
+.control-form > label,
+.filter-bar label,
+.roster-card form > label {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.control-form fieldset {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.control-form fieldset label {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.control-form input[type="checkbox"],
+.control-form input[type="radio"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: 0 0 auto;
+  accent-color: var(--accent);
+}
+
+.button-danger:hover {
+  background: #842d29;
+}
+
+.branch-context.card {
+  border: 0;
+}
+
+.branch-context.card p,
+.branch-context.card .bidi-isolate,
+.card-strong > div > span {
+  color: #d9e2dc;
+}
+
+.staff-module-grid {
+  display: grid;
+  gap: 0;
+}
+
+.staff-module-link {
+  display: flex;
+  min-height: 3.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.85rem;
+  border-block-end: 1px solid var(--line);
+  color: var(--ink);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.staff-module-link::after {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: 0 0 auto;
+  border-block-start: 2px solid var(--accent);
+  border-inline-end: 2px solid var(--accent);
+  content: "";
+  transform: rotate(45deg);
+}
+
+[dir="rtl"] .staff-module-link::after {
+  transform: rotate(-135deg);
+}
+
+.badge-list,
+.recipient-list,
+.ledger-list,
+.export-list,
+.import-history {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.announcement-card,
+.roster-card {
+  margin-block: 1rem;
+}
+
+.announcement-card time {
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.announcement-card form,
+.roster-card > form,
+.public-wifi-management .control-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-block-start: 1rem;
+}
+
+.roster-card > form.control-form,
+.public-wifi-management .control-form {
+  display: grid;
+}
+
+.attendance-context.card,
+.attendance-totals.card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.attendance-context.card > div,
+.attendance-totals.card article {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.filter-bar {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: end;
+  max-width: 34rem;
+}
+
+.public-wifi-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: var(--page);
+  background: var(--canvas);
+}
+
+.public-wifi-card {
+  width: min(38rem, 100%);
+}
+
+.public-wifi-card dl,
+.wifi-details dl {
+  min-width: 0;
+}
+
+.public-wifi-card dt,
+.public-wifi-card dd {
+  margin: 0;
+  padding-block: 0.75rem;
+  border-block-end: 1px solid var(--line);
+}
+
+.public-wifi-card dt {
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+
+.public-wifi-management img {
+  width: min(20rem, 100%);
+  height: auto;
+}
+
+.state-page-maintenance {
+  background: var(--warning-soft);
+}
+
+.state-page-not-found {
+  background: var(--canvas-deep);
+}
+
+@media (min-width: 48rem) {
+  .filter-bar {
+    grid-template-columns: minmax(14rem, 1fr) auto;
+  }
+
+  .staff-module-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 2rem;
+  }
+
+  .compact-form {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .main-content {
+    padding-block-start: 2rem;
+  }
+
+  .branch-switcher {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .branch-switcher a {
+    min-height: 2.75rem;
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  .wifi-details dl {
+    grid-template-columns: 1fr;
+  }
+
+  .wifi-details dd {
+    overflow-wrap: anywhere;
+  }
+
+  .schedule-form label {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .schedule-form input {
+    margin-inline-start: 0;
+  }
+
+  .table-scroll {
+    margin-inline: calc(var(--page) * -1);
+    border-inline: 0;
+    border-radius: 0;
+  }
+}
+
+@media (pointer: coarse) {
+  a,
+  button,
+  .button,
+  input,
+  select {
+    min-height: 2.75rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

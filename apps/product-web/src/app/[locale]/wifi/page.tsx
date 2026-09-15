@@ -1,5 +1,5 @@
 import { isSupportedLocale } from "@ranza/i18n";
-import { BidiText, StatusMessage } from "@ranza/ui";
+import { BidiText, Card, EmptyState } from "@ranza/ui";
 import { notFound, redirect } from "next/navigation";
 
 import { LocalizedShell } from "../../../components/localized-shell";
@@ -38,10 +38,10 @@ export default async function WifiPage({
   return (
     <LocalizedShell locale={locale}>
       {!details ? (
-        <StatusMessage tone="warning">{copy.unavailable}</StatusMessage>
+        <EmptyState title={copy.title} description={copy.unavailable} />
       ) : (
-        <section className="wifi-details">
-          <h2>{copy.title}</h2>
+        <Card className="wifi-details">
+          <h1 className="section-title">{copy.title}</h1>
           <p>{copy.protectedMode}</p>
           <dl>
             <dt>{copy.branch}</dt>
@@ -66,7 +66,7 @@ export default async function WifiPage({
               </BidiText>
             </dd>
           </dl>
-        </section>
+        </Card>
       )}
     </LocalizedShell>
   );

@@ -1,6 +1,13 @@
 import { selectAuthorizedBranch } from "@ranza/auth";
 import { isSupportedLocale } from "@ranza/i18n";
-import { BidiText, StatusMessage } from "@ranza/ui";
+import {
+  BidiText,
+  Button,
+  Card,
+  EmptyState,
+  Input,
+  StatusMessage,
+} from "@ranza/ui";
 import { notFound, redirect } from "next/navigation";
 
 import { LocalizedShell } from "../../../../components/localized-shell";
@@ -57,7 +64,7 @@ export default async function StaffWifiPage({
       {branch.operator_role === "owner" && (
         <PublicWifiManagement branchId={branchId} locale={locale} />
       )}
-      <section className="branch-context">
+      <Card className="branch-context" tone="strong">
         <div>
           <span>{copy.branch}</span>
           <h2>{branch.branch_name}</h2>
@@ -74,7 +81,7 @@ export default async function StaffWifiPage({
             </a>
           ))}
         </nav>
-      </section>
+      </Card>
       {query.result === "saved" ? (
         <StatusMessage tone="success">{copy.saved}</StatusMessage>
       ) : null}
@@ -82,7 +89,7 @@ export default async function StaffWifiPage({
         <StatusMessage tone="warning">{copy.unavailable}</StatusMessage>
       ) : null}
       {details ? (
-        <section className="wifi-details">
+        <Card className="wifi-details">
           <h2>{copy.title}</h2>
           <dl>
             <dt>{copy.networkName}</dt>
@@ -105,9 +112,9 @@ export default async function StaffWifiPage({
               </BidiText>
             </dd>
           </dl>
-        </section>
+        </Card>
       ) : (
-        <StatusMessage>{copy.noDetails}</StatusMessage>
+        <EmptyState title={copy.title} description={copy.noDetails} />
       )}
       {canManage ? (
         <form action={saveProtectedWifi} className="control-form wifi-form">
@@ -115,11 +122,11 @@ export default async function StaffWifiPage({
           <input name="branchId" type="hidden" value={branchId} />
           <label>
             {copy.mode}
-            <input disabled value={copy.protectedMode} />
+            <Input disabled value={copy.protectedMode} />
           </label>
           <label>
             {copy.networkName}
-            <input
+            <Input
               autoComplete="off"
               maxLength={128}
               name="networkName"
@@ -128,7 +135,7 @@ export default async function StaffWifiPage({
           </label>
           <label>
             {copy.password}
-            <input
+            <Input
               autoComplete="new-password"
               maxLength={256}
               name="password"
@@ -140,9 +147,7 @@ export default async function StaffWifiPage({
             {copy.instructions}
             <textarea maxLength={1000} name="instructions" rows={4} />
           </label>
-          <button className="button" type="submit">
-            {copy.save}
-          </button>
+          <Button type="submit">{copy.save}</Button>
         </form>
       ) : null}
     </LocalizedShell>

@@ -1,6 +1,6 @@
 import { selectAuthorizedBranch } from "@ranza/auth";
 import { isSupportedLocale } from "@ranza/i18n";
-import { BidiText, StatusMessage } from "@ranza/ui";
+import { Badge, BidiText, Card, StatusMessage } from "@ranza/ui";
 import { notFound, redirect } from "next/navigation";
 
 import { LocalizedShell } from "../../../components/localized-shell";
@@ -57,8 +57,9 @@ export default async function StaffPage({
 
   return (
     <LocalizedShell locale={locale}>
-      <section
+      <Card
         className="branch-context"
+        tone="strong"
         aria-labelledby="branch-context-title"
       >
         <div>
@@ -79,16 +80,19 @@ export default async function StaffPage({
             </a>
           ))}
         </nav>
-      </section>
+      </Card>
       {requestedBranch && requestedBranch !== selectedBranchId ? (
         <StatusMessage tone="warning">
           The requested Branch is unavailable. Your authorized Branch is shown
           instead.
         </StatusMessage>
       ) : null}
-      <section className="control-card">
+      <Card className="staff-module-grid" aria-label="Staff tools">
         {selected.operator_role === "owner" ? (
-          <a href={`/${locale}/staff/exports?operator=${selected.operator_id}`}>
+          <a
+            className="staff-module-link"
+            href={`/${locale}/staff/exports?operator=${selected.operator_id}`}
+          >
             {locale === "tr"
               ? "Verileri dışa aktar"
               : locale === "ar"
@@ -98,7 +102,10 @@ export default async function StaffPage({
         ) : null}
         {capabilities.includes("workflow.read") ||
         capabilities.includes("workflow.manage") ? (
-          <a href={`/${locale}/staff/attendance?branch=${selectedBranchId}`}>
+          <a
+            className="staff-module-link"
+            href={`/${locale}/staff/attendance?branch=${selectedBranchId}`}
+          >
             {locale === "tr"
               ? "Gece yoklaması"
               : locale === "ar"
@@ -108,13 +115,17 @@ export default async function StaffPage({
         ) : null}
         {capabilities.includes("workflow.manage") && (
           <a
+            className="staff-module-link"
             href={`/${locale}/staff/announcements?operator=${selected.operator_id}`}
           >
             {announcementCopy[locale].manage}
           </a>
         )}
         {capabilities.includes("roster.manage") ? (
-          <a href={`/${locale}/staff/roster?branch=${selectedBranchId}`}>
+          <a
+            className="staff-module-link"
+            href={`/${locale}/staff/roster?branch=${selectedBranchId}`}
+          >
             {locale === "tr"
               ? "Öğrenci listesi"
               : locale === "ar"
@@ -124,7 +135,10 @@ export default async function StaffPage({
         ) : null}
         {capabilities.includes("workflow.manage") ||
         capabilities.includes("workflow.read") ? (
-          <a href={`/${locale}/staff/meals?branch=${selectedBranchId}`}>
+          <a
+            className="staff-module-link"
+            href={`/${locale}/staff/meals?branch=${selectedBranchId}`}
+          >
             {locale === "tr"
               ? "Yemek yanıtları"
               : locale === "ar"
@@ -133,7 +147,10 @@ export default async function StaffPage({
           </a>
         ) : null}
         {capabilities.includes("finance.manage") ? (
-          <a href={`/${locale}/staff/balances?branch=${selectedBranchId}`}>
+          <a
+            className="staff-module-link"
+            href={`/${locale}/staff/balances?branch=${selectedBranchId}`}
+          >
             {locale === "tr"
               ? "Öğrenci bakiyeleri"
               : locale === "ar"
@@ -143,7 +160,10 @@ export default async function StaffPage({
         ) : null}
         {capabilities.includes("workflow.manage") ||
         capabilities.includes("workflow.read") ? (
-          <a href={`/${locale}/staff/wifi?branch=${selectedBranchId}`}>
+          <a
+            className="staff-module-link"
+            href={`/${locale}/staff/wifi?branch=${selectedBranchId}`}
+          >
             {locale === "tr"
               ? "Şube Wi-Fi"
               : locale === "ar"
@@ -152,13 +172,15 @@ export default async function StaffPage({
           </a>
         ) : null}
         <h2>Staff access</h2>
-        <p>{selected.operator_role.replace("_", " ")}</p>
-        <ul>
+        <Badge tone="info">{selected.operator_role.replace("_", " ")}</Badge>
+        <ul className="badge-list">
           {capabilities.map((capability) => (
-            <li key={capability}>{capability}</li>
+            <li key={capability}>
+              <Badge>{capability}</Badge>
+            </li>
           ))}
         </ul>
-      </section>
+      </Card>
     </LocalizedShell>
   );
 }

@@ -1,4 +1,5 @@
 import { isSupportedLocale } from "@ranza/i18n";
+import { Badge, Button, Card, EmptyState, StatusMessage } from "@ranza/ui";
 import { notFound, redirect } from "next/navigation";
 import { LocalizedShell } from "../../../../components/localized-shell";
 import { createProductWebClient } from "../../../../lib/supabase/server";
@@ -54,12 +55,16 @@ export default async function StaffAnnouncementsPage({
   const t = announcementCopy[locale];
   return (
     <LocalizedShell locale={locale}>
-      <h1>{t.manage}</h1>
+      <header className="page-intro page-intro-compact">
+        <h1>{t.manage}</h1>
+      </header>
       {(error || countError || revisionError || query.result === "failed") && (
-        <p role="alert">{t.error}</p>
+        <StatusMessage tone="warning">{t.error}</StatusMessage>
       )}
-      {query.result === "saved" && <p role="status">{t.saved}</p>}
-      <nav>
+      {query.result === "saved" && (
+        <StatusMessage tone="success">{t.saved}</StatusMessage>
+      )}
+      <nav className="branch-switcher" aria-label={t.operator}>
         {operators.map((id) => (
           <a key={id} href={`/${locale}/staff/announcements?operator=${id}`}>
             {(access ?? []).find((b) => b.operator_id === id)?.branch_name ??
@@ -67,74 +72,84 @@ export default async function StaffAnnouncementsPage({
           </a>
         ))}
       </nav>
-      <form action={manageAnnouncementAction} className="control-card">
-        <p>{t.reviseHint}</p>
-        <label>
-          {t.revisionOf}
-          <select name="announcement" defaultValue="">
-            <option value="">{t.chooseRevision}</option>
-            {(announcements ?? [])
-              .filter((item) => item.status === "published")
-              .map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.source_content.slice(0, 80)}
+      <Card>
+        <form action={manageAnnouncementAction} className="control-form">
+          <p>{t.reviseHint}</p>
+          <label>
+            {t.revisionOf}
+            <select name="announcement" defaultValue="">
+              <option value="">{t.chooseRevision}</option>
+              {(announcements ?? [])
+                .filter((item) => item.status === "published")
+                .map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.source_content.slice(0, 80)}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <input name="locale" type="hidden" value={locale} />
+          <input name="operator" type="hidden" value={operator} />
+          <label>
+            {t.scope}
+            <select name="scope" defaultValue="branches">
+              <option value="branches">{t.branches}</option>
+              <option value="operator">{t.operator}</option>
+            </select>
+          </label>
+          <fieldset>
+            <legend>{t.branches}</legend>
+            {branches.map((branch) => (
+              <label key={branch.branch_id}>
+                <input name="branch" type="checkbox" value={branch.branch_id} />
+                {branch.branch_name}
+              </label>
+            ))}
+          </fieldset>
+          <label>
+            {t.source}
+            <select name="source" defaultValue={locale}>
+              {(["tr", "en", "ar"] as const).map((key) => (
+                <option key={key} value={key}>
+                  {t[key]}
                 </option>
               ))}
-          </select>
-        </label>
-        <input name="locale" type="hidden" value={locale} />
-        <input name="operator" type="hidden" value={operator} />
-        <label>
-          {t.scope}
-          <select name="scope" defaultValue="branches">
-            <option value="branches">{t.branches}</option>
-            <option value="operator">{t.operator}</option>
-          </select>
-        </label>
-        <fieldset>
-          <legend>{t.branches}</legend>
-          {branches.map((branch) => (
-            <label key={branch.branch_id}>
-              <input name="branch" type="checkbox" value={branch.branch_id} />
-              {branch.branch_name}
-            </label>
-          ))}
-        </fieldset>
-        <label>
-          {t.source}
-          <select name="source" defaultValue={locale}>
+            </select>
+          </label>
+          <label>
+            {t.content}
+            <textarea name="content" required maxLength={10000} rows={5} />
+          </label>
+          <fieldset>
+            <legend>{t.translations}</legend>
             {(["tr", "en", "ar"] as const).map((key) => (
-              <option key={key} value={key}>
+              <label key={key}>
                 {t[key]}
-              </option>
+                <textarea
+                  name={key}
+                  maxLength={10000}
+                  rows={3}
+                  dir={key === "ar" ? "rtl" : "ltr"}
+                />
+              </label>
             ))}
-          </select>
-        </label>
-        <label>
-          {t.content}
-          <textarea name="content" required maxLength={10000} rows={5} />
-        </label>
-        <fieldset>
-          <legend>{t.translations}</legend>
-          {(["tr", "en", "ar"] as const).map((key) => (
-            <label key={key}>
-              {t[key]}
-              <textarea
-                name={key}
-                maxLength={10000}
-                rows={3}
-                dir={key === "ar" ? "rtl" : "ltr"}
-              />
-            </label>
-          ))}
-        </fieldset>
-        <button name="operation" value="draft" type="submit">
-          {t.draft}
-        </button>
-        <button name="operation" value="revise" type="submit">
-          {t.revise}
-        </button>
-      </form>
+          </fieldset>
+          <Button name="operation" value="draft" type="submit">
+            {t.draft}
+          </Button>
+          <Button
+            tone="secondary"
+            name="operation"
+            value="revise"
+            type="submit"
+          >
+            {t.revise}
+          </Button>
+        </form>
+      </Card>
+      {(announcements ?? []).length === 0 ? (
+        <EmptyState title={t.manage} description={t.history} />
+      ) : null}
       {(announcements ?? []).map((item) => {
         const revision = revisions?.find(
           (row) =>
@@ -145,14 +160,22 @@ export default async function StaffAnnouncementsPage({
           (row) => row.revision_id === revision?.id,
         );
         return (
-          <article key={item.id} className="control-card">
-            <p>
+          <Card key={item.id} className="announcement-card">
+            <Badge
+              tone={
+                item.status === "published"
+                  ? "success"
+                  : item.status === "draft"
+                    ? "info"
+                    : "neutral"
+              }
+            >
               {item.status === "draft"
                 ? t.draftStatus
                 : item.status === "published"
                   ? t.published
                   : t.archived}
-            </p>
+            </Badge>
             <p style={{ whiteSpace: "pre-wrap" }}>{item.source_content}</p>
             {revision && !countError && (
               <dl>
@@ -172,19 +195,24 @@ export default async function StaffAnnouncementsPage({
                 <input name="operator" type="hidden" value={operator} />
                 <input name="announcement" type="hidden" value={item.id} />
                 {item.status === "draft" && (
-                  <button name="operation" value="publish" type="submit">
+                  <Button name="operation" value="publish" type="submit">
                     {t.publish}
-                  </button>
+                  </Button>
                 )}
-                <button name="operation" value="archive" type="submit">
+                <Button
+                  tone="danger"
+                  name="operation"
+                  value="archive"
+                  type="submit"
+                >
                   {t.archive}
-                </button>
+                </Button>
               </form>
             )}
-          </article>
+          </Card>
         );
       })}
-      <section className="control-card">
+      <Card>
         <h2>{t.history}</h2>
         <ul>
           {(revisions ?? []).map((revision) => (
@@ -195,7 +223,7 @@ export default async function StaffAnnouncementsPage({
             </li>
           ))}
         </ul>
-      </section>
+      </Card>
     </LocalizedShell>
   );
 }

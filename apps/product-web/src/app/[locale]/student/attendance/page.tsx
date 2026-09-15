@@ -1,6 +1,6 @@
 import type { AttendanceDeclaration } from "@ranza/domain";
 import { isSupportedLocale } from "@ranza/i18n";
-import { BidiText, StatusMessage } from "@ranza/ui";
+import { BidiText, Card, StatusMessage } from "@ranza/ui";
 import { notFound, redirect } from "next/navigation";
 
 import { LocalizedShell } from "../../../../components/localized-shell";
@@ -70,7 +70,7 @@ export default async function StudentAttendancePage({
 
   return (
     <LocalizedShell locale={locale}>
-      <section className="attendance-context">
+      <Card className="attendance-context" tone="strong">
         <div>
           <span>{copy.profile}</span>
           <h2>{context.student_name}</h2>
@@ -83,7 +83,7 @@ export default async function StudentAttendancePage({
             {copy.cutoff}: <BidiText>{cutoff}</BidiText>
           </p>
         </div>
-      </section>
+      </Card>
       {result ? (
         <StatusMessage tone={result === "saved" ? "success" : "warning"}>
           {result === "saved"
