@@ -13,7 +13,7 @@ export async function GET(
     <div
       style={{
         alignItems: "center",
-        background: "#18332d",
+        background: "#132f38",
         color: "#fffaf0",
         display: "flex",
         fontFamily: "sans-serif",

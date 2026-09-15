@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   title: "Ranza Product",
 };
 
-export const viewport: Viewport = { themeColor: "#18332d" };
+export const viewport: Viewport = { themeColor: "#132f38" };
 
 // Product routes read the authenticated Supabase session and must resolve at
 // request time; never prerender an auth-bearing page during a deploy.
@@ -31,7 +31,7 @@ export default async function LocaleLayout({
   if (!isSupportedLocale(locale)) notFound();
   return (
     <html dir={directionFor(locale)} lang={locale}>
-      <body>
+      <body className="product-app">
         {children}
         <ServiceWorkerRegistration />
       </body>

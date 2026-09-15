@@ -22,6 +22,6 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     short_name: "Ranza",
     start_url: "/tr",
-    theme_color: "#18332d",
+    theme_color: "#132f38",
   };
 }

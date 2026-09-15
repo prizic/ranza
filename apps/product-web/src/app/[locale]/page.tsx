@@ -23,19 +23,33 @@ export default async function ProductWebPage({
   ] as const;
   return (
     <LocalizedShell locale={locale}>
-      <a href={`/${locale}/student/sign-in`}>
-        {studentCredentialCopy[locale].signIn}
-      </a>
-      <a href={`/${locale}/activate`}>{studentCredentialCopy[locale].title}</a>
-      <form action={`/${locale}/student/sign-out`} method="post">
-        <button type="submit" name="operation" value="signout">
-          {studentCredentialCopy[locale].signOut}
-        </button>
-      </form>
-      <a href={`/${locale}/student/attendance`}>
-        {messages.navigation.attendance}
-      </a>
-      <a href={`/${locale}/wifi`}>{messages.navigation.wifi}</a>
+      <nav aria-label={messages.product.title} className="student-actions">
+        <a className="button" href={`/${locale}/student/sign-in`}>
+          {studentCredentialCopy[locale].signIn}
+        </a>
+        <a className="button button-secondary" href={`/${locale}/activate`}>
+          {studentCredentialCopy[locale].title}
+        </a>
+        <a
+          className="button button-secondary"
+          href={`/${locale}/student/attendance`}
+        >
+          {messages.navigation.attendance}
+        </a>
+        <a className="button button-secondary" href={`/${locale}/wifi`}>
+          {messages.navigation.wifi}
+        </a>
+        <form action={`/${locale}/student/sign-out`} method="post">
+          <button
+            className="button button-secondary"
+            type="submit"
+            name="operation"
+            value="signout"
+          >
+            {studentCredentialCopy[locale].signOut}
+          </button>
+        </form>
+      </nav>
       <section className="dayline" aria-label={today}>
         <span>{today}</span>
         <BidiText>IST-01 · 21:15 · TRY 1,250.00</BidiText>

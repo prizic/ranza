@@ -6,3 +6,12 @@ export { FormField } from "./form-field";
 export type { FormFieldProps } from "./form-field";
 export { StatusMessage } from "./status-message";
 export type { StatusMessageProps } from "./status-message";
+export { Badge, Button, Card, EmptyState, Input, Table } from "./primitives";
+export type {
+  BadgeProps,
+  ButtonProps,
+  CardProps,
+  EmptyStateProps,
+  InputProps,
+  TableProps,
+} from "./primitives";

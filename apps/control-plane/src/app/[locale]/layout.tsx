@@ -20,7 +20,7 @@ export default async function LocaleLayout({
   if (!isSupportedLocale(locale)) notFound();
   return (
     <html dir={directionFor(locale)} lang={locale}>
-      <body>{children}</body>
+      <body className="control-app">{children}</body>
     </html>
   );
 }

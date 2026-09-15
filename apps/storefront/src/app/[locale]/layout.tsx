@@ -22,7 +22,7 @@ export default async function LocaleLayout({
 
   return (
     <html dir={directionFor(locale)} lang={locale}>
-      <body>{children}</body>
+      <body className="storefront-app">{children}</body>
     </html>
   );
 }
