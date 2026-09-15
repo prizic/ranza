@@ -1,0 +1,3784 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ranza — full system showcase</title>
+<style>
+/* ============================================================
+   packages/ui/src/tokens.css — inlined verbatim so this file stays
+   self-contained. Re-paste that file here if the tokens change.
+   ============================================================ */
+:root {
+  color-scheme: light;
+  --canvas: #f3f6f4;
+  --canvas-deep: #e6ece9;
+  --ink: #132f38;
+  --ink-muted: #52656b;
+  --accent: #087466;
+  --accent-dark: #05594f;
+  --accent-soft: #d9eee9;
+  --surface: #ffffff;
+  --surface-strong: #132f38;
+  --success: #176842;
+  --success-soft: #dcefe3;
+  --warning: #8a5a08;
+  --warning-soft: #f7e8c8;
+  --danger: #a33a35;
+  --danger-soft: #f5dfdd;
+  --info: #315f83;
+  --info-soft: #dfeaf2;
+  --line: #c8d3d0;
+  --line-strong: #9caca8;
+  --focus: #126bad;
+  --radius-sm: 0.45rem;
+  --radius: 0.75rem;
+  --radius-lg: 1.15rem;
+  --page: clamp(1rem, 4vw, 4rem);
+  --shadow: 0 1.25rem 3.25rem rgb(19 47 56 / 10%);
+  --shadow-low: 0 0.5rem 1.5rem rgb(19 47 56 / 8%);
+  font-family: Aptos, "Segoe UI Variable", "Noto Sans Arabic", sans-serif;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--canvas);
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 20rem;
+  background: var(--canvas);
+  color: var(--ink);
+  line-height: 1.55;
+}
+
+::selection {
+  background: var(--accent);
+  color: white;
+}
+
+a {
+  color: inherit;
+  text-underline-offset: 0.22em;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  inset-block-start: 0.75rem;
+  inset-inline-start: 0.75rem;
+  padding: 0.7rem 1rem;
+  transform: translateY(-180%);
+  border-radius: 0.4rem;
+  background: white;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.app-frame {
+  min-height: 100vh;
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  min-height: 4.5rem;
+  padding: 0 var(--page);
+  border-block-end: 1px solid rgb(255 255 255 / 13%);
+  background: var(--surface-strong);
+  color: var(--surface);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  font-weight: 760;
+  letter-spacing: -0.02em;
+}
+
+.brand-mark {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 35%);
+  border-radius: 0.45rem;
+  background: var(--accent);
+  color: white;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.locale-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.locale-nav a {
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.35rem;
+  color: #d9e2dc;
+  font-size: 0.82rem;
+  text-decoration: none;
+}
+
+.locale-nav a[aria-current="page"] {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.primary-nav {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  padding: 0.45rem var(--page);
+  border-block-end: 1px solid var(--line);
+  background: var(--surface);
+  scrollbar-color: var(--accent) var(--surface);
+}
+
+.primary-nav a {
+  flex: 0 0 auto;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-sm);
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.primary-nav a:hover,
+.primary-nav a[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
+.main-content {
+  width: min(82rem, 100%);
+  margin: 0 auto;
+  padding: clamp(2.5rem, 6vw, 5.5rem) var(--page) 7rem;
+}
+.main-content:focus {
+  outline: none;
+}
+
+.page-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(18rem, 0.8fr);
+  align-items: end;
+  gap: 3rem;
+  margin-block-end: clamp(2.5rem, 5vw, 4.5rem);
+}
+
+h1,
+h2,
+p {
+  margin-block-start: 0;
+}
+
+h1 {
+  max-width: 12ch;
+  margin-block-end: 0;
+  font-size: clamp(2.45rem, 6vw, 5.4rem);
+  font-weight: 760;
+  letter-spacing: -0.035em;
+  line-height: 0.96;
+  text-wrap: balance;
+}
+
+[dir="rtl"] h1 {
+  letter-spacing: 0;
+  line-height: 1.12;
+}
+
+.page-intro p {
+  max-width: 52ch;
+  margin-block-end: 0.4rem;
+  color: var(--ink-muted);
+  font-size: clamp(1rem, 2vw, 1.22rem);
+}
+
+.outcome-band {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  border-block: 1px solid var(--line);
+}
+.outcome-band p {
+  margin: 0;
+  padding: 1.3rem 0.8rem;
+  border-inline-end: 1px solid var(--line);
+  font-weight: 700;
+  text-align: center;
+}
+.outcome-band p:last-child {
+  border-inline-end: 0;
+}
+
+.detail-panel,
+.install-panel {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2rem;
+  margin-block: 2rem;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.detail-panel p,
+.install-panel p {
+  max-width: 62ch;
+  margin-block-end: 0;
+  color: #d9e2dc;
+}
+.identity-line {
+  white-space: nowrap;
+}
+
+.dayline {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 1rem;
+  border-block: 1px solid var(--line);
+  color: var(--ink-muted);
+  font-weight: 650;
+}
+
+.module-list {
+  margin-block: 2rem;
+  border-block-start: 1px solid var(--line);
+}
+.module-list article,
+.ops-list article {
+  display: grid;
+  grid-template-columns: 3rem 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  min-height: 5rem;
+  border-block-end: 1px solid var(--line);
+}
+.module-list h2,
+.ops-list h2 {
+  margin: 0;
+  font-size: clamp(1.15rem, 3vw, 1.6rem);
+}
+.module-index {
+  color: var(--accent-dark);
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+}
+.module-status {
+  font-size: 1.5rem;
+}
+
+.ops-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-block: 1px solid var(--line);
+}
+.ops-list article {
+  grid-template-columns: 1fr;
+  align-content: center;
+  padding: 1.5rem;
+  border-block-end: 0;
+  border-inline-end: 1px solid var(--line);
+}
+.ops-list article:last-child {
+  border-inline-end: 0;
+}
+.ops-list strong {
+  font-family: Georgia, serif;
+  font-size: 2.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.bidi-isolate,
+[data-bidi-isolate] {
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums;
+}
+
+.button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+  font-weight: 750;
+  text-decoration: none;
+}
+.button:hover {
+  background: var(--accent-dark);
+}
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.status-message {
+  max-width: 65ch;
+  margin-block: 1.5rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--surface);
+}
+.status-success {
+  border-color: var(--success);
+  color: var(--success);
+}
+.status-warning {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+.form-field {
+  display: grid;
+  gap: 0.45rem;
+}
+.form-field label {
+  font-weight: 700;
+}
+.form-field input {
+  min-height: 2.8rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  background: white;
+  color: var(--ink);
+  caret-color: var(--accent);
+}
+.form-field input[aria-invalid="true"] {
+  border-color: var(--accent-dark);
+}
+.field-hint {
+  color: var(--ink-muted);
+  font-size: 0.88rem;
+}
+.field-error {
+  color: var(--accent-dark);
+  font-weight: 650;
+}
+
+.control-toolbar,
+.operator-card > header,
+.branch-row,
+.lifecycle-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.control-toolbar .status-message {
+  flex: 1;
+}
+
+.control-grid,
+.operator-directory {
+  display: grid;
+  gap: 1.25rem;
+  margin-block: 2rem;
+}
+
+.control-card,
+.operator-card {
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.control-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.control-form label {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 700;
+}
+
+.control-form input,
+.control-form select,
+.control-form textarea {
+  min-height: 2.8rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  background: white;
+  color: var(--ink);
+}
+
+.control-form textarea {
+  resize: vertical;
+}
+
+.wifi-form {
+  max-width: 42rem;
+  margin-block: 2rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.wifi-details {
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.wifi-details dl {
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.35fr) 1fr;
+  gap: 0;
+}
+
+.wifi-details dt,
+.wifi-details dd {
+  margin: 0;
+  padding-block: 0.8rem;
+  border-block-end: 1px solid var(--line);
+}
+
+.wifi-details dt {
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+
+.button-secondary {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+}
+
+.button-secondary:hover {
+  background: var(--canvas-deep);
+}
+
+.lifecycle-actions {
+  justify-content: flex-start;
+  margin-block: 1rem;
+}
+
+.lifecycle-status {
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: var(--canvas-deep);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.status-active {
+  background: #dcecdf;
+  color: var(--success);
+}
+
+.status-suspended {
+  background: #f5e8ca;
+  color: var(--warning);
+}
+
+.branch-directory {
+  margin-block: 1.25rem;
+  border-block-start: 1px solid var(--line);
+}
+
+.branch-row {
+  padding-block: 0.9rem;
+  border-block-end: 1px solid var(--line);
+}
+
+.branch-row small {
+  display: block;
+  color: var(--ink-muted);
+}
+
+.compact-form {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  align-items: end;
+}
+
+.branch-context {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, auto);
+  align-items: center;
+  gap: 1.5rem;
+  margin-block-end: 1.5rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.branch-context h2 {
+  margin-block: 0.2rem;
+  font-size: clamp(1.45rem, 4vw, 2.3rem);
+}
+
+.branch-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.branch-switcher a {
+  padding: 0.55rem 0.75rem;
+  border: 1px solid rgb(255 250 240 / 40%);
+  border-radius: 0.4rem;
+  text-decoration: none;
+}
+
+.branch-switcher a[aria-current="page"] {
+  border-color: var(--surface);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.state-page,
+.loading-state {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: var(--page);
+}
+
+@media (max-width: 48rem) {
+  .branch-context {
+    grid-template-columns: 1fr;
+  }
+
+  .branch-switcher {
+    justify-content: flex-start;
+  }
+}
+.feedback-state {
+  width: min(42rem, 100%);
+  padding: clamp(2rem, 6vw, 4rem);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.feedback-state h1 {
+  max-width: 14ch;
+  margin-block-end: 1.3rem;
+  font-size: clamp(2.2rem, 7vw, 4.5rem);
+}
+.feedback-state p {
+  max-width: 62ch;
+  color: var(--ink-muted);
+}
+.feedback-signal {
+  width: 4rem;
+  height: 0.45rem;
+  margin-block-end: 2rem;
+  border-radius: 2rem;
+  background: var(--accent);
+}
+.feedback-maintenance .feedback-signal {
+  background: var(--warning);
+}
+.support-reference {
+  padding-block: 0.8rem;
+  border-block: 1px solid var(--line);
+}
+.text-link {
+  margin-block-start: 1rem;
+}
+
+.loading-state {
+  display: flex;
+  gap: 0.75rem;
+  font-weight: 700;
+}
+.loading-mark {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--line);
+  border-block-start-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (max-width: 700px) {
+  .site-header {
+    align-items: flex-start;
+    padding-block: 1rem;
+  }
+  .brand > span:last-child {
+    max-width: 8rem;
+  }
+  .locale-nav {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .primary-nav {
+    position: fixed;
+    z-index: 20;
+    inset-block-end: 0;
+    inset-inline: 0;
+    justify-content: flex-start;
+    padding: 0.55rem;
+    border-block-start: 1px solid var(--line);
+    box-shadow: 0 -0.5rem 2rem rgb(24 51 45 / 10%);
+  }
+  .primary-nav a {
+    padding: 0.7rem 0.75rem;
+  }
+  .main-content {
+    padding-block-start: 3rem;
+    padding-block-end: 7rem;
+  }
+  .page-intro {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  .outcome-band {
+    grid-template-columns: 1fr 1fr;
+  }
+  .outcome-band p {
+    border-block-end: 1px solid var(--line);
+  }
+  .detail-panel,
+  .install-panel {
+    grid-template-columns: 1fr;
+  }
+  .identity-line {
+    white-space: normal;
+  }
+  .dayline {
+    flex-direction: column;
+  }
+  .ops-list {
+    grid-template-columns: 1fr;
+  }
+  .ops-list article {
+    border-inline-end: 0;
+    border-block-end: 1px solid var(--line);
+  }
+  .control-toolbar,
+  .operator-card > header,
+  .branch-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .compact-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.attendance-context,
+.attendance-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 1rem;
+  margin-block: 1.5rem;
+}
+
+.attendance-context > div,
+.attendance-totals article,
+.attendance-form,
+.schedule-form {
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.attendance-totals article {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.attendance-totals strong {
+  font-size: 2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.attendance-form fieldset {
+  display: grid;
+  gap: 0.75rem;
+  margin-block-end: 1rem;
+  border: 0;
+  padding: 0;
+}
+
+.attendance-form label,
+.schedule-form label {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.schedule-form {
+  display: grid;
+  gap: 1rem;
+  max-width: 36rem;
+  margin-block: 2rem;
+}
+
+.schedule-form input {
+  min-height: 2.5rem;
+  margin-inline-start: auto;
+  padding: 0.4rem 0.6rem;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.attendance-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+}
+
+.attendance-table th,
+.attendance-table td {
+  padding: 0.85rem;
+  border-block-end: 1px solid var(--line);
+  text-align: start;
+}
+
+/* Ranza operational component system */
+h2,
+h3 {
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+h2 {
+  margin-block: 0 0.65rem;
+  font-size: clamp(1.35rem, 2.6vw, 2rem);
+}
+
+h3 {
+  margin-block: 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+p {
+  max-width: 72ch;
+}
+
+button,
+.button {
+  min-height: 2.75rem;
+  padding: 0.66rem 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 720;
+  line-height: 1.2;
+  text-decoration: none;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+button:hover,
+.button:hover {
+  background: var(--accent-dark);
+  box-shadow: 0 0.45rem 1rem rgb(5 89 79 / 18%);
+  transform: translateY(-1px);
+}
+
+button:active,
+.button:active {
+  box-shadow: none;
+  transform: translateY(0);
+}
+
+button:disabled,
+.button:disabled {
+  background: var(--line);
+  color: var(--ink-muted);
+  cursor: not-allowed;
+  box-shadow: none;
+  opacity: 1;
+  transform: none;
+}
+
+.button-secondary,
+.button-secondary.button,
+.button-quiet {
+  border-color: var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: none;
+}
+
+.button-secondary:hover,
+.button-secondary.button:hover,
+.button-quiet:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
+.button-danger {
+  background: var(--danger);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+select,
+textarea,
+.input {
+  width: 100%;
+  min-height: 2.85rem;
+  padding: 0.64rem 0.78rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  caret-color: var(--accent);
+  font: inherit;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #66787d;
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: var(--ink-muted);
+}
+
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 2px var(--danger-soft);
+}
+
+label,
+legend {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.card,
+.control-card,
+.operator-card,
+.wifi-form,
+.wifi-details,
+.attendance-context > div,
+.attendance-totals article,
+.attendance-form,
+.schedule-form {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-low);
+}
+
+.card,
+.card-comfortable {
+  padding: clamp(1.25rem, 3vw, 2rem);
+}
+
+.card-compact {
+  padding: 1rem;
+}
+
+.card-strong {
+  border-color: var(--surface-strong);
+  background: var(--surface-strong);
+  color: white;
+}
+
+.card-strong h2,
+.card-strong h3 {
+  color: white;
+}
+
+.card-quiet {
+  box-shadow: none;
+}
+
+.badge,
+.lifecycle-status {
+  display: inline-flex;
+  min-height: 1.65rem;
+  align-items: center;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  background: var(--canvas-deep);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 760;
+  line-height: 1;
+  text-transform: none;
+}
+
+.badge-success,
+.status-active {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.badge-warning,
+.status-suspended {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.badge-danger,
+.status-archived {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.badge-info {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.empty-state {
+  display: grid;
+  max-width: 38rem;
+  justify-items: start;
+  padding: clamp(2rem, 5vw, 3.5rem);
+  border-block: 1px solid var(--line);
+}
+
+.empty-state-mark {
+  width: 2.5rem;
+  height: 0.32rem;
+  margin-block-end: 1.5rem;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.empty-state p {
+  color: var(--ink-muted);
+}
+
+.empty-state-action {
+  margin-block-start: 0.75rem;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  scrollbar-color: var(--accent) var(--canvas-deep);
+}
+
+.data-table,
+.attendance-table,
+.table-scroll > table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table th,
+.data-table td,
+.attendance-table th,
+.attendance-table td,
+.table-scroll > table th,
+.table-scroll > table td {
+  padding: 0.85rem 1rem;
+  border-block-end: 1px solid var(--line);
+  text-align: start;
+  vertical-align: top;
+}
+
+.data-table th,
+.attendance-table th,
+.table-scroll > table th {
+  background: var(--canvas-deep);
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 780;
+}
+
+.status-message {
+  border: 1px solid var(--info);
+  border-radius: var(--radius-sm);
+  background: var(--info-soft);
+  color: var(--ink);
+  box-shadow: none;
+}
+
+.status-success {
+  border-color: var(--success);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.status-warning {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.field-hint {
+  color: var(--ink-muted);
+}
+
+.field-error {
+  color: var(--danger);
+}
+
+.detail-panel,
+.install-panel,
+.branch-context {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-strong);
+  color: white;
+}
+
+.detail-panel::after,
+.install-panel::after,
+.branch-context::after {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: clamp(3rem, 9vw, 8rem);
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent 0 0.8rem,
+    rgb(255 255 255 / 7%) 0.8rem 1rem
+  );
+  content: "";
+  pointer-events: none;
+}
+
+.detail-panel h2,
+.install-panel h2,
+.branch-context h2 {
+  color: white;
+}
+
+.module-list {
+  border-block-start: 0;
+}
+
+.module-list article {
+  grid-template-columns: 0.5rem 1fr auto;
+  min-height: 4.75rem;
+  padding-inline: 0.15rem;
+}
+
+.module-list article:hover {
+  background: rgb(255 255 255 / 50%);
+}
+
+.module-index {
+  width: 0.34rem;
+  height: 2rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--accent);
+  color: transparent;
+}
+
+.module-status {
+  color: var(--line-strong);
+}
+
+.dayline {
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--canvas-deep);
+  padding-inline: 1rem;
+}
+
+.control-grid,
+.operator-directory {
+  gap: 1.5rem;
+}
+
+.operator-card > header {
+  padding-block-end: 1rem;
+  border-block-end: 1px solid var(--line);
+}
+
+.branch-directory {
+  background: var(--canvas);
+  border-block: 1px solid var(--line);
+}
+
+.branch-row {
+  padding-inline: 1rem;
+}
+
+.ops-list {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-low);
+}
+
+.ops-list article {
+  background: transparent;
+}
+
+.ops-list strong {
+  font-family: inherit;
+  font-size: 2.35rem;
+  font-weight: 780;
+}
+
+.feedback-state {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.feedback-signal {
+  width: 3rem;
+  height: 0.32rem;
+  background: var(--danger);
+}
+
+.feedback-maintenance .feedback-signal {
+  background: var(--warning);
+}
+
+.feedback-state h1 {
+  font-size: clamp(2rem, 6vw, 4rem);
+}
+
+.product-app .main-content {
+  max-width: 74rem;
+}
+
+.product-app .page-intro {
+  position: relative;
+}
+
+.product-app .page-intro::before {
+  width: 3.5rem;
+  height: 0.4rem;
+  align-self: start;
+  border-radius: 999px;
+  background: var(--accent);
+  content: "";
+  grid-column: 1 / -1;
+}
+
+.student-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-block-end: 2rem;
+}
+
+.student-actions form {
+  display: contents;
+}
+
+.product-app .control-card > a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3.5rem;
+  padding-block: 0.75rem;
+  border-block-end: 1px solid var(--line);
+  color: var(--ink);
+  font-weight: 720;
+  text-decoration: none;
+}
+
+.product-app .control-card > a::after {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: 0 0 auto;
+  border-block-start: 2px solid var(--accent);
+  border-inline-end: 2px solid var(--accent);
+  content: "";
+  transform: rotate(45deg);
+}
+
+[dir="rtl"] .product-app .control-card > a::after {
+  transform: rotate(-135deg);
+}
+
+.product-app .control-card > a:hover {
+  color: var(--accent-dark);
+}
+
+.control-app {
+  background:
+    linear-gradient(rgb(19 47 56 / 3%) 1px, transparent 1px) 0 0 / 100% 2rem,
+    var(--canvas);
+}
+
+.control-app .main-content {
+  width: min(92rem, 100%);
+}
+
+.control-app .page-intro {
+  margin-block-end: 3rem;
+  padding-block-end: 2rem;
+  border-block-end: 1px solid var(--line);
+}
+
+.control-app .main-content > .control-card:only-of-type,
+.control-app .main-content > .control-card:first-child:last-child {
+  width: min(34rem, 100%);
+  margin-inline: auto;
+}
+
+.control-app .control-form {
+  gap: 1.1rem;
+}
+
+.control-app .control-toolbar {
+  margin-block-end: 1.5rem;
+}
+
+.control-app .operator-directory {
+  margin-block-start: 3rem;
+}
+
+.control-app .operator-card {
+  padding: clamp(1.25rem, 3vw, 2.25rem);
+}
+
+.control-app .operator-card h2 {
+  margin-block-end: 0.35rem;
+}
+
+.control-app .operator-card .bidi-isolate {
+  color: var(--ink-muted);
+  font-size: 0.82rem;
+}
+
+.control-app .compact-form {
+  margin-block: 1.25rem;
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--canvas);
+}
+
+.control-app .lifecycle-actions {
+  flex-wrap: wrap;
+}
+
+.control-app .main-content > form.control-form,
+.control-app .main-content > section.control-card {
+  margin-block-end: 1.5rem;
+}
+
+.control-app .main-content > section.control-card + section.control-card {
+  margin-block-start: 1.5rem;
+}
+
+.control-app .main-content > .status-message {
+  margin-block-end: 2rem;
+}
+
+.storefront-app {
+  background:
+    linear-gradient(135deg, rgb(8 116 102 / 5%), transparent 42rem),
+    var(--canvas);
+}
+
+.storefront-app .main-content {
+  width: min(88rem, 100%);
+}
+
+.storefront-app .page-intro {
+  min-height: clamp(22rem, 58vh, 36rem);
+  align-content: center;
+  border-block-end: 1px solid var(--line);
+}
+
+.storefront-app .page-intro h1 {
+  max-width: 10ch;
+}
+
+@media (max-width: 700px) {
+  .control-app .primary-nav,
+  .storefront-app .primary-nav {
+    position: static;
+    box-shadow: none;
+  }
+
+  .control-app .main-content,
+  .storefront-app .main-content {
+    padding-block-end: 4rem;
+  }
+
+  .product-app .page-intro {
+    margin-block-end: 2rem;
+  }
+
+  .student-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .student-actions .button {
+    width: 100%;
+  }
+
+  .module-list article {
+    min-height: 4.25rem;
+  }
+
+  .card,
+  .control-card,
+  .operator-card,
+  .wifi-form,
+  .wifi-details {
+    border-radius: var(--radius-sm);
+  }
+}
+
+/* ============================================================
+   Showcase chrome. Everything here is prefixed .sc- so the real
+   product CSS above renders untouched inside the frames.
+   ============================================================ */
+.sc-body {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 17.5rem minmax(0, 1fr);
+  background: var(--canvas-deep);
+}
+.sc-rail {
+  position: sticky;
+  inset-block-start: 0;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 1.5rem 1.25rem 3rem;
+  background: var(--surface-strong);
+  color: white;
+}
+.sc-rail .brand { color: white; margin-block-end: 0.35rem; }
+.sc-rail-sub { color: #d9e2dc; font-size: 0.82rem; margin-block: 0 1.5rem; max-width: none; }
+.sc-group { margin-block-end: 1.4rem; }
+.sc-group h2 {
+  margin: 0 0 0.45rem;
+  color: #8fb3ac;
+  font-size: 0.7rem;
+  font-weight: 780;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.sc-group a {
+  display: block;
+  padding: 0.38rem 0.6rem;
+  border-radius: var(--radius-sm);
+  color: #d9e2dc;
+  font-size: 0.86rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+.sc-group a:hover { background: rgb(255 255 255 / 9%); color: white; }
+.sc-main { padding: clamp(1.5rem, 3vw, 3rem) clamp(1rem, 3vw, 3rem) 6rem; }
+.sc-lede { max-width: 60rem; margin-block-end: 3rem; }
+.sc-lede h1 { font-size: clamp(2rem, 4.5vw, 3.4rem); max-width: 20ch; }
+.sc-lede p { color: var(--ink-muted); font-size: 1.1rem; }
+.sc-screen { margin-block-end: 3.5rem; scroll-margin-block-start: 1rem; }
+.sc-screen > header { margin-block-end: 0.9rem; }
+.sc-screen h2 { margin-block-end: 0.3rem; }
+.sc-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
+  align-items: center;
+  margin: 0 0 0.5rem;
+  max-width: none;
+  color: var(--ink-muted);
+  font-size: 0.86rem;
+}
+.sc-meta code {
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.3rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 0.82rem;
+}
+.sc-proves { max-width: 72ch; color: var(--ink-muted); }
+.sc-frame {
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--canvas);
+  box-shadow: var(--shadow);
+}
+.sc-urlbar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.9rem;
+  border-block-end: 1px solid var(--line);
+  background: var(--canvas-deep);
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+}
+.sc-dots { display: inline-flex; gap: 0.3rem; }
+.sc-dots i { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--line-strong); }
+.sc-url {
+  flex: 1;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.sc-viewport { overflow: hidden; }
+.sc-viewport .app-frame { min-height: 0; }
+.sc-viewport .main-content { padding-block: 2.25rem 2.5rem; }
+.sc-viewport .page-intro { margin-block-end: 2rem; }
+.sc-viewport .storefront-app .page-intro { min-height: 0; }
+.sc-viewport h1 { font-size: clamp(1.9rem, 4vw, 3.2rem); }
+
+/* Phone frame: re-applies the real max-width:700px rules by container,
+   since a media query cannot see a 26rem box inside a wide window. */
+.sc-phone { width: 27rem; max-width: 100%; }
+.sc-phone .sc-viewport { position: relative; }
+.sc-phone .site-header { align-items: flex-start; padding-block: 0.85rem; }
+.sc-phone .locale-nav { flex-wrap: wrap; justify-content: flex-end; }
+.sc-phone .primary-nav {
+  position: absolute;
+  z-index: 20;
+  inset-block-end: 0;
+  inset-inline: 0;
+  justify-content: flex-start;
+  padding: 0.55rem;
+  border-block-start: 1px solid var(--line);
+  border-block-end: 0;
+  box-shadow: 0 -0.5rem 2rem rgb(24 51 45 / 10%);
+}
+.sc-phone .primary-nav a { padding: 0.7rem 0.75rem; }
+.sc-phone .main-content { padding-block: 1.75rem 6rem; }
+.sc-phone .page-intro { grid-template-columns: 1fr; gap: 1.25rem; }
+.sc-phone .outcome-band { grid-template-columns: 1fr 1fr; }
+.sc-phone .outcome-band p { border-block-end: 1px solid var(--line); }
+.sc-phone .detail-panel,
+.sc-phone .install-panel,
+.sc-phone .branch-context { grid-template-columns: 1fr; }
+.sc-phone .dayline { flex-direction: column; }
+.sc-phone .ops-list { grid-template-columns: 1fr; }
+.sc-phone .control-toolbar,
+.sc-phone .operator-card > header,
+.sc-phone .branch-row { align-items: stretch; flex-direction: column; }
+.sc-phone .compact-form { grid-template-columns: 1fr; }
+.sc-phone .student-actions { display: grid; grid-template-columns: 1fr 1fr; }
+.sc-phone .student-actions .button { width: 100%; }
+.sc-phone .attendance-context,
+.sc-phone .attendance-totals { grid-template-columns: 1fr 1fr; }
+.sc-phone h1 { font-size: 2.1rem; }
+.sc-phone .wifi-details dl { grid-template-columns: 1fr; }
+.sc-phone .wifi-details dt { padding-block-end: 0; border: 0; }
+
+.sc-row { display: flex; flex-wrap: wrap; gap: 1.75rem; align-items: flex-start; }
+.sc-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-size: 0.74rem;
+  font-weight: 780;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.sc-tag-student { background: var(--info-soft); color: var(--info); }
+.sc-tag-staff { background: var(--success-soft); color: var(--success); }
+.sc-tag-prizic { background: var(--warning-soft); color: var(--warning); }
+.sc-tag-public { background: var(--canvas-deep); color: var(--ink-muted); }
+.sc-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 1.25rem; }
+.sc-pkg { columns: 3 15rem; column-gap: 1.25rem; }
+.sc-pkg li { break-inside: avoid; margin-block-end: 0.35rem; }
+.sc-mono { font-variant-numeric: tabular-nums; font-size: 0.85rem; }
+.sc-hr { height: 1px; margin-block: 3.5rem; border: 0; background: var(--line); }
+.sc-h {
+  margin-block: 0 1.5rem;
+  padding-block-end: 0.75rem;
+  border-block-end: 2px solid var(--ink);
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+}
+@media (max-width: 60rem) {
+  .sc-body { grid-template-columns: 1fr; }
+  .sc-rail { position: static; height: auto; }
+}
+</style>
+</head>
+<body class="sc-body">
+
+<nav class="sc-rail" aria-label="Showcase contents">
+  <span class="brand"><span class="brand-mark" aria-hidden="true">R</span><span>Prizic · Ranza</span></span>
+  <p class="sc-rail-sub">Full system showcase — every application, every actor, every pilot module.</p>
+
+  <div class="sc-group">
+    <h2>Overview</h2>
+    <a href="#map">System map</a>
+    <a href="#actors">Actors and permissions</a>
+    <a href="#modules">Pilot modules</a>
+    <a href="#identity">Identity model</a>
+    <a href="#data">Data model</a>
+  </div>
+
+  <div class="sc-group">
+    <h2>Storefront · Visitor</h2>
+    <a href="#sf-home">Marketing page</a>
+    <a href="#sf-lead">Demo request form</a>
+  </div>
+
+  <div class="sc-group">
+    <h2>Student App</h2>
+    <a href="#st-home">Student home</a>
+    <a href="#st-activate">Activation</a>
+    <a href="#st-signin">Sign in</a>
+    <a href="#st-attendance">Nightly attendance</a>
+    <a href="#st-meals">Next-day meals</a>
+    <a href="#st-announcements">Announcements</a>
+    <a href="#st-balance">Student Balance</a>
+    <a href="#st-wifi">Protected Wi-Fi</a>
+    <a href="#st-public-wifi">Public / QR Wi-Fi</a>
+  </div>
+
+  <div class="sc-group">
+    <h2>Operator Dashboard</h2>
+    <a href="#op-signin">Staff sign-in</a>
+    <a href="#op-home">Dashboard and Branch switch</a>
+    <a href="#op-attendance">Attendance desk</a>
+    <a href="#op-meals">Kitchen count</a>
+    <a href="#op-roster">Student roster</a>
+    <a href="#op-import">CSV import</a>
+    <a href="#op-credential">Activation credential</a>
+    <a href="#op-announcements">Announcement authoring</a>
+    <a href="#op-followup">Acknowledgment follow-up</a>
+    <a href="#op-balances">Finance ledger</a>
+    <a href="#op-wifi">Wi-Fi and QR link</a>
+    <a href="#op-exports">Operator data export</a>
+  </div>
+
+  <div class="sc-group">
+    <h2>Prizic Control Plane</h2>
+    <a href="#cp-signin">Invite-only sign-in</a>
+    <a href="#cp-mfa">MFA step-up</a>
+    <a href="#cp-operators">Operator lifecycle</a>
+    <a href="#cp-operations">Support context and health</a>
+    <a href="#cp-leads">Lead review</a>
+  </div>
+
+  <div class="sc-group">
+    <h2>Cross-cutting</h2>
+    <a href="#i18n">Three languages and RTL</a>
+    <a href="#states">System states</a>
+  </div>
+</nav>
+
+<main class="sc-main">
+
+<header class="sc-lede">
+  <h1>Ranza, end to end.</h1>
+  <p>One multi-tenant product for independent private student-dormitory Operators in Turkey: three deployed applications, seven authorization roles, five pilot modules, three languages. Every screen below is drawn with the product's own design tokens and its real interface copy.</p>
+</header>
+
+<h2 class="sc-h" id="map">System map</h2>
+<div class="sc-columns">
+  <section class="card">
+    <span class="sc-tag sc-tag-public">Public</span>
+    <h3>apps/storefront</h3>
+    <p>One localized marketing page and lead capture. No account, no self-service checkout, no public price during the founding phase.</p>
+    <p class="sc-mono">Visitor</p>
+  </section>
+  <section class="card">
+    <span class="sc-tag sc-tag-student">Student</span><span class="sc-tag sc-tag-staff" style="margin-inline-start:.35rem">Staff</span>
+    <h3>apps/product-web</h3>
+    <p>One mobile-first deployment holding both the Student App and the Operator Dashboard, separated by route tree, role and database policy — installable as a PWA.</p>
+    <p class="sc-mono">Student · Branch Staff · Manager · Operator Owner</p>
+  </section>
+  <section class="card">
+    <span class="sc-tag sc-tag-prizic">Internal</span>
+    <h3>apps/control-plane</h3>
+    <p>Separately deployed internal surface: Operator lifecycle, Entitlements, service health, audited support actions and demo-request review. Invite-only, MFA enforced.</p>
+    <p class="sc-mono">Prizic Support · Prizic Platform Admin</p>
+  </section>
+</div>
+
+<div class="detail-panel" style="margin-block-start:1.5rem">
+  <div>
+    <h2>One database, isolated by policy</h2>
+    <p>All three applications share one Supabase PostgreSQL with row-level security. Tenant boundaries are database facts, not UI conditionals: every customer-owned row carries <code>operator_id</code>, every Branch-scoped row carries <code>branch_id</code> too, and denial is proven by test for the Student next door, the unassigned Branch, the other Operator, the stale transfer and the manipulated export scope.</p>
+  </div>
+</div>
+
+<h3 style="margin-block-start:2rem">Workspace packages</h3>
+<ul class="sc-pkg">
+  <li><strong>domain</strong> — vocabulary, validation, state transitions, capability names. No Next.js, no Supabase.</li>
+  <li><strong>database</strong> — generated types, typed query boundaries, RPC clients, repositories.</li>
+  <li><strong>auth</strong> — staff session helpers, Student Credential Gateway contracts, role resolution.</li>
+  <li><strong>ui</strong> — design tokens and presentational primitives. No tenant data access.</li>
+  <li><strong>i18n</strong> — Turkish, English, Arabic catalogs, locale negotiation, RTL rules.</li>
+  <li><strong>config</strong> — runtime environment validation and feature-catalog schemas.</li>
+  <li><strong>observability</strong> — structured logging, correlation IDs, redaction rules.</li>
+  <li><strong>supabase</strong> — ordered migrations, database functions, RLS tests.</li>
+</ul>
+
+<hr class="sc-hr">
+
+<h2 class="sc-h" id="actors">Actors and permissions</h2>
+<p class="sc-proves">Authorization is additive only inside one Operator. No Operator role reaches another Operator, and a Student has exactly one active home Branch at a time.</p>
+<div class="table-scroll" style="margin-block-start:1.25rem">
+  <table class="data-table">
+    <thead>
+      <tr><th>Actor</th><th>Surface</th><th>Scope</th><th>Core permissions</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="sc-tag sc-tag-public">Visitor</span></td>
+        <td>Storefront · Public Wi-Fi page</td>
+        <td>Public</td>
+        <td>View the Storefront, submit a lead, open a valid Public/QR Wi-Fi link.</td>
+      </tr>
+      <tr>
+        <td><span class="sc-tag sc-tag-student">Student</span></td>
+        <td>Student App</td>
+        <td>Own active Branch and own records</td>
+        <td>Activate, declare attendance, respond to meals, acknowledge targeted Announcements, view own Balance and allowed Wi-Fi.</td>
+      </tr>
+      <tr>
+        <td><span class="sc-tag sc-tag-staff">Branch Staff</span></td>
+        <td>Operator Dashboard</td>
+        <td>Assigned Branches</td>
+        <td>Read operational data and perform explicitly granted Branch tasks. Unassigned Branches stay unreachable, including by copied URL.</td>
+      </tr>
+      <tr>
+        <td><span class="sc-tag sc-tag-staff">Manager</span></td>
+        <td>Operator Dashboard</td>
+        <td>Assigned Branches, or all Branches when authorized operator-wide</td>
+        <td>Manage roster and workflows in authorized Branches: corrections, reopen, publish Meal Days, announcements.</td>
+      </tr>
+      <tr>
+        <td><span class="sc-tag sc-tag-staff">Operator Owner</span></td>
+        <td>Operator Dashboard</td>
+        <td>Entire Operator</td>
+        <td>All Branches, staff assignments, safe settings, Public/QR Wi-Fi, Operator Data export, Subscription and Billable Bed summary.</td>
+      </tr>
+      <tr>
+        <td><span class="sc-tag sc-tag-prizic">Prizic Support</span></td>
+        <td>Control Plane</td>
+        <td>Explicit, time-bounded support context</td>
+        <td>Inspect and override supported settings only inside a reasoned, expiring context. Every override is audited before and after.</td>
+      </tr>
+      <tr>
+        <td><span class="sc-tag sc-tag-prizic">Platform Admin</span></td>
+        <td>Control Plane</td>
+        <td>Platform-wide</td>
+        <td>Create, activate, suspend and archive Operators, manage Branches and Entitlements, inspect health, run audited lifecycle jobs.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h3 style="margin-block-start:2rem">Capabilities resolved per staff session</h3>
+<div class="sc-row">
+  <span class="badge badge-info">workflow.read</span>
+  <span class="badge badge-info">workflow.manage</span>
+  <span class="badge badge-info">roster.manage</span>
+  <span class="badge badge-info">finance.manage</span>
+  <span class="sc-proves" style="flex:1 1 20rem">Read from the <code>staff_branch_access</code> view for the selected Branch. The dashboard only links to what the session actually carries; the database refuses the rest independently.</span>
+</div>
+
+<hr class="sc-hr">
+
+<h2 class="sc-h" id="modules">Pilot modules</h2>
+<div class="sc-columns">
+  <section class="card">
+    <h3>Nightly Attendance</h3>
+    <p>One declaration per Student per Branch-local date: <strong>Staying</strong>, <strong>Away</strong>, or <strong>Unconfirmed</strong>. Silence is never read as either answer. At the Branch cutoff an immutable, idempotent Snapshot is written; later changes are corrections with a recorded reason.</p>
+    <p class="field-hint">Away is an operational declaration, not an approved leave request.</p>
+  </section>
+  <section class="card">
+    <h3>Next-day Meals</h3>
+    <p>A Branch publishes breakfast, lunch and dinner opportunities for a service date under one immutable UTC deadline. Students opt in explicitly, including an explicit zero-meal response, which stays distinguishable from no response at all.</p>
+    <p class="field-hint">No free-form menu, no quantities, no pricing.</p>
+  </section>
+  <section class="card">
+    <h3>Announcements</h3>
+    <p>Draft, publish, revise, archive. Targeted to the whole Operator or named Branches, with optional human translations and a labelled fallback language. A material edit creates a new revision and resets acknowledgment.</p>
+    <p class="field-hint">Opening or receiving is never acknowledgment.</p>
+  </section>
+  <section class="card">
+    <h3>Student Balance</h3>
+    <p>Append-only ledger of Charges, External Payment Records, Credits, Adjustments and Reversals in fixed-precision numerics. Mistakes are corrected by linked reversal, never by edit or delete.</p>
+    <p class="field-hint">Ranza records money information. It never collects or transfers money.</p>
+  </section>
+  <section class="card">
+    <h3>Wi-Fi Access Information</h3>
+    <p>Per-Branch network details, encrypted at the application boundary. Protected mode serves active Students and assigned staff; Public/QR mode serves a revocable, expiring anonymous token. Audit records that Wi-Fi changed, never the secret.</p>
+    <p class="field-hint">Rotating the link does not require changing the password.</p>
+  </section>
+  <section class="card card-strong">
+    <h3>Entitlements and configuration</h3>
+    <p>Prizic owns the Feature Catalog: which capabilities exist, which modes are supported, what ranges are allowed. Operators configure inside those boundaries. One product, no customer forks.</p>
+  </section>
+</div>
+
+<hr class="sc-hr">
+
+<h2 class="sc-h" id="identity">Three ways in, one identity model</h2>
+<p class="sc-proves">Each actor class authenticates differently because each has a different practical constraint — a Student may have no email at all — but all three end up as an ordinary Supabase session whose authority comes from database membership records, never from user-editable metadata.</p>
+<div class="sc-columns" style="margin-block-start:1.5rem">
+  <section class="card">
+    <span class="sc-tag sc-tag-student">Student</span>
+    <h3>Activation Code, then PIN</h3>
+    <ol>
+      <li>Staff create the roster record first.</li>
+      <li>Staff issue a non-secret <strong>Student Access ID</strong> and a high-entropy, expiring, one-time <strong>Activation Code</strong>, shown once.</li>
+      <li>The Student exchanges the code for a <strong>PIN</strong> of their choosing.</li>
+      <li>Later sign-ins use Access ID + PIN through a rate-limited server gateway.</li>
+    </ol>
+    <p class="field-hint">The PIN is never stored. A server-only gateway derives an Auth password with a versioned keyed derivation; logs, audit records and tables never see either value. A forgotten PIN is an audited staff-assisted reset, never a second identity.</p>
+  </section>
+  <section class="card">
+    <span class="sc-tag sc-tag-staff">Dormitory team</span>
+    <h3>Email magic link</h3>
+    <ol>
+      <li>The Operator Owner registers the work email.</li>
+      <li>Staff request a sign-in link from the dashboard.</li>
+      <li>The callback exchanges the code for a session.</li>
+      <li>Role and Branch assignments are resolved from <code>operator_memberships</code> and <code>branch_assignments</code>.</li>
+    </ol>
+    <p class="field-hint">Losing a membership row removes access immediately, with no session to revoke by hand.</p>
+  </section>
+  <section class="card">
+    <span class="sc-tag sc-tag-prizic">Prizic</span>
+    <h3>Invitation, password, MFA</h3>
+    <ol>
+      <li>An existing Platform Admin issues an invitation; there is no self-service signup.</li>
+      <li>The invitee accepts, which exchanges the invite token hash for a session.</li>
+      <li>They set a password of at least 12 characters.</li>
+      <li>Every internal page requires assurance level <strong>aal2</strong> — TOTP — before it renders.</li>
+    </ol>
+    <p class="field-hint">Platform identity lives in a non-exposed schema, separate from any Operator membership.</p>
+  </section>
+</div>
+
+<hr class="sc-hr">
+
+<h2 class="sc-h" id="data">Data model</h2>
+<p class="sc-proves">Forty-four relations. Every exposed table has row-level security enabled and default-deny grants; credential mappings and cryptographic material live in a non-exposed <code>private</code> schema.</p>
+<div class="sc-columns" style="margin-block-start:1.5rem">
+  <section class="card card-compact">
+    <h3>Tenancy and roster</h3>
+    <ul class="sc-mono">
+      <li>operators</li><li>branches</li><li>rooms</li><li>beds</li>
+      <li>profiles</li><li>operator_memberships</li><li>branch_assignments</li>
+      <li>students</li><li>student_branch_history</li>
+    </ul>
+  </section>
+  <section class="card card-compact">
+    <h3>Private schema</h3>
+    <ul class="sc-mono">
+      <li>private.platform_memberships</li>
+      <li>private.support_contexts</li>
+      <li>private.student_credentials</li>
+    </ul>
+    <p class="field-hint">Never reachable through the Data API.</p>
+  </section>
+  <section class="card card-compact">
+    <h3>Commercial</h3>
+    <ul class="sc-mono">
+      <li>subscriptions</li><li>subscription_billing_periods</li>
+      <li>feature_catalog</li><li>operator_entitlements</li>
+      <li>operator_feature_config</li><li>branch_feature_config</li>
+    </ul>
+  </section>
+  <section class="card card-compact">
+    <h3>Attendance</h3>
+    <ul class="sc-mono">
+      <li>attendance_sessions</li><li>attendance_responses</li>
+      <li>attendance_snapshots</li><li>attendance_corrections</li>
+    </ul>
+  </section>
+  <section class="card card-compact">
+    <h3>Meals</h3>
+    <ul class="sc-mono">
+      <li>meal_days</li><li>meal_offerings</li><li>meal_responses</li>
+      <li>meal_selections</li><li>meal_snapshots</li><li>meal_corrections</li>
+    </ul>
+  </section>
+  <section class="card card-compact">
+    <h3>Announcements</h3>
+    <ul class="sc-mono">
+      <li>announcements</li><li>announcement_targets</li>
+      <li>announcement_revisions</li><li>announcement_translations</li>
+      <li>announcement_recipients</li><li>announcement_acknowledgements</li>
+    </ul>
+  </section>
+  <section class="card card-compact">
+    <h3>Balance and Wi-Fi</h3>
+    <ul class="sc-mono">
+      <li>student_balance_accounts</li><li>student_balance_entries</li>
+      <li>wifi_access</li><li>wifi_public_tokens</li>
+    </ul>
+  </section>
+  <section class="card card-compact">
+    <h3>Platform operations</h3>
+    <ul class="sc-mono">
+      <li>audit_events</li><li>background_job_runs</li>
+      <li>leads</li><li>exports</li>
+    </ul>
+  </section>
+</div>
+
+<hr class="sc-hr">
+<style>
+/* apps/storefront/src/storefront.css — inlined verbatim */
+.storefront-suite {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 0;
+  margin-block: clamp(4rem, 9vw, 8rem);
+  border-block-start: 1px solid var(--line);
+}
+.storefront-suite article {
+  grid-column: span 6;
+  min-height: 13rem;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  border-block-end: 1px solid var(--line);
+  border-inline-end: 1px solid var(--line);
+  background: rgb(255 255 255 / 48%);
+}
+.storefront-suite article:nth-child(3n) {
+  grid-column: span 12;
+  min-height: auto;
+  background: var(--surface-strong);
+  color: white;
+}
+.storefront-suite article:nth-child(3n) h2 {
+  color: white;
+}
+.storefront-suite h2 {
+  max-width: 16ch;
+  font-size: clamp(1.45rem, 3vw, 2.25rem);
+}
+.storefront-suite p {
+  max-width: 46ch;
+  color: var(--ink-muted);
+}
+.storefront-suite article:nth-child(3n) p {
+  color: #d6e4e2;
+}
+.contact-section {
+  display: grid;
+  grid-template-columns: minmax(14rem, 0.65fr) minmax(0, 1.35fr);
+  gap: clamp(2rem, 6vw, 6rem);
+  margin-block-start: clamp(5rem, 10vw, 9rem);
+  padding-block-start: clamp(2rem, 5vw, 4rem);
+  border-block-start: 1px solid var(--line);
+  scroll-margin-top: 2rem;
+}
+.contact-section > h2,
+.contact-section > p {
+  grid-column: 1;
+}
+.contact-section > p {
+  color: var(--ink-muted);
+}
+.contact-section > .lead-form,
+.contact-section > script + .lead-form {
+  grid-column: 2;
+  grid-row: 1 / span 4;
+}
+.lead-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.lead-form select,
+.lead-form textarea {
+  width: 100%;
+  min-height: 2.8rem;
+  padding: 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: white;
+  color: var(--ink);
+  font: inherit;
+}
+.lead-form input {
+  min-width: 0;
+}
+.lead-form details {
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--canvas);
+}
+.lead-form summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.lead-form details p {
+  margin-block: 1rem;
+}
+.consent-label {
+  display: flex;
+  align-items: start;
+  gap: 0.6rem;
+}
+.consent-label input {
+  flex: 0 0 auto;
+  width: 1.3rem;
+  height: 1.3rem;
+  margin-top: 0.2rem;
+}
+.lead-wide {
+  grid-column: 1 / -1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.storefront-app .main-content > .button {
+  margin-block-start: -2.8rem;
+  position: relative;
+  z-index: 1;
+}
+.storefront-app .detail-panel {
+  min-height: 16rem;
+  align-content: center;
+  margin-block: 5rem 0;
+}
+.storefront-app .detail-panel + p {
+  margin-block-start: 3rem;
+  font-size: clamp(1.2rem, 2vw, 1.55rem);
+  font-weight: 700;
+}
+@media (max-width: 700px) {
+  .storefront-suite {
+    grid-template-columns: 1fr;
+  }
+  .storefront-suite article,
+  .storefront-suite article:nth-child(3n) {
+    grid-column: 1;
+    min-height: auto;
+    border-inline-end: 0;
+  }
+  .contact-section {
+    grid-template-columns: 1fr;
+  }
+  .contact-section > h2,
+  .contact-section > p,
+  .contact-section > .lead-form,
+  .contact-section > script + .lead-form {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .lead-form {
+    grid-template-columns: 1fr;
+    border-radius: var(--radius);
+  }
+}
+</style>
+
+<h2 class="sc-h">Storefront</h2>
+
+<section class="sc-screen" id="sf-home">
+  <header>
+    <h2>Marketing page</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-public">Visitor</span> <code>/[locale]</code> <span>apps/storefront</span></p>
+    <p class="sc-proves">The founding-phase offer: explain the daily outcome, show the multi-Branch model, invite a conversation. No price, no checkout, no self-service tenant creation.</p>
+  </header>
+  <div class="sc-frame">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">ranza.com.tr/en</span></div>
+    <div class="sc-viewport">
+      <div class="storefront-app">
+        <div class="app-frame">
+          <header class="site-header">
+            <a class="brand" href="#sf-home"><span class="brand-mark" aria-hidden="true">R</span><span>Ranza</span></a>
+            <nav class="locale-nav" aria-label="Language">
+              <a href="#sf-home">Türkçe</a>
+              <a href="#sf-home" aria-current="page">English</a>
+              <a href="#sf-home">العربية</a>
+            </nav>
+          </header>
+          <nav class="primary-nav" aria-label="Ranza">
+            <a href="#sf-home" aria-current="page">Home</a>
+            <a href="#sf-lead">Request a demo</a>
+          </nav>
+          <main class="main-content">
+            <header class="page-intro">
+              <h1>A clearer daily rhythm for every dormitory.</h1>
+              <p>Coordinate attendance, meals, announcements, balances, and Wi‑Fi information across every student-dormitory Branch from one place.</p>
+            </header>
+            <a class="button" href="#sf-lead">Request a demo</a>
+
+            <div class="storefront-suite">
+              <article>
+                <h2>Attendance</h2>
+                <p>Know who plans to stay tonight, and who has not responded.</p>
+              </article>
+              <article>
+                <h2>Meals</h2>
+                <p>Give the kitchen a final count for tomorrow's meals.</p>
+              </article>
+              <article>
+                <h2>Announcements</h2>
+                <p>Publish announcements and follow explicit acknowledgments.</p>
+              </article>
+              <article>
+                <h2>Balance</h2>
+                <p>Record Student charges and external payments. Ranza does not collect money.</p>
+              </article>
+              <article>
+                <h2>Wi‑Fi</h2>
+                <p>Share Branch Wi-Fi information with signed-in residents or a public QR link, according to your settings.</p>
+              </article>
+            </div>
+
+            <div class="detail-panel">
+              <div>
+                <h2>One Operator. Every Branch.</h2>
+                <p>Manage separate buildings, including male and female residences, under one account and one Subscription. Managers see their assigned Branches; Students see their own residence.</p>
+              </div>
+            </div>
+            <p>Turkish, English and Arabic. A phone-friendly Student App, with right-to-left Arabic support.</p>
+            <p>Start with an agreed Founding Offer and a 14-day operational evaluation. We discuss scope and price together before the evaluation begins.</p>
+          </main>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="sf-lead">
+  <header>
+    <h2>Demo request</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-public">Visitor</span> <code>/[locale]#contact</code> <code>POST /api/leads</code></p>
+    <p class="sc-proves">Server-validated, rate-limited, bot-protected and idempotent. Entries survive a failed submission, every response carries a support reference, and lead rows are never readable through a public database policy.</p>
+  </header>
+  <div class="sc-frame">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">ranza.com.tr/en#contact</span></div>
+    <div class="sc-viewport">
+      <div class="storefront-app">
+        <main class="main-content" style="padding-block-start:1.5rem">
+          <section class="contact-section" id="contact">
+            <h2>Request a demo</h2>
+            <p>Tell us about your dormitory. Prizic will contact you to discuss your workflow and arrange a demonstration.</p>
+            <form class="lead-form">
+              <div class="form-field">
+                <label for="lead-name">Your name</label>
+                <input id="lead-name" value="Kerem Aksoy">
+              </div>
+              <div class="form-field">
+                <label for="lead-contact">Work email or phone</label>
+                <input id="lead-contact" value="kerem@anadoluyurt.com.tr">
+              </div>
+              <div class="form-field">
+                <label for="lead-operator">Dormitory / Operator name</label>
+                <input id="lead-operator" value="Anadolu Yurt İşletmeleri">
+              </div>
+              <div class="form-field">
+                <label for="lead-beds">Approximate bed count</label>
+                <input id="lead-beds" inputmode="numeric" value="420">
+              </div>
+              <div class="form-field">
+                <label for="lead-city">City</label>
+                <input id="lead-city" value="İstanbul">
+              </div>
+              <div class="form-field">
+                <label for="lead-lang">Preferred language</label>
+                <select id="lead-lang">
+                  <option selected>Türkçe</option>
+                  <option>English</option>
+                  <option>العربية</option>
+                </select>
+              </div>
+              <div class="form-field lead-wide">
+                <label for="lead-message">Message (optional)</label>
+                <textarea id="lead-message">Three buildings in İstanbul and one in Ankara. We still take nightly attendance on paper and send meal counts to the kitchen by WhatsApp.</textarea>
+              </div>
+              <details class="lead-wide">
+                <summary>Privacy notice</summary>
+                <p>Prizic uses your contact and dormitory details only to answer this request and arrange a demonstration. This form uses Cloudflare Turnstile to prevent automated abuse.</p>
+                <p class="field-hint">Consent version 2026-09-01</p>
+              </details>
+              <label class="consent-label lead-wide" for="lead-consent">
+                <input type="checkbox" id="lead-consent" checked>
+                <span>I have read and accept the privacy notice for this request.</span>
+              </label>
+              <div class="lead-wide" style="padding:.75rem 1rem;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--canvas);color:var(--ink-muted);font-size:.85rem">Cloudflare Turnstile · verified</div>
+              <button class="button lead-wide" type="button">Request a demo</button>
+              <p class="status-message status-success lead-wide" role="status">Your request has been received. Prizic will contact you.</p>
+              <p class="field-hint lead-wide">Request reference: <bdi class="bidi-isolate" dir="ltr">8f2c41ae-7d09-4c6b-9f13-2ad5e0b47c88</bdi></p>
+            </form>
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="sc-hr">
+
+<h2 class="sc-h">Student App</h2>
+<p class="sc-proves" style="margin-block-end:2.5rem">Mobile-first and installable, shown here at phone width. Every screen answers one question a resident actually has tonight, and never reports an unsaved action as saved.</p>
+
+<div class="sc-row">
+
+<section class="sc-screen" id="st-home">
+  <header>
+    <h2>Student home</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-student">Student</span> <code>/[locale]</code></p>
+  </header>
+  <div class="sc-frame sc-phone">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <div class="app-frame">
+          <header class="site-header">
+            <a class="brand" href="#st-home"><span class="brand-mark" aria-hidden="true">R</span><span>Ranza</span></a>
+            <nav class="locale-nav" aria-label="Language">
+              <a href="#st-home">TR</a><a href="#st-home" aria-current="page">EN</a><a href="#st-home">AR</a>
+            </nav>
+          </header>
+          <nav class="primary-nav" aria-label="Ranza">
+            <a href="#st-home" aria-current="page">Home</a>
+            <a href="#st-attendance">Attendance</a>
+            <a href="#st-meals">Meals</a>
+            <a href="#st-announcements">Announcements</a>
+            <a href="#st-balance">Balance</a>
+            <a href="#st-wifi">Wi‑Fi</a>
+          </nav>
+          <main class="main-content">
+            <header class="page-intro">
+              <h1>Clearer dormitory days start here.</h1>
+              <p>Daily work for students and dormitory teams in one clear, secure, multilingual space.</p>
+            </header>
+            <div class="student-actions">
+              <a class="button" href="#st-attendance">Attendance</a>
+              <a class="button button-secondary" href="#st-wifi">Wi‑Fi</a>
+            </div>
+            <div class="dayline">
+              <span class="identity-line"><bdi class="bidi-isolate" dir="ltr">IST-01</bdi></span>
+              <span><bdi class="bidi-isolate" dir="ltr">21:15</bdi></span>
+              <span><bdi class="bidi-isolate" dir="ltr">TRY 1,250.00</bdi></span>
+            </div>
+            <div class="module-list">
+              <article><span class="module-index">01</span><h2>Attendance</h2><span class="module-status">Staying</span></article>
+              <article><span class="module-index">02</span><h2>Meals</h2><span class="module-status">2 selected</span></article>
+              <article><span class="module-index">03</span><h2>Announcements</h2><span class="module-status">1 to confirm</span></article>
+              <article><span class="module-index">04</span><h2>Balance</h2><span class="module-status">TRY 1,250.00</span></article>
+              <article><span class="module-index">05</span><h2>Wi‑Fi</h2><span class="module-status">Protected</span></article>
+            </div>
+            <div class="install-panel">
+              <div>
+                <h2>Keep Ranza close</h2>
+                <p>Add Ranza to your home screen from the browser menu when installation is supported.</p>
+              </div>
+              <a class="button button-secondary" href="#st-home">Installation guidance</a>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="st-attendance">
+  <header>
+    <h2>Nightly attendance</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-student">Student</span> <code>/[locale]/student/attendance</code></p>
+  </header>
+  <div class="sc-frame sc-phone">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en/student/attendance</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <main class="main-content" style="padding-block:1.75rem 2rem">
+          <h2>Nightly attendance</h2>
+          <div class="attendance-context">
+            <div>
+              <strong>Student</strong>
+              <p>Elif Yıldız</p>
+              <p class="field-hint"><bdi class="bidi-isolate" dir="ltr">RNZ-4821-EL</bdi></p>
+            </div>
+            <div>
+              <strong>Branch</strong>
+              <p>Beşiktaş Erkek Yurdu</p>
+              <p class="field-hint">Declaration deadline: 16 Sep 2026, 22:00</p>
+            </div>
+          </div>
+          <form class="attendance-form">
+            <fieldset>
+              <legend>Nightly attendance</legend>
+              <label><input type="radio" name="d" checked> I am staying tonight</label>
+              <label><input type="radio" name="d"> I am away tonight</label>
+            </fieldset>
+            <button class="button" type="button">Save declaration</button>
+          </form>
+          <p class="status-message status-success" role="status">Your latest declaration was saved.</p>
+          <p class="field-hint">Current status: <strong>Staying</strong> · saved 21:04</p>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="st-meals">
+  <header>
+    <h2>Next-day meals</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-student">Student</span> <code>/[locale]/meals</code></p>
+  </header>
+  <div class="sc-frame sc-phone">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en/meals</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <main class="main-content" style="padding-block:1.75rem 2rem">
+          <h2>Next-day meals</h2>
+          <p class="field-hint">17 Sep 2026 · deadline 16 Sep 2026, 20:00</p>
+          <form class="attendance-form">
+            <fieldset>
+              <label><input type="checkbox" checked> Breakfast</label>
+              <label><input type="checkbox"> Lunch</label>
+              <label><input type="checkbox" checked> Dinner</label>
+            </fieldset>
+            <p class="field-hint">Leave every option clear to submit an explicit zero-meal response.</p>
+            <button class="button" type="button">Save response</button>
+          </form>
+          <p class="status-message status-success" role="status">Your response was saved.</p>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="st-announcements">
+  <header>
+    <h2>Announcements</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-student">Student</span> <code>/[locale]/announcements</code></p>
+  </header>
+  <div class="sc-frame sc-phone">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en/announcements</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <main class="main-content" style="padding-block:1.75rem 2rem">
+          <h1 style="font-size:2rem">Announcements</h1>
+          <section class="card card-compact" style="margin-block-end:1rem">
+            <p>Water will be shut off in Block B on Thursday between 09:00 and 13:00 for maintenance. Please fill a bottle the night before.</p>
+            <p class="field-hint">Published 14 Sep 2026</p>
+            <button class="button" type="button">I acknowledge this announcement</button>
+          </section>
+          <section class="card card-compact">
+            <p class="status-message status-warning" role="status">Translation unavailable. Displaying: Turkish</p>
+            <p>Kış dönemi kayıt yenileme işlemleri 30 Eylül'e kadar yurt yönetim ofisinde yapılacaktır.</p>
+            <p class="field-hint">Published 11 Sep 2026</p>
+            <button class="button button-secondary" type="button" disabled>Acknowledged</button>
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<div class="sc-row">
+
+<section class="sc-screen" id="st-balance">
+  <header>
+    <h2>Student Balance</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-student">Student</span> <code>/[locale]/balance</code></p>
+  </header>
+  <div class="sc-frame sc-phone">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en/balance</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <main class="main-content" style="padding-block:1.75rem 2rem">
+          <h2>Student Balance</h2>
+          <p class="status-message status-warning" role="status">Ranza only records the dormitory's money information. It does not collect or transfer money, and this is not a payment receipt.</p>
+          <p style="font-size:1.4rem;font-weight:780">Remaining Balance: <bdi class="bidi-isolate" dir="ltr">1,250.00 TRY</bdi></p>
+          <section class="card card-compact" style="margin-block-end:.75rem">
+            <strong>Charge · <bdi class="bidi-isolate" dir="ltr">4,500.00 TRY</bdi></strong>
+            <p>September accommodation instalment</p>
+            <p class="field-hint">Effective 1 Sep 2026 · Due 10 Sep 2026</p>
+          </section>
+          <section class="card card-compact" style="margin-block-end:.75rem">
+            <strong>External Payment Record · <bdi class="bidi-isolate" dir="ltr">-3,000.00 TRY</bdi></strong>
+            <p>Bank transfer reported by the dormitory office</p>
+            <p class="field-hint">Effective 4 Sep 2026</p>
+          </section>
+          <section class="card card-compact">
+            <strong>Credit · <bdi class="bidi-isolate" dir="ltr">-250.00 TRY</bdi></strong>
+            <p>Goodwill credit for the heating outage</p>
+            <p class="field-hint">Effective 8 Sep 2026</p>
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="st-wifi">
+  <header>
+    <h2>Protected Wi-Fi</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-student">Student</span> <code>/[locale]/wifi</code></p>
+    <p class="sc-proves">Visible only to active Students of this Branch and assigned staff. Access disappears the moment a Student transfers or is deactivated.</p>
+  </header>
+  <div class="sc-frame sc-phone">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en/wifi</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <main class="main-content" style="padding-block:1.75rem 2rem">
+          <h2>Branch Wi‑Fi information</h2>
+          <p class="field-hint">Protected · active Branch members only</p>
+          <div class="wifi-details">
+            <dl>
+              <dt>Branch</dt><dd>Beşiktaş Erkek Yurdu</dd>
+              <dt>Network name</dt><dd><bdi class="bidi-isolate" dir="ltr">RANZA-IST01</bdi></dd>
+              <dt>Password</dt><dd><bdi class="bidi-isolate" dir="ltr">yurt-2026-besiktas</bdi></dd>
+              <dt>Connection instructions</dt><dd>Choose the network on the 2.4 GHz band. Ask reception if your device is not accepted.</dd>
+              <dt>Last updated</dt><dd>2 Sep 2026, 11:20</dd>
+            </dl>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="st-activate">
+  <header>
+    <h2>Activation</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-student">Student</span> <code>/[locale]/activate</code></p>
+    <p class="sc-proves">No email, no phone OTP. A one-time code from the dormitory office becomes a PIN the Student controls.</p>
+  </header>
+  <div class="sc-frame sc-phone">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en/activate</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <main class="main-content" style="padding-block:1.75rem 2rem">
+          <h1 style="font-size:2rem">Activate your account</h1>
+          <p class="field-hint">Use 6–12 digits. Ask your dormitory staff for your Access ID and one-time code.</p>
+          <form class="control-form" style="margin-block-start:1.25rem">
+            <div class="form-field">
+              <label for="ac-id">Student Access ID</label>
+              <input id="ac-id" dir="ltr" value="RNZ-4821-EL">
+            </div>
+            <div class="form-field">
+              <label for="ac-code">Activation Code</label>
+              <input id="ac-code" type="password" dir="ltr" value="························">
+            </div>
+            <div class="form-field">
+              <label for="ac-pin">Choose a PIN</label>
+              <input id="ac-pin" type="password" dir="ltr" inputmode="numeric" value="······">
+            </div>
+            <button class="button" type="button">Activate</button>
+          </form>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="st-signin">
+  <header>
+    <h2>Student sign in</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-student">Student</span> <code>/[locale]/student/sign-in</code></p>
+    <p class="sc-proves">Rate-limited by credential and network signal, and worded so a failure never reveals whether an Access ID exists.</p>
+  </header>
+  <div class="sc-frame sc-phone">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en/student/sign-in</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <main class="main-content" style="padding-block:1.75rem 2rem">
+          <h1 style="font-size:2rem">Student sign in</h1>
+          <p class="field-hint">Use your Access ID and PIN. If you forgot your PIN, ask dormitory staff for a new one-time recovery code.</p>
+          <form class="control-form" style="margin-block-start:1.25rem">
+            <div class="form-field">
+              <label for="si-id">Student Access ID</label>
+              <input id="si-id" dir="ltr" value="RNZ-4821-EL">
+            </div>
+            <div class="form-field">
+              <label for="si-pin">PIN</label>
+              <input id="si-pin" type="password" dir="ltr" value="······">
+            </div>
+            <button class="button" type="button">Sign in</button>
+          </form>
+          <p class="status-message status-warning" role="status">Sign-in could not be completed. Check your details, wait 15 minutes, or ask staff for help.</p>
+          <p><a href="#st-activate">Activate your account</a></p>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="st-public-wifi">
+  <header>
+    <h2>Public / QR Wi-Fi</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-public">Visitor</span> <code>/[locale]/public-wifi#token</code></p>
+    <p class="sc-proves">No sign-in, no direct table read. The token lives in the URL fragment, is resolved by a server endpoint, and the page is marked <code>noindex, no-referrer</code>.</p>
+  </header>
+  <div class="sc-frame sc-phone">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en/public-wifi#…</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <main class="main-content" style="padding-block:1.75rem 2rem">
+          <h2>Branch Wi‑Fi information</h2>
+          <div class="wifi-details">
+            <dl>
+              <dt>Branch</dt><dd>Kadıköy Kız Yurdu</dd>
+              <dt>Network name</dt><dd><bdi class="bidi-isolate" dir="ltr">RANZA-IST02-GUEST</bdi></dd>
+              <dt>Password</dt><dd><bdi class="bidi-isolate" dir="ltr">misafir-4417</bdi></dd>
+            </dl>
+          </div>
+          <p class="field-hint" style="margin-block-start:1rem">Public access is controlled by the Branch owner.</p>
+          <p class="status-message status-warning" role="status">This Wi-Fi link is unavailable. Ask the Branch for a current link.</p>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<hr class="sc-hr">
+
+<h2 class="sc-h">Operator Dashboard</h2>
+<p class="sc-proves" style="margin-block-end:2.5rem">Same deployment as the Student App, different route tree, different role, different policies. The Branch shown in the dark context band is the only Branch the page will write to, and the switcher only lists Branches this session is actually assigned.</p>
+
+<section class="sc-screen" id="op-signin">
+  <header>
+    <h2>Staff sign-in</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-staff">Branch Staff · Manager · Owner</span> <code>/[locale]/staff/sign-in</code></p>
+  </header>
+  <div class="sc-frame">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en/staff/sign-in</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <main class="main-content" style="padding-block:2rem 2.5rem">
+          <section class="control-card" style="width:min(34rem,100%);margin-inline:auto">
+            <h2>Dormitory team sign-in</h2>
+            <p>Use the email registered by your dormitory administrator.</p>
+            <form class="control-form">
+              <div class="form-field">
+                <label for="staff-email">Work email</label>
+                <input id="staff-email" type="email" dir="ltr" value="ayse.korkmaz@anadoluyurt.com.tr">
+              </div>
+              <button class="button" type="button">Send sign-in link</button>
+            </form>
+            <p class="status-message status-success" role="status">Check your email to finish signing in.</p>
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="op-home">
+  <header>
+    <h2>Dashboard and Branch switch</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-staff">Manager</span> <code>/[locale]/staff</code></p>
+    <p class="sc-proves">The link list is built from the capabilities this session resolved. A staff member without <code>finance.manage</code> has no Balances link — and no database grant either.</p>
+  </header>
+  <div class="sc-frame">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en/staff?branch=ist-01</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <div class="app-frame">
+          <header class="site-header">
+            <a class="brand" href="#op-home"><span class="brand-mark" aria-hidden="true">R</span><span>Ranza</span></a>
+            <nav class="locale-nav" aria-label="Language">
+              <a href="#op-home">Türkçe</a><a href="#op-home" aria-current="page">English</a><a href="#op-home">العربية</a>
+            </nav>
+          </header>
+          <nav class="primary-nav" aria-label="Ranza">
+            <a href="#op-home" aria-current="page">Home</a>
+            <a href="#op-attendance">Attendance</a>
+            <a href="#op-meals">Meals</a>
+            <a href="#op-announcements">Announcements</a>
+            <a href="#op-balances">Balance</a>
+            <a href="#op-wifi">Wi‑Fi</a>
+          </nav>
+          <main class="main-content" style="padding-block:2rem 2.5rem">
+            <div class="branch-context">
+              <div>
+                <p style="margin:0;color:#d9e2dc">Active Branch</p>
+                <h2>Beşiktaş Erkek Yurdu</h2>
+                <p style="margin:0;color:#d9e2dc"><bdi class="bidi-isolate" dir="ltr">Europe/Istanbul</bdi> · 164 Billable Beds</p>
+              </div>
+              <div class="branch-switcher">
+                <a href="#op-home" aria-current="page">Beşiktaş Erkek Yurdu</a>
+                <a href="#op-home">Kadıköy Kız Yurdu</a>
+                <a href="#op-home">Ankara Çankaya Yurdu</a>
+              </div>
+            </div>
+
+            <section class="control-card">
+              <h2>Today</h2>
+              <a href="#op-attendance">Nightly attendance<span></span></a>
+              <a href="#op-meals">Meal responses<span></span></a>
+              <a href="#op-announcements">Manage announcements<span></span></a>
+              <a href="#op-roster">Student roster<span></span></a>
+              <a href="#op-balances">Student Balances<span></span></a>
+              <a href="#op-wifi">Branch Wi-Fi<span></span></a>
+            </section>
+
+            <section class="control-card" style="margin-block-start:1.5rem">
+              <h3>Staff access</h3>
+              <p>Manager · assigned to 2 of 3 Branches</p>
+              <ul>
+                <li>workflow.read</li>
+                <li>workflow.manage</li>
+                <li>roster.manage</li>
+              </ul>
+              <p class="status-message status-warning" role="status">The requested Branch is unavailable. Your authorized Branch is shown instead.</p>
+            </section>
+          </main>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="op-attendance">
+  <header>
+    <h2>Attendance desk</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-staff">workflow.read · workflow.manage</span> <code>/[locale]/staff/attendance</code></p>
+    <p class="sc-proves">Before cutoff this is a follow-up list. After cutoff it becomes an immutable Snapshot, and every later change is a correction carrying an actor, a reason and a timestamp.</p>
+  </header>
+  <div class="sc-frame">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en/staff/attendance?branch=ist-01</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <main class="main-content" style="padding-block:2rem 2.5rem">
+          <div class="branch-context">
+            <div>
+              <p style="margin:0;color:#d9e2dc">Active Branch</p>
+              <h2>Beşiktaş Erkek Yurdu</h2>
+              <p style="margin:0;color:#d9e2dc">16 Sep 2026 · cutoff <bdi class="bidi-isolate" dir="ltr">22:00 Europe/Istanbul</bdi></p>
+            </div>
+            <div class="branch-switcher">
+              <a href="#op-attendance" aria-current="page">IST-01</a>
+              <a href="#op-attendance">IST-02</a>
+              <a href="#op-attendance">ANK-01</a>
+            </div>
+          </div>
+
+          <div class="attendance-totals">
+            <article><strong>132</strong><span>Staying</span></article>
+            <article><strong>19</strong><span>Away</span></article>
+            <article><strong>13</strong><span>Unconfirmed</span></article>
+            <article><strong>92%</strong><span>Response</span></article>
+          </div>
+
+          <div class="control-toolbar">
+            <p class="status-message" role="status">Final Snapshot · version 1 · finalized 16 Sep 2026, 22:00</p>
+            <div class="lifecycle-actions">
+              <a class="button button-secondary" href="#op-attendance">Student CSV</a>
+              <a class="button button-secondary" href="#op-attendance">Totals CSV</a>
+            </div>
+          </div>
+
+          <div class="table-scroll">
+            <table class="attendance-table">
+              <thead><tr><th>Student</th><th>Status</th><th>Last update</th><th>Correction</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>Elif Yıldız<br><span class="field-hint"><bdi class="bidi-isolate" dir="ltr">RNZ-4821-EL</bdi></span></td>
+                  <td><span class="badge badge-success">Staying</span></td>
+                  <td class="sc-mono">21:04</td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td>Mert Demir<br><span class="field-hint"><bdi class="bidi-isolate" dir="ltr">RNZ-4822-ME</bdi></span></td>
+                  <td><span class="badge badge-info">Away</span></td>
+                  <td class="sc-mono">19:47</td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td>Yusuf Aydın<br><span class="field-hint"><bdi class="bidi-isolate" dir="ltr">RNZ-4830-YU</bdi></span></td>
+                  <td><span class="badge badge-warning">Unconfirmed</span></td>
+                  <td class="sc-mono">—</td>
+                  <td>
+                    <form class="lifecycle-actions" style="margin:0;gap:.5rem;flex-wrap:wrap">
+                      <select aria-label="Corrected status" style="width:auto">
+                        <option>staying</option><option>away</option><option selected>unconfirmed</option>
+                      </select>
+                      <input aria-label="Correction reason" placeholder="Correction reason" style="width:auto;min-width:12rem">
+                      <button class="button button-secondary" type="button">Correct</button>
+                    </form>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Layla Haddad<br><span class="field-hint"><bdi class="bidi-isolate" dir="ltr">RNZ-4836-LA</bdi></span></td>
+                  <td><span class="badge badge-success">Staying</span></td>
+                  <td class="sc-mono">20:12</td>
+                  <td></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <form class="schedule-form">
+            <h3>Branch schedule</h3>
+            <label>Timezone <input dir="ltr" value="Europe/Istanbul" style="width:auto"></label>
+            <label>Declaration deadline <input type="number" value="1320" style="width:auto"></label>
+            <button class="button button-secondary" type="button">Save declaration</button>
+            <p class="field-hint">Minutes after Branch-local midnight. Changing this never moves a Session that is already open.</p>
+          </form>
+
+          <form class="schedule-form">
+            <h3>Reopen for review</h3>
+            <label>Reopen reason <input placeholder="Reopen reason" style="width:auto;min-width:16rem"></label>
+            <button class="button button-danger" type="button">Reopen for review</button>
+          </form>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="op-meals">
+  <header>
+    <h2>Kitchen count</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-staff">workflow.read · workflow.manage</span> <code>/[locale]/staff/meals</code></p>
+    <p class="sc-proves">An explicit zero-meal response and no response at all are different rows, shown as different numbers. The kitchen gets one final count; retrying finalization cannot change it.</p>
+  </header>
+  <div class="sc-frame">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en/staff/meals?branch=ist-01</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <main class="main-content" style="padding-block:2rem 2.5rem">
+          <h2>Meal Day · Beşiktaş Erkek Yurdu</h2>
+
+          <form class="control-form compact-form">
+            <label>Service date <input type="date" value="2026-09-17"></label>
+            <label>Immutable UTC deadline <input type="datetime-local" value="2026-09-16T17:00"></label>
+            <label>Offerings
+              <span class="lifecycle-actions" style="margin:0">
+                <label style="font-weight:400"><input type="checkbox" checked> Breakfast</label>
+                <label style="font-weight:400"><input type="checkbox" checked> Lunch</label>
+                <label style="font-weight:400"><input type="checkbox" checked> Dinner</label>
+              </span>
+            </label>
+            <button class="button" type="button">Publish</button>
+          </form>
+          <p class="status-message status-success" role="status">Meal Day published.</p>
+
+          <div class="attendance-totals">
+            <article><strong>118</strong><span>Breakfast</span></article>
+            <article><strong>96</strong><span>Lunch</span></article>
+            <article><strong>141</strong><span>Dinner</span></article>
+          </div>
+          <div class="attendance-totals">
+            <article><strong>149</strong><span>Responded</span></article>
+            <article><strong>8</strong><span>Explicit zero</span></article>
+            <article><strong>15</strong><span>Unconfirmed</span></article>
+          </div>
+
+          <div class="control-toolbar">
+            <p class="status-message" role="status">Final kitchen count · Finalized 16 Sep 2026, 20:00</p>
+            <a class="button button-secondary" href="#op-meals">Export UTF-8 CSV</a>
+          </div>
+
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Student</th><th>Status</th><th>Meals</th><th>Correction</th></tr></thead>
+              <tbody>
+                <tr><td>Elif Yıldız</td><td><span class="badge badge-success">Responded</span></td><td>Breakfast, Dinner</td><td></td></tr>
+                <tr><td>Zeynep Kaya</td><td><span class="badge badge-info">Responded</span></td><td>no meals</td><td></td></tr>
+                <tr><td>Burak Öztürk</td><td><span class="badge badge-warning">Unconfirmed</span></td><td>—</td>
+                  <td>
+                    <form class="lifecycle-actions" style="margin:0;gap:.5rem;flex-wrap:wrap">
+                      <input aria-label="Correction reason" placeholder="Correction reason" style="width:auto;min-width:12rem">
+                      <button class="button button-secondary" type="button">Record correction</button>
+                    </form>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="op-roster">
+  <header>
+    <h2>Student roster</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-staff">roster.manage</span> <code>/[locale]/staff/roster</code></p>
+    <p class="sc-proves">A transfer closes one Branch assignment and opens another in a single transaction. Past Attendance and Meals stay attached to the Branch where they happened.</p>
+  </header>
+  <div class="sc-frame">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en/staff/roster?branch=ist-01</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <main class="main-content" style="padding-block:2rem 2.5rem">
+          <p><a href="#op-home">Staff dashboard</a></p>
+          <div class="control-toolbar">
+            <h1 style="font-size:2rem;margin:0">Student roster · Beşiktaş Erkek Yurdu</h1>
+            <a class="button button-secondary" href="#op-import">Import CSV</a>
+          </div>
+
+          <form class="control-form compact-form">
+            <h3 style="grid-column:1/-1">Add Student</h3>
+            <label>Full name <input placeholder="Full name"></label>
+            <label>External reference <input dir="ltr" placeholder="2026-0417"></label>
+            <label>Language
+              <select><option selected>Türkçe</option><option>English</option><option>العربية</option></select>
+            </label>
+            <button class="button" type="button">Add Student</button>
+          </form>
+
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Student</th><th>Status</th><th>Access ID</th><th>Actions</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>Elif Yıldız</td>
+                  <td><span class="badge badge-success">Active</span></td>
+                  <td><bdi class="bidi-isolate" dir="ltr">RNZ-4821-EL</bdi></td>
+                  <td class="lifecycle-actions" style="margin:0">
+                    <button class="button button-secondary" type="button">Save details</button>
+                    <button class="button button-secondary" type="button">Archive</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Mert Demir</td>
+                  <td><span class="badge badge-success">Active</span></td>
+                  <td><bdi class="bidi-isolate" dir="ltr">RNZ-4822-ME</bdi></td>
+                  <td>
+                    <form class="lifecycle-actions" style="margin:0;gap:.5rem;flex-wrap:wrap">
+                      <select aria-label="Destination Branch" style="width:auto">
+                        <option>Kadıköy Kız Yurdu</option>
+                        <option>Ankara Çankaya Yurdu</option>
+                      </select>
+                      <button class="button button-secondary" type="button">Transfer</button>
+                    </form>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Can Erdoğan</td>
+                  <td><span class="badge badge-danger">Inactive</span></td>
+                  <td><bdi class="bidi-isolate" dir="ltr">RNZ-4790-CA</bdi></td>
+                  <td class="lifecycle-actions" style="margin:0">
+                    <button class="button button-secondary" type="button">Reactivate</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="status-message status-success" role="status">Roster saved.</p>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="op-credential">
+  <header>
+    <h2>Issuing an Activation Code</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-staff">roster.manage</span> <code>/[locale]/staff/roster</code> · credential action</p>
+    <p class="sc-proves">The code is generated with a cryptographically secure source, stored only as a versioned slow hash, and displayed exactly once. Recovery is the same audited action, never a new identity.</p>
+  </header>
+  <div class="sc-frame">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en/staff/roster?branch=ist-01</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <main class="main-content" style="padding-block:2rem 2.5rem">
+          <section class="control-card" style="width:min(44rem,100%)">
+            <h2>Activation credential · Selin Arslan</h2>
+            <p class="status-message status-warning" role="status">Write these down or hand them over now. The Activation Code is shown only once and expires shortly.</p>
+            <div class="wifi-details">
+              <dl>
+                <dt>Student Access ID</dt><dd><bdi class="bidi-isolate" dir="ltr">RNZ-4841-SE</bdi></dd>
+                <dt>Activation Code</dt><dd><bdi class="bidi-isolate" dir="ltr">M7QK-2XRD-90TB</bdi></dd>
+                <dt>Expires</dt><dd>16 Sep 2026, 23:45</dd>
+              </dl>
+            </div>
+            <div class="lifecycle-actions">
+              <button class="button button-secondary" type="button">Issue a new code</button>
+              <button class="button button-secondary" type="button">Recover PIN</button>
+              <button class="button" type="button">Dismiss</button>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="op-import">
+  <header>
+    <h2>CSV import, preview then commit</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-staff">roster.manage</span> <code>/[locale]/staff/roster/import</code></p>
+    <p class="sc-proves">Nothing is written until the whole chosen batch is confirmed. Bad rows are reported per row and downloadable, not silently accepted or silently dropped.</p>
+  </header>
+  <div class="sc-frame">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en/staff/roster/import?branch=ist-01</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <main class="main-content" style="padding-block:2rem 2.5rem">
+          <p><a href="#op-roster">Student roster</a></p>
+          <h1 style="font-size:2rem">Import Students · Beşiktaş Erkek Yurdu</h1>
+          <p><a href="#op-import">Download UTF-8 template</a></p>
+          <p class="field-hint"><bdi class="bidi-isolate" dir="ltr">external_reference, display_name, preferred_locale (tr/en/ar)</bdi> · UTF-8 · max 1,000 rows / 5 MB</p>
+
+          <div class="table-scroll" style="margin-block:1.5rem">
+            <table class="data-table">
+              <thead><tr><th><input type="checkbox" checked aria-label="Select all"></th><th>#</th><th>Reference</th><th>Name</th><th>Locale</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td><input type="checkbox" checked></td><td class="sc-mono">1</td><td class="sc-mono">2026-0418</td><td>Selin Arslan</td><td>tr</td><td><span class="badge badge-success">Valid</span></td></tr>
+                <tr><td><input type="checkbox" checked></td><td class="sc-mono">2</td><td class="sc-mono">2026-0419</td><td>Omar Al-Hassan</td><td>ar</td><td><span class="badge badge-success">Valid</span></td></tr>
+                <tr><td><input type="checkbox"></td><td class="sc-mono">3</td><td class="sc-mono">2026-0418</td><td>Deniz Şen</td><td>tr</td><td><span class="badge badge-danger">Needs correction: duplicate external reference</span></td></tr>
+                <tr><td><input type="checkbox"></td><td class="sc-mono">4</td><td class="sc-mono">2026-0420</td><td>Hakan Polat</td><td>de</td><td><span class="badge badge-danger">Needs correction: unsupported locale</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="lifecycle-actions">
+            <button class="button" type="button">Import selected rows</button>
+            <a class="button button-secondary" href="#op-import">Download row errors</a>
+            <button class="button button-secondary" type="button">Cancel</button>
+          </div>
+
+          <h3 style="margin-block-start:2rem">Recent imports</h3>
+          <ul class="sc-mono">
+            <li>14 Sep 2026 · committed · 96 / 96</li>
+            <li>2 Sep 2026 · cancelled · 0 / 145</li>
+          </ul>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="op-announcements">
+  <header>
+    <h2>Announcement authoring</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-staff">workflow.manage</span> <code>/[locale]/staff/announcements</code></p>
+    <p class="sc-proves">Translations are human-provided, never machine-generated behind the reader's back. Publishing a revision resets acknowledgment for every active recipient, on purpose.</p>
+  </header>
+  <div class="sc-frame">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en/staff/announcements?branch=ist-01</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <main class="main-content" style="padding-block:2rem 2.5rem">
+          <h1 style="font-size:2rem">Manage announcements</h1>
+
+          <section class="control-card">
+            <p>Enter the complete revised message, translations and audience. Publishing a revision requires every active recipient to acknowledge it again.</p>
+            <form class="control-form">
+              <label>Announcement to revise
+                <select><option selected>Choose a published announcement</option><option>Water shutdown — Block B</option></select>
+              </label>
+              <label>Audience
+                <select><option selected>Selected Branches</option><option>Entire Operator</option></select>
+              </label>
+              <fieldset style="border:1px solid var(--line);border-radius:var(--radius-sm);padding:1rem">
+                <legend>Branches</legend>
+                <label style="font-weight:400"><input type="checkbox" checked> Beşiktaş Erkek Yurdu</label>
+                <label style="font-weight:400"><input type="checkbox" checked> Kadıköy Kız Yurdu</label>
+                <label style="font-weight:400"><input type="checkbox"> Ankara Çankaya Yurdu</label>
+              </fieldset>
+              <label>Source language
+                <select><option selected>Turkish</option><option>English</option><option>Arabic</option></select>
+              </label>
+              <label>Source message
+                <textarea>Perşembe günü 09:00–13:00 arasında B Blok'ta su kesintisi olacaktır. Lütfen bir gece önceden su alınız.</textarea>
+              </label>
+              <label>Optional human translations — English
+                <textarea>Water will be shut off in Block B on Thursday between 09:00 and 13:00 for maintenance. Please fill a bottle the night before.</textarea>
+              </label>
+              <label>Optional human translations — Arabic
+                <textarea dir="rtl">سيتم قطع المياه في المبنى (ب) يوم الخميس بين الساعة 09:00 و13:00.</textarea>
+              </label>
+              <div class="lifecycle-actions">
+                <button class="button button-secondary" type="button">Save draft</button>
+                <button class="button" type="button">Publish new revision</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="control-card" style="margin-block-start:1.5rem">
+            <div class="control-toolbar">
+              <h3 style="margin:0">Water shutdown — Block B</h3>
+              <span class="badge badge-success">Published</span>
+            </div>
+            <p>Perşembe günü 09:00–13:00 arasında B Blok'ta su kesintisi olacaktır.</p>
+            <dl class="sc-row">
+              <div><dt class="field-hint">Acknowledged</dt><dd style="font-size:1.5rem;font-weight:780">118</dd></div>
+              <div><dt class="field-hint">Awaiting acknowledgment</dt><dd style="font-size:1.5rem;font-weight:780">27</dd></div>
+              <div><dt class="field-hint">Inactive recipients</dt><dd style="font-size:1.5rem;font-weight:780">4</dd></div>
+            </dl>
+            <div class="lifecycle-actions">
+              <a class="button button-secondary" href="#op-followup">Revision history and follow-up</a>
+              <button class="button button-secondary" type="button">Archive</button>
+            </div>
+          </section>
+
+          <section class="control-card" style="margin-block-start:1.5rem">
+            <div class="control-toolbar">
+              <h3 style="margin:0">Winter re-registration</h3>
+              <span class="badge">Draft</span>
+            </div>
+            <p>Kış dönemi kayıt yenileme işlemleri 30 Eylül'e kadar yurt yönetim ofisinde yapılacaktır.</p>
+            <button class="button" type="button">Publish</button>
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="op-followup">
+  <header>
+    <h2>Acknowledgment follow-up</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-staff">workflow.manage</span> <code>/[locale]/staff/announcements/[revision]</code></p>
+  </header>
+  <div class="sc-frame">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en/staff/announcements/2</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <main class="main-content" style="padding-block:2rem 2.5rem">
+          <h1 style="font-size:2rem">Revision history and follow-up · 2</h1>
+          <p>Perşembe günü 09:00–13:00 arasında B Blok'ta su kesintisi olacaktır.</p>
+          <p class="field-hint">Published: 14 Sep 2026, 09:12 · Revision 1 archived 14 Sep 2026, 09:05</p>
+
+          <div class="control-toolbar">
+            <form class="lifecycle-actions" style="margin:0">
+              <select aria-label="Filter recipients" style="width:auto">
+                <option>All recipients</option>
+                <option selected>Awaiting acknowledgment</option>
+                <option>Acknowledged</option>
+                <option>Inactive recipients</option>
+              </select>
+              <button class="button button-secondary" type="button">Filter</button>
+            </form>
+            <a class="button button-secondary" href="#op-followup">Export CSV</a>
+          </div>
+
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Recipient</th><th>Status</th><th>Recipient resolved at</th><th>Acknowledged</th></tr></thead>
+              <tbody>
+                <tr><td>Yusuf Aydın</td><td><span class="badge badge-warning">Awaiting acknowledgment</span></td><td class="sc-mono">14 Sep 2026, 09:12</td><td>—</td></tr>
+                <tr><td>Burak Öztürk</td><td><span class="badge badge-warning">Awaiting acknowledgment</span></td><td class="sc-mono">14 Sep 2026, 09:12</td><td>—</td></tr>
+                <tr><td>Can Erdoğan</td><td><span class="badge badge-danger">Inactive recipient</span></td><td class="sc-mono">14 Sep 2026, 09:12</td><td>—</td></tr>
+                <tr><td>Elif Yıldız</td><td><span class="badge badge-success">Acknowledged</span></td><td class="sc-mono">14 Sep 2026, 09:12</td><td class="sc-mono">14 Sep 2026, 10:41</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="op-balances">
+  <header>
+    <h2>Finance ledger</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-staff">finance.manage</span> <code>/[locale]/staff/balances</code></p>
+    <p class="sc-proves">Append-only. A mistake is fixed by a linked reversal, so the ledger can always be replayed. Every write carries an idempotency key, so a double-submit cannot charge twice.</p>
+  </header>
+  <div class="sc-frame">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en/staff/balances?branch=ist-01</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <main class="main-content" style="padding-block:2rem 2.5rem">
+          <h2>Student Balances · Beşiktaş Erkek Yurdu</h2>
+          <p class="status-message status-warning" role="status">Ranza records money activity reported by the dormitory. It never collects, transfers, settles, or receipts money.</p>
+
+          <div class="control-toolbar">
+            <form class="lifecycle-actions" style="margin:0;flex-wrap:wrap">
+              <label style="display:flex;gap:.5rem;align-items:center">Minimum <input type="number" value="0" style="width:7rem"></label>
+              <label style="display:flex;gap:.5rem;align-items:center">Maximum <input type="number" placeholder="—" style="width:7rem"></label>
+              <label style="display:flex;gap:.5rem;align-items:center;font-weight:400"><input type="checkbox" checked> Overdue only</label>
+              <button class="button button-secondary" type="button">Filter</button>
+            </form>
+            <a class="button button-secondary" href="#op-balances">Export finance history (CSV)</a>
+          </div>
+
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Student</th><th>Remaining</th><th>Overdue entries</th></tr></thead>
+              <tbody>
+                <tr><td>Elif Yıldız</td><td><bdi class="bidi-isolate" dir="ltr">1,250.00 TRY</bdi></td><td>1</td></tr>
+                <tr><td>Yusuf Aydın</td><td><bdi class="bidi-isolate" dir="ltr">4,500.00 TRY</bdi></td><td>2</td></tr>
+                <tr><td>Zeynep Kaya</td><td><bdi class="bidi-isolate" dir="ltr">0.00 TRY</bdi></td><td>0</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <form class="control-form compact-form">
+            <h3 style="grid-column:1/-1">Record entry · Elif Yıldız</h3>
+            <label>Entry type
+              <select><option selected>Charge</option><option>External Payment Record</option><option>Credit</option><option>Adjustment</option></select>
+            </label>
+            <label>Amount <input type="number" value="4500.00"></label>
+            <label>Currency <input dir="ltr" value="TRY"></label>
+            <label>Effective date <input type="date" value="2026-10-01"></label>
+            <label>Due date (charges only) <input type="date" value="2026-10-10"></label>
+            <label style="grid-column:1/-1">Description <input value="October accommodation instalment"></label>
+            <button class="button" type="button">Record entry</button>
+          </form>
+
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Entry</th><th>Amount</th><th>Effective</th><th>Reverse</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>Charge · September accommodation instalment</td>
+                  <td><bdi class="bidi-isolate" dir="ltr">4,500.00 TRY</bdi></td>
+                  <td class="sc-mono">1 Sep 2026</td>
+                  <td>
+                    <form class="lifecycle-actions" style="margin:0;gap:.5rem;flex-wrap:wrap">
+                      <input aria-label="Reversal reason" placeholder="Reversal reason" style="width:auto;min-width:11rem">
+                      <button class="button button-danger" type="button">Reverse</button>
+                    </form>
+                  </td>
+                </tr>
+                <tr>
+                  <td>External Payment Record · bank transfer</td>
+                  <td><bdi class="bidi-isolate" dir="ltr">-3,000.00 TRY</bdi></td>
+                  <td class="sc-mono">4 Sep 2026</td>
+                  <td><span class="badge badge-danger">Reversed</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="op-wifi">
+  <header>
+    <h2>Wi-Fi and the public link</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-staff">workflow.manage · Owner for public mode</span> <code>/[locale]/staff/wifi</code></p>
+    <p class="sc-proves">Turning on public access is a deliberate, consented, owner-only act. The link is shown once, expires in 90 days, and can be revoked without changing the actual Wi-Fi password.</p>
+  </header>
+  <div class="sc-frame">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en/staff/wifi?branch=ist-02</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <main class="main-content" style="padding-block:2rem 2.5rem">
+          <section class="control-card">
+            <h2>Public / QR Wi-Fi</h2>
+            <p class="status-message status-warning" role="status">Anyone with this link or QR code can see the Wi-Fi password without signing in and can share it. Save the Wi-Fi details first. Links expire after 90 days.</p>
+            <label class="consent-label" style="margin-block:1rem">
+              <input type="checkbox" checked>
+              <span>I understand and allow public access to these Wi-Fi details.</span>
+            </label>
+            <div class="lifecycle-actions">
+              <button class="button" type="button">Enable public access / rotate link</button>
+              <button class="button button-danger" type="button">Revoke public link</button>
+              <button class="button button-secondary" type="button">Return to Protected mode</button>
+            </div>
+            <p class="status-message status-success" role="status">Save or print this link and QR code now. It is displayed only once. Older links no longer work.</p>
+            <div class="sc-row" style="align-items:center">
+              <div aria-label="Branch Wi-Fi QR code" style="width:8rem;height:8rem;border-radius:var(--radius-sm);background:repeating-conic-gradient(var(--ink) 0 25%, var(--surface) 0 50%) 0 0/1rem 1rem;border:1px solid var(--line)"></div>
+              <div>
+                <p><a href="#op-wifi">Open Branch Wi-Fi link</a></p>
+                <p class="field-hint"><bdi class="bidi-isolate" dir="ltr">app.ranza.com.tr/tr/public-wifi#7f3a…c19d</bdi></p>
+                <button class="button button-secondary" type="button">Hide link and QR</button>
+              </div>
+            </div>
+          </section>
+
+          <form class="wifi-form control-form" style="margin-block-start:1.5rem">
+            <h3>Protected details</h3>
+            <label>Visibility
+              <select disabled><option selected>Protected · active Branch members only</option></select>
+            </label>
+            <label>Network name <input dir="ltr" value="RANZA-IST02"></label>
+            <label>Password <input dir="ltr" type="password" value="····················"></label>
+            <label>Connection instructions <textarea>Choose the network on the 2.4 GHz band. Ask reception if your device is not accepted.</textarea></label>
+            <button class="button" type="button">Save protected details</button>
+            <p class="status-message status-success" role="status">Wi‑Fi information was updated securely.</p>
+            <p class="field-hint">The audit trail records that Wi-Fi changed. It never records the secret.</p>
+          </form>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="op-exports">
+  <header>
+    <h2>Operator Data export</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-staff">Operator Owner only</span> <code>/[locale]/staff/exports</code></p>
+    <p class="sc-proves">The archive is built asynchronously, scoped to the caller's Operator before a single row is read, encrypted at rest, and reachable through a link that expires in one minute.</p>
+  </header>
+  <div class="sc-frame">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/en/staff/exports</span></div>
+    <div class="sc-viewport">
+      <div class="product-app">
+        <main class="main-content" style="padding-block:2rem 2.5rem">
+          <section class="control-card" style="width:min(48rem,100%)">
+            <h2>Operator data exports</h2>
+            <p>Owner-only archive. Download links expire after one minute. Keep downloaded personal data secure.</p>
+            <button class="button" type="button">Request export</button>
+            <p class="status-message status-success" role="status">Export queued. Refresh to check progress.</p>
+            <div class="table-scroll" style="margin-block-start:1rem">
+              <table class="data-table">
+                <thead><tr><th>Requested</th><th>Status</th><th>Expires</th><th></th></tr></thead>
+                <tbody>
+                  <tr><td class="sc-mono">16 Sep 2026, 21:31</td><td><span class="badge badge-warning">building</span></td><td>—</td><td></td></tr>
+                  <tr><td class="sc-mono">1 Sep 2026, 08:04</td><td><span class="badge badge-success">ready</span></td><td class="sc-mono">1 Sep 2026, 08:05</td><td><a href="#op-exports">Download</a></td></tr>
+                  <tr><td class="sc-mono">12 Aug 2026, 17:22</td><td><span class="badge">expired</span></td><td class="sc-mono">12 Aug 2026, 17:23</td><td></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="sc-hr">
+
+<h2 class="sc-h">Prizic Control Plane</h2>
+<p class="sc-proves" style="margin-block-end:2.5rem">A separately deployed internal application. It is invite-only, MFA-gated, never indexed, and it treats elevated access as something that expires rather than something you have.</p>
+
+<section class="sc-screen" id="cp-signin">
+  <header>
+    <h2>Invite-only sign-in</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-prizic">Prizic</span> <code>/[locale]/sign-in</code></p>
+  </header>
+  <div class="sc-frame">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">control.prizic.com/en/sign-in</span></div>
+    <div class="sc-viewport">
+      <div class="control-app">
+        <div class="app-frame">
+          <header class="site-header">
+            <a class="brand" href="#cp-signin"><span class="brand-mark" aria-hidden="true">R</span><span>Prizic · Ranza</span></a>
+            <nav class="locale-nav" aria-label="Language">
+              <a href="#cp-signin">Türkçe</a><a href="#cp-signin" aria-current="page">English</a><a href="#cp-signin">العربية</a>
+            </nav>
+          </header>
+          <main class="main-content" style="padding-block:2.5rem 3rem">
+            <header class="page-intro">
+              <h1>Ranza Control Plane</h1>
+              <p>A separate internal surface for Operator lifecycle and audited support work.</p>
+            </header>
+            <section class="control-card" style="width:min(34rem,100%);margin-inline:auto">
+              <h2>Prizic access</h2>
+              <p>Sign in with a provisioned platform identity.</p>
+              <form class="control-form">
+                <div class="form-field">
+                  <label for="cp-email">Email</label>
+                  <input id="cp-email" type="email" dir="ltr" value="ops@prizic.com">
+                </div>
+                <div class="form-field">
+                  <label for="cp-pass">Password</label>
+                  <input id="cp-pass" type="password" value="····················">
+                </div>
+                <button class="button" type="button">Sign in</button>
+              </form>
+              <p><a href="#cp-signin">Forgot your password?</a></p>
+            </section>
+          </main>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="cp-mfa">
+  <header>
+    <h2>MFA step-up</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-prizic">Prizic</span> <code>/[locale]/mfa</code></p>
+    <p class="sc-proves">Every internal page re-checks assurance level <code>aal2</code> on the server before it renders. A valid password alone reaches this screen and nothing else.</p>
+  </header>
+  <div class="sc-frame">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">control.prizic.com/en/mfa</span></div>
+    <div class="sc-viewport">
+      <div class="control-app">
+        <main class="main-content" style="padding-block:2.5rem 3rem">
+          <section class="control-card" style="width:min(34rem,100%);margin-inline:auto">
+            <h2>Two-factor authentication</h2>
+            <form class="control-form">
+              <div class="form-field">
+                <label for="cp-totp">Authenticator code</label>
+                <input id="cp-totp" dir="ltr" inputmode="numeric" value="••••••">
+              </div>
+              <button class="button" type="button">Verify</button>
+            </form>
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="cp-operators">
+  <header>
+    <h2>Operator lifecycle</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-prizic">Platform Admin</span> <code>/[locale]</code></p>
+    <p class="sc-proves">Create, activate, suspend, archive. Destructive retention work is gated behind an approved policy and a dry-run manifest — a broad deletion can never happen by one click.</p>
+  </header>
+  <div class="sc-frame">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">control.prizic.com/en</span></div>
+    <div class="sc-viewport">
+      <div class="control-app">
+        <div class="app-frame">
+          <header class="site-header">
+            <a class="brand" href="#cp-operators"><span class="brand-mark" aria-hidden="true">R</span><span>Prizic · Ranza</span></a>
+            <nav class="locale-nav" aria-label="Language">
+              <a href="#cp-operators">Türkçe</a><a href="#cp-operators" aria-current="page">English</a><a href="#cp-operators">العربية</a>
+            </nav>
+          </header>
+          <nav class="primary-nav" aria-label="Prizic · Ranza">
+            <a href="#cp-operations">Operations and support</a>
+            <a href="#cp-leads">Demo requests</a>
+            <a href="#cp-operators" aria-current="page">Home</a>
+            <a href="#cp-operators">Operators</a>
+            <a href="#cp-operators">Branches</a>
+            <a href="#cp-operators">Service health</a>
+          </nav>
+          <main class="main-content" style="padding-block:2.5rem 3rem">
+            <header class="page-intro">
+              <h1>Ranza Control Plane</h1>
+              <p>A separate internal surface for Operator lifecycle and audited support work.</p>
+            </header>
+
+            <div class="control-toolbar">
+              <p class="status-message" role="status">Authenticated Platform Admin session</p>
+              <button class="button button-secondary" type="button">Sign out</button>
+            </div>
+
+            <section class="ops-list">
+              <article><h2>Add Operator</h2><strong>3</strong></article>
+              <article><h2>Add Branch</h2><strong>7</strong></article>
+              <article><h2>Audit</h2><strong><bdi class="bidi-isolate" dir="ltr">RLS · MFA</bdi></strong></article>
+            </section>
+
+            <section class="control-grid">
+              <form class="control-card control-form">
+                <h2>Add Operator</h2>
+                <label><span>Name</span><input placeholder="Operator name"></label>
+                <label><span>Default locale</span>
+                  <select><option selected>Türkçe</option><option>English</option><option>العربية</option></select>
+                </label>
+                <button class="button" type="button">Create</button>
+              </form>
+            </section>
+
+            <section class="operator-directory" aria-label="Operators">
+              <article class="operator-card">
+                <header>
+                  <div>
+                    <h2>Anadolu Yurt İşletmeleri</h2>
+                    <bdi class="bidi-isolate" dir="ltr">6b1f0c42-9e77-4a0d-8f31-7c5b2ad91e40</bdi>
+                    <p><strong>420</strong> Billable Beds · active · <bdi class="bidi-isolate" dir="ltr">core-founding-2026</bdi></p>
+                  </div>
+                  <strong class="lifecycle-status status-active">active</strong>
+                </header>
+                <div class="lifecycle-actions">
+                  <button class="button button-secondary" type="button">Request full export</button>
+                  <a class="button button-secondary" href="#cp-operators">Download export</a>
+                  <span>Data lifecycle: active</span>
+                </div>
+                <form class="control-form compact-form">
+                  <h3 style="grid-column:1/-1">Approved retention policy</h3>
+                  <label>Archive retention days <input type="number" value="30"></label>
+                  <label>Anonymize after days <input type="number" value="365"></label>
+                  <label>Delete after days <input type="number" value="2555"></label>
+                  <label>Export retention hours <input type="number" value="24"></label>
+                  <button class="button button-secondary" type="button">Approve policy</button>
+                </form>
+                <div class="lifecycle-actions">
+                  <button class="button button-secondary" type="button">Suspend</button>
+                  <button class="button button-secondary" type="button">Archive</button>
+                </div>
+                <div class="branch-directory">
+                  <div class="branch-row">
+                    <div><strong>Beşiktaş Erkek Yurdu</strong><small>male · Europe/Istanbul · tr · 164 Billable Beds</small></div>
+                    <button class="button button-secondary" type="button">Archive</button>
+                  </div>
+                  <div class="branch-row">
+                    <div><strong>Kadıköy Kız Yurdu</strong><small>female · Europe/Istanbul · tr · 148 Billable Beds</small></div>
+                    <button class="button button-secondary" type="button">Archive</button>
+                  </div>
+                  <div class="branch-row">
+                    <div><strong>Ankara Çankaya Yurdu</strong><small>mixed · Europe/Istanbul · tr · 108 Billable Beds</small></div>
+                    <button class="button button-secondary" type="button">Archive</button>
+                  </div>
+                </div>
+                <form class="control-form compact-form">
+                  <h3 style="grid-column:1/-1">Add Branch</h3>
+                  <label><span>Name</span><input placeholder="Branch name"></label>
+                  <label><span>Timezone</span><input dir="ltr" value="Europe/Istanbul"></label>
+                  <label><span>Default locale</span><select><option selected>Türkçe</option><option>English</option><option>العربية</option></select></label>
+                  <label><span>Residence</span>
+                    <select><option>Male residence</option><option>Female residence</option><option>Mixed residence</option><option selected>Other</option></select>
+                  </label>
+                  <button class="button" type="button">Create</button>
+                </form>
+              </article>
+
+              <article class="operator-card">
+                <header>
+                  <div>
+                    <h2>Ege Öğrenci Konukevi</h2>
+                    <bdi class="bidi-isolate" dir="ltr">1d84ba37-52ce-4c19-a6f2-08e7d3491bb5</bdi>
+                    <p><strong>96</strong> Billable Beds · Subscription not configured</p>
+                  </div>
+                  <strong class="lifecycle-status status-suspended">suspended</strong>
+                </header>
+                <div class="lifecycle-actions">
+                  <button class="button button-secondary" type="button">Activate</button>
+                  <button class="button button-secondary" type="button">Archive</button>
+                  <span>Data lifecycle: suspended</span>
+                </div>
+                <p class="field-hint">Suspension blocks customer sign-in and every mutation. It deletes nothing.</p>
+              </article>
+
+              <article class="operator-card">
+                <header>
+                  <div>
+                    <h2>Marmara Yurt A.Ş.</h2>
+                    <bdi class="bidi-isolate" dir="ltr">ad9e5f10-3b62-47c8-9d04-5ea1f7c28b33</bdi>
+                    <p><strong>0</strong> Billable Beds · ended</p>
+                  </div>
+                  <strong class="lifecycle-status status-archived">archived</strong>
+                </header>
+                <div class="lifecycle-actions">
+                  <button class="button button-secondary" type="button">Dry run anonymize</button>
+                  <button class="button button-secondary" type="button">Dry run delete</button>
+                </div>
+                <form class="control-form compact-form">
+                  <span>Dry-run manifest ready: anonymize</span>
+                  <button class="button" type="button">Queue approved execution</button>
+                </form>
+              </article>
+            </section>
+          </main>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="cp-operations">
+  <header>
+    <h2>Support context, health and audit</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-prizic">Prizic Support · Platform Admin</span> <code>/[locale]/operations</code></p>
+    <p class="sc-proves">Support cannot browse a customer. It opens a 30-minute context against one named Operator with a written reason, acts inside it, and every override stores actor, target, before, after, reason and time.</p>
+  </header>
+  <div class="sc-frame">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">control.prizic.com/en/operations?context=9c2f…</span></div>
+    <div class="sc-viewport">
+      <div class="control-app">
+        <main class="main-content" style="padding-block:2.5rem 3rem">
+          <section class="control-card">
+            <h2>Operations and support</h2>
+            <p class="status-message status-success" role="status">Request recorded</p>
+            <p>Select one Operator context before support actions.</p>
+
+            <form class="control-form">
+              <label>Operator ID <input dir="ltr" placeholder="6b1f0c42-9e77-4a0d-8f31-7c5b2ad91e40"></label>
+              <label>Reason (no secrets) <input value="Kitchen reported a missing final meal count for 15 Sep"></label>
+              <button class="button" type="button">Start 30-minute context</button>
+            </form>
+
+            <ul class="sc-mono">
+              <li><a href="#cp-operations">6b1f0c42-9e77-4a0d-8f31-7c5b2ad91e40</a> · 2026-09-16T19:12:44Z</li>
+            </ul>
+
+            <p><strong>Operator ID:</strong> <bdi class="bidi-isolate" dir="ltr">6b1f0c42-9e77-4a0d-8f31-7c5b2ad91e40</bdi> · expires <bdi class="bidi-isolate" dir="ltr">2026-09-16T19:12:44Z</bdi></p>
+            <div class="lifecycle-actions">
+              <button class="button button-danger" type="button">Revoke context</button>
+            </div>
+
+            <form class="control-form compact-form">
+              <label>Disable capability
+                <select><option>attendance</option><option selected>meals</option><option>announcements</option><option>balance</option><option>wifi</option></select>
+              </label>
+              <label>Reason (no secrets) <input value="Temporarily disabling while the deadline bug is investigated"></label>
+              <button class="button button-danger" type="button">Disable capability</button>
+            </form>
+
+            <h3>Service health</h3>
+            <ul>
+              <li>database: <span class="badge badge-success">ok</span> · 2026-09-16T21:30:02Z</li>
+              <li>scheduler: <span class="badge badge-warning">stale</span> · 2026-09-16T20:04:55Z</li>
+              <li>auth-gateway: <span class="badge badge-success">ok</span> · 2026-09-16T21:30:02Z</li>
+              <li>exports: <span class="badge badge-success">ok</span> · 2026-09-16T21:29:41Z</li>
+            </ul>
+            <p>Attendance: 2 due · Meals: 1 due</p>
+
+            <div class="card card-compact" style="margin-block:1rem">
+              <p><bdi class="bidi-isolate" dir="ltr">meals.finalize</bdi> · <span class="badge badge-danger">failed</span> · <bdi class="bidi-isolate" dir="ltr">c7a1-99fe-4d02</bdi></p>
+              <form class="lifecycle-actions" style="margin:0;gap:.5rem;flex-wrap:wrap">
+                <input aria-label="Reason" placeholder="Reason (no secrets)" style="width:auto;min-width:18rem">
+                <button class="button button-secondary" type="button">Retry safely</button>
+              </form>
+            </div>
+
+            <h3>Redacted audit</h3>
+            <form class="control-form compact-form">
+              <label>operator <input dir="ltr" value="6b1f0c42-9e77-4a0d-8f31-7c5b2ad91e40" readonly></label>
+              <label>branch <input dir="ltr"></label>
+              <label>actor <input dir="ltr"></label>
+              <label>action <input dir="ltr" value="wifi."></label>
+              <label>target <input dir="ltr"></label>
+              <label>from <input dir="ltr" value="2026-09-01"></label>
+              <label>to <input dir="ltr" value="2026-09-16"></label>
+              <button class="button button-secondary" type="button">Filter</button>
+            </form>
+
+            <div class="table-scroll">
+              <table class="data-table">
+                <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Change</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td class="sc-mono">2026-09-16T18:55:10Z</td>
+                    <td class="sc-mono">ops@prizic.com</td>
+                    <td>wifi.public_token.rotated</td>
+                    <td class="sc-mono">branch:ist-02</td>
+                    <td><code>{"before":{"token":"[redacted]"},"after":{"token":"[redacted]"}}</code></td>
+                  </tr>
+                  <tr>
+                    <td class="sc-mono">2026-09-16T09:12:00Z</td>
+                    <td class="sc-mono">ayse.korkmaz@…</td>
+                    <td>announcement.revision.published</td>
+                    <td class="sc-mono">announcement:2</td>
+                    <td><code>{"before":{"revision":1},"after":{"revision":2}}</code></td>
+                  </tr>
+                  <tr>
+                    <td class="sc-mono">2026-09-15T22:00:03Z</td>
+                    <td class="sc-mono">system:scheduler</td>
+                    <td>attendance.finalized</td>
+                    <td class="sc-mono">session:ist-01/2026-09-15</td>
+                    <td><code>{"before":{"state":"open"},"after":{"state":"final","version":1}}</code></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" id="cp-leads">
+  <header>
+    <h2>Demo request review</h2>
+    <p class="sc-meta"><span class="sc-tag sc-tag-prizic">Platform Admin</span> <code>/[locale]/leads</code></p>
+    <p class="sc-proves">The public form writes here, and only here. The page is <code>noindex</code>, reachable only with an authorized Prizic account that has completed MFA.</p>
+  </header>
+  <div class="sc-frame">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">control.prizic.com/en/leads?status=new</span></div>
+    <div class="sc-viewport">
+      <div class="control-app">
+        <main class="main-content" style="padding-block:2.5rem 3rem">
+          <h2>Demo requests</h2>
+          <form class="lifecycle-actions" style="margin-block-end:1.5rem">
+            <label for="lead-filter">Status</label>
+            <select id="lead-filter" style="width:auto"><option selected>New</option><option>Contacted</option><option>Qualified</option><option>Closed</option></select>
+            <button class="button" type="button">Demo requests</button>
+          </form>
+
+          <article class="status-message">
+            <h3>Anadolu Yurt İşletmeleri</h3>
+            <p>Kerem Aksoy · <bdi class="bidi-isolate" dir="ltr">kerem@anadoluyurt.com.tr</bdi></p>
+            <p>City: İstanbul · Beds: <bdi class="bidi-isolate" dir="ltr">420</bdi> · Language: tr</p>
+            <p dir="auto">Three buildings in İstanbul and one in Ankara. We still take nightly attendance on paper and send meal counts to the kitchen by WhatsApp.</p>
+            <p>Privacy notice: <bdi class="bidi-isolate" dir="ltr">2026-09-01 · 2026-09-14T08:41:02Z</bdi></p>
+            <p>Reference: <bdi class="bidi-isolate" dir="ltr">8f2c41ae-7d09-4c6b-9f13-2ad5e0b47c88</bdi></p>
+            <form class="lifecycle-actions" style="margin:0">
+              <label for="ls-1">Status</label>
+              <select id="ls-1" style="width:auto"><option selected>New</option><option>Contacted</option><option>Qualified</option><option>Closed</option></select>
+              <button class="button" type="button">Save status</button>
+            </form>
+          </article>
+
+          <article class="status-message">
+            <h3>دار الطالبات الأندلس</h3>
+            <p>Layla Haddad · <bdi class="bidi-isolate" dir="ltr">+90 532 000 00 00</bdi></p>
+            <p>City: Gaziantep · Beds: <bdi class="bidi-isolate" dir="ltr">75</bdi> · Language: ar</p>
+            <p dir="auto">نحتاج إلى نظام لتسجيل المبيت والوجبات باللغة العربية.</p>
+            <p>Reference: <bdi class="bidi-isolate" dir="ltr">2b77d904-31ac-4a15-bb60-9e0c4d13f6aa</bdi></p>
+            <form class="lifecycle-actions" style="margin:0">
+              <label for="ls-2">Status</label>
+              <select id="ls-2" style="width:auto"><option>New</option><option selected>Contacted</option><option>Qualified</option><option>Closed</option></select>
+              <button class="button" type="button">Save status</button>
+            </form>
+          </article>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="sc-hr">
+
+<h2 class="sc-h" id="i18n">Three languages, two directions</h2>
+<p class="sc-proves">Turkish is the default and the fallback. Arabic flips the document direction; the layout follows because the stylesheet uses logical properties throughout, and mixed content — IDs, amounts, network names, references — is bidi-isolated so it never reorders inside Arabic text.</p>
+
+<div class="sc-row" style="margin-block-start:1.5rem">
+
+<section class="sc-screen" style="margin-block-end:0">
+  <header>
+    <h2>Türkçe</h2>
+    <p class="sc-meta"><code>/tr</code> <span>default locale</span></p>
+  </header>
+  <div class="sc-frame sc-phone">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/tr</span></div>
+    <div class="sc-viewport">
+      <div class="product-app" lang="tr">
+        <div class="app-frame">
+          <header class="site-header">
+            <a class="brand" href="#i18n"><span class="brand-mark" aria-hidden="true">R</span><span>Ranza</span></a>
+            <nav class="locale-nav" aria-label="Dil">
+              <a href="#i18n" aria-current="page">Türkçe</a><a href="#i18n">EN</a><a href="#i18n">AR</a>
+            </nav>
+          </header>
+          <nav class="primary-nav" aria-label="Ranza">
+            <a href="#i18n" aria-current="page">Ana sayfa</a>
+            <a href="#i18n">Yoklama</a><a href="#i18n">Öğünler</a><a href="#i18n">Duyurular</a><a href="#i18n">Bakiye</a><a href="#i18n">Wi‑Fi</a>
+          </nav>
+          <main class="main-content">
+            <header class="page-intro">
+              <h1>Daha net yurt günleri burada başlar.</h1>
+              <p>Öğrencilerin ve yurt ekiplerinin günlük işleri, açık, güvenli ve çok dilli tek alanda.</p>
+            </header>
+            <div class="dayline">
+              <span class="identity-line"><bdi class="bidi-isolate" dir="ltr">IST-01</bdi></span>
+              <span><bdi class="bidi-isolate" dir="ltr">21:15</bdi></span>
+              <span><bdi class="bidi-isolate" dir="ltr">1.250,00 TRY</bdi></span>
+            </div>
+            <div class="module-list">
+              <article><span class="module-index">01</span><h2>Yoklama</h2><span class="module-status">Kalıyorum</span></article>
+              <article><span class="module-index">02</span><h2>Öğünler</h2><span class="module-status">2 seçili</span></article>
+              <article><span class="module-index">03</span><h2>Duyurular</h2><span class="module-status">1 onay bekliyor</span></article>
+              <article><span class="module-index">04</span><h2>Bakiye</h2><span class="module-status">1.250,00 TRY</span></article>
+              <article><span class="module-index">05</span><h2>Wi‑Fi</h2><span class="module-status">Korumalı</span></article>
+            </div>
+            <div class="install-panel">
+              <div>
+                <h2>Ranza hep yakınınızda</h2>
+                <p>Desteklendiğinde tarayıcı menüsünden Ranza’yı ana ekranınıza ekleyin.</p>
+              </div>
+              <a class="button button-secondary" href="#i18n">Kurulum yönergesi</a>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sc-screen" style="margin-block-end:0">
+  <header>
+    <h2>العربية · right to left</h2>
+    <p class="sc-meta"><code>/ar</code> <span>dir="rtl"</span></p>
+  </header>
+  <div class="sc-frame sc-phone">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">app.ranza.com.tr/ar</span></div>
+    <div class="sc-viewport">
+      <div class="product-app" lang="ar" dir="rtl">
+        <div class="app-frame">
+          <header class="site-header">
+            <a class="brand" href="#i18n"><span class="brand-mark" aria-hidden="true">R</span><span>Ranza</span></a>
+            <nav class="locale-nav" aria-label="اللغة">
+              <a href="#i18n">TR</a><a href="#i18n">EN</a><a href="#i18n" aria-current="page">العربية</a>
+            </nav>
+          </header>
+          <nav class="primary-nav" aria-label="Ranza">
+            <a href="#i18n" aria-current="page">الرئيسية</a>
+            <a href="#i18n">الحضور</a><a href="#i18n">الوجبات</a><a href="#i18n">الإعلانات</a><a href="#i18n">الرصيد</a><a href="#i18n">شبكة Wi‑Fi</a>
+          </nav>
+          <main class="main-content">
+            <header class="page-intro">
+              <h1>تبدأ أيام السكن بصورة أوضح.</h1>
+              <p>المهام اليومية للطلاب وفرق السكن في مساحة واضحة وآمنة ومتعددة اللغات.</p>
+            </header>
+            <div class="dayline">
+              <span class="identity-line"><bdi class="bidi-isolate" dir="ltr">IST-01</bdi></span>
+              <span><bdi class="bidi-isolate" dir="ltr">21:15</bdi></span>
+              <span><bdi class="bidi-isolate" dir="ltr">1,250.00 TRY</bdi></span>
+            </div>
+            <div class="module-list">
+              <article><span class="module-index">01</span><h2>الحضور</h2><span class="module-status">مقيم</span></article>
+              <article><span class="module-index">02</span><h2>الوجبات</h2><span class="module-status">اثنتان</span></article>
+              <article><span class="module-index">03</span><h2>الإعلانات</h2><span class="module-status">إقرار مطلوب</span></article>
+              <article><span class="module-index">04</span><h2>الرصيد</h2><span class="module-status">1,250.00 TRY</span></article>
+              <article><span class="module-index">05</span><h2>شبكة Wi‑Fi</h2><span class="module-status">محمية</span></article>
+            </div>
+            <div class="install-panel">
+              <div>
+                <h2>Ranza معك دائماً</h2>
+                <p>أضف Ranza إلى شاشتك الرئيسية من قائمة المتصفح عندما يكون التثبيت مدعوماً.</p>
+              </div>
+              <a class="button button-secondary" href="#i18n">تعليمات التثبيت</a>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<hr class="sc-hr">
+
+<h2 class="sc-h" id="states">System states</h2>
+<p class="sc-proves">Failure is a product surface. Nothing ever renders as a blank screen, and an interrupted mutation is never shown as complete.</p>
+
+<div class="sc-row" style="margin-block-start:1.5rem">
+  <div class="sc-frame" style="flex:1 1 26rem">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">error boundary</span></div>
+    <div class="sc-viewport" style="padding:1.5rem;background:var(--canvas)">
+      <section class="feedback-state feedback-error" role="alert">
+        <div class="feedback-signal"></div>
+        <h1>The action was not completed</h1>
+        <p>Something unexpected happened. The action was not shown as complete. Try again or share the support reference.</p>
+        <p class="support-reference">Support reference: <bdi class="bidi-isolate" dir="ltr">RANZA-PRODUCT-4f19c2</bdi></p>
+        <button class="button" type="button">Try again</button>
+      </section>
+    </div>
+  </div>
+
+  <div class="sc-frame" style="flex:1 1 26rem">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">/[locale]/maintenance</span></div>
+    <div class="sc-viewport" style="padding:1.5rem;background:var(--canvas)">
+      <section class="feedback-state feedback-maintenance" role="status">
+        <div class="feedback-signal"></div>
+        <h1>We will be back shortly</h1>
+        <p>Planned maintenance is underway. Come back shortly; unsaved work will never be shown as successful.</p>
+        <a class="button" href="#states">Return home</a>
+      </section>
+    </div>
+  </div>
+
+  <div class="sc-frame" style="flex:1 1 26rem">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">/[locale]/does-not-exist</span></div>
+    <div class="sc-viewport" style="padding:1.5rem;background:var(--canvas)">
+      <section class="feedback-state" role="status">
+        <div class="feedback-signal"></div>
+        <h1>This page could not be found</h1>
+        <p>The link may be outdated or the page may have moved.</p>
+        <a class="button" href="#states">Return home</a>
+      </section>
+    </div>
+  </div>
+
+  <div class="sc-frame" style="flex:1 1 26rem">
+    <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">loading.tsx</span></div>
+    <div class="sc-viewport" style="padding:1.5rem;background:var(--canvas)">
+      <div class="loading-state" style="min-height:14rem">
+        <span class="loading-mark"></span>
+        <span>Loading content…</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sc-frame" style="margin-block-start:1.75rem">
+  <div class="sc-urlbar"><span class="sc-dots"><i></i><i></i><i></i></span><span class="sc-url">/[locale]/forbidden · Control Plane</span></div>
+  <div class="sc-viewport" style="padding:1.5rem;background:var(--canvas)">
+    <section class="control-card" style="width:min(34rem,100%);margin-inline:auto">
+      <h2>Access unavailable</h2>
+      <p class="status-message status-warning" role="status">The credentials or platform access could not be verified.</p>
+      <p class="field-hint">A valid Prizic session without an active platform membership stops here. The internal pages never render, and nothing in the response reveals what exists behind them.</p>
+    </section>
+  </div>
+</div>
+
+<footer style="margin-block-start:4rem;padding-block-start:1.5rem;border-block-start:1px solid var(--line);color:var(--ink-muted)">
+  <p>Static mockup. Every screen uses the product's own tokens from <code>packages/ui/src/tokens.css</code> and its real interface copy. Sample Operators, Branches, Students, identifiers and amounts are fictional.</p>
+</footer>
+
+</main>
+</body>
+</html>
