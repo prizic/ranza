@@ -72,6 +72,10 @@ closing it will open a row.
 cd packages/ui && npx shadcn@latest add <name>
 ```
 
+The style is `radix-luma`: Radix primitives, luma's shapes and states. It came
+from the `b1VlIttI` preset, whose **palette was deliberately not taken** — that
+preset is greyscale, and the colours here are the brief's.
+
 Two things need fixing afterwards, every time:
 
 1. The CLI writes `import { cn } from "cn"` — a third-party package, not this

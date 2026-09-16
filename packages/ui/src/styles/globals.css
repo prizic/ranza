@@ -114,10 +114,16 @@
   --color-accent-strong: var(--accent-dark);
   --color-accent-soft: var(--accent-soft);
 
+  /* sm..xl are the brief's own values and stay literal. The three above them
+     are derived the way upstream does it, because the luma components reach
+     for rounded-4xl and a missing step renders as no radius at all. */
   --radius-sm: 0.45rem;
   --radius-md: 0.6rem;
   --radius-lg: var(--radius);
   --radius-xl: 1.15rem;
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 
   --shadow-low: var(--shadow-low);
   --shadow-raised: var(--shadow);
