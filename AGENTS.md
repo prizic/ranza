@@ -123,6 +123,24 @@ to a correctly scoped query.
 Current milestone: the walking skeleton. The database, identity and entitlement
 layers are done; `apps/operator-workspace` does not exist yet.
 
+## Testing security claims
+
+A passing security test proves nothing until you have seen it fail. Three times
+in this repository a green test was verifying nothing:
+
+- the pgTAP runner matched `not ok` against indented psql output, so every suite
+  reported green regardless of result
+- `ranza_app` existed but nothing connected as it, so "RLS protects queries" was
+  never exercised
+- an evaluated reference implementation tested isolation by creating a
+  non-privileged role inside the test that production never used, while its own
+  tables lacked `FORCE` — the policies were correct and completely inert
+
+So: after writing a test that asserts a boundary holds, **break the boundary and
+confirm the test goes red.** Point `DATABASE_URL` at a privileged role, invert an
+assertion, remove a grant. A test that cannot fail is worse than no test, because
+it is mistaken for evidence.
+
 ## Conventions
 
 - Vertical slices with externally verifiable behaviour, not a schema built ahead
