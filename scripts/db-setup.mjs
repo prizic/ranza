@@ -40,7 +40,7 @@ if (deploy.status !== 0) {
 }
 console.log(deploy.stdout.trim().split("\n").slice(-1)[0]);
 
-for (const role of ["ranza_app", "ranza_auth"]) {
+for (const role of ["ranza_app", "ranza_auth", "ranza_worker"]) {
   const result = psql([
     "-c",
     `alter role ${role} with login password '${role}'`,
@@ -53,5 +53,5 @@ for (const role of ["ranza_app", "ranza_auth"]) {
   }
 }
 console.log(
-  "runtime roles ranza_app and ranza_auth ready for local connections",
+  "runtime roles ranza_app, ranza_auth and ranza_worker ready for local connections",
 );

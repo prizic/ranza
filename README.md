@@ -34,6 +34,7 @@ apps/                     separately deployable applications
 packages/
   platform/               host-agnostic reusable modules (generic subdomains)
     audit/                what was done, by whom, and why
+    outbox/               a fact that happened, for somebody else to react to
   ranza/                  Ranza domain modules (core domain)
     core/                 Organization, Property, membership, Entitlement reads
     accommodation/        Accommodation Units inside a Property
