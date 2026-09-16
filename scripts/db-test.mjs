@@ -1,0 +1,74 @@
+// Runs the pgTAP suites in tests/database against the local PostgreSQL.
+//
+// pgTAP is installed here rather than in a migration so the production schema
+// carries no test dependency.
+import { spawnSync } from "node:child_process";
+import { readdirSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const suiteDirectory = path.join(root, "tests/database");
+const url =
+  process.env.DATABASE_URL ?? "postgresql://ranza:ranza@localhost:54322/ranza";
+
+function psql(args, input) {
+  return spawnSync("psql", [url, "-v", "ON_ERROR_STOP=1", ...args], {
+    encoding: "utf8",
+    input,
+  });
+}
+
+const available = spawnSync("psql", ["--version"], { encoding: "utf8" });
+if (available.status !== 0) {
+  console.error("psql is required. Install the PostgreSQL client tools.");
+  process.exit(1);
+}
+
+const ready = psql(["-c", "select 1"]);
+if (ready.status !== 0) {
+  console.error(
+    `Cannot reach ${url}. Start the database with "docker compose up -d".\n${ready.stderr}`,
+  );
+  process.exit(1);
+}
+
+const extension = psql(["-c", "create extension if not exists pgtap;"]);
+if (extension.status !== 0) {
+  console.error(`Could not install pgTAP:\n${extension.stderr}`);
+  process.exit(1);
+}
+
+const suites = readdirSync(suiteDirectory)
+  .filter((entry) => entry.endsWith(".test.sql"))
+  .sort();
+
+if (suites.length === 0) {
+  console.error("No pgTAP suites found in tests/database.");
+  process.exit(1);
+}
+
+let failed = 0;
+for (const suite of suites) {
+  const result = psql(["-f", path.join(suiteDirectory, suite)]);
+  const output = `${result.stdout}${result.stderr}`;
+  // pgTAP reports failures as "not ok" lines; a crashed suite exits non-zero.
+  const notOk = output.split("\n").filter((line) => line.startsWith("not ok"));
+
+  if (result.status !== 0 || notOk.length > 0) {
+    failed += 1;
+    console.error(`FAIL ${suite}`);
+    console.error(output.trim());
+  } else {
+    const assertions = output
+      .split("\n")
+      .filter((line) => line.startsWith("ok ")).length;
+    console.log(`PASS ${suite} (${assertions} assertions)`);
+  }
+}
+
+if (failed > 0) {
+  console.error(`\n${failed} of ${suites.length} database suites failed.`);
+  process.exit(1);
+}
+console.log(`\nAll ${suites.length} database suites passed.`);

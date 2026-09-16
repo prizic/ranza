@@ -1,10 +1,10 @@
 begin;
-select plan(14);
+select plan(16);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures: two Organizations that must never see each other.
 -- ---------------------------------------------------------------------------
-insert into auth.users (id, email)
+insert into public.users (id, email)
 values
   ('11111111-1111-4111-8111-111111111111', 'owner-a@example.test'),
   ('22222222-2222-4222-8222-222222222222', 'staff-a@example.test'),
@@ -56,6 +56,12 @@ values
   ('a1111111-1111-4111-8111-111111111111',
    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'announcements', true);
 
+insert into public.auth_identities (user_id, issuer, subject)
+values
+  ('11111111-1111-4111-8111-111111111111', 'better-auth', 'ba_owner_a'),
+  ('22222222-2222-4222-8222-222222222222', 'better-auth', 'ba_staff_a'),
+  ('33333333-3333-4333-8333-333333333333', 'better-auth', 'ba_owner_b');
+
 -- ---------------------------------------------------------------------------
 -- Gate 5: row-level security, evaluated as the runtime role.
 -- ---------------------------------------------------------------------------
@@ -72,6 +78,17 @@ select is_empty(
 );
 
 select app.set_request_context('11111111-1111-4111-8111-111111111111');
+
+select set_eq(
+  'select email from public.users',
+  array['owner-a@example.test'],
+  'a user sees only their own identity row'
+);
+select set_eq(
+  'select subject from public.auth_identities',
+  array['ba_owner_a'],
+  'a user sees only their own provider identities'
+);
 
 select set_eq(
   'select name from public.properties',

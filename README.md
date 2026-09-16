@@ -21,6 +21,7 @@ entitlement enforcement proven end-to-end through one application shell.
 
 ```text
 apps/                     separately deployable applications
+prisma/                   schema and migrations (RLS policies live in them)
 packages/
   platform/               host-agnostic reusable modules
   ranza/                  Ranza domain modules
@@ -45,3 +46,17 @@ pnpm dev
 
 `pnpm check` runs the full gate: formatting, linting, boundary rules, type
 checking, tests, and build.
+
+Database work needs Docker and the PostgreSQL client tools:
+
+```sh
+pnpm db:up        # plain PostgreSQL, no Supabase
+pnpm db:migrate   # apply Prisma migrations
+pnpm db:test      # pgTAP suites in tests/database
+pnpm db:down
+```
+
+Prisma owns schema migrations; row-level security policies are hand-written SQL
+appended into the same migration file. Generate with
+`prisma migrate dev --create-only`, add the policy SQL, then apply. See
+[ADR 0001](docs/adr/0001-prisma-for-queries-sql-for-rls.md).

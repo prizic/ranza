@@ -9,6 +9,11 @@
   "scripts": {
     "build": "turbo run build",
     "check": "pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "db:down": "docker compose down",
+    "db:migrate": "prisma migrate dev",
+    "db:reset": "prisma migrate reset --force",
+    "db:test": "node scripts/db-test.mjs",
+    "db:up": "docker compose up -d --wait",
     "dev": "turbo run dev --parallel",
     "format": "prettier --check .",
     "format:write": "prettier --write .",

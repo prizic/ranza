@@ -1,0 +1,20 @@
+# Local PostgreSQL for development and tests. No Supabase, no extra services.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ranza
+      POSTGRES_PASSWORD: ranza
+      POSTGRES_DB: ranza
+    ports:
+      - "54322:5432"
+    volumes:
+      - ranza-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ranza -d ranza"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  ranza-postgres:

@@ -78,7 +78,7 @@ module.exports = {
       severity: "error",
       from: { path: "^packages/(platform|ranza)/[^/]+/src/domain/" },
       to: {
-        path: "(^|node_modules/)(next(?:/|$)|@supabase/|@prisma/|prisma(?:/|$))",
+        path: "(^|node_modules/)(next(?:/|$)|@prisma/|prisma(?:/|$))",
       },
     },
     {
@@ -96,7 +96,7 @@ module.exports = {
       severity: "error",
       from: { path: "^packages/ui/" },
       to: {
-        path: "^packages/(config|db|observability)/|(^|node_modules/)(@supabase/|@prisma/|prisma(?:/|$))",
+        path: "^packages/(config|db|observability)/|(^|node_modules/)(@prisma/|prisma(?:/|$))",
       },
     },
   ],

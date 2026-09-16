@@ -88,14 +88,46 @@ create index properties_organization_idx
   on public.properties (organization_id);
 
 -- ---------------------------------------------------------------------------
--- Identity and assignment (gate 4)
+-- Identity (ADR 0005)
+-- ---------------------------------------------------------------------------
+
+-- Ranza owns identity. Authentication providers map onto these rows through
+-- auth_identities, so adding or replacing a provider never touches business
+-- data and no policy learns who authenticated anyone.
+create table public.users (
+  id uuid primary key default gen_random_uuid(),
+  email text not null check (position('@' in email) > 1),
+  status text not null default 'active'
+    check (status in ('active', 'suspended', 'archived')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index users_email_lower_idx on public.users (lower(email));
+
+create table public.auth_identities (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users (id) on delete restrict,
+  issuer text not null check (char_length(btrim(issuer)) between 1 and 255),
+  -- Provider subject. Text because providers differ: Better Auth emits its own
+  -- ids and OIDC subjects are opaque strings.
+  subject text not null check (char_length(btrim(subject)) between 1 and 255),
+  created_at timestamptz not null default now(),
+  -- Keyed on (issuer, subject) and never on email, which changes.
+  unique (issuer, subject)
+);
+
+create index auth_identities_user_idx on public.auth_identities (user_id);
+
+-- ---------------------------------------------------------------------------
+-- Membership and assignment (gate 4)
 -- ---------------------------------------------------------------------------
 
 create table public.organization_memberships (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null
     references public.organizations (id) on delete restrict,
-  user_id uuid not null references auth.users (id) on delete restrict,
+  user_id uuid not null references public.users (id) on delete restrict,
   role text not null
     check (role in ('owner', 'manager', 'staff')),
   access_scope text not null default 'assigned_properties'
@@ -114,7 +146,7 @@ create table public.property_assignments (
   id uuid primary key default gen_random_uuid(),
   property_id uuid not null,
   organization_id uuid not null,
-  user_id uuid not null references auth.users (id) on delete restrict,
+  user_id uuid not null references public.users (id) on delete restrict,
   status text not null default 'active'
     check (status in ('active', 'revoked')),
   created_at timestamptz not null default now(),
@@ -261,6 +293,8 @@ comment on function app.can_use_capability(uuid, text, text) is
 -- Row-level security (gate 5)
 -- ---------------------------------------------------------------------------
 
+alter table public.users enable row level security;
+alter table public.auth_identities enable row level security;
 alter table public.organizations enable row level security;
 alter table public.properties enable row level security;
 alter table public.organization_memberships enable row level security;
@@ -269,6 +303,8 @@ alter table public.subscriptions enable row level security;
 alter table public.entitlements enable row level security;
 alter table public.property_capabilities enable row level security;
 
+alter table public.users force row level security;
+alter table public.auth_identities force row level security;
 alter table public.organizations force row level security;
 alter table public.properties force row level security;
 alter table public.organization_memberships force row level security;
@@ -276,6 +312,14 @@ alter table public.property_assignments force row level security;
 alter table public.subscriptions force row level security;
 alter table public.entitlements force row level security;
 alter table public.property_capabilities force row level security;
+
+create policy users_read_self
+  on public.users for select
+  using (id = app.current_user_id());
+
+create policy auth_identities_read_self
+  on public.auth_identities for select
+  using (user_id = app.current_user_id());
 
 create policy organizations_read_own
   on public.organizations for select
@@ -321,6 +365,8 @@ $$;
 
 grant usage on schema app, public to ranza_app;
 grant select on
+  public.users,
+  public.auth_identities,
   public.organizations,
   public.properties,
   public.organization_memberships,

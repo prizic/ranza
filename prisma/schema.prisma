@@ -1,0 +1,149 @@
+// Prisma owns schema migrations (ADR 0001). Row-level security policies,
+// security-definer functions, and grants are hand-written SQL appended into the
+// same migration that creates the objects they protect — Prisma does not model
+// them, so they must never be regenerated away.
+//
+// Generate with `prisma migrate dev --create-only`, add the policy SQL, then apply.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String
+  status    String   @default("active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  identities  AuthIdentity[]
+  memberships OrganizationMembership[]
+  assignments PropertyAssignment[]
+
+  @@map("users")
+}
+
+/// Maps an authentication provider's subject onto a Ranza user (ADR 0005).
+/// Keyed on (issuer, subject); never on email, which changes.
+model AuthIdentity {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  issuer    String
+  subject   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([issuer, subject])
+  @@index([userId])
+  @@map("auth_identities")
+}
+
+model Organization {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String
+  status        String   @default("pending")
+  defaultLocale String   @default("tr") @map("default_locale")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  properties   Property[]
+  memberships  OrganizationMembership[]
+  subscription Subscription?
+  entitlements Entitlement[]
+
+  @@map("organizations")
+}
+
+model Property {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String
+  status         String   @default("active")
+  timezone       String   @default("Europe/Istanbul")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  organization Organization         @relation(fields: [organizationId], references: [id])
+  assignments  PropertyAssignment[]
+  capabilities PropertyCapability[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@map("properties")
+}
+
+model OrganizationMembership {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  role           String
+  accessScope    String   @default("assigned_properties") @map("access_scope")
+  status         String   @default("active")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@unique([organizationId, userId])
+  @@map("organization_memberships")
+}
+
+model PropertyAssignment {
+  id             String   @id @default(uuid()) @db.Uuid
+  propertyId     String   @map("property_id") @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  status         String   @default("active")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  property Property @relation(fields: [propertyId, organizationId], references: [id, organizationId])
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@unique([propertyId, userId])
+  @@map("property_assignments")
+}
+
+model Subscription {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @unique @map("organization_id") @db.Uuid
+  status         String   @default("trialing")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@map("subscriptions")
+}
+
+model Entitlement {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  moduleKey      String   @map("module_key")
+  status         String   @default("active")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, moduleKey])
+  @@map("entitlements")
+}
+
+model PropertyCapability {
+  id             String   @id @default(uuid()) @db.Uuid
+  propertyId     String   @map("property_id") @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  capabilityKey  String   @map("capability_key")
+  enabled        Boolean  @default(false)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  property Property @relation(fields: [propertyId, organizationId], references: [id, organizationId])
+
+  @@unique([propertyId, capabilityKey])
+  @@map("property_capabilities")
+}
