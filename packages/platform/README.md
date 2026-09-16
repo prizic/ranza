@@ -38,13 +38,26 @@ never a module in here. If it does, the boundary is leaking.
     domain/          framework-independent rules and invariants
     application/     commands, queries, use cases
     infrastructure/  Prisma repositories, external adapters
+    ports.ts         what the host must supply (ADR 0006)
     index.ts         the public contract — the ONLY importable entry point
-  migrations/        schema, RLS policies, grants
-  tests/
+  README.md
+  CHANGELOG.md
 ```
 
 Importers may reach `index.ts` only. Reaching into `domain/`, `application/` or
 `infrastructure/` is rejected by the boundary rules (blueprint section 9.10).
+
+The layers are not decoration: they are what lets the boundary rules check that
+a module's invariants do not reach for Prisma, which is what makes them portable
+to another host. A module that has no such invariants does not need them — see
+[ADR 0011](../../docs/adr/0011-module-anatomy-is-earned.md), which is also why
+the Ranza tier is mostly flat.
+
+**There is no `migrations/` directory here.** A module owns a PostgreSQL schema,
+but its migration is one file in the single Prisma-owned history at
+`prisma/migrations/`, named for the module that owns it and carrying its schema,
+policies and grants together
+([ADR 0008](../../docs/adr/0008-a-module-owns-a-schema-not-a-migration-history.md)).
 
 ## Extraction policy
 

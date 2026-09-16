@@ -77,7 +77,9 @@ for (const name of readdirSync(adrDir).filter((f) => f.endsWith(".md"))) {
   }
 }
 
-// 4. Every application and module directory must explain itself.
+// 4. Every application and module directory must explain itself, and every
+//    module must also carry the changelog blueprint 9.10 asks for. Applications
+//    are exempt: they are deployed, not consumed at a version (ADR 0011).
 for (const group of [
   "apps",
   "packages/platform",
@@ -91,6 +93,12 @@ for (const group of [
     const readme = path.join(dir, entry.name, "README.md");
     if (!existsSync(readme)) {
       failures.push(`${group}/${entry.name} has no README.md`);
+    }
+    if (group !== "apps") {
+      const changelog = path.join(dir, entry.name, "CHANGELOG.md");
+      if (!existsSync(changelog)) {
+        failures.push(`${group}/${entry.name} has no CHANGELOG.md`);
+      }
     }
   }
 }

@@ -21,6 +21,24 @@ which resolves the blueprint's own section 5.1 / 9.8 ambiguity about who may own
 - Each module owns its tables. No other module writes to them; cross-module work
   goes through contracts, commands or events (blueprint section 6).
 - Only `index.ts` is importable.
+- Each module carries a `README.md` and a `CHANGELOG.md`; `pnpm check` fails
+  without them.
+
+## Shape
+
+Flat — `contracts.ts`, `ports.ts`, `module.ts`, `index.ts` — not the layered
+`domain/` / `application/` / `infrastructure/` anatomy the platform tier uses.
+
+That is deliberate and it is where this product keeps its invariants. A Unit
+cannot belong to another Organization's Property because of a composite foreign
+key; a Resident reaches only their own Stay because of a policy. Restating those
+rules in a TypeScript `domain/` layer would be a second, weaker copy that an
+application defect could skip, and row-level security is meant to be the
+boundary rather than a backstop (blueprint 7.1).
+
+A module here earns the layers when it gains a rule the database genuinely
+cannot hold — a rate calculation, a cancellation policy. See
+[ADR 0011](../../docs/adr/0011-module-anatomy-is-earned.md).
 
 Student residence is **not** a module here. It is a Property configuration — see
 [ADR 0004](../../docs/adr/0004-student-residence-is-a-property-configuration.md).
