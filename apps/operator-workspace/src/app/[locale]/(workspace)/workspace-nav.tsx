@@ -23,10 +23,11 @@ export function WorkspaceNav({
   if (items.length === 0) return null;
 
   return (
-    <nav aria-label={label} className="primary-nav">
+    <nav aria-label={label} className="flex items-center gap-5 text-sm">
       {items.map((item) => (
         <a
           aria-current={item.segment === segment ? "page" : undefined}
+          className="border-b-2 border-transparent py-1 text-background/70 transition-colors hover:text-background aria-[current=page]:border-brass aria-[current=page]:text-background"
           href={item.href}
           key={item.href}
         >

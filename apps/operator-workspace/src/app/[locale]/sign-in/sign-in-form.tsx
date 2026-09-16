@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@ranza/ui";
+import { Button, Field, FormError, Input } from "@ranza/ui";
 import type { Messages } from "../../../messages";
 
 /**
@@ -101,11 +101,13 @@ export function SignInForm({
 
   if (challenging) {
     return (
-      <form onSubmit={verify}>
-        <p>{copy.challengeSummary}</p>
-        <p className="field">
-          <label htmlFor="code">{copy.code}</label>
-          <input
+      <form className="mt-6 grid gap-4" onSubmit={verify}>
+        <p className="text-background/70">{copy.challengeSummary}</p>
+        <Field htmlFor="code" label={copy.code}>
+          <Input
+            className={
+              "border-petrol-line bg-petrol-lift text-background placeholder:text-background/40 aria-invalid:border-danger-soft"
+            }
             aria-invalid={failed || undefined}
             autoComplete="one-time-code"
             autoFocus
@@ -114,11 +116,11 @@ export function SignInForm({
             name="code"
             required
           />
-        </p>
+        </Field>
         {failed ? (
-          <p className="gate-error" role="alert">
+          <FormError className="text-danger-soft">
             {copy.challengeFailed}
-          </p>
+          </FormError>
         ) : null}
         <Button disabled={pending} type="submit">
           {pending ? copy.signingIn : copy.verify}
@@ -128,11 +130,13 @@ export function SignInForm({
   }
 
   return (
-    <form onSubmit={signIn}>
-      <p>{copy.signInSummary}</p>
-      <p className="field">
-        <label htmlFor="email">{copy.email}</label>
-        <input
+    <form className="mt-6 grid gap-4" onSubmit={signIn}>
+      <p className="text-background/70">{copy.signInSummary}</p>
+      <Field htmlFor="email" label={copy.email}>
+        <Input
+          className={
+            "border-petrol-line bg-petrol-lift text-background placeholder:text-background/40 aria-invalid:border-danger-soft"
+          }
           aria-invalid={failed || undefined}
           autoComplete="username"
           id="email"
@@ -140,10 +144,12 @@ export function SignInForm({
           required
           type="email"
         />
-      </p>
-      <p className="field">
-        <label htmlFor="password">{copy.password}</label>
-        <input
+      </Field>
+      <Field htmlFor="password" label={copy.password}>
+        <Input
+          className={
+            "border-petrol-line bg-petrol-lift text-background placeholder:text-background/40 aria-invalid:border-danger-soft"
+          }
           aria-invalid={failed || undefined}
           autoComplete="current-password"
           id="password"
@@ -151,11 +157,9 @@ export function SignInForm({
           required
           type="password"
         />
-      </p>
+      </Field>
       {failed ? (
-        <p className="gate-error" role="alert">
-          {copy.signInFailed}
-        </p>
+        <FormError className="text-danger-soft">{copy.signInFailed}</FormError>
       ) : null}
       <Button disabled={pending} type="submit">
         {pending ? copy.signingIn : copy.signIn}

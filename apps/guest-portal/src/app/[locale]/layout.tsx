@@ -1,5 +1,4 @@
-import "@ranza/ui/tokens.css";
-import "../../portal.css";
+import "../globals.css";
 import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans_Arabic } from "next/font/google";
@@ -10,9 +9,9 @@ import { messages } from "../../messages";
 /**
  * One typeface for three scripts — the same choice the Workspace makes, for the
  * same reason: IBM Plex Sans Arabic carries the Plex Latin alongside the
- * Arabic, so Turkish and Arabic are the same voice. tokens.css reads it from
- * --font-plex, so a Portal that did not load it would quietly fall back to a
- * system font and stop looking like the rest of the product.
+ * Arabic, so Turkish and Arabic are the same voice. The shared theme reads it
+ * from --font-plex, so a Portal that did not load it would quietly fall back to
+ * a system font and stop looking like the rest of the product.
  */
 const plex = IBM_Plex_Sans_Arabic({
   subsets: ["arabic", "latin"],
@@ -34,7 +33,7 @@ export function generateStaticParams() {
 
 // Mobile-first is a layout decision, and this is where it starts: the Portal is
 // designed at 390px and allowed to grow. `viewport-fit` lets the safe-area
-// insets in portal.css resolve on a notched phone.
+// insets on the work surface resolve on a notched phone.
 export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
@@ -64,15 +63,7 @@ export default async function LocaleLayout({
   if (!isSupportedLocale(locale)) notFound();
 
   return (
-    // data-scroll-behavior: tokens.css sets `scroll-behavior: smooth` on html,
-    // and without this Next cannot tell that from a per-route preference, so it
-    // warns and skips scroll restoration on navigation.
-    <html
-      className={plex.variable}
-      data-scroll-behavior="smooth"
-      dir={directionFor(locale)}
-      lang={locale}
-    >
+    <html className={plex.variable} dir={directionFor(locale)} lang={locale}>
       <body>{children}</body>
     </html>
   );

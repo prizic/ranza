@@ -5,7 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./tokens.css": "./src/tokens.css"
+    "./globals.css": "./src/styles/globals.css"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -14,5 +14,15 @@
   },
   "peerDependencies": {
     "react": "^19.2.0"
+  },
+  "devDependencies": {
+    "tailwindcss": "^4.3.3"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.46.0",
+    "radix-ui": "^1.6.7",
+    "tailwind-merge": "^3.7.0"
   }
 }

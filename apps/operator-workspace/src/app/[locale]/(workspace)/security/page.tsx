@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
+import { PageHeader } from "@ranza/ui";
 import { messages } from "../../../../messages";
 import { requireViewer } from "../../../../server/viewer";
 import { TwoFactorPanel } from "./two-factor-panel";
@@ -25,12 +26,10 @@ export default async function SecurityPage({
 
   return (
     <>
-      <header className="day">
-        <div>
-          <h1>{copy.security}</h1>
-          <p className="day-date">{copy.securitySummary}</p>
-        </div>
-      </header>
+      <PageHeader>
+        <h1 className="text-step-2 font-normal">{copy.security}</h1>
+        <p className="mt-1.5 text-ink-soft">{copy.securitySummary}</p>
+      </PageHeader>
 
       <TwoFactorPanel copy={copy} enabled={viewer.twoFactorEnabled} />
     </>

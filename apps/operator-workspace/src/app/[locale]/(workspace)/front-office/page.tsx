@@ -4,7 +4,7 @@ import {
   isSupportedLocale,
   type SupportedLocale,
 } from "@ranza/i18n";
-import { EmptyState } from "@ranza/ui";
+import { Badge, EmptyState, PageHeader } from "@ranza/ui";
 import { messages } from "../../../../messages";
 import {
   arrivals,
@@ -71,27 +71,30 @@ export default async function FrontOfficePage({
 
   return (
     <>
-      <header className="day">
-        <div>
-          <h1>{copy.frontOffice}</h1>
-          <p className="day-date">
-            {copy.arrivalsAt} {property.propertyName}
-          </p>
-        </div>
-      </header>
+      <PageHeader>
+        <h1 className="text-step-2 font-normal">{copy.frontOffice}</h1>
+        <p className="mt-1.5 text-ink-soft">
+          {copy.arrivalsAt} {property.propertyName}
+        </p>
+      </PageHeader>
 
       {today.length === 0 ? (
-        <EmptyState
-          description={copy.noArrivalsDescription}
-          title={copy.noArrivalsTitle}
-        />
+        <div className="pt-7">
+          <EmptyState
+            description={copy.noArrivalsDescription}
+            title={copy.noArrivalsTitle}
+          />
+        </div>
       ) : (
-        <ul className="arrivals">
+        <ul className="m-0 list-none p-0">
           {today.map((arrival) => (
-            <li className="arrival" key={arrival.reservationId}>
-              <div className="arrival-who">
-                <p className="arrival-name">{arrival.guestName}</p>
-                <p className="arrival-detail">
+            <li
+              className="grid grid-cols-[1fr_auto] items-center gap-x-8 gap-y-4 border-b border-border py-5 sm:grid-cols-[1fr_auto_auto]"
+              key={arrival.reservationId}
+            >
+              <div>
+                <p className="text-step-1">{arrival.guestName}</p>
+                <p className="mt-0.5 text-step--1 text-ink-soft">
                   {copy.stayType[arrival.stayType]} ·{" "}
                   <time dateTime={arrival.startsOn}>
                     {formatArrivalDate(arrival.startsOn, locale)}
@@ -109,9 +112,15 @@ export default async function FrontOfficePage({
                 </p>
               </div>
 
-              <p className="arrival-unit">
-                <strong>{arrival.unitName}</strong>
-                <span>{copy.unitType[arrival.unitType]}</span>
+              {/* The Unit takes the place Today gives the clock: at a front
+                  desk the room number is the fact read at arm's length. */}
+              <p className="flex flex-col items-end text-end">
+                <span className="text-step-1 leading-none tabular-nums">
+                  {arrival.unitName}
+                </span>
+                <span className="text-step--1 text-ink-faint">
+                  {copy.unitType[arrival.unitType]}
+                </span>
               </p>
 
               {arrival.canCheckIn ? (
@@ -121,9 +130,14 @@ export default async function FrontOfficePage({
                   reservationId={arrival.reservationId}
                 />
               ) : (
-                <p className="arrival-status">
+                // Text, not a colour: a status has to survive being printed,
+                // exported and read aloud (blueprint 18.5).
+                <Badge
+                  className="col-span-full sm:col-span-1"
+                  variant="secondary"
+                >
                   {copy.reservationStatus[arrival.status]}
-                </p>
+                </Badge>
               )}
             </li>
           ))}

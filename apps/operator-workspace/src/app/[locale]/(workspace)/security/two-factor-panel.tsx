@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@ranza/ui";
+import { Button, Fact, FactList, Field, FormError, Input } from "@ranza/ui";
 import type { Messages } from "../../../../messages";
 
 /**
@@ -111,52 +111,50 @@ export function TwoFactorPanel({
     router.refresh();
   }
 
-  const error = failed ? (
-    <p className="field-error" role="alert">
-      {failed}
-    </p>
-  ) : null;
+  const error = failed ? <FormError>{failed}</FormError> : null;
 
   if (enrolment) {
     return (
-      <section className="setting">
-        <h2>{copy.twoFactor}</h2>
-        <p>{copy.scanHint}</p>
+      <section className="max-w-prose pt-7">
+        <h2 className="text-step-1 font-normal">{copy.twoFactor}</h2>
+        <p className="mt-2 text-ink-soft">{copy.scanHint}</p>
 
-        <dl className="facts">
-          <div>
-            <dt>{copy.secretLabel}</dt>
-            <dd>
-              <code className="secret">{enrolment.secret}</code>
-            </dd>
-          </div>
-        </dl>
+        <FactList>
+          <Fact label={copy.secretLabel}>
+            <code className="rounded-sm bg-brass-soft px-2 py-1 font-mono text-step--1 tracking-[0.08em] text-brass-deep">
+              {enrolment.secret}
+            </code>
+          </Fact>
+        </FactList>
 
-        <p>
-          <a href={enrolment.uri}>{copy.twoFactor}</a>
+        <p className="mt-4">
+          <a className="underline underline-offset-4" href={enrolment.uri}>
+            {copy.twoFactor}
+          </a>
         </p>
 
-        <h3>{copy.backupCodes}</h3>
-        <p>{copy.backupCodesWarning}</p>
-        <ul className="backup-codes">
+        <h3 className="mt-8 text-step-0 font-medium">{copy.backupCodes}</h3>
+        <p className="mt-1 text-ink-soft">{copy.backupCodesWarning}</p>
+        <ul className="mt-3 grid list-none grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-2 p-0">
           {enrolment.backupCodes.map((code) => (
             <li key={code}>
-              <code>{code}</code>
+              <code className="block rounded-sm bg-brass-soft px-2 py-1 text-center font-mono text-step--1 tracking-[0.08em] text-brass-deep">
+                {code}
+              </code>
             </li>
           ))}
         </ul>
 
-        <form onSubmit={confirm}>
-          <p className="field">
-            <label htmlFor="confirm-code">{copy.code}</label>
-            <input
+        <form className="mt-6 grid max-w-xs gap-4" onSubmit={confirm}>
+          <Field htmlFor="confirm-code" label={copy.code}>
+            <Input
               autoComplete="one-time-code"
               id="confirm-code"
               inputMode="numeric"
               name="code"
               required
             />
-          </p>
+          </Field>
           {error}
           <Button disabled={pending} type="submit">
             {copy.verify}
@@ -167,24 +165,28 @@ export function TwoFactorPanel({
   }
 
   return (
-    <section className="setting">
-      <h2>{copy.twoFactor}</h2>
-      <p>
-        <strong>{enabled ? copy.twoFactorOn : copy.twoFactorOff}</strong> —{" "}
-        {copy.twoFactorSummary}
+    <section className="max-w-prose pt-7">
+      <h2 className="text-step-1 font-normal">{copy.twoFactor}</h2>
+      <p className="mt-2 text-ink-soft">
+        <strong className="text-foreground">
+          {enabled ? copy.twoFactorOn : copy.twoFactorOff}
+        </strong>{" "}
+        — {copy.twoFactorSummary}
       </p>
 
-      <form onSubmit={enabled ? turnOff : begin}>
-        <p className="field">
-          <label htmlFor="security-password">{copy.confirmWithPassword}</label>
-          <input
+      <form
+        className="mt-6 grid max-w-xs gap-4"
+        onSubmit={enabled ? turnOff : begin}
+      >
+        <Field htmlFor="security-password" label={copy.confirmWithPassword}>
+          <Input
             autoComplete="current-password"
             id="security-password"
             name="password"
             required
             type="password"
           />
-        </p>
+        </Field>
         {error}
         <Button disabled={pending} type="submit">
           {enabled ? copy.disable : copy.enable}

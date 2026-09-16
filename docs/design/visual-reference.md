@@ -58,8 +58,13 @@ matter (section 10).
 
 ## Design tokens
 
-Use these exact values. They are the real tokens from `packages/ui/src/tokens.css`
-and must not be substituted.
+These are the **intended** direction, kept here because they are a design
+decision rather than a record of the code. The tokens actually in use are in
+[`packages/ui/src/styles/globals.css`](../../packages/ui/src/styles/globals.css),
+and they are not these: the build settled on petrol chrome with a brass accent
+and IBM Plex, where this brief asks for a teal accent and Aptos. Reconciling the
+two is the theming step, and until it happens neither file should be edited to
+pretend the other does not exist.
 
 ```css
 --canvas: #f3f6f4;

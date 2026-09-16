@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { Button } from "@ranza/ui";
+import { Button, FormError } from "@ranza/ui";
 import {
   checkInReservation,
   type CheckInOutcome,
@@ -47,7 +47,10 @@ export function CheckInForm({
         : null;
 
   return (
-    <form action={act} className="arrival-action">
+    <form
+      action={act}
+      className="col-span-full grid justify-items-end gap-1.5 sm:col-span-1"
+    >
       <input name="reservation" type="hidden" value={reservationId} />
       <input name="locale" type="hidden" value={locale} />
       <Button disabled={pending} type="submit">
@@ -56,9 +59,9 @@ export function CheckInForm({
       {message ? (
         // Polite rather than assertive: the button label already changed, so
         // this is additional detail and not an interruption.
-        <p aria-live="polite" className="field-error">
-          {message}
-        </p>
+        <div aria-live="polite">
+          <FormError>{message}</FormError>
+        </div>
       ) : null}
     </form>
   );

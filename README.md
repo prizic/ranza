@@ -42,6 +42,7 @@ packages/
   adapters/               Ranza-to-platform mappings
   config, db, i18n, ui, observability
                           cross-cutting infrastructure
+                          (ui is Tailwind + shadcn; there is no other CSS)
 prisma/                   schema and migrations (RLS policies live in them)
 tests/                    unit, database (pgTAP) and boundary fixtures
 ```

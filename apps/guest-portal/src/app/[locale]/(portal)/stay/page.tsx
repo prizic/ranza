@@ -4,7 +4,7 @@ import {
   isSupportedLocale,
   type SupportedLocale,
 } from "@ranza/i18n";
-import { EmptyState } from "@ranza/ui";
+import { EmptyState, Fact, FactList, PageHeader } from "@ranza/ui";
 import { messages, type Messages } from "../../../../messages";
 import { ownStays } from "../../../../server/viewer";
 
@@ -62,47 +62,49 @@ export default async function StayPage({
   return (
     <>
       {stays.map((stay) => (
-        <section className="stay" key={stay.stayId}>
-          <header className="day">
-            <div>
-              <h1>{stay.propertyName}</h1>
-              <p className="day-date">{copy.stayStatus[stay.status]}</p>
-            </div>
-            <p className="day-clock stay-unit">
-              <strong>{stay.unitName}</strong>
-              <span>
-                {copy.unitType[stay.unitType]} · {copy.sleeps}{" "}
-                {stay.unitCapacity}
-              </span>
-            </p>
-          </header>
+        <section key={stay.stayId}>
+          <PageHeader
+            aside={
+              // The Unit takes the place the Workspace gives the clock: on a
+              // phone, in a corridor, the room number is the one fact worth
+              // reading at arm's length.
+              <p className="flex flex-col items-end text-end">
+                <span className="text-step-2 leading-none">
+                  {stay.unitName}
+                </span>
+                <span className="text-step--1 text-ink-faint">
+                  {copy.unitType[stay.unitType]} · {copy.sleeps}{" "}
+                  {stay.unitCapacity}
+                </span>
+              </p>
+            }
+          >
+            {/* A Property name is not a weekday: several words, sometimes long,
+                read on a 390px screen. Same role as Today's heading, smaller
+                voice. */}
+            <h1 className="text-[clamp(1.75rem,6vw,2.75rem)] leading-[1.05] font-light">
+              {stay.propertyName}
+            </h1>
+            <p className="mt-2 text-ink-soft">{copy.stayStatus[stay.status]}</p>
+          </PageHeader>
 
-          <dl className="facts">
-            <div>
-              <dt>{copy.arrival}</dt>
-              <dd>
-                <time dateTime={stay.startsOn}>
-                  {formatStayDate(stay.startsOn, locale)}
+          <FactList>
+            <Fact label={copy.arrival}>
+              <time dateTime={stay.startsOn}>
+                {formatStayDate(stay.startsOn, locale)}
+              </time>
+            </Fact>
+            <Fact label={copy.departure}>
+              {stay.endsOn ? (
+                <time dateTime={stay.endsOn}>
+                  {formatStayDate(stay.endsOn, locale)}
                 </time>
-              </dd>
-            </div>
-            <div>
-              <dt>{copy.departure}</dt>
-              <dd>
-                {stay.endsOn ? (
-                  <time dateTime={stay.endsOn}>
-                    {formatStayDate(stay.endsOn, locale)}
-                  </time>
-                ) : (
-                  copy.openEnded
-                )}
-              </dd>
-            </div>
-            <div>
-              <dt>{copy.stay}</dt>
-              <dd>{copy.stayType[stay.stayType]}</dd>
-            </div>
-          </dl>
+              ) : (
+                copy.openEnded
+              )}
+            </Fact>
+            <Fact label={copy.stay}>{copy.stayType[stay.stayType]}</Fact>
+          </FactList>
         </section>
       ))}
     </>

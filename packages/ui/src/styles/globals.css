@@ -1,0 +1,162 @@
+/*
+ * Ranza design tokens, as Tailwind theme variables.
+ *
+ * The anchor is still the front-office key rack: petrol-dark chrome, a
+ * paper-pale work surface, and brass on exactly one thing — the slot you are
+ * currently in. Restraint is the point. A status colour here means a status
+ * exists.
+ *
+ * The palette is carried over unchanged from the stylesheet this replaces. That
+ * is deliberate: this change moves the foundation to Tailwind and shadcn
+ * without also changing how anything looks, so the diff is one thing rather
+ * than two. Re-theming comes after.
+ *
+ * shadcn's token names are the ones used everywhere (`bg-background`,
+ * `text-muted-foreground`, `border-border`) so its components and ours read
+ * from one system rather than two that have to be kept in step.
+ */
+
+@import "tailwindcss";
+
+/* Tailwind v4 scans source files relative to this stylesheet. This covers the
+   shared components; each application adds its own in its globals.css. */
+@source "..";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Chrome */
+  --petrol: #0b1f2a;
+  --petrol-lift: #16333f;
+  --petrol-line: #244655;
+
+  /* Work surface */
+  --paper: #f2f4f3;
+  --surface: #ffffff;
+
+  /* Text */
+  --ink: #0e2029;
+  --ink-soft: #5a6c74;
+  --ink-faint: #8b9aa0;
+
+  /* The one accent. Brass is the rack's hardware; it marks the current slot
+     and focus, and nothing else. --brass-deep is the text-safe variant. */
+  --brass: #c08a3c;
+  --brass-deep: #8a5f22;
+  --brass-soft: #f6ecda;
+
+  --line: #dde3e1;
+  --line-strong: #b9c4c2;
+  --danger: #a3352f;
+  --danger-soft: #f7e2e0;
+
+  --radius: 0.5rem;
+
+  /* shadcn's vocabulary, pointed at the palette above. */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--petrol);
+  --primary-foreground: var(--paper);
+  --secondary: var(--brass-soft);
+  --secondary-foreground: var(--brass-deep);
+  --muted: var(--paper);
+  --muted-foreground: var(--ink-soft);
+  --accent: var(--brass-soft);
+  --accent-foreground: var(--brass-deep);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--surface);
+  --border: var(--line);
+  --input: var(--line-strong);
+  --ring: var(--brass);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Named so a screen can reach the chrome directly. The shadcn vocabulary
+     above covers a work surface; it has no word for "the petrol bar". */
+  --color-petrol: var(--petrol);
+  --color-petrol-lift: var(--petrol-lift);
+  --color-petrol-line: var(--petrol-line);
+  --color-brass: var(--brass);
+  --color-brass-deep: var(--brass-deep);
+  --color-brass-soft: var(--brass-soft);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-line-strong: var(--line-strong);
+  --color-danger-soft: var(--danger-soft);
+
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.5);
+
+  /* Minor third, per Bringhurst. A scale, not a set of suggestions. */
+  --text-step--1: 0.8125rem;
+  --text-step-0: 1rem;
+  --text-step-1: 1.25rem;
+  --text-step-2: 1.5625rem;
+
+  /* One typeface for three scripts. IBM Plex Sans Arabic carries the Plex
+     Latin alongside the Arabic, and each application injects the variable. */
+  --font-sans: var(--font-plex), "Segoe UI", system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: light;
+    /* The page gutter. One value, so every screen agrees where the edge is. */
+    --page: clamp(1.25rem, 5vw, 4rem);
+    background-color: var(--color-background);
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    min-width: 20rem;
+    font-synthesis: none;
+    line-height: 1.55;
+  }
+
+  /* Brass on focus, everywhere, rather than per component. */
+  :focus-visible {
+    @apply outline-brass;
+    outline-width: 2px;
+    outline-style: solid;
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
+}

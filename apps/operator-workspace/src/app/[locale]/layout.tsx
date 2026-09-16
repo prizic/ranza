@@ -1,4 +1,4 @@
-import "@ranza/ui/tokens.css";
+import "../globals.css";
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { IBM_Plex_Sans_Arabic } from "next/font/google";
@@ -54,14 +54,7 @@ export default async function LocaleLayout({
   if (!isSupportedLocale(locale)) notFound();
 
   return (
-    <html
-      className={plex.variable}
-      // tokens.css sets `scroll-behavior: smooth`, which Next cannot tell from
-      // a per-route preference; without this it skips scroll restoration.
-      data-scroll-behavior="smooth"
-      dir={directionFor(locale)}
-      lang={locale}
-    >
+    <html className={plex.variable} dir={directionFor(locale)} lang={locale}>
       <body>{children}</body>
     </html>
   );

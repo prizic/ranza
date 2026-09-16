@@ -1,0 +1,10 @@
+/*
+ * The workspace's stylesheet: the shared theme, plus this application's own
+ * source in Tailwind's scan path.
+ *
+ * `@source` is declared here rather than in the shared file because a path
+ * relative to @ranza/ui would have to reach back out into apps/, and a shared
+ * stylesheet should not know how many applications there are.
+ */
+@import "@ranza/ui/globals.css";
+@source "../";

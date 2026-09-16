@@ -253,6 +253,13 @@ every local run and took one pgTAP run against Supabase to surface.
 
 ## Conventions
 
+- **Interfaces are Tailwind and shadcn/ui. Do not write CSS.** Components live
+  in `packages/ui` and are added with `npx shadcn@latest add`; that package's
+  README covers the two fixes every `add` needs. The only stylesheet is
+  `packages/ui/src/styles/globals.css`, which holds the theme. A new `.css` file
+  or a `className` naming a bespoke class is a mistake, not a local exception.
+- Directional utilities are always logical — `ps`/`pe`, `border-s`,
+  `text-start`. That is what makes Arabic mirror by construction.
 - Vertical slices with externally verifiable behaviour, not a schema built ahead
   of the workflows that need it.
 - Turkish, English and Arabic with RTL are designed **with** a feature, never

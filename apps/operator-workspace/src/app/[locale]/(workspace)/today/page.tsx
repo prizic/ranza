@@ -5,7 +5,7 @@ import {
   formatWeekday,
   isSupportedLocale,
 } from "@ranza/i18n";
-import { EmptyState } from "@ranza/ui";
+import { EmptyState, Fact, FactList, PageHeader } from "@ranza/ui";
 import { messages } from "../../../../messages";
 import {
   entitledProperties,
@@ -59,36 +59,37 @@ export default async function TodayPage({
 
   return (
     <>
-      <header className="day">
-        <div>
-          <h1>{formatWeekday(now, locale, property.timezone)}</h1>
-          <p className="day-date">
-            {formatDate(now, locale, {
-              month: "long",
-              timeZone: property.timezone,
-            })}
+      <PageHeader
+        aside={
+          <p className="flex flex-col items-end text-end">
+            <span className="text-step-2 leading-none tabular-nums">
+              <LocalClock
+                initial={formatTime(now, locale, property.timezone)}
+                locale={locale}
+                timeZone={property.timezone}
+              />
+            </span>
+            <span className="text-step--1 text-ink-faint">
+              {property.timezone}
+            </span>
           </p>
-        </div>
-        <p className="day-clock">
-          <LocalClock
-            initial={formatTime(now, locale, property.timezone)}
-            locale={locale}
-            timeZone={property.timezone}
-          />
-          <span>{property.timezone}</span>
+        }
+      >
+        <h1 className="text-[clamp(2.75rem,9vw,5.5rem)] leading-[0.95] font-light tracking-[-0.03em] rtl:leading-[1.15] rtl:tracking-normal">
+          {formatWeekday(now, locale, property.timezone)}
+        </h1>
+        <p className="mt-3 text-step-1 text-ink-soft">
+          {formatDate(now, locale, {
+            month: "long",
+            timeZone: property.timezone,
+          })}
         </p>
-      </header>
+      </PageHeader>
 
-      <dl className="facts">
-        <div>
-          <dt>{copy.property}</dt>
-          <dd>{property.propertyName}</dd>
-        </div>
-        <div>
-          <dt>{copy.organization}</dt>
-          <dd>{property.organizationName}</dd>
-        </div>
-      </dl>
+      <FactList>
+        <Fact label={copy.property}>{property.propertyName}</Fact>
+        <Fact label={copy.organization}>{property.organizationName}</Fact>
+      </FactList>
     </>
   );
 }

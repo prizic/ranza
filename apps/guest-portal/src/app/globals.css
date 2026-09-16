@@ -1,0 +1,7 @@
+/*
+ * The portal's stylesheet: the shared theme, plus this application's own source
+ * in Tailwind's scan path. See the workspace's copy for why `@source` lives
+ * here rather than upstream.
+ */
+@import "@ranza/ui/globals.css";
+@source "../";

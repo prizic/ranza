@@ -50,7 +50,7 @@ src/
     (portal)/stay/        the Stay
     sign-in/              outside (portal): the shell above it requires a viewer
   messages.ts             tr, en and ar — no fallback locale
-  portal.css              only what differs because this is read on a phone
+  app/globals.css         the shared theme, plus this app's Tailwind scan path
 ```
 
 `src/server/viewer.ts` is this application's own funnel. ADR 0007 requires one
@@ -62,16 +62,15 @@ proving the rule fires.
 ## Localization and layout
 
 Turkish, English and Arabic, with `dir="rtl"` set on `<html>` for Arabic from
-the first render rather than by a client effect. `portal.css` uses logical
-properties throughout, so Arabic mirrors by construction.
+the first render rather than by a client effect. Every directional utility is a
+logical one — `ps`/`pe`, `border-s`, `text-start` — so Arabic mirrors by
+construction rather than through a second stylesheet.
 
 Designed at 390px and allowed to grow. Most of that comes free from
-`@ranza/ui`: the fact grid is `auto-fit` and
-reflows on its own, and the chrome is already fluid. `portal.css` holds only
-what genuinely differs on a phone — a Property name needs a smaller voice than
-the Workspace's weekday, the Unit takes the place the Workspace gives the
-clock, and the gate uses `svh` so it is not pushed off-screen by the mobile URL
-bar.
+`@ranza/ui`: `FactList` is `auto-fit` and reflows on its own, and the chrome is
+already fluid. What genuinely differs on a phone is set on the page — a Property
+name needs a smaller voice than the Workspace's weekday, and the Unit takes the
+place the Workspace gives the clock.
 
 Calendar dates are formatted in UTC because a Stay's arrival is a date, not an
 instant — anything else shifts it by a day for a viewer west of the meridian.

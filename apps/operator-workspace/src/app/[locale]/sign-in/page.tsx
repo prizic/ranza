@@ -24,24 +24,25 @@ export default async function SignInPage({
   const copy = messages[locale];
 
   return (
-    <main className="gate">
-      <div className="gate-inner">
-        <p className="brand">
-          <BrandMark />
+    <main className="grid min-h-dvh content-center justify-items-start bg-petrol px-(--page) py-(--page) text-background">
+      <div className="w-full max-w-sm">
+        <p className="flex items-center gap-2 font-medium">
+          <BrandMark className="text-brass" />
           <span>{copy.productName}</span>
         </p>
 
-        <h1>{copy.signInTitle}</h1>
+        <h1 className="mt-8 text-step-2 font-light">{copy.signInTitle}</h1>
 
         <SignInForm copy={copy} redirectTo={today} />
 
         <nav
           aria-label={copy.languageLabel}
-          className="locale-nav gate-locales"
+          className="mt-10 flex items-center gap-2 text-step--1"
         >
           {supportedLocales.map((supported) => (
             <a
               aria-current={supported === locale ? "true" : undefined}
+              className="rounded-sm px-1 text-background/60 transition-colors hover:text-background aria-[current=true]:text-brass"
               href={localizeHref(supported, "sign-in")}
               hrefLang={supported}
               key={supported}
