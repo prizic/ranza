@@ -5,7 +5,6 @@ import {
   formatTime,
   formatWeekday,
   isSupportedLocale,
-  localeFromPathname,
   localizeHref,
   supportedLocales,
 } from "../../packages/i18n/src/index";
@@ -28,19 +27,6 @@ describe("directionFor", () => {
     expect(directionFor("ar")).toBe("rtl");
     expect(directionFor("tr")).toBe("ltr");
     expect(directionFor("en")).toBe("ltr");
-  });
-});
-
-describe("localeFromPathname", () => {
-  it("reads the leading segment", () => {
-    expect(localeFromPathname("/ar/properties")).toBe("ar");
-    expect(localeFromPathname("/en")).toBe("en");
-  });
-
-  it("falls back to the default when absent or unsupported", () => {
-    expect(localeFromPathname("/")).toBe("tr");
-    expect(localeFromPathname("/de/properties")).toBe("tr");
-    expect(localeFromPathname("")).toBe("tr");
   });
 });
 

@@ -2,8 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Button, Field, FormError, Input } from "@ranza/ui";
-import type { Messages } from "../../../messages";
 
 /**
  * Posts to the Better Auth route handler, which is what sets the session
@@ -27,13 +27,8 @@ import type { Messages } from "../../../messages";
  * and signs in here would otherwise meet a form that succeeds and hands back
  * no session.
  */
-export function SignInForm({
-  copy,
-  redirectTo,
-}: {
-  copy: Messages;
-  redirectTo: string;
-}) {
+export function SignInForm({ redirectTo }: { redirectTo: string }) {
+  const t = useTranslations();
   const router = useRouter();
   const [challenging, setChallenging] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -108,8 +103,8 @@ export function SignInForm({
   if (challenging) {
     return (
       <form className="mt-6 grid gap-4" onSubmit={verify}>
-        <p className="text-muted-foreground">{copy.challengeSummary}</p>
-        <Field htmlFor="code" label={copy.code}>
+        <p className="text-muted-foreground">{t("challengeSummary")}</p>
+        <Field htmlFor="code" label={t("code")}>
           <Input
             aria-invalid={failed || undefined}
             autoComplete="one-time-code"
@@ -120,9 +115,9 @@ export function SignInForm({
             required
           />
         </Field>
-        {failed ? <FormError>{copy.challengeFailed}</FormError> : null}
+        {failed ? <FormError>{t("challengeFailed")}</FormError> : null}
         <Button disabled={pending} type="submit">
-          {pending ? copy.signingIn : copy.verify}
+          {pending ? t("signingIn") : t("verify")}
         </Button>
       </form>
     );
@@ -130,8 +125,8 @@ export function SignInForm({
 
   return (
     <form className="mt-6 grid gap-4" onSubmit={signIn}>
-      <p className="text-muted-foreground">{copy.signInSummary}</p>
-      <Field htmlFor="email" label={copy.email}>
+      <p className="text-muted-foreground">{t("signInSummary")}</p>
+      <Field htmlFor="email" label={t("email")}>
         <Input
           aria-invalid={failed || undefined}
           autoComplete="username"
@@ -141,7 +136,7 @@ export function SignInForm({
           type="email"
         />
       </Field>
-      <Field htmlFor="password" label={copy.password}>
+      <Field htmlFor="password" label={t("password")}>
         <Input
           aria-invalid={failed || undefined}
           autoComplete="current-password"
@@ -151,9 +146,9 @@ export function SignInForm({
           type="password"
         />
       </Field>
-      {failed ? <FormError>{copy.signInFailed}</FormError> : null}
+      {failed ? <FormError>{t("signInFailed")}</FormError> : null}
       <Button disabled={pending} type="submit">
-        {pending ? copy.signingIn : copy.signIn}
+        {pending ? t("signingIn") : t("signIn")}
       </Button>
     </form>
   );

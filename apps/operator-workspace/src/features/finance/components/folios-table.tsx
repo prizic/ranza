@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import type { FolioSummary } from "@ranza/folios";
 import { DataTable, EmptyState } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
-import { tableLabels } from "../../../lib/table-labels";
-import type { Messages } from "../../../messages";
-import { folioColumns } from "./columns";
+import { useTableLabels } from "../../../lib/table-labels";
+import { useFolioColumns } from "./columns";
 
 /**
  * Every Folio at one Property, open ones first.
@@ -20,12 +19,10 @@ import { folioColumns } from "./columns";
  * list — the same reasoning that made arrivals and departures two routes.
  */
 export function FoliosTable({
-  copy,
   folioHref,
   folios,
   locale,
 }: {
-  copy: Messages;
   /** Route prefix the row links extend with `&folio=`. A string, not a
       builder: a server component cannot hand a function across this boundary,
       and React says so at runtime rather than at build time. */
@@ -33,22 +30,20 @@ export function FoliosTable({
   folios: readonly FolioSummary[];
   locale: SupportedLocale;
 }) {
-  const labels = useMemo(() => tableLabels(copy), [copy]);
-  const columns = useMemo(
-    () => folioColumns(copy, locale, folioHref),
-    [copy, locale, folioHref],
-  );
+  const t = useTranslations();
+  const labels = useTableLabels();
+  const columns = useFolioColumns(locale, folioHref);
 
   return (
     <div className="mt-4">
       <DataTable
-        caption={copy.folios}
+        caption={t("folios")}
         columns={columns}
         data={folios}
         empty={
           <EmptyState
-            description={copy.noFoliosDescription}
-            title={copy.noFoliosTitle}
+            description={t("noFoliosDescription")}
+            title={t("noFoliosTitle")}
           />
         }
         labels={labels}

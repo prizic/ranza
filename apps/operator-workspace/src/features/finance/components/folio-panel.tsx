@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { Undo2 } from "lucide-react";
 import type { FolioDetail } from "@ranza/folios";
 import {
@@ -20,7 +21,6 @@ import {
   TableRow,
 } from "@ranza/ui";
 import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
-import type { Messages } from "../../../messages";
 import {
   closeFolio,
   postCharge,
@@ -43,40 +43,43 @@ import {
 
 function outcomeMessage(
   outcome: FinanceOutcome,
-  copy: Messages,
+  invalid: string,
   refused: string,
 ): string | null {
-  if (outcome === "invalid") return copy.amountInvalid;
+  if (outcome === "invalid") return invalid;
   if (outcome === "refused") return refused;
   return null;
 }
 
 function ChargeForm({
-  copy,
   currency,
   folioId,
   locale,
 }: {
-  copy: Messages;
   currency: string;
   folioId: string;
   locale: string;
 }) {
+  const t = useTranslations();
   const [outcome, act, pending] = useActionState<FinanceOutcome, FormData>(
     postCharge,
     "idle",
   );
-  const message = outcomeMessage(outcome, copy, copy.chargeRefused);
+  const message = outcomeMessage(
+    outcome,
+    t("amountInvalid"),
+    t("chargeRefused"),
+  );
 
   return (
     <form action={act} className="mt-6 grid gap-4">
-      <h3 className="text-step-0 font-medium">{copy.addCharge}</h3>
+      <h3 className="text-step-0 font-medium">{t("addCharge")}</h3>
       <input name="folio" type="hidden" value={folioId} />
       <input name="locale" type="hidden" value={locale} />
       <input name="currency" type="hidden" value={currency} />
 
       <div className="grid gap-4 sm:grid-cols-[1fr_10rem_auto] sm:items-end">
-        <Field htmlFor="charge-description" label={copy.description}>
+        <Field htmlFor="charge-description" label={t("description")}>
           <Input
             autoComplete="off"
             id="charge-description"
@@ -85,7 +88,7 @@ function ChargeForm({
             required
           />
         </Field>
-        <Field htmlFor="charge-amount" label={`${copy.amount} (${currency})`}>
+        <Field htmlFor="charge-amount" label={`${t("amount")} (${currency})`}>
           {/* inputMode="decimal" rather than type="number": a number input
               disagrees with itself about the decimal separator across locales,
               and silently drops what it cannot parse. The server decides what
@@ -100,7 +103,7 @@ function ChargeForm({
           />
         </Field>
         <Button disabled={pending} type="submit">
-          {pending ? copy.posting : copy.post}
+          {pending ? t("posting") : t("post")}
         </Button>
       </div>
 
@@ -113,20 +116,17 @@ function ChargeForm({
   );
 }
 
-function ReverseAction({
-  copy,
-  lineId,
-  locale,
-}: {
-  copy: Messages;
-  lineId: string;
-  locale: string;
-}) {
+function ReverseAction({ lineId, locale }: { lineId: string; locale: string }) {
+  const t = useTranslations();
   const [outcome, act, pending] = useActionState<FinanceOutcome, FormData>(
     reverseLine,
     "idle",
   );
-  const message = outcomeMessage(outcome, copy, copy.reverseRefused);
+  const message = outcomeMessage(
+    outcome,
+    t("amountInvalid"),
+    t("reverseRefused"),
+  );
 
   return (
     <form action={act} className="grid justify-items-end gap-1.5">
@@ -137,17 +137,17 @@ function ReverseAction({
             account is the kind of action blueprint 4.4 says must be explained,
             and the audit record keeps what is typed here. */}
         <Input
-          aria-label={copy.reverseReason}
+          aria-label={t("reverseReason")}
           className="h-8 w-40 text-step--1"
           maxLength={200}
           minLength={3}
           name="reason"
-          placeholder={copy.reverseReason}
+          placeholder={t("reverseReason")}
           required
         />
         <Button disabled={pending} size="sm" type="submit" variant="ghost">
           <Undo2 aria-hidden="true" className="size-4" />
-          {pending ? copy.reversing : copy.reverse}
+          {pending ? t("reversing") : t("reverse")}
         </Button>
       </div>
       {message ? (
@@ -159,15 +159,8 @@ function ReverseAction({
   );
 }
 
-function CloseAction({
-  copy,
-  folioId,
-  locale,
-}: {
-  copy: Messages;
-  folioId: string;
-  locale: string;
-}) {
+function CloseAction({ folioId, locale }: { folioId: string; locale: string }) {
+  const t = useTranslations();
   const [outcome, act, pending] = useActionState<FinanceOutcome, FormData>(
     closeFolio,
     "idle",
@@ -178,11 +171,11 @@ function CloseAction({
       <input name="folio" type="hidden" value={folioId} />
       <input name="locale" type="hidden" value={locale} />
       <Button disabled={pending} type="submit" variant="secondary">
-        {pending ? copy.closing : copy.closeFolio}
+        {pending ? t("closing") : t("closeFolio")}
       </Button>
       {outcome === "refused" ? (
         <div aria-live="polite">
-          <FormError>{copy.closeRefused}</FormError>
+          <FormError>{t("closeRefused")}</FormError>
         </div>
       ) : null}
     </form>
@@ -190,23 +183,22 @@ function CloseAction({
 }
 
 export function FolioPanel({
-  copy,
   folio,
   locale,
 }: {
-  copy: Messages;
   folio: FolioDetail;
   locale: SupportedLocale;
 }) {
+  const t = useTranslations();
   const open = folio.status === "open";
 
   return (
     <section className="mt-6">
       <FactList className="pt-0">
-        <Fact label={copy.guest}>{folio.guestName || folio.unitName}</Fact>
-        <Fact label={copy.unit}>{folio.unitName}</Fact>
-        <Fact label={copy.status}>{copy.folioStatus[folio.status]}</Fact>
-        <Fact label={copy.balance}>
+        <Fact label={t("guest")}>{folio.guestName || folio.unitName}</Fact>
+        <Fact label={t("unit")}>{folio.unitName}</Fact>
+        <Fact label={t("status")}>{t(`folioStatus.${folio.status}`)}</Fact>
+        <Fact label={t("balance")}>
           <span className="tabular-nums">
             {formatMoney(folio.balanceMinor, folio.currency, locale)}
           </span>
@@ -216,14 +208,14 @@ export function FolioPanel({
       <Separator className="my-6" />
 
       <Table>
-        <TableCaption>{copy.folioLines}</TableCaption>
+        <TableCaption>{t("folioLines")}</TableCaption>
         <TableHeader>
           <TableRow>
-            <TableHead>{copy.description}</TableHead>
-            <TableHead>{copy.posted}</TableHead>
-            <TableHead className="text-end">{copy.amount}</TableHead>
+            <TableHead>{t("description")}</TableHead>
+            <TableHead>{t("posted")}</TableHead>
+            <TableHead className="text-end">{t("amount")}</TableHead>
             <TableHead className="text-end">
-              <span className="sr-only">{copy.action}</span>
+              <span className="sr-only">{t("action")}</span>
             </TableHead>
           </TableRow>
         </TableHeader>
@@ -231,7 +223,7 @@ export function FolioPanel({
           {folio.lines.length === 0 ? (
             <TableRow>
               <TableCell className="text-muted-foreground" colSpan={4}>
-                {copy.noLines}
+                {t("noLines")}
               </TableCell>
             </TableRow>
           ) : (
@@ -252,7 +244,7 @@ export function FolioPanel({
                       invisible to a screen reader (blueprint 18.5). */}
                   {line.reversed ? (
                     <span className="ms-2 text-step--1 text-muted-foreground">
-                      {copy.reversed}
+                      {t("reversed")}
                     </span>
                   ) : null}
                 </TableCell>
@@ -271,11 +263,7 @@ export function FolioPanel({
                 </TableCell>
                 <TableCell>
                   {open && line.lineType === "charge" && !line.reversed ? (
-                    <ReverseAction
-                      copy={copy}
-                      lineId={line.lineId}
-                      locale={locale}
-                    />
+                    <ReverseAction lineId={line.lineId} locale={locale} />
                   ) : null}
                 </TableCell>
               </TableRow>
@@ -287,18 +275,17 @@ export function FolioPanel({
       {open ? (
         <>
           <ChargeForm
-            copy={copy}
             currency={folio.currency}
             folioId={folio.folioId}
             locale={locale}
           />
           <Separator className="my-6" />
-          <CloseAction copy={copy} folioId={folio.folioId} locale={locale} />
+          <CloseAction folioId={folio.folioId} locale={locale} />
         </>
       ) : (
         // A closed Folio offers nothing. Reopening is a blueprint 5.9 workflow
         // that is not built, and a disabled button for it would imply it is.
-        <p className="mt-6 text-muted-foreground">{copy.folioClosedNote}</p>
+        <p className="mt-6 text-muted-foreground">{t("folioClosedNote")}</p>
       )}
     </section>
   );

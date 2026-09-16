@@ -3,7 +3,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { Arrival } from "@ranza/reservations";
 import type { SupportedLocale } from "@ranza/i18n";
-import type { Messages } from "../../../messages";
 import { frontOfficeKeys, type Scope } from "../query-keys";
 import { ArrivalsTable } from "./arrivals-table";
 
@@ -37,11 +36,9 @@ async function fetchArrivals(propertyId: string): Promise<readonly Arrival[]> {
 }
 
 export function LiveArrivals({
-  copy,
   locale,
   scope,
 }: {
-  copy: Messages;
   locale: SupportedLocale;
   scope: Scope;
 }) {
@@ -60,5 +57,5 @@ export function LiveArrivals({
   // `data` is present on first paint because the route prefetched it and
   // `Hydrated` handed it over. A 401 or a refusal leaves the last good rows on
   // screen rather than blanking a working list.
-  return <ArrivalsTable arrivals={data ?? []} copy={copy} locale={locale} />;
+  return <ArrivalsTable arrivals={data ?? []} locale={locale} />;
 }

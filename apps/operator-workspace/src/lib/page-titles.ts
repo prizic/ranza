@@ -1,6 +1,10 @@
-import { localizeHref, type SupportedLocale } from "@ranza/i18n";
+import { useTranslations } from "next-intl";
+import {
+  localizeHref,
+  supportedLocales,
+  type SupportedLocale,
+} from "@ranza/i18n";
 import { ALL_SCREENS } from "./screens";
-import type { Messages } from "../messages";
 
 /**
  * The bar that names the page, above every surface.
@@ -20,26 +24,36 @@ export interface PageTitle {
   parent?: { href: string; title: string };
 }
 
-export function workspacePageTitles(
-  locale: SupportedLocale,
-  copy: Messages,
-): PageTitle[] {
+export function useWorkspacePageTitles(locale: SupportedLocale): PageTitle[] {
+  const t = useTranslations();
+  const nav = useTranslations("navigation");
   return [
     ...ALL_SCREENS.filter((screen) => !screen.children).map((screen) => ({
       prefix: `/${screen.segment}`,
-      title: copy.navigation[screen.segment] ?? screen.segment,
+      title: nav.has(screen.segment) ? nav(screen.segment) : screen.segment,
     })),
     {
       prefix: "/security",
-      title: copy.security,
-      parent: { href: localizeHref(locale, "today"), title: copy.productName },
+      title: t("security"),
+      parent: {
+        href: localizeHref(locale, "today"),
+        title: t("productName"),
+      },
     },
   ];
 }
 
-/** Strips `/tr`, `/en`, `/ar` so a prefix never has to name the locale. */
+/**
+ * Strips the locale prefix so a route prefix never has to name the locale.
+ *
+ * Built from `supportedLocales` rather than spelled out, because the list it
+ * used to repeat is the list a fourth language would be added to — and a prefix
+ * this did not know about would leave every page under it with no bar at all.
+ */
+const LOCALE_PREFIX = new RegExp(`^/(${supportedLocales.join("|")})(?=/|$)`);
+
 export function withoutLocale(pathname: string): string {
-  const stripped = pathname.replace(/^\/(tr|en|ar)(?=\/|$)/, "");
+  const stripped = pathname.replace(LOCALE_PREFIX, "");
   return stripped === "" ? "/" : stripped;
 }
 

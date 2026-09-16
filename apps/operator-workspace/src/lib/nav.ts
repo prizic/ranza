@@ -1,7 +1,7 @@
 import type { NavEntry } from "@ranza/ui";
+import { useTranslations } from "next-intl";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import { SCREENS } from "./screens";
-import type { Messages } from "../messages";
 
 /**
  * The rail's tree, built from the blueprint 4.6 destination list.
@@ -20,13 +20,19 @@ import type { Messages } from "../messages";
  *
  * Labels are the short form. A tile is 56px and a long label spills out of it;
  * the full name lives in the page bar, where there is room.
+ *
+ * A hook rather than a function taking the catalogue: the segment names are
+ * looked up by key, and `navigation` is the one map keyed on a route segment
+ * rather than on a union, so a segment with no word for it still falls back to
+ * the segment itself. `t.has` is what asks without raising.
  */
 
-export function workspaceNav(
+export function useWorkspaceNav(
   locale: SupportedLocale,
-  copy: Messages,
   entitled: readonly string[],
 ): NavEntry[] {
+  const t = useTranslations("navigation");
+  const label = (segment: string) => (t.has(segment) ? t(segment) : segment);
   return SCREENS.filter((screen) =>
     screen.children
       ? screen.children.some((child) => entitled.includes(child.capability))
@@ -35,19 +41,19 @@ export function workspaceNav(
     screen.children
       ? {
           icon: screen.icon,
-          label: copy.navigation[screen.segment] ?? screen.segment,
+          label: label(screen.segment),
           children: screen.children
             .filter((child) => entitled.includes(child.capability))
             .map((child) => ({
               href: localizeHref(locale, child.segment),
               icon: child.icon,
-              label: copy.navigation[child.segment] ?? child.segment,
+              label: label(child.segment),
             })),
         }
       : {
           href: localizeHref(locale, screen.segment),
           icon: screen.icon,
-          label: copy.navigation[screen.segment] ?? screen.segment,
+          label: label(screen.segment),
         },
   );
 }

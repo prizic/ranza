@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
-import { messages } from "../../../../messages";
+import { getTranslations } from "next-intl/server";
 import { FoliosTable } from "../../../../features/finance/components/folios-table";
 import { FolioPanel } from "../../../../features/finance/components/folio-panel";
 import {
@@ -35,7 +35,7 @@ export default async function FinancePage({
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
 
-  const copy = messages[locale];
+  const t = await getTranslations();
   const search = await searchParams;
   const properties = await entitledProperties(FOLIO_CAPABILITY);
   const property = frontDeskProperty(properties, search);
@@ -43,8 +43,8 @@ export default async function FinancePage({
   if (!property) {
     return (
       <EmptyState
-        description={copy.notEntitledDescription}
-        title={copy.notEntitledTitle}
+        description={t("notEntitledDescription")}
+        title={t("notEntitledTitle")}
       />
     );
   }
@@ -60,12 +60,12 @@ export default async function FinancePage({
       <>
         <p className="text-muted-foreground">
           <a className="hover:underline" href={back}>
-            {copy.allFolios}
+            {t("allFolios")}
           </a>
           {" · "}
           {property.propertyName}
         </p>
-        <FolioPanel copy={copy} folio={selected} locale={locale} />
+        <FolioPanel folio={selected} locale={locale} />
       </>
     );
   }
@@ -73,10 +73,9 @@ export default async function FinancePage({
   return (
     <>
       <p className="text-muted-foreground">
-        {copy.foliosAt} {property.propertyName}
+        {t("foliosAt")} {property.propertyName}
       </p>
       <FoliosTable
-        copy={copy}
         folioHref={`${localizeHref(locale, "finance")}?property=${property.propertyId}`}
         folios={await folios(property.propertyId)}
         locale={locale}

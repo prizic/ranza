@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
-import { messages } from "../../../../messages";
+import { getTranslations } from "next-intl/server";
 import { DeparturesTable } from "../../../../features/front-office/components/departures-table";
 import {
   departures,
@@ -27,15 +27,15 @@ export default async function DeparturesPage({
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
 
-  const copy = messages[locale];
+  const t = await getTranslations();
   const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
   const property = frontDeskProperty(properties, await searchParams);
 
   if (!property) {
     return (
       <EmptyState
-        description={copy.noFrontDeskDescription}
-        title={copy.noFrontDeskTitle}
+        description={t("noFrontDeskDescription")}
+        title={t("noFrontDeskTitle")}
       />
     );
   }
@@ -43,10 +43,9 @@ export default async function DeparturesPage({
   return (
     <>
       <p className="text-muted-foreground">
-        {copy.departuresAt} {property.propertyName}
+        {t("departuresAt")} {property.propertyName}
       </p>
       <DeparturesTable
-        copy={copy}
         departures={await departures(property.propertyId)}
         locale={locale}
       />

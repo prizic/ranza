@@ -6,8 +6,15 @@ packages:
   - packages/adapters/*
 
 # Prisma's postinstall fetches its engines; esbuild builds its native binary.
+#
+# next-intl's plugin brings @swc/core and @parcel/watcher. Both ship prebuilt
+# binaries for this platform as optional dependencies, so their build scripts
+# compile something that is already there. False rather than true: a postinstall
+# that does not need to run is a postinstall that should not.
 allowBuilds:
+  "@parcel/watcher": false
   "@prisma/engines": true
+  "@swc/core": false
   esbuild: true
   prisma: true
 

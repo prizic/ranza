@@ -50,6 +50,7 @@ src/
     (portal)/stay/        the Stay
     sign-in/              outside (portal): the shell above it requires a viewer
   messages.ts             tr, en and ar — no fallback locale
+  i18n/request.ts         what next-intl reads per request (ADR 0023)
   app/globals.css         the shared theme, plus this app's Tailwind scan path
 ```
 

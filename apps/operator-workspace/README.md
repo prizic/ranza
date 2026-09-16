@@ -37,7 +37,8 @@ src/
   server/
     composition.ts           the composition root — three clients, three roles
     viewer.ts                the only path from a request to tenant data
-  messages.ts                tr, en and ar copy
+  messages.ts                tr, en and ar copy, ICU where a count appears
+  i18n/request.ts            what next-intl reads per request
 ```
 
 ## The two files that matter
@@ -68,7 +69,11 @@ may import `@ranza/db`, `@ranza/core` or `@ranza/auth`.
   belong to a separate Explore area. Hiding a control is never the boundary:
   the five gates deny regardless of what renders.
 - **Three languages, written with the feature.** A missing string is a type
-  error in `messages.ts`, not a silent fallback to English.
+  error in `messages.ts`, not a silent fallback to English — next-intl reads the
+  catalogue but does not relax that, because `Messages` is an interface every
+  locale is checked against ([ADR 0023](../../docs/adr/0023-copy-is-icu-through-next-intl-and-the-catalogue-stays-typed.md)).
+  Counted strings are ICU: Arabic agrees with the number in six categories and a
+  template with a hole in it cannot express one.
 
 Access is verified against a real database by
 [`tests/integration/workspace-access.test.ts`](../../tests/integration/workspace-access.test.ts).

@@ -4,8 +4,8 @@ import {
   isSupportedLocale,
   type SupportedLocale,
 } from "@ranza/i18n";
+import { getTranslations } from "next-intl/server";
 import { EmptyState, Fact, FactList, PageHeader } from "@ranza/ui";
-import { messages, type Messages } from "../../../../messages";
 import { ownStays } from "../../../../server/viewer";
 
 /**
@@ -47,14 +47,14 @@ export default async function StayPage({
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
 
-  const copy: Messages = messages[locale];
+  const t = await getTranslations();
   const stays = await ownStays();
 
   if (stays.length === 0) {
     return (
       <EmptyState
-        description={copy.noStayDescription}
-        title={copy.noStayTitle}
+        description={t("noStayDescription")}
+        title={t("noStayTitle")}
       />
     );
   }
@@ -73,8 +73,8 @@ export default async function StayPage({
                   {stay.unitName}
                 </span>
                 <span className="text-step--1 text-muted-foreground">
-                  {copy.unitType[stay.unitType]} · {copy.sleeps}{" "}
-                  {stay.unitCapacity}
+                  {t(`unitType.${stay.unitType}`)} ·{" "}
+                  {t("sleeps", { count: stay.unitCapacity })}
                 </span>
               </p>
             }
@@ -86,26 +86,26 @@ export default async function StayPage({
               {stay.propertyName}
             </h2>
             <p className="mt-2 text-muted-foreground">
-              {copy.stayStatus[stay.status]}
+              {t(`stayStatus.${stay.status}`)}
             </p>
           </PageHeader>
 
           <FactList>
-            <Fact label={copy.arrival}>
+            <Fact label={t("arrival")}>
               <time dateTime={stay.startsOn}>
                 {formatStayDate(stay.startsOn, locale)}
               </time>
             </Fact>
-            <Fact label={copy.departure}>
+            <Fact label={t("departure")}>
               {stay.endsOn ? (
                 <time dateTime={stay.endsOn}>
                   {formatStayDate(stay.endsOn, locale)}
                 </time>
               ) : (
-                copy.openEnded
+                t("openEnded")
               )}
             </Fact>
-            <Fact label={copy.stay}>{copy.stayType[stay.stayType]}</Fact>
+            <Fact label={t("stay")}>{t(`stayType.${stay.stayType}`)}</Fact>
           </FactList>
         </section>
       ))}

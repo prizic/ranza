@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import type { Departure } from "@ranza/reservations";
 import { DataTable, EmptyState } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
-import { tableLabels } from "../../../lib/table-labels";
-import type { Messages } from "../../../messages";
-import { departureColumns } from "./columns";
+import { useTableLabels } from "../../../lib/table-labels";
+import { useDepartureColumns } from "./columns";
 
 /**
  * Today's departures, overdue ones first.
@@ -16,27 +15,26 @@ import { departureColumns } from "./columns";
  * afterwards is the reader's choice.
  */
 export function DeparturesTable({
-  copy,
   departures,
   locale,
 }: {
-  copy: Messages;
   departures: readonly Departure[];
   locale: SupportedLocale;
 }) {
-  const labels = useMemo(() => tableLabels(copy), [copy]);
-  const columns = useMemo(() => departureColumns(copy, locale), [copy, locale]);
+  const t = useTranslations();
+  const labels = useTableLabels();
+  const columns = useDepartureColumns(locale);
 
   return (
     <div className="mt-4">
       <DataTable
-        caption={copy.departures}
+        caption={t("departures")}
         columns={columns}
         data={departures}
         empty={
           <EmptyState
-            description={copy.noDeparturesDescription}
-            title={copy.noDeparturesTitle}
+            description={t("noDeparturesDescription")}
+            title={t("noDeparturesTitle")}
           />
         }
         labels={labels}

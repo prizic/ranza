@@ -3,8 +3,7 @@
 import type { ReactNode } from "react";
 import { AppBottomNav, AppRail, type RailLabels } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
-import { workspaceNav } from "../../../lib/nav";
-import type { Messages } from "../../../messages";
+import { useWorkspaceNav } from "../../../lib/nav";
 
 /**
  * The rail, with the tree built on the client.
@@ -17,7 +16,6 @@ import type { Messages } from "../../../messages";
 export function WorkspaceRail({
   actions,
   brand,
-  copy,
   entitled,
   labels,
   locale,
@@ -25,13 +23,12 @@ export function WorkspaceRail({
 }: {
   actions?: ReactNode;
   brand: ReactNode;
-  copy: Messages;
   entitled: readonly string[];
   labels: RailLabels;
   locale: SupportedLocale;
   root: string;
 }) {
-  const entries = workspaceNav(locale, copy, entitled);
+  const entries = useWorkspaceNav(locale, entitled);
 
   return (
     <AppRail
@@ -45,23 +42,17 @@ export function WorkspaceRail({
 }
 
 export function WorkspaceBottomNav({
-  copy,
   entitled,
   label,
   locale,
   root,
 }: {
-  copy: Messages;
   entitled: readonly string[];
   label: string;
   locale: SupportedLocale;
   root: string;
 }) {
-  return (
-    <AppBottomNav
-      entries={workspaceNav(locale, copy, entitled)}
-      label={label}
-      root={root}
-    />
-  );
+  const entries = useWorkspaceNav(locale, entitled);
+
+  return <AppBottomNav entries={entries} label={label} root={root} />;
 }

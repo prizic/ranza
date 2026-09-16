@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { isSupportedLocale, localizeHref, supportedLocales } from "@ranza/i18n";
 import { Check } from "lucide-react";
 import {
@@ -9,7 +10,6 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
 } from "@ranza/ui";
-import { messages } from "../../../messages";
 import { requireViewer } from "../../../server/viewer";
 import { PortalBottomNav, PortalRail } from "./portal-rail";
 
@@ -38,17 +38,17 @@ export default async function PortalLayout({
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
 
-  const copy = messages[locale];
+  const t = await getTranslations();
   const viewer = await requireViewer(locale);
   const root = localizeHref(locale, "stay");
 
   const account = (
-    <AccountMenu email={viewer.email} label={copy.account} name={viewer.email}>
+    <AccountMenu email={viewer.email} label={t("account")} name={viewer.email}>
       {/* Language belongs to the person, and is set once and then never again —
           so it lives beside the account rather than costing a permanent control
           in the bar. */}
       <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-        {copy.languageLabel}
+        {t("languageLabel")}
       </DropdownMenuLabel>
       {supportedLocales.map((supported) => (
         <DropdownMenuItem asChild key={supported}>
@@ -66,7 +66,7 @@ export default async function PortalLayout({
                   : "size-4 shrink-0 invisible"
               }
             />
-            {copy.languageName[supported]}
+            {t(`languageName.${supported}`)}
           </a>
         </DropdownMenuItem>
       ))}
@@ -77,8 +77,7 @@ export default async function PortalLayout({
     <AppShell
       bottomNav={
         <PortalBottomNav
-          copy={copy}
-          label={copy.mainNavigation}
+          label={t("mainNavigation")}
           locale={locale}
           root={root}
         />
@@ -86,23 +85,22 @@ export default async function PortalLayout({
       pageBar={
         <AppPageBar
           action={<div className="md:hidden">{account}</div>}
-          title={copy.stay}
+          title={t("stay")}
         />
       }
       rail={
         <PortalRail
           actions={account}
-          copy={copy}
           labels={{
-            back: copy.back,
-            home: copy.productName,
-            mainNavigation: copy.mainNavigation,
+            back: t("back"),
+            home: t("productName"),
+            mainNavigation: t("mainNavigation"),
           }}
           locale={locale}
           root={root}
         />
       }
-      skipLabel={copy.skip}
+      skipLabel={t("skip")}
     >
       {children}
     </AppShell>

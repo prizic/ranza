@@ -9,8 +9,8 @@ import {
   type NavEntry,
   type RailLabels,
 } from "@ranza/ui";
+import { useTranslations } from "next-intl";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
-import type { Messages } from "../../../messages";
 
 /**
  * The Portal's rail.
@@ -23,30 +23,30 @@ import type { Messages } from "../../../messages";
  * rather than a single link, because the Portal grows the blueprint 4.3
  * capabilities into it and a reader should not have to relearn where they are.
  */
-function entriesFor(locale: SupportedLocale, copy: Messages): NavEntry[] {
+function useEntries(locale: SupportedLocale): NavEntry[] {
+  const t = useTranslations();
   return [
-    { href: localizeHref(locale, "stay"), icon: BedDouble, label: copy.stay },
+    { href: localizeHref(locale, "stay"), icon: BedDouble, label: t("stay") },
   ];
 }
 
 export function PortalRail({
   actions,
-  copy,
   labels,
   locale,
   root,
 }: {
   actions?: ReactNode;
-  copy: Messages;
   labels: RailLabels;
   locale: SupportedLocale;
   root: string;
 }) {
+  const entries = useEntries(locale);
   return (
     <AppRail
       {...(actions === undefined ? {} : { actions })}
       brand={<BrandMark className="size-7 text-primary" />}
-      entries={entriesFor(locale, copy)}
+      entries={entries}
       labels={labels}
       root={root}
     />
@@ -54,21 +54,14 @@ export function PortalRail({
 }
 
 export function PortalBottomNav({
-  copy,
   label,
   locale,
   root,
 }: {
-  copy: Messages;
   label: string;
   locale: SupportedLocale;
   root: string;
 }) {
-  return (
-    <AppBottomNav
-      entries={entriesFor(locale, copy)}
-      label={label}
-      root={root}
-    />
-  );
+  const entries = useEntries(locale);
+  return <AppBottomNav entries={entries} label={label} root={root} />;
 }
