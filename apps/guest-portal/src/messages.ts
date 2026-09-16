@@ -16,6 +16,7 @@ export interface Messages {
   productName: string;
   skip: string;
   languageLabel: string;
+  toggleNavigation: string;
   stay: string;
 
   property: string;
@@ -50,6 +51,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     productName: "Ranza",
     skip: "İçeriğe geç",
     languageLabel: "Dil",
+    toggleNavigation: "Menüyü aç/kapat",
     stay: "Konaklamam",
 
     property: "Tesis",
@@ -94,6 +96,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     productName: "Ranza",
     skip: "Skip to content",
     languageLabel: "Language",
+    toggleNavigation: "Toggle navigation",
     stay: "My stay",
 
     property: "Property",
@@ -138,6 +141,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     productName: "Ranza",
     skip: "تخطَّ إلى المحتوى",
     languageLabel: "اللغة",
+    toggleNavigation: "إظهار القائمة أو إخفاؤها",
     stay: "إقامتي",
 
     property: "المنشأة",

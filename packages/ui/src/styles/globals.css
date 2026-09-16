@@ -1,77 +1,91 @@
 /*
- * Ranza design tokens, as Tailwind theme variables.
+ * Ranza design tokens.
  *
- * The anchor is still the front-office key rack: petrol-dark chrome, a
- * paper-pale work surface, and brass on exactly one thing — the slot you are
- * currently in. Restraint is the point. A status colour here means a status
- * exists.
+ * The values are the brief in docs/design/visual-reference.md, which is the
+ * agreed direction and wins over anything shipped before it: a teal accent on a
+ * pale canvas, white surfaces, separation from a hairline and a low shadow
+ * rather than heavy borders.
  *
- * The palette is carried over unchanged from the stylesheet this replaces. That
- * is deliberate: this change moves the foundation to Tailwind and shadcn
- * without also changing how anything looks, so the diff is one thing rather
- * than two. Re-theming comes after.
- *
- * shadcn's token names are the ones used everywhere (`bg-background`,
- * `text-muted-foreground`, `border-border`) so its components and ours read
- * from one system rather than two that have to be kept in step.
+ * shadcn's vocabulary (`background`, `foreground`, `muted`, `border`, `ring`,
+ * `sidebar`) is the one used everywhere so its components and ours read from
+ * one system. Ranza adds only what that vocabulary has no word for: the
+ * semantic status tones, which exist because blueprint 18.5 forbids colour
+ * alone and a status therefore needs a matching foreground and a soft fill that
+ * text stays legible on.
  */
 
 @import "tailwindcss";
 
-/* Tailwind v4 scans source files relative to this stylesheet. This covers the
+/* Tailwind scans source files relative to this stylesheet. This covers the
    shared components; each application adds its own in its globals.css. */
 @source "..";
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Chrome */
-  --petrol: #0b1f2a;
-  --petrol-lift: #16333f;
-  --petrol-line: #244655;
-
-  /* Work surface */
-  --paper: #f2f4f3;
+  /* --- the brief ------------------------------------------------------- */
+  --canvas: #f3f6f4;
+  --canvas-deep: #e6ece9;
+  --ink: #132f38;
+  --ink-muted: #52656b;
+  --accent: #087466;
+  --accent-dark: #05594f;
+  --accent-soft: #d9eee9;
   --surface: #ffffff;
+  --surface-strong: #132f38;
 
-  /* Text */
-  --ink: #0e2029;
-  --ink-soft: #5a6c74;
-  --ink-faint: #8b9aa0;
+  --success: #176842;
+  --success-soft: #dcefe3;
+  --warning: #8a5a08;
+  --warning-soft: #f7e8c8;
+  --danger: #a33a35;
+  --danger-soft: #f5dfdd;
+  --info: #315f83;
+  --info-soft: #dfeaf2;
 
-  /* The one accent. Brass is the rack's hardware; it marks the current slot
-     and focus, and nothing else. --brass-deep is the text-safe variant. */
-  --brass: #c08a3c;
-  --brass-deep: #8a5f22;
-  --brass-soft: #f6ecda;
+  --line: #c8d3d0;
+  --line-strong: #9caca8;
+  --focus: #126bad;
 
-  --line: #dde3e1;
-  --line-strong: #b9c4c2;
-  --danger: #a3352f;
-  --danger-soft: #f7e2e0;
+  --radius: 0.75rem;
 
-  --radius: 0.5rem;
+  --shadow: 0 1.25rem 3.25rem rgb(19 47 56 / 10%);
+  --shadow-low: 0 0.5rem 1.5rem rgb(19 47 56 / 8%);
 
-  /* shadcn's vocabulary, pointed at the palette above. */
-  --background: var(--paper);
+  /* --- shadcn's names, pointed at the above ---------------------------- */
+  --background: var(--canvas);
   --foreground: var(--ink);
   --card: var(--surface);
   --card-foreground: var(--ink);
   --popover: var(--surface);
   --popover-foreground: var(--ink);
-  --primary: var(--petrol);
-  --primary-foreground: var(--paper);
-  --secondary: var(--brass-soft);
-  --secondary-foreground: var(--brass-deep);
-  --muted: var(--paper);
-  --muted-foreground: var(--ink-soft);
-  --accent: var(--brass-soft);
-  --accent-foreground: var(--brass-deep);
+  --primary: var(--accent);
+  --primary-foreground: var(--surface);
+  --secondary: var(--accent-soft);
+  --secondary-foreground: var(--accent-dark);
+  --muted: var(--canvas-deep);
+  --muted-foreground: var(--ink-muted);
+  --accent-background: var(--accent-soft);
+  --accent-foreground: var(--accent-dark);
   --destructive: var(--danger);
   --destructive-foreground: var(--surface);
   --border: var(--line);
   --input: var(--line-strong);
-  --ring: var(--brass);
+  --ring: var(--focus);
+
+  /*
+   * The sidebar is its own surface, so the brief's "dark, ~260px" is two
+   * values rather than a rewrite. The approved mockups are not unanimous —
+   * most draw it light — and this is the seam that choice turns on.
+   */
+  --sidebar: var(--surface-strong);
+  --sidebar-foreground: var(--canvas);
+  --sidebar-primary: var(--accent);
+  --sidebar-primary-foreground: var(--surface);
+  --sidebar-accent: #1d4050;
+  --sidebar-accent-foreground: var(--surface);
+  --sidebar-border: #24495a;
+  --sidebar-ring: var(--accent);
 }
 
 @theme inline {
@@ -87,7 +101,7 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
+  --color-accent: var(--accent-background);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
@@ -95,32 +109,58 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  /* Named so a screen can reach the chrome directly. The shadcn vocabulary
-     above covers a work surface; it has no word for "the petrol bar". */
-  --color-petrol: var(--petrol);
-  --color-petrol-lift: var(--petrol-lift);
-  --color-petrol-line: var(--petrol-line);
-  --color-brass: var(--brass);
-  --color-brass-deep: var(--brass-deep);
-  --color-brass-soft: var(--brass-soft);
-  --color-ink-soft: var(--ink-soft);
-  --color-ink-faint: var(--ink-faint);
-  --color-line-strong: var(--line-strong);
-  --color-danger-soft: var(--danger-soft);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 
-  --radius-sm: calc(var(--radius) * 0.5);
-  --radius-md: calc(var(--radius) * 0.75);
+  /*
+   * Status tones. Each is a foreground that carries the meaning and a soft fill
+   * that it stays legible on, because blueprint 18.5 requires colour to arrive
+   * with a word and an icon — so the pair is always needed together.
+   */
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink-muted: var(--ink-muted);
+  --color-accent-strong: var(--accent-dark);
+  --color-accent-soft: var(--accent-soft);
+
+  --radius-sm: 0.45rem;
+  --radius-md: 0.6rem;
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.5);
+  --radius-xl: 1.15rem;
+
+  --shadow-low: var(--shadow-low);
+  --shadow-raised: var(--shadow);
 
   /* Minor third, per Bringhurst. A scale, not a set of suggestions. */
   --text-step--1: 0.8125rem;
   --text-step-0: 1rem;
   --text-step-1: 1.25rem;
   --text-step-2: 1.5625rem;
+  --text-step-3: 1.953rem;
 
-  /* One typeface for three scripts. IBM Plex Sans Arabic carries the Plex
-     Latin alongside the Arabic, and each application injects the variable. */
+  /*
+   * The brief asks for Aptos, which is not licensed for the web and would fall
+   * through to a system font on every machine that is not Windows — three
+   * scripts rendered by whatever happened to be installed. IBM Plex Sans Arabic
+   * carries Latin, Turkish and Arabic in one family with drawn diacritics, so
+   * Turkish and Arabic are the same voice. Each application injects the
+   * variable.
+   */
   --font-sans: var(--font-plex), "Segoe UI", system-ui, sans-serif;
 }
 
@@ -132,7 +172,7 @@
   html {
     color-scheme: light;
     /* The page gutter. One value, so every screen agrees where the edge is. */
-    --page: clamp(1.25rem, 5vw, 4rem);
+    --page: clamp(1.25rem, 3vw, 2.5rem);
     background-color: var(--color-background);
   }
 
@@ -143,12 +183,17 @@
     line-height: 1.55;
   }
 
-  /* Brass on focus, everywhere, rather than per component. */
+  /* One focus treatment, everywhere, rather than per component. */
   :focus-visible {
-    @apply outline-brass;
+    @apply outline-ring;
     outline-width: 2px;
     outline-style: solid;
-    outline-offset: 3px;
+    outline-offset: 2px;
+  }
+
+  /* Blueprint: data tables use tabular figures so columns of numbers align. */
+  table {
+    font-variant-numeric: tabular-nums;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -159,4 +204,19 @@
       animation-duration: 0.01ms !important;
     }
   }
+}
+
+/*
+ ---break---
+ */
+
+.dark {
+  --sidebar: hsl(240 5.9% 10%);
+  --sidebar-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-primary: hsl(224.3 76.3% 48%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(240 3.7% 15.9%);
+  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-border: hsl(240 3.7% 15.9%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
 }
