@@ -13,6 +13,7 @@ import {
   CheckInReversalError,
   CheckOutError,
   FRONT_DESK_CAPABILITY,
+  REVERSAL_REASON,
   StayHasChargesError,
   UnitUnavailableError,
   type Arrival,
@@ -36,15 +37,6 @@ import type { ReservationsDeps } from "./ports";
 
 /** Postgres raises this when an exclusion constraint rejects a row. */
 const EXCLUSION_VIOLATION = "23P01";
-
-/**
- * The audit column's own bounds. Checked here so a reason that is too short
- * fails before the Stay has been withdrawn rather than after, which would
- * produce a rollback and an error naming a field the caller never mentioned —
- * the same trap `@ranza/folios` documents finding the hard way.
- */
-const REASON_MIN = 3;
-const REASON_MAX = 2000;
 
 /**
  * Raised by `stays_withdrawal_is_free_of_charges`. Deliberately not 42501: a
@@ -156,6 +148,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
           unit.id                                       as "unitId",
           unit.name                                     as "unitName",
           unit.unit_type                                as "unitType",
+          stay.id                                       as "stayId",
           reservation.status = 'confirmed'
             and reservation.starts_on <= today.day
             and (reservation.ends_on is null
@@ -163,6 +156,13 @@ export function createReservationsModule(deps: ReservationsDeps) {
         from public.reservations as reservation
         join public.accommodation_units as unit
           on unit.id = reservation.accommodation_unit_id
+        -- At most one row joins:
+        -- stays_reservation_id_property_id_organization_id_key is unique
+        -- where the status is not cancelled, so however many withdrawn
+        -- Stays a Reservation has behind it, this cannot multiply it.
+        left join public.stays as stay
+          on stay.reservation_id = reservation.id
+         and stay.status = 'in_house'
         -- Once, for the whole query. The Property is fixed by the parameter
         -- below, so this is the same date on every row, and computing it per
         -- row would only invite the two comparisons to disagree across a
@@ -174,6 +174,11 @@ export function createReservationsModule(deps: ReservationsDeps) {
           and reservation.status in ('requested', 'confirmed', 'checked_in')
           and (
             reservation.starts_on = today.day
+            -- A Stay that began today is today's work whatever the
+            -- Reservation planned. Without this a late arrival left the
+            -- list the moment they were checked in, taking the only way to
+            -- take that back with them (ADR 0022).
+            or stay.starts_on = today.day
             or (
               reservation.status <> 'checked_in'
               and reservation.starts_on < today.day
@@ -379,11 +384,17 @@ export function createReservationsModule(deps: ReservationsDeps) {
     const explanation = reason.trim();
     // Blueprint 4.4 leaves it to the caller to decide which actions need a
     // reason, and withdrawing the record of somebody's arrival is one. The
-    // bounds are the audit column's own, so a reason that passes here cannot
-    // fail after the Stay has already been withdrawn.
-    if (explanation.length < REASON_MIN || explanation.length > REASON_MAX) {
+    // bounds are the audit column's own — published, because a screen has to
+    // stop somebody typing past them and has to say why it refused — so a
+    // reason that passes here cannot fail after the Stay has already been
+    // withdrawn, which would roll back and name a field the caller never
+    // mentioned.
+    if (
+      explanation.length < REVERSAL_REASON.min ||
+      explanation.length > REVERSAL_REASON.max
+    ) {
       throw new CheckInReversalError(
-        `a reason must be between ${REASON_MIN} and ${REASON_MAX} characters`,
+        `a reason must be between ${REVERSAL_REASON.min} and ${REVERSAL_REASON.max} characters`,
       );
     }
 

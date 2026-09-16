@@ -42,6 +42,7 @@ const ANNOUNCED = "d4000004-0000-4000-8000-00000000000b";
 const DATED = "d4000004-0000-4000-8000-00000000000c";
 const RECORDED = "d4000004-0000-4000-8000-00000000000d";
 const DEPARTED = "d4000004-0000-4000-8000-00000000000e";
+const WITHDRAWN = "d4000004-0000-4000-8000-00000000000f";
 const MEMBER = "d4000001-0000-4000-8000-000000000001";
 const OUTSIDER = "d4000001-0000-4000-8000-000000000002";
 
@@ -104,7 +105,8 @@ async function seed() {
        ($15,$4,$6,'FD-110','room',2),
        ($16,$4,$6,'FD-111','room',2),
        ($17,$4,$6,'FD-112','room',2),
-       ($18,$4,$6,'FD-113','room',2)
+       ($18,$4,$6,'FD-113','room',2),
+       ($19,$4,$6,'FD-114','room',2)
      on conflict (id) do nothing`,
     UNIT,
     CONTESTED,
@@ -124,6 +126,7 @@ async function seed() {
     DATED,
     RECORDED,
     DEPARTED,
+    WITHDRAWN,
   );
   await owner.$executeRawUnsafe(
     `insert into public.subscriptions (organization_id, status) values
@@ -380,6 +383,64 @@ describe("arrivals that are no longer arriving", () => {
     await expect(reservations.checkIn(MEMBER, EXPIRED)).rejects.toThrow(
       CheckInError,
     );
+  });
+});
+
+/**
+ * A Guest who should have come yesterday, checked in today.
+ *
+ * The list is built from the Reservation's planned dates, and that is the
+ * arrangement this row breaks: checking a late arrival in moves them to
+ * `checked_in`, and every clause that kept them reachable requires them not to
+ * be. They left the one screen that can take the check-in back the moment it
+ * was made — a mistake made at 09:00 and noticed at 09:01 with nowhere to
+ * undo it (ADR 0022).
+ *
+ * So the Stay is a second way onto the list, and it is the one that matches
+ * what the screen is for: a Stay that began today is today's work whatever the
+ * Reservation planned. `stayId` comes with it, because withdrawing a check-in
+ * takes the Stay and the row would otherwise know only the Reservation.
+ */
+describe("a late arrival checked in today", () => {
+  const LATE_TODAY = reservationId();
+  let stay = "";
+
+  beforeAll(async () => {
+    await reserve(LATE_TODAY, PROPERTY, ORG, WITHDRAWN, "Came Late", {
+      from: -1,
+      to: 3,
+    });
+    ({ stayId: stay } = await reservations.checkIn(MEMBER, LATE_TODAY));
+  });
+
+  const row = async () =>
+    (await reservations.listArrivals(MEMBER, PROPERTY)).find(
+      (arrival) => arrival.reservationId === LATE_TODAY,
+    );
+
+  it("stays on the list, carrying the Stay it produced", async () => {
+    const listed = await row();
+    expect(listed?.status).toBe("checked_in");
+    // Not offered: they are already here. The row is on the list to be undone,
+    // not to be checked in again.
+    expect(listed?.canCheckIn).toBe(false);
+    expect(listed?.stayId).toBe(stay);
+  });
+
+  it("is still withdrawable from there, and comes back arrivable", async () => {
+    await reservations.reverseCheckIn(
+      MEMBER,
+      stay,
+      "checked in the wrong one of two Guests arriving together",
+    );
+
+    const listed = await row();
+    expect(listed?.status).toBe("confirmed");
+    expect(listed?.canCheckIn).toBe(true);
+    // The withdrawn Stay is cancelled, so the row no longer names one — and the
+    // screen cannot offer to withdraw a check-in that has already been taken
+    // back.
+    expect(listed?.stayId).toBeNull();
   });
 });
 

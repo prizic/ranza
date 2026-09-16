@@ -6,6 +6,7 @@ export {
   CheckInReversalError,
   CheckOutError,
   FRONT_DESK_CAPABILITY,
+  REVERSAL_REASON,
   StayHasChargesError,
   UnitUnavailableError,
 } from "./contracts";

@@ -16,6 +16,16 @@ import type { CapabilityRef } from "@ranza/core";
 export const FRONT_OFFICE_MODULE = "front_office";
 
 /**
+ * What `reverseCheckIn` will accept as a reason.
+ *
+ * The audit column's own bounds, published because a screen has to say why it
+ * refused and has to stop somebody typing past the limit. Restating 3 and 2000
+ * in the application is how a form and the rule it describes drift apart —
+ * the copy and the `maxLength` both read this.
+ */
+export const REVERSAL_REASON = { min: 3, max: 2000 } as const;
+
+/**
  * Working the front desk: seeing today's arrivals and checking them in.
  *
  * Gate 3 of blueprint 3.5 for every statement in this module, including the
@@ -64,6 +74,19 @@ export interface Arrival {
   unitName: string;
   unitType: AccommodationUnitType;
   canCheckIn: boolean;
+  /**
+   * The Stay this Reservation's check-in produced, while it is still in house.
+   *
+   * Null on a Reservation nobody has checked in, and null again once a check-in
+   * has been withdrawn or the Guest has left. Withdrawing a check-in takes the
+   * Stay rather than the Reservation (`reverseCheckIn`), so without this the
+   * row knows the thing that happened and not the thing to undo.
+   *
+   * Presentation, on the same footing as `canCheckIn`: it says whether there is
+   * a check-in to offer taking back. Whether it may be taken back is decided by
+   * the policies and by the trigger that refuses a Stay carrying charges.
+   */
+  stayId: string | null;
 }
 
 /** What a completed check-in produced. */
