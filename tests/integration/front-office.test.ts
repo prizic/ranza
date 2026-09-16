@@ -20,6 +20,7 @@ import {
   createReservationsModule,
   UnitUnavailableError,
 } from "../../packages/ranza/reservations/src";
+import type { Arrival } from "../../packages/ranza/reservations/src";
 import { createPrismaClient } from "../../packages/db/src";
 import { FRONT_DESK_CAPABILITY } from "../../packages/ranza/reservations/src";
 
@@ -284,6 +285,101 @@ describe("today's arrivals", () => {
     await expect(
       reservations.listArrivals(OUTSIDER, PROPERTY),
     ).resolves.toEqual([]);
+  });
+});
+
+/**
+ * What the list stops showing, which is the half with no screen to notice it is
+ * wrong. `starts_on <= today` on its own is every Reservation whose start date
+ * has ever passed: the arrivals list grows by a day's check-ins every day and
+ * never shrinks, and bookings that expired unused sit on it offering a button
+ * check-in refuses.
+ *
+ * Every date is relative to the Property's own today and computed by the
+ * database, for the same reason the fixtures above are: a day counted from the
+ * runner's clock is the wrong day for several hours of every day.
+ */
+describe("arrivals that are no longer arriving", () => {
+  const LONG_GONE = reservationId();
+  const EXPIRED = reservationId();
+  const LATE = reservationId();
+  const TODAY_DONE = reservationId();
+  const NO_NIGHT = reservationId();
+  const OWN = [LONG_GONE, EXPIRED, LATE, TODAY_DONE, NO_NIGHT];
+
+  /** This describe's own rows: the fixtures above are still on the list. */
+  const mine = (arrivals: Arrival[]) =>
+    arrivals.filter((arrival) => OWN.includes(arrival.reservationId));
+
+  beforeAll(async () => {
+    await reserve(LONG_GONE, PROPERTY, ORG, UNIT, "Long Gone", {
+      from: -90,
+      to: -87,
+    });
+    await reserve(EXPIRED, PROPERTY, ORG, CONTESTED, "Never Came", {
+      from: -14,
+      to: -7,
+    });
+    await reserve(LATE, PROPERTY, ORG, OTHER_IN_PROPERTY, "One Day Late", {
+      from: -1,
+      to: 2,
+    });
+    await reserve(TODAY_DONE, PROPERTY, ORG, DEPARTING_A, "Already Here");
+    // Arriving today, leaving today: no night in it. On the list, because
+    // today's bookings are the day's work and the front desk has to be able to
+    // see what happened to it — but not checkable in, because the Stay would be
+    // an empty daterange that overlaps nothing and the Unit would take a second
+    // Guest tonight. The one row where the old flag still offered the button.
+    await reserve(NO_NIGHT, PROPERTY, ORG, DEPARTING_B, "No Night", {
+      from: 0,
+      to: 0,
+    });
+    await owner.$executeRawUnsafe(
+      `update public.reservations set status = 'checked_in'
+        where id = any($1::uuid[])`,
+      [LONG_GONE, TODAY_DONE],
+    );
+  });
+
+  it("drops a Guest checked in months ago, and a booking that expired unused", async () => {
+    const listed = mine(await reservations.listArrivals(MEMBER, PROPERTY));
+    expect(listed.map((arrival) => arrival.guestName).sort()).toEqual([
+      "Already Here",
+      "No Night",
+      "One Day Late",
+    ]);
+  });
+
+  /**
+   * `canCheckIn` against the three rows that survive. The last of them is the
+   * one that matters: a booking arriving and leaving on the same day is on the
+   * list and is not checkable, and the old flag — `status = 'confirmed'`, with
+   * no date in it — offered the button anyway.
+   */
+  it("offers check-in only where check-in would succeed", async () => {
+    const listed = mine(await reservations.listArrivals(MEMBER, PROPERTY));
+    const offered = Object.fromEntries(
+      listed.map((arrival) => [arrival.guestName, arrival.canCheckIn]),
+    );
+    expect(offered).toEqual({
+      "One Day Late": true,
+      "Already Here": false,
+      "No Night": false,
+    });
+  });
+
+  /**
+   * And the flag agrees with the rule rather than restating it: the same two
+   * rows it declines to offer are the two `checkIn` refuses. This is the pair
+   * that drifted apart, so it is asserted as a pair.
+   */
+  it("agrees with check-in about the rows it will not offer", async () => {
+    await expect(reservations.checkIn(MEMBER, NO_NIGHT)).rejects.toThrow(
+      CheckInError,
+    );
+    await expect(reservations.checkIn(MEMBER, EXPIRED)).rejects.toThrow(
+      CheckInError,
+    );
   });
 });
 

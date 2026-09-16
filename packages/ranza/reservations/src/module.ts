@@ -105,16 +105,33 @@ export function createReservationsModule(deps: ReservationsDeps) {
    * arrivals list computed in the server's timezone would be wrong for one of
    * them for several hours every day.
    *
-   * `<=` today rather than `=` today, so somebody who should have arrived
-   * yesterday and has not is still on the list. Check-in accepts a late arrival
-   * — the Stay simply starts on the day they turned up — and a list that showed
-   * only today would have made every one of those unreachable from the screen
-   * that exists to handle them. The same reasoning as the departures list,
-   * which shows the Guest who should have left on Tuesday.
+   * Two kinds of row are on it, and they leave for different reasons. Today's
+   * Reservations are the day's work, and they stay all day once checked in
+   * rather than emptying the list as it goes. A late arrival — somebody who
+   * should have come yesterday and has not — stays only while check-in would
+   * still accept them, because letting them be checked in is the only thing
+   * this screen does with them.
+   *
+   * Both bounds are needed. `= today` alone made every late arrival
+   * unreachable from the one screen that exists to handle them; `<= today`
+   * alone made the list every Reservation whose start date had ever passed —
+   * every Guest ever checked in, and every booking that expired unused,
+   * offering a button `checkIn` then refuses. The same shape as the departures
+   * list, which shows the Guest who should have left on Tuesday and not the one
+   * who left in March.
+   *
+   * `canCheckIn` is the predicate `checkIn` applies, not a restatement of it.
+   * The two drifted apart once already, and a button that raises when pressed
+   * is worse than one that is not offered.
+   *
+   * One consequence is deliberate rather than overlooked: a late arrival leaves
+   * the list the moment they are checked in, because their start date is not
+   * today, while today's check-ins stay until the day turns over. Showing them
+   * too means asking which Stays opened today, which is a different question on
+   * a different table, and nobody has asked the screen for it yet.
    *
    * Cancelled and no-show Reservations are absent because they are not
-   * arriving. Already checked-in ones stay, so the list still shows the day's
-   * work after it has been done rather than emptying as it goes.
+   * arriving.
    *
    * Empty is the correct answer for a Property the viewer cannot reach, for one
    * whose Organization lost the Entitlement, and for a quiet day. Those are
@@ -139,16 +156,31 @@ export function createReservationsModule(deps: ReservationsDeps) {
           unit.id                                       as "unitId",
           unit.name                                     as "unitName",
           unit.unit_type                                as "unitType",
-          reservation.status = 'confirmed'              as "canCheckIn"
+          reservation.status = 'confirmed'
+            and reservation.starts_on <= today.day
+            and (reservation.ends_on is null
+                 or reservation.ends_on > today.day)    as "canCheckIn"
         from public.reservations as reservation
-        join public.properties as property
-          on property.id = reservation.property_id
         join public.accommodation_units as unit
           on unit.id = reservation.accommodation_unit_id
+        -- Once, for the whole query. The Property is fixed by the parameter
+        -- below, so this is the same date on every row, and computing it per
+        -- row would only invite the two comparisons to disagree across a
+        -- midnight that fell between them.
+        cross join (
+          select app.property_today(${propertyId}::uuid) as day
+        ) as today
         where reservation.property_id = ${propertyId}::uuid
-          and reservation.starts_on
-              <= (now() at time zone property.timezone)::date
           and reservation.status in ('requested', 'confirmed', 'checked_in')
+          and (
+            reservation.starts_on = today.day
+            or (
+              reservation.status <> 'checked_in'
+              and reservation.starts_on < today.day
+              and (reservation.ends_on is null
+                   or reservation.ends_on > today.day)
+            )
+          )
           and app.can_use_capability(
             reservation.property_id,
             ${FRONT_DESK_CAPABILITY.moduleKey},

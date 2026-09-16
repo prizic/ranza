@@ -18,9 +18,15 @@ everything lands under Unreleased.
   a second `in_house` Stay the same night. The same bug the date rule exists to
   close, arriving through the one date nobody tested.
   `stays_in_house_has_a_night` refuses the row for every role.
-- `listArrivals` shows every Reservation whose start date has arrived, not only
-  today's. Late arrivals became checkable in and stayed invisible on the one
-  screen that exists to handle them.
+- `listArrivals` shows today's Reservations, plus a late arrival for as long as
+  check-in would still take them. Only today's left every late arrival invisible
+  on the one screen that exists to handle them; every Reservation whose start
+  date had passed — the first attempt at that — made the list grow by a day's
+  check-ins every day and never shrink, with expired bookings sitting on it
+  offering a button `checkIn` refuses.
+- `canCheckIn` is the predicate `checkIn` applies, dates included, rather than
+  `status = 'confirmed'`. The two had drifted, and the row that showed it was a
+  booking arriving and leaving on the same day: listed, offered, and refused.
 - The departure date published on `stay.checked_out` is formatted by the
   database rather than by `toISOString()`. The value was correct — the adapter
   returns UTC midnight — but it depended on a third-party parsing choice, and an
