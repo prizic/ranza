@@ -26,9 +26,11 @@ once and prove the same thing about itself.
 import type { AccommodationUnitType } from "@ranza/accommodation";
 ```
 
-Types only, for now. Both unions mirror check constraints in the migration, and
-the database stays the authority: widening a union here without widening the
-constraint fails at insert time, which is the safe direction.
+One type, for now. It mirrors a check constraint in the migration, and the
+database stays the authority: widening it here without widening the constraint
+fails at insert time, which is the safe direction. Unit status and the
+Entitlement key are columns in that migration with no TypeScript reader yet;
+they arrive here when something reads them.
 
 There is deliberately no query yet. Nothing reads a Unit except through a Stay,
 and [`@ranza/stays`](../stays/README.md) joins it inside the one statement that

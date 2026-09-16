@@ -14,7 +14,6 @@ everything lands under Unreleased.
 - The `accommodation_units` table: unit type, capacity and operational status,
   with a composite foreign key making a Unit in another Organization's Property
   unrepresentable.
-- `AccommodationUnitType` and `AccommodationUnitStatus`, mirroring the check
-  constraints the module owns.
+- `AccommodationUnitType`, mirroring the check constraint the module owns.
 
 No query yet — nothing reads a Unit except through a Stay.

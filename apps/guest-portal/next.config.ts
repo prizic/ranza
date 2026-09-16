@@ -16,9 +16,17 @@ const config: NextConfig = {
     "@ranza/ui",
   ],
   // Every route is locale-prefixed, and the Portal's only destination is the
-  // viewer's own Stay.
+  // viewer's own Stay. The locale root is a redirect rather than a page,
+  // because a page whose whole body is `redirect()` is one.
   async redirects() {
-    return [{ source: "/", destination: "/tr/stay", permanent: false }];
+    return [
+      { source: "/", destination: "/tr/stay", permanent: false },
+      {
+        source: "/:locale(tr|en|ar)",
+        destination: "/:locale/stay",
+        permanent: false,
+      },
+    ];
   },
 };
 

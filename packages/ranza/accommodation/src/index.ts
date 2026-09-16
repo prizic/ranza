@@ -1,5 +1,1 @@
-export { ACCOMMODATION_MODULE } from "./contracts";
-export type {
-  AccommodationUnitType,
-  AccommodationUnitStatus,
-} from "./contracts";
+export type { AccommodationUnitType } from "./contracts";
