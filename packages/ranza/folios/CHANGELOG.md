@@ -9,6 +9,16 @@ everything lands under Unreleased.
 
 ## Unreleased
 
+### Changed
+
+- `folio_line_is_postable()` also refuses a line on a Folio whose Stay was
+  withdrawn. Without it, reversing a check-in left an open Folio attached to a
+  Stay that did not happen and it still accepted charges. An invariant rather
+  than a closure rule — it says what is representable, not when a Folio should
+  be closed. Added by
+  [`@ranza/reservations`](../reservations/README.md) in
+  `20260916001500_check_in_reversal`; this module still owns the function.
+
 ### Added
 
 - The `folios` table: the financial record a Stay accrues against, carrying its

@@ -2,15 +2,23 @@ import { withOrganizationContext } from "@ranza/db";
 import { openFolioWithin } from "@ranza/folios";
 import { recordWithin } from "@ranza/platform-audit";
 import { publishWithin } from "@ranza/platform-outbox";
-import { closeStayWithin, openStayWithin, StayWriteError } from "@ranza/stays";
+import {
+  closeStayWithin,
+  openStayWithin,
+  StayWriteError,
+  withdrawStayWithin,
+} from "@ranza/stays";
 import {
   CheckInError,
+  CheckInReversalError,
   CheckOutError,
   FRONT_DESK_CAPABILITY,
+  StayHasChargesError,
   UnitUnavailableError,
   type Arrival,
   type CheckedIn,
   type CheckedOut,
+  type CheckInReversed,
   type Departure,
 } from "./contracts";
 import type { ReservationsDeps } from "./ports";
@@ -30,27 +38,44 @@ import type { ReservationsDeps } from "./ports";
 const EXCLUSION_VIOLATION = "23P01";
 
 /**
- * Whether a failure is the Unit already being taken.
+ * The audit column's own bounds. Checked here so a reason that is too short
+ * fails before the Stay has been withdrawn rather than after, which would
+ * produce a rollback and an error naming a field the caller never mentioned —
+ * the same trap `@ranza/folios` documents finding the hard way.
+ */
+const REASON_MIN = 3;
+const REASON_MAX = 2000;
+
+/**
+ * Raised by `stays_withdrawal_is_free_of_charges`. Deliberately not 42501: a
+ * policy refusal is also 42501, and "money has been posted" is a different
+ * answer from "you cannot".
+ */
+const NOT_WITHDRAWABLE = "55000";
+
+/**
+ * Whether a failure carries a particular SQLSTATE.
  *
- * Read from the SQLSTATE rather than from the constraint's name, so renaming the
- * constraint cannot silently turn this into a generic failure.
+ * Read from the code rather than from a constraint or trigger name, so renaming
+ * either cannot silently turn a specific failure into a generic one.
  *
  * Prisma reports a raw-query failure as P2010 and carries the real code inside
  * `meta`, so that nested path is the first place to look. The message is checked
  * too, because the shape of `meta` is Prisma's private arrangement and has
  * already changed once — and the cost of being wrong is asymmetric. Missing the
- * code reports "that Unit is occupied" as an unexplained error; there is no
- * false positive, because nothing else in this transaction can raise 23P01.
+ * code reports a specific, actionable refusal as an unexplained error; there is
+ * no false positive, because nothing else in these transactions raises either
+ * code.
  */
-function isUnitTaken(error: unknown): boolean {
+function raised(error: unknown, code: string): boolean {
   if (typeof error !== "object" || error === null) return false;
   const { meta, message } = error as {
     meta?: { driverAdapterError?: { cause?: { code?: unknown } } };
     message?: unknown;
   };
   return (
-    meta?.driverAdapterError?.cause?.code === EXCLUSION_VIOLATION ||
-    (typeof message === "string" && message.includes(EXCLUSION_VIOLATION))
+    meta?.driverAdapterError?.cause?.code === code ||
+    (typeof message === "string" && message.includes(code))
   );
 }
 
@@ -208,7 +233,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
         // The exclusion constraint refused: another current Stay holds this Unit
         // over these nights. Worth its own type because it is the one failure
         // here a front desk can act on — the others are all "you cannot".
-        if (isUnitTaken(error)) {
+        if (raised(error, EXCLUSION_VIOLATION)) {
           throw new UnitUnavailableError(
             "that Accommodation Unit is occupied for those nights",
           );
@@ -270,6 +295,120 @@ export function createReservationsModule(deps: ReservationsDeps) {
         stayId: created.stayId,
         folioId: folio?.folioId ?? null,
       };
+    });
+  }
+
+  /**
+   * Withdraws a check-in that should not have happened.
+   *
+   * Two rows move and they share one fate: the Stay becomes `cancelled`, which
+   * frees the Unit because `stays_no_double_booking` is partial on status, and
+   * the Reservation returns to `confirmed`, so it reappears on the arrivals list
+   * where somebody will deal with it properly.
+   *
+   * Nothing is deleted and nothing is edited back to `reserved`. A Stay that was
+   * in house and is now reserved is indistinguishable from one that was never
+   * checked in, which would make the mistake unobservable and leave the audit
+   * trail as the only evidence it happened (ADR 0022). Cancelled says what
+   * occurred: somebody checked in, and it was withdrawn.
+   *
+   * The Stay first, so the row lock is taken on the thing being withdrawn and
+   * the `status = 'in_house'` predicate is re-evaluated after any concurrent
+   * transaction holding it commits — two people pressing the button produce one
+   * withdrawal and one refusal.
+   *
+   * Nothing here asks whether the actor may do this, and nothing here looks for
+   * charges. `stays_withdrawal_is_free_of_charges` does, from a `security
+   * definer` function, because a Staff Member with `front_desk` and without
+   * `finance` cannot see a folio line and a check written here would conclude
+   * there were none.
+   */
+  async function reverseCheckIn(
+    userId: string,
+    stayId: string,
+    reason: string,
+  ): Promise<CheckInReversed> {
+    const explanation = reason.trim();
+    // Blueprint 4.4 leaves it to the caller to decide which actions need a
+    // reason, and withdrawing the record of somebody's arrival is one. The
+    // bounds are the audit column's own, so a reason that passes here cannot
+    // fail after the Stay has already been withdrawn.
+    if (explanation.length < REASON_MIN || explanation.length > REASON_MAX) {
+      throw new CheckInReversalError(
+        `a reason must be between ${REASON_MIN} and ${REASON_MAX} characters`,
+      );
+    }
+
+    return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      let withdrawn;
+      try {
+        withdrawn = await withdrawStayWithin(tx, stayId);
+      } catch (error: unknown) {
+        // The one refusal a front desk can act on: money exists, so this is a
+        // stay that happened and correcting it is a credit or a refund.
+        if (raised(error, NOT_WITHDRAWABLE)) {
+          throw new StayHasChargesError(
+            "that Stay has charges posted against it",
+          );
+        }
+        // Out of reach, already departed, already withdrawn, never existed. One
+        // message for all four: telling them apart would confirm that a Stay
+        // the caller cannot see is there.
+        if (error instanceof StayWriteError) {
+          throw new CheckInReversalError("that check-in cannot be withdrawn");
+        }
+        throw error;
+      }
+
+      if (!withdrawn.reservationId) {
+        // A Stay that began without a Reservation has none to return, so there
+        // is no check-in to withdraw — only a Stay, and ending one is a
+        // check-out. Not reachable yet, because nothing creates a walk-in.
+        throw new CheckInReversalError("that check-in cannot be withdrawn");
+      }
+
+      const returned = await tx.$queryRaw<{ id: string }[]>`
+        update public.reservations
+           set status = 'confirmed',
+               updated_at = now()
+         where id = ${withdrawn.reservationId}::uuid
+           and status = 'checked_in'
+        returning id
+      `;
+      if (returned.length === 0) {
+        // The Stay moved and its Reservation did not, which would leave a
+        // Reservation marked arrived with a withdrawn Stay behind it. Throwing
+        // rolls the first write back rather than leaving the pair disagreeing.
+        throw new CheckInReversalError("that check-in cannot be withdrawn");
+      }
+
+      // Published like the check-in it undoes, and for the same reason: a
+      // consumer of `stay.checked_in` that never hears this would act on an
+      // arrival that was taken back.
+      await publishWithin(tx, {
+        organizationId: withdrawn.organizationId,
+        eventType: "stay.check_in_reversed",
+        payload: {
+          stayId,
+          reservationId: withdrawn.reservationId,
+          accommodationUnitId: withdrawn.accommodationUnitId,
+        },
+      });
+
+      await recordWithin(tx, {
+        organizationId: withdrawn.organizationId,
+        actorId: userId,
+        action: "reservation.check_in_reversed",
+        subjectType: "reservation",
+        subjectId: withdrawn.reservationId,
+        reason: explanation,
+        context: {
+          stayId,
+          accommodationUnitId: withdrawn.accommodationUnitId,
+        },
+      });
+
+      return { reservationId: withdrawn.reservationId, stayId };
     });
   }
 
@@ -401,7 +540,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
     });
   }
 
-  return { listArrivals, listDepartures, checkIn, checkOut };
+  return { listArrivals, listDepartures, checkIn, checkOut, reverseCheckIn };
 }
 
 export type ReservationsModule = ReturnType<typeof createReservationsModule>;

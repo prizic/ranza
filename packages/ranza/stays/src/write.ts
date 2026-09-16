@@ -116,3 +116,55 @@ export async function closeStayWithin(
   }
   return row;
 }
+
+/**
+ * Withdraws a Stay that should never have started.
+ *
+ * `cancelled` rather than back to `reserved`, and never a delete. A Stay that
+ * was in house and is now reserved is indistinguishable from one that was never
+ * checked in, so the mistake would become unobservable and the audit trail would
+ * be the only evidence it happened — which makes the tables and the trail
+ * disagree (ADR 0022).
+ *
+ * The Unit is freed by the status alone: `stays_no_double_booking` is partial on
+ * it, so the dates stay exactly as they were and hold nothing. Nothing is
+ * removed, which is the point.
+ *
+ * Only `in_house` moves, and only while nothing has been posted to the Stay's
+ * Folio — the second is enforced by `stays_withdrawal_is_free_of_charges` and
+ * raises `55000` rather than returning no row, because "money has been posted"
+ * is a different answer from "you cannot" and is the one worth telling a front
+ * desk.
+ */
+export async function withdrawStayWithin(
+  tx: StayWriteClient,
+  stayId: string,
+): Promise<{
+  organizationId: string;
+  accommodationUnitId: string;
+  reservationId: string | null;
+}> {
+  const rows = await tx.$queryRaw<
+    {
+      organizationId: string;
+      accommodationUnitId: string;
+      reservationId: string | null;
+    }[]
+  >`
+    update public.stays
+       set status = 'cancelled',
+           updated_at = now()
+     where id = ${stayId}::uuid
+       and status = 'in_house'
+    returning
+      organization_id       as "organizationId",
+      accommodation_unit_id as "accommodationUnitId",
+      reservation_id        as "reservationId"
+  `;
+
+  const [row] = rows;
+  if (!row) {
+    throw new StayWriteError("that Stay cannot be withdrawn");
+  }
+  return row;
+}

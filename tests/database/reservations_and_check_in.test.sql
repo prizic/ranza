@@ -11,7 +11,7 @@
 -- dropping the exclusion constraint — and confirming it went red. A test that
 -- cannot fail is worse than no test, because it is mistaken for evidence.
 begin;
-select plan(42);
+select plan(50);
 
 insert into public.users (id, email) values
   ('31111111-1111-4111-8111-111111111111', 'front-desk-a@example.test'),
@@ -52,7 +52,15 @@ insert into public.accommodation_units
    '3b111111-1111-4111-8111-111111111111', 'B1-201', 'suite', 4),
   ('3d666666-6666-4666-8666-666666666666',
    '3c333333-3333-4333-8333-333333333333',
-   '3a111111-1111-4111-8111-111111111111', 'A2-101', 'room', 2);
+   '3a111111-1111-4111-8111-111111111111', 'A2-101', 'room', 2),
+  -- Two of this section's own, so withdrawing a check-in cannot collide with
+  -- the availability assertions above.
+  ('3d777777-7777-4777-8777-777777777777',
+   '3c111111-1111-4111-8111-111111111111',
+   '3a111111-1111-4111-8111-111111111111', 'A1-105', 'room', 2),
+  ('3d888888-8888-4888-8888-888888888888',
+   '3c111111-1111-4111-8111-111111111111',
+   '3a111111-1111-4111-8111-111111111111', 'A1-106', 'room', 2);
 
 insert into public.organization_memberships
   (organization_id, user_id, role, access_scope) values
@@ -529,6 +537,114 @@ select lives_ok(
 reset role;
 
 -- ---------------------------------------------------------------------------
+-- A check-in is withdrawn, not deleted (ADR 0022)
+-- ---------------------------------------------------------------------------
+
+-- Two Stays with a Folio each: one untouched, one with a charge posted against
+-- it. This suite grants no billing Entitlement, so the Staff Member below holds
+-- `front_desk` and not `finance` — and can still see the folio line, because
+-- `folio_lines_read_accessible_property` is reach-based and the capability gate
+-- for a read lives in the query around it.
+--
+-- Which is why `stays_withdrawal_is_free_of_charges` is `security definer` and
+-- these assertions cannot prove it on their own: an invoker version passes here
+-- too. What proves it is narrowing that read policy to require `finance` and
+-- watching the invoker version let a charged Stay through.
+reset role;
+
+insert into public.stays
+  (id, organization_id, property_id, accommodation_unit_id,
+   stay_type, status, starts_on, ends_on) values
+  ('3f444444-4444-4444-8444-444444444444',
+   '3a111111-1111-4111-8111-111111111111',
+   '3c111111-1111-4111-8111-111111111111',
+   '3d777777-7777-4777-8777-777777777777',
+   'guest', 'in_house',
+   app.property_today('3c111111-1111-4111-8111-111111111111'),
+   app.property_today('3c111111-1111-4111-8111-111111111111') + 2),
+  ('3f555555-5555-4555-8555-555555555555',
+   '3a111111-1111-4111-8111-111111111111',
+   '3c111111-1111-4111-8111-111111111111',
+   '3d888888-8888-4888-8888-888888888888',
+   'guest', 'in_house',
+   app.property_today('3c111111-1111-4111-8111-111111111111'),
+   app.property_today('3c111111-1111-4111-8111-111111111111') + 2);
+
+insert into public.folios
+  (id, organization_id, property_id, stay_id, currency) values
+  ('3aaa1111-1111-4111-8111-111111111111',
+   '3a111111-1111-4111-8111-111111111111',
+   '3c111111-1111-4111-8111-111111111111',
+   '3f444444-4444-4444-8444-444444444444', 'TRY'),
+  ('3aaa2222-2222-4222-8222-222222222222',
+   '3a111111-1111-4111-8111-111111111111',
+   '3c111111-1111-4111-8111-111111111111',
+   '3f555555-5555-4555-8555-555555555555', 'TRY');
+
+insert into public.folio_lines
+  (id, organization_id, property_id, folio_id, line_type, description, amount_minor)
+values
+  ('3bbb1111-1111-4111-8111-111111111111',
+   '3a111111-1111-4111-8111-111111111111',
+   '3c111111-1111-4111-8111-111111111111',
+   '3aaa2222-2222-4222-8222-222222222222', 'charge', 'Minibar', 12500);
+
+set local role ranza_app;
+select app.set_request_context('31111111-1111-4111-8111-111111111111');
+
+select lives_ok(
+  $$update public.stays set status = 'cancelled', updated_at = now()
+     where id = '3f444444-4444-4444-8444-444444444444'$$,
+  'a check-in with nothing posted against it is withdrawn');
+
+select results_eq(
+  $$select status from public.stays
+     where id = '3f444444-4444-4444-8444-444444444444'$$,
+  $$values ('cancelled')$$,
+  'and the Stay says it was withdrawn rather than never having happened');
+
+-- 55000 rather than 42501, because a policy refusal is also 42501 and the
+-- caller has to tell "you cannot" from "money has been posted" — only the
+-- second is worth telling a front desk.
+select throws_ok(
+  $$update public.stays set status = 'cancelled', updated_at = now()
+     where id = '3f555555-5555-4555-8555-555555555555'$$,
+  '55000', NULL,
+  'a check-in with a charge against it is not a slip, and is refused');
+
+select results_eq(
+  $$select status from public.stays
+     where id = '3f555555-5555-4555-8555-555555555555'$$,
+  $$values ('in_house')$$,
+  'and that Stay is untouched');
+
+-- The grant is what stops a withdrawal being a room move, and it is the same
+-- grant check-out relies on. Asserted here too because this is a second caller
+-- of it, and a widened grant would be invisible from the check-out assertions.
+select throws_ok(
+  $$update public.stays
+       set status = 'cancelled',
+           accommodation_unit_id = '3d111111-1111-4111-8111-111111111111'
+     where id = '3f555555-5555-4555-8555-555555555555'$$,
+  '42501', NULL,
+  'and withdrawing one cannot move it to another Unit on the way');
+
+reset role;
+
+-- The other half. Without it the withdrawal leaves an open Folio attached to a
+-- Stay that did not happen, and it still accepts charges. From the migration
+-- role, because the trigger binds every role and a policy does not.
+select throws_ok(
+  $$insert into public.folio_lines
+      (organization_id, property_id, folio_id, line_type, description, amount_minor)
+    values ('3a111111-1111-4111-8111-111111111111',
+            '3c111111-1111-4111-8111-111111111111',
+            '3aaa1111-1111-4111-8111-111111111111',
+            'charge', 'After the fact', 100)$$,
+  '42501', NULL,
+  'a withdrawn Stay''s Folio accepts nothing further');
+
+-- ---------------------------------------------------------------------------
 -- The commercial gates apply to a write, not only to a read
 -- ---------------------------------------------------------------------------
 
@@ -612,6 +728,28 @@ select set_eq(
       and grantee = 'ranza_app' and privilege_type = 'UPDATE'$$,
   array['status', 'ends_on', 'updated_at'],
   'the runtime role may update only a Stay''s status, end date and timestamp');
+
+select set_eq(
+  $$select column_name from information_schema.column_privileges
+    where table_schema = 'public' and table_name = 'reservations'
+      and grantee = 'ranza_app' and privilege_type = 'UPDATE'$$,
+  array['status', 'updated_at'],
+  'the runtime role may update only a Reservation''s status and timestamp');
+
+-- What that grant is for. The row is in reach and both halves of the policy
+-- approve it; the statement is refused because checking somebody in is not the
+-- same act as moving their booking, and row-level security is row-level.
+set local role ranza_app;
+select app.set_request_context('31111111-1111-4111-8111-111111111111');
+
+select throws_ok(
+  $$update public.reservations
+       set starts_on = date '2020-01-01'
+     where id = '3e111111-1111-4111-8111-111111111111'$$,
+  '42501', NULL,
+  'a Reservation''s dates cannot be rewritten by whoever may check it in');
+
+reset role;
 
 select * from finish();
 rollback;

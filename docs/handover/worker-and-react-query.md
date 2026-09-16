@@ -26,16 +26,16 @@ a thing to surface, not to resolve quietly.
 
 ## Order of work, and where it stands
 
-|       |                                                                                    |                                                                                                                                                                                      |
-| ----- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **0** | The check-in date rule and check-out error handling                                | **done** — `20260916001300_check_in_on_the_day`                                                                                                                                      |
-| **1** | ADRs 0016–0020, documents only                                                     | **done**                                                                                                                                                                             |
-| **2** | `ranza_worker`, the worker context functions, the outbox tables and their policies | **done** — `20260916001400_platform_outbox`, `packages/platform/outbox`                                                                                                              |
-| **3** | `apps/worker`: composition root with role checks, dispatcher, no handlers          | **done** — `apps/worker`, boundary fixtures, `tests/integration/outbox.test.ts`                                                                                                      |
-| **4** | The first handler                                                                  | **not built** — every candidate needs a blueprint 5.x workflow that does not exist. The four considered, and what each needs first, are in `apps/worker/src/outbox/subscriptions.ts` |
-| **5** | Publishing from check-in and check-out, split per ADR 0020                         | **done** — `stay.checked_in` and `stay.checked_out`, in the transaction that produced each                                                                                           |
-| **6** | The TanStack Query provider, key rules, boundary rules, the first live screen      | **done** — arrivals polls; `tests/unit/query-keys.test.ts`, `tests/unit/arrivals-route.test.ts`                                                                                      |
-| later | Business date and night audit · check-in reversal · reservation overlap protection |                                                                                                                                                                                      |
+|       |                                                                                                                        |                                                                                                                                                                                      |
+| ----- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **0** | The check-in date rule and check-out error handling                                                                    | **done** — `20260916001300_check_in_on_the_day`                                                                                                                                      |
+| **1** | ADRs 0016–0020, documents only                                                                                         | **done**                                                                                                                                                                             |
+| **2** | `ranza_worker`, the worker context functions, the outbox tables and their policies                                     | **done** — `20260916001400_platform_outbox`, `packages/platform/outbox`                                                                                                              |
+| **3** | `apps/worker`: composition root with role checks, dispatcher, no handlers                                              | **done** — `apps/worker`, boundary fixtures, `tests/integration/outbox.test.ts`                                                                                                      |
+| **4** | The first handler                                                                                                      | **not built** — every candidate needs a blueprint 5.x workflow that does not exist. The four considered, and what each needs first, are in `apps/worker/src/outbox/subscriptions.ts` |
+| **5** | Publishing from check-in and check-out, split per ADR 0020                                                             | **done** — `stay.checked_in` and `stay.checked_out`, in the transaction that produced each                                                                                           |
+| **6** | The TanStack Query provider, key rules, boundary rules, the first live screen                                          | **done** — arrivals polls; `tests/unit/query-keys.test.ts`, `tests/unit/arrivals-route.test.ts`                                                                                      |
+| later | Night audit, once something has a rate to charge · reservation overlap protection, once anything creates a Reservation |                                                                                                                                                                                      |
 
 Each step: `pnpm check`, `pnpm db:test` and `pnpm test:integration` green, a
 CHANGELOG entry for every package touched, and `pnpm check:docs` clean.
@@ -56,16 +56,23 @@ Reproduced against `main` as `ranza_app` before any of this was built.
 
 **Still open, each needing its own slice.**
 
-- _No reversal for a mistaken check-in._ `checked_in` is terminal and the
-  correction is a workflow that does not exist. Stated as absent in
-  `packages/ranza/reservations/src/contracts.ts`; it needs an issue and an ADR
-  before production.
 - _Overlapping confirmed Reservations are allowed._ Unreachable today — nothing
   creates a Reservation — and it needs protection before creation becomes a
   command. Overbooking is an unwritten policy, not an oversight.
-- _There is no business date._ Room charges should be dated by one rather than by
-  midnight in the Property's timezone. It becomes a real need the moment
-  something posts per night, which is the night audit and not before.
+- _There is no business date._ Decided in
+  [ADR 0021](../adr/0021-a-business-date-is-the-day-a-property-is-working.md) and
+  deliberately not built: one column and one function body, applied when
+  something posts per night. Nothing does, because nothing has a rate — there is
+  no rate plan, no tariff and no price column anywhere, so a night audit has
+  nothing to charge.
+
+**Closed since.**
+
+- _No reversal for a mistaken check-in._ `reverseCheckIn` cancels the Stay and
+  confirms the Reservation again, refused once anything has been posted to the
+  Folio ([ADR 0022](../adr/0022-a-mistaken-check-in-is-reversed-not-deleted.md)).
+  No screen offers it yet: a front desk needs a confirmation step and a reason
+  field, which is an interface decision rather than a button to add to a table.
 
 Test fixtures for anything date-shaped are relative to the Property's own today.
 Fixed dates are what made checking somebody in weeks early the normal case in

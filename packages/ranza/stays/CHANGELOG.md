@@ -9,6 +9,14 @@ everything lands under Unreleased.
 
 ## Unreleased
 
+### Added
+
+- `withdrawStayWithin()`: a Stay that should not have started becomes
+  `cancelled`, which frees the Unit because `stays_no_double_booking` is partial
+  on status and the dates stay exactly as they were. Refused once a charge exists
+  against it, by `stays_withdrawal_is_free_of_charges`
+  ([ADR 0022](../../../docs/adr/0022-a-mistaken-check-in-is-reversed-not-deleted.md)).
+
 ### Changed
 
 - `stays_insert_front_desk` and `stays_update_front_desk` now also require an

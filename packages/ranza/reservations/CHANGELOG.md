@@ -11,6 +11,15 @@ everything lands under Unreleased.
 
 ### Added
 
+- `reverseCheckIn(userId, stayId, reason)`: withdrawing a check-in that should
+  not have happened. The Stay becomes `cancelled` — never deleted, never edited
+  back to `reserved` — and the Reservation returns to `confirmed`, in one
+  transaction with the audit record and a `stay.check_in_reversed` event
+  ([ADR 0022](../../../docs/adr/0022-a-mistaken-check-in-is-reversed-not-deleted.md)).
+  Refused once anything has been posted to the Stay's Folio, which arrives as
+  `StayHasChargesError` because it is the one refusal a front desk can act on.
+  `checked_in` is no longer terminal.
+
 - Check-in and check-out publish `stay.checked_in` and `stay.checked_out`
   through `publishWithin`, in the transaction that produced the fact
   ([ADR 0017](../../../docs/adr/0017-cross-module-facts-travel-through-a-transactional-outbox.md)).
