@@ -33,6 +33,7 @@ apps/                     separately deployable applications
   control-plane/          Prizic-internal administration
 packages/
   platform/               host-agnostic reusable modules (generic subdomains)
+    audit/                what was done, by whom, and why
   ranza/                  Ranza domain modules (core domain)
     core/                 Organization, Property, membership, Entitlement reads
   adapters/               Ranza-to-platform mappings

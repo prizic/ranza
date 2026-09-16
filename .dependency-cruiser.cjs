@@ -87,6 +87,20 @@ module.exports = {
       },
     },
     {
+      name: "modules-do-not-reach-into-each-other",
+      comment:
+        "Blueprint 9.10: the public-contract rule above only stops importers " +
+        "outside the tiers. A module is not an outsider, so without this one " +
+        "module could reach straight into another's internals — which is the " +
+        "coupling the contract exists to prevent.",
+      severity: "error",
+      from: { path: "^packages/(platform|ranza|adapters)/([^/]+)/" },
+      to: {
+        path: "^packages/(platform|ranza|adapters)/([^/]+)/src/(domain|application|infrastructure)/",
+        pathNot: "^packages/$1/$2/",
+      },
+    },
+    {
       name: "domain-layer-is-framework-independent",
       comment:
         "Blueprint 9.10: domain rules must not depend on Next, Supabase, or Prisma.",

@@ -138,7 +138,14 @@ that answer alone — Arabic right to left, navigation showing only entitled
 capabilities. Every tenant read goes through one funnel, `src/server/viewer.ts`,
 and reaching around it is a build failure (ADR 0007).
 
-Next is blueprint Phase 2: Accommodation Units, Reservations, Stays, Folios.
+Phase 1's foundations are in progress. `packages/platform/audit` is the first
+reusable module: append-only, module-owned schema (ADR 0008), and the first real
+subject the tier guards have ever had — the blueprint 9.8 vocabulary scan read
+"0 files scanned" until it existed. Notifications, files and tasks are
+deliberately not built yet; blueprint section 13 forbids building tables ahead of
+the workflows that need them.
+
+Then blueprint Phase 2: Accommodation Units, Reservations, Stays, Folios.
 
 ## Keeping documentation true
 

@@ -62,6 +62,25 @@ assert.match(
 );
 console.log("PASS tenant data is reachable only through the server funnel");
 
+// Blueprint 9.10: a module reaches another module's index, never its internals.
+// The public-contract rule alone exempts anything inside a tier, so a module was
+// free to reach into a sibling — this proves the rule that closes that.
+const acrossModules = cruise(
+  ["packages/ranza/reservations/src/index.ts"],
+  path.join(root, "tests/boundaries/fixtures"),
+);
+assert.notEqual(
+  acrossModules.status,
+  0,
+  "a module importing another module's domain layer must fail",
+);
+assert.match(
+  `${acrossModules.stdout}${acrossModules.stderr}`,
+  /modules-do-not-reach-into-each-other/,
+  "the fixture must trip the module-internals rule",
+);
+console.log("PASS modules reach each other only through a public contract");
+
 // Blueprint 9.8 identifier rule: a reusable platform module must not even name a
 // Ranza concept. Dependency graphs cannot see this, so scan the source directly.
 const ranzaVocabulary =

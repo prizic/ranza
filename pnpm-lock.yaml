@@ -134,6 +134,12 @@ importers:
 
   packages/observability: {}
 
+  packages/platform/audit:
+    dependencies:
+      '@ranza/db':
+        specifier: workspace:*
+        version: link:../../db
+
   packages/ranza/core:
     dependencies:
       '@ranza/db':
