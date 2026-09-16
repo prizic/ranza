@@ -60,6 +60,11 @@ An application may reach the database only through its own server funnel — see
 [ADR 0007](docs/adr/0007-a-session-becomes-a-request-context.md). That rule is
 enforced by the same pair, with fixtures proving both fire.
 
+## Where the project is
+
+[`docs/roadmap.md`](docs/roadmap.md) — every bullet of the blueprint's five
+phases, what is built, and what comes next. One page.
+
 ## Local development
 
 Node.js 22 and pnpm through Corepack:
