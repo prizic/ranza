@@ -34,6 +34,12 @@ export interface Viewer {
   /** Ranza user id — what app.current_user_id() returns. Never a subject. */
   userId: string;
   email: string;
+  /**
+   * Whether this account carries a second factor. An authentication fact, not
+   * an authorization one: it says how the session was obtained and never what
+   * the Staff Member may reach.
+   */
+  twoFactorEnabled: boolean;
 }
 
 /**
@@ -59,7 +65,11 @@ export const currentViewer = cache(async (): Promise<Viewer | null> => {
     subject: session.user.id,
     email: session.user.email,
   });
-  return { userId, email: session.user.email };
+  return {
+    userId,
+    email: session.user.email,
+    twoFactorEnabled: session.user.twoFactorEnabled === true,
+  };
 });
 
 /** Sends an unauthenticated visitor to sign in rather than to an empty page. */

@@ -4,6 +4,12 @@ import { BrandMark } from "./primitives";
 export interface AppShellProps {
   /** Who is signed in. Quiet on purpose — it answers a question, it is not a menu. */
   account?: string;
+  /**
+   * Where the signed-in person manages their own account. Optional because not
+   * every host has such a page; when given, the account stops being a label and
+   * becomes the way to reach it, which is the only route a settings page needs.
+   */
+  accountHref?: string;
   children: ReactNode;
   languageLabel: string;
   localeLinks: readonly LocaleLink[];
@@ -36,6 +42,7 @@ export interface LocaleLink {
  */
 export function AppShell({
   account,
+  accountHref,
   children,
   languageLabel,
   localeLinks,
@@ -84,7 +91,15 @@ export function AppShell({
               </a>
             ))}
           </nav>
-          {account ? <span className="account">{account}</span> : null}
+          {account ? (
+            accountHref ? (
+              <a className="account" href={accountHref}>
+                {account}
+              </a>
+            ) : (
+              <span className="account">{account}</span>
+            )
+          ) : null}
         </div>
       </header>
 

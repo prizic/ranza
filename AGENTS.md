@@ -153,6 +153,20 @@ instance as Staff and then reaches a completely different set of rows — their 
 policies, not a widening of the Staff ones. ADR 0008 records that model, and
 every later Portal capability is expected to follow it.
 
+**Multi-factor authentication** closes the identity line of Phase 1. A second
+factor is a property of the account rather than of a membership (ADR 0010), so
+one enrolment covers both applications — `apps/operator-workspace` has the
+enrolment screen at `/{tr,en,ar}/security`, and `apps/guest-portal` answers the
+challenge without one. The secret sits beside the password hash, reached only by
+`ranza_auth`. Nothing can yet _require_ MFA, and there is no operator-assisted
+reset for a lost authenticator; ADR 0010 says where both belong.
+
+Phase 1 still has real gaps: white-label tokens and domains, Feature
+Configuration beyond on/off Property capabilities, notifications, files, tasks
+and integrations, and two of the four applications. The generic foundations stay
+unbuilt on purpose — blueprint section 13 forbids tables ahead of the workflows
+that need them.
+
 Next is the rest of blueprint Phase 2: Reservations, Folios, and the Portal
 capabilities of blueprint 4.3 that are specified but not built.
 

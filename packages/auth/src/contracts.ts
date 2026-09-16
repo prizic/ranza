@@ -6,3 +6,12 @@ export interface LinkRanzaUserInput {
   email: string;
   issuer?: string;
 }
+
+/**
+ * Label an authenticator app shows beside the code.
+ *
+ * The product name rather than a hostname, because the Workspace and the Portal
+ * are one identity across two origins (ADR 0005): a Staff Member enrolling once
+ * should see one entry, not two that look unrelated.
+ */
+export const TOTP_ISSUER = "Ranza";

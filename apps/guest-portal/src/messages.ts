@@ -35,6 +35,10 @@ export interface Messages {
   signIn: string;
   signingIn: string;
   signInFailed: string;
+  challengeSummary: string;
+  code: string;
+  verify: string;
+  challengeFailed: string;
 
   stayType: Record<OwnStay["stayType"], string>;
   stayStatus: Record<OwnStay["status"], string>;
@@ -66,6 +70,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     signIn: "Oturum aç",
     signingIn: "Açılıyor…",
     signInFailed: "E-posta veya parola hatalı.",
+    challengeSummary:
+      "Kimlik doğrulama uygulamanızdaki kodu veya bir yedek kodu girin.",
+    code: "Kod",
+    verify: "Doğrula",
+    challengeFailed: "Kod geçerli değil.",
 
     stayType: { guest: "Misafir", resident: "Sakin" },
     stayStatus: {
@@ -105,6 +114,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     signIn: "Sign in",
     signingIn: "Signing in…",
     signInFailed: "That email and password did not match.",
+    challengeSummary:
+      "Enter the code from your authenticator app, or one of your backup codes.",
+    code: "Code",
+    verify: "Verify",
+    challengeFailed: "That code is not valid.",
 
     stayType: { guest: "Guest", resident: "Resident" },
     stayStatus: {
@@ -143,6 +157,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     signIn: "تسجيل الدخول",
     signingIn: "جارٍ تسجيل الدخول…",
     signInFailed: "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+    challengeSummary:
+      "أدخل الرمز من تطبيق المصادقة، أو أحد رموز النسخ الاحتياطي.",
+    code: "الرمز",
+    verify: "تحقّق",
+    challengeFailed: "هذا الرمز غير صالح.",
 
     stayType: { guest: "ضيف", resident: "مقيم" },
     stayStatus: {

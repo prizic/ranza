@@ -32,7 +32,6 @@ export default async function SignInPage({
         </p>
 
         <h1>{copy.signInTitle}</h1>
-        <p>{copy.signInSummary}</p>
 
         <SignInForm copy={copy} redirectTo={today} />
 

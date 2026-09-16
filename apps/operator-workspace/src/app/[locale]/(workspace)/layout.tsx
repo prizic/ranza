@@ -37,6 +37,10 @@ export default async function WorkspaceLayout({
   return (
     <AppShell
       account={viewer.email}
+      // Account security is not an entitled capability — it belongs to the
+      // person, not the Organization — so it is reached through the account
+      // rather than added to navigation, which lists only what was bought.
+      accountHref={localizeHref(locale, "security")}
       languageLabel={copy.languageLabel}
       localeLinks={supportedLocales.map((supported) => ({
         current: supported === locale,

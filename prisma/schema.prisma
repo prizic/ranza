@@ -222,13 +222,38 @@ model AuthUser {
   email         String    @unique
   emailVerified Boolean   @default(false)
   image         String?
+  /// Set by Better Auth only after a TOTP code has been verified, never on
+  /// enrolment — an unverified secret must not be able to lock anyone out.
+  twoFactorEnabled Boolean @default(false)
   createdAt     DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt     DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
 
-  sessions AuthSession[]
-  accounts AuthAccount[]
+  sessions  AuthSession[]
+  accounts  AuthAccount[]
+  twoFactor AuthTwoFactor[]
 
   @@map("auth_user")
+}
+
+/// The second factor: a TOTP secret and single-use backup codes.
+///
+/// The most sensitive table in the system after auth_account. Better Auth
+/// encrypts `secret` and `backupCodes` with BETTER_AUTH_SECRET before they are
+/// stored, so reading the row is not immediately enough — but the tenant query
+/// path is granted nothing here regardless, exactly as with password hashes.
+model AuthTwoFactor {
+  id                      String    @id
+  secret                  String
+  backupCodes             String
+  userId                  String
+  verified                Boolean   @default(true)
+  failedVerificationCount Int       @default(0)
+  lockedUntil             DateTime? @db.Timestamptz(6)
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId], map: "auth_two_factor_user_idx")
+  @@map("auth_two_factor")
 }
 
 model AuthSession {

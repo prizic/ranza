@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { AUTH_ISSUER, type LinkRanzaUserInput } from "./contracts";
+import { twoFactor } from "better-auth/plugins";
+import { AUTH_ISSUER, TOTP_ISSUER, type LinkRanzaUserInput } from "./contracts";
 import type { AuthDeps } from "./ports";
 
 /**
@@ -25,6 +26,20 @@ export function createAuthModule(deps: AuthDeps) {
     session: { modelName: "authSession" },
     account: { modelName: "authAccount" },
     verification: { modelName: "authVerification" },
+    plugins: [
+      twoFactor({
+        // Shown in the authenticator app beside the code, so it has to be the
+        // product name rather than a hostname: a Staff Member with several
+        // accounts needs to know which entry is which.
+        issuer: TOTP_ISSUER,
+        // Left at its default of false, deliberately. Enrolment writes the
+        // secret with verified = false and does NOT set twoFactorEnabled; only
+        // a correct code does both. A mis-scanned QR therefore costs a retry
+        // rather than an account, which is the failure mode MFA actually has.
+        skipVerificationOnEnable: false,
+        schema: { twoFactor: { modelName: "authTwoFactor" } },
+      }),
+    ],
   });
 
   /**
