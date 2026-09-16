@@ -5,14 +5,14 @@ changing anything.
 
 ## Read first
 
-[`RANZA_PRODUCT_BLUEPRINT.md`](RANZA_PRODUCT_BLUEPRINT.md) is the source of
+[`RANZA_PRODUCT_BLUEPRINT.md`](docs/RANZA_PRODUCT_BLUEPRINT.md) is the source of
 truth for product scope, domain language, and architecture. Section 15 lists the
 rules agents must follow; section 2 defines the canonical vocabulary. This file
 does not repeat them — it covers what the blueprint cannot know about this repo.
 
 Authority order (blueprint section 16), highest first:
 
-1. `RANZA_PRODUCT_BLUEPRINT.md`
+1. `docs/RANZA_PRODUCT_BLUEPRINT.md`
 2. `docs/adr/` — approved decisions
 3. Module or release specifications
 4. The active implementation issue

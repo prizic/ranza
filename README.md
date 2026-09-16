@@ -4,7 +4,7 @@ Ranza is a multilingual, modular, white-label accommodation and hospitality ERP
 delivered as one multi-tenant SaaS platform. Organizations operate one or more
 Properties and subscribe to capabilities through plans and Entitlements.
 
-[`RANZA_PRODUCT_BLUEPRINT.md`](RANZA_PRODUCT_BLUEPRINT.md) is the source of truth
+[`RANZA_PRODUCT_BLUEPRINT.md`](docs/RANZA_PRODUCT_BLUEPRINT.md) is the source of truth
 for product scope, domain language, and architecture. Read it before planning or
 changing anything here.
 

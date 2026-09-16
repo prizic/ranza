@@ -1,5 +1,5 @@
 /**
- * Enforces RANZA_PRODUCT_BLUEPRINT.md section 9.8 module tiers:
+ * Enforces docs/RANZA_PRODUCT_BLUEPRINT.md section 9.8 module tiers:
  *
  *   packages/platform/*  host-agnostic reusable modules (finance, inventory, ...)
  *   packages/ranza/*     Ranza domain modules (accommodation, reservations, ...)
