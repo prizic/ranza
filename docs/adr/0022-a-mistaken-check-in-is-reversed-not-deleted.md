@@ -7,6 +7,8 @@ so the mechanism described below did not work. Corrected in place below; the
 decision itself is unchanged.
 Amended: 2026-09-16 — withdrawing a check-in now closes the Folio it opened,
 and a backfill closes the ones earlier withdrawals left behind.
+Amended: 2026-09-17 — the Operator Workspace offers it, and the arrivals list
+gained a second way onto it so that a late arrival's check-in can be reached.
 
 ## Context
 
@@ -197,6 +199,25 @@ arrival is a fact and its withdrawal is not, and the first consumer of
 anything telling it. Publishing the correction is cheaper than remembering to
 add it later.
 
-No screen offers this yet. It is reachable through the module, deliberately: a
-front desk needs a confirmation step and a reason field, and that is an interface
-decision (ADR 0013) rather than something to bolt onto the arrivals table.
+### The arrivals list is where it is offered, and a Stay is a second way onto it
+
+A screen offers this now: a row that is checked in carries the status badge it
+always did and, beside it, a control that opens a dialog asking for the reason
+this decision already required. Not a menu — a row still has one thing to do —
+and not a confirmation without a field, which would be a speed bump rather than
+the record blueprint 4.4 asks for. The dialog is the interface decision ADR 0013
+holds, taken now rather than bolted onto the table.
+
+Offering it needed the list to change, and the reason is worth keeping. The
+arrivals list was built from the Reservation's planned dates, so a late arrival
+— somebody due yesterday, checked in this morning — left the list the moment
+they arrived: every clause that kept them on it required them not to be
+`checked_in`. A mistake made at 09:00 was unreachable at 09:01, on the one
+screen that exists to reach it. So a Stay that began today is a second way onto
+the list, whatever the Reservation planned, and `Arrival` carries the Stay it
+belongs to — because this decision withdraws a Stay and a row that names only a
+Reservation cannot ask for one.
+
+The window is still the Property's day. A check-in noticed tomorrow is not on
+this screen and is not meant to be; the Reservation timeline (blueprint 18.6) is
+where a Stay is reached after the day it began, and it is not built.
