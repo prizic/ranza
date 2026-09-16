@@ -23,36 +23,19 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
 
-  # The migrations and schema.prisma have to say the same thing. They drifted
-  # once already: three partial indexes lived only in migration SQL, so Prisma
-  # could not see them and the next `migrate dev` would have dropped all three
-  # (ADR 0001). A claim in a document did not catch that; this does.
+  # Everything that needs a real PostgreSQL. Both halves were only ever run by
+  # hand before, which for the pgTAP suites means the five gates of blueprint
+  # 3.5 were verified when somebody remembered to.
   #
-  # `--from-migrations` replays every migration into the shadow database, so
-  # this compares what the migrations actually produce against what the schema
-  # says — not two files that happen to be edited together.
+  # `docker compose` rather than a service container, because the suites need
+  # pgTAP and no official image ships it — docker/postgres is the image
+  # `pnpm db:up` already builds, so CI and a developer's machine run the same
+  # database rather than two that are merely similar.
   database:
     runs-on: ubuntu-latest
-    services:
-      # Major version pinned to the hosted database's. A predicate normalised
-      # differently by another major would make this job disagree with
-      # production about whether there is drift.
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: ranza
-          POSTGRES_PASSWORD: ranza
-          POSTGRES_DB: ranza_shadow
-        ports:
-          - 54322:5432
-        options: >-
-          --health-cmd "pg_isready -U ranza"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
     env:
-      # Dropped and recreated by the command. A throwaway database on a
-      # throwaway runner, which is the only place a default like this is safe.
+      # Dropped and recreated by db:drift, which refuses any host that is not
+      # local. A throwaway database on a throwaway runner.
       SHADOW_DATABASE_URL: postgresql://ranza:ranza@localhost:54322/ranza_shadow
     steps:
       - uses: actions/checkout@v4
@@ -64,4 +47,17 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm db:up
+      - run: pnpm db:setup
+
+      # The five gates, the append-only rules, and the policies. A suite that
+      # runs nowhere is a suite that is true until somebody changes it.
+      - run: pnpm db:test
+
+      # Do the migrations and schema.prisma still say the same thing? They
+      # drifted once: three partial indexes lived only in migration SQL, so
+      # Prisma could not see them and the next `migrate dev` would have dropped
+      # all three (ADR 0001). `--from-migrations` replays every migration into
+      # the shadow database, so this compares what they produce against what
+      # the schema says — not two files that happen to be edited together.
       - run: pnpm db:drift
