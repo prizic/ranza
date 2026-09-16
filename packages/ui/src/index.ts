@@ -47,9 +47,20 @@ export {
   CardHeader,
   CardTitle,
 } from "./components/ui/card";
+export {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./components/ui/dialog";
 export { Input } from "./components/ui/input";
 export { Label } from "./components/ui/label";
 export { Separator } from "./components/ui/separator";
+export { Textarea } from "./components/ui/textarea";
 export { Skeleton } from "./components/ui/skeleton";
 export {
   Table,

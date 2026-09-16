@@ -63,6 +63,27 @@ export interface Messages {
   checkedIn: string;
   unitUnavailable: string;
   checkInRefused: string;
+
+  /**
+   * Withdrawing a check-in that should not have happened (ADR 0022).
+   *
+   * `undoCheckInFor` names the Guest, so a list of identical buttons is
+   * distinguishable to a screen reader. It is interpolated after a postposition
+   * in Turkish and Arabic, never into an inflected position, and the name
+   * arrives already isolated.
+   */
+  undoCheckIn: string;
+  undoingCheckIn: string;
+  undoCheckInFor: string;
+  undoCheckInTitle: string;
+  undoCheckInSummary: string;
+  keepCheckIn: string;
+  reason: string;
+  reasonHint: string;
+  reasonTooShort: string;
+  reasonTooLong: string;
+  undoCheckInRefused: string;
+  stayHasCharges: string;
   stayType: Record<"guest" | "resident", string>;
   unitType: Record<"room" | "bed" | "apartment" | "suite", string>;
   reservationStatus: Record<
@@ -216,6 +237,22 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkedIn: "Giriş yapıldı",
     unitUnavailable: "Bu birim seçilen tarihlerde dolu.",
     checkInRefused: "Bu rezervasyon için giriş yapılamıyor.",
+    undoCheckIn: "Girişi geri al",
+    undoingCheckIn: "Geri alınıyor",
+    undoCheckInFor: "{guest} için girişi geri al",
+    undoCheckInTitle: "Bu giriş geri alınsın mı?",
+    undoCheckInSummary:
+      "Konaklama iptal edilir ve rezervasyon yeniden giriş yapılabilir duruma döner. Hiçbir kayıt silinmez; geri alınan giriş kayıtta kalır.",
+    keepCheckIn: "Girişi koru",
+    reason: "Gerekçe",
+    reasonHint: "Geri alma kaydıyla birlikte saklanır.",
+    reasonTooShort:
+      "{min, plural, other {En az # karakterlik bir gerekçe gerekiyor.}}",
+    reasonTooLong:
+      "{max, plural, other {Gerekçe en fazla # karakter olabilir.}}",
+    undoCheckInRefused: "Bu giriş geri alınamıyor.",
+    stayHasCharges:
+      "Bu konaklamaya tutarlar işlendi; artık gerçekleşmiş sayılır ve giriş geri alınamaz. Tutarları Finans'ta düzeltin.",
     stayType: { guest: "Misafir", resident: "Sakin" },
     unitType: {
       room: "Oda",
@@ -394,6 +431,22 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkedIn: "Checked in",
     unitUnavailable: "That Unit is occupied for those nights.",
     checkInRefused: "That Reservation cannot be checked in.",
+    undoCheckIn: "Undo check-in",
+    undoingCheckIn: "Undoing",
+    undoCheckInFor: "Undo check-in for {guest}",
+    undoCheckInTitle: "Undo this check-in?",
+    undoCheckInSummary:
+      "The Stay is cancelled and the Reservation becomes arrivable again. Nothing is deleted — the withdrawn check-in stays on the record.",
+    keepCheckIn: "Keep check-in",
+    reason: "Reason",
+    reasonHint: "Recorded with the withdrawal and kept.",
+    reasonTooShort:
+      "{min, plural, one {A reason of at least # character is needed.} other {A reason of at least # characters is needed.}}",
+    reasonTooLong:
+      "{max, plural, one {A reason cannot be longer than # character.} other {A reason cannot be longer than # characters.}}",
+    undoCheckInRefused: "That check-in cannot be withdrawn.",
+    stayHasCharges:
+      "Charges have been posted to this Stay, so it counts as having happened and the check-in can't be undone. Correct the charges in Finance.",
     stayType: { guest: "Guest", resident: "Resident" },
     unitType: {
       room: "Room",
@@ -569,6 +622,22 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkedIn: "تم تسجيل الوصول",
     unitUnavailable: "هذه الوحدة محجوزة في تلك الليالي.",
     checkInRefused: "لا يمكن تسجيل الوصول لهذا الحجز.",
+    undoCheckIn: "التراجع عن تسجيل الوصول",
+    undoingCheckIn: "جارٍ التراجع",
+    undoCheckInFor: "التراجع عن تسجيل الوصول لـ {guest}",
+    undoCheckInTitle: "هل تريد التراجع عن تسجيل الوصول؟",
+    undoCheckInSummary:
+      "تُلغى الإقامة ويعود الحجز قابلاً لتسجيل الوصول من جديد. لا يُحذف شيء — يبقى تسجيل الوصول المسحوب في السجل.",
+    keepCheckIn: "إبقاء تسجيل الوصول",
+    reason: "السبب",
+    reasonHint: "يُحفَظ مع سجل التراجع.",
+    reasonTooShort:
+      "{min, plural, zero {يلزم سبب من حرف واحد على الأقل.} one {يلزم سبب من حرف واحد على الأقل.} two {يلزم سبب من حرفين على الأقل.} few {يلزم سبب من # أحرف على الأقل.} many {يلزم سبب من # حرفًا على الأقل.} other {يلزم سبب من # حرف على الأقل.}}",
+    reasonTooLong:
+      "{max, plural, zero {لا يمكن أن يزيد السبب على حرف واحد.} one {لا يمكن أن يزيد السبب على حرف واحد.} two {لا يمكن أن يزيد السبب على حرفين.} few {لا يمكن أن يزيد السبب على # أحرف.} many {لا يمكن أن يزيد السبب على # حرفًا.} other {لا يمكن أن يزيد السبب على # حرف.}}",
+    undoCheckInRefused: "لا يمكن التراجع عن تسجيل الوصول هذا.",
+    stayHasCharges:
+      "سُجِّلت مبالغ على هذه الإقامة، لذلك تُعدّ قد حدثت فعلًا ولا يمكن التراجع عن تسجيل الوصول. صحِّح المبالغ من قسم المالية.",
     stayType: { guest: "ضيف", resident: "مقيم" },
     unitType: {
       room: "غرفة",

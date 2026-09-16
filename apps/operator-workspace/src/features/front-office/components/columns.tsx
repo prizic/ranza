@@ -13,6 +13,7 @@ import { DataTableColumnHeader, StatusBadge, type StatusTone } from "@ranza/ui";
 import { formatDate, type SupportedLocale } from "@ranza/i18n";
 import { useSortLabels } from "../../../lib/table-labels";
 import { CheckInAction, CheckOutAction } from "./check-in-action";
+import { UndoCheckInDialog } from "./undo-check-in-dialog";
 
 /**
  * `meta.title` is not decoration: the column menu and the search placeholder
@@ -133,12 +134,30 @@ export function useArrivalColumns(
             reservationId={row.original.reservationId}
           />
         ) : (
-          <div className="flex justify-end">
+          <div className="flex items-center justify-end gap-1">
             <StatusBadge
               icon={RESERVATION_ICON[row.original.status]}
               label={t(`reservationStatus.${row.original.status}`)}
               tone={RESERVATION_TONE[row.original.status]}
             />
+            {/* The badge stays, and the action sits beside it: a state that is
+                only legible from the control offered next to it is a state
+                carried by the control (blueprint 18.5).
+
+                Offered on every row that still names an in-house Stay, not only
+                on the ones that would succeed. Whether charges exist is
+                answered by a trigger in the database for the reason ADR 0022
+                gives, and asking the same question here to decide whether to
+                draw a button would be the weaker of the two — and would hide
+                the one refusal a front desk can act on. */}
+            {row.original.stayId ? (
+              <UndoCheckInDialog
+                guestName={row.original.guestName}
+                locale={locale}
+                stayId={row.original.stayId}
+                unitName={row.original.unitName}
+              />
+            ) : null}
           </div>
         ),
     },

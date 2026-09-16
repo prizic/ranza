@@ -20,6 +20,27 @@ export function directionFor(locale: SupportedLocale): "ltr" | "rtl" {
   return locale === "ar" ? "rtl" : "ltr";
 }
 
+/**
+ * Isolates a value whose direction is not the sentence's.
+ *
+ * A Guest's name is data, and in three languages it arrives in either script.
+ * Dropped into an Arabic sentence, a Latin name — and worse, a name ending in a
+ * bracket, a hyphen or a number — is reordered by the bidirectional algorithm
+ * against the text around it: "Undo check-in for Ada Lovelace (VIP)" renders
+ * with the bracket at the wrong end, and a name containing both scripts can
+ * rearrange the sentence itself.
+ *
+ * `<bdi>` does this in rendered markup and is the right answer there. This is
+ * for the places where there is no element to reach for — an `aria-label`, a
+ * `title`, a document title — which are strings and carry the isolate
+ * characters instead: U+2068 FIRST STRONG ISOLATE opens, U+2069 POP
+ * DIRECTIONAL ISOLATE closes. Assistive technology and the layout engine both
+ * honour them; they render as nothing.
+ */
+export function isolate(value: string): string {
+  return `\u2068${value}\u2069`;
+}
+
 export function localizeHref(
   locale: SupportedLocale,
   pathname: string,

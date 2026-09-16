@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { isSupportedLocale } from "@ranza/i18n";
-import { UnitUnavailableError } from "@ranza/reservations";
+import {
+  REVERSAL_REASON,
+  StayHasChargesError,
+  UnitUnavailableError,
+} from "@ranza/reservations";
 import { getComposition } from "./composition";
 import { currentViewer } from "./viewer";
 
@@ -82,6 +86,67 @@ export async function checkOutStay(
     await getComposition().reservations.checkOut(viewer.userId, stayId);
   } catch {
     return "refused";
+  }
+
+  revalidateFrontDesk(locale);
+  return "done";
+}
+
+/**
+ * What withdrawing a check-in can come back as.
+ *
+ * `charges` is the one refusal a front desk can act on, and it is separate for
+ * that reason alone: everything else a withdrawal can fail on — out of reach,
+ * already departed, already withdrawn, never happened, no session — is
+ * `refused`, because telling them apart would confirm that a Stay the viewer
+ * cannot see is there (ADR 0022).
+ *
+ * The two reason outcomes are about the field rather than the Stay, and saying
+ * "that cannot be withdrawn" to somebody who typed two characters would send
+ * them looking for a problem with the Guest.
+ */
+export type ReverseCheckInOutcome =
+  "idle" | "done" | "charges" | "reasonTooShort" | "reasonTooLong" | "refused";
+
+/**
+ * Withdrawing a check-in that should not have happened (ADR 0022).
+ *
+ * Same funnel as everything else here, and the same absence of an application
+ * check: whether this viewer may withdraw this Stay is decided by the policy on
+ * `stays`, and whether it may be withdrawn at all is decided by the trigger
+ * that refuses one carrying charges — a claim about money, made in the database
+ * where an application defect cannot skip it.
+ *
+ * The reason is measured here as well as in the module. Not a second rule: the
+ * bounds are the module's own, published so this can tell somebody which way
+ * they missed. Without it both lengths arrive as the module's generic refusal
+ * and the screen says the Stay is the problem.
+ */
+export async function reverseCheckIn(
+  _previous: ReverseCheckInOutcome,
+  form: FormData,
+): Promise<ReverseCheckInOutcome> {
+  const viewer = await currentViewer();
+  if (!viewer) return "refused";
+
+  const stayId = String(form.get("stay") ?? "");
+  const locale = String(form.get("locale") ?? "");
+  if (!isSupportedLocale(locale)) return "refused";
+
+  // Trimmed, because that is what the module stores and therefore what it
+  // measures. A field of spaces is a field nobody filled in.
+  const reason = String(form.get("reason") ?? "").trim();
+  if (reason.length < REVERSAL_REASON.min) return "reasonTooShort";
+  if (reason.length > REVERSAL_REASON.max) return "reasonTooLong";
+
+  try {
+    await getComposition().reservations.reverseCheckIn(
+      viewer.userId,
+      stayId,
+      reason,
+    );
+  } catch (error) {
+    return error instanceof StayHasChargesError ? "charges" : "refused";
   }
 
   revalidateFrontDesk(locale);
