@@ -1,12 +1,12 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
 import { CircleCheck, Lock } from "lucide-react";
 import type { FolioSummary } from "@ranza/folios";
 import { DataTableColumnHeader, StatusBadge } from "@ranza/ui";
 import { formatMoney, type SupportedLocale } from "@ranza/i18n";
-import type { Messages } from "../../../messages";
-import { sortLabels } from "../../../lib/table-labels";
+import { useSortLabels } from "../../../lib/table-labels";
 
 /**
  * `meta.title` is not decoration: the column menu and the search placeholder
@@ -20,20 +20,21 @@ import { sortLabels } from "../../../lib/table-labels";
  * dynamic and nothing renders it until somebody asks for it. The route knows
  * the locale and the Property; appending the id is the client's share.
  */
-export function folioColumns(
-  copy: Messages,
+export function useFolioColumns(
   locale: SupportedLocale,
   folioHref: string,
 ): ColumnDef<FolioSummary, unknown>[] {
+  const t = useTranslations();
+  const sort = useSortLabels();
   return [
     {
       accessorKey: "guestName",
-      meta: { title: copy.guest },
+      meta: { title: t("guest") },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          labels={sortLabels(copy)}
-          title={copy.guest}
+          labels={sort}
+          title={t("guest")}
         />
       ),
       cell: ({ row }) => (
@@ -55,12 +56,12 @@ export function folioColumns(
     },
     {
       accessorKey: "lineCount",
-      meta: { title: copy.lines },
+      meta: { title: t("lines") },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          labels={sortLabels(copy)}
-          title={copy.lines}
+          labels={sort}
+          title={t("lines")}
         />
       ),
       cell: ({ row }) => (
@@ -71,30 +72,30 @@ export function folioColumns(
     },
     {
       accessorKey: "status",
-      meta: { title: copy.status },
+      meta: { title: t("status") },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          labels={sortLabels(copy)}
-          title={copy.status}
+          labels={sort}
+          title={t("status")}
         />
       ),
       cell: ({ row }) => (
         <StatusBadge
           icon={row.original.status === "open" ? CircleCheck : Lock}
-          label={copy.folioStatus[row.original.status]}
+          label={t(`folioStatus.${row.original.status}`)}
           tone={row.original.status === "open" ? "success" : "neutral"}
         />
       ),
     },
     {
       accessorKey: "balanceMinor",
-      meta: { title: copy.balance },
+      meta: { title: t("balance") },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          labels={sortLabels(copy)}
-          title={copy.balance}
+          labels={sort}
+          title={t("balance")}
         />
       ),
       // Aligned to the end rather than the right, so the column mirrors in

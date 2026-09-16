@@ -10,7 +10,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@ranza/ui";
-import { messages } from "../../../messages";
+import { getTranslations } from "next-intl/server";
 import { ALL_SCREENS } from "../../../lib/screens";
 import {
   entitledProperties,
@@ -41,7 +41,7 @@ export default async function WorkspaceLayout({
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
 
-  const copy = messages[locale];
+  const t = await getTranslations();
   const viewer = await requireViewer(locale);
 
   // Every destination is asked about separately, because each is a separate
@@ -80,14 +80,14 @@ export default async function WorkspaceLayout({
   const [first] = properties;
 
   const account = (
-    <AccountMenu email={viewer.email} label={copy.account} name={viewer.email}>
+    <AccountMenu email={viewer.email} label={t("account")} name={viewer.email}>
       <DropdownMenuItem asChild>
         {/* Account security is not an entitled capability — it belongs to the
             person, not the Organization — so it is reached through the account
             rather than added to the rail, which lists only what was bought. */}
         <a href={localizeHref(locale, "security")}>
           <ShieldCheck aria-hidden="true" className="size-4" />
-          {copy.security}
+          {t("security")}
         </a>
       </DropdownMenuItem>
 
@@ -97,7 +97,7 @@ export default async function WorkspaceLayout({
           again — so it lives beside the account rather than costing three
           permanent controls in a bar that has real work to show. */}
       <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-        {copy.languageLabel}
+        {t("languageLabel")}
       </DropdownMenuLabel>
       {supportedLocales.map((supported) => (
         <DropdownMenuItem asChild key={supported}>
@@ -115,7 +115,7 @@ export default async function WorkspaceLayout({
                   : "size-4 shrink-0 invisible"
               }
             />
-            {copy.languageName[supported]}
+            {t(`languageName.${supported}`)}
           </a>
         </DropdownMenuItem>
       ))}
@@ -126,9 +126,8 @@ export default async function WorkspaceLayout({
     <AppShell
       bottomNav={
         <WorkspaceBottomNav
-          copy={copy}
           entitled={entitled}
-          label={copy.mainNavigation}
+          label={t("mainNavigation")}
           locale={locale}
           root={root}
         />
@@ -139,7 +138,7 @@ export default async function WorkspaceLayout({
             <div className="flex items-center gap-2">
               {first ? (
                 <PropertySwitcher
-                  label={copy.propertySwitcher}
+                  label={t("propertySwitcher")}
                   organization={first.organizationName}
                   slots={properties.map((property) => ({
                     href: `${root}?property=${property.propertyId}`,
@@ -153,7 +152,6 @@ export default async function WorkspaceLayout({
               <div className="md:hidden">{account}</div>
             </div>
           }
-          copy={copy}
           entitled={entitled}
           locale={locale}
         />
@@ -162,18 +160,17 @@ export default async function WorkspaceLayout({
         <WorkspaceRail
           actions={account}
           brand={<BrandMark className="size-7 text-primary" />}
-          copy={copy}
           entitled={entitled}
           labels={{
-            back: copy.back,
-            home: copy.productName,
-            mainNavigation: copy.mainNavigation,
+            back: t("back"),
+            home: t("productName"),
+            mainNavigation: t("mainNavigation"),
           }}
           locale={locale}
           root={root}
         />
       }
-      skipLabel={copy.skip}
+      skipLabel={t("skip")}
     >
       {/* Here rather than in the root layout, so sign-in and every public page
           carry no tenant cache at all. Scoped to the viewer: a different Staff

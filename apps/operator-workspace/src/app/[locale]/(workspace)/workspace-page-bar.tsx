@@ -2,11 +2,11 @@
 
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { AppPageBar, SectionTabs } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
-import { workspaceNav } from "../../../lib/nav";
-import { pageTitleFor, workspacePageTitles } from "../../../lib/page-titles";
-import type { Messages } from "../../../messages";
+import { useWorkspaceNav } from "../../../lib/nav";
+import { pageTitleFor, useWorkspacePageTitles } from "../../../lib/page-titles";
 
 /**
  * Resolves the page's own title from the route.
@@ -18,17 +18,18 @@ import type { Messages } from "../../../messages";
  */
 export function WorkspacePageBar({
   action,
-  copy,
   entitled,
   locale,
 }: {
   action?: ReactNode;
-  copy: Messages;
   entitled: readonly string[];
   locale: SupportedLocale;
 }) {
   const pathname = usePathname();
-  const match = pageTitleFor(pathname, workspacePageTitles(locale, copy));
+  const titles = useWorkspacePageTitles(locale);
+  const entries = useWorkspaceNav(locale, entitled);
+  const t = useTranslations();
+  const match = pageTitleFor(pathname, titles);
 
   if (!match) return null;
 
@@ -36,12 +37,7 @@ export function WorkspacePageBar({
     <AppPageBar
       {...(action === undefined ? {} : { action })}
       {...(match.parent === undefined ? {} : { parent: match.parent })}
-      tabs={
-        <SectionTabs
-          entries={workspaceNav(locale, copy, entitled)}
-          label={copy.sections}
-        />
-      }
+      tabs={<SectionTabs entries={entries} label={t("sections")} />}
       title={match.title}
     />
   );

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Button, Fact, FactList, Field, FormError, Input } from "@ranza/ui";
-import type { Messages } from "../../../../messages";
 
 /**
  * Turning a second factor on, and off again.
@@ -18,13 +18,8 @@ import type { Messages } from "../../../../messages";
  * and every authenticator app accepts a typed key; the `otpauth:` link covers
  * the phone case, where tapping it opens the app directly.
  */
-export function TwoFactorPanel({
-  copy,
-  enabled,
-}: {
-  copy: Messages;
-  enabled: boolean;
-}) {
+export function TwoFactorPanel({ enabled }: { enabled: boolean }) {
+  const t = useTranslations();
   const router = useRouter();
   const [enrolment, setEnrolment] = useState<{
     uri: string;
@@ -50,7 +45,7 @@ export function TwoFactorPanel({
     setPending(false);
 
     if (!response.ok) {
-      setFailed(copy.enrolFailed);
+      setFailed(t("enrolFailed"));
       return;
     }
 
@@ -80,7 +75,7 @@ export function TwoFactorPanel({
     setPending(false);
 
     if (!response.ok) {
-      setFailed(copy.challengeFailed);
+      setFailed(t("challengeFailed"));
       return;
     }
 
@@ -104,7 +99,7 @@ export function TwoFactorPanel({
     setPending(false);
 
     if (!response.ok) {
-      setFailed(copy.enrolFailed);
+      setFailed(t("enrolFailed"));
       return;
     }
 
@@ -116,11 +111,11 @@ export function TwoFactorPanel({
   if (enrolment) {
     return (
       <section className="max-w-prose pt-7">
-        <h2 className="text-step-1 font-normal">{copy.twoFactor}</h2>
-        <p className="mt-2 text-muted-foreground">{copy.scanHint}</p>
+        <h2 className="text-step-1 font-normal">{t("twoFactor")}</h2>
+        <p className="mt-2 text-muted-foreground">{t("scanHint")}</p>
 
         <FactList>
-          <Fact label={copy.secretLabel}>
+          <Fact label={t("secretLabel")}>
             <code className="rounded-sm bg-secondary px-2 py-1 font-mono text-step--1 tracking-[0.08em] text-secondary-foreground">
               {enrolment.secret}
             </code>
@@ -129,12 +124,12 @@ export function TwoFactorPanel({
 
         <p className="mt-4">
           <a className="underline underline-offset-4" href={enrolment.uri}>
-            {copy.twoFactor}
+            {t("twoFactor")}
           </a>
         </p>
 
-        <h3 className="mt-8 text-step-0 font-medium">{copy.backupCodes}</h3>
-        <p className="mt-1 text-muted-foreground">{copy.backupCodesWarning}</p>
+        <h3 className="mt-8 text-step-0 font-medium">{t("backupCodes")}</h3>
+        <p className="mt-1 text-muted-foreground">{t("backupCodesWarning")}</p>
         <ul className="mt-3 grid list-none grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-2 p-0">
           {enrolment.backupCodes.map((code) => (
             <li key={code}>
@@ -146,7 +141,7 @@ export function TwoFactorPanel({
         </ul>
 
         <form className="mt-6 grid max-w-xs gap-4" onSubmit={confirm}>
-          <Field htmlFor="confirm-code" label={copy.code}>
+          <Field htmlFor="confirm-code" label={t("code")}>
             <Input
               autoComplete="one-time-code"
               id="confirm-code"
@@ -157,7 +152,7 @@ export function TwoFactorPanel({
           </Field>
           {error}
           <Button disabled={pending} type="submit">
-            {copy.verify}
+            {t("verify")}
           </Button>
         </form>
       </section>
@@ -166,19 +161,19 @@ export function TwoFactorPanel({
 
   return (
     <section className="max-w-prose pt-7">
-      <h2 className="text-step-1 font-normal">{copy.twoFactor}</h2>
+      <h2 className="text-step-1 font-normal">{t("twoFactor")}</h2>
       <p className="mt-2 text-muted-foreground">
         <strong className="text-foreground">
-          {enabled ? copy.twoFactorOn : copy.twoFactorOff}
+          {enabled ? t("twoFactorOn") : t("twoFactorOff")}
         </strong>{" "}
-        — {copy.twoFactorSummary}
+        — {t("twoFactorSummary")}
       </p>
 
       <form
         className="mt-6 grid max-w-xs gap-4"
         onSubmit={enabled ? turnOff : begin}
       >
-        <Field htmlFor="security-password" label={copy.confirmWithPassword}>
+        <Field htmlFor="security-password" label={t("confirmWithPassword")}>
           <Input
             autoComplete="current-password"
             id="security-password"
@@ -189,7 +184,7 @@ export function TwoFactorPanel({
         </Field>
         {error}
         <Button disabled={pending} type="submit">
-          {enabled ? copy.disable : copy.enable}
+          {enabled ? t("disable") : t("enable")}
         </Button>
       </form>
     </section>

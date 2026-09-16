@@ -278,11 +278,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Bu folyo kapalı. Satırlar olduğu gibi kalır; kapalı bir folyoya yeni satır işlenemez.",
 
     table: {
-      results: "{n} sonuç",
-      capped: "(son {n} / {of})",
+      results: "{n, plural, other {# sonuç}}",
+      capped: "(son {n, number} / {of, number})",
       cappedHint: "Arama ve filtreler yalnızca yüklenen satırlarda çalışır.",
       perPage: "Sayfa başına",
-      page: "Sayfa {n} / {of}",
+      page: "Sayfa {n, number} / {of, number}",
       first: "İlk sayfa",
       previous: "Önceki",
       next: "Sonraki",
@@ -295,7 +295,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       searchBy: "{columns} ara",
       selectAllRows: "Tüm satırları seç",
       selectRow: "Satırı seç",
-      selectedCount: "{n} seçili",
+      selectedCount: "{n, plural, other {# seçili}}",
       clearSelection: "Seçimi kaldır",
       noMatches: "Filtrelerle eşleşen sonuç yok.",
       noRows: "Henüz kayıt yok.",
@@ -455,11 +455,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       "This folio is closed. Its lines stay exactly as they are, and nothing further can be posted to it.",
 
     table: {
-      results: "{n} results",
-      capped: "(latest {n} of {of})",
+      results: "{n, plural, one {# result} other {# results}}",
+      capped: "(latest {n, number} of {of, number})",
       cappedHint: "Search and filters run over the loaded rows only.",
       perPage: "Per page",
-      page: "Page {n} of {of}",
+      page: "Page {n, number} of {of, number}",
       first: "First page",
       previous: "Previous",
       next: "Next",
@@ -472,7 +472,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       searchBy: "Search {columns}",
       selectAllRows: "Select all rows",
       selectRow: "Select row",
-      selectedCount: "{n} selected",
+      selectedCount: "{n, plural, other {# selected}}",
       clearSelection: "Clear selection",
       noMatches: "Nothing matches these filters.",
       noRows: "Nothing here yet.",
@@ -630,11 +630,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       "هذا الحساب مغلق. تبقى بنوده كما هي، ولا يمكن قيد أي شيء جديد عليه.",
 
     table: {
-      results: "{n} نتيجة",
-      capped: "(أحدث {n} من {of})",
+      results:
+        "{n, plural, zero {لا نتائج} one {نتيجة واحدة} two {نتيجتان} few {# نتائج} many {# نتيجة} other {# نتيجة}}",
+      capped: "(أحدث {n, number} من {of, number})",
       cappedHint: "البحث والفلاتر تعمل على الصفوف المحمّلة فقط.",
       perPage: "لكل صفحة",
-      page: "صفحة {n} من {of}",
+      page: "صفحة {n, number} من {of, number}",
       first: "الصفحة الأولى",
       previous: "السابق",
       next: "التالي",
@@ -647,7 +648,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       searchBy: "ابحث في {columns}",
       selectAllRows: "تحديد كل الصفوف",
       selectRow: "تحديد الصف",
-      selectedCount: "{n} محددة",
+      selectedCount:
+        "{n, plural, zero {لا شيء محدد} one {واحدة محددة} two {اثنتان محددتان} few {# محددة} many {# محددة} other {# محددة}}",
       clearSelection: "إلغاء التحديد",
       noMatches: "لا نتائج مطابقة للفلاتر.",
       noRows: "لا توجد بيانات بعد.",

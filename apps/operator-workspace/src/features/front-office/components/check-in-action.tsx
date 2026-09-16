@@ -1,13 +1,13 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { Button, FormError } from "@ranza/ui";
 import {
   checkInReservation,
   checkOutStay,
   type CheckInOutcome,
 } from "../../../server/front-office";
-import type { Messages } from "../../../messages";
 
 /**
  * The one action a row offers, as a form.
@@ -26,7 +26,6 @@ import type { Messages } from "../../../messages";
  */
 function RowAction({
   action,
-  copy,
   field,
   id,
   locale,
@@ -35,7 +34,6 @@ function RowAction({
   refusedLabel,
 }: {
   action: typeof checkInReservation;
-  copy: Messages;
   field: "reservation" | "stay";
   id: string;
   locale: string;
@@ -43,6 +41,7 @@ function RowAction({
   pendingLabel: string;
   refusedLabel: string;
 }) {
+  const t = useTranslations();
   const [outcome, act, pending] = useActionState<CheckInOutcome, FormData>(
     action,
     "idle",
@@ -50,7 +49,7 @@ function RowAction({
 
   const message =
     outcome === "unavailable"
-      ? copy.unitUnavailable
+      ? t("unitUnavailable")
       : outcome === "refused"
         ? refusedLabel
         : null;
@@ -74,47 +73,43 @@ function RowAction({
 }
 
 export function CheckInAction({
-  copy,
   locale,
   reservationId,
 }: {
-  copy: Messages;
   locale: string;
   reservationId: string;
 }) {
+  const t = useTranslations();
   return (
     <RowAction
       action={checkInReservation}
-      copy={copy}
       field="reservation"
       id={reservationId}
-      label={copy.checkIn}
+      label={t("checkIn")}
       locale={locale}
-      pendingLabel={copy.checkingIn}
-      refusedLabel={copy.checkInRefused}
+      pendingLabel={t("checkingIn")}
+      refusedLabel={t("checkInRefused")}
     />
   );
 }
 
 export function CheckOutAction({
-  copy,
   locale,
   stayId,
 }: {
-  copy: Messages;
   locale: string;
   stayId: string;
 }) {
+  const t = useTranslations();
   return (
     <RowAction
       action={checkOutStay}
-      copy={copy}
       field="stay"
       id={stayId}
-      label={copy.checkOut}
+      label={t("checkOut")}
       locale={locale}
-      pendingLabel={copy.checkingOut}
-      refusedLabel={copy.checkOutRefused}
+      pendingLabel={t("checkingOut")}
+      refusedLabel={t("checkOutRefused")}
     />
   );
 }

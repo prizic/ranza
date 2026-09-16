@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 import { IBM_Plex_Sans_Arabic } from "next/font/google";
 import { notFound } from "next/navigation";
 import { directionFor, isSupportedLocale, supportedLocales } from "@ranza/i18n";
-import { messages } from "../../messages";
+import { NextIntlClientProvider } from "next-intl";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 
 /**
  * One typeface for three scripts.
@@ -38,7 +39,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) return {};
-  return { title: messages[locale].productName };
+  const t = await getTranslations({ locale });
+  return { title: t("productName") };
 }
 
 export default async function LocaleLayout({
@@ -53,9 +55,18 @@ export default async function LocaleLayout({
   // a wrong language is harder to notice than a missing page.
   if (!isSupportedLocale(locale)) notFound();
 
+  // Tells next-intl which locale this render is for, so the pages beneath stay
+  // static. Without it every page that reads a string becomes dynamic, and
+  // generateStaticParams above would be prerendering nothing.
+  setRequestLocale(locale);
+
   return (
     <html className={plex.variable} dir={directionFor(locale)} lang={locale}>
-      <body>{children}</body>
+      <body>
+        {/* The catalogue crosses to the client once, here, rather than
+            being handed to each client component as a `copy` prop. */}
+        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+      </body>
     </html>
   );
 }

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
-import { messages } from "../../../../messages";
+import { getTranslations } from "next-intl/server";
 import { LiveArrivals } from "../../../../features/front-office/components/live-arrivals";
 import { frontOfficeKeys } from "../../../../features/front-office/query-keys";
 import { Hydrated, requestQueryClient } from "../../../providers/hydrate";
@@ -41,7 +41,7 @@ export default async function ArrivalsPage({
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
 
-  const copy = messages[locale];
+  const t = await getTranslations();
   const viewer = await currentViewer();
   const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
   const property = frontDeskProperty(properties, await searchParams);
@@ -49,8 +49,8 @@ export default async function ArrivalsPage({
   if (!property || !viewer) {
     return (
       <EmptyState
-        description={copy.noFrontDeskDescription}
-        title={copy.noFrontDeskTitle}
+        description={t("noFrontDeskDescription")}
+        title={t("noFrontDeskTitle")}
       />
     );
   }
@@ -76,10 +76,10 @@ export default async function ArrivalsPage({
   return (
     <>
       <p className="text-muted-foreground">
-        {copy.arrivalsAt} {property.propertyName}
+        {t("arrivalsAt")} {property.propertyName}
       </p>
       <Hydrated client={client}>
-        <LiveArrivals copy={copy} locale={locale} scope={scope} />
+        <LiveArrivals locale={locale} scope={scope} />
       </Hydrated>
     </>
   );

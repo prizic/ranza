@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
 import { EmptyState, PlannedScreen } from "@ranza/ui";
-import { messages } from "../../../../messages";
+import { getTranslations } from "next-intl/server";
 import { screenFor } from "../../../../lib/screens";
 import { entitledProperties } from "../../../../server/viewer";
 
@@ -26,7 +26,7 @@ export default async function Page({
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
 
-  const copy = messages[locale];
+  const t = await getTranslations();
   const screen = screenFor(SEGMENT);
   if (!screen) notFound();
 
@@ -41,8 +41,8 @@ export default async function Page({
   if (properties.length === 0) {
     return (
       <EmptyState
-        description={copy.notEntitledDescription}
-        title={copy.notEntitledTitle}
+        description={t("notEntitledDescription")}
+        title={t("notEntitledTitle")}
       />
     );
   }
@@ -51,10 +51,14 @@ export default async function Page({
     <PlannedScreen
       blueprintSection={screen.blueprint}
       handoverHref="https://github.com/prizic/ranza/blob/main/docs/handover/operator-workspace-screens.md"
-      handoverLabel={copy.handoverLabel}
-      heading={copy.planned}
-      summary={copy.screenSummary[SEGMENT] ?? ""}
-      title={copy.navigation[SEGMENT] ?? SEGMENT}
+      handoverLabel={t("handoverLabel")}
+      heading={t("planned")}
+      summary={
+        t.has(`screenSummary.${SEGMENT}`) ? t(`screenSummary.${SEGMENT}`) : ""
+      }
+      title={
+        t.has(`navigation.${SEGMENT}`) ? t(`navigation.${SEGMENT}`) : SEGMENT
+      }
     />
   );
 }

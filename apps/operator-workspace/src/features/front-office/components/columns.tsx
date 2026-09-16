@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   CalendarClock,
@@ -10,8 +11,7 @@ import {
 import type { Arrival, Departure } from "@ranza/reservations";
 import { DataTableColumnHeader, StatusBadge, type StatusTone } from "@ranza/ui";
 import { formatDate, type SupportedLocale } from "@ranza/i18n";
-import type { Messages } from "../../../messages";
-import { sortLabels } from "../../../lib/table-labels";
+import { useSortLabels } from "../../../lib/table-labels";
 import { CheckInAction, CheckOutAction } from "./check-in-action";
 
 /**
@@ -47,38 +47,39 @@ const RESERVATION_ICON = {
   checked_in: DoorOpen,
 } as const;
 
-export function arrivalColumns(
-  copy: Messages,
+export function useArrivalColumns(
   locale: SupportedLocale,
 ): ColumnDef<Arrival, unknown>[] {
+  const t = useTranslations();
+  const sort = useSortLabels();
   return [
     {
       accessorKey: "guestName",
-      meta: { title: copy.guest },
+      meta: { title: t("guest") },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          labels={sortLabels(copy)}
-          title={copy.guest}
+          labels={sort}
+          title={t("guest")}
         />
       ),
       cell: ({ row }) => (
         <div>
           <p className="font-medium">{row.original.guestName}</p>
           <p className="text-step--1 text-muted-foreground">
-            {copy.stayType[row.original.stayType]}
+            {t(`stayType.${row.original.stayType}`)}
           </p>
         </div>
       ),
     },
     {
       accessorKey: "startsOn",
-      meta: { title: copy.period },
+      meta: { title: t("period") },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          labels={sortLabels(copy)}
-          title={copy.period}
+          labels={sort}
+          title={t("period")}
         />
       ),
       cell: ({ row }) => (
@@ -94,19 +95,19 @@ export function arrivalColumns(
               </time>
             </>
           ) : (
-            <> · {copy.openEnded}</>
+            <> · {t("openEnded")}</>
           )}
         </p>
       ),
     },
     {
       accessorKey: "unitName",
-      meta: { title: copy.unit },
+      meta: { title: t("unit") },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          labels={sortLabels(copy)}
-          title={copy.unit}
+          labels={sort}
+          title={t("unit")}
         />
       ),
       cell: ({ row }) => (
@@ -115,20 +116,19 @@ export function arrivalColumns(
             {row.original.unitName}
           </span>
           <span className="block text-step--1 text-muted-foreground">
-            {copy.unitType[row.original.unitType]}
+            {t(`unitType.${row.original.unitType}`)}
           </span>
         </p>
       ),
     },
     {
       id: "action",
-      meta: { title: copy.action },
+      meta: { title: t("action") },
       enableHiding: false,
-      header: () => <span className="sr-only">{copy.action}</span>,
+      header: () => <span className="sr-only">{t("action")}</span>,
       cell: ({ row }) =>
         row.original.canCheckIn ? (
           <CheckInAction
-            copy={copy}
             locale={locale}
             reservationId={row.original.reservationId}
           />
@@ -136,7 +136,7 @@ export function arrivalColumns(
           <div className="flex justify-end">
             <StatusBadge
               icon={RESERVATION_ICON[row.original.status]}
-              label={copy.reservationStatus[row.original.status]}
+              label={t(`reservationStatus.${row.original.status}`)}
               tone={RESERVATION_TONE[row.original.status]}
             />
           </div>
@@ -145,19 +145,20 @@ export function arrivalColumns(
   ];
 }
 
-export function departureColumns(
-  copy: Messages,
+export function useDepartureColumns(
   locale: SupportedLocale,
 ): ColumnDef<Departure, unknown>[] {
+  const t = useTranslations();
+  const sort = useSortLabels();
   return [
     {
       accessorKey: "guestName",
-      meta: { title: copy.guest },
+      meta: { title: t("guest") },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          labels={sortLabels(copy)}
-          title={copy.guest}
+          labels={sort}
+          title={t("guest")}
         />
       ),
       cell: ({ row }) => (
@@ -169,19 +170,19 @@ export function departureColumns(
             {row.original.guestName || row.original.unitName}
           </p>
           <p className="text-step--1 text-muted-foreground">
-            {copy.stayType[row.original.stayType]}
+            {t(`stayType.${row.original.stayType}`)}
           </p>
         </div>
       ),
     },
     {
       accessorKey: "endsOn",
-      meta: { title: copy.departure },
+      meta: { title: t("departure") },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          labels={sortLabels(copy)}
-          title={copy.departure}
+          labels={sort}
+          title={t("departure")}
         />
       ),
       cell: ({ row }) => (
@@ -190,7 +191,7 @@ export function departureColumns(
           // The date is in the label, so the tone is never the only carrier of
           // "this one is late" (blueprint 18.5).
           label={`${day(row.original.endsOn, locale)} · ${
-            row.original.overdue ? copy.overdue : copy.onTime
+            row.original.overdue ? t("overdue") : t("onTime")
           }`}
           tone={row.original.overdue ? "warning" : "neutral"}
         />
@@ -198,12 +199,12 @@ export function departureColumns(
     },
     {
       accessorKey: "unitName",
-      meta: { title: copy.unit },
+      meta: { title: t("unit") },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          labels={sortLabels(copy)}
-          title={copy.unit}
+          labels={sort}
+          title={t("unit")}
         />
       ),
       cell: ({ row }) => (
@@ -212,22 +213,18 @@ export function departureColumns(
             {row.original.unitName}
           </span>
           <span className="block text-step--1 text-muted-foreground">
-            {copy.unitType[row.original.unitType]}
+            {t(`unitType.${row.original.unitType}`)}
           </span>
         </p>
       ),
     },
     {
       id: "action",
-      meta: { title: copy.action },
+      meta: { title: t("action") },
       enableHiding: false,
-      header: () => <span className="sr-only">{copy.action}</span>,
+      header: () => <span className="sr-only">{t("action")}</span>,
       cell: ({ row }) => (
-        <CheckOutAction
-          copy={copy}
-          locale={locale}
-          stayId={row.original.stayId}
-        />
+        <CheckOutAction locale={locale} stayId={row.original.stayId} />
       ),
     },
   ];

@@ -6,7 +6,7 @@ import {
   isSupportedLocale,
 } from "@ranza/i18n";
 import { EmptyState, Fact, FactList, PageHeader } from "@ranza/ui";
-import { messages } from "../../../../messages";
+import { getTranslations } from "next-intl/server";
 import {
   entitledProperties,
   TODAY_CAPABILITY,
@@ -35,15 +35,15 @@ export default async function TodayPage({
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
 
-  const copy = messages[locale];
+  const t = await getTranslations();
   const properties = await entitledProperties(TODAY_CAPABILITY);
   const [fallback] = properties;
 
   if (!fallback) {
     return (
       <EmptyState
-        description={copy.noPropertyDescription}
-        title={copy.noPropertyTitle}
+        description={t("noPropertyDescription")}
+        title={t("noPropertyTitle")}
       />
     );
   }
@@ -87,8 +87,8 @@ export default async function TodayPage({
       </PageHeader>
 
       <FactList>
-        <Fact label={copy.property}>{property.propertyName}</Fact>
-        <Fact label={copy.organization}>{property.organizationName}</Fact>
+        <Fact label={t("property")}>{property.propertyName}</Fact>
+        <Fact label={t("organization")}>{property.organizationName}</Fact>
       </FactList>
     </>
   );

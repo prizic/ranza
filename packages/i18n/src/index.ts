@@ -20,11 +20,6 @@ export function directionFor(locale: SupportedLocale): "ltr" | "rtl" {
   return locale === "ar" ? "rtl" : "ltr";
 }
 
-export function localeFromPathname(pathname: string): SupportedLocale {
-  const segment = pathname.split("/").filter(Boolean)[0];
-  return isSupportedLocale(segment) ? segment : defaultLocale;
-}
-
 export function localizeHref(
   locale: SupportedLocale,
   pathname: string,

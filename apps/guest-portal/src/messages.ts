@@ -65,7 +65,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     arrival: "Giriş",
     departure: "Çıkış",
     openEnded: "Süresiz",
-    sleeps: "Kapasite",
+    // Türkçe sayıdan sonra çoğul almaz, so one form covers every count.
+    sleeps: "{count} kişilik",
 
     noStayTitle: "Görüntülenecek bir konaklamanız yok",
     noStayDescription:
@@ -113,7 +114,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     arrival: "Arrival",
     departure: "Departure",
     openEnded: "Open-ended",
-    sleeps: "Sleeps",
+    sleeps: "Sleeps {count}",
 
     noStayTitle: "You have no stay to show",
     noStayDescription:
@@ -161,7 +162,10 @@ export const messages: Record<SupportedLocale, Messages> = {
     arrival: "الوصول",
     departure: "المغادرة",
     openEnded: "غير محددة",
-    sleeps: "السعة",
+    // Arabic agrees with the number in six categories, which is the whole
+    // reason this is ICU and not a label with a digit appended to it.
+    sleeps:
+      "{count, plural, one {تتسع لشخص واحد} two {تتسع لشخصين} few {تتسع لـ # أشخاص} many {تتسع لـ # شخصًا} other {تتسع لـ # شخص}}",
 
     noStayTitle: "لا توجد إقامة لعرضها",
     noStayDescription: "تظهر التفاصيل هنا بمجرد أن تُسجّل المنشأة إقامتك.",

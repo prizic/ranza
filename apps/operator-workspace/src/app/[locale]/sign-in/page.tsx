@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { isSupportedLocale, localizeHref, supportedLocales } from "@ranza/i18n";
 import { BrandMark } from "@ranza/ui";
-import { messages } from "../../../messages";
+import { getTranslations } from "next-intl/server";
 import { currentViewer } from "../../../server/viewer";
 import { SignInForm } from "./sign-in-form";
 
@@ -21,24 +21,24 @@ export default async function SignInPage({
   const today = localizeHref(locale, "today");
   if (await currentViewer()) redirect(today);
 
-  const copy = messages[locale];
+  const t = await getTranslations();
 
   return (
     <main className="grid min-h-svh place-items-center px-(--page) py-10">
       <div className="w-full max-w-sm">
         <p className="flex items-center justify-center gap-2 text-step-1 font-semibold">
           <BrandMark className="size-6 text-primary" />
-          <span>{copy.productName}</span>
+          <span>{t("productName")}</span>
         </p>
 
         <div className="mt-6 rounded-xl bg-card p-6 shadow-low">
-          <h1 className="text-step-1 font-semibold">{copy.signInTitle}</h1>
+          <h1 className="text-step-1 font-semibold">{t("signInTitle")}</h1>
 
-          <SignInForm copy={copy} redirectTo={today} />
+          <SignInForm redirectTo={today} />
         </div>
 
         <nav
-          aria-label={copy.languageLabel}
+          aria-label={t("languageLabel")}
           className="mt-6 flex items-center justify-center gap-1 text-step--1"
         >
           {supportedLocales.map((supported) => (

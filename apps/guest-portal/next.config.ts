@@ -1,3 +1,4 @@
+import createNextIntlPlugin from "next-intl/plugin";
 import type { NextConfig } from "next";
 
 const config: NextConfig = {
@@ -30,4 +31,8 @@ const config: NextConfig = {
   },
 };
 
-export default config;
+// Points next-intl at the request config above rather than its default
+// `./i18n/request.ts`, because this application keeps its source under `src/`.
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
+
+export default withNextIntl(config);

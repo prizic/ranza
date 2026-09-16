@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import type { Arrival } from "@ranza/reservations";
 import { DataTable, EmptyState } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
-import { tableLabels } from "../../../lib/table-labels";
-import type { Messages } from "../../../messages";
-import { arrivalColumns } from "./columns";
+import { useTableLabels } from "../../../lib/table-labels";
+import { useArrivalColumns } from "./columns";
 
 /**
  * Today's arrivals.
@@ -17,26 +16,25 @@ import { arrivalColumns } from "./columns";
  */
 export function ArrivalsTable({
   arrivals,
-  copy,
   locale,
 }: {
   arrivals: readonly Arrival[];
-  copy: Messages;
   locale: SupportedLocale;
 }) {
-  const labels = useMemo(() => tableLabels(copy), [copy]);
-  const columns = useMemo(() => arrivalColumns(copy, locale), [copy, locale]);
+  const t = useTranslations();
+  const labels = useTableLabels();
+  const columns = useArrivalColumns(locale);
 
   return (
     <div className="mt-4">
       <DataTable
-        caption={copy.arrivals}
+        caption={t("arrivals")}
         columns={columns}
         data={arrivals}
         empty={
           <EmptyState
-            description={copy.noArrivalsDescription}
-            title={copy.noArrivalsTitle}
+            description={t("noArrivalsDescription")}
+            title={t("noArrivalsTitle")}
           />
         }
         labels={labels}
