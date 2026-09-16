@@ -26,6 +26,7 @@
     "lint:boundaries": "depcruise --config .dependency-cruiser.cjs packages apps",
     "test": "pnpm test:unit && pnpm test:boundaries && pnpm check:docs",
     "test:boundaries": "node scripts/dependency-boundaries.mjs",
+    "test:browser": "playwright test",
     "test:integration": "vitest run --config vitest.integration.mts",
     "test:unit": "vitest run",
     "typecheck": "turbo run typecheck"
@@ -33,6 +34,7 @@
   "devDependencies": {
     "@better-auth/utils": "0.4.2",
     "@eslint/js": "10.0.1",
+    "@playwright/test": "^1.63.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@types/node": "26.4.1",

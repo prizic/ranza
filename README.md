@@ -87,7 +87,12 @@ covered by separate suites:
 ```sh
 pnpm db:test          # pgTAP suites in tests/database
 pnpm test:integration # tenant isolation and the auth flow, against a real database
+pnpm test:browser     # the Operator Workspace in a browser, against the local database
 ```
+
+`pnpm test:browser` starts the workspace itself and refuses any database that is
+not on this machine — it signs in, checks a Guest in, and leaves history that
+cannot be removed.
 
 ## Signing in locally
 

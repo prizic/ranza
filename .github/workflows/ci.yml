@@ -23,9 +23,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
 
-  # Everything that needs a real PostgreSQL. Both halves were only ever run by
-  # hand before, which for the pgTAP suites means the five gates of blueprint
-  # 3.5 were verified when somebody remembered to.
+  # Everything that needs a real PostgreSQL — now including the browser, which
+  # needs the application in front of one. All of it was only ever run by hand
+  # before, which for the pgTAP suites means the five gates of blueprint 3.5
+  # were verified when somebody remembered to.
   #
   # `docker compose` rather than a service container, because the suites need
   # pgTAP and no official image ships it — docker/postgres is the image
@@ -61,3 +62,11 @@ jobs:
       # the shadow database, so this compares what they produce against what
       # the schema says — not two files that happen to be edited together.
       - run: pnpm db:drift
+
+      # The workspace in a browser: sign in, press Check in, see the row say the
+      # Guest arrived. Last, because it seeds a demo Organization and leaves a
+      # Stay behind, and the suites above are entitled to a database nobody has
+      # been working in. `pnpm test:browser` starts the application itself and
+      # refuses any database that is not this runner's own.
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:browser
