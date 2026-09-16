@@ -278,10 +278,6 @@ test("a Stay with charges refuses the withdrawal, and says so", async ({
   // Still open. The dialog goes away by being replaced — a withdrawal that
   // works leaves a check-in button where the trigger was — so a dialog that is
   // still here is the refusal being readable rather than flashing past.
-  //
-  // React clears the field with the rest of the form when the action returns,
-  // and it is left that way: this Stay cannot be withdrawn at all, so the
-  // sentence somebody wrote about it has nothing left to be submitted against.
   await expect(dialog).toBeVisible();
 
   // And nothing moved. Asserted after the dialog is dismissed rather than
@@ -290,4 +286,38 @@ test("a Stay with charges refuses the withdrawal, and says so", async ({
   // being a real one.
   await dialog.getByRole("button", { name: "Keep check-in" }).click();
   await expect(row.getByText("Checked in")).toBeVisible();
+});
+
+/**
+ * A reason the field accepted and the module did not.
+ *
+ * Three spaces pass `required` and `minLength` — they are three characters —
+ * and the module measures what it stores, which is the trimmed string. So this
+ * is the one refusal that arrives with the dialog's own field at fault rather
+ * than the Stay, and the only one where what somebody typed is still worth
+ * something: they are going to edit it, not abandon it.
+ */
+test("a reason of spaces is refused, and what was typed survives it", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const guestName = anArrivalToday(propertyId);
+
+  await signIn(page);
+  await page.goto(`/en/arrivals?property=${propertyId}`);
+  await page.getByRole("searchbox").fill(guestName);
+  const row = page.getByRole("row").filter({ hasText: guestName });
+
+  await row.getByRole("button", { name: "Check in" }).click();
+  await expect(row.getByText("Checked in")).toBeVisible();
+
+  await row.getByRole("button", { name: /Undo check-in for/ }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Reason").fill("   ");
+  await dialog.getByRole("button", { name: "Undo check-in" }).click();
+
+  await expect(dialog.getByRole("alert")).toContainText(
+    "A reason of at least 3 characters is needed",
+  );
+  await expect(dialog.getByLabel("Reason")).toHaveValue("   ");
 });

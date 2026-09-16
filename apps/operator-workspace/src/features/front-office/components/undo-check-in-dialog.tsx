@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Undo2 } from "lucide-react";
 import { isolate } from "@ranza/i18n";
@@ -67,6 +67,19 @@ export function UndoCheckInDialog({
   unitName: string;
 }) {
   const t = useTranslations();
+  /**
+   * Controlled, so a refusal does not take the sentence with it.
+   *
+   * React clears an uncontrolled form when the action returns, which is right
+   * for a field whose work is done and wrong for the one refusal somebody is
+   * expected to answer: a reason of spaces passes `required` and `minLength`
+   * and fails the module, and the answer to that is an edit rather than a
+   * retype.
+   *
+   * Dismissing the dialog forgets it. Coming back an hour later to a sentence
+   * somebody wrote about a different decision is worse than an empty field.
+   */
+  const [reason, setReason] = useState("");
   const [outcome, act, pending] = useActionState<
     ReverseCheckInOutcome,
     FormData
@@ -84,7 +97,7 @@ export function UndoCheckInDialog({
             : null;
 
   return (
-    <Dialog>
+    <Dialog onOpenChange={(open) => !open && setReason("")}>
       <DialogTrigger asChild>
         {/* Named with the Guest, so a column of identical buttons is still a
             list of different actions to a screen reader. The name is isolated
@@ -133,8 +146,10 @@ export function UndoCheckInDialog({
               maxLength={REASON.max}
               minLength={REASON.min}
               name="reason"
+              onChange={(event) => setReason(event.target.value)}
               required
               rows={3}
+              value={reason}
             />
           </Field>
           <p
