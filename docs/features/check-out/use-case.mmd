@@ -22,7 +22,7 @@ flowchart TD
   subgraph S1["slice 1 &mdash; zero-balance check-out"]
     EARLY(["Acknowledge early departure"])
     RESIDENT(["Check out an open-ended Stay"])
-    WALKIN(["Check out a Stay with no Reservation"])
+    WALKIN(["Check out a Stay without a Reservation"])
     CONFIRM(["Confirm check-out"])
     REVIEW(["Review check-out"])
   end
@@ -59,16 +59,14 @@ flowchart TD
   %% Which of the two it is depends on the open question below about when
   %% room nights are charged.
 
-  %% OPEN: when are room nights charged - all at check-in, or per night at rollover?
-  %% OPEN: early departure money - a fee, or a refund of prepaid nights? No rate model.
-  %% OPEN: does check-out print or email a bill, and does it trigger Turkish
-  %% e-Arsiv / e-Fatura invoicing, or is that a separate Finance step?
-  %% OPEN: a charge refused because the Folio just closed - where does it go?
-  %% OPEN: a Manager rejects a flagged open Folio - what happens then?
-  %% OPEN: who approves a refund, and above what amount?
-  %% OPEN: KBS departure notification - does Ranza report it, and does a
-  %% suspended Organization still owe it?
-  %% OPEN: automatic cutoff only, or a manual night-audit close? Who may change a cutoff?
-  %% OPEN: Subscription grace period length, and who may extend it?
-  %% OPEN: does ADR 0022 get amended to use the status-change history table,
-  %% or do the two reversal shapes stay different? Settled at step e.
+  %% OPEN: a Manager rejects a flagged open Folio - what happens then? s2, CO-S2-08
+  %% DEFERRED, each owned by another feature and tracked as a row:
+  %%   when room nights are charged        room-charge posting   CO-S1-30
+  %%   early departure money, rates        rates                 CO-S1-31
+  %%   the bill, e-Arsiv / e-Fatura        Finance invoicing     CO-S1-32
+  %%   KBS departure notification          compliance            CO-S1-33
+  %%   how the business date rolls         ADR 0021              CO-S1-34
+  %%   a charge refused by a closed Folio  Folio and F&B         CO-S2-12
+  %%   who approves a refund               Finance               CO-S2-13
+  %%   subscription grace period           subscription ADR      CO-S4-07
+  %%   nothing reaches reserved            room assignment       CO-NB-10

@@ -67,13 +67,12 @@ stateDiagram-v2
     Not terminal: reverseCheckOut returns it to checked_in.
     It becomes unreachable once the business date rolls,
     which bounds the command, not the row.
-    Folio machine not drawn. Whether Folio closure exists is a
-    fact to verify at step d, prerequisite 4.
+    Folio machine not drawn. Closure exists - open, closed and
+    closeFolio - but closeFolio opens its own transaction, checks
+    no balance and takes no lock. Prerequisite 4 is therefore
+    closeFolioWithin(tx): a zero-balance check under the per-Stay
+    lock. See CO-DIFF-09.
   end note
 
-  %% OPEN: does ADR 0022 get amended so check-in reversal uses the append-only
-  %% status-change table too, or do the two reversal shapes stay different?
-  %% As drawn, in_house --> cancelled abandons the Stay while departed --> in_house
-  %% returns it: two different answers to the same question.
-  %% OPEN: nothing reaches reserved. Either a command is missing or the value is,
-  %% and this design does not decide which.
+  %% OPEN: nothing reaches reserved. Deferred to the room assignment feature,
+  %% tracked as CO-NB-10.
