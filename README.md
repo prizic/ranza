@@ -37,6 +37,7 @@ packages/
   ranza/                  Ranza domain modules (core domain)
     core/                 Organization, Property, membership, Entitlement reads
     accommodation/        Accommodation Units inside a Property
+    stays/                Stays, and the Resident access path
   adapters/               Ranza-to-platform mappings
   config, db, i18n, ui, observability
                           cross-cutting infrastructure

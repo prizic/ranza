@@ -148,6 +148,18 @@ importers:
         specifier: workspace:*
         version: link:../../db
 
+  packages/ranza/stays:
+    dependencies:
+      '@ranza/accommodation':
+        specifier: workspace:*
+        version: link:../accommodation
+      '@ranza/core':
+        specifier: workspace:*
+        version: link:../core
+      '@ranza/db':
+        specifier: workspace:*
+        version: link:../../db
+
   packages/ui:
     dependencies:
       react:

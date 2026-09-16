@@ -67,13 +67,14 @@ module.exports = {
         "Skipping that does not raise — policies see a null user and deny, so " +
         "the page renders empty and looks like missing data. The three steps " +
         "live together in src/server/viewer.ts, and nothing else may reach the " +
-        "database or a module that does.",
+        "database or a module that does. Every Ranza domain module is covered, " +
+        "not a list of them, so adding one cannot quietly fall outside the rule.",
       severity: "error",
       from: {
         path: "^apps/[^/]+/src/",
         pathNot: "^apps/[^/]+/src/server/",
       },
-      to: { path: "^packages/(auth|db|ranza/core)/" },
+      to: { path: "^packages/(auth|db|ranza)/" },
     },
     {
       name: "modules-expose-only-their-public-contract",

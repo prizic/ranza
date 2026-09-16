@@ -29,6 +29,7 @@ model User {
   identities  AuthIdentity[]
   memberships OrganizationMembership[]
   assignments PropertyAssignment[]
+  stays       Stay[]
 
   @@map("users")
 }
@@ -78,6 +79,7 @@ model Property {
   assignments  PropertyAssignment[]
   capabilities PropertyCapability[]
   units        AccommodationUnit[]
+  stays        Stay[]
 
   @@unique([id, organizationId])
   @@index([organizationId], map: "properties_organization_idx")
@@ -102,6 +104,7 @@ model AccommodationUnit {
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   property Property @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  stays    Stay[]
 
   @@unique([propertyId, name])
   @@unique([id, propertyId, organizationId])
@@ -137,6 +140,35 @@ model PropertyAssignment {
 
   @@unique([propertyId, userId])
   @@map("property_assignments")
+}
+
+/// The operational record connecting a Guest or Resident to an Accommodation
+/// Unit for a period (blueprint 2, 5.3). A Guest is short-term and a Resident
+/// long-term; both are Stays, told apart by `stay_type`.
+///
+/// `user_id` is the Ranza user the Stay belongs to and is what the Resident
+/// access path resolves against (ADR 0008). It is nullable because most Stays
+/// are created by Staff for someone who has never signed in — a Stay with no
+/// user simply has no portal, which is a normal state and not a broken row.
+model Stay {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId      String    @map("organization_id") @db.Uuid
+  propertyId          String    @map("property_id") @db.Uuid
+  accommodationUnitId String    @map("accommodation_unit_id") @db.Uuid
+  userId              String?   @map("user_id") @db.Uuid
+  stayType            String    @map("stay_type")
+  status              String    @default("reserved")
+  startsOn            DateTime  @map("starts_on") @db.Date
+  endsOn              DateTime? @map("ends_on") @db.Date
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  property Property          @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  unit     AccommodationUnit @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  user     User?             @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([propertyId], map: "stays_property_idx")
+  @@map("stays")
 }
 
 model Subscription {

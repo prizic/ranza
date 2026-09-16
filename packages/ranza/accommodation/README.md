@@ -31,7 +31,7 @@ the database stays the authority: widening a union here without widening the
 constraint fails at insert time, which is the safe direction.
 
 There is deliberately no query yet. Nothing reads a Unit except through a Stay,
-and `@ranza/stays` joins it inside the one statement that
+and [`@ranza/stays`](../stays/README.md) joins it inside the one statement that
 all of blueprint 3.5's gates apply to. A unit directory — the read Housekeeping
 and the front desk will want — belongs here when a screen needs it, not before.
 

@@ -62,6 +62,25 @@ assert.match(
 );
 console.log("PASS tenant data is reachable only through the server funnel");
 
+// The same rule, for a Ranza domain module rather than packages/db. Worth its
+// own fixture because the rule used to name @ranza/core specifically, and a
+// module added later would have fallen outside it without anything failing.
+const unfunnelledModule = cruise(
+  ["apps/operator-workspace/src/app/stay/page.ts"],
+  path.join(root, "tests/boundaries/fixtures"),
+);
+assert.notEqual(
+  unfunnelledModule.status,
+  0,
+  "a page reaching a Ranza domain module outside src/server must fail",
+);
+assert.match(
+  `${unfunnelledModule.stdout}${unfunnelledModule.stderr}`,
+  /tenant-data-only-through-the-server-funnel/,
+  "the fixture must trip the viewer funnel rule",
+);
+console.log("PASS the funnel rule covers every Ranza domain module");
+
 // Blueprint 9.10: a module reaches another module's index, never its internals.
 // The public-contract rule alone exempts anything inside a tier, so a module was
 // free to reach into a sibling — this proves the rule that closes that.
