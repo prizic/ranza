@@ -18,6 +18,19 @@ This exists because a stub with no note is indistinguishable from an oversight.
   [ADR 0013](../adr/0013-an-interface-is-shadcn-a-feature-folder-and-a-shared-kit.md)
   for where each piece of a screen belongs.
 
+## Getting a workspace to look at
+
+```sh
+pnpm db:up && pnpm db:setup
+pnpm dev
+pnpm db:seed:dev
+```
+
+Sign in at `http://localhost:3000/tr/today` as `deniz@example.test` /
+`correct-horse-battery-staple`. The seed grants every capability in this table,
+so all eleven destinations appear — which they would not on a real Organization
+that had bought two of them.
+
 ## The rule that decides the order
 
 **Blueprint section 13 forbids building tables ahead of the workflows that need
