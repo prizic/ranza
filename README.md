@@ -36,6 +36,7 @@ packages/
     audit/                what was done, by whom, and why
   ranza/                  Ranza domain modules (core domain)
     core/                 Organization, Property, membership, Entitlement reads
+    accommodation/        Accommodation Units inside a Property
   adapters/               Ranza-to-platform mappings
   config, db, i18n, ui, observability
                           cross-cutting infrastructure

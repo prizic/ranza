@@ -77,10 +77,35 @@ model Property {
   organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   assignments  PropertyAssignment[]
   capabilities PropertyCapability[]
+  units        AccommodationUnit[]
 
   @@unique([id, organizationId])
   @@index([organizationId], map: "properties_organization_idx")
   @@map("properties")
+}
+
+/// A sellable or assignable space inside a Property (blueprint 2, 5.2).
+///
+/// Carries organization_id alongside property_id so the composite foreign key
+/// proves the pair belongs together — a Unit cannot be attached to another
+/// Organization's Property. The second composite key exists so a Stay can carry
+/// all three and prove the same thing about itself.
+model AccommodationUnit {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  propertyId     String   @map("property_id") @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String
+  unitType       String   @map("unit_type")
+  capacity       Int      @default(1)
+  status         String   @default("available")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  property Property @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([propertyId, name])
+  @@unique([id, propertyId, organizationId])
+  @@map("accommodation_units")
 }
 
 model OrganizationMembership {
