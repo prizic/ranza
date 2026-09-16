@@ -206,6 +206,12 @@ test("a check-in is withdrawn with a reason, and the Reservation arrives again",
   await expect(row.getByRole("button", { name: "Check in" })).toBeVisible();
   await expect(dialog).toBeHidden();
 
+  // And focus went with it. The control that was pressed no longer exists, so
+  // without this focus lands on the document and a keyboard is back at the top
+  // of the page — on the screen whose whole point is doing the same thing again
+  // for the Guest who should have been checked in.
+  await expect(row.getByRole("button", { name: "Check in" })).toBeFocused();
+
   // And a second time, which is the half of ADR 0022 that did not work: the
   // withdrawn Stay went on holding the Reservation and the database refused.
   await row.getByRole("button", { name: "Check in" }).click();

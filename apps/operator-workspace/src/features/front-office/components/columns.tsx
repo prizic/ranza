@@ -154,6 +154,7 @@ export function useArrivalColumns(
               <UndoCheckInDialog
                 guestName={row.original.guestName}
                 locale={locale}
+                reservationId={row.original.reservationId}
                 stayId={row.original.stayId}
                 unitName={row.original.unitName}
               />

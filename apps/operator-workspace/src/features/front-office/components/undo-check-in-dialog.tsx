@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Undo2 } from "lucide-react";
 import { isolate } from "@ranza/i18n";
@@ -24,6 +24,7 @@ import {
   reverseCheckIn,
   type ReverseCheckInOutcome,
 } from "../../../server/front-office";
+import { claimCheckInFocus, focusCheckInFor } from "../check-in-focus";
 
 /**
  * Taking back a check-in that should not have happened (ADR 0022).
@@ -58,11 +59,13 @@ const REASON = { min: 3, max: 2000 };
 export function UndoCheckInDialog({
   guestName,
   locale,
+  reservationId,
   stayId,
   unitName,
 }: {
   guestName: string;
   locale: string;
+  reservationId: string;
   stayId: string;
   unitName: string;
 }) {
@@ -84,6 +87,17 @@ export function UndoCheckInDialog({
     ReverseCheckInOutcome,
     FormData
   >(reverseCheckIn, "idle");
+
+  // Taken back when the withdrawal did not happen. The intention is left at
+  // submit rather than on success, because success is the one outcome this
+  // component never sees: the row it lives in is replaced by the revalidation,
+  // and the state saying it worked is discarded with it. A refusal leaves it
+  // mounted and reading, which is exactly when the word has to be withdrawn.
+  useEffect(() => {
+    if (outcome !== "idle" && outcome !== "done") {
+      claimCheckInFocus(reservationId);
+    }
+  }, [outcome, reservationId]);
 
   const message =
     outcome === "charges"
@@ -117,7 +131,15 @@ export function UndoCheckInDialog({
       </DialogTrigger>
 
       <DialogContent>
-        <form action={act} className="grid gap-4">
+        <form
+          action={(data) => {
+            // Before the write, for the reason above. Nothing is focused yet —
+            // this only says where focus should land if the row comes back.
+            focusCheckInFor(reservationId);
+            act(data);
+          }}
+          className="grid gap-4"
+        >
           <DialogHeader>
             <DialogTitle>{t("undoCheckInTitle")}</DialogTitle>
             <DialogDescription>{t("undoCheckInSummary")}</DialogDescription>

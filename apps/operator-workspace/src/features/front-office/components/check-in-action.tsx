@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Button, FormError } from "@ranza/ui";
+import { claimCheckInFocus } from "../check-in-focus";
 import {
   checkInReservation,
   checkOutStay,
@@ -47,6 +48,14 @@ function RowAction({
     "idle",
   );
 
+  // Something removed the control that was pressed and said where focus should
+  // go afterwards — today that is withdrawing a check-in, which replaces its
+  // own dialog with this button. Claimed rather than read, so it happens once.
+  const button = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (claimCheckInFocus(id)) button.current?.focus();
+  }, [id]);
+
   const message =
     outcome === "unavailable"
       ? t("unitUnavailable")
@@ -58,7 +67,7 @@ function RowAction({
     <form action={act} className="grid justify-items-end gap-1.5">
       <input name={field} type="hidden" value={id} />
       <input name="locale" type="hidden" value={locale} />
-      <Button disabled={pending} size="sm" type="submit">
+      <Button disabled={pending} ref={button} size="sm" type="submit">
         {pending ? pendingLabel : label}
       </Button>
       {message ? (
