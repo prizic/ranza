@@ -123,6 +123,29 @@ to a correctly scoped query.
 Current milestone: the walking skeleton. The database, identity and entitlement
 layers are done; `apps/operator-workspace` does not exist yet.
 
+## Keeping documentation true
+
+Documents drift because they **copy** facts that live elsewhere. Prefer pointing
+at the source: write "run `pnpm db:test`" rather than "16 assertions pass", and
+the sentence cannot go stale.
+
+`pnpm check` fails when a document contradicts the code — a `pnpm <script>` that
+does not exist, a broken markdown link, an ADR whose filename and heading
+disagree, or an application or module directory with no README. That check is the
+reminder; do not rely on remembering.
+
+What it cannot judge is whether a paragraph is still _true_. When a change makes
+one of these false, fix it in the same commit:
+
+| When you                             | Update                                            |
+| ------------------------------------ | ------------------------------------------------- |
+| add or rename a package script       | every doc that shows it (the check finds them)    |
+| add an application or module         | its README, and the layout block in `README.md`   |
+| change how the database is reached   | `docs/runbooks/supabase-setup.md`, `.env.example` |
+| make a decision the code now assumes | a new ADR — not a comment                         |
+| reverse or amend a decision          | the existing ADR, with an `Amended:` line         |
+| finish or start a milestone          | **Current state** below                           |
+
 ## Testing security claims
 
 A passing security test proves nothing until you have seen it fail. Three times

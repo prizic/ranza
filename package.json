@@ -9,6 +9,7 @@
   "scripts": {
     "build": "turbo run build",
     "check": "pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "check:docs": "node scripts/docs-check.mjs",
     "db:down": "docker compose down",
     "db:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
     "db:migrate:new": "prisma migrate dev --create-only --schema prisma/schema.prisma",
@@ -21,7 +22,7 @@
     "format:write": "prettier --write .",
     "lint": "turbo run lint && pnpm lint:boundaries",
     "lint:boundaries": "depcruise --config .dependency-cruiser.cjs packages",
-    "test": "pnpm test:unit && pnpm test:boundaries",
+    "test": "pnpm test:unit && pnpm test:boundaries && pnpm check:docs",
     "test:boundaries": "node scripts/dependency-boundaries.mjs",
     "test:integration": "vitest run --config vitest.integration.mts",
     "test:unit": "vitest run",
