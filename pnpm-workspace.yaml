@@ -1,3 +1,6 @@
 packages:
   - apps/*
   - packages/*
+  - packages/platform/*
+  - packages/ranza/*
+  - packages/adapters/*

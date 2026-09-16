@@ -21,14 +21,23 @@ entitlement enforcement proven end-to-end through one application shell.
 
 ```text
 apps/                     separately deployable applications
-prisma/                   schema and migrations (RLS policies live in them)
+  storefront/             public marketing and lead capture
+  operator-workspace/     the main authenticated application
+  guest-portal/           Guest and Resident PWA
+  control-plane/          Prizic-internal administration
 packages/
-  platform/               host-agnostic reusable modules
-  ranza/                  Ranza domain modules
+  platform/               host-agnostic reusable modules (generic subdomains)
+  ranza/                  Ranza domain modules (core domain)
   adapters/               Ranza-to-platform mappings
-  config, i18n, ui, observability
+  config, db, i18n, ui, observability
                           cross-cutting infrastructure
+prisma/                   schema and migrations (RLS policies live in them)
+tests/                    unit, database (pgTAP) and boundary fixtures
 ```
+
+Each tier has a README stating the rule that defines it. The one that matters
+most: a `platform/` module may not reference `Property`, `Guest`, `Stay` or
+`Folio` — see [packages/platform/README.md](packages/platform/README.md).
 
 Tier boundaries are enforced, not documented: `.dependency-cruiser.cjs` rejects
 forbidden imports and `scripts/dependency-boundaries.mjs` additionally rejects
