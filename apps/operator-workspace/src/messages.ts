@@ -44,6 +44,25 @@ export interface Messages {
   backupCodes: string;
   backupCodesWarning: string;
   enrolFailed: string;
+
+  frontOffice: string;
+  arrivalsAt: string;
+  noFrontDeskTitle: string;
+  noFrontDeskDescription: string;
+  noArrivalsTitle: string;
+  noArrivalsDescription: string;
+  openEnded: string;
+  checkIn: string;
+  checkingIn: string;
+  checkedIn: string;
+  unitUnavailable: string;
+  checkInRefused: string;
+  stayType: Record<"guest" | "resident", string>;
+  unitType: Record<"room" | "bed" | "apartment" | "suite", string>;
+  reservationStatus: Record<
+    "requested" | "confirmed" | "cancelled" | "no_show" | "checked_in",
+    string
+  >;
 }
 
 export const messages: Record<SupportedLocale, Messages> = {
@@ -90,6 +109,35 @@ export const messages: Record<SupportedLocale, Messages> = {
     backupCodesWarning:
       "Bu kodları şimdi saklayın. Her biri bir kez kullanılır ve tekrar gösterilmez.",
     enrolFailed: "Parola doğrulanamadı.",
+
+    frontOffice: "Ön büro",
+    arrivalsAt: "Bugünkü girişler:",
+    noFrontDeskTitle: "Ön büro bu tesiste açık değil",
+    noFrontDeskDescription:
+      "Ön büro, organizasyonunuzun aboneliğinde yer aldığında ve tesiste etkinleştirildiğinde burada görünür.",
+    noArrivalsTitle: "Bugün giriş yok",
+    noArrivalsDescription:
+      "Bugün için bu tesiste bekleyen bir rezervasyon bulunmuyor.",
+    openEnded: "Açık uçlu",
+    checkIn: "Giriş yap",
+    checkingIn: "Yapılıyor",
+    checkedIn: "Giriş yapıldı",
+    unitUnavailable: "Bu birim seçilen tarihlerde dolu.",
+    checkInRefused: "Bu rezervasyon için giriş yapılamıyor.",
+    stayType: { guest: "Misafir", resident: "Sakin" },
+    unitType: {
+      room: "Oda",
+      bed: "Yatak",
+      apartment: "Daire",
+      suite: "Süit",
+    },
+    reservationStatus: {
+      requested: "Talep edildi",
+      confirmed: "Onaylandı",
+      cancelled: "İptal edildi",
+      no_show: "Gelmedi",
+      checked_in: "Giriş yapıldı",
+    },
   },
   en: {
     productName: "Ranza",
@@ -134,6 +182,34 @@ export const messages: Record<SupportedLocale, Messages> = {
     backupCodesWarning:
       "Save these now. Each one works once, and they are not shown again.",
     enrolFailed: "That password did not match.",
+
+    frontOffice: "Front Office",
+    arrivalsAt: "Arriving today at",
+    noFrontDeskTitle: "The front desk is not open at this Property",
+    noFrontDeskDescription:
+      "It appears here once your Organization's Subscription includes it and the Property has it enabled.",
+    noArrivalsTitle: "No arrivals today",
+    noArrivalsDescription: "Nobody is booked to arrive at this Property today.",
+    openEnded: "Open-ended",
+    checkIn: "Check in",
+    checkingIn: "Checking in",
+    checkedIn: "Checked in",
+    unitUnavailable: "That Unit is occupied for those nights.",
+    checkInRefused: "That Reservation cannot be checked in.",
+    stayType: { guest: "Guest", resident: "Resident" },
+    unitType: {
+      room: "Room",
+      bed: "Bed",
+      apartment: "Apartment",
+      suite: "Suite",
+    },
+    reservationStatus: {
+      requested: "Requested",
+      confirmed: "Confirmed",
+      cancelled: "Cancelled",
+      no_show: "No show",
+      checked_in: "Checked in",
+    },
   },
   ar: {
     productName: "Ranza",
@@ -177,5 +253,33 @@ export const messages: Record<SupportedLocale, Messages> = {
     backupCodesWarning:
       "احفظ هذه الرموز الآن. يُستخدم كل رمز مرة واحدة ولن تُعرض مجددًا.",
     enrolFailed: "كلمة المرور غير صحيحة.",
+
+    frontOffice: "المكتب الأمامي",
+    arrivalsAt: "الوصول اليوم في",
+    noFrontDeskTitle: "المكتب الأمامي غير مفعّل في هذه المنشأة",
+    noFrontDeskDescription:
+      "يظهر هنا عندما يشمله اشتراك مؤسستك ويتم تفعيله في المنشأة.",
+    noArrivalsTitle: "لا يوجد وصول اليوم",
+    noArrivalsDescription: "لا توجد حجوزات وصول لهذه المنشأة اليوم.",
+    openEnded: "مفتوح المدة",
+    checkIn: "تسجيل الوصول",
+    checkingIn: "جارٍ التسجيل",
+    checkedIn: "تم تسجيل الوصول",
+    unitUnavailable: "هذه الوحدة محجوزة في تلك الليالي.",
+    checkInRefused: "لا يمكن تسجيل الوصول لهذا الحجز.",
+    stayType: { guest: "ضيف", resident: "مقيم" },
+    unitType: {
+      room: "غرفة",
+      bed: "سرير",
+      apartment: "شقة",
+      suite: "جناح",
+    },
+    reservationStatus: {
+      requested: "مطلوب",
+      confirmed: "مؤكّد",
+      cancelled: "ملغى",
+      no_show: "لم يحضر",
+      checked_in: "تم تسجيل الوصول",
+    },
   },
 };

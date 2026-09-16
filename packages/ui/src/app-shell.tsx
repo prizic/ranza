@@ -15,6 +15,17 @@ export interface AppShellProps {
   localeLinks: readonly LocaleLink[];
   /** Entitled capabilities only. A capability not bought is absent, not disabled. */
   navigation: readonly NavigationItem[];
+  /**
+   * Replaces the rendered navigation, while `navigation` still supplies the
+   * brand's destination.
+   *
+   * Which item is current depends on the route, and a router layout cannot read
+   * the pathname — the same reason `rack` is a slot. Deciding it here would mean
+   * these primitives importing a router, and they stay renderable without one.
+   * A host that needs the distinction passes its own client component; one that
+   * does not keeps setting `current` and ignores this.
+   */
+  navigationSlot?: ReactNode;
   productName: string;
   /** The Property switcher. Rendered as the rack directly beneath the chrome. */
   rack?: ReactNode;
@@ -47,6 +58,7 @@ export function AppShell({
   languageLabel,
   localeLinks,
   navigation,
+  navigationSlot,
   productName,
   rack,
   skipLabel,
@@ -63,19 +75,20 @@ export function AppShell({
           <span>{productName}</span>
         </a>
 
-        {navigation.length > 0 ? (
-          <nav aria-label={productName} className="primary-nav">
-            {navigation.map((item) => (
-              <a
-                aria-current={item.current ? "page" : undefined}
-                href={item.href}
-                key={item.href}
-              >
-                {item.label}
-              </a>
-            ))}
-          </nav>
-        ) : null}
+        {navigationSlot ??
+          (navigation.length > 0 ? (
+            <nav aria-label={productName} className="primary-nav">
+              {navigation.map((item) => (
+                <a
+                  aria-current={item.current ? "page" : undefined}
+                  href={item.href}
+                  key={item.href}
+                >
+                  {item.label}
+                </a>
+              ))}
+            </nav>
+          ) : null)}
 
         <div className="header-end">
           <nav aria-label={languageLabel} className="locale-nav">

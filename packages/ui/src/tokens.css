@@ -573,3 +573,84 @@ a.account:hover {
   color: var(--danger);
   font-size: var(--step--1);
 }
+
+/* ---------------------------------------------------------------------------
+   Front Office
+   --------------------------------------------------------------------------- */
+
+.arrivals {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A row per arrival: who, where, and the one action. The Unit sits in the
+   place Today puts the clock, because a room number is the fact a front desk
+   reads at arm's length. */
+.arrival {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 1rem 2rem;
+  padding-block: 1.25rem;
+  border-block-end: 1px solid var(--line);
+}
+
+@media (max-width: 40rem) {
+  .arrival {
+    grid-template-columns: 1fr auto;
+  }
+
+  .arrival-action,
+  .arrival-status {
+    grid-column: 1 / -1;
+  }
+}
+
+.arrival-name {
+  font-size: var(--step-1);
+}
+
+.arrival-detail {
+  margin-block-start: 0.2rem;
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+}
+
+.arrival-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+}
+
+[dir="rtl"] .arrival-unit {
+  align-items: flex-start;
+}
+
+.arrival-unit strong {
+  font-size: var(--step-1);
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.arrival-unit span {
+  color: var(--ink-faint);
+  font-size: var(--step--1);
+}
+
+.arrival-status {
+  color: var(--ink-faint);
+  font-size: var(--step--1);
+}
+
+.arrival-action {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: end;
+}
+
+[dir="rtl"] .arrival-action {
+  justify-items: start;
+}

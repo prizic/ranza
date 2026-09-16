@@ -1,5 +1,6 @@
-// Creates a demo Organization, two Properties and a Staff Member you can sign
-// in as, on the local database.
+// Creates a demo Organization, two Properties with Accommodation Units, a
+// Staff Member you can sign in as, and a few Reservations arriving today, on
+// the local database.
 //
 // It exists because the product has no self-service sign-up and never will:
 // Prizic Control Plane creates Organizations and Subscriptions, and an
@@ -20,6 +21,20 @@ const EMAIL = "deniz@example.test";
 const PASSWORD = "correct-horse-battery-staple";
 const ORGANIZATION = "Deniz Otelleri";
 const PROPERTIES = ["Deniz Otel Kadıköy", "Deniz Rezidans Beşiktaş"];
+
+// Enough to make Front Office show something. Arrivals are dated in the
+// Property's own timezone by the statement below rather than from this
+// process's clock, because that is what the arrivals query compares against.
+const ARRIVALS = [
+  { guest: "Ada Lovelace", type: "guest", status: "confirmed", nights: 3 },
+  { guest: "Mimar Sinan", type: "guest", status: "confirmed", nights: 2 },
+  {
+    guest: "Nezihe Muhiddin",
+    type: "resident",
+    status: "requested",
+    nights: 0,
+  },
+];
 
 if (!/localhost|127\.0\.0\.1/.test(DATABASE)) {
   console.error("db:seed:dev only targets the local docker database.");
@@ -122,7 +137,7 @@ psql(`
     insert into public.properties (organization_id, name)
     select organization.id, wanted.name
     from organization, (values ${values}) as wanted (name)
-    returning id, organization_id
+    returning id, organization_id, timezone
   ), capability as (
     insert into public.property_capabilities
       (property_id, organization_id, capability_key, enabled)
@@ -131,10 +146,54 @@ psql(`
     insert into public.organization_memberships
       (organization_id, user_id, role, access_scope)
     select id, '${userId}', 'manager', 'assigned_properties' from organization
+  ), assignment as (
+    insert into public.property_assignments (property_id, organization_id, user_id)
+    select id, organization_id, '${userId}' from property
+  ), front_office as (
+    insert into public.entitlements (organization_id, module_key, status)
+    select id, 'front_office', 'active' from organization
+  ), front_desk as (
+    insert into public.property_capabilities
+      (property_id, organization_id, capability_key, enabled)
+    select id, organization_id, 'front_desk', true from property
+  ), unit as (
+    insert into public.accommodation_units
+      (property_id, organization_id, name, unit_type, capacity)
+    select property.id, property.organization_id, wanted.name, wanted.kind, 2
+    from property,
+         (values ('101', 'room'), ('102', 'room'), ('201', 'suite'))
+           as wanted (name, kind)
+    returning id, property_id, organization_id, name
+  ), arriving as (
+    -- The first Property only: a second front desk with identical arrivals
+    -- would make the Property switcher look broken rather than demonstrate it.
+    select unit.*, row_number() over (order by unit.name) as seat
+    from unit
+    join property on property.id = unit.property_id
+    where property.id = (select min(id::text)::uuid from property)
   )
-  insert into public.property_assignments (property_id, organization_id, user_id)
-  select id, organization_id, '${userId}' from property
+  insert into public.reservations
+    (organization_id, property_id, accommodation_unit_id,
+     guest_name, stay_type, status, starts_on, ends_on)
+  select
+    arriving.organization_id,
+    arriving.property_id,
+    arriving.id,
+    wanted.guest,
+    wanted.stay_type,
+    wanted.status,
+    (now() at time zone property.timezone)::date,
+    case when wanted.nights = 0 then null
+         else (now() at time zone property.timezone)::date + wanted.nights end
+  from arriving
+  join property on property.id = arriving.property_id
+  join (values ${ARRIVALS.map(
+    (arrival, index) =>
+      `(${index + 1}, '${arrival.guest.replaceAll("'", "''")}', '${arrival.type}', '${arrival.status}', ${arrival.nights})`,
+  ).join(",")}) as wanted (seat, guest, stay_type, status, nights)
+    on wanted.seat = arriving.seat
 `);
 
 console.log(`Seeded ${ORGANIZATION} with ${PROPERTIES.length} Properties.`);
+console.log(`${ARRIVALS.length} Reservations arrive today at the first one.`);
 console.log(`Sign in at ${APP}/tr/today as ${EMAIL} / ${PASSWORD}`);

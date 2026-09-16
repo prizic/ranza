@@ -5,10 +5,12 @@ import { AppShell } from "@ranza/ui";
 import { messages } from "../../../messages";
 import {
   entitledProperties,
+  FRONT_DESK_CAPABILITY,
   requireViewer,
   TODAY_CAPABILITY,
 } from "../../../server/viewer";
 import { PropertyRack } from "./property-rack";
+import { WorkspaceNav } from "./workspace-nav";
 
 /**
  * The authenticated shell: chrome, the Property rack, and the gate that sends a
@@ -34,6 +36,11 @@ export default async function WorkspaceLayout({
   const properties = await entitledProperties(TODAY_CAPABILITY);
   const todayHref = localizeHref(locale, "today");
 
+  // Asked separately, because they are separate gates. A Property can have
+  // Today without the front desk — different Entitlement, different Property
+  // capability — and navigation lists what was bought, not what exists.
+  const frontDesk = await entitledProperties(FRONT_DESK_CAPABILITY);
+
   return (
     <AppShell
       account={viewer.email}
@@ -49,9 +56,26 @@ export default async function WorkspaceLayout({
         locale: supported,
       }))}
       navigation={
-        properties.length > 0
-          ? [{ current: true, href: todayHref, label: copy.today }]
-          : []
+        properties.length > 0 ? [{ href: todayHref, label: copy.today }] : []
+      }
+      navigationSlot={
+        <WorkspaceNav
+          items={[
+            ...(properties.length > 0
+              ? [{ href: todayHref, label: copy.today, segment: "today" }]
+              : []),
+            ...(frontDesk.length > 0
+              ? [
+                  {
+                    href: localizeHref(locale, "front-office"),
+                    label: copy.frontOffice,
+                    segment: "front-office",
+                  },
+                ]
+              : []),
+          ]}
+          label={copy.productName}
+        />
       }
       productName={copy.productName}
       rack={
