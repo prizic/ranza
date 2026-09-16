@@ -140,9 +140,16 @@ select throws_ok(
 -- The queue itself is the exception, and it is visible without context because
 -- finding out which Organizations have pending work is what the dispatcher does
 -- before it can scope itself to one.
-select results_eq(
-  $$select count(*)::int from outbox.events$$,
-  $$values (3)$$,
+-- Scoped to this suite's own two Organizations, because the table is shared
+-- with every other suite and with whatever a developer's database has in it.
+-- Counting the whole queue passed only on a freshly reset database, which is a
+-- test that reports the state of the machine rather than the state of the code.
+select set_eq(
+  $$select distinct organization_id from outbox.events
+     where organization_id in ('5a111111-1111-4111-8111-111111111111',
+                               '5b111111-1111-4111-8111-111111111111')$$,
+  $$values ('5a111111-1111-4111-8111-111111111111'::uuid),
+           ('5b111111-1111-4111-8111-111111111111'::uuid)$$,
   'but the queue is readable across Organizations, which is the documented exception');
 
 -- ---------------------------------------------------------------------------
