@@ -83,7 +83,7 @@ it fails all four assertions; pointed at `ranza_app` it passes.
 
 ```sh
 pnpm db:test          # pgTAP, uses DIRECT_URL
-pnpm test:integration # uses DATABASE_URL, DIRECT_URL and AUTH_DATABASE_URL
+pnpm test:integration # uses all four connection strings
 ```
 
 Four connection strings are needed, one per role: `DATABASE_URL` for the tenant

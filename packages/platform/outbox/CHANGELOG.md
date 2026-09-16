@@ -32,3 +32,12 @@ everything lands under Unreleased.
   acting user. Revoked, and `ranza_app` now holds it by its own grant. Found by
   asserting in pgTAP that the worker cannot call it and watching the assertion
   fail.
+
+- `createOutboxDispatcher({ db })`: claim with a lease and `for update skip
+  locked`, one transaction per event, the delivery row written inside the
+  handler's own transaction, and failure bookkeeping written outside it. One
+  transaction per event because Prisma's interactive transactions have no
+  savepoints, so a batch-wide rollback would undo the events that had already
+  succeeded.
+- An event nothing subscribes to is published immediately rather than claimed on
+  every pass forever.

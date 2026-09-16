@@ -18,7 +18,12 @@ import { assertPublishable, type OutboxEvent } from "./contracts";
  * policy sees a null acting user and denies, which is the safe direction.
  */
 
-/** The transaction surface this statement needs. */
+/**
+ * The transaction surface this module needs.
+ *
+ * Both forms, because a handler receives this same client and will want the
+ * template-literal one for its own statements.
+ */
 export interface OutboxWriteClient extends TenantClient {
   $queryRaw<T>(query: TemplateStringsArray, ...values: unknown[]): Promise<T>;
 }
@@ -30,6 +35,14 @@ export interface OutboxWriteClient extends TenantClient {
  * rather than returning null: unlike a capability a host may not have bought, a
  * failure to publish means a reaction that will never happen, and a silent one
  * is a message nobody knows is missing.
+ *
+ * The id is generated here rather than read back with `returning`, and that is
+ * a consequence of the security model rather than a preference. A publisher has
+ * no `SELECT` policy on this table — it may write into the queue and may not
+ * read it — and PostgreSQL refuses `INSERT ... RETURNING` outright when there
+ * is no `SELECT` policy to evaluate the returned row against. Reaching for
+ * `returning` would have meant granting the read, which is the property the
+ * whole arrangement rests on.
  */
 export async function publishWithin(
   tx: OutboxWriteClient,
@@ -37,21 +50,21 @@ export async function publishWithin(
 ): Promise<{ eventId: string }> {
   assertPublishable(event);
 
-  const rows = await tx.$queryRaw<{ id: string }[]>`
-    insert into outbox.events (organization_id, event_type, payload)
-    values (
-      ${event.organizationId}::uuid,
-      ${event.eventType},
-      ${JSON.stringify(event.payload ?? {})}::jsonb
-    )
-    returning id
-  `;
+  const eventId = crypto.randomUUID();
+  const written = await tx.$executeRawUnsafe(
+    `insert into outbox.events (id, organization_id, event_type, payload)
+     values ($1::uuid, $2::uuid, $3, $4::jsonb)`,
+    eventId,
+    event.organizationId,
+    event.eventType,
+    JSON.stringify(event.payload ?? {}),
+  );
 
-  const [row] = rows;
-  if (!row) {
-    // Reachable only if the insert policy denied: the actor cannot publish into
-    // that scope.
+  if (written !== 1) {
+    // Not reachable through the policy, which raises rather than filtering an
+    // insert. Here because "wrote nothing and said nothing" is the one outcome
+    // this function must never have.
     throw new Error("the event was not published");
   }
-  return { eventId: row.id };
+  return { eventId };
 }
