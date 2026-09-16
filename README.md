@@ -8,6 +8,10 @@ Properties and subscribe to capabilities through plans and Entitlements.
 for product scope, domain language, and architecture. Read it before planning or
 changing anything here.
 
+Contributors and AI agents should start with [`AGENTS.md`](AGENTS.md), which
+covers the authority order, the enforced architecture rules, the security
+invariants, and the vocabulary that must not regress to pilot terms.
+
 ## Status
 
 This branch is a rebuild. The previous student-dormitory pilot is archived at the
