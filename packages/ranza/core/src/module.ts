@@ -1,0 +1,64 @@
+import { withOrganizationContext } from "@ranza/db";
+import type { CapabilityRef, EntitledProperty } from "./contracts";
+import type { CoreDeps } from "./ports";
+
+/**
+ * Ranza core: Organization, Property, membership and Entitlement reads.
+ *
+ * It lives in the Ranza tier rather than the reusable one because Organization
+ * and Property are Ranza concepts (ADR 0003). It owns no authorization logic of
+ * its own — blueprint 3.5 is decided by `app.can_use_capability()` and
+ * row-level security, in the database, where an application defect cannot skip
+ * it. This module's job is to ask the question inside a request context.
+ */
+export function createCoreModule(deps: CoreDeps) {
+  /**
+   * Every Property the acting Staff Member may use `capability` in.
+   *
+   * All five blueprint 3.5 gates apply to this one query, and each can deny on
+   * its own:
+   *
+   *   1-3  Subscription, Entitlement and Property capability, via
+   *        app.can_use_capability()
+   *   4    membership and Property assignment — checked by that same function
+   *        and again by the properties policy
+   *   5    row-level security on properties and organizations, which filters
+   *        the rows before the function is ever called
+   *
+   * An empty result is the correct answer to "this viewer may use nothing",
+   * never an error. A missing request context produces the same empty result,
+   * which is why callers must not reach this without one — see viewer.ts in the
+   * host, and ADR 0007.
+   */
+  async function listEntitledProperties(
+    userId: string,
+    capability: CapabilityRef,
+  ): Promise<EntitledProperty[]> {
+    return withOrganizationContext(
+      deps.db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<EntitledProperty[]>`
+        select
+          property.id              as "propertyId",
+          property.name            as "propertyName",
+          property.timezone        as "timezone",
+          organization.id          as "organizationId",
+          organization.name        as "organizationName"
+        from public.properties as property
+        join public.organizations as organization
+          on organization.id = property.organization_id
+        where app.can_use_capability(
+          property.id,
+          ${capability.moduleKey},
+          ${capability.capabilityKey}
+        )
+        order by organization.name, property.name
+      `,
+    );
+  }
+
+  return { listEntitledProperties };
+}
+
+export type CoreModule = ReturnType<typeof createCoreModule>;
