@@ -61,6 +61,21 @@ module.exports = {
       to: { path: "^packages/adapters/" },
     },
     {
+      name: "tenant-data-only-through-the-server-funnel",
+      comment:
+        "ADR 0007: a tenant read must publish the acting user before it runs. " +
+        "Skipping that does not raise — policies see a null user and deny, so " +
+        "the page renders empty and looks like missing data. The three steps " +
+        "live together in src/server/viewer.ts, and nothing else may reach the " +
+        "database or a module that does.",
+      severity: "error",
+      from: {
+        path: "^apps/[^/]+/src/",
+        pathNot: "^apps/[^/]+/src/server/",
+      },
+      to: { path: "^packages/(auth|db|ranza/core)/" },
+    },
+    {
       name: "modules-expose-only-their-public-contract",
       comment:
         "Blueprint 9.10: importers may reach a module's index only, never its " +
@@ -104,5 +119,14 @@ module.exports = {
     doNotFollow: { path: "node_modules" },
     exclude: "(^|/)(.next|dist)/",
     tsConfig: { fileName: "tsconfig.json" },
+    // Workspace packages export TypeScript source through an "exports" field.
+    // Without these the resolver gives up on "@ranza/db" and reports it as an
+    // unresolvable name, which every path-based rule above would then miss —
+    // the rules would pass while enforcing nothing.
+    enhancedResolveOptions: {
+      exportsFields: ["exports"],
+      conditionNames: ["import", "require", "node", "default", "types"],
+      extensions: [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".json"],
+    },
   },
 };

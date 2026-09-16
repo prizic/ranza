@@ -21,7 +21,7 @@
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "lint": "turbo run lint && pnpm lint:boundaries",
-    "lint:boundaries": "depcruise --config .dependency-cruiser.cjs packages",
+    "lint:boundaries": "depcruise --config .dependency-cruiser.cjs packages apps",
     "test": "pnpm test:unit && pnpm test:boundaries && pnpm check:docs",
     "test:boundaries": "node scripts/dependency-boundaries.mjs",
     "test:integration": "vitest run --config vitest.integration.mts",

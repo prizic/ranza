@@ -122,13 +122,18 @@ Branch `rebuild/blueprint` is a rebuild. The previous pilot is archived at tags
 `v0-pilot-archive` and `v0-phase-two-hardening` — recoverable, but its domain
 model does not carry forward.
 
-The foundation is verified, not assumed. Against both Supabase and local
-Postgres: 16 pgTAP assertions covering the five gates, and 11 integration tests
-covering tenant isolation under a pooled Prisma connection plus sign-up through
-to a correctly scoped query.
+The foundation is verified, not assumed. Run `pnpm db:test` for the pgTAP suites
+covering the five gates, and `pnpm test:integration` for tenant isolation under a
+pooled Prisma connection, sign-up through to a correctly scoped query, and each
+gate denying on its own.
 
-Current milestone: the walking skeleton. The database, identity and entitlement
-layers are done; `apps/operator-workspace` does not exist yet.
+The **walking skeleton stands**. `packages/ranza/core` answers which Properties a
+viewer may reach, and `apps/operator-workspace` renders `/{tr,en,ar}/today` from
+that answer alone — Arabic right to left, navigation showing only entitled
+capabilities. Every tenant read goes through one funnel, `src/server/viewer.ts`,
+and reaching around it is a build failure (ADR 0007).
+
+Next is blueprint Phase 2: Accommodation Units, Reservations, Stays, Folios.
 
 ## Keeping documentation true
 

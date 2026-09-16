@@ -18,20 +18,23 @@ This branch is a rebuild. The previous student-dormitory pilot is archived at th
 `v0-pilot-archive` tag and its domain model does not carry forward — see
 [`docs/adr/`](docs/adr) for the decisions that replaced it.
 
-Current milestone: **walking skeleton** — Organization, Property, identity, and
-entitlement enforcement proven end-to-end through one application shell.
+The **walking skeleton** stands: Organization, Property, identity and
+entitlement enforcement proven end to end through `apps/operator-workspace`, in
+Turkish, English and Arabic. Next is blueprint Phase 2 — Accommodation Units,
+Reservations, Stays and Folios.
 
 ## Layout
 
 ```text
 apps/                     separately deployable applications
-  storefront/             public marketing and lead capture
   operator-workspace/     the main authenticated application
+  storefront/             public marketing and lead capture
   guest-portal/           Guest and Resident PWA
   control-plane/          Prizic-internal administration
 packages/
   platform/               host-agnostic reusable modules (generic subdomains)
   ranza/                  Ranza domain modules (core domain)
+    core/                 Organization, Property, membership, Entitlement reads
   adapters/               Ranza-to-platform mappings
   config, db, i18n, ui, observability
                           cross-cutting infrastructure
@@ -45,7 +48,12 @@ most: a `platform/` module may not reference `Property`, `Guest`, `Stay` or
 
 Tier boundaries are enforced, not documented: `.dependency-cruiser.cjs` rejects
 forbidden imports and `scripts/dependency-boundaries.mjs` additionally rejects
-Ranza vocabulary appearing inside a reusable platform module.
+Ranza vocabulary appearing inside a reusable platform module, and any module
+reading `process.env`.
+
+An application may reach the database only through its own server funnel — see
+[ADR 0007](docs/adr/0007-a-session-becomes-a-request-context.md). That rule is
+enforced by the same pair, with fixtures proving both fire.
 
 ## Local development
 
