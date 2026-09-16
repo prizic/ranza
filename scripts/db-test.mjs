@@ -7,6 +7,8 @@ import { readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { withoutConnectionOverrides } from "./local-url.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const suiteDirectory = path.join(root, "tests/database");
 const url =
@@ -19,6 +21,19 @@ function psql(args, input) {
     "psql",
     [url, "-v", "ON_ERROR_STOP=1", "-t", "-A", ...args],
     {
+      // The repository root, not wherever this was invoked from. A suite may
+      // read a file by relative path — folios.test.sql runs the ghost-Folio
+      // backfill straight out of prisma/migrations rather than keeping a copy
+      // that could drift from it — and psql resolves those against the working
+      // directory. Without this, `pnpm db:test` passes and the same command
+      // from another directory fails on a missing file.
+      cwd: root,
+      // No local-only check here: DIRECT_URL may deliberately point at the
+      // hosted database, because a green local run says the migrations produce
+      // the right database and not that the hosted one received them. What is
+      // removed is the environment quietly redirecting the connection
+      // somewhere the URL never named.
+      env: withoutConnectionOverrides(),
       encoding: "utf8",
       input,
     },

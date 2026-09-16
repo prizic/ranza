@@ -65,3 +65,53 @@ export async function openFolioWithin(
   // Both are "there is no Folio", which is a state and not a failure.
   return rows[0] ? { folioId: rows[0].id } : null;
 }
+
+/**
+ * Closes the empty Folio of a Stay that has just been withdrawn.
+ *
+ * `Empty` is in the name because this is not the general "close a Folio" that
+ * check-out needs. It takes no per-Stay advisory lock and checks no balance; it
+ * leans entirely on the Stay being `cancelled`. Check-out's version has to do
+ * both — see PRE-03 in docs/features/check-out/edge-cases.csv — and naming this
+ * one `closeFolioWithin` would have made that prerequisite look done.
+ *
+ * Deliberately not `closeFolio`. That opens its own `withOrganizationContext`
+ * transaction, so it could not see the withdrawal that has not committed yet:
+ * it would find the Stay still in house, or close the Folio in a transaction
+ * that survives a withdrawal which then rolls back. A withdrawal and the
+ * closing of its Folio share one fate, so they share one transaction.
+ *
+ * Only an `open` Folio moves, only for a Stay that is `cancelled`, and only
+ * while it has no lines. `stays_withdrawal_is_free_of_charges` already refuses
+ * to cancel a Stay with anything posted against it, so the last condition
+ * should never decide anything — which is exactly why it is there rather than
+ * in a comment. It takes no per-Stay lock and reads no balance, so if it ever
+ * did meet a Folio with money on it, closing it would be silent and wrong. A
+ * database older than that trigger can still hold one.
+ *
+ * Returns null when there is nothing to close — the Property does no billing,
+ * or the Folio is already closed. Both are states, not failures.
+ */
+export async function closeEmptyFolioWithin(
+  tx: FolioWriteClient,
+  stayId: string,
+): Promise<{ folioId: string } | null> {
+  const rows = await tx.$queryRaw<{ id: string }[]>`
+    update public.folios as folio
+       set status = 'closed',
+           closed_at = now(),
+           updated_at = now()
+      from public.stays as stay
+     where stay.id = folio.stay_id
+       and folio.stay_id = ${stayId}::uuid
+       and folio.status = 'open'
+       and stay.status = 'cancelled'
+       and not exists (
+         select 1 from public.folio_lines as line
+          where line.folio_id = folio.id
+       )
+    returning folio.id
+  `;
+
+  return rows[0] ? { folioId: rows[0].id } : null;
+}

@@ -112,7 +112,8 @@ pnpm test:integration # real database: tenant isolation and the auth flow
 
 `pnpm check` must pass before any commit. It does **not** touch a database, so
 `db:test` and `test:integration` are separate and must be run when changing
-schema, policies or auth.
+schema, policies or auth. CI runs `db:test` and `db:drift` in their own job
+against a real PostgreSQL; `test:integration` still runs only by hand.
 
 It does, however, run `next build`, which writes into the same `.next` a running
 `pnpm dev` is serving from. Every route 404s afterwards, including ones that
@@ -126,7 +127,12 @@ pnpm db:up       # PostgreSQL in Docker, built with pgTAP
 pnpm db:setup    # apply migrations, set local role passwords
 pnpm db:reset    # down -v, up, setup — local only, never touches a hosted database
 pnpm db:seed:dev # a demo Organization and a Staff Member to sign in as
+pnpm db:drift    # do the migrations and schema.prisma still say the same thing
 ```
+
+`db:drift` needs `SHADOW_DATABASE_URL` pointing at a **throwaway** database — it
+is dropped and recreated. CI runs it, so drift fails the build rather than
+turning up later as a `DROP` in somebody's migration (ADR 0001).
 
 `db:seed:dev` needs `pnpm dev` running: it creates the account through the
 application's own sign-up route rather than writing the provider-subject mapping

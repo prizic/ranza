@@ -27,9 +27,14 @@ const UNSET = "postgresql://unset:unset@unset.invalid:5432/unset";
 
 // Migrations and introspection use the direct connection. A transaction-mode
 // pooler cannot run DDL, so this must never point at the pooled URL (ADR 0001).
+//
+// `shadowDatabaseUrl` is read only by `migrate diff --from-migrations`, and is
+// deliberately not defaulted: a shadow database is dropped and recreated, so
+// guessing a URL for it is how a real database gets erased. See .env.example.
 export default defineConfig({
   schema: "prisma/schema.prisma",
   datasource: {
     url: process.env.DIRECT_URL ?? UNSET,
+    shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL,
   },
 });

@@ -14,7 +14,10 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAuditModule } from "../../packages/platform/audit/src";
-import { createFoliosModule } from "../../packages/ranza/folios/src";
+import {
+  closeEmptyFolioWithin,
+  createFoliosModule,
+} from "../../packages/ranza/folios/src";
 import {
   CheckInReversalError,
   StayHasChargesError,
@@ -38,6 +41,8 @@ const MISTAKE = randomUUID();
 const CHARGED = randomUUID();
 const CONTESTED = randomUUID();
 const RACED = randomUUID();
+const RETURNED = randomUUID();
+const GHOST = randomUUID();
 const REASON = "checked in the wrong one of two Guests arriving together";
 
 /** `(property_id, name)` is unique, so the name has to be per-run as well. */
@@ -115,7 +120,9 @@ beforeAll(async () => {
        ($1,$5,$6,$7,'room',2),
        ($2,$5,$6,$8,'room',2),
        ($3,$5,$6,$9,'room',2),
-       ($4,$5,$6,$10,'room',2)
+       ($4,$5,$6,$10,'room',2),
+       ($11,$5,$6,$12,'room',2),
+       ($13,$5,$6,$14,'room',2)
      on conflict (id) do nothing`,
     MISTAKE,
     CHARGED,
@@ -127,6 +134,10 @@ beforeAll(async () => {
     unitName(CHARGED),
     unitName(CONTESTED),
     unitName(RACED),
+    RETURNED,
+    unitName(RETURNED),
+    GHOST,
+    unitName(GHOST),
   );
   await owner.$executeRawUnsafe(
     `insert into public.subscriptions (organization_id, status) values ($1,'active')
@@ -355,5 +366,176 @@ describe("once money exists it is no longer a slip", () => {
       reservation: "checked_in",
       stay: "in_house",
     });
+  });
+});
+
+describe("a withdrawal is a correction, not a one-way door", () => {
+  /**
+   * ADR 0022's own mechanism: a withdrawn check-in returns the Reservation to
+   * `confirmed` precisely so the Guest can arrive again — the front desk checked
+   * in the wrong one of two people, and the right one is still standing there.
+   *
+   * The unique index on `(reservation_id, property_id, organization_id)` is not
+   * partial on status, so the cancelled Stay keeps holding the Reservation and
+   * the second check-in collides with it. The ADR describes a door that is
+   * one-way in the database. Issue #34.
+   */
+  it("a reversed Reservation can be checked in again", async () => {
+    const arrival = reservationId();
+    await reserve(arrival, RETURNED, "Returning Guest");
+    const { stayId } = await reservations.checkIn(MEMBER, arrival);
+
+    await reservations.reverseCheckIn(MEMBER, stayId, REASON);
+    expect(await statuses(arrival, stayId)).toEqual({
+      reservation: "confirmed",
+      stay: "cancelled",
+    });
+
+    const again = await reservations.checkIn(MEMBER, arrival);
+
+    // A second Stay, and the withdrawn one still there to show the mistake.
+    expect(again.stayId).not.toBe(stayId);
+    expect(await statuses(arrival, again.stayId)).toEqual({
+      reservation: "checked_in",
+      stay: "in_house",
+    });
+    const [withdrawn] = await owner.$queryRawUnsafe<{ status: string }[]>(
+      `select status from public.stays where id = $1::uuid`,
+      stayId,
+    );
+    expect(withdrawn?.status).toBe("cancelled");
+  });
+});
+
+describe("the Folio of a check-in that was withdrawn", () => {
+  /**
+   * A withdrawn Stay's Folio was left open and empty. Nothing could ever be
+   * posted to it — `folio_lines_postable` refuses a cancelled Stay — so it was
+   * not a way to lose money; it was a row on the Finance screen that no one
+   * could act on and no one could close, for a Guest who was never there.
+   *
+   * With the second check-in now possible (issue #34), one Reservation produced
+   * two open Folios, which is the same ghost twice.
+   */
+  it("is closed, so the Reservation is left with exactly one open Folio", async () => {
+    const arrival = reservationId();
+    await reserve(arrival, GHOST, "Ghost Guest");
+    const first = await reservations.checkIn(MEMBER, arrival);
+    expect(first.folioId).not.toBeNull();
+
+    await reservations.reverseCheckIn(MEMBER, first.stayId, REASON);
+    const second = await reservations.checkIn(MEMBER, arrival);
+    expect(second.folioId).not.toBeNull();
+
+    const all = await owner.$queryRawUnsafe<
+      { id: string; status: string; stayId: string }[]
+    >(
+      `select folio.id, folio.status, folio.stay_id as "stayId"
+         from public.folios as folio
+         join public.stays as stay on stay.id = folio.stay_id
+        where stay.reservation_id = $1::uuid
+        order by folio.created_at`,
+      arrival,
+    );
+
+    // Both Folios are still there — a Folio is never deleted, like the Stay it
+    // belongs to. What matters is that only the live one is open.
+    expect(all).toHaveLength(2);
+    expect(all.filter((folio) => folio.status === "open")).toEqual([
+      expect.objectContaining({ id: second.folioId, stayId: second.stayId }),
+    ]);
+    expect(all.find((folio) => folio.stayId === first.stayId)?.status).toBe(
+      "closed",
+    );
+  });
+});
+
+/** Thrown to unwind the transaction below; never escapes the test. */
+class Rollback extends Error {}
+
+describe("closing the Folio of a withdrawn Stay", () => {
+  /**
+   * The name says `Empty`, and the name has to be load-bearing: this function
+   * takes no per-Stay lock and reads no balance, so if it ever met a Folio with
+   * money on it, closing it would be silent and wrong.
+   *
+   * The state is unreachable through the application — `folio_lines_postable`
+   * refuses a line on a cancelled Stay and `stays_withdrawal_is_free_of_charges`
+   * refuses to cancel a Stay carrying one — so it is built here with the trigger
+   * off, inside a transaction that is rolled back. Databases older than those
+   * rules can still hold it, which is why the backfill guards for it too.
+   */
+  it("leaves one carrying a line exactly as it was", async () => {
+    const unitId = randomUUID();
+    const stayId = randomUUID();
+    const folioId = randomUUID();
+    let closed: { folioId: string } | null = null;
+    let statusAfter: string | undefined;
+
+    await expect(
+      owner.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(
+          "select app.set_request_context($1::uuid)",
+          MEMBER,
+        );
+        await tx.$executeRawUnsafe(
+          `alter table public.folio_lines disable trigger folio_lines_postable`,
+        );
+        await tx.$executeRawUnsafe(
+          `insert into public.accommodation_units
+             (id, property_id, organization_id, name, unit_type, capacity)
+           values ($1::uuid, $2::uuid, $3::uuid, $4, 'room', 2)`,
+          unitId,
+          PROPERTY,
+          ORG,
+          unitName(unitId),
+        );
+        await tx.$executeRawUnsafe(
+          `insert into public.stays
+             (id, organization_id, property_id, accommodation_unit_id,
+              stay_type, status, starts_on, ends_on)
+           select $1::uuid, $3::uuid, $2::uuid, $4::uuid, 'guest', 'cancelled',
+                  (now() at time zone property.timezone)::date,
+                  (now() at time zone property.timezone)::date + 2
+             from public.properties as property where property.id = $2::uuid`,
+          stayId,
+          PROPERTY,
+          ORG,
+          unitId,
+        );
+        await tx.$executeRawUnsafe(
+          `insert into public.folios
+             (id, organization_id, property_id, stay_id, currency)
+           values ($1::uuid, $2::uuid, $3::uuid, $4::uuid, 'TRY')`,
+          folioId,
+          ORG,
+          PROPERTY,
+          stayId,
+        );
+        await tx.$executeRawUnsafe(
+          `insert into public.folio_lines
+             (organization_id, property_id, folio_id, line_type, description, amount_minor)
+           values ($1::uuid, $2::uuid, $3::uuid, 'charge', 'Older than the rules', 6400)`,
+          ORG,
+          PROPERTY,
+          folioId,
+        );
+
+        closed = await closeEmptyFolioWithin(tx, stayId);
+
+        const [row] = await tx.$queryRawUnsafe<{ status: string }[]>(
+          `select status from public.folios where id = $1::uuid`,
+          folioId,
+        );
+        statusAfter = row?.status;
+
+        throw new Rollback("nothing this test built is kept");
+      }),
+    ).rejects.toBeInstanceOf(Rollback);
+
+    // Asserted out here, so a failure reads as what the function did rather
+    // than as the rollback failing to be a rollback.
+    expect(closed).toBeNull();
+    expect(statusAfter).toBe("open");
   });
 });

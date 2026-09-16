@@ -2,6 +2,11 @@
 
 Status: Accepted
 Date: 2026-09-16
+Amended: 2026-09-16 — the index this decision rests on was total, not partial,
+so the mechanism described below did not work. Corrected in place below; the
+decision itself is unchanged.
+Amended: 2026-09-16 — withdrawing a check-in now closes the Folio it opened,
+and a backfill closes the ones earlier withdrawals left behind.
 
 ## Context
 
@@ -40,11 +45,52 @@ as the record of a check-in that was made and withdrawn.
 arrivable again and reappears on the arrivals list where somebody will deal with
 it properly.
 
-The Reservation cannot be checked in twice into the same Stay: the unique index
-on `(reservation_id, property_id, organization_id)` means the second check-in
-creates a _second_ Stay row, and the first one — cancelled — is still there. That
-is the property that makes this a reversal rather than an edit: the count of
-Stays against a Reservation is the count of times somebody checked it in.
+The second check-in creates a _second_ Stay row, and the first one — cancelled —
+is still there. That is the property that makes this a reversal rather than an
+edit: the count of Stays against a Reservation is the count of times somebody
+checked it in.
+
+It did not, when this was written. The unique index on
+`(reservation_id, property_id, organization_id)` was total, so the cancelled Stay
+went on holding the Reservation and the second check-in was refused by the
+database with `duplicate key value violates unique constraint` — this ADR
+described a door that its own schema had bolted shut (issue #34). The index is
+now partial, `where status <> 'cancelled'`, which is what makes the paragraph
+above true: at most one Stay per Reservation is not cancelled, and the withdrawn
+ones accumulate as the record of how many times somebody checked it in.
+
+The lesson is worth more than the fix. This decision named the index it relied on
+and still read as sound, because nobody asked the index what it actually said.
+A pgTAP assertion now pins the predicate rather than the behaviour, so a
+migration that makes it total again fails the suite instead of quietly restoring
+the one-way door.
+
+### The Folio it opened is closed with it
+
+A check-in opens a Folio; withdrawing one closes it, in the same transaction as
+everything else here. Not `closeFolio`, which opens its own transaction and so
+could not see a withdrawal that has not committed — `closeEmptyFolioWithin(tx)`,
+which shares the fate of the writes around it. `Empty` is in the name because it
+takes no per-Stay lock and checks no balance — check-out needs one that does
+both, and this is not it.
+
+Left open it was never a way to lose money: `folio_lines_postable` refuses a
+line on a cancelled Stay, so nothing could ever be posted. It was a row on the
+Finance screen for a Guest who was never there, that nobody could act on and
+nobody could close. Once a withdrawn Reservation could be checked in again, one
+Reservation showed two of them.
+
+The statement requires the Stay to be `cancelled`, which is what makes closing
+it without reading its lines safe: `stays_withdrawal_is_free_of_charges` refuses
+to cancel a Stay carrying charges, so a Folio reached through a cancelled Stay is
+provably empty. A condition rather than a comment, so changing the withdrawal
+rule breaks this loudly.
+
+Check-ins withdrawn before this was true left their Folios open, and
+`20260916001900_close_ghost_folios` closes them. It refuses rather than close
+any that carry a line: money on a withdrawn Stay is a credit or a refund, and a
+backfill does not get to decide which. That state should be unreachable, which
+is exactly why a migration running against older databases does not assume it.
 
 ### A reason is required, and it is recorded
 

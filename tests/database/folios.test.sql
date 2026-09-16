@@ -14,7 +14,7 @@
 -- app.accessible_property_ids(), removing the open-Folio clause — and
 -- confirming it went red.
 begin;
-select plan(53);
+select plan(57);
 
 insert into public.users (id, email) values
   ('41111111-1111-4111-8111-111111111111', 'finance-a@example.test'),
@@ -635,6 +635,85 @@ select set_eq(
       and grantee = 'ranza_app' and privilege_type = 'UPDATE'$$,
   array['status', 'closed_at', 'updated_at'],
   'the runtime role may update only a Folio''s status, closing date and timestamp');
+
+-- ---------------------------------------------------------------------------
+-- The backfill that closed the Folios a withdrawn check-in left open
+-- ---------------------------------------------------------------------------
+
+-- The migration itself, read from disk rather than copied. A copy would be
+-- free to drift from the file it claims to test, which is the failure this
+-- whole exercise is about.
+\set backfill `cat prisma/migrations/20260916001900_close_ghost_folios/migration.sql`
+
+reset role;
+
+-- A check-in that was withdrawn before `reverseCheckIn` closed its Folio: the
+-- Stay cancelled, the Folio still open, nothing posted to it.
+insert into public.stays
+  (id, organization_id, property_id, accommodation_unit_id,
+   stay_type, status, starts_on, ends_on) values
+  ('4f666666-6666-4666-8666-666666666666',
+   '4a111111-1111-4111-8111-111111111111',
+   '4c111111-1111-4111-8111-111111111111',
+   '4d111111-1111-4111-8111-111111111111',
+   'guest', 'cancelled', date '2026-10-01', date '2026-10-05');
+
+insert into public.folios
+  (id, organization_id, property_id, stay_id, currency) values
+  ('4e444444-4444-4444-8444-444444444444',
+   '4a111111-1111-4111-8111-111111111111',
+   '4c111111-1111-4111-8111-111111111111',
+   '4f666666-6666-4666-8666-666666666666', 'TRY');
+
+select lives_ok(:'backfill',
+  'the backfill runs against a database holding an empty ghost Folio');
+
+select is(
+  (select status from public.folios
+    where id = '4e444444-4444-4444-8444-444444444444'),
+  'closed',
+  'and closes it');
+
+-- Now the state the guard is for. It is unreachable through the application —
+-- `folio_lines_postable` refuses a line on a cancelled Stay — so constructing
+-- it means turning that trigger off, which is the point: the guard exists for
+-- databases older than the trigger, and an assertion that cannot build the
+-- state cannot test the guard.
+alter table public.folio_lines disable trigger folio_lines_postable;
+
+insert into public.stays
+  (id, organization_id, property_id, accommodation_unit_id,
+   stay_type, status, starts_on, ends_on) values
+  ('4f777777-7777-4777-8777-777777777777',
+   '4a111111-1111-4111-8111-111111111111',
+   '4c111111-1111-4111-8111-111111111111',
+   '4d222222-2222-4222-8222-222222222222',
+   'guest', 'cancelled', date '2026-10-01', date '2026-10-05');
+
+insert into public.folios
+  (id, organization_id, property_id, stay_id, currency) values
+  ('4e555555-5555-4555-8555-555555555555',
+   '4a111111-1111-4111-8111-111111111111',
+   '4c111111-1111-4111-8111-111111111111',
+   '4f777777-7777-4777-8777-777777777777', 'TRY');
+
+insert into public.folio_lines
+  (organization_id, property_id, folio_id, line_type, description, amount_minor)
+  values ('4a111111-1111-4111-8111-111111111111',
+          '4c111111-1111-4111-8111-111111111111',
+          '4e555555-5555-4555-8555-555555555555',
+          'charge', 'Posted before the withdrawal rules existed', 7500);
+
+alter table public.folio_lines enable trigger folio_lines_postable;
+
+select throws_ok(:'backfill', 'P0001', NULL,
+  'the backfill refuses rather than close a Folio on a cancelled Stay that carries a line');
+
+select is(
+  (select status from public.folios
+    where id = '4e555555-5555-4555-8555-555555555555'),
+  'open',
+  'and leaves it exactly as it was, for somebody to credit or refund');
 
 select * from finish();
 rollback;

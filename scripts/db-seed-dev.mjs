@@ -13,6 +13,11 @@
 // that ADR 0005 deliberately keeps in one place.
 import { spawnSync } from "node:child_process";
 
+import {
+  requireLocalDatabase,
+  withoutConnectionOverrides,
+} from "./local-url.mjs";
+
 // Local only, by construction: this writes a known password into a database.
 const DATABASE = "postgresql://ranza:ranza@localhost:54322/ranza";
 const APP = process.env.WORKSPACE_URL ?? "http://localhost:3000";
@@ -36,16 +41,18 @@ const ARRIVALS = [
   },
 ];
 
-if (!/localhost|127\.0\.0\.1/.test(DATABASE)) {
-  console.error("db:seed:dev only targets the local docker database.");
-  process.exit(1);
-}
+requireLocalDatabase(DATABASE, {
+  name: "db:seed:dev's database URL",
+  because:
+    "this writes demo Organizations, Properties and Reservations, which have\n" +
+    "no business appearing in a real one.",
+});
 
 function psql(sql) {
   const result = spawnSync(
     "psql",
     [DATABASE, "-v", "ON_ERROR_STOP=1", "-q", "-t", "-A", "-c", sql],
-    { encoding: "utf8" },
+    { encoding: "utf8", env: withoutConnectionOverrides() },
   );
   if (result.status !== 0) {
     console.error(result.stderr.trim());
