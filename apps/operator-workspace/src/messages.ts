@@ -10,6 +10,7 @@ export interface Messages {
   productName: string;
   skip: string;
   languageLabel: string;
+  languageName: Record<SupportedLocale, string>;
   today: string;
   propertySwitcher: string;
   mainNavigation: string;
@@ -73,6 +74,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     productName: "Ranza",
     skip: "İçeriğe geç",
     languageLabel: "Dil",
+    languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     today: "Bugün",
     propertySwitcher: "Tesisler",
     mainNavigation: "Ana gezinme",
@@ -149,6 +151,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     productName: "Ranza",
     skip: "Skip to content",
     languageLabel: "Language",
+    languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     today: "Today",
     propertySwitcher: "Properties",
     mainNavigation: "Main navigation",
@@ -224,6 +227,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     productName: "Ranza",
     skip: "تخطَّ إلى المحتوى",
     languageLabel: "اللغة",
+    languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     today: "اليوم",
     propertySwitcher: "المنشآت",
     mainNavigation: "التنقل الرئيسي",

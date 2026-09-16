@@ -1,8 +1,15 @@
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
-import { ShieldCheck } from "lucide-react";
+import { Check, ShieldCheck } from "lucide-react";
 import { isSupportedLocale, localizeHref, supportedLocales } from "@ranza/i18n";
-import { AccountMenu, AppShell, BrandMark, DropdownMenuItem } from "@ranza/ui";
+import {
+  AccountMenu,
+  AppShell,
+  BrandMark,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@ranza/ui";
 import { messages } from "../../../messages";
 import {
   entitledProperties,
@@ -62,6 +69,35 @@ export default async function WorkspaceLayout({
           {copy.security}
         </a>
       </DropdownMenuItem>
+
+      <DropdownMenuSeparator />
+
+      {/* Language belongs to the person too, and it is set once and then never
+          again — so it lives beside the account rather than costing three
+          permanent controls in a bar that has real work to show. */}
+      <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+        {copy.languageLabel}
+      </DropdownMenuLabel>
+      {supportedLocales.map((supported) => (
+        <DropdownMenuItem asChild key={supported}>
+          <a
+            aria-current={supported === locale ? "true" : undefined}
+            href={localizeHref(supported, "today")}
+            hrefLang={supported}
+            lang={supported}
+          >
+            <Check
+              aria-hidden="true"
+              className={
+                supported === locale
+                  ? "size-4 shrink-0"
+                  : "size-4 shrink-0 invisible"
+              }
+            />
+            {copy.languageName[supported]}
+          </a>
+        </DropdownMenuItem>
+      ))}
     </AccountMenu>
   );
 
@@ -79,7 +115,7 @@ export default async function WorkspaceLayout({
       pageBar={
         <WorkspacePageBar
           action={
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {first ? (
                 <PropertySwitcher
                   label={copy.propertySwitcher}
@@ -91,23 +127,6 @@ export default async function WorkspaceLayout({
                   }))}
                 />
               ) : null}
-              <nav
-                aria-label={copy.languageLabel}
-                className="hidden items-center gap-1 text-step--1 sm:flex"
-              >
-                {supportedLocales.map((supported) => (
-                  <a
-                    aria-current={supported === locale ? "true" : undefined}
-                    className="rounded-sm px-1.5 py-0.5 text-muted-foreground transition-colors hover:text-foreground aria-[current=true]:bg-secondary aria-[current=true]:text-foreground"
-                    href={localizeHref(supported, "today")}
-                    hrefLang={supported}
-                    key={supported}
-                    lang={supported}
-                  >
-                    {supported.toUpperCase()}
-                  </a>
-                ))}
-              </nav>
               {/* The rail is desktop-only, so on a phone the account rides in
                   the page bar rather than earning a second row of chrome. */}
               <div className="md:hidden">{account}</div>

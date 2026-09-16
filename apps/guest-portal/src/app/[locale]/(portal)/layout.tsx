@@ -1,7 +1,14 @@
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref, supportedLocales } from "@ranza/i18n";
-import { AccountMenu, AppShell, AppPageBar } from "@ranza/ui";
+import { Check } from "lucide-react";
+import {
+  AccountMenu,
+  AppShell,
+  AppPageBar,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+} from "@ranza/ui";
 import { messages } from "../../../messages";
 import { requireViewer } from "../../../server/viewer";
 import { PortalBottomNav, PortalRail } from "./portal-rail";
@@ -37,23 +44,32 @@ export default async function PortalLayout({
 
   const account = (
     <AccountMenu email={viewer.email} label={copy.account} name={viewer.email}>
-      <nav
-        aria-label={copy.languageLabel}
-        className="flex items-center gap-1 px-2 py-1.5 text-step--1"
-      >
-        {supportedLocales.map((supported) => (
+      {/* Language belongs to the person, and is set once and then never again —
+          so it lives beside the account rather than costing a permanent control
+          in the bar. */}
+      <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+        {copy.languageLabel}
+      </DropdownMenuLabel>
+      {supportedLocales.map((supported) => (
+        <DropdownMenuItem asChild key={supported}>
           <a
             aria-current={supported === locale ? "true" : undefined}
-            className="rounded-sm px-1.5 py-0.5 text-muted-foreground transition-colors hover:text-foreground aria-[current=true]:bg-secondary aria-[current=true]:text-foreground"
             href={localizeHref(supported, "stay")}
             hrefLang={supported}
-            key={supported}
             lang={supported}
           >
-            {supported.toUpperCase()}
+            <Check
+              aria-hidden="true"
+              className={
+                supported === locale
+                  ? "size-4 shrink-0"
+                  : "size-4 shrink-0 invisible"
+              }
+            />
+            {copy.languageName[supported]}
           </a>
-        ))}
-      </nav>
+        </DropdownMenuItem>
+      ))}
     </AccountMenu>
   );
 

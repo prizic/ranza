@@ -16,6 +16,7 @@ export interface Messages {
   productName: string;
   skip: string;
   languageLabel: string;
+  languageName: Record<SupportedLocale, string>;
   mainNavigation: string;
   back: string;
   account: string;
@@ -53,6 +54,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     productName: "Ranza",
     skip: "İçeriğe geç",
     languageLabel: "Dil",
+    languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     mainNavigation: "Ana gezinme",
     back: "Geri",
     account: "Hesap",
@@ -100,6 +102,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     productName: "Ranza",
     skip: "Skip to content",
     languageLabel: "Language",
+    languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     mainNavigation: "Main navigation",
     back: "Back",
     account: "Account",
@@ -147,6 +150,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     productName: "Ranza",
     skip: "تخطَّ إلى المحتوى",
     languageLabel: "اللغة",
+    languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     mainNavigation: "التنقل الرئيسي",
     back: "رجوع",
     account: "الحساب",
