@@ -2,13 +2,20 @@ import type { ReactNode } from "react";
 
 export interface AppShellProps {
   children: ReactNode;
+  /** Chrome that belongs to the shell rather than the page — a switcher, say. */
+  context?: ReactNode;
   languageLabel: string;
   localeLinks: readonly LocaleLink[];
   navigation: readonly NavigationItem[];
   productName: string;
   skipLabel: string;
-  summary: string;
-  title: string;
+  /**
+   * Page heading. Optional because a router layout renders the shell while the
+   * page below it owns its own heading; omitting both leaves `children` to
+   * supply the `<h1>`.
+   */
+  summary?: string;
+  title?: string;
 }
 
 export interface NavigationItem {
@@ -26,6 +33,7 @@ export interface LocaleLink {
 
 export function AppShell({
   children,
+  context,
   languageLabel,
   localeLinks,
   navigation,
@@ -46,6 +54,7 @@ export function AppShell({
           </span>
           <span>{productName}</span>
         </a>
+        {context}
         <nav aria-label={languageLabel} className="locale-nav">
           {localeLinks.map((link) => (
             <a
@@ -72,10 +81,12 @@ export function AppShell({
         ))}
       </nav>
       <main className="main-content" id="main-content" tabIndex={-1}>
-        <header className="page-intro">
-          <h1>{title}</h1>
-          <p>{summary}</p>
-        </header>
+        {title ? (
+          <header className="page-intro">
+            <h1>{title}</h1>
+            {summary ? <p>{summary}</p> : null}
+          </header>
+        ) : null}
         {children}
       </main>
     </div>
