@@ -258,3 +258,45 @@ assert.deepEqual(
   "the fixture must be detected, or the scan above proves nothing",
 );
 console.log("PASS the worker discovers its configuration in one place");
+
+// ADR 0019: a client cache holds one tenant's rows in a place that outlives a
+// request, which nothing else in this product does. It is allowed in feature
+// folders and in the providers directory, and nowhere else — never in
+// packages/**, and never on a server path, where a QueryClient at module scope
+// is one object shared by every concurrent request.
+//
+// Matched on the exact specifier: packages/ui imports @tanstack/react-table,
+// which is a different package and is fine anywhere.
+const QUERY_IMPORT = /["']@tanstack\/react-query["']/;
+const QUERY_ALLOWED = /\/apps\/[^/]+\/src\/(features\/|app\/providers\/)/;
+
+function cacheImporters(roots) {
+  return roots
+    .flatMap((directory) => sourceFiles(directory))
+    .filter(
+      (file) =>
+        !QUERY_ALLOWED.test(file) &&
+        QUERY_IMPORT.test(readFileSync(file, "utf8")),
+    );
+}
+
+const appSources = readdirSync(path.join(root, "apps"), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => path.join(root, "apps", entry.name, "src"));
+
+assert.deepEqual(
+  cacheImporters([...appSources, packagesRoot]).map((file) =>
+    path.relative(root, file),
+  ),
+  [],
+  "@tanstack/react-query belongs in a feature folder or app/providers, and nowhere else",
+);
+
+assert.deepEqual(
+  cacheImporters([
+    path.join(root, "tests/boundaries/fixtures/apps/operator-workspace/src"),
+  ]).map((file) => path.basename(file)),
+  ["live.ts"],
+  "the fixture must be detected, or the scan above proves nothing",
+);
+console.log("PASS the client cache stays in feature folders and providers");
