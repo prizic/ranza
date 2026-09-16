@@ -126,6 +126,34 @@ function alwaysFails(consumer: string, eventType: string): OutboxSubscription {
   };
 }
 
+/**
+ * Empties the queue of everything that was already in it.
+ *
+ * `claim()` takes the oldest twenty unpublished events across every
+ * Organization, because that is what a worker does. The suites that run before
+ * this one leave their own events behind — a check-in publishes two — and once
+ * twenty of those are older than the event a test has just written, the
+ * dispatcher claims them instead and the test's own event is never delivered.
+ *
+ * That is not flakiness. It is deterministic in the depth of the backlog, which
+ * is why it surfaces as a suite that passes alone, passes on a quiet database,
+ * and fails in a full run once enough other suites exist to fill a batch. It
+ * was found that way: twenty-five filler events make it fail every time.
+ *
+ * Drained through `dispatch([])` rather than SQL because an event nothing
+ * subscribes to is published immediately — the queue is emptied by the path
+ * production empties it by, not by a test reaching past the dispatcher.
+ */
+async function drain(): Promise<void> {
+  // Bounded rather than `while (true)`: a queue that will not drain is a broken
+  // dispatcher, and this should say so by failing rather than by hanging.
+  for (let pass = 0; pass < 50; pass += 1) {
+    const { claimed } = await dispatcher.dispatch([]);
+    if (claimed === 0) return;
+  }
+  throw new Error("the outbox did not drain");
+}
+
 beforeAll(async () => {
   await owner.$executeRawUnsafe(
     `insert into public.users (id, email) values ($1,'outbox-member@example.test')
@@ -161,6 +189,10 @@ beforeAll(async () => {
   await owner.$executeRawUnsafe(
     `grant select, insert on public.${SCRATCH} to ranza_worker`,
   );
+
+  // Last, so every assertion below starts from a queue holding only what its
+  // own test put there.
+  await drain();
 });
 
 afterAll(async () => {
