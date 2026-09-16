@@ -16,3 +16,14 @@ everything lands under Unreleased.
   `app.resident_can_use_capability()`, a second way into the same tables that
   is not a widening of the Staff policies ([ADR 0009](../../../docs/adr/0009-a-resident-reaches-their-own-stay-not-an-organization.md)).
 - `listOwnStays()` and `PORTAL_STAY_CAPABILITY`.
+
+### Changed
+
+- `stays` gained `reservation_id` and `stays_no_double_booking`, an exclusion
+  constraint making two current Stays on one Accommodation Unit over overlapping
+  nights unrepresentable. Both are owned by
+  [`@ranza/reservations`](../reservations/README.md), which is what creates a
+  Stay — this module still owns the table and the Resident access path.
+- `ranza_app` may now `INSERT` a Stay, bounded by `stays_insert_front_desk`
+  ([ADR 0012](../../../docs/adr/0012-a-write-is-bounded-by-a-policy-not-a-check.md)).
+  It still holds no `UPDATE` or `DELETE`: check-out is not built.

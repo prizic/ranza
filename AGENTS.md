@@ -178,7 +178,30 @@ and integrations, and two of the four applications. The generic foundations stay
 unbuilt on purpose — blueprint section 13 forbids tables ahead of the workflows
 that need them.
 
-Next is the rest of blueprint Phase 2: Reservations, Folios, and the Portal
+The **front desk writes** is where Phase 2 starts, and it is the first mutation
+in the product. `packages/ranza/reservations` owns the Reservation and the
+check-in that turns one into a Stay: one transaction that creates the Stay, moves
+the Reservation and records the actor, or does none of the three.
+`apps/operator-workspace` renders `/{tr,en,ar}/front-office` from it.
+
+Two things there are worth knowing before writing the next module, because both
+are precedent. **A write is bounded by a policy, not by a check** — ADR 0012 —
+and that policy carries all four of blueprint 3.5's gates rather than reach
+alone, because a read carries the commercial gates in the query around it and a
+write has no such query. And **availability is a constraint**:
+`stays_no_double_booking` is an exclusion constraint over `btree_gist`, so two
+people checking a Guest into the same Unit at the same moment end with one Stay
+and one refusal from the database rather than from whichever application noticed
+first.
+
+Writing that ADR found two policy clauses whose removal changed no observable
+behaviour — the tests written for them were evidence of nothing. The break-it-and-
+watch-it-go-red rule below applies to each clause of a policy, not to the policy
+as a whole.
+
+Phase 2 continues with the rest of blueprint 5.3 — group reservations,
+quotations, deposits, availability search, extensions, room moves, check-out and
+no-show handling, none of which are built — then Folios, and the Portal
 capabilities of blueprint 4.3 that are specified but not built.
 
 ## Keeping documentation true

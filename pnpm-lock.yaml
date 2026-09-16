@@ -107,6 +107,9 @@ importers:
       '@ranza/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@ranza/reservations':
+        specifier: workspace:*
+        version: link:../../packages/ranza/reservations
       '@ranza/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -183,6 +186,21 @@ importers:
       '@ranza/db':
         specifier: workspace:*
         version: link:../../db
+
+  packages/ranza/reservations:
+    dependencies:
+      '@ranza/accommodation':
+        specifier: workspace:*
+        version: link:../accommodation
+      '@ranza/core':
+        specifier: workspace:*
+        version: link:../core
+      '@ranza/db':
+        specifier: workspace:*
+        version: link:../../db
+      '@ranza/platform-audit':
+        specifier: workspace:*
+        version: link:../../platform/audit
 
   packages/ranza/stays:
     dependencies:

@@ -3,9 +3,8 @@
 The **core domain** — what makes Ranza specifically a hospitality product. These
 modules may use hospitality vocabulary freely.
 
-Built: `core/`, `accommodation/`, `stays/`.
-Planned: `reservations/`, `housekeeping/`, `guest-services/`, `folios/`,
-`food-and-beverage/`.
+Built: `core/`, `accommodation/`, `stays/`, `reservations/`.
+Planned: `housekeeping/`, `guest-services/`, `folios/`, `food-and-beverage/`.
 
 `core/` owns Organization, Property, identity, roles and assignments,
 Entitlements and Feature Configuration. It lives here rather than in `platform/`
@@ -20,6 +19,10 @@ which resolves the blueprint's own section 5.1 / 9.8 ambiguity about who may own
 - Must **not** depend on `adapters/` — adapters sit above domain modules.
 - Each module owns its tables. No other module writes to them; cross-module work
   goes through contracts, commands or events (blueprint section 6).
+- A module that writes bounds the write with a row-level policy carrying all
+  four of blueprint 3.5's gates, never with an application check — see
+  [ADR 0012](../../docs/adr/0012-a-write-is-bounded-by-a-policy-not-a-check.md),
+  which `reservations/` established and later modules copy.
 - Only `index.ts` is importable.
 - Each module carries a `README.md` and a `CHANGELOG.md`; `pnpm check` fails
   without them.
