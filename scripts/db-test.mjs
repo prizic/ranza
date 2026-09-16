@@ -12,11 +12,17 @@ const suiteDirectory = path.join(root, "tests/database");
 const url =
   process.env.DATABASE_URL ?? "postgresql://ranza:ranza@localhost:54322/ranza";
 
+// -t -A keeps psql from aligning output. Aligned output indents TAP lines, which
+// silently defeats the "not ok" check and makes every suite look green.
 function psql(args, input) {
-  return spawnSync("psql", [url, "-v", "ON_ERROR_STOP=1", ...args], {
-    encoding: "utf8",
-    input,
-  });
+  return spawnSync(
+    "psql",
+    [url, "-v", "ON_ERROR_STOP=1", "-t", "-A", ...args],
+    {
+      encoding: "utf8",
+      input,
+    },
+  );
 }
 
 const available = spawnSync("psql", ["--version"], { encoding: "utf8" });
@@ -53,17 +59,24 @@ for (const suite of suites) {
   const result = psql(["-f", path.join(suiteDirectory, suite)]);
   const output = `${result.stdout}${result.stderr}`;
   // pgTAP reports failures as "not ok" lines; a crashed suite exits non-zero.
-  const notOk = output.split("\n").filter((line) => line.startsWith("not ok"));
+  const lines = output.split("\n").map((line) => line.trim());
+  const notOk = lines.filter((line) => line.startsWith("not ok"));
+  const ok = lines.filter((line) => line.startsWith("ok ") || line === "ok");
 
   if (result.status !== 0 || notOk.length > 0) {
     failed += 1;
     console.error(`FAIL ${suite}`);
     console.error(output.trim());
   } else {
-    const assertions = output
-      .split("\n")
-      .filter((line) => line.startsWith("ok ")).length;
-    console.log(`PASS ${suite} (${assertions} assertions)`);
+    if (ok.length === 0) {
+      failed += 1;
+      console.error(
+        `FAIL ${suite} — ran no assertions. A suite that asserts nothing cannot fail.`,
+      );
+      console.error(output.trim());
+    } else {
+      console.log(`PASS ${suite} (${ok.length} assertions)`);
+    }
   }
 }
 

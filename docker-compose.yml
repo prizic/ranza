@@ -1,7 +1,8 @@
 # Local PostgreSQL for development and tests. No Supabase, no extra services.
 services:
   postgres:
-    image: postgres:17-alpine
+    # Built rather than pulled: the suites in tests/database need pgTAP.
+    build: ./docker/postgres
     environment:
       POSTGRES_USER: ranza
       POSTGRES_PASSWORD: ranza
