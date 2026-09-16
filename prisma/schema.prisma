@@ -147,7 +147,7 @@ model PropertyAssignment {
 /// long-term; both are Stays, told apart by `stay_type`.
 ///
 /// `user_id` is the Ranza user the Stay belongs to and is what the Resident
-/// access path resolves against (ADR 0008). It is nullable because most Stays
+/// access path resolves against (ADR 0009). It is nullable because most Stays
 /// are created by Staff for someone who has never signed in — a Stay with no
 /// user simply has no portal, which is a normal state and not a broken row.
 model Stay {

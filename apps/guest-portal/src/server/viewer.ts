@@ -12,7 +12,7 @@ import { getComposition } from "./composition";
  * ADR 0007 says this applies per application and that the Portal needs its own
  * funnel rather than reusing the Workspace's. This is it, and the difference is
  * the whole point: the three steps are the same, but step 3 lands on a
- * different set of policies (ADR 0008).
+ * different set of policies (ADR 0009).
  *
  *   1. validate the session          (Better Auth, the ranza_auth client)
  *   2. map the provider subject to a Ranza user id  (auth_identities)

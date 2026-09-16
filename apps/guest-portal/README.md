@@ -29,7 +29,7 @@ The Portal must never expose staff controls or Prizic operations
    the same Better Auth instance and map to the same kind of Ranza user, then
    reach their own Stay and nothing else — their own policies, not a widening
    of the Staff ones. See
-   [ADR 0008](../../docs/adr/0008-a-resident-reaches-their-own-stay-not-an-organization.md).
+   [ADR 0009](../../docs/adr/0009-a-resident-reaches-their-own-stay-not-an-organization.md).
 3. **A Staff Member signing in here gets an empty state.** A membership is not
    a Stay, so the Portal grants them no capability at all. That is asserted in
    `tests/integration/portal-access.test.ts`, not assumed.

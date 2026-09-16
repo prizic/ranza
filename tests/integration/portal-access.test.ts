@@ -4,7 +4,7 @@
  * The Portal's whole security story is that a Resident is not a Staff Member:
  * they authenticate through the same Better Auth instance and map to the same
  * kind of Ranza user, and then reach a completely different set of rows
- * (ADR 0008). That claim is only worth something if the wrong rows are asked
+ * (ADR 0009). That claim is only worth something if the wrong rows are asked
  * for out loud, so this asks for them.
  *
  * It exercises @ranza/stays rather than raw SQL, because the module's query is

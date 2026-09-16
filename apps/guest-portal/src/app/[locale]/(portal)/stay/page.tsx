@@ -24,7 +24,7 @@ import { ownStays } from "../../../../server/viewer";
  * Stay is a normal thing to be — and it is the same answer given to a departed
  * Resident, to a Staff Member who signed in here, and to a Property whose
  * Organization is not entitled to this capability. Telling those four apart
- * from the interface is exactly what the Portal must not do (ADR 0008).
+ * from the interface is exactly what the Portal must not do (ADR 0009).
  */
 
 /**

@@ -36,7 +36,7 @@ export type StayStatus = "reserved" | "in_house" | "departed" | "cancelled";
  * A Stay as its own Guest or Resident sees it.
  *
  * Flat, and only what the Portal shows. There is no Organization here because a
- * Resident is not a member of one and must not learn its shape (ADR 0008), and
+ * Resident is not a member of one and must not learn its shape (ADR 0009), and
  * no Unit operational status because housekeeping state is Staff information.
  */
 export interface OwnStay {

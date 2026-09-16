@@ -25,4 +25,4 @@ The two live applications share a Better Auth instance and share nothing else.
 They compose different modules, reach different rows, and have one funnel each —
 which is what makes "the Portal must never expose staff controls" structural
 rather than a matter of what each one renders. See
-[ADR 0008](../docs/adr/0008-a-resident-reaches-their-own-stay-not-an-organization.md).
+[ADR 0009](../docs/adr/0009-a-resident-reaches-their-own-stay-not-an-organization.md).

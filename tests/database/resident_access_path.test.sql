@@ -1,4 +1,4 @@
--- The Resident access path: a second way into the same tables (ADR 0008).
+-- The Resident access path: a second way into the same tables (ADR 0009).
 --
 -- A Resident holds no organization_membership and no property_assignment, so
 -- every policy written before this one denies them. These assertions pin down

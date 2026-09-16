@@ -8,7 +8,7 @@
 -- property_assignments: the reader is Staff. A Resident has neither and never
 -- will. So this migration adds a second access path through the same tables —
 -- same app.current_user_id(), different rows — rather than widening the Staff
--- policies to let a non-Staff reader through. ADR 0008 explains why that
+-- policies to let a non-Staff reader through. ADR 0009 explains why that
 -- distinction is load-bearing and what every later module must assume.
 --
 -- ADR 0001: Prisma generated the table below; everything beneath it is
@@ -48,7 +48,7 @@ ALTER TABLE "stays" ADD CONSTRAINT "stays_user_id_fkey" FOREIGN KEY ("user_id") 
 -- ---------------------------------------------------------------------------
 
 comment on column public.stays.user_id is
-  'The Ranza user whose Stay this is, and what the Resident access path resolves against (ADR 0008). Null for a Stay whose occupant has never signed in.';
+  'The Ranza user whose Stay this is, and what the Resident access path resolves against (ADR 0009). Null for a Stay whose occupant has never signed in.';
 
 alter table public.stays
   add constraint stays_stay_type_check
@@ -144,7 +144,7 @@ as $$
 $$;
 
 -- ---------------------------------------------------------------------------
--- The Resident access path (ADR 0008)
+-- The Resident access path (ADR 0009)
 -- ---------------------------------------------------------------------------
 
 -- security definer for the same reason as app.accessible_property_ids(): a

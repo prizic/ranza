@@ -19,7 +19,7 @@ import { createStaysModule } from "@ranza/stays";
  * its role owns the tables, which means RLS does not apply to it. Using it to
  * serve a request would disable every policy at once while appearing to work —
  * and in this application the policies are the only thing between one Resident
- * and another (ADR 0008).
+ * and another (ADR 0009).
  *
  * @ranza/core is deliberately absent too. The Portal must never expose staff
  * controls (blueprint 4.3), and the strongest form of that is an application

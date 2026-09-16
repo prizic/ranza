@@ -1,4 +1,4 @@
-# 0008. A Resident reaches their own Stay, not an Organization
+# 0009. A Resident reaches their own Stay, not an Organization
 
 Status: Accepted
 Date: 2026-09-16

@@ -9,7 +9,7 @@ product ([ADR 0004](../../../docs/adr/0004-student-residence-is-a-property-confi
 
 The `accommodation_units` table, its check constraints, and its row-level
 security policies — all in
-[`prisma/migrations/20260916000300_accommodation_units`](../../../prisma/migrations/20260916000300_accommodation_units/migration.sql)
+[`prisma/migrations/20260916000400_accommodation_units`](../../../prisma/migrations/20260916000400_accommodation_units/migration.sql)
 and in the migration that adds the Resident policy alongside it. No other module
 writes to that table.
 

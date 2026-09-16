@@ -10,9 +10,9 @@ is what keeps a dormitory a Property configuration rather than a second product
 
 The `stays` table and, with it, the **Resident access path** — a second way into
 the database that
-[ADR 0008](../../../docs/adr/0008-a-resident-reaches-their-own-stay-not-an-organization.md)
+[ADR 0009](../../../docs/adr/0009-a-resident-reaches-their-own-stay-not-an-organization.md)
 describes and every later module has to assume. Both live in
-[`prisma/migrations/20260916000400_stays_and_resident_access`](../../../prisma/migrations/20260916000400_stays_and_resident_access/migration.sql).
+[`prisma/migrations/20260916000500_stays_and_resident_access`](../../../prisma/migrations/20260916000500_stays_and_resident_access/migration.sql).
 
 A Stay carries `organization_id` and `property_id` next to
 `accommodation_unit_id`, and a composite foreign key across all three proves the
