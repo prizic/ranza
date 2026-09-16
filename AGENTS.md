@@ -145,7 +145,16 @@ subject the tier guards have ever had — the blueprint 9.8 vocabulary scan read
 deliberately not built yet; blueprint section 13 forbids building tables ahead of
 the workflows that need them.
 
-Then blueprint Phase 2: Accommodation Units, Reservations, Stays, Folios.
+The **Resident access path** is the second thing to stand. Accommodation Units
+live in `packages/ranza/accommodation`, the Stay in `packages/ranza/stays`, and
+`apps/guest-portal` renders `/{tr,en,ar}/stay` mobile-first from one Stay-scoped
+read. A Guest or Resident authenticates through the same Better Auth
+instance as Staff and then reaches a completely different set of rows — their own
+policies, not a widening of the Staff ones. ADR 0008 records that model, and
+every later Portal capability is expected to follow it.
+
+Next is the rest of blueprint Phase 2: Reservations, Folios, and the Portal
+capabilities of blueprint 4.3 that are specified but not built.
 
 ## Keeping documentation true
 

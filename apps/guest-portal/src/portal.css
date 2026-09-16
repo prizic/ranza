@@ -1,0 +1,149 @@
+/*
+ * Portal layout.
+ *
+ * Mobile-first in the literal sense: every rule below is written for a 390px
+ * phone, and the single media query at the bottom lets it grow. Nothing here
+ * shrinks a desktop design down.
+ *
+ * Structure only. Colour, type and radii come from @ranza/ui tokens, so a
+ * change to the palette does not have to be repeated here. The two places a
+ * colour is named use a fallback chain, because the token set is still moving.
+ *
+ * Logical properties throughout, so Arabic mirrors by construction rather than
+ * through a second stylesheet.
+ */
+
+/* The shared shell is built for a desktop workspace. On a phone its header has
+   to wrap instead of squeezing the brand, the account and three locale links
+   onto one line. */
+.site-header {
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  min-height: 0;
+  padding-block: 0.75rem;
+}
+
+.portal-account {
+  flex: 1 1 100%;
+  order: 1;
+  max-width: none;
+  margin: 0;
+  color: inherit;
+  font-size: 0.8rem;
+  opacity: 0.75;
+  /* An email address has no spaces and will otherwise push the header wider
+     than the viewport. */
+  overflow-wrap: anywhere;
+}
+
+.portal-account span::after {
+  content: " ";
+}
+
+.main-content {
+  width: 100%;
+  padding: 1.5rem var(--page) calc(3rem + env(safe-area-inset-bottom, 0px));
+}
+
+.portal-title {
+  max-width: none;
+  margin-block-end: 1.25rem;
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.portal-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.portal-stay-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-block-end: 1.25rem;
+}
+
+.portal-stay-head h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.portal-facts {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+}
+
+.portal-facts > div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.portal-facts dt {
+  color: var(--ink-soft, var(--ink-muted, currentColor));
+  font-size: 0.8rem;
+}
+
+.portal-facts dd {
+  margin: 0;
+}
+
+.portal-note {
+  display: block;
+  color: var(--ink-soft, var(--ink-muted, currentColor));
+  font-size: 0.8rem;
+}
+
+/* Sign-in is a page rather than a card inside the shell: there is no shell to
+   put it in until there is a session. */
+.portal-gate {
+  display: grid;
+  width: min(24rem, 100%);
+  min-height: 100svh;
+  align-content: center;
+  gap: 0.6rem;
+  margin-inline: auto;
+  padding: var(--page);
+}
+
+.portal-gate h1 {
+  max-width: none;
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.portal-form {
+  display: grid;
+  gap: 1rem;
+  margin-block-start: 1rem;
+}
+
+.portal-form p {
+  display: grid;
+  max-width: none;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.portal-error {
+  color: var(--danger, currentColor);
+}
+
+/* Grown, not shrunk. Two columns of facts once there is room for them. */
+@media (min-width: 40rem) {
+  .main-content {
+    width: min(44rem, 100%);
+    padding-block-start: 2.5rem;
+  }
+
+  .portal-title {
+    font-size: 2rem;
+  }
+
+  .portal-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem 2rem;
+  }
+}

@@ -60,6 +60,36 @@ importers:
         specifier: ^5.0.0
         version: 5.0.0(@types/node@26.4.1)(jsdom@30.0.1(@noble/hashes@2.4.0))(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
+  apps/guest-portal:
+    dependencies:
+      '@ranza/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@ranza/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@ranza/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
+      '@ranza/stays':
+        specifier: workspace:*
+        version: link:../../packages/ranza/stays
+      '@ranza/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      next:
+        specifier: 16.3.5
+        version: 16.3.5(@types/node@26.4.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      react:
+        specifier: 19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: 19.2.8
+        version: 19.2.8(react@19.2.8)
+      server-only:
+        specifier: 0.0.1
+        version: 0.0.1
+
   apps/operator-workspace:
     dependencies:
       '@ranza/auth':

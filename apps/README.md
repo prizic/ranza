@@ -17,6 +17,12 @@ Applications hold no business rules. They compose module contracts, handle
 transport and rendering, and enforce authorization at the server boundary — with
 row-level security underneath as the boundary that survives an application defect.
 
-Directories are currently placeholders. The walking skeleton builds
-`operator-workspace` first; the rest return from the `v0-pilot-archive` tag or
-get built fresh as slices need them.
+`operator-workspace` and `guest-portal` are built. `storefront` and
+`control-plane` are still placeholders; they return from the `v0-pilot-archive`
+tag or get built fresh as slices need them.
+
+The two live applications share a Better Auth instance and share nothing else.
+They compose different modules, reach different rows, and have one funnel each —
+which is what makes "the Portal must never expose staff controls" structural
+rather than a matter of what each one renders. See
+[ADR 0008](../docs/adr/0008-a-resident-reaches-their-own-stay-not-an-organization.md).

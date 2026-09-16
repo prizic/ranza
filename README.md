@@ -29,7 +29,7 @@ Reservations, Stays and Folios.
 apps/                     separately deployable applications
   operator-workspace/     the main authenticated application
   storefront/             public marketing and lead capture
-  guest-portal/           Guest and Resident PWA
+  guest-portal/           where a Guest or Resident sees their own Stay
   control-plane/          Prizic-internal administration
 packages/
   platform/               host-agnostic reusable modules (generic subdomains)
