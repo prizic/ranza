@@ -7,6 +7,8 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { requireLocalDatabase } from "./local-url.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 // Local only, for the same reason `db:setup` is: Prisma DROPs and recreates the
@@ -19,13 +21,11 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // refuse to run against the default `.env`, which points at Supabase, in
 // exchange for no safety at all.
 //
-// CI needs no exception: its Postgres is a service container with its port
-// mapped onto the runner, and the job does not itself run in a container, so
-// the steps reach it at localhost:54322 like everywhere else. A job moved
-// inside a container would reach it as `postgres:5432` and be refused here —
-// correctly, and the fix then is one named host, not a looser check.
-const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
-
+// CI needs no exception: its Postgres is reached at localhost, because the
+// service container's port is mapped onto the runner and the job does not
+// itself run in a container. A job moved inside a container would reach it as
+// `postgres:5432` and be refused here — correctly, and the fix then is one
+// named host, not a looser check.
 const url = process.env.SHADOW_DATABASE_URL;
 if (!url) {
   console.error(
@@ -36,23 +36,38 @@ if (!url) {
   process.exit(1);
 }
 
-// Parsed rather than pattern-matched: a password or a database name containing
-// "localhost" would satisfy a substring test while the host it connects to is
-// somewhere else entirely.
-let hostname;
-try {
-  ({ hostname } = new URL(url));
-} catch {
-  console.error("SHADOW_DATABASE_URL is not a URL this can read.");
-  process.exit(1);
-}
+requireLocalDatabase(url, {
+  name: "SHADOW_DATABASE_URL",
+  because:
+    "a shadow database is DROPped and recreated, so this would destroy\n" +
+    "whatever is there.",
+});
 
-if (!LOCAL_HOSTS.has(hostname)) {
-  console.error(
-    `SHADOW_DATABASE_URL points at ${hostname}, which is not local.\n` +
-      "Refusing: a shadow database is DROPped and recreated, so this would\n" +
-      "destroy whatever is there. Allowed hosts are localhost and 127.0.0.1.",
-  );
+// Prisma does not reset a shadow database it was handed, so a second run finds
+// the first run's schema and fails on it. Dropping it here is what makes the
+// command repeatable — and is only defensible because of the check above: this
+// is the line that would destroy a real database, and it cannot be reached
+// with a URL that names one.
+const admin = new URL(url);
+admin.pathname = "/postgres";
+const shadow = new URL(url).pathname.replace(/^\//, "");
+
+const reset = spawnSync(
+  "psql",
+  [
+    admin.toString(),
+    "-v",
+    "ON_ERROR_STOP=1",
+    "-q",
+    "-c",
+    `drop database if exists "${shadow}"`,
+    "-c",
+    `create database "${shadow}"`,
+  ],
+  { encoding: "utf8" },
+);
+if (reset.status !== 0) {
+  console.error(`Could not reset the shadow database:\n${reset.stderr}`);
   process.exit(1);
 }
 
