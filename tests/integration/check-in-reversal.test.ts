@@ -38,6 +38,7 @@ const MISTAKE = randomUUID();
 const CHARGED = randomUUID();
 const CONTESTED = randomUUID();
 const RACED = randomUUID();
+const RETURNED = randomUUID();
 const REASON = "checked in the wrong one of two Guests arriving together";
 
 /** `(property_id, name)` is unique, so the name has to be per-run as well. */
@@ -115,7 +116,8 @@ beforeAll(async () => {
        ($1,$5,$6,$7,'room',2),
        ($2,$5,$6,$8,'room',2),
        ($3,$5,$6,$9,'room',2),
-       ($4,$5,$6,$10,'room',2)
+       ($4,$5,$6,$10,'room',2),
+       ($11,$5,$6,$12,'room',2)
      on conflict (id) do nothing`,
     MISTAKE,
     CHARGED,
@@ -127,6 +129,8 @@ beforeAll(async () => {
     unitName(CHARGED),
     unitName(CONTESTED),
     unitName(RACED),
+    RETURNED,
+    unitName(RETURNED),
   );
   await owner.$executeRawUnsafe(
     `insert into public.subscriptions (organization_id, status) values ($1,'active')
@@ -355,5 +359,43 @@ describe("once money exists it is no longer a slip", () => {
       reservation: "checked_in",
       stay: "in_house",
     });
+  });
+});
+
+describe("a withdrawal is a correction, not a one-way door", () => {
+  /**
+   * ADR 0022's own mechanism: a withdrawn check-in returns the Reservation to
+   * `confirmed` precisely so the Guest can arrive again — the front desk checked
+   * in the wrong one of two people, and the right one is still standing there.
+   *
+   * The unique index on `(reservation_id, property_id, organization_id)` is not
+   * partial on status, so the cancelled Stay keeps holding the Reservation and
+   * the second check-in collides with it. The ADR describes a door that is
+   * one-way in the database. Issue #34.
+   */
+  it("a reversed Reservation can be checked in again", async () => {
+    const arrival = reservationId();
+    await reserve(arrival, RETURNED, "Returning Guest");
+    const { stayId } = await reservations.checkIn(MEMBER, arrival);
+
+    await reservations.reverseCheckIn(MEMBER, stayId, REASON);
+    expect(await statuses(arrival, stayId)).toEqual({
+      reservation: "confirmed",
+      stay: "cancelled",
+    });
+
+    const again = await reservations.checkIn(MEMBER, arrival);
+
+    // A second Stay, and the withdrawn one still there to show the mistake.
+    expect(again.stayId).not.toBe(stayId);
+    expect(await statuses(arrival, again.stayId)).toEqual({
+      reservation: "checked_in",
+      stay: "in_house",
+    });
+    const [withdrawn] = await owner.$queryRawUnsafe<{ status: string }[]>(
+      `select status from public.stays where id = $1::uuid`,
+      stayId,
+    );
+    expect(withdrawn?.status).toBe("cancelled");
   });
 });

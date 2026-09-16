@@ -2,6 +2,9 @@
 
 Status: Accepted
 Date: 2026-09-16
+Amended: 2026-09-16 — the index this decision rests on was total, not partial,
+so the mechanism described below did not work. Corrected in place below; the
+decision itself is unchanged.
 
 ## Context
 
@@ -40,11 +43,25 @@ as the record of a check-in that was made and withdrawn.
 arrivable again and reappears on the arrivals list where somebody will deal with
 it properly.
 
-The Reservation cannot be checked in twice into the same Stay: the unique index
-on `(reservation_id, property_id, organization_id)` means the second check-in
-creates a _second_ Stay row, and the first one — cancelled — is still there. That
-is the property that makes this a reversal rather than an edit: the count of
-Stays against a Reservation is the count of times somebody checked it in.
+The second check-in creates a _second_ Stay row, and the first one — cancelled —
+is still there. That is the property that makes this a reversal rather than an
+edit: the count of Stays against a Reservation is the count of times somebody
+checked it in.
+
+It did not, when this was written. The unique index on
+`(reservation_id, property_id, organization_id)` was total, so the cancelled Stay
+went on holding the Reservation and the second check-in was refused by the
+database with `duplicate key value violates unique constraint` — this ADR
+described a door that its own schema had bolted shut (issue #34). The index is
+now partial, `where status <> 'cancelled'`, which is what makes the paragraph
+above true: at most one Stay per Reservation is not cancelled, and the withdrawn
+ones accumulate as the record of how many times somebody checked it in.
+
+The lesson is worth more than the fix. This decision named the index it relied on
+and still read as sound, because nobody asked the index what it actually said.
+A pgTAP assertion now pins the predicate rather than the behaviour, so a
+migration that makes it total again fails the suite instead of quietly restoring
+the one-way door.
 
 ### A reason is required, and it is recorded
 

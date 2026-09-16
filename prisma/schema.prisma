@@ -6,7 +6,8 @@
 // Generate with `prisma migrate dev --create-only`, add the policy SQL, then apply.
 
 generator client {
-  provider = "prisma-client"
+  provider        = "prisma-client"
+  previewFeatures = ["partialIndexes"]
   // Generated into the package that owns database access, so it resolves
   // @prisma/client from there rather than the workspace root.
   output   = "../packages/db/generated/prisma"
@@ -132,6 +133,8 @@ model OrganizationMembership {
   user         User         @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@unique([organizationId, userId])
+  // Partial: only an active membership is ever looked up by user.
+  @@index([userId], map: "organization_memberships_user_idx", where: raw("status = 'active'"))
   @@map("organization_memberships")
 }
 
@@ -147,6 +150,8 @@ model PropertyAssignment {
   user     User     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@unique([propertyId, userId])
+  // Partial: a revoked assignment is history, never a reach.
+  @@index([userId], map: "property_assignments_user_idx", where: raw("status = 'active'"))
   @@map("property_assignments")
 }
 
@@ -179,7 +184,10 @@ model Reservation {
 
   property Property          @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
   unit     AccommodationUnit @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  stay     Stay?
+  /// Several, of which at most one is not cancelled. A withdrawn check-in keeps
+  /// its `reservation_id` so the mistake stays visible (ADR 0022), and the
+  /// partial unique on `stays` is what stops a second live one.
+  stays    Stay[]
 
   @@unique([id, propertyId, organizationId])
   @@index([propertyId, startsOn], map: "reservations_property_arrival_idx")
@@ -200,8 +208,9 @@ model Stay {
   propertyId          String    @map("property_id") @db.Uuid
   accommodationUnitId String    @map("accommodation_unit_id") @db.Uuid
   /// The Reservation this Stay was checked in from, when there was one. Null
-  /// for a Stay that began without one, such as a walk-in. The composite unique
-  /// below makes checking one Reservation in twice unrepresentable.
+  /// for a Stay that began without one, such as a walk-in. The partial unique
+  /// below makes being checked in twice *at once* unrepresentable, while
+  /// leaving a withdrawn check-in able to arrive again.
   reservationId       String?   @map("reservation_id") @db.Uuid
   userId              String?   @map("user_id") @db.Uuid
   stayType            String    @map("stay_type")
@@ -217,18 +226,26 @@ model Stay {
   reservation Reservation?      @relation(fields: [reservationId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
   folio       Folio?
 
-  // Two claims in one index. It is what the composite foreign key above
-  // resolves against, so the Stay and the Reservation are provably in the same
-  // Property; and because that foreign key forces property and organization to
-  // be the Reservation's own, uniqueness across the three is uniqueness on
-  // reservation_id alone — one Reservation produces at most one Stay.
-  @@unique([reservationId, propertyId, organizationId])
+  // The composite foreign key above forces property and organization to be the
+  // Reservation's own, so uniqueness across the three is uniqueness on
+  // reservation_id alone: one Reservation has at most one Stay that is not
+  // cancelled.
+  //
+  // Partial on status, because ADR 0022 withdraws a check-in by cancelling the
+  // Stay and returning the Reservation to `confirmed` precisely so the Guest can
+  // arrive again. A total unique index made that door one-way — the cancelled
+  // Stay went on holding the Reservation and the second check-in collided with
+  // it (issue #34). Cancelled rows are excluded rather than removed, so the
+  // mistake stays on the record.
+  @@unique([reservationId, propertyId, organizationId], where: { status: { not: "cancelled" } })
   // What a Folio's composite foreign key resolves against, so a Folio pointing
   // at another Organization's Stay is unrepresentable rather than merely
   // checked. The primary key alone could not prove the Property or the
   // Organization.
   @@unique([id, propertyId, organizationId])
   @@index([propertyId], map: "stays_property_idx")
+  // Partial: the Resident access path only ever asks about a current Stay.
+  @@index([userId], map: "stays_user_idx", where: raw("status = ANY (ARRAY['reserved'::text, 'in_house'::text])"))
   @@map("stays")
 }
 

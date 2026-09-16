@@ -11,7 +11,7 @@
 -- dropping the exclusion constraint — and confirming it went red. A test that
 -- cannot fail is worse than no test, because it is mistaken for evidence.
 begin;
-select plan(51);
+select plan(54);
 
 insert into public.users (id, email) values
   ('31111111-1111-4111-8111-111111111111', 'front-desk-a@example.test'),
@@ -769,6 +769,93 @@ select throws_ok(
   'a Reservation''s dates cannot be rewritten by whoever may check it in');
 
 reset role;
+
+-- ---------------------------------------------------------------------------
+-- A withdrawn check-in can arrive again (issue #34)
+-- ---------------------------------------------------------------------------
+
+-- Two Units, deliberately. Put both Stays in one Unit and the refusal below
+-- would come from `stays_no_double_booking` instead, and the assertion would
+-- pass with the unique index dropped — the exact shape of test that proves
+-- nothing.
+reset role;
+
+insert into public.accommodation_units
+  (id, property_id, organization_id, name, unit_type, capacity) values
+  ('3d999999-9999-4999-8999-999999999999',
+   '3c111111-1111-4111-8111-111111111111',
+   '3a111111-1111-4111-8111-111111111111', 'A1-108', 'room', 2),
+  ('3daaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   '3c111111-1111-4111-8111-111111111111',
+   '3a111111-1111-4111-8111-111111111111', 'A1-109', 'room', 2);
+
+insert into public.reservations
+  (id, organization_id, property_id, accommodation_unit_id,
+   guest_name, stay_type, status, starts_on, ends_on) values
+  ('3e444444-4444-4444-8444-444444444444',
+   '3a111111-1111-4111-8111-111111111111',
+   '3c111111-1111-4111-8111-111111111111',
+   '3d999999-9999-4999-8999-999999999999',
+   'Returning Guest', 'guest', 'confirmed',
+   app.property_today('3c111111-1111-4111-8111-111111111111'),
+   app.property_today('3c111111-1111-4111-8111-111111111111') + 2);
+
+insert into public.stays
+  (id, organization_id, property_id, accommodation_unit_id, reservation_id,
+   stay_type, status, starts_on, ends_on) values
+  ('3f666666-6666-4666-8666-666666666666',
+   '3a111111-1111-4111-8111-111111111111',
+   '3c111111-1111-4111-8111-111111111111',
+   '3d999999-9999-4999-8999-999999999999',
+   '3e444444-4444-4444-8444-444444444444',
+   'guest', 'in_house',
+   app.property_today('3c111111-1111-4111-8111-111111111111'),
+   app.property_today('3c111111-1111-4111-8111-111111111111') + 2);
+
+-- What the index is still for: one Reservation cannot be in house twice.
+select throws_ok(
+  $$insert into public.stays
+      (organization_id, property_id, accommodation_unit_id, reservation_id,
+       stay_type, status, starts_on, ends_on)
+    values ('3a111111-1111-4111-8111-111111111111',
+            '3c111111-1111-4111-8111-111111111111',
+            '3daaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            '3e444444-4444-4444-8444-444444444444',
+            'guest', 'in_house',
+            app.property_today('3c111111-1111-4111-8111-111111111111'),
+            app.property_today('3c111111-1111-4111-8111-111111111111') + 2)$$,
+  '23505', NULL,
+  'one Reservation cannot have two Stays that are not cancelled');
+
+-- And what it stopped doing. The check-in is withdrawn, and the Guest the front
+-- desk should have checked in arrives — which is the mechanism ADR 0022 already
+-- claimed and the total index prevented.
+update public.stays set status = 'cancelled', updated_at = now()
+ where id = '3f666666-6666-4666-8666-666666666666';
+
+select lives_ok(
+  $$insert into public.stays
+      (organization_id, property_id, accommodation_unit_id, reservation_id,
+       stay_type, status, starts_on, ends_on)
+    values ('3a111111-1111-4111-8111-111111111111',
+            '3c111111-1111-4111-8111-111111111111',
+            '3daaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            '3e444444-4444-4444-8444-444444444444',
+            'guest', 'in_house',
+            app.property_today('3c111111-1111-4111-8111-111111111111'),
+            app.property_today('3c111111-1111-4111-8111-111111111111') + 2)$$,
+  'a withdrawn Stay releases its Reservation, which can be checked in again');
+
+-- The two assertions above both pass if the index is dropped altogether: the
+-- first would then be the only one to notice, and only because 23505 happens to
+-- be what it raises. This one names the predicate, so a later migration that
+-- drops the index or makes it total fails here rather than silently restoring
+-- the one-way door. The cast raises 42P01 if the index is gone at all.
+select is(
+  (select pg_get_expr(indpred, indrelid) from pg_index
+    where indexrelid = 'stays_reservation_id_property_id_organization_id_key'::regclass),
+  '(status <> ''cancelled''::text)',
+  'the Reservation unique index is partial on status, not total');
 
 select * from finish();
 rollback;
