@@ -221,6 +221,9 @@ importers:
       '@ranza/platform-audit':
         specifier: workspace:*
         version: link:../../platform/audit
+      '@ranza/stays':
+        specifier: workspace:*
+        version: link:../stays
 
   packages/ranza/stays:
     dependencies:

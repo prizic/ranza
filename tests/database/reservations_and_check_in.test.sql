@@ -11,7 +11,7 @@
 -- dropping the exclusion constraint — and confirming it went red. A test that
 -- cannot fail is worse than no test, because it is mistaken for evidence.
 begin;
-select plan(31);
+select plan(37);
 
 insert into public.users (id, email) values
   ('31111111-1111-4111-8111-111111111111', 'front-desk-a@example.test'),
@@ -240,11 +240,6 @@ select throws_ok(
   'a Reservation is never deleted, it is cancelled');
 
 select throws_ok(
-  $$update public.stays set status = 'departed'$$,
-  '42501', NULL,
-  'the runtime role cannot update a Stay: check-out is not built');
-
-select throws_ok(
   $$delete from public.stays$$,
   '42501', NULL,
   'the runtime role cannot delete a Stay');
@@ -294,6 +289,21 @@ select throws_ok(
             'resident', 'in_house', date '2026-11-01', date '2026-11-03')$$,
   '42501', NULL,
   'a Resident cannot check themselves in');
+
+-- And cannot end one either. This refuses quietly rather than loudly: the
+-- UPDATE policy's USING excludes every row a Resident can see, so the statement
+-- matches nothing instead of raising. That is why the assertion is lives_ok
+-- followed by the row — a throws_ok here would pass for a Resident who had been
+-- granted the capability and denied by something else entirely.
+select lives_ok(
+  $$update public.stays set status = 'departed'$$,
+  'a Resident''s check-out matches nothing rather than raising');
+
+select results_eq(
+  $$select status from public.stays
+    where id = '3f111111-1111-4111-8111-111111111111'$$,
+  $$values ('in_house')$$,
+  'and their own Stay is untouched: a Resident cannot check themselves out');
 
 reset role;
 
@@ -392,6 +402,61 @@ select throws_ok(
   '23505', NULL,
   'checking the same Reservation in twice is unrepresentable');
 
+-- ---------------------------------------------------------------------------
+-- Check-out, and the column-level grant that bounds it
+-- ---------------------------------------------------------------------------
+
+-- The Resident's Stay on A1-102 is in house and open-ended, so it is not due —
+-- but a Staff Member may still end it, which is what a departure is.
+select lives_ok(
+  $$update public.stays
+       set status = 'departed', ends_on = date '2026-09-20'
+     where id = '3f111111-1111-4111-8111-111111111111'$$,
+  'a Staff Member ends a Stay in a Property they reach');
+
+-- lives_ok alone proves nothing here: an update the policy filters to no rows
+-- also raises nothing. Dropping the UPDATE policy left the assertion above
+-- green, which is what this one is for.
+select results_eq(
+  $$select status, to_char(ends_on, 'YYYY-MM-DD') from public.stays
+    where id = '3f111111-1111-4111-8111-111111111111'$$,
+  $$values ('departed', '2026-09-20')$$,
+  'and the Stay is departed, dated the day they left');
+
+-- What the column grant is for, and the only thing that isolates it. The row is
+-- in reach, so both halves of the policy approve it; the statement is refused
+-- because a check-out is not a room move, and row-level security has no way to
+-- say which columns may change.
+select throws_ok(
+  $$update public.stays
+       set accommodation_unit_id = '3d333333-3333-4333-8333-333333333333'
+     where id = '3f111111-1111-4111-8111-111111111111'$$,
+  '42501', NULL,
+  'a Stay cannot be moved to another Unit: that is a room move, not a check-out');
+
+select throws_ok(
+  $$update public.stays set starts_on = date '2020-01-01'$$,
+  '42501', NULL,
+  'a Stay''s arrival date cannot be rewritten');
+
+select throws_ok(
+  $$update public.stays
+       set property_id = '3c333333-3333-4333-8333-333333333333'$$,
+  '42501', NULL,
+  'a Stay cannot be moved to another Property');
+
+-- Departure frees the Unit: the exclusion constraint is partial on status, so
+-- the same Unit can be let again the same day.
+select lives_ok(
+  $$insert into public.stays
+      (organization_id, property_id, accommodation_unit_id,
+       stay_type, status, starts_on, ends_on)
+    values ('3a111111-1111-4111-8111-111111111111',
+            '3c111111-1111-4111-8111-111111111111',
+            '3d222222-2222-4222-8222-222222222222',
+            'guest', 'in_house', date '2026-09-20', date '2026-09-25')$$,
+  'a departed Stay releases its Unit for the same nights');
+
 reset role;
 
 -- ---------------------------------------------------------------------------
@@ -466,8 +531,18 @@ select is_empty(
 select is_empty(
   $$select 1 from information_schema.role_table_grants
     where table_schema = 'public' and table_name = 'stays'
-      and grantee = 'ranza_app' and privilege_type in ('UPDATE', 'DELETE')$$,
-  'the runtime role holds no update or delete grant on stays');
+      and grantee = 'ranza_app' and privilege_type = 'DELETE'$$,
+  'the runtime role holds no delete grant on stays');
+
+-- The grant says a second way what the statements above proved: the update
+-- reaches exactly two columns, and adding a third is a deliberate act rather
+-- than a side effect of widening a policy.
+select set_eq(
+  $$select column_name from information_schema.column_privileges
+    where table_schema = 'public' and table_name = 'stays'
+      and grantee = 'ranza_app' and privilege_type = 'UPDATE'$$,
+  array['status', 'ends_on', 'updated_at'],
+  'the runtime role may update only a Stay''s status, end date and timestamp');
 
 select * from finish();
 rollback;

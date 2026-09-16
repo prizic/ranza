@@ -28,3 +28,12 @@ checked_in`.
 No availability search, no group reservations, no quotations, deposits,
 extensions, room moves or check-out. `no_show` is a status value nothing sets
 yet.
+
+- `checkOut()` and `listDepartures()`. Check-out ends the Stay, records the
+  departure date and writes one audit record, in a single transaction; the Unit
+  is free the moment it commits. Departures include Stays already past their
+  planned end, flagged `overdue`.
+- `ranza_app` may `UPDATE` a Stay's `status`, `ends_on` and `updated_at` and
+  nothing else, by a column-level grant — so a check-out cannot become a room
+  move, which a row-level policy cannot express
+  ([ADR 0012](../../../docs/adr/0012-a-write-is-bounded-by-a-policy-not-a-check.md)).

@@ -27,6 +27,17 @@ const stays = createStaysModule({ db }); // db: the ranza_app client (ADR 0006)
 await stays.listOwnStays(userId);
 ```
 
+`openStayWithin(tx, stay)` and `closeStayWithin(tx, stayId, departedOn)` are how
+Front Office creates and ends a Stay. They take the caller's transaction rather
+than opening one, because a check-in creates the Stay, moves the Reservation and
+records the actor and those three share one fate. Exporting them is what keeps
+the tier rule — no module writes another module's tables — true rather than
+merely stated.
+
+`ranza_app` may `UPDATE` only `status`, `ends_on` and `updated_at`, by a
+column-level grant. A check-out therefore cannot become a room move, which no
+row-level policy could have expressed.
+
 `listOwnStays` is one statement so two independent things must hold for a row to
 come back, either enough to deny on its own: the row-level security policies
 (which is also why the joins to `properties` and `accommodation_units` return

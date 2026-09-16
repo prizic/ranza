@@ -71,6 +71,35 @@ export interface CheckedIn {
 }
 
 /**
+ * A Stay due to depart, as the front desk sees it.
+ *
+ * `overdue` is the reason this list exists at all: a departures list showing
+ * only today hides the Guest who should have left on Tuesday, which is the row
+ * most worth seeing.
+ */
+export interface Departure {
+  stayId: string;
+  /**
+   * From the Reservation, and empty when the Stay began without one. A walk-in
+   * has no name recorded anywhere yet — Guest profiles are blueprint 5.3 and
+   * are not built, so this says nothing rather than inventing something.
+   */
+  guestName: string;
+  stayType: ReservationStayType;
+  /** Calendar date as `YYYY-MM-DD`. Never null: an open-ended Stay is not due. */
+  endsOn: string;
+  unitId: string;
+  unitName: string;
+  unitType: AccommodationUnitType;
+  overdue: boolean;
+}
+
+/** What a completed check-out produced. */
+export interface CheckedOut {
+  stayId: string;
+}
+
+/**
  * A check-in that did not happen.
  *
  * One type for every reason on purpose. "That Reservation is in another
@@ -90,5 +119,19 @@ export class UnitUnavailableError extends CheckInError {
   constructor(message: string) {
     super(message);
     this.name = "UnitUnavailableError";
+  }
+}
+
+/**
+ * A check-out that did not happen.
+ *
+ * One type for every reason, on the same principle as CheckInError: out of
+ * reach, already departed, never existed. Told apart, the first would confirm
+ * that a Stay the caller cannot see is there.
+ */
+export class CheckOutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CheckOutError";
   }
 }

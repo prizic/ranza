@@ -2,6 +2,7 @@
 
 Status: Accepted
 Date: 2026-09-16
+Amended: 2026-09-16 — a policy bounds rows, a grant bounds columns
 
 ## Context
 
@@ -82,6 +83,25 @@ passed with the clause deleted, which means they were evidence of nothing. The
 rule this repository already has for security tests — break the boundary and
 confirm the test fails — applies to each clause of a policy, not to the policy
 as a whole.
+
+### A policy bounds rows; a column-level grant bounds columns
+
+Row-level security is row-level. No policy can say "only the status and the end
+date may change", and check-out is the first command where that gap matters:
+the policy that lets a Staff Member end a Stay would equally let them rewrite
+`accommodation_unit_id` — turning a check-out into a room move, a separate
+blueprint 5.3 workflow with its own availability and audit consequences,
+performed by a command that never mentions it.
+
+So `stays` carries `grant update (status, ends_on, updated_at)` and nothing
+wider. The two halves answer different questions and neither substitutes for the
+other: the policy says which rows, the grant says which columns.
+
+`updated_at` is in that list because the row keeps its own bookkeeping. It was
+left out of the first draft and check-out failed with "permission denied for
+column updated_at" — the grant refusing this product's own SQL, which is the
+grant working. Adding a column to it is a deliberate act rather than a side
+effect of widening a policy, and the pgTAP suite asserts the exact set.
 
 ### Values written come from rows the database returned
 

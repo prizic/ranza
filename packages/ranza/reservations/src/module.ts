@@ -1,11 +1,15 @@
 import { withOrganizationContext } from "@ranza/db";
 import { recordWithin } from "@ranza/platform-audit";
+import { closeStayWithin, openStayWithin } from "@ranza/stays";
 import {
   CheckInError,
+  CheckOutError,
   FRONT_DESK_CAPABILITY,
   UnitUnavailableError,
   type Arrival,
   type CheckedIn,
+  type CheckedOut,
+  type Departure,
 } from "./contracts";
 import type { ReservationsDeps } from "./ports";
 
@@ -160,28 +164,24 @@ export function createReservationsModule(deps: ReservationsDeps) {
         throw new CheckInError("that Reservation cannot be checked in");
       }
 
-      // Every column comes from the row the update returned, never from the
-      // caller. The composite foreign keys then prove what would otherwise be an
-      // application promise: the Stay is in the same Property and Organization
-      // as the Reservation it came from, and on a Unit that is in that Property.
-      let created: { id: string }[];
+      // Every value comes from the row the update returned, never from the
+      // caller. The composite foreign keys then prove what would otherwise be
+      // an application promise: the Stay is in the same Property and
+      // Organization as the Reservation it came from.
+      //
+      // The insert itself belongs to @ranza/stays, which owns that table. This
+      // module supplies the facts and joins its transaction.
+      let created: { stayId: string };
       try {
-        created = await tx.$queryRaw<{ id: string }[]>`
-          insert into public.stays
-            (organization_id, property_id, accommodation_unit_id, reservation_id,
-             stay_type, status, starts_on, ends_on)
-          values (
-            ${reservation.organizationId}::uuid,
-            ${reservation.propertyId}::uuid,
-            ${reservation.accommodationUnitId}::uuid,
-            ${reservationId}::uuid,
-            ${reservation.stayType},
-            'in_house',
-            ${reservation.startsOn}::date,
-            ${reservation.endsOn}::date
-          )
-          returning id
-        `;
+        created = await openStayWithin(tx, {
+          accommodationUnitId: reservation.accommodationUnitId,
+          endsOn: reservation.endsOn,
+          organizationId: reservation.organizationId,
+          propertyId: reservation.propertyId,
+          reservationId,
+          stayType: reservation.stayType as "guest" | "resident",
+          startsOn: reservation.startsOn,
+        });
       } catch (error: unknown) {
         // The exclusion constraint refused: another current Stay holds this Unit
         // over these nights. Worth its own type because it is the one failure
@@ -192,13 +192,6 @@ export function createReservationsModule(deps: ReservationsDeps) {
           );
         }
         throw error;
-      }
-
-      const [stay] = created;
-      if (!stay) {
-        // Reachable only if the insert policy denied: the actor moved a
-        // Reservation they may read but may not write a Stay for.
-        throw new CheckInError("the Stay was not created");
       }
 
       // Same transaction as the two writes above, so an action that happened
@@ -212,16 +205,121 @@ export function createReservationsModule(deps: ReservationsDeps) {
         subjectType: "reservation",
         subjectId: reservationId,
         context: {
-          stayId: stay.id,
+          stayId: created.stayId,
           accommodationUnitId: reservation.accommodationUnitId,
         },
       });
 
-      return { reservationId, stayId: stay.id };
+      return { reservationId, stayId: created.stayId };
     });
   }
 
-  return { listArrivals, checkIn };
+  /**
+   * The Stays departing today at one Property, and any still in house past
+   * their planned departure.
+   *
+   * The overdue ones are the point. A departures list that only showed today
+   * would hide the Guest who should have left on Tuesday, which is the row a
+   * front desk most needs to see — so the query asks for every current Stay
+   * whose planned end has arrived or passed.
+   */
+  async function listDepartures(
+    userId: string,
+    propertyId: string,
+  ): Promise<Departure[]> {
+    return withOrganizationContext(
+      deps.db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<Departure[]>`
+        select
+          stay.id                               as "stayId",
+          coalesce(reservation.guest_name, '')  as "guestName",
+          stay.stay_type                        as "stayType",
+          to_char(stay.ends_on, 'YYYY-MM-DD')   as "endsOn",
+          unit.id                               as "unitId",
+          unit.name                             as "unitName",
+          unit.unit_type                        as "unitType",
+          stay.ends_on < (now() at time zone property.timezone)::date
+                                                as "overdue"
+        from public.stays as stay
+        join public.properties as property
+          on property.id = stay.property_id
+        join public.accommodation_units as unit
+          on unit.id = stay.accommodation_unit_id
+        left join public.reservations as reservation
+          on reservation.id = stay.reservation_id
+        where stay.property_id = ${propertyId}::uuid
+          and stay.status = 'in_house'
+          and stay.ends_on is not null
+          and stay.ends_on <= (now() at time zone property.timezone)::date
+          and app.can_use_capability(
+            stay.property_id,
+            ${FRONT_DESK_CAPABILITY.moduleKey},
+            ${FRONT_DESK_CAPABILITY.capabilityKey}
+          )
+        order by stay.ends_on, unit.name
+      `,
+    );
+  }
+
+  /**
+   * Checks a Stay out: it ends, the Unit becomes free, and the actor is
+   * recorded.
+   *
+   * Two writes and a record in one transaction, for the same reason check-in is
+   * one: a Unit released without a record, or a record of a departure that did
+   * not happen, are each worse than the check-out not happening.
+   *
+   * What frees the Unit is the status moving out of the exclusion constraint's
+   * partial index, so the same Unit can be let again the same day — which is
+   * the whole reason a front desk asks for this before lunch.
+   *
+   * Nothing here checks whether the actor is allowed to do this. The update
+   * returns no row when they are not, because the policy filtered it; and the
+   * columns they could otherwise have changed are refused by a column-level
+   * grant rather than by this module remembering not to.
+   */
+  async function checkOut(userId: string, stayId: string): Promise<CheckedOut> {
+    return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      // Today at the Property, decided by the database. A departure date taken
+      // from the server's clock is the wrong day for half of every day at a
+      // Property in another timezone.
+      const [today] = await tx.$queryRaw<{ on: Date }[]>`
+        select (now() at time zone property.timezone)::date as "on"
+        from public.properties as property
+        join public.stays as stay on stay.property_id = property.id
+        where stay.id = ${stayId}::uuid
+      `;
+      if (!today) {
+        // No readable Property for that Stay: out of reach, or no such Stay.
+        throw new CheckOutError("that Stay cannot be checked out");
+      }
+
+      let closed;
+      try {
+        closed = await closeStayWithin(tx, stayId, today.on);
+      } catch {
+        // Out of reach, already departed, cancelled, or never existed. One
+        // message for all four: telling them apart would confirm that a Stay
+        // the caller cannot see is there.
+        throw new CheckOutError("that Stay cannot be checked out");
+      }
+
+      await recordWithin(tx, {
+        organizationId: closed.organizationId,
+        actorId: userId,
+        action: "stay.checked_out",
+        subjectType: "stay",
+        subjectId: stayId,
+        context: { accommodationUnitId: closed.accommodationUnitId },
+      });
+
+      return { stayId };
+    });
+  }
+
+  return { listArrivals, listDepartures, checkIn, checkOut };
 }
 
 export type ReservationsModule = ReturnType<typeof createReservationsModule>;

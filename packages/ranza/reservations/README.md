@@ -15,9 +15,14 @@ which every later module is expected to copy.
 The `reservations` table, its policies and its grants, in
 [`prisma/migrations/20260916000900_reservations`](../../../prisma/migrations/20260916000900_reservations/migration.sql).
 
-Check-in also touches two things `@ranza/stays` owns — `stays.reservation_id`
-and the exclusion constraint that makes double-booking unrepresentable — and
-those live in
+Check-in and check-out write to `stays`, which `@ranza/stays` owns. They do it
+through `openStayWithin` and `closeStayWithin` rather than issuing their own
+SQL, so the tier rule that no module writes another's tables stays true rather
+than merely stated. Those functions take this module's transaction, for the same
+reason `recordWithin` does: the three writes share one fate.
+
+`stays.reservation_id` and the exclusion constraint that makes double-booking
+unrepresentable live in
 [`prisma/migrations/20260916001000_check_in`](../../../prisma/migrations/20260916001000_check_in/migration.sql)
 with the write policy for `stays`. No other module writes to either table.
 
@@ -33,7 +38,9 @@ a policy is ever consulted.
 ```ts
 const reservations = createReservationsModule({ db }); // the ranza_app client
 await reservations.listArrivals(userId, propertyId);
+await reservations.listDepartures(userId, propertyId);
 await reservations.checkIn(userId, reservationId);
+await reservations.checkOut(userId, stayId);
 ```
 
 `listArrivals` returns the Reservations arriving **on the Property's own day**,
@@ -53,6 +60,16 @@ Two concurrent check-ins on one Unit over overlapping nights end with exactly
 one Stay. The loser fails on `stays_no_double_booking`, an exclusion constraint,
 rather than on a comparison the application made and lost.
 
+`checkOut` ends a Stay and frees the Unit, in one transaction with its audit
+record. It sets `ends_on` to the day they actually left rather than leaving the
+planned date: a long-term Resident's Stay is open-ended, so without that a
+departed Stay would never record when it ended — and a Guest who leaves early
+did leave early. The planned period belongs to the Reservation and is unchanged.
+
+`listDepartures` includes Stays already past their planned end, flagged
+`overdue`. A departures list showing only today hides the Guest who should have
+left on Tuesday, which is the row a front desk most needs.
+
 ### Failures
 
 `CheckInError` covers every reason a Reservation could not be checked in — out
@@ -64,10 +81,15 @@ Unit already being occupied is the one failure a front desk can act on.
 ## What is deliberately not here
 
 Blueprint 5.3 also lists group reservations, quotations, deposits, availability
-search, extensions, room moves, check-out and no-show handling. None of them are
-in this module. `no_show` exists as a status value because the lifecycle needs
-the value to exist, not because anything here sets it — and there is no UPDATE
-or DELETE policy on `stays` for the same reason (blueprint section 13).
+search, extensions, room moves and no-show handling. None of them are in this
+module. `no_show` exists as a status value because the lifecycle needs the value
+to exist, not because anything here sets it.
+
+Room moves are the one worth naming: they are refused by a column-level grant
+rather than by this module declining to attempt them, so a future command that
+tries becomes a database error instead of a silent room move
+([ADR 0012](../../../docs/adr/0012-a-write-is-bounded-by-a-policy-not-a-check.md)).
+There is still no DELETE anywhere.
 
 ## Rules
 

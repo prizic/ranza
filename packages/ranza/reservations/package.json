@@ -15,6 +15,7 @@
     "@ranza/accommodation": "workspace:*",
     "@ranza/core": "workspace:*",
     "@ranza/db": "workspace:*",
-    "@ranza/platform-audit": "workspace:*"
+    "@ranza/platform-audit": "workspace:*",
+    "@ranza/stays": "workspace:*"
   }
 }

@@ -15,6 +15,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAuditModule } from "../../packages/platform/audit/src";
 import {
+  CheckOutError,
   createReservationsModule,
   UnitUnavailableError,
 } from "../../packages/ranza/reservations/src";
@@ -28,6 +29,10 @@ const OTHER_PROPERTY = "d4000003-0000-4000-8000-000000000002";
 const UNIT = "d4000004-0000-4000-8000-000000000001";
 const CONTESTED = "d4000004-0000-4000-8000-000000000002";
 const OTHER_UNIT = "d4000004-0000-4000-8000-000000000003";
+const OTHER_IN_PROPERTY = "d4000004-0000-4000-8000-000000000004";
+const DEPARTING_A = "d4000004-0000-4000-8000-000000000005";
+const DEPARTING_B = "d4000004-0000-4000-8000-000000000006";
+const OPEN_ENDED = "d4000004-0000-4000-8000-000000000007";
 const MEMBER = "d4000001-0000-4000-8000-000000000001";
 const OUTSIDER = "d4000001-0000-4000-8000-000000000002";
 
@@ -79,7 +84,11 @@ async function seed() {
        (id, property_id, organization_id, name, unit_type, capacity) values
        ($1,$4,$6,'FD-101','room',2),
        ($2,$4,$6,'FD-102','room',2),
-       ($3,$5,$7,'FD-201','suite',4)
+       ($3,$5,$7,'FD-201','suite',4),
+       ($8,$4,$6,'FD-103','room',2),
+       ($9,$4,$6,'FD-104','room',2),
+       ($10,$4,$6,'FD-105','room',2),
+       ($11,$4,$6,'FD-106','room',2)
      on conflict (id) do nothing`,
     UNIT,
     CONTESTED,
@@ -88,6 +97,10 @@ async function seed() {
     OTHER_PROPERTY,
     ORG,
     OTHER_ORG,
+    OTHER_IN_PROPERTY,
+    DEPARTING_A,
+    DEPARTING_B,
+    OPEN_ENDED,
   );
   await owner.$executeRawUnsafe(
     `insert into public.subscriptions (organization_id, status) values
@@ -142,14 +155,19 @@ async function reserve(
   unitId: string,
   guestName: string,
   nights: { from: number; to: number } = { from: 0, to: 3 },
+  stayType: "guest" | "resident" = "guest",
+  /** Pass null for an open-ended Stay, which long-term residence normally is. */
+  endsOn: number | null | undefined = undefined,
 ): Promise<void> {
   await owner.$executeRawUnsafe(
     `insert into public.reservations
        (id, organization_id, property_id, accommodation_unit_id,
         guest_name, stay_type, status, starts_on, ends_on)
-     select $1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, 'guest', 'confirmed',
+     select $1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, $8, 'confirmed',
             (now() at time zone property.timezone)::date + $6::int,
-            (now() at time zone property.timezone)::date + $7::int
+            case when $7::int is null then null
+                 else (now() at time zone property.timezone)::date + $7::int
+            end
      from public.properties as property
      where property.id = $3::uuid
      on conflict (id) do nothing`,
@@ -159,7 +177,8 @@ async function reserve(
     unitId,
     guestName,
     nights.from,
-    nights.to,
+    endsOn === null ? null : nights.to,
+    stayType,
   );
 }
 
@@ -390,5 +409,204 @@ describe("two people pressing the button at once", () => {
       RIGHT,
     );
     expect(stays).toHaveLength(1);
+  });
+});
+
+describe("checking out", () => {
+  const ARRIVING = reservationId();
+  const WAITING = reservationId();
+
+  beforeAll(async () => {
+    // The first is booked until tomorrow and leaves today; the second arrives
+    // today. They genuinely overlap until that early departure is recorded,
+    // which is what makes this test about check-out rather than about `[)`.
+    await reserve(ARRIVING, PROPERTY, ORG, CONTESTED, "Sabiha Gökçen", {
+      from: -2,
+      to: 1,
+    });
+    await reserve(WAITING, PROPERTY, ORG, CONTESTED, "Cahit Arf", {
+      from: 0,
+      to: 3,
+    });
+  });
+
+  it("frees the Unit by recording when they actually left", async () => {
+    const { stayId } = await reservations.checkIn(MEMBER, ARRIVING);
+
+    // Before the departure the Unit is held: the exclusion constraint refuses
+    // the overlap rather than the application noticing it.
+    await expect(reservations.checkIn(MEMBER, WAITING)).rejects.toBeInstanceOf(
+      UnitUnavailableError,
+    );
+
+    await reservations.checkOut(MEMBER, stayId);
+
+    const [departed] = await owner.$queryRawUnsafe<
+      { status: string; endsOn: string; today: string }[]
+    >(
+      `select stay.status,
+              to_char(stay.ends_on, 'YYYY-MM-DD') as "endsOn",
+              to_char((now() at time zone property.timezone)::date,
+                      'YYYY-MM-DD') as "today"
+       from public.stays as stay
+       join public.properties as property on property.id = stay.property_id
+       where stay.id = $1::uuid`,
+      stayId,
+    );
+    expect(departed?.status).toBe("departed");
+    // They were booked until tomorrow and left today, and the record says so.
+    // The status alone would have freed the Unit — the exclusion constraint is
+    // partial on it — so without this assertion the date is untested.
+    expect(departed?.endsOn).toBe(departed?.today);
+
+    // The same Unit, the same nights, and now it works. Two things made that
+    // true and both matter: the status left the exclusion constraint's partial
+    // index, and `ends_on` moved to the day they actually left. Nothing was
+    // deleted.
+    await expect(reservations.checkIn(MEMBER, WAITING)).resolves.toMatchObject({
+      reservationId: WAITING,
+    });
+  });
+
+  it("records who did it, in the same transaction", async () => {
+    const reservation = reservationId();
+    await reserve(
+      reservation,
+      PROPERTY,
+      ORG,
+      OTHER_IN_PROPERTY,
+      "Aziz Sancar",
+      {
+        from: -1,
+        to: 0,
+      },
+    );
+    const { stayId } = await reservations.checkIn(MEMBER, reservation);
+
+    await reservations.checkOut(MEMBER, stayId);
+
+    const history = await audit.historyOf(MEMBER, "stay", stayId);
+    expect(history).toHaveLength(1);
+    expect(history[0]?.action).toBe("stay.checked_out");
+    expect(history[0]?.actorId).toBe(MEMBER);
+  });
+
+  it("gives an open-ended Stay an end date, which it never had", async () => {
+    // A long-term Resident's Stay has no agreed end, so nothing but the
+    // check-out can say when it finished. It is also never in the departures
+    // list, which is why it needs its own test.
+    const reservation = reservationId();
+    await reserve(
+      reservation,
+      PROPERTY,
+      ORG,
+      OPEN_ENDED,
+      "Zaha Hadid",
+      { from: -30, to: 0 },
+      "resident",
+      null,
+    );
+    const { stayId } = await reservations.checkIn(MEMBER, reservation);
+
+    const [before] = await owner.$queryRawUnsafe<{ endsOn: string | null }[]>(
+      `select to_char(ends_on, 'YYYY-MM-DD') as "endsOn" from public.stays where id = $1::uuid`,
+      stayId,
+    );
+    expect(before?.endsOn).toBeNull();
+
+    await reservations.checkOut(MEMBER, stayId);
+
+    const [after] = await owner.$queryRawUnsafe<
+      { endsOn: string; today: string }[]
+    >(
+      `select to_char(stay.ends_on, 'YYYY-MM-DD') as "endsOn",
+              to_char((now() at time zone property.timezone)::date,
+                      'YYYY-MM-DD') as "today"
+       from public.stays as stay
+       join public.properties as property on property.id = stay.property_id
+       where stay.id = $1::uuid`,
+      stayId,
+    );
+    expect(after?.endsOn).toBe(after?.today);
+  });
+
+  it("refuses a Stay that has already departed", async () => {
+    const reservation = reservationId();
+    await reserve(
+      reservation,
+      PROPERTY,
+      ORG,
+      OTHER_IN_PROPERTY,
+      "Feza Gürsey",
+      {
+        from: -1,
+        to: 0,
+      },
+    );
+    const { stayId } = await reservations.checkIn(MEMBER, reservation);
+    await reservations.checkOut(MEMBER, stayId);
+
+    await expect(reservations.checkOut(MEMBER, stayId)).rejects.toBeInstanceOf(
+      CheckOutError,
+    );
+  });
+
+  it("refuses a Stay belonging to another Organization", async () => {
+    const reservation = reservationId();
+    await reserve(
+      reservation,
+      OTHER_PROPERTY,
+      OTHER_ORG,
+      OTHER_UNIT,
+      "Intruder",
+    );
+    const { stayId } = await rivalReservations.checkIn(OUTSIDER, reservation);
+
+    await expect(reservations.checkOut(MEMBER, stayId)).rejects.toBeInstanceOf(
+      CheckOutError,
+    );
+
+    const [stay] = await owner.$queryRawUnsafe<{ status: string }[]>(
+      `select status from public.stays where id = $1::uuid`,
+      stayId,
+    );
+    expect(stay?.status).toBe("in_house");
+  });
+});
+
+describe("today's departures", () => {
+  it("lists a Stay whose planned end has arrived, and flags an overdue one", async () => {
+    const onTime = reservationId();
+    const late = reservationId();
+    await reserve(onTime, PROPERTY, ORG, DEPARTING_A, "Halide Edib", {
+      from: -3,
+      to: 0,
+    });
+    await reserve(late, PROPERTY, ORG, DEPARTING_B, "Nazım Hikmet", {
+      from: -9,
+      to: -2,
+    });
+    await reservations.checkIn(MEMBER, onTime);
+    await reservations.checkIn(MEMBER, late);
+
+    const departures = await reservations.listDepartures(MEMBER, PROPERTY);
+    const names = departures.map((d) => d.guestName);
+    expect(names).toContain("Halide Edib");
+    expect(names).toContain("Nazım Hikmet");
+
+    // The overdue one is why this list exists: a departures screen showing only
+    // today hides the Guest who should have left last week.
+    expect(
+      departures.find((d) => d.guestName === "Nazım Hikmet")?.overdue,
+    ).toBe(true);
+    expect(departures.find((d) => d.guestName === "Halide Edib")?.overdue).toBe(
+      false,
+    );
+  });
+
+  it("shows nothing from a Property in another Organization", async () => {
+    await expect(
+      reservations.listDepartures(MEMBER, OTHER_PROPERTY),
+    ).resolves.toEqual([]);
   });
 });
