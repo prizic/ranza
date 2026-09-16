@@ -81,12 +81,13 @@ export async function openFolioWithin(
  * that survives a withdrawal which then rolls back. A withdrawal and the
  * closing of its Folio share one fate, so they share one transaction.
  *
- * Only an `open` Folio moves, and only for a Stay that is `cancelled`. The
- * second is the whole safety of this: `stays_withdrawal_is_free_of_charges`
- * refuses to cancel a Stay with anything posted against it, so a Folio reached
- * through a cancelled Stay is provably empty and closing it can lose nothing.
- * It is a condition rather than a comment because a later change to the
- * withdrawal rule would otherwise make this silently wrong.
+ * Only an `open` Folio moves, only for a Stay that is `cancelled`, and only
+ * while it has no lines. `stays_withdrawal_is_free_of_charges` already refuses
+ * to cancel a Stay with anything posted against it, so the last condition
+ * should never decide anything — which is exactly why it is there rather than
+ * in a comment. It takes no per-Stay lock and reads no balance, so if it ever
+ * did meet a Folio with money on it, closing it would be silent and wrong. A
+ * database older than that trigger can still hold one.
  *
  * Returns null when there is nothing to close — the Property does no billing,
  * or the Folio is already closed. Both are states, not failures.
@@ -105,6 +106,10 @@ export async function closeEmptyFolioWithin(
        and folio.stay_id = ${stayId}::uuid
        and folio.status = 'open'
        and stay.status = 'cancelled'
+       and not exists (
+         select 1 from public.folio_lines as line
+          where line.folio_id = folio.id
+       )
     returning folio.id
   `;
 

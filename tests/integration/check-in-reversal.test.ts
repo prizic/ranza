@@ -14,7 +14,10 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAuditModule } from "../../packages/platform/audit/src";
-import { createFoliosModule } from "../../packages/ranza/folios/src";
+import {
+  closeEmptyFolioWithin,
+  createFoliosModule,
+} from "../../packages/ranza/folios/src";
 import {
   CheckInReversalError,
   StayHasChargesError,
@@ -444,5 +447,95 @@ describe("the Folio of a check-in that was withdrawn", () => {
     expect(all.find((folio) => folio.stayId === first.stayId)?.status).toBe(
       "closed",
     );
+  });
+});
+
+/** Thrown to unwind the transaction below; never escapes the test. */
+class Rollback extends Error {}
+
+describe("closing the Folio of a withdrawn Stay", () => {
+  /**
+   * The name says `Empty`, and the name has to be load-bearing: this function
+   * takes no per-Stay lock and reads no balance, so if it ever met a Folio with
+   * money on it, closing it would be silent and wrong.
+   *
+   * The state is unreachable through the application — `folio_lines_postable`
+   * refuses a line on a cancelled Stay and `stays_withdrawal_is_free_of_charges`
+   * refuses to cancel a Stay carrying one — so it is built here with the trigger
+   * off, inside a transaction that is rolled back. Databases older than those
+   * rules can still hold it, which is why the backfill guards for it too.
+   */
+  it("leaves one carrying a line exactly as it was", async () => {
+    const unitId = randomUUID();
+    const stayId = randomUUID();
+    const folioId = randomUUID();
+    let closed: { folioId: string } | null = null;
+    let statusAfter: string | undefined;
+
+    await expect(
+      owner.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(
+          "select app.set_request_context($1::uuid)",
+          MEMBER,
+        );
+        await tx.$executeRawUnsafe(
+          `alter table public.folio_lines disable trigger folio_lines_postable`,
+        );
+        await tx.$executeRawUnsafe(
+          `insert into public.accommodation_units
+             (id, property_id, organization_id, name, unit_type, capacity)
+           values ($1::uuid, $2::uuid, $3::uuid, $4, 'room', 2)`,
+          unitId,
+          PROPERTY,
+          ORG,
+          unitName(unitId),
+        );
+        await tx.$executeRawUnsafe(
+          `insert into public.stays
+             (id, organization_id, property_id, accommodation_unit_id,
+              stay_type, status, starts_on, ends_on)
+           select $1::uuid, $3::uuid, $2::uuid, $4::uuid, 'guest', 'cancelled',
+                  (now() at time zone property.timezone)::date,
+                  (now() at time zone property.timezone)::date + 2
+             from public.properties as property where property.id = $2::uuid`,
+          stayId,
+          PROPERTY,
+          ORG,
+          unitId,
+        );
+        await tx.$executeRawUnsafe(
+          `insert into public.folios
+             (id, organization_id, property_id, stay_id, currency)
+           values ($1::uuid, $2::uuid, $3::uuid, $4::uuid, 'TRY')`,
+          folioId,
+          ORG,
+          PROPERTY,
+          stayId,
+        );
+        await tx.$executeRawUnsafe(
+          `insert into public.folio_lines
+             (organization_id, property_id, folio_id, line_type, description, amount_minor)
+           values ($1::uuid, $2::uuid, $3::uuid, 'charge', 'Older than the rules', 6400)`,
+          ORG,
+          PROPERTY,
+          folioId,
+        );
+
+        closed = await closeEmptyFolioWithin(tx, stayId);
+
+        const [row] = await tx.$queryRawUnsafe<{ status: string }[]>(
+          `select status from public.folios where id = $1::uuid`,
+          folioId,
+        );
+        statusAfter = row?.status;
+
+        throw new Rollback("nothing this test built is kept");
+      }),
+    ).rejects.toBeInstanceOf(Rollback);
+
+    // Asserted out here, so a failure reads as what the function did rather
+    // than as the rollback failing to be a rollback.
+    expect(closed).toBeNull();
+    expect(statusAfter).toBe("open");
   });
 });
