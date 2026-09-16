@@ -11,7 +11,8 @@
     "check": "pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "db:down": "docker compose down",
     "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset --force",
+    "db:reset": "docker compose down -v && pnpm db:up && pnpm db:setup",
+    "db:setup": "node scripts/db-setup.mjs",
     "db:test": "node scripts/db-test.mjs",
     "db:up": "docker compose up -d --wait",
     "dev": "turbo run dev --parallel",
@@ -21,6 +22,7 @@
     "lint:boundaries": "depcruise --config .dependency-cruiser.cjs packages",
     "test": "pnpm test:unit && pnpm test:boundaries",
     "test:boundaries": "node scripts/dependency-boundaries.mjs",
+    "test:integration": "vitest run --config vitest.integration.mts",
     "test:unit": "vitest run",
     "typecheck": "turbo run typecheck"
   },

@@ -16,3 +16,5 @@ supabase/.branches/
 supabase/.temp/
 .DS_Store
 .mcp.json
+packages/db/generated/
+packages/db/dist/

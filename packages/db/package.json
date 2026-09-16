@@ -9,6 +9,18 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint src",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "prisma generate --schema ../../prisma/schema.prisma --config ../../prisma.config.ts && tsc --noEmit",
+    "generate": "prisma generate --schema ../../prisma/schema.prisma --config ../../prisma.config.ts"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "dotenv": "^17.4.2",
+    "prisma": "7.10.0"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "better-auth": "^1.7.5",
+    "pg": "^8.23.0"
   }
 }

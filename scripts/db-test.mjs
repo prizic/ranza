@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const suiteDirectory = path.join(root, "tests/database");
 const url =
-  process.env.DATABASE_URL ?? "postgresql://ranza:ranza@localhost:54322/ranza";
+  process.env.DIRECT_URL ?? "postgresql://ranza:ranza@localhost:54322/ranza";
 
 // -t -A keeps psql from aligning output. Aligned output indents TAP lines, which
 // silently defeats the "not ok" check and makes every suite look green.

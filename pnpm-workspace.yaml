@@ -4,3 +4,9 @@ packages:
   - packages/platform/*
   - packages/ranza/*
   - packages/adapters/*
+
+# Prisma's postinstall fetches its engines; esbuild builds its native binary.
+allowBuilds:
+  "@prisma/engines": true
+  esbuild: true
+  prisma: true

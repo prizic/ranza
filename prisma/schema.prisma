@@ -6,20 +6,25 @@
 // Generate with `prisma migrate dev --create-only`, add the policy SQL, then apply.
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  // Generated into the package that owns database access, so it resolves
+  // @prisma/client from there rather than the workspace root.
+  output   = "../packages/db/generated/prisma"
 }
 
+// Prisma 7 moved connection URLs out of the schema. Migrations read DIRECT_URL
+// from prisma.config.ts; the runtime client is constructed with a pg driver
+// adapter over the pooled URL. See ADR 0001.
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String   @id @default(uuid()) @db.Uuid
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email     String
   status    String   @default("active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   identities  AuthIdentity[]
   memberships OrganizationMembership[]
@@ -31,26 +36,26 @@ model User {
 /// Maps an authentication provider's subject onto a Ranza user (ADR 0005).
 /// Keyed on (issuer, subject); never on email, which changes.
 model AuthIdentity {
-  id        String   @id @default(uuid()) @db.Uuid
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId    String   @map("user_id") @db.Uuid
   issuer    String
   subject   String
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@unique([issuer, subject])
-  @@index([userId])
+  @@index([userId], map: "auth_identities_user_idx")
   @@map("auth_identities")
 }
 
 model Organization {
-  id            String   @id @default(uuid()) @db.Uuid
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name          String
   status        String   @default("pending")
   defaultLocale String   @default("tr") @map("default_locale")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   properties   Property[]
   memberships  OrganizationMembership[]
@@ -61,88 +66,88 @@ model Organization {
 }
 
 model Property {
-  id             String   @id @default(uuid()) @db.Uuid
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String   @map("organization_id") @db.Uuid
   name           String
   status         String   @default("active")
   timezone       String   @default("Europe/Istanbul")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization         @relation(fields: [organizationId], references: [id])
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   assignments  PropertyAssignment[]
   capabilities PropertyCapability[]
 
   @@unique([id, organizationId])
-  @@index([organizationId])
+  @@index([organizationId], map: "properties_organization_idx")
   @@map("properties")
 }
 
 model OrganizationMembership {
-  id             String   @id @default(uuid()) @db.Uuid
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String   @map("organization_id") @db.Uuid
   userId         String   @map("user_id") @db.Uuid
   role           String
   accessScope    String   @default("assigned_properties") @map("access_scope")
   status         String   @default("active")
-  createdAt      DateTime @default(now()) @map("created_at")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  user         User         @relation(fields: [userId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@unique([organizationId, userId])
   @@map("organization_memberships")
 }
 
 model PropertyAssignment {
-  id             String   @id @default(uuid()) @db.Uuid
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   propertyId     String   @map("property_id") @db.Uuid
   organizationId String   @map("organization_id") @db.Uuid
   userId         String   @map("user_id") @db.Uuid
   status         String   @default("active")
-  createdAt      DateTime @default(now()) @map("created_at")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  property Property @relation(fields: [propertyId, organizationId], references: [id, organizationId])
-  user     User     @relation(fields: [userId], references: [id])
+  property Property @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@unique([propertyId, userId])
   @@map("property_assignments")
 }
 
 model Subscription {
-  id             String   @id @default(uuid()) @db.Uuid
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String   @unique @map("organization_id") @db.Uuid
   status         String   @default("trialing")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@map("subscriptions")
 }
 
 model Entitlement {
-  id             String   @id @default(uuid()) @db.Uuid
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String   @map("organization_id") @db.Uuid
   moduleKey      String   @map("module_key")
   status         String   @default("active")
-  createdAt      DateTime @default(now()) @map("created_at")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@unique([organizationId, moduleKey])
   @@map("entitlements")
 }
 
 model PropertyCapability {
-  id             String   @id @default(uuid()) @db.Uuid
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   propertyId     String   @map("property_id") @db.Uuid
   organizationId String   @map("organization_id") @db.Uuid
   capabilityKey  String   @map("capability_key")
   enabled        Boolean  @default(false)
-  createdAt      DateTime @default(now()) @map("created_at")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  property Property @relation(fields: [propertyId, organizationId], references: [id, organizationId])
+  property Property @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
 
   @@unique([propertyId, capabilityKey])
   @@map("property_capabilities")

@@ -353,12 +353,17 @@ create policy capabilities_read_accessible_property
 -- Runtime role
 -- ---------------------------------------------------------------------------
 
--- Prisma connects as this role. It is deliberately not the owner and has no
--- BYPASSRLS, so forgetting to set request context denies rather than exposes.
+-- Prisma connects as this role. It is deliberately not the owner, is not a
+-- superuser, and has no BYPASSRLS, so forgetting to set request context denies
+-- rather than exposes. Superusers and table owners bypass RLS, so the runtime
+-- connection must never use one.
+--
+-- LOGIN without a password here: each environment sets its own credential out
+-- of band. See scripts/db-setup.mjs for the local development password.
 do $$
 begin
   if not exists (select 1 from pg_catalog.pg_roles where rolname = 'ranza_app') then
-    create role ranza_app nologin;
+    create role ranza_app login;
   end if;
 end
 $$;
