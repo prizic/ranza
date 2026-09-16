@@ -39,6 +39,7 @@ packages/
     accommodation/        Accommodation Units inside a Property
     stays/                Stays, and the Resident access path
     reservations/         Reservations, check-in, and the first write path
+    folios/               the Folio: a Stay's financial record, and its lines
   adapters/               Ranza-to-platform mappings
   config, db, i18n, ui, observability
                           cross-cutting infrastructure

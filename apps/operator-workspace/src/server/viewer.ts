@@ -4,6 +4,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { TODAY_CAPABILITY } from "@ranza/core";
 import type { CapabilityRef, EntitledProperty } from "@ranza/core";
+import { FOLIO_CAPABILITY } from "@ranza/folios";
+import type { FolioDetail, FolioSummary } from "@ranza/folios";
 import { FRONT_DESK_CAPABILITY } from "@ranza/reservations";
 import type { Arrival, Departure } from "@ranza/reservations";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
@@ -30,8 +32,8 @@ import { getComposition } from "./composition";
 // Re-exported so a page never imports @ranza/core directly. The boundary rule
 // is absolute rather than carved out for constants: an exception is the crack
 // through which a direct query eventually arrives.
-export { TODAY_CAPABILITY, FRONT_DESK_CAPABILITY };
-export type { Arrival, Departure };
+export { TODAY_CAPABILITY, FRONT_DESK_CAPABILITY, FOLIO_CAPABILITY };
+export type { Arrival, Departure, FolioDetail, FolioSummary };
 
 export interface Viewer {
   /** Ranza user id — what app.current_user_id() returns. Never a subject. */
@@ -138,4 +140,35 @@ export async function departures(
     viewer.userId,
     propertyId,
   );
+}
+
+/**
+ * The Folios at one Property, with the balance of each — the Finance read.
+ *
+ * Same funnel and same non-checking as `arrivals`: a Property the viewer
+ * cannot reach produces an empty list because the policies and the capability
+ * gate decide that, not a condition here.
+ *
+ * Not `cache`d, for the same reason the front-desk reads are not: posting a
+ * charge changes this, and a request that posts one then re-reads must see it.
+ */
+export async function folios(
+  propertyId: string,
+): Promise<readonly FolioSummary[]> {
+  const viewer = await currentViewer();
+  if (!viewer) return [];
+  return getComposition().folios.listFolios(viewer.userId, propertyId);
+}
+
+/**
+ * One Folio and its lines.
+ *
+ * Null for a Folio the viewer cannot reach and for one that does not exist,
+ * which are the same answer on purpose — a `?folio=` somebody guessed must be
+ * indistinguishable from one that was never there.
+ */
+export async function folio(folioId: string): Promise<FolioDetail | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().folios.folioDetail(viewer.userId, folioId);
 }

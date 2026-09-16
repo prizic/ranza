@@ -27,6 +27,10 @@ everything lands under Unreleased.
 - `ranza_app` may now `INSERT` a Stay, bounded by `stays_insert_front_desk`
   ([ADR 0012](../../../docs/adr/0012-a-write-is-bounded-by-a-policy-not-a-check.md)).
   It still holds no `UPDATE` or `DELETE`: check-out is not built.
+- `stays` gained a unique index on `(id, property_id, organization_id)`, which
+  is what a Folio's composite foreign key resolves against, so a Folio pointing
+  at another Organization's Stay is unrepresentable. Added by
+  [`@ranza/folios`](../folios/README.md); this module still owns the table.
 - `openStayWithin()` and `closeStayWithin()`: the two ways a Stay changes, for a
   caller that owns the transaction. Front Office went through them instead of
   its own SQL, which is what makes "no module writes another module's tables"

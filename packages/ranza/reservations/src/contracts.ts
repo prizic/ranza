@@ -68,6 +68,13 @@ export interface Arrival {
 export interface CheckedIn {
   reservationId: string;
   stayId: string;
+  /**
+   * The Folio opened for the Stay, or null when the Property does not do
+   * billing. Not an error: Front Office is gated on `front_desk` and Folios on
+   * `finance`, so an Organization with one Entitlement and not the other
+   * checks people in and keeps no account for them.
+   */
+  folioId: string | null;
 }
 
 /**

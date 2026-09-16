@@ -1,5 +1,5 @@
 {
-  "name": "@ranza/reservations",
+  "name": "@ranza/folios",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,11 +12,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ranza/accommodation": "workspace:*",
     "@ranza/core": "workspace:*",
     "@ranza/db": "workspace:*",
-    "@ranza/folios": "workspace:*",
-    "@ranza/platform-audit": "workspace:*",
-    "@ranza/stays": "workspace:*"
+    "@ranza/platform-audit": "workspace:*"
   }
 }

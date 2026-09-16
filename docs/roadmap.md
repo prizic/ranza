@@ -19,9 +19,10 @@ this file is wrong.
 
 ## Right now
 
-Phase 1 is mostly standing, Phase 2 has its first two bullets. The next
-structural piece is the **Folio** — Finance, Analytics and F&B all wait on it,
-and nothing can post a charge until it exists.
+Phase 1 is mostly standing, Phase 2 has three of its bullets. The Folio landed,
+so Finance has a screen and Analytics has somewhere to read revenue from. The
+next structural piece is a **Guest**: a Reservation carries a `guest_name`
+string, and a Folio now needs somebody to bill.
 
 Per-screen notes for the Operator Workspace are in
 [`handover/operator-workspace-screens.md`](handover/operator-workspace-screens.md).
@@ -48,8 +49,8 @@ Per-screen notes for the Operator Workspace are in
 | Property structure and Accommodation Units                        | **done**    | `20260916000400_accommodation_units`, `packages/ranza/accommodation`                                                                                                                                                                                                                                                                         |
 | Reservations, availability, Stays, check-in, check-out, transfers | **partial** | All but transfers. `packages/ranza/reservations`, migrations `…000900`–`…001100`, [ADR 0012](adr/0012-a-write-is-bounded-by-a-policy-not-a-check.md). Availability is an exclusion constraint, not a query. **Transfers — room moves — are refused by a column-level grant**, so building them is a deliberate act rather than a side effect |
 | Housekeeping room-status lifecycle                                | —           | `accommodation_units.status` allows three states; blueprint 18.2 names six. Check-out is the natural trigger for "dirty" and deliberately does not fire it                                                                                                                                                                                   |
-| Folio foundation                                                  | —           | **The next structural piece.** Nothing can post a charge until it exists                                                                                                                                                                                                                                                                     |
-| Guest and Resident profiles                                       | —           | A Reservation carries a `guest_name` string. There is no Guest record                                                                                                                                                                                                                                                                        |
+| Folio foundation                                                  | **done**    | `20260916001200_folios`, `packages/ranza/folios`, [ADR 0015](adr/0015-money-is-an-integer-a-balance-is-a-sum-and-a-correction-is-a-line.md). A Folio, a line, a balance that is only ever their sum, a reversal, and closing. Payments, taxes, discounts, deposits, refunds and split folios are blueprint 5.9 and are not built             |
+| Guest and Resident profiles                                       | —           | **The next structural piece.** A Reservation carries a `guest_name` string and a Folio bills it. There is no Guest record                                                                                                                                                                                                                    |
 | Reservation timeline, command center, Guest 360                   | —           | Blueprint 18.6 specifies the timeline in detail: filters, conflict preview, a side drawer, an action cluster                                                                                                                                                                                                                                 |
 | Guided import, setup, training, rollout evidence                  | —           | Blueprint 18.1 ties this to adoption rather than feature count                                                                                                                                                                                                                                                                               |
 
