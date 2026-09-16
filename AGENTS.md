@@ -86,6 +86,14 @@ pointed at a throwaway database and reused by another host, and it is enforced b
   which looks like missing data rather than an error.
 - Prisma owns schema migrations; **policies are hand-written SQL** inside the
   same migration. `prisma migrate dev --create-only`, add the SQL, then apply.
+- **An applied migration is never edited.** `prisma migrate deploy` does not
+  re-run one, and does not refuse one whose contents have changed — it reports
+  success and moves on. This has already happened once: the audit module's
+  append-only trigger was added to `20260916000300_platform_audit` after that
+  file had reached the hosted database, so the guarantee held in the repository,
+  in its test, and in every database built from scratch, and did not hold in
+  production. A correction is a new migration, written so that applying it
+  anywhere is safe — see `20260916000700_audit_append_only_trigger`.
 - Credentials are reached through a **separate role**. `auth_user`,
   `auth_session`, `auth_account` and `auth_verification` hold password hashes and
   session tokens; `ranza_auth` reaches them and `ranza_app` is granted nothing.
@@ -210,6 +218,12 @@ So: after writing a test that asserts a boundary holds, **break the boundary and
 confirm the test goes red.** Point `DATABASE_URL` at a privileged role, invert an
 assertion, remove a grant. A test that cannot fail is worse than no test, because
 it is mistaken for evidence.
+
+And run the suites **against the hosted database too**, not only a local one.
+A green local run says the migrations produce the right database; it does not
+say the hosted database had them applied. The one gap found so far — an audit
+table that was append-only everywhere except in production — was invisible to
+every local run and took one pgTAP run against Supabase to surface.
 
 ## Conventions
 
