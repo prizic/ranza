@@ -59,10 +59,6 @@ function toMinorUnits(typed: string, currency: string): number | null {
   return Number.isSafeInteger(amount) ? amount : null;
 }
 
-function revalidateFinance(locale: string): void {
-  revalidatePath(`/${locale}/finance`);
-}
-
 export async function postCharge(
   _previous: FinanceOutcome,
   form: FormData,
@@ -92,7 +88,7 @@ export async function postCharge(
     return error instanceof FolioAmountError ? "invalid" : "refused";
   }
 
-  revalidateFinance(locale);
+  revalidatePath(`/${locale}/finance`);
   return "done";
 }
 
@@ -116,7 +112,7 @@ export async function reverseLine(
     return error instanceof FolioAmountError ? "invalid" : "refused";
   }
 
-  revalidateFinance(locale);
+  revalidatePath(`/${locale}/finance`);
   return "done";
 }
 
@@ -139,6 +135,6 @@ export async function closeFolio(
     return "refused";
   }
 
-  revalidateFinance(locale);
+  revalidatePath(`/${locale}/finance`);
   return "done";
 }

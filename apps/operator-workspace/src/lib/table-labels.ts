@@ -1,4 +1,4 @@
-import type { DataTableLabels } from "@ranza/ui";
+import type { ColumnHeaderLabels, DataTableLabels } from "@ranza/ui";
 import type { Messages } from "../messages";
 
 /**
@@ -47,5 +47,20 @@ export function tableLabels(copy: Messages): DataTableLabels {
     selectedCount: (n) => count(copy.table.selectedCount, n),
     selectRow: copy.table.selectRow,
     visibleColumns: copy.table.visibleColumns,
+  };
+}
+
+/**
+ * A sortable column header's three strings.
+ *
+ * Here rather than in each feature folder because it was byte-identical in
+ * two of them, and a column header does not belong to Front Office any more
+ * than it belongs to Finance.
+ */
+export function sortLabels(copy: Messages): ColumnHeaderLabels {
+  return {
+    clearSort: copy.table.clearFilter,
+    sortAscending: copy.table.next,
+    sortDescending: copy.table.previous,
   };
 }

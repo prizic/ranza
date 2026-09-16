@@ -68,29 +68,17 @@ interface LineRow {
 }
 
 function toSummary(row: SummaryRow): FolioSummary {
+  // char(3) is blank-padded, and the amounts arrive as text so a bigint never
+  // becomes a float on the way. Everything else is already the contract.
   return {
-    folioId: row.folioId,
-    stayId: row.stayId,
-    status: row.status,
-    // char(3) is blank-padded; the contract promises three characters.
+    ...row,
     currency: row.currency.trim(),
-    guestName: row.guestName,
-    unitName: row.unitName,
     balanceMinor: Number(row.balanceMinor),
-    lineCount: row.lineCount,
   };
 }
 
 function toLine(row: LineRow): FolioLine {
-  return {
-    lineId: row.lineId,
-    lineType: row.lineType,
-    description: row.description,
-    amountMinor: Number(row.amountMinor),
-    reversesLineId: row.reversesLineId,
-    reversed: row.reversed,
-    postedAt: row.postedAt,
-  };
+  return { ...row, amountMinor: Number(row.amountMinor) };
 }
 
 /**
@@ -123,7 +111,13 @@ function assertPostable(charge: Charge): void {
 }
 
 /**
- * The columns every Folio read returns, and the balance among them.
+ * Every Folio read, with the balance among its columns.
+ *
+ * One function rather than two queries sharing a select list, because the
+ * halves that were left duplicated are the ones that decide the balance: add
+ * a join to the list and forget the detail, and the same Folio shows two
+ * different totals. `predicate` is the only thing the two callers disagree
+ * about, so it is the only thing they pass.
  *
  * The sum is here rather than in a view or a function, and that is the
  * decision ADR 0015 records. A view would need its own grant and its own
@@ -134,16 +128,31 @@ function assertPostable(charge: Charge): void {
  * impossible by construction: the sum is over exactly the rows the policy let
  * through, so the screen and the number cannot tell different stories.
  */
-const FOLIO_COLUMNS = `
-  folio.id                              as "folioId",
-  stay.id                               as "stayId",
-  folio.status                          as "status",
-  folio.currency                        as "currency",
-  coalesce(reservation.guest_name, '')  as "guestName",
-  unit.name                             as "unitName",
-  coalesce(sum(line.amount_minor), 0)::text as "balanceMinor",
-  count(line.id)::int                   as "lineCount"
-`;
+function folioQuery(predicate: string, order = ""): string {
+  return `
+    select
+      folio.id                              as "folioId",
+      stay.id                               as "stayId",
+      folio.status                          as "status",
+      folio.currency                        as "currency",
+      coalesce(reservation.guest_name, '')  as "guestName",
+      unit.name                             as "unitName",
+      coalesce(sum(line.amount_minor), 0)::text as "balanceMinor",
+      count(line.id)::int                   as "lineCount"
+    from public.folios as folio
+    join public.stays as stay
+      on stay.id = folio.stay_id
+    join public.accommodation_units as unit
+      on unit.id = stay.accommodation_unit_id
+    left join public.reservations as reservation
+      on reservation.id = stay.reservation_id
+    left join public.folio_lines as line
+      on line.folio_id = folio.id
+    where ${predicate}
+      and app.can_use_capability(folio.property_id, $2, $3)
+    group by folio.id, stay.id, unit.name, reservation.guest_name
+    ${order}`;
+}
 
 export function createFoliosModule(deps: FoliosDeps) {
   /**
@@ -160,20 +169,10 @@ export function createFoliosModule(deps: FoliosDeps) {
   ): Promise<FolioSummary[]> {
     const rows = await withOrganizationContext(deps.db, { userId }, (tx) =>
       tx.$queryRawUnsafe<SummaryRow[]>(
-        `select ${FOLIO_COLUMNS}
-         from public.folios as folio
-         join public.stays as stay
-           on stay.id = folio.stay_id
-         join public.accommodation_units as unit
-           on unit.id = stay.accommodation_unit_id
-         left join public.reservations as reservation
-           on reservation.id = stay.reservation_id
-         left join public.folio_lines as line
-           on line.folio_id = folio.id
-         where folio.property_id = $1::uuid
-           and app.can_use_capability(folio.property_id, $2, $3)
-         group by folio.id, stay.id, unit.name, reservation.guest_name
-         order by folio.status, unit.name`,
+        folioQuery(
+          "folio.property_id = $1::uuid",
+          "order by folio.status, unit.name",
+        ),
         propertyId,
         FOLIO_CAPABILITY.moduleKey,
         FOLIO_CAPABILITY.capabilityKey,
@@ -200,19 +199,7 @@ export function createFoliosModule(deps: FoliosDeps) {
   ): Promise<FolioDetail | null> {
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
       const rows = await tx.$queryRawUnsafe<SummaryRow[]>(
-        `select ${FOLIO_COLUMNS}
-         from public.folios as folio
-         join public.stays as stay
-           on stay.id = folio.stay_id
-         join public.accommodation_units as unit
-           on unit.id = stay.accommodation_unit_id
-         left join public.reservations as reservation
-           on reservation.id = stay.reservation_id
-         left join public.folio_lines as line
-           on line.folio_id = folio.id
-         where folio.id = $1::uuid
-           and app.can_use_capability(folio.property_id, $2, $3)
-         group by folio.id, stay.id, unit.name, reservation.guest_name`,
+        folioQuery("folio.id = $1::uuid"),
         folioId,
         FOLIO_CAPABILITY.moduleKey,
         FOLIO_CAPABILITY.capabilityKey,

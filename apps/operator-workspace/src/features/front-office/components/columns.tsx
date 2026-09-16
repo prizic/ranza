@@ -11,6 +11,7 @@ import type { Arrival, Departure } from "@ranza/reservations";
 import { DataTableColumnHeader, StatusBadge, type StatusTone } from "@ranza/ui";
 import { formatDate, type SupportedLocale } from "@ranza/i18n";
 import type { Messages } from "../../../messages";
+import { sortLabels } from "../../../lib/table-labels";
 import { CheckInAction, CheckOutAction } from "./check-in-action";
 
 /**
@@ -45,14 +46,6 @@ const RESERVATION_ICON = {
   no_show: CircleDashed,
   checked_in: DoorOpen,
 } as const;
-
-function sortLabels(copy: Messages) {
-  return {
-    clearSort: copy.table.clearFilter,
-    sortAscending: copy.table.next,
-    sortDescending: copy.table.previous,
-  };
-}
 
 export function arrivalColumns(
   copy: Messages,

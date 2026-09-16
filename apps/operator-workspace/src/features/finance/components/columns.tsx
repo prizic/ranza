@@ -6,19 +6,12 @@ import type { FolioSummary } from "@ranza/folios";
 import { DataTableColumnHeader, StatusBadge } from "@ranza/ui";
 import { formatMoney, type SupportedLocale } from "@ranza/i18n";
 import type { Messages } from "../../../messages";
+import { sortLabels } from "../../../lib/table-labels";
 
 /**
  * `meta.title` is not decoration: the column menu and the search placeholder
  * both read it, so a column without one is a column the reader cannot name.
  */
-function sortLabels(copy: Messages) {
-  return {
-    clearSort: copy.table.clearFilter,
-    sortAscending: copy.table.next,
-    sortDescending: copy.table.previous,
-  };
-}
-
 /**
  * `folioHref` is a string prefix rather than a function that builds one.
  *

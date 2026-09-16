@@ -51,15 +51,6 @@ function outcomeMessage(
   return null;
 }
 
-/** A calendar instant in the reader's locale, with the time it was posted. */
-function postedAt(value: Date, locale: SupportedLocale): string {
-  return formatDate(value, locale, {
-    hour: "2-digit",
-    hourCycle: "h23",
-    minute: "2-digit",
-  });
-}
-
 function ChargeForm({
   copy,
   currency,
@@ -267,7 +258,12 @@ export function FolioPanel({
                 </TableCell>
                 <TableCell className="whitespace-nowrap text-step--1 text-muted-foreground">
                   <time dateTime={line.postedAt.toISOString()}>
-                    {postedAt(line.postedAt, locale)}
+                    {formatDate(line.postedAt, locale, {
+                      hour: "2-digit",
+                      // 24-hour in every language, as everywhere else.
+                      hourCycle: "h23",
+                      minute: "2-digit",
+                    })}
                   </time>
                 </TableCell>
                 <TableCell className="text-end tabular-nums">
