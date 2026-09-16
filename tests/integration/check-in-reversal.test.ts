@@ -39,6 +39,7 @@ const CHARGED = randomUUID();
 const CONTESTED = randomUUID();
 const RACED = randomUUID();
 const RETURNED = randomUUID();
+const GHOST = randomUUID();
 const REASON = "checked in the wrong one of two Guests arriving together";
 
 /** `(property_id, name)` is unique, so the name has to be per-run as well. */
@@ -117,7 +118,8 @@ beforeAll(async () => {
        ($2,$5,$6,$8,'room',2),
        ($3,$5,$6,$9,'room',2),
        ($4,$5,$6,$10,'room',2),
-       ($11,$5,$6,$12,'room',2)
+       ($11,$5,$6,$12,'room',2),
+       ($13,$5,$6,$14,'room',2)
      on conflict (id) do nothing`,
     MISTAKE,
     CHARGED,
@@ -131,6 +133,8 @@ beforeAll(async () => {
     unitName(RACED),
     RETURNED,
     unitName(RETURNED),
+    GHOST,
+    unitName(GHOST),
   );
   await owner.$executeRawUnsafe(
     `insert into public.subscriptions (organization_id, status) values ($1,'active')
@@ -397,5 +401,48 @@ describe("a withdrawal is a correction, not a one-way door", () => {
       stayId,
     );
     expect(withdrawn?.status).toBe("cancelled");
+  });
+});
+
+describe("the Folio of a check-in that was withdrawn", () => {
+  /**
+   * A withdrawn Stay's Folio was left open and empty. Nothing could ever be
+   * posted to it — `folio_lines_postable` refuses a cancelled Stay — so it was
+   * not a way to lose money; it was a row on the Finance screen that no one
+   * could act on and no one could close, for a Guest who was never there.
+   *
+   * With the second check-in now possible (issue #34), one Reservation produced
+   * two open Folios, which is the same ghost twice.
+   */
+  it("is closed, so the Reservation is left with exactly one open Folio", async () => {
+    const arrival = reservationId();
+    await reserve(arrival, GHOST, "Ghost Guest");
+    const first = await reservations.checkIn(MEMBER, arrival);
+    expect(first.folioId).not.toBeNull();
+
+    await reservations.reverseCheckIn(MEMBER, first.stayId, REASON);
+    const second = await reservations.checkIn(MEMBER, arrival);
+    expect(second.folioId).not.toBeNull();
+
+    const all = await owner.$queryRawUnsafe<
+      { id: string; status: string; stayId: string }[]
+    >(
+      `select folio.id, folio.status, folio.stay_id as "stayId"
+         from public.folios as folio
+         join public.stays as stay on stay.id = folio.stay_id
+        where stay.reservation_id = $1::uuid
+        order by folio.created_at`,
+      arrival,
+    );
+
+    // Both Folios are still there — a Folio is never deleted, like the Stay it
+    // belongs to. What matters is that only the live one is open.
+    expect(all).toHaveLength(2);
+    expect(all.filter((folio) => folio.status === "open")).toEqual([
+      expect.objectContaining({ id: second.folioId, stayId: second.stayId }),
+    ]);
+    expect(all.find((folio) => folio.stayId === first.stayId)?.status).toBe(
+      "closed",
+    );
   });
 });

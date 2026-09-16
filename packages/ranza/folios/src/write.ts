@@ -65,3 +65,42 @@ export async function openFolioWithin(
   // Both are "there is no Folio", which is a state and not a failure.
   return rows[0] ? { folioId: rows[0].id } : null;
 }
+
+/**
+ * Closes the Folio of a Stay that has just been withdrawn.
+ *
+ * Deliberately not `closeFolio`. That opens its own `withOrganizationContext`
+ * transaction, so it could not see the withdrawal that has not committed yet:
+ * it would find the Stay still in house, or close the Folio in a transaction
+ * that survives a withdrawal which then rolls back. A withdrawal and the
+ * closing of its Folio share one fate, so they share one transaction.
+ *
+ * Only an `open` Folio moves, and only for a Stay that is `cancelled`. The
+ * second is the whole safety of this: `stays_withdrawal_is_free_of_charges`
+ * refuses to cancel a Stay with anything posted against it, so a Folio reached
+ * through a cancelled Stay is provably empty and closing it can lose nothing.
+ * It is a condition rather than a comment because a later change to the
+ * withdrawal rule would otherwise make this silently wrong.
+ *
+ * Returns null when there is nothing to close — the Property does no billing,
+ * or the Folio is already closed. Both are states, not failures.
+ */
+export async function closeFolioWithin(
+  tx: FolioWriteClient,
+  stayId: string,
+): Promise<{ folioId: string } | null> {
+  const rows = await tx.$queryRaw<{ id: string }[]>`
+    update public.folios as folio
+       set status = 'closed',
+           closed_at = now(),
+           updated_at = now()
+      from public.stays as stay
+     where stay.id = folio.stay_id
+       and folio.stay_id = ${stayId}::uuid
+       and folio.status = 'open'
+       and stay.status = 'cancelled'
+    returning folio.id
+  `;
+
+  return rows[0] ? { folioId: rows[0].id } : null;
+}

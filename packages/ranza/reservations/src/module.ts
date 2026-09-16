@@ -1,5 +1,5 @@
 import { withOrganizationContext } from "@ranza/db";
-import { openFolioWithin } from "@ranza/folios";
+import { closeFolioWithin, openFolioWithin } from "@ranza/folios";
 import { recordWithin } from "@ranza/platform-audit";
 import { publishWithin } from "@ranza/platform-outbox";
 import {
@@ -429,6 +429,12 @@ export function createReservationsModule(deps: ReservationsDeps) {
         // rolls the first write back rather than leaving the pair disagreeing.
         throw new CheckInReversalError("that check-in cannot be withdrawn");
       }
+
+      // The Folio the check-in opened goes with it. Left open it was a row on
+      // the Finance screen for a Guest who was never there — nothing could be
+      // posted to it and nothing could close it — and once a withdrawn
+      // Reservation could be checked in again, one Reservation showed two.
+      await closeFolioWithin(tx, stayId);
 
       // Published like the check-in it undoes, and for the same reason: a
       // consumer of `stay.checked_in` that never hears this would act on an
