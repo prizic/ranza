@@ -1,7 +1,21 @@
 export { AppShell } from "./components/app-shell";
 export type { AppShellProps } from "./components/app-shell";
-export { DataTable, SortableHeader } from "./components/data-table";
-export type { DataTableProps } from "./components/data-table";
+export { DataTable } from "./components/data-table/data-table";
+export type {
+  DataTableLabels,
+  Facet,
+} from "./components/data-table/data-table";
+export { DataTableColumnHeader } from "./components/data-table/column-header";
+export type { ColumnHeaderLabels } from "./components/data-table/column-header";
+export { DataTableFacetedFilter } from "./components/data-table/faceted-filter";
+export type { FacetOption } from "./components/data-table/faceted-filter";
+export { DataTablePagination } from "./components/data-table/pagination";
+export type { PaginationLabels } from "./components/data-table/pagination";
+export { DataTableRowActions } from "./components/data-table/row-actions";
+export type { RowAction } from "./components/data-table/row-actions";
+export { DataTableViewOptions } from "./components/data-table/view-options";
+export { markOverlayClosed, overlayJustClosed } from "./lib/menu-guard";
+export { fieldMatches, toAsciiDigits } from "./lib/search";
 export { KpiCard } from "./components/kpi-card";
 export type { KpiCardProps } from "./components/kpi-card";
 export { StatusBadge } from "./components/status-badge";

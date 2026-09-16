@@ -4,11 +4,24 @@ import * as React from "react";
 import { cn } from "../../lib/utils";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { Select as SelectPrimitive } from "radix-ui";
+import { markOverlayClosed } from "../../lib/menu-guard";
 
 function Select({
+  onOpenChange,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
-  return <SelectPrimitive.Root data-slot="select" {...props} />;
+  return (
+    <SelectPrimitive.Root
+      data-slot="select"
+      // See lib/menu-guard: the click that dismisses this lands on whatever
+      // is underneath once it has gone, which on a listing is a table row.
+      onOpenChange={(open) => {
+        if (!open) markOverlayClosed();
+        onOpenChange?.(open);
+      }}
+      {...props}
+    />
+  );
 }
 
 function SelectGroup({

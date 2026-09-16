@@ -65,19 +65,36 @@ ADR 0007 makes reaching the database outside the server funnel a build failure,
 and `.dependency-cruiser.cjs` enforces it for every path under `src/` that is
 not `src/server/`. Feature folders fall under that rule automatically.
 
-### Tables are TanStack Table
+### Tables are TanStack Table, and the kit is ported rather than rewritten
 
-`@tanstack/react-table` v8, behind one `DataTable` in the kit, with the column
-header, faceted filter, pagination, row actions and view options as separate
-pieces — the arrangement mirhaal uses. Sorting, filtering and column visibility
-are solved problems and writing them again per screen is how they drift.
+`@tanstack/react-table` v8, behind one `DataTable`, with the column header,
+faceted filter, pagination, row actions and view options as separate pieces.
+This is mirhaal's implementation carried across, not a reimplementation of its
+shape: the behaviours worth having are the ones a rewrite leaves out. A row
+click that ignores clicks on controls inside a cell. A guard against the click
+that dismissed an overlay landing on the row underneath it. Empty and no-matches
+told apart. A search placeholder named after the columns it actually reads. A
+capped list saying so, because a silently truncated table looks exactly like a
+complete one.
+
+Two things changed on the way. Every string became a prop, because that dashboard
+is Arabic-only and hardcodes them while this product has three locales and no
+fallback. And the phone normalization in its search helper was dropped — those
+are Saudi dialling rules, and Ranza has no phone column to match yet. The
+Arabic-Indic digit folding was kept, and Turkish case folding added, because
+`toLowerCase()` maps İ and I wrongly in the language this product leads with.
+
+The CSV toolbar was left behind until a screen asks for it.
 
 ### A status is a token, not a colour picked per screen
 
-Status colours live in the theme as `--chart-1..5` with a matching `-fg`, and a
-`StatusBadge` maps a **database enum** onto them. Keying on the enum means
-adding a status to a check constraint without giving it a label is a type error
-rather than a blank chip.
+Status colours live in the theme as four semantic tones — `success`, `warning`,
+`danger`, `info` — each a foreground and a soft fill it stays legible on. A
+screen maps its own statuses onto them; a fifth meaning needs a fifth token, not
+a one-off colour class.
+
+`StatusBadge` takes an icon and a label as **required** props, so there is no
+way to render one without them.
 
 This is also how blueprint 18.5 is satisfied by construction: a badge is an
 icon, a label and a colour together, so it survives being printed, exported or

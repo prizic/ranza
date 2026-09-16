@@ -4,9 +4,24 @@ import * as React from "react";
 import { cn } from "../../lib/utils";
 import { XIcon } from "lucide-react";
 import { Dialog as SheetPrimitive } from "radix-ui";
+import { markOverlayClosed } from "../../lib/menu-guard";
 
-function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
-  return <SheetPrimitive.Root data-slot="sheet" {...props} />;
+function Sheet({
+  onOpenChange,
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Root>) {
+  return (
+    <SheetPrimitive.Root
+      data-slot="sheet"
+      // See lib/menu-guard: the click that dismisses this lands on whatever
+      // is underneath once it has gone, which on a listing is a table row.
+      onOpenChange={(open) => {
+        if (!open) markOverlayClosed();
+        onOpenChange?.(open);
+      }}
+      {...props}
+    />
+  );
 }
 
 function SheetTrigger({

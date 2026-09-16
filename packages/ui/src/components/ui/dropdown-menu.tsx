@@ -4,11 +4,24 @@ import * as React from "react";
 import { cn } from "../../lib/utils";
 import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
+import { markOverlayClosed } from "../../lib/menu-guard";
 
 function DropdownMenu({
+  onOpenChange,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
-  return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
+  return (
+    <DropdownMenuPrimitive.Root
+      data-slot="dropdown-menu"
+      // See lib/menu-guard: the click that dismisses this lands on whatever
+      // is underneath once it has gone, which on a listing is a table row.
+      onOpenChange={(open) => {
+        if (!open) markOverlayClosed();
+        onOpenChange?.(open);
+      }}
+      {...props}
+    />
+  );
 }
 
 function DropdownMenuPortal({

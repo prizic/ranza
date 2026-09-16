@@ -6,11 +6,24 @@ import { XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 
 import { Button } from "./button";
+import { markOverlayClosed } from "../../lib/menu-guard";
 
 function Dialog({
+  onOpenChange,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />;
+  return (
+    <DialogPrimitive.Root
+      data-slot="dialog"
+      // See lib/menu-guard: the click that dismisses this lands on whatever is
+      // underneath once it has gone, which on a listing is a table row.
+      onOpenChange={(open) => {
+        if (!open) markOverlayClosed();
+        onOpenChange?.(open);
+      }}
+      {...props}
+    />
+  );
 }
 
 function DialogTrigger({
