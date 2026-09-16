@@ -4,6 +4,7 @@ export type { RailLabels } from "./components/app-rail";
 export { AppPageBar } from "./components/app-page-bar";
 export { AccountMenu } from "./components/account-menu";
 export { isNavGroup, navGroupFor, toMobileNav } from "./components/nav";
+export { SectionTabs } from "./components/section-tabs";
 export type { NavEntry, NavGroup, NavLeaf } from "./components/nav";
 export { DataTable } from "./components/data-table/data-table";
 export type {

@@ -14,6 +14,7 @@ export interface Messages {
   today: string;
   propertySwitcher: string;
   mainNavigation: string;
+  sections: string;
   back: string;
   account: string;
   organization: string;
@@ -121,6 +122,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     today: "Bugün",
     propertySwitcher: "Tesisler",
     mainNavigation: "Ana gezinme",
+    sections: "Bölümler",
     back: "Geri",
     account: "Hesap",
     organization: "Organizasyon",
@@ -238,6 +240,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     today: "Today",
     propertySwitcher: "Properties",
     mainNavigation: "Main navigation",
+    sections: "Sections",
     back: "Back",
     account: "Account",
     organization: "Organization",
@@ -353,6 +356,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     today: "اليوم",
     propertySwitcher: "المنشآت",
     mainNavigation: "التنقل الرئيسي",
+    sections: "الأقسام",
     back: "رجوع",
     account: "الحساب",
     organization: "المؤسسة",

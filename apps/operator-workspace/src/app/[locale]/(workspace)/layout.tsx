@@ -133,6 +133,7 @@ export default async function WorkspaceLayout({
             </div>
           }
           copy={copy}
+          entitled={entitled}
           locale={locale}
         />
       }

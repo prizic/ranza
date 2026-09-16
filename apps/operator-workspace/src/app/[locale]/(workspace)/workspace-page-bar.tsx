@@ -2,8 +2,9 @@
 
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { AppPageBar } from "@ranza/ui";
+import { AppPageBar, SectionTabs } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
+import { workspaceNav } from "../../../lib/nav";
 import { pageTitleFor, workspacePageTitles } from "../../../lib/page-titles";
 import type { Messages } from "../../../messages";
 
@@ -18,10 +19,12 @@ import type { Messages } from "../../../messages";
 export function WorkspacePageBar({
   action,
   copy,
+  entitled,
   locale,
 }: {
   action?: ReactNode;
   copy: Messages;
+  entitled: readonly string[];
   locale: SupportedLocale;
 }) {
   const pathname = usePathname();
@@ -33,6 +36,12 @@ export function WorkspacePageBar({
     <AppPageBar
       {...(action === undefined ? {} : { action })}
       {...(match.parent === undefined ? {} : { parent: match.parent })}
+      tabs={
+        <SectionTabs
+          entries={workspaceNav(locale, copy, entitled)}
+          label={copy.sections}
+        />
+      }
       title={match.title}
     />
   );

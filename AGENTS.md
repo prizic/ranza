@@ -114,6 +114,11 @@ pnpm test:integration # real database: tenant isolation and the auth flow
 `db:test` and `test:integration` are separate and must be run when changing
 schema, policies or auth.
 
+It does, however, run `next build`, which writes into the same `.next` a running
+`pnpm dev` is serving from. Every route 404s afterwards, including ones that
+plainly exist — restart the dev server rather than hunting for the routing bug
+it looks like.
+
 Local database, when you want to work offline:
 
 ```sh
