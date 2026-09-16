@@ -16,9 +16,20 @@ import { messages as portal } from "../../apps/guest-portal/src/messages";
  * So every counted string is formatted here, in every language, at the counts
  * where the categories differ. This is the test that would have failed on the
  * old `String.replace`, which could not express them at all.
+ *
+ * `onError` throwing is what makes those assertions mean anything. next-intl's
+ * default handler logs a malformed message and returns the key as text, so a
+ * stray brace in Arabic would render as `stay.sleeps` on the screen and still
+ * pass a test that only asked whether formatting threw.
  */
 const t = (locale: SupportedLocale, catalogue: Record<string, unknown>) =>
-  createTranslator({ locale, messages: catalogue as never });
+  createTranslator({
+    locale,
+    messages: catalogue as never,
+    onError: (error) => {
+      throw error;
+    },
+  });
 
 describe("counted strings in three languages", () => {
   it("agrees with English about one result and two", () => {
