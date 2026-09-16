@@ -59,4 +59,4 @@ pnpm db:down
 Prisma owns schema migrations; row-level security policies are hand-written SQL
 appended into the same migration file. Generate with
 `prisma migrate dev --create-only`, add the policy SQL, then apply. See
-[ADR 0001](docs/adr/0001-prisma-for-queries-sql-for-rls.md).
+[ADR 0001](docs/adr/0001-prisma-owns-schema-sql-owns-rls.md).
