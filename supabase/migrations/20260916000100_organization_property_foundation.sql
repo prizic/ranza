@@ -10,13 +10,9 @@
 -- before any tenant-owned table is touched.
 
 create schema if not exists app;
-create schema if not exists private;
 
-revoke all on schema private from public;
 comment on schema app is
-  'Request context and authorization helpers callable by the runtime role.';
-comment on schema private is
-  'Server-only data that must never be exposed through a data API.';
+  'Request context, validation, and authorization helpers callable by the runtime role.';
 
 -- ---------------------------------------------------------------------------
 -- Request context
@@ -62,7 +58,7 @@ create table public.organizations (
   updated_at timestamptz not null default now()
 );
 
-create function private.is_valid_timezone(value text)
+create function app.is_valid_timezone(value text)
 returns boolean
 language sql
 stable
@@ -80,7 +76,7 @@ create table public.properties (
   status text not null default 'active'
     check (status in ('active', 'archived')),
   timezone text not null default 'Europe/Istanbul'
-    check (private.is_valid_timezone(timezone)),
+    check (app.is_valid_timezone(timezone)),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   -- Lets Property-scoped children carry organization_id and prove, by foreign
@@ -341,5 +337,3 @@ grant execute on function
   app.accessible_organization_ids(),
   app.can_use_capability(uuid, text, text)
 to ranza_app;
-
-revoke all on schema private from ranza_app;
