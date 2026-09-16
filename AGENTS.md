@@ -123,9 +123,9 @@ in SQL, because ADR 0005 keeps that mapping in one place.
 
 ## Current state
 
-Branch `rebuild/blueprint` is a rebuild. The previous pilot is archived at tags
+`main` is the rebuild. The previous pilot is archived at tags
 `v0-pilot-archive` and `v0-phase-two-hardening` — recoverable, but its domain
-model does not carry forward.
+model does not carry forward, and the branches that carried it are gone.
 
 The foundation is verified, not assumed. Run `pnpm db:test` for the pgTAP suites
 covering the five gates, and `pnpm test:integration` for tenant isolation under a
