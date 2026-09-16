@@ -19,8 +19,9 @@ Authority order (blueprint section 16), highest first:
 5. Code and automated tests
 
 `.claude/` holds vendored agent tooling (ECC), installed with
-`npx ecc-universal@2.2.1 install --target claude-project --profile minimal`. It
-is gitignored and is **not** part of this authority chain. Its own `AGENTS.md`
+`npx ecc-universal@2.2.1 install --target claude-project --profile minimal`. All
+of it is gitignored except `.claude/skills/feature-design/`, the one skill this
+repository owns and commits, and none of it is part of this authority chain. Its own `AGENTS.md`
 describes that plugin, not Ranza, and its generic advice — coverage targets,
 style rules — does not override anything above. Where they disagree, this file
 wins.
@@ -234,6 +235,8 @@ every local run and took one pgTAP run against Supabase to surface.
 
 ## Conventions
 
+- **A feature is designed before it is coded**, by the `feature-design` skill in
+  `.claude/skills/feature-design/`, into `docs/features/<feature>/`.
 - **Interfaces are Tailwind and shadcn/ui. Do not write CSS.** Components live
   in `packages/ui` and are added with `npx shadcn@latest add`; that package's
   README covers the two fixes every `add` needs. The only stylesheet is

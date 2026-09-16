@@ -1,0 +1,78 @@
+%% Anything not drawn here is forbidden.
+%% Every transition carries its command and its slice.
+%% "not built" means no command reaches it today: the state exists in the check
+%% constraint and nothing can put a row into it.
+%% Slices: s1 zero-balance check-out, s2 leave a Folio open, s3 reverse,
+%%         s4 subscription exit paths. s2 and s4 add no transition; they decide
+%%         whether s1's transition is allowed, not where it goes.
+%% Ids are prefixed because a state id is global in Mermaid: an unprefixed
+%% "cancelled" is one node shared by both machines, which drew the Stay's
+%% withdrawal as landing in the Reservation.
+stateDiagram-v2
+  direction LR
+
+  state "public.stays.status" as StayMachine {
+    state "reserved" as s_reserved
+    state "in_house" as s_in_house
+    state "departed" as s_departed
+    state "cancelled (terminal)" as s_cancelled
+
+    [*] --> s_reserved : not built
+    [*] --> s_in_house : checkIn / built
+    s_reserved --> s_in_house : not built
+    s_in_house --> s_departed : checkOut / s1 / built today
+    s_in_house --> s_cancelled : reverseCheckIn / built
+    s_departed --> s_in_house : reverseCheckOut / s3 / same business date only
+    s_cancelled --> [*]
+  }
+
+  state "public.reservations.status" as ReservationMachine {
+    state "requested" as r_requested
+    state "confirmed" as r_confirmed
+    state "checked_in" as r_checked_in
+    state "checked_out" as r_checked_out
+    state "cancelled (terminal)" as r_cancelled
+    state "no_show (terminal)" as r_no_show
+
+    [*] --> r_requested : not built
+    [*] --> r_confirmed : not built
+    r_requested --> r_confirmed : not built
+    r_requested --> r_cancelled : not built
+    r_confirmed --> r_cancelled : not built
+    r_confirmed --> r_no_show : not built
+    r_confirmed --> r_checked_in : checkIn / built
+    r_checked_in --> r_confirmed : reverseCheckIn / built
+    r_checked_in --> r_checked_out : checkOut / s1 / not built today
+    r_checked_out --> r_checked_in : reverseCheckOut / s3 / same business date only
+    r_cancelled --> [*]
+    r_no_show --> [*]
+  }
+
+  note right of s_departed
+    Not terminal: reverseCheckOut returns it to in_house.
+    It becomes unreachable once the business date rolls,
+    which bounds the command, not the row.
+  end note
+
+  note right of s_in_house
+    Valid pairs, for a Stay that has a Reservation:
+      in_house  <-> checked_in
+      departed  <-> checked_out
+      cancelled <-> confirmed, the check-in reversed
+    A Stay with no Reservation has no pair.
+  end note
+
+  note right of r_checked_out
+    The one new value this design adds to the check constraint.
+    Not terminal: reverseCheckOut returns it to checked_in.
+    It becomes unreachable once the business date rolls,
+    which bounds the command, not the row.
+    Folio machine not drawn. Closure exists - open, closed and
+    closeFolio - but closeFolio opens its own transaction, checks
+    no balance and takes no lock. Prerequisite 4 is therefore
+    closeFolioWithin(tx): a zero-balance check under the per-Stay
+    lock. See CO-DIFF-09.
+  end note
+
+  %% OPEN: nothing reaches reserved. Deferred to the room assignment feature,
+  %% tracked as CO-NB-10.

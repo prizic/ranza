@@ -1,0 +1,72 @@
+%% Slices decide implementation order and nothing else:
+%%   s1 zero-balance check-out   s2 leave a Folio open   s3 reverse   s4 subscription exit paths
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% UML directions: include points base --> included. extend points extension --> base.
+%% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
+%% State transitions are in states.mmd and are deliberately not repeated here.
+flowchart TD
+
+  SM["Staff Member<br/>check_out"]
+  MGR["Manager or night auditor<br/>every permission an agent has, and more"]
+
+  subgraph S4["slice 4 &mdash; subscription exit paths"]
+    EXIT(["Check out while the Subscription is suspended<br/>commercial gates relaxed<br/>permission and reach still required"])
+  end
+
+  subgraph S2["slice 2 &mdash; leave a Folio open"]
+    OPENCR(["Leave the Folio open, credit<br/>folio.leave_open_credit"])
+    OPENDR(["Leave the Folio open, debit<br/>folio.leave_open_debit"])
+    REVIEWLIST(["Review flagged open Folios"])
+  end
+
+  subgraph S1["slice 1 &mdash; zero-balance check-out"]
+    EARLY(["Acknowledge early departure"])
+    RESIDENT(["Check out an open-ended Stay"])
+    WALKIN(["Check out a Stay without a Reservation"])
+    CONFIRM(["Confirm check-out"])
+    REVIEW(["Review check-out"])
+  end
+
+  subgraph S3["slice 3 &mdash; reverse"]
+    REVERSE(["Reverse check-out<br/>check_out.reverse, reason required"])
+  end
+
+  subgraph OUT["Not this feature"]
+    SETTLE(["Settle a Folio &mdash; prerequisite"])
+    CLOSEF(["Close a Folio &mdash; prerequisite"])
+    FIN(["Write off, refund &mdash; Finance"])
+    MOVEOUT(["Resident move-out &mdash; its own feature"])
+    HK(["Housekeeping consumes stay.checked_out<br/>and stay.check_out_reversed"])
+  end
+
+  EXIT -- "extend" --> CONFIRM
+  OPENCR -- "extend" --> CONFIRM
+  OPENDR -- "extend" --> CONFIRM
+  EARLY -- "extend" --> CONFIRM
+  RESIDENT -- "extend" --> CONFIRM
+  WALKIN -- "extend" --> CONFIRM
+  CONFIRM -- "include" --> REVIEW
+
+  SM --> CONFIRM
+  SM --> REVERSE
+  MGR --> REVIEWLIST
+  MGR -- "generalizes (is a Staff Member)" --> SM
+
+  CONFIRM -. "depends on" .-> OUT
+
+  %% NOTE: slice 1 early departure works only when the balance is already zero.
+  %% A prepaid early departure usually leaves a credit, which needs slice 2.
+  %% Which of the two it is depends on the open question below about when
+  %% room nights are charged.
+
+  %% OPEN: a Manager rejects a flagged open Folio - what happens then? s2, CO-S2-08
+  %% DEFERRED, each owned by another feature and tracked as a row:
+  %%   when room nights are charged        room-charge posting   CO-S1-30
+  %%   early departure money, rates        rates                 CO-S1-31
+  %%   the bill, e-Arsiv / e-Fatura        Finance invoicing     CO-S1-32
+  %%   KBS departure notification          compliance            CO-S1-33
+  %%   how the business date rolls         ADR 0021              CO-S1-34
+  %%   a charge refused by a closed Folio  Folio and F&B         CO-S2-12
+  %%   who approves a refund               Finance               CO-S2-13
+  %%   subscription grace period           subscription ADR      CO-S4-07
+  %%   nothing reaches reserved            room assignment       CO-NB-10
