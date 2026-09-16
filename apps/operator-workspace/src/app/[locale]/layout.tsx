@@ -39,7 +39,14 @@ export default async function LocaleLayout({
   if (!isSupportedLocale(locale)) notFound();
 
   return (
-    <html dir={directionFor(locale)} lang={locale}>
+    // data-scroll-behavior: tokens.css sets `scroll-behavior: smooth` on html,
+    // and without this Next cannot tell that from a per-route preference, so it
+    // warns and skips scroll restoration on navigation.
+    <html
+      data-scroll-behavior="smooth"
+      dir={directionFor(locale)}
+      lang={locale}
+    >
       <body>{children}</body>
     </html>
   );
