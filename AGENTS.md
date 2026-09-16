@@ -158,7 +158,7 @@ live in `packages/ranza/accommodation`, the Stay in `packages/ranza/stays`, and
 `apps/guest-portal` renders `/{tr,en,ar}/stay` mobile-first from one Stay-scoped
 read. A Guest or Resident authenticates through the same Better Auth
 instance as Staff and then reaches a completely different set of rows — their own
-policies, not a widening of the Staff ones. ADR 0008 records that model, and
+policies, not a widening of the Staff ones. ADR 0009 records that model, and
 every later Portal capability is expected to follow it.
 
 **Multi-factor authentication** closes the identity line of Phase 1. A second
