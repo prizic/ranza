@@ -167,6 +167,14 @@
     outline-offset: 2px;
   }
 
+  /* Tailwind's reset leaves buttons on the default arrow, which reads as
+     "not clickable" to anyone who learned the web from links. Taken from the
+     shadcn `--pointer` preset option. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
   /* Blueprint: data tables use tabular figures so columns of numbers align. */
   table {
     font-variant-numeric: tabular-nums;

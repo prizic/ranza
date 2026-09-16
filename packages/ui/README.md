@@ -72,16 +72,20 @@ closing it will open a row.
 cd packages/ui && npx shadcn@latest add <name>
 ```
 
-Three things need fixing afterwards, every time:
+Two things need fixing afterwards, every time:
 
 1. The CLI writes `import { cn } from "cn"` — a third-party package, not this
    one. Change it to `../../lib/utils`. A `@/lib/utils` alias would not do:
    each application compiles this package's source with its own path
    resolution, and the alias is not defined there.
-2. Run `npx shadcn@latest migrate rtl` so directional classes become logical
-   ones. The CLI does not do this on `add`.
-3. If the component is an overlay, arm the menu guard in its root — see the
+2. If the component is an overlay, arm the menu guard in its root — see the
    listing kit above.
+
+`migrate rtl` is **no longer** part of this. `components.json` carries
+`"rtl": true`, so `add` emits logical properties itself — a fresh `table` comes
+out with `text-start` and `pe-0` already. That also removes the trap where
+running `migrate rtl` over `sidebar.tsx` rewrote its physical `side` positioning
+and put the rail on the wrong edge in Arabic.
 
 Then export it from [`src/index.ts`](src/index.ts) — applications import from
 the package root and never reach into `src/`.
