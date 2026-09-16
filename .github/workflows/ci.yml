@@ -22,14 +22,3 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
-        env:
-          # packages/db typechecks by generating the Prisma client first, and
-          # prisma.config.ts resolves DIRECT_URL to do it. Generation reads the
-          # schema and never opens a connection, so a placeholder is enough —
-          # and it is deliberately unreachable rather than a real host, so
-          # anything that tried to *use* it would fail loudly instead of
-          # quietly touching a database from CI.
-          #
-          # Without this the config throws before any check runs, which is why
-          # every run on main has been red rather than this being a regression.
-          DIRECT_URL: postgresql://unused:unused@127.0.0.1:1/unused
