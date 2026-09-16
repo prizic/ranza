@@ -1,0 +1,16 @@
+{
+  "name": "@ranza/i18n",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./control-auth": "./src/control-auth.ts",
+    "./leads": "./src/leads.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit"
+  }
+}
