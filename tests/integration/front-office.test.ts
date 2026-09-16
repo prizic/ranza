@@ -38,6 +38,9 @@ const RACED = "d4000004-0000-4000-8000-000000000008";
 const OVERSTAYED = "d4000004-0000-4000-8000-000000000009";
 const TAKEN = "d4000004-0000-4000-8000-00000000000a";
 const ANNOUNCED = "d4000004-0000-4000-8000-00000000000b";
+const DATED = "d4000004-0000-4000-8000-00000000000c";
+const RECORDED = "d4000004-0000-4000-8000-00000000000d";
+const DEPARTED = "d4000004-0000-4000-8000-00000000000e";
 const MEMBER = "d4000001-0000-4000-8000-000000000001";
 const OUTSIDER = "d4000001-0000-4000-8000-000000000002";
 
@@ -97,7 +100,10 @@ async function seed() {
        ($12,$4,$6,'FD-107','room',2),
        ($13,$4,$6,'FD-108','room',2),
        ($14,$4,$6,'FD-109','room',2),
-       ($15,$4,$6,'FD-110','room',2)
+       ($15,$4,$6,'FD-110','room',2),
+       ($16,$4,$6,'FD-111','room',2),
+       ($17,$4,$6,'FD-112','room',2),
+       ($18,$4,$6,'FD-113','room',2)
      on conflict (id) do nothing`,
     UNIT,
     CONTESTED,
@@ -114,6 +120,9 @@ async function seed() {
     OVERSTAYED,
     TAKEN,
     ANNOUNCED,
+    DATED,
+    RECORDED,
+    DEPARTED,
   );
   await owner.$executeRawUnsafe(
     `insert into public.subscriptions (organization_id, status) values
@@ -388,6 +397,30 @@ describe("checking in", () => {
     ).resolves.toEqual([]);
   });
 
+  // The edge of the range, which `ends_on >= today` let through. The Stay would
+  // be [today, today) — an empty daterange, which overlaps nothing, so
+  // stays_no_double_booking has no opinion and the Unit takes a second in_house
+  // Stay tonight. Exactly the bug the date rule exists to close, arriving
+  // through the one date nobody tested.
+  it("refuses a Reservation whose last night is tonight's predecessor", async () => {
+    const ENDING = reservationId();
+    await reserve(ENDING, PROPERTY, ORG, ANNOUNCED, "No Nights Left", {
+      from: -2,
+      to: 0,
+    });
+
+    await expect(reservations.checkIn(MEMBER, ENDING)).rejects.toBeInstanceOf(
+      CheckInError,
+    );
+
+    await expect(
+      owner.$queryRawUnsafe(
+        `select id from public.stays where reservation_id = $1::uuid`,
+        ENDING,
+      ),
+    ).resolves.toEqual([]);
+  });
+
   it("refuses a Reservation whose last night has already passed", async () => {
     const STALE = reservationId();
     await reserve(STALE, PROPERTY, ORG, OTHER_IN_PROPERTY, "Too Late", {
@@ -590,19 +623,42 @@ describe("checking out", () => {
     });
   });
 
+  // toISOString() on a Postgres `date` is the trap: the driver parses it as
+  // local midnight, so anywhere east of UTC the UTC rendering is the day
+  // before. Compared against the Property's own today, computed by the
+  // database, because that is the only authority on what day it is there.
+  it("publishes the departure dated by the Property, not by the process", async () => {
+    const leaving = reservationId();
+    await reserve(leaving, PROPERTY, ORG, DATED, "Dated Guest", {
+      from: -1,
+      to: 1,
+    });
+    const { stayId } = await reservations.checkIn(MEMBER, leaving);
+    await reservations.checkOut(MEMBER, stayId);
+
+    const [row] = await owner.$queryRawUnsafe<
+      { departedOn: string; today: string }[]
+    >(
+      `select event.payload->>'departedOn' as "departedOn",
+              to_char((now() at time zone property.timezone)::date, 'YYYY-MM-DD') as "today"
+         from outbox.events as event
+         join public.properties as property on property.id = $2::uuid
+        where event.event_type = 'stay.checked_out'
+          and event.payload->>'stayId' = $1`,
+      stayId,
+      PROPERTY,
+    );
+    expect(row?.departedOn).toBe(row?.today);
+  });
+
   it("records who did it, in the same transaction", async () => {
     const reservation = reservationId();
-    await reserve(
-      reservation,
-      PROPERTY,
-      ORG,
-      OTHER_IN_PROPERTY,
-      "Aziz Sancar",
-      {
-        from: -1,
-        to: 0,
-      },
-    );
+    await reserve(reservation, PROPERTY, ORG, RECORDED, "Aziz Sancar", {
+      // At least one night left, or the Stay would be [today, today) and the
+      // check constraint refuses it — an empty range holds no Unit.
+      from: -1,
+      to: 1,
+    });
     const { stayId } = await reservations.checkIn(MEMBER, reservation);
 
     await reservations.checkOut(MEMBER, stayId);
@@ -654,17 +710,10 @@ describe("checking out", () => {
 
   it("refuses a Stay that has already departed", async () => {
     const reservation = reservationId();
-    await reserve(
-      reservation,
-      PROPERTY,
-      ORG,
-      OTHER_IN_PROPERTY,
-      "Feza Gürsey",
-      {
-        from: -1,
-        to: 0,
-      },
-    );
+    await reserve(reservation, PROPERTY, ORG, DEPARTED, "Feza Gürsey", {
+      from: -1,
+      to: 1,
+    });
     const { stayId } = await reservations.checkIn(MEMBER, reservation);
     await reservations.checkOut(MEMBER, stayId);
 
@@ -698,12 +747,29 @@ describe("checking out", () => {
 
 describe("today's departures", () => {
   it("lists a Stay whose planned end has arrived, and flags an overdue one", async () => {
+    // Both are inserted rather than checked in, and for one reason: a Stay due
+    // to leave today began three days ago. Checking in today to a Reservation
+    // that ends today would produce [today, today) — no nights at all — which
+    // `stays_in_house_has_a_night` refuses, and rightly.
     const onTime = reservationId();
     await reserve(onTime, PROPERTY, ORG, DEPARTING_A, "Halide Edib", {
       from: -3,
       to: 0,
     });
-    await reservations.checkIn(MEMBER, onTime);
+    await owner.$executeRawUnsafe(
+      `insert into public.stays
+         (organization_id, property_id, accommodation_unit_id, reservation_id,
+          stay_type, status, starts_on, ends_on)
+       select $1::uuid, $2::uuid, $3::uuid, $4::uuid, 'guest', 'in_house',
+              (now() at time zone property.timezone)::date - 3,
+              (now() at time zone property.timezone)::date
+       from public.properties as property
+       where property.id = $2::uuid`,
+      ORG,
+      PROPERTY,
+      DEPARTING_A,
+      onTime,
+    );
 
     // The overdue one is inserted rather than checked in, and that is not a
     // shortcut. An overstay exists because somebody checked in while their

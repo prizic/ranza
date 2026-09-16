@@ -85,6 +85,36 @@ leave no trace. Backoff is exponential on `attempts`; after the cap the event is
 marked `dead_at` and logged at error level. A dead letter is not deleted —
 nothing in this repository deletes history (blueprint 7.4).
 
+### A handler reads state; it never trusts the payload or the order
+
+Two rules that only look like the same rule.
+
+**The payload is a pointer.** `ranza_app` may insert any event type with any
+payload into an Organization it can reach — that is what the insert policy
+allows, and narrowing it would mean the platform module interpreting event
+types it is supposed to know nothing about. So a handler takes the ids out of a
+payload and loads the facts itself, inside its own transaction, under that
+Organization's context. A payload that says an amount is a claim; a row that
+says it is a fact.
+
+**Order is not guaranteed, and is not worth guaranteeing.** Delivery is
+at-least-once with exponential backoff, so a failed event is retried after
+another has already gone through. Concretely: `stay.checked_in` fails once,
+`stay.check_in_reversed` is published and delivered, then the retry of the first
+succeeds — and a handler that applied them in the order it received them would
+finish having applied a check-in that was withdrawn.
+
+The fix is not a sequence number, a per-key queue or a delay. It is that a
+handler re-reads the current state and decides from that. "Send the arrival
+confirmation" becomes "if this Stay is still in house, send it" — which is also
+what makes a redelivery harmless, so it is the same discipline the delivery
+table already requires rather than a second one.
+
+An ordering guarantee is available if something ever genuinely needs it — claim
+by `(organization_id, ordering_key)` and refuse to advance past a failure — and
+it costs throughput and head-of-line blocking. Nothing needs it, and a handler
+written to the rule above never will.
+
 ### Consumer names are stable forever
 
 `folio.onStayCheckedOut`, never renamed. The delivery table is keyed on the name,

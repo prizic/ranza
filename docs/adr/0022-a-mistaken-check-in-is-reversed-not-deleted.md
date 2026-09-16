@@ -95,6 +95,42 @@ This is an invariant rather than a closure rule, which is the distinction ADR
 withdrawn accepts nothing" says what is representable, not when a Folio should
 be closed or by whom.
 
+### The two checks are made to see each other
+
+The rule above and "a cancelled Stay's Folio accepts nothing" guard one
+invariant from opposite sides, and each was written as an independent check.
+Under READ COMMITTED that is not enough, and the gap is not subtle once seen:
+
+```
+A: insert folio_line   -- the Stay is not cancelled yet
+B: cancel the Stay     -- there are no lines yet
+B: commit
+A: commit              -- a withdrawn Stay, carrying money
+```
+
+Neither transaction can see the other's uncommitted work, so both checks pass.
+This is write skew, and it was reproduced on two connections before being
+fixed — every assertion in `tests/database` passed while it was live, because
+each of them runs one transaction at a time.
+
+Both triggers now take the same transaction-scoped advisory lock, keyed on the
+Stay, _before_ checking. Whichever arrives second waits for the first to commit
+and then re-reads, so it sees the committed result and refuses.
+
+An advisory lock rather than `select ... for update` on the Folio, because a row
+lock requires UPDATE privilege on the table being locked and `ranza_app` holds
+none on `folios` beyond the three columns the closure grant names — the lock
+would have failed for exactly the role it most needs to bind.
+
+`hashtext` narrows a uuid to an integer, so two Stays can share a lock. The cost
+is that two unrelated withdrawals serialise briefly. It is never a wrong answer,
+which is the only property this needs.
+
+`SERIALIZABLE` was the alternative and was rejected: it would have to be set for
+every transaction that touches either table, it turns a correctness bug into
+retries the application must handle, and it makes an unrelated read on a busy
+Folio a source of serialisation failures.
+
 ## Consequences
 
 `ranza_app`'s `UPDATE` grant on `reservations` is narrowed to `(status,

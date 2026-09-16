@@ -11,7 +11,7 @@
 -- dropping the exclusion constraint — and confirming it went red. A test that
 -- cannot fail is worse than no test, because it is mistaken for evidence.
 begin;
-select plan(50);
+select plan(51);
 
 insert into public.users (id, email) values
   ('31111111-1111-4111-8111-111111111111', 'front-desk-a@example.test'),
@@ -476,6 +476,25 @@ select throws_ok(
        and status = 'reserved'$$,
   '42501', NULL,
   'nor be moved to in house while its first night is still in the future');
+
+-- The other edge of the same range, and the one that was missed. Somebody
+-- arriving on the day their booking ends has no night left, so the Stay is
+-- `[today, today)` — an empty daterange, which overlaps nothing, so
+-- stays_no_double_booking has no opinion and the Unit takes a second in_house
+-- Stay tonight. A check constraint rather than a policy clause, because it
+-- binds the migration role too.
+select throws_ok(
+  $$insert into public.stays
+      (organization_id, property_id, accommodation_unit_id,
+       stay_type, status, starts_on, ends_on)
+    values ('3a111111-1111-4111-8111-111111111111',
+            '3c111111-1111-4111-8111-111111111111',
+            '3d777777-7777-4777-8777-777777777777',
+            'guest', 'in_house',
+            app.property_today('3c111111-1111-4111-8111-111111111111'),
+            app.property_today('3c111111-1111-4111-8111-111111111111'))$$,
+  '23514', NULL,
+  'a current Stay covers at least one night: an empty range holds no Unit');
 
 -- ---------------------------------------------------------------------------
 -- Check-out, and the column-level grant that bounds it

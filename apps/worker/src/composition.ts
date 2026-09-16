@@ -42,6 +42,11 @@ interface RolePrivileges {
  * `c.relowner = current_user::regrole`: a role that is merely a *member* of the
  * owning role inherits the ownership and bypasses row-level security exactly as
  * the owner does, and the simpler comparison would not see it.
+ *
+ * Every non-system schema, not just `public`. The worker's own queue lives in
+ * `outbox` and a handler's tables may live anywhere a module owns a schema
+ * (ADR 0008), so a check that looked only at `public` would have passed a role
+ * that owned every one of them.
  */
 export async function assertUnprivileged(db: PrismaClient): Promise<void> {
   const rows = await db.$queryRawUnsafe<RolePrivileges[]>(
@@ -52,7 +57,8 @@ export async function assertUnprivileged(db: PrismaClient): Promise<void> {
          select 1
          from pg_class as c
          join pg_namespace as n on n.oid = c.relnamespace
-         where n.nspname = 'public'
+         where n.nspname not in ('pg_catalog', 'information_schema')
+           and n.nspname not like 'pg\\_%'
            and c.relkind = 'r'
            and pg_has_role(current_user, c.relowner, 'USAGE')
        ) as "ownsTables"

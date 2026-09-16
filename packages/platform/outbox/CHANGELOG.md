@@ -9,6 +9,15 @@ everything lands under Unreleased.
 
 ## Unreleased
 
+### Fixed
+
+- `outbox.deliveries` references `outbox.events (id, organization_id)` rather
+  than `id` alone. A worker holding one Organization's context could record a
+  delivery for another's event — and that consumer would then never run, because
+  a delivery row already existed. The composite key is the pattern every
+  Property-scoped table here already uses, and it makes the mismatch
+  unrepresentable rather than unlikely.
+
 ### Added
 
 - The `outbox` schema: `outbox.events`, written inside the transaction that

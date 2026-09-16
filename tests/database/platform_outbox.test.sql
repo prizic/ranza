@@ -12,7 +12,7 @@
 -- whole table, granting ranza_worker select on public.organizations, dropping
 -- the deliveries policies — and confirming it went red.
 begin;
-select plan(33);
+select plan(34);
 
 insert into public.users (id, email) values
   ('51111111-1111-4111-8111-111111111111', 'outbox-a@example.test'),
@@ -263,6 +263,17 @@ select throws_ok(
             '5a111111-1111-4111-8111-111111111111')$$,
   '23505', NULL,
   'the same consumer cannot record the same event twice: this is what makes a redelivery a no-op');
+
+-- The case the policy alone lets through. Organization B's event, claimed under
+-- Organization A's id: the scope matches the worker's context, so the policy
+-- approves it — and then B's consumer would never run, because a delivery row
+-- already exists for that event. The composite foreign key is what refuses.
+select throws_ok(
+  $$insert into outbox.deliveries (consumer, event_id, organization_id)
+    values ('test.onStolen', '5e222222-2222-4222-8222-222222222222',
+            '5a111111-1111-4111-8111-111111111111')$$,
+  '23503', NULL,
+  'a delivery cannot claim another Organization''s event under its own scope');
 
 select throws_ok(
   $$update outbox.deliveries set delivered_at = now()$$,

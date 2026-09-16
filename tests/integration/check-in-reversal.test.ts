@@ -37,14 +37,19 @@ const MEMBER = "d7000001-0000-4000-8000-000000000001";
 const MISTAKE = randomUUID();
 const CHARGED = randomUUID();
 const CONTESTED = randomUUID();
+const RACED = randomUUID();
 const REASON = "checked in the wrong one of two Guests arriving together";
 
 /** `(property_id, name)` is unique, so the name has to be per-run as well. */
 const unitName = (id: string) => `RV-${id.slice(0, 8)}`;
 
 const prisma = createPrismaClient(process.env.DATABASE_URL!);
+// A second client, so the race below runs on two real connections. On one they
+// would queue and the race would never happen.
+const rival = createPrismaClient(process.env.DATABASE_URL!);
 const reservations = createReservationsModule({ db: prisma });
 const folios = createFoliosModule({ db: prisma });
+const rivalReservations = createReservationsModule({ db: rival });
 const audit = createAuditModule({ db: prisma });
 const owner = createPrismaClient(process.env.DIRECT_URL!);
 
@@ -107,18 +112,21 @@ beforeAll(async () => {
   await owner.$executeRawUnsafe(
     `insert into public.accommodation_units
        (id, property_id, organization_id, name, unit_type, capacity) values
-       ($1,$4,$5,$6,'room',2),
-       ($2,$4,$5,$7,'room',2),
-       ($3,$4,$5,$8,'room',2)
+       ($1,$5,$6,$7,'room',2),
+       ($2,$5,$6,$8,'room',2),
+       ($3,$5,$6,$9,'room',2),
+       ($4,$5,$6,$10,'room',2)
      on conflict (id) do nothing`,
     MISTAKE,
     CHARGED,
     CONTESTED,
+    RACED,
     PROPERTY,
     ORG,
     unitName(MISTAKE),
     unitName(CHARGED),
     unitName(CONTESTED),
+    unitName(RACED),
   );
   await owner.$executeRawUnsafe(
     `insert into public.subscriptions (organization_id, status) values ($1,'active')
@@ -164,7 +172,11 @@ afterAll(async () => {
   ]) {
     await owner.$executeRawUnsafe(statement);
   }
-  await Promise.all([prisma.$disconnect(), owner.$disconnect()]);
+  await Promise.all([
+    prisma.$disconnect(),
+    rival.$disconnect(),
+    owner.$disconnect(),
+  ]);
 });
 
 describe("withdrawing a check-in", () => {
@@ -246,6 +258,77 @@ describe("withdrawing a check-in", () => {
     await expect(
       reservations.reverseCheckIn(MEMBER, stayId, REASON),
     ).rejects.toBeInstanceOf(CheckInReversalError);
+  });
+});
+
+describe("a withdrawal and a charge at the same moment", () => {
+  // Write skew, and the reason this test is shaped the way it is.
+  //
+  // The withdrawal asks "are there charges?" and the posting asks "is the Stay
+  // withdrawn?". Under READ COMMITTED neither transaction sees the other's
+  // uncommitted work, so before the advisory lock both answered no, both
+  // committed, and the result was a withdrawn Stay carrying money.
+  //
+  // Two calls started together do not reproduce it — they nearly always finish
+  // one after the other. What reproduces it is holding the first transaction
+  // open while the second runs its check, which is what this does: the charge
+  // is written and its transaction parked, the withdrawal is attempted while
+  // the charge is still uncommitted, and only then does the first commit.
+  //
+  // With the lock, the withdrawal waits and then sees the charge and refuses.
+  // Without it, the withdrawal sails through. Confirmed both ways.
+  it("never leaves a withdrawn Stay carrying a charge", async () => {
+    const arrival = reservationId();
+    await reserve(arrival, RACED, "Raced Guest");
+    const { stayId, folioId } = await reservations.checkIn(MEMBER, arrival);
+
+    let chargeIsInPlace: () => void;
+    const charged = new Promise<void>((resolve) => {
+      chargeIsInPlace = resolve;
+    });
+
+    // Held open deliberately. The delay is how long the withdrawal gets to run
+    // its check against a database where the charge exists but has not been
+    // committed — the window the whole bug lived in.
+    const posting = prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(
+        "select app.set_request_context($1::uuid)",
+        MEMBER,
+      );
+      await tx.$executeRawUnsafe(
+        `insert into public.folio_lines
+           (organization_id, property_id, folio_id, line_type, description, amount_minor)
+         select folio.organization_id, folio.property_id, folio.id, 'charge', 'Minibar', 4500
+         from public.folios as folio where folio.id = $1::uuid`,
+        folioId,
+      );
+      chargeIsInPlace();
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    await charged;
+    const withdrawal = rivalReservations
+      .reverseCheckIn(MEMBER, stayId, REASON)
+      .then(
+        () => "withdrawn" as const,
+        () => "refused" as const,
+      );
+
+    await posting;
+    expect(await withdrawal).toBe("refused");
+
+    const [row] = await owner.$queryRawUnsafe<
+      { status: string; charges: number }[]
+    >(
+      `select stay.status,
+              (select count(*) from public.folio_lines as line
+                 join public.folios as folio on folio.id = line.folio_id
+                where folio.stay_id = stay.id)::int as charges
+         from public.stays as stay where stay.id = $1::uuid`,
+      stayId,
+    );
+    // The state the rule exists to prevent: cancelled, with money on its Folio.
+    expect(row).toEqual({ status: "in_house", charges: 1 });
   });
 });
 

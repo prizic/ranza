@@ -9,6 +9,16 @@ everything lands under Unreleased.
 
 ## Unreleased
 
+### Fixed
+
+- `folio_line_is_postable()` takes a transaction-scoped advisory lock on the
+  Stay before it checks anything, and so does
+  `stays_withdrawal_is_free_of_charges`. The two guarded one invariant from
+  opposite sides and could not see each other: under READ COMMITTED a charge and
+  a withdrawal committed together and left a withdrawn Stay carrying money
+  ([ADR 0022](../../../docs/adr/0022-a-mistaken-check-in-is-reversed-not-deleted.md)).
+  Reproduced on two connections before it was fixed.
+
 ### Changed
 
 - `folio_line_is_postable()` also refuses a line on a Folio whose Stay was

@@ -105,6 +105,13 @@ export function createReservationsModule(deps: ReservationsDeps) {
    * arrivals list computed in the server's timezone would be wrong for one of
    * them for several hours every day.
    *
+   * `<=` today rather than `=` today, so somebody who should have arrived
+   * yesterday and has not is still on the list. Check-in accepts a late arrival
+   * — the Stay simply starts on the day they turned up — and a list that showed
+   * only today would have made every one of those unreachable from the screen
+   * that exists to handle them. The same reasoning as the departures list,
+   * which shows the Guest who should have left on Tuesday.
+   *
    * Cancelled and no-show Reservations are absent because they are not
    * arriving. Already checked-in ones stay, so the list still shows the day's
    * work after it has been done rather than emptying as it goes.
@@ -140,7 +147,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
           on unit.id = reservation.accommodation_unit_id
         where reservation.property_id = ${propertyId}::uuid
           and reservation.starts_on
-              = (now() at time zone property.timezone)::date
+              <= (now() at time zone property.timezone)::date
           and reservation.status in ('requested', 'confirmed', 'checked_in')
           and app.can_use_capability(
             reservation.property_id,
@@ -172,10 +179,19 @@ export function createReservationsModule(deps: ReservationsDeps) {
    * insert is rejected by its own policy even if the update somehow did.
    *
    * The date conditions are not authorization and are here for a different
-   * reason. A Reservation cannot be checked in before the day it starts, or
-   * after the day it ends: without the first, a booking three weeks out became
-   * an `in_house` Stay with future dates, and a second Guest could then be
-   * checked into the same Unit tonight because the two ranges do not overlap.
+   * reason. A Reservation cannot be checked in before the day it starts, or on
+   * or after the day it ends: without the first, a booking three weeks out
+   * became an `in_house` Stay with future dates, and a second Guest could then
+   * be checked into the same Unit tonight because the two ranges do not
+   * overlap.
+   *
+   * `>` and not `>=` on the end date, which is the same bug at the other edge.
+   * Somebody arriving on the day their booking ends has no night left, and the
+   * Stay would be `[today, today)` — an empty daterange, which overlaps nothing,
+   * so the exclusion constraint has no opinion and the Unit takes a second
+   * Guest tonight. `stays_in_house_has_a_night` refuses the row for every role;
+   * this is what turns that into a refusal rather than a constraint violation
+   * to decode.
    * `stays_insert_front_desk` refuses the same row independently (see
    * 20260916001300_check_in_on_the_day); this predicate is what turns that
    * refusal into an empty result the front desk can be told about, rather than
@@ -193,7 +209,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
          where id = ${reservationId}::uuid
            and status = 'confirmed'
            and starts_on <= app.property_today(property_id)
-           and (ends_on is null or ends_on >= app.property_today(property_id))
+           and (ends_on is null or ends_on > app.property_today(property_id))
         returning
           organization_id                 as "organizationId",
           property_id                     as "propertyId",
@@ -483,8 +499,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
       // Today at the Property, decided by the database. A departure date taken
       // from the server's clock is the wrong day for half of every day at a
       // Property in another timezone.
-      const [today] = await tx.$queryRaw<{ on: Date }[]>`
-        select (now() at time zone property.timezone)::date as "on"
+      const [today] = await tx.$queryRaw<{ on: Date; onText: string }[]>`
+        select (now() at time zone property.timezone)::date as "on",
+               to_char((now() at time zone property.timezone)::date,
+                       'YYYY-MM-DD') as "onText"
         from public.properties as property
         join public.stays as stay on stay.property_id = property.id
         where stay.id = ${stayId}::uuid
@@ -523,7 +541,13 @@ export function createReservationsModule(deps: ReservationsDeps) {
         payload: {
           stayId,
           accommodationUnitId: closed.accommodationUnitId,
-          departedOn: today.on.toISOString().slice(0, 10),
+          // Formatted by the database, like every other date this module
+          // publishes. `toISOString()` on the Date beside it happens to be
+          // right — the adapter hands back UTC midnight — but that is a
+          // third-party parsing choice, and an upgrade that changed it to local
+          // midnight would shift this by a day for every host east of UTC with
+          // nothing failing. The string never leaves the Property's own day.
+          departedOn: today.onText,
         },
       });
 

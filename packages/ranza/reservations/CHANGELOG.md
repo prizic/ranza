@@ -9,6 +9,24 @@ everything lands under Unreleased.
 
 ## Unreleased
 
+### Fixed
+
+- Check-in refuses a Reservation whose last night is already behind it —
+  `ends_on > today`, not `>=`. Somebody arriving on the day their booking ends
+  has no night left, so the Stay was `[today, today)`: an empty daterange, which
+  overlaps nothing, so `stays_no_double_booking` had no opinion and the Unit took
+  a second `in_house` Stay the same night. The same bug the date rule exists to
+  close, arriving through the one date nobody tested.
+  `stays_in_house_has_a_night` refuses the row for every role.
+- `listArrivals` shows every Reservation whose start date has arrived, not only
+  today's. Late arrivals became checkable in and stayed invisible on the one
+  screen that exists to handle them.
+- The departure date published on `stay.checked_out` is formatted by the
+  database rather than by `toISOString()`. The value was correct — the adapter
+  returns UTC midnight — but it depended on a third-party parsing choice, and an
+  upgrade that returned local midnight instead would have shifted it by a day
+  for every host east of UTC with nothing failing.
+
 ### Added
 
 - `reverseCheckIn(userId, stayId, reason)`: withdrawing a check-in that should
