@@ -107,8 +107,17 @@ List, and nothing else:
 2. every row that contradicts a diagram
 3. every open question still outstanding
 
-Fix what can be fixed, ask about what cannot. The design is **ready** only when that
-list is empty.
+Fix what can be fixed, ask about what cannot.
+
+Readiness is per slice and has two levels:
+
+- **ready to specify** — no row tagged with that slice is `open`.
+- **ready to build** — ready to specify, and no `prerequisite_missing` row names
+  that slice as blocked.
+
+A prerequisite is a row like any other, not a paragraph: prose does not show up in
+a count, so a design whose prerequisites live in a summary reads as ready when it
+is not.
 
 ### f. Implementation
 
