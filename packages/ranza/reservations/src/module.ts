@@ -1,6 +1,7 @@
 import { withOrganizationContext } from "@ranza/db";
+import { openFolioWithin } from "@ranza/folios";
 import { recordWithin } from "@ranza/platform-audit";
-import { closeStayWithin, openStayWithin } from "@ranza/stays";
+import { closeStayWithin, openStayWithin, StayWriteError } from "@ranza/stays";
 import {
   CheckInError,
   CheckOutError,
@@ -194,7 +195,18 @@ export function createReservationsModule(deps: ReservationsDeps) {
         throw error;
       }
 
-      // Same transaction as the two writes above, so an action that happened
+      // The Folio the Stay will accrue against — blueprint 6.1 step 5, where
+      // Billing creates or links one as part of turning a Reservation into a
+      // Stay. It belongs to @ranza/folios, which owns that table; this module
+      // supplies the Stay and joins its transaction.
+      //
+      // Null when the Property does not do billing, which is a state rather
+      // than a failure. Front Office is gated on `front_desk` and Folios on
+      // `finance`: an Organization that has not bought the second must still
+      // be able to check somebody in, so this cannot be allowed to raise.
+      const folio = await openFolioWithin(tx, created.stayId);
+
+      // Same transaction as the writes above, so an action that happened
       // without a record is not a state this can reach (blueprint 7.4). The
       // actor is named by the caller because this module knows who it is and
       // the audit module deliberately does not.
@@ -207,10 +219,15 @@ export function createReservationsModule(deps: ReservationsDeps) {
         context: {
           stayId: created.stayId,
           accommodationUnitId: reservation.accommodationUnitId,
+          folioId: folio?.folioId ?? null,
         },
       });
 
-      return { reservationId, stayId: created.stayId };
+      return {
+        reservationId,
+        stayId: created.stayId,
+        folioId: folio?.folioId ?? null,
+      };
     });
   }
 
@@ -299,11 +316,20 @@ export function createReservationsModule(deps: ReservationsDeps) {
       let closed;
       try {
         closed = await closeStayWithin(tx, stayId, today.on);
-      } catch {
+      } catch (error: unknown) {
         // Out of reach, already departed, cancelled, or never existed. One
         // message for all four: telling them apart would confirm that a Stay
         // the caller cannot see is there.
-        throw new CheckOutError("that Stay cannot be checked out");
+        //
+        // Only that refusal is translated. A bare `catch` here also swallowed
+        // a constraint violation and a lost connection, reporting both to the
+        // front desk as "you cannot" and to the logs as nothing at all —
+        // hiding which Stay exists is the point, hiding a real failure from
+        // the people running the system is not.
+        if (error instanceof StayWriteError) {
+          throw new CheckOutError("that Stay cannot be checked out");
+        }
+        throw error;
       }
 
       await recordWithin(tx, {

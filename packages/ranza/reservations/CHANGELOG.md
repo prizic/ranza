@@ -9,6 +9,18 @@ everything lands under Unreleased.
 
 ## Unreleased
 
+### Changed
+
+- Check-in opens the Stay's Folio through `openFolioWithin` (blueprint 6.1
+  step 5), in the same transaction as everything else it does. `CheckedIn`
+  gained `folioId`, which is null where the Property does not do billing —
+  `front_desk` and `finance` are separate Entitlements, and a check-in must not
+  depend on the second.
+- `checkOut` no longer turns every failure into `CheckOutError`. A bare `catch`
+  also swallowed constraint violations and lost connections, reporting both to
+  the front desk as "you cannot" and to the logs as nothing at all; only
+  `StayWriteError` is translated now.
+
 ### Added
 
 - The `reservations` table: a planned allocation of an Accommodation Unit for a

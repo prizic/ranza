@@ -136,94 +136,47 @@ in SQL, because ADR 0005 keeps that mapping in one place.
 
 ## Current state
 
+**[`docs/roadmap.md`](docs/roadmap.md) is where the status lives** — every
+bullet of blueprint section 13, what is built, and what the next structural
+piece is. It is one page on purpose. This section holds only what a person
+needs before writing code, which is different from what they need to know
+where the project is.
+
 `main` is the rebuild. The previous pilot is archived at tags
 `v0-pilot-archive` and `v0-phase-two-hardening` — recoverable, but its domain
 model does not carry forward, and the branches that carried it are gone.
 
-The foundation is verified, not assumed. Run `pnpm db:test` for the pgTAP suites
-covering the five gates, and `pnpm test:integration` for tenant isolation under a
-pooled Prisma connection, sign-up through to a correctly scoped query, and each
-gate denying on its own.
+Nothing here is assumed to work because it was written. `pnpm db:test` covers
+the five gates of blueprint 3.5 in pgTAP; `pnpm test:integration` covers tenant
+isolation under a pooled connection, sign-up through to a correctly scoped
+query, and each gate denying on its own.
 
-The **walking skeleton stands**. `packages/ranza/core` answers which Properties a
-viewer may reach, and `apps/operator-workspace` renders `/{tr,en,ar}/today` from
-that answer alone — Arabic right to left, navigation showing only entitled
-capabilities. Every tenant read goes through one funnel, `src/server/viewer.ts`,
-and reaching around it is a build failure (ADR 0007).
+### Precedents the next module is expected to follow
 
-Phase 1's foundations are in progress. `packages/platform/audit` is the first
-reusable module: append-only, module-owned schema (ADR 0008), and the first real
-subject the tier guards have ever had — the blueprint 9.8 vocabulary scan read
-"0 files scanned" until it existed. Notifications, files and tasks are
-deliberately not built yet; blueprint section 13 forbids building tables ahead of
-the workflows that need them.
-
-The **Resident access path** is the second thing to stand. Accommodation Units
-live in `packages/ranza/accommodation`, the Stay in `packages/ranza/stays`, and
-`apps/guest-portal` renders `/{tr,en,ar}/stay` mobile-first from one Stay-scoped
-read. A Guest or Resident authenticates through the same Better Auth
-instance as Staff and then reaches a completely different set of rows — their own
-policies, not a widening of the Staff ones. ADR 0009 records that model, and
-every later Portal capability is expected to follow it.
-
-**Multi-factor authentication** closes the identity line of Phase 1. A second
-factor is a property of the account rather than of a membership (ADR 0010), so
-one enrolment covers both applications — `apps/operator-workspace` has the
-enrolment screen at `/{tr,en,ar}/security`, and `apps/guest-portal` answers the
-challenge without one. The secret sits beside the password hash, reached only by
-`ranza_auth`, and rate-limit counters share a table so a limit is one limit
-rather than one per server instance (blueprint 7.6). Nothing can yet _require_
-MFA — blueprint 7.6 asks for it on privileged roles — and there is no
-operator-assisted reset for a lost authenticator; the amendment to ADR 0010 says
-where both belong.
-
-Phase 1 still has real gaps: white-label tokens and domains, Feature
-Configuration beyond on/off Property capabilities, notifications, files, tasks
-and integrations, and two of the four applications. The generic foundations stay
-unbuilt on purpose — blueprint section 13 forbids tables ahead of the workflows
-that need them.
-
-The **front desk writes** is where Phase 2 starts, and it is the first mutation
-in the product. `packages/ranza/reservations` owns the Reservation and the
-check-in that turns one into a Stay: one transaction that creates the Stay, moves
-the Reservation and records the actor, or does none of the three.
-`apps/operator-workspace` renders `/{tr,en,ar}/arrivals` and `/departures` from
-it — two routes rather than two tabs, each a `DataTable` with search, sorting
-and column visibility, and one action per row.
-
-Two things there are worth knowing before writing the next module, because both
-are precedent. **A write is bounded by a policy, not by a check** — ADR 0012 —
+**A write is bounded by a policy, not by a check** ([ADR 0012](docs/adr/0012-a-write-is-bounded-by-a-policy-not-a-check.md)),
 and that policy carries all four of blueprint 3.5's gates rather than reach
-alone, because a read carries the commercial gates in the query around it and a
-write has no such query. And **availability is a constraint**:
-`stays_no_double_booking` is an exclusion constraint over `btree_gist`, so two
-people checking a Guest into the same Unit at the same moment end with one Stay
-and one refusal from the database rather than from whichever application noticed
-first.
+alone — a read carries the commercial gates in the query around it and a write
+has no such query. **A policy bounds rows; a grant bounds columns.** Row-level
+security is row-level, so the policy that lets a Staff Member end a Stay would
+equally let them rewrite the Unit and turn a check-out into a room move; a
+column-level grant is what stops it.
 
-Writing that ADR found two policy clauses whose removal changed no observable
-behaviour — the tests written for them were evidence of nothing. The break-it-and-
-watch-it-go-red rule below applies to each clause of a policy, not to the policy
-as a whole.
+**An invariant belongs in the database when it can go there.** A Unit cannot
+belong to another Organization's Property because of a composite foreign key. Two
+current Stays cannot overlap on one Unit because of an exclusion constraint — so
+two people checking a Guest in at the same moment end with one Stay and one
+refusal from Postgres, rather than from whichever application noticed first.
 
-Check-out closes the other half of that bullet. `ranza_app` may update a Stay's
-`status`, `ends_on` and `updated_at` and nothing else, by a **column-level
-grant** — because row-level security is row-level, and the policy that lets a
-Staff Member end a Stay would otherwise let them rewrite the Unit and turn a
-check-out into a room move. A policy bounds rows; a grant bounds columns
-(ADR 0012, amended).
+**A Resident reaches their own rows through their own policies**
+([ADR 0009](docs/adr/0009-a-resident-reaches-their-own-stay-not-an-organization.md)),
+never through a widening of the Staff ones. Every later Portal capability is
+expected to assume that.
 
-The rail now carries all eleven blueprint 4.6 destinations. Two are built;
-the rest are gated routes that state their purpose and say what has to exist
-first — `docs/handover/operator-workspace-screens.md` is the note a new
-contributor reads before starting one. They are stubs on purpose: blueprint
-section 13 forbids building tables ahead of the workflows that need them, so an
-unbuilt screen is a position rather than an oversight.
-
-Phase 2 continues with the rest of blueprint 5.3 — group reservations,
-quotations, deposits, availability search, extensions, room moves, check-out and
-no-show handling, none of which are built — then Folios, and the Portal
-capabilities of blueprint 4.3 that are specified but not built.
+**Unbuilt is a position, not an oversight.** Blueprint section 13 forbids
+building tables ahead of the workflows that need them, which is why the
+Operator Workspace has eleven rail destinations and two built screens. The
+others state their purpose and say what has to exist first — see
+[`docs/handover/operator-workspace-screens.md`](docs/handover/operator-workspace-screens.md).
 
 ## Keeping documentation true
 
@@ -239,14 +192,15 @@ reminder; do not rely on remembering.
 What it cannot judge is whether a paragraph is still _true_. When a change makes
 one of these false, fix it in the same commit:
 
-| When you                             | Update                                            |
-| ------------------------------------ | ------------------------------------------------- |
-| add or rename a package script       | every doc that shows it (the check finds them)    |
-| add an application or module         | its README, and the layout block in `README.md`   |
-| change how the database is reached   | `docs/runbooks/supabase-setup.md`, `.env.example` |
-| make a decision the code now assumes | a new ADR — not a comment                         |
-| reverse or amend a decision          | the existing ADR, with an `Amended:` line         |
-| finish or start a milestone          | **Current state** below                           |
+| When you                              | Update                                            |
+| ------------------------------------- | ------------------------------------------------- |
+| add or rename a package script        | every doc that shows it (the check finds them)    |
+| add an application or module          | its README, and the layout block in `README.md`   |
+| change how the database is reached    | `docs/runbooks/supabase-setup.md`, `.env.example` |
+| make a decision the code now assumes  | a new ADR — not a comment                         |
+| reverse or amend a decision           | the existing ADR, with an `Amended:` line         |
+| finish or start a milestone           | `docs/roadmap.md` — the status table, not prose   |
+| change what a phase bullet's state is | `docs/roadmap.md`, in the same commit             |
 
 ## Testing security claims
 

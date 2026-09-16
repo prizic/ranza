@@ -85,6 +85,35 @@ export interface Messages {
   checkOutRefused: string;
   noDeparturesTitle: string;
   noDeparturesDescription: string;
+
+  folios: string;
+  foliosAt: string;
+  allFolios: string;
+  noFoliosTitle: string;
+  noFoliosDescription: string;
+  folioStatus: Record<"open" | "closed", string>;
+  folioLines: string;
+  balance: string;
+  lines: string;
+  amount: string;
+  description: string;
+  posted: string;
+  noLines: string;
+  addCharge: string;
+  post: string;
+  posting: string;
+  chargeRefused: string;
+  amountInvalid: string;
+  reverse: string;
+  reversing: string;
+  reversed: string;
+  reverseReason: string;
+  reverseRefused: string;
+  closeFolio: string;
+  closing: string;
+  closeRefused: string;
+  folioClosedNote: string;
+
   table: TableMessages;
 
   /** Rail and page-bar names, keyed by route segment. */
@@ -217,6 +246,37 @@ export const messages: Record<SupportedLocale, Messages> = {
     noDeparturesTitle: "Bugün çıkış yok",
     noDeparturesDescription:
       "Bu tesiste bugün ayrılması beklenen bir konaklama bulunmuyor.",
+    folios: "Folyolar",
+    foliosAt: "Folyolar —",
+    allFolios: "Tüm folyolar",
+    noFoliosTitle: "Henüz folyo yok",
+    noFoliosDescription:
+      "Bu tesiste açık bir folyo bulunmuyor. Bir misafir giriş yaptığında folyosu açılır.",
+    folioStatus: { open: "Açık", closed: "Kapalı" },
+    folioLines: "Folyo satırları",
+    balance: "Bakiye",
+    lines: "Satır",
+    amount: "Tutar",
+    description: "Açıklama",
+    posted: "İşlendi",
+    noLines: "Bu folyoya henüz bir şey işlenmedi.",
+    addCharge: "Ücret ekle",
+    post: "İşle",
+    posting: "İşleniyor…",
+    chargeRefused: "Bu ücret işlenemedi.",
+    amountInvalid:
+      "Tutar, para biriminin izin verdiği ondalık basamakla pozitif bir sayı olmalıdır.",
+    reverse: "Ters kaydet",
+    reversing: "Kaydediliyor…",
+    reversed: "ters kaydedildi",
+    reverseReason: "Gerekçe",
+    reverseRefused: "Bu satır ters kaydedilemedi.",
+    closeFolio: "Folyoyu kapat",
+    closing: "Kapatılıyor…",
+    closeRefused: "Bu folyo kapatılamadı.",
+    folioClosedNote:
+      "Bu folyo kapalı. Satırlar olduğu gibi kalır; kapalı bir folyoya yeni satır işlenemez.",
+
     table: {
       results: "{n} sonuç",
       capped: "(son {n} / {of})",
@@ -261,7 +321,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       "food-and-beverage":
         "Öğün planları, satış noktaları ve tüketim kayıtları.",
       inventory: "Stok hareketleri, sayımlar ve satın alma.",
-      finance: "Folyolar, faturalar, tahsilatlar ve mutabakat.",
       people: "Personel kayıtları, vardiyalar ve yetkilendirme.",
       analytics: "Doluluk, gelir ve operasyon raporları.",
       configuration: "Organizasyon, tesis, birim ve yetkilendirme ayarları.",
@@ -364,6 +423,37 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutRefused: "That Stay cannot be checked out.",
     noDeparturesTitle: "No departures today",
     noDeparturesDescription: "Nobody is due to leave this Property today.",
+    folios: "Folios",
+    foliosAt: "Folios at",
+    allFolios: "All folios",
+    noFoliosTitle: "No folios yet",
+    noFoliosDescription:
+      "Nothing has been opened at this Property. A folio opens when a Guest checks in.",
+    folioStatus: { open: "Open", closed: "Closed" },
+    folioLines: "Folio lines",
+    balance: "Balance",
+    lines: "Lines",
+    amount: "Amount",
+    description: "Description",
+    posted: "Posted",
+    noLines: "Nothing has been posted to this folio yet.",
+    addCharge: "Add a charge",
+    post: "Post",
+    posting: "Posting…",
+    chargeRefused: "That charge could not be posted.",
+    amountInvalid:
+      "An amount must be a positive number with no more decimal places than the currency allows.",
+    reverse: "Reverse",
+    reversing: "Reversing…",
+    reversed: "reversed",
+    reverseReason: "Reason",
+    reverseRefused: "That line could not be reversed.",
+    closeFolio: "Close folio",
+    closing: "Closing…",
+    closeRefused: "That folio could not be closed.",
+    folioClosedNote:
+      "This folio is closed. Its lines stay exactly as they are, and nothing further can be posted to it.",
+
     table: {
       results: "{n} results",
       capped: "(latest {n} of {of})",
@@ -407,7 +497,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       housekeeping: "Unit readiness, cleaning schedule and task assignment.",
       "food-and-beverage": "Meal plans, outlets and consumption records.",
       inventory: "Stock movements, counts and procurement.",
-      finance: "Folios, invoices, payments and reconciliation.",
       people: "Staff records, shifts and permissions.",
       analytics: "Occupancy, revenue and operational reporting.",
       configuration: "Organization, Property, Unit and permission settings.",
@@ -509,6 +598,37 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutRefused: "لا يمكن تسجيل مغادرة هذه الإقامة.",
     noDeparturesTitle: "لا توجد مغادرات اليوم",
     noDeparturesDescription: "لا أحد من المقرر أن يغادر هذه المنشأة اليوم.",
+    folios: "الحسابات",
+    foliosAt: "الحسابات في",
+    allFolios: "كل الحسابات",
+    noFoliosTitle: "لا توجد حسابات بعد",
+    noFoliosDescription:
+      "لم يُفتح أي حساب في هذه المنشأة. يُفتح الحساب عند تسجيل دخول نزيل.",
+    folioStatus: { open: "مفتوح", closed: "مغلق" },
+    folioLines: "بنود الحساب",
+    balance: "الرصيد",
+    lines: "البنود",
+    amount: "المبلغ",
+    description: "الوصف",
+    posted: "تاريخ القيد",
+    noLines: "لم يُقيَّد شيء على هذا الحساب بعد.",
+    addCharge: "إضافة رسم",
+    post: "قيد",
+    posting: "جارٍ القيد…",
+    chargeRefused: "تعذّر قيد هذا الرسم.",
+    amountInvalid:
+      "يجب أن يكون المبلغ رقمًا موجبًا بعدد خانات عشرية لا يتجاوز ما تسمح به العملة.",
+    reverse: "عكس القيد",
+    reversing: "جارٍ العكس…",
+    reversed: "معكوس",
+    reverseReason: "السبب",
+    reverseRefused: "تعذّر عكس هذا البند.",
+    closeFolio: "إغلاق الحساب",
+    closing: "جارٍ الإغلاق…",
+    closeRefused: "تعذّر إغلاق هذا الحساب.",
+    folioClosedNote:
+      "هذا الحساب مغلق. تبقى بنوده كما هي، ولا يمكن قيد أي شيء جديد عليه.",
+
     table: {
       results: "{n} نتيجة",
       capped: "(أحدث {n} من {of})",
@@ -551,7 +671,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       housekeeping: "جاهزية الوحدات وجدول التنظيف وتوزيع المهام.",
       "food-and-beverage": "خطط الوجبات والمنافذ وسجلات الاستهلاك.",
       inventory: "حركات المخزون والجرد والمشتريات.",
-      finance: "الفواتير والتحصيل والتسويات.",
       people: "سجلات الموظفين والورديات والصلاحيات.",
       analytics: "تقارير الإشغال والإيرادات والتشغيل.",
       configuration: "إعدادات المؤسسة والمنشأة والوحدات والصلاحيات.",

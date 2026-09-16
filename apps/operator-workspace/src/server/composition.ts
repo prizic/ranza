@@ -2,6 +2,7 @@ import "server-only";
 import { createAuthModule } from "@ranza/auth";
 import { createCoreModule } from "@ranza/core";
 import { createPrismaClient } from "@ranza/db";
+import { createFoliosModule } from "@ranza/folios";
 import { createReservationsModule } from "@ranza/reservations";
 
 /**
@@ -62,6 +63,11 @@ function compose() {
     // mattering only for reads: pointing DATABASE_URL at the migration role
     // would now let one Organization write into another (ADR 0012).
     reservations: createReservationsModule({ db: tenantDb }),
+    // And the same client again, where the stakes rise once more: the
+    // append-only trigger on folio_lines is the only thing a privileged
+    // connection would *not* walk through, and the policies around it are the
+    // only thing standing between one Organization's money and another's.
+    folios: createFoliosModule({ db: tenantDb }),
   };
 }
 

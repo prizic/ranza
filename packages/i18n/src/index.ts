@@ -87,3 +87,31 @@ export function formatDate(
     ...options,
   }).format(value);
 }
+
+/**
+ * An amount of money, from integer minor units.
+ *
+ * `Intl` rather than a symbol concatenated onto a number, because the symbol
+ * is not always a prefix and is not always the same symbol: Turkish writes
+ * ₺1.234,56 and Arabic places the currency after the number and may render the
+ * digits differently again. Concatenation gets one of the three right.
+ *
+ * How many minor units make a major one is the currency's own business — 100
+ * for TRY, 1000 for KWD, 1 for JPY — so it is read from the resolved format
+ * rather than assumed to be two. The division is the only floating-point
+ * arithmetic anywhere near money in this product, and it happens after every
+ * sum, at the moment of display. Nothing computed from the result is stored.
+ */
+export function formatMoney(
+  amountMinor: number,
+  currency: string,
+  locale: SupportedLocale,
+): string {
+  const format = new Intl.NumberFormat(intlLocales[locale], {
+    currency,
+    style: "currency",
+  });
+  const minorUnits =
+    10 ** (format.resolvedOptions().maximumFractionDigits ?? 2);
+  return format.format(amountMinor / minorUnits);
+}

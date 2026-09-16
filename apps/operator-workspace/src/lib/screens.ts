@@ -22,7 +22,7 @@ import {
  * module" — so these are not the section 5 modules and do not map one to one
  * onto them.
  *
- * Two are built. The rest are routes with a stated purpose and nothing behind
+ * Three are built. The rest are routes with a stated purpose and nothing behind
  * them, which is the honest shape while blueprint section 13 forbids building
  * tables ahead of the workflows that need them. `docs/handover/operator-workspace-screens.md`
  * says what each one needs first.
@@ -122,7 +122,7 @@ export const SCREENS: Screen[] = [
     module: "billing_folios",
     icon: Wallet,
     blueprint: "5.9",
-    built: false,
+    built: true,
   },
   {
     segment: "people",

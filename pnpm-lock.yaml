@@ -114,6 +114,9 @@ importers:
       '@ranza/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@ranza/folios':
+        specifier: workspace:*
+        version: link:../../packages/ranza/folios
       '@ranza/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
@@ -210,6 +213,18 @@ importers:
         specifier: workspace:*
         version: link:../../db
 
+  packages/ranza/folios:
+    dependencies:
+      '@ranza/core':
+        specifier: workspace:*
+        version: link:../core
+      '@ranza/db':
+        specifier: workspace:*
+        version: link:../../db
+      '@ranza/platform-audit':
+        specifier: workspace:*
+        version: link:../../platform/audit
+
   packages/ranza/reservations:
     dependencies:
       '@ranza/accommodation':
@@ -221,6 +236,9 @@ importers:
       '@ranza/db':
         specifier: workspace:*
         version: link:../../db
+      '@ranza/folios':
+        specifier: workspace:*
+        version: link:../folios
       '@ranza/platform-audit':
         specifier: workspace:*
         version: link:../../platform/audit

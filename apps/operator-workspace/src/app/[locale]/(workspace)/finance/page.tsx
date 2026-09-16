@@ -1,44 +1,46 @@
 import { notFound } from "next/navigation";
-import { isSupportedLocale } from "@ranza/i18n";
-import { EmptyState, PlannedScreen } from "@ranza/ui";
+import { isSupportedLocale, localizeHref } from "@ranza/i18n";
+import { EmptyState } from "@ranza/ui";
 import { messages } from "../../../../messages";
-import { screenFor } from "../../../../lib/screens";
-import { entitledProperties } from "../../../../server/viewer";
-
-const SEGMENT = "finance";
+import { FoliosTable } from "../../../../features/finance/components/folios-table";
+import { FolioPanel } from "../../../../features/finance/components/folio-panel";
+import {
+  entitledProperties,
+  folio,
+  folios,
+  FOLIO_CAPABILITY,
+} from "../../../../server/viewer";
+import { frontDeskProperty } from "../../../../server/front-desk";
 
 /**
- * Finance — a destination with nothing behind it yet.
+ * Finance: what each Stay at a Property has accrued, and the charges on one.
  *
- * The route is real and the gate is real: a viewer whose Organization is not
- * entitled to it sees the empty state, exactly as they would for a capability
- * that exists. What is missing is the workflow, and blueprint section 13
- * forbids building the tables for one ahead of the workflow that needs them.
+ * One route with two states rather than two routes, because the second is the
+ * first with a row chosen — `?folio=` reads the same way `?property=` already
+ * does, and both survive being bookmarked or sent to a colleague. Arrivals and
+ * departures are two routes because they are two jobs; this is one job at two
+ * depths.
  *
- * docs/handover/operator-workspace-screens.md says what this screen must do
- * and what has to exist first.
+ * Neither list is filtered again here. The policies and the capability gate
+ * decided both, and a second application-side check would be the weaker of the
+ * two while inviting somebody to trust it instead of the database.
  */
-export default async function Page({
+export default async function FinancePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ folio?: string; property?: string }>;
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
 
   const copy = messages[locale];
-  const screen = screenFor(SEGMENT);
-  if (!screen) notFound();
+  const search = await searchParams;
+  const properties = await entitledProperties(FOLIO_CAPABILITY);
+  const property = frontDeskProperty(properties, search);
 
-  // Same gate as every built screen. Entitlement is not waived because the
-  // workflow is unfinished — a Property that has not bought this reaches
-  // nothing, and that is what the empty state says.
-  const properties = await entitledProperties({
-    moduleKey: screen.module,
-    capabilityKey: screen.capability,
-  });
-
-  if (properties.length === 0) {
+  if (!property) {
     return (
       <EmptyState
         description={copy.notEntitledDescription}
@@ -47,14 +49,38 @@ export default async function Page({
     );
   }
 
+  // A `?folio=` the viewer cannot reach comes back null, exactly as one that
+  // never existed does, and both fall through to the list. What a viewer
+  // cannot see should not be distinguishable from what is not there.
+  const selected = search.folio ? await folio(search.folio) : null;
+
+  if (selected) {
+    const back = `${localizeHref(locale, "finance")}?property=${property.propertyId}`;
+    return (
+      <>
+        <p className="text-muted-foreground">
+          <a className="hover:underline" href={back}>
+            {copy.allFolios}
+          </a>
+          {" · "}
+          {property.propertyName}
+        </p>
+        <FolioPanel copy={copy} folio={selected} locale={locale} />
+      </>
+    );
+  }
+
   return (
-    <PlannedScreen
-      blueprintSection={screen.blueprint}
-      handoverHref="https://github.com/prizic/ranza/blob/main/docs/handover/operator-workspace-screens.md"
-      handoverLabel={copy.handoverLabel}
-      heading={copy.planned}
-      summary={copy.screenSummary[SEGMENT] ?? ""}
-      title={copy.navigation[SEGMENT] ?? SEGMENT}
-    />
+    <>
+      <p className="text-muted-foreground">
+        {copy.foliosAt} {property.propertyName}
+      </p>
+      <FoliosTable
+        copy={copy}
+        folioHref={`${localizeHref(locale, "finance")}?property=${property.propertyId}`}
+        folios={await folios(property.propertyId)}
+        locale={locale}
+      />
+    </>
   );
 }

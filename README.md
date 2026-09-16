@@ -39,6 +39,7 @@ packages/
     accommodation/        Accommodation Units inside a Property
     stays/                Stays, and the Resident access path
     reservations/         Reservations, check-in, and the first write path
+    folios/               the Folio: a Stay's financial record, and its lines
   adapters/               Ranza-to-platform mappings
   config, db, i18n, ui, observability
                           cross-cutting infrastructure
@@ -59,6 +60,11 @@ reading `process.env`.
 An application may reach the database only through its own server funnel — see
 [ADR 0007](docs/adr/0007-a-session-becomes-a-request-context.md). That rule is
 enforced by the same pair, with fixtures proving both fire.
+
+## Where the project is
+
+[`docs/roadmap.md`](docs/roadmap.md) — every bullet of the blueprint's five
+phases, what is built, and what comes next. One page.
 
 ## Local development
 
