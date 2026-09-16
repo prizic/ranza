@@ -38,14 +38,18 @@ for (const entry of readdirSync(migrations).sort()) {
   console.log(`applied ${entry}`);
 }
 
-const password = psql([
-  "-c",
-  "alter role ranza_app with login password 'ranza_app'",
-]);
-if (password.status !== 0) {
-  console.error(
-    `Could not set the local runtime role password:\n${password.stderr}`,
-  );
-  process.exit(1);
+for (const role of ["ranza_app", "ranza_auth"]) {
+  const result = psql([
+    "-c",
+    `alter role ${role} with login password '${role}'`,
+  ]);
+  if (result.status !== 0) {
+    console.error(
+      `Could not set the local password for ${role}:\n${result.stderr}`,
+    );
+    process.exit(1);
+  }
 }
-console.log("runtime role ranza_app ready for local connections");
+console.log(
+  "runtime roles ranza_app and ranza_auth ready for local connections",
+);
