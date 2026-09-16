@@ -28,6 +28,12 @@ export default defineConfig({
   // for and CI asks with an empty cache. It is a ceiling on a hang, not a
   // budget the run spends: a warm machine finishes this in seconds.
   timeout: 90_000,
+  // Longer than the 5s default for the same reason as the test timeout, and it
+  // is the one that bites: a server action is compiled the first time it is
+  // submitted, which happens inside an assertion rather than inside a
+  // navigation. One run failed here after `pnpm check` had rebuilt `.next`
+  // underneath the dev server.
+  expect: { timeout: 15_000 },
   forbidOnly: Boolean(process.env.CI),
   reporter: "list",
   use: {

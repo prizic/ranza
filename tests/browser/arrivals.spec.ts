@@ -67,7 +67,11 @@ function testProperty(): string {
        insert into public.property_capabilities
          (property_id, organization_id, capability_key, enabled)
        select target.id, (select id from home), wanted.key, true
-       from target, (values ('today'), ('front_desk')) as wanted (key)
+       -- Finance as well, so a check-in opens a Folio: the refusal that
+       -- matters most on this screen is the one a charge causes, and without a
+       -- Folio there is nowhere to put one.
+       from target,
+            (values ('today'), ('front_desk'), ('finance')) as wanted (key)
        where not exists (
          select 1 from public.property_capabilities as held
          where held.property_id = target.id
@@ -159,5 +163,131 @@ test("a confirmed arrival is checked in from the arrivals screen", async ({
   await row.getByRole("button", { name: "Check in" }).click();
 
   // The row stays on the list for the rest of the Property's day and says so.
+  await expect(row.getByText("Checked in")).toBeVisible();
+});
+
+/**
+ * The loop issue #34 was about, in the screen a front desk actually uses.
+ *
+ * Checking in, taking it back, and checking in again is one story rather than
+ * three assertions: the second check-in is the one that failed on a unique
+ * index for as long as ADR 0022 described a door its own schema had bolted
+ * shut. Proving it from the module is proving it where the index was already
+ * fixed; proving it here is proving that a person can do it.
+ */
+test("a check-in is withdrawn with a reason, and the Reservation arrives again", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const guestName = anArrivalToday(propertyId);
+
+  await signIn(page);
+  await page.goto(`/en/arrivals?property=${propertyId}`);
+  await page.getByRole("searchbox").fill(guestName);
+  const row = page.getByRole("row").filter({ hasText: guestName });
+
+  await row.getByRole("button", { name: "Check in" }).click();
+  await expect(row.getByText("Checked in")).toBeVisible();
+
+  // A regular expression, because the accessible name carries the Guest and the
+  // Guest is wrapped in bidirectional isolates — the characters are in the name
+  // and they are not whitespace.
+  await row.getByRole("button", { name: /Undo check-in for/ }).click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText(guestName)).toBeVisible();
+  await dialog
+    .getByLabel("Reason")
+    .fill("checked in the wrong one of two Guests arriving together");
+  await dialog.getByRole("button", { name: "Undo check-in" }).click();
+
+  // Back to a Reservation somebody can arrive against — which is the dialog
+  // closing as well, because the cell that held it renders a check-in instead.
+  await expect(row.getByRole("button", { name: "Check in" })).toBeVisible();
+  await expect(dialog).toBeHidden();
+
+  // And a second time, which is the half of ADR 0022 that did not work: the
+  // withdrawn Stay went on holding the Reservation and the database refused.
+  await row.getByRole("button", { name: "Check in" }).click();
+  await expect(row.getByText("Checked in")).toBeVisible();
+});
+
+/**
+ * Money against the Stay this Guest is in.
+ *
+ * Posted as the owner rather than through the Finance screen, which does not
+ * exist yet — but through the same table and the same triggers, so the rule
+ * being tested is the real one: `stays_withdrawal_is_free_of_charges` refuses
+ * to cancel a Stay carrying a line, whoever wrote it.
+ */
+function chargeTheStayOf(guestName: string): void {
+  const posted = psql(
+    `insert into public.folio_lines
+       (organization_id, property_id, folio_id,
+        line_type, description, amount_minor)
+     select folio.organization_id, folio.property_id, folio.id,
+            'charge', 'Minibar', 4500
+     from public.folios as folio
+     join public.stays as stay on stay.id = folio.stay_id
+     join public.reservations as reservation
+       on reservation.id = stay.reservation_id
+     where reservation.guest_name = '${guestName}'
+       and stay.status = 'in_house'
+     returning id`,
+  );
+
+  expect(
+    posted,
+    "no open Folio to charge — has the test Property lost its finance capability?",
+  ).not.toBe("");
+}
+
+/**
+ * The refusal a front desk can do something about.
+ *
+ * Everything else a withdrawal fails on says "that cannot be withdrawn" and
+ * means it. This one says money exists, which is a different situation with a
+ * different remedy — and it is the sentence, not the refusal, that this test is
+ * about: the error is raised by a trigger, carried by its own type, chosen by
+ * the server action and read out of the catalogue, and every one of those hops
+ * is somewhere it could quietly become the generic one.
+ */
+test("a Stay with charges refuses the withdrawal, and says so", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const guestName = anArrivalToday(propertyId);
+
+  await signIn(page);
+  await page.goto(`/en/arrivals?property=${propertyId}`);
+  await page.getByRole("searchbox").fill(guestName);
+  const row = page.getByRole("row").filter({ hasText: guestName });
+
+  await row.getByRole("button", { name: "Check in" }).click();
+  await expect(row.getByText("Checked in")).toBeVisible();
+  chargeTheStayOf(guestName);
+
+  await row.getByRole("button", { name: /Undo check-in for/ }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Reason").fill("checked in the wrong Guest");
+  await dialog.getByRole("button", { name: "Undo check-in" }).click();
+
+  await expect(dialog.getByRole("alert")).toContainText(
+    "Charges have been posted to this Stay",
+  );
+  // Still open. The dialog goes away by being replaced — a withdrawal that
+  // works leaves a check-in button where the trigger was — so a dialog that is
+  // still here is the refusal being readable rather than flashing past.
+  //
+  // React clears the field with the rest of the form when the action returns,
+  // and it is left that way: this Stay cannot be withdrawn at all, so the
+  // sentence somebody wrote about it has nothing left to be submitted against.
+  await expect(dialog).toBeVisible();
+
+  // And nothing moved. Asserted after the dialog is dismissed rather than
+  // around it: while a modal is open the rest of the page is `aria-hidden`, so
+  // the row is not a row to anything reading by role — which is the dialog
+  // being a real one.
+  await dialog.getByRole("button", { name: "Keep check-in" }).click();
   await expect(row.getByText("Checked in")).toBeVisible();
 });
