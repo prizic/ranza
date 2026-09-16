@@ -20,7 +20,4 @@ export interface AuthDeps {
 
   /** Public origin, used when issuing links and cookies. */
   baseURL?: string;
-
-  /** Overridable for deterministic tests. */
-  now?: () => Date;
 }
