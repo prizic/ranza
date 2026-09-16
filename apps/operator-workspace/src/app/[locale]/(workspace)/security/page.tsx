@@ -25,12 +25,7 @@ export default async function SecurityPage({
 
   return (
     <>
-      <header className="day">
-        <div>
-          <h1>{copy.security}</h1>
-          <p className="day-date">{copy.securitySummary}</p>
-        </div>
-      </header>
+      <p className="text-muted-foreground">{copy.securitySummary}</p>
 
       <TwoFactorPanel copy={copy} enabled={viewer.twoFactorEnabled} />
     </>

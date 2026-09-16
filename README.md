@@ -38,9 +38,11 @@ packages/
     core/                 Organization, Property, membership, Entitlement reads
     accommodation/        Accommodation Units inside a Property
     stays/                Stays, and the Resident access path
+    reservations/         Reservations, check-in, and the first write path
   adapters/               Ranza-to-platform mappings
   config, db, i18n, ui, observability
                           cross-cutting infrastructure
+                          (ui is Tailwind + shadcn; there is no other CSS)
 prisma/                   schema and migrations (RLS policies live in them)
 tests/                    unit, database (pgTAP) and boundary fixtures
 ```
@@ -78,6 +80,28 @@ covered by separate suites:
 pnpm db:test          # pgTAP suites in tests/database
 pnpm test:integration # tenant isolation and the auth flow, against a real database
 ```
+
+## Signing in locally
+
+```sh
+pnpm db:up && pnpm db:setup   # PostgreSQL, migrations, local role passwords
+pnpm dev                      # the seed needs the app running (ADR 0005)
+pnpm db:seed:dev              # an Organization, Properties, Units, a day's work
+```
+
+Then sign in at `http://localhost:3000/tr/today` as:
+
+|          |                                |
+| -------- | ------------------------------ |
+| Email    | `deniz@example.test`           |
+| Password | `correct-horse-battery-staple` |
+
+Hardcoded on purpose, and safe: `scripts/db-seed-dev.mjs` refuses to run against
+anything but `localhost:54322`, so there is no environment it could leak into.
+The account is created through the application's own sign-up route rather than
+by writing the provider-subject mapping in SQL, because
+[ADR 0005](docs/adr/0005-better-auth-with-provider-indirection.md) keeps that
+mapping in one place — which is why `pnpm dev` has to be running first.
 
 `.env` points at the hosted database by default. To work offline you need Docker
 and the PostgreSQL client tools:

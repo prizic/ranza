@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@ranza/ui";
+import { Button, Field, FormError, Input } from "@ranza/ui";
 import type { Messages } from "../../../messages";
 
 /**
@@ -107,11 +107,10 @@ export function SignInForm({
 
   if (challenging) {
     return (
-      <form onSubmit={verify}>
-        <p>{copy.challengeSummary}</p>
-        <p className="field">
-          <label htmlFor="code">{copy.code}</label>
-          <input
+      <form className="mt-6 grid gap-4" onSubmit={verify}>
+        <p className="text-muted-foreground">{copy.challengeSummary}</p>
+        <Field htmlFor="code" label={copy.code}>
+          <Input
             aria-invalid={failed || undefined}
             autoComplete="one-time-code"
             autoFocus
@@ -120,12 +119,8 @@ export function SignInForm({
             name="code"
             required
           />
-        </p>
-        {failed ? (
-          <p className="gate-error" role="alert">
-            {copy.challengeFailed}
-          </p>
-        ) : null}
+        </Field>
+        {failed ? <FormError>{copy.challengeFailed}</FormError> : null}
         <Button disabled={pending} type="submit">
           {pending ? copy.signingIn : copy.verify}
         </Button>
@@ -134,11 +129,10 @@ export function SignInForm({
   }
 
   return (
-    <form onSubmit={signIn}>
-      <p>{copy.signInSummary}</p>
-      <p className="field">
-        <label htmlFor="email">{copy.email}</label>
-        <input
+    <form className="mt-6 grid gap-4" onSubmit={signIn}>
+      <p className="text-muted-foreground">{copy.signInSummary}</p>
+      <Field htmlFor="email" label={copy.email}>
+        <Input
           aria-invalid={failed || undefined}
           autoComplete="username"
           id="email"
@@ -146,10 +140,9 @@ export function SignInForm({
           required
           type="email"
         />
-      </p>
-      <p className="field">
-        <label htmlFor="password">{copy.password}</label>
-        <input
+      </Field>
+      <Field htmlFor="password" label={copy.password}>
+        <Input
           aria-invalid={failed || undefined}
           autoComplete="current-password"
           id="password"
@@ -157,12 +150,8 @@ export function SignInForm({
           required
           type="password"
         />
-      </p>
-      {failed ? (
-        <p className="gate-error" role="alert">
-          {copy.signInFailed}
-        </p>
-      ) : null}
+      </Field>
+      {failed ? <FormError>{copy.signInFailed}</FormError> : null}
       <Button disabled={pending} type="submit">
         {pending ? copy.signingIn : copy.signIn}
       </Button>

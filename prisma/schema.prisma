@@ -80,6 +80,7 @@ model Property {
   capabilities PropertyCapability[]
   units        AccommodationUnit[]
   stays        Stay[]
+  reservations Reservation[]
 
   @@unique([id, organizationId])
   @@index([organizationId], map: "properties_organization_idx")
@@ -103,8 +104,9 @@ model AccommodationUnit {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  property Property @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  stays    Stay[]
+  property     Property      @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  stays        Stay[]
+  reservations Reservation[]
 
   @@unique([propertyId, name])
   @@unique([id, propertyId, organizationId])
@@ -142,6 +144,42 @@ model PropertyAssignment {
   @@map("property_assignments")
 }
 
+/// A planned allocation of an Accommodation Unit for a period, which may become
+/// a Stay through check-in (blueprint 2, 5.3).
+///
+/// Carries the same composite foreign keys as every other Property-scoped row,
+/// so a Reservation pointing at another Organization's Property or Unit is
+/// unrepresentable rather than merely checked.
+///
+/// This is the first table the runtime role may write to. What bounds that
+/// write is a policy with a WITH CHECK rather than an application check — see
+/// ADR 0012, and the migration that owns this table.
+model Reservation {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId      String    @map("organization_id") @db.Uuid
+  propertyId          String    @map("property_id") @db.Uuid
+  accommodationUnitId String    @map("accommodation_unit_id") @db.Uuid
+  /// Who the allocation is for. A Reservation names a Guest before that Guest
+  /// has any identity in Ranza, so this is a name and not a user reference.
+  guestName           String    @map("guest_name")
+  /// Which kind of Stay a check-in would produce. Short-term is a Guest,
+  /// long-term is a Resident; both are Stays (ADR 0004).
+  stayType            String    @map("stay_type")
+  status              String    @default("requested")
+  startsOn            DateTime  @map("starts_on") @db.Date
+  endsOn              DateTime? @map("ends_on") @db.Date
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  property Property          @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  unit     AccommodationUnit @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  stay     Stay?
+
+  @@unique([id, propertyId, organizationId])
+  @@index([propertyId, startsOn], map: "reservations_property_arrival_idx")
+  @@map("reservations")
+}
+
 /// The operational record connecting a Guest or Resident to an Accommodation
 /// Unit for a period (blueprint 2, 5.3). A Guest is short-term and a Resident
 /// long-term; both are Stays, told apart by `stay_type`.
@@ -155,6 +193,10 @@ model Stay {
   organizationId      String    @map("organization_id") @db.Uuid
   propertyId          String    @map("property_id") @db.Uuid
   accommodationUnitId String    @map("accommodation_unit_id") @db.Uuid
+  /// The Reservation this Stay was checked in from, when there was one. Null
+  /// for a Stay that began without one, such as a walk-in. The composite unique
+  /// below makes checking one Reservation in twice unrepresentable.
+  reservationId       String?   @map("reservation_id") @db.Uuid
   userId              String?   @map("user_id") @db.Uuid
   stayType            String    @map("stay_type")
   status              String    @default("reserved")
@@ -163,10 +205,17 @@ model Stay {
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  property Property          @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  unit     AccommodationUnit @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  user     User?             @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  property    Property          @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  unit        AccommodationUnit @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  user        User?             @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  reservation Reservation?      @relation(fields: [reservationId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
 
+  // Two claims in one index. It is what the composite foreign key above
+  // resolves against, so the Stay and the Reservation are provably in the same
+  // Property; and because that foreign key forces property and organization to
+  // be the Reservation's own, uniqueness across the three is uniqueness on
+  // reservation_id alone — one Reservation produces at most one Stay.
+  @@unique([reservationId, propertyId, organizationId])
   @@index([propertyId], map: "stays_property_idx")
   @@map("stays")
 }

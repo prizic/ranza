@@ -114,6 +114,11 @@ pnpm test:integration # real database: tenant isolation and the auth flow
 `db:test` and `test:integration` are separate and must be run when changing
 schema, policies or auth.
 
+It does, however, run `next build`, which writes into the same `.next` a running
+`pnpm dev` is serving from. Every route 404s afterwards, including ones that
+plainly exist — restart the dev server rather than hunting for the routing bug
+it looks like.
+
 Local database, when you want to work offline:
 
 ```sh
@@ -178,7 +183,46 @@ and integrations, and two of the four applications. The generic foundations stay
 unbuilt on purpose — blueprint section 13 forbids tables ahead of the workflows
 that need them.
 
-Next is the rest of blueprint Phase 2: Reservations, Folios, and the Portal
+The **front desk writes** is where Phase 2 starts, and it is the first mutation
+in the product. `packages/ranza/reservations` owns the Reservation and the
+check-in that turns one into a Stay: one transaction that creates the Stay, moves
+the Reservation and records the actor, or does none of the three.
+`apps/operator-workspace` renders `/{tr,en,ar}/arrivals` and `/departures` from
+it — two routes rather than two tabs, each a `DataTable` with search, sorting
+and column visibility, and one action per row.
+
+Two things there are worth knowing before writing the next module, because both
+are precedent. **A write is bounded by a policy, not by a check** — ADR 0012 —
+and that policy carries all four of blueprint 3.5's gates rather than reach
+alone, because a read carries the commercial gates in the query around it and a
+write has no such query. And **availability is a constraint**:
+`stays_no_double_booking` is an exclusion constraint over `btree_gist`, so two
+people checking a Guest into the same Unit at the same moment end with one Stay
+and one refusal from the database rather than from whichever application noticed
+first.
+
+Writing that ADR found two policy clauses whose removal changed no observable
+behaviour — the tests written for them were evidence of nothing. The break-it-and-
+watch-it-go-red rule below applies to each clause of a policy, not to the policy
+as a whole.
+
+Check-out closes the other half of that bullet. `ranza_app` may update a Stay's
+`status`, `ends_on` and `updated_at` and nothing else, by a **column-level
+grant** — because row-level security is row-level, and the policy that lets a
+Staff Member end a Stay would otherwise let them rewrite the Unit and turn a
+check-out into a room move. A policy bounds rows; a grant bounds columns
+(ADR 0012, amended).
+
+The rail now carries all eleven blueprint 4.6 destinations. Two are built;
+the rest are gated routes that state their purpose and say what has to exist
+first — `docs/handover/operator-workspace-screens.md` is the note a new
+contributor reads before starting one. They are stubs on purpose: blueprint
+section 13 forbids building tables ahead of the workflows that need them, so an
+unbuilt screen is a position rather than an oversight.
+
+Phase 2 continues with the rest of blueprint 5.3 — group reservations,
+quotations, deposits, availability search, extensions, room moves, check-out and
+no-show handling, none of which are built — then Folios, and the Portal
 capabilities of blueprint 4.3 that are specified but not built.
 
 ## Keeping documentation true
@@ -230,6 +274,23 @@ every local run and took one pgTAP run against Supabase to surface.
 
 ## Conventions
 
+- **Interfaces are Tailwind and shadcn/ui. Do not write CSS.** Components live
+  in `packages/ui` and are added with `npx shadcn@latest add`; that package's
+  README covers the two fixes every `add` needs. The only stylesheet is
+  `packages/ui/src/styles/globals.css`, which holds the theme. A new `.css` file
+  or a `className` naming a bespoke class is a mistake, not a local exception.
+- Where each piece of a screen belongs — shadcn, the shared kit, or a feature
+  folder — is [ADR 0013](docs/adr/0013-an-interface-is-shadcn-a-feature-folder-and-a-shared-kit.md).
+  Layout references are `docs/design/ui-references.md`; the palette is
+  `docs/design/visual-reference.md`, **which the current theme does not match
+  yet** and which wins when they disagree.
+- Directional utilities are always logical — `ps`/`pe`, `border-s`,
+  `text-start`. That is what makes Arabic mirror by construction.
+- Applications should have no `src/` and should import through `@/`, not
+  `../../../../` — [ADR 0014](docs/adr/0014-an-application-is-flat-and-its-imports-are-aliased.md).
+  **That is agreed and not yet applied**, so the tree still has both; do not
+  treat the current shape as the intent, and do not deepen it further than a
+  route already requires.
 - Vertical slices with externally verifiable behaviour, not a schema built ahead
   of the workflows that need it.
 - Turkish, English and Arabic with RTL are designed **with** a feature, never

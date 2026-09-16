@@ -2,6 +2,7 @@ import "server-only";
 import { createAuthModule } from "@ranza/auth";
 import { createCoreModule } from "@ranza/core";
 import { createPrismaClient } from "@ranza/db";
+import { createReservationsModule } from "@ranza/reservations";
 
 /**
  * The composition root.
@@ -53,7 +54,15 @@ function compose() {
       : {}),
   });
 
-  return { auth, linkRanzaUser, core: createCoreModule({ db: tenantDb }) };
+  return {
+    auth,
+    linkRanzaUser,
+    core: createCoreModule({ db: tenantDb }),
+    // The same RLS-subject client. This module writes, so the guard above stops
+    // mattering only for reads: pointing DATABASE_URL at the migration role
+    // would now let one Organization write into another (ADR 0012).
+    reservations: createReservationsModule({ db: tenantDb }),
+  };
 }
 
 type Composition = ReturnType<typeof compose>;

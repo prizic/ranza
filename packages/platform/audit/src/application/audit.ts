@@ -4,8 +4,34 @@ import {
   type AuditEntry,
   type AuditRecord,
 } from "../domain/record";
-import { append, listForSubject } from "../infrastructure/repository";
+import {
+  append,
+  listForSubject,
+  type AuditClient,
+} from "../infrastructure/repository";
 import type { AuditDeps } from "../ports";
+
+/**
+ * Records that something happened, inside a transaction the caller already owns.
+ *
+ * `record()` below opens its own, which is right when the entry is the only
+ * thing being written. It is wrong when the entry must share the fate of the
+ * work it describes: two transactions can half-succeed, leaving either an
+ * action nobody recorded or a record of an action that never happened. Both are
+ * failures an audit trail exists to prevent, so a caller doing several things at
+ * once passes its own transaction here and the whole lot commits or none of it
+ * does.
+ *
+ * The caller is responsible for that transaction having a request context — the
+ * policies decide what may be written either way, and without one they deny.
+ */
+export async function recordWithin(
+  tx: AuditClient,
+  entry: AuditEntry,
+): Promise<AuditRecord> {
+  assertRecordable(entry);
+  return append(tx, entry);
+}
 
 /** Reads are bounded so a caller cannot ask for an unbounded history. */
 const DEFAULT_LIMIT = 50;
@@ -30,9 +56,8 @@ export function createAuditModule(deps: AuditDeps) {
    * without a record is the thing an audit trail exists to prevent.
    */
   async function record(entry: AuditEntry): Promise<AuditRecord> {
-    assertRecordable(entry);
     return withOrganizationContext(deps.db, { userId: entry.actorId }, (tx) =>
-      append(tx, entry),
+      recordWithin(tx, entry),
     );
   }
 

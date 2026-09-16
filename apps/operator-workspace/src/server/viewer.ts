@@ -4,6 +4,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { TODAY_CAPABILITY } from "@ranza/core";
 import type { CapabilityRef, EntitledProperty } from "@ranza/core";
+import { FRONT_DESK_CAPABILITY } from "@ranza/reservations";
+import type { Arrival, Departure } from "@ranza/reservations";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import { getComposition } from "./composition";
 
@@ -28,7 +30,8 @@ import { getComposition } from "./composition";
 // Re-exported so a page never imports @ranza/core directly. The boundary rule
 // is absolute rather than carved out for constants: an exception is the crack
 // through which a direct query eventually arrives.
-export { TODAY_CAPABILITY };
+export { TODAY_CAPABILITY, FRONT_DESK_CAPABILITY };
+export type { Arrival, Departure };
 
 export interface Viewer {
   /** Ranza user id — what app.current_user_id() returns. Never a subject. */
@@ -98,3 +101,41 @@ export const entitledProperties = cache(
     );
   },
 );
+
+/**
+ * The Reservations arriving today at one Property — the Front Office read.
+ *
+ * It does not re-check that the viewer may reach `propertyId`. A Property they
+ * cannot reach produces an empty list, because the policies and the capability
+ * gate inside the module decide that, and a second check here would be the
+ * weaker of the two while inviting somebody to trust it instead.
+ *
+ * Not `cache`d on the capability the way `entitledProperties` is: this list
+ * changes when somebody checks a Guest in, and a request that does so then
+ * re-reads must see the result.
+ */
+export async function arrivals(
+  propertyId: string,
+): Promise<readonly Arrival[]> {
+  const viewer = await currentViewer();
+  if (!viewer) return [];
+  return getComposition().reservations.listArrivals(viewer.userId, propertyId);
+}
+
+/**
+ * The Stays due to leave today at one Property, and any already overdue.
+ *
+ * Same funnel and same non-checking as `arrivals`: a Property the viewer cannot
+ * reach produces an empty list because the policies and the capability gate
+ * decide that, not a condition here.
+ */
+export async function departures(
+  propertyId: string,
+): Promise<readonly Departure[]> {
+  const viewer = await currentViewer();
+  if (!viewer) return [];
+  return getComposition().reservations.listDepartures(
+    viewer.userId,
+    propertyId,
+  );
+}

@@ -11,6 +11,11 @@ everything lands under Unreleased.
 
 ### Added
 
+- `recordWithin(tx, entry)`: the same validation and statement as `record()`,
+  joining a transaction the caller already owns. A caller writing several things
+  at once needs the record to share their fate — two transactions can
+  half-succeed, and both halves are failures an audit trail exists to prevent.
+
 - Append-only audit records in a module-owned `audit` schema, with the writer
   unable to update or delete what it has written.
 - `record()` and `historyOf()`, taking an opaque `organizationId` and an

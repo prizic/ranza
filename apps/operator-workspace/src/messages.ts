@@ -10,8 +10,13 @@ export interface Messages {
   productName: string;
   skip: string;
   languageLabel: string;
+  languageName: Record<SupportedLocale, string>;
   today: string;
   propertySwitcher: string;
+  mainNavigation: string;
+  sections: string;
+  back: string;
+  account: string;
   organization: string;
   property: string;
   noPropertyTitle: string;
@@ -44,6 +49,77 @@ export interface Messages {
   backupCodes: string;
   backupCodesWarning: string;
   enrolFailed: string;
+
+  frontOffice: string;
+  arrivalsAt: string;
+  departuresAt: string;
+  noFrontDeskTitle: string;
+  noFrontDeskDescription: string;
+  noArrivalsTitle: string;
+  noArrivalsDescription: string;
+  openEnded: string;
+  checkIn: string;
+  checkingIn: string;
+  checkedIn: string;
+  unitUnavailable: string;
+  checkInRefused: string;
+  stayType: Record<"guest" | "resident", string>;
+  unitType: Record<"room" | "bed" | "apartment" | "suite", string>;
+  reservationStatus: Record<
+    "requested" | "confirmed" | "cancelled" | "no_show" | "checked_in",
+    string
+  >;
+
+  arrivals: string;
+  departures: string;
+  guest: string;
+  period: string;
+  unit: string;
+  action: string;
+  status: string;
+  departure: string;
+  overdue: string;
+  onTime: string;
+  checkOut: string;
+  checkingOut: string;
+  checkOutRefused: string;
+  noDeparturesTitle: string;
+  noDeparturesDescription: string;
+  table: TableMessages;
+
+  /** Rail and page-bar names, keyed by route segment. */
+  navigation: Record<string, string>;
+  /** What each planned screen will do, keyed by route segment. */
+  screenSummary: Record<string, string>;
+  planned: string;
+  handoverLabel: string;
+  notEntitledTitle: string;
+  notEntitledDescription: string;
+}
+
+/** The listing kit's strings. `{n}`, `{of}` and `{columns}` are interpolated. */
+export interface TableMessages {
+  results: string;
+  capped: string;
+  cappedHint: string;
+  perPage: string;
+  page: string;
+  first: string;
+  previous: string;
+  next: string;
+  last: string;
+  clearFilters: string;
+  clearFilter: string;
+  columns: string;
+  visibleColumns: string;
+  search: string;
+  searchBy: string;
+  selectAllRows: string;
+  selectRow: string;
+  selectedCount: string;
+  clearSelection: string;
+  noMatches: string;
+  noRows: string;
 }
 
 export const messages: Record<SupportedLocale, Messages> = {
@@ -51,8 +127,13 @@ export const messages: Record<SupportedLocale, Messages> = {
     productName: "Ranza",
     skip: "İçeriğe geç",
     languageLabel: "Dil",
+    languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     today: "Bugün",
     propertySwitcher: "Tesisler",
+    mainNavigation: "Ana gezinme",
+    sections: "Bölümler",
+    back: "Geri",
+    account: "Hesap",
     organization: "Organizasyon",
     property: "Tesis",
     noPropertyTitle: "Henüz bir tesise atanmadınız",
@@ -90,13 +171,118 @@ export const messages: Record<SupportedLocale, Messages> = {
     backupCodesWarning:
       "Bu kodları şimdi saklayın. Her biri bir kez kullanılır ve tekrar gösterilmez.",
     enrolFailed: "Parola doğrulanamadı.",
+
+    frontOffice: "Ön büro",
+    arrivalsAt: "Bugünkü girişler:",
+    departuresAt: "Bugünkü çıkışlar:",
+    noFrontDeskTitle: "Ön büro bu tesiste açık değil",
+    noFrontDeskDescription:
+      "Ön büro, organizasyonunuzun aboneliğinde yer aldığında ve tesiste etkinleştirildiğinde burada görünür.",
+    noArrivalsTitle: "Bugün giriş yok",
+    noArrivalsDescription:
+      "Bugün için bu tesiste bekleyen bir rezervasyon bulunmuyor.",
+    openEnded: "Açık uçlu",
+    checkIn: "Giriş yap",
+    checkingIn: "Yapılıyor",
+    checkedIn: "Giriş yapıldı",
+    unitUnavailable: "Bu birim seçilen tarihlerde dolu.",
+    checkInRefused: "Bu rezervasyon için giriş yapılamıyor.",
+    stayType: { guest: "Misafir", resident: "Sakin" },
+    unitType: {
+      room: "Oda",
+      bed: "Yatak",
+      apartment: "Daire",
+      suite: "Süit",
+    },
+    reservationStatus: {
+      requested: "Talep edildi",
+      confirmed: "Onaylandı",
+      cancelled: "İptal edildi",
+      no_show: "Gelmedi",
+      checked_in: "Giriş yapıldı",
+    },
+    arrivals: "Girişler",
+    departures: "Çıkışlar",
+    guest: "Misafir",
+    period: "Konaklama",
+    unit: "Birim",
+    action: "İşlem",
+    status: "Durum",
+    departure: "Çıkış",
+    overdue: "Gecikmiş",
+    onTime: "Bugün",
+    checkOut: "Çıkış yap",
+    checkingOut: "Yapılıyor",
+    checkOutRefused: "Bu konaklama için çıkış yapılamıyor.",
+    noDeparturesTitle: "Bugün çıkış yok",
+    noDeparturesDescription:
+      "Bu tesiste bugün ayrılması beklenen bir konaklama bulunmuyor.",
+    table: {
+      results: "{n} sonuç",
+      capped: "(son {n} / {of})",
+      cappedHint: "Arama ve filtreler yalnızca yüklenen satırlarda çalışır.",
+      perPage: "Sayfa başına",
+      page: "Sayfa {n} / {of}",
+      first: "İlk sayfa",
+      previous: "Önceki",
+      next: "Sonraki",
+      last: "Son sayfa",
+      clearFilters: "Filtreleri temizle",
+      clearFilter: "Filtreyi kaldır",
+      columns: "Sütunlar",
+      visibleColumns: "Görünen sütunlar",
+      search: "Ara",
+      searchBy: "{columns} ara",
+      selectAllRows: "Tüm satırları seç",
+      selectRow: "Satırı seç",
+      selectedCount: "{n} seçili",
+      clearSelection: "Seçimi kaldır",
+      noMatches: "Filtrelerle eşleşen sonuç yok.",
+      noRows: "Henüz kayıt yok.",
+    },
+    navigation: {
+      today: "Bugün",
+      "front-office": "Ön büro",
+      arrivals: "Girişler",
+      departures: "Çıkışlar",
+      "guest-experience": "Konuk deneyimi",
+      housekeeping: "Kat hizmetleri",
+      "food-and-beverage": "Yiyecek içecek",
+      inventory: "Stok",
+      finance: "Finans",
+      people: "Ekip",
+      analytics: "Analitik",
+      configuration: "Ayarlar",
+    },
+    screenSummary: {
+      "guest-experience":
+        "Konuk ve sakin talepleri, duyurular ve hizmet takibi.",
+      housekeeping: "Oda durumu, temizlik planı ve görev atamaları.",
+      "food-and-beverage":
+        "Öğün planları, satış noktaları ve tüketim kayıtları.",
+      inventory: "Stok hareketleri, sayımlar ve satın alma.",
+      finance: "Folyolar, faturalar, tahsilatlar ve mutabakat.",
+      people: "Personel kayıtları, vardiyalar ve yetkilendirme.",
+      analytics: "Doluluk, gelir ve operasyon raporları.",
+      configuration: "Organizasyon, tesis, birim ve yetkilendirme ayarları.",
+    },
+    planned: "Planlandı",
+    handoverLabel: "Bu ekranın devir notu",
+    notEntitledTitle: "Bu modül aboneliğinizde yok",
+    notEntitledDescription:
+      "Organizasyonunuz bu modüle abone olduğunda ve tesiste etkinleştirildiğinde burada görünür.",
   },
   en: {
     productName: "Ranza",
     skip: "Skip to content",
     languageLabel: "Language",
+    languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     today: "Today",
     propertySwitcher: "Properties",
+    mainNavigation: "Main navigation",
+    sections: "Sections",
+    back: "Back",
+    account: "Account",
     organization: "Organization",
     property: "Property",
     noPropertyTitle: "You are not assigned to a Property yet",
@@ -134,13 +320,115 @@ export const messages: Record<SupportedLocale, Messages> = {
     backupCodesWarning:
       "Save these now. Each one works once, and they are not shown again.",
     enrolFailed: "That password did not match.",
+
+    frontOffice: "Front Office",
+    arrivalsAt: "Arriving today at",
+    departuresAt: "Leaving today at",
+    noFrontDeskTitle: "The front desk is not open at this Property",
+    noFrontDeskDescription:
+      "It appears here once your Organization's Subscription includes it and the Property has it enabled.",
+    noArrivalsTitle: "No arrivals today",
+    noArrivalsDescription: "Nobody is booked to arrive at this Property today.",
+    openEnded: "Open-ended",
+    checkIn: "Check in",
+    checkingIn: "Checking in",
+    checkedIn: "Checked in",
+    unitUnavailable: "That Unit is occupied for those nights.",
+    checkInRefused: "That Reservation cannot be checked in.",
+    stayType: { guest: "Guest", resident: "Resident" },
+    unitType: {
+      room: "Room",
+      bed: "Bed",
+      apartment: "Apartment",
+      suite: "Suite",
+    },
+    reservationStatus: {
+      requested: "Requested",
+      confirmed: "Confirmed",
+      cancelled: "Cancelled",
+      no_show: "No show",
+      checked_in: "Checked in",
+    },
+    arrivals: "Arrivals",
+    departures: "Departures",
+    guest: "Guest",
+    period: "Stay",
+    unit: "Unit",
+    action: "Action",
+    status: "Status",
+    departure: "Departure",
+    overdue: "Overdue",
+    onTime: "Today",
+    checkOut: "Check out",
+    checkingOut: "Checking out",
+    checkOutRefused: "That Stay cannot be checked out.",
+    noDeparturesTitle: "No departures today",
+    noDeparturesDescription: "Nobody is due to leave this Property today.",
+    table: {
+      results: "{n} results",
+      capped: "(latest {n} of {of})",
+      cappedHint: "Search and filters run over the loaded rows only.",
+      perPage: "Per page",
+      page: "Page {n} of {of}",
+      first: "First page",
+      previous: "Previous",
+      next: "Next",
+      last: "Last page",
+      clearFilters: "Clear filters",
+      clearFilter: "Remove filter",
+      columns: "Columns",
+      visibleColumns: "Visible columns",
+      search: "Search",
+      searchBy: "Search {columns}",
+      selectAllRows: "Select all rows",
+      selectRow: "Select row",
+      selectedCount: "{n} selected",
+      clearSelection: "Clear selection",
+      noMatches: "Nothing matches these filters.",
+      noRows: "Nothing here yet.",
+    },
+    navigation: {
+      today: "Today",
+      "front-office": "Front Office",
+      arrivals: "Arrivals",
+      departures: "Departures",
+      "guest-experience": "Guest Experience",
+      housekeeping: "Housekeeping",
+      "food-and-beverage": "Food & Beverage",
+      inventory: "Inventory",
+      finance: "Finance",
+      people: "People",
+      analytics: "Analytics",
+      configuration: "Configuration",
+    },
+    screenSummary: {
+      "guest-experience":
+        "Guest and Resident requests, announcements and service tracking.",
+      housekeeping: "Unit readiness, cleaning schedule and task assignment.",
+      "food-and-beverage": "Meal plans, outlets and consumption records.",
+      inventory: "Stock movements, counts and procurement.",
+      finance: "Folios, invoices, payments and reconciliation.",
+      people: "Staff records, shifts and permissions.",
+      analytics: "Occupancy, revenue and operational reporting.",
+      configuration: "Organization, Property, Unit and permission settings.",
+    },
+    planned: "Planned",
+    handoverLabel: "This screen's handover note",
+    notEntitledTitle: "This module is not in your Subscription",
+    notEntitledDescription:
+      "It appears here once your Organization subscribes to it and the Property has it enabled.",
   },
   ar: {
     productName: "Ranza",
     skip: "تخطَّ إلى المحتوى",
     languageLabel: "اللغة",
+    languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     today: "اليوم",
     propertySwitcher: "المنشآت",
+    mainNavigation: "التنقل الرئيسي",
+    sections: "الأقسام",
+    back: "رجوع",
+    account: "الحساب",
     organization: "المؤسسة",
     property: "المنشأة",
     noPropertyTitle: "لم يتم تعيينك إلى منشأة بعد",
@@ -177,5 +465,101 @@ export const messages: Record<SupportedLocale, Messages> = {
     backupCodesWarning:
       "احفظ هذه الرموز الآن. يُستخدم كل رمز مرة واحدة ولن تُعرض مجددًا.",
     enrolFailed: "كلمة المرور غير صحيحة.",
+
+    frontOffice: "المكتب الأمامي",
+    arrivalsAt: "الوصول اليوم في",
+    departuresAt: "المغادرة اليوم في",
+    noFrontDeskTitle: "المكتب الأمامي غير مفعّل في هذه المنشأة",
+    noFrontDeskDescription:
+      "يظهر هنا عندما يشمله اشتراك مؤسستك ويتم تفعيله في المنشأة.",
+    noArrivalsTitle: "لا يوجد وصول اليوم",
+    noArrivalsDescription: "لا توجد حجوزات وصول لهذه المنشأة اليوم.",
+    openEnded: "مفتوح المدة",
+    checkIn: "تسجيل الوصول",
+    checkingIn: "جارٍ التسجيل",
+    checkedIn: "تم تسجيل الوصول",
+    unitUnavailable: "هذه الوحدة محجوزة في تلك الليالي.",
+    checkInRefused: "لا يمكن تسجيل الوصول لهذا الحجز.",
+    stayType: { guest: "ضيف", resident: "مقيم" },
+    unitType: {
+      room: "غرفة",
+      bed: "سرير",
+      apartment: "شقة",
+      suite: "جناح",
+    },
+    reservationStatus: {
+      requested: "مطلوب",
+      confirmed: "مؤكّد",
+      cancelled: "ملغى",
+      no_show: "لم يحضر",
+      checked_in: "تم تسجيل الوصول",
+    },
+    arrivals: "الوصول",
+    departures: "المغادرة",
+    guest: "الضيف",
+    period: "الإقامة",
+    unit: "الوحدة",
+    action: "إجراء",
+    status: "الحالة",
+    departure: "المغادرة",
+    overdue: "متأخرة",
+    onTime: "اليوم",
+    checkOut: "تسجيل المغادرة",
+    checkingOut: "جارٍ التسجيل",
+    checkOutRefused: "لا يمكن تسجيل مغادرة هذه الإقامة.",
+    noDeparturesTitle: "لا توجد مغادرات اليوم",
+    noDeparturesDescription: "لا أحد من المقرر أن يغادر هذه المنشأة اليوم.",
+    table: {
+      results: "{n} نتيجة",
+      capped: "(أحدث {n} من {of})",
+      cappedHint: "البحث والفلاتر تعمل على الصفوف المحمّلة فقط.",
+      perPage: "لكل صفحة",
+      page: "صفحة {n} من {of}",
+      first: "الصفحة الأولى",
+      previous: "السابق",
+      next: "التالي",
+      last: "الصفحة الأخيرة",
+      clearFilters: "إزالة الفلاتر",
+      clearFilter: "إزالة الفلتر",
+      columns: "الأعمدة",
+      visibleColumns: "الأعمدة الظاهرة",
+      search: "بحث",
+      searchBy: "ابحث في {columns}",
+      selectAllRows: "تحديد كل الصفوف",
+      selectRow: "تحديد الصف",
+      selectedCount: "{n} محددة",
+      clearSelection: "إلغاء التحديد",
+      noMatches: "لا نتائج مطابقة للفلاتر.",
+      noRows: "لا توجد بيانات بعد.",
+    },
+    navigation: {
+      today: "اليوم",
+      "front-office": "المكتب الأمامي",
+      arrivals: "الوصول",
+      departures: "المغادرة",
+      "guest-experience": "تجربة الضيف",
+      housekeeping: "خدمة الغرف",
+      "food-and-beverage": "الأطعمة والمشروبات",
+      inventory: "المخزون",
+      finance: "المالية",
+      people: "الفريق",
+      analytics: "التحليلات",
+      configuration: "الإعدادات",
+    },
+    screenSummary: {
+      "guest-experience": "طلبات الضيوف والمقيمين والإعلانات ومتابعة الخدمة.",
+      housekeeping: "جاهزية الوحدات وجدول التنظيف وتوزيع المهام.",
+      "food-and-beverage": "خطط الوجبات والمنافذ وسجلات الاستهلاك.",
+      inventory: "حركات المخزون والجرد والمشتريات.",
+      finance: "الفواتير والتحصيل والتسويات.",
+      people: "سجلات الموظفين والورديات والصلاحيات.",
+      analytics: "تقارير الإشغال والإيرادات والتشغيل.",
+      configuration: "إعدادات المؤسسة والمنشأة والوحدات والصلاحيات.",
+    },
+    planned: "مخطط له",
+    handoverLabel: "ملاحظة التسليم لهذه الشاشة",
+    notEntitledTitle: "هذه الوحدة غير مشمولة في اشتراكك",
+    notEntitledDescription:
+      "تظهر هنا عندما تشترك مؤسستك فيها ويتم تفعيلها في المنشأة.",
   },
 };
