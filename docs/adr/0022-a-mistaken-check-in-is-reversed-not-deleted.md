@@ -5,6 +5,8 @@ Date: 2026-09-16
 Amended: 2026-09-16 — the index this decision rests on was total, not partial,
 so the mechanism described below did not work. Corrected in place below; the
 decision itself is unchanged.
+Amended: 2026-09-16 — withdrawing a check-in now closes the Folio it opened,
+and a backfill closes the ones earlier withdrawals left behind.
 
 ## Context
 
@@ -62,6 +64,31 @@ and still read as sound, because nobody asked the index what it actually said.
 A pgTAP assertion now pins the predicate rather than the behaviour, so a
 migration that makes it total again fails the suite instead of quietly restoring
 the one-way door.
+
+### The Folio it opened is closed with it
+
+A check-in opens a Folio; withdrawing one closes it, in the same transaction as
+everything else here. Not `closeFolio`, which opens its own transaction and so
+could not see a withdrawal that has not committed — `closeFolioWithin(tx)`,
+which shares the fate of the writes around it.
+
+Left open it was never a way to lose money: `folio_lines_postable` refuses a
+line on a cancelled Stay, so nothing could ever be posted. It was a row on the
+Finance screen for a Guest who was never there, that nobody could act on and
+nobody could close. Once a withdrawn Reservation could be checked in again, one
+Reservation showed two of them.
+
+The statement requires the Stay to be `cancelled`, which is what makes closing
+it without reading its lines safe: `stays_withdrawal_is_free_of_charges` refuses
+to cancel a Stay carrying charges, so a Folio reached through a cancelled Stay is
+provably empty. A condition rather than a comment, so changing the withdrawal
+rule breaks this loudly.
+
+Check-ins withdrawn before this was true left their Folios open, and
+`20260916001900_close_ghost_folios` closes them. It refuses rather than close
+any that carry a line: money on a withdrawn Stay is a credit or a refund, and a
+backfill does not get to decide which. That state should be unreachable, which
+is exactly why a migration running against older databases does not assume it.
 
 ### A reason is required, and it is recorded
 
