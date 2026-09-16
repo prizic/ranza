@@ -109,10 +109,15 @@ schema, policies or auth.
 Local database, when you want to work offline:
 
 ```sh
-pnpm db:up      # PostgreSQL in Docker, built with pgTAP
-pnpm db:setup   # apply migrations, set local role passwords
-pnpm db:reset   # down -v, up, setup — local only, never touches a hosted database
+pnpm db:up       # PostgreSQL in Docker, built with pgTAP
+pnpm db:setup    # apply migrations, set local role passwords
+pnpm db:reset    # down -v, up, setup — local only, never touches a hosted database
+pnpm db:seed:dev # a demo Organization and a Staff Member to sign in as
 ```
+
+`db:seed:dev` needs `pnpm dev` running: it creates the account through the
+application's own sign-up route rather than writing the provider-subject mapping
+in SQL, because ADR 0005 keeps that mapping in one place.
 
 `.env` points at Supabase by default; the local URLs are commented in it.
 

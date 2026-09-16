@@ -14,6 +14,7 @@
     "db:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
     "db:migrate:new": "prisma migrate dev --create-only --schema prisma/schema.prisma",
     "db:reset": "docker compose down -v && pnpm db:up && pnpm db:setup",
+    "db:seed:dev": "node scripts/db-seed-dev.mjs",
     "db:setup": "node scripts/db-setup.mjs",
     "db:test": "node scripts/db-test.mjs",
     "db:up": "docker compose up -d --wait",

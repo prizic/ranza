@@ -5,12 +5,24 @@ Members (blueprint 4.2). Next.js App Router, locale-prefixed, installable as a
 PWA later.
 
 ```sh
-pnpm dev          # this app on http://localhost:3000, with the rest of the workspace
+pnpm dev            # this app on http://localhost:3000
+pnpm db:seed:dev    # in another terminal: a demo Organization and an account
 ```
 
 It needs `DATABASE_URL`, `AUTH_DATABASE_URL` and `BETTER_AUTH_SECRET` — see
 [`.env.example`](../../.env.example). Building needs none of them: the
 composition root is built on first request, not at import.
+
+## There is no sign-up, and there will not be one
+
+A Staff Member does not create their own account. Prizic Control Plane creates
+the Organization, its Subscription and its Entitlements; the Organization's owner
+then invites staff (blueprint 4.4). Neither application exists yet, so until they
+do there is no way into this one by hand — which is what `pnpm db:seed:dev` is
+for. It creates the account through this application's own sign-up route and lets
+this application map the provider subject onto a Ranza user, then grants that user
+a membership and two Properties. It refuses to run against anything but the local
+database.
 
 ## Shape
 

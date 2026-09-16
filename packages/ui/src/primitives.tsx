@@ -3,47 +3,40 @@ import type {
   HTMLAttributes,
   InputHTMLAttributes,
   ReactNode,
-  TableHTMLAttributes,
 } from "react";
 
 function classes(...values: Array<string | undefined>) {
   return values.filter(Boolean).join(" ");
 }
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  tone?: "primary" | "secondary" | "quiet" | "danger";
-}
-
-export function Button({ className, tone = "primary", ...props }: ButtonProps) {
+/**
+ * The mark: a bunk seen from the side, two posts and two berths. "Ranza" is
+ * Turkish for a bunk, so the product's name is drawn rather than illustrated.
+ */
+export function BrandMark() {
   return (
-    <button
-      className={classes("button", `button-${tone}`, className)}
-      {...props}
-    />
-  );
-}
-
-export interface CardProps extends HTMLAttributes<HTMLElement> {
-  children: ReactNode;
-  density?: "compact" | "comfortable";
-  tone?: "default" | "strong" | "quiet";
-}
-
-export function Card({
-  children,
-  className,
-  density = "comfortable",
-  tone = "default",
-  ...props
-}: CardProps) {
-  return (
-    <section
-      className={classes("card", `card-${density}`, `card-${tone}`, className)}
-      {...props}
+    <svg
+      aria-hidden="true"
+      className="brand-mark"
+      fill="none"
+      height="16"
+      viewBox="0 0 16 16"
+      width="16"
     >
-      {children}
-    </section>
+      <path
+        d="M3 1.5v13M13 1.5v13M3 5.5h10M3 11h10"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.6"
+      />
+    </svg>
   );
+}
+
+export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement>;
+
+export function Button({ className, ...props }: ButtonProps) {
+  return <button className={classes("button", className)} {...props} />;
 }
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -60,38 +53,13 @@ export function Input({ className, invalid, ...props }: InputProps) {
   );
 }
 
-export interface TableProps extends TableHTMLAttributes<HTMLTableElement> {
-  label?: string;
-}
-
-export function Table({ className, label, ...props }: TableProps) {
-  return (
-    <div className="table-scroll">
-      <table
-        aria-label={label}
-        className={classes("data-table", className)}
-        {...props}
-      />
-    </div>
-  );
-}
-
-export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
-  tone?: "neutral" | "success" | "warning" | "danger" | "info";
-}
-
-export function Badge({ className, tone = "neutral", ...props }: BadgeProps) {
-  return (
-    <span className={classes("badge", `badge-${tone}`, className)} {...props} />
-  );
-}
-
 export interface EmptyStateProps extends HTMLAttributes<HTMLElement> {
   action?: ReactNode;
   description: string;
   title: string;
 }
 
+/** An empty screen states what to do next, in the interface's own voice. */
 export function EmptyState({
   action,
   className,
@@ -101,7 +69,6 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <section className={classes("empty-state", className)} {...props}>
-      <span aria-hidden="true" className="empty-state-mark" />
       <h2>{title}</h2>
       <p>{description}</p>
       {action ? <div className="empty-state-action">{action}</div> : null}

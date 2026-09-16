@@ -41,6 +41,40 @@ export function formatNumber(
   return new Intl.NumberFormat(intlLocales[locale], options).format(value);
 }
 
+/**
+ * The weekday alone, in the Property's own timezone.
+ *
+ * Separate from formatDate because a Property in another timezone can be on a
+ * different day from the person reading the screen, and the weekday is the
+ * thing that answers "today" for the people working there.
+ */
+export function formatWeekday(
+  value: Date | number,
+  locale: SupportedLocale,
+  timeZone: string,
+): string {
+  return new Intl.DateTimeFormat(intlLocales[locale], {
+    timeZone,
+    weekday: "long",
+  }).format(value);
+}
+
+/** Wall-clock time at a Property. */
+export function formatTime(
+  value: Date | number,
+  locale: SupportedLocale,
+  timeZone: string,
+): string {
+  return new Intl.DateTimeFormat(intlLocales[locale], {
+    hour: "2-digit",
+    // 24-hour in every language. A shift that starts at 07:00 is written that
+    // way on the rota in all three, and en-TR would otherwise resolve to h12.
+    hourCycle: "h23",
+    minute: "2-digit",
+    timeZone,
+  }).format(value);
+}
+
 export function formatDate(
   value: Date | number,
   locale: SupportedLocale,

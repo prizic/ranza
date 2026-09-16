@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   defaultLocale,
   directionFor,
+  formatTime,
+  formatWeekday,
   isSupportedLocale,
   localeFromPathname,
   localizeHref,
@@ -47,5 +49,30 @@ describe("localizeHref", () => {
     expect(localizeHref("ar", "/properties")).toBe("/ar/properties");
     expect(localizeHref("en", "properties")).toBe("/en/properties");
     expect(localizeHref("tr", "/")).toBe("/tr");
+  });
+});
+
+describe("Property-local formatting", () => {
+  // A Property in Istanbul is already on Tuesday while the reader's own clock
+  // still says Monday. The screen must show the Property's day, not the
+  // reader's, which is the whole reason these take a timezone.
+  const lateMondayUtc = new Date("2026-09-14T22:30:00Z");
+
+  it("names the weekday at the Property, not at the reader", () => {
+    expect(formatWeekday(lateMondayUtc, "tr", "Europe/Istanbul")).toBe("Salı");
+    expect(formatWeekday(lateMondayUtc, "en", "America/New_York")).toBe(
+      "Monday",
+    );
+  });
+
+  it("gives each language its own weekday name", () => {
+    expect(formatWeekday(lateMondayUtc, "ar", "Europe/Istanbul")).toBe(
+      "الثلاثاء",
+    );
+  });
+
+  it("reads the clock at the Property", () => {
+    expect(formatTime(lateMondayUtc, "en", "Europe/Istanbul")).toBe("01:30");
+    expect(formatTime(lateMondayUtc, "en", "UTC")).toBe("22:30");
   });
 });

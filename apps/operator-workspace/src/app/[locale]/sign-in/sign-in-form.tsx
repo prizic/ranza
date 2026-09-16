@@ -2,14 +2,14 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Input } from "@ranza/ui";
+import { Button } from "@ranza/ui";
 import type { Messages } from "../../../messages";
 
 /**
  * Posts to the Better Auth route handler, which is what sets the session
  * cookie. Nothing about the credential is handled here beyond passing it on.
  *
- * A failure says only that the pair did not match: distinguishing "no such
+ * A failure says only that the pair did not match. Distinguishing "no such
  * account" from "wrong password" would confirm which addresses are registered.
  */
 export function SignInForm({
@@ -38,22 +38,24 @@ export function SignInForm({
       }),
     });
 
-    setPending(false);
     if (!response.ok) {
+      setPending(false);
       setFailed(true);
       return;
     }
 
+    // Left pending through the redirect: the shell reads the session on the
+    // server, so the cached tree has to go before anything is shown.
     router.replace(redirectTo);
-    // The shell reads the session on the server, so the cached tree must go.
     router.refresh();
   }
 
   return (
-    <form className="stack" onSubmit={signIn}>
-      <p>
+    <form onSubmit={signIn}>
+      <p className="field">
         <label htmlFor="email">{copy.email}</label>
-        <Input
+        <input
+          aria-invalid={failed || undefined}
           autoComplete="username"
           id="email"
           name="email"
@@ -61,9 +63,10 @@ export function SignInForm({
           type="email"
         />
       </p>
-      <p>
+      <p className="field">
         <label htmlFor="password">{copy.password}</label>
-        <Input
+        <input
+          aria-invalid={failed || undefined}
           autoComplete="current-password"
           id="password"
           name="password"
@@ -71,9 +74,13 @@ export function SignInForm({
           type="password"
         />
       </p>
-      {failed ? <p role="alert">{copy.signInFailed}</p> : null}
+      {failed ? (
+        <p className="gate-error" role="alert">
+          {copy.signInFailed}
+        </p>
+      ) : null}
       <Button disabled={pending} type="submit">
-        {copy.signIn}
+        {pending ? copy.signingIn : copy.signIn}
       </Button>
     </form>
   );

@@ -8,17 +8,16 @@ import {
   requireViewer,
   TODAY_CAPABILITY,
 } from "../../../server/viewer";
-import { PropertySwitcher } from "./property-switcher";
+import { PropertyRack } from "./property-rack";
 
 /**
- * The authenticated shell: navigation, the Property switcher, and the gate that
- * sends a signed-out visitor to sign in.
+ * The authenticated shell: chrome, the Property rack, and the gate that sends a
+ * signed-out visitor to sign in.
  *
- * Navigation lists entitled capabilities only (blueprint 4.6). A capability the
- * Organization has not bought is absent, not disabled — locked upsells belong
- * in a separate Explore area and must not clutter operational navigation.
- * Hiding a control is never the boundary, though: the server and the database
- * deny it regardless of what this renders.
+ * Navigation lists entitled capabilities only (blueprint 4.6) — a capability
+ * the Organization has not bought is absent, not greyed out, and locked upsells
+ * belong in a separate Explore area. Hiding a control is never the boundary
+ * though: the server and the database deny it either way.
  */
 export default async function WorkspaceLayout({
   children,
@@ -31,25 +30,13 @@ export default async function WorkspaceLayout({
   if (!isSupportedLocale(locale)) notFound();
 
   const copy = messages[locale];
-  await requireViewer(locale);
-
+  const viewer = await requireViewer(locale);
   const properties = await entitledProperties(TODAY_CAPABILITY);
   const todayHref = localizeHref(locale, "today");
 
   return (
     <AppShell
-      context={
-        <Suspense fallback={null}>
-          <PropertySwitcher
-            label={copy.propertySwitcher}
-            options={properties.map((property) => ({
-              href: `${todayHref}?property=${property.propertyId}`,
-              id: property.propertyId,
-              name: property.propertyName,
-            }))}
-          />
-        </Suspense>
-      }
+      account={viewer.email}
       languageLabel={copy.languageLabel}
       localeLinks={supportedLocales.map((supported) => ({
         current: supported === locale,
@@ -63,6 +50,18 @@ export default async function WorkspaceLayout({
           : []
       }
       productName={copy.productName}
+      rack={
+        <Suspense fallback={null}>
+          <PropertyRack
+            label={copy.propertySwitcher}
+            slots={properties.map((property) => ({
+              href: `${todayHref}?property=${property.propertyId}`,
+              id: property.propertyId,
+              name: property.propertyName,
+            }))}
+          />
+        </Suspense>
+      }
       skipLabel={copy.skip}
     >
       {children}

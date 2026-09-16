@@ -85,6 +85,11 @@ pnpm db:setup   # apply migrations, set local role passwords
 pnpm db:reset   # rebuild from scratch — local only
 ```
 
+Ranza has no self-service sign-up by design, so a fresh database has nobody who
+can sign in. With `pnpm dev` running, `pnpm db:seed:dev` creates a demo
+Organization, two Properties and a Staff Member to sign in as — see
+[apps/operator-workspace/README.md](apps/operator-workspace/README.md).
+
 Prisma owns schema migrations; row-level security policies are hand-written SQL
 appended into the same migration file. Generate with
 `prisma migrate dev --create-only`, add the policy SQL, then apply. See
