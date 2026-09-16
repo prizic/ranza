@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { TODAY_CAPABILITY } from "@ranza/core";
 import type { CapabilityRef, EntitledProperty } from "@ranza/core";
 import { FRONT_DESK_CAPABILITY } from "@ranza/reservations";
-import type { Arrival } from "@ranza/reservations";
+import type { Arrival, Departure } from "@ranza/reservations";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import { getComposition } from "./composition";
 
@@ -31,7 +31,7 @@ import { getComposition } from "./composition";
 // is absolute rather than carved out for constants: an exception is the crack
 // through which a direct query eventually arrives.
 export { TODAY_CAPABILITY, FRONT_DESK_CAPABILITY };
-export type { Arrival };
+export type { Arrival, Departure };
 
 export interface Viewer {
   /** Ranza user id — what app.current_user_id() returns. Never a subject. */
@@ -120,4 +120,22 @@ export async function arrivals(
   const viewer = await currentViewer();
   if (!viewer) return [];
   return getComposition().reservations.listArrivals(viewer.userId, propertyId);
+}
+
+/**
+ * The Stays due to leave today at one Property, and any already overdue.
+ *
+ * Same funnel and same non-checking as `arrivals`: a Property the viewer cannot
+ * reach produces an empty list because the policies and the capability gate
+ * decide that, not a condition here.
+ */
+export async function departures(
+  propertyId: string,
+): Promise<readonly Departure[]> {
+  const viewer = await currentViewer();
+  if (!viewer) return [];
+  return getComposition().reservations.listDepartures(
+    viewer.userId,
+    propertyId,
+  );
 }

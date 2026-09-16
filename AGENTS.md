@@ -182,7 +182,9 @@ The **front desk writes** is where Phase 2 starts, and it is the first mutation
 in the product. `packages/ranza/reservations` owns the Reservation and the
 check-in that turns one into a Stay: one transaction that creates the Stay, moves
 the Reservation and records the actor, or does none of the three.
-`apps/operator-workspace` renders `/{tr,en,ar}/front-office` from it.
+`apps/operator-workspace` renders `/{tr,en,ar}/front-office` from it: arrivals
+and departures as two tabs, each a `DataTable` with search, sorting and column
+visibility, and one action per row.
 
 Two things there are worth knowing before writing the next module, because both
 are precedent. **A write is bounded by a policy, not by a check** — ADR 0012 —
@@ -198,6 +200,13 @@ Writing that ADR found two policy clauses whose removal changed no observable
 behaviour — the tests written for them were evidence of nothing. The break-it-and-
 watch-it-go-red rule below applies to each clause of a policy, not to the policy
 as a whole.
+
+Check-out closes the other half of that bullet. `ranza_app` may update a Stay's
+`status`, `ends_on` and `updated_at` and nothing else, by a **column-level
+grant** — because row-level security is row-level, and the policy that lets a
+Staff Member end a Stay would otherwise let them rewrite the Unit and turn a
+check-out into a room move. A policy bounds rows; a grant bounds columns
+(ADR 0012, amended).
 
 Phase 2 continues with the rest of blueprint 5.3 — group reservations,
 quotations, deposits, availability search, extensions, room moves, check-out and

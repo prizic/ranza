@@ -67,6 +67,48 @@ export interface Messages {
     "requested" | "confirmed" | "cancelled" | "no_show" | "checked_in",
     string
   >;
+
+  arrivals: string;
+  departures: string;
+  guest: string;
+  period: string;
+  unit: string;
+  action: string;
+  status: string;
+  departure: string;
+  overdue: string;
+  onTime: string;
+  checkOut: string;
+  checkingOut: string;
+  checkOutRefused: string;
+  noDeparturesTitle: string;
+  noDeparturesDescription: string;
+  table: TableMessages;
+}
+
+/** The listing kit's strings. `{n}`, `{of}` and `{columns}` are interpolated. */
+export interface TableMessages {
+  results: string;
+  capped: string;
+  cappedHint: string;
+  perPage: string;
+  page: string;
+  first: string;
+  previous: string;
+  next: string;
+  last: string;
+  clearFilters: string;
+  clearFilter: string;
+  columns: string;
+  visibleColumns: string;
+  search: string;
+  searchBy: string;
+  selectAllRows: string;
+  selectRow: string;
+  selectedCount: string;
+  clearSelection: string;
+  noMatches: string;
+  noRows: string;
 }
 
 export const messages: Record<SupportedLocale, Messages> = {
@@ -146,6 +188,45 @@ export const messages: Record<SupportedLocale, Messages> = {
       no_show: "Gelmedi",
       checked_in: "Giriş yapıldı",
     },
+    arrivals: "Girişler",
+    departures: "Çıkışlar",
+    guest: "Misafir",
+    period: "Konaklama",
+    unit: "Birim",
+    action: "İşlem",
+    status: "Durum",
+    departure: "Çıkış",
+    overdue: "Gecikmiş",
+    onTime: "Bugün",
+    checkOut: "Çıkış yap",
+    checkingOut: "Yapılıyor",
+    checkOutRefused: "Bu konaklama için çıkış yapılamıyor.",
+    noDeparturesTitle: "Bugün çıkış yok",
+    noDeparturesDescription:
+      "Bu tesiste bugün ayrılması beklenen bir konaklama bulunmuyor.",
+    table: {
+      results: "{n} sonuç",
+      capped: "(son {n} / {of})",
+      cappedHint: "Arama ve filtreler yalnızca yüklenen satırlarda çalışır.",
+      perPage: "Sayfa başına",
+      page: "Sayfa {n} / {of}",
+      first: "İlk sayfa",
+      previous: "Önceki",
+      next: "Sonraki",
+      last: "Son sayfa",
+      clearFilters: "Filtreleri temizle",
+      clearFilter: "Filtreyi kaldır",
+      columns: "Sütunlar",
+      visibleColumns: "Görünen sütunlar",
+      search: "Ara",
+      searchBy: "{columns} ara",
+      selectAllRows: "Tüm satırları seç",
+      selectRow: "Satırı seç",
+      selectedCount: "{n} seçili",
+      clearSelection: "Seçimi kaldır",
+      noMatches: "Filtrelerle eşleşen sonuç yok.",
+      noRows: "Henüz kayıt yok.",
+    },
   },
   en: {
     productName: "Ranza",
@@ -222,6 +303,44 @@ export const messages: Record<SupportedLocale, Messages> = {
       no_show: "No show",
       checked_in: "Checked in",
     },
+    arrivals: "Arrivals",
+    departures: "Departures",
+    guest: "Guest",
+    period: "Stay",
+    unit: "Unit",
+    action: "Action",
+    status: "Status",
+    departure: "Departure",
+    overdue: "Overdue",
+    onTime: "Today",
+    checkOut: "Check out",
+    checkingOut: "Checking out",
+    checkOutRefused: "That Stay cannot be checked out.",
+    noDeparturesTitle: "No departures today",
+    noDeparturesDescription: "Nobody is due to leave this Property today.",
+    table: {
+      results: "{n} results",
+      capped: "(latest {n} of {of})",
+      cappedHint: "Search and filters run over the loaded rows only.",
+      perPage: "Per page",
+      page: "Page {n} of {of}",
+      first: "First page",
+      previous: "Previous",
+      next: "Next",
+      last: "Last page",
+      clearFilters: "Clear filters",
+      clearFilter: "Remove filter",
+      columns: "Columns",
+      visibleColumns: "Visible columns",
+      search: "Search",
+      searchBy: "Search {columns}",
+      selectAllRows: "Select all rows",
+      selectRow: "Select row",
+      selectedCount: "{n} selected",
+      clearSelection: "Clear selection",
+      noMatches: "Nothing matches these filters.",
+      noRows: "Nothing here yet.",
+    },
   },
   ar: {
     productName: "Ranza",
@@ -296,6 +415,44 @@ export const messages: Record<SupportedLocale, Messages> = {
       cancelled: "ملغى",
       no_show: "لم يحضر",
       checked_in: "تم تسجيل الوصول",
+    },
+    arrivals: "الوصول",
+    departures: "المغادرة",
+    guest: "الضيف",
+    period: "الإقامة",
+    unit: "الوحدة",
+    action: "إجراء",
+    status: "الحالة",
+    departure: "المغادرة",
+    overdue: "متأخرة",
+    onTime: "اليوم",
+    checkOut: "تسجيل المغادرة",
+    checkingOut: "جارٍ التسجيل",
+    checkOutRefused: "لا يمكن تسجيل مغادرة هذه الإقامة.",
+    noDeparturesTitle: "لا توجد مغادرات اليوم",
+    noDeparturesDescription: "لا أحد من المقرر أن يغادر هذه المنشأة اليوم.",
+    table: {
+      results: "{n} نتيجة",
+      capped: "(أحدث {n} من {of})",
+      cappedHint: "البحث والفلاتر تعمل على الصفوف المحمّلة فقط.",
+      perPage: "لكل صفحة",
+      page: "صفحة {n} من {of}",
+      first: "الصفحة الأولى",
+      previous: "السابق",
+      next: "التالي",
+      last: "الصفحة الأخيرة",
+      clearFilters: "إزالة الفلاتر",
+      clearFilter: "إزالة الفلتر",
+      columns: "الأعمدة",
+      visibleColumns: "الأعمدة الظاهرة",
+      search: "بحث",
+      searchBy: "ابحث في {columns}",
+      selectAllRows: "تحديد كل الصفوف",
+      selectRow: "تحديد الصف",
+      selectedCount: "{n} محددة",
+      clearSelection: "إلغاء التحديد",
+      noMatches: "لا نتائج مطابقة للفلاتر.",
+      noRows: "لا توجد بيانات بعد.",
     },
   },
 };

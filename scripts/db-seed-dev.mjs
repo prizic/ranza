@@ -161,16 +161,56 @@ psql(`
       (property_id, organization_id, name, unit_type, capacity)
     select property.id, property.organization_id, wanted.name, wanted.kind, 2
     from property,
-         (values ('101', 'room'), ('102', 'room'), ('201', 'suite'))
+         (values ('101', 'room'), ('102', 'room'), ('201', 'suite'),
+                 ('301', 'room'), ('302', 'room'))
            as wanted (name, kind)
     returning id, property_id, organization_id, name
-  ), arriving as (
-    -- The first Property only: a second front desk with identical arrivals
-    -- would make the Property switcher look broken rather than demonstrate it.
+  ), departing_units as (
+    -- Rooms 301 and 302, kept away from the arrivals so the two lists never
+    -- contend for the same Unit and the exclusion constraint stays out of it.
     select unit.*, row_number() over (order by unit.name) as seat
     from unit
     join property on property.id = unit.property_id
-    where property.id = (select min(id::text)::uuid from property)
+    where property.id = (select id from property order by name limit 1)
+      and unit.name in ('301', '302')
+  ), departing_reservations as (
+    insert into public.reservations
+      (organization_id, property_id, accommodation_unit_id,
+       guest_name, stay_type, status, starts_on, ends_on)
+    select
+      d.organization_id, d.property_id, d.id,
+      wanted.guest, 'guest', 'checked_in',
+      (now() at time zone property.timezone)::date - wanted.arrived,
+      (now() at time zone property.timezone)::date - wanted.leaves
+    from departing_units as d
+    join property on property.id = d.property_id
+    join (values (1, 'Cahit Arf', 4, 0), (2, 'Halide Edib', 9, 2))
+      as wanted (seat, guest, arrived, leaves)
+      on wanted.seat = d.seat
+    returning id, organization_id, property_id, accommodation_unit_id,
+              starts_on, ends_on
+  ), departing_stays as (
+    -- In house and due — one leaving today, one that should have left two days
+    -- ago. The overdue row is the one a front desk most needs to see.
+    insert into public.stays
+      (organization_id, property_id, accommodation_unit_id, reservation_id,
+       stay_type, status, starts_on, ends_on)
+    select organization_id, property_id, accommodation_unit_id, id,
+           'guest', 'in_house', starts_on, ends_on
+    from departing_reservations
+  ), arriving as (
+    -- One Property only: a second front desk with identical arrivals would make
+    -- the Property switcher look broken rather than demonstrate it.
+    --
+    -- Chosen by name, not by id. min(id::text) picked a random Property, while
+    -- the Workspace opens on the first by name — so the seeded day landed on
+    -- whichever one the screen was not showing. (No backticks in this comment:
+    -- the statement is a JS template literal.)
+    select unit.*, row_number() over (order by unit.name) as seat
+    from unit
+    join property on property.id = unit.property_id
+    where property.id = (select id from property order by name limit 1)
+      and unit.name in ('101', '102', '201')
   )
   insert into public.reservations
     (organization_id, property_id, accommodation_unit_id,
@@ -195,5 +235,7 @@ psql(`
 `);
 
 console.log(`Seeded ${ORGANIZATION} with ${PROPERTIES.length} Properties.`);
-console.log(`${ARRIVALS.length} Reservations arrive today at the first one.`);
+console.log(
+  `${ARRIVALS.length} Reservations arrive today at the first one, and 2 Stays are due to leave.`,
+);
 console.log(`Sign in at ${APP}/tr/today as ${EMAIL} / ${PASSWORD}`);

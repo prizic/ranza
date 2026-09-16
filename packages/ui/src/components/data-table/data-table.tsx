@@ -79,6 +79,7 @@ export interface DataTableLabels extends PaginationLabels {
  */
 export function DataTable<TData, TValue>({
   bulkActions,
+  caption,
   columns,
   data,
   empty,
@@ -96,6 +97,15 @@ export function DataTable<TData, TValue>({
    * and a `clear` to drop the selection once the work is done.
    */
   bulkActions?: (selected: TData[], clear: () => void) => ReactNode;
+  /**
+   * Accessible name. Visually hidden, but not optional — a grid of numbers with
+   * no name is what a screen reader gets otherwise, and the visible heading is
+   * often a tab trigger the table is not associated with.
+   *
+   * Added here rather than carried over: the dashboard this came from has no
+   * caption, and docs/design/visual-reference.md requires one.
+   */
+  caption: string;
   columns: ColumnDef<TData, TValue>[];
   data: readonly TData[];
   /** Shown when the table has no rows at all, as opposed to no matches. */
@@ -281,6 +291,7 @@ export function DataTable<TData, TValue>({
 
       <div className="overflow-hidden rounded-lg border bg-card">
         <Table>
+          <caption className="sr-only">{caption}</caption>
           <TableHeader className="bg-secondary/60">
             {table.getHeaderGroups().map((group) => (
               <TableRow className="hover:bg-transparent" key={group.id}>

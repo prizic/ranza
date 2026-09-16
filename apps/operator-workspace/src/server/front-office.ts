@@ -49,3 +49,32 @@ export async function checkInReservation(
   revalidatePath(`/${locale}/front-office`);
   return "done";
 }
+
+/**
+ * Checking a Guest out.
+ *
+ * `refused` covers every reason it did not happen — out of reach, already
+ * departed, gone. One outcome, because telling them apart would confirm that a
+ * Stay the viewer cannot see exists.
+ */
+export async function checkOutStay(
+  _previous: CheckInOutcome,
+  form: FormData,
+): Promise<CheckInOutcome> {
+  const viewer = await currentViewer();
+  if (!viewer) return "refused";
+
+  const stayId = String(form.get("stay") ?? "");
+  const locale = String(form.get("locale") ?? "");
+  if (!isSupportedLocale(locale)) return "refused";
+
+  try {
+    await getComposition().reservations.checkOut(viewer.userId, stayId);
+  } catch {
+    return "refused";
+  }
+
+  // Both lists are stale now: a Stay left, and its Unit stopped being held.
+  revalidatePath(`/${locale}/front-office`);
+  return "done";
+}

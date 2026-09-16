@@ -1,42 +1,27 @@
 import { notFound } from "next/navigation";
-import {
-  formatDate,
-  isSupportedLocale,
-  type SupportedLocale,
-} from "@ranza/i18n";
-import { Badge, EmptyState } from "@ranza/ui";
+import { isSupportedLocale } from "@ranza/i18n";
+import { EmptyState } from "@ranza/ui";
 import { messages } from "../../../../messages";
+import { FrontOfficeTables } from "../../../../features/front-office/components/front-office-tables";
 import {
   arrivals,
+  departures,
   entitledProperties,
   FRONT_DESK_CAPABILITY,
 } from "../../../../server/viewer";
-import { CheckInForm } from "./check-in-form";
 
 /**
- * Front Office: who is arriving today, and the one action worth taking on them.
+ * Front Office: the day's movement at one Property, and the two actions worth
+ * taking on it.
  *
- * Arrivals only. Blueprint 5.3 also covers departures, room moves, extensions
- * and a Reservation timeline, and none of them are built — a screen that listed
- * them greyed out would be advertising, not an interface.
+ * Arrivals and departures. Blueprint 5.3 also covers room moves, extensions and
+ * a Reservation timeline, and none of them are built — a screen that listed them
+ * greyed out would be advertising, not an interface.
  *
- * The list is not filtered again here. The policies and the capability gate
- * decided it, and a second application-side check would be the weaker of the
+ * Neither list is filtered again here. The policies and the capability gate
+ * decided them, and a second application-side check would be the weaker of the
  * two while inviting somebody to trust it instead of the database.
  */
-
-/**
- * `startsOn` is a calendar date, not an instant, so it is parsed and formatted
- * in UTC. Anything else shifts the date by a day for a reader west of the
- * meridian and shows them the wrong arrival.
- */
-function formatArrivalDate(iso: string, locale: SupportedLocale): string {
-  return formatDate(new Date(`${iso}T00:00:00Z`), locale, {
-    month: "long",
-    timeZone: "UTC",
-  });
-}
-
 export default async function FrontOfficePage({
   params,
   searchParams,
@@ -67,7 +52,11 @@ export default async function FrontOfficePage({
     properties.find((candidate) => candidate.propertyId === requested) ??
     fallback;
 
-  const today = await arrivals(property.propertyId);
+  // In parallel: they are independent reads and the page waits for the slower.
+  const [today, leaving] = await Promise.all([
+    arrivals(property.propertyId),
+    departures(property.propertyId),
+  ]);
 
   return (
     <>
@@ -75,71 +64,12 @@ export default async function FrontOfficePage({
         {copy.arrivalsAt} {property.propertyName}
       </p>
 
-      {today.length === 0 ? (
-        <div className="pt-6">
-          <EmptyState
-            description={copy.noArrivalsDescription}
-            title={copy.noArrivalsTitle}
-          />
-        </div>
-      ) : (
-        <ul className="m-0 mt-4 list-none p-0">
-          {today.map((arrival) => (
-            <li
-              className="grid grid-cols-[1fr_auto] items-center gap-x-8 gap-y-4 border-b border-border py-5 sm:grid-cols-[1fr_auto_auto]"
-              key={arrival.reservationId}
-            >
-              <div>
-                <p className="text-step-1">{arrival.guestName}</p>
-                <p className="mt-0.5 text-step--1 text-muted-foreground">
-                  {copy.stayType[arrival.stayType]} ·{" "}
-                  <time dateTime={arrival.startsOn}>
-                    {formatArrivalDate(arrival.startsOn, locale)}
-                  </time>
-                  {arrival.endsOn ? (
-                    <>
-                      {" – "}
-                      <time dateTime={arrival.endsOn}>
-                        {formatArrivalDate(arrival.endsOn, locale)}
-                      </time>
-                    </>
-                  ) : (
-                    <> · {copy.openEnded}</>
-                  )}
-                </p>
-              </div>
-
-              {/* The Unit takes the place Today gives the clock: at a front
-                  desk the room number is the fact read at arm's length. */}
-              <p className="flex flex-col items-end text-end">
-                <span className="text-step-1 leading-none tabular-nums">
-                  {arrival.unitName}
-                </span>
-                <span className="text-step--1 text-muted-foreground">
-                  {copy.unitType[arrival.unitType]}
-                </span>
-              </p>
-
-              {arrival.canCheckIn ? (
-                <CheckInForm
-                  copy={copy}
-                  locale={locale}
-                  reservationId={arrival.reservationId}
-                />
-              ) : (
-                // Text, not a colour: a status has to survive being printed,
-                // exported and read aloud (blueprint 18.5).
-                <Badge
-                  className="col-span-full sm:col-span-1"
-                  variant="secondary"
-                >
-                  {copy.reservationStatus[arrival.status]}
-                </Badge>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+      <FrontOfficeTables
+        arrivals={today}
+        copy={copy}
+        departures={leaving}
+        locale={locale}
+      />
     </>
   );
 }
