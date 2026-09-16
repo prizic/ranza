@@ -86,6 +86,15 @@ export interface Messages {
   noDeparturesTitle: string;
   noDeparturesDescription: string;
   table: TableMessages;
+
+  /** Rail and page-bar names, keyed by route segment. */
+  navigation: Record<string, string>;
+  /** What each planned screen will do, keyed by route segment. */
+  screenSummary: Record<string, string>;
+  planned: string;
+  handoverLabel: string;
+  notEntitledTitle: string;
+  notEntitledDescription: string;
 }
 
 /** The listing kit's strings. `{n}`, `{of}` and `{columns}` are interpolated. */
@@ -231,6 +240,37 @@ export const messages: Record<SupportedLocale, Messages> = {
       noMatches: "Filtrelerle eşleşen sonuç yok.",
       noRows: "Henüz kayıt yok.",
     },
+    navigation: {
+      today: "Bugün",
+      "front-office": "Ön büro",
+      arrivals: "Girişler",
+      departures: "Çıkışlar",
+      "guest-experience": "Konuk deneyimi",
+      housekeeping: "Kat hizmetleri",
+      "food-and-beverage": "Yiyecek içecek",
+      inventory: "Stok",
+      finance: "Finans",
+      people: "Ekip",
+      analytics: "Analitik",
+      configuration: "Ayarlar",
+    },
+    screenSummary: {
+      "guest-experience":
+        "Konuk ve sakin talepleri, duyurular ve hizmet takibi.",
+      housekeeping: "Oda durumu, temizlik planı ve görev atamaları.",
+      "food-and-beverage":
+        "Öğün planları, satış noktaları ve tüketim kayıtları.",
+      inventory: "Stok hareketleri, sayımlar ve satın alma.",
+      finance: "Folyolar, faturalar, tahsilatlar ve mutabakat.",
+      people: "Personel kayıtları, vardiyalar ve yetkilendirme.",
+      analytics: "Doluluk, gelir ve operasyon raporları.",
+      configuration: "Organizasyon, tesis, birim ve yetkilendirme ayarları.",
+    },
+    planned: "Planlandı",
+    handoverLabel: "Bu ekranın devir notu",
+    notEntitledTitle: "Bu modül aboneliğinizde yok",
+    notEntitledDescription:
+      "Organizasyonunuz bu modüle abone olduğunda ve tesiste etkinleştirildiğinde burada görünür.",
   },
   en: {
     productName: "Ranza",
@@ -347,6 +387,36 @@ export const messages: Record<SupportedLocale, Messages> = {
       noMatches: "Nothing matches these filters.",
       noRows: "Nothing here yet.",
     },
+    navigation: {
+      today: "Today",
+      "front-office": "Front Office",
+      arrivals: "Arrivals",
+      departures: "Departures",
+      "guest-experience": "Guest Experience",
+      housekeeping: "Housekeeping",
+      "food-and-beverage": "Food & Beverage",
+      inventory: "Inventory",
+      finance: "Finance",
+      people: "People",
+      analytics: "Analytics",
+      configuration: "Configuration",
+    },
+    screenSummary: {
+      "guest-experience":
+        "Guest and Resident requests, announcements and service tracking.",
+      housekeeping: "Unit readiness, cleaning schedule and task assignment.",
+      "food-and-beverage": "Meal plans, outlets and consumption records.",
+      inventory: "Stock movements, counts and procurement.",
+      finance: "Folios, invoices, payments and reconciliation.",
+      people: "Staff records, shifts and permissions.",
+      analytics: "Occupancy, revenue and operational reporting.",
+      configuration: "Organization, Property, Unit and permission settings.",
+    },
+    planned: "Planned",
+    handoverLabel: "This screen's handover note",
+    notEntitledTitle: "This module is not in your Subscription",
+    notEntitledDescription:
+      "It appears here once your Organization subscribes to it and the Property has it enabled.",
   },
   ar: {
     productName: "Ranza",
@@ -462,5 +532,34 @@ export const messages: Record<SupportedLocale, Messages> = {
       noMatches: "لا نتائج مطابقة للفلاتر.",
       noRows: "لا توجد بيانات بعد.",
     },
+    navigation: {
+      today: "اليوم",
+      "front-office": "المكتب الأمامي",
+      arrivals: "الوصول",
+      departures: "المغادرة",
+      "guest-experience": "تجربة الضيف",
+      housekeeping: "خدمة الغرف",
+      "food-and-beverage": "الأطعمة والمشروبات",
+      inventory: "المخزون",
+      finance: "المالية",
+      people: "الفريق",
+      analytics: "التحليلات",
+      configuration: "الإعدادات",
+    },
+    screenSummary: {
+      "guest-experience": "طلبات الضيوف والمقيمين والإعلانات ومتابعة الخدمة.",
+      housekeeping: "جاهزية الوحدات وجدول التنظيف وتوزيع المهام.",
+      "food-and-beverage": "خطط الوجبات والمنافذ وسجلات الاستهلاك.",
+      inventory: "حركات المخزون والجرد والمشتريات.",
+      finance: "الفواتير والتحصيل والتسويات.",
+      people: "سجلات الموظفين والورديات والصلاحيات.",
+      analytics: "تقارير الإشغال والإيرادات والتشغيل.",
+      configuration: "إعدادات المؤسسة والمنشأة والوحدات والصلاحيات.",
+    },
+    planned: "مخطط له",
+    handoverLabel: "ملاحظة التسليم لهذه الشاشة",
+    notEntitledTitle: "هذه الوحدة غير مشمولة في اشتراكك",
+    notEntitledDescription:
+      "تظهر هنا عندما تشترك مؤسستك فيها ويتم تفعيلها في المنشأة.",
   },
 };

@@ -11,9 +11,9 @@ import {
   DropdownMenuSeparator,
 } from "@ranza/ui";
 import { messages } from "../../../messages";
+import { ALL_SCREENS } from "../../../lib/screens";
 import {
   entitledProperties,
-  FRONT_DESK_CAPABILITY,
   requireViewer,
   TODAY_CAPABILITY,
 } from "../../../server/viewer";
@@ -43,17 +43,37 @@ export default async function WorkspaceLayout({
   const copy = messages[locale];
   const viewer = await requireViewer(locale);
 
-  // Asked separately, because they are separate gates. A Property can have
-  // Today without the front desk — different Entitlement, different Property
-  // capability — and navigation lists what was bought, not what exists.
-  const properties = await entitledProperties(TODAY_CAPABILITY);
-  const frontDesk = await entitledProperties(FRONT_DESK_CAPABILITY);
+  // Every destination is asked about separately, because each is a separate
+  // gate: a Property can have Today without the front desk — different
+  // Entitlement, different Property capability — and navigation lists what was
+  // bought, not what exists (blueprint 4.6).
+  //
+  // In parallel, because they are independent reads and the shell waits for the
+  // slowest. The unique capability keys are asked once each; two destinations
+  // sharing one (arrivals and departures) do not cost two round trips.
+  const capabilities = [
+    ...new Map(
+      ALL_SCREENS.map((screen) => [
+        screen.capability,
+        { capabilityKey: screen.capability, moduleKey: screen.module },
+      ]),
+    ).values(),
+  ];
+  const answers = await Promise.all(
+    capabilities.map(async (capability) => ({
+      key: capability.capabilityKey,
+      reachable: await entitledProperties(capability),
+    })),
+  );
 
   // Plain strings, so the tree can be built on the client where its icons live.
-  const entitled = [
-    ...(properties.length > 0 ? [TODAY_CAPABILITY.capabilityKey] : []),
-    ...(frontDesk.length > 0 ? [FRONT_DESK_CAPABILITY.capabilityKey] : []),
-  ];
+  const entitled = answers
+    .filter((answer) => answer.reachable.length > 0)
+    .map((answer) => answer.key);
+
+  const properties =
+    answers.find((answer) => answer.key === TODAY_CAPABILITY.capabilityKey)
+      ?.reachable ?? [];
 
   const root = localizeHref(locale, "today");
   const [first] = properties;

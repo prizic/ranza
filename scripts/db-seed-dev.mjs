@@ -150,12 +150,26 @@ psql(`
     insert into public.property_assignments (property_id, organization_id, user_id)
     select id, organization_id, '${userId}' from property
   ), front_office as (
+    -- Every module the Workspace has a destination for. The screens behind most
+    -- of them are stubs, but the gate is real: without these rows the rail
+    -- shows two tiles and a developer opening the project sees none of the work
+    -- that is waiting. See docs/handover/operator-workspace-screens.md.
     insert into public.entitlements (organization_id, module_key, status)
-    select id, 'front_office', 'active' from organization
+    select organization.id, wanted.module_key, 'active'
+    from organization,
+         (values ('front_office'), ('guest_services'), ('housekeeping'),
+                 ('food_and_beverage'), ('inventory'), ('billing_folios'),
+                 ('human_resources'), ('analytics'))
+           as wanted (module_key)
   ), front_desk as (
     insert into public.property_capabilities
       (property_id, organization_id, capability_key, enabled)
-    select id, organization_id, 'front_desk', true from property
+    select property.id, property.organization_id, wanted.capability_key, true
+    from property,
+         (values ('front_desk'), ('guest_experience'), ('housekeeping'),
+                 ('food_and_beverage'), ('inventory'), ('finance'),
+                 ('people'), ('analytics'), ('configuration'))
+           as wanted (capability_key)
   ), unit as (
     insert into public.accommodation_units
       (property_id, organization_id, name, unit_type, capacity)

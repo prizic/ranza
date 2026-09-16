@@ -1,39 +1,39 @@
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
+import { ALL_SCREENS } from "./screens";
 import type { Messages } from "../messages";
 
 /**
  * The bar that names the page, above every surface.
  *
- * Matching lives here rather than in the component so it can be held against
- * the rail. In the dashboard this pattern came from, a page that was in the
- * rail but not in this list rendered with no bar at all — silently — which is
- * how a whole screen shipped without a heading.
+ * Built from the same list the rail is, so a destination cannot exist in one
+ * and not the other. In the dashboard this pattern came from, a page that was
+ * in the rail but not in the titles list rendered with no bar at all — silently
+ * — which is how a whole screen shipped without a heading.
  *
- * Routes here are locale-prefixed, so the locale is stripped before matching
- * and every prefix is written without it.
+ * Routes here are locale-prefixed, so the locale is stripped before matching.
  */
 export interface PageTitle {
-  /** Locale-less route prefix, e.g. `/front-office`. */
+  /** Locale-less route prefix, e.g. `/departures`. */
   prefix: string;
   title: string;
   /** A child page names its parent so the bar can carry the way back. */
   parent?: { href: string; title: string };
 }
 
-/** The first entry that fits wins, so a child route is listed before its parent. */
 export function workspacePageTitles(
   locale: SupportedLocale,
   copy: Messages,
 ): PageTitle[] {
   return [
-    { prefix: "/arrivals", title: copy.arrivals },
-    { prefix: "/departures", title: copy.departures },
+    ...ALL_SCREENS.filter((screen) => !screen.children).map((screen) => ({
+      prefix: `/${screen.segment}`,
+      title: copy.navigation[screen.segment] ?? screen.segment,
+    })),
     {
       prefix: "/security",
       title: copy.security,
       parent: { href: localizeHref(locale, "today"), title: copy.productName },
     },
-    { prefix: "/today", title: copy.today },
   ];
 }
 

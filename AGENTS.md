@@ -213,6 +213,13 @@ Staff Member end a Stay would otherwise let them rewrite the Unit and turn a
 check-out into a room move. A policy bounds rows; a grant bounds columns
 (ADR 0012, amended).
 
+The rail now carries all eleven blueprint 4.6 destinations. Two are built;
+the rest are gated routes that state their purpose and say what has to exist
+first — `docs/handover/operator-workspace-screens.md` is the note a new
+contributor reads before starting one. They are stubs on purpose: blueprint
+section 13 forbids building tables ahead of the workflows that need them, so an
+unbuilt screen is a position rather than an oversight.
+
 Phase 2 continues with the rest of blueprint 5.3 — group reservations,
 quotations, deposits, availability search, extensions, room moves, check-out and
 no-show handling, none of which are built — then Folios, and the Portal

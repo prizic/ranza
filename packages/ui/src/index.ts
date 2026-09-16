@@ -28,6 +28,7 @@ export { StatusBadge } from "./components/status-badge";
 export type { StatusBadgeProps, StatusTone } from "./components/status-badge";
 export { BrandMark } from "./components/brand-mark";
 export { EmptyState } from "./components/empty-state";
+export { PlannedScreen } from "./components/planned-screen";
 export type { EmptyStateProps } from "./components/empty-state";
 export {
   Fact,
