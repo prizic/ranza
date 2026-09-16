@@ -182,9 +182,9 @@ The **front desk writes** is where Phase 2 starts, and it is the first mutation
 in the product. `packages/ranza/reservations` owns the Reservation and the
 check-in that turns one into a Stay: one transaction that creates the Stay, moves
 the Reservation and records the actor, or does none of the three.
-`apps/operator-workspace` renders `/{tr,en,ar}/front-office` from it: arrivals
-and departures as two tabs, each a `DataTable` with search, sorting and column
-visibility, and one action per row.
+`apps/operator-workspace` renders `/{tr,en,ar}/arrivals` and `/departures` from
+it — two routes rather than two tabs, each a `DataTable` with search, sorting
+and column visibility, and one action per row.
 
 Two things there are worth knowing before writing the next module, because both
 are precedent. **A write is bounded by a policy, not by a check** — ADR 0012 —

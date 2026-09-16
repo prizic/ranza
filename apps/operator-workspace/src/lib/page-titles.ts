@@ -26,7 +26,8 @@ export function workspacePageTitles(
   copy: Messages,
 ): PageTitle[] {
   return [
-    { prefix: "/front-office", title: copy.frontOffice },
+    { prefix: "/arrivals", title: copy.arrivals },
+    { prefix: "/departures", title: copy.departures },
     {
       prefix: "/security",
       title: copy.security,

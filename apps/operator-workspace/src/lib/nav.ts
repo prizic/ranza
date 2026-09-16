@@ -1,6 +1,7 @@
 import {
-  CalendarCheck,
+  DoorOpen,
   House,
+  LogOut,
   ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
@@ -43,11 +44,20 @@ const ENTRIES: Entry[] = [
     label: (copy) => copy.today,
     segment: "today",
   },
+  // Arrivals and departures are two destinations, not two tabs of one. They
+  // are worked at different times of day, and a tab is a worse link: it cannot
+  // be bookmarked, sent to a colleague, or opened beside the other one.
   {
     capability: "front_desk",
-    icon: CalendarCheck,
-    label: (copy) => copy.frontOffice,
-    segment: "front-office",
+    icon: DoorOpen,
+    label: (copy) => copy.arrivals,
+    segment: "arrivals",
+  },
+  {
+    capability: "front_desk",
+    icon: LogOut,
+    label: (copy) => copy.departures,
+    segment: "departures",
   },
 ];
 

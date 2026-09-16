@@ -26,6 +26,19 @@ import { currentViewer } from "./viewer";
  */
 export type CheckInOutcome = "idle" | "done" | "unavailable" | "refused";
 
+/**
+ * Both screens, after either action.
+ *
+ * A check-in moves a Reservation and creates a Stay that may be due to leave
+ * today; a check-out ends a Stay and frees a Unit the arrivals list depends on.
+ * Working out which of the two is stale is more effort than revalidating both,
+ * and gets it wrong the first time somebody adds a column.
+ */
+function revalidateFrontDesk(locale: string): void {
+  revalidatePath(`/${locale}/arrivals`);
+  revalidatePath(`/${locale}/departures`);
+}
+
 export async function checkInReservation(
   _previous: CheckInOutcome,
   form: FormData,
@@ -43,10 +56,7 @@ export async function checkInReservation(
     return error instanceof UnitUnavailableError ? "unavailable" : "refused";
   }
 
-  // The arrivals list is now stale in two ways — a status moved, and the Unit
-  // stopped being free. Revalidating the route is cheaper than reasoning about
-  // which of them a given screen is showing.
-  revalidatePath(`/${locale}/front-office`);
+  revalidateFrontDesk(locale);
   return "done";
 }
 
@@ -74,7 +84,6 @@ export async function checkOutStay(
     return "refused";
   }
 
-  // Both lists are stale now: a Stay left, and its Unit stopped being held.
-  revalidatePath(`/${locale}/front-office`);
+  revalidateFrontDesk(locale);
   return "done";
 }

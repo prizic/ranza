@@ -51,6 +51,7 @@ export interface Messages {
 
   frontOffice: string;
   arrivalsAt: string;
+  departuresAt: string;
   noFrontDeskTitle: string;
   noFrontDeskDescription: string;
   noArrivalsTitle: string;
@@ -162,6 +163,7 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     frontOffice: "Ön büro",
     arrivalsAt: "Bugünkü girişler:",
+    departuresAt: "Bugünkü çıkışlar:",
     noFrontDeskTitle: "Ön büro bu tesiste açık değil",
     noFrontDeskDescription:
       "Ön büro, organizasyonunuzun aboneliğinde yer aldığında ve tesiste etkinleştirildiğinde burada görünür.",
@@ -278,6 +280,7 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     frontOffice: "Front Office",
     arrivalsAt: "Arriving today at",
+    departuresAt: "Leaving today at",
     noFrontDeskTitle: "The front desk is not open at this Property",
     noFrontDeskDescription:
       "It appears here once your Organization's Subscription includes it and the Property has it enabled.",
@@ -391,6 +394,7 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     frontOffice: "المكتب الأمامي",
     arrivalsAt: "الوصول اليوم في",
+    departuresAt: "المغادرة اليوم في",
     noFrontDeskTitle: "المكتب الأمامي غير مفعّل في هذه المنشأة",
     noFrontDeskDescription:
       "يظهر هنا عندما يشمله اشتراك مؤسستك ويتم تفعيله في المنشأة.",
