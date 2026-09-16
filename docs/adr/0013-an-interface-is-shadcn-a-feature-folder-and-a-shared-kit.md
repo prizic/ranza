@@ -1,0 +1,114 @@
+# 0013. An interface is shadcn, a feature folder, and a shared kit
+
+Status: Accepted
+Date: 2026-09-16
+
+## Context
+
+The applications have six routes between them and are about to gain many more:
+blueprint 18.4 asks for an operator home built from exception tiles, 18.6 asks
+for a Reservation timeline with a persistent drawer and an action cluster, and
+the approved mockups add a Property list, a staff-and-access table, a Resident
+profile with tabs, module discovery and a mobile Housekeeping surface.
+
+Two things forced the decision now.
+
+**The screens that exist do not look like the screens that were designed**, and
+the gap is mostly structural rather than cosmetic. Every mockup has a left
+sidebar; `AppShell` is a top bar. Every mockup uses tables with row actions,
+KPI tiles, status badges, tabs and a detail drawer; none of those exist. Adding
+them ad hoc, one screen at a time, is how a codebase ends up with four table
+implementations.
+
+**There is a working example to copy rather than invent.**
+`ryadh/mirhaal/apps/dashboard` is a production dashboard with the same stack —
+Next, Tailwind v4, shadcn, RTL — whose component organisation has already
+survived twenty features. Borrowing a proven arrangement is cheaper and better
+than deriving one, and section 12 of the blueprint asks for exactly that
+preference.
+
+## Decision
+
+### Three layers, and a file's layer is decided by how many callers it has
+
+```text
+packages/ui/src/components/ui/     shadcn. Owned source, edited freely.
+packages/ui/src/components/        the shared kit — used by both applications
+apps/<app>/src/features/<domain>/  one domain's screens — used by one
+```
+
+A component moves **up** when a second caller appears, never before. A table
+column definition for Reservations has one caller and stays in the feature; the
+data-table it is fed to has many and lives in the kit.
+
+The kit is what `packages/ui` already is, so this mostly names a rule that was
+being followed by accident. `features/` is new, and it exists because a route
+file should compose a screen, not contain one — the mockups' screens are
+several hundred lines each.
+
+### A feature folder has a fixed anatomy
+
+```text
+features/reservations/
+  components/reservations-table.tsx   the table
+  components/columns.tsx              column definitions
+  components/reservation-panel.tsx    the detail or edit drawer
+  components/reservation-actions.tsx  row actions
+```
+
+Taken from mirhaal unchanged. The value is that a reader looking for "where is
+the edit form for X" never has to search.
+
+**A feature component is presentational.** It receives its data as props from
+the route, which got it from `src/server/`. That is not a style preference:
+ADR 0007 makes reaching the database outside the server funnel a build failure,
+and `.dependency-cruiser.cjs` enforces it for every path under `src/` that is
+not `src/server/`. Feature folders fall under that rule automatically.
+
+### Tables are TanStack Table
+
+`@tanstack/react-table` v8, behind one `DataTable` in the kit, with the column
+header, faceted filter, pagination, row actions and view options as separate
+pieces — the arrangement mirhaal uses. Sorting, filtering and column visibility
+are solved problems and writing them again per screen is how they drift.
+
+### A status is a token, not a colour picked per screen
+
+Status colours live in the theme as `--chart-1..5` with a matching `-fg`, and a
+`StatusBadge` maps a **database enum** onto them. Keying on the enum means
+adding a status to a check constraint without giving it a label is a type error
+rather than a blank chip.
+
+This is also how blueprint 18.5 is satisfied by construction: a badge is an
+icon, a label and a colour together, so it survives being printed, exported or
+read aloud. A screen that reaches for a raw colour class to mean something is a
+defect.
+
+### Directional utilities are always logical
+
+`ps`/`pe`, `border-s`, `text-start`, `ms-auto`. Arabic then mirrors by
+construction rather than through a second stylesheet, which is what blueprint
+9.5 requires and what a retrofit never quite achieves. `shadcn migrate rtl` is
+run after every `shadcn add`.
+
+## Consequences
+
+`packages/ui` grows a real surface — a dozen shared components rather than four
+primitives — and that is the point: it is the only place both applications can
+agree, and the Guest Portal gets the same table and the same badge as the
+Workspace for free.
+
+The palette question is settled against the implementation.
+`docs/design/visual-reference.md` and the approved mockups agree on a teal
+accent on white; the build shipped petrol and brass. The brief wins, and
+re-theming is its own change — one file, because every component reads tokens
+rather than hex.
+
+Borrowing mirhaal's arrangement means borrowing its assumptions. It is a
+single-application dashboard with no shared package and no second host, so the
+kit/feature split here is an adaptation rather than a copy, and the places they
+differ — `packages/ui` instead of `components/shared`, no database access in a
+feature — are the places to be careful when lifting code across.
+
+This ADR says nothing about which screens get built or in what order. It says
+that when one is built, there is one right place for each piece of it.

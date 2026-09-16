@@ -258,6 +258,11 @@ every local run and took one pgTAP run against Supabase to surface.
   README covers the two fixes every `add` needs. The only stylesheet is
   `packages/ui/src/styles/globals.css`, which holds the theme. A new `.css` file
   or a `className` naming a bespoke class is a mistake, not a local exception.
+- Where each piece of a screen belongs — shadcn, the shared kit, or a feature
+  folder — is [ADR 0013](docs/adr/0013-an-interface-is-shadcn-a-feature-folder-and-a-shared-kit.md).
+  Layout references are `docs/design/ui-references.md`; the palette is
+  `docs/design/visual-reference.md`, **which the current theme does not match
+  yet** and which wins when they disagree.
 - Directional utilities are always logical — `ps`/`pe`, `border-s`,
   `text-start`. That is what makes Arabic mirror by construction.
 - Vertical slices with externally verifiable behaviour, not a schema built ahead

@@ -58,13 +58,18 @@ matter (section 10).
 
 ## Design tokens
 
-These are the **intended** direction, kept here because they are a design
-decision rather than a record of the code. The tokens actually in use are in
-[`packages/ui/src/styles/globals.css`](../../packages/ui/src/styles/globals.css),
-and they are not these: the build settled on petrol chrome with a brass accent
-and IBM Plex, where this brief asks for a teal accent and Aptos. Reconciling the
-two is the theming step, and until it happens neither file should be edited to
-pretend the other does not exist.
+**This file wins.** The approved mockups use this palette — a teal accent on a
+pale canvas — and they are the agreed direction.
+[`packages/ui/src/styles/globals.css`](../../packages/ui/src/styles/globals.css)
+currently holds something else: petrol chrome with a brass accent and IBM Plex,
+which the walking skeleton shipped before this brief was reconciled with it.
+That is a known defect with a known fix — every component reads tokens rather
+than hex, so correcting it is one file. Do not edit the values below to match
+the code.
+
+See also [`ui-references.md`](ui-references.md) for layout and interaction, and
+[ADR 0013](../adr/0013-an-interface-is-shadcn-a-feature-folder-and-a-shared-kit.md)
+for how components are organised.
 
 ```css
 --canvas: #f3f6f4;
