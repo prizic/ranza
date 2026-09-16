@@ -69,8 +69,10 @@ the one-way door.
 
 A check-in opens a Folio; withdrawing one closes it, in the same transaction as
 everything else here. Not `closeFolio`, which opens its own transaction and so
-could not see a withdrawal that has not committed — `closeFolioWithin(tx)`,
-which shares the fate of the writes around it.
+could not see a withdrawal that has not committed — `closeEmptyFolioWithin(tx)`,
+which shares the fate of the writes around it. `Empty` is in the name because it
+takes no per-Stay lock and checks no balance — check-out needs one that does
+both, and this is not it.
 
 Left open it was never a way to lose money: `folio_lines_postable` refuses a
 line on a cancelled Stay, so nothing could ever be posted. It was a row on the

@@ -67,7 +67,13 @@ export async function openFolioWithin(
 }
 
 /**
- * Closes the Folio of a Stay that has just been withdrawn.
+ * Closes the empty Folio of a Stay that has just been withdrawn.
+ *
+ * `Empty` is in the name because this is not the general "close a Folio" that
+ * check-out needs. It takes no per-Stay advisory lock and checks no balance; it
+ * leans entirely on the Stay being `cancelled`. Check-out's version has to do
+ * both — see PRE-03 in docs/features/check-out/edge-cases.csv — and naming this
+ * one `closeFolioWithin` would have made that prerequisite look done.
  *
  * Deliberately not `closeFolio`. That opens its own `withOrganizationContext`
  * transaction, so it could not see the withdrawal that has not committed yet:
@@ -85,7 +91,7 @@ export async function openFolioWithin(
  * Returns null when there is nothing to close — the Property does no billing,
  * or the Folio is already closed. Both are states, not failures.
  */
-export async function closeFolioWithin(
+export async function closeEmptyFolioWithin(
   tx: FolioWriteClient,
   stayId: string,
 ): Promise<{ folioId: string } | null> {
