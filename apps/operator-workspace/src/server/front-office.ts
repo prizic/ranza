@@ -2,12 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { isSupportedLocale } from "@ranza/i18n";
-import {
-  REVERSAL_REASON,
-  StayHasChargesError,
-  UnitUnavailableError,
-} from "@ranza/reservations";
+import { REVERSAL_REASON, UnitUnavailableError } from "@ranza/reservations";
 import { getComposition } from "./composition";
+import { undoOutcomeFor, type ReverseCheckInOutcome } from "./undo-outcome";
 import { currentViewer } from "./viewer";
 
 /**
@@ -92,21 +89,7 @@ export async function checkOutStay(
   return "done";
 }
 
-/**
- * What withdrawing a check-in can come back as.
- *
- * `charges` is the one refusal a front desk can act on, and it is separate for
- * that reason alone: everything else a withdrawal can fail on — out of reach,
- * already departed, already withdrawn, never happened, no session — is
- * `refused`, because telling them apart would confirm that a Stay the viewer
- * cannot see is there (ADR 0022).
- *
- * The two reason outcomes are about the field rather than the Stay, and saying
- * "that cannot be withdrawn" to somebody who typed two characters would send
- * them looking for a problem with the Guest.
- */
-export type ReverseCheckInOutcome =
-  "idle" | "done" | "charges" | "reasonTooShort" | "reasonTooLong" | "refused";
+export type { ReverseCheckInOutcome };
 
 /**
  * Withdrawing a check-in that should not have happened (ADR 0022).
@@ -146,7 +129,16 @@ export async function reverseCheckIn(
       reason,
     );
   } catch (error) {
-    return error instanceof StayHasChargesError ? "charges" : "refused";
+    const outcome = undoOutcomeFor(error);
+    if (outcome) return outcome;
+
+    // Not a refusal this module raised: a lost connection, a schema that moved,
+    // a defect here. Reported as one — there is nothing else to show a front
+    // desk, and retrying is the right instinct for most of them — but never
+    // quietly. `console.error` is the whole of the workspace's observability
+    // today; when there is a real one, this is one of the lines that moves.
+    console.error("reverseCheckIn failed unexpectedly", { stayId }, error);
+    return "refused";
   }
 
   revalidateFrontDesk(locale);
