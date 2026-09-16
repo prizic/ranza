@@ -2,33 +2,20 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client";
 
 /**
- * Runtime client.
+ * Creates a database client for a given connection.
  *
- * Connects through DATABASE_URL, which must point at a pooled connection in
- * production. Migrations use DIRECT_URL via prisma.config.ts — a transaction
- * mode pooler cannot run DDL (ADR 0001).
+ * This package deliberately reads no environment variables and holds no
+ * singleton. The host composes its clients and passes them to modules, which is
+ * what keeps a module portable: it cannot accidentally depend on one process's
+ * configuration.
  *
- * The role behind DATABASE_URL must be RLS-subject. Never point it at an owner
- * or a BYPASSRLS role: every policy would silently stop applying.
+ * Callers are responsible for pointing this at the right role. The runtime
+ * connection must be RLS-subject — never a table owner or a BYPASSRLS role, or
+ * every policy silently stops applying. Migrations use a separate direct
+ * connection because a transaction-mode pooler cannot run DDL (ADR 0001).
  */
 export function createPrismaClient(connectionString: string): PrismaClient {
   return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 }
 
-function createClient() {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new Error("DATABASE_URL is required");
-  }
-  return createPrismaClient(connectionString);
-}
-
-// Reused across hot reloads in development, where a new client per reload
-// exhausts the connection pool.
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-
-export const prisma: PrismaClient = globalForPrisma.prisma ?? createClient();
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
+export type { PrismaClient };

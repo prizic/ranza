@@ -8,15 +8,9 @@
  * runs all of them together, which is the only way to know the seam works.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import {
-  auth,
-  authPrisma,
-  linkRanzaUser,
-  resolveRanzaUserId,
-} from "../../packages/auth/src";
+import { createAuthModule } from "../../packages/auth/src";
 import {
   createPrismaClient,
-  prisma,
   withOrganizationContext,
 } from "../../packages/db/src";
 
@@ -24,7 +18,16 @@ const ORG = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const EMAIL = `flow-${Date.now()}@example.test`;
 const PASSWORD = "correct-horse-battery-staple";
 
+// Composed here exactly as a host would: three clients, three roles.
+const prisma = createPrismaClient(process.env.DATABASE_URL!);
 const owner = createPrismaClient(process.env.DIRECT_URL!);
+const authDb = createPrismaClient(process.env.AUTH_DATABASE_URL!);
+
+const { auth, linkRanzaUser, resolveRanzaUserId } = createAuthModule({
+  db: authDb,
+  secret:
+    process.env.BETTER_AUTH_SECRET ?? "test-secret-not-used-in-production",
+});
 
 let subject: string;
 let ranzaUserId: string;
@@ -60,7 +63,7 @@ afterAll(async () => {
     EMAIL,
   );
   await owner.$disconnect();
-  await authPrisma.$disconnect();
+  await authDb.$disconnect();
   await prisma.$disconnect();
 });
 

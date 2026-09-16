@@ -75,3 +75,25 @@ assert.deepEqual(
 console.log(
   `PASS platform modules are free of Ranza vocabulary (${sourceFiles(platformRoot).length} files scanned)`,
 );
+
+// Modules receive their dependencies; they do not discover them. A module that
+// reads process.env is welded to one process's configuration and cannot be
+// tested against a throwaway database or reused by another host.
+//
+// packages/config is exempt: parsing the environment is its entire purpose.
+const injectable = readdirSync(path.join(root, "packages"), {
+  withFileTypes: true,
+})
+  .filter((entry) => entry.isDirectory() && entry.name !== "config")
+  .map((entry) => path.join(root, "packages", entry.name, "src"));
+
+const envReaders = injectable
+  .flatMap((directory) => sourceFiles(directory))
+  .filter((file) => /process\.env/.test(readFileSync(file, "utf8")));
+
+assert.deepEqual(
+  envReaders.map((file) => path.relative(root, file)),
+  [],
+  "modules must receive configuration through their deps, not read process.env",
+);
+console.log("PASS modules take dependencies by injection");

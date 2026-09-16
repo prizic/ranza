@@ -1,3 +1,5 @@
-export { auth, authPrisma } from "./auth";
-export type { Auth } from "./auth";
-export { resolveRanzaUserId, linkRanzaUser, AUTH_ISSUER } from "./identity";
+export { createAuthModule } from "./module";
+export type { AuthModule } from "./module";
+export type { AuthDeps } from "./ports";
+export { AUTH_ISSUER } from "./contracts";
+export type { LinkRanzaUserInput } from "./contracts";

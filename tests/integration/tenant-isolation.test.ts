@@ -6,7 +6,7 @@
  * risk being managed here is whether Postgres actually sees the context.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createPrismaClient, prisma } from "../../packages/db/src/client";
+import { createPrismaClient } from "../../packages/db/src";
 import { withOrganizationContext } from "../../packages/db/src/context";
 
 const ORG_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -14,11 +14,12 @@ const ORG_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const OWNER_A = "11111111-1111-4111-8111-111111111111";
 const OWNER_B = "33333333-3333-4333-8333-333333333333";
 
-// Seeding needs DDL-free but INSERT-capable rights; ranza_app deliberately has
-// only SELECT, so fixtures go in as the owner.
-const owner = createPrismaClient(
-  process.env.DIRECT_URL ?? "postgresql://ranza:ranza@localhost:54322/ranza",
-);
+// The host composes its own clients; the package reads no environment.
+const prisma = createPrismaClient(process.env.DATABASE_URL!);
+
+// Seeding needs INSERT rights; ranza_app deliberately has only SELECT, so
+// fixtures go in as the owner.
+const owner = createPrismaClient(process.env.DIRECT_URL!);
 
 beforeAll(async () => {
   await owner.$executeRawUnsafe(
