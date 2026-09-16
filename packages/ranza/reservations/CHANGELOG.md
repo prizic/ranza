@@ -11,6 +11,16 @@ everything lands under Unreleased.
 
 ### Changed
 
+- `checkIn` refuses a Reservation whose first night has not arrived, and one
+  whose last night has passed. Without the first, a booking three weeks out
+  became an `in_house` Stay with future dates and a second Guest could take the
+  same Unit tonight, because `stays_no_double_booking` sees two ranges that do
+  not overlap. `stays_insert_front_desk` refuses the same row independently
+  (`20260916001300_check_in_on_the_day`); the predicate here is what makes the
+  refusal an empty result rather than a constraint violation to decode.
+- The Stay now starts on the day the Guest actually arrived, not the day they
+  were booked for. Somebody two days late began their Stay today, and recording
+  the planned date held the Unit over two nights nobody slept in.
 - Check-in opens the Stay's Folio through `openFolioWithin` (blueprint 6.1
   step 5), in the same transaction as everything else it does. `CheckedIn`
   gained `folioId`, which is null where the Property does not do billing —

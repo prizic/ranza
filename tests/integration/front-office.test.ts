@@ -15,6 +15,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAuditModule } from "../../packages/platform/audit/src";
 import {
+  CheckInError,
   CheckOutError,
   createReservationsModule,
   UnitUnavailableError,
@@ -33,6 +34,9 @@ const OTHER_IN_PROPERTY = "d4000004-0000-4000-8000-000000000004";
 const DEPARTING_A = "d4000004-0000-4000-8000-000000000005";
 const DEPARTING_B = "d4000004-0000-4000-8000-000000000006";
 const OPEN_ENDED = "d4000004-0000-4000-8000-000000000007";
+const RACED = "d4000004-0000-4000-8000-000000000008";
+const OVERSTAYED = "d4000004-0000-4000-8000-000000000009";
+const TAKEN = "d4000004-0000-4000-8000-00000000000a";
 const MEMBER = "d4000001-0000-4000-8000-000000000001";
 const OUTSIDER = "d4000001-0000-4000-8000-000000000002";
 
@@ -88,7 +92,10 @@ async function seed() {
        ($8,$4,$6,'FD-103','room',2),
        ($9,$4,$6,'FD-104','room',2),
        ($10,$4,$6,'FD-105','room',2),
-       ($11,$4,$6,'FD-106','room',2)
+       ($11,$4,$6,'FD-106','room',2),
+       ($12,$4,$6,'FD-107','room',2),
+       ($13,$4,$6,'FD-108','room',2),
+       ($14,$4,$6,'FD-109','room',2)
      on conflict (id) do nothing`,
     UNIT,
     CONTESTED,
@@ -101,6 +108,9 @@ async function seed() {
     DEPARTING_A,
     DEPARTING_B,
     OPEN_ENDED,
+    RACED,
+    OVERSTAYED,
+    TAKEN,
   );
   await owner.$executeRawUnsafe(
     `insert into public.subscriptions (organization_id, status) values
@@ -318,6 +328,76 @@ describe("checking in", () => {
     );
     expect(reservation?.status).toBe("confirmed");
   });
+
+  // Reproduced against main as ranza_app before the rule existed: a Reservation
+  // three weeks out was checked in, producing an `in_house` Stay with future
+  // dates, and a second Guest was then checked into the same Unit tonight —
+  // stays_no_double_booking permits it, because the two ranges do not overlap.
+  it("refuses a Reservation whose first night has not arrived", async () => {
+    const EARLY = reservationId();
+    await reserve(EARLY, PROPERTY, ORG, OTHER_IN_PROPERTY, "Too Early", {
+      from: 21,
+      to: 24,
+    });
+
+    await expect(reservations.checkIn(MEMBER, EARLY)).rejects.toBeInstanceOf(
+      CheckInError,
+    );
+
+    const [reservation] = await owner.$queryRawUnsafe<{ status: string }[]>(
+      `select status from public.reservations where id = $1::uuid`,
+      EARLY,
+    );
+    expect(reservation?.status).toBe("confirmed");
+    await expect(
+      owner.$queryRawUnsafe(
+        `select id from public.stays where reservation_id = $1::uuid`,
+        EARLY,
+      ),
+    ).resolves.toEqual([]);
+  });
+
+  it("refuses a Reservation whose last night has already passed", async () => {
+    const STALE = reservationId();
+    await reserve(STALE, PROPERTY, ORG, OTHER_IN_PROPERTY, "Too Late", {
+      from: -9,
+      to: -2,
+    });
+
+    await expect(reservations.checkIn(MEMBER, STALE)).rejects.toBeInstanceOf(
+      CheckInError,
+    );
+  });
+
+  // The Stay begins when the Guest did, not when they were expected. Recording
+  // the planned date instead holds the Unit over nights nobody slept in, and
+  // dates every charge that is ever posted per night to the wrong day.
+  it("starts the Stay on the day the Guest actually arrived", async () => {
+    const LATE = reservationId();
+    await reserve(LATE, PROPERTY, ORG, OTHER_IN_PROPERTY, "Two Days Late", {
+      from: -2,
+      to: 3,
+    });
+
+    const { stayId } = await reservations.checkIn(MEMBER, LATE);
+
+    const [stay] = await owner.$queryRawUnsafe<
+      { startsOn: string; today: string; plannedOn: string }[]
+    >(
+      `select to_char(stay.starts_on, 'YYYY-MM-DD') as "startsOn",
+              to_char((now() at time zone property.timezone)::date,
+                      'YYYY-MM-DD') as "today",
+              to_char(reservation.starts_on, 'YYYY-MM-DD') as "plannedOn"
+       from public.stays as stay
+       join public.properties as property on property.id = stay.property_id
+       join public.reservations as reservation
+         on reservation.id = stay.reservation_id
+       where stay.id = $1::uuid`,
+      stayId,
+    );
+    expect(stay?.startsOn).toBe(stay?.today);
+    expect(stay?.startsOn).not.toBe(stay?.plannedOn);
+  });
 });
 
 describe("a failed check-in leaves nothing half-done", () => {
@@ -325,16 +405,16 @@ describe("a failed check-in leaves nothing half-done", () => {
   const SECOND = reservationId();
 
   beforeAll(async () => {
-    await reserve(FIRST, PROPERTY, ORG, CONTESTED, "Mary Jackson", {
-      from: 10,
-      to: 14,
+    await reserve(FIRST, PROPERTY, ORG, TAKEN, "Mary Jackson", {
+      from: -1,
+      to: 4,
     });
     // Overlaps FIRST on the same Unit. Two Reservations may overlap — whether
     // that is allowed is an overbooking policy nobody has written — but two
     // current Stays may not.
-    await reserve(SECOND, PROPERTY, ORG, CONTESTED, "Dorothy Vaughan", {
-      from: 12,
-      to: 16,
+    await reserve(SECOND, PROPERTY, ORG, TAKEN, "Dorothy Vaughan", {
+      from: 0,
+      to: 6,
     });
   });
 
@@ -371,13 +451,16 @@ describe("two people pressing the button at once", () => {
   const RIGHT = reservationId();
 
   beforeAll(async () => {
-    await reserve(LEFT, PROPERTY, ORG, CONTESTED, "Annie Easley", {
-      from: 30,
-      to: 34,
+    // RACED rather than CONTESTED: a Stay is in house only from the day it
+    // starts, so every check-in in this file now competes for the same few
+    // nights and two describes sharing a Unit would block each other.
+    await reserve(LEFT, PROPERTY, ORG, RACED, "Annie Easley", {
+      from: -1,
+      to: 4,
     });
-    await reserve(RIGHT, PROPERTY, ORG, CONTESTED, "Melba Roy", {
-      from: 32,
-      to: 36,
+    await reserve(RIGHT, PROPERTY, ORG, RACED, "Melba Roy", {
+      from: 0,
+      to: 5,
     });
   });
 
@@ -404,7 +487,7 @@ describe("two people pressing the button at once", () => {
       `select id from public.stays
        where accommodation_unit_id = $1::uuid
          and reservation_id in ($2::uuid, $3::uuid)`,
-      CONTESTED,
+      RACED,
       LEFT,
       RIGHT,
     );
@@ -577,31 +660,42 @@ describe("checking out", () => {
 describe("today's departures", () => {
   it("lists a Stay whose planned end has arrived, and flags an overdue one", async () => {
     const onTime = reservationId();
-    const late = reservationId();
     await reserve(onTime, PROPERTY, ORG, DEPARTING_A, "Halide Edib", {
       from: -3,
       to: 0,
     });
-    await reserve(late, PROPERTY, ORG, DEPARTING_B, "Nazım Hikmet", {
-      from: -9,
-      to: -2,
-    });
     await reservations.checkIn(MEMBER, onTime);
-    await reservations.checkIn(MEMBER, late);
+
+    // The overdue one is inserted rather than checked in, and that is not a
+    // shortcut. An overstay exists because somebody checked in while their
+    // last night was still ahead of them and then did not leave; checking in
+    // today to a Reservation that ended last week is refused, which is the
+    // rule this file asserts a few tests below.
+    await owner.$executeRawUnsafe(
+      `insert into public.stays
+         (organization_id, property_id, accommodation_unit_id,
+          stay_type, status, starts_on, ends_on)
+       select $1::uuid, $2::uuid, $3::uuid, 'guest', 'in_house',
+              (now() at time zone property.timezone)::date - 9,
+              (now() at time zone property.timezone)::date - 2
+       from public.properties as property
+       where property.id = $2::uuid`,
+      ORG,
+      PROPERTY,
+      OVERSTAYED,
+    );
 
     const departures = await reservations.listDepartures(MEMBER, PROPERTY);
-    const names = departures.map((d) => d.guestName);
-    expect(names).toContain("Halide Edib");
-    expect(names).toContain("Nazım Hikmet");
-
-    // The overdue one is why this list exists: a departures screen showing only
-    // today hides the Guest who should have left last week.
-    expect(
-      departures.find((d) => d.guestName === "Nazım Hikmet")?.overdue,
-    ).toBe(true);
+    expect(departures.map((d) => d.guestName)).toContain("Halide Edib");
     expect(departures.find((d) => d.guestName === "Halide Edib")?.overdue).toBe(
       false,
     );
+
+    // The overdue one is why this list exists: a departures screen showing only
+    // today hides the Guest who should have left last week. It carries no name
+    // because it has no Reservation, which is also what a walk-in looks like.
+    const overstayed = departures.find((d) => d.unitId === OVERSTAYED);
+    expect(overstayed?.overdue).toBe(true);
   });
 
   it("shows nothing from a Property in another Organization", async () => {

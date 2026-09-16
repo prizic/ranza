@@ -11,7 +11,7 @@
 -- dropping the exclusion constraint — and confirming it went red. A test that
 -- cannot fail is worse than no test, because it is mistaken for evidence.
 begin;
-select plan(37);
+select plan(42);
 
 insert into public.users (id, email) values
   ('31111111-1111-4111-8111-111111111111', 'front-desk-a@example.test'),
@@ -311,6 +311,12 @@ reset role;
 -- Availability is a constraint, not a query
 -- ---------------------------------------------------------------------------
 
+-- Dates from here down are relative to the Property's own today rather than
+-- fixed, because `stays_insert_front_desk` now refuses an `in_house` Stay that
+-- has not started yet. Fixed dates made checking somebody in weeks early the
+-- normal case in this file, which is how the bug that rule closes survived a
+-- suite that was otherwise asserting the right things.
+
 set local role ranza_app;
 select app.set_request_context('31111111-1111-4111-8111-111111111111');
 
@@ -321,7 +327,9 @@ select lives_ok(
     values ('3a111111-1111-4111-8111-111111111111',
             '3c111111-1111-4111-8111-111111111111',
             '3d333333-3333-4333-8333-333333333333',
-            'guest', 'in_house', date '2026-10-01', date '2026-10-05')$$,
+            'guest', 'in_house',
+            app.property_today('3c111111-1111-4111-8111-111111111111'),
+            app.property_today('3c111111-1111-4111-8111-111111111111') + 4)$$,
   'a Unit that is free can be let');
 
 select throws_ok(
@@ -331,7 +339,9 @@ select throws_ok(
     values ('3a111111-1111-4111-8111-111111111111',
             '3c111111-1111-4111-8111-111111111111',
             '3d333333-3333-4333-8333-333333333333',
-            'guest', 'reserved', date '2026-10-04', date '2026-10-06')$$,
+            'guest', 'reserved',
+            app.property_today('3c111111-1111-4111-8111-111111111111') + 3,
+            app.property_today('3c111111-1111-4111-8111-111111111111') + 5)$$,
   '23P01', NULL,
   'the same Unit cannot be let twice over overlapping nights');
 
@@ -344,7 +354,9 @@ select lives_ok(
     values ('3a111111-1111-4111-8111-111111111111',
             '3c111111-1111-4111-8111-111111111111',
             '3d333333-3333-4333-8333-333333333333',
-            'guest', 'reserved', date '2026-10-05', date '2026-10-08')$$,
+            'guest', 'reserved',
+            app.property_today('3c111111-1111-4111-8111-111111111111') + 4,
+            app.property_today('3c111111-1111-4111-8111-111111111111') + 7)$$,
   'an arrival on the previous Guest''s departure date is not a clash');
 
 -- Partial on status, which is what lets a Unit be re-let without deleting the
@@ -356,7 +368,9 @@ select lives_ok(
     values ('3a111111-1111-4111-8111-111111111111',
             '3c111111-1111-4111-8111-111111111111',
             '3d333333-3333-4333-8333-333333333333',
-            'guest', 'cancelled', date '2026-10-02', date '2026-10-03')$$,
+            'guest', 'cancelled',
+            app.property_today('3c111111-1111-4111-8111-111111111111') + 1,
+            app.property_today('3c111111-1111-4111-8111-111111111111') + 2)$$,
   'a cancelled Stay keeps its dates and holds nothing');
 
 -- The Resident's Stay on A1-102 is open-ended, so it holds that Unit from its
@@ -384,7 +398,9 @@ select lives_ok(
             '3c111111-1111-4111-8111-111111111111',
             '3d444444-4444-4444-8444-444444444444',
             '3e333333-3333-4333-8333-333333333333',
-            'resident', 'in_house', date '2026-10-01', date '2026-10-05')$$,
+            'resident', 'in_house',
+            app.property_today('3c111111-1111-4111-8111-111111111111'),
+            app.property_today('3c111111-1111-4111-8111-111111111111') + 4)$$,
   'a Reservation becomes a Stay');
 
 -- A different Unit and different nights, so the exclusion constraint has no
@@ -398,9 +414,60 @@ select throws_ok(
             '3c111111-1111-4111-8111-111111111111',
             '3d111111-1111-4111-8111-111111111111',
             '3e333333-3333-4333-8333-333333333333',
-            'resident', 'in_house', date '2027-01-01', date '2027-01-05')$$,
+            'resident', 'in_house',
+            app.property_today('3c111111-1111-4111-8111-111111111111'),
+            app.property_today('3c111111-1111-4111-8111-111111111111') + 4)$$,
   '23505', NULL,
   'checking the same Reservation in twice is unrepresentable');
+
+-- ---------------------------------------------------------------------------
+-- In house from the day it starts, and not before
+-- ---------------------------------------------------------------------------
+
+-- A Reservation weeks out could be checked in, producing an `in_house` Stay
+-- with future dates; a second Guest could then take the same Unit tonight,
+-- because the two ranges do not overlap and the exclusion constraint has no
+-- opinion about which of them is real. The module refuses this on a predicate
+-- so the front desk gets a refusal; this is the half that refuses anyway.
+--
+-- Checked by removing the clause from the policy and watching all three go red.
+select throws_ok(
+  $$insert into public.stays
+      (organization_id, property_id, accommodation_unit_id,
+       stay_type, status, starts_on, ends_on)
+    values ('3a111111-1111-4111-8111-111111111111',
+            '3c111111-1111-4111-8111-111111111111',
+            '3d111111-1111-4111-8111-111111111111',
+            'guest', 'in_house',
+            app.property_today('3c111111-1111-4111-8111-111111111111') + 21,
+            app.property_today('3c111111-1111-4111-8111-111111111111') + 24)$$,
+  '42501', NULL,
+  'a Stay cannot be in house before the day it starts');
+
+-- The rule is about being in house, not about planning. A Reservation for next
+-- month is the thing a `reserved` Stay exists to express, and constraining its
+-- dates would forbid it.
+select lives_ok(
+  $$insert into public.stays
+      (organization_id, property_id, accommodation_unit_id,
+       stay_type, status, starts_on, ends_on)
+    values ('3a111111-1111-4111-8111-111111111111',
+            '3c111111-1111-4111-8111-111111111111',
+            '3d111111-1111-4111-8111-111111111111',
+            'guest', 'reserved',
+            app.property_today('3c111111-1111-4111-8111-111111111111') + 21,
+            app.property_today('3c111111-1111-4111-8111-111111111111') + 24)$$,
+  'but a Stay may be reserved for nights that have not arrived');
+
+-- The same bug through the other door. Without the clause on the UPDATE
+-- policy's WITH CHECK, the row above could simply be moved to `in_house`.
+select throws_ok(
+  $$update public.stays
+       set status = 'in_house'
+     where accommodation_unit_id = '3d111111-1111-4111-8111-111111111111'
+       and status = 'reserved'$$,
+  '42501', NULL,
+  'nor be moved to in house while its first night is still in the future');
 
 -- ---------------------------------------------------------------------------
 -- Check-out, and the column-level grant that bounds it
@@ -410,7 +477,7 @@ select throws_ok(
 -- but a Staff Member may still end it, which is what a departure is.
 select lives_ok(
   $$update public.stays
-       set status = 'departed', ends_on = date '2026-09-20'
+       set status = 'departed', ends_on = app.property_today('3c111111-1111-4111-8111-111111111111')
      where id = '3f111111-1111-4111-8111-111111111111'$$,
   'a Staff Member ends a Stay in a Property they reach');
 
@@ -418,9 +485,9 @@ select lives_ok(
 -- also raises nothing. Dropping the UPDATE policy left the assertion above
 -- green, which is what this one is for.
 select results_eq(
-  $$select status, to_char(ends_on, 'YYYY-MM-DD') from public.stays
+  $$select status, ends_on from public.stays
     where id = '3f111111-1111-4111-8111-111111111111'$$,
-  $$values ('departed', '2026-09-20')$$,
+  $$select 'departed', app.property_today('3c111111-1111-4111-8111-111111111111')$$,
   'and the Stay is departed, dated the day they left');
 
 -- What the column grant is for, and the only thing that isolates it. The row is
@@ -454,7 +521,9 @@ select lives_ok(
     values ('3a111111-1111-4111-8111-111111111111',
             '3c111111-1111-4111-8111-111111111111',
             '3d222222-2222-4222-8222-222222222222',
-            'guest', 'in_house', date '2026-09-20', date '2026-09-25')$$,
+            'guest', 'in_house',
+            app.property_today('3c111111-1111-4111-8111-111111111111'),
+            app.property_today('3c111111-1111-4111-8111-111111111111') + 5)$$,
   'a departed Stay releases its Unit for the same nights');
 
 reset role;

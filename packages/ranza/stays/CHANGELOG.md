@@ -9,6 +9,15 @@ everything lands under Unreleased.
 
 ## Unreleased
 
+### Changed
+
+- `stays_insert_front_desk` and `stays_update_front_desk` now also require an
+  `in_house` Stay to have started: `starts_on <= app.property_today(property_id)`.
+  A `reserved` Stay is unaffected, because a future booking is what it exists to
+  express. Added by
+  [`@ranza/reservations`](../reservations/README.md) in
+  `20260916001300_check_in_on_the_day`; this module still owns the table.
+
 ### Added
 
 - The `stays` table: a Guest or Resident, an Accommodation Unit, and a period.

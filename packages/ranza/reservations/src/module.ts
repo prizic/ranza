@@ -58,7 +58,15 @@ interface MovedReservation {
   propertyId: string;
   accommodationUnitId: string;
   stayType: string;
-  startsOn: Date;
+  /**
+   * The Property's today, which is the date the Guest actually arrived.
+   *
+   * Not the Reservation's `starts_on`. Somebody arriving two days late began
+   * their Stay today, and recording the planned date instead would hold the
+   * Unit over two nights nobody slept in and bill them if anything ever
+   * charges per night.
+   */
+  arrivedOn: Date;
   endsOn: Date | null;
 }
 
@@ -136,6 +144,16 @@ export function createReservationsModule(deps: ReservationsDeps) {
    * Nothing here checks whether the actor is allowed to do this. The update
    * returns no row when they are not, because the policy filtered it, and the
    * insert is rejected by its own policy even if the update somehow did.
+   *
+   * The date conditions are not authorization and are here for a different
+   * reason. A Reservation cannot be checked in before the day it starts, or
+   * after the day it ends: without the first, a booking three weeks out became
+   * an `in_house` Stay with future dates, and a second Guest could then be
+   * checked into the same Unit tonight because the two ranges do not overlap.
+   * `stays_insert_front_desk` refuses the same row independently (see
+   * 20260916001300_check_in_on_the_day); this predicate is what turns that
+   * refusal into an empty result the front desk can be told about, rather than
+   * a constraint violation to decode.
    */
   async function checkIn(
     userId: string,
@@ -148,13 +166,15 @@ export function createReservationsModule(deps: ReservationsDeps) {
                updated_at = now()
          where id = ${reservationId}::uuid
            and status = 'confirmed'
+           and starts_on <= app.property_today(property_id)
+           and (ends_on is null or ends_on >= app.property_today(property_id))
         returning
-          organization_id       as "organizationId",
-          property_id           as "propertyId",
-          accommodation_unit_id as "accommodationUnitId",
-          stay_type             as "stayType",
-          starts_on             as "startsOn",
-          ends_on               as "endsOn"
+          organization_id                 as "organizationId",
+          property_id                     as "propertyId",
+          accommodation_unit_id           as "accommodationUnitId",
+          stay_type                       as "stayType",
+          app.property_today(property_id) as "arrivedOn",
+          ends_on                         as "endsOn"
       `;
 
       const [reservation] = moved;
@@ -181,7 +201,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
           propertyId: reservation.propertyId,
           reservationId,
           stayType: reservation.stayType as "guest" | "resident",
-          startsOn: reservation.startsOn,
+          startsOn: reservation.arrivedOn,
         });
       } catch (error: unknown) {
         // The exclusion constraint refused: another current Stay holds this Unit
