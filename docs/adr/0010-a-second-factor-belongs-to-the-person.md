@@ -2,6 +2,7 @@
 
 Status: Accepted
 Date: 2026-09-16
+Amended: 2026-09-16
 
 ## Context
 
@@ -42,8 +43,8 @@ Three consequences follow directly and were chosen, not inherited:
 - **Enrolment lives in the Workspace only.** A Guest or Resident has no account
   settings surface yet, and inventing one to hold a single toggle would be a
   screen built ahead of the workflow that needs it.
-- **Nothing can require it.** There is no Organization-level mandate, because
-  no approved specification describes one.
+- **Nothing can require it.** See the amendment below: this was justified with
+  a claim about the blueprint that is not true.
 
 Enrolment is two steps: Better Auth writes the secret with `verified = false`
 and leaves `twoFactorEnabled` alone until a code proves the authenticator app
@@ -71,3 +72,34 @@ Verified by `tests/integration/two-factor.test.ts` and
 the boundary: enabling on enrolment rather than on verification, granting
 `ranza_app` read on the secret, defaulting `twoFactorEnabled` to true, and
 removing the foreign key so a deleted account leaves its credential behind.
+
+## Amendment, 2026-09-16
+
+Two things in the decision above are wrong, both found by reviewing it rather
+than by anything failing.
+
+**Blueprint 7.6 does mandate MFA.** Its security baseline reads "secure
+authentication, strong session management, **MFA for privileged roles**, least
+privilege, encryption in transit and at rest, **rate limiting**, …". The
+decision said no approved specification described a mandate and built opt-in
+only. The shape of the decision still stands — a second factor belongs to the
+person, and enforcement is a check where the session becomes a viewer rather
+than a change to where the secret lives — but "nothing requires it" is now a
+**known gap against an approved specification**, not a deliberate absence of
+one. Whoever implements it should start from which roles count as privileged:
+`owner` at minimum, and every Prizic Control Plane account.
+
+**The account lockout does not engage.** The decision implied the plugin's
+`failedVerificationCount` and `lockedUntil` columns defend a guessed code. They
+do not, in this flow: the challenge is exhausted after five wrong codes and its
+cookie invalidated, so the counter never climbs and both columns stay at their
+defaults. The defence that does hold is that per-challenge cap, plus the cost of
+producing the password again for a new challenge. This is asserted now in
+`tests/integration/two-factor.test.ts`, which is what corrected the claim.
+
+That second point has a consequence worth naming: with the cap at five and a
+new challenge costing one rate-limited sign-in, the strength of the whole thing
+rests on rate limiting — which Better Auth enables only in production and backs
+with in-process memory by default. On a multi-instance deployment that is a
+per-instance limit. Blueprint 7.6 requires rate limiting; making it shared
+storage is the work that closes this properly.

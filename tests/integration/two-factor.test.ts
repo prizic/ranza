@@ -211,3 +211,55 @@ describe("the second factor is a credential", () => {
     expect(new TextDecoder().decode(base32.decode(enrolled))).not.toBe(stored);
   });
 });
+
+/**
+ * What a guessed code actually costs.
+ *
+ * Better Auth ships two defences and only one of them fires here, which is why
+ * this is asserted rather than assumed. The plugin's account lockout —
+ * `failedVerificationCount` and `lockedUntil`, both columns in this branch's
+ * migration — is documented as ten failures for fifteen minutes. It never
+ * engages in this flow: the challenge itself is exhausted after five wrong
+ * codes and its cookie invalidated, so the counter never climbs. Reading the
+ * plugin suggested the opposite; running it settled it.
+ *
+ * The protection that does hold is the one below, and it is a real one: five
+ * guesses per challenge, and a new challenge costs a fresh sign-in, which is
+ * rate limited. What must not regress is that a wrong code is cheap for us and
+ * expensive for a guesser.
+ */
+describe("what a guessed code costs", () => {
+  it("burns the challenge after a handful of wrong codes", async () => {
+    jar = {};
+    await post("/sign-in/email", { email: EMAIL, password: PASSWORD });
+
+    const outcomes: number[] = [];
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const response = await post("/two-factor/verify-totp", {
+        code: "000000",
+      });
+      outcomes.push(response.status);
+      if (response.body?.code === "TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE") break;
+    }
+
+    // Exhausted well before the million codes a six-digit secret allows.
+    expect(outcomes.length).toBeLessThanOrEqual(6);
+    expect(outcomes.at(-1)).not.toBe(200);
+
+    // And the challenge is spent: the correct code no longer helps, so a
+    // guesser has to go back and produce the password again.
+    const correct = await post("/two-factor/verify-totp", {
+      code: await codeFrom(totpURI),
+    });
+    expect(correct.status).not.toBe(200);
+  });
+
+  it("still lets the real person in after signing in again", async () => {
+    jar = {};
+    await post("/sign-in/email", { email: EMAIL, password: PASSWORD });
+    const verify = await post("/two-factor/verify-totp", {
+      code: await codeFrom(totpURI),
+    });
+    expect(verify.status).toBe(200);
+  });
+});
