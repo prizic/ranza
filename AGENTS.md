@@ -18,6 +18,13 @@ Authority order (blueprint section 16), highest first:
 4. The active implementation issue
 5. Code and automated tests
 
+`.claude/` holds vendored agent tooling (ECC), installed with
+`npx ecc-universal@2.2.1 install --target claude-project --profile minimal`. It
+is gitignored and is **not** part of this authority chain. Its own `AGENTS.md`
+describes that plugin, not Ranza, and its generic advice — coverage targets,
+style rules — does not override anything above. Where they disagree, this file
+wins.
+
 Lower levels add detail. They never silently contradict a higher one. If you hit
 a genuine conflict, **stop and surface it** rather than picking a side quietly.
 ADR 0003 exists because the blueprint contradicts itself about who owns
