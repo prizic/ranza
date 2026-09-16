@@ -1,6 +1,7 @@
 import { withOrganizationContext } from "@ranza/db";
 import { openFolioWithin } from "@ranza/folios";
 import { recordWithin } from "@ranza/platform-audit";
+import { publishWithin } from "@ranza/platform-outbox";
 import { closeStayWithin, openStayWithin, StayWriteError } from "@ranza/stays";
 import {
   CheckInError,
@@ -226,6 +227,27 @@ export function createReservationsModule(deps: ReservationsDeps) {
       // be able to check somebody in, so this cannot be allowed to raise.
       const folio = await openFolioWithin(tx, created.stayId);
 
+      // Published here rather than after the commit, which is the whole of
+      // ADR 0017: a message sent for a check-in that rolled back, and a
+      // check-in that committed with nothing recording that anybody should
+      // hear about it, are the two halves of the same mistake. In the
+      // transaction, they cannot happen.
+      //
+      // Ids only. The queue is the one table a single process reads across
+      // every Organization, so a Guest's name has no business in it; a handler
+      // that needs one reads it under this Organization's own context.
+      await publishWithin(tx, {
+        organizationId: reservation.organizationId,
+        eventType: "stay.checked_in",
+        payload: {
+          stayId: created.stayId,
+          reservationId,
+          propertyId: reservation.propertyId,
+          accommodationUnitId: reservation.accommodationUnitId,
+          folioId: folio?.folioId ?? null,
+        },
+      });
+
       // Same transaction as the writes above, so an action that happened
       // without a record is not a state this can reach (blueprint 7.4). The
       // actor is named by the caller because this module knows who it is and
@@ -351,6 +373,20 @@ export function createReservationsModule(deps: ReservationsDeps) {
         }
         throw error;
       }
+
+      // The same transaction again. A departure is the fact most things want to
+      // react to — a final bill, a housekeeping task, a review request — and
+      // none of those may hold up a front desk at eleven in the morning
+      // (ADR 0020).
+      await publishWithin(tx, {
+        organizationId: closed.organizationId,
+        eventType: "stay.checked_out",
+        payload: {
+          stayId,
+          accommodationUnitId: closed.accommodationUnitId,
+          departedOn: today.on.toISOString().slice(0, 10),
+        },
+      });
 
       await recordWithin(tx, {
         organizationId: closed.organizationId,

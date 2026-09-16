@@ -37,6 +37,7 @@ const OPEN_ENDED = "d4000004-0000-4000-8000-000000000007";
 const RACED = "d4000004-0000-4000-8000-000000000008";
 const OVERSTAYED = "d4000004-0000-4000-8000-000000000009";
 const TAKEN = "d4000004-0000-4000-8000-00000000000a";
+const ANNOUNCED = "d4000004-0000-4000-8000-00000000000b";
 const MEMBER = "d4000001-0000-4000-8000-000000000001";
 const OUTSIDER = "d4000001-0000-4000-8000-000000000002";
 
@@ -95,7 +96,8 @@ async function seed() {
        ($11,$4,$6,'FD-106','room',2),
        ($12,$4,$6,'FD-107','room',2),
        ($13,$4,$6,'FD-108','room',2),
-       ($14,$4,$6,'FD-109','room',2)
+       ($14,$4,$6,'FD-109','room',2),
+       ($15,$4,$6,'FD-110','room',2)
      on conflict (id) do nothing`,
     UNIT,
     CONTESTED,
@@ -111,6 +113,7 @@ async function seed() {
     RACED,
     OVERSTAYED,
     TAKEN,
+    ANNOUNCED,
   );
   await owner.$executeRawUnsafe(
     `insert into public.subscriptions (organization_id, status) values
@@ -219,6 +222,7 @@ afterAll(async () => {
     `delete from public.organization_memberships where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.entitlements where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.subscriptions where organization_id in ('${ORG}','${OTHER_ORG}')`,
+    `delete from outbox.events where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.accommodation_units where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.properties where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.organizations where id in ('${ORG}','${OTHER_ORG}')`,
@@ -329,6 +333,33 @@ describe("checking in", () => {
     expect(reservation?.status).toBe("confirmed");
   });
 
+  // The fact leaves the transaction with everything else it did. Published
+  // after the commit instead, a crash in between would lose it with nothing
+  // recording that anything was owed (ADR 0017).
+  it("publishes one event carrying ids and no names", async () => {
+    const PUBLISHED = reservationId();
+    await reserve(PUBLISHED, PROPERTY, ORG, ANNOUNCED, "Zeynep Ahmet", {
+      from: 0,
+      to: 2,
+    });
+
+    const { stayId } = await reservations.checkIn(MEMBER, PUBLISHED);
+
+    const events = await owner.$queryRawUnsafe<
+      { eventType: string; payload: Record<string, unknown> }[]
+    >(
+      `select event_type as "eventType", payload from outbox.events
+        where payload->>'reservationId' = $1`,
+      PUBLISHED,
+    );
+    expect(events).toHaveLength(1);
+    expect(events[0]?.eventType).toBe("stay.checked_in");
+    expect(events[0]?.payload).toMatchObject({ stayId, propertyId: PROPERTY });
+    // Ids and facts. The queue is read across Organizations by one process, so
+    // a Guest's name has no business being in it.
+    expect(JSON.stringify(events[0]?.payload)).not.toContain("Zeynep");
+  });
+
   // Reproduced against main as ranza_app before the rule existed: a Reservation
   // three weeks out was checked in, producing an `in_house` Stay with future
   // dates, and a second Guest was then checked into the same Unit tonight —
@@ -437,11 +468,19 @@ describe("a failed check-in leaves nothing half-done", () => {
     );
     expect(stays).toEqual([]);
 
-    // The third write is rolled back with the other two. An audit trail
-    // recording an action that never happened is as wrong as one missing an
-    // action that did.
+    // The third and fourth writes are rolled back with the other two. An audit
+    // trail recording an action that never happened is as wrong as one missing
+    // an action that did — and an event announcing it is worse, because
+    // something downstream acts on it.
     await expect(
       audit.historyOf(MEMBER, "reservation", SECOND),
+    ).resolves.toEqual([]);
+
+    await expect(
+      owner.$queryRawUnsafe(
+        `select id from outbox.events where payload->>'reservationId' = $1`,
+        SECOND,
+      ),
     ).resolves.toEqual([]);
   });
 });

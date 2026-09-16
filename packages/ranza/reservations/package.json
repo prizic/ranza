@@ -17,6 +17,7 @@
     "@ranza/db": "workspace:*",
     "@ranza/folios": "workspace:*",
     "@ranza/platform-audit": "workspace:*",
+    "@ranza/platform-outbox": "workspace:*",
     "@ranza/stays": "workspace:*"
   }
 }

@@ -9,6 +9,17 @@ everything lands under Unreleased.
 
 ## Unreleased
 
+### Added
+
+- Check-in and check-out publish `stay.checked_in` and `stay.checked_out`
+  through `publishWithin`, in the transaction that produced the fact
+  ([ADR 0017](../../../docs/adr/0017-cross-module-facts-travel-through-a-transactional-outbox.md)).
+  Published after the commit instead, a crash in between would lose the fact
+  with nothing recording that anything was owed; published before it, a rollback
+  would announce something that did not happen. The payloads carry ids and
+  dates, never a name: the queue is the one table a single process reads across
+  every Organization.
+
 ### Changed
 
 - `checkIn` refuses a Reservation whose first night has not arrived, and one

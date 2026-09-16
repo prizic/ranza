@@ -282,6 +282,9 @@ importers:
       '@ranza/platform-audit':
         specifier: workspace:*
         version: link:../../platform/audit
+      '@ranza/platform-outbox':
+        specifier: workspace:*
+        version: link:../../platform/outbox
       '@ranza/stays':
         specifier: workspace:*
         version: link:../stays

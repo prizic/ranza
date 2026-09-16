@@ -34,7 +34,7 @@ everything lands under Unreleased.
   fail.
 
 - `createOutboxDispatcher({ db })`: claim with a lease and `for update skip
-  locked`, one transaction per event, the delivery row written inside the
+locked`, one transaction per event, the delivery row written inside the
   handler's own transaction, and failure bookkeeping written outside it. One
   transaction per event because Prisma's interactive transactions have no
   savepoints, so a batch-wide rollback would undo the events that had already
