@@ -8,7 +8,7 @@ export default async function StudentSignInPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; ref?: string }>;
 }) {
   const [{ locale }, query] = await Promise.all([params, searchParams]);
   if (!isSupportedLocale(locale)) notFound();
@@ -16,11 +16,21 @@ export default async function StudentSignInPage({
   return (
     <LocalizedShell locale={locale}>
       <h1>{t.signIn}</h1>
-      {query.error && <p role="alert">{t.signInError}</p>}
+      {query.error && (
+        <p role="alert">
+          {t.signInError}
+          {query.ref ? (
+            <>
+              {" "}
+              {t.supportReference}: <bdi>{query.ref}</bdi>
+            </>
+          ) : null}
+        </p>
+      )}
       <form
         action={`/${locale}/student/sign-in/exchange`}
         method="post"
-        className="control-card"
+        className="control-card control-form"
       >
         <p id="signin-hint">{t.signInHint}</p>
         <label>
@@ -53,6 +63,7 @@ export default async function StudentSignInPage({
         <button type="submit">{t.signIn}</button>
       </form>
       <a href={`/${locale}/activate`}>{t.title}</a>
+      <a href={`/${locale}/activate?mode=recovery`}>{t.recoveryTitle}</a>
     </LocalizedShell>
   );
 }

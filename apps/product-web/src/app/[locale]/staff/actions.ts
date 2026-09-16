@@ -1,6 +1,7 @@
 "use server";
 
 import { normalizeStaffEmail } from "@ranza/auth";
+import { parseServerEnvironment } from "@ranza/config";
 import { isSupportedLocale } from "@ranza/i18n";
 import { redirect } from "next/navigation";
 
@@ -17,8 +18,11 @@ export async function requestStaffSignIn(formData: FormData) {
   }
 
   const client = await createProductWebClient();
+  const environment = parseServerEnvironment(process.env);
   const siteUrl =
-    process.env.NEXT_PUBLIC_PRODUCT_WEB_URL ?? "http://localhost:3101";
+    environment.PRODUCT_WEB_ORIGIN ??
+    (environment.NODE_ENV === "production" ? null : "http://localhost:3101");
+  if (!siteUrl) redirect(`/${locale}/staff/sign-in?error=not-authorized`);
   const { error } = await client.auth.signInWithOtp({
     email,
     options: {

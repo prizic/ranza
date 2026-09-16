@@ -15,3 +15,4 @@ dist/
 supabase/.branches/
 supabase/.temp/
 .DS_Store
+.vercel

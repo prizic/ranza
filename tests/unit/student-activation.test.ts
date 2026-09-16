@@ -45,11 +45,23 @@ describe("Student activation cryptography", () => {
       credentials.deriveStudentPassword("student-a", "123456", "short"),
     ).toThrow();
   });
-  it("uses bounded opaque rate keys without trusting forwarded headers by default", () => {
-    const headers = new Headers({ "x-forwarded-for": "spoofed" });
-    expect(credentials.networkSignal(headers)).toBe("shared");
-    expect(credentials.networkSignal(headers, "x-forwarded-for")).toBe(
-      "spoofed",
+  it("requires a trusted, valid client address in production", () => {
+    const headers = new Headers({ "x-forwarded-for": "203.0.113.8" });
+    expect(() => credentials.networkSignal(headers, undefined, true)).toThrow(
+      /trusted client IP/i,
+    );
+    expect(credentials.networkSignal(headers, "x-forwarded-for", true)).toBe(
+      "203.0.113.8",
+    );
+    expect(() =>
+      credentials.networkSignal(
+        new Headers({ "x-forwarded-for": "spoofed" }),
+        "x-forwarded-for",
+        true,
+      ),
+    ).toThrow(/trusted client IP/i);
+    expect(credentials.networkSignal(new Headers(), undefined, false)).toBe(
+      "development",
     );
     const key = credentials.credentialRateKey(
       "network",

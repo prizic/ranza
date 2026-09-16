@@ -26,7 +26,10 @@ export const studentImportErrorHeaders = [
 ] as const;
 
 function csvField(value: string): string {
-  return /[",\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
+  const safe = /^(?:[\t\r]|\s*[=+\-@])/.test(value) ? `'${value}` : value;
+  return /[",\r\n]/.test(safe)
+    ? `"${safe.replaceAll('"', '""')}"`
+    : safe;
 }
 
 export function buildStudentImportErrorCsv(
@@ -188,9 +191,9 @@ export function parseStudentCsv(
     );
   }
 
-  const dataRecords = records.filter(
-    (record) => !record.every((value) => value.trim().length === 0),
-  );
+  const dataRecords = records
+    .map((record, index) => ({ record, rowNumber: index + 2 }))
+    .filter(({ record }) => record.some((value) => value.trim().length > 0));
   if (dataRecords.length > maxRows) {
     throw new StudentCsvParseError(
       `The CSV file contains more than ${maxRows} Student rows.`,
@@ -200,93 +203,98 @@ export function parseStudentCsv(
     throw new StudentCsvParseError("The CSV file has no Student rows.");
   }
 
-  const rows: StudentCsvPreviewRow[] = dataRecords.map((record, index) => {
-    const errors: StudentCsvRowError[] = [];
-    if (record.length !== studentCsvHeaders.length) {
-      errors.push(
-        fieldError(
-          "INVALID_COLUMN_COUNT",
-          null,
-          `Expected ${studentCsvHeaders.length} columns but received ${record.length}.`,
-        ),
-      );
-      return { draft: null, errors, rowNumber: index + 2, values: null };
-    }
+  const rows: StudentCsvPreviewRow[] = dataRecords.map(
+    ({ record, rowNumber }) => {
+      const errors: StudentCsvRowError[] = [];
+      if (record.length !== studentCsvHeaders.length) {
+        errors.push(
+          fieldError(
+            "INVALID_COLUMN_COUNT",
+            null,
+            `Expected ${studentCsvHeaders.length} columns but received ${record.length}.`,
+          ),
+        );
+        return { draft: null, errors, rowNumber, values: null };
+      }
 
-    const externalReference = (record[0] ?? "").trim();
-    const displayName = (record[1] ?? "").trim();
-    const preferredLocale = (record[2] ?? "").trim().toLowerCase();
-    if (!externalReference) {
-      errors.push(
-        fieldError(
-          "MISSING_EXTERNAL_REFERENCE",
-          "external_reference",
-          "External reference is required for safe retry.",
-        ),
-      );
-    } else if (externalReference.length > 120) {
-      errors.push(
-        fieldError(
-          "INVALID_EXTERNAL_REFERENCE",
-          "external_reference",
-          "External reference must contain at most 120 characters.",
-        ),
-      );
-    }
-    if (!displayName) {
-      errors.push(
-        fieldError(
-          "MISSING_DISPLAY_NAME",
-          "display_name",
-          "Student name is required.",
-        ),
-      );
-    } else if (displayName.length < 2 || displayName.length > 120) {
-      errors.push(
-        fieldError(
-          "INVALID_DISPLAY_NAME",
-          "display_name",
-          "Student name must contain 2–120 characters.",
-        ),
-      );
-    }
-    if (
-      preferredLocale !== "tr" &&
-      preferredLocale !== "en" &&
-      preferredLocale !== "ar"
-    ) {
-      errors.push(
-        fieldError(
-          "INVALID_LOCALE",
-          "preferred_locale",
-          "Language must be tr, en, or ar.",
-        ),
-      );
-    }
+      const externalReference = (record[0] ?? "").trim();
+      const displayName = (record[1] ?? "").trim();
+      const preferredLocale = (record[2] ?? "").trim().toLowerCase();
+      if (!externalReference) {
+        errors.push(
+          fieldError(
+            "MISSING_EXTERNAL_REFERENCE",
+            "external_reference",
+            "External reference is required for safe retry.",
+          ),
+        );
+      } else if (externalReference.length > 120) {
+        errors.push(
+          fieldError(
+            "INVALID_EXTERNAL_REFERENCE",
+            "external_reference",
+            "External reference must contain at most 120 characters.",
+          ),
+        );
+      }
+      if (!displayName) {
+        errors.push(
+          fieldError(
+            "MISSING_DISPLAY_NAME",
+            "display_name",
+            "Student name is required.",
+          ),
+        );
+      } else if (displayName.length < 2 || displayName.length > 120) {
+        errors.push(
+          fieldError(
+            "INVALID_DISPLAY_NAME",
+            "display_name",
+            "Student name must contain 2–120 characters.",
+          ),
+        );
+      }
+      if (
+        preferredLocale !== "tr" &&
+        preferredLocale !== "en" &&
+        preferredLocale !== "ar"
+      ) {
+        errors.push(
+          fieldError(
+            "INVALID_LOCALE",
+            "preferred_locale",
+            "Language must be tr, en, or ar.",
+          ),
+        );
+      }
 
-    let draft: StudentDraft | null = null;
-    if (errors.length === 0) {
-      draft = parseStudentDraft({
-        displayName,
-        externalReference,
-        preferredLocale,
-      });
-    }
-    return {
-      draft,
-      errors,
-      rowNumber: index + 2,
-      values: { displayName, externalReference, preferredLocale },
-    };
-  });
+      let draft: StudentDraft | null = null;
+      if (errors.length === 0) {
+        draft = parseStudentDraft({
+          displayName,
+          externalReference,
+          preferredLocale,
+        });
+      }
+      return {
+        draft,
+        errors,
+        rowNumber,
+        values: { displayName, externalReference, preferredLocale },
+      };
+    },
+  );
 
   const referenceCounts = new Map<string, number>();
   for (const row of rows) {
     const reference = row.draft?.externalReference;
     if (reference) {
       referenceCounts.set(reference, (referenceCounts.get(reference) ?? 0) + 1);
-    } else if (dataRecords[row.rowNumber - 2]?.length === 3) {
-      const rawReference = (dataRecords[row.rowNumber - 2]?.[0] ?? "").trim();
+    } else {
+      const rawReference = (
+        dataRecords.find((item) => item.rowNumber === row.rowNumber)
+          ?.record[0] ?? ""
+      ).trim();
       if (rawReference) {
         referenceCounts.set(
           rawReference,
@@ -296,7 +304,9 @@ export function parseStudentCsv(
     }
   }
   for (const row of rows) {
-    const rawReference = dataRecords[row.rowNumber - 2]?.[0]?.trim();
+    const rawReference = dataRecords
+      .find((item) => item.rowNumber === row.rowNumber)
+      ?.record[0]?.trim();
     if (rawReference && (referenceCounts.get(rawReference) ?? 0) > 1) {
       row.errors.push(
         fieldError(

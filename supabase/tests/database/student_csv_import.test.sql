@@ -1,5 +1,5 @@
 begin;
-select plan(19);
+select plan(28);
 
 select has_table('private', 'roster_imports', 'Import batches are private');
 select has_table('private', 'roster_import_rows', 'Staged Student data is private');
@@ -29,6 +29,17 @@ select is(
   1,
   'Preview counts independently validated rows'
 );
+select is(
+  public.stage_student_roster_import(
+    '82000000-0000-4000-8000-000000000001',
+    '83000000-0000-4000-8000-000000000001',
+    repeat('f',64),
+    '[{"rowNumber":8,"invalidColumnCount":true,"externalReference":"","displayName":"","preferredLocale":""}]'::jsonb
+  )->'rows'->0->'errors',
+  '["INVALID_COLUMN_COUNT"]'::jsonb,
+  'Parser-only column-count errors survive database staging'
+);
+
 select is(
   jsonb_array_length(public.stage_student_roster_import(
     '82000000-0000-4000-8000-000000000001',
@@ -110,8 +121,28 @@ select throws_ok(
   'Cancelled imports cannot be confirmed'
 );
 
+select lives_ok(
+  $$select public.stage_student_roster_import(
+    '82000000-0000-4000-8000-000000000001',
+    '83000000-0000-4000-8000-000000000001',
+    repeat('e',64),
+    '[{"rowNumber":2,"externalReference":"S-5","displayName":"Failed Student","preferredLocale":"tr"}]'::jsonb
+  )$$,
+  'A batch can be staged before a concurrent duplicate appears'
+);
+reset role;
+insert into public.students(operator_id,external_reference,display_name,preferred_locale)
+values('82000000-0000-4000-8000-000000000001','S-5','Existing Student','tr');
+insert into public.student_branch_history(operator_id,student_id,branch_id)
+select operator_id,id,'83000000-0000-4000-8000-000000000001' from public.students where external_reference='S-5';
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"81000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+select is(public.confirm_student_roster_import('82000000-0000-4000-8000-000000000001',repeat('e',64),array[2])->>'status','failed','A concurrent duplicate records a failed import outcome');
+
 reset role;
 select is((select count(*) from public.audit_events where action='student.roster_imported'),1::bigint,'Successful import outcome and actor are audited');
+select is((select count(*) from public.audit_events where action='student.roster_import_cancelled'),1::bigint,'Cancelled import outcome and actor are audited');
+select is((select count(*) from public.audit_events where action='student.roster_import_failed'),1::bigint,'Failed import outcome and actor are audited');
 select ok(
   not exists (
     select 1 from public.audit_events
@@ -119,6 +150,33 @@ select ok(
       and (after_summary::text like '%Ayşe%' or after_summary::text like '%S-1%')
   ),
   'Audit summaries contain no Student names or external references'
+);
+
+create temporary table large_import_preview as
+select public.stage_student_roster_import(
+  '82000000-0000-4000-8000-000000000001',
+  '83000000-0000-4000-8000-000000000001',
+  repeat('9',64),
+  (
+    select jsonb_agg(jsonb_build_object(
+      'rowNumber', item + 20,
+      'externalReference', 'L-' || item,
+      'displayName', 'Large Student ' || item,
+      'preferredLocale', 'tr',
+      'invalidColumnCount', false
+    ))
+    from generate_series(1,1000) item
+  )
+) as data;
+select is((select (data->>'row_count')::integer from large_import_preview),1000,'A 1,000-row import stages completely');
+select is(
+  (public.confirm_student_roster_import(
+    '82000000-0000-4000-8000-000000000001',
+    repeat('9',64),
+    (select array_agg(item + 20) from generate_series(1,1000) item)
+  )->>'imported_count')::integer,
+  1000,
+  'A 1,000-row import commits completely'
 );
 
 set local role authenticated;

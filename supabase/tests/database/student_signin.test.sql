@@ -2,6 +2,8 @@ begin;
 select no_plan();
 select ok(not has_function_privilege('authenticated','public.student_signin_lookup(text)','EXECUTE'),'Identity lookup is gateway-only');
 select ok(not has_function_privilege('anon','public.recover_student_credential(uuid,text)','EXECUTE'),'Anonymous cannot recover');
+select ok(not has_function_privilege('authenticated','public.recover_student_credential(uuid,text)','EXECUTE'),'Browser clients cannot install chosen recovery verifiers');
+select ok(has_function_privilege('service_role','public.recover_student_credential_service(uuid,uuid,text)','EXECUTE'),'Server gateway may install generated recovery verifiers');
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password) values
 ('a1000000-0000-4000-8000-000000000001','00000000-0000-0000-0000-000000000000','authenticated','authenticated','reset-owner@example.test',''),
 ('a1000000-0000-4000-8000-000000000002','00000000-0000-0000-0000-000000000000','authenticated','authenticated','student@students.ranza.invalid','');
@@ -12,14 +14,17 @@ insert into public.operator_memberships(operator_id,auth_user_id,role,access_sco
 ('a2000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000001','owner','operator_wide');
 insert into public.students(id,operator_id,access_id,display_name,auth_user_id) values
 ('a4000000-0000-4000-8000-000000000001','a2000000-0000-4000-8000-000000000001','reset-id','Reset Student','a1000000-0000-4000-8000-000000000002');
-insert into public.student_branch_history(operator_id,student_id,branch_id) values
-('a2000000-0000-4000-8000-000000000001','a4000000-0000-4000-8000-000000000001','a3000000-0000-4000-8000-000000000001');
+insert into public.student_branch_history(operator_id,student_id,branch_id,started_at) values
+('a2000000-0000-4000-8000-000000000001','a4000000-0000-4000-8000-000000000001','a3000000-0000-4000-8000-000000000001',clock_timestamp()-interval '1 minute');
 insert into private.student_credentials(student_id,auth_user_id,auth_identifier,activation_hash,activation_expires_at,activated_at) values
 ('a4000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000002','student@students.ranza.invalid','scrypt-v1$'||repeat('a',32)||'$'||repeat('b',64),now()+interval '1 day',now()-interval '1 hour');
 insert into auth.sessions(id,user_id,created_at,updated_at) values
 ('a5000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000002',now(),now());
 select set_config('request.jwt.claims','{"sub":"a1000000-0000-4000-8000-000000000002","role":"authenticated","session_id":"a5000000-0000-4000-8000-000000000001"}',true);
 select is(private.current_student_id(),'a4000000-0000-4000-8000-000000000001'::uuid,'Live session authorizes Student');
+set local role authenticated;
+select is((select display_name from public.student_home_context()),'Reset Student','Student home exposes only the authenticated identity context');
+reset role;
 update auth.sessions set created_at=now()-interval '8 days';
 select is(private.current_student_id(),null::uuid,'Session lifetime is bounded');
 update auth.sessions set created_at=now();
@@ -28,9 +33,10 @@ select is(public.student_signin_lookup('reset-id'),null::jsonb,'Failed PIN burst
 update private.student_credentials set locked_until=now()-interval '1 minute';
 select ok(public.student_signin_lookup('reset-id') is not null,'Lock expires');
 set local role authenticated;
-select throws_ok($$select public.recover_student_credential('a4000000-0000-4000-8000-000000000001','scrypt-v1$'||repeat('c',32)||'$'||repeat('d',64))$$,'42501','Credential recovery denied','Students cannot recover themselves');
-select set_config('request.jwt.claims','{"sub":"a1000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
-select lives_ok($$select public.recover_student_credential('a4000000-0000-4000-8000-000000000001','scrypt-v1$'||repeat('c',32)||'$'||repeat('d',64))$$,'Authorized staff issue recovery');
+select throws_ok($$select public.recover_student_credential('a4000000-0000-4000-8000-000000000001','scrypt-v1$'||repeat('c',32)||'$'||repeat('d',64))$$,'42501',null,'Students cannot recover themselves');
+reset role;
+set local role service_role;
+select lives_ok($$select public.recover_student_credential_service('a1000000-0000-4000-8000-000000000001','a4000000-0000-4000-8000-000000000001','scrypt-v1$'||repeat('c',32)||'$'||repeat('d',64))$$,'Server gateway installs recovery for authorized staff');
 reset role;
 select is((select auth_user_id from public.students where access_id='reset-id'),'a1000000-0000-4000-8000-000000000002'::uuid,'Recovery preserves identity');
 select is((select count(*) from auth.sessions where user_id='a1000000-0000-4000-8000-000000000002'),0::bigint,'Recovery deletes active sessions');
@@ -47,6 +53,7 @@ select ok(public.confirm_student_pin('a4000000-0000-4000-8000-000000000001',(sel
 select ok(public.student_signin_lookup('reset-id') is not null,'Confirmed credential available');
 insert into auth.sessions(id,user_id,created_at,updated_at) values
 ('a5000000-0000-4000-8000-000000000002','a1000000-0000-4000-8000-000000000002',clock_timestamp(),clock_timestamp());
+select set_config('request.jwt.claims','{}',true);
 update public.operators set status='suspended' where id='a2000000-0000-4000-8000-000000000001';
 select is(public.student_signin_lookup('reset-id'),null::jsonb,'Suspended Operator denies new sign-in');
 select is((select count(*) from auth.sessions where user_id='a1000000-0000-4000-8000-000000000002'),0::bigint,'Suspension revokes sessions');

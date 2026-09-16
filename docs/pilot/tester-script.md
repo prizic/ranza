@@ -4,6 +4,17 @@
 
 The pilot manager records the release SHA, Operator and Branch IDs, active Student denominator, Branch timezone/cutoffs, kitchen contact, management contact, and legacy fallback owner. Use synthetic identifiers in screenshots and issue reports.
 
+### Student onboarding rehearsal
+
+1. As authorized staff, create one Student manually and verify that the selected Branch, preferred language, and generated Access ID are correct.
+2. Import a UTF-8 CSV containing a valid row, a blank physical row, a duplicate external reference, and an invalid language. Confirm that displayed row numbers match the original file, errors are understandable, and only selected valid rows are created.
+3. Issue an activation code, hand it directly to the intended tester, and confirm that the code appears only once and expires in 24 hours. Never copy it into an issue or screenshot.
+4. On the assigned mobile browser, activate with the Access ID, one-time code, and a 6–12 digit PIN. Confirm that the authenticated home shows the tester's real name, current Branch, Branch timezone, and preferred language.
+5. Sign out, sign back in with Access ID and PIN, and confirm another Student in the same Branch cannot be viewed by changing a URL.
+6. As staff, reset the PIN. Confirm all existing Student sessions lose access immediately, the old PIN fails, the recovery page is clearly labeled, and the new one-time code activates the same Student identity.
+7. Archive the Student and confirm sign-in and authenticated pages are denied. Reactivate only if the pilot record calls for it.
+8. Repeat activation layout and keyboard checks in Turkish, English, and Arabic/RTL on the browser/device matrix in the readiness checklist. Record only the displayed support reference on failures.
+
 ## Daily Student script
 
 1. Sign in on the assigned mobile browser and confirm the correct Branch and language.

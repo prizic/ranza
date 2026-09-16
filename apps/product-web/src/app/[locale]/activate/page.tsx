@@ -8,28 +8,45 @@ export default async function ActivationPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ error?: string; activated?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    activated?: string;
+    recovered?: string;
+    mode?: string;
+    ref?: string;
+  }>;
 }) {
   const [{ locale }, query] = await Promise.all([params, searchParams]);
   if (!isSupportedLocale(locale)) notFound();
   const t = studentCredentialCopy[locale];
+  const recovery = query.mode === "recovery" || Boolean(query.recovered);
   return (
     <LocalizedShell locale={locale}>
-      <h1>{t.title}</h1>
-      {query.error && <p role="alert">{t.error}</p>}
-      {query.activated ? (
+      <h1>{recovery ? t.recoveryTitle : t.title}</h1>
+      {query.error && (
+        <p role="alert">
+          {recovery ? t.recoveryError : t.error}
+          {query.ref ? (
+            <>
+              {" "}
+              {t.supportReference}: <bdi>{query.ref}</bdi>
+            </>
+          ) : null}
+        </p>
+      )}
+      {query.activated || query.recovered ? (
         <>
-          <p role="status">{t.done}</p>
-          <a href={`/${locale}`}>{t.back}</a>
+          <p role="status">{recovery ? t.recoveryDone : t.done}</p>
+          <a href={`/${locale}/student`}>{t.back}</a>
         </>
       ) : (
         <form
-          action={`/${locale}/activate/exchange`}
+          action={`/${locale}/activate/exchange${recovery ? "?mode=recovery" : ""}`}
           method="post"
           autoComplete="off"
-          className="control-card"
+          className="control-card control-form"
         >
-          <p id="activation-hint">{t.hint}</p>
+          <p id="activation-hint">{recovery ? t.recoveryHint : t.hint}</p>
           <label>
             {t.accessId}
             <input
@@ -43,7 +60,7 @@ export default async function ActivationPage({
             />
           </label>
           <label>
-            {t.code}
+            {recovery ? t.recoveryCode : t.code}
             <input
               name="code"
               type="password"
@@ -68,7 +85,9 @@ export default async function ActivationPage({
               aria-describedby="activation-hint"
             />
           </label>
-          <button type="submit">{t.activate}</button>
+          <button type="submit">
+            {recovery ? t.recoverySubmit : t.activate}
+          </button>
         </form>
       )}
     </LocalizedShell>

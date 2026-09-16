@@ -4,6 +4,11 @@ import { StatusMessage } from "@ranza/ui";
 import { notFound, redirect } from "next/navigation";
 
 import { LocalizedShell } from "../../../../../components/localized-shell";
+import {
+  importErrorLabel,
+  importStatusLabel,
+  studentImportCopy,
+} from "../../../../../lib/student-import-copy";
 import { createProductWebClient } from "../../../../../lib/supabase/server";
 import type { ImportPreview } from "../../../../../server/student-import-gateway";
 
@@ -28,44 +33,20 @@ interface Run {
   created_at: string;
 }
 
-const copy = {
-  en: {
-    title: "Import Students",
-    template: "Download UTF-8 template",
-    upload: "Preview CSV",
-    confirm: "Import selected rows",
-    cancel: "Cancel",
-    errors: "Download row errors",
-    valid: "Valid",
-    invalid: "Needs correction",
-    history: "Recent imports",
-    back: "Student roster",
-  },
-  tr: {
-    title: "Öğrencileri içe aktar",
-    template: "UTF-8 şablonunu indir",
-    upload: "CSV önizleme",
-    confirm: "Seçilen satırları aktar",
-    cancel: "İptal",
-    errors: "Satır hatalarını indir",
-    valid: "Geçerli",
-    invalid: "Düzeltme gerekli",
-    history: "Son aktarımlar",
-    back: "Öğrenci listesi",
-  },
-  ar: {
-    title: "استيراد الطلاب",
-    template: "تنزيل قالب UTF-8",
-    upload: "معاينة CSV",
-    confirm: "استيراد الصفوف المحددة",
-    cancel: "إلغاء",
-    errors: "تنزيل أخطاء الصفوف",
-    valid: "صالح",
-    invalid: "يحتاج إلى تصحيح",
-    history: "عمليات الاستيراد الأخيرة",
-    back: "قائمة الطلاب",
-  },
-};
+const importStatuses: ImportPreview["status"][] = [
+  "cancelled",
+  "committed",
+  "failed",
+  "importing",
+  "staged",
+];
+
+function isImportStatus(value: unknown): value is ImportPreview["status"] {
+  return (
+    typeof value === "string" &&
+    importStatuses.includes(value as ImportPreview["status"])
+  );
+}
 
 export default async function StudentImportPage({
   params,
@@ -76,7 +57,7 @@ export default async function StudentImportPage({
 }) {
   const [{ locale }, query] = await Promise.all([params, searchParams]);
   if (!isSupportedLocale(locale)) notFound();
-  const t = copy[locale];
+  const t = studentImportCopy[locale];
   const client = await createProductWebClient();
   const { data: auth } = await client.auth.getUser();
   if (!auth.user) redirect(`/${locale}/staff/sign-in`);
@@ -146,26 +127,33 @@ export default async function StudentImportPage({
         <StatusMessage
           tone={query.result === "committed" ? "success" : "warning"}
         >
-          {String(query.result)}
+          {isImportStatus(query.result)
+            ? importStatusLabel(locale, query.result)
+            : importStatusLabel(locale, "failed")}
         </StatusMessage>
       ) : null}
-      <section className="control-card">
+      <section className="control-card control-form">
         <a href="/api/student-import/template">{t.template}</a>
-        <p>
-          external_reference, display_name, preferred_locale (tr/en/ar) · UTF-8
-          · max 1,000 rows / 5 MB
-        </p>
-        <form action={previewStudentImport}>
+        <p id="student-import-help">{t.fileHelp}</p>
+        <form action={previewStudentImport} className="control-form">
           {hidden()}
-          <input accept=".csv,text/csv" name="csv" required type="file" />
+          <label htmlFor="student-csv">{t.fileLabel}</label>
+          <input
+            accept=".csv,text/csv"
+            aria-describedby="student-import-help"
+            id="student-csv"
+            name="csv"
+            required
+            type="file"
+          />
           <button type="submit">{t.upload}</button>
         </form>
       </section>
       {preview && currentRun ? (
         <section className="control-card">
           <h2>
-            {preview.status} · {preview.valid_count}/{preview.row_count}{" "}
-            {t.valid}
+            {importStatusLabel(locale, preview.status)} · {preview.valid_count}/
+            {preview.row_count} {t.valid}
           </h2>
           {preview.error_count > 0 ? (
             <a href={`/api/student-import/${preview.id}/errors`}>{t.errors}</a>
@@ -177,12 +165,12 @@ export default async function StudentImportPage({
                 <table>
                   <thead>
                     <tr>
-                      <th></th>
-                      <th>#</th>
-                      <th>Reference</th>
-                      <th>Name</th>
-                      <th>Locale</th>
-                      <th>Status</th>
+                      <th scope="col">{t.select}</th>
+                      <th scope="col">{t.row}</th>
+                      <th scope="col">{t.reference}</th>
+                      <th scope="col">{t.name}</th>
+                      <th scope="col">{t.locale}</th>
+                      <th scope="col">{t.status}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -192,6 +180,7 @@ export default async function StudentImportPage({
                           {row.errors.length === 0 ? (
                             <input
                               defaultChecked
+                              aria-label={`${t.selectRow} ${row.rowNumber}`}
                               name="row"
                               type="checkbox"
                               value={row.rowNumber}
@@ -207,7 +196,9 @@ export default async function StudentImportPage({
                         <td>
                           {row.errors.length === 0
                             ? t.valid
-                            : `${t.invalid}: ${row.errors.join(", ")}`}
+                            : `${t.invalid}: ${row.errors
+                                .map((code) => importErrorLabel(locale, code))
+                                .join(" ")}`}
                         </td>
                       </tr>
                     ))}
@@ -225,7 +216,7 @@ export default async function StudentImportPage({
           ) : null}
           {preview.error_reference ? (
             <p>
-              <bdi>{preview.error_reference}</bdi>
+              {t.supportReference}: <bdi>{preview.error_reference}</bdi>
             </p>
           ) : null}
         </section>
@@ -239,7 +230,8 @@ export default async function StudentImportPage({
                 {new Intl.DateTimeFormat(locale).format(
                   new Date(run.created_at),
                 )}{" "}
-                · {run.status} · {run.imported_count}/{run.row_count}
+                · {importStatusLabel(locale, run.status)} · {run.imported_count}
+                /{run.row_count}
               </a>
             </li>
           ))}

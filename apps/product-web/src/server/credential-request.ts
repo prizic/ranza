@@ -1,10 +1,13 @@
+import { parseServerEnvironment } from "@ranza/config";
+
 // Accept only bounded same-origin HTML form posts. Credentials never enter URLs.
 export async function readCredentialForm(
   request: Request,
 ): Promise<URLSearchParams | null> {
+  const environment = parseServerEnvironment(process.env);
   const origin =
-    process.env.PRODUCT_WEB_ORIGIN ??
-    (process.env.NODE_ENV !== "production"
+    environment.PRODUCT_WEB_ORIGIN ??
+    (environment.NODE_ENV !== "production"
       ? new URL(request.url).origin
       : null);
   if (

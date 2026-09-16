@@ -9,8 +9,10 @@ import {
   localeFromPathname,
   localizeHref,
   messagesFor,
+  replaceLocaleInPathname,
 } from "../../packages/i18n/src/index";
 import { controlAuthMessagesFor } from "../../packages/i18n/src/control-auth";
+import { studentCredentialCopy } from "../../apps/product-web/src/lib/student-credential-copy";
 
 describe("locale contract", () => {
   it("defaults locale negotiation to Turkish", () => {
@@ -38,6 +40,10 @@ describe("locale contract", () => {
   it("keeps route destinations inside the selected locale", () => {
     expect(localizeHref("ar", "/maintenance")).toBe("/ar/maintenance");
     expect(localizeHref("en", "/")).toBe("/en");
+    expect(replaceLocaleInPathname("/tr/student/attendance", "ar")).toBe(
+      "/ar/student/attendance",
+    );
+    expect(replaceLocaleInPathname("/unknown", "en")).toBe("/en/unknown");
   });
 
   it("formats numbers and dates in the selected locale and timezone", () => {
@@ -71,5 +77,23 @@ describe("locale contract", () => {
       return messages.acceptInvite.title;
     });
     expect(new Set(titles).size).toBe(3);
+  });
+
+  it("distinguishes Student recovery and exposes safe support references", () => {
+    for (const locale of ["tr", "en", "ar"] as const) {
+      const copy = studentCredentialCopy[locale] as Record<string, string>;
+      expect(copy.recoveryTitle).toBeTruthy();
+      expect(copy.recoveryCode).toBeTruthy();
+      expect(copy.recoveryDone).toBeTruthy();
+      expect(copy.recoveryError).toBeTruthy();
+      expect(copy.recoveryHint).toBeTruthy();
+      expect(copy.recoverySubmit).toBeTruthy();
+      expect(copy.supportReference).toBeTruthy();
+      expect(copy.homeTitle).toBeTruthy();
+      expect(copy.homeGreeting).toBeTruthy();
+      expect(copy.homeBranch).toBeTruthy();
+      expect(copy.homeTimezone).toBeTruthy();
+      expect(copy.homeAttendance).toBeTruthy();
+    }
   });
 });

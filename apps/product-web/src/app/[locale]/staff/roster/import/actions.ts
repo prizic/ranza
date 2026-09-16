@@ -57,6 +57,9 @@ export async function previewStudentImport(form: FormData) {
       importKey,
       operatorId: operator,
       rows: parsed.rows.map((row) => ({
+        invalidColumnCount: row.errors.some(
+          (error) => error.code === "INVALID_COLUMN_COUNT",
+        ),
         displayName: row.values?.displayName ?? "",
         externalReference: row.values?.externalReference ?? "",
         preferredLocale: row.values?.preferredLocale ?? "",

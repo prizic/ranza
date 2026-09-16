@@ -26,12 +26,19 @@ export const publicEnvironmentSchema = z.object({
 export const serverEnvironmentSchema = publicEnvironmentSchema.extend({
   ATTENDANCE_SCHEDULER_SECRET: optionalNonEmptyString,
   CONTROL_PLANE_ORIGIN: optionalOrigin,
+  PRODUCT_WEB_ORIGIN: optionalOrigin,
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
   RANZA_SCHEDULER_SECRET: optionalNonEmptyString,
   SENTRY_DSN: z.url().optional(),
   SUPABASE_SERVICE_ROLE_KEY: optionalNonEmptyString,
+  STUDENT_CREDENTIAL_PEPPER_V1: z.string().min(32).optional(),
+  STUDENT_TRUSTED_IP_HEADER: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9-]+$/)
+    .optional(),
   WIFI_ENCRYPTION_KEY_V1: optionalNonEmptyString,
 });
 

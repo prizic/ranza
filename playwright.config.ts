@@ -5,7 +5,7 @@ export default defineConfig({
   fullyParallel: false,
   reporter: "line",
   testDir: "./tests/e2e",
-  // The three Next dev servers are shared by both browser projects. Serial
+  // The three Next dev servers are shared by all browser projects. Serial
   // workers avoid cross-project cold-compile navigation aborts in CI.
   workers: 1,
   use: {
@@ -20,6 +20,14 @@ export default defineConfig({
     {
       name: "desktop-chromium",
       use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "mobile-webkit",
+      use: { ...devices["iPhone SE"] },
+    },
+    {
+      name: "desktop-firefox",
+      use: { ...devices["Desktop Firefox"] },
     },
   ],
   webServer: [

@@ -33,6 +33,15 @@ export function localizeHref(
   return `/${locale}${suffix}`;
 }
 
+export function replaceLocaleInPathname(
+  pathname: string,
+  locale: SupportedLocale,
+): string {
+  const segments = pathname.split("/").filter(Boolean);
+  if (isSupportedLocale(segments[0])) segments.shift();
+  return localizeHref(locale, `/${segments.join("/")}`);
+}
+
 export function formatNumber(
   value: number,
   locale: SupportedLocale,

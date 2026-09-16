@@ -89,6 +89,18 @@ describe("Student CSV import", () => {
     ]);
   });
 
+  it("preserves physical row numbers when blank records are skipped", () => {
+    const preview = parseStudentCsv(
+      "external_reference,display_name,preferred_locale\n" +
+        "S-1,Valid Name,tr\n" +
+        ",,\n" +
+        "S-2,X,en\n",
+    );
+
+    expect(preview.rows.map((row) => row.rowNumber)).toEqual([2, 4]);
+    expect(preview.rows[1]?.errors[0]?.code).toBe("INVALID_DISPLAY_NAME");
+  });
+
   it("rejects malformed, wrongly headed, replacement-character, and oversized files", () => {
     expect(() => parseStudentCsv("name,locale\nAyşe,tr\n")).toThrow(/headers/i);
     expect(() =>
@@ -124,5 +136,21 @@ describe("Student CSV import", () => {
       "row_number,external_reference,display_name,preferred_locale,errors\r\n" +
         '3,STU-1,"Ayşe, ""A""",xx,INVALID_LOCALE|EXISTING_EXTERNAL_REFERENCE\r\n',
     );
+  });
+
+  it("neutralizes spreadsheet formulas in exported correction files", () => {
+    const csv = buildStudentImportErrorCsv([
+      {
+        displayName: "+SUM(1,1)",
+        errors: ["INVALID_DISPLAY_NAME"],
+        externalReference: "=HYPERLINK(\"https://example.test\")",
+        preferredLocale: "@payload",
+        rowNumber: 2,
+      },
+    ]);
+
+    expect(csv).toContain("'=HYPERLINK");
+    expect(csv).toContain("'+SUM");
+    expect(csv).toContain("'@payload");
   });
 });

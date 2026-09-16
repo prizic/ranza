@@ -1,7 +1,7 @@
 "use server";
 
 import { createProductWebClient } from "../../../../lib/supabase/server";
-import { issueActivationCode } from "../../../../server/student-credential-crypto";
+import { issueStudentCredentialForActor } from "../../../../server/student-credential-gateway";
 
 export interface IssuedCredentialState {
   code?: string;
@@ -18,18 +18,17 @@ export async function issueStudentCredential(
     const client = await createProductWebClient();
     const auth = await client.auth.getUser();
     if (!auth.data.user) return { error: true };
-    const issued = await issueActivationCode();
-    const result = await client.rpc(
-      form.get("operation") === "recover"
-        ? "recover_student_credential"
-        : "issue_student_activation",
-      {
-        target_student_id: String(form.get("student") ?? ""),
-        code_hash: issued.hash,
-      },
-    );
-    if (result.error || !result.data?.access_id) return { error: true };
-    return { code: issued.code, accessId: result.data.access_id };
+    const operation = form.get("operation") === "recover" ? "recover" : "issue";
+    const result = await issueStudentCredentialForActor({
+      actorId: auth.data.user.id,
+      operation,
+      studentId: String(form.get("student") ?? ""),
+    });
+    if (!result.credential) return { error: true };
+    return {
+      accessId: result.credential.accessId,
+      code: result.credential.code,
+    };
   } catch {
     return { error: true };
   }

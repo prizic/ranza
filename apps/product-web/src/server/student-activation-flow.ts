@@ -1,8 +1,33 @@
 import {
   credentialRateKey,
   deriveStudentPassword,
+  issueActivationCode,
   verifyActivationCode,
 } from "./student-credential-crypto";
+
+export interface CredentialIssuancePort {
+  install(input: {
+    actorId: string;
+    codeHash: string;
+    operation: "issue" | "recover";
+    studentId: string;
+  }): Promise<{ access_id: string } | null>;
+}
+
+export async function issueStudentCredential(
+  port: CredentialIssuancePort,
+  input: {
+    actorId: string;
+    operation: "issue" | "recover";
+    studentId: string;
+  },
+) {
+  const issued = await issueActivationCode();
+  const installed = await port.install({ ...input, codeHash: issued.hash });
+  return installed
+    ? { accessId: installed.access_id, code: issued.code }
+    : null;
+}
 
 export interface ActivationClaim {
   student_id: string;

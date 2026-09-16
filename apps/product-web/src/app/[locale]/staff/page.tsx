@@ -6,6 +6,11 @@ import { notFound, redirect } from "next/navigation";
 import { LocalizedShell } from "../../../components/localized-shell";
 import { createProductWebClient } from "../../../lib/supabase/server";
 import { announcementCopy } from "../../../lib/announcement-copy";
+import {
+  capabilityLabel,
+  roleLabel,
+  staffDashboardCopy,
+} from "../../../lib/staff-dashboard-copy";
 
 interface StaffAccessRow {
   branch_id: string;
@@ -23,6 +28,7 @@ export default async function StaffPage({
 }: PageProps<"/[locale]/staff">) {
   const [{ locale }, query] = await Promise.all([params, searchParams]);
   if (!isSupportedLocale(locale)) notFound();
+  const copy = staffDashboardCopy[locale];
   const client = await createProductWebClient();
   const { data: auth } = await client.auth.getUser();
   if (!auth.user) redirect(`/${locale}/staff/sign-in`);
@@ -62,11 +68,11 @@ export default async function StaffPage({
         aria-labelledby="branch-context-title"
       >
         <div>
-          <span id="branch-context-title">Active Branch</span>
+          <span id="branch-context-title">{copy.activeBranch}</span>
           <h2>{selected.branch_name}</h2>
           <BidiText>{selected.timezone}</BidiText>
         </div>
-        <nav aria-label="Switch Branch" className="branch-switcher">
+        <nav aria-label={copy.switchBranch} className="branch-switcher">
           {branches.map((branch) => (
             <a
               aria-current={
@@ -81,29 +87,18 @@ export default async function StaffPage({
         </nav>
       </section>
       {requestedBranch && requestedBranch !== selectedBranchId ? (
-        <StatusMessage tone="warning">
-          The requested Branch is unavailable. Your authorized Branch is shown
-          instead.
-        </StatusMessage>
+        <StatusMessage tone="warning">{copy.branchUnavailable}</StatusMessage>
       ) : null}
       <section className="control-card">
         {selected.operator_role === "owner" ? (
           <a href={`/${locale}/staff/exports?operator=${selected.operator_id}`}>
-            {locale === "tr"
-              ? "Verileri dışa aktar"
-              : locale === "ar"
-                ? "تصدير البيانات"
-                : "Export Operator data"}
+            {copy.exportData}
           </a>
         ) : null}
         {capabilities.includes("workflow.read") ||
         capabilities.includes("workflow.manage") ? (
           <a href={`/${locale}/staff/attendance?branch=${selectedBranchId}`}>
-            {locale === "tr"
-              ? "Gece yoklaması"
-              : locale === "ar"
-                ? "الحضور الليلي"
-                : "Nightly attendance"}
+            {copy.attendance}
           </a>
         ) : null}
         {capabilities.includes("workflow.manage") && (
@@ -115,47 +110,31 @@ export default async function StaffPage({
         )}
         {capabilities.includes("roster.manage") ? (
           <a href={`/${locale}/staff/roster?branch=${selectedBranchId}`}>
-            {locale === "tr"
-              ? "Öğrenci listesi"
-              : locale === "ar"
-                ? "قائمة الطلاب"
-                : "Student roster"}
+            {copy.roster}
           </a>
         ) : null}
         {capabilities.includes("workflow.manage") ||
         capabilities.includes("workflow.read") ? (
           <a href={`/${locale}/staff/meals?branch=${selectedBranchId}`}>
-            {locale === "tr"
-              ? "Yemek yanıtları"
-              : locale === "ar"
-                ? "ردود الوجبات"
-                : "Meal responses"}
+            {copy.meals}
           </a>
         ) : null}
         {capabilities.includes("finance.manage") ? (
           <a href={`/${locale}/staff/balances?branch=${selectedBranchId}`}>
-            {locale === "tr"
-              ? "Öğrenci bakiyeleri"
-              : locale === "ar"
-                ? "أرصدة الطلاب"
-                : "Student Balances"}
+            {copy.balances}
           </a>
         ) : null}
         {capabilities.includes("workflow.manage") ||
         capabilities.includes("workflow.read") ? (
           <a href={`/${locale}/staff/wifi?branch=${selectedBranchId}`}>
-            {locale === "tr"
-              ? "Şube Wi-Fi"
-              : locale === "ar"
-                ? "شبكة Wi-Fi للفرع"
-                : "Branch Wi-Fi"}
+            {copy.wifi}
           </a>
         ) : null}
-        <h2>Staff access</h2>
-        <p>{selected.operator_role.replace("_", " ")}</p>
+        <h2>{copy.staffAccess}</h2>
+        <p>{roleLabel(locale, selected.operator_role)}</p>
         <ul>
           {capabilities.map((capability) => (
-            <li key={capability}>{capability}</li>
+            <li key={capability}>{capabilityLabel(locale, capability)}</li>
           ))}
         </ul>
       </section>

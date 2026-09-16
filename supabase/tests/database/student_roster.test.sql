@@ -1,12 +1,13 @@
 begin;
-select plan(17);
+select plan(18);
 select has_table('public', 'students', 'Student identities exist');
 select has_table('public', 'student_branch_history', 'Branch assignments are historical');
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password) values
 ('71000000-0000-4000-8000-000000000001','00000000-0000-0000-0000-000000000000','authenticated','authenticated','roster-owner@example.test',''),
 ('71000000-0000-4000-8000-000000000002','00000000-0000-0000-0000-000000000000','authenticated','authenticated','roster-student@example.test',''),
-('71000000-0000-4000-8000-000000000003','00000000-0000-0000-0000-000000000000','authenticated','authenticated','roster-manager@example.test','');
+('71000000-0000-4000-8000-000000000003','00000000-0000-0000-0000-000000000000','authenticated','authenticated','roster-manager@example.test',''),
+('71000000-0000-4000-8000-000000000004','00000000-0000-0000-0000-000000000000','authenticated','authenticated','other-student@example.test','');
 insert into public.operators (id,name,status) values
 ('72000000-0000-4000-8000-000000000001','Roster Operator','active'),
 ('72000000-0000-4000-8000-000000000002','Other Roster Operator','active');
@@ -34,6 +35,10 @@ select is((select count(*) from public.student_branch_history),1::bigint,'Former
 reset role;
 select set_config('request.jwt.claims','{}',true);
 update public.students set auth_user_id='71000000-0000-4000-8000-000000000002' where external_reference='A-1';
+insert into public.students(id,operator_id,access_id,external_reference,display_name,auth_user_id)
+values('76000000-0000-4000-8000-000000000001','72000000-0000-4000-8000-000000000001','other-student-id','A-2','Other Student','71000000-0000-4000-8000-000000000004');
+insert into public.student_branch_history(operator_id,student_id,branch_id,started_at)
+values('72000000-0000-4000-8000-000000000001','76000000-0000-4000-8000-000000000001','73000000-0000-4000-8000-000000000002',clock_timestamp()-interval '1 minute');
 insert into private.student_credentials(student_id,auth_user_id,auth_identifier,activation_hash,activation_expires_at,activated_at)
 select id,auth_user_id,'roster-student@example.test','scrypt-v1$'||repeat('a',32)||'$'||repeat('b',64),now()+interval '1 day',now()-interval '1 hour'
 from public.students where external_reference='A-1';
@@ -43,6 +48,7 @@ select throws_ok($$insert into public.student_branch_history(operator_id,student
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"71000000-0000-4000-8000-000000000002","role":"authenticated","session_id":"75000000-0000-4000-8000-000000000001"}',true);
 select ok(private.is_active_student_in_branch('72000000-0000-4000-8000-000000000001','73000000-0000-4000-8000-000000000002'),'Student can access current Branch');
+select is((select count(*) from public.students),1::bigint,'Student cannot read another Student in the same Branch');
 select ok(not private.is_active_student_in_branch('72000000-0000-4000-8000-000000000001','73000000-0000-4000-8000-000000000001'),'Transferred Student loses previous Branch access');
 select throws_ok($$select public.manage_student_roster('archive','72000000-0000-4000-8000-000000000001',(select id from public.students),null)$$,'42501','Roster access denied','Student cannot mutate roster');
 select set_config('request.jwt.claims','{"sub":"71000000-0000-4000-8000-000000000001","role":"authenticated"}',true);

@@ -130,3 +130,36 @@ test.describe("Product Web PWA", () => {
     expect(cachedRequests.some((url) => url.includes("/wifi"))).toBe(false);
   });
 });
+
+test.describe("Product Web Student credentials", () => {
+  for (const locale of locales) {
+    for (const route of ["activate", "student/sign-in"] as const) {
+      test(`${locale.locale} ${route} is usable and accessible on a small screen`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width: 320, height: 568 });
+        await page.goto(`http://127.0.0.1:3101/${locale.locale}/${route}`);
+
+        const form = page.locator("form");
+        const fields = form.locator("label");
+        await expect(form).toBeVisible();
+        expect(await fields.count()).toBeGreaterThanOrEqual(2);
+        const boxes = await fields.evaluateAll((labels) =>
+          labels.map((label) => {
+            const box = label.getBoundingClientRect();
+            return { bottom: box.bottom, top: box.top, width: box.width };
+          }),
+        );
+        for (let index = 1; index < boxes.length; index += 1) {
+          expect(boxes[index]!.top).toBeGreaterThanOrEqual(
+            boxes[index - 1]!.bottom,
+          );
+        }
+        expect(boxes.every((box) => box.width <= 288)).toBe(true);
+
+        const results = await new AxeBuilder({ page }).analyze();
+        expect(results.violations).toEqual([]);
+      });
+    }
+  }
+});

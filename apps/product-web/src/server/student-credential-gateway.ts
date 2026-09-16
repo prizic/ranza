@@ -1,24 +1,34 @@
 import "server-only";
 import { randomBytes, randomUUID } from "node:crypto";
+import { parseServerEnvironment } from "@ranza/config";
 import { createClient } from "@supabase/supabase-js";
 import { createProductWebClient } from "../lib/supabase/server";
 import {
   activateStudent,
   type ActivationClaim,
   type ActivationPort,
+  issueStudentCredential,
 } from "./student-activation-flow";
 import { signInStudent, type StudentSignInPort } from "./student-signin-flow";
 
 export function studentCredentialEnvironment() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const pepper = process.env.STUDENT_CREDENTIAL_PEPPER_V1;
+  const parsed = parseServerEnvironment(process.env);
+  const url = parsed.NEXT_PUBLIC_SUPABASE_URL;
+  const key = parsed.SUPABASE_SERVICE_ROLE_KEY;
+  const pepper = parsed.STUDENT_CREDENTIAL_PEPPER_V1;
   if (!url || !key || !pepper || pepper.length < 32)
     throw new Error("Student credential gateway is not configured");
-  return { url, key, pepper };
+  if (parsed.NODE_ENV === "production" && !parsed.STUDENT_TRUSTED_IP_HEADER)
+    throw new Error("Student trusted client IP header is not configured");
+  return {
+    key,
+    pepper,
+    trustedIpHeader: parsed.STUDENT_TRUSTED_IP_HEADER,
+    url,
+  };
 }
 
-export function createStudentCredentialAdmin() {
+export function createStudentCredentialAdmin(correlationId?: string) {
   const { url, key } = studentCredentialEnvironment();
   return createClient(url, key, {
     auth: {
@@ -26,19 +36,25 @@ export function createStudentCredentialAdmin() {
       autoRefreshToken: false,
       detectSessionInUrl: false,
     },
+    ...(correlationId
+      ? { global: { headers: { "x-correlation-id": correlationId } } }
+      : {}),
   });
 }
 
-export async function exchangeStudentActivation(input: {
-  accessId: string;
-  code: string;
-  pin: string;
-  network: string;
-}) {
+export async function exchangeStudentActivation(
+  input: {
+    accessId: string;
+    code: string;
+    pin: string;
+    network: string;
+  },
+  correlationId = randomUUID(),
+) {
   try {
     const { pepper } = studentCredentialEnvironment();
-    const admin = createStudentCredentialAdmin();
-    const session = await createProductWebClient();
+    const admin = createStudentCredentialAdmin(correlationId);
+    const session = await createProductWebClient({ correlationId });
     async function rpc<T>(
       name: string,
       args: Record<string, unknown>,
@@ -102,22 +118,27 @@ export async function exchangeStudentActivation(input: {
       },
       abandon: (claim) => rpc("abandon_student_activation", claimArgs(claim)),
     };
-    return await activateStudent(port, input, pepper);
+    return {
+      correlationId,
+      success: await activateStudent(port, input, pepper),
+    };
   } catch {
-    return false;
+    return { correlationId, success: false };
   }
 }
 
-export async function exchangeStudentSignIn(input: {
-  accessId: string;
-  pin: string;
-  network: string;
-}) {
-  const correlationId = randomUUID();
+export async function exchangeStudentSignIn(
+  input: {
+    accessId: string;
+    pin: string;
+    network: string;
+  },
+  correlationId = randomUUID(),
+) {
   try {
     const { pepper } = studentCredentialEnvironment();
-    const admin = createStudentCredentialAdmin();
-    const session = await createProductWebClient();
+    const admin = createStudentCredentialAdmin(correlationId);
+    const session = await createProductWebClient({ correlationId });
     const port: StudentSignInPort = {
       attempt: async (credentialKey, networkKey) => {
         const result = await admin.rpc("student_credential_attempt", {
@@ -173,5 +194,38 @@ export async function exchangeStudentSignIn(input: {
       }),
     );
     return { success: false, correlationId };
+  }
+}
+
+export async function issueStudentCredentialForActor(input: {
+  actorId: string;
+  operation: "issue" | "recover";
+  studentId: string;
+}) {
+  const correlationId = randomUUID();
+  try {
+    const admin = createStudentCredentialAdmin(correlationId);
+    const credential = await issueStudentCredential(
+      {
+        install: async ({ actorId, codeHash, operation, studentId }) => {
+          const result = await admin.rpc(
+            operation === "recover"
+              ? "recover_student_credential_service"
+              : "issue_student_activation_service",
+            {
+              actor_id: actorId,
+              code_hash: codeHash,
+              target_student_id: studentId,
+            },
+          );
+          if (result.error || !result.data?.access_id) return null;
+          return result.data;
+        },
+      },
+      input,
+    );
+    return { correlationId, credential };
+  } catch {
+    return { correlationId, credential: null };
   }
 }

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { parseServerEnvironment } from "@ranza/config";
 import { createClient } from "@supabase/supabase-js";
 
@@ -20,7 +21,7 @@ export interface ImportPreview {
   valid_count: number;
 }
 
-function client() {
+function client(correlationId: string) {
   const env = parseServerEnvironment(process.env);
   if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error("The Student import service is not configured.");
@@ -30,12 +31,13 @@ function client() {
     env.SUPABASE_SERVICE_ROLE_KEY,
     {
       auth: { autoRefreshToken: false, persistSession: false },
+      global: { headers: { "x-correlation-id": correlationId } },
     },
   );
 }
 
 async function call(name: string, args: Record<string, unknown>) {
-  const { data, error } = await client().rpc(name, args);
+  const { data, error } = await client(randomUUID()).rpc(name, args);
   if (error) throw error;
   return data as ImportPreview;
 }

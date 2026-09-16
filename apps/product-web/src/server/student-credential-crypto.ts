@@ -1,5 +1,6 @@
 // Node-only primitives; runtime configuration is read exclusively by the server gateway.
 import { createHmac, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { isIP } from "node:net";
 
 function slowHash(code: string, salt: string): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -71,8 +72,17 @@ export function credentialRateKey(
     .digest("hex");
 }
 
-export function networkSignal(headers: Headers, trustedHeader?: string) {
-  return trustedHeader
-    ? (headers.get(trustedHeader)?.slice(0, 256) ?? "shared")
-    : "shared";
+export function networkSignal(
+  headers: Headers,
+  trustedHeader?: string,
+  production = process.env.NODE_ENV === "production",
+) {
+  if (!trustedHeader) {
+    if (production) throw new Error("A trusted client IP header is required");
+    return "development";
+  }
+  const signal = headers.get(trustedHeader)?.trim().toLowerCase() ?? "";
+  if (isIP(signal) === 0)
+    throw new Error("A trusted client IP address is required");
+  return signal;
 }

@@ -12,7 +12,9 @@ function environment() {
   return { publishableKey, url };
 }
 
-export async function createProductWebClient() {
+export async function createProductWebClient(options?: {
+  correlationId?: string;
+}) {
   const env = environment();
   const cookieStore = await cookies();
   const setAll: SetAllCookies = (values) => {
@@ -27,5 +29,8 @@ export async function createProductWebClient() {
 
   return createServerClient(env.url, env.publishableKey, {
     cookies: { getAll: () => cookieStore.getAll(), setAll },
+    ...(options?.correlationId
+      ? { global: { headers: { "x-correlation-id": options.correlationId } } }
+      : {}),
   });
 }
