@@ -1,105 +1,52 @@
 import type { ReactNode } from "react";
-import { BrandMark } from "./brand-mark";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "./ui/sidebar";
-
-export interface AppShellProps {
-  /** The signed-in Staff Member, rendered at the end of the top bar. */
-  account?: ReactNode;
-  children: ReactNode;
-  /** Shown under the wordmark: the Organization, and the Property switcher. */
-  scope?: ReactNode;
-  /** The navigation tree. A client component, because current depends on route. */
-  navigation: ReactNode;
-  /** Business date, language, notifications — whatever the host puts there. */
-  toolbar?: ReactNode;
-  productName: string;
-  /** Localized, because this is the first thing a keyboard user hears. */
-  skipLabel: string;
-  /**
-   * Which edge the sidebar sits on. Arabic reads right to left, so the host
-   * passes "right" for it — the shadcn sidebar mirrors its own rail, trigger
-   * and offcanvas transition from this, which no amount of logical CSS would
-   * have done on its own.
-   */
-  side?: "left" | "right";
-  /** Localized label for the collapse control. */
-  toggleLabel: string;
-}
 
 /**
- * The authenticated chrome: a dark rail, a thin top bar, and the work surface.
+ * The frame: a rail down the start edge, a page bar across the top of what is
+ * left, and the work surface under it. On a phone the rail is replaced by a
+ * dock at the foot, which is why `main` reserves room for it.
  *
- * The rail is `--sidebar`, its own surface, so how dark it is is a token rather
- * than a rewrite — see docs/design/visual-reference.md, which asks for a dark
- * one, and the approved mockups, which mostly draw it light.
- *
- * The page below owns its own heading. A router layout cannot know what the
- * page is called, and inventing a title here would put the wrong `h1` on every
- * route.
+ * Every part is a slot. The rail needs the navigation tree, which carries icon
+ * components and therefore cannot cross the server/client boundary; the page
+ * bar needs the route's title, which is locale-prefixed. Both are things only
+ * the host knows, so this holds the arrangement and nothing else.
  */
 export function AppShell({
-  account,
+  bottomNav,
   children,
-  navigation,
-  productName,
-  scope,
-  side = "left",
+  pageBar,
+  rail,
   skipLabel,
-  toggleLabel,
-  toolbar,
-}: AppShellProps) {
+}: {
+  bottomNav?: ReactNode;
+  children: ReactNode;
+  pageBar?: ReactNode;
+  rail?: ReactNode;
+  /** Localized: this is the first thing a keyboard user hears. */
+  skipLabel: string;
+}) {
   return (
-    <SidebarProvider>
+    <div className="flex min-h-svh bg-background">
       <a
-        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-3 focus:rounded-md focus:bg-sidebar focus:px-4 focus:py-2 focus:text-sidebar-foreground"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-3 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
         href="#main-content"
       >
         {skipLabel}
       </a>
 
-      <Sidebar collapsible="icon" side={side}>
-        <SidebarHeader className="gap-3 p-4">
-          <p className="flex items-center gap-2 text-step-1 font-semibold">
-            <BrandMark className="shrink-0 text-sidebar-primary" />
-            <span className="truncate group-data-[collapsible=icon]:hidden">
-              {productName}
-            </span>
-          </p>
-          {scope ? (
-            <div className="group-data-[collapsible=icon]:hidden">{scope}</div>
-          ) : null}
-        </SidebarHeader>
+      {rail}
 
-        <SidebarContent>{navigation}</SidebarContent>
-
-        <SidebarFooter className="p-4 text-step--1 text-sidebar-foreground/50 group-data-[collapsible=icon]:hidden">
-          {productName}
-        </SidebarFooter>
-      </Sidebar>
-
-      <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-(--page)">
-          <SidebarTrigger aria-label={toggleLabel} className="-ms-2" />
-          {toolbar}
-          {account ? <div className="ms-auto">{account}</div> : null}
-        </header>
-
+      <div className="flex min-w-0 flex-1 flex-col">
+        {pageBar}
         <main
-          className="flex-1 px-(--page) py-7 focus:outline-none"
+          className="w-full flex-1 px-4 py-5 pb-[calc(4.75rem+env(safe-area-inset-bottom))] focus:outline-none sm:px-6 sm:py-6 md:px-8 md:pb-8"
           id="main-content"
           tabIndex={-1}
         >
           {children}
         </main>
-      </SidebarInset>
-    </SidebarProvider>
+      </div>
+
+      {bottomNav}
+    </div>
   );
 }

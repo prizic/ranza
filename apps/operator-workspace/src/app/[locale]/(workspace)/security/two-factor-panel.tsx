@@ -117,11 +117,11 @@ export function TwoFactorPanel({
     return (
       <section className="max-w-prose pt-7">
         <h2 className="text-step-1 font-normal">{copy.twoFactor}</h2>
-        <p className="mt-2 text-ink-soft">{copy.scanHint}</p>
+        <p className="mt-2 text-muted-foreground">{copy.scanHint}</p>
 
         <FactList>
           <Fact label={copy.secretLabel}>
-            <code className="rounded-sm bg-brass-soft px-2 py-1 font-mono text-step--1 tracking-[0.08em] text-brass-deep">
+            <code className="rounded-sm bg-secondary px-2 py-1 font-mono text-step--1 tracking-[0.08em] text-secondary-foreground">
               {enrolment.secret}
             </code>
           </Fact>
@@ -134,11 +134,11 @@ export function TwoFactorPanel({
         </p>
 
         <h3 className="mt-8 text-step-0 font-medium">{copy.backupCodes}</h3>
-        <p className="mt-1 text-ink-soft">{copy.backupCodesWarning}</p>
+        <p className="mt-1 text-muted-foreground">{copy.backupCodesWarning}</p>
         <ul className="mt-3 grid list-none grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-2 p-0">
           {enrolment.backupCodes.map((code) => (
             <li key={code}>
-              <code className="block rounded-sm bg-brass-soft px-2 py-1 text-center font-mono text-step--1 tracking-[0.08em] text-brass-deep">
+              <code className="block rounded-sm bg-secondary px-2 py-1 text-center font-mono text-step--1 tracking-[0.08em] text-secondary-foreground">
                 {code}
               </code>
             </li>
@@ -167,7 +167,7 @@ export function TwoFactorPanel({
   return (
     <section className="max-w-prose pt-7">
       <h2 className="text-step-1 font-normal">{copy.twoFactor}</h2>
-      <p className="mt-2 text-ink-soft">
+      <p className="mt-2 text-muted-foreground">
         <strong className="text-foreground">
           {enabled ? copy.twoFactorOn : copy.twoFactorOff}
         </strong>{" "}

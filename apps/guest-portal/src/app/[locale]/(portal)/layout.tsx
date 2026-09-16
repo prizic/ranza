@@ -1,22 +1,10 @@
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
-import { BedDouble } from "lucide-react";
-import {
-  directionFor,
-  isSupportedLocale,
-  localizeHref,
-  supportedLocales,
-} from "@ranza/i18n";
-import {
-  AppShell,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@ranza/ui";
+import { isSupportedLocale, localizeHref, supportedLocales } from "@ranza/i18n";
+import { AccountMenu, AppShell, AppPageBar } from "@ranza/ui";
 import { messages } from "../../../messages";
 import { requireViewer } from "../../../server/viewer";
+import { PortalBottomNav, PortalRail } from "./portal-rail";
 
 /**
  * The authenticated shell, and the gate that sends a signed-out visitor to sign
@@ -45,54 +33,60 @@ export default async function PortalLayout({
 
   const copy = messages[locale];
   const viewer = await requireViewer(locale);
-  const stayHref = localizeHref(locale, "stay");
+  const root = localizeHref(locale, "stay");
+
+  const account = (
+    <AccountMenu email={viewer.email} label={copy.account} name={viewer.email}>
+      <nav
+        aria-label={copy.languageLabel}
+        className="flex items-center gap-1 px-2 py-1.5 text-step--1"
+      >
+        {supportedLocales.map((supported) => (
+          <a
+            aria-current={supported === locale ? "true" : undefined}
+            className="rounded-sm px-1.5 py-0.5 text-muted-foreground transition-colors hover:text-foreground aria-[current=true]:bg-secondary aria-[current=true]:text-foreground"
+            href={localizeHref(supported, "stay")}
+            hrefLang={supported}
+            key={supported}
+            lang={supported}
+          >
+            {supported.toUpperCase()}
+          </a>
+        ))}
+      </nav>
+    </AccountMenu>
+  );
 
   return (
     <AppShell
-      account={
-        <div className="flex items-center gap-4">
-          <nav
-            aria-label={copy.languageLabel}
-            className="flex items-center gap-1 text-step--1"
-          >
-            {supportedLocales.map((supported) => (
-              <a
-                aria-current={supported === locale ? "true" : undefined}
-                className="rounded-sm px-1.5 py-0.5 text-muted-foreground transition-colors hover:text-foreground aria-[current=true]:bg-accent aria-[current=true]:text-accent-foreground"
-                href={localizeHref(supported, "stay")}
-                hrefLang={supported}
-                key={supported}
-                lang={supported}
-              >
-                {supported.toUpperCase()}
-              </a>
-            ))}
-          </nav>
-          <span className="text-step--1 text-muted-foreground">
-            {viewer.email}
-          </span>
-        </div>
+      bottomNav={
+        <PortalBottomNav
+          copy={copy}
+          label={copy.mainNavigation}
+          locale={locale}
+          root={root}
+        />
       }
-      navigation={
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive tooltip={copy.stay}>
-                  <a aria-current="page" href={stayHref}>
-                    <BedDouble aria-hidden="true" />
-                    <span>{copy.stay}</span>
-                  </a>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+      pageBar={
+        <AppPageBar
+          action={<div className="md:hidden">{account}</div>}
+          title={copy.stay}
+        />
       }
-      productName={copy.productName}
-      side={directionFor(locale) === "rtl" ? "right" : "left"}
+      rail={
+        <PortalRail
+          actions={account}
+          copy={copy}
+          labels={{
+            back: copy.back,
+            home: copy.productName,
+            mainNavigation: copy.mainNavigation,
+          }}
+          locale={locale}
+          root={root}
+        />
+      }
       skipLabel={copy.skip}
-      toggleLabel={copy.toggleNavigation}
     >
       {children}
     </AppShell>

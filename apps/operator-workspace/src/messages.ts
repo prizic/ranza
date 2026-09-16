@@ -12,7 +12,9 @@ export interface Messages {
   languageLabel: string;
   today: string;
   propertySwitcher: string;
-  toggleNavigation: string;
+  mainNavigation: string;
+  back: string;
+  account: string;
   organization: string;
   property: string;
   noPropertyTitle: string;
@@ -73,7 +75,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     languageLabel: "Dil",
     today: "Bugün",
     propertySwitcher: "Tesisler",
-    toggleNavigation: "Menüyü aç/kapat",
+    mainNavigation: "Ana gezinme",
+    back: "Geri",
+    account: "Hesap",
     organization: "Organizasyon",
     property: "Tesis",
     noPropertyTitle: "Henüz bir tesise atanmadınız",
@@ -147,7 +151,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     languageLabel: "Language",
     today: "Today",
     propertySwitcher: "Properties",
-    toggleNavigation: "Toggle navigation",
+    mainNavigation: "Main navigation",
+    back: "Back",
+    account: "Account",
     organization: "Organization",
     property: "Property",
     noPropertyTitle: "You are not assigned to a Property yet",
@@ -220,7 +226,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     languageLabel: "اللغة",
     today: "اليوم",
     propertySwitcher: "المنشآت",
-    toggleNavigation: "إظهار القائمة أو إخفاؤها",
+    mainNavigation: "التنقل الرئيسي",
+    back: "رجوع",
+    account: "الحساب",
     organization: "المؤسسة",
     property: "المنشأة",
     noPropertyTitle: "لم يتم تعيينك إلى منشأة بعد",

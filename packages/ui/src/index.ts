@@ -1,5 +1,10 @@
 export { AppShell } from "./components/app-shell";
-export type { AppShellProps } from "./components/app-shell";
+export { AppBottomNav, AppRail } from "./components/app-rail";
+export type { RailLabels } from "./components/app-rail";
+export { AppPageBar } from "./components/app-page-bar";
+export { AccountMenu } from "./components/account-menu";
+export { isNavGroup, navGroupFor, toMobileNav } from "./components/nav";
+export type { NavEntry, NavGroup, NavLeaf } from "./components/nav";
 export { DataTable } from "./components/data-table/data-table";
 export type {
   DataTableLabels,
@@ -57,19 +62,6 @@ export {
   TableRow,
 } from "./components/ui/table";
 
-export {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
-} from "./components/ui/sidebar";
 export { Avatar, AvatarFallback, AvatarImage } from "./components/ui/avatar";
 export {
   Breadcrumb,

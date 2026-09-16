@@ -29,7 +29,7 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "flex flex-wrap items-baseline justify-between gap-x-8 gap-y-4 border-b border-line-strong pb-5",
+        "flex flex-wrap items-baseline justify-between gap-x-8 gap-y-4 border-b border-border pb-5",
         className,
       )}
     >
@@ -68,7 +68,7 @@ export function Fact({
 }) {
   return (
     <div className="grid gap-0.5">
-      <dt className="text-step--1 text-ink-faint">{label}</dt>
+      <dt className="text-step--1 text-muted-foreground">{label}</dt>
       <dd className="m-0 text-step-1">{children}</dd>
     </div>
   );
@@ -101,8 +101,9 @@ export function Field({
 /**
  * Says what went wrong, where a screen reader will reach it.
  *
- * `className` exists for one reason: the sign-in gate is petrol, and the
- * destructive red that reads well on paper does not read on it.
+ * `className` is an escape for a surface the destructive red does not read on.
+ * Nothing needs it today — the sign-in gate that did is a light card now — but
+ * it costs one prop and the alternative is a second component.
  */
 export function FormError({
   children,

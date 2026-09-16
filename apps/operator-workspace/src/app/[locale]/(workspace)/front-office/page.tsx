@@ -4,7 +4,7 @@ import {
   isSupportedLocale,
   type SupportedLocale,
 } from "@ranza/i18n";
-import { Badge, EmptyState, PageHeader } from "@ranza/ui";
+import { Badge, EmptyState } from "@ranza/ui";
 import { messages } from "../../../../messages";
 import {
   arrivals,
@@ -71,22 +71,19 @@ export default async function FrontOfficePage({
 
   return (
     <>
-      <PageHeader>
-        <h1 className="text-step-2 font-normal">{copy.frontOffice}</h1>
-        <p className="mt-1.5 text-ink-soft">
-          {copy.arrivalsAt} {property.propertyName}
-        </p>
-      </PageHeader>
+      <p className="text-muted-foreground">
+        {copy.arrivalsAt} {property.propertyName}
+      </p>
 
       {today.length === 0 ? (
-        <div className="pt-7">
+        <div className="pt-6">
           <EmptyState
             description={copy.noArrivalsDescription}
             title={copy.noArrivalsTitle}
           />
         </div>
       ) : (
-        <ul className="m-0 list-none p-0">
+        <ul className="m-0 mt-4 list-none p-0">
           {today.map((arrival) => (
             <li
               className="grid grid-cols-[1fr_auto] items-center gap-x-8 gap-y-4 border-b border-border py-5 sm:grid-cols-[1fr_auto_auto]"
@@ -94,7 +91,7 @@ export default async function FrontOfficePage({
             >
               <div>
                 <p className="text-step-1">{arrival.guestName}</p>
-                <p className="mt-0.5 text-step--1 text-ink-soft">
+                <p className="mt-0.5 text-step--1 text-muted-foreground">
                   {copy.stayType[arrival.stayType]} ·{" "}
                   <time dateTime={arrival.startsOn}>
                     {formatArrivalDate(arrival.startsOn, locale)}
@@ -118,7 +115,7 @@ export default async function FrontOfficePage({
                 <span className="text-step-1 leading-none tabular-nums">
                   {arrival.unitName}
                 </span>
-                <span className="text-step--1 text-ink-faint">
+                <span className="text-step--1 text-muted-foreground">
                   {copy.unitType[arrival.unitType]}
                 </span>
               </p>

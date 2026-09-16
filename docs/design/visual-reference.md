@@ -142,10 +142,12 @@ obviously clickable, each with an explicit action affordance.
 
 ## Shell (persists across all Operator Workspace screens)
 
-- **Left sidebar, dark (`--surface-strong`), ~260px.** Ranza wordmark, then the
-  Organization name beneath it, then a **Property switcher** — a labelled control
-  reading `Property` showing the active Property. It must be obvious which
-  Property is active at all times (section 7.2 user story 10).
+- **Rail on the start edge, light (`--surface`), 76px.** Icon-over-label tiles,
+  no collapse. _Superseded the original "dark, ~260px sidebar" in this brief:
+  the implementation follows `ryadh/mirhaal/apps/dashboard`, which is the agreed
+  source for interface code._ The **Property switcher** moved to the page bar,
+  where there is room for a name; it must still be obvious which Property is
+  active at all times (section 7.2 user story 10).
 - **Job-based navigation** (section 4.6), not a flat module list. For this screen
   show only: Today, Front Office, Housekeeping, Residents, Billing, Reports,
   Configuration. Do not draw modules the Organization is not entitled to.

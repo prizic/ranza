@@ -24,12 +24,12 @@ export function EmptyState({
   return (
     <section
       className={cn(
-        "max-w-prose border-s-2 border-line-strong ps-5 py-1.5",
+        "max-w-prose border-s-2 border-border ps-5 py-1.5",
         className,
       )}
     >
       <h2 className="text-step-1 font-normal">{title}</h2>
-      <p className="mt-1.5 text-ink-soft">{description}</p>
+      <p className="mt-1.5 text-muted-foreground">{description}</p>
       {action ? <div className="mt-4">{action}</div> : null}
     </section>
   );

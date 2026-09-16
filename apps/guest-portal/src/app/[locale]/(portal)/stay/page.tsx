@@ -72,7 +72,7 @@ export default async function StayPage({
                 <span className="text-step-2 leading-none">
                   {stay.unitName}
                 </span>
-                <span className="text-step--1 text-ink-faint">
+                <span className="text-step--1 text-muted-foreground">
                   {copy.unitType[stay.unitType]} · {copy.sleeps}{" "}
                   {stay.unitCapacity}
                 </span>
@@ -82,10 +82,12 @@ export default async function StayPage({
             {/* A Property name is not a weekday: several words, sometimes long,
                 read on a 390px screen. Same role as Today's heading, smaller
                 voice. */}
-            <h1 className="text-[clamp(1.75rem,6vw,2.75rem)] leading-[1.05] font-light">
+            <h2 className="text-[clamp(1.75rem,6vw,2.75rem)] leading-[1.05] font-light">
               {stay.propertyName}
-            </h1>
-            <p className="mt-2 text-ink-soft">{copy.stayStatus[stay.status]}</p>
+            </h2>
+            <p className="mt-2 text-muted-foreground">
+              {copy.stayStatus[stay.status]}
+            </p>
           </PageHeader>
 
           <FactList>

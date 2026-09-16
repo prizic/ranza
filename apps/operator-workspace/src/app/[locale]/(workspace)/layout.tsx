@@ -1,13 +1,8 @@
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
-import {
-  directionFor,
-  isSupportedLocale,
-  localizeHref,
-  supportedLocales,
-} from "@ranza/i18n";
-import { AppShell } from "@ranza/ui";
+import { isSupportedLocale, localizeHref, supportedLocales } from "@ranza/i18n";
+import { AccountMenu, AppShell, BrandMark, DropdownMenuItem } from "@ranza/ui";
 import { messages } from "../../../messages";
 import {
   entitledProperties,
@@ -16,10 +11,11 @@ import {
   TODAY_CAPABILITY,
 } from "../../../server/viewer";
 import { PropertySwitcher } from "./property-switcher";
-import { WorkspaceNav, type NavItem } from "./workspace-nav";
+import { WorkspacePageBar } from "./workspace-page-bar";
+import { WorkspaceBottomNav, WorkspaceRail } from "./workspace-rail";
 
 /**
- * The authenticated shell: the rail, the top bar, and the gate that sends a
+ * The authenticated shell: the rail, the page bar, and the gate that sends a
  * signed-out visitor to sign in.
  *
  * Navigation lists entitled capabilities only (blueprint 4.6) — a capability
@@ -45,79 +41,98 @@ export default async function WorkspaceLayout({
   // capability — and navigation lists what was bought, not what exists.
   const properties = await entitledProperties(TODAY_CAPABILITY);
   const frontDesk = await entitledProperties(FRONT_DESK_CAPABILITY);
-  const todayHref = localizeHref(locale, "today");
 
-  const navigation: NavItem[] = [
-    ...(properties.length > 0
-      ? [{ href: todayHref, label: copy.today, segment: "today" }]
-      : []),
-    ...(frontDesk.length > 0
-      ? [
-          {
-            href: localizeHref(locale, "front-office"),
-            label: copy.frontOffice,
-            segment: "front-office",
-          },
-        ]
-      : []),
+  // Plain strings, so the tree can be built on the client where its icons live.
+  const entitled = [
+    ...(properties.length > 0 ? [TODAY_CAPABILITY.capabilityKey] : []),
+    ...(frontDesk.length > 0 ? [FRONT_DESK_CAPABILITY.capabilityKey] : []),
   ];
 
+  const root = localizeHref(locale, "today");
   const [first] = properties;
+
+  const account = (
+    <AccountMenu email={viewer.email} label={copy.account} name={viewer.email}>
+      <DropdownMenuItem asChild>
+        {/* Account security is not an entitled capability — it belongs to the
+            person, not the Organization — so it is reached through the account
+            rather than added to the rail, which lists only what was bought. */}
+        <a href={localizeHref(locale, "security")}>
+          <ShieldCheck aria-hidden="true" className="size-4" />
+          {copy.security}
+        </a>
+      </DropdownMenuItem>
+    </AccountMenu>
+  );
 
   return (
     <AppShell
-      account={
-        <div className="flex items-center gap-4">
-          <nav
-            aria-label={copy.languageLabel}
-            className="flex items-center gap-1 text-step--1"
-          >
-            {supportedLocales.map((supported) => (
-              <a
-                aria-current={supported === locale ? "true" : undefined}
-                className="rounded-sm px-1.5 py-0.5 text-muted-foreground transition-colors hover:text-foreground aria-[current=true]:bg-accent aria-[current=true]:text-accent-foreground"
-                href={localizeHref(supported, "today")}
-                hrefLang={supported}
-                key={supported}
-                lang={supported}
+      bottomNav={
+        <WorkspaceBottomNav
+          copy={copy}
+          entitled={entitled}
+          label={copy.mainNavigation}
+          locale={locale}
+          root={root}
+        />
+      }
+      pageBar={
+        <WorkspacePageBar
+          action={
+            <div className="flex items-center gap-3">
+              {first ? (
+                <PropertySwitcher
+                  label={copy.propertySwitcher}
+                  organization={first.organizationName}
+                  slots={properties.map((property) => ({
+                    href: `${root}?property=${property.propertyId}`,
+                    id: property.propertyId,
+                    name: property.propertyName,
+                  }))}
+                />
+              ) : null}
+              <nav
+                aria-label={copy.languageLabel}
+                className="hidden items-center gap-1 text-step--1 sm:flex"
               >
-                {supported.toUpperCase()}
-              </a>
-            ))}
-          </nav>
-          {/* Account security is not an entitled capability — it belongs to the
-              person, not the Organization — so it is reached through the
-              account rather than added to navigation, which lists only what was
-              bought. */}
-          <a
-            className="flex items-center gap-1.5 text-step--1 text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-            href={localizeHref(locale, "security")}
-          >
-            <ShieldCheck aria-hidden="true" className="size-4" />
-            {viewer.email}
-          </a>
-        </div>
+                {supportedLocales.map((supported) => (
+                  <a
+                    aria-current={supported === locale ? "true" : undefined}
+                    className="rounded-sm px-1.5 py-0.5 text-muted-foreground transition-colors hover:text-foreground aria-[current=true]:bg-secondary aria-[current=true]:text-foreground"
+                    href={localizeHref(supported, "today")}
+                    hrefLang={supported}
+                    key={supported}
+                    lang={supported}
+                  >
+                    {supported.toUpperCase()}
+                  </a>
+                ))}
+              </nav>
+              {/* The rail is desktop-only, so on a phone the account rides in
+                  the page bar rather than earning a second row of chrome. */}
+              <div className="md:hidden">{account}</div>
+            </div>
+          }
+          copy={copy}
+          locale={locale}
+        />
       }
-      navigation={<WorkspaceNav items={navigation} />}
-      productName={copy.productName}
-      scope={
-        first ? (
-          <PropertySwitcher
-            label={copy.propertySwitcher}
-            organization={first.organizationName}
-            slots={properties.map((property) => ({
-              href: `${todayHref}?property=${property.propertyId}`,
-              id: property.propertyId,
-              name: property.propertyName,
-            }))}
-          />
-        ) : null
+      rail={
+        <WorkspaceRail
+          actions={account}
+          brand={<BrandMark className="size-7 text-primary" />}
+          copy={copy}
+          entitled={entitled}
+          labels={{
+            back: copy.back,
+            home: copy.productName,
+            mainNavigation: copy.mainNavigation,
+          }}
+          locale={locale}
+          root={root}
+        />
       }
-      // The rail mirrors to the other edge in Arabic. Logical CSS cannot do
-      // this one: the offcanvas transition and the collapse rail are physical.
-      side={directionFor(locale) === "rtl" ? "right" : "left"}
       skipLabel={copy.skip}
-      toggleLabel={copy.toggleNavigation}
     >
       {children}
     </AppShell>

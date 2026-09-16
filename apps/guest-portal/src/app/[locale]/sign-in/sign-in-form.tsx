@@ -108,12 +108,9 @@ export function SignInForm({
   if (challenging) {
     return (
       <form className="mt-6 grid gap-4" onSubmit={verify}>
-        <p className="text-background/70">{copy.challengeSummary}</p>
+        <p className="text-muted-foreground">{copy.challengeSummary}</p>
         <Field htmlFor="code" label={copy.code}>
           <Input
-            className={
-              "border-petrol-line bg-petrol-lift text-background placeholder:text-background/40 aria-invalid:border-danger-soft"
-            }
             aria-invalid={failed || undefined}
             autoComplete="one-time-code"
             autoFocus
@@ -123,11 +120,7 @@ export function SignInForm({
             required
           />
         </Field>
-        {failed ? (
-          <FormError className="text-danger-soft">
-            {copy.challengeFailed}
-          </FormError>
-        ) : null}
+        {failed ? <FormError>{copy.challengeFailed}</FormError> : null}
         <Button disabled={pending} type="submit">
           {pending ? copy.signingIn : copy.verify}
         </Button>
@@ -137,12 +130,9 @@ export function SignInForm({
 
   return (
     <form className="mt-6 grid gap-4" onSubmit={signIn}>
-      <p className="text-background/70">{copy.signInSummary}</p>
+      <p className="text-muted-foreground">{copy.signInSummary}</p>
       <Field htmlFor="email" label={copy.email}>
         <Input
-          className={
-            "border-petrol-line bg-petrol-lift text-background placeholder:text-background/40 aria-invalid:border-danger-soft"
-          }
           aria-invalid={failed || undefined}
           autoComplete="username"
           id="email"
@@ -153,9 +143,6 @@ export function SignInForm({
       </Field>
       <Field htmlFor="password" label={copy.password}>
         <Input
-          className={
-            "border-petrol-line bg-petrol-lift text-background placeholder:text-background/40 aria-invalid:border-danger-soft"
-          }
           aria-invalid={failed || undefined}
           autoComplete="current-password"
           id="password"
@@ -164,9 +151,7 @@ export function SignInForm({
           type="password"
         />
       </Field>
-      {failed ? (
-        <FormError className="text-danger-soft">{copy.signInFailed}</FormError>
-      ) : null}
+      {failed ? <FormError>{copy.signInFailed}</FormError> : null}
       <Button disabled={pending} type="submit">
         {pending ? copy.signingIn : copy.signIn}
       </Button>

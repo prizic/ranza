@@ -14,8 +14,8 @@ profile with tabs, module discovery and a mobile Housekeeping surface.
 Two things forced the decision now.
 
 **The screens that exist do not look like the screens that were designed**, and
-the gap is mostly structural rather than cosmetic. Every mockup has a left
-sidebar; `AppShell` is a top bar. Every mockup uses tables with row actions,
+the gap is mostly structural rather than cosmetic. Every mockup has a rail down
+the side; `AppShell` was a top bar. Every mockup uses tables with row actions,
 KPI tiles, status badges, tabs and a detail drawer; none of those exist. Adding
 them ad hoc, one screen at a time, is how a codebase ends up with four table
 implementations.
@@ -64,6 +64,25 @@ the route, which got it from `src/server/`. That is not a style preference:
 ADR 0007 makes reaching the database outside the server funnel a build failure,
 and `.dependency-cruiser.cjs` enforces it for every path under `src/` that is
 not `src/server/`. Feature folders fall under that rule automatically.
+
+### The shell is ported too, and that cost the framework-free rule
+
+`AppRail`, `AppBottomNav` and `AppPageBar` are mirhaal's, not a shell built to
+resemble them. The rail reads the pathname to mark the current destination, so
+`@ranza/ui` gained `next` as a peer dependency — reversing an earlier decision
+here that the package stay framework-free, which had been routed around with a
+slot the host filled. The slot was the more complicated of the two.
+
+It also removed a class of bug. The shadcn sidebar it replaced positions itself
+`fixed` from a physical `side` prop, which `shadcn migrate rtl` rewrites to
+logical properties and thereby double-flips in Arabic. A rail that is an
+ordinary flex sibling mirrors because the document does, with nothing to get
+wrong.
+
+The navigation tree stays in the host: every entry carries an icon component, so
+a tree cannot cross the server/client boundary. The server sends the entitled
+capability keys as strings and the host's own client module turns them into
+entries.
 
 ### Tables are TanStack Table, and the kit is ported rather than rewritten
 

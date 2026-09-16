@@ -13,10 +13,12 @@ across applications, and the one place the design tokens live.
   `border-s` not `border-l`, `text-start` not `text-left`. Arabic then mirrors
   by construction rather than through a second stylesheet, which is what
   blueprint section 9.5 asks for and what a retrofit never quite achieves.
-- **Framework-free.** This package has React as its only peer dependency and
-  must not import a router, a database client or anything server-only — a rule
-  `.dependency-cruiser.cjs` enforces. It is why `AppShell` takes a
-  `navigationSlot` instead of reading the pathname itself.
+- **No server code.** This package must not import a database client, `@ranza/config`
+  or anything server-only — a rule `.dependency-cruiser.cjs` enforces.
+  `next` is a peer dependency: the rail reads the pathname to mark the current
+  destination, which is a client hook and the only way that question has an
+  answer. An earlier version of this file claimed the package was
+  framework-free and routed around it with a slot; the rail is worth the peer.
 
 ## Layout
 
@@ -24,12 +26,29 @@ across applications, and the one place the design tokens live.
 src/
   components/ui/          shadcn components — owned source, edit them freely
   components/data-table/  the listing kit, ported from ryadh/mirhaal
+  components/app-rail.tsx the 76px rail and the mobile dock, also ported
   components/             app-shell, patterns, kpi-card, status-badge, ...
   lib/utils.ts            cn()
   lib/menu-guard.ts       the overlay-click guard the primitives arm
   lib/search.ts           free-text matching across scripts and digit forms
   styles/globals.css      the theme, exported as @ranza/ui/globals.css
 ```
+
+## The shell
+
+`AppShell` is a frame with slots: a 76px rail down the start edge, a page bar
+across the top of what is left, and the work surface under it. On a phone the
+rail is replaced by a dock at the foot.
+
+The rail **does not collapse** — a rail that changes width is a control the
+reader has to manage — and groups open as two sliding levels rather than an
+accordion, so the tiles stay where the eye left them. `AppPageBar` is both the
+top bar and the page's `h1`: a chrome row and a title row underneath it were two
+bands saying one thing. A page therefore renders no `h1` of its own.
+
+A route with no entry in the host's page-titles list renders **no bar at all**,
+silently. That is how a whole screen shipped without a heading in the dashboard
+this came from; it is worth knowing about rather than guarding against here.
 
 ## The listing kit
 
@@ -60,11 +79,7 @@ Three things need fixing afterwards, every time:
    each application compiles this package's source with its own path
    resolution, and the alias is not defined there.
 2. Run `npx shadcn@latest migrate rtl` so directional classes become logical
-   ones. The CLI does not do this on `add` — and **it gets `sidebar.tsx`
-   wrong**: it rewrites the `side`-keyed `left-0`/`right-0` to `start-0`/`end-0`,
-   which double-flips in Arabic and puts a `side="right"` rail on the left.
-   `side` is a physical edge in shadcn's API, so what positions it stays
-   physical. Re-check that file after every run.
+   ones. The CLI does not do this on `add`.
 3. If the component is an overlay, arm the menu guard in its root — see the
    listing kit above.
 
