@@ -126,7 +126,12 @@ pnpm db:up       # PostgreSQL in Docker, built with pgTAP
 pnpm db:setup    # apply migrations, set local role passwords
 pnpm db:reset    # down -v, up, setup — local only, never touches a hosted database
 pnpm db:seed:dev # a demo Organization and a Staff Member to sign in as
+pnpm db:drift    # do the migrations and schema.prisma still say the same thing
 ```
+
+`db:drift` needs `SHADOW_DATABASE_URL` pointing at a **throwaway** database — it
+is dropped and recreated. CI runs it, so drift fails the build rather than
+turning up later as a `DROP` in somebody's migration (ADR 0001).
 
 `db:seed:dev` needs `pnpm dev` running: it creates the account through the
 application's own sign-up route rather than writing the provider-subject mapping
