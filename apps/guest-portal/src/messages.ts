@@ -17,8 +17,6 @@ export interface Messages {
   skip: string;
   languageLabel: string;
   stay: string;
-  signedInAs: string;
-  signOut: string;
 
   property: string;
   unit: string;
@@ -35,6 +33,7 @@ export interface Messages {
   email: string;
   password: string;
   signIn: string;
+  signingIn: string;
   signInFailed: string;
 
   stayType: Record<OwnStay["stayType"], string>;
@@ -48,8 +47,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     skip: "İçeriğe geç",
     languageLabel: "Dil",
     stay: "Konaklamam",
-    signedInAs: "Oturum açan",
-    signOut: "Çıkış yap",
 
     property: "Tesis",
     unit: "Birim",
@@ -67,6 +64,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     email: "E-posta",
     password: "Parola",
     signIn: "Oturum aç",
+    signingIn: "Açılıyor…",
     signInFailed: "E-posta veya parola hatalı.",
 
     stayType: { guest: "Misafir", resident: "Sakin" },
@@ -88,8 +86,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     skip: "Skip to content",
     languageLabel: "Language",
     stay: "My stay",
-    signedInAs: "Signed in as",
-    signOut: "Sign out",
 
     property: "Property",
     unit: "Unit",
@@ -107,6 +103,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     email: "Email",
     password: "Password",
     signIn: "Sign in",
+    signingIn: "Signing in…",
     signInFailed: "That email and password did not match.",
 
     stayType: { guest: "Guest", resident: "Resident" },
@@ -128,8 +125,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     skip: "تخطَّ إلى المحتوى",
     languageLabel: "اللغة",
     stay: "إقامتي",
-    signedInAs: "تم تسجيل الدخول باسم",
-    signOut: "تسجيل الخروج",
 
     property: "المنشأة",
     unit: "الوحدة",
@@ -146,6 +141,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     email: "البريد الإلكتروني",
     password: "كلمة المرور",
     signIn: "تسجيل الدخول",
+    signingIn: "جارٍ تسجيل الدخول…",
     signInFailed: "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
 
     stayType: { guest: "ضيف", resident: "مقيم" },

@@ -2,9 +2,24 @@ import "@ranza/ui/tokens.css";
 import "../../portal.css";
 import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
+import { IBM_Plex_Sans_Arabic } from "next/font/google";
 import { notFound } from "next/navigation";
 import { directionFor, isSupportedLocale, supportedLocales } from "@ranza/i18n";
 import { messages } from "../../messages";
+
+/**
+ * One typeface for three scripts — the same choice the Workspace makes, for the
+ * same reason: IBM Plex Sans Arabic carries the Plex Latin alongside the
+ * Arabic, so Turkish and Arabic are the same voice. tokens.css reads it from
+ * --font-plex, so a Portal that did not load it would quietly fall back to a
+ * system font and stop looking like the rest of the product.
+ */
+const plex = IBM_Plex_Sans_Arabic({
+  subsets: ["arabic", "latin"],
+  weight: ["300", "400", "600"],
+  variable: "--font-plex",
+  display: "swap",
+});
 
 /**
  * The root layout. It sits under [locale] because every page in this
@@ -53,6 +68,7 @@ export default async function LocaleLayout({
     // and without this Next cannot tell that from a per-route preference, so it
     // warns and skips scroll restoration on navigation.
     <html
+      className={plex.variable}
       data-scroll-behavior="smooth"
       dir={directionFor(locale)}
       lang={locale}

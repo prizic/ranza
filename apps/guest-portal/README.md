@@ -50,7 +50,7 @@ src/
     (portal)/stay/        the Stay
     sign-in/              outside (portal): the shell above it requires a viewer
   messages.ts             tr, en and ar — no fallback locale
-  portal.css              structure only; colour comes from @ranza/ui tokens
+  portal.css              only what differs because this is read on a phone
 ```
 
 `src/server/viewer.ts` is this application's own funnel. ADR 0007 requires one
@@ -65,10 +65,16 @@ Turkish, English and Arabic, with `dir="rtl"` set on `<html>` for Arabic from
 the first render rather than by a client effect. `portal.css` uses logical
 properties throughout, so Arabic mirrors by construction.
 
-Designed at 390px and allowed to grow: one media query at 40rem adds a second
-column of facts. Calendar dates are formatted in UTC because a Stay's arrival
-is a date, not an instant — anything else shifts it by a day for a viewer west
-of the meridian.
+Designed at 390px and allowed to grow. Most of that comes free from
+`@ranza/ui`: the fact grid is `auto-fit` and
+reflows on its own, and the chrome is already fluid. `portal.css` holds only
+what genuinely differs on a phone — a Property name needs a smaller voice than
+the Workspace's weekday, the Unit takes the place the Workspace gives the
+clock, and the gate uses `svh` so it is not pushed off-screen by the mobile URL
+bar.
+
+Calendar dates are formatted in UTC because a Stay's arrival is a date, not an
+instant — anything else shifts it by a day for a viewer west of the meridian.
 
 Not yet a PWA in the installable sense. That needs a web manifest with real
 icon assets and none exist; the application is responsive and mobile-first

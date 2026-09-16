@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Input } from "@ranza/ui";
+import { Button } from "@ranza/ui";
 import type { Messages } from "../../../messages";
 
 /**
@@ -50,10 +50,11 @@ export function SignInForm({
   }
 
   return (
-    <form className="portal-form" onSubmit={signIn}>
-      <p>
+    <form onSubmit={signIn}>
+      <p className="field">
         <label htmlFor="email">{copy.email}</label>
-        <Input
+        <input
+          aria-invalid={failed || undefined}
           autoComplete="username"
           id="email"
           inputMode="email"
@@ -62,9 +63,10 @@ export function SignInForm({
           type="email"
         />
       </p>
-      <p>
+      <p className="field">
         <label htmlFor="password">{copy.password}</label>
-        <Input
+        <input
+          aria-invalid={failed || undefined}
           autoComplete="current-password"
           id="password"
           name="password"
@@ -73,12 +75,12 @@ export function SignInForm({
         />
       </p>
       {failed ? (
-        <p className="portal-error" role="alert">
+        <p className="gate-error" role="alert">
           {copy.signInFailed}
         </p>
       ) : null}
       <Button disabled={pending} type="submit">
-        {copy.signIn}
+        {pending ? copy.signingIn : copy.signIn}
       </Button>
     </form>
   );

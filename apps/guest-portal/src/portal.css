@@ -1,149 +1,38 @@
 /*
- * Portal layout.
+ * Portal-specific layout.
  *
- * Mobile-first in the literal sense: every rule below is written for a 390px
- * phone, and the single media query at the bottom lets it grow. Nothing here
- * shrinks a desktop design down.
+ * Almost everything comes from @ranza/ui tokens.css: the chrome, the fact grid,
+ * the gate. This file holds only what differs because the Portal is read on a
+ * phone by someone who is not at a desk — three rules, each with a reason.
  *
- * Structure only. Colour, type and radii come from @ranza/ui tokens, so a
- * change to the palette does not have to be repeated here. The two places a
- * colour is named use a fallback chain, because the token set is still moving.
- *
- * Logical properties throughout, so Arabic mirrors by construction rather than
- * through a second stylesheet.
+ * Logical properties throughout, so Arabic mirrors by construction.
  */
 
-/* The shared shell is built for a desktop workspace. On a phone its header has
-   to wrap instead of squeezing the brand, the account and three locale links
-   onto one line. */
-.site-header {
-  flex-wrap: wrap;
-  gap: 0.5rem 1rem;
-  min-height: 0;
-  padding-block: 0.75rem;
+/* A Property name is not a weekday. It is several words, sometimes long, and it
+   is being read on a 390px screen — the Workspace's display size would wrap it
+   to four lines. Same role in the page, smaller voice. */
+.day h1 {
+  font-size: clamp(1.75rem, 6vw, 2.75rem);
+  line-height: 1.05;
 }
 
-.portal-account {
-  flex: 1 1 100%;
-  order: 1;
-  max-width: none;
-  margin: 0;
-  color: inherit;
-  font-size: 0.8rem;
-  opacity: 0.75;
-  /* An email address has no spaces and will otherwise push the header wider
-     than the viewport. */
-  overflow-wrap: anywhere;
+/* The Unit takes the place the Workspace gives the clock: on a phone, in a
+   corridor, the room number is the one fact worth reading at arm's length. */
+.stay-unit strong {
+  font-weight: 400;
+  font-size: var(--step-2);
+  line-height: 1;
 }
 
-.portal-account span::after {
-  content: " ";
-}
-
-.main-content {
-  width: 100%;
-  padding: 1.5rem var(--page) calc(3rem + env(safe-area-inset-bottom, 0px));
-}
-
-.portal-title {
-  max-width: none;
-  margin-block-end: 1.25rem;
-  font-size: 1.5rem;
-  line-height: 1.2;
-}
-
-.portal-stack {
-  display: grid;
-  gap: 1rem;
-}
-
-.portal-stay-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 0.75rem;
-  margin-block-end: 1.25rem;
-}
-
-.portal-stay-head h2 {
-  margin: 0;
-  font-size: 1.25rem;
-}
-
-.portal-facts {
-  display: grid;
-  gap: 1rem;
-  margin: 0;
-}
-
-.portal-facts > div {
-  display: grid;
-  gap: 0.15rem;
-}
-
-.portal-facts dt {
-  color: var(--ink-soft, var(--ink-muted, currentColor));
-  font-size: 0.8rem;
-}
-
-.portal-facts dd {
-  margin: 0;
-}
-
-.portal-note {
-  display: block;
-  color: var(--ink-soft, var(--ink-muted, currentColor));
-  font-size: 0.8rem;
-}
-
-/* Sign-in is a page rather than a card inside the shell: there is no shell to
-   put it in until there is a session. */
-.portal-gate {
-  display: grid;
-  width: min(24rem, 100%);
+/* 100vh is the height of the viewport with the mobile URL bar hidden, so a
+   centred gate sits slightly off-screen until the bar collapses. svh is the
+   height actually available. Belongs upstream in tokens.css once the Workspace
+   is being used on a phone too. */
+.gate {
   min-height: 100svh;
-  align-content: center;
-  gap: 0.6rem;
-  margin-inline: auto;
-  padding: var(--page);
 }
 
-.portal-gate h1 {
-  max-width: none;
-  font-size: 1.5rem;
-  line-height: 1.2;
-}
-
-.portal-form {
-  display: grid;
-  gap: 1rem;
-  margin-block-start: 1rem;
-}
-
-.portal-form p {
-  display: grid;
-  max-width: none;
-  gap: 0.35rem;
-  margin: 0;
-}
-
-.portal-error {
-  color: var(--danger, currentColor);
-}
-
-/* Grown, not shrunk. Two columns of facts once there is room for them. */
-@media (min-width: 40rem) {
-  .main-content {
-    width: min(44rem, 100%);
-    padding-block-start: 2.5rem;
-  }
-
-  .portal-title {
-    font-size: 2rem;
-  }
-
-  .portal-facts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.25rem 2rem;
-  }
+/* Below the fold on a short screen, and the shell has no footer. */
+.main-content {
+  padding-block-end: calc(4rem + env(safe-area-inset-bottom, 0px));
 }

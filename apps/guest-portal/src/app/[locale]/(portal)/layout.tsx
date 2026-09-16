@@ -32,11 +32,7 @@ export default async function PortalLayout({
 
   return (
     <AppShell
-      context={
-        <p className="portal-account">
-          <span>{copy.signedInAs}</span> {viewer.email}
-        </p>
-      }
+      account={viewer.email}
       languageLabel={copy.languageLabel}
       localeLinks={supportedLocales.map((supported) => ({
         current: supported === locale,
