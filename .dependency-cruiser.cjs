@@ -84,9 +84,9 @@ module.exports = {
     {
       name: "infrastructure-packages-must-not-import-modules",
       comment:
-        "config, i18n, ui and observability are cross-cutting and sit below every module.",
+        "config, db, i18n, ui and observability are cross-cutting and sit below every module.",
       severity: "error",
-      from: { path: "^packages/(config|i18n|ui|observability)/" },
+      from: { path: "^packages/(config|db|i18n|ui|observability)/" },
       to: { path: "^packages/(platform|ranza|adapters)/" },
     },
     {
@@ -96,7 +96,7 @@ module.exports = {
       severity: "error",
       from: { path: "^packages/ui/" },
       to: {
-        path: "^packages/(config|observability)/|(^|node_modules/)(@supabase/|@prisma/|prisma(?:/|$))",
+        path: "^packages/(config|db|observability)/|(^|node_modules/)(@supabase/|@prisma/|prisma(?:/|$))",
       },
     },
   ],
