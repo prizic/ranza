@@ -7,6 +7,8 @@ import { readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { withoutConnectionOverrides } from "./local-url.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const suiteDirectory = path.join(root, "tests/database");
 const url =
@@ -26,6 +28,12 @@ function psql(args, input) {
       // directory. Without this, `pnpm db:test` passes and the same command
       // from another directory fails on a missing file.
       cwd: root,
+      // No local-only check here: DIRECT_URL may deliberately point at the
+      // hosted database, because a green local run says the migrations produce
+      // the right database and not that the hosted one received them. What is
+      // removed is the environment quietly redirecting the connection
+      // somewhere the URL never named.
+      env: withoutConnectionOverrides(),
       encoding: "utf8",
       input,
     },

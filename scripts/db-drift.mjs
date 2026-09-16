@@ -7,7 +7,10 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { requireLocalDatabase } from "./local-url.mjs";
+import {
+  requireLocalDatabase,
+  withoutConnectionOverrides,
+} from "./local-url.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -64,7 +67,7 @@ const reset = spawnSync(
     "-c",
     `create database "${shadow}"`,
   ],
-  { encoding: "utf8" },
+  { encoding: "utf8", env: withoutConnectionOverrides() },
 );
 if (reset.status !== 0) {
   console.error(`Could not reset the shadow database:\n${reset.stderr}`);
@@ -84,7 +87,7 @@ const diff = spawnSync(
     "--to-schema",
     path.join(root, "prisma/schema.prisma"),
   ],
-  { cwd: root, stdio: "inherit" },
+  { cwd: root, env: withoutConnectionOverrides(), stdio: "inherit" },
 );
 
 process.exit(diff.status ?? 1);

@@ -7,6 +7,39 @@
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
 /**
+ * The environment variables libpq lets quietly redirect a connection.
+ *
+ * `PGHOSTADDR` is the sharp one: it sets the address to dial while the URL's
+ * host is still used for authentication, so
+ * `PGHOSTADDR=203.0.113.7 psql postgresql://...@localhost:54322/ranza` reads
+ * as local everywhere except in the packet. Verified, not assumed — psql times
+ * out against 203.0.113.7, which is how we know where it went.
+ */
+const OVERRIDING_VARIABLES = [
+  "PGHOSTADDR",
+  "PGHOST",
+  "PGPORT",
+  "PGSERVICE",
+  "PGSERVICEFILE",
+];
+
+/**
+ * A copy of `env` with every libpq override removed.
+ *
+ * Checking the URL is not enough when the child process inherits an
+ * environment that outranks it. These scripts pass a complete connection
+ * string, so nothing here is ever wanted; removing them costs nothing and
+ * closes the gap between what was checked and what will be dialled.
+ */
+export function withoutConnectionOverrides(env = process.env) {
+  const copy = { ...env };
+  for (const variable of OVERRIDING_VARIABLES) {
+    delete copy[variable];
+  }
+  return copy;
+}
+
+/**
  * True only for a single host that is this machine.
  *
  * libpq accepts a comma-separated list and connects to the first one that
@@ -48,6 +81,12 @@ export function requireLocalDatabase(url, { name, because }) {
 
   // Every place a host can hide, not just the obvious one.
   const offenders = [];
+  if (process.env.PGHOSTADDR) {
+    // Refused rather than only stripped from the children below. Somebody who
+    // exported this meant it, and silently ignoring it would send them looking
+    // for why their override did nothing.
+    offenders.push(`PGHOSTADDR="${process.env.PGHOSTADDR}" in the environment`);
+  }
   if (!isLocalHost(parsed.hostname)) {
     offenders.push(`host "${parsed.hostname}"`);
   }

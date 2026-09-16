@@ -9,7 +9,10 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { requireLocalDatabase } from "./local-url.mjs";
+import {
+  requireLocalDatabase,
+  withoutConnectionOverrides,
+} from "./local-url.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // Deliberately NOT DIRECT_URL. This script sets a known development password on
@@ -27,6 +30,7 @@ requireLocalDatabase(url, {
 function psql(args) {
   return spawnSync("psql", [url, "-v", "ON_ERROR_STOP=1", "-q", ...args], {
     encoding: "utf8",
+    env: withoutConnectionOverrides(),
   });
 }
 
@@ -36,7 +40,10 @@ function psql(args) {
 const deploy = spawnSync(
   path.join(root, "packages/db/node_modules/.bin/prisma"),
   ["migrate", "deploy", "--schema", path.join(root, "prisma/schema.prisma")],
-  { encoding: "utf8", env: { ...process.env, DIRECT_URL: url } },
+  {
+    encoding: "utf8",
+    env: { ...withoutConnectionOverrides(), DIRECT_URL: url },
+  },
 );
 if (deploy.status !== 0) {
   console.error(`Migrations failed:\n${deploy.stdout}${deploy.stderr}`);
