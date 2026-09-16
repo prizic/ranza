@@ -1,5 +1,13 @@
 import { formatNumber, isSupportedLocale } from "@ranza/i18n";
-import { BidiText, StatusMessage } from "@ranza/ui";
+import {
+  Badge,
+  BidiText,
+  Button,
+  Card,
+  EmptyState,
+  Input,
+  StatusMessage,
+} from "@ranza/ui";
 import { notFound } from "next/navigation";
 import { randomUUID } from "node:crypto";
 
@@ -104,55 +112,55 @@ export default async function ControlPlanePage({
         </StatusMessage>
         <form action={signOutAction}>
           <input name="locale" type="hidden" value={locale} />
-          <button className="button button-secondary" type="submit">
+          <Button tone="secondary" type="submit">
             {copy.signOut}
-          </button>
+          </Button>
         </form>
       </div>
 
       <section className="ops-list">
-        <article id="operators">
+        <Card density="compact" id="operators">
           <h2>{copy.operator}</h2>
           <strong>{formatNumber(operators.length, locale)}</strong>
-        </article>
-        <article id="branches">
+        </Card>
+        <Card density="compact" id="branches">
           <h2>{copy.branch}</h2>
           <strong>{formatNumber(branchCount, locale)}</strong>
-        </article>
-        <article id="health">
+        </Card>
+        <Card density="compact" id="health">
           <h2>Audit</h2>
           <BidiText>RLS · MFA</BidiText>
-        </article>
+        </Card>
       </section>
 
       <section className="control-grid">
-        <form
-          action={createOperatorAction}
-          className="control-card control-form"
-        >
-          <h2>{copy.operator}</h2>
-          <input name="locale" type="hidden" value={locale} />
-          <label>
-            <span>{copy.name}</span>
-            <input maxLength={120} minLength={2} name="name" required />
-          </label>
-          <label>
-            <span>{copy.locale}</span>
-            <select defaultValue="tr" name="defaultLocale">
-              <option value="tr">Türkçe</option>
-              <option value="en">English</option>
-              <option value="ar">العربية</option>
-            </select>
-          </label>
-          <button className="button" type="submit">
-            {copy.create}
-          </button>
-        </form>
+        <Card>
+          <form action={createOperatorAction} className="control-form">
+            <h2>{copy.operator}</h2>
+            <input name="locale" type="hidden" value={locale} />
+            <label>
+              <span>{copy.name}</span>
+              <Input maxLength={120} minLength={2} name="name" required />
+            </label>
+            <label>
+              <span>{copy.locale}</span>
+              <select defaultValue="tr" name="defaultLocale">
+                <option value="tr">Türkçe</option>
+                <option value="en">English</option>
+                <option value="ar">العربية</option>
+              </select>
+            </label>
+            <Button type="submit">{copy.create}</Button>
+          </form>
+        </Card>
       </section>
 
       <section aria-label="Operators" className="operator-directory">
+        {operators.length === 0 ? (
+          <EmptyState description={copy.operator} title={copy.operator} />
+        ) : null}
         {operators.map((operator) => (
-          <article className="operator-card" key={operator.id}>
+          <Card className="operator-card" key={operator.id}>
             <header>
               <div>
                 <h2>{operator.name}</h2>
@@ -164,17 +172,27 @@ export default async function ControlPlanePage({
                     : "Subscription not configured"}
                 </p>
               </div>
-              <strong className={`lifecycle-status status-${operator.status}`}>
+              <Badge
+                tone={
+                  operator.status === "active"
+                    ? "success"
+                    : operator.status === "suspended"
+                      ? "warning"
+                      : operator.status === "archived"
+                        ? "danger"
+                        : "neutral"
+                }
+              >
                 {operator.status}
-              </strong>
+              </Badge>
             </header>
             <div className="lifecycle-actions">
               <form action={requestOperatorExportAction}>
                 <input name="locale" type="hidden" value={locale} />
                 <input name="operatorId" type="hidden" value={operator.id} />
-                <button className="button button-secondary" type="submit">
+                <Button tone="secondary" type="submit">
                   Request full export
-                </button>
+                </Button>
               </form>
               {operator.latestExport ? (
                 operator.latestExport.status === "ready" ? (
@@ -201,7 +219,7 @@ export default async function ControlPlanePage({
               <input name="operatorId" type="hidden" value={operator.id} />
               <label>
                 Archive retention days
-                <input
+                <Input
                   defaultValue="30"
                   min="1"
                   name="archiveDays"
@@ -210,7 +228,7 @@ export default async function ControlPlanePage({
               </label>
               <label>
                 Anonymize after days
-                <input
+                <Input
                   defaultValue="365"
                   min="1"
                   name="anonymizeDays"
@@ -219,7 +237,7 @@ export default async function ControlPlanePage({
               </label>
               <label>
                 Delete after days
-                <input
+                <Input
                   defaultValue="2555"
                   min="1"
                   name="deleteDays"
@@ -228,7 +246,7 @@ export default async function ControlPlanePage({
               </label>
               <label>
                 Export retention hours
-                <input
+                <Input
                   defaultValue="24"
                   max="168"
                   min="1"
@@ -236,9 +254,9 @@ export default async function ControlPlanePage({
                   type="number"
                 />
               </label>
-              <button className="button button-secondary" type="submit">
+              <Button tone="secondary" type="submit">
                 Approve policy
-              </button>
+              </Button>
             </form>
             {operator.status === "archived" &&
             operator.lifecycle?.policyVersion ? (
@@ -256,9 +274,9 @@ export default async function ControlPlanePage({
                       type="hidden"
                       value={action}
                     />
-                    <button className="button button-secondary" type="submit">
+                    <Button tone="secondary" type="submit">
                       Dry run {action}
-                    </button>
+                    </Button>
                   </form>
                 ))}
               </div>
@@ -280,9 +298,9 @@ export default async function ControlPlanePage({
                     value={randomUUID()}
                   />
                   <span>Dry-run manifest ready: {run.action}</span>
-                  <button className="button" type="submit">
+                  <Button type="submit">
                     Queue approved execution
-                  </button>
+                  </Button>
                 </form>
               ))}
             {operator.status !== "archived" ? (
@@ -335,14 +353,12 @@ export default async function ControlPlanePage({
                         value={operator.id}
                       />
                       <input name="branchId" type="hidden" value={branch.id} />
-                      <button className="button button-secondary" type="submit">
+                      <Button tone="secondary" type="submit">
                         {copy.archive}
-                      </button>
+                      </Button>
                     </form>
                   ) : (
-                    <span className="lifecycle-status status-archived">
-                      archived
-                    </span>
+                    <Badge tone="danger">archived</Badge>
                   )}
                 </div>
               ))}
@@ -358,11 +374,11 @@ export default async function ControlPlanePage({
                 <input name="operatorId" type="hidden" value={operator.id} />
                 <label>
                   <span>{copy.name}</span>
-                  <input maxLength={120} minLength={2} name="name" required />
+                  <Input maxLength={120} minLength={2} name="name" required />
                 </label>
                 <label>
                   <span>{copy.timezone}</span>
-                  <input
+                  <Input
                     defaultValue="Europe/Istanbul"
                     name="timezone"
                     required
@@ -388,12 +404,10 @@ export default async function ControlPlanePage({
                     <option value="other">{copy.other}</option>
                   </select>
                 </label>
-                <button className="button" type="submit">
-                  {copy.create}
-                </button>
+                <Button type="submit">{copy.create}</Button>
               </form>
             ) : null}
-          </article>
+          </Card>
         ))}
       </section>
     </LocalizedShell>
@@ -419,9 +433,9 @@ function StatusForm({
       <input name="operatorId" type="hidden" value={operatorId} />
       <input name="currentStatus" type="hidden" value={current} />
       <input name="status" type="hidden" value={action} />
-      <button className="button button-secondary" type="submit">
+      <Button tone="secondary" type="submit">
         {label}
-      </button>
+      </Button>
     </form>
   );
 }
