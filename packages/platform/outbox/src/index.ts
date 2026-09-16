@@ -9,6 +9,6 @@ export type {
   OutboxHandler,
   OutboxSubscription,
 } from "./dispatch";
-export { OutboxEventError, assertPublishable } from "./contracts";
+export { OutboxEventError } from "./contracts";
 export type { OutboxEvent } from "./contracts";
 export type { OutboxDeps } from "./ports";

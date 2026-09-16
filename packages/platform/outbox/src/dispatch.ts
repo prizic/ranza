@@ -46,10 +46,6 @@ export interface OutboxSubscription {
 }
 
 export interface DispatchOptions {
-  /** How many events one pass claims. */
-  batchSize?: number;
-  /** How long a claim is held before another worker may take it. */
-  leaseSeconds?: number;
   /** Attempts before an event is left dead rather than retried. */
   maxAttempts?: number;
 }
@@ -61,11 +57,12 @@ export interface DispatchReport {
   dead: number;
 }
 
-const DEFAULTS = {
-  batchSize: 20,
-  leaseSeconds: 120,
-  maxAttempts: 8,
-} as const;
+/** How many events one pass claims. */
+const BATCH_SIZE = 20;
+/** How long a claim is held before another worker may take it. */
+const LEASE_SECONDS = 120;
+/** Attempts before an event is left dead rather than retried. */
+const MAX_ATTEMPTS = 8;
 
 interface ClaimedRow {
   id: string;
@@ -104,7 +101,7 @@ export function createOutboxDispatcher(deps: OutboxDeps) {
    * the connection is pinned, and a pooled deployment runs out of connections
    * while appearing to be idle.
    */
-  async function claim(batchSize: number, leaseSeconds: number) {
+  async function claim() {
     return deps.db.$queryRawUnsafe<ClaimedRow[]>(
       `with ready as (
          select id from outbox.events
@@ -126,8 +123,8 @@ export function createOutboxDispatcher(deps: OutboxDeps) {
          event.event_type      as "eventType",
          event.payload,
          event.attempts`,
-      batchSize,
-      leaseSeconds,
+      BATCH_SIZE,
+      LEASE_SECONDS,
     );
   }
 
@@ -231,11 +228,9 @@ export function createOutboxDispatcher(deps: OutboxDeps) {
     subscriptions: readonly OutboxSubscription[],
     options: DispatchOptions = {},
   ): Promise<DispatchReport> {
-    const batchSize = options.batchSize ?? DEFAULTS.batchSize;
-    const leaseSeconds = options.leaseSeconds ?? DEFAULTS.leaseSeconds;
-    const maxAttempts = options.maxAttempts ?? DEFAULTS.maxAttempts;
+    const maxAttempts = options.maxAttempts ?? MAX_ATTEMPTS;
 
-    const claimed = await claim(batchSize, leaseSeconds);
+    const claimed = await claim();
     const report: DispatchReport = {
       claimed: claimed.length,
       published: 0,
