@@ -100,6 +100,26 @@ assert.match(
 );
 console.log("PASS modules reach each other only through a public contract");
 
+// ADR 0018: the worker's composition root is the only place that knows which
+// role it connects as, and the startup checks that refuse a superuser, a
+// BYPASSRLS role or an owner live there. A second file opening a connection is a
+// second connection nothing checked.
+const workerConnection = cruise(
+  ["apps/worker/src/outbox/dispatcher.ts"],
+  path.join(root, "tests/boundaries/fixtures"),
+);
+assert.notEqual(
+  workerConnection.status,
+  0,
+  "a worker file other than composition.ts reaching packages/db must fail",
+);
+assert.match(
+  `${workerConnection.stdout}${workerConnection.stderr}`,
+  /the-worker-opens-one-connection-in-one-place/,
+  "the fixture must trip the worker connection rule",
+);
+console.log("PASS the worker opens one connection, in one place");
+
 // Blueprint 9.8 identifier rule: a reusable platform module must not even name a
 // Ranza concept. Dependency graphs cannot see this, so scan the source directly.
 const ranzaVocabulary =
@@ -170,3 +190,113 @@ assert.deepEqual(
 console.log(
   `PASS modules take dependencies by injection (${injectable.flatMap((directory) => sourceFiles(directory)).length} files scanned)`,
 );
+
+// ADR 0016: a worker framework stays in the worker. A package that imports
+// @nestjs/* is a package that cannot be reused by a host which does not run
+// Nest, and a decorator is where a business rule starts living in a framework
+// class. Scanned rather than cruised because an unresolvable import would not
+// match a path-based rule — the rule would pass while enforcing nothing, which
+// has already happened once in this file's history.
+const NEST_IMPORT = /["']@nestjs\//;
+
+function nestImporters(directory) {
+  return sourceFiles(directory).filter((file) =>
+    NEST_IMPORT.test(readFileSync(file, "utf8")),
+  );
+}
+
+assert.deepEqual(
+  nestImporters(packagesRoot).map((file) => path.relative(root, file)),
+  [],
+  "packages must not import @nestjs/*; a worker framework belongs in apps/worker",
+);
+
+// The same scan against a fixture that does import it, so the assertion above is
+// known to be capable of failing rather than merely observed to pass.
+const nestFixture = path.join(
+  root,
+  "tests/boundaries/fixtures/packages/platform/scheduling/src",
+);
+assert.deepEqual(
+  nestImporters(nestFixture).map((file) => path.basename(file)),
+  ["index.ts"],
+  "the fixture must be detected, or the scan above proves nothing",
+);
+console.log("PASS a worker framework stays in the worker");
+
+// ADR 0006 and ADR 0018, for the worker specifically: one file reads the
+// environment and one file opens a connection, and it is the same file, because
+// it is the one that asks pg_roles what it actually connected as.
+const HOST_DISCOVERY = /process\.env|createPrismaClient/;
+const workerSource = path.join(root, "apps/worker/src");
+
+function discoverers(directory, allowed) {
+  return sourceFiles(directory).filter(
+    (file) =>
+      path.basename(file) !== allowed &&
+      HOST_DISCOVERY.test(readFileSync(file, "utf8")),
+  );
+}
+
+assert.deepEqual(
+  discoverers(workerSource, "composition.ts").map((file) =>
+    path.relative(root, file),
+  ),
+  [],
+  "only apps/worker/src/composition.ts may read the environment or open a connection",
+);
+
+const workerFixture = path.join(
+  root,
+  "tests/boundaries/fixtures/apps/worker/src",
+);
+assert.deepEqual(
+  discoverers(workerFixture, "composition.ts").map((file) =>
+    path.basename(file),
+  ),
+  ["dispatcher.ts"],
+  "the fixture must be detected, or the scan above proves nothing",
+);
+console.log("PASS the worker discovers its configuration in one place");
+
+// ADR 0019: a client cache holds one tenant's rows in a place that outlives a
+// request, which nothing else in this product does. It is allowed in feature
+// folders and in the providers directory, and nowhere else — never in
+// packages/**, and never on a server path, where a QueryClient at module scope
+// is one object shared by every concurrent request.
+//
+// Matched on the exact specifier: packages/ui imports @tanstack/react-table,
+// which is a different package and is fine anywhere.
+const QUERY_IMPORT = /["']@tanstack\/react-query["']/;
+const QUERY_ALLOWED = /\/apps\/[^/]+\/src\/(features\/|app\/providers\/)/;
+
+function cacheImporters(roots) {
+  return roots
+    .flatMap((directory) => sourceFiles(directory))
+    .filter(
+      (file) =>
+        !QUERY_ALLOWED.test(file) &&
+        QUERY_IMPORT.test(readFileSync(file, "utf8")),
+    );
+}
+
+const appSources = readdirSync(path.join(root, "apps"), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => path.join(root, "apps", entry.name, "src"));
+
+assert.deepEqual(
+  cacheImporters([...appSources, packagesRoot]).map((file) =>
+    path.relative(root, file),
+  ),
+  [],
+  "@tanstack/react-query belongs in a feature folder or app/providers, and nowhere else",
+);
+
+assert.deepEqual(
+  cacheImporters([
+    path.join(root, "tests/boundaries/fixtures/apps/operator-workspace/src"),
+  ]).map((file) => path.basename(file)),
+  ["live.ts"],
+  "the fixture must be detected, or the scan above proves nothing",
+);
+console.log("PASS the client cache stays in feature folders and providers");

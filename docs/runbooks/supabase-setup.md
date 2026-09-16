@@ -24,39 +24,50 @@ it fails all four assertions; pointed at `ranza_app` it passes.
    `db.<ref>.supabase.co` is IPv6-only; `psql` reports "could not translate host
    name" on an IPv4-only path even though the AAAA record exists.
 
-   | Purpose                   | Port                   | Role              |
-   | ------------------------- | ---------------------- | ----------------- |
-   | Runtime (`DATABASE_URL`)  | 6543, transaction mode | `ranza_app.<ref>` |
-   | Migrations (`DIRECT_URL`) | 5432, session mode     | `postgres.<ref>`  |
+   | Purpose                        | Port                   | Role                 |
+   | ------------------------------ | ---------------------- | -------------------- |
+   | Runtime (`DATABASE_URL`)       | 6543, transaction mode | `ranza_app.<ref>`    |
+   | Worker (`WORKER_DATABASE_URL`) | 6543, transaction mode | `ranza_worker.<ref>` |
+   | Migrations (`DIRECT_URL`)      | 5432, session mode     | `postgres.<ref>`     |
 
    Append `?pgbouncer=true&connection_limit=1` to the runtime URL. Transaction
    mode cannot use prepared statements.
 
 3. **Apply the migration** with the session connection.
 
-4. **Create the two application roles.** The migrations create `ranza_app` and
-   `ranza_auth` without passwords, because each environment supplies its own:
+4. **Give the three application roles passwords.** The migrations create
+   `ranza_app`, `ranza_auth` and `ranza_worker` without one, because each
+   environment supplies its own:
 
    ```sql
-   alter role ranza_app  with login password '<generated>';
-   alter role ranza_auth with login password '<generated>';
+   alter role ranza_app    with login password '<generated>';
+   alter role ranza_auth   with login password '<generated>';
+   alter role ranza_worker with login password '<generated>';
    ```
 
-   Verify `rolsuper` and `rolbypassrls` are false on both:
+   Verify `rolsuper` and `rolbypassrls` are false on all three:
 
    ```sql
    select rolname, rolcanlogin, rolsuper, rolbypassrls
-   from pg_roles where rolname in ('ranza_app', 'ranza_auth');
+   from pg_roles where rolname in ('ranza_app', 'ranza_auth', 'ranza_worker');
    ```
 
    They are separate on purpose. `ranza_auth` reaches the credential tables;
    `ranza_app` is the tenant query path and is granted nothing there, so a defect
-   in application queries cannot read password hashes or session tokens. Confirm
-   the separation actually holds rather than assuming the grants are right:
+   in application queries cannot read password hashes or session tokens;
+   `ranza_worker` reaches the outbox and whatever a handler was explicitly
+   granted, and is granted no execute on `app.set_request_context()` so it cannot
+   impersonate a Staff Member ([ADR 0018](../adr/0018-the-worker-has-its-own-role-and-its-own-context.md)).
+   Confirm the separation actually holds rather than assuming the grants are
+   right:
 
    ```sql
    -- as ranza_app, this must fail with "permission denied for table auth_account"
    select count(*) from public.auth_account;
+
+   -- as ranza_worker, both of these must fail with "permission denied"
+   select count(*) from public.folios;
+   select app.set_request_context('00000000-0000-4000-8000-000000000000');
    ```
 
 5. **Grant membership so tests can switch roles.** The pgTAP suites run
@@ -65,18 +76,23 @@ it fails all four assertions; pointed at `ranza_app` it passes.
 
    ```sql
    grant ranza_app to postgres;
+   grant ranza_worker to postgres;
    ```
 
 ## Verifying
 
 ```sh
 pnpm db:test          # pgTAP, uses DIRECT_URL
-pnpm test:integration # uses DATABASE_URL, DIRECT_URL and AUTH_DATABASE_URL
+pnpm test:integration # uses all four connection strings
 ```
 
-Three connection strings are needed, one per role: `DATABASE_URL` for the tenant
-query path as `ranza_app`, `DIRECT_URL` for migrations as `postgres`, and
-`AUTH_DATABASE_URL` for credentials as `ranza_auth`.
+Four connection strings are needed, one per role: `DATABASE_URL` for the tenant
+query path as `ranza_app`, `DIRECT_URL` for migrations as `postgres`,
+`AUTH_DATABASE_URL` for credentials as `ranza_auth`, and `WORKER_DATABASE_URL`
+for the background worker as `ranza_worker`. The worker refuses to start if the
+last of those turns out to equal `DIRECT_URL`, or if the role behind it is a
+superuser, carries `BYPASSRLS`, or owns a table — a URL cannot say any of that,
+so it is asked of `pg_roles` at boot.
 
 Then prove the guard still works by pointing `DATABASE_URL` at the `postgres`
 role: all four integration assertions must fail. A tenant-isolation test that has

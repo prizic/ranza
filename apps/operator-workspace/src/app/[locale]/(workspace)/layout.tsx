@@ -17,6 +17,7 @@ import {
   requireViewer,
   TODAY_CAPABILITY,
 } from "../../../server/viewer";
+import { QueryProvider } from "../../providers/query-provider";
 import { PropertySwitcher } from "./property-switcher";
 import { WorkspacePageBar } from "./workspace-page-bar";
 import { WorkspaceBottomNav, WorkspaceRail } from "./workspace-rail";
@@ -174,7 +175,11 @@ export default async function WorkspaceLayout({
       }
       skipLabel={copy.skip}
     >
-      {children}
+      {/* Here rather than in the root layout, so sign-in and every public page
+          carry no tenant cache at all. Scoped to the viewer: a different Staff
+          Member on the same browser drops everything held for the last one
+          (ADR 0019). */}
+      <QueryProvider scope={viewer.userId}>{children}</QueryProvider>
     </AppShell>
   );
 }

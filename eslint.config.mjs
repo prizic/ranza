@@ -17,4 +17,11 @@ export default tseslint.config(
       },
     },
   },
+  {
+    // A Nest module class is a decorator carrying metadata, not a class anybody
+    // instantiates. The rule is right everywhere else and this is the one place
+    // an empty class is the framework's own shape.
+    files: ["apps/worker/src/**/*.module.ts"],
+    rules: { "@typescript-eslint/no-extraneous-class": "off" },
+  },
 );

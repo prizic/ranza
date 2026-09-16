@@ -1,0 +1,23 @@
+-- ranza_worker needs USAGE on `public`, and it is not free everywhere.
+--
+-- 20260916001400_platform_outbox granted it `usage` on `app` and on `outbox`
+-- and deliberately not on `public`, on the reasoning that PostgreSQL grants
+-- USAGE on `public` to PUBLIC by default. That is true of the local image and
+-- false on the hosted database, where the default has been revoked — so the
+-- worker could reach `app` and the queue there and nothing else at all, not even
+-- to resolve a function name.
+--
+-- Found by running `pnpm db:test` against the hosted database, where
+-- platform_outbox.test.sql could not call `throws_ok` once it had switched to
+-- ranza_worker. A local run cannot see this: the two databases disagree about a
+-- default, which is the whole reason AGENTS.md asks for both.
+--
+-- This grants nothing on any table. USAGE on a schema is permission to resolve
+-- names in it; every table still needs its own grant, and ranza_worker holds
+-- none in `public` — the pgTAP suite asserts exactly that, and it keeps passing.
+-- A handler that writes to a Ranza table will need this plus a grant and a
+-- policy of its own, which is the friction ADR 0018 wants.
+--
+-- No Prisma-generated section: nothing here changes a table.
+
+grant usage on schema public to ranza_worker;

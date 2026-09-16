@@ -62,8 +62,14 @@ for (const suite of suites) {
   const lines = output.split("\n").map((line) => line.trim());
   const notOk = lines.filter((line) => line.startsWith("not ok"));
   const ok = lines.filter((line) => line.startsWith("ok ") || line === "ok");
+  // pgTAP reports a plan that does not match the assertions run as a comment,
+  // not as "not ok". A suite can therefore drift to fewer assertions than it
+  // claims — or quietly stop running the last few — and still look green.
+  const misplanned = lines.filter((line) =>
+    line.startsWith("# Looks like you"),
+  );
 
-  if (result.status !== 0 || notOk.length > 0) {
+  if (result.status !== 0 || notOk.length > 0 || misplanned.length > 0) {
     failed += 1;
     console.error(`FAIL ${suite}`);
     console.error(output.trim());

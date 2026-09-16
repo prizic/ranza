@@ -9,8 +9,62 @@ everything lands under Unreleased.
 
 ## Unreleased
 
+### Fixed
+
+- Check-in refuses a Reservation whose last night is already behind it —
+  `ends_on > today`, not `>=`. Somebody arriving on the day their booking ends
+  has no night left, so the Stay was `[today, today)`: an empty daterange, which
+  overlaps nothing, so `stays_no_double_booking` had no opinion and the Unit took
+  a second `in_house` Stay the same night. The same bug the date rule exists to
+  close, arriving through the one date nobody tested.
+  `stays_in_house_has_a_night` refuses the row for every role.
+- `listArrivals` shows today's Reservations, plus a late arrival for as long as
+  check-in would still take them. Only today's left every late arrival invisible
+  on the one screen that exists to handle them; every Reservation whose start
+  date had passed — the first attempt at that — made the list grow by a day's
+  check-ins every day and never shrink, with expired bookings sitting on it
+  offering a button `checkIn` refuses.
+- `canCheckIn` is the predicate `checkIn` applies, dates included, rather than
+  `status = 'confirmed'`. The two had drifted, and the row that showed it was a
+  booking arriving and leaving on the same day: listed, offered, and refused.
+- The departure date published on `stay.checked_out` is formatted by the
+  database rather than by `toISOString()`. The value was correct — the adapter
+  returns UTC midnight — but it depended on a third-party parsing choice, and an
+  upgrade that returned local midnight instead would have shifted it by a day
+  for every host east of UTC with nothing failing.
+
+### Added
+
+- `reverseCheckIn(userId, stayId, reason)`: withdrawing a check-in that should
+  not have happened. The Stay becomes `cancelled` — never deleted, never edited
+  back to `reserved` — and the Reservation returns to `confirmed`, in one
+  transaction with the audit record and a `stay.check_in_reversed` event
+  ([ADR 0022](../../../docs/adr/0022-a-mistaken-check-in-is-reversed-not-deleted.md)).
+  Refused once anything has been posted to the Stay's Folio, which arrives as
+  `StayHasChargesError` because it is the one refusal a front desk can act on.
+  `checked_in` is no longer terminal.
+
+- Check-in and check-out publish `stay.checked_in` and `stay.checked_out`
+  through `publishWithin`, in the transaction that produced the fact
+  ([ADR 0017](../../../docs/adr/0017-cross-module-facts-travel-through-a-transactional-outbox.md)).
+  Published after the commit instead, a crash in between would lose the fact
+  with nothing recording that anything was owed; published before it, a rollback
+  would announce something that did not happen. The payloads carry ids and
+  dates, never a name: the queue is the one table a single process reads across
+  every Organization.
+
 ### Changed
 
+- `checkIn` refuses a Reservation whose first night has not arrived, and one
+  whose last night has passed. Without the first, a booking three weeks out
+  became an `in_house` Stay with future dates and a second Guest could take the
+  same Unit tonight, because `stays_no_double_booking` sees two ranges that do
+  not overlap. `stays_insert_front_desk` refuses the same row independently
+  (`20260916001300_check_in_on_the_day`); the predicate here is what makes the
+  refusal an empty result rather than a constraint violation to decode.
+- The Stay now starts on the day the Guest actually arrived, not the day they
+  were booked for. Somebody two days late began their Stay today, and recording
+  the planned date held the Unit over two nights nobody slept in.
 - Check-in opens the Stay's Folio through `openFolioWithin` (blueprint 6.1
   step 5), in the same transaction as everything else it does. `CheckedIn`
   gained `folioId`, which is null where the Property does not do billing —

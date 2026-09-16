@@ -71,10 +71,27 @@ module.exports = {
         "not a list of them, so adding one cannot quietly fall outside the rule.",
       severity: "error",
       from: {
-        path: "^apps/[^/]+/src/",
+        // apps/worker is excluded because it has no funnel and no viewer: it
+        // has no session to resolve and no acting user to publish, which is the
+        // whole of ADR 0018. Its own rule is the next one.
+        path: "^apps/(?!worker/)[^/]+/src/",
         pathNot: "^apps/[^/]+/src/server/",
       },
       to: { path: "^packages/(auth|db|ranza)/" },
+    },
+    {
+      name: "the-worker-opens-one-connection-in-one-place",
+      comment:
+        "ADR 0006 and ADR 0018: a module receives its client and never builds " +
+        "one, and the worker's composition root is the single place that knows " +
+        "which role it connects as. A second file opening a connection is a " +
+        "second place the privilege checks at startup do not cover.",
+      severity: "error",
+      from: {
+        path: "^apps/worker/src/",
+        pathNot: "^apps/worker/src/composition\\.ts$",
+      },
+      to: { path: "^packages/db/" },
     },
     {
       name: "modules-expose-only-their-public-contract",

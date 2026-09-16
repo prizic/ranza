@@ -35,9 +35,11 @@ export type ReservationStayType = "guest" | "resident";
 /**
  * The lifecycle this slice implements.
  *
- * `checked_in` is terminal here: the Reservation has become a Stay and the
- * correction for a mistaken check-in is a reversal workflow that does not exist
- * yet, not an edit back to `confirmed` (blueprint 7.4).
+ * `checked_in` is not terminal, and the way back is the only way back:
+ * `reverseCheckIn` moves it to `confirmed` and cancels the Stay it produced. It
+ * is never edited back and the Stay is never deleted, so the count of Stays
+ * against a Reservation is the count of times somebody checked it in
+ * ([ADR 0022](../../../../docs/adr/0022-a-mistaken-check-in-is-reversed-not-deleted.md)).
  */
 export type ReservationStatus =
   "requested" | "confirmed" | "cancelled" | "no_show" | "checked_in";
@@ -126,6 +128,40 @@ export class UnitUnavailableError extends CheckInError {
   constructor(message: string) {
     super(message);
     this.name = "UnitUnavailableError";
+  }
+}
+
+/** What withdrawing a check-in produced. */
+export interface CheckInReversed {
+  reservationId: string;
+  stayId: string;
+}
+
+/**
+ * A check-in that could not be withdrawn.
+ *
+ * One type for every reason, on the same principle as `CheckInError`: out of
+ * reach, already departed, already withdrawn, never happened.
+ */
+export class CheckInReversalError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CheckInReversalError";
+  }
+}
+
+/**
+ * Something has been posted to the Stay's Folio, so this is no longer a slip.
+ *
+ * Its own type because it is the one refusal a front desk can act on — the
+ * others are all "you cannot". It reveals only that a charge exists, never what
+ * it was, and it is answered truthfully even to a Staff Member who holds
+ * `front_desk` and not `finance` (ADR 0022).
+ */
+export class StayHasChargesError extends CheckInReversalError {
+  constructor(message: string) {
+    super(message);
+    this.name = "StayHasChargesError";
   }
 }
 

@@ -11,6 +11,23 @@ everything lands under Unreleased.
 
 ### Added
 
+- `withdrawStayWithin()`: a Stay that should not have started becomes
+  `cancelled`, which frees the Unit because `stays_no_double_booking` is partial
+  on status and the dates stay exactly as they were. Refused once a charge exists
+  against it, by `stays_withdrawal_is_free_of_charges`
+  ([ADR 0022](../../../docs/adr/0022-a-mistaken-check-in-is-reversed-not-deleted.md)).
+
+### Changed
+
+- `stays_insert_front_desk` and `stays_update_front_desk` now also require an
+  `in_house` Stay to have started: `starts_on <= app.property_today(property_id)`.
+  A `reserved` Stay is unaffected, because a future booking is what it exists to
+  express. Added by
+  [`@ranza/reservations`](../reservations/README.md) in
+  `20260916001300_check_in_on_the_day`; this module still owns the table.
+
+### Added
+
 - The `stays` table: a Guest or Resident, an Accommodation Unit, and a period.
 - The Resident access path — `stays_read_own` and
   `app.resident_can_use_capability()`, a second way into the same tables that

@@ -31,9 +31,11 @@ apps/                     separately deployable applications
   storefront/             public marketing and lead capture
   guest-portal/           where a Guest or Resident sees their own Stay
   control-plane/          Prizic-internal administration
+  worker/                 everything that is not inside a request (NestJS, no HTTP)
 packages/
   platform/               host-agnostic reusable modules (generic subdomains)
     audit/                what was done, by whom, and why
+    outbox/               a fact that happened, for somebody else to react to
   ranza/                  Ranza domain modules (core domain)
     core/                 Organization, Property, membership, Entitlement reads
     accommodation/        Accommodation Units inside a Property

@@ -45,9 +45,17 @@ await reservations.checkOut(userId, stayId);
 
 `listArrivals` returns the Reservations arriving **on the Property's own day**,
 which is not the reader's: a front desk in İzmir and one in Dubai are working
-different dates at the same moment. Cancelled and no-show Reservations are
-absent because they are not arriving; already checked-in ones stay, so the list
-still shows the day's work after it has been done.
+different dates at the same moment. Today's stay all day, checked in or not, so
+the list still shows the day's work after it has been done. A late arrival —
+somebody who should have come yesterday and has not — stays only while check-in
+would still accept them, because that is the only thing this screen does with
+them; once their last night has passed they are gone, and so is every Guest
+checked in on an earlier day. Cancelled and no-show Reservations were never on
+it, because they are not arriving.
+
+`canCheckIn` is the predicate `checkIn` applies, not a restatement of it. A row
+can be listed and not offered — a booking arriving and leaving on the same day
+is the case that matters — and nothing offered should raise when pressed.
 
 `checkIn` does three things in one transaction — creates the Stay, moves the
 Reservation to `checked_in`, and writes an audit record naming the actor

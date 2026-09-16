@@ -9,6 +9,26 @@ everything lands under Unreleased.
 
 ## Unreleased
 
+### Fixed
+
+- `folio_line_is_postable()` takes a transaction-scoped advisory lock on the
+  Stay before it checks anything, and so does
+  `stays_withdrawal_is_free_of_charges`. The two guarded one invariant from
+  opposite sides and could not see each other: under READ COMMITTED a charge and
+  a withdrawal committed together and left a withdrawn Stay carrying money
+  ([ADR 0022](../../../docs/adr/0022-a-mistaken-check-in-is-reversed-not-deleted.md)).
+  Reproduced on two connections before it was fixed.
+
+### Changed
+
+- `folio_line_is_postable()` also refuses a line on a Folio whose Stay was
+  withdrawn. Without it, reversing a check-in left an open Folio attached to a
+  Stay that did not happen and it still accepted charges. An invariant rather
+  than a closure rule — it says what is representable, not when a Folio should
+  be closed. Added by
+  [`@ranza/reservations`](../reservations/README.md) in
+  `20260916001500_check_in_reversal`; this module still owns the function.
+
 ### Added
 
 - The `folios` table: the financial record a Stay accrues against, carrying its
