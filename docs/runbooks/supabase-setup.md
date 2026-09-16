@@ -34,18 +34,29 @@ it fails all four assertions; pointed at `ranza_app` it passes.
 
 3. **Apply the migration** with the session connection.
 
-4. **Create the runtime role.** The migration creates `ranza_app` without a
-   password, because each environment supplies its own:
+4. **Create the two application roles.** The migrations create `ranza_app` and
+   `ranza_auth` without passwords, because each environment supplies its own:
 
    ```sql
-   alter role ranza_app with login password '<generated>';
+   alter role ranza_app  with login password '<generated>';
+   alter role ranza_auth with login password '<generated>';
    ```
 
-   Verify `rolsuper` and `rolbypassrls` are both false:
+   Verify `rolsuper` and `rolbypassrls` are false on both:
 
    ```sql
    select rolname, rolcanlogin, rolsuper, rolbypassrls
-   from pg_roles where rolname = 'ranza_app';
+   from pg_roles where rolname in ('ranza_app', 'ranza_auth');
+   ```
+
+   They are separate on purpose. `ranza_auth` reaches the credential tables;
+   `ranza_app` is the tenant query path and is granted nothing there, so a defect
+   in application queries cannot read password hashes or session tokens. Confirm
+   the separation actually holds rather than assuming the grants are right:
+
+   ```sql
+   -- as ranza_app, this must fail with "permission denied for table auth_account"
+   select count(*) from public.auth_account;
    ```
 
 5. **Grant membership so tests can switch roles.** The pgTAP suites run
@@ -59,9 +70,13 @@ it fails all four assertions; pointed at `ranza_app` it passes.
 ## Verifying
 
 ```sh
-DIRECT_URL="$SUPABASE_DIRECT_URL" pnpm db:test
-DATABASE_URL="$SUPABASE_DATABASE_URL" DIRECT_URL="$SUPABASE_DIRECT_URL" pnpm test:integration
+pnpm db:test          # pgTAP, uses DIRECT_URL
+pnpm test:integration # uses DATABASE_URL, DIRECT_URL and AUTH_DATABASE_URL
 ```
+
+Three connection strings are needed, one per role: `DATABASE_URL` for the tenant
+query path as `ranza_app`, `DIRECT_URL` for migrations as `postgres`, and
+`AUTH_DATABASE_URL` for credentials as `ranza_auth`.
 
 Then prove the guard still works by pointing `DATABASE_URL` at the `postgres`
 role: all four integration assertions must fail. A tenant-isolation test that has

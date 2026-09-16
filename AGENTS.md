@@ -60,6 +60,14 @@ Enforcement runs in CI and has fixtures proving it fails when violated:
 Modules expose `index.ts` only. Importing another module's `domain/`,
 `application/` or `infrastructure/` is rejected.
 
+**Modules receive their dependencies; they never discover them.** No package
+under `packages/` may read `process.env` or construct its own database
+connection — `packages/config` is the sole exception, since parsing the
+environment is its purpose. A module takes a `deps` object stating what the host
+must supply (see `packages/auth/src/ports.ts`). This is what lets a module be
+pointed at a throwaway database and reused by another host, and it is enforced by
+`scripts/dependency-boundaries.mjs`, not left to discipline.
+
 ## Security invariants — do not weaken these
 
 - **Row-level security is the authorization boundary**, not a backstop.
@@ -71,19 +79,35 @@ Modules expose `index.ts` only. Importing another module's `domain/`,
   which looks like missing data rather than an error.
 - Prisma owns schema migrations; **policies are hand-written SQL** inside the
   same migration. `prisma migrate dev --create-only`, add the SQL, then apply.
+- Credentials are reached through a **separate role**. `auth_user`,
+  `auth_session`, `auth_account` and `auth_verification` hold password hashes and
+  session tokens; `ranza_auth` reaches them and `ranza_app` is granted nothing.
+  RLS is deliberately not used there — authentication happens before any identity
+  is known, so role grants are the boundary. Nothing there is tenant-owned.
 - Corrections use reversal or revision records. Never delete financial, stock,
   audit or operational history.
 
 ## Commands
 
 ```sh
-pnpm check        # full gate: format, lint, boundaries, typecheck, tests, build
-pnpm db:up        # local PostgreSQL in Docker (no Supabase)
-pnpm db:migrate   # apply Prisma migrations
-pnpm db:test      # pgTAP suites in tests/database
+pnpm check            # full gate: format, lint, boundaries, typecheck, tests, build
+pnpm db:test          # pgTAP suites in tests/database
+pnpm test:integration # real database: tenant isolation and the auth flow
 ```
 
-`pnpm check` must pass before any commit.
+`pnpm check` must pass before any commit. It does **not** touch a database, so
+`db:test` and `test:integration` are separate and must be run when changing
+schema, policies or auth.
+
+Local database, when you want to work offline:
+
+```sh
+pnpm db:up      # PostgreSQL in Docker, built with pgTAP
+pnpm db:setup   # apply migrations, set local role passwords
+pnpm db:reset   # down -v, up, setup — local only, never touches a hosted database
+```
+
+`.env` points at Supabase by default; the local URLs are commented in it.
 
 ## Current state
 
@@ -91,12 +115,13 @@ Branch `rebuild/blueprint` is a rebuild. The previous pilot is archived at tags
 `v0-pilot-archive` and `v0-phase-two-hardening` — recoverable, but its domain
 model does not carry forward.
 
-**Verification debt:** the migrations in `prisma/migrations/` and the pgTAP suite
-have never run against a database. Prove them with the commands above before
-building anything on top.
+The foundation is verified, not assumed. Against both Supabase and local
+Postgres: 16 pgTAP assertions covering the five gates, and 11 integration tests
+covering tenant isolation under a pooled Prisma connection plus sign-up through
+to a correctly scoped query.
 
-Current milestone: the walking skeleton — Organization, Property, identity and
-entitlement enforcement proven end to end through `apps/operator-workspace`.
+Current milestone: the walking skeleton. The database, identity and entitlement
+layers are done; `apps/operator-workspace` does not exist yet.
 
 ## Conventions
 

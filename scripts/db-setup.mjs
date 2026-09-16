@@ -6,7 +6,6 @@
 // so a fixed development password is acceptable.
 import { spawnSync } from "node:child_process";
 
-import { readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -27,16 +26,19 @@ function psql(args) {
   });
 }
 
-const migrations = path.join(root, "prisma/migrations");
-for (const entry of readdirSync(migrations).sort()) {
-  const file = path.join(migrations, entry, "migration.sql");
-  const result = psql(["-f", file]);
-  if (result.status !== 0) {
-    console.error(`FAIL ${entry}\n${result.stderr}`);
-    process.exit(1);
-  }
-  console.log(`applied ${entry}`);
+// Prisma Migrate applies and records the migrations (ADR 0001). Applying the
+// SQL directly would leave _prisma_migrations empty, and Prisma would later
+// offer to reset a database it believed had never been migrated.
+const deploy = spawnSync(
+  path.join(root, "packages/db/node_modules/.bin/prisma"),
+  ["migrate", "deploy", "--schema", path.join(root, "prisma/schema.prisma")],
+  { encoding: "utf8", env: { ...process.env, DIRECT_URL: url } },
+);
+if (deploy.status !== 0) {
+  console.error(`Migrations failed:\n${deploy.stdout}${deploy.stderr}`);
+  process.exit(1);
 }
+console.log(deploy.stdout.trim().split("\n").slice(-1)[0]);
 
 for (const role of ["ranza_app", "ranza_auth"]) {
   const result = psql([

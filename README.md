@@ -60,13 +60,21 @@ pnpm dev
 `pnpm check` runs the full gate: formatting, linting, boundary rules, type
 checking, tests, and build.
 
-Database work needs Docker and the PostgreSQL client tools:
+`pnpm check` does not touch a database. Schema, policy and auth changes are
+covered by separate suites:
 
 ```sh
-pnpm db:up        # plain PostgreSQL, no Supabase
-pnpm db:migrate   # apply Prisma migrations
-pnpm db:test      # pgTAP suites in tests/database
-pnpm db:down
+pnpm db:test          # pgTAP suites in tests/database
+pnpm test:integration # tenant isolation and the auth flow, against a real database
+```
+
+`.env` points at the hosted database by default. To work offline you need Docker
+and the PostgreSQL client tools:
+
+```sh
+pnpm db:up      # PostgreSQL in Docker, built with pgTAP
+pnpm db:setup   # apply migrations, set local role passwords
+pnpm db:reset   # rebuild from scratch — local only
 ```
 
 Prisma owns schema migrations; row-level security policies are hand-written SQL

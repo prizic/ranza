@@ -21,10 +21,18 @@ security-definer functions, and grants are written by hand as raw SQL appended
 into the same Prisma migration that creates the objects they protect:
 
 ```sh
-prisma migrate dev --create-only   # generate
+pnpm db:migrate:new   # prisma migrate dev --create-only
 # edit prisma/migrations/<name>/migration.sql to add policies, functions, grants
-prisma migrate dev                 # apply
+pnpm db:migrate       # prisma migrate deploy
 ```
+
+`deploy` rather than `dev` everywhere that is not authoring: `dev` may offer to
+reset a database, which must never be possible against a shared one.
+
+Migrations are applied only through Prisma, never by piping the SQL to `psql`.
+Doing so leaves `_prisma_migrations` empty, and Prisma then treats the database
+as unmigrated and offers to reset it. An existing database can be adopted with
+`prisma migrate resolve --applied <name>`.
 
 One migration history, one tool. A policy and the table it guards land in the
 same reviewable diff.

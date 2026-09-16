@@ -2,6 +2,7 @@
 
 Status: Accepted
 Date: 2026-09-16
+Amended: 2026-09-16 — implemented and verified; open question resolved.
 
 ## Context
 
@@ -50,6 +51,37 @@ price of keeping a hard-to-reverse decision reversible, and is paid knowingly.
 Revisit when an enterprise customer makes SSO or SAML a condition of sale, or
 when genuine cross-application single sign-on is needed.
 
-Better Auth generates text ids by default while Ranza uses `uuid`. Confirm
-against current Better Auth documentation during implementation and either
-configure UUID generation or type the `auth_identities.subject` column as text.
+The id-format question this ADR left open turned out to be moot. Better Auth
+owns its own tables and Ranza maps provider subjects through
+`auth_identities.subject`, typed `text`, so the two id formats never need to
+match. The indirection removed the problem rather than solving it.
+
+## Implementation notes
+
+Better Auth's default table is named `user`, one character from Ranza's `users`
+and meaning something different: `users` is what policies resolve against,
+`auth_user` is a credential record. Its four tables are therefore prefixed
+`auth_`.
+
+They are reached through a **separate database role**. `auth_user`,
+`auth_session`, `auth_account` and `auth_verification` hold password hashes and
+session tokens. Row-level security exists because application defects happen, so
+a defect in the tenant query path must not also expose every credential in the
+system. `ranza_auth` holds the grants; `ranza_app` is granted nothing there, and
+an integration test asserts the permission denial rather than trusting the grant.
+
+RLS is deliberately **not** applied to those four tables. Authentication happens
+before any user identity is known, so there is no context to filter on; role
+grants are the boundary instead. Tenant isolation is unaffected because nothing
+there is tenant-owned.
+
+`users` and `auth_identities` do carry RLS, so sign-up needs policies scoped
+`to ranza_auth` — grants alone are denied under `FORCE ROW LEVEL SECURITY`.
+Those policies widen nothing for `ranza_app`, and `ranza_auth` holds no grant on
+any tenant-owned table, so reading every identity row still reveals no
+Organization's data.
+
+Verified end to end by `tests/integration/auth-flow.test.ts`: sign-up, session,
+subject-to-user mapping, idempotency on repeat sign-in, no rows before a
+membership exists, exactly one Organization after, and credential access denied
+to the tenant role.
