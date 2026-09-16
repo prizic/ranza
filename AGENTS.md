@@ -166,8 +166,11 @@ factor is a property of the account rather than of a membership (ADR 0010), so
 one enrolment covers both applications — `apps/operator-workspace` has the
 enrolment screen at `/{tr,en,ar}/security`, and `apps/guest-portal` answers the
 challenge without one. The secret sits beside the password hash, reached only by
-`ranza_auth`. Nothing can yet _require_ MFA, and there is no operator-assisted
-reset for a lost authenticator; ADR 0010 says where both belong.
+`ranza_auth`, and rate-limit counters share a table so a limit is one limit
+rather than one per server instance (blueprint 7.6). Nothing can yet _require_
+MFA — blueprint 7.6 asks for it on privileged roles — and there is no
+operator-assisted reset for a lost authenticator; the amendment to ADR 0010 says
+where both belong.
 
 Phase 1 still has real gaps: white-label tokens and domains, Feature
 Configuration beyond on/off Property capabilities, notifications, files, tasks

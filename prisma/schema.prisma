@@ -293,6 +293,23 @@ model AuthAccount {
   @@map("auth_account")
 }
 
+/// Rate-limit counters, shared across every server instance.
+///
+/// Better Auth defaults to counting in process memory, which on a deployment
+/// with more than one instance means each instance enforces its own limit and
+/// an attacker spread across them gets a multiple of it. Blueprint 7.6 lists
+/// rate limiting in the security baseline, so the counter lives where every
+/// instance can see it.
+model AuthRateLimit {
+  id          String @id
+  key         String @unique
+  count       Int
+  /// Epoch milliseconds. Bigint because it does not fit in a 32-bit integer.
+  lastRequest BigInt
+
+  @@map("auth_rate_limit")
+}
+
 model AuthVerification {
   id         String   @id
   identifier String

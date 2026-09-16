@@ -22,6 +22,20 @@ export function createAuthModule(deps: AuthDeps) {
     emailAndPassword: { enabled: true },
     secret: deps.secret,
     baseURL: deps.baseURL,
+    // Blueprint 7.6 lists rate limiting in the security baseline. The table is
+    // shared rather than in-process, because a per-instance counter is not a
+    // limit — it is the limit multiplied by however many instances are running,
+    // and nothing in the response says so.
+    //
+    // Better Auth's built-in rules are kept: /sign-in, /sign-up and
+    // /change-password at three per ten seconds, /two-factor/* likewise. That
+    // second one is what bounds guessing a six-digit code, because a burned
+    // challenge is replaced by signing in again (ADR 0010, amendment).
+    rateLimit: {
+      ...(deps.rateLimit === undefined ? {} : { enabled: deps.rateLimit }),
+      storage: "database",
+      modelName: "authRateLimit",
+    },
     user: { modelName: "authUser" },
     session: { modelName: "authSession" },
     account: { modelName: "authAccount" },

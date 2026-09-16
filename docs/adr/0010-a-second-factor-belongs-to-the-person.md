@@ -101,5 +101,12 @@ That second point has a consequence worth naming: with the cap at five and a
 new challenge costing one rate-limited sign-in, the strength of the whole thing
 rests on rate limiting — which Better Auth enables only in production and backs
 with in-process memory by default. On a multi-instance deployment that is a
-per-instance limit. Blueprint 7.6 requires rate limiting; making it shared
-storage is the work that closes this properly.
+per-instance limit, and blueprint 7.6 requires rate limiting.
+
+That is now closed. `20260916000800_auth_rate_limit` gives the counter a shared
+table, `AuthDeps.rateLimit` makes enforcement something the host states rather
+than something inherited from `NODE_ENV`, and
+`tests/integration/rate-limit.test.ts` runs two independent auth modules over
+two clients and asserts the limit is shared between them. Switching the storage
+back to memory leaves that test's single-instance assertion green and turns the
+cross-instance one red, which is the shape of the bug it exists to catch.

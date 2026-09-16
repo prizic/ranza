@@ -20,4 +20,17 @@ export interface AuthDeps {
 
   /** Public origin, used when issuing links and cookies. */
   baseURL?: string;
+
+  /**
+   * Whether to enforce rate limits.
+   *
+   * Better Auth's own default is "only when NODE_ENV is production", which is a
+   * reasonable default and a poor one to inherit silently: it means the control
+   * blueprint 7.6 requires is never exercised until it is in front of real
+   * traffic. The host says so explicitly, and a test can turn it on.
+   *
+   * Storage is not a choice — it is always the shared table. Counting in
+   * process memory would make this a per-instance limit.
+   */
+  rateLimit?: boolean;
 }
