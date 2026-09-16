@@ -279,6 +279,11 @@ every local run and took one pgTAP run against Supabase to surface.
   yet** and which wins when they disagree.
 - Directional utilities are always logical — `ps`/`pe`, `border-s`,
   `text-start`. That is what makes Arabic mirror by construction.
+- Applications should have no `src/` and should import through `@/`, not
+  `../../../../` — [ADR 0014](docs/adr/0014-an-application-is-flat-and-its-imports-are-aliased.md).
+  **That is agreed and not yet applied**, so the tree still has both; do not
+  treat the current shape as the intent, and do not deepen it further than a
+  route already requires.
 - Vertical slices with externally verifiable behaviour, not a schema built ahead
   of the workflows that need it.
 - Turkish, English and Arabic with RTL are designed **with** a feature, never
