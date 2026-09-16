@@ -115,6 +115,21 @@ Readiness is per slice and has two levels:
 - **ready to build** — ready to specify, and no `prerequisite_missing` row names
   that slice as blocked.
 
+Every `prerequisite_missing` row's `then` **starts** `blocks: <slices>.` — a
+comma-separated list, each slice optionally qualified in brackets, then a full
+stop, then whatever prose the row needs:
+
+```
+blocks: s1, s3. s1 dates the departure by the business date.
+blocks: s1 (Folio with charges only). A Stay with no Folio is reachable without it.
+```
+
+Readiness counts **only that prefix**, never the prose after the full stop. That
+is what stops a rewording from silently unblocking a slice, which has already
+happened once: a correction replaced "blocks s1" with a more accurate sentence
+that no longer named a slice, and the row went on blocking s1 while reading as
+blocking nothing.
+
 A prerequisite is a row like any other, not a paragraph: prose does not show up in
 a count, so a design whose prerequisites live in a summary reads as ready when it
 is not.
