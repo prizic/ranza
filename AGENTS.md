@@ -3,6 +3,10 @@
 Instructions for AI agents and new contributors. Read this before planning or
 changing anything.
 
+`CLAUDE.md` is a symlink to this file — one set of instructions, nothing
+syncing them — and on a filesystem without symlink support it checks out as a
+one-line text file reading `AGENTS.md`.
+
 ## Read first
 
 [`RANZA_PRODUCT_BLUEPRINT.md`](docs/RANZA_PRODUCT_BLUEPRINT.md) is the source of
