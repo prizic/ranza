@@ -1,0 +1,60 @@
+%% Every allowed transition is drawn and labelled with the command that causes
+%% it. Anything not drawn is forbidden.
+%% Four things have a lifecycle here and they are not the same thing: the
+%% membership is the job, the invitation is only the way to a password, the
+%% assignment is reach to one Property, and an Organization's own role is data
+%% it authored. The roles Ranza ships have no lifecycle at all — they arrive in
+%% a release and cannot be edited, retired or deleted.
+stateDiagram-v2
+
+  state "Membership — the job" as M {
+    [*] --> M_Active : invite
+    M_Active --> M_Active : change_role
+    M_Active --> M_Revoked : revoke
+    M_Revoked --> M_Active : undo_revoke
+    M_Revoked --> M_Active : invite
+    %% No terminal state. A membership is never deleted: audit records name the
+    %% person as the actor of everything they did, and a row that could vanish
+    %% would leave that history pointing at nobody. Revoked is a resting state,
+    %% not an end.
+  }
+
+  state "Invitation — the way to a password" as I {
+    [*] --> I_Pending : invite
+    I_Pending --> I_Accepted : accept
+    I_Pending --> I_Withdrawn : revoke
+    I_Pending --> I_Expired : expire
+    I_Accepted --> [*]
+    I_Withdrawn --> [*]
+    I_Expired --> [*]
+    %% OPEN: whether `expire` exists at all, and after how long. SP-S1-23.
+    %% Drawn because an invitation that never expires is a password-setting link
+    %% that never expires, which is a decision rather than an omission.
+  }
+
+  state "Property assignment — reach to one Property" as A {
+    [*] --> A_Active : assign
+    A_Active --> A_Revoked : unassign
+    A_Revoked --> A_Active : assign
+    %% No terminal state, and for the same reason as the membership: a revoked
+    %% assignment is the record that somebody used to reach that Property.
+  }
+
+  state "Role an Organization defined" as R {
+    [*] --> R_Active : define
+    R_Active --> R_Active : edit
+    R_Active --> R_Retired : retire
+    R_Retired --> R_Active : reinstate
+    %% OPEN: what happens to Staff Members holding it when it is retired —
+    %% refused while anyone holds it, or they fall back to something? SP-S3-02.
+    %% `reinstate` is drawn because retiring is not deletion; whether it is
+    %% offered is part of that same open question.
+  }
+
+  %% The membership is active from the moment it is written, which is why it
+  %% does not wait on the invitation. What the invitation gates is signing in at
+  %% all, and that belongs to Better Auth rather than to this feature (ADR 0005).
+
+  %% Ending a session is not a state of any of these. It is an effect of
+  %% change_role, assign, unassign, revoke and edit — drawn in use-case.mmd as
+  %% an include, and open on how it reaches auth_session at all. SP-S4-01.
