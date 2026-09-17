@@ -1,17 +1,20 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
-import { EmptyState } from "@ranza/ui";
+import { EmptyState, PageHeader } from "@ranza/ui";
 import { getTranslations } from "next-intl/server";
 import { DefineRoleDialog } from "../../../../features/staff/components/define-role-dialog";
 import { InviteDialog } from "../../../../features/staff/components/invite-dialog";
-import { RolesTable } from "../../../../features/staff/components/roles-table";
-import { RosterTable } from "../../../../features/staff/components/roster-table";
-import { asShippedRole } from "../../../../features/staff/labels";
+import { StaffScreen } from "../../../../features/staff/components/staff-screen";
+import {
+  asShippedRole,
+  PERMISSION_CATALOGUE,
+} from "../../../../features/staff/labels";
 import { readRoles, readRoster } from "../../../../server/staff";
 import { entitledProperties } from "../../../../server/viewer";
 
 /**
- * Staff and permissions: who works for this Organization, and where.
+ * Staff and permissions: who works for this Organization, and what each role
+ * may do.
  *
  * The Organization comes from the viewer's own reach rather than from the URL.
  * A Property is how reach is expressed everywhere else in the product, and
@@ -55,53 +58,54 @@ export default async function PeoplePage({
   // would only race to be the one that validates it.
   const roster = await readRoster(organizationId);
   const roles = await readRoles(organizationId);
-  const offerable = roles.filter((role) => role.status === "active");
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted-foreground">
-          {t("staff.rosterOf")} {home.organizationName}
+      <PageHeader
+        aside={
+          <span className="flex flex-wrap gap-2">
+            <DefineRoleDialog locale={locale} organizationId={organizationId} />
+            <InviteDialog
+              locale={locale}
+              organizationId={organizationId}
+              properties={properties.map((property) => ({
+                propertyId: property.propertyId,
+                propertyName: property.propertyName,
+              }))}
+              roles={roles
+                .filter((role) => role.status === "active")
+                .map((role) => {
+                  const shipped = asShippedRole(role.key);
+                  return {
+                    key: role.key,
+                    scopeId: role.organizationId,
+                    name: shipped ? t(`staff.roles.${shipped}`) : role.name,
+                  };
+                })}
+            />
+          </span>
+        }
+      >
+        <p className="text-muted-foreground">{t("staff.screenSummary")}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {home.organizationName}
         </p>
-        <InviteDialog
-          locale={locale}
-          organizationId={organizationId}
-          properties={properties.map((property) => ({
-            propertyId: property.propertyId,
-            propertyName: property.propertyName,
-          }))}
-          roles={offerable.map((role) => {
-            const shipped = asShippedRole(role.key);
-            return {
-              key: role.key,
-              scopeId: role.organizationId,
-              name: shipped ? t(`staff.roles.${shipped}`) : role.name,
-            };
-          })}
-        />
-      </div>
+      </PageHeader>
+
       {roster.length === 0 ? (
         <EmptyState
           description={t("staff.emptyRosterDescription")}
           title={t("staff.emptyRosterTitle")}
         />
       ) : (
-        <RosterTable
+        <StaffScreen
           locale={locale}
           organizationId={organizationId}
+          permissions={PERMISSION_CATALOGUE}
+          roles={roles}
           roster={roster}
         />
       )}
-
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-6">
-        <h2 className="text-lg font-medium">{t("staff.rolesHeading")}</h2>
-        <DefineRoleDialog locale={locale} organizationId={organizationId} />
-      </div>
-      <RolesTable
-        locale={locale}
-        organizationId={organizationId}
-        roles={roles}
-      />
     </>
   );
 }

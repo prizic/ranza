@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
-import { UserPlus } from "lucide-react";
+import { Lock, UserPlus } from "lucide-react";
 import {
   Button,
   Dialog,
@@ -50,18 +50,18 @@ export function InviteDialog({
 }) {
   const t = useTranslations();
   const [open, setOpen] = useState(false);
-  // The list is never empty — it is the shipped roles — but a `?.` here would
-  // make the Select uncontrolled instead of saying so.
-  // A role is identified by its scope and its key together — the same pair the
-  // database keys on — so the option carries both. Naming only the key would
-  // resolve an Organization's own role to the shipped one of the same name.
-  const optionFor = (role: { key: string; scopeId: string | null }) =>
-    `${role.scopeId ?? ""}:${role.key}`;
-  const defaultRole = roles[0] ? optionFor(roles[0]) : ":front_desk";
+  const [reaching, setReaching] = useState<readonly string[]>([]);
   const [outcome, act, pending] = useActionState<InviteOutcome, FormData>(
     inviteStaffMember,
     { state: "idle" },
   );
+
+  // A role is identified by its scope and its key together — the same pair the
+  // database keys on. Naming only the key would resolve an Organization's own
+  // role to the shipped one of the same name.
+  const optionFor = (role: { key: string; scopeId: string | null }) =>
+    `${role.scopeId ?? ""}:${role.key}`;
+  const defaultRole = roles[0] ? optionFor(roles[0]) : ":front_desk";
 
   return (
     <Dialog onOpenChange={setOpen} open={open}>
@@ -86,7 +86,7 @@ export function InviteDialog({
               data-testid="invitation-token"
               value={outcome.token}
             />
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm text-muted-foreground">
               {t("staff.linkExpires")}
             </p>
           </div>
@@ -94,6 +94,14 @@ export function InviteDialog({
           <form action={act} className="space-y-4">
             <input name="locale" type="hidden" value={locale} />
             <input name="organization" type="hidden" value={organizationId} />
+            {reaching.map((propertyId) => (
+              <input
+                key={propertyId}
+                name="properties"
+                type="hidden"
+                value={propertyId}
+              />
+            ))}
 
             <Field htmlFor="invite-email" label={t("staff.email")}>
               <Input
@@ -121,25 +129,37 @@ export function InviteDialog({
               </Select>
             </Field>
 
-            {/* Naming no Property is allowed and normal: somebody can be on the
-                roster before anybody decides where they work (SP-S1-06). */}
+            {/* Pills rather than checkboxes, as the mockup has them: a Property
+                is a place somebody works, and a row of them reads as a set. An
+                empty set is allowed and normal — somebody can be on the roster
+                before anybody decides where they work (SP-S1-06). */}
             <fieldset className="space-y-2">
               <legend className="text-sm font-medium">
                 {t("staff.properties")}
               </legend>
-              {properties.map((property) => (
-                <label
-                  className="flex items-center gap-2 text-sm"
-                  key={property.propertyId}
-                >
-                  <input
-                    name="properties"
-                    type="checkbox"
-                    value={property.propertyId}
-                  />
-                  {property.propertyName}
-                </label>
-              ))}
+              <div className="flex flex-wrap gap-2">
+                {properties.map((property) => {
+                  const chosen = reaching.includes(property.propertyId);
+                  return (
+                    <Button
+                      aria-pressed={chosen}
+                      key={property.propertyId}
+                      onClick={() =>
+                        setReaching((held) =>
+                          chosen
+                            ? held.filter((id) => id !== property.propertyId)
+                            : [...held, property.propertyId],
+                        )
+                      }
+                      size="sm"
+                      type="button"
+                      variant={chosen ? "default" : "outline"}
+                    >
+                      {property.propertyName}
+                    </Button>
+                  );
+                })}
+              </div>
             </fieldset>
 
             {outcome.state === "alreadyAMember" ? (
@@ -148,6 +168,11 @@ export function InviteDialog({
             {outcome.state === "refused" ? (
               <FormError>{t("staff.refused")}</FormError>
             ) : null}
+
+            <p className="flex items-start gap-2 rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+              <Lock aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+              {t("staff.inviteNotice")}
+            </p>
 
             <DialogFooter>
               <DialogClose asChild>

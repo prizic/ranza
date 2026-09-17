@@ -79,9 +79,26 @@ export interface StaffMember {
   userId: string;
   email: string;
   roleId: string;
+  /**
+   * The role's scope: this Organization, or the nil uuid for one Ranza ships.
+   * Meaningless without `roleId` and vice versa — it is the pair the database
+   * keys on, and a screen that offered the key alone would resolve an
+   * Organization's own role to a shipped one of the same name.
+   */
+  roleScopeId: string;
   roleName: string;
   status: MembershipStatus;
-  /** Null until they accept; a membership is active before they can sign in. */
+  /**
+   * The state of their invitation, or null when there never was one.
+   *
+   * Null is the normal case for whoever created the Organization: they arrived
+   * through sign-up, not through a link. `acceptedAt` is null for them too,
+   * which is why the roster reads this and not that — driving a badge off
+   * `acceptedAt` told the Organization's own Owner they were awaiting a
+   * password they had already set.
+   */
+  invitation: InvitationStatus | null;
+  /** When they set a password, for a membership that came from an invitation. */
   acceptedAt: string | null;
   /** Empty is a normal state, not a half-finished one (SP-S1-06). */
   properties: readonly { propertyId: string; propertyName: string }[];

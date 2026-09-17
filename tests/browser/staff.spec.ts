@@ -27,12 +27,16 @@ test("an administrator invites a colleague and is given the link to pass on", as
   page,
 }) => {
   const propertyId = testProperty();
-  const email = `e2e-invite-${randomUUID().slice(0, 8)}@example.test`;
+  // Not "invite" in the address: every roster row now carries a role select
+  // whose accessible name is "Role: <address>", and `getByRole` matches a name
+  // by substring — so an address containing the word made the Invite button
+  // ambiguous with ten of them.
+  const email = `e2e-joiner-${randomUUID().slice(0, 8)}@example.test`;
 
   await signIn(page);
   await page.goto(`/en/people?property=${propertyId}`);
 
-  await page.getByRole("button", { name: "Invite" }).click();
+  await page.getByRole("button", { exact: true, name: "Invite" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
 
@@ -52,6 +56,7 @@ test("an administrator invites a colleague and is given the link to pass on", as
   // Active immediately, and not yet accepted: the membership was never waiting
   // on the link.
   await expect(row).toContainText("Awaiting a password");
+  await expect(row).toContainText("Invitation sent");
 });
 
 /**
@@ -74,12 +79,9 @@ test("an Organization defines a role of its own and sees it beside the shipped o
   await signIn(page);
   await page.goto(`/en/people?property=${propertyId}`);
 
-  // The shipped roles are there for everybody and say so.
-  await expect(
-    page.getByRole("row").filter({ hasText: "Front desk" }).first(),
-  ).toContainText("Ranza");
-
-  await page.getByRole("button", { name: "Define a role" }).click();
+  await page
+    .getByRole("button", { exact: true, name: "Define a role" })
+    .click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
 
@@ -89,10 +91,16 @@ test("an Organization defines a role of its own and sees it beside the shipped o
 
   await expect(dialog).toBeHidden();
 
-  const row = page.getByRole("row").filter({ hasText: name });
-  await expect(row).toBeVisible();
-  // The permission reads as the command it is, not as the key a policy matches.
-  await expect(row).toContainText("Check somebody in");
-  // Nobody holds it yet, which is what makes retiring it possible.
-  await expect(row).toContainText("0");
+  // The grid is permissions down and roles across, so the new role is a column
+  // and what it may do is a ticked box in it — not a row with a list.
+  await page
+    .getByRole("tab", { exact: true, name: "What each role can do" })
+    .click();
+  await expect(
+    page.getByRole("checkbox", { name: `${name}: Check somebody in` }),
+  ).toBeChecked();
+  // And a shipped role is on the same grid, shown and not editable.
+  await expect(
+    page.getByRole("checkbox", { name: "Front desk: Check somebody in" }),
+  ).toBeDisabled();
 });

@@ -247,6 +247,31 @@ export async function defineRole(
   );
 }
 
+/**
+ * Changes what one of this Organization's own roles may do.
+ *
+ * The whole set, not a delta: the policy's ceiling is `permissions <@ what the
+ * author holds`, which is a question about the resulting set, and sending a
+ * single permission would mean the database had to reconstruct the rest.
+ */
+export async function editRole(
+  _previous: StaffOutcome,
+  form: FormData,
+): Promise<StaffOutcome> {
+  return run(form, (staff, viewer, locale) =>
+    staff
+      .editRole(
+        { userId: viewer },
+        {
+          organizationId: String(form.get("organization") ?? ""),
+          key: String(form.get("role") ?? ""),
+          permissions: form.getAll("permissions").map(String),
+        },
+      )
+      .then(() => revalidateRoster(locale)),
+  );
+}
+
 export async function retireRole(
   _previous: StaffOutcome,
   form: FormData,

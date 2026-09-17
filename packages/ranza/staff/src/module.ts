@@ -466,9 +466,11 @@ export function createStaffModule(deps: StaffDeps) {
           user_id: string;
           email: string;
           role_id: string;
+          role_scope_id: string;
           role_name: string;
           status: string;
           accepted_at: Date | null;
+          invitation: string | null;
           properties: { propertyId: string; propertyName: string }[] | null;
         }[]
       >(
@@ -476,9 +478,21 @@ export function createStaffModule(deps: StaffDeps) {
                 membership.user_id       as user_id,
                 account.email            as email,
                 membership.role          as role_id,
+                membership.role_scope_id as role_scope_id,
                 role.name                as role_name,
                 membership.status        as status,
                 membership.accepted_at   as accepted_at,
+                (
+                  -- The most recent one. Re-inviting writes a fresh invitation
+                  -- against the same membership, so "was this person invited"
+                  -- is a question about the latest and not about all of them.
+                  select invitation.status
+                    from public.staff_invitations as invitation
+                   where invitation.organization_id = membership.organization_id
+                     and invitation.user_id = membership.user_id
+                   order by invitation.created_at desc
+                   limit 1
+                )                        as invitation,
                 (
                   select coalesce(
                     json_agg(json_build_object(
@@ -507,8 +521,10 @@ export function createStaffModule(deps: StaffDeps) {
         userId: row.user_id,
         email: row.email,
         roleId: row.role_id,
+        roleScopeId: row.role_scope_id,
         roleName: row.role_name,
         status: row.status === "revoked" ? "revoked" : "active",
+        invitation: (row.invitation as StaffMember["invitation"]) ?? null,
         acceptedAt: row.accepted_at ? row.accepted_at.toISOString() : null,
         properties: row.properties ?? [],
       }));

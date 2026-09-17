@@ -126,6 +126,15 @@ export interface Messages {
    */
   staff: {
     rosterOf: string;
+    screenSummary: string;
+    peopleTab: string;
+    rolesTab: string;
+    person: string;
+    permission: string;
+    invitationSent: string;
+    inviteNotice: string;
+    matrixNote: string;
+    cannotGrant: string;
     invite: string;
     inviteTitle: string;
     inviteDescription: string;
@@ -385,6 +394,18 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     staff: {
       rosterOf: "Ekip —",
+      screenSummary:
+        "Burada kimler çalışıyor, hangi tesislere erişiyorlar ve her rol ne yapabilir.",
+      peopleTab: "Kişiler",
+      rolesTab: "Her rol ne yapabilir",
+      person: "Kişi",
+      permission: "Yetki",
+      invitationSent: "Davet gönderildi",
+      inviteNotice:
+        "Bağlantıyı siz iletirsiniz: henüz e-posta gönderen bir modül yok. Yedi gün sonra geçersiz olur ve yalnızca bir kez gösterilir.",
+      matrixNote:
+        "Ranza\u2019nın gönderdiği roller bir sürümle gelir ve değiştirilmez. Her değişiklik denetim kaydına yazılır ve yalnızca düğmeler gizlenerek değil, veritabanında uygulanır.",
+      cannotGrant: "Kendi rolünüzde olmayan bir yetkiyi veremezsiniz.",
       invite: "Davet et",
       inviteTitle: "Ekibe birini davet et",
       inviteDescription:
@@ -667,6 +688,18 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     staff: {
       rosterOf: "The team at",
+      screenSummary:
+        "Who works here, which Properties they reach, and what each role may do.",
+      peopleTab: "People",
+      rolesTab: "What each role can do",
+      person: "Person",
+      permission: "Permission",
+      invitationSent: "Invitation sent",
+      inviteNotice:
+        "You pass the link on yourself — nothing sends email yet. It lapses after seven days and is shown only once.",
+      matrixNote:
+        "The roles Ranza ships arrive in a release and are not editable. Every change is written to the audit log and enforced by the database, not only by hiding buttons.",
+      cannotGrant: "You cannot grant a permission your own role does not hold.",
       invite: "Invite",
       inviteTitle: "Invite somebody to the team",
       inviteDescription:
@@ -946,6 +979,17 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     staff: {
       rosterOf: "فريق",
+      screenSummary: "من يعمل هنا، وأي المنشآت يصلها، وما الذي يستطيعه كل دور.",
+      peopleTab: "الأشخاص",
+      rolesTab: "ما يستطيعه كل دور",
+      person: "الشخص",
+      permission: "الصلاحية",
+      invitationSent: "أُرسلت الدعوة",
+      inviteNotice:
+        "أنت من يمرّر الرابط: لا شيء يرسل البريد بعد. ينتهي بعد سبعة أيام ويُعرض مرة واحدة فقط.",
+      matrixNote:
+        "الأدوار التي ترسلها رانزا تأتي مع الإصدار ولا تُعدَّل. كل تغيير يُكتب في سجل التدقيق وتفرضه قاعدة البيانات، لا إخفاء الأزرار.",
+      cannotGrant: "لا يمكنك منح صلاحية لا يحملها دورك.",
       invite: "دعوة",
       inviteTitle: "دعوة شخص إلى الفريق",
       inviteDescription:
