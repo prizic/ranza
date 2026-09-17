@@ -53,3 +53,46 @@ test("an administrator invites a colleague and is given the link to pass on", as
   // on the link.
   await expect(row).toContainText("Awaiting a password");
 });
+
+/**
+ * Composing a role, through the editor an Organization actually uses.
+ *
+ * The grid below the roster is the only place the shipped roles and an
+ * Organization's own appear side by side, and the only place a permission has a
+ * name a person reads rather than a key a policy matches. Both are what this
+ * checks.
+ *
+ * Each run defines a role of its own and leaves it. A role is the record of
+ * what somebody used to be able to do and is retired rather than deleted.
+ */
+test("an Organization defines a role of its own and sees it beside the shipped ones", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const name = `Night desk ${randomUUID().slice(0, 8)}`;
+
+  await signIn(page);
+  await page.goto(`/en/people?property=${propertyId}`);
+
+  // The shipped roles are there for everybody and say so.
+  await expect(
+    page.getByRole("row").filter({ hasText: "Front desk" }).first(),
+  ).toContainText("Ranza");
+
+  await page.getByRole("button", { name: "Define a role" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+
+  await dialog.getByLabel("Role name").fill(name);
+  await dialog.getByLabel("Check somebody in").check();
+  await dialog.getByRole("button", { name: "Save the role" }).click();
+
+  await expect(dialog).toBeHidden();
+
+  const row = page.getByRole("row").filter({ hasText: name });
+  await expect(row).toBeVisible();
+  // The permission reads as the command it is, not as the key a policy matches.
+  await expect(row).toContainText("Check somebody in");
+  // Nobody holds it yet, which is what makes retiring it possible.
+  await expect(row).toContainText("0");
+});

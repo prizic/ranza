@@ -15,7 +15,7 @@
 -- purpose: it needs two sessions and pgTAP has one. It lives in
 -- tests/integration/staff.test.ts, which can open two connections.
 begin;
-select plan(40);
+select plan(49);
 
 insert into public.users (id, email) values
   ('61111111-1111-4111-8111-111111111111', 'staff-owner-a@example.test'),
@@ -504,6 +504,113 @@ select lives_ok(
             '6d111111-1111-4111-8111-111111111111', 'guest',
             current_date + 1, current_date + 3)$$,
   'a front desk takes the same booking');
+
+-- ---------------------------------------------------------------------------
+-- An Organization defines its own roles (slice 3)
+-- ---------------------------------------------------------------------------
+
+select app.set_request_context('61111111-1111-4111-8111-111111111111');
+
+select lives_ok(
+  $$insert into public.staff_roles
+      (scope_id, key, organization_id, name, permissions, status)
+    values ('6a111111-1111-4111-8111-111111111111', 'night_desk',
+            '6a111111-1111-4111-8111-111111111111', 'Night desk',
+            array['front_desk.check_in'], 'active')$$,
+  'an Owner defines a role of their Organization''s own');
+
+-- SP-S3-05 and SP-S3-06 need no clause of their own: a role Ranza ships has no
+-- Organization, and every write policy requires one the actor reaches.
+select throws_ok(
+  $$insert into public.staff_roles
+      (scope_id, key, organization_id, name, permissions)
+    values ('00000000-0000-0000-0000-000000000000', 'concierge',
+            null, 'Concierge', '{}')$$,
+  '42501', NULL,
+  'nobody adds to the roles Ranza ships');
+
+select lives_ok(
+  $$update public.staff_roles set name = 'Night reception', updated_at = now()
+     where scope_id = '6a111111-1111-4111-8111-111111111111'
+       and key = 'night_desk'$$,
+  'and may rename their own');
+
+-- A grant, not a policy. The update policy would admit this row happily — same
+-- Organization before and after — and changing the key would silently repoint
+-- every membership holding it, because a membership names a role by key.
+select throws_ok(
+  $$update public.staff_roles set key = 'night_desk_2'
+     where scope_id = '6a111111-1111-4111-8111-111111111111'
+       and key = 'night_desk'$$,
+  '42501', NULL,
+  'a role''s key cannot be changed out from under the memberships holding it');
+
+-- SP-S3-01. The Front desk Staff Member holds staff.define_roles nowhere, so
+-- the author here is the Owner — who holds the whole catalogue — and the test
+-- is the other direction: a role whose author lacks one of the permissions in
+-- it. Housekeeping holds nothing, which is the cleanest version of that.
+set local role ranza;
+update public.staff_roles
+   set permissions = array['staff.define_roles', 'front_desk.check_in']
+ where organization_id is null and key = 'housekeeping';
+set local role ranza_app;
+select app.set_request_context('66666666-6666-4666-8666-666666666666');
+
+select lives_ok(
+  $$insert into public.staff_roles
+      (scope_id, key, organization_id, name, permissions)
+    values ('6a111111-1111-4111-8111-111111111111', 'linen_lead',
+            '6a111111-1111-4111-8111-111111111111', 'Linen lead',
+            array['front_desk.check_in'])$$,
+  'an author may define a role from the permissions they hold');
+
+select throws_ok(
+  $$insert into public.staff_roles
+      (scope_id, key, organization_id, name, permissions)
+    values ('6a111111-1111-4111-8111-111111111111', 'shadow_owner',
+            '6a111111-1111-4111-8111-111111111111', 'Shadow owner',
+            array['staff.administer'])$$,
+  '42501', NULL,
+  'and may not grant a permission their own role lacks');
+
+-- SP-S3-02. Somebody holds it, so retiring is refused — and the refusal is the
+-- point: moving them automatically would decide their permissions for them.
+select app.set_request_context('61111111-1111-4111-8111-111111111111');
+
+set local role ranza;
+update public.organization_memberships
+   set role = 'night_desk',
+       role_scope_id = '6a111111-1111-4111-8111-111111111111'
+ where organization_id = '6a111111-1111-4111-8111-111111111111'
+   and user_id = '63333333-3333-4333-8333-333333333333';
+set local role ranza_app;
+select app.set_request_context('61111111-1111-4111-8111-111111111111');
+
+select throws_ok(
+  $$update public.staff_roles set status = 'retired', updated_at = now()
+     where scope_id = '6a111111-1111-4111-8111-111111111111'
+       and key = 'night_desk'$$,
+  '55000', NULL,
+  'a role somebody holds cannot be retired');
+
+select lives_ok(
+  $$update public.staff_roles set status = 'retired', updated_at = now()
+     where scope_id = '6a111111-1111-4111-8111-111111111111'
+       and key = 'linen_lead'$$,
+  'a role nobody holds is retired, and stays');
+
+-- SP-S3-11 in the direction that matters: while it is retired, nobody may be
+-- moved onto it. The row is still there, because it is the record of what
+-- somebody used to be able to do.
+select throws_ok(
+  $$update public.organization_memberships
+       set role = 'linen_lead',
+           role_scope_id = '6a111111-1111-4111-8111-111111111111',
+           updated_at = now()
+     where organization_id = '6a111111-1111-4111-8111-111111111111'
+       and user_id = '66666666-6666-4666-8666-666666666666'$$,
+  '55000', NULL,
+  'a retired role cannot be taken up again while it is retired');
 
 select finish();
 rollback;

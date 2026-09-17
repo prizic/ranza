@@ -147,6 +147,36 @@ export interface Messages {
     alreadyAMember: string;
     refused: string;
     lastAdministrator: string;
+    roleIsHeld: string;
+    rolesHeading: string;
+    defineRole: string;
+    defineRoleTitle: string;
+    defineRoleDescription: string;
+    roleName: string;
+    saveRole: string;
+    mayDo: string;
+    heldBy: string;
+    shipped: string;
+    retired: string;
+    retire: string;
+    reinstate: string;
+    noCommands: string;
+    /**
+     * Keyed on a dotless name rather than the permission itself: next-intl
+     * reads a dot as a namespace separator, so `front_desk.book` would be
+     * looked up as a `book` inside a `front_desk` object. The mapping lives in
+     * `features/staff/labels.ts`.
+     */
+    permissions: Record<
+      | "book"
+      | "checkIn"
+      | "checkOut"
+      | "manageFolio"
+      | "postCharge"
+      | "administerStaff"
+      | "defineRoles",
+      string
+    >;
     emptyRosterTitle: string;
     emptyRosterDescription: string;
     roles: Record<
@@ -379,6 +409,30 @@ export const messages: Record<SupportedLocale, Messages> = {
       refused: "Bu işlem reddedildi.",
       lastAdministrator:
         "Bir organizasyonda ekip yönetebilen en az bir kişi kalmalıdır.",
+      roleIsHeld: "Bu rolü tutan kişiler var; önce onları taşıyın.",
+      rolesHeading: "Roller",
+      defineRole: "Rol tanımla",
+      defineRoleTitle: "Yeni bir rol tanımla",
+      defineRoleDescription:
+        "Bir rol, adı olan bir yetki kümesidir. Yalnızca kendi tuttuğunuz yetkileri verebilirsiniz.",
+      roleName: "Rol adı",
+      saveRole: "Rolü kaydet",
+      mayDo: "Yapabilecekleri",
+      heldBy: "Tutan kişi",
+      shipped: "Ranza",
+      retired: "Emekli",
+      retire: "Emekliye ayır",
+      reinstate: "Geri getir",
+      noCommands: "Henüz bir yetki yok",
+      permissions: {
+        book: "Rezervasyon alma",
+        checkIn: "Giriş yapma",
+        checkOut: "Çıkış yapma",
+        manageFolio: "Folyo açma ve kapatma",
+        postCharge: "Folyoya ücret işleme",
+        administerStaff: "Ekibi yönetme",
+        defineRoles: "Rol tanımlama",
+      },
       emptyRosterTitle: "Henüz kimse yok",
       emptyRosterDescription:
         "Bu organizasyonda görünen bir ekip üyesi bulunmuyor.",
@@ -637,6 +691,30 @@ export const messages: Record<SupportedLocale, Messages> = {
       refused: "That was refused.",
       lastAdministrator:
         "An Organization must keep somebody who can add staff.",
+      roleIsHeld: "Somebody holds this role. Move them first.",
+      rolesHeading: "Roles",
+      defineRole: "Define a role",
+      defineRoleTitle: "Define a new role",
+      defineRoleDescription:
+        "A role is a named set of permissions. You may only grant what your own role holds.",
+      roleName: "Role name",
+      saveRole: "Save the role",
+      mayDo: "May do",
+      heldBy: "Held by",
+      shipped: "Ranza",
+      retired: "Retired",
+      retire: "Retire",
+      reinstate: "Reinstate",
+      noCommands: "Nothing yet",
+      permissions: {
+        book: "Take a booking",
+        checkIn: "Check somebody in",
+        checkOut: "Check somebody out",
+        manageFolio: "Open and close a Folio",
+        postCharge: "Post a charge",
+        administerStaff: "Administer staff",
+        defineRoles: "Define roles",
+      },
       emptyRosterTitle: "Nobody here yet",
       emptyRosterDescription: "This Organization has no Staff Member to show.",
       roles: {
@@ -890,6 +968,30 @@ export const messages: Record<SupportedLocale, Messages> = {
       alreadyAMember: "لهذا الشخص عضوية في هذه المؤسسة بالفعل.",
       refused: "رُفض هذا الإجراء.",
       lastAdministrator: "يجب أن يبقى في المؤسسة من يستطيع إدارة الفريق.",
+      roleIsHeld: "هذا الدور يحمله أحدهم. انقلهم أولًا.",
+      rolesHeading: "الأدوار",
+      defineRole: "تعريف دور",
+      defineRoleTitle: "تعريف دور جديد",
+      defineRoleDescription:
+        "الدور مجموعة صلاحيات لها اسم. لا يمكنك منح ما لا يحمله دورك.",
+      roleName: "اسم الدور",
+      saveRole: "حفظ الدور",
+      mayDo: "ما يستطيعه",
+      heldBy: "يحمله",
+      shipped: "رانزا",
+      retired: "متقاعد",
+      retire: "إحالة إلى التقاعد",
+      reinstate: "إعادة التفعيل",
+      noCommands: "لا شيء بعد",
+      permissions: {
+        book: "أخذ حجز",
+        checkIn: "تسجيل الدخول",
+        checkOut: "تسجيل المغادرة",
+        manageFolio: "فتح وإغلاق الحساب",
+        postCharge: "تسجيل رسم على الحساب",
+        administerStaff: "إدارة الفريق",
+        defineRoles: "تعريف الأدوار",
+      },
       emptyRosterTitle: "لا أحد هنا بعد",
       emptyRosterDescription: "لا يوجد في هذه المؤسسة موظف لعرضه.",
       roles: {

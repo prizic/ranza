@@ -21,6 +21,7 @@ import {
   AlreadyAMemberError,
   createStaffModule,
   LastAdministratorError,
+  RoleIsHeldError,
   StaffRefusedError,
 } from "../../packages/ranza/staff/src";
 
@@ -137,6 +138,7 @@ afterAll(async () => {
     "public.property_assignments",
     "public.organization_memberships",
     "public.property_capabilities",
+    "public.staff_roles",
   ]) {
     await owner.$executeRawUnsafe(
       `delete from ${table} where organization_id in ($1::uuid,$2::uuid)`,
@@ -578,6 +580,161 @@ describe("the roster", () => {
     const roster = await staff.readRoster({ userId: OWNER }, ORG);
     const member = roster.find((row) => row.email === email);
     expect(member?.properties).toEqual([]);
+  });
+});
+
+describe("an Organization's own roles", () => {
+  /** A name of this run's own, so two runs never collide on the unique index. */
+  function aRoleName(): string {
+    return `Night desk ${randomUUID().slice(0, 8)}`;
+  }
+
+  it("records the author when a role is defined", async () => {
+    const name = aRoleName();
+    const { key, roleId } = await staff.defineRole(
+      { userId: OWNER },
+      { organizationId: ORG, name, permissions: ["front_desk.check_in"] },
+    );
+
+    const [row] = await owner.$queryRawUnsafe<
+      { actor_id: string; context: { key?: string } }[]
+    >(
+      `select actor_id, context from audit.records
+        where organization_id = $1::uuid and action = 'staff.role_defined'
+          and subject_id = $2::uuid
+        order by occurred_at desc limit 1`,
+      ORG,
+      roleId,
+    );
+    expect(row?.actor_id).toBe(OWNER);
+    expect(row?.context?.key).toBe(key);
+  });
+
+  it("refuses an author who may not define roles at all", async () => {
+    // DESK holds the Front desk role, which carries no staff.define_roles, so
+    // the policy refuses before the subset question is reached. The subset
+    // itself is asserted in pgTAP, where a role can be composed to hold
+    // exactly one half of the pair.
+    await expect(
+      staff.defineRole(
+        { userId: DESK },
+        {
+          organizationId: ORG,
+          name: aRoleName(),
+          permissions: ["staff.administer"],
+        },
+      ),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+  });
+
+  it("ends the sessions of everybody holding a role that changes", async () => {
+    const { key } = await staff.defineRole(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        name: aRoleName(),
+        permissions: ["front_desk.check_in"],
+      },
+    );
+
+    await staff.invite(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        email: anAddress(),
+        roleKey: key,
+        roleScopeId: ORG,
+      },
+    );
+    await staff.invite(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        email: anAddress(),
+        roleKey: key,
+        roleScopeId: ORG,
+      },
+    );
+
+    const before = await countEvents();
+    await staff.editRole(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        key,
+        permissions: ["front_desk.check_in", "front_desk.check_out"],
+      },
+    );
+    // One per holder. The handler wants a person to sign out, not a role to
+    // expand later against a roster that has moved on.
+    expect((await countEvents()) - before).toBe(2);
+  });
+
+  it("refuses to retire a role somebody holds, and keeps one nobody does", async () => {
+    const held = await staff.defineRole(
+      { userId: OWNER },
+      { organizationId: ORG, name: aRoleName(), permissions: [] },
+    );
+    await staff.invite(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        email: anAddress(),
+        roleKey: held.key,
+        roleScopeId: ORG,
+      },
+    );
+
+    await expect(
+      staff.retireRole(
+        { userId: OWNER },
+        { organizationId: ORG, key: held.key },
+      ),
+    ).rejects.toBeInstanceOf(RoleIsHeldError);
+
+    const spare = await staff.defineRole(
+      { userId: OWNER },
+      { organizationId: ORG, name: aRoleName(), permissions: [] },
+    );
+    await staff.retireRole(
+      { userId: OWNER },
+      { organizationId: ORG, key: spare.key },
+    );
+
+    // Retired, and still there: it is the record of what somebody used to be
+    // able to do.
+    const roles = await staff.readRoles({ userId: OWNER }, ORG);
+    expect(roles.find((role) => role.key === spare.key)?.status).toBe(
+      "retired",
+    );
+
+    await staff.reinstateRole(
+      { userId: OWNER },
+      { organizationId: ORG, key: spare.key },
+    );
+    const after = await staff.readRoles({ userId: OWNER }, ORG);
+    expect(after.find((role) => role.key === spare.key)?.status).toBe("active");
+  });
+
+  it("shows the shipped roles and this Organization's own, and no other's", async () => {
+    const mine = await staff.defineRole(
+      { userId: OWNER },
+      { organizationId: ORG, name: aRoleName(), permissions: [] },
+    );
+
+    const roles = await staff.readRoles({ userId: OWNER }, ORG);
+    expect(
+      roles
+        .filter((role) => role.organizationId === null)
+        .map((role) => role.key)
+        .sort(),
+    ).toEqual(["finance", "front_desk", "housekeeping", "manager", "owner"]);
+    expect(roles.some((role) => role.key === mine.key)).toBe(true);
+    expect(
+      roles.every(
+        (role) => role.organizationId === null || role.organizationId === ORG,
+      ),
+    ).toBe(true);
   });
 });
 

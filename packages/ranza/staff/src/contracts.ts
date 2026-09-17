@@ -137,3 +137,34 @@ export class AlreadyAMemberError extends StaffRefusedError {
     this.name = "AlreadyAMemberError";
   }
 }
+
+/** A role as the grid shows it. */
+export interface Role {
+  /** Its key. Unique within its scope, and what a membership names. */
+  key: string;
+  name: string;
+  permissions: readonly string[];
+  /** Null for the roles Ranza ships, which every Organization shares. */
+  organizationId: string | null;
+  status: "active" | "retired";
+  /** How many active memberships hold it — what makes retiring refusable. */
+  heldBy: number;
+}
+
+/** What `defineRole` needs, and what the role editor collects. */
+export interface NewRole {
+  organizationId: string;
+  name: string;
+  permissions: readonly string[];
+}
+
+/** A role somebody still holds cannot be retired (SP-S3-02). */
+export class RoleIsHeldError extends StaffRefusedError {
+  constructor(message: string) {
+    super(message);
+    this.name = "RoleIsHeldError";
+  }
+}
+
+/** The name is what makes a set of permissions a role (SP-S3-03). */
+export const ROLE_NAME = { min: 1, max: 80 } as const;

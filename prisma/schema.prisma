@@ -178,6 +178,12 @@ model StaffPermission {
 model StaffRole {
   scopeId        String   @map("scope_id") @db.Uuid
   key            String
+  /// Not the key and not what anything references — the composite stays,
+  /// because it is what makes another Organization's role unrepresentable.
+  /// This exists for `audit.records`, which takes an opaque uuid subject and
+  /// nothing else; naming the Organization instead would be an audit trail
+  /// recording the wrong subject.
+  id             String   @unique(map: "staff_roles_id_key") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String?  @map("organization_id") @db.Uuid
   name           String
   permissions    String[] @default([])

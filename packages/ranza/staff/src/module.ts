@@ -6,9 +6,13 @@ import {
   AlreadyAMemberError,
   INVITATION_LIFETIME_DAYS,
   LastAdministratorError,
+  RoleIsHeldError,
+  ROLE_NAME,
   StaffRefusedError,
   UNDO_REVOKE_WINDOW_HOURS,
   type Invited,
+  type NewRole,
+  type Role,
   type StaffMember,
 } from "./contracts";
 import type { StaffDeps } from "./ports";
@@ -569,6 +573,241 @@ export function createStaffModule(deps: StaffDeps) {
     });
   }
 
+  /**
+   * Every role this Organization may hand out: the ones Ranza ships and its
+   * own.
+   *
+   * Another Organization's is absent, and absent is indistinguishable from
+   * never having existed — the policy decides that, not this query (SP-S3-07).
+   *
+   * `heldBy` is read here rather than left to the screen, because it is the
+   * whole of why a retire button is or is not going to work (SP-S3-02).
+   */
+  async function readRoles(
+    context: { userId: string },
+    organizationId: string,
+  ): Promise<Role[]> {
+    return withOrganizationContext(deps.db, context, async (tx) => {
+      const rows = await tx.$queryRawUnsafe<
+        {
+          key: string;
+          name: string;
+          permissions: string[];
+          organization_id: string | null;
+          status: string;
+          held_by: bigint;
+        }[]
+      >(
+        `select role.key, role.name, role.permissions,
+                role.organization_id, role.status,
+                (select count(*)
+                   from public.organization_memberships as membership
+                  where membership.role_scope_id = role.scope_id
+                    and membership.role = role.key
+                    and membership.status = 'active') as held_by
+           from public.staff_roles as role
+          where role.organization_id is null
+             or role.organization_id = $1::uuid
+          order by role.organization_id nulls first, role.name`,
+        organizationId,
+      );
+
+      return rows.map((row) => ({
+        key: row.key,
+        name: row.name,
+        permissions: row.permissions,
+        organizationId: row.organization_id,
+        status: row.status === "retired" ? "retired" : "active",
+        heldBy: Number(row.held_by),
+      }));
+    });
+  }
+
+  /**
+   * Defines a role.
+   *
+   * Nothing here checks that the author holds every permission they are handing
+   * out. The policy does, and that is the only place it can be done safely: a
+   * check here would be a copy of the rule that a second caller could skip, and
+   * what it guards is privilege escalation that outlives the person who
+   * performed it (SP-S3-01).
+   */
+  async function defineRole(
+    context: { userId: string },
+    input: NewRole,
+  ): Promise<{ key: string; roleId: string }> {
+    const name = input.name.trim();
+    if (name.length < ROLE_NAME.min || name.length > ROLE_NAME.max) {
+      throw new StaffRefusedError("a role is named");
+    }
+    const key = roleKeyFor(name);
+
+    try {
+      return await withOrganizationContext(deps.db, context, async (tx) => {
+        const defined = only(
+          await tx.$queryRawUnsafe<{ id: string }[]>(
+            `insert into public.staff_roles
+               (scope_id, key, organization_id, name, permissions, status)
+             values ($1::uuid, $2, $1::uuid, $3, $4::text[], 'active')
+             returning id`,
+            input.organizationId,
+            key,
+            name,
+            input.permissions,
+          ),
+          "the new role",
+        );
+
+        await recordWithin(tx, {
+          organizationId: input.organizationId,
+          actorId: context.userId,
+          action: "staff.role_defined",
+          subjectType: "role",
+          subjectId: defined.id,
+          context: { key, name, permissions: input.permissions },
+        });
+        return { key, roleId: defined.id };
+      });
+    } catch (error) {
+      throw translate(error, "that role was refused");
+    }
+  }
+
+  /**
+   * Changes what one of this Organization's own roles may do.
+   *
+   * Everybody holding it has their sessions ended, because what they may do has
+   * changed and a session carrying the old answer is the gap this whole feature
+   * exists to close (SP-S3-09). One event per holder, for the same reason slice
+   * 1 publishes one per command: the handler has a user to act on rather than a
+   * role to expand.
+   */
+  async function editRole(
+    context: { userId: string },
+    input: {
+      organizationId: string;
+      key: string;
+      permissions: readonly string[];
+    },
+  ): Promise<void> {
+    await roleCommand(
+      context,
+      input.organizationId,
+      input.key,
+      "staff.role_changed",
+      { permissions: input.permissions },
+      (tx) =>
+        tx.$executeRawUnsafe(
+          `update public.staff_roles
+              set permissions = $3::text[], updated_at = now()
+            where scope_id = $1::uuid and key = $2`,
+          input.organizationId,
+          input.key,
+          input.permissions,
+        ),
+    );
+  }
+
+  /**
+   * Retires a role.
+   *
+   * It stays, because it is the record of what somebody used to be able to do
+   * (SP-S3-10), and it is refused while anybody holds it (SP-S3-02).
+   */
+  async function retireRole(
+    context: { userId: string },
+    input: { organizationId: string; key: string },
+  ): Promise<void> {
+    await roleCommand(
+      context,
+      input.organizationId,
+      input.key,
+      "staff.role_retired",
+      {},
+      (tx) =>
+        tx.$executeRawUnsafe(
+          `update public.staff_roles set status = 'retired', updated_at = now()
+            where scope_id = $1::uuid and key = $2 and status = 'active'`,
+          input.organizationId,
+          input.key,
+        ),
+    );
+  }
+
+  /** The same role returns and may be held again (SP-S3-11). */
+  async function reinstateRole(
+    context: { userId: string },
+    input: { organizationId: string; key: string },
+  ): Promise<void> {
+    await roleCommand(
+      context,
+      input.organizationId,
+      input.key,
+      "staff.role_reinstated",
+      {},
+      (tx) =>
+        tx.$executeRawUnsafe(
+          `update public.staff_roles set status = 'active', updated_at = now()
+            where scope_id = $1::uuid and key = $2 and status = 'retired'`,
+          input.organizationId,
+          input.key,
+        ),
+    );
+  }
+
+  /**
+   * The shape every role command shares.
+   *
+   * The holders are read before the statement rather than after, because
+   * retiring a role is exactly the command that would leave none to announce.
+   */
+  async function roleCommand(
+    context: { userId: string },
+    organizationId: string,
+    key: string,
+    action: string,
+    detail: Record<string, unknown>,
+    run: (tx: Parameters<typeof recordWithin>[0]) => Promise<number>,
+  ): Promise<void> {
+    try {
+      await withOrganizationContext(deps.db, context, async (tx) => {
+        const subject = only(
+          await tx.$queryRawUnsafe<{ id: string }[]>(
+            `select id from public.staff_roles
+              where scope_id = $1::uuid and key = $2`,
+            organizationId,
+            key,
+          ),
+          "that role",
+        );
+        const holders = await tx.$queryRawUnsafe<{ user_id: string }[]>(
+          `select user_id from public.organization_memberships
+            where organization_id = $1::uuid and role = $2
+              and role_scope_id = $1::uuid and status = 'active'`,
+          organizationId,
+          key,
+        );
+
+        const changed = await run(tx as never);
+        if (changed === 0) throw new StaffRefusedError("nothing to change");
+
+        for (const holder of holders) {
+          await announce(tx as never, organizationId, holder.user_id, action);
+        }
+        await recordWithin(tx as never, {
+          organizationId,
+          actorId: context.userId,
+          action,
+          subjectType: "role",
+          subjectId: subject.id,
+          context: { ...detail, key, holders: holders.length },
+        });
+      });
+    } catch (error) {
+      throw translate(error, "that change was refused");
+    }
+  }
+
   return {
     invite,
     accept,
@@ -578,6 +817,11 @@ export function createStaffModule(deps: StaffDeps) {
     revoke,
     undoRevoke,
     readRoster,
+    readRoles,
+    defineRole,
+    editRole,
+    retireRole,
+    reinstateRole,
   };
 }
 
@@ -593,6 +837,19 @@ export type StaffModule = ReturnType<typeof createStaffModule>;
 function translate(error: unknown, fallback: string): unknown {
   if (error instanceof StaffRefusedError) return error;
   if (raised(error, NOT_PERMITTED_BY_STATE)) {
+    // Two triggers raise 55000 and they mean different things to whoever is
+    // reading the screen: one is "find another Owner first", the other is
+    // "move these three people first". The message is what tells them apart,
+    // because a SQLSTATE cannot.
+    const message = error instanceof Error ? error.message : "";
+    if (
+      message.includes("cannot be retired") ||
+      message.includes("is retired")
+    ) {
+      return new RoleIsHeldError(
+        "that role is held, or retired, and cannot be used that way",
+      );
+    }
     return new LastAdministratorError(
       "an Organization must keep somebody who can add staff",
     );
@@ -606,4 +863,28 @@ function translate(error: unknown, fallback: string): unknown {
     return new StaffRefusedError(fallback);
   }
   return error;
+}
+
+/**
+ * A key for a role somebody named.
+ *
+ * Derived from the name rather than random, so the key in a membership row is
+ * readable when somebody is looking at the database rather than the screen. Two
+ * names that slug the same collide on the key, which is refused — and so is the
+ * second name, by the unique index on `(scope_id, name)`. One refusal either
+ * way, which is the point: a role name is unique within its Organization and
+ * the key is downstream of that rather than a second identity to keep in step.
+ */
+export function roleKeyFor(name: string): string {
+  const slug = name
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 48);
+  // A name of nothing but punctuation slugs to nothing. The database refuses a
+  // blank name anyway; this keeps the refusal about the name rather than about
+  // a key the author never saw.
+  return slug.length > 0 ? slug : "role";
 }

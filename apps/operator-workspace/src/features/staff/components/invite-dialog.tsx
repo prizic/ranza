@@ -46,13 +46,18 @@ export function InviteDialog({
   locale: string;
   organizationId: string;
   properties: readonly { propertyId: string; propertyName: string }[];
-  roles: readonly { key: string; name: string }[];
+  roles: readonly { key: string; scopeId: string | null; name: string }[];
 }) {
   const t = useTranslations();
   const [open, setOpen] = useState(false);
   // The list is never empty — it is the shipped roles — but a `?.` here would
   // make the Select uncontrolled instead of saying so.
-  const defaultRole = roles[0]?.key ?? "front_desk";
+  // A role is identified by its scope and its key together — the same pair the
+  // database keys on — so the option carries both. Naming only the key would
+  // resolve an Organization's own role to the shipped one of the same name.
+  const optionFor = (role: { key: string; scopeId: string | null }) =>
+    `${role.scopeId ?? ""}:${role.key}`;
+  const defaultRole = roles[0] ? optionFor(roles[0]) : ":front_desk";
   const [outcome, act, pending] = useActionState<InviteOutcome, FormData>(
     inviteStaffMember,
     { state: "idle" },
@@ -108,7 +113,7 @@ export function InviteDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {roles.map((role) => (
-                    <SelectItem key={role.key} value={role.key}>
+                    <SelectItem key={optionFor(role)} value={optionFor(role)}>
                       {role.name}
                     </SelectItem>
                   ))}

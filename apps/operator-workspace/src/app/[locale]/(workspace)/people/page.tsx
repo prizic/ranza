@@ -2,9 +2,12 @@ import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
 import { getTranslations } from "next-intl/server";
+import { DefineRoleDialog } from "../../../../features/staff/components/define-role-dialog";
 import { InviteDialog } from "../../../../features/staff/components/invite-dialog";
+import { RolesTable } from "../../../../features/staff/components/roles-table";
 import { RosterTable } from "../../../../features/staff/components/roster-table";
-import { readRoster } from "../../../../server/staff";
+import { asShippedRole } from "../../../../features/staff/labels";
+import { readRoles, readRoster } from "../../../../server/staff";
 import { entitledProperties } from "../../../../server/viewer";
 
 /**
@@ -24,21 +27,6 @@ const STAFF_ADMINISTRATION = {
   moduleKey: "platform_core",
   capabilityKey: "staff_administration",
 };
-
-/**
- * The roles Ranza ships, restated rather than read.
- *
- * Reading them would be a query that returns the same five rows on every
- * request, and slice 3 — where an Organization authors its own — is what turns
- * this into a real read. Until then this list is the honest shape of it.
- */
-const SHIPPED_ROLES = [
-  "owner",
-  "manager",
-  "front_desk",
-  "housekeeping",
-  "finance",
-] as const;
 
 export default async function PeoplePage({
   params,
@@ -62,7 +50,12 @@ export default async function PeoplePage({
   }
 
   const organizationId = home.organizationId;
+  // Sequential rather than parallel: both resolve the same session through
+  // `currentViewer`, which is cached per request, and issuing them together
+  // would only race to be the one that validates it.
   const roster = await readRoster(organizationId);
+  const roles = await readRoles(organizationId);
+  const offerable = roles.filter((role) => role.status === "active");
 
   return (
     <>
@@ -77,10 +70,14 @@ export default async function PeoplePage({
             propertyId: property.propertyId,
             propertyName: property.propertyName,
           }))}
-          roles={SHIPPED_ROLES.map((key) => ({
-            key,
-            name: t(`staff.roles.${key}`),
-          }))}
+          roles={offerable.map((role) => {
+            const shipped = asShippedRole(role.key);
+            return {
+              key: role.key,
+              scopeId: role.organizationId,
+              name: shipped ? t(`staff.roles.${shipped}`) : role.name,
+            };
+          })}
         />
       </div>
       {roster.length === 0 ? (
@@ -95,6 +92,16 @@ export default async function PeoplePage({
           roster={roster}
         />
       )}
+
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-6">
+        <h2 className="text-lg font-medium">{t("staff.rolesHeading")}</h2>
+        <DefineRoleDialog locale={locale} organizationId={organizationId} />
+      </div>
+      <RolesTable
+        locale={locale}
+        organizationId={organizationId}
+        roles={roles}
+      />
     </>
   );
 }

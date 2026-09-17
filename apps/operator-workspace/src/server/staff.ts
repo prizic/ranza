@@ -5,6 +5,8 @@ import { isSupportedLocale } from "@ranza/i18n";
 import {
   AlreadyAMemberError,
   LastAdministratorError,
+  RoleIsHeldError,
+  type Role,
   type StaffMember,
 } from "@ranza/staff";
 import { getComposition } from "./composition";
@@ -31,7 +33,12 @@ import { currentViewer } from "./viewer";
  * first.
  */
 export type StaffOutcome =
-  "idle" | "done" | "alreadyAMember" | "lastAdministrator" | "refused";
+  | "idle"
+  | "done"
+  | "alreadyAMember"
+  | "lastAdministrator"
+  | "roleIsHeld"
+  | "refused";
 
 /** What an invitation leaves on the screen: a link somebody has to pass on. */
 export interface InviteOutcome {
@@ -48,11 +55,27 @@ export interface InviteOutcome {
 function outcomeFor(error: unknown): StaffOutcome {
   if (error instanceof AlreadyAMemberError) return "alreadyAMember";
   if (error instanceof LastAdministratorError) return "lastAdministrator";
+  if (error instanceof RoleIsHeldError) return "roleIsHeld";
   return "refused";
 }
 
 function revalidateRoster(locale: string): void {
   revalidatePath(`/${locale}/people`);
+}
+
+/**
+ * A role option, back into the pair the module wants.
+ *
+ * `<scope>:<key>`, where an empty scope means a role Ranza ships. The pair is
+ * what the database keys on, and sending only the key would resolve an
+ * Organization's own role to the shipped one that happens to share its name.
+ */
+function roleFrom(value: string): { roleKey: string; roleScopeId?: string } {
+  const separator = value.indexOf(":");
+  if (separator < 0) return { roleKey: value };
+  const scope = value.slice(0, separator);
+  const roleKey = value.slice(separator + 1);
+  return scope ? { roleKey, roleScopeId: scope } : { roleKey };
 }
 
 /**
@@ -94,7 +117,7 @@ export async function inviteStaffMember(
       {
         organizationId: String(form.get("organization") ?? ""),
         email: String(form.get("email") ?? ""),
-        roleKey: String(form.get("role") ?? ""),
+        ...roleFrom(String(form.get("role") ?? "")),
         accessScope:
           form.get("scope") === "organization_wide"
             ? "organization_wide"
@@ -186,4 +209,74 @@ async function run(
   } catch (error) {
     return outcomeFor(error);
   }
+}
+
+/**
+ * Every role this Organization may hand out.
+ *
+ * Shipped and authored in one list, told apart by `organizationId` being null,
+ * because that is how the grid reads: the shared reference and this
+ * Organization's own additions to it.
+ */
+export async function readRoles(
+  organizationId: string,
+): Promise<readonly Role[]> {
+  const viewer = await currentViewer();
+  if (!viewer) return [];
+  return getComposition().staff.readRoles(
+    { userId: viewer.userId },
+    organizationId,
+  );
+}
+
+export async function defineRole(
+  _previous: StaffOutcome,
+  form: FormData,
+): Promise<StaffOutcome> {
+  return run(form, (staff, viewer, locale) =>
+    staff
+      .defineRole(
+        { userId: viewer },
+        {
+          organizationId: String(form.get("organization") ?? ""),
+          name: String(form.get("name") ?? ""),
+          permissions: form.getAll("permissions").map(String),
+        },
+      )
+      .then(() => revalidateRoster(locale)),
+  );
+}
+
+export async function retireRole(
+  _previous: StaffOutcome,
+  form: FormData,
+): Promise<StaffOutcome> {
+  return run(form, (staff, viewer, locale) =>
+    staff
+      .retireRole(
+        { userId: viewer },
+        {
+          organizationId: String(form.get("organization") ?? ""),
+          key: String(form.get("role") ?? ""),
+        },
+      )
+      .then(() => revalidateRoster(locale)),
+  );
+}
+
+export async function reinstateRole(
+  _previous: StaffOutcome,
+  form: FormData,
+): Promise<StaffOutcome> {
+  return run(form, (staff, viewer, locale) =>
+    staff
+      .reinstateRole(
+        { userId: viewer },
+        {
+          organizationId: String(form.get("organization") ?? ""),
+          key: String(form.get("role") ?? ""),
+        },
+      )
+      .then(() => revalidateRoster(locale)),
+  );
 }

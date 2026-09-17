@@ -1,9 +1,11 @@
-export { createStaffModule } from "./module";
+export { createStaffModule, roleKeyFor } from "./module";
 export type { InviteStaffMember, StaffModule } from "./module";
 export {
   AlreadyAMemberError,
   INVITATION_LIFETIME_DAYS,
   PERMISSIONS,
+  ROLE_NAME,
+  RoleIsHeldError,
   PLATFORM_CORE_MODULE,
   STAFF_ADMINISTRATION,
   LastAdministratorError,
@@ -12,7 +14,9 @@ export {
 } from "./contracts";
 export type {
   Invited,
+  NewRole,
   Permission,
+  Role,
   InvitationStatus,
   MembershipStatus,
   StaffMember,

@@ -34,6 +34,9 @@ and taking reach away is never blocked by an unpaid invoice. **Slice 2** put
 the permission catalogue behind that set and a fifth gate inside every write
 policy the product already had — [ADR 0012](adr/0012-a-write-is-bounded-by-a-policy-not-a-check.md)
 is amended, not contradicted, so a write is still bounded in one place.
+**Slice 3** lets an Organization compose roles of its own, bounded by what its
+author already holds — otherwise defining a role is privilege escalation with
+extra steps.
 
 The next few slices, in the order decided by what each one unblocks:
 
