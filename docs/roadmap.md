@@ -114,12 +114,13 @@ requires it** (blueprint 9.9).
 Agreed, recorded, and still outstanding. Each is a thing the code does not do
 yet, so neither the ADR nor this row is a lie.
 
-|                                                                            |                                                                                                                                    |
-| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| [ADR 0014](adr/0014-an-application-is-flat-and-its-imports-are-aliased.md) | Applications lose `src/` and import through `@/`. Every new route deepens the climb it describes                                   |
-| [ADR 0021](adr/0021-a-business-date-is-the-day-a-property-is-working.md)   | A Property's day rolls at a cutoff, not at midnight. Nothing posts per night yet — nothing has a rate — so the column is unwritten |
-| [ADR 0010](adr/0010-a-second-factor-belongs-to-the-person.md), amended     | Nothing can yet _require_ MFA, and there is no operator-assisted reset for a lost authenticator                                    |
-| `docs/design/visual-reference.md`                                          | The palette wins over the current theme where they disagree; they still disagree in places                                         |
+|                                                                            |                                                                                                                                                                       |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [ADR 0014](adr/0014-an-application-is-flat-and-its-imports-are-aliased.md) | Applications lose `src/` and import through `@/`. Every new route deepens the climb it describes                                                                      |
+| [ADR 0025](adr/0025-a-bed-is-a-unit-under-a-room.md)                       | A bed is an Accommodation Unit with a parent, a Unit is sellable when it has no children, and a building and a floor are columns. `accommodation_units` is still flat |
+| [ADR 0021](adr/0021-a-business-date-is-the-day-a-property-is-working.md)   | A Property's day rolls at a cutoff, not at midnight. Nothing posts per night yet — nothing has a rate — so the column is unwritten                                    |
+| [ADR 0010](adr/0010-a-second-factor-belongs-to-the-person.md), amended     | Nothing can yet _require_ MFA, and there is no operator-assisted reset for a lost authenticator                                                                       |
+| `docs/design/visual-reference.md`                                          | The palette wins over the current theme where they disagree; they still disagree in places                                                                            |
 
 ## How a slice gets planned
 
