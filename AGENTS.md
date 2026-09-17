@@ -234,6 +234,10 @@ confirm the test goes red.** Point `DATABASE_URL` at a privileged role, invert a
 assertion, remove a grant. A test that cannot fail is worse than no test, because
 it is mistaken for evidence.
 
+Fixtures for anything date-shaped are relative to the Property's own today,
+never a fixed date. Fixed dates are what made checking somebody in weeks early
+the normal case in two suites that were otherwise asserting the right things.
+
 And run the suites **against the hosted database too**, not only a local one.
 A green local run says the migrations produce the right database; it does not
 say the hosted database had them applied. The one gap found so far — an audit
