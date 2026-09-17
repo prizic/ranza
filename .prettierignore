@@ -2,7 +2,7 @@
 .turbo
 coverage
 dist
-docs/specs/ranza-pilot.md
+docs/design/ranza-mockup.html
 node_modules
 pnpm-lock.yaml
 supabase/.temp
