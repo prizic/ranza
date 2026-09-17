@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
+import { Archive, RotateCcw } from "lucide-react";
 import type { Role } from "@ranza/staff";
 import {
-  Badge,
+  DataTableRowActions,
   Checkbox,
   Table,
   TableBody,
@@ -12,8 +13,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  cn,
 } from "@ranza/ui";
-import { editRole } from "../../../server/staff";
+import { editRole, reinstateRole, retireRole } from "../../../server/staff";
 import { asPermission, asShippedRole } from "../labels";
 
 /**
@@ -42,7 +44,14 @@ export function PermissionMatrix({
 }) {
   const t = useTranslations();
   const [pending, startTransition] = useTransition();
-  const [refused, setRefused] = useState(false);
+  const [refused, setRefused] = useState<"grant" | "retire" | null>(null);
+
+  // Shipped first, then this Organization's own. The order is the grid's one
+  // piece of structure: a rule falls between the two groups, which says "fixed
+  // reference" on the left of it and "yours" on the right without a legend.
+  const shipped = roles.filter((role) => role.organizationId === null);
+  const authored = roles.filter((role) => role.organizationId !== null);
+  const ordered = [...shipped, ...authored];
 
   /**
    * The grid as it is being edited.
@@ -61,7 +70,7 @@ export function PermissionMatrix({
       : [...current, permission];
 
     setHeld((grid) => ({ ...grid, [role.key]: next }));
-    setRefused(false);
+    setRefused(null);
 
     startTransition(async () => {
       const form = new FormData();
@@ -73,8 +82,28 @@ export function PermissionMatrix({
       const outcome = await editRole("idle", form);
       if (outcome !== "done") {
         setHeld((grid) => ({ ...grid, [role.key]: current }));
-        setRefused(true);
+        setRefused("grant");
       }
+    });
+  }
+
+  /**
+   * Retire a role, or bring it back.
+   *
+   * In the column header rather than a row of its own, because on this grid a
+   * role *is* a column — and the holder count sits beside it, since that is the
+   * whole of why retiring may be refused (SP-S3-02).
+   */
+  function shelve(role: Role): void {
+    setRefused(null);
+    startTransition(async () => {
+      const form = new FormData();
+      form.set("locale", locale);
+      form.set("organization", organizationId);
+      form.set("role", role.key);
+
+      const act = role.status === "active" ? retireRole : reinstateRole;
+      if ((await act("idle", form)) !== "done") setRefused("retire");
     });
   }
 
@@ -91,24 +120,84 @@ export function PermissionMatrix({
   return (
     <>
       <div className="overflow-x-auto">
-        <Table>
+        <Table aria-label={t("staff.rolesTab")}>
           <TableHeader>
+            {/* Two header rows: the group, then the roles in it. The word
+                "Ranza" belonged under all five shipped columns and now appears
+                once, which is what a group header is for — and the rule below
+                falls where the groups meet rather than being a second device
+                saying the same thing. */}
+            {authored.length > 0 ? (
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="sticky start-0 z-10 bg-card" />
+                <TableHead
+                  className="pb-1 text-center text-xs font-normal text-muted-foreground"
+                  colSpan={shipped.length}
+                  scope="colgroup"
+                >
+                  {t("staff.shippedGroup")}
+                </TableHead>
+                <TableHead
+                  className="border-s border-border pb-1 text-center text-xs font-normal text-muted-foreground"
+                  colSpan={authored.length}
+                  scope="colgroup"
+                >
+                  {t("staff.authoredGroup")}
+                </TableHead>
+              </TableRow>
+            ) : null}
             <TableRow>
-              <TableHead className="min-w-56">
+              <TableHead
+                className="sticky start-0 z-10 min-w-56 bg-card"
+                scope="col"
+              >
                 {t("staff.permission")}
               </TableHead>
-              {roles.map((role) => (
+              {ordered.map((role, index) => (
                 <TableHead
-                  className="text-center whitespace-nowrap"
+                  className={cn(
+                    "h-auto py-3 text-center align-bottom whitespace-nowrap",
+                    // The one rule on the grid, and it carries meaning: left of
+                    // it is what Ranza ships and nobody edits.
+                    index === shipped.length && shipped.length > 0
+                      ? "border-s border-border"
+                      : null,
+                  )}
                   key={`${role.organizationId}-${role.key}`}
+                  scope="col"
                 >
-                  <span className="flex flex-col items-center gap-1">
-                    {roleName(role)}
-                    {role.organizationId === null ? (
-                      <Badge variant="outline">{t("staff.shipped")}</Badge>
-                    ) : role.status === "retired" ? (
-                      <Badge variant="outline">{t("staff.retired")}</Badge>
-                    ) : null}
+                  <span className="flex flex-col items-center gap-0.5">
+                    <span
+                      className={
+                        role.status === "retired"
+                          ? "text-muted-foreground line-through"
+                          : undefined
+                      }
+                    >
+                      {roleName(role)}
+                    </span>
+                    {role.organizationId === null ? null : (
+                      <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
+                        {t("staff.heldByCount", { count: role.heldBy })}
+                        <DataTableRowActions
+                          actions={[
+                            role.status === "active"
+                              ? {
+                                  label: t("staff.retire"),
+                                  icon: Archive,
+                                  onSelect: () => shelve(role),
+                                  destructive: true,
+                                }
+                              : {
+                                  label: t("staff.reinstate"),
+                                  icon: RotateCcw,
+                                  onSelect: () => shelve(role),
+                                },
+                          ]}
+                          label={`${t("staff.actions")}: ${roleName(role)}`}
+                        />
+                      </span>
+                    )}
                   </span>
                 </TableHead>
               ))}
@@ -117,24 +206,31 @@ export function PermissionMatrix({
           <TableBody>
             {permissions.map((permission) => (
               <TableRow data-testid="permission-row" key={permission}>
-                <TableCell>{commandName(permission)}</TableCell>
-                {roles.map((role) => {
+                <TableCell className="sticky start-0 z-10 bg-card">
+                  {commandName(permission)}
+                </TableCell>
+                {ordered.map((role, index) => {
                   // A role Ranza ships arrives in a release and is the fixed
                   // reference every Organization shares (SP-S3-05). Shown, and
                   // not editable — the box says what it may do, which is the
                   // whole reason it is on the grid.
-                  const shipped = role.organizationId === null;
+                  const fixed = role.organizationId === null;
                   const set = held[role.key] ?? role.permissions;
                   return (
                     <TableCell
-                      className="text-center"
+                      className={cn(
+                        "text-center",
+                        index === shipped.length && shipped.length > 0
+                          ? "border-s border-border"
+                          : null,
+                      )}
                       key={`${role.organizationId}-${role.key}`}
                     >
                       <Checkbox
                         aria-label={`${roleName(role)}: ${commandName(permission)}`}
                         checked={set.includes(permission)}
                         className="mx-auto"
-                        disabled={shipped || pending}
+                        disabled={fixed || pending}
                         onCheckedChange={() => toggle(role, permission)}
                       />
                     </TableCell>
@@ -147,8 +243,10 @@ export function PermissionMatrix({
       </div>
 
       <p className="border-t border-border p-4 text-sm text-muted-foreground">
-        {refused ? (
-          <span className="text-destructive">{t("staff.cannotGrant")}</span>
+        {refused === "grant" ? (
+          <span className="text-danger">{t("staff.cannotGrant")}</span>
+        ) : refused === "retire" ? (
+          <span className="text-danger">{t("staff.roleIsHeld")}</span>
         ) : (
           t("staff.matrixNote")
         )}

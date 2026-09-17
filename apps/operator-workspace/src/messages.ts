@@ -131,6 +131,9 @@ export interface Messages {
     rolesTab: string;
     person: string;
     permission: string;
+    heldByCount: string;
+    shippedGroup: string;
+    authoredGroup: string;
     invitationSent: string;
     inviteNotice: string;
     matrixNote: string;
@@ -400,6 +403,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       rolesTab: "Her rol ne yapabilir",
       person: "Kişi",
       permission: "Yetki",
+      heldByCount:
+        "{count, plural, =0 {kimse tutmuyor} one {# kişi} other {# kişi}}",
+      shippedGroup: "Ranza’nın gönderdikleri",
+      authoredGroup: "Sizin tanımladıklarınız",
       invitationSent: "Davet gönderildi",
       inviteNotice:
         "Bağlantıyı siz iletirsiniz: henüz e-posta gönderen bir modül yok. Yedi gün sonra geçersiz olur ve yalnızca bir kez gösterilir.",
@@ -694,6 +701,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       rolesTab: "What each role can do",
       person: "Person",
       permission: "Permission",
+      heldByCount:
+        "{count, plural, =0 {nobody holds it} one {# person} other {# people}}",
+      shippedGroup: "Ranza ships these",
+      authoredGroup: "You defined these",
       invitationSent: "Invitation sent",
       inviteNotice:
         "You pass the link on yourself — nothing sends email yet. It lapses after seven days and is shown only once.",
@@ -984,6 +995,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       rolesTab: "ما يستطيعه كل دور",
       person: "الشخص",
       permission: "الصلاحية",
+      heldByCount:
+        "{count, plural, =0 {لا أحد} one {شخص واحد} two {شخصان} few {# أشخاص} many {# شخصًا} other {# شخص}}",
+      shippedGroup: "ترسلها رانزا",
+      authoredGroup: "عرَّفتها أنت",
       invitationSent: "أُرسلت الدعوة",
       inviteNotice:
         "أنت من يمرّر الرابط: لا شيء يرسل البريد بعد. ينتهي بعد سبعة أيام ويُعرض مرة واحدة فقط.",

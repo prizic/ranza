@@ -2,7 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import { RotateCcw, UserMinus } from "lucide-react";
+import {
+  CircleCheck,
+  CircleSlash,
+  Clock,
+  RotateCcw,
+  UserMinus,
+} from "lucide-react";
 import type { Role, StaffMember } from "@ranza/staff";
 import {
   Avatar,
@@ -13,12 +19,14 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  StatusBadge,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
+  type StatusBadgeProps,
 } from "@ranza/ui";
 import {
   changeStaffRole,
@@ -61,14 +69,14 @@ export function RosterTable({
 
   return (
     <div className="overflow-x-auto">
-      <Table>
+      <Table aria-label={t("staff.peopleTab")}>
         <TableHeader>
           <TableRow>
-            <TableHead>{t("staff.person")}</TableHead>
-            <TableHead>{t("staff.role")}</TableHead>
-            <TableHead>{t("staff.properties")}</TableHead>
-            <TableHead>{t("staff.status")}</TableHead>
-            <TableHead className="text-end">
+            <TableHead scope="col">{t("staff.person")}</TableHead>
+            <TableHead scope="col">{t("staff.role")}</TableHead>
+            <TableHead scope="col">{t("staff.properties")}</TableHead>
+            <TableHead scope="col">{t("staff.status")}</TableHead>
+            <TableHead className="text-end" scope="col">
               <span className="sr-only">{t("staff.actions")}</span>
             </TableHead>
           </TableRow>
@@ -112,11 +120,7 @@ export function RosterTable({
                   : member.properties.map((p) => p.propertyName).join(", ")}
               </TableCell>
               <TableCell>
-                {member.status === "revoked"
-                  ? t("staff.revoked")
-                  : member.invitation === "pending"
-                    ? t("staff.awaitingPassword")
-                    : t("staff.active")}
+                <StatusBadge {...statusOf(member, t)} />
               </TableCell>
               <TableCell className="text-end">
                 <MembershipActions
@@ -131,6 +135,31 @@ export function RosterTable({
       </Table>
     </div>
   );
+}
+
+/**
+ * The three states a membership is in, as colour, word and shape together.
+ *
+ * Blueprint 18.5 forbids colour alone, and `StatusBadge` makes that structural
+ * — there is no way to render one without a label and an icon.
+ *
+ * Revoked is neutral rather than danger. It is a resting state, not a failure:
+ * somebody left, and the row remains because the history of who used to work
+ * here is worth keeping. Painting it red would say a mistake had been made.
+ */
+function statusOf(
+  member: StaffMember,
+  t: (
+    key: "staff.active" | "staff.awaitingPassword" | "staff.revoked",
+  ) => string,
+): StatusBadgeProps {
+  if (member.status === "revoked") {
+    return { icon: CircleSlash, label: t("staff.revoked"), tone: "neutral" };
+  }
+  if (member.invitation === "pending") {
+    return { icon: Clock, label: t("staff.awaitingPassword"), tone: "warning" };
+  }
+  return { icon: CircleCheck, label: t("staff.active"), tone: "success" };
 }
 
 /**
@@ -218,7 +247,7 @@ function RolePicker({
       >
         <SelectTrigger
           aria-label={`${t("staff.role")}: ${member.email}`}
-          className="h-9 w-44"
+          className="h-9 w-full min-w-40"
         >
           <SelectValue />
         </SelectTrigger>

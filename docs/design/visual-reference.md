@@ -61,11 +61,15 @@ matter (section 10).
 **This file wins.** The approved mockups use this palette — a teal accent on a
 pale canvas — and they are the agreed direction.
 [`packages/ui/src/styles/globals.css`](../../packages/ui/src/styles/globals.css)
-currently holds something else: petrol chrome with a brass accent and IBM Plex,
-which the walking skeleton shipped before this brief was reconciled with it.
-That is a known defect with a known fix — every component reads tokens rather
-than hex, so correcting it is one file. Do not edit the values below to match
-the code.
+now holds these values; the petrol-and-brass theme the walking skeleton shipped
+before this brief was reconciled with it is gone. Do not edit the values below
+to match the code — the traffic runs the other way.
+
+One departure, with its reason recorded beside it in that file: `Aptos` is not
+licensed for the web and would fall through to a system font on every machine
+that is not Windows, so the three scripts would each be rendered by whatever
+happened to be installed. IBM Plex Sans Arabic carries Latin, Turkish and Arabic
+in one family, so Turkish and Arabic are the same voice.
 
 See also [`ui-references.md`](ui-references.md) for layout and interaction, and
 [ADR 0013](../adr/0013-an-interface-is-shadcn-a-feature-folder-and-a-shared-kit.md)
