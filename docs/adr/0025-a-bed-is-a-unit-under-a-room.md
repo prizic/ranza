@@ -49,6 +49,14 @@ so widening it later — an apartment containing rooms, a suite containing a
 lounge — is a constraint to change rather than a column to add, a backfill to
 run and a foreign key to rewrite.
 
+A bed **may** have a parent; it does not have to. A Property whose Units are
+beds with no rooms above them is a dormitory, which
+[ADR 0004](0004-student-residence-is-a-property-configuration.md) calls a
+configuration rather than a different product. The first version of this
+constraint required the room, and `tests/database/accommodation_units.test.sql`
+caught it — that suite has had a parentless bed in its fixtures since the day
+the table was written, which is the whole argument in one row.
+
 ### A Unit is sellable when it has no children
 
 Not a flag. `bookableBy` in the mockup is a per-room setting, and a setting that

@@ -673,6 +673,14 @@ export function createReservationsModule(deps: ReservationsDeps) {
         from public.accommodation_units as unit
         where unit.property_id = ${propertyId}::uuid
           and unit.status <> 'out_of_service'
+          -- A Unit is sellable when it has no children (ADR 0025): a room with
+          -- beds under it is let by the bed, and offering it would be offering
+          -- something the sellability trigger then refuses. (No backticks in
+          -- this comment: the statement is a JS template literal.)
+          and not exists (
+            select 1 from public.accommodation_units as child
+            where child.parent_id = unit.id
+          )
           and app.can_use_capability(
             unit.property_id,
             ${FRONT_DESK_CAPABILITY.moduleKey},
@@ -810,6 +818,13 @@ export function createReservationsModule(deps: ReservationsDeps) {
         where unit.id = ${booking.accommodationUnitId}::uuid
           and unit.property_id = ${booking.propertyId}::uuid
           and unit.status <> 'out_of_service'
+          -- Let by the bed, so not sellable whole (ADR 0025). Refused here so
+          -- the caller gets this module's sentence; the trigger refuses it
+          -- again underneath, for every role rather than only this one.
+          and not exists (
+            select 1 from public.accommodation_units as child
+            where child.parent_id = unit.id
+          )
           and app.can_use_capability(
             unit.property_id,
             ${FRONT_DESK_CAPABILITY.moduleKey},
@@ -819,9 +834,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
 
       const [unit] = located;
       if (!unit) {
-        // Out of reach, unentitled, out of service, in another Property, or
-        // never existed. One message for all five: telling them apart would
-        // confirm that a Unit the caller cannot see is there.
+        // Out of reach, unentitled, out of service, let by the bed, in
+        // another Property, or never existed. One message for all six: telling
+        // them apart would confirm that a Unit the caller cannot see is there.
         throw new ReservationRefusedError("that booking cannot be taken");
       }
 

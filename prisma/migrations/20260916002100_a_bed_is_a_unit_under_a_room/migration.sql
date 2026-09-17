@@ -20,7 +20,7 @@ CREATE UNIQUE INDEX "accommodation_units_nesting_key" ON "accommodation_units"("
 CREATE INDEX "accommodation_units_parent_idx" ON "accommodation_units"("parent_id");
 
 -- AddForeignKey
-ALTER TABLE "accommodation_units" ADD CONSTRAINT "accommodation_units_parent_id_property_id_organization_id_p_fkey" FOREIGN KEY ("parent_id", "property_id", "organization_id", "parent_unit_type") REFERENCES "accommodation_units"("id", "property_id", "organization_id", "unit_type") ON DELETE RESTRICT ON UPDATE NO ACTION;
+ALTER TABLE "accommodation_units" ADD CONSTRAINT "accommodation_units_parent_id_property_id_organization_id__fkey" FOREIGN KEY ("parent_id", "property_id", "organization_id", "parent_unit_type") REFERENCES "accommodation_units"("id", "property_id", "organization_id", "unit_type") ON DELETE RESTRICT ON UPDATE NO ACTION;
 
 -- ---------------------------------------------------------------------------
 -- Hand-written from here down (ADR 0025)
@@ -43,19 +43,25 @@ comment on column public.accommodation_units.floor is
 
 -- The whole of the nesting rule, in one constraint:
 --
---   a bed has a parent, and claims that parent is a room
---   everything else has no parent at all
+--   a Unit with a parent is a bed, and that parent is a room
+--   a Unit without one claims no parent type either
 --
--- Which makes a cycle unrepresentable rather than merely unlikely. A bed's
--- parent is a room, a room has no parent, so the tree is two deep and cannot
--- close on itself. Nothing needs a recursive check.
+-- Which makes a cycle unrepresentable rather than merely unlikely. Only a bed
+-- may have a parent and only a room may be one, so the tree is two deep and
+-- cannot close on itself. Nothing needs a recursive check.
+--
+-- A bed *may* have a parent; it does not have to. A Property whose Units are
+-- beds with no rooms above them is a dormitory, which ADR 0004 says is a
+-- configuration rather than a different product. Requiring the room would be
+-- inventing a requirement the business does not have — and it is what the
+-- existing accommodation_units suite caught, by having had a parentless bed in
+-- its fixtures since the day that table was written.
 alter table public.accommodation_units
   add constraint accommodation_units_nesting_check
     check (
       case
-        when unit_type = 'bed'
-          then parent_id is not null and parent_unit_type = 'room'
-        else parent_id is null and parent_unit_type is null
+        when parent_id is null then parent_unit_type is null
+        else unit_type = 'bed' and parent_unit_type = 'room'
       end
     ),
   -- The one thing ADR 0025 newly enforces about capacity. The rest of it stays
