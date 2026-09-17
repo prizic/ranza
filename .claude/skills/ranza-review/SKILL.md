@@ -5,16 +5,10 @@ description: Review a Ranza branch against its approved edge-case rows and the C
 
 # Ranza review
 
-A review here is not a style pass. The repository's tests are mostly assertions
-that a boundary holds, and three of them have already turned out to verify
-nothing — a runner that matched the wrong string, a role nothing connected as,
-a policy set that was correct and completely inert. So the standard is not
-"there is a test" but "that test could fail".
-
-Run the `ranza-reviewer` subagent. It reads `CLAUDE.md`, the feature's
-`edge-cases.csv` and the branch diff, and reports findings against the approved
-rows. It has read-only tools by design: a reviewer that fixes what it finds
-leaves nobody having read the finding.
+Run the `ranza-reviewer` subagent. The standard it reviews against, and what it
+will not do, are in `.claude/agents/ranza-reviewer.md`; this file does not
+restate them, because a launcher that carries its own copy of the standard is
+the duplication that moving the rules into `AGENTS.md` was meant to end.
 
 ## Before a push
 
@@ -22,8 +16,28 @@ leaves nobody having read the finding.
 push is proposed, and a push is its own approval gate regardless of what was
 approved before it.
 
-## What it will not do
+## What enforces the read-only part
 
-It will not widen a grant, drop a policy or edit a migration to test a claim.
-If verifying a finding needs a sabotage, it names the sabotage and the author
-runs it — because the author is the one who has to see it go red.
+`scripts/hooks/reviewer-read-only.mjs`, a PreToolUse hook scoped by
+`agent_type`, and `tests/unit/reviewer-read-only.test.ts`. The agent holds
+`Bash`, so the promise had to become a refusal — see the header of that script
+for what it does and does not cover.
+
+It has to be registered in `.claude/settings.json`, which is ECC-owned and
+gitignored, so a fresh clone has the script and not the wiring:
+
+```json
+{
+  "matcher": "Bash",
+  "hooks": [
+    {
+      "type": "command",
+      "id": "ranza-reviewer-read-only",
+      "command": "node scripts/hooks/reviewer-read-only.mjs"
+    }
+  ]
+}
+```
+
+ECC merges rather than replaces and will not remove an entry it did not
+install, so this survives the next install — read in `mergeManagedHooks`.
