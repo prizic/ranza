@@ -19,6 +19,31 @@ export const PLATFORM_CORE_MODULE = "platform_core";
 export const STAFF_ADMINISTRATION = "staff_administration";
 
 /**
+ * Every command the product has, as a permission a role may hold.
+ *
+ * Restated from `public.staff_permissions`, which is the table a role editor
+ * reads and the trigger validates against. This copy exists so a caller can
+ * name one without a query and without a string literal, and
+ * `tests/database/staff_and_permissions.test.sql` is what fails if the two
+ * disagree.
+ *
+ * Named for the command a person would recognise rather than for the table it
+ * touches: `front_desk.check_in` writes a Stay, updates a Reservation and opens
+ * a Folio, and nobody administering staff thinks of it as three things.
+ */
+export const PERMISSIONS = {
+  book: "front_desk.book",
+  checkIn: "front_desk.check_in",
+  checkOut: "front_desk.check_out",
+  manageFolio: "finance.manage_folio",
+  postCharge: "finance.post_charge",
+  administerStaff: "staff.administer",
+  defineRoles: "staff.define_roles",
+} as const;
+
+export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
+
+/**
  * A membership's place in its Organization.
  *
  * `revoked` is a resting state and not an end: a membership is never deleted,

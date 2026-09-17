@@ -15,14 +15,17 @@
 -- purpose: it needs two sessions and pgTAP has one. It lives in
 -- tests/integration/staff.test.ts, which can open two connections.
 begin;
-select plan(35);
+select plan(40);
 
 insert into public.users (id, email) values
   ('61111111-1111-4111-8111-111111111111', 'staff-owner-a@example.test'),
   ('62222222-2222-4222-8222-222222222222', 'staff-second-a@example.test'),
   ('63333333-3333-4333-8333-333333333333', 'staff-desk-a@example.test'),
   ('64444444-4444-4444-8444-444444444444', 'staff-owner-b@example.test'),
-  ('65555555-5555-4555-8555-555555555555', 'staff-owner-lapsed@example.test');
+  ('65555555-5555-4555-8555-555555555555', 'staff-owner-lapsed@example.test'),
+  -- Reaches everything Organization A has and holds no command at all. The
+  -- whole of slice 2 is the difference between this person and the front desk.
+  ('66666666-6666-4666-8666-666666666666', 'staff-housekeeping@example.test');
 
 insert into public.organizations (id, name, status) values
   ('6a111111-1111-4111-8111-111111111111', 'Staff Organization A', 'active'),
@@ -48,7 +51,9 @@ insert into public.organization_memberships
   ('6a222222-2222-4222-8222-222222222222',
    '64444444-4444-4444-8444-444444444444', 'owner', 'organization_wide'),
   ('6a333333-3333-4333-8333-333333333333',
-   '65555555-5555-4555-8555-555555555555', 'owner', 'organization_wide');
+   '65555555-5555-4555-8555-555555555555', 'owner', 'organization_wide'),
+  ('6a111111-1111-4111-8111-111111111111',
+   '66666666-6666-4666-8666-666666666666', 'housekeeping', 'organization_wide');
 
 -- Organization Lapsed has everything except a Subscription that is paid for.
 insert into public.subscriptions (organization_id, status) values
@@ -57,6 +62,7 @@ insert into public.subscriptions (organization_id, status) values
   ('6a333333-3333-4333-8333-333333333333', 'past_due');
 
 insert into public.entitlements (organization_id, module_key) values
+  ('6a111111-1111-4111-8111-111111111111', 'front_office'),
   ('6a111111-1111-4111-8111-111111111111', 'platform_core'),
   ('6a222222-2222-4222-8222-222222222222', 'platform_core'),
   ('6a333333-3333-4333-8333-333333333333', 'platform_core');
@@ -65,10 +71,23 @@ insert into public.property_capabilities
   (property_id, organization_id, capability_key, enabled) values
   ('6b111111-1111-4111-8111-111111111111',
    '6a111111-1111-4111-8111-111111111111', 'staff_administration', true),
+  ('6b111111-1111-4111-8111-111111111111',
+   '6a111111-1111-4111-8111-111111111111', 'front_desk', true),
   ('6b222222-2222-4222-8222-222222222222',
    '6a222222-2222-4222-8222-222222222222', 'staff_administration', true),
   ('6b333333-3333-4333-8333-333333333333',
    '6a333333-3333-4333-8333-333333333333', 'staff_administration', true);
+
+-- Something to book, and somebody to book it for.
+insert into public.accommodation_units
+  (id, property_id, organization_id, name, unit_type, capacity) values
+  ('6c111111-1111-4111-8111-111111111111',
+   '6b111111-1111-4111-8111-111111111111',
+   '6a111111-1111-4111-8111-111111111111', 'SA1-101', 'room', 2);
+
+insert into public.guests (id, organization_id, full_name) values
+  ('6d111111-1111-4111-8111-111111111111',
+   '6a111111-1111-4111-8111-111111111111', 'Sevgi Soysal');
 
 -- An Organization's own role, so "another Organization's role" has something to
 -- be (SP-S1-10).
@@ -192,7 +211,7 @@ select set_eq(
   $$select account.email from public.organization_memberships as membership
       join public.users as account on account.id = membership.user_id$$,
   array['staff-owner-a@example.test', 'staff-second-a@example.test',
-        'staff-desk-a@example.test'],
+        'staff-desk-a@example.test', 'staff-housekeeping@example.test'],
   'a Staff Member sees their own Organization''s roster and no other');
 
 -- SP-S2-03, SP-S3-07. Shipped roles are shared; Organization B's is absent, and
@@ -415,6 +434,76 @@ select is(
 select is_empty(
   $$select * from app.accept_staff_invitation('digest-one')$$,
   'an invitation is accepted once');
+
+-- ---------------------------------------------------------------------------
+-- The catalogue, and the fifth gate (slice 2)
+-- ---------------------------------------------------------------------------
+
+select app.set_request_context('61111111-1111-4111-8111-111111111111');
+
+-- A role is a set drawn from the catalogue. Without this a permission is free
+-- text, and a typo in a role editor is a role that silently grants nothing.
+--
+-- As the owner, because the trigger is what is under test and slice 1 granted
+-- `ranza_app` no UPDATE on this table at all — writing a role is slice 3. A
+-- refusal from a missing grant would look identical and prove nothing.
+set local role ranza;
+select throws_ok(
+  $$update public.staff_roles
+       set permissions = array['front_desk.book', 'front_desk.refund_everything']
+     where scope_id = '6a222222-2222-4222-8222-222222222222'
+       and key = 'night_manager'$$,
+  '23514', NULL,
+  'a role cannot hold a permission the catalogue does not have');
+set local role ranza_app;
+select app.set_request_context('61111111-1111-4111-8111-111111111111');
+
+-- Ranza ships the catalogue. An Organization composing a role reads it and
+-- never adds to it: a permission is a command that exists in a release.
+select throws_ok(
+  $$insert into public.staff_permissions (key, module_key)
+    values ('front_desk.invent', 'front_office')$$,
+  '42501', NULL,
+  'an Organization cannot invent a permission');
+
+-- SP-S2-02. Everything else about this Staff Member is open: the Subscription
+-- is active, the Organization is entitled to Front Office, the Property has a
+-- front desk, and they reach every Property in the Organization. The only thing
+-- missing is that taking a booking is not their job — and the answer comes from
+-- the database rather than from a screen declining to draw a button.
+select app.set_request_context('66666666-6666-4666-8666-666666666666');
+
+select ok(
+  app.can_use_capability(
+    '6b111111-1111-4111-8111-111111111111', 'front_office', 'front_desk'),
+  'all four of blueprint 3.5''s gates are open for this Staff Member');
+
+select throws_ok(
+  $$insert into public.reservations
+      (organization_id, property_id, accommodation_unit_id,
+       guest_id, stay_type, starts_on, ends_on)
+    values ('6a111111-1111-4111-8111-111111111111',
+            '6b111111-1111-4111-8111-111111111111',
+            '6c111111-1111-4111-8111-111111111111',
+            '6d111111-1111-4111-8111-111111111111', 'guest',
+            current_date + 1, current_date + 3)$$,
+  '42501', NULL,
+  'and the fifth refuses anyway: taking a booking is not their job');
+
+-- The same row, from somebody whose job it is. The gate is a permission and not
+-- a mood: nothing else about these two differs.
+select app.set_request_context('63333333-3333-4333-8333-333333333333');
+
+select lives_ok(
+  $$insert into public.reservations
+      (organization_id, property_id, accommodation_unit_id,
+       guest_id, stay_type, starts_on, ends_on)
+    values ('6a111111-1111-4111-8111-111111111111',
+            '6b111111-1111-4111-8111-111111111111',
+            '6c111111-1111-4111-8111-111111111111',
+            '6d111111-1111-4111-8111-111111111111', 'guest',
+            current_date + 1, current_date + 3)$$,
+  'a front desk takes the same booking');
 
 select finish();
 rollback;

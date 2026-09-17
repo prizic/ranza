@@ -11,7 +11,7 @@
 -- dropping the exclusion constraint — and confirming it went red. A test that
 -- cannot fail is worse than no test, because it is mistaken for evidence.
 begin;
-select plan(54);
+select plan(55);
 
 insert into public.users (id, email) values
   ('31111111-1111-4111-8111-111111111111', 'front-desk-a@example.test'),
@@ -203,10 +203,26 @@ select throws_ok(
   '42501', NULL,
   'supplying a reachable organization_id does not open another Property');
 
--- And the other way round, which is the case the policy lets through: a
--- Property the actor really does reach, claimed for an Organization that does
--- not own it. Here the composite foreign key is the thing that refuses, which
--- is why both layers exist.
+-- And the other way round: a Property the actor really does reach, claimed for
+-- an Organization that does not own it. The policy refuses first, because the
+-- permission gate added in slice 2 is asked about the Organization the row
+-- claims and the actor holds nothing there.
+select throws_ok(
+  $$insert into public.reservations
+      (organization_id, property_id, accommodation_unit_id,
+       guest_id, stay_type, starts_on, ends_on)
+    values ('3b111111-1111-4111-8111-111111111111',
+            '3c111111-1111-4111-8111-111111111111',
+            '3d111111-1111-4111-8111-111111111111',
+            '3bb11111-1111-4111-8111-111111111111', 'guest', date '2026-11-01', date '2026-11-03')$$,
+  '42501', NULL,
+  'a Property cannot be relabelled into another Organization');
+
+-- The composite foreign key is still what makes it unrepresentable rather than
+-- merely refused, and that is worth proving separately: run the same row with
+-- no policy in the way and the schema still says no. Both layers exist, and a
+-- test that only saw the outer one would go quiet the day somebody widened it.
+set local role ranza;
 select throws_ok(
   $$insert into public.reservations
       (organization_id, property_id, accommodation_unit_id,
@@ -216,7 +232,9 @@ select throws_ok(
             '3d111111-1111-4111-8111-111111111111',
             '3bb11111-1111-4111-8111-111111111111', 'guest', date '2026-11-01', date '2026-11-03')$$,
   '23503', NULL,
-  'a Property cannot be relabelled into another Organization');
+  'and is unrepresentable even with no policy in the way');
+set local role ranza_app;
+select app.set_request_context('31111111-1111-4111-8111-111111111111');
 
 select throws_ok(
   $$insert into public.reservations

@@ -14,7 +14,7 @@
 -- app.accessible_property_ids(), removing the open-Folio clause — and
 -- confirming it went red.
 begin;
-select plan(57);
+select plan(58);
 
 insert into public.users (id, email) values
   ('41111111-1111-4111-8111-111111111111', 'finance-a@example.test'),
@@ -206,16 +206,31 @@ select throws_ok(
   '42501', NULL,
   'a Folio cannot be opened in another Organization''s Property');
 
--- The other direction, which the policy lets through: a Property in reach,
--- claimed for an Organization that does not own it. The composite foreign key
--- is what refuses here, which is why both layers exist.
+-- The other direction: a Property in reach, claimed for an Organization that
+-- does not own it. The policy refuses first, because the permission gate added
+-- in slice 2 is asked about the Organization the row claims and the actor holds
+-- nothing there.
+select throws_ok(
+  $$insert into public.folios (organization_id, property_id, stay_id, currency)
+    values ('4b111111-1111-4111-8111-111111111111',
+            '4c111111-1111-4111-8111-111111111111',
+            '4f444444-4444-4444-8444-444444444444', 'TRY')$$,
+  '42501', NULL,
+  'a Property cannot be relabelled into another Organization');
+
+-- The composite foreign key is still what makes it unrepresentable rather than
+-- merely refused. Proved separately, with no policy in the way, so that
+-- widening the outer layer cannot quietly take this assertion with it.
+set local role ranza;
 select throws_ok(
   $$insert into public.folios (organization_id, property_id, stay_id, currency)
     values ('4b111111-1111-4111-8111-111111111111',
             '4c111111-1111-4111-8111-111111111111',
             '4f444444-4444-4444-8444-444444444444', 'TRY')$$,
   '23503', NULL,
-  'a Property cannot be relabelled into another Organization');
+  'and is unrepresentable even with no policy in the way');
+set local role ranza_app;
+select app.set_request_context('41111111-1111-4111-8111-111111111111');
 
 select throws_ok(
   $$insert into public.folios (organization_id, property_id, stay_id, currency)

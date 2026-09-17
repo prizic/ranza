@@ -3,6 +3,7 @@ export type { InviteStaffMember, StaffModule } from "./module";
 export {
   AlreadyAMemberError,
   INVITATION_LIFETIME_DAYS,
+  PERMISSIONS,
   PLATFORM_CORE_MODULE,
   STAFF_ADMINISTRATION,
   LastAdministratorError,
@@ -11,6 +12,7 @@ export {
 } from "./contracts";
 export type {
   Invited,
+  Permission,
   InvitationStatus,
   MembershipStatus,
   StaffMember,

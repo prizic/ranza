@@ -30,7 +30,10 @@ end to end.
 Organization can now say who works for it, in what role and at which Properties,
 and take it back. A role is a named set of permissions rather than a label
 ([ADR 0026](adr/0026-a-role-is-a-named-set-of-permissions-and-reach-is-taken-away-for-free.md)),
-and taking reach away is never blocked by an unpaid invoice.
+and taking reach away is never blocked by an unpaid invoice. **Slice 2** put
+the permission catalogue behind that set and a fifth gate inside every write
+policy the product already had — [ADR 0012](adr/0012-a-write-is-bounded-by-a-policy-not-a-check.md)
+is amended, not contradicted, so a write is still bounded in one place.
 
 The next few slices, in the order decided by what each one unblocks:
 

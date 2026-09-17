@@ -160,6 +160,21 @@ model AccommodationUnit {
 /// `scopeId` restates the same fact as the Organization or the nil uuid, and it
 /// is `scopeId` that a membership's composite key resolves against — which is
 /// what makes another Organization's role unrepresentable rather than checked.
+/// What a role may be composed from: every command the product has, as a row.
+///
+/// Ranza ships this table and an Organization never writes to it — a permission
+/// is a command that exists in a release, so inventing one would be inventing a
+/// command. `staff_roles.permissions` is validated against it by a trigger,
+/// because an array element cannot carry a foreign key and the array is read
+/// inside every write policy on every row.
+model StaffPermission {
+  key       String   @id
+  moduleKey String   @map("module_key")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("staff_permissions")
+}
+
 model StaffRole {
   scopeId        String   @map("scope_id") @db.Uuid
   key            String
