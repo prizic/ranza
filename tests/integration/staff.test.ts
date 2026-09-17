@@ -13,10 +13,9 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import {
-  createPrismaClient,
-  withOrganizationContext,
-} from "../../packages/db/src";
+import { createPrismaClient } from "../../packages/db/src";
+import { createOutboxDispatcher } from "../../packages/platform/outbox/src";
+import { subscriptions } from "../../apps/worker/src/outbox/subscriptions";
 import {
   AlreadyAMemberError,
   createStaffModule,
@@ -41,6 +40,12 @@ const DESK = "d8000001-0000-4000-8000-000000000003";
 const prisma = createPrismaClient(process.env.DATABASE_URL!);
 const staff = createStaffModule({ db: prisma });
 const owner = createPrismaClient(process.env.DIRECT_URL!);
+
+// The worker's own connection and the real subscription list. Not a handler
+// written for this file: what is under test is that the shipped one reaches
+// across the credential boundary, and a stand-in would have proved a stand-in.
+const workerDb = createPrismaClient(process.env.WORKER_DATABASE_URL!);
+const dispatcher = createOutboxDispatcher({ db: workerDb });
 
 /** A unique address per test, so re-running the suite is not a second person. */
 function anAddress(): string {
@@ -146,6 +151,13 @@ afterAll(async () => {
       OTHER_ORG,
     );
   }
+  // Deliveries before events: the queue now has a real handler, so an event
+  // this suite published has a delivery row pointing at it.
+  await owner.$executeRawUnsafe(
+    `delete from outbox.deliveries where organization_id in ($1::uuid,$2::uuid)`,
+    ORG,
+    OTHER_ORG,
+  );
   await owner.$executeRawUnsafe(
     `delete from outbox.events where organization_id in ($1::uuid,$2::uuid)`,
     ORG,
@@ -157,6 +169,7 @@ afterAll(async () => {
     OTHER_ORG,
   );
   await prisma.$disconnect();
+  await workerDb.$disconnect();
   await owner.$disconnect();
 });
 
@@ -735,6 +748,130 @@ describe("an Organization's own roles", () => {
         (role) => role.organizationId === null || role.organizationId === ORG,
       ),
     ).toBe(true);
+  });
+});
+
+describe("a reach change ends every session", () => {
+  /**
+   * Somebody signed in twice — a desk terminal and a phone.
+   *
+   * Written as the owner, because this is Better Auth's table and nothing in
+   * the application may write it: the whole point of the slice is that the
+   * worker reaches it through one function and no grant.
+   */
+  async function signedInTwice(userId: string): Promise<string> {
+    const subject = `ba_${randomUUID()}`;
+    await owner.$executeRawUnsafe(
+      `insert into public.auth_user (id, name, email) values ($1,$2,$3)`,
+      subject,
+      "Staff Session",
+      `${subject}@example.test`,
+    );
+    await owner.$executeRawUnsafe(
+      `insert into public.auth_identities (user_id, issuer, subject)
+       values ($1::uuid,'better-auth',$2)`,
+      userId,
+      subject,
+    );
+    for (const device of ["desk", "phone"]) {
+      await owner.$executeRawUnsafe(
+        `insert into public.auth_session (id, "expiresAt", token, "userId")
+         values ($1,$2::timestamptz,$3,$4)`,
+        `${subject}-${device}`,
+        new Date(Date.now() + 86_400_000).toISOString(),
+        `${subject}-${device}-token`,
+        subject,
+      );
+    }
+    return subject;
+  }
+
+  /**
+   * Empties the queue.
+   *
+   * Every command in this file publishes a reach change, including the invite
+   * that puts somebody on the roster — which is correct and is why this is
+   * needed: a session created before the backlog is drained would be ended by
+   * an event from three tests ago, and the assertion would pass for the wrong
+   * reason. Repeated because one pass claims a batch, not the queue.
+   */
+  async function drain(): Promise<void> {
+    for (;;) {
+      const { claimed } = await dispatcher.dispatch(subscriptions);
+      if (claimed === 0) return;
+    }
+  }
+
+  async function sessionsOf(subject: string): Promise<number> {
+    const [row] = await owner.$queryRawUnsafe<{ total: bigint }[]>(
+      `select count(*) as total from public.auth_session where "userId" = $1`,
+      subject,
+    );
+    return Number(row?.total ?? 0);
+  }
+
+  it("signs the Staff Member out of every device, not one", async () => {
+    const email = anAddress();
+    await staff.invite(
+      { userId: OWNER },
+      { organizationId: ORG, email, roleKey: "front_desk" },
+    );
+    const member = await userIdOf(email);
+    await drain();
+    const subject = await signedInTwice(member);
+    expect(await sessionsOf(subject)).toBe(2);
+
+    await staff.changeRole(
+      { userId: OWNER },
+      { organizationId: ORG, userId: member, roleKey: "housekeeping" },
+    );
+
+    // The event was published in the transaction that changed the reach, so by
+    // here it is durable whether or not the worker is running.
+    await drain();
+
+    expect(await sessionsOf(subject)).toBe(0);
+  });
+
+  it("leaves other people signed in", async () => {
+    const changing = anAddress();
+    const bystander = anAddress();
+    await staff.invite(
+      { userId: OWNER },
+      { organizationId: ORG, email: changing, roleKey: "front_desk" },
+    );
+    await staff.invite(
+      { userId: OWNER },
+      { organizationId: ORG, email: bystander, roleKey: "front_desk" },
+    );
+    // After the invitations have been dispatched, because an invitation is
+    // itself a reach change and would end a session created before it.
+    await drain();
+    const changingSubject = await signedInTwice(await userIdOf(changing));
+    const bystanderSubject = await signedInTwice(await userIdOf(bystander));
+
+    await staff.revoke(
+      { userId: OWNER },
+      { organizationId: ORG, userId: await userIdOf(changing) },
+    );
+    await drain();
+
+    expect(await sessionsOf(changingSubject)).toBe(0);
+    expect(await sessionsOf(bystanderSubject)).toBe(2);
+  });
+
+  it("gives the worker no way to reach a session except that one function", async () => {
+    // The assertion that makes the rest of this slice worth anything. If the
+    // worker could select from the table, the function would be a convenience
+    // rather than a boundary, and ADR 0005 would have been widened by accident.
+    await expect(
+      workerDb.$queryRawUnsafe(`select token from public.auth_session limit 1`),
+    ).rejects.toThrow();
+    await expect(
+      workerDb.$executeRawUnsafe(
+        `update public.auth_session set token = 'x' where id = 'nobody'`,
+      ),
+    ).rejects.toThrow();
   });
 });
 

@@ -36,7 +36,11 @@ policy the product already had — [ADR 0012](adr/0012-a-write-is-bounded-by-a-p
 is amended, not contradicted, so a write is still bounded in one place.
 **Slice 3** lets an Organization compose roles of its own, bounded by what its
 author already holds — otherwise defining a role is privilege escalation with
-extra steps.
+extra steps. **Slice 4** closed it: a reach change ends every session that
+Staff Member holds, through the product's first real outbox handler and a
+single function across the credential boundary
+([ADR 0027](adr/0027-the-worker-ends-a-session-through-one-function-and-no-grant.md))
+— `ranza_worker` still holds no grant on any credential table.
 
 The next few slices, in the order decided by what each one unblocks:
 

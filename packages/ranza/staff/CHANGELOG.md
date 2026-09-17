@@ -10,3 +10,5 @@
   is amended rather than contradicted).
 - An Organization composes roles of its own, bounded by what their author
   already holds.
+- A reach change ends every session that Staff Member holds, through the
+  outbox and one function across the credential boundary (ADR 0027).

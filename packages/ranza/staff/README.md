@@ -29,8 +29,11 @@ would be a check somebody can route around by reaching the table another way.
 
 End a session. `ranza_app` is granted nothing on `auth_session` and `ranza_auth`
 is what reaches it (ADR 0005). Every command that changes reach publishes
-`staff.reach_changed` inside the same transaction, so the fact is durable while
-the handler that acts on it is still being built (ADR 0017, ADR 0020).
+`staff.reach_changed` inside the same transaction, and
+`apps/worker/src/outbox/staff-reach.ts` is what acts on it — through one
+security-definer function and no table grant, so the boundary ADR 0005 drew is
+crossed by exactly one named capability rather than widened
+([ADR 0027](../../../docs/adr/0027-the-worker-ends-a-session-through-one-function-and-no-grant.md)).
 
 Send the invitation. There is no Notifications module (blueprint 5.12), so
 `invite()` returns the token once and a person passes it on. Only its SHA-256
