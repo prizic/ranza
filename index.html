@@ -3467,14 +3467,50 @@ const SCREENS = {
   cpOrgs: CpOrgs, cpPlans: CpPlans, cpDomains: CpDomains, cpHealth: CpHealth, cpSupport: CpSupport, cpLifecycle: CpLifecycle, cpAudit: CpAudit,
 };
 
+/* ============================================================
+   Deep links
+   The hash is the address of a screen, so a link pasted into a task opens that
+   screen instead of the front door. The role is part of the address because a
+   screen is only reachable to a role that has it — `#owner/staff` is the long
+   form and `#staff` is the same thing, because owner is the role that sees all
+   twenty-eight.
+   ============================================================ */
+function hashRoute() {
+  const parts = decodeURIComponent(String(location.hash).replace(/^#/, ''))
+    .split('/')
+    .filter(Boolean);
+  if (!parts.length) return null;
+  const named = ROLES.some((r) => r.id === parts[0]);
+  const role = named ? parts[0] : 'owner';
+  const screen = named ? parts[1] : parts[0];
+  if (!screen || !(ACCESS[role] || []).includes(screen)) return null;
+  return { role, screen };
+}
+
 function App() {
   const [state, setState] = useState(() => seedProfiles(extendSeed(buildSeed())));
   const [lang, setLang] = useState('en');
   const [theme, setTheme] = useState('light');
-  const [role, setRole] = useState(null);
+  const [role, setRole] = useState(() => (hashRoute() || {}).role || null);
   const [propertyId, setPropertyId] = useState('p1');
-  const [route, setRoute] = useState({ screen: 'today', params: null });
+  const [route, setRoute] = useState(() => ({ screen: (hashRoute() || {}).screen || 'today', params: null }));
   const [toasts, setToasts] = useState([]);
+
+  useEffect(() => {
+    const apply = () => {
+      const next = hashRoute();
+      if (!next) return;
+      setRole(next.role);
+      setRoute({ screen: next.screen, params: null });
+    };
+    window.addEventListener('hashchange', apply);
+    return () => window.removeEventListener('hashchange', apply);
+  }, []);
+  useEffect(() => {
+    if (!role || role === 'public') return;
+    const next = `#${role}/${route.screen}`;
+    if (location.hash !== next) history.replaceState(null, '', next);
+  }, [role, route.screen]);
 
   useEffect(() => { document.documentElement.lang = lang; document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr'; }, [lang]);
   useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
