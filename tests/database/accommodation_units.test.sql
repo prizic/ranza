@@ -42,7 +42,7 @@ values
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
    '11111111-1111-4111-8111-111111111111', 'owner', 'organization_wide'),
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-   '22222222-2222-4222-8222-222222222222', 'staff', 'assigned_properties');
+   '22222222-2222-4222-8222-222222222222', 'front_desk', 'assigned_properties');
 
 insert into public.property_assignments
   (property_id, organization_id, user_id)

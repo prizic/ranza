@@ -10,7 +10,7 @@ generator client {
   previewFeatures = ["partialIndexes"]
   // Generated into the package that owns database access, so it resolves
   // @prisma/client from there rather than the workspace root.
-  output   = "../packages/db/generated/prisma"
+  output          = "../packages/db/generated/prisma"
 }
 
 // Prisma 7 moved connection URLs out of the schema. Migrations read DIRECT_URL
@@ -31,6 +31,7 @@ model User {
   memberships OrganizationMembership[]
   assignments PropertyAssignment[]
   stays       Stay[]
+  invitesSent StaffInvitation[]        @relation("StaffInvitationAuthor")
 
   @@map("users")
 }
@@ -64,6 +65,7 @@ model Organization {
   subscription Subscription?
   entitlements Entitlement[]
   guests       Guest[]
+  staffRoles   StaffRole[]
 
   @@map("organizations")
 }
@@ -148,17 +150,57 @@ model AccommodationUnit {
   @@map("accommodation_units")
 }
 
-model OrganizationMembership {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String   @map("organization_id") @db.Uuid
-  userId         String   @map("user_id") @db.Uuid
-  role           String
-  accessScope    String   @default("assigned_properties") @map("access_scope")
+/// A named set of permissions (blueprint 7.2). A role is not a label: what a
+/// Staff Member may do is the set, and a new set is a new role with a name of
+/// its own.
+///
+/// `organizationId` is null for the roles Ranza ships. Every Organization sees
+/// those and none may edit or retire one; an Organization's own roles are
+/// invisible to every other. A nullable column cannot carry a foreign key, so
+/// `scopeId` restates the same fact as the Organization or the nil uuid, and it
+/// is `scopeId` that a membership's composite key resolves against — which is
+/// what makes another Organization's role unrepresentable rather than checked.
+model StaffRole {
+  scopeId        String   @map("scope_id") @db.Uuid
+  key            String
+  organizationId String?  @map("organization_id") @db.Uuid
+  name           String
+  permissions    String[] @default([])
   status         String   @default("active")
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  organization Organization?            @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  memberships  OrganizationMembership[]
+
+  @@id([scopeId, key])
+  @@unique([scopeId, name], map: "staff_roles_scope_name_key")
+  @@map("staff_roles")
+}
+
+model OrganizationMembership {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  /// The role's key. Meaningful only together with `roleScopeId`, which says
+  /// whether it is one Ranza ships or one this Organization authored.
+  role           String
+  roleScopeId    String    @default(dbgenerated("'00000000-0000-0000-0000-000000000000'::uuid")) @map("role_scope_id") @db.Uuid
+  accessScope    String    @default("assigned_properties") @map("access_scope")
+  status         String    @default("active")
+  /// When they set a password. Null while an invitation is outstanding — the
+  /// membership is active either way, because it was never waiting on it.
+  acceptedAt     DateTime? @map("accepted_at") @db.Timestamptz(6)
+  /// What the 24-hour undo window is measured from, and the reason a revoked
+  /// membership is a resting state rather than a deletion.
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  user         User              @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  staffRole    StaffRole         @relation(fields: [roleScopeId, role], references: [scopeId, key], onDelete: Restrict, onUpdate: NoAction, map: "organization_memberships_role_fkey")
+  invitations  StaffInvitation[]
 
   @@unique([organizationId, userId])
   // Partial: only an active membership is ever looked up by user.
@@ -166,13 +208,47 @@ model OrganizationMembership {
   @@map("organization_memberships")
 }
 
+/// The way to a password, and nothing else. The membership it belongs to is
+/// active from the moment it is written, so an invitation grants no reach and
+/// losing one costs nobody their job.
+///
+/// Only the SHA-256 digest is stored. The plaintext is returned once, to
+/// whoever created the invitation, because there is no Notifications module to
+/// send it (blueprint 5.12) and a table of live credentials is not the price of
+/// that gap.
+model StaffInvitation {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  tokenHash      String    @unique @map("token_hash")
+  status         String    @default("pending")
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz(6)
+  acceptedAt     DateTime? @map("accepted_at") @db.Timestamptz(6)
+  invitedBy      String    @map("invited_by") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  membership OrganizationMembership @relation(fields: [organizationId, userId], references: [organizationId, userId], onDelete: Restrict, onUpdate: NoAction)
+  author     User                   @relation("StaffInvitationAuthor", fields: [invitedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  /// Several over time, at most one of them live: re-inviting writes a fresh
+  /// one against the same membership.
+  @@unique([organizationId, userId], map: "staff_invitations_pending_key", where: raw("status = 'pending'"))
+  @@index([organizationId], map: "staff_invitations_organization_idx")
+  @@map("staff_invitations")
+}
+
 model PropertyAssignment {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  propertyId     String   @map("property_id") @db.Uuid
-  organizationId String   @map("organization_id") @db.Uuid
-  userId         String   @map("user_id") @db.Uuid
-  status         String   @default("active")
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  propertyId     String    @map("property_id") @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  status         String    @default("active")
+  /// An assignment is revoked, never deleted: the row is the record that they
+  /// used to reach this Property.
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   property Property @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
   user     User     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
@@ -444,16 +520,16 @@ model FolioLine {
 // the migration because it expects camelCase.
 
 model AuthUser {
-  id            String    @id
-  name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
-  image         String?
+  id               String   @id
+  name             String
+  email            String   @unique
+  emailVerified    Boolean  @default(false)
+  image            String?
   /// Set by Better Auth only after a TOTP code has been verified, never on
   /// enrolment — an unverified secret must not be able to lock anyone out.
-  twoFactorEnabled Boolean @default(false)
-  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  twoFactorEnabled Boolean  @default(false)
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @updatedAt @db.Timestamptz(6)
 
   sessions  AuthSession[]
   accounts  AuthAccount[]

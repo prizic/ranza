@@ -60,7 +60,7 @@ insert into public.organization_memberships
    '42222222-2222-4222-8222-222222222222', 'manager', 'organization_wide'),
   -- Reaches one of Organization A's two Properties and no more.
   ('4a111111-1111-4111-8111-111111111111',
-   '44444444-4444-4444-8444-444444444444', 'staff', 'assigned_properties');
+   '44444444-4444-4444-8444-444444444444', 'front_desk', 'assigned_properties');
 
 insert into public.property_assignments (property_id, organization_id, user_id)
 values

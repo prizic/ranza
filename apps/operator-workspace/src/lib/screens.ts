@@ -135,11 +135,14 @@ export const SCREENS: Screen[] = [
   },
   {
     segment: "people",
-    capability: "people",
-    module: "human_resources",
+    // Staff and permissions, not payroll. Who works here and what they may do
+    // is part of the platform every Organization has (blueprint 7.2); Human
+    // Resources (5.11) is contracts and wages and is a later destination.
+    capability: "staff_administration",
+    module: "platform_core",
     icon: Users,
-    blueprint: "5.11",
-    built: false,
+    blueprint: "7.2",
+    built: true,
   },
   {
     segment: "analytics",

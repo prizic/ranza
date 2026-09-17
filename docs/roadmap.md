@@ -26,6 +26,12 @@ is for is a record rather than a string
 Booking, arriving, staying and being billed are one line the product can walk
 end to end.
 
+**Staff and permissions, slice 1**, is the most recent addition: an
+Organization can now say who works for it, in what role and at which Properties,
+and take it back. A role is a named set of permissions rather than a label
+([ADR 0026](adr/0026-a-role-is-a-named-set-of-permissions-and-reach-is-taken-away-for-free.md)),
+and taking reach away is never blocked by an unpaid invoice.
+
 The next few slices, in the order decided by what each one unblocks:
 
 1. **Beds, floors and buildings.** `accommodation_units` is flat and its

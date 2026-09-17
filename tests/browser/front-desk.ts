@@ -66,7 +66,10 @@ export function testProperty(): string {
        -- matters most on this screen is the one a charge causes, and without a
        -- Folio there is nowhere to put one.
        from target,
-            (values ('today'), ('front_desk'), ('finance')) as wanted (key)
+            -- And staff_administration, because the roster is the other screen
+            -- a browser test signs in to look at.
+            (values ('today'), ('front_desk'), ('finance'),
+                    ('staff_administration')) as wanted (key)
        where not exists (
          select 1 from public.property_capabilities as held
          where held.property_id = target.id

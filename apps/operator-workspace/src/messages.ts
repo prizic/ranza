@@ -116,6 +116,44 @@ export interface Messages {
    */
   reservations: string;
   reservationsAt: string;
+
+  /**
+   * Staff and permissions.
+   *
+   * `awaitingPassword` rather than "pending": the membership is not pending —
+   * it is active and the person simply has not set a password yet. Calling it
+   * pending on a screen would teach the wrong model of the thing.
+   */
+  staff: {
+    rosterOf: string;
+    invite: string;
+    inviteTitle: string;
+    inviteDescription: string;
+    sendInvitation: string;
+    cancel: string;
+    linkToPassOn: string;
+    linkExpires: string;
+    email: string;
+    role: string;
+    properties: string;
+    status: string;
+    actions: string;
+    active: string;
+    awaitingPassword: string;
+    revoked: string;
+    revoke: string;
+    undoRevoke: string;
+    reachesNothing: string;
+    alreadyAMember: string;
+    refused: string;
+    lastAdministrator: string;
+    emptyRosterTitle: string;
+    emptyRosterDescription: string;
+    roles: Record<
+      "owner" | "manager" | "front_desk" | "housekeeping" | "finance",
+      string
+    >;
+  };
   noReservationsTitle: string;
   noReservationsDescription: string;
   newReservation: string;
@@ -314,6 +352,44 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     reservations: "Rezervasyonlar",
     reservationsAt: "Rezervasyonlar —",
+
+    staff: {
+      rosterOf: "Ekip —",
+      invite: "Davet et",
+      inviteTitle: "Ekibe birini davet et",
+      inviteDescription:
+        "Üyelik hemen açılır. Davet bağlantısı yalnızca parola belirlemek içindir.",
+      sendInvitation: "Daveti oluştur",
+      cancel: "Vazgeç",
+      linkToPassOn: "Bu bağlantıyı kendiniz iletin",
+      linkExpires:
+        "Bağlantı yedi gün sonra geçersiz olur ve bir daha gösterilmez.",
+      email: "E-posta",
+      role: "Rol",
+      properties: "Tesisler",
+      status: "Durum",
+      actions: "İşlemler",
+      active: "Aktif",
+      awaitingPassword: "Parola bekleniyor",
+      revoked: "Kaldırıldı",
+      revoke: "Kaldır",
+      undoRevoke: "Geri al",
+      reachesNothing: "Henüz bir tesis atanmadı",
+      alreadyAMember: "Bu kişinin bu organizasyonda zaten bir üyeliği var.",
+      refused: "Bu işlem reddedildi.",
+      lastAdministrator:
+        "Bir organizasyonda ekip yönetebilen en az bir kişi kalmalıdır.",
+      emptyRosterTitle: "Henüz kimse yok",
+      emptyRosterDescription:
+        "Bu organizasyonda görünen bir ekip üyesi bulunmuyor.",
+      roles: {
+        owner: "Sahip",
+        manager: "Müdür",
+        front_desk: "Ön büro",
+        housekeeping: "Kat hizmetleri",
+        finance: "Finans",
+      },
+    },
     noReservationsTitle: "İleri tarihli rezervasyon yok",
     noReservationsDescription:
       "Bu tesiste bugünden itibaren bir rezervasyon bulunmuyor.",
@@ -534,6 +610,43 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     reservations: "Reservations",
     reservationsAt: "Bookings at",
+
+    staff: {
+      rosterOf: "The team at",
+      invite: "Invite",
+      inviteTitle: "Invite somebody to the team",
+      inviteDescription:
+        "The membership opens immediately. The link is only the way to a password.",
+      sendInvitation: "Create the invitation",
+      cancel: "Cancel",
+      linkToPassOn: "Pass this link on yourself",
+      linkExpires: "It lapses after seven days, and is never shown again.",
+      email: "Email",
+      role: "Role",
+      properties: "Properties",
+      status: "Status",
+      actions: "Actions",
+      active: "Active",
+      awaitingPassword: "Awaiting a password",
+      revoked: "Revoked",
+      revoke: "Revoke",
+      undoRevoke: "Undo",
+      reachesNothing: "No Property yet",
+      alreadyAMember:
+        "That person already has a membership in this Organization.",
+      refused: "That was refused.",
+      lastAdministrator:
+        "An Organization must keep somebody who can add staff.",
+      emptyRosterTitle: "Nobody here yet",
+      emptyRosterDescription: "This Organization has no Staff Member to show.",
+      roles: {
+        owner: "Owner",
+        manager: "Manager",
+        front_desk: "Front desk",
+        housekeeping: "Housekeeping",
+        finance: "Finance",
+      },
+    },
     noReservationsTitle: "Nothing booked ahead",
     noReservationsDescription:
       "Nothing is booked at this Property from today onwards.",
@@ -752,6 +865,41 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     reservations: "الحجوزات",
     reservationsAt: "الحجوزات في",
+
+    staff: {
+      rosterOf: "فريق",
+      invite: "دعوة",
+      inviteTitle: "دعوة شخص إلى الفريق",
+      inviteDescription:
+        "تُفتح العضوية فورًا. الرابط ليس إلا وسيلة لتعيين كلمة المرور.",
+      sendInvitation: "إنشاء الدعوة",
+      cancel: "إلغاء",
+      linkToPassOn: "مرِّر هذا الرابط بنفسك",
+      linkExpires: "ينتهي بعد سبعة أيام، ولن يُعرض مرة أخرى.",
+      email: "البريد الإلكتروني",
+      role: "الدور",
+      properties: "المنشآت",
+      status: "الحالة",
+      actions: "الإجراءات",
+      active: "نشط",
+      awaitingPassword: "بانتظار كلمة المرور",
+      revoked: "مُلغى",
+      revoke: "إلغاء العضوية",
+      undoRevoke: "تراجع",
+      reachesNothing: "لا منشأة بعد",
+      alreadyAMember: "لهذا الشخص عضوية في هذه المؤسسة بالفعل.",
+      refused: "رُفض هذا الإجراء.",
+      lastAdministrator: "يجب أن يبقى في المؤسسة من يستطيع إدارة الفريق.",
+      emptyRosterTitle: "لا أحد هنا بعد",
+      emptyRosterDescription: "لا يوجد في هذه المؤسسة موظف لعرضه.",
+      roles: {
+        owner: "المالك",
+        manager: "المدير",
+        front_desk: "الاستقبال",
+        housekeeping: "التدبير الفندقي",
+        finance: "المالية",
+      },
+    },
     noReservationsTitle: "لا توجد حجوزات قادمة",
     noReservationsDescription: "لا يوجد حجز في هذه المنشأة من اليوم فصاعدًا.",
     newReservation: "حجز جديد",

@@ -1,24 +1,46 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
-import { EmptyState, PlannedScreen } from "@ranza/ui";
+import { EmptyState } from "@ranza/ui";
 import { getTranslations } from "next-intl/server";
-import { screenFor } from "../../../../lib/screens";
+import { InviteDialog } from "../../../../features/staff/components/invite-dialog";
+import { RosterTable } from "../../../../features/staff/components/roster-table";
+import { readRoster } from "../../../../server/staff";
 import { entitledProperties } from "../../../../server/viewer";
 
-const SEGMENT = "people";
+/**
+ * Staff and permissions: who works for this Organization, and where.
+ *
+ * The Organization comes from the viewer's own reach rather than from the URL.
+ * A Property is how reach is expressed everywhere else in the product, and
+ * staff administration is the one command that is about the Organization
+ * instead — so the gate is still asked about a Property, and the answer is used
+ * to find the Organization that Property belongs to.
+ *
+ * Which means an Organization with no Property has nobody who can invite. That
+ * is a real gap and it is named here rather than papered over: creating the
+ * first Property is part of onboarding, which is not built.
+ */
+const STAFF_ADMINISTRATION = {
+  moduleKey: "platform_core",
+  capabilityKey: "staff_administration",
+};
 
 /**
- * People — a destination with nothing behind it yet.
+ * The roles Ranza ships, restated rather than read.
  *
- * The route is real and the gate is real: a viewer whose Organization is not
- * entitled to it sees the empty state, exactly as they would for a capability
- * that exists. What is missing is the workflow, and blueprint section 13
- * forbids building the tables for one ahead of the workflow that needs them.
- *
- * docs/handover/operator-workspace-screens.md says what this screen must do
- * and what has to exist first.
+ * Reading them would be a query that returns the same five rows on every
+ * request, and slice 3 — where an Organization authors its own — is what turns
+ * this into a real read. Until then this list is the honest shape of it.
  */
-export default async function Page({
+const SHIPPED_ROLES = [
+  "owner",
+  "manager",
+  "front_desk",
+  "housekeeping",
+  "finance",
+] as const;
+
+export default async function PeoplePage({
   params,
 }: {
   params: Promise<{ locale: string }>;
@@ -27,18 +49,10 @@ export default async function Page({
   if (!isSupportedLocale(locale)) notFound();
 
   const t = await getTranslations();
-  const screen = screenFor(SEGMENT);
-  if (!screen) notFound();
+  const properties = await entitledProperties(STAFF_ADMINISTRATION);
+  const home = properties[0];
 
-  // Same gate as every built screen. Entitlement is not waived because the
-  // workflow is unfinished — a Property that has not bought this reaches
-  // nothing, and that is what the empty state says.
-  const properties = await entitledProperties({
-    moduleKey: screen.module,
-    capabilityKey: screen.capability,
-  });
-
-  if (properties.length === 0) {
+  if (!home) {
     return (
       <EmptyState
         description={t("notEntitledDescription")}
@@ -47,18 +61,40 @@ export default async function Page({
     );
   }
 
+  const organizationId = home.organizationId;
+  const roster = await readRoster(organizationId);
+
   return (
-    <PlannedScreen
-      blueprintSection={screen.blueprint}
-      handoverHref="https://github.com/prizic/ranza/blob/main/docs/handover/operator-workspace-screens.md"
-      handoverLabel={t("handoverLabel")}
-      heading={t("planned")}
-      summary={
-        t.has(`screenSummary.${SEGMENT}`) ? t(`screenSummary.${SEGMENT}`) : ""
-      }
-      title={
-        t.has(`navigation.${SEGMENT}`) ? t(`navigation.${SEGMENT}`) : SEGMENT
-      }
-    />
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-muted-foreground">
+          {t("staff.rosterOf")} {home.organizationName}
+        </p>
+        <InviteDialog
+          locale={locale}
+          organizationId={organizationId}
+          properties={properties.map((property) => ({
+            propertyId: property.propertyId,
+            propertyName: property.propertyName,
+          }))}
+          roles={SHIPPED_ROLES.map((key) => ({
+            key,
+            name: t(`staff.roles.${key}`),
+          }))}
+        />
+      </div>
+      {roster.length === 0 ? (
+        <EmptyState
+          description={t("staff.emptyRosterDescription")}
+          title={t("staff.emptyRosterTitle")}
+        />
+      ) : (
+        <RosterTable
+          locale={locale}
+          organizationId={organizationId}
+          roster={roster}
+        />
+      )}
+    </>
   );
 }

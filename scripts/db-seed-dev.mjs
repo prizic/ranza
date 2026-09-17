@@ -200,7 +200,8 @@ psql(`
     from property,
          (values ('front_desk'), ('guest_experience'), ('housekeeping'),
                  ('food_and_beverage'), ('inventory'), ('finance'),
-                 ('people'), ('analytics'), ('configuration'))
+                 ('people'), ('staff_administration'), ('analytics'),
+                 ('configuration'))
            as wanted (capability_key)
   ), unit as (
     insert into public.accommodation_units
