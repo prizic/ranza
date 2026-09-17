@@ -76,8 +76,15 @@ Node.js 22 and pnpm through Corepack:
 ```sh
 corepack enable
 pnpm install --frozen-lockfile
+pnpm db:up && pnpm db:setup
 pnpm dev
 ```
+
+`pnpm dev` reads `.env.development`, which is committed and points at the
+database on this machine. It does not overwrite a variable that is already set,
+so reaching any other database is a deliberate act — export it and yours wins.
+The root `.env` is for the tooling that talks to a hosted project, and is not
+what a dev server picks up.
 
 `pnpm check` runs the full gate: formatting, linting, boundary rules, type
 checking, tests, and build.
@@ -102,6 +109,8 @@ pnpm db:up && pnpm db:setup   # PostgreSQL, migrations, local role passwords
 pnpm dev                      # the seed needs the app running (ADR 0005)
 pnpm db:seed:dev              # an Organization, Properties, Units, a day's work
 ```
+
+Nothing to copy or export first: `pnpm dev` loads `.env.development` itself.
 
 Then sign in at `http://localhost:3000/tr/today` as:
 

@@ -3,6 +3,11 @@
 .worktrees/
 .env*
 !.env.example
+# Local development defaults, committed on purpose. `pnpm dev` loads it before
+# anything starts, it cannot override a variable that is already set, and every
+# value in it works against localhost:54322 and nowhere else. Gitignoring it
+# would mean a fresh clone has a dev server that does not start.
+!.env.development
 node_modules/
 .next/
 .turbo/
