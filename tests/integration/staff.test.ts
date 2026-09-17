@@ -514,6 +514,24 @@ describe("the last administrator", () => {
     );
   });
 
+  it("may demote themselves when they are not the last", async () => {
+    // Allowed, and their own sessions end with everybody else's (SP-S1-24).
+    // The refusal is about the Organization keeping somebody who can add
+    // staff, not about the actor protecting their own position.
+    await staff.changeRole(
+      { userId: SECOND_OWNER },
+      { organizationId: ORG, userId: SECOND_OWNER, roleKey: "front_desk" },
+    );
+    expect(await roleOf(SECOND_OWNER)).toBe("front_desk/active");
+
+    await owner.$executeRawUnsafe(
+      `update public.organization_memberships set role = 'owner'
+        where organization_id = $1::uuid and user_id = $2::uuid`,
+      ORG,
+      SECOND_OWNER,
+    );
+  });
+
   it("survives two administrators demoting each other at once", async () => {
     // Two connections, two transactions, started together. Counting rather than
     // locking would let both find an administrator that the other is removing.
@@ -858,6 +876,33 @@ describe("a reach change ends every session", () => {
 
     expect(await sessionsOf(changingSubject)).toBe(0);
     expect(await sessionsOf(bystanderSubject)).toBe(2);
+  });
+
+  it("ends them when a Property is taken away too", async () => {
+    // SP-S1-18. Losing a Property is losing reach, so it travels the same way
+    // as a role change — the handler does not know or care which command
+    // published the event.
+    const email = anAddress();
+    await staff.invite(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        email,
+        roleKey: "front_desk",
+        propertyIds: [PROPERTY],
+      },
+    );
+    const member = await userIdOf(email);
+    await drain();
+    const subject = await signedInTwice(member);
+
+    await staff.unassignProperty(
+      { userId: OWNER },
+      { organizationId: ORG, userId: member, propertyId: PROPERTY },
+    );
+    await drain();
+
+    expect(await sessionsOf(subject)).toBe(0);
   });
 
   it("gives the worker no way to reach a session except that one function", async () => {
