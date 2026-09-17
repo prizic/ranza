@@ -1,24 +1,20 @@
-export { createStaffModule, roleKeyFor } from "./module";
-export type { InviteStaffMember, StaffModule } from "./module";
+export { createStaffModule } from "./module";
+export type { InviteStaffMember } from "./module";
 export {
   AlreadyAMemberError,
   INVITATION_LIFETIME_DAYS,
-  PERMISSIONS,
-  ROLE_NAME,
-  RoleIsHeldError,
-  PLATFORM_CORE_MODULE,
-  STAFF_ADMINISTRATION,
   LastAdministratorError,
+  RoleIsHeldError,
+  ROLE_NAME,
   StaffRefusedError,
   UNDO_REVOKE_WINDOW_HOURS,
 } from "./contracts";
 export type {
-  Invited,
-  NewRole,
-  Permission,
-  Role,
   InvitationStatus,
+  Invited,
   MembershipStatus,
+  NewRole,
+  Role,
   StaffMember,
 } from "./contracts";
 export type { StaffDeps } from "./ports";

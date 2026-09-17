@@ -12,37 +12,6 @@
  * out the roles Ranza ships.
  */
 
-/** Entitlement key. Staff administration is part of the platform, not a module an Organization buys separately. */
-export const PLATFORM_CORE_MODULE = "platform_core";
-
-/** The Property capability the commercial gates are asked about. */
-export const STAFF_ADMINISTRATION = "staff_administration";
-
-/**
- * Every command the product has, as a permission a role may hold.
- *
- * Restated from `public.staff_permissions`, which is the table a role editor
- * reads and the trigger validates against. This copy exists so a caller can
- * name one without a query and without a string literal, and
- * `tests/database/staff_and_permissions.test.sql` is what fails if the two
- * disagree.
- *
- * Named for the command a person would recognise rather than for the table it
- * touches: `front_desk.check_in` writes a Stay, updates a Reservation and opens
- * a Folio, and nobody administering staff thinks of it as three things.
- */
-export const PERMISSIONS = {
-  book: "front_desk.book",
-  checkIn: "front_desk.check_in",
-  checkOut: "front_desk.check_out",
-  manageFolio: "finance.manage_folio",
-  postCharge: "finance.post_charge",
-  administerStaff: "staff.administer",
-  defineRoles: "staff.define_roles",
-} as const;
-
-export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
-
 /**
  * A membership's place in its Organization.
  *
@@ -60,9 +29,9 @@ export type InvitationStatus = "pending" | "accepted" | "withdrawn" | "expired";
  * How long an unaccepted invitation stands.
  *
  * Seven days, because a password-setting link that never expires is a standing
- * credential (SP-S1-23). Published because a screen has to say when it lapses.
+ * credential (SP-S1-23).
  */
-export const INVITATION_LIFETIME_DAYS = 7;
+const INVITATION_LIFETIME_DAYS = 7;
 
 /**
  * How long a revoke can be taken back.
@@ -71,7 +40,7 @@ export const INVITATION_LIFETIME_DAYS = 7;
  * Properties (SP-S1-22). Carried in the update's own predicate, so a late undo
  * returns no row rather than raising.
  */
-export const UNDO_REVOKE_WINDOW_HOURS = 24;
+const UNDO_REVOKE_WINDOW_HOURS = 24;
 
 /** A Staff Member as the roster shows them. */
 export interface StaffMember {
@@ -184,4 +153,6 @@ export class RoleIsHeldError extends StaffRefusedError {
 }
 
 /** The name is what makes a set of permissions a role (SP-S3-03). */
-export const ROLE_NAME = { min: 1, max: 80 } as const;
+const ROLE_NAME = { min: 1, max: 80 } as const;
+
+export { INVITATION_LIFETIME_DAYS, ROLE_NAME, UNDO_REVOKE_WINDOW_HOURS };

@@ -841,8 +841,6 @@ export function createStaffModule(deps: StaffDeps) {
   };
 }
 
-export type StaffModule = ReturnType<typeof createStaffModule>;
-
 /**
  * Turns a database refusal into the answer that belongs on a screen.
  *
@@ -891,7 +889,7 @@ function translate(error: unknown, fallback: string): unknown {
  * way, which is the point: a role name is unique within its Organization and
  * the key is downstream of that rather than a second identity to keep in step.
  */
-export function roleKeyFor(name: string): string {
+function roleKeyFor(name: string): string {
   const slug = name
     .normalize("NFKD")
     .replace(/[̀-ͯ]/g, "")
