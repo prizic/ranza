@@ -93,14 +93,19 @@ describe("every catalogue parses", () => {
         const translate = t(locale, catalogue[locale]);
         const walk = (node: unknown, path: string[]) => {
           if (typeof node === "string") {
-            // `count`, `n`, `of` and `columns` cover every placeholder in both
-            // catalogues; a value ICU does not need is ignored.
+            // Every placeholder either catalogue uses; a value ICU does not
+            // need is ignored. A new one added to the copy and not to this list
+            // fails here, which is the point — the string it was added for is
+            // formatted by nothing else until a screen renders it.
             expect(() =>
               translate(path.join("."), {
+                columns: "x",
                 count: 2,
+                guest: "x",
+                max: 2,
+                min: 2,
                 n: 2,
                 of: 9,
-                columns: "x",
               }),
             ).not.toThrow();
             return;

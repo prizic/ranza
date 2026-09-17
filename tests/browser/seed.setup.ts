@@ -4,6 +4,7 @@ import path from "node:path";
 import { expect, test as setup } from "@playwright/test";
 
 import { psql } from "./local-database";
+import { testProperty } from "./front-desk";
 
 /**
  * Somebody to sign in as.
@@ -39,4 +40,21 @@ setup("a seeded Staff Member exists", () => {
     seeded.status,
     `pnpm db:seed:dev failed:\n${seeded.stdout}${seeded.stderr}`,
   ).toBe(0);
+});
+
+/**
+ * The Property the browser tests work in, created once.
+ *
+ * It lives here rather than in the specs because this project runs alone and
+ * before them, and the statement that creates it is not atomic: it looks for
+ * the Property and inserts one when there is none. Two specs calling it at the
+ * same moment both looked, both found nothing, and both inserted — which is
+ * invisible until the next run reads two ids back and hands them to psql as one
+ * uuid. That is what CI caught the moment a second spec file made the suite run
+ * two workers.
+ *
+ * By the time any spec calls `testProperty()` it is only ever reading.
+ */
+setup("the browser tests have a Property of their own", () => {
+  testProperty();
 });

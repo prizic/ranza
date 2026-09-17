@@ -28,6 +28,12 @@ export default defineConfig({
   // for and CI asks with an empty cache. It is a ceiling on a hang, not a
   // budget the run spends: a warm machine finishes this in seconds.
   timeout: 90_000,
+  // Longer than the 5s default for the same reason as the test timeout, and it
+  // is the one that bites: a server action is compiled the first time it is
+  // submitted, which happens inside an assertion rather than inside a
+  // navigation. One run failed here after `pnpm check` had rebuilt `.next`
+  // underneath the dev server.
+  expect: { timeout: 15_000 },
   forbidOnly: Boolean(process.env.CI),
   reporter: "list",
   use: {
@@ -43,7 +49,21 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "pnpm --filter @ranza/operator-workspace dev",
+    // Prisma Client is generated, not committed, and the workspace cannot
+    // import `@ranza/db` without it. That is the one way this has produced a
+    // server which starts, stays up, and serves nothing but a module-not-found:
+    // Playwright waits for a URL that answers, a dev server answering 500 is
+    // still answering, and the wait ends in a timeout with the real error
+    // scrolled past above it. Generating takes under a second and makes the
+    // case unreachable — reproduced by deleting the directory, which failed
+    // exactly as CI did, and passes now.
+    //
+    // A server that *exits* needs nothing here. Playwright fails in about a
+    // second and says why — `Process from config.webServer was not able to
+    // start. Exit code: 1` — measured rather than assumed, so that nobody adds
+    // configuration for a case the tool already covers.
+    command:
+      "pnpm --filter @ranza/db generate && pnpm --filter @ranza/operator-workspace dev",
     url: `${WORKSPACE}/en/sign-in`,
     reuseExistingServer: !process.env.CI,
     // A cold `next dev` compiles the route before it answers, and CI starts

@@ -198,13 +198,23 @@ async function checkInAt(
 ): Promise<{ stayId: string; folioId: string | null }> {
   const reservationId = randomUUID();
   await owner.$executeRawUnsafe(
-    `insert into public.reservations
+    `with guest as (
+     -- The Guest is created with the Reservation, because a Reservation
+     -- cannot exist without one. Its own row rather than a string, which is
+     -- what ADR 0024 changed; the helpers' signatures are unchanged because a
+     -- fixture still only cares about the name. (No backticks in this comment:
+     -- the statement is a JS template literal.)
+       insert into public.guests (organization_id, full_name)
+       values ($2::uuid, $5)
+       returning id
+     )
+     insert into public.reservations
        (id, organization_id, property_id, accommodation_unit_id,
-        guest_name, stay_type, status, starts_on, ends_on)
-     select $1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, 'guest', 'confirmed',
+        guest_id, stay_type, status, starts_on, ends_on)
+     select $1::uuid, $2::uuid, $3::uuid, $4::uuid, guest.id, 'guest', 'confirmed',
             (now() at time zone property.timezone)::date,
             (now() at time zone property.timezone)::date + 3
-     from public.properties as property
+     from public.properties as property, guest
      where property.id = $3::uuid`,
     reservationId,
     organizationId,
@@ -247,6 +257,9 @@ afterAll(async () => {
     `delete from public.entitlements where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.subscriptions where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.accommodation_units where organization_id in ('${ORG}','${OTHER_ORG}')`,
+    // After the Reservations that name them: a Guest is reached by a composite
+    // foreign key, so the Organization cannot go while one still stands.
+    `delete from public.guests where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.properties where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.organizations where id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.users where id in ('${MEMBER}','${OUTSIDER}')`,

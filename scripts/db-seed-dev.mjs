@@ -41,6 +41,23 @@ const ARRIVALS = [
   },
 ];
 
+/**
+ * Everyone the seed books in, and an address each.
+ *
+ * The addresses are not decoration: `identifyGuestWithin` matches on an exact
+ * email within an Organization, so booking Ada again from the Reservations
+ * screen finds this row instead of opening a second one. A seeded Guest with no
+ * email could not demonstrate that, and it is the whole reason `guests` is a
+ * table rather than a column.
+ */
+const GUESTS = [
+  ["Ada Lovelace", "ada@example.test"],
+  ["Mimar Sinan", "sinan@example.test"],
+  ["Nezihe Muhiddin", "nezihe@example.test"],
+  ["Cahit Arf", "arf@example.test"],
+  ["Halide Edib", "halide@example.test"],
+];
+
 requireLocalDatabase(DATABASE, {
   name: "db:seed:dev's database URL",
   because:
@@ -145,6 +162,14 @@ psql(`
     select organization.id, wanted.name
     from organization, (values ${values}) as wanted (name)
     returning id, organization_id, timezone
+  ), guest as (
+    insert into public.guests (organization_id, full_name, email)
+    select organization.id, wanted.name, wanted.email
+    from organization,
+         (values ${GUESTS.map(
+           ([name, email]) => `('${name.replaceAll("'", "''")}', '${email}')`,
+         ).join(",")}) as wanted (name, email)
+    returning id, full_name
   ), capability as (
     insert into public.property_capabilities
       (property_id, organization_id, capability_key, enabled)
@@ -197,10 +222,10 @@ psql(`
   ), departing_reservations as (
     insert into public.reservations
       (organization_id, property_id, accommodation_unit_id,
-       guest_name, stay_type, status, starts_on, ends_on)
+       guest_id, stay_type, status, starts_on, ends_on)
     select
       d.organization_id, d.property_id, d.id,
-      wanted.guest, 'guest', 'checked_in',
+      guest.id, 'guest', 'checked_in',
       (now() at time zone property.timezone)::date - wanted.arrived,
       (now() at time zone property.timezone)::date - wanted.leaves
     from departing_units as d
@@ -208,6 +233,7 @@ psql(`
     join (values (1, 'Cahit Arf', 4, 0), (2, 'Halide Edib', 9, 2))
       as wanted (seat, guest, arrived, leaves)
       on wanted.seat = d.seat
+    join guest on guest.full_name = wanted.guest
     returning id, organization_id, property_id, accommodation_unit_id,
               starts_on, ends_on
   ), departing_stays as (
@@ -235,12 +261,12 @@ psql(`
   )
   insert into public.reservations
     (organization_id, property_id, accommodation_unit_id,
-     guest_name, stay_type, status, starts_on, ends_on)
+     guest_id, stay_type, status, starts_on, ends_on)
   select
     arriving.organization_id,
     arriving.property_id,
     arriving.id,
-    wanted.guest,
+    guest.id,
     wanted.stay_type,
     wanted.status,
     (now() at time zone property.timezone)::date,
@@ -253,6 +279,7 @@ psql(`
       `(${index + 1}, '${arrival.guest.replaceAll("'", "''")}', '${arrival.type}', '${arrival.status}', ${arrival.nights})`,
   ).join(",")}) as wanted (seat, guest, stay_type, status, nights)
     on wanted.seat = arriving.seat
+  join guest on guest.full_name = wanted.guest
 `);
 
 console.log(`Seeded ${ORGANIZATION} with ${PROPERTIES.length} Properties.`);

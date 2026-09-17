@@ -18,11 +18,14 @@ import {
   closeEmptyFolioWithin,
   createFoliosModule,
 } from "../../packages/ranza/folios/src";
+import { createTranslator } from "next-intl";
 import {
   CheckInReversalError,
   StayHasChargesError,
   createReservationsModule,
 } from "../../packages/ranza/reservations/src";
+import { supportedLocales } from "../../packages/i18n/src";
+import { messages } from "../../apps/operator-workspace/src/messages";
 import { createPrismaClient } from "../../packages/db/src";
 
 const ORG = "d7000002-0000-4000-8000-000000000001";
@@ -43,6 +46,13 @@ const CONTESTED = randomUUID();
 const RACED = randomUUID();
 const RETURNED = randomUUID();
 const GHOST = randomUUID();
+const PRICED = randomUUID();
+// One per test, not one per describe. Withdrawing a check-in returns the
+// Reservation to `confirmed`, and a confirmed Reservation holds its nights
+// (ADR 0024) — so a second booking on the same Unit over the same nights is
+// refused at creation, and these tests are not about that.
+const UNEXPLAINED = randomUUID();
+const TWICE = randomUUID();
 const REASON = "checked in the wrong one of two Guests arriving together";
 
 /** `(property_id, name)` is unique, so the name has to be per-run as well. */
@@ -67,13 +77,23 @@ async function reserve(
   guestName: string,
 ): Promise<void> {
   await owner.$executeRawUnsafe(
-    `insert into public.reservations
+    `with guest as (
+     -- The Guest is created with the Reservation, because a Reservation
+     -- cannot exist without one. Its own row rather than a string, which is
+     -- what ADR 0024 changed; the helpers' signatures are unchanged because a
+     -- fixture still only cares about the name. (No backticks in this comment:
+     -- the statement is a JS template literal.)
+       insert into public.guests (organization_id, full_name)
+       values ($2::uuid, $5)
+       returning id
+     )
+     insert into public.reservations
        (id, organization_id, property_id, accommodation_unit_id,
-        guest_name, stay_type, status, starts_on, ends_on)
-     select $1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, 'guest', 'confirmed',
+        guest_id, stay_type, status, starts_on, ends_on)
+     select $1::uuid, $2::uuid, $3::uuid, $4::uuid, guest.id, 'guest', 'confirmed',
             (now() at time zone property.timezone)::date,
             (now() at time zone property.timezone)::date + 2
-     from public.properties as property
+     from public.properties as property, guest
      where property.id = $3::uuid`,
     id,
     ORG,
@@ -122,7 +142,10 @@ beforeAll(async () => {
        ($3,$5,$6,$9,'room',2),
        ($4,$5,$6,$10,'room',2),
        ($11,$5,$6,$12,'room',2),
-       ($13,$5,$6,$14,'room',2)
+       ($13,$5,$6,$14,'room',2),
+       ($15,$5,$6,$16,'room',2),
+       ($17,$5,$6,$18,'room',2),
+       ($19,$5,$6,$20,'room',2)
      on conflict (id) do nothing`,
     MISTAKE,
     CHARGED,
@@ -138,6 +161,12 @@ beforeAll(async () => {
     unitName(RETURNED),
     GHOST,
     unitName(GHOST),
+    PRICED,
+    unitName(PRICED),
+    UNEXPLAINED,
+    unitName(UNEXPLAINED),
+    TWICE,
+    unitName(TWICE),
   );
   await owner.$executeRawUnsafe(
     `insert into public.subscriptions (organization_id, status) values ($1,'active')
@@ -206,12 +235,17 @@ describe("withdrawing a check-in", () => {
       stay: "cancelled",
     });
 
-    // And the Unit is lettable again — by the status leaving the exclusion
-    // constraint's partial index, with the dates untouched.
-    const second = reservationId();
-    await reserve(second, MISTAKE, "Right Guest");
-    await expect(reservations.checkIn(MEMBER, second)).resolves.toMatchObject({
-      reservationId: second,
+    // And the Unit is lettable again — by the Stay's status leaving the
+    // exclusion constraint's partial index, with the dates untouched.
+    //
+    // Proved by checking the same Reservation in again rather than by booking a
+    // second one beside it. The withdrawal put this Reservation back to
+    // `confirmed`, so it is holding those nights, and a second confirmed
+    // booking on that Unit is now refused at creation (ADR 0024) — which is the
+    // right answer to "that room is spoken for" and a different question from
+    // the one this test asks.
+    await expect(reservations.checkIn(MEMBER, wrong)).resolves.toMatchObject({
+      reservationId: wrong,
     });
   });
 
@@ -247,7 +281,7 @@ describe("withdrawing a check-in", () => {
 
   it("refuses a reason the audit record would not accept", async () => {
     const wrong = reservationId();
-    await reserve(wrong, CONTESTED, "Unexplained Guest");
+    await reserve(wrong, UNEXPLAINED, "Unexplained Guest");
     const { stayId } = await reservations.checkIn(MEMBER, wrong);
 
     await expect(
@@ -262,7 +296,7 @@ describe("withdrawing a check-in", () => {
 
   it("refuses a second withdrawal rather than reporting success", async () => {
     const wrong = reservationId();
-    await reserve(wrong, CONTESTED, "Twice Guest");
+    await reserve(wrong, TWICE, "Twice Guest");
     const { stayId } = await reservations.checkIn(MEMBER, wrong);
 
     await reservations.reverseCheckIn(MEMBER, stayId, REASON);
@@ -366,6 +400,69 @@ describe("once money exists it is no longer a slip", () => {
       reservation: "checked_in",
       stay: "in_house",
     });
+  });
+
+  /**
+   * And what the front desk is told, which is the whole reason this refusal has
+   * a type of its own.
+   *
+   * Two hops, and each is somewhere a real mistake has been made before. The
+   * first is the `instanceof` the server action branches on: Prisma wraps
+   * errors, and a wrapped one falls through to the generic answer — so it is
+   * asserted against an error a real database raised through the real module,
+   * not a hand-built one. The second is the catalogue, where a missing key
+   * renders as its own name and a malformed plural throws on the screen that
+   * reads it.
+   *
+   * `reverseCheckIn` in `src/server/front-office.ts` is not imported here. It
+   * is a `"use server"` module that reaches `next/cache` and the composition
+   * root, so importing it into a node test would need Next's request context
+   * stubbed — and the stubbing would be most of what the test then proved. The
+   * discrimination it makes is one expression, and it is made here against the
+   * real error instead. `pnpm test:browser` presses the button and reads the
+   * sentence off the screen, which is the hop this cannot reach.
+   */
+  it("is told apart from a refusal, and says money in three languages", async () => {
+    const arrival = reservationId();
+    await reserve(arrival, PRICED, "Priced Guest");
+    const { stayId, folioId } = await reservations.checkIn(MEMBER, arrival);
+
+    await folios.postCharge(MEMBER, {
+      amountMinor: 9_000,
+      description: "Laundry",
+      folioId: folioId!,
+    });
+
+    const refusal = await reservations
+      .reverseCheckIn(MEMBER, stayId, REASON)
+      .then(
+        () => null,
+        (error: unknown) => error,
+      );
+
+    // What the action does with it, and the answer it must not give: every
+    // other failure on this path is `refused`, and this one is not.
+    const outcome =
+      refusal instanceof StayHasChargesError ? "charges" : "refused";
+    expect(outcome).toBe("charges");
+
+    for (const locale of supportedLocales) {
+      const t = createTranslator({
+        locale,
+        messages: messages[locale] as never,
+        // Otherwise a malformed message returns its own key and every
+        // assertion below passes on the name of a string nobody can read.
+        onError: (error) => {
+          throw error;
+        },
+      });
+
+      const said = t("stayHasCharges");
+      expect(said).not.toBe(t("undoCheckInRefused"));
+      // Not the key, which is what next-intl returns for one that is missing.
+      expect(said).not.toContain("stayHasCharges");
+      expect(said.length).toBeGreaterThan(20);
+    }
   });
 });
 

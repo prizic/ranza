@@ -8,11 +8,12 @@ import {
   CircleDashed,
   DoorOpen,
 } from "lucide-react";
-import type { Arrival, Departure } from "@ranza/reservations";
+import type { Arrival, Departure, ReservationRow } from "@ranza/reservations";
 import { DataTableColumnHeader, StatusBadge, type StatusTone } from "@ranza/ui";
 import { formatDate, type SupportedLocale } from "@ranza/i18n";
 import { useSortLabels } from "../../../lib/table-labels";
 import { CheckInAction, CheckOutAction } from "./check-in-action";
+import { UndoCheckInDialog } from "./undo-check-in-dialog";
 
 /**
  * `meta.title` is not decoration: the column menu and the search placeholder
@@ -133,12 +134,31 @@ export function useArrivalColumns(
             reservationId={row.original.reservationId}
           />
         ) : (
-          <div className="flex justify-end">
+          <div className="flex items-center justify-end gap-1">
             <StatusBadge
               icon={RESERVATION_ICON[row.original.status]}
               label={t(`reservationStatus.${row.original.status}`)}
               tone={RESERVATION_TONE[row.original.status]}
             />
+            {/* The badge stays, and the action sits beside it: a state that is
+                only legible from the control offered next to it is a state
+                carried by the control (blueprint 18.5).
+
+                Offered on every row that still names an in-house Stay, not only
+                on the ones that would succeed. Whether charges exist is
+                answered by a trigger in the database for the reason ADR 0022
+                gives, and asking the same question here to decide whether to
+                draw a button would be the weaker of the two — and would hide
+                the one refusal a front desk can act on. */}
+            {row.original.stayId ? (
+              <UndoCheckInDialog
+                guestName={row.original.guestName}
+                locale={locale}
+                reservationId={row.original.reservationId}
+                stayId={row.original.stayId}
+                unitName={row.original.unitName}
+              />
+            ) : null}
           </div>
         ),
     },
@@ -225,6 +245,121 @@ export function useDepartureColumns(
       header: () => <span className="sr-only">{t("action")}</span>,
       cell: ({ row }) => (
         <CheckOutAction locale={locale} stayId={row.original.stayId} />
+      ),
+    },
+  ];
+}
+
+/**
+ * The booking list.
+ *
+ * The same four columns as arrivals, minus the action: there is nothing to do
+ * to a Reservation here yet. Cancelling, amending and assigning a different Unit
+ * are all blueprint 5.3 and none of them is built, so a row action would be a
+ * menu with nothing in it.
+ *
+ * The Guest's email is under their name because it is the only visible evidence
+ * that a returning Guest was recognized rather than duplicated. Two rows showing
+ * one address are one person.
+ */
+export function useReservationColumns(
+  locale: SupportedLocale,
+): ColumnDef<ReservationRow, unknown>[] {
+  const t = useTranslations();
+  const sort = useSortLabels();
+  return [
+    {
+      accessorKey: "guestName",
+      meta: { title: t("guest") },
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          labels={sort}
+          title={t("guest")}
+        />
+      ),
+      cell: ({ row }) => (
+        <div>
+          <p className="font-medium">
+            <bdi>{row.original.guestName}</bdi>
+          </p>
+          <p className="text-step--1 text-muted-foreground">
+            {row.original.guestEmail ? (
+              // Isolated, like every other piece of data in a sentence: an
+              // address is Latin text and sits inside an Arabic column.
+              <bdi>{row.original.guestEmail}</bdi>
+            ) : (
+              t(`stayType.${row.original.stayType}`)
+            )}
+          </p>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "startsOn",
+      meta: { title: t("period") },
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          labels={sort}
+          title={t("period")}
+        />
+      ),
+      cell: ({ row }) => (
+        <p className="whitespace-nowrap text-step--1">
+          <time dateTime={row.original.startsOn}>
+            {day(row.original.startsOn, locale)}
+          </time>
+          {row.original.endsOn ? (
+            <>
+              {" – "}
+              <time dateTime={row.original.endsOn}>
+                {day(row.original.endsOn, locale)}
+              </time>
+            </>
+          ) : (
+            <> · {t("openEnded")}</>
+          )}
+        </p>
+      ),
+    },
+    {
+      accessorKey: "unitName",
+      meta: { title: t("unit") },
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          labels={sort}
+          title={t("unit")}
+        />
+      ),
+      cell: ({ row }) => (
+        <p>
+          <span className="font-medium tabular-nums">
+            {row.original.unitName}
+          </span>
+          <span className="block text-step--1 text-muted-foreground">
+            {t(`unitType.${row.original.unitType}`)}
+          </span>
+        </p>
+      ),
+    },
+    {
+      accessorKey: "status",
+      meta: { title: t("status") },
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          labels={sort}
+          title={t("status")}
+        />
+      ),
+      cell: ({ row }) => (
+        <StatusBadge
+          icon={RESERVATION_ICON[row.original.status]}
+          label={t(`reservationStatus.${row.original.status}`)}
+          tone={RESERVATION_TONE[row.original.status]}
+        />
       ),
     },
   ];

@@ -9,6 +9,32 @@ everything lands under Unreleased.
 
 ## Unreleased
 
+### Added
+
+- `createReservation()`: the first thing in the product that creates one. A
+  Guest and a Reservation in one transaction, with the audit record and the
+  outbox event inside it. Created `confirmed`, because a front desk taking a
+  booking is allocating the Unit.
+- `reservations_no_double_booking`, an exclusion constraint making two confirmed
+  Reservations overlapping on one Accommodation Unit unrepresentable. Left out
+  by [ADR 0012](../../../docs/adr/0012-a-write-is-bounded-by-a-policy-not-a-check.md)
+  while nothing created a Reservation; decided now by
+  [ADR 0024](../../../docs/adr/0024-a-guest-belongs-to-an-organization-and-a-reservation-holds-its-nights.md).
+- `listReservations()` and `listBookableUnits()`: the booking screen's two
+  reads.
+
+### Changed
+
+- A Reservation names a `Guest` rather than carrying a `guest_name` string. The
+  table is owned by [`@ranza/guests`](../guests/README.md); this module writes
+  through `identifyGuestWithin()`.
+- `reservations_period_check` requires a night: `ends_on > starts_on` rather
+  than `>=`. A zero-night booking produced an empty daterange, which overlaps
+  nothing, so it held no Unit while looking exactly like one that did.
+- `UnitUnavailableError` is no longer a subclass of `CheckInError`. It is now
+  the answer to two questions — a check-in and a booking — because availability
+  is one question about a Unit and a period.
+
 ### Fixed
 
 - Check-in refuses a Reservation whose last night is already behind it —
@@ -35,6 +61,17 @@ everything lands under Unreleased.
 
 ### Added
 
+- `Arrival.stayId`: the Stay a Reservation's check-in produced while it is still
+  in house, and null otherwise. `reverseCheckIn` takes a Stay, so without this
+  an arrivals row knew the thing that happened and not the thing to undo.
+  Presentation, on the same footing as `canCheckIn`: it says whether there is a
+  check-in to offer taking back, never whether it may be taken back.
+
+- `REVERSAL_REASON`, the bounds `reverseCheckIn` accepts a reason between. The
+  audit column's own, published because a screen has to stop somebody typing
+  past them and has to say which way a reason missed — restating 3 and 2000 in
+  an application is how a form and the rule it describes drift apart.
+
 - `reverseCheckIn(userId, stayId, reason)`: withdrawing a check-in that should
   not have happened. The Stay becomes `cancelled` — never deleted, never edited
   back to `reserved` — and the Reservation returns to `confirmed`, in one
@@ -54,6 +91,13 @@ everything lands under Unreleased.
   every Organization.
 
 ### Changed
+
+- `listArrivals` keeps a Reservation whose Stay began today, whatever the
+  Reservation planned. A late arrival — somebody due yesterday — left the list
+  the moment they were checked in, because every clause that kept them on it
+  required them not to be `checked_in`. That took the only way to withdraw the
+  check-in with it: a mistake made at 09:00 and noticed at 09:01 had nowhere to
+  be corrected, on the one screen that exists to correct it.
 
 - `checkIn` refuses a Reservation whose first night has not arrived, and one
   whose last night has passed. Without the first, a booking three weeks out

@@ -23,7 +23,8 @@ import type { OutboxSubscription } from "@ranza/platform-outbox";
  *     no module. A provider, a template and a delivery record are three
  *     decisions, not a handler.
  *   - **Post the nightly room charge.** That is the night audit, which needs a
- *     business date first — see `docs/handover/worker-and-react-query.md`.
+ *     business date first (ADR 0021) and, before that, something with a rate to
+ *     charge. Nothing has a price column anywhere.
  *
  * So the machinery landed without one on purpose. The lease, the idempotency
  * and the retry schedule are proved by `tests/integration/outbox.test.ts`

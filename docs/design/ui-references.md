@@ -48,3 +48,35 @@ They are about layout and interaction. The palette and typography are in
 [`visual-reference.md`](visual-reference.md), and how the components are
 organised is
 [ADR 0013](../adr/0013-an-interface-is-shadcn-a-feature-folder-and-a-shared-kit.md).
+
+## The mockup
+
+[`ranza-mockup.html`](ranza-mockup.html) — open it in a browser. Every screen of
+the product as one interactive artefact: seven roles to sign in as, all three
+languages with RTL, light and dark, the Operator Workspace, the resident Portal,
+the Storefront and the Prizic Control Plane. Nothing behind it is real; state
+lasts until the page reloads.
+
+Its `:root` is [`visual-reference.md`](visual-reference.md)'s token block
+verbatim, so it is also the closest thing to a rendering of the palette the
+theme is supposed to reach and does not yet.
+
+**It is a shape reference, not a specification.** It shows what a screen wants to
+be once the module under it exists — not what may be built now. Where it and the
+blueprint disagree the blueprint wins, and where it shows something no approved
+specification covers it is an idea rather than a commitment. Two things it
+invents outright: KBS guest reporting, and a room's men/women/mixed occupancy
+rule. Neither appears in the blueprint.
+
+What it settles, because it is easier to see than to argue about:
+
+- **A bed is a place a Stay goes.** A room is a container with labelled beds, and
+  a shared room is sold per bed. Blueprint 2 already allows this — an
+  Accommodation Unit "may be a room, bed, apartment, suite" — and the mockup is
+  what that reads like at a front desk.
+- **A Guest and a Resident are one record with a kind**, carrying documents, a
+  guardian, an emergency contact and a balance. Blueprint 2 says a Student is a
+  Resident type; the profile screen is the same statement about Guests.
+- **The daily loop is five destinations** — today, front desk, reservations, the
+  rack, night audit — and the other twenty are things you visit, not things you
+  work in.

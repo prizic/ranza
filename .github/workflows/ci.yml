@@ -68,12 +68,8 @@ jobs:
       # Stay behind, and the suites above are entitled to a database nobody has
       # been working in. `pnpm test:browser` starts the application itself and
       # refuses any database that is not this runner's own.
-      #
-      # Prisma Client is generated, not committed, and nothing in this job
-      # needed it until now — psql runs the suites above and the drift check
-      # reads migrations. The workspace imports it, so without this the dev
-      # server cannot resolve `@ranza/db` and the wait for it times out with
-      # the real error scrolled past above it.
-      - run: pnpm --filter @ranza/db generate
+      # Prisma Client is generated rather than committed, and `pnpm test:browser`
+      # generates it as part of starting the server — so there is nothing to do
+      # here but bring a browser.
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:browser

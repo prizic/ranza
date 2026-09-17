@@ -9,6 +9,14 @@ everything lands under Unreleased.
 
 ## Unreleased
 
+### Changed
+
+- The Guest's name on a Folio comes from `public.guests` rather than from
+  `reservations.guest_name`, which is gone
+  ([ADR 0024](../../../docs/adr/0024-a-guest-belongs-to-an-organization-and-a-reservation-holds-its-nights.md)).
+  The join is still left: a Stay that began without a Reservation has no Guest
+  recorded anywhere, and the Unit names them instead.
+
 ### Fixed
 
 - `folio_line_is_postable()` takes a transaction-scoped advisory lock on the

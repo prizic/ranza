@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { psql } from "./local-database";
+import { signIn, testProperty } from "./front-desk";
 
 /**
  * Checking a Guest in, through the screen a front desk actually uses.
@@ -16,83 +17,6 @@ import { psql } from "./local-database";
  * other than "Check in", this fails at the click rather than passing on a
  * selector that matches nothing.
  */
-
-/** From `scripts/db-seed-dev.mjs`, which is the only thing that creates it. */
-const EMAIL = "deniz@example.test";
-const PASSWORD = "correct-horse-battery-staple";
-
-/** Kept away from the demo Property, and named so nobody mistakes it for one. */
-const TEST_PROPERTY = "E2E Test Property";
-
-/**
- * A Property of the browser tests' own.
- *
- * Created once, in the Organization the seeded Staff Member belongs to, so the
- * rows every run leaves behind land somewhere a person is not looking. The demo
- * Property is what `pnpm dev` opens on, and arrivals nobody arranged
- * accumulating on it is a demonstration getting worse each week.
- *
- * Named so it sorts after the demo Properties, because the workspace opens on
- * the first by name and this one has no business being it.
- */
-function testProperty(): string {
-  const propertyId = psql(
-    `with member as (
-       select id from public.users where lower(email) = lower('${EMAIL}')
-     ), home as (
-       -- The Organization the seed granted, reached the way the workspace
-       -- reaches it rather than by name.
-       select property.organization_id as id
-       from public.properties as property
-       join public.property_assignments as assignment
-         on assignment.property_id = property.id
-        and assignment.user_id = (select id from member)
-       order by property.name
-       limit 1
-     ), existing as (
-       select id from public.properties
-       where organization_id = (select id from home)
-         and name = '${TEST_PROPERTY}'
-     ), created as (
-       insert into public.properties (organization_id, name)
-       select (select id from home), '${TEST_PROPERTY}'
-       where not exists (select 1 from existing)
-         and exists (select 1 from home)
-       returning id
-     ), target as (
-       select id from existing union all select id from created
-     ), capability as (
-       -- Today for the Property switcher, front_desk for the screen itself.
-       -- An Entitlement is the Organization's and the seed already granted it.
-       insert into public.property_capabilities
-         (property_id, organization_id, capability_key, enabled)
-       select target.id, (select id from home), wanted.key, true
-       from target, (values ('today'), ('front_desk')) as wanted (key)
-       where not exists (
-         select 1 from public.property_capabilities as held
-         where held.property_id = target.id
-           and held.capability_key = wanted.key
-       )
-     ), assignment as (
-       insert into public.property_assignments
-         (property_id, organization_id, user_id)
-       select target.id, (select id from home), (select id from member)
-       from target
-       where not exists (
-         select 1 from public.property_assignments as held
-         where held.property_id = target.id
-           and held.user_id = (select id from member)
-       )
-     )
-     select id from target`,
-  );
-
-  expect(
-    propertyId,
-    "no seeded Organization to put a test Property in — run pnpm db:seed:dev",
-  ).not.toBe("");
-  return propertyId;
-}
 
 /**
  * A Reservation of this run's own, on a Unit of its own.
@@ -116,28 +40,27 @@ function anArrivalToday(propertyId: string): string {
          (property_id, organization_id, name, unit_type, capacity)
        select id, organization_id, 'E2E-${tag}', 'room', 2 from target
        returning id, property_id, organization_id
+     ), guest as (
+       -- This run's own Guest, like its own Unit and for the same reason: a
+       -- Guest is never deleted either, and a fixed one would collect a
+       -- Reservation per run.
+       insert into public.guests (organization_id, full_name)
+       select organization_id, '${guestName}' from target
+       returning id
      )
      insert into public.reservations
        (organization_id, property_id, accommodation_unit_id,
-        guest_name, stay_type, status, starts_on, ends_on)
+        guest_id, stay_type, status, starts_on, ends_on)
      select unit.organization_id, unit.property_id, unit.id,
-            '${guestName}', 'guest', 'confirmed',
+            guest.id, 'guest', 'confirmed',
             -- The Property's own day, which is what the arrivals list compares
             -- against. The runner's date is somebody else's.
             (now() at time zone target.timezone)::date,
             (now() at time zone target.timezone)::date + 2
-     from unit, target`,
+     from unit, target, guest`,
   );
 
   return guestName;
-}
-
-async function signIn(page: Page): Promise<void> {
-  await page.goto("/en/sign-in");
-  await page.getByLabel("Email").fill(EMAIL);
-  await page.getByLabel("Password").fill(PASSWORD);
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/en\/today$/);
 }
 
 test("a confirmed arrival is checked in from the arrivals screen", async ({
@@ -160,4 +83,167 @@ test("a confirmed arrival is checked in from the arrivals screen", async ({
 
   // The row stays on the list for the rest of the Property's day and says so.
   await expect(row.getByText("Checked in")).toBeVisible();
+});
+
+/**
+ * The loop issue #34 was about, in the screen a front desk actually uses.
+ *
+ * Checking in, taking it back, and checking in again is one story rather than
+ * three assertions: the second check-in is the one that failed on a unique
+ * index for as long as ADR 0022 described a door its own schema had bolted
+ * shut. Proving it from the module is proving it where the index was already
+ * fixed; proving it here is proving that a person can do it.
+ */
+test("a check-in is withdrawn with a reason, and the Reservation arrives again", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const guestName = anArrivalToday(propertyId);
+
+  await signIn(page);
+  await page.goto(`/en/arrivals?property=${propertyId}`);
+  await page.getByRole("searchbox").fill(guestName);
+  const row = page.getByRole("row").filter({ hasText: guestName });
+
+  await row.getByRole("button", { name: "Check in" }).click();
+  await expect(row.getByText("Checked in")).toBeVisible();
+
+  // A regular expression, because the accessible name carries the Guest and the
+  // Guest is wrapped in bidirectional isolates — the characters are in the name
+  // and they are not whitespace.
+  await row.getByRole("button", { name: /Undo check-in for/ }).click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText(guestName)).toBeVisible();
+  await dialog
+    .getByLabel("Reason")
+    .fill("checked in the wrong one of two Guests arriving together");
+  await dialog.getByRole("button", { name: "Undo check-in" }).click();
+
+  // Back to a Reservation somebody can arrive against — which is the dialog
+  // closing as well, because the cell that held it renders a check-in instead.
+  await expect(row.getByRole("button", { name: "Check in" })).toBeVisible();
+  await expect(dialog).toBeHidden();
+
+  // And focus went with it. The control that was pressed no longer exists, so
+  // without this focus lands on the document and a keyboard is back at the top
+  // of the page — on the screen whose whole point is doing the same thing again
+  // for the Guest who should have been checked in.
+  await expect(row.getByRole("button", { name: "Check in" })).toBeFocused();
+
+  // And a second time, which is the half of ADR 0022 that did not work: the
+  // withdrawn Stay went on holding the Reservation and the database refused.
+  await row.getByRole("button", { name: "Check in" }).click();
+  await expect(row.getByText("Checked in")).toBeVisible();
+});
+
+/**
+ * Money against the Stay this Guest is in.
+ *
+ * Posted as the owner rather than through the Finance screen, which does not
+ * exist yet — but through the same table and the same triggers, so the rule
+ * being tested is the real one: `stays_withdrawal_is_free_of_charges` refuses
+ * to cancel a Stay carrying a line, whoever wrote it.
+ */
+function chargeTheStayOf(guestName: string): void {
+  const posted = psql(
+    `insert into public.folio_lines
+       (organization_id, property_id, folio_id,
+        line_type, description, amount_minor)
+     select folio.organization_id, folio.property_id, folio.id,
+            'charge', 'Minibar', 4500
+     from public.folios as folio
+     join public.stays as stay on stay.id = folio.stay_id
+     join public.reservations as reservation
+       on reservation.id = stay.reservation_id
+     join public.guests as guest on guest.id = reservation.guest_id
+     where guest.full_name = '${guestName}'
+       and stay.status = 'in_house'
+     returning id`,
+  );
+
+  expect(
+    posted,
+    "no open Folio to charge — has the test Property lost its finance capability?",
+  ).not.toBe("");
+}
+
+/**
+ * The refusal a front desk can do something about.
+ *
+ * Everything else a withdrawal fails on says "that cannot be withdrawn" and
+ * means it. This one says money exists, which is a different situation with a
+ * different remedy — and it is the sentence, not the refusal, that this test is
+ * about: the error is raised by a trigger, carried by its own type, chosen by
+ * the server action and read out of the catalogue, and every one of those hops
+ * is somewhere it could quietly become the generic one.
+ */
+test("a Stay with charges refuses the withdrawal, and says so", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const guestName = anArrivalToday(propertyId);
+
+  await signIn(page);
+  await page.goto(`/en/arrivals?property=${propertyId}`);
+  await page.getByRole("searchbox").fill(guestName);
+  const row = page.getByRole("row").filter({ hasText: guestName });
+
+  await row.getByRole("button", { name: "Check in" }).click();
+  await expect(row.getByText("Checked in")).toBeVisible();
+  chargeTheStayOf(guestName);
+
+  await row.getByRole("button", { name: /Undo check-in for/ }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Reason").fill("checked in the wrong Guest");
+  await dialog.getByRole("button", { name: "Undo check-in" }).click();
+
+  await expect(dialog.getByRole("alert")).toContainText(
+    "Charges have been posted to this Stay",
+  );
+  // Still open. The dialog goes away by being replaced — a withdrawal that
+  // works leaves a check-in button where the trigger was — so a dialog that is
+  // still here is the refusal being readable rather than flashing past.
+  await expect(dialog).toBeVisible();
+
+  // And nothing moved. Asserted after the dialog is dismissed rather than
+  // around it: while a modal is open the rest of the page is `aria-hidden`, so
+  // the row is not a row to anything reading by role — which is the dialog
+  // being a real one.
+  await dialog.getByRole("button", { name: "Keep check-in" }).click();
+  await expect(row.getByText("Checked in")).toBeVisible();
+});
+
+/**
+ * A reason the field accepted and the module did not.
+ *
+ * Three spaces pass `required` and `minLength` — they are three characters —
+ * and the module measures what it stores, which is the trimmed string. So this
+ * is the one refusal that arrives with the dialog's own field at fault rather
+ * than the Stay, and the only one where what somebody typed is still worth
+ * something: they are going to edit it, not abandon it.
+ */
+test("a reason of spaces is refused, and what was typed survives it", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const guestName = anArrivalToday(propertyId);
+
+  await signIn(page);
+  await page.goto(`/en/arrivals?property=${propertyId}`);
+  await page.getByRole("searchbox").fill(guestName);
+  const row = page.getByRole("row").filter({ hasText: guestName });
+
+  await row.getByRole("button", { name: "Check in" }).click();
+  await expect(row.getByText("Checked in")).toBeVisible();
+
+  await row.getByRole("button", { name: /Undo check-in for/ }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Reason").fill("   ");
+  await dialog.getByRole("button", { name: "Undo check-in" }).click();
+
+  await expect(dialog.getByRole("alert")).toContainText(
+    "A reason of at least 3 characters is needed",
+  );
+  await expect(dialog.getByLabel("Reason")).toHaveValue("   ");
 });

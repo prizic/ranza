@@ -63,6 +63,27 @@ export interface Messages {
   checkedIn: string;
   unitUnavailable: string;
   checkInRefused: string;
+
+  /**
+   * Withdrawing a check-in that should not have happened (ADR 0022).
+   *
+   * `undoCheckInFor` names the Guest, so a list of identical buttons is
+   * distinguishable to a screen reader. It is interpolated after a postposition
+   * in Turkish and Arabic, never into an inflected position, and the name
+   * arrives already isolated.
+   */
+  undoCheckIn: string;
+  undoingCheckIn: string;
+  undoCheckInFor: string;
+  undoCheckInTitle: string;
+  undoCheckInSummary: string;
+  keepCheckIn: string;
+  reason: string;
+  reasonHint: string;
+  reasonTooShort: string;
+  reasonTooLong: string;
+  undoCheckInRefused: string;
+  stayHasCharges: string;
   stayType: Record<"guest" | "resident", string>;
   unitType: Record<"room" | "bed" | "apartment" | "suite", string>;
   reservationStatus: Record<
@@ -85,6 +106,34 @@ export interface Messages {
   checkOutRefused: string;
   noDeparturesTitle: string;
   noDeparturesDescription: string;
+
+  /**
+   * Taking a booking.
+   *
+   * `arrival` is a field label beside the existing `departure`, which the
+   * departures column already owns — one word for one idea, so a screen and a
+   * form cannot end up calling the same date two things.
+   */
+  reservations: string;
+  reservationsAt: string;
+  noReservationsTitle: string;
+  noReservationsDescription: string;
+  newReservation: string;
+  newReservationSummary: string;
+  guestEmail: string;
+  guestEmailHint: string;
+  guestPhone: string;
+  stayTypeLabel: string;
+  arrival: string;
+  departureHint: string;
+  chooseUnit: string;
+  takeBooking: string;
+  takingBooking: string;
+  discardBooking: string;
+  bookingUnavailable: string;
+  bookingPeriodInvalid: string;
+  bookingGuestInvalid: string;
+  bookingRefused: string;
 
   folios: string;
   foliosAt: string;
@@ -216,6 +265,22 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkedIn: "Giriş yapıldı",
     unitUnavailable: "Bu birim seçilen tarihlerde dolu.",
     checkInRefused: "Bu rezervasyon için giriş yapılamıyor.",
+    undoCheckIn: "Girişi geri al",
+    undoingCheckIn: "Geri alınıyor",
+    undoCheckInFor: "{guest} için girişi geri al",
+    undoCheckInTitle: "Bu giriş geri alınsın mı?",
+    undoCheckInSummary:
+      "Konaklama iptal edilir ve rezervasyon yeniden giriş yapılabilir duruma döner. Hiçbir kayıt silinmez; geri alınan giriş kayıtta kalır.",
+    keepCheckIn: "Girişi koru",
+    reason: "Gerekçe",
+    reasonHint: "Geri alma kaydıyla birlikte saklanır.",
+    reasonTooShort:
+      "{min, plural, other {En az # karakterlik bir gerekçe gerekiyor.}}",
+    reasonTooLong:
+      "{max, plural, other {Gerekçe en fazla # karakter olabilir.}}",
+    undoCheckInRefused: "Bu giriş geri alınamıyor.",
+    stayHasCharges:
+      "Bu konaklamaya tutarlar işlendi; artık gerçekleşmiş sayılır ve giriş geri alınamaz. Tutarları Finans'ta düzeltin.",
     stayType: { guest: "Misafir", resident: "Sakin" },
     unitType: {
       room: "Oda",
@@ -246,6 +311,32 @@ export const messages: Record<SupportedLocale, Messages> = {
     noDeparturesTitle: "Bugün çıkış yok",
     noDeparturesDescription:
       "Bu tesiste bugün ayrılması beklenen bir konaklama bulunmuyor.",
+
+    reservations: "Rezervasyonlar",
+    reservationsAt: "Rezervasyonlar —",
+    noReservationsTitle: "İleri tarihli rezervasyon yok",
+    noReservationsDescription:
+      "Bu tesiste bugünden itibaren bir rezervasyon bulunmuyor.",
+    newReservation: "Yeni rezervasyon",
+    newReservationSummary:
+      "Misafir, birim ve geceler. Kaydedildiği anda birim tutulur.",
+    guestEmail: "E-posta",
+    guestEmailHint:
+      "İsteğe bağlı. Kayıtlı bir adres, ikinci bir kayıt açmak yerine aynı misafiri yeniden kullanır.",
+    guestPhone: "Telefon",
+    stayTypeLabel: "Konaklama türü",
+    arrival: "Giriş",
+    departureHint: "Açık uçlu bir rezervasyon için boş bırakın.",
+    chooseUnit: "Birim seçin",
+    takeBooking: "Rezervasyon oluştur",
+    takingBooking: "Oluşturuluyor",
+    discardBooking: "Vazgeç",
+    bookingUnavailable: "Bu birim o geceler için zaten dolu.",
+    bookingPeriodInvalid:
+      "Bu tarihler geçerli bir dönem değil. Rezervasyon en az bir gece sürer ve bugünden önce başlayamaz.",
+    bookingGuestInvalid:
+      "Misafirin adını, e-postasını ve telefonunu kontrol edin.",
+    bookingRefused: "Bu rezervasyon oluşturulamıyor.",
     folios: "Folyolar",
     foliosAt: "Folyolar —",
     allFolios: "Tüm folyolar",
@@ -303,6 +394,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     navigation: {
       today: "Bugün",
       "front-office": "Ön büro",
+      reservations: "Rezervasyonlar",
       arrivals: "Girişler",
       departures: "Çıkışlar",
       "guest-experience": "Konuk deneyimi",
@@ -394,6 +486,22 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkedIn: "Checked in",
     unitUnavailable: "That Unit is occupied for those nights.",
     checkInRefused: "That Reservation cannot be checked in.",
+    undoCheckIn: "Undo check-in",
+    undoingCheckIn: "Undoing",
+    undoCheckInFor: "Undo check-in for {guest}",
+    undoCheckInTitle: "Undo this check-in?",
+    undoCheckInSummary:
+      "The Stay is cancelled and the Reservation becomes arrivable again. Nothing is deleted — the withdrawn check-in stays on the record.",
+    keepCheckIn: "Keep check-in",
+    reason: "Reason",
+    reasonHint: "Recorded with the withdrawal and kept.",
+    reasonTooShort:
+      "{min, plural, one {A reason of at least # character is needed.} other {A reason of at least # characters is needed.}}",
+    reasonTooLong:
+      "{max, plural, one {A reason cannot be longer than # character.} other {A reason cannot be longer than # characters.}}",
+    undoCheckInRefused: "That check-in cannot be withdrawn.",
+    stayHasCharges:
+      "Charges have been posted to this Stay, so it counts as having happened and the check-in can't be undone. Correct the charges in Finance.",
     stayType: { guest: "Guest", resident: "Resident" },
     unitType: {
       room: "Room",
@@ -423,6 +531,32 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutRefused: "That Stay cannot be checked out.",
     noDeparturesTitle: "No departures today",
     noDeparturesDescription: "Nobody is due to leave this Property today.",
+
+    reservations: "Reservations",
+    reservationsAt: "Bookings at",
+    noReservationsTitle: "Nothing booked ahead",
+    noReservationsDescription:
+      "Nothing is booked at this Property from today onwards.",
+    newReservation: "New reservation",
+    newReservationSummary:
+      "The Guest, the Unit and the nights. The Unit is held as soon as this is saved.",
+    guestEmail: "Email",
+    guestEmailHint:
+      "Optional. An address already on file books that same Guest again instead of opening a second record.",
+    guestPhone: "Telephone",
+    stayTypeLabel: "Stay type",
+    arrival: "Arrival",
+    departureHint: "Leave empty for an open-ended Reservation.",
+    chooseUnit: "Choose a Unit",
+    takeBooking: "Create reservation",
+    takingBooking: "Creating",
+    discardBooking: "Cancel",
+    bookingUnavailable: "That Unit is already booked for those nights.",
+    bookingPeriodInvalid:
+      "Those dates are not a period a Reservation can have. It covers at least one night and cannot start before today.",
+    bookingGuestInvalid:
+      "Check the Guest's name, email address and telephone number.",
+    bookingRefused: "That booking cannot be taken.",
     folios: "Folios",
     foliosAt: "Folios at",
     allFolios: "All folios",
@@ -480,6 +614,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     navigation: {
       today: "Today",
       "front-office": "Front Office",
+      reservations: "Reservations",
       arrivals: "Arrivals",
       departures: "Departures",
       "guest-experience": "Guest Experience",
@@ -569,6 +704,22 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkedIn: "تم تسجيل الوصول",
     unitUnavailable: "هذه الوحدة محجوزة في تلك الليالي.",
     checkInRefused: "لا يمكن تسجيل الوصول لهذا الحجز.",
+    undoCheckIn: "التراجع عن تسجيل الوصول",
+    undoingCheckIn: "جارٍ التراجع",
+    undoCheckInFor: "التراجع عن تسجيل الوصول لـ {guest}",
+    undoCheckInTitle: "هل تريد التراجع عن تسجيل الوصول؟",
+    undoCheckInSummary:
+      "تُلغى الإقامة ويعود الحجز قابلاً لتسجيل الوصول من جديد. لا يُحذف شيء — يبقى تسجيل الوصول المسحوب في السجل.",
+    keepCheckIn: "إبقاء تسجيل الوصول",
+    reason: "السبب",
+    reasonHint: "يُحفَظ مع سجل التراجع.",
+    reasonTooShort:
+      "{min, plural, zero {يلزم سبب من حرف واحد على الأقل.} one {يلزم سبب من حرف واحد على الأقل.} two {يلزم سبب من حرفين على الأقل.} few {يلزم سبب من # أحرف على الأقل.} many {يلزم سبب من # حرفًا على الأقل.} other {يلزم سبب من # حرف على الأقل.}}",
+    reasonTooLong:
+      "{max, plural, zero {لا يمكن أن يزيد السبب على حرف واحد.} one {لا يمكن أن يزيد السبب على حرف واحد.} two {لا يمكن أن يزيد السبب على حرفين.} few {لا يمكن أن يزيد السبب على # أحرف.} many {لا يمكن أن يزيد السبب على # حرفًا.} other {لا يمكن أن يزيد السبب على # حرف.}}",
+    undoCheckInRefused: "لا يمكن التراجع عن تسجيل الوصول هذا.",
+    stayHasCharges:
+      "سُجِّلت مبالغ على هذه الإقامة، لذلك تُعدّ قد حدثت فعلًا ولا يمكن التراجع عن تسجيل الوصول. صحِّح المبالغ من قسم المالية.",
     stayType: { guest: "ضيف", resident: "مقيم" },
     unitType: {
       room: "غرفة",
@@ -598,6 +749,29 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutRefused: "لا يمكن تسجيل مغادرة هذه الإقامة.",
     noDeparturesTitle: "لا توجد مغادرات اليوم",
     noDeparturesDescription: "لا أحد من المقرر أن يغادر هذه المنشأة اليوم.",
+
+    reservations: "الحجوزات",
+    reservationsAt: "الحجوزات في",
+    noReservationsTitle: "لا توجد حجوزات قادمة",
+    noReservationsDescription: "لا يوجد حجز في هذه المنشأة من اليوم فصاعدًا.",
+    newReservation: "حجز جديد",
+    newReservationSummary: "الضيف والوحدة والليالي. تُحجز الوحدة فور الحفظ.",
+    guestEmail: "البريد الإلكتروني",
+    guestEmailHint:
+      "اختياري. العنوان المسجَّل يعيد استخدام الضيف نفسه بدل فتح سجل ثانٍ.",
+    guestPhone: "الهاتف",
+    stayTypeLabel: "نوع الإقامة",
+    arrival: "الوصول",
+    departureHint: "اتركه فارغًا لحجز مفتوح المدة.",
+    chooseUnit: "اختر وحدة",
+    takeBooking: "إنشاء الحجز",
+    takingBooking: "جارٍ الإنشاء",
+    discardBooking: "إلغاء",
+    bookingUnavailable: "هذه الوحدة محجوزة بالفعل لتلك الليالي.",
+    bookingPeriodInvalid:
+      "هذه التواريخ ليست مدة صالحة. يغطي الحجز ليلة واحدة على الأقل ولا يبدأ قبل اليوم.",
+    bookingGuestInvalid: "تحقق من اسم الضيف وبريده الإلكتروني وهاتفه.",
+    bookingRefused: "لا يمكن إنشاء هذا الحجز.",
     folios: "الحسابات",
     foliosAt: "الحسابات في",
     allFolios: "كل الحسابات",
@@ -657,6 +831,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     navigation: {
       today: "اليوم",
       "front-office": "المكتب الأمامي",
+      reservations: "الحجوزات",
       arrivals: "الوصول",
       departures: "المغادرة",
       "guest-experience": "تجربة الضيف",
