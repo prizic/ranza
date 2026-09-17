@@ -235,6 +235,44 @@ confirm the test goes red.** Point `DATABASE_URL` at a privileged role, invert a
 assertion, remove a grant. A test that cannot fail is worse than no test, because
 it is mistaken for evidence.
 
+Two things a sabotage run has to do, both learned the hard way:
+
+**Show that what you changed actually changed**, before the red result counts.
+`create or replace function` cannot alter a return type — it fails, and a
+sabotage script that ignores the failure runs the suite against the original
+function and reports green. That green reads as "the assertion does not catch
+this", which is the opposite of the truth. Print the new signature, the new
+policy expression, the new index predicate, and only then believe the result.
+
+**An assertion must not raise when the object is missing.** `has_function_privilege`
+on an absent function raises and takes the rest of the transaction with it, so
+the suite reports the failures before that point and goes silent on the ones
+after — fewer failures than exist, which is the wrong direction to be wrong in.
+Read the catalogue instead: `pg_proc.proacl`, `pg_policies.qual`,
+`information_schema.column_privileges`. They return no row rather than throwing,
+and no row is an assertion that fails cleanly.
+
+**A sabotage that produces no red has told you something.** The assertion is not
+wrong — it is passing for a different reason than the one in its name, and the
+thing it claims to guard is untested. Find the condition under which the two
+reasons diverge and assert that, or record that none exists and say which reason
+binds. Silence is the finding; do not read it as "nothing to see".
+
+It has happened twice here in two days, both in the same shape — a broad
+guarantee sitting behind a narrower one that subsumes it:
+
+- `app.guest_stay_summary()` checks the caller's Organization _and_ the
+  capability. The capability is asked about the Guest's Organization and
+  reaching a Property there requires membership there, so it implies the
+  Organization check: deleting that clause failed nothing. The two never
+  diverge, so the clause is untested and stays only because a future change to
+  the shared helper would widen the function silently. RG-S1-17.
+- The Guest search filters on `organization_id` _and_ runs under
+  `guests_read_own_organization`. The policy already hides the row, so deleting
+  the filter failed nothing. They diverge for a Staff Member who belongs to two
+  Organizations — the policy admits both and only the filter picks one — and
+  that is now the assertion. RG-S1-01.
+
 Fixtures for anything date-shaped are relative to the Property's own today,
 never a fixed date. Fixed dates are what made checking somebody in weeks early
 the normal case in two suites that were otherwise asserting the right things.
