@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Boxes,
+  CalendarDays,
   ChefHat,
   BellRing,
   Hotel,
@@ -22,7 +23,7 @@ import {
  * module" — so these are not the section 5 modules and do not map one to one
  * onto them.
  *
- * Three are built. The rest are routes with a stated purpose and nothing behind
+ * Four are built. The rest are routes with a stated purpose and nothing behind
  * them, which is the honest shape while blueprint section 13 forbids building
  * tables ahead of the workflows that need them. `docs/handover/operator-workspace-screens.md`
  * says what each one needs first.
@@ -66,6 +67,14 @@ export const SCREENS: Screen[] = [
     blueprint: "5.3",
     built: true,
     children: [
+      {
+        segment: "reservations",
+        capability: "front_desk",
+        module: "front_office",
+        icon: CalendarDays,
+        blueprint: "5.3",
+        built: true,
+      },
       {
         segment: "arrivals",
         capability: "front_desk",

@@ -9,6 +9,32 @@ everything lands under Unreleased.
 
 ## Unreleased
 
+### Added
+
+- `createReservation()`: the first thing in the product that creates one. A
+  Guest and a Reservation in one transaction, with the audit record and the
+  outbox event inside it. Created `confirmed`, because a front desk taking a
+  booking is allocating the Unit.
+- `reservations_no_double_booking`, an exclusion constraint making two confirmed
+  Reservations overlapping on one Accommodation Unit unrepresentable. Left out
+  by [ADR 0012](../../../docs/adr/0012-a-write-is-bounded-by-a-policy-not-a-check.md)
+  while nothing created a Reservation; decided now by
+  [ADR 0024](../../../docs/adr/0024-a-guest-belongs-to-an-organization-and-a-reservation-holds-its-nights.md).
+- `listReservations()` and `listBookableUnits()`: the booking screen's two
+  reads.
+
+### Changed
+
+- A Reservation names a `Guest` rather than carrying a `guest_name` string. The
+  table is owned by [`@ranza/guests`](../guests/README.md); this module writes
+  through `identifyGuestWithin()`.
+- `reservations_period_check` requires a night: `ends_on > starts_on` rather
+  than `>=`. A zero-night booking produced an empty daterange, which overlaps
+  nothing, so it held no Unit while looking exactly like one that did.
+- `UnitUnavailableError` is no longer a subclass of `CheckInError`. It is now
+  the answer to two questions — a check-in and a booking — because availability
+  is one question about a Unit and a period.
+
 ### Fixed
 
 - Check-in refuses a Reservation whose last night is already behind it —

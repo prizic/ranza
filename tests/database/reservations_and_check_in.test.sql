@@ -86,24 +86,39 @@ insert into public.property_capabilities
   ('3c222222-2222-4222-8222-222222222222',
    '3b111111-1111-4111-8111-111111111111', 'front_desk', true);
 
+-- The people the Reservations below are for. Organization-scoped, so the
+-- composite foreign key on (guest_id, organization_id) is what makes "this
+-- Reservation names another Organization's Guest" unrepresentable.
+insert into public.guests (id, organization_id, full_name, email) values
+  ('3aa11111-1111-4111-8111-111111111111',
+   '3a111111-1111-4111-8111-111111111111', 'Ada Lovelace', 'ada@example.test'),
+  ('3aa22222-2222-4222-8222-222222222222',
+   '3a111111-1111-4111-8111-111111111111', 'Katherine Johnson', null),
+  ('3aa33333-3333-4333-8333-333333333333',
+   '3a111111-1111-4111-8111-111111111111', 'Returning Guest', null),
+  ('3aa44444-4444-4444-8444-444444444444',
+   '3a111111-1111-4111-8111-111111111111', 'Hedy Lamarr', null),
+  ('3bb11111-1111-4111-8111-111111111111',
+   '3b111111-1111-4111-8111-111111111111', 'Grace Hopper', null);
+
 insert into public.reservations
   (id, organization_id, property_id, accommodation_unit_id,
-   guest_name, stay_type, status, starts_on, ends_on) values
+   guest_id, stay_type, status, starts_on, ends_on) values
   ('3e111111-1111-4111-8111-111111111111',
    '3a111111-1111-4111-8111-111111111111',
    '3c111111-1111-4111-8111-111111111111',
    '3d111111-1111-4111-8111-111111111111',
-   'Ada Lovelace', 'guest', 'confirmed', date '2026-10-01', date '2026-10-04'),
+   '3aa11111-1111-4111-8111-111111111111', 'guest', 'confirmed', date '2026-10-01', date '2026-10-04'),
   ('3e222222-2222-4222-8222-222222222222',
    '3b111111-1111-4111-8111-111111111111',
    '3c222222-2222-4222-8222-222222222222',
    '3d555555-5555-4555-8555-555555555555',
-   'Grace Hopper', 'guest', 'confirmed', date '2026-10-01', date '2026-10-04'),
+   '3bb11111-1111-4111-8111-111111111111', 'guest', 'confirmed', date '2026-10-01', date '2026-10-04'),
   ('3e333333-3333-4333-8333-333333333333',
    '3a111111-1111-4111-8111-111111111111',
    '3c111111-1111-4111-8111-111111111111',
    '3d333333-3333-4333-8333-333333333333',
-   'Katherine Johnson', 'resident', 'confirmed',
+   '3aa22222-2222-4222-8222-222222222222', 'resident', 'confirmed',
    date '2026-10-01', date '2026-10-05');
 
 -- The Resident's own current Stay, which is the whole of their reach (ADR 0009).
@@ -131,11 +146,11 @@ select is_empty('select id from public.reservations',
 select throws_ok(
   $$insert into public.reservations
       (organization_id, property_id, accommodation_unit_id,
-       guest_name, stay_type, starts_on, ends_on)
+       guest_id, stay_type, starts_on, ends_on)
     values ('3a111111-1111-4111-8111-111111111111',
             '3c111111-1111-4111-8111-111111111111',
             '3d111111-1111-4111-8111-111111111111',
-            'Nobody', 'guest', date '2026-11-01', date '2026-11-03')$$,
+            '3aa11111-1111-4111-8111-111111111111', 'guest', date '2026-11-01', date '2026-11-03')$$,
   '42501', NULL,
   'without request context no Reservation can be written');
 
@@ -146,18 +161,19 @@ select throws_ok(
 select app.set_request_context('31111111-1111-4111-8111-111111111111');
 
 select set_eq(
-  'select guest_name from public.reservations',
+  'select guest.full_name from public.reservations as reservation
+     join public.guests as guest on guest.id = reservation.guest_id',
   array['Ada Lovelace', 'Katherine Johnson'],
   'a Staff Member sees the Reservations of a Property they reach, and no others');
 
 select lives_ok(
   $$insert into public.reservations
       (organization_id, property_id, accommodation_unit_id,
-       guest_name, stay_type, starts_on, ends_on)
+       guest_id, stay_type, starts_on, ends_on)
     values ('3a111111-1111-4111-8111-111111111111',
             '3c111111-1111-4111-8111-111111111111',
             '3d111111-1111-4111-8111-111111111111',
-            'Hedy Lamarr', 'guest', date '2026-11-01', date '2026-11-03')$$,
+            '3aa44444-4444-4444-8444-444444444444', 'guest', date '2026-11-01', date '2026-11-03')$$,
   'a Staff Member creates a Reservation in a Property they reach');
 
 -- The row this refuses is entirely self-consistent: Organization B really does
@@ -165,11 +181,11 @@ select lives_ok(
 select throws_ok(
   $$insert into public.reservations
       (organization_id, property_id, accommodation_unit_id,
-       guest_name, stay_type, starts_on, ends_on)
+       guest_id, stay_type, starts_on, ends_on)
     values ('3b111111-1111-4111-8111-111111111111',
             '3c222222-2222-4222-8222-222222222222',
             '3d555555-5555-4555-8555-555555555555',
-            'Intruder', 'guest', date '2026-11-01', date '2026-11-03')$$,
+            '3bb11111-1111-4111-8111-111111111111', 'guest', date '2026-11-01', date '2026-11-03')$$,
   '42501', NULL,
   'a Reservation cannot be written into another Organization''s Property');
 
@@ -179,11 +195,11 @@ select throws_ok(
 select throws_ok(
   $$insert into public.reservations
       (organization_id, property_id, accommodation_unit_id,
-       guest_name, stay_type, starts_on, ends_on)
+       guest_id, stay_type, starts_on, ends_on)
     values ('3a111111-1111-4111-8111-111111111111',
             '3c222222-2222-4222-8222-222222222222',
             '3d555555-5555-4555-8555-555555555555',
-            'Intruder', 'guest', date '2026-11-01', date '2026-11-03')$$,
+            '3aa11111-1111-4111-8111-111111111111', 'guest', date '2026-11-01', date '2026-11-03')$$,
   '42501', NULL,
   'supplying a reachable organization_id does not open another Property');
 
@@ -194,22 +210,22 @@ select throws_ok(
 select throws_ok(
   $$insert into public.reservations
       (organization_id, property_id, accommodation_unit_id,
-       guest_name, stay_type, starts_on, ends_on)
+       guest_id, stay_type, starts_on, ends_on)
     values ('3b111111-1111-4111-8111-111111111111',
             '3c111111-1111-4111-8111-111111111111',
             '3d111111-1111-4111-8111-111111111111',
-            'Intruder', 'guest', date '2026-11-01', date '2026-11-03')$$,
+            '3bb11111-1111-4111-8111-111111111111', 'guest', date '2026-11-01', date '2026-11-03')$$,
   '23503', NULL,
   'a Property cannot be relabelled into another Organization');
 
 select throws_ok(
   $$insert into public.reservations
       (organization_id, property_id, accommodation_unit_id,
-       guest_name, stay_type, starts_on, ends_on)
+       guest_id, stay_type, starts_on, ends_on)
     values ('3a111111-1111-4111-8111-111111111111',
             '3c111111-1111-4111-8111-111111111111',
             '3d555555-5555-4555-8555-555555555555',
-            'Intruder', 'guest', date '2026-11-01', date '2026-11-03')$$,
+            '3aa11111-1111-4111-8111-111111111111', 'guest', date '2026-11-01', date '2026-11-03')$$,
   '23503', NULL,
   'a Unit from another Property cannot be reserved');
 
@@ -278,11 +294,11 @@ select is_empty('select id from public.reservations',
 select throws_ok(
   $$insert into public.reservations
       (organization_id, property_id, accommodation_unit_id,
-       guest_name, stay_type, starts_on, ends_on)
+       guest_id, stay_type, starts_on, ends_on)
     values ('3a111111-1111-4111-8111-111111111111',
             '3c111111-1111-4111-8111-111111111111',
             '3d111111-1111-4111-8111-111111111111',
-            'Self Service', 'guest', date '2026-11-01', date '2026-11-03')$$,
+            '3aa11111-1111-4111-8111-111111111111', 'guest', date '2026-11-01', date '2026-11-03')$$,
   '42501', NULL,
   'a Resident cannot create a Reservation, not even in their own Property');
 
@@ -677,11 +693,11 @@ select app.set_request_context('31111111-1111-4111-8111-111111111111');
 select throws_ok(
   $$insert into public.reservations
       (organization_id, property_id, accommodation_unit_id,
-       guest_name, stay_type, starts_on, ends_on)
+       guest_id, stay_type, starts_on, ends_on)
     values ('3a111111-1111-4111-8111-111111111111',
             '3c111111-1111-4111-8111-111111111111',
             '3d111111-1111-4111-8111-111111111111',
-            'Lapsed', 'guest', date '2026-12-01', date '2026-12-03')$$,
+            '3aa11111-1111-4111-8111-111111111111', 'guest', date '2026-12-01', date '2026-12-03')$$,
   '42501', NULL,
   'gate 1 denies the write: a suspended Subscription creates nothing');
 
@@ -713,11 +729,11 @@ select app.set_request_context('31111111-1111-4111-8111-111111111111');
 select throws_ok(
   $$insert into public.reservations
       (organization_id, property_id, accommodation_unit_id,
-       guest_name, stay_type, starts_on, ends_on)
+       guest_id, stay_type, starts_on, ends_on)
     values ('3a111111-1111-4111-8111-111111111111',
             '3c111111-1111-4111-8111-111111111111',
             '3d111111-1111-4111-8111-111111111111',
-            'Disabled', 'guest', date '2026-12-01', date '2026-12-03')$$,
+            '3aa11111-1111-4111-8111-111111111111', 'guest', date '2026-12-01', date '2026-12-03')$$,
   '42501', NULL,
   'gate 3 denies the write: a Property without the capability creates nothing');
 reset role;
@@ -791,12 +807,12 @@ insert into public.accommodation_units
 
 insert into public.reservations
   (id, organization_id, property_id, accommodation_unit_id,
-   guest_name, stay_type, status, starts_on, ends_on) values
+   guest_id, stay_type, status, starts_on, ends_on) values
   ('3e444444-4444-4444-8444-444444444444',
    '3a111111-1111-4111-8111-111111111111',
    '3c111111-1111-4111-8111-111111111111',
    '3d999999-9999-4999-8999-999999999999',
-   'Returning Guest', 'guest', 'confirmed',
+   '3aa33333-3333-4333-8333-333333333333', 'guest', 'confirmed',
    app.property_today('3c111111-1111-4111-8111-111111111111'),
    app.property_today('3c111111-1111-4111-8111-111111111111') + 2);
 

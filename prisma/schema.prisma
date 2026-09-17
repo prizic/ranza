@@ -63,6 +63,7 @@ model Organization {
   memberships  OrganizationMembership[]
   subscription Subscription?
   entitlements Entitlement[]
+  guests       Guest[]
 
   @@map("organizations")
 }
@@ -155,6 +156,49 @@ model PropertyAssignment {
   @@map("property_assignments")
 }
 
+/// A person a Reservation or a Stay is for (blueprint section 2). A Guest is
+/// short-term and a Resident is long-term; both are people, and this is the
+/// person rather than the stay.
+///
+/// Owned by an **Organization** rather than by a Property, which is the one
+/// place this table breaks the pattern every other tenant-owned row follows —
+/// see ADR 0024. Everything a Guest exists for beyond one booking (a history
+/// across two Stays, duplicate review, a document, a guardian; blueprint 18.7)
+/// is an Organization-wide question, and a Property-scoped Guest could not
+/// answer any of it without a merge later.
+///
+/// Not a Ranza user. Somebody is booked in long before they sign in and most
+/// never do; `stays.user_id` is the separate, nullable fact that gives one a
+/// Portal (ADR 0009).
+model Guest {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  fullName       String   @map("full_name")
+  /// Stored trimmed and lowercased — `guests_email_is_normalized` requires it,
+  /// because the partial unique below is over the stored value and two
+  /// spellings of one address is exactly the duplicate this table exists to
+  /// avoid. Null when the front desk was given none, which is normal.
+  email          String?
+  phone          String?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  reservations Reservation[]
+
+  /// What a Reservation's composite foreign key resolves against, so a
+  /// Reservation naming another Organization's Guest is unrepresentable rather
+  /// than merely checked.
+  @@unique([id, organizationId])
+  /// An exact address within one Organization is one person. Partial, because
+  /// a Guest with no email is not a key and must not collide with the next
+  /// person who also gave none — and because guessing that two of them are the
+  /// same is the automatic merge blueprint 18.7 forbids.
+  @@unique([organizationId, email], map: "guests_organization_email_key", where: raw("email IS NOT NULL"))
+  @@index([organizationId], map: "guests_organization_idx")
+  @@map("guests")
+}
+
 /// A planned allocation of an Accommodation Unit for a period, which may become
 /// a Stay through check-in (blueprint 2, 5.3).
 ///
@@ -170,9 +214,10 @@ model Reservation {
   organizationId      String    @map("organization_id") @db.Uuid
   propertyId          String    @map("property_id") @db.Uuid
   accommodationUnitId String    @map("accommodation_unit_id") @db.Uuid
-  /// Who the allocation is for. A Reservation names a Guest before that Guest
-  /// has any identity in Ranza, so this is a name and not a user reference.
-  guestName           String    @map("guest_name")
+  /// Who the allocation is for. A Guest record rather than a name, so two
+  /// bookings for one person are one person — which is what lets a Stay have a
+  /// history and what `guest_name` could not express.
+  guestId             String    @map("guest_id") @db.Uuid
   /// Which kind of Stay a check-in would produce. Short-term is a Guest,
   /// long-term is a Resident; both are Stays (ADR 0004).
   stayType            String    @map("stay_type")
@@ -184,6 +229,7 @@ model Reservation {
 
   property Property          @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
   unit     AccommodationUnit @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  guest    Guest             @relation(fields: [guestId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
   /// Several, of which at most one is not cancelled. A withdrawn check-in keeps
   /// its `reservation_id` so the mistake stays visible (ADR 0022), and the
   /// partial unique on `stays` is what stops a second live one.
@@ -191,6 +237,7 @@ model Reservation {
 
   @@unique([id, propertyId, organizationId])
   @@index([propertyId, startsOn], map: "reservations_property_arrival_idx")
+  @@index([guestId], map: "reservations_guest_idx")
   @@map("reservations")
 }
 

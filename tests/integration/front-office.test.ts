@@ -18,6 +18,8 @@ import {
   CheckInError,
   CheckOutError,
   createReservationsModule,
+  ReservationPeriodError,
+  ReservationRefusedError,
   UnitUnavailableError,
 } from "../../packages/ranza/reservations/src";
 import type { Arrival } from "../../packages/ranza/reservations/src";
@@ -43,6 +45,16 @@ const DATED = "d4000004-0000-4000-8000-00000000000c";
 const RECORDED = "d4000004-0000-4000-8000-00000000000d";
 const DEPARTED = "d4000004-0000-4000-8000-00000000000e";
 const WITHDRAWN = "d4000004-0000-4000-8000-00000000000f";
+// Units of their own. reservations_no_double_booking means two confirmed
+// Reservations can no longer share one over the same nights (ADR 0024), so
+// describes that used to borrow a neighbour's Unit now bring their own.
+const CHECKING_IN = "d4000004-0000-4000-8000-000000000010";
+const DEPARTING_C = "d4000004-0000-4000-8000-000000000011";
+const LATE_AGAIN = "d4000004-0000-4000-8000-000000000012";
+const OTHER_SECOND = "d4000004-0000-4000-8000-000000000013";
+const OTHER_THIRD = "d4000004-0000-4000-8000-000000000014";
+const BOOKED = "d4000004-0000-4000-8000-000000000015";
+const BOOKED_AGAIN = "d4000004-0000-4000-8000-000000000016";
 const MEMBER = "d4000001-0000-4000-8000-000000000001";
 const OUTSIDER = "d4000001-0000-4000-8000-000000000002";
 
@@ -106,7 +118,14 @@ async function seed() {
        ($16,$4,$6,'FD-111','room',2),
        ($17,$4,$6,'FD-112','room',2),
        ($18,$4,$6,'FD-113','room',2),
-       ($19,$4,$6,'FD-114','room',2)
+       ($19,$4,$6,'FD-114','room',2),
+       ($20,$4,$6,'FD-115','room',2),
+       ($21,$4,$6,'FD-116','room',2),
+       ($22,$4,$6,'FD-117','room',2),
+       ($23,$5,$7,'FD-202','suite',4),
+       ($24,$5,$7,'FD-203','suite',4),
+       ($25,$4,$6,'FD-118','room',2),
+       ($26,$4,$6,'FD-119','room',2)
      on conflict (id) do nothing`,
     UNIT,
     CONTESTED,
@@ -127,6 +146,13 @@ async function seed() {
     RECORDED,
     DEPARTED,
     WITHDRAWN,
+    CHECKING_IN,
+    DEPARTING_C,
+    LATE_AGAIN,
+    OTHER_SECOND,
+    OTHER_THIRD,
+    BOOKED,
+    BOOKED_AGAIN,
   );
   await owner.$executeRawUnsafe(
     `insert into public.subscriptions (organization_id, status) values
@@ -168,6 +194,25 @@ async function seed() {
 }
 
 /**
+ * A date relative to the Property's own today, as `YYYY-MM-DD`.
+ *
+ * Computed by the database in the Property's timezone, like every other date in
+ * this file: a fixture built from the runner's clock passes in Istanbul and
+ * fails in CI.
+ */
+async function propertyDay(days: number): Promise<string> {
+  const [row] = await owner.$queryRawUnsafe<{ day: string }[]>(
+    `select to_char((now() at time zone property.timezone)::date + $2::int,
+                    'YYYY-MM-DD') as day
+       from public.properties as property
+      where property.id = $1::uuid`,
+    PROPERTY,
+    days,
+  );
+  return row!.day;
+}
+
+/**
  * A Reservation arriving today at its own Property.
  *
  * The date is computed by the database in the Property's timezone rather than in
@@ -186,15 +231,25 @@ async function reserve(
   endsOn: number | null | undefined = undefined,
 ): Promise<void> {
   await owner.$executeRawUnsafe(
-    `insert into public.reservations
+    `with guest as (
+     -- The Guest is created with the Reservation, because a Reservation
+     -- cannot exist without one. Its own row rather than a string, which is
+     -- what ADR 0024 changed; the helpers' signatures are unchanged because a
+     -- fixture still only cares about the name. (No backticks in this comment:
+     -- the statement is a JS template literal.)
+       insert into public.guests (organization_id, full_name)
+       values ($2::uuid, $5)
+       returning id
+     )
+     insert into public.reservations
        (id, organization_id, property_id, accommodation_unit_id,
-        guest_name, stay_type, status, starts_on, ends_on)
-     select $1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, $8, 'confirmed',
+        guest_id, stay_type, status, starts_on, ends_on)
+     select $1::uuid, $2::uuid, $3::uuid, $4::uuid, guest.id, $8, 'confirmed',
             (now() at time zone property.timezone)::date + $6::int,
             case when $7::int is null then null
                  else (now() at time zone property.timezone)::date + $7::int
             end
-     from public.properties as property
+     from public.properties as property, guest
      where property.id = $3::uuid
      on conflict (id) do nothing`,
     id,
@@ -237,6 +292,9 @@ afterAll(async () => {
     `delete from public.subscriptions where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from outbox.events where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.accommodation_units where organization_id in ('${ORG}','${OTHER_ORG}')`,
+    // After the Reservations that name them: a Guest is reached by a composite
+    // foreign key, so the Organization cannot go while one still stands.
+    `delete from public.guests where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.properties where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.organizations where id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.users where id in ('${MEMBER}','${OUTSIDER}')`,
@@ -307,8 +365,7 @@ describe("arrivals that are no longer arriving", () => {
   const EXPIRED = reservationId();
   const LATE = reservationId();
   const TODAY_DONE = reservationId();
-  const NO_NIGHT = reservationId();
-  const OWN = [LONG_GONE, EXPIRED, LATE, TODAY_DONE, NO_NIGHT];
+  const OWN = [LONG_GONE, EXPIRED, LATE, TODAY_DONE];
 
   /** This describe's own rows: the fixtures above are still on the list. */
   const mine = (arrivals: Arrival[]) =>
@@ -328,15 +385,12 @@ describe("arrivals that are no longer arriving", () => {
       to: 2,
     });
     await reserve(TODAY_DONE, PROPERTY, ORG, DEPARTING_A, "Already Here");
-    // Arriving today, leaving today: no night in it. On the list, because
-    // today's bookings are the day's work and the front desk has to be able to
-    // see what happened to it — but not checkable in, because the Stay would be
-    // an empty daterange that overlaps nothing and the Unit would take a second
-    // Guest tonight. The one row where the old flag still offered the button.
-    await reserve(NO_NIGHT, PROPERTY, ORG, DEPARTING_B, "No Night", {
-      from: 0,
-      to: 0,
-    });
+    // There used to be a fifth row here: a Reservation arriving and leaving on
+    // the same day, which was on the list, was not checkable in, and was the
+    // one row the old `canCheckIn` flag still offered the button for. It is
+    // gone because it can no longer exist — reservations_period_check requires
+    // a night (ADR 0024) — which is the stronger version of the same fix. The
+    // `ends_on > today` clause in `canCheckIn` stays as the second line.
     await owner.$executeRawUnsafe(
       `update public.reservations set status = 'checked_in'
         where id = any($1::uuid[])`,
@@ -348,16 +402,13 @@ describe("arrivals that are no longer arriving", () => {
     const listed = mine(await reservations.listArrivals(MEMBER, PROPERTY));
     expect(listed.map((arrival) => arrival.guestName).sort()).toEqual([
       "Already Here",
-      "No Night",
       "One Day Late",
     ]);
   });
 
   /**
-   * `canCheckIn` against the three rows that survive. The last of them is the
-   * one that matters: a booking arriving and leaving on the same day is on the
-   * list and is not checkable, and the old flag — `status = 'confirmed'`, with
-   * no date in it — offered the button anyway.
+   * `canCheckIn` against the two rows that survive: a late arrival who can
+   * still be taken, and somebody who arrived days ago and is already in.
    */
   it("offers check-in only where check-in would succeed", async () => {
     const listed = mine(await reservations.listArrivals(MEMBER, PROPERTY));
@@ -367,19 +418,15 @@ describe("arrivals that are no longer arriving", () => {
     expect(offered).toEqual({
       "One Day Late": true,
       "Already Here": false,
-      "No Night": false,
     });
   });
 
   /**
-   * And the flag agrees with the rule rather than restating it: the same two
-   * rows it declines to offer are the two `checkIn` refuses. This is the pair
-   * that drifted apart, so it is asserted as a pair.
+   * And the flag agrees with the rule rather than restating it: the row it
+   * declines to offer is the row `checkIn` refuses. This is the pair that
+   * drifted apart, so it is asserted as a pair.
    */
   it("agrees with check-in about the rows it will not offer", async () => {
-    await expect(reservations.checkIn(MEMBER, NO_NIGHT)).rejects.toThrow(
-      CheckInError,
-    );
     await expect(reservations.checkIn(MEMBER, EXPIRED)).rejects.toThrow(
       CheckInError,
     );
@@ -448,7 +495,7 @@ describe("checking in", () => {
   const TO_CHECK_IN = reservationId();
 
   beforeAll(async () => {
-    await reserve(TO_CHECK_IN, PROPERTY, ORG, UNIT, "Hedy Lamarr");
+    await reserve(TO_CHECK_IN, PROPERTY, ORG, CHECKING_IN, "Hedy Lamarr");
   });
 
   it("creates the Stay, moves the Reservation, and records who did it", async () => {
@@ -466,7 +513,7 @@ describe("checking in", () => {
     );
     expect(stay?.status).toBe("in_house");
     expect(stay?.reservationId).toBe(TO_CHECK_IN);
-    expect(stay?.unitId).toBe(UNIT);
+    expect(stay?.unitId).toBe(CHECKING_IN);
 
     const [reservation] = await owner.$queryRawUnsafe<{ status: string }[]>(
       `select status from public.reservations where id = $1::uuid`,
@@ -487,7 +534,7 @@ describe("checking in", () => {
 
   it("refuses a Reservation belonging to another Organization", async () => {
     const OTHERS = reservationId();
-    await reserve(OTHERS, OTHER_PROPERTY, OTHER_ORG, OTHER_UNIT, "Intruder");
+    await reserve(OTHERS, OTHER_PROPERTY, OTHER_ORG, OTHER_SECOND, "Intruder");
 
     await expect(reservations.checkIn(MEMBER, OTHERS)).rejects.toThrow();
 
@@ -595,7 +642,7 @@ describe("checking in", () => {
   // dates every charge that is ever posted per night to the wrong day.
   it("starts the Stay on the day the Guest actually arrived", async () => {
     const LATE = reservationId();
-    await reserve(LATE, PROPERTY, ORG, OTHER_IN_PROPERTY, "Two Days Late", {
+    await reserve(LATE, PROPERTY, ORG, LATE_AGAIN, "Two Days Late", {
       from: -2,
       to: 3,
     });
@@ -630,9 +677,13 @@ describe("a failed check-in leaves nothing half-done", () => {
       from: -1,
       to: 4,
     });
-    // Overlaps FIRST on the same Unit. Two Reservations may overlap — whether
-    // that is allowed is an overbooking policy nobody has written — but two
-    // current Stays may not.
+    // Checked in first, and only then is the overlapping booking taken. That
+    // order is not arrangement for its own sake: two *confirmed* Reservations
+    // can no longer overlap on one Unit, so the only way one Unit is promised
+    // twice over one set of nights is over a Guest who is already in it
+    // (ADR 0024). It is the gap that constraint leaves, and this is what
+    // catches it.
+    await reservations.checkIn(MEMBER, FIRST);
     await reserve(SECOND, PROPERTY, ORG, TAKEN, "Dorothy Vaughan", {
       from: 0,
       to: 6,
@@ -640,8 +691,6 @@ describe("a failed check-in leaves nothing half-done", () => {
   });
 
   it("rolls back the Reservation and the audit record when the Unit is taken", async () => {
-    await reservations.checkIn(MEMBER, FIRST);
-
     await expect(reservations.checkIn(MEMBER, SECOND)).rejects.toBeInstanceOf(
       UnitUnavailableError,
     );
@@ -675,30 +724,177 @@ describe("a failed check-in leaves nothing half-done", () => {
   });
 });
 
-describe("two people pressing the button at once", () => {
-  const LEFT = reservationId();
-  const RIGHT = reservationId();
+describe("taking a booking", () => {
+  it("records the Guest and the Reservation, and shows them on the list", async () => {
+    const created = await reservations.createReservation(MEMBER, {
+      propertyId: PROPERTY,
+      accommodationUnitId: BOOKED,
+      guestName: "Nezihe Muhiddin",
+      guestEmail: "Nezihe@Example.Test",
+      guestPhone: "+90 212 000 00 00",
+      stayType: "guest",
+      startsOn: await propertyDay(30),
+      endsOn: await propertyDay(33),
+    });
+    expect(created.guestCreated).toBe(true);
 
-  beforeAll(async () => {
-    // RACED rather than CONTESTED: a Stay is in house only from the day it
-    // starts, so every check-in in this file now competes for the same few
-    // nights and two describes sharing a Unit would block each other.
-    await reserve(LEFT, PROPERTY, ORG, RACED, "Annie Easley", {
-      from: -1,
-      to: 4,
+    const listed = await reservations.listReservations(MEMBER, PROPERTY);
+    const booking = listed.find(
+      (row) => row.reservationId === created.reservationId,
+    );
+    expect(booking).toMatchObject({
+      guestName: "Nezihe Muhiddin",
+      // Normalized on the way in, because the unique index is over the stored
+      // value and two spellings of one address is the duplicate `guests` exists
+      // to prevent.
+      guestEmail: "nezihe@example.test",
+      status: "confirmed",
+      unitId: BOOKED,
     });
-    await reserve(RIGHT, PROPERTY, ORG, RACED, "Melba Roy", {
-      from: 0,
-      to: 5,
-    });
+
+    // The audit record is in the same transaction as both writes, so an action
+    // nobody recorded is not a state this can reach.
+    const history = await audit.historyOf(
+      MEMBER,
+      "reservation",
+      created.reservationId,
+    );
+    expect(history.map((entry) => entry.action)).toEqual([
+      "reservation.created",
+    ]);
+    expect(history[0]?.context).toMatchObject({ guestId: created.guestId });
   });
 
-  it("produces exactly one Stay, and the loser fails on the constraint", async () => {
+  it("books the same person again rather than opening a second record", async () => {
+    const again = await reservations.createReservation(MEMBER, {
+      propertyId: PROPERTY,
+      accommodationUnitId: BOOKED_AGAIN,
+      // A different spelling of the name and the same address. Blueprint 18.7
+      // forbids merging ambiguous people automatically; an exact address is not
+      // ambiguous, and the profile is left exactly as it was.
+      guestName: "N. Muhiddin",
+      guestEmail: "nezihe@example.test",
+      guestPhone: null,
+      stayType: "resident",
+      startsOn: await propertyDay(30),
+      endsOn: null,
+    });
+    expect(again.guestCreated).toBe(false);
+
+    const [guest] = await owner.$queryRawUnsafe<{ fullName: string }[]>(
+      `select full_name as "fullName" from public.guests where id = $1::uuid`,
+      again.guestId,
+    );
+    expect(guest?.fullName).toBe("Nezihe Muhiddin");
+
+    const bookings = await owner.$queryRawUnsafe<{ id: string }[]>(
+      `select id from public.reservations where guest_id = $1::uuid`,
+      again.guestId,
+    );
+    expect(bookings).toHaveLength(2);
+  });
+
+  it("refuses a Unit in a Property the viewer cannot reach", async () => {
+    await expect(
+      reservations.createReservation(MEMBER, {
+        propertyId: OTHER_PROPERTY,
+        accommodationUnitId: OTHER_UNIT,
+        guestName: "Refused Booking",
+        guestEmail: null,
+        guestPhone: null,
+        stayType: "guest",
+        startsOn: await propertyDay(40),
+        endsOn: await propertyDay(42),
+      }),
+    ).rejects.toBeInstanceOf(ReservationRefusedError);
+
+    // And nothing was written on the way to being refused: the Unit is read
+    // before the Guest, so a refused booking leaves no profile behind.
+    const guests = await owner.$queryRawUnsafe<{ id: string }[]>(
+      `select id from public.guests where full_name = $1`,
+      "Refused Booking",
+    );
+    expect(guests).toEqual([]);
+  });
+
+  it("refuses dates that are not a period a Reservation can have", async () => {
+    const day = await propertyDay(0);
+    const shape = {
+      propertyId: PROPERTY,
+      accommodationUnitId: BOOKED,
+      guestName: "No Night",
+      guestEmail: null,
+      guestPhone: null,
+      stayType: "guest" as const,
+    };
+
+    // No night in it. An empty daterange overlaps nothing, so this would hold
+    // the Unit against nobody.
+    await expect(
+      reservations.createReservation(MEMBER, {
+        ...shape,
+        startsOn: day,
+        endsOn: day,
+      }),
+    ).rejects.toBeInstanceOf(ReservationPeriodError);
+
+    // Behind the Property's own day, not the runner's.
+    await expect(
+      reservations.createReservation(MEMBER, {
+        ...shape,
+        startsOn: await propertyDay(-1),
+        endsOn: await propertyDay(2),
+      }),
+    ).rejects.toBeInstanceOf(ReservationPeriodError);
+
+    // A day that does not exist. It matches the pattern and parses as the 3rd
+    // of March, so a regular expression alone would book a different week.
+    await expect(
+      reservations.createReservation(MEMBER, {
+        ...shape,
+        startsOn: "2027-02-31",
+        endsOn: "2027-03-04",
+      }),
+    ).rejects.toBeInstanceOf(ReservationPeriodError);
+  });
+});
+
+describe("two people booking at once", () => {
+  /**
+   * The race moved with the constraint.
+   *
+   * It used to be two check-ins on one Unit, which `stays_no_double_booking`
+   * decided. That is no longer reachable through this module: two confirmed
+   * Reservations cannot overlap, and any two Reservations that can both be
+   * checked in today both cover tonight — so the Reservation constraint fires
+   * first and the Stay one never gets the question (ADR 0024). It is still
+   * there, and the check-out test above is what still reaches it.
+   *
+   * So the concurrent question is asked where it now lives: two clerks taking
+   * the same booking at the same moment.
+   */
+  it("produces exactly one Reservation, and the loser fails on the constraint", async () => {
+    const booking = {
+      propertyId: PROPERTY,
+      accommodationUnitId: RACED,
+      guestEmail: null,
+      guestPhone: null,
+      stayType: "guest" as const,
+      startsOn: await propertyDay(14),
+      endsOn: await propertyDay(18),
+    };
+
     // Two clients, so these are two connections racing rather than two promises
     // taking turns on one.
     const outcomes = await Promise.allSettled([
-      reservations.checkIn(MEMBER, LEFT),
-      rivalReservations.checkIn(MEMBER, RIGHT),
+      reservations.createReservation(MEMBER, {
+        ...booking,
+        guestName: "Annie Easley",
+      }),
+      rivalReservations.createReservation(MEMBER, {
+        ...booking,
+        guestName: "Melba Roy",
+      }),
     ]);
 
     const won = outcomes.filter((outcome) => outcome.status === "fulfilled");
@@ -712,15 +908,24 @@ describe("two people pressing the button at once", () => {
     const reason = (lost[0] as PromiseRejectedResult).reason;
     expect(reason).toBeInstanceOf(UnitUnavailableError);
 
-    const stays = await owner.$queryRawUnsafe<{ id: string }[]>(
-      `select id from public.stays
-       where accommodation_unit_id = $1::uuid
-         and reservation_id in ($2::uuid, $3::uuid)`,
+    const booked = await owner.$queryRawUnsafe<{ id: string }[]>(
+      `select id from public.reservations
+       where accommodation_unit_id = $1::uuid and status = 'confirmed'`,
       RACED,
-      LEFT,
-      RIGHT,
     );
-    expect(stays).toHaveLength(1);
+    expect(booked).toHaveLength(1);
+
+    // And the Guest the loser described is not on file either: the whole
+    // booking is one transaction, so a profile nobody asked for is not what a
+    // refused booking leaves behind.
+    const guests = await owner.$queryRawUnsafe<{ id: string }[]>(
+      `select id from public.guests
+       where organization_id = $1::uuid and full_name in ($2, $3)`,
+      ORG,
+      "Annie Easley",
+      "Melba Roy",
+    );
+    expect(guests).toHaveLength(1);
   });
 });
 
@@ -732,18 +937,23 @@ describe("checking out", () => {
     // The first is booked until tomorrow and leaves today; the second arrives
     // today. They genuinely overlap until that early departure is recorded,
     // which is what makes this test about check-out rather than about `[)`.
-    await reserve(ARRIVING, PROPERTY, ORG, CONTESTED, "Sabiha Gökçen", {
+    //
+    // The second is booked after the first has been checked in, because that is
+    // the only order in which one Unit can be promised twice over one set of
+    // nights now (ADR 0024) — and it is the order a front desk produces when
+    // somebody is leaving early.
+    await reserve(ARRIVING, PROPERTY, ORG, DEPARTING_C, "Sabiha Gökçen", {
       from: -2,
       to: 1,
-    });
-    await reserve(WAITING, PROPERTY, ORG, CONTESTED, "Cahit Arf", {
-      from: 0,
-      to: 3,
     });
   });
 
   it("frees the Unit by recording when they actually left", async () => {
     const { stayId } = await reservations.checkIn(MEMBER, ARRIVING);
+    await reserve(WAITING, PROPERTY, ORG, DEPARTING_C, "Cahit Arf", {
+      from: 0,
+      to: 3,
+    });
 
     // Before the departure the Unit is held: the exclusion constraint refuses
     // the overlap rather than the application noticing it.
@@ -885,7 +1095,7 @@ describe("checking out", () => {
       reservation,
       OTHER_PROPERTY,
       OTHER_ORG,
-      OTHER_UNIT,
+      OTHER_THIRD,
       "Intruder",
     );
     const { stayId } = await rivalReservations.checkIn(OUTSIDER, reservation);

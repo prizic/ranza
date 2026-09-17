@@ -107,6 +107,34 @@ export interface Messages {
   noDeparturesTitle: string;
   noDeparturesDescription: string;
 
+  /**
+   * Taking a booking.
+   *
+   * `arrival` is a field label beside the existing `departure`, which the
+   * departures column already owns — one word for one idea, so a screen and a
+   * form cannot end up calling the same date two things.
+   */
+  reservations: string;
+  reservationsAt: string;
+  noReservationsTitle: string;
+  noReservationsDescription: string;
+  newReservation: string;
+  newReservationSummary: string;
+  guestEmail: string;
+  guestEmailHint: string;
+  guestPhone: string;
+  stayTypeLabel: string;
+  arrival: string;
+  departureHint: string;
+  chooseUnit: string;
+  takeBooking: string;
+  takingBooking: string;
+  discardBooking: string;
+  bookingUnavailable: string;
+  bookingPeriodInvalid: string;
+  bookingGuestInvalid: string;
+  bookingRefused: string;
+
   folios: string;
   foliosAt: string;
   allFolios: string;
@@ -283,6 +311,32 @@ export const messages: Record<SupportedLocale, Messages> = {
     noDeparturesTitle: "Bugün çıkış yok",
     noDeparturesDescription:
       "Bu tesiste bugün ayrılması beklenen bir konaklama bulunmuyor.",
+
+    reservations: "Rezervasyonlar",
+    reservationsAt: "Rezervasyonlar —",
+    noReservationsTitle: "İleri tarihli rezervasyon yok",
+    noReservationsDescription:
+      "Bu tesiste bugünden itibaren bir rezervasyon bulunmuyor.",
+    newReservation: "Yeni rezervasyon",
+    newReservationSummary:
+      "Misafir, birim ve geceler. Kaydedildiği anda birim tutulur.",
+    guestEmail: "E-posta",
+    guestEmailHint:
+      "İsteğe bağlı. Kayıtlı bir adres, ikinci bir kayıt açmak yerine aynı misafiri yeniden kullanır.",
+    guestPhone: "Telefon",
+    stayTypeLabel: "Konaklama türü",
+    arrival: "Giriş",
+    departureHint: "Açık uçlu bir rezervasyon için boş bırakın.",
+    chooseUnit: "Birim seçin",
+    takeBooking: "Rezervasyon oluştur",
+    takingBooking: "Oluşturuluyor",
+    discardBooking: "Vazgeç",
+    bookingUnavailable: "Bu birim o geceler için zaten dolu.",
+    bookingPeriodInvalid:
+      "Bu tarihler geçerli bir dönem değil. Rezervasyon en az bir gece sürer ve bugünden önce başlayamaz.",
+    bookingGuestInvalid:
+      "Misafirin adını, e-postasını ve telefonunu kontrol edin.",
+    bookingRefused: "Bu rezervasyon oluşturulamıyor.",
     folios: "Folyolar",
     foliosAt: "Folyolar —",
     allFolios: "Tüm folyolar",
@@ -340,6 +394,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     navigation: {
       today: "Bugün",
       "front-office": "Ön büro",
+      reservations: "Rezervasyonlar",
       arrivals: "Girişler",
       departures: "Çıkışlar",
       "guest-experience": "Konuk deneyimi",
@@ -476,6 +531,32 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutRefused: "That Stay cannot be checked out.",
     noDeparturesTitle: "No departures today",
     noDeparturesDescription: "Nobody is due to leave this Property today.",
+
+    reservations: "Reservations",
+    reservationsAt: "Bookings at",
+    noReservationsTitle: "Nothing booked ahead",
+    noReservationsDescription:
+      "Nothing is booked at this Property from today onwards.",
+    newReservation: "New reservation",
+    newReservationSummary:
+      "The Guest, the Unit and the nights. The Unit is held as soon as this is saved.",
+    guestEmail: "Email",
+    guestEmailHint:
+      "Optional. An address already on file books that same Guest again instead of opening a second record.",
+    guestPhone: "Telephone",
+    stayTypeLabel: "Stay type",
+    arrival: "Arrival",
+    departureHint: "Leave empty for an open-ended Reservation.",
+    chooseUnit: "Choose a Unit",
+    takeBooking: "Create reservation",
+    takingBooking: "Creating",
+    discardBooking: "Cancel",
+    bookingUnavailable: "That Unit is already booked for those nights.",
+    bookingPeriodInvalid:
+      "Those dates are not a period a Reservation can have. It covers at least one night and cannot start before today.",
+    bookingGuestInvalid:
+      "Check the Guest's name, email address and telephone number.",
+    bookingRefused: "That booking cannot be taken.",
     folios: "Folios",
     foliosAt: "Folios at",
     allFolios: "All folios",
@@ -533,6 +614,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     navigation: {
       today: "Today",
       "front-office": "Front Office",
+      reservations: "Reservations",
       arrivals: "Arrivals",
       departures: "Departures",
       "guest-experience": "Guest Experience",
@@ -667,6 +749,29 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutRefused: "لا يمكن تسجيل مغادرة هذه الإقامة.",
     noDeparturesTitle: "لا توجد مغادرات اليوم",
     noDeparturesDescription: "لا أحد من المقرر أن يغادر هذه المنشأة اليوم.",
+
+    reservations: "الحجوزات",
+    reservationsAt: "الحجوزات في",
+    noReservationsTitle: "لا توجد حجوزات قادمة",
+    noReservationsDescription: "لا يوجد حجز في هذه المنشأة من اليوم فصاعدًا.",
+    newReservation: "حجز جديد",
+    newReservationSummary: "الضيف والوحدة والليالي. تُحجز الوحدة فور الحفظ.",
+    guestEmail: "البريد الإلكتروني",
+    guestEmailHint:
+      "اختياري. العنوان المسجَّل يعيد استخدام الضيف نفسه بدل فتح سجل ثانٍ.",
+    guestPhone: "الهاتف",
+    stayTypeLabel: "نوع الإقامة",
+    arrival: "الوصول",
+    departureHint: "اتركه فارغًا لحجز مفتوح المدة.",
+    chooseUnit: "اختر وحدة",
+    takeBooking: "إنشاء الحجز",
+    takingBooking: "جارٍ الإنشاء",
+    discardBooking: "إلغاء",
+    bookingUnavailable: "هذه الوحدة محجوزة بالفعل لتلك الليالي.",
+    bookingPeriodInvalid:
+      "هذه التواريخ ليست مدة صالحة. يغطي الحجز ليلة واحدة على الأقل ولا يبدأ قبل اليوم.",
+    bookingGuestInvalid: "تحقق من اسم الضيف وبريده الإلكتروني وهاتفه.",
+    bookingRefused: "لا يمكن إنشاء هذا الحجز.",
     folios: "الحسابات",
     foliosAt: "الحسابات في",
     allFolios: "كل الحسابات",
@@ -726,6 +831,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     navigation: {
       today: "اليوم",
       "front-office": "المكتب الأمامي",
+      reservations: "الحجوزات",
       arrivals: "الوصول",
       departures: "المغادرة",
       "guest-experience": "تجربة الضيف",

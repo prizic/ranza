@@ -1,8 +1,8 @@
 # @ranza/reservations
 
 The Reservation — a planned allocation of an Accommodation Unit for a period,
-which may become a Stay through check-in (blueprint sections 2 and 5.3) — and
-the check-in itself.
+which may become a Stay through check-in (blueprint sections 2 and 5.3) —
+together with taking one, checking it in, and checking it out.
 
 This is the product's **first write path**. Everything tenant-owned before it
 was `SELECT` only for `ranza_app`, with one exception the audit module owns.
@@ -13,7 +13,13 @@ which every later module is expected to copy.
 ## What this module owns
 
 The `reservations` table, its policies and its grants, in
-[`prisma/migrations/20260916000900_reservations`](../../../prisma/migrations/20260916000900_reservations/migration.sql).
+[`prisma/migrations/20260916000900_reservations`](../../../prisma/migrations/20260916000900_reservations/migration.sql),
+and `reservations_no_double_booking` in
+[`prisma/migrations/20260916002000_guests_and_reservation_creation`](../../../prisma/migrations/20260916002000_guests_and_reservation_creation/migration.sql).
+
+Taking a booking also records a Guest, which [`@ranza/guests`](../guests/README.md)
+owns. It goes through `identifyGuestWithin` for the same reason check-in goes
+through `openStayWithin`.
 
 Check-in and check-out write to `stays`, which `@ranza/stays` owns. They do it
 through `openStayWithin` and `closeStayWithin` rather than issuing their own
@@ -37,6 +43,9 @@ a policy is ever consulted.
 
 ```ts
 const reservations = createReservationsModule({ db }); // the ranza_app client
+await reservations.listReservations(userId, propertyId);
+await reservations.listBookableUnits(userId, propertyId);
+await reservations.createReservation(userId, booking);
 await reservations.listArrivals(userId, propertyId);
 await reservations.listDepartures(userId, propertyId);
 await reservations.checkIn(userId, reservationId);
@@ -54,8 +63,27 @@ checked in on an earlier day. Cancelled and no-show Reservations were never on
 it, because they are not arriving.
 
 `canCheckIn` is the predicate `checkIn` applies, not a restatement of it. A row
-can be listed and not offered — a booking arriving and leaving on the same day
-is the case that matters — and nothing offered should raise when pressed.
+can be listed and not offered — somebody already checked in today is the case
+that remains — and nothing offered should raise when pressed.
+
+`createReservation` is the first thing in the product that makes one. A Guest
+and a Reservation in one transaction, with the audit record and the outbox event
+inside it, because a Guest recorded for a booking that was refused is a profile
+nobody asked for. Everything written comes from the row the Unit query returned,
+never from the caller — the Organization above all.
+
+It writes `confirmed`, not `requested`: a front desk taking a booking is
+allocating the Unit, and only a confirmed Reservation holds its nights under
+`reservations_no_double_booking`. `requested` is what a booking engine or a
+channel will write when one exists, and confirming it will then be the act that
+has to pass that constraint ([ADR 0024](../../../docs/adr/0024-a-guest-belongs-to-an-organization-and-a-reservation-holds-its-nights.md)).
+
+`listReservations` is the booking list: what is current or still ahead at one
+Property. It exists because a Reservation taken for a fortnight's time never
+appears on the arrivals list, so without it creating one has no observable
+effect. `listBookableUnits` returns every Unit in service rather than every free
+Unit — whether particular nights are free is the constraint's answer, and a list
+filtered here would be stale before anybody pressed the button.
 
 `checkIn` does three things in one transaction — creates the Stay, moves the
 Reservation to `checked_in`, and writes an audit record naming the actor
@@ -64,9 +92,11 @@ behind it, a Reservation marked arrived with nobody in a room, and an action
 with no audit record are each worse than the check-in not happening, and each is
 what a second transaction would eventually produce.
 
-Two concurrent check-ins on one Unit over overlapping nights end with exactly
-one Stay. The loser fails on `stays_no_double_booking`, an exclusion constraint,
-rather than on a comparison the application made and lost.
+Two clerks taking the same booking at the same moment end with exactly one
+Reservation. The loser fails on `reservations_no_double_booking`, an exclusion
+constraint, rather than on a comparison the application made and lost — and
+`stays_no_double_booking` says the same thing one layer down, for the case a
+booking over a Guest who is already in house still reaches.
 
 `checkOut` ends a Stay and frees the Unit, in one transaction with its audit
 record. It sets `ends_on` to the day they actually left rather than leaving the
@@ -83,14 +113,22 @@ left on Tuesday, which is the row a front desk most needs.
 `CheckInError` covers every reason a Reservation could not be checked in — out
 of reach, cancelled, already arrived, never existed. One type on purpose: told
 apart, the first of them would confirm that a Reservation the caller cannot see
-is there. `UnitUnavailableError` extends it and is the exception, because a
-Unit already being occupied is the one failure a front desk can act on.
+is there. `ReservationRefusedError` is the same shape for a booking that could
+not be taken.
+
+Two failures stand outside that, because they hide nothing and the person
+looking at the screen can fix them. `UnitUnavailableError` says the Unit is
+already held over those nights — the answer to both a booking and a check-in, so
+it belongs to neither. `ReservationPeriodError` says the dates are not a period
+a Reservation can have: ending before it starts, covering no night, or starting
+before the Property's own today.
 
 ## What is deliberately not here
 
 Blueprint 5.3 also lists group reservations, quotations, deposits, availability
 search, extensions, room moves and no-show handling. None of them are in this
-module. `no_show` exists as a status value because the lifecycle needs the value
+module. Nothing cancels or amends a Reservation either, which is why the booking
+list has no row actions. `no_show` exists as a status value because the lifecycle needs the value
 to exist, not because anything here sets it.
 
 Room moves are the one worth naming: they are refused by a column-level grant

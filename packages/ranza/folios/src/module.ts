@@ -135,7 +135,7 @@ function folioQuery(predicate: string, order = ""): string {
       stay.id                               as "stayId",
       folio.status                          as "status",
       folio.currency                        as "currency",
-      coalesce(reservation.guest_name, '')  as "guestName",
+      coalesce(guest.full_name, '')         as "guestName",
       unit.name                             as "unitName",
       coalesce(sum(line.amount_minor), 0)::text as "balanceMinor",
       count(line.id)::int                   as "lineCount"
@@ -146,11 +146,15 @@ function folioQuery(predicate: string, order = ""): string {
       on unit.id = stay.accommodation_unit_id
     left join public.reservations as reservation
       on reservation.id = stay.reservation_id
+    -- Left, because the Reservation is: a Stay that began without one has no
+    -- Guest recorded anywhere, and the Unit names them instead.
+    left join public.guests as guest
+      on guest.id = reservation.guest_id
     left join public.folio_lines as line
       on line.folio_id = folio.id
     where ${predicate}
       and app.can_use_capability(folio.property_id, $2, $3)
-    group by folio.id, stay.id, unit.name, reservation.guest_name
+    group by folio.id, stay.id, unit.name, guest.full_name
     ${order}`;
 }
 

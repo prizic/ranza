@@ -7,7 +7,12 @@ import type { CapabilityRef, EntitledProperty } from "@ranza/core";
 import { FOLIO_CAPABILITY } from "@ranza/folios";
 import type { FolioDetail, FolioSummary } from "@ranza/folios";
 import { FRONT_DESK_CAPABILITY } from "@ranza/reservations";
-import type { Arrival, Departure } from "@ranza/reservations";
+import type {
+  Arrival,
+  BookableUnit,
+  Departure,
+  ReservationRow,
+} from "@ranza/reservations";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import { getComposition } from "./composition";
 
@@ -33,7 +38,14 @@ import { getComposition } from "./composition";
 // is absolute rather than carved out for constants: an exception is the crack
 // through which a direct query eventually arrives.
 export { TODAY_CAPABILITY, FRONT_DESK_CAPABILITY, FOLIO_CAPABILITY };
-export type { Arrival, Departure, FolioDetail, FolioSummary };
+export type {
+  Arrival,
+  BookableUnit,
+  Departure,
+  FolioDetail,
+  FolioSummary,
+  ReservationRow,
+};
 
 export interface Viewer {
   /** Ranza user id — what app.current_user_id() returns. Never a subject. */
@@ -137,6 +149,45 @@ export async function departures(
   const viewer = await currentViewer();
   if (!viewer) return [];
   return getComposition().reservations.listDepartures(
+    viewer.userId,
+    propertyId,
+  );
+}
+
+/**
+ * The Property's current and upcoming Reservations — the booking list.
+ *
+ * Same funnel and same non-checking as `arrivals`: a Property the viewer cannot
+ * reach produces an empty list because the policies and the capability gate
+ * decide that, not a condition here.
+ *
+ * Not `cache`d, for the same reason none of the front-desk reads are: taking a
+ * booking changes this, and the request that took one then re-reads must see it.
+ */
+export async function reservations(
+  propertyId: string,
+): Promise<readonly ReservationRow[]> {
+  const viewer = await currentViewer();
+  if (!viewer) return [];
+  return getComposition().reservations.listReservations(
+    viewer.userId,
+    propertyId,
+  );
+}
+
+/**
+ * The Units a booking may be placed on.
+ *
+ * Every Unit in service, not the free ones. Availability over particular nights
+ * is an exclusion constraint's answer, and a list filtered here would be true
+ * when the page rendered and stale by the time somebody pressed the button.
+ */
+export async function bookableUnits(
+  propertyId: string,
+): Promise<readonly BookableUnit[]> {
+  const viewer = await currentViewer();
+  if (!viewer) return [];
+  return getComposition().reservations.listBookableUnits(
     viewer.userId,
     propertyId,
   );

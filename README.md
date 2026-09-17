@@ -39,8 +39,9 @@ packages/
   ranza/                  Ranza domain modules (core domain)
     core/                 Organization, Property, membership, Entitlement reads
     accommodation/        Accommodation Units inside a Property
+    guests/               the people a Reservation and a Stay are for
     stays/                Stays, and the Resident access path
-    reservations/         Reservations, check-in, and the first write path
+    reservations/         Reservations, taking a booking, check-in, check-out
     folios/               the Folio: a Stay's financial record, and its lines
   adapters/               Ranza-to-platform mappings
   config, db, i18n, ui, observability

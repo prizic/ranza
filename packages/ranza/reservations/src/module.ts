@@ -1,5 +1,6 @@
 import { withOrganizationContext } from "@ranza/db";
 import { closeEmptyFolioWithin, openFolioWithin } from "@ranza/folios";
+import { identifyGuestWithin } from "@ranza/guests";
 import { recordWithin } from "@ranza/platform-audit";
 import { publishWithin } from "@ranza/platform-outbox";
 import {
@@ -13,14 +14,20 @@ import {
   CheckInReversalError,
   CheckOutError,
   FRONT_DESK_CAPABILITY,
+  ReservationPeriodError,
+  ReservationRefusedError,
   REVERSAL_REASON,
   StayHasChargesError,
   UnitUnavailableError,
   type Arrival,
+  type BookableUnit,
   type CheckedIn,
   type CheckedOut,
   type CheckInReversed,
+  type CreatedReservation,
   type Departure,
+  type NewReservation,
+  type ReservationRow,
 } from "./contracts";
 import type { ReservationsDeps } from "./ports";
 
@@ -69,6 +76,22 @@ function raised(error: unknown, code: string): boolean {
     meta?.driverAdapterError?.cause?.code === code ||
     (typeof message === "string" && message.includes(code))
   );
+}
+
+/**
+ * `YYYY-MM-DD`, or null when it is not a day that exists.
+ *
+ * The round trip is the point: `2026-02-31` matches the pattern and parses as
+ * the 3rd of March, so a regular expression alone would accept a booking for a
+ * week nobody asked for. Everything here stays a string — a calendar date is not
+ * an instant, and turning one into a `Date` is how a booking moves by a day for
+ * a reader west of the meridian.
+ */
+function calendarDay(value: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString().slice(0, 10) === value ? value : null;
 }
 
 interface MovedReservation {
@@ -140,7 +163,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
         tx.$queryRaw<Arrival[]>`
         select
           reservation.id                                as "reservationId",
-          reservation.guest_name                        as "guestName",
+          guest.full_name                               as "guestName",
           reservation.stay_type                         as "stayType",
           reservation.status                            as "status",
           to_char(reservation.starts_on, 'YYYY-MM-DD')  as "startsOn",
@@ -154,6 +177,11 @@ export function createReservationsModule(deps: ReservationsDeps) {
             and (reservation.ends_on is null
                  or reservation.ends_on > today.day)    as "canCheckIn"
         from public.reservations as reservation
+        -- An inner join: guest_id is NOT NULL and its composite foreign key
+        -- proves the Guest is this Organization's, so a Reservation whose
+        -- Guest is unreadable is not a state this table can be in.
+        join public.guests as guest
+          on guest.id = reservation.guest_id
         join public.accommodation_units as unit
           on unit.id = reservation.accommodation_unit_id
         -- At most one row joins:
@@ -191,7 +219,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
             ${FRONT_DESK_CAPABILITY.moduleKey},
             ${FRONT_DESK_CAPABILITY.capabilityKey}
           )
-        order by unit.name, reservation.guest_name
+        order by unit.name, guest.full_name
       `,
     );
   }
@@ -497,7 +525,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
         tx.$queryRaw<Departure[]>`
         select
           stay.id                               as "stayId",
-          coalesce(reservation.guest_name, '')  as "guestName",
+          coalesce(guest.full_name, '')         as "guestName",
           stay.stay_type                        as "stayType",
           to_char(stay.ends_on, 'YYYY-MM-DD')   as "endsOn",
           unit.id                               as "unitId",
@@ -512,6 +540,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
           on unit.id = stay.accommodation_unit_id
         left join public.reservations as reservation
           on reservation.id = stay.reservation_id
+        -- Left, because the Reservation is: a Stay that began without one has
+        -- no Guest recorded anywhere. Nothing creates a walk-in yet.
+        left join public.guests as guest
+          on guest.id = reservation.guest_id
         where stay.property_id = ${propertyId}::uuid
           and stay.status = 'in_house'
           and stay.ends_on is not null
@@ -613,7 +645,289 @@ export function createReservationsModule(deps: ReservationsDeps) {
     });
   }
 
-  return { listArrivals, listDepartures, checkIn, checkOut, reverseCheckIn };
+  /**
+   * Every Unit in the Property a booking may be placed on.
+   *
+   * In service, not free. Whether a Unit is free over particular nights is
+   * `reservations_no_double_booking`'s answer and nobody else's — computing it
+   * here would produce a list that was true when the page rendered and false by
+   * the time somebody pressed the button, and would be a second opinion about
+   * availability for the first time in this repository.
+   *
+   * Empty for a Property the viewer cannot reach and for one whose Organization
+   * lost the Entitlement, which are deliberately the same answer.
+   */
+  async function listBookableUnits(
+    userId: string,
+    propertyId: string,
+  ): Promise<BookableUnit[]> {
+    return withOrganizationContext(
+      deps.db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<BookableUnit[]>`
+        select
+          unit.id        as "unitId",
+          unit.name      as "unitName",
+          unit.unit_type as "unitType"
+        from public.accommodation_units as unit
+        where unit.property_id = ${propertyId}::uuid
+          and unit.status <> 'out_of_service'
+          and app.can_use_capability(
+            unit.property_id,
+            ${FRONT_DESK_CAPABILITY.moduleKey},
+            ${FRONT_DESK_CAPABILITY.capabilityKey}
+          )
+        order by unit.name
+      `,
+    );
+  }
+
+  /**
+   * The Property's Reservations that are still ahead of it or under way.
+   *
+   * Not today's — that is the arrivals list, and it answers a different
+   * question. This one exists so that a booking taken for a fortnight's time is
+   * visible the moment it is made; without it, creating a Reservation would
+   * produce no observable effect until the day it starts, which is indis-
+   * tinguishable from it not having worked.
+   *
+   * A Reservation leaves the list when its last night has passed, so the screen
+   * does not grow without bound. Cancelled and no-show Reservations are absent
+   * because nothing yet cancels one; when something does, showing them is part
+   * of that workflow rather than of this read.
+   *
+   * `ends_on >= today` and not `>`: nights are half-open, so a Reservation
+   * ending today is somebody leaving today, and they are still here this
+   * morning.
+   */
+  async function listReservations(
+    userId: string,
+    propertyId: string,
+  ): Promise<ReservationRow[]> {
+    return withOrganizationContext(
+      deps.db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<ReservationRow[]>`
+        select
+          reservation.id                                as "reservationId",
+          guest.id                                      as "guestId",
+          guest.full_name                               as "guestName",
+          guest.email                                   as "guestEmail",
+          reservation.stay_type                         as "stayType",
+          reservation.status                            as "status",
+          to_char(reservation.starts_on, 'YYYY-MM-DD')  as "startsOn",
+          to_char(reservation.ends_on, 'YYYY-MM-DD')    as "endsOn",
+          unit.id                                       as "unitId",
+          unit.name                                     as "unitName",
+          unit.unit_type                                as "unitType"
+        from public.reservations as reservation
+        join public.guests as guest
+          on guest.id = reservation.guest_id
+        join public.accommodation_units as unit
+          on unit.id = reservation.accommodation_unit_id
+        cross join (
+          select app.property_today(${propertyId}::uuid) as day
+        ) as today
+        where reservation.property_id = ${propertyId}::uuid
+          and reservation.status in ('requested', 'confirmed', 'checked_in')
+          and (reservation.ends_on is null or reservation.ends_on >= today.day)
+          and app.can_use_capability(
+            reservation.property_id,
+            ${FRONT_DESK_CAPABILITY.moduleKey},
+            ${FRONT_DESK_CAPABILITY.capabilityKey}
+          )
+        order by reservation.starts_on, unit.name
+      `,
+    );
+  }
+
+  /**
+   * Takes a booking: a Guest, and the nights they hold on one Unit.
+   *
+   * The first thing in the product that creates a Reservation. Until now every
+   * one was written by `scripts/db-seed-dev.mjs`, which is why
+   * `reservations_no_double_booking` did not exist — blueprint section 13
+   * forbids the rule ahead of the workflow, and this is the workflow
+   * ([ADR 0024](../../../../docs/adr/0024-a-guest-belongs-to-an-organization-and-a-reservation-holds-its-nights.md)).
+   *
+   * Two writes and a record in one transaction. A Guest recorded for a booking
+   * that was refused is a profile nobody asked for, and a Reservation with no
+   * Guest is unrepresentable, so they share one fate.
+   *
+   * Created `confirmed` rather than `requested`. A front desk taking a booking
+   * is allocating the Unit — that is what the person on the telephone is being
+   * told — and only an allocated Reservation holds its nights under the
+   * exclusion constraint. `requested` is what a booking engine or a channel will
+   * write when one exists, and confirming it will then be the act that has to
+   * pass this same constraint.
+   *
+   * Nothing here asks whether the actor may do this. The Unit query returns no
+   * row when they may not, because it carries all four gates; the insert is
+   * refused independently by `reservations_insert_front_desk`; and the Guest by
+   * `guests_insert_front_desk`. Three separate refusals for one action, which is
+   * the arrangement blueprint 3.5 asks for.
+   */
+  async function createReservation(
+    userId: string,
+    booking: NewReservation,
+  ): Promise<CreatedReservation> {
+    const startsOn = calendarDay(booking.startsOn);
+    const endsOn = booking.endsOn === null ? null : calendarDay(booking.endsOn);
+
+    // Shape first, and before the transaction. `2026-02-31` parses as the 3rd of
+    // March, so a regular expression alone would silently book a different week.
+    if (!startsOn || (booking.endsOn !== null && !endsOn)) {
+      throw new ReservationPeriodError("those are not calendar dates");
+    }
+    // ISO dates compare correctly as strings, which is most of why this module
+    // never turns one into a Date. `reservations_period_check` refuses the same
+    // row; this is what turns its 23514 into a sentence about the field.
+    if (endsOn !== null && endsOn <= startsOn) {
+      throw new ReservationPeriodError(
+        "a Reservation covers at least one night",
+      );
+    }
+
+    return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      // The Unit is the thing the caller is allowed to name, and everything
+      // else is read from the row it returns — the Organization above all
+      // (ADR 0012). A caller supplying a valid-looking organization_id would be
+      // refused by a foreign key, and cannot supply one at all.
+      //
+      // `app.property_today` comes back in the same statement so the day the
+      // booking is measured against is the Property's own, not the server's.
+      const located = await tx.$queryRaw<
+        { organizationId: string; propertyId: string; today: string }[]
+      >`
+        select
+          unit.organization_id                             as "organizationId",
+          unit.property_id                                 as "propertyId",
+          to_char(app.property_today(unit.property_id),
+                  'YYYY-MM-DD')                            as "today"
+        from public.accommodation_units as unit
+        where unit.id = ${booking.accommodationUnitId}::uuid
+          and unit.property_id = ${booking.propertyId}::uuid
+          and unit.status <> 'out_of_service'
+          and app.can_use_capability(
+            unit.property_id,
+            ${FRONT_DESK_CAPABILITY.moduleKey},
+            ${FRONT_DESK_CAPABILITY.capabilityKey}
+          )
+      `;
+
+      const [unit] = located;
+      if (!unit) {
+        // Out of reach, unentitled, out of service, in another Property, or
+        // never existed. One message for all five: telling them apart would
+        // confirm that a Unit the caller cannot see is there.
+        throw new ReservationRefusedError("that booking cannot be taken");
+      }
+
+      if (startsOn < unit.today) {
+        // A booking for a night that has already passed. Not a policy question
+        // and not authorization — there is nothing to allocate.
+        throw new ReservationPeriodError(
+          "a Reservation cannot start before today",
+        );
+      }
+
+      const guest = await identifyGuestWithin(tx, {
+        organizationId: unit.organizationId,
+        fullName: booking.guestName,
+        email: booking.guestEmail,
+        phone: booking.guestPhone,
+      });
+
+      let reservationId: string;
+      try {
+        const inserted = await tx.$queryRaw<{ id: string }[]>`
+          insert into public.reservations
+            (organization_id, property_id, accommodation_unit_id,
+             guest_id, stay_type, status, starts_on, ends_on)
+          values (
+            ${unit.organizationId}::uuid,
+            ${unit.propertyId}::uuid,
+            ${booking.accommodationUnitId}::uuid,
+            ${guest.guestId}::uuid,
+            ${booking.stayType},
+            'confirmed',
+            ${startsOn}::date,
+            ${endsOn}::date
+          )
+          returning id
+        `;
+        const [row] = inserted;
+        if (!row) {
+          // Reachable only if reservations_insert_front_desk denied after the
+          // Unit query allowed it, which would mean the two disagree.
+          throw new ReservationRefusedError("that booking cannot be taken");
+        }
+        reservationId = row.id;
+      } catch (error: unknown) {
+        // The exclusion constraint refused: those nights are already allocated
+        // on that Unit. The one refusal a front desk can act on — every other
+        // one here is "you cannot".
+        if (raised(error, EXCLUSION_VIOLATION)) {
+          throw new UnitUnavailableError(
+            "that Accommodation Unit is booked for those nights",
+          );
+        }
+        throw error;
+      }
+
+      // Nothing subscribes, like `stay.checked_in` before it. Published anyway
+      // and for the same reason: an event that was never written cannot be
+      // backfilled, and a confirmation nobody sent is exactly the handler this
+      // will eventually carry (apps/worker/src/outbox/subscriptions.ts).
+      //
+      // Ids only. The queue is the one table a single process reads across
+      // every Organization, so a Guest's name has no business in it.
+      await publishWithin(tx, {
+        organizationId: unit.organizationId,
+        eventType: "reservation.created",
+        payload: {
+          reservationId,
+          guestId: guest.guestId,
+          propertyId: unit.propertyId,
+          accommodationUnitId: booking.accommodationUnitId,
+        },
+      });
+
+      await recordWithin(tx, {
+        organizationId: unit.organizationId,
+        actorId: userId,
+        action: "reservation.created",
+        subjectType: "reservation",
+        subjectId: reservationId,
+        context: {
+          guestId: guest.guestId,
+          guestCreated: guest.created,
+          accommodationUnitId: booking.accommodationUnitId,
+          startsOn,
+          endsOn,
+        },
+      });
+
+      return {
+        reservationId,
+        guestId: guest.guestId,
+        guestCreated: guest.created,
+      };
+    });
+  }
+
+  return {
+    createReservation,
+    listArrivals,
+    listBookableUnits,
+    listDepartures,
+    listReservations,
+    checkIn,
+    checkOut,
+    reverseCheckIn,
+  };
 }
 
 export type ReservationsModule = ReturnType<typeof createReservationsModule>;

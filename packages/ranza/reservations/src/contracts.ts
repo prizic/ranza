@@ -6,10 +6,11 @@ import type { CapabilityRef } from "@ranza/core";
  *
  * A Reservation is a planned allocation of an Accommodation Unit for a period,
  * which may become a Stay through check-in (blueprint 2 and 5.3). This module
- * covers exactly that pair. Group reservations, quotations, deposits,
- * extensions, room moves and no-show handling are also section 5.3 and are
- * deliberately absent — the status below has room for a no-show because the
- * database needs the value to exist, not because anything here sets it.
+ * covers exactly that pair, and now the act of making one. Group reservations,
+ * quotations, deposits, extensions, room moves and no-show handling are also
+ * section 5.3 and are deliberately absent — the status below has room for a
+ * no-show because the database needs the value to exist, not because anything
+ * here sets it.
  */
 
 /** Entitlement key for Reservations and Front Office (blueprint 5.3). */
@@ -146,8 +147,17 @@ export class CheckInError extends Error {
   }
 }
 
-/** The Unit is held by another current Stay over these nights. */
-export class UnitUnavailableError extends CheckInError {
+/**
+ * The Unit is already held over these nights.
+ *
+ * Not a subclass of `CheckInError` any more, because it is now the answer to
+ * two different questions: a check-in refused by `stays_no_double_booking`, and
+ * a booking refused by `reservations_no_double_booking`. Availability is one
+ * question about a Unit and a period, so it is one type — and unlike every
+ * refusal beside it, this one reveals nothing. The caller already named the
+ * Unit and the nights.
+ */
+export class UnitUnavailableError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "UnitUnavailableError";
@@ -199,5 +209,107 @@ export class CheckOutError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "CheckOutError";
+  }
+}
+
+/**
+ * A Unit a booking can be placed on.
+ *
+ * Every Unit in the Property that is in service, not only the free ones. Whether
+ * these nights are free is `reservations_no_double_booking`'s answer, and asking
+ * it here would be a second, weaker copy that goes stale between the page
+ * rendering and somebody pressing the button.
+ */
+export interface BookableUnit {
+  unitId: string;
+  unitName: string;
+  unitType: AccommodationUnitType;
+}
+
+/**
+ * A Reservation on the Property's list.
+ *
+ * `guestEmail` is here because it is the only visible evidence that a returning
+ * Guest was recognized rather than duplicated — two bookings showing one address
+ * are one person, and without the column that fact is invisible in the product
+ * and untestable from outside it.
+ */
+export interface ReservationRow {
+  reservationId: string;
+  guestId: string;
+  guestName: string;
+  guestEmail: string | null;
+  stayType: ReservationStayType;
+  status: ReservationStatus;
+  /** Calendar date as `YYYY-MM-DD`; no instant, so no timezone to get wrong. */
+  startsOn: string;
+  /** Null means open-ended, which is normal for long-term residence. */
+  endsOn: string | null;
+  unitId: string;
+  unitName: string;
+  unitType: AccommodationUnitType;
+}
+
+/**
+ * What a front desk supplies to take a booking.
+ *
+ * The Guest is described rather than chosen. Picking one from the Organization's
+ * existing people is the Guest 360 workspace (blueprint 18.7) and there is no
+ * screen for it; until then `createReservation` matches on an exact email and
+ * creates a Guest when nobody matches, which is the narrowest rule that is never
+ * the automatic merge 18.7 forbids.
+ *
+ * `organizationId` is deliberately absent. It is read from the Unit the booking
+ * names, so a caller cannot supply one (ADR 0012).
+ */
+export interface NewReservation {
+  propertyId: string;
+  accommodationUnitId: string;
+  guestName: string;
+  guestEmail: string | null;
+  guestPhone: string | null;
+  stayType: ReservationStayType;
+  /** Calendar date as `YYYY-MM-DD`. */
+  startsOn: string;
+  /** Null for an open-ended Reservation, which is normal for a Resident. */
+  endsOn: string | null;
+}
+
+/** What a completed booking produced. */
+export interface CreatedReservation {
+  reservationId: string;
+  guestId: string;
+  /** False when the details named somebody the Organization already had. */
+  guestCreated: boolean;
+}
+
+/**
+ * A booking that was not taken.
+ *
+ * One type for every reason the actor is not allowed to make it, on the same
+ * principle as `CheckInError`: "that Unit is in another Organization", "your
+ * Subscription has lapsed" and "this Property has no front desk" are the same
+ * answer to a front desk, and telling them apart would confirm that a Unit the
+ * caller cannot see is there.
+ */
+export class ReservationRefusedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ReservationRefusedError";
+  }
+}
+
+/**
+ * The dates are not a period a Reservation can have.
+ *
+ * Its own type because, like `GuestDetailsError`, it hides nothing: the person
+ * typing can see the dates and fix them. A booking that ends before it starts,
+ * one that covers no nights, and one that starts before the Property's own today
+ * are all this.
+ */
+export class ReservationPeriodError extends ReservationRefusedError {
+  constructor(message: string) {
+    super(message);
+    this.name = "ReservationPeriodError";
   }
 }
