@@ -29,7 +29,8 @@
     "test:browser": "playwright test",
     "test:integration": "vitest run --config vitest.integration.mts",
     "test:unit": "vitest run",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "dev:smoke": "node scripts/dev-smoke.mjs"
   },
   "devDependencies": {
     "@better-auth/utils": "0.4.2",

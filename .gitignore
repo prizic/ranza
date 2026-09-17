@@ -32,3 +32,4 @@ apps/*/next-env.d.ts
 !.claude/skills/
 .claude/skills/*
 !.claude/skills/feature-design/
+dev-smoke.log

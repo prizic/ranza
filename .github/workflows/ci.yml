@@ -51,6 +51,28 @@ jobs:
       - run: pnpm db:up
       - run: pnpm db:setup
 
+      # Does the documented command actually serve a page?
+      #
+      # This job is the only place that can ask. `pnpm test:browser` cannot:
+      # `playwright.config.ts` passes `env:` to the server it starts, so it
+      # proves the application works when something hands it a connection
+      # string, never that `pnpm dev` hands it one. That gap is exactly where a
+      # real failure lived — every route answering "DATABASE_URL must be set"
+      # while CI stayed green, because Turbo 2 runs in strict env mode and
+      # forwarded nothing, and nothing loaded a .env for the applications
+      # either.
+      #
+      # So this runs `pnpm dev` with no environment of its own, asks for the
+      # sign-in page, and fails on a server that never answers 200 AND on one
+      # that does while complaining in its log. Two checks because they are two
+      # failures: a missing DATABASE_URL is a 500 on every request, and a
+      # missing WORKER_DATABASE_URL ends the worker at startup.
+      #
+      # Prisma Client is generated rather than committed, and unlike
+      # `test:browser` this does not generate it as part of starting.
+      - run: pnpm --filter @ranza/db generate
+      - run: pnpm dev:smoke
+
       # The five gates, the append-only rules, and the policies. A suite that
       # runs nowhere is a suite that is true until somebody changes it.
       - run: pnpm db:test
