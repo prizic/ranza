@@ -109,12 +109,20 @@ pointed at a throwaway database and reused by another host, and it is enforced b
 pnpm check            # full gate: format, lint, boundaries, typecheck, tests, build
 pnpm db:test          # pgTAP suites in tests/database
 pnpm test:integration # real database: tenant isolation and the auth flow
+pnpm test:browser     # the workspace in a browser, against the local database
 ```
 
 `pnpm check` must pass before any commit. It does **not** touch a database, so
-`db:test` and `test:integration` are separate and must be run when changing
-schema, policies or auth. CI runs `db:test` and `db:drift` in their own job
-against a real PostgreSQL; `test:integration` still runs only by hand.
+`db:test`, `test:integration` and `test:browser` are separate and must be run
+when changing schema, policies, auth, or a screen somebody presses a button on.
+CI runs `db:test`, `db:drift` and `test:browser` in their own job against a real
+PostgreSQL; `test:integration` still runs only by hand.
+
+`test:browser` starts the workspace itself and seeds through it, so it needs
+`pnpm db:up` and nothing else. It refuses any database that is not local — it
+signs in and checks a Guest in, which leaves history that is never deleted —
+and it brings its own Reservation on its own Unit each run, because checking
+somebody in is not an act that repeats.
 
 It does, however, run `next build`, which writes into the same `.next` a running
 `pnpm dev` is serving from. Every route 404s afterwards, including ones that

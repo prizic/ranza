@@ -76,4 +76,7 @@ may import `@ranza/db`, `@ranza/core` or `@ranza/auth`.
   template with a hole in it cannot express one.
 
 Access is verified against a real database by
-[`tests/integration/workspace-access.test.ts`](../../tests/integration/workspace-access.test.ts).
+[`tests/integration/workspace-access.test.ts`](../../tests/integration/workspace-access.test.ts),
+and the front desk is verified in a browser by `pnpm test:browser` — which signs
+in as the seeded Staff Member, presses Check in, and reads the row afterwards.
+It starts this application itself, so `pnpm db:up` is all it needs.
