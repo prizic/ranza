@@ -105,19 +105,46 @@ model AccommodationUnit {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   propertyId     String   @map("property_id") @db.Uuid
   organizationId String   @map("organization_id") @db.Uuid
+  /// The Unit this one is inside. Null for a room; a bed's room (ADR 0025).
+  /// Only a bed has one, and only a room may be one — a check constraint says
+  /// the first half and the composite foreign key below proves the second.
+  parentId       String?  @map("parent_id") @db.Uuid
+  /// The parent's own `unit_type`, denormalized for the same reason
+  /// `organization_id` is: a foreign key can then prove the claim, where a
+  /// check constraint could only look at this row. Null exactly when
+  /// `parent_id` is.
+  parentUnitType String?  @map("parent_unit_type")
   name           String
   unitType       String   @map("unit_type")
+  /// Where the Unit is, for grouping and filtering. Columns rather than Units
+  /// of their own: blueprint 5.2 lists buildings, floors and Accommodation
+  /// Units as three things, and nothing addresses a floor as a record (ADR 0025).
+  building       String?
+  floor          Int?
+  /// How many people this Unit sleeps. A bed sleeps one, which is constrained;
+  /// the rest is a fact rather than a rule until a Stay records its occupants.
   capacity       Int      @default(1)
   status         String   @default("available")
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  property     Property      @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  property     Property            @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  parent       AccommodationUnit?  @relation("UnitNesting", fields: [parentId, propertyId, organizationId, parentUnitType], references: [id, propertyId, organizationId, unitType], onDelete: Restrict, onUpdate: NoAction)
+  children     AccommodationUnit[] @relation("UnitNesting")
   stays        Stay[]
   reservations Reservation[]
 
-  @@unique([propertyId, name])
+  /// A room's name is unique in its Property; a bed's is unique in its room.
+  /// Two partial indexes rather than one over `(property_id, parent_id, name)`,
+  /// because null is not equal to null in a unique index and that version would
+  /// silently stop constraining rooms at all (ADR 0025).
+  @@unique([propertyId, name], map: "accommodation_units_property_id_name_key", where: raw("parent_id IS NULL"))
+  @@unique([parentId, name], map: "accommodation_units_parent_id_name_key", where: raw("parent_id IS NOT NULL"))
   @@unique([id, propertyId, organizationId])
+  /// What the nesting foreign key resolves against, so "my parent is a room" is
+  /// proved rather than asserted.
+  @@unique([id, propertyId, organizationId, unitType], map: "accommodation_units_nesting_key")
+  @@index([parentId], map: "accommodation_units_parent_idx")
   @@map("accommodation_units")
 }
 
