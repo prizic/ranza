@@ -286,6 +286,53 @@ describe("inviting somebody", () => {
     ).rejects.toBeInstanceOf(StaffRefusedError);
   });
 
+  it("and the refusal leaves no trace of the address it refused", async () => {
+    // This one does NOT prove the definer checks its caller, and the comment
+    // said it did until a sabotage said otherwise: reverting the call to the
+    // unchecked one-argument function left it green. `invite` runs inside
+    // withOrganizationContext, so the refused membership INSERT rolls the
+    // whole transaction back and takes the public.users row with it.
+    //
+    // What it pins is that invite stays transactional. The definer's own check
+    // is what protects a caller that is NOT inside a doomed transaction, and
+    // app.identify_staff_user is granted to ranza_app, so such callers exist.
+    // That is asserted where it binds, in the pgTAP suite, by calling the
+    // function directly as somebody without staff.administer.
+    const address = anAddress();
+
+    await expect(
+      staff.invite(
+        { userId: DESK },
+        { organizationId: ORG, email: address, roleKey: "front_desk" },
+      ),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+
+    const [row] = await owner.$queryRawUnsafe<{ people: bigint }[]>(
+      "select count(*) as people from public.users where email = $1",
+      address,
+    );
+    expect(Number(row?.people)).toBe(0);
+  });
+
+  it("refuses an Organization the actor does not belong to, writing nothing", async () => {
+    // SP-S1-04, the cross-Organization case rather than the wrong-role one.
+    // Same caveat as above: the rollback is what makes the row absent here.
+    const address = anAddress();
+
+    await expect(
+      staff.invite(
+        { userId: OWNER },
+        { organizationId: OTHER_ORG, email: address, roleKey: "front_desk" },
+      ),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+
+    const [row] = await owner.$queryRawUnsafe<{ people: bigint }[]>(
+      "select count(*) as people from public.users where email = $1",
+      address,
+    );
+    expect(Number(row?.people)).toBe(0);
+  });
+
   it("publishes exactly one reach change per command", async () => {
     const before = await countEvents();
     await staff.invite(

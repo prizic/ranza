@@ -135,9 +135,14 @@ export function createStaffModule(deps: StaffDeps) {
 
     try {
       return await withOrganizationContext(deps.db, context, async (tx) => {
+        // The Organization goes in because the function is security definer
+        // and asks the gates itself before it reveals whether the address is
+        // known or writes a row for it. Without it a definer granted to
+        // ranza_app was an account oracle and an insert into public.users.
         const userId = only(
           await tx.$queryRawUnsafe<{ id: string }[]>(
-            "select app.identify_staff_user($1) as id",
+            "select app.identify_staff_user($1::uuid, $2) as id",
+            input.organizationId,
             input.email,
           ),
           "the invited person",

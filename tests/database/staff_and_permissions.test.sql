@@ -15,7 +15,7 @@
 -- purpose: it needs two sessions and pgTAP has one. It lives in
 -- tests/integration/staff.test.ts, which can open two connections.
 begin;
-select plan(49);
+select plan(54);
 
 insert into public.users (id, email) values
   ('61111111-1111-4111-8111-111111111111', 'staff-owner-a@example.test'),
@@ -611,6 +611,88 @@ select throws_ok(
        and user_id = '66666666-6666-4666-8666-666666666666'$$,
   '55000', NULL,
   'a retired role cannot be taken up again while it is retired');
+
+-- ---------------------------------------------------------------------------
+-- A definer asks the gates itself
+-- ---------------------------------------------------------------------------
+-- app.identify_staff_user was security definer, granted to ranza_app, and
+-- checked nothing. It answered whether an address already had an account and
+-- wrote a public.users row when it did not, both before the membership policy
+-- ever spoke. These assert the fix from the catalogue and from behaviour, not
+-- from the migration file.
+--
+-- Read from pg_proc rather than asked with has_function_privilege, which raises
+-- on an absent function and would take the rest of this transaction with it.
+--
+-- oidvectortypes and not pg_get_function_identity_arguments: the latter carries
+-- the parameter NAMES, so `= 'text'` never matched anything and the first
+-- assertion reported 0 whether or not the old function was still there. It was
+-- passing for a reason that had nothing to do with its name. Found by watching
+-- assertion 51 fail on a database where the new function plainly existed.
+
+select is(
+  (select count(*)::int from pg_proc as p
+     join pg_namespace as n on n.oid = p.pronamespace
+    where n.nspname = 'app' and p.proname = 'identify_staff_user'
+      and oidvectortypes(p.proargtypes) = 'text'),
+  0,
+  'the version that took an address and asked nothing is gone, not shadowed');
+
+select is(
+  (select count(*)::int from pg_proc as p
+     join pg_namespace as n on n.oid = p.pronamespace
+    where n.nspname = 'app' and p.proname = 'identify_staff_user'
+      and oidvectortypes(p.proargtypes) = 'uuid, text'),
+  1,
+  'identifying an invitee now takes the Organization it is for');
+
+-- Filtered by signature. Without that this returns a row per overload, and a
+-- subquery returning two raises rather than fails — which aborts the
+-- transaction and silences every assertion after it. Found by sabotage: adding
+-- the old function back produced one red and then an ERROR that swallowed the
+-- two behavioural assertions below.
+select ok(
+  (select p.prosecdef from pg_proc as p
+     join pg_namespace as n on n.oid = p.pronamespace
+    where n.nspname = 'app' and p.proname = 'identify_staff_user'
+      and oidvectortypes(p.proargtypes) = 'uuid, text'),
+  'and is still security definer, which is why it has to ask');
+
+set local role ranza_app;
+
+-- Front desk. Holds no staff.administer, so the definer must refuse before it
+-- either reveals whether the address is known or writes a row for it.
+select app.set_request_context('63333333-3333-4333-8333-333333333333');
+
+select throws_ok(
+  $$select app.identify_staff_user(
+      '6a111111-1111-4111-8111-111111111111',
+      'oracle-probe@example.test')$$,
+  '42501', NULL,
+  'somebody without staff.administer is refused before the address is looked up');
+
+-- The refusal is a raise, and a raise in plpgsql aborts before the select and
+-- the insert below it, so the assertion above is also the assertion that
+-- nothing was written.
+--
+-- There WAS a `count(*) from public.users` here saying so separately. It was
+-- inert: public.users carries FORCE row-level security and
+-- users_read_self_and_colleagues hides a brand-new row with no membership from
+-- every role this suite can adopt, so it read 0 whether or not the row existed.
+-- Found by removing the caller check and watching 53 go red while it stayed
+-- green. Replaced by the case that actually distinguishes a refusal from a
+-- function that refuses everybody.
+
+select app.set_request_context('61111111-1111-4111-8111-111111111111');
+
+select isnt(
+  (select app.identify_staff_user(
+     '6a111111-1111-4111-8111-111111111111',
+     'a-real-invitee@example.test')),
+  NULL,
+  'and an owner, who does hold it, gets an id back');
+
+reset role;
 
 select finish();
 rollback;
