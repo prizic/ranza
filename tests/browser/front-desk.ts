@@ -90,6 +90,16 @@ export function testProperty(): string {
     propertyId,
     "no seeded Organization to put a test Property in — run pnpm db:seed:dev",
   ).not.toBe("");
+  // One id, not two. The statement above can only produce a second row if two
+  // of these ran at once and both created the Property, which is exactly the
+  // race that made CI fail with `invalid input syntax for type uuid` on a
+  // string holding two of them. It is prevented by `seed.setup.ts` creating it
+  // before any spec runs; this is the assertion that says so out loud rather
+  // than passing the pair into the next query.
+  expect(
+    propertyId.split("\n").length,
+    `expected one test Property, found:\n${propertyId}`,
+  ).toBe(1);
   return propertyId;
 }
 
