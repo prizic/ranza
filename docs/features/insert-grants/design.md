@@ -1,6 +1,6 @@
 # A write grant is a column list
 
-Design only. **No migration until the rows below are approved.**
+Design only. **The seven column lists are approved; IG-13 and IG-14 are not, and are questions rather than changes.**
 
 ## The defect
 
@@ -347,11 +347,13 @@ and a one-line decision.
 | `unit_has_no_current_occupant()`         | A trigger body. It has no caller to check: it runs inside a write the policy already admitted, and cannot be invoked as a step.                                                          |
 | `unit_is_sellable()`                     | The same.                                                                                                                                                                                |
 
-Two of these are worth a second look whenever somebody is in here:
-`property_today()` is the only one that takes an id and answers about a row the
-caller may not reach, and `capability_is_available()` is the only gate component
-exposed without its reach half. Neither is a finding today. Both are the sort of
-thing that becomes one.
+Two of these are worth a second look whenever somebody is in here, and they are
+**IG-13** and **IG-14** rather than sentences in this table — a caveat inside a
+list of eleven is a caveat nobody reads. `property_today()` is the only definer
+that takes an id and answers about a row the caller may not reach;
+`capability_is_available()` is the only gate component exposed without its reach
+half, one word away from the complete one. Neither is a finding today. Both are
+the sort of thing that becomes one.
 
 ## `ranza_auth` and the `auth_*` tables — settled, and nothing changes
 
