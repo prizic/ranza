@@ -31,11 +31,15 @@ can see, which is what row-level security is for. `INSERT`, `UPDATE` and
 Columns are withheld by default. A column earns its way onto a grant by being
 written by a statement somebody can point at.
 
-## The six tables, and what each is for
+## The tables, and what each is for
 
 Read from the code that writes them, not from what looks reasonable. Every
 withheld column below is nullable or has a default, so withholding it breaks no
 statement that exists.
+
+Five are written by raw SQL and have narrow lists. Two — `public.users` and
+`public.auth_identities` — are written through Prisma's model API and have wide
+ones, for the reason the section after them gives.
 
 ### `public.stays` — the sharpest one
 
@@ -148,6 +152,25 @@ A definer that creates rows is a writer no column list can reach, and it carries
 its own gate instead. When that branch lands, this row and that function are the
 two places that decide who may put a person into `public.users`.
 
+### `public.auth_identities` — the one the rule found
+
+```sql
+grant insert (user_id, issuer, subject, created_at)
+  on public.auth_identities to ranza_auth;
+```
+
+**Withheld: `id`.** From `log_statement`, same as IG-10:
+`INSERT INTO "public"."auth_identities" ("user_id","issuer","subject","created_at")`.
+
+**Not part of what was approved.** `public.users` was agreed as the sixth table;
+this is a seventh, and it exists because the model-API rule above was written
+down and then applied. It belongs with `public.users` rather than with `auth_*`:
+Better Auth does not own this table — ADR 0005 does. It is the provider-subject
+mapping this repository keeps in one place so the provider stays replaceable,
+and `20260916000200` grants it in the same statement as `public.users` for
+exactly that reason. The argument that protects `auth_*` from a column list does
+not reach it.
+
 ### `outbox.events`
 
 ```sql
@@ -163,6 +186,47 @@ Everything withheld is the worker's bookkeeping. An event born with
 future is a delivery silently deferred; `attempts`, `last_error` and `dead_at`
 are the delivery record, and a publisher writing its own is a publisher marking
 its own homework. `id` **is** granted, because `publish.ts` names it.
+
+## Where the next wide grant will be: the ORM writes more than you named
+
+A column list is only as narrow as the statement it serves, and **how the
+statement is written decides how narrow it can be.**
+
+- **Raw SQL — `$queryRaw`, `$executeRaw` — names exactly the columns it names.**
+  Nothing else reaches the INSERT, so the grant can be the same list, and
+  withholding anything the statement does not mention costs nothing.
+- **Prisma's model API — `tx.thing.create()` — sends a client-side value for
+  every `@default` and `@updatedAt` column, whether or not the caller supplied
+  one.** `create({ data: { email } })` on a model with `@default("active")`,
+  `@default(now())` and `@updatedAt` emits four columns, not one. The grant has
+  to allow all four or sign-up fails 42501.
+
+So the rule predicts where a wide grant appears: **it appears wherever a table
+is written through the model API**, and nowhere else. That is checkable rather
+than a feeling —
+
+```sh
+grep -rnoE '(tx|prisma|db|deps\.db)\.[a-zA-Z]+\.(create|createMany|upsert)\(' \
+  packages/*/src packages/*/*/src apps/*/src
+```
+
+On `main` today that returns exactly two hits, both inside `linkRanzaUser()`:
+`user.create` and `authIdentity.create`. Which is why `public.users` (IG-10)
+has a four-column list where the five raw-SQL tables have narrow ones — and why
+`public.auth_identities` is IG-11, a table the rule found that nobody had
+listed. The other five are all `$queryRaw`.
+
+Two consequences worth stating, because they are what the rule is for:
+
+- **A new `@default` column on a model-API table silently widens its statement.**
+  The grant will not widen with it — that is the whole point — so the write
+  starts failing 42501 instead of quietly writing a column nobody granted. That
+  is the correct direction to fail in, and it is why the list is worth having
+  even where it withholds only `id`.
+- **Do not reason about what the ORM sends. Ask.** `alter system set
+log_statement='all'`, run the one test, read the statement, reset it. Two
+  reasoned guesses at `public.users` were both wrong (IG-10 records which), and
+  the database answered in one run.
 
 ## The instrument
 
