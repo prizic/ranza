@@ -31,13 +31,13 @@ can see, which is what row-level security is for. `INSERT`, `UPDATE` and
 Columns are withheld by default. A column earns its way onto a grant by being
 written by a statement somebody can point at.
 
-## The tables, and what each is for
+## The eight tables, and what each is for
 
 Read from the code that writes them, not from what looks reasonable. Every
 withheld column below is nullable or has a default, so withholding it breaks no
 statement that exists.
 
-Five are written by raw SQL and have narrow lists. Two — `public.users` and
+Six are written by raw SQL and have narrow lists. Two — `public.users` and
 `public.auth_identities` — are written through Prisma's model API and have wide
 ones, for the reason the section after them gives.
 
@@ -106,6 +106,32 @@ grant insert (organization_id, property_id, accommodation_unit_id,
 The smallest correct list rather than a discovered hole. `status` is granted
 because `createReservation` writes it, and a Reservation born `confirmed` is
 exactly the case `reservations_no_double_booking` exists to refuse.
+
+### `public.guests` — the one this slice nearly missed
+
+```sql
+grant insert (organization_id, full_name, email, phone)
+  on public.guests to ranza_app;
+```
+
+**Withheld: `id`, `created_at`, `updated_at`.** Nothing on `main` names `id` —
+the statement is `insert into public.guests (organization_id, full_name, email,
+phone)` — and a record that can state when it was first put on file, or last
+touched, can lie about both. Its UPDATE grant was already a column list,
+`update(updated_at)`, so a second booking's no-op conflict update can hand back
+an existing row without editing a profile. INSERT was the door standing open
+beside it.
+
+**How it was missed matters more than the omission.** The survey that produced
+this slice was run on `feat/guest-profile`, where a later migration had already
+narrowed this table — so it never appeared in the results and `main`'s copy was
+invisible. **An audit is only as wide as the database it is run against, and
+that one was run against the wrong one.** The instrument found it on its first
+execution, before the migration it belongs to had landed.
+
+It is narrowed here rather than carried as an exception. `feat/guest-profile`
+narrows the same table with a different list, so two migrations touch one table
+and a person resolves it at merge — see the note under the instrument.
 
 ### `public.users` — ours, not Better Auth's
 
@@ -263,19 +289,15 @@ Run as the owner. `aclexplode` on `relacl` needs no privilege, but reading
 which is the same failure mode `RG-S2-32`'s coverage assertion had when it was
 run as `ranza_app` and quietly returned nothing.
 
-Its output against a database carrying the current schema, today:
-
-```
-outbox.events       | INSERT
-public.folio_lines  | INSERT
-public.folios       | INSERT
-public.guest_emails | INSERT      <- feat/guest-profile, fixed there
-public.reservations | INSERT
-public.stays        | INSERT
-```
-
-`public.guests` is absent because it was corrected in `20260916003100`. That is
-the only evidence that the column-list form is what this check wants.
+**It carries no allowed set, and that is the design.** An earlier draft made
+`public.guests` a dated exception, on the grounds that another branch narrows it
+anyway. That is precisely the failure `AGENTS.md` already names — a guard can
+stop applying without failing. The exception would have become unnecessary the
+day `feat/guest-profile` merged, nothing would have gone red, and nobody would
+have checked whether it had become _wrong_ instead. So `guests` is narrowed in
+this migration and the exception mechanism is gone. Two migrations on one table
+is a conflict a person resolves at merge; a carve-out is a thing nobody
+revisits.
 
 **The test file is not in this branch.** It is red until the migration lands,
 and a red test on a branch is not a design document. It arrives in the same

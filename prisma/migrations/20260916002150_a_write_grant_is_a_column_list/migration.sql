@@ -149,15 +149,37 @@ grant insert (user_id, issuer, subject, created_at)
   on public.auth_identities to ranza_auth;
 
 -- ---------------------------------------------------------------------------
--- What is deliberately still wrong
+-- public.guests — the eighth, and the one this slice nearly missed
 -- ---------------------------------------------------------------------------
 
--- `public.guests` carries the same table-level INSERT and is NOT narrowed here.
--- It is IG-15: eight tables were not what was approved, and adding one quietly
--- is the decision this migration exists to stop. It was missed because the
--- survey that produced this slice ran against a branch where it had already
--- been fixed.
+-- `20260916002000` granted `select, insert` on this table at table level, and
+-- its UPDATE grant was already a column list — `update(updated_at)`, so that a
+-- second booking's no-op conflict update can hand back an existing row without
+-- editing a profile. INSERT was the door standing open beside it.
 --
--- The instrument names it as a single dated exception and asserts the exception
--- set is exactly that one table, so a second one is a red test. When the branch
--- that narrows `guests` lands, that exception should be deleted.
+-- HOW IT WAS MISSED, because the manner matters more than the omission. The
+-- survey that produced this slice was run on `feat/guest-profile`, where a
+-- later migration had already narrowed this table — so it did not appear in the
+-- results and main's copy was invisible. An audit is only as wide as the
+-- database it is run against, and that one was run against the wrong one. The
+-- instrument found it on its first execution, before the migration it belongs
+-- to had even landed.
+--
+-- It is narrowed HERE rather than carried as an exception until another branch
+-- lands. An exception that becomes unnecessary the day something merges stops
+-- being needed without anything going red — which is the "a guard can stop
+-- applying without failing" shape AGENTS.md already names — and nobody ever
+-- checks whether it became wrong instead. `feat/guest-profile` narrows the same
+-- table in `20260916003100` with a different list, because on that branch
+-- `identifyGuestWithin` invents the id and `email` has moved to `guest_emails`.
+-- Two migrations on one table is a conflict a person resolves at merge, and
+-- that is the point: a conflict somebody reads beats a carve-out nobody
+-- revisits.
+--
+-- Withheld: `id`, `created_at`, `updated_at`. On main nothing names `id` — the
+-- statement is `insert into public.guests (organization_id, full_name, email,
+-- phone)` — and a record that can state when it was first put on file, or when
+-- it was last touched, can lie about both.
+revoke insert on public.guests from ranza_app;
+grant insert (organization_id, full_name, email, phone)
+  on public.guests to ranza_app;

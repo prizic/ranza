@@ -18,24 +18,20 @@
 -- `grant insert (every, column) on t` are byte-identical in it. That is how
 -- this defect survived six migrations and every audit run against the schema.
 begin;
-select plan(25);
+select plan(30);
 
 -- ---------------------------------------------------------------------------
 -- The shape of every write grant (IG-01)
 -- ---------------------------------------------------------------------------
 
--- One exception, named rather than excluded, and it is the instrument's own
--- first catch (IG-15). public.guests carries the same table-level INSERT on
--- main. It was missed when the seven were audited because that audit ran on
--- feat/guest-profile, where 20260916003100 had already narrowed it — so the
--- table was invisible to the survey that produced this slice.
---
--- It is not in this migration, because eight tables were not what was approved
--- and adding one quietly is the decision this slice exists to stop. So it is an
--- exception with a date on it: feat/guest-profile narrows it, and when that
--- branch lands this exception should be deleted and the assertion below should
--- go red if it is not.
-select set_eq(
+-- No allowed set, and that is deliberate. An earlier version of this carried
+-- public.guests as a dated exception, on the grounds that another branch
+-- narrows it anyway. That is the failure our own rules already name: a carve-out
+-- that becomes unnecessary the day a branch merges stops being needed WITHOUT
+-- anything going red, so nobody ever checks whether it became wrong instead.
+-- guests is narrowed here (IG-15) and the exception is gone. An assertion with
+-- no exceptions in it is a stronger instrument than one with a date on it.
+select is_empty(
   $$select n.nspname || '.' || c.relname || ' ' || a.privilege_type
       from pg_class as c
       join pg_namespace as n on n.oid = c.relnamespace
@@ -44,8 +40,7 @@ select set_eq(
        and n.nspname in ('public', 'outbox')
        and a.grantee = 'ranza_app'::regrole
        and a.privilege_type in ('INSERT', 'UPDATE', 'DELETE')$$,
-  array['public.guests INSERT'],
-  'the only table-level write grant ranza_app still holds is the one IG-15 names');
+  'ranza_app holds no table-level write grant anywhere: a write names its columns');
 
 -- ranza_auth is the credential role and the same rule reaches the two tables
 -- that are ours rather than Better Auth's. auth_* is deliberately excluded and
@@ -112,6 +107,13 @@ select set_eq(
        and grantee='ranza_app' and privilege_type='INSERT'$$,
   array['id','organization_id','event_type','payload'],
   'outbox.events: the four publish() names, and none of the worker''s bookkeeping');
+
+select set_eq(
+  $$select column_name::text from information_schema.column_privileges
+     where table_schema='public' and table_name='guests'
+       and grantee='ranza_app' and privilege_type='INSERT'$$,
+  array['organization_id','full_name','email','phone'],
+  'guests: the four identifyGuestWithin names');
 
 select set_eq(
   $$select column_name::text from information_schema.column_privileges
@@ -249,6 +251,37 @@ select throws_ok(
             current_date + 20, current_date + 22, now() - interval '1 year')$$,
   '42501', NULL,
   'a Reservation cannot restate when it was taken');
+
+-- guests, the eighth table (IG-15). Withheld: id, created_at, updated_at. Its
+-- UPDATE grant was already a column list — update(updated_at), so that a second
+-- booking's no-op conflict update can return an existing row without editing a
+-- profile — and INSERT was the door left open beside it.
+select throws_ok(
+  $$insert into public.guests (id, organization_id, full_name)
+    values ('c8111111-1111-4111-8111-111111111111',
+            'ca111111-1111-4111-8111-111111111111', 'Chosen Id')$$,
+  '42501', NULL,
+  'a Guest cannot be recorded with an id of the caller''s choosing');
+
+select throws_ok(
+  $$insert into public.guests (organization_id, full_name, created_at)
+    values ('ca111111-1111-4111-8111-111111111111', 'Backdated', now() - interval '1 year')$$,
+  '42501', NULL,
+  'nor claim to have been on file for a year');
+
+select throws_ok(
+  $$insert into public.guests (organization_id, full_name, updated_at)
+    values ('ca111111-1111-4111-8111-111111111111', 'Touched', now())$$,
+  '42501', NULL,
+  'nor state when it was last touched, which only the conflict update may move');
+
+-- The control: the four columns a booking actually writes still work. Without
+-- this the three refusals above are satisfied by a grant of nothing at all.
+select lives_ok(
+  $$insert into public.guests (organization_id, full_name, email, phone)
+    values ('ca111111-1111-4111-8111-111111111111', 'Recorded Normally',
+            'recorded@example.test', '+90 532 000 00 00')$$,
+  'and taking a booking still records a Guest');
 
 reset role;
 
