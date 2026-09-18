@@ -281,6 +281,78 @@ the only evidence that the column-list form is what this check wants.
 and a red test on a branch is not a design document. It arrives in the same
 commit as the grants.
 
+## The second instrument: a definer that writes must check its caller
+
+A `SECURITY DEFINER` function runs as its owner. The policies it would have
+obeyed do not apply to it, so whatever gate those policies carried, the function
+carries itself or it carries nothing. That is ADR 0027's shape and
+`app.guest_stay_summary()` already follows it.
+
+Two functions in flight create rows and both carry their own gate —
+`app.identify_staff_user()` on `feat/staff-and-permissions`, after
+`20260916002700` found it creating `public.users` rows for any caller, and
+`app.merge_guests()` on `feat/guest-profile`. Both got there by somebody
+noticing. That is the thing worth failing a build over.
+
+**The rule is in two parts, because one blanket rule would be false.**
+
+### Part A — a definer whose body writes must mention a gate
+
+```sql
+select is_empty(
+  $$select p.proname
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'app' and p.prosecdef
+       and p.prosrc ~* '(insert|update|delete)\s'
+       and p.prosrc !~* '(current_user_id|accessible_|can_use_capability|has_organization_permission)'$$,
+  'every security definer function in app that writes also checks its caller');
+```
+
+**Today this passes with nothing to check, and the test has to say so.** There
+are 11 definer functions in `app` on `main` and **none of them writes** — the
+two that do are on branches that have not merged. A coverage assertion that
+quietly matches nothing is the failure `RG-S2-32` had, so the assertion above
+travels with a second one that pins the inventory it swept:
+
+```sql
+select is(
+  (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'app' and p.prosecdef),
+  11,
+  'the definer sweep looked at 11 functions; change this number deliberately');
+```
+
+That number is expected to move when `feat/staff-and-permissions` and
+`feat/guest-profile` land, and moving it is how somebody notices that Part A has
+stopped being vacuous.
+
+### Part B — a definer that does not write is named, with a reason
+
+Part A says nothing about the other eleven, and "every definer checks its
+caller" would be simply untrue of them: six **are** the check, and five answer a
+question rather than act on one. So they are listed, and a twelfth is a red test
+and a one-line decision.
+
+| Function                                 | Why it carries no caller check                                                                                                                                                           |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `accessible_organization_ids()`          | It **is** the check. Resolves through `app.current_user_id()`; requiring it to check a caller is circular.                                                                               |
+| `accessible_property_ids()`              | The same, for Properties.                                                                                                                                                                |
+| `resident_stay_property_ids()`           | The same, for a Resident's own reach (ADR 0009).                                                                                                                                         |
+| `resident_stay_accommodation_unit_ids()` | The same, for a Resident's Unit.                                                                                                                                                         |
+| `can_use_capability()`                   | Gates 1–4 for a Property. The thing policies consult.                                                                                                                                    |
+| `can_use_capability_in_organization()`   | Gates 1–4 for an Organization-scoped row.                                                                                                                                                |
+| `capability_is_available()`              | Gates 1–3 without reach — a question about a **Property**, not about the caller, and `can_use_capability()` is what adds the caller to it.                                               |
+| `resident_can_use_capability()`          | The same composition for a Resident.                                                                                                                                                     |
+| `property_today()`                       | Returns a date. Definer because `properties.timezone` may be out of reach. It does confirm a Property id exists, which is a caller's own id, and that is the whole of what it discloses. |
+| `unit_has_no_current_occupant()`         | A trigger body. It has no caller to check: it runs inside a write the policy already admitted, and cannot be invoked as a step.                                                          |
+| `unit_is_sellable()`                     | The same.                                                                                                                                                                                |
+
+Two of these are worth a second look whenever somebody is in here:
+`property_today()` is the only one that takes an id and answers about a row the
+caller may not reach, and `capability_is_available()` is the only gate component
+exposed without its reach half. Neither is a finding today. Both are the sort of
+thing that becomes one.
+
 ## `ranza_auth` and the `auth_*` tables — settled, and nothing changes
 
 `ranza_auth` holds table-level `INSERT` **and `UPDATE`** on `auth_user`,
