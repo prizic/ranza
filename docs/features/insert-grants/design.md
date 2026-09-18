@@ -1,6 +1,8 @@
 # A write grant is a column list
 
-Design only. **The seven column lists are approved; IG-13 and IG-14 are not, and are questions rather than changes.**
+**The eight column lists are approved and shipped, in `20260916002150` and
+`tests/database/insert_grants.test.sql`. IG-13 and IG-14 are not approved, and
+are questions rather than changes.**
 
 ## The defect
 
