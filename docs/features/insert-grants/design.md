@@ -1,0 +1,211 @@
+# A write grant is a column list
+
+Design only. **No migration until the rows below are approved.**
+
+## The defect
+
+`grant insert on public.<table> to ranza_app` covers every column the table has
+**and every column it ever gains**. The grant is written once, years before the
+column, and silently widens the day somebody adds one.
+
+This is not hypothetical. `20260916002000` granted `select, insert` on
+`public.guests` at table level. `20260916003100` added `status` and
+`merged_into_id` for the merge, and both became insertable by the runtime role —
+which is the thing `RG-S2-25` forbids, with `UPDATE` deliberately withheld and
+`INSERT` wide open. A tombstone written at INSERT time is just as much a
+tombstone. It was caught only because `RG-S1-21` asserts the grant column by
+column and went red on the count.
+
+`information_schema.column_privileges` cannot see this. It expands a table-level
+grant into one row per column, so a table-level grant and an exhaustive column
+list are byte-identical in that view. Every audit that has been run against this
+schema used it, which is why the shape survived six migrations.
+
+## The rule
+
+**A write privilege is granted by column, never at table level.** `SELECT` is
+unaffected: a read grant that widens with a new column is a column the reader
+can see, which is what row-level security is for. `INSERT`, `UPDATE` and
+`DELETE` name their columns.
+
+Columns are withheld by default. A column earns its way onto a grant by being
+written by a statement somebody can point at.
+
+## The five tables, and what each is for
+
+Read from the code that writes them, not from what looks reasonable. Every
+withheld column below is nullable or has a default, so withholding it breaks no
+statement that exists.
+
+### `public.stays` — the sharpest one
+
+```sql
+grant insert (organization_id, property_id, accommodation_unit_id,
+              reservation_id, stay_type, status, starts_on, ends_on)
+  on public.stays to ranza_app;
+```
+
+**Withheld: `id`, `user_id`, `created_at`, `updated_at`.**
+
+`user_id` is the whole reason this table is first. It is the nullable fact that
+gives somebody a Portal (ADR 0009), and it is read by
+`app.resident_stay_property_ids()` and
+`app.resident_stay_accommodation_unit_ids()` to decide which Property and which
+Unit a Resident reaches. **Nothing in the product writes it** — `grep` finds no
+INSERT or UPDATE naming it anywhere under `packages/`. So today the runtime role
+can insert a Stay naming any user id, and that person gains a Resident's reach
+over that Property and that Unit immediately, through policies that are working
+exactly as designed.
+
+`status` is granted because check-in writes it and `stays_insert_front_desk`
+already constrains it — `status <> 'in_house' or starts_on <= property_today`.
+
+### `public.folio_lines` — money, and it cannot be corrected
+
+```sql
+grant insert (organization_id, property_id, folio_id, line_type,
+              description, amount_minor, reverses_line_id)
+  on public.folio_lines to ranza_app;
+```
+
+**Withheld: `id`, `posted_at`.**
+
+`folio_lines_forbid_rewrite()` raises on UPDATE and DELETE, so whatever INSERT
+writes is permanent. A caller-chosen `posted_at` backdates a charge into a
+period that has been reported on, and there is no correction path — only a
+reversal, which carries its own date and does not move the original.
+
+### `public.folios`
+
+```sql
+grant insert (organization_id, property_id, stay_id, currency)
+  on public.folios to ranza_app;
+```
+
+**Withheld: `id`, `status`, `closed_at`, `created_at`, `updated_at`.**
+
+A Folio inserted with `status = 'closed'` and `closed_at` set satisfies
+`folios_closed_at_check` and has never been settled. Closing is a command with
+its own policy and its own column grant; INSERT must not be a second way to
+perform it.
+
+### `public.reservations`
+
+```sql
+grant insert (organization_id, property_id, accommodation_unit_id,
+              guest_id, stay_type, status, starts_on, ends_on)
+  on public.reservations to ranza_app;
+```
+
+**Withheld: `id`, `created_at`, `updated_at`.**
+
+The smallest correct list rather than a discovered hole. `status` is granted
+because `createReservation` writes it, and a Reservation born `confirmed` is
+exactly the case `reservations_no_double_booking` exists to refuse.
+
+### `outbox.events`
+
+```sql
+grant insert (id, organization_id, event_type, payload)
+  on outbox.events to ranza_app;
+```
+
+**Withheld: `occurred_at`, `available_at`, `claimed_until`, `attempts`,
+`last_error`, `published_at`, `dead_at`.**
+
+Everything withheld is the worker's bookkeeping. An event born with
+`published_at` set is never delivered; one born with `available_at` in the
+future is a delivery silently deferred; `attempts`, `last_error` and `dead_at`
+are the delivery record, and a publisher writing its own is a publisher marking
+its own homework. `id` **is** granted, because `publish.ts` names it.
+
+## The instrument
+
+The rule holds because a test says so, not because the next person remembers.
+
+```sql
+-- No table-level write grant, anywhere the runtime role can reach.
+--
+-- Read from pg_class.relacl through aclexplode(), and NOT from
+-- information_schema.column_privileges. That view expands a table-level grant
+-- into one row per column, so `grant insert on t` and
+-- `grant insert (every, column) on t` are indistinguishable in it — which is
+-- exactly the distinction this test exists to make, and why every earlier audit
+-- of this schema missed the defect. relacl carries the table-level grant;
+-- pg_attribute.attacl carries the column-level ones; only the first is wrong.
+--
+-- SELECT is deliberately not checked. A read grant that widens with a new
+-- column is a column the reader may see, and row-level security is what bounds
+-- that. Only writes name their columns.
+select is_empty(
+  $$select n.nspname || '.' || c.relname || ' ' || a.privilege_type
+      from pg_class as c
+      join pg_namespace as n on n.oid = c.relnamespace
+      cross join lateral aclexplode(c.relacl) as a
+     where c.relkind = 'r'
+       and n.nspname in ('public', 'outbox')
+       and a.grantee = 'ranza_app'::regrole
+       and a.privilege_type in ('INSERT', 'UPDATE', 'DELETE')$$,
+  'ranza_app holds no table-level write grant: a write names its columns');
+```
+
+Run as the owner. `aclexplode` on `relacl` needs no privilege, but reading
+`pg_class` for tables the role cannot see would narrow the sweep silently —
+which is the same failure mode `RG-S2-32`'s coverage assertion had when it was
+run as `ranza_app` and quietly returned nothing.
+
+Its output against a database carrying the current schema, today:
+
+```
+outbox.events       | INSERT
+public.folio_lines  | INSERT
+public.folios       | INSERT
+public.guest_emails | INSERT      <- feat/guest-profile, fixed there
+public.reservations | INSERT
+public.stays        | INSERT
+```
+
+`public.guests` is absent because it was corrected in `20260916003100`. That is
+the only evidence that the column-list form is what this check wants.
+
+**The test file is not in this branch.** It is red until the migration lands,
+and a red test on a branch is not a design document. It arrives in the same
+commit as the grants.
+
+## `ranza_auth` and the `auth_*` tables — a question, not a finding
+
+`ranza_auth` holds table-level `INSERT` **and `UPDATE`** on `auth_user`,
+`auth_session`, `auth_account`, `auth_verification`, `auth_two_factor` and
+`auth_rate_limit`, plus table-level `INSERT` on `public.users` and
+`auth_identities`.
+
+The case that it is the intended boundary:
+
+- Better Auth owns those tables and their columns. It writes whatever its schema
+  says, and a column list here is a list this repository does not control — the
+  next `better-auth` upgrade adds a column and authentication stops working, in
+  production, at sign-in.
+- `AGENTS.md` is explicit that row-level security is deliberately **not** used
+  there, because authentication happens before any identity is known, and that
+  **role grants are the boundary**. The boundary is `ranza_auth` being a separate
+  role that `ranza_app` is granted nothing of — not which columns it may write.
+- Nothing in those tables is tenant-owned, so a widened column carries no other
+  Organization's data.
+
+The case that it is the same defect:
+
+- `public.users` is not a Better Auth table. It is the list of people the
+  application treats as real, it is referenced by `organization_memberships` and
+  `stays.user_id`, and `ranza_auth` holding table-level INSERT on it means a
+  column added there is writable by the credential role without anybody deciding
+  so. This one is worth separating from the rest.
+
+**Recommendation: leave `auth_*` alone and treat `public.users` as a sixth
+table in this slice.** Nothing changes either way until that is agreed.
+
+## What this slice does not touch
+
+`public.guest_emails` carries the same defect and is **not** on `main`; it
+arrived with `feat/guest-profile`. It is fixed on that branch, with the same
+column list and a comment citing this slice, because a migration for a table
+that does not exist on `main` cannot live here.
