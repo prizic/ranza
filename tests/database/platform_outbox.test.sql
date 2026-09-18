@@ -12,7 +12,7 @@
 -- whole table, granting ranza_worker select on public.organizations, dropping
 -- the deliveries policies — and confirming it went red.
 begin;
-select plan(34);
+select plan(35);
 
 insert into public.users (id, email) values
   ('51111111-1111-4111-8111-111111111111', 'outbox-a@example.test'),
@@ -286,12 +286,29 @@ reset role;
 -- The grants say the same thing a second way
 -- ---------------------------------------------------------------------------
 
+-- Read from role_COLUMN_grants since 20260916002150, which replaced the
+-- table-level INSERT with a column list. The claim is unchanged — publishing is
+-- the only thing the runtime role may do to this table — and it is now checked
+-- one level down, where a table-level grant and an exhaustive column list stop
+-- looking identical.
 select set_eq(
-  $$select privilege_type from information_schema.role_table_grants
+  $$select distinct privilege_type from information_schema.role_column_grants
     where table_schema = 'outbox' and table_name = 'events'
       and grantee = 'ranza_app'$$,
   array['INSERT'],
   'the runtime role may only publish');
+
+-- And publishing means four columns. Everything withheld is the worker's
+-- bookkeeping: an event born with published_at set is never delivered, one born
+-- with available_at in the future is a delivery silently deferred, and
+-- attempts, last_error and dead_at are the delivery record a publisher must not
+-- write for itself.
+select set_eq(
+  $$select column_name::text from information_schema.role_column_grants
+    where table_schema = 'outbox' and table_name = 'events'
+      and grantee = 'ranza_app' and privilege_type = 'INSERT'$$,
+  array['id', 'organization_id', 'event_type', 'payload'],
+  'and publishing is four columns, not the worker''s bookkeeping');
 
 select set_eq(
   $$select column_name from information_schema.column_privileges
