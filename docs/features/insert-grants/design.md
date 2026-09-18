@@ -31,7 +31,7 @@ can see, which is what row-level security is for. `INSERT`, `UPDATE` and
 Columns are withheld by default. A column earns its way onto a grant by being
 written by a statement somebody can point at.
 
-## The five tables, and what each is for
+## The six tables, and what each is for
 
 Read from the code that writes them, not from what looks reasonable. Every
 withheld column below is nullable or has a default, so withholding it breaks no
@@ -103,6 +103,51 @@ The smallest correct list rather than a discovered hole. `status` is granted
 because `createReservation` writes it, and a Reservation born `confirmed` is
 exactly the case `reservations_no_double_booking` exists to refuse.
 
+### `public.users` — ours, not Better Auth's
+
+```sql
+grant insert (email, status, created_at, updated_at)
+  on public.users to ranza_auth;
+```
+
+**Withheld: `id`, and only `id`.**
+
+Measured, not reasoned. `grant insert (email)` alone fails sign-up with 42501,
+and so does `(id, email, created_at, updated_at)`. The statement Prisma actually
+emits, captured from `log_statement`, is:
+
+```sql
+INSERT INTO "public"."users" ("email","status","created_at","updated_at")
+VALUES ($1,$2,$3,$4) RETURNING "public"."users"."id"
+```
+
+With the four-column grant the auth-flow suite passes 7 of 7 and
+`has_table_privilege('ranza_auth','public.users','INSERT')` goes false.
+
+**Why this list is so much wider than the others, and it matters for reading
+them.** `public.users` is the one table in this slice written through Prisma's
+**model API** rather than raw SQL, and Prisma sends client-side values for every
+`@default` and `@updatedAt` field. The five tables above are written by
+`$queryRaw`, which names only the columns it names — which is why their lists are
+genuinely narrow and this one is not. The narrowing here buys exactly one column
+today. It still buys the thing the slice is for: the **next** column added to
+`public.users` is not writable until somebody says so.
+
+**Two write paths, and the grant binds one of them.**
+
+1. `ranza_auth` at sign-up, through `linkRanzaUser()`. This is the one the grant
+   binds.
+2. `app.identify_staff_user()`, which arrives with `feat/staff-and-permissions`
+   and is not on `main`. It is `SECURITY DEFINER`, so it runs as its owner and
+   **this grant does not bind it at all**.
+
+The second is not an argument against the first. It is the reason
+`20260916002700` made that function check its own caller before either of its
+side effects — returning whether an address is already known, and writing a row.
+A definer that creates rows is a writer no column list can reach, and it carries
+its own gate instead. When that branch lands, this row and that function are the
+two places that decide who may put a person into `public.users`.
+
 ### `outbox.events`
 
 ```sql
@@ -172,7 +217,7 @@ the only evidence that the column-list form is what this check wants.
 and a red test on a branch is not a design document. It arrives in the same
 commit as the grants.
 
-## `ranza_auth` and the `auth_*` tables — a question, not a finding
+## `ranza_auth` and the `auth_*` tables — settled, and nothing changes
 
 `ranza_auth` holds table-level `INSERT` **and `UPDATE`** on `auth_user`,
 `auth_session`, `auth_account`, `auth_verification`, `auth_two_factor` and
@@ -195,13 +240,14 @@ The case that it is the intended boundary:
 The case that it is the same defect:
 
 - `public.users` is not a Better Auth table. It is the list of people the
-  application treats as real, it is referenced by `organization_memberships` and
-  `stays.user_id`, and `ranza_auth` holding table-level INSERT on it means a
-  column added there is writable by the credential role without anybody deciding
-  so. This one is worth separating from the rest.
+  application treats as real, it is referenced by `organization_memberships`,
+  `property_assignments`, `auth_identities` and `stays.user_id`, and `ranza_auth`
+  holding table-level INSERT on it means a column added there is writable by the
+  credential role without anybody deciding so. It is separated out as IG-10.
 
-**Recommendation: leave `auth_*` alone and treat `public.users` as a sixth
-table in this slice.** Nothing changes either way until that is agreed.
+**Settled: leave `auth_*` alone, for the reasons above.** `public.users` is the
+exception and is the sixth table of this slice — it has its own section and its
+own row (IG-10), because it is ours rather than Better Auth's.
 
 ## What this slice does not touch
 
