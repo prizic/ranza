@@ -67,7 +67,7 @@ select ok(
   'and it swept a catalogue with tables in it');
 
 -- ---------------------------------------------------------------------------
--- The seven column lists, exactly (IG-02 … IG-11)
+-- The eight column lists, exactly (IG-02 … IG-11 and IG-15)
 -- ---------------------------------------------------------------------------
 
 select set_eq(
@@ -174,7 +174,7 @@ insert into public.folios (id, organization_id, property_id, stay_id, currency) 
 set local role ranza_app;
 select app.set_request_context('c1111111-1111-4111-8111-111111111111');
 
--- stays.user_id — the sharpest of the seven. It is what gives somebody a Portal
+-- stays.user_id — the sharpest of the eight. It is what gives somebody a Portal
 -- (ADR 0009), app.resident_stay_property_ids() reads it to decide which
 -- Property a Resident reaches, and NOTHING under packages/ writes it. A Stay
 -- inserted naming an arbitrary user hands that person a Resident's reach.
