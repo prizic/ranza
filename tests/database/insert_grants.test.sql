@@ -315,35 +315,46 @@ reset role;
 -- A definer that writes checks its caller (IG-12)
 -- ---------------------------------------------------------------------------
 
+-- `worker_organization_id` joined this list when app.end_sessions_for() was
+-- fixed. It is a caller check of the same kind and not a weakening: the worker
+-- context is set only by app.set_worker_context(), which is executable by
+-- ranza_worker and revoked from everybody else, so a function that consults it
+-- is asking who is calling and refusing when the answer is nobody.
 select is_empty(
   $$select p.proname::text
       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef
        and p.prosrc ~* '(insert|update|delete)\s'
-       and p.prosrc !~* '(current_user_id|accessible_|can_use_capability|has_organization_permission)'$$,
+       and p.prosrc !~* '(current_user_id|accessible_|can_use_capability|has_organization_permission|worker_organization_id)'$$,
   'every security definer function in app that writes also checks its caller');
 
--- The assertion above passes today with nothing to check: none of app's definer
--- functions writes. Both that do are on branches that have not merged —
--- app.identify_staff_user() on feat/staff-and-permissions and
--- app.merge_guests() on feat/guest-profile. A coverage assertion that quietly
--- matches nothing is the RG-S2-32 failure, so the inventory it swept is pinned
--- beside it. When this number changes, the assertion above has stopped being
--- vacuous and somebody should read it again rather than update it.
+-- The assertion above is no longer vacuous, and that is the whole reason the
+-- two numbers below are pinned. It swept eleven functions and none of them
+-- wrote when it was written; staff and permissions brought ten more, three of
+-- which write. All three were made to check their caller —
+-- app.identify_staff_user() in 20260916002700, app.end_sessions_for() and
+-- app.accept_staff_invitation() in 20260916002800 — rather than added to an
+-- exception list, so the assertion still reads zero.
+--
+-- A coverage assertion that quietly matches nothing is the RG-S2-32 failure,
+-- so the inventory is pinned beside it. When either number changes, read the
+-- assertion again rather than update it.
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  11,
-  'the definer sweep looked at 11 functions; change this number deliberately');
+  21,
+  'the definer sweep looked at 21 functions; change this number deliberately');
 
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef and p.prosrc ~* '(insert|update|delete)\s'),
-  0,
-  'and none of them writes yet, which is why the assertion above is a tripwire');
+  3,
+  'three of them write, which is what makes the assertion above a test');
 
--- Part B: the definers that do not write are the ones named in IG-12, and a
--- twelfth is a red test rather than a silent addition.
+-- Part B: the inventory itself, so a twenty-second definer is a red test
+-- rather than a silent addition. The first eleven are the ones IG-12 gives a
+-- reason for; the ten after are staff and permissions, and the three that
+-- write are named in the comment above.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -351,8 +362,13 @@ select set_eq(
         'can_use_capability','can_use_capability_in_organization',
         'capability_is_available','property_today','resident_can_use_capability',
         'resident_stay_accommodation_unit_ids','resident_stay_property_ids',
-        'unit_has_no_current_occupant','unit_is_sellable'],
-  'and they are exactly the eleven IG-12 gives a reason for');
+        'unit_has_no_current_occupant','unit_is_sellable',
+        'accept_staff_invitation','end_sessions_for','has_organization_permission',
+        'identify_staff_user','membership_role_is_active',
+        'organization_keeps_an_administrator','organization_permissions',
+        'role_change_keeps_an_administrator','role_is_not_held',
+        'role_permissions_are_in_the_catalogue'],
+  'and they are exactly the twenty-one the design gives a reason for');
 
 select finish();
 rollback;

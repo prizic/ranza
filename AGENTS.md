@@ -257,8 +257,9 @@ every local run and took one pgTAP run against Supabase to surface.
 - Where each piece of a screen belongs — shadcn, the shared kit, or a feature
   folder — is [ADR 0013](docs/adr/0013-an-interface-is-shadcn-a-feature-folder-and-a-shared-kit.md).
   Layout references are `docs/design/ui-references.md`; the palette is
-  `docs/design/visual-reference.md`, **which the current theme does not match
-  yet** and which wins when they disagree.
+  `docs/design/visual-reference.md`, which wins when they disagree. The theme
+  now matches it — teal on a pale canvas — apart from the typeface, which
+  departs for a reason recorded in `globals.css`.
 - Directional utilities are always logical — `ps`/`pe`, `border-s`,
   `text-start`. That is what makes Arabic mirror by construction.
 - Applications should have no `src/` and should import through `@/`, not

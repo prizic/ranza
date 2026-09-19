@@ -135,6 +135,9 @@ importers:
       '@ranza/reservations':
         specifier: workspace:*
         version: link:../../packages/ranza/reservations
+      '@ranza/staff':
+        specifier: workspace:*
+        version: link:../../packages/ranza/staff
       '@ranza/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -315,6 +318,18 @@ importers:
       '@ranza/stays':
         specifier: workspace:*
         version: link:../stays
+
+  packages/ranza/staff:
+    dependencies:
+      '@ranza/db':
+        specifier: workspace:*
+        version: link:../../db
+      '@ranza/platform-audit':
+        specifier: workspace:*
+        version: link:../../platform/audit
+      '@ranza/platform-outbox':
+        specifier: workspace:*
+        version: link:../../platform/outbox
 
   packages/ranza/stays:
     dependencies:

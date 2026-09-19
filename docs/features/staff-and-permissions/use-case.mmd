@@ -1,0 +1,107 @@
+%% Slices decide implementation order and nothing else:
+%%   s1 the roster and reach   s2 the permission gate   s3 roles an Organization defines
+%%   s4 a reach change ends the session
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% UML directions: include points base --> included. extend points extension --> base.
+%% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
+%% State transitions are in states.mmd and are deliberately not repeated here.
+flowchart TD
+
+  ADMIN["Staff Member holding staff authority<br/>one authority: invites, sets the role, assigns the Property"]
+  ANY["Any Staff Member of the Organization<br/>reads the roster, whole Organization"]
+  INVITEE["The invited person<br/>not yet able to sign in"]
+
+  subgraph S1["slice 1 &mdash; the roster and reach"]
+    INVITE(["Invite a Staff Member<br/>role and Properties optional"])
+    ACCEPT(["Accept an invitation, set a password"])
+    ASSIGN(["Assign to a Property"])
+    UNASSIGN(["Remove from a Property"])
+    SETROLE(["Change a Staff Member's role"])
+    REVOKE(["Revoke a membership"])
+    UNDO(["Undo a revoke<br/>within a window"])
+    ROSTER(["Read the roster"])
+  end
+
+  subgraph S2["slice 2 &mdash; the permission gate"]
+    CHECK(["Check a permission<br/>the fifth gate, beside blueprint 3.5's four"])
+    GRID(["Read what each role may do"])
+  end
+
+  subgraph S3["slice 3 &mdash; roles an Organization defines"]
+    DEFINE(["Define a role from the permission catalogue<br/>name required"])
+    EDITROLE(["Change what an Organization's own role may do"])
+    RETIRE(["Retire an Organization's own role"])
+  end
+
+  subgraph S4["slice 4 &mdash; a reach change ends the session"]
+    ENDSESS(["End the Staff Member's sessions"])
+  end
+
+  subgraph OUT["Not this feature"]
+    NOTIFY(["Deliver the invitation &mdash; prerequisite<br/>blueprint 5.12, no module exists"])
+    CREDS(["Credentials and the password itself<br/>Better Auth, ADR 0005"])
+    CP(["Prizic Control Plane permissions<br/>a separate system, never mixed"])
+    HR(["Employment, contracts, pay &mdash; HR and payroll"])
+    SHIPPED(["The roles Ranza ships<br/>a release, not a screen"])
+  end
+
+  ASSIGN -- "extend" --> INVITE
+  SETROLE -- "extend" --> INVITE
+  UNDO -- "extend" --> REVOKE
+
+  INVITE -- "include" --> CHECK
+  SETROLE -- "include" --> CHECK
+  ASSIGN -- "include" --> CHECK
+  UNASSIGN -- "include" --> CHECK
+  REVOKE -- "include" --> CHECK
+  DEFINE -- "include" --> CHECK
+  EDITROLE -- "include" --> CHECK
+  RETIRE -- "include" --> CHECK
+
+  SETROLE -- "include" --> ENDSESS
+  ASSIGN -- "include" --> ENDSESS
+  UNASSIGN -- "include" --> ENDSESS
+  REVOKE -- "include" --> ENDSESS
+  EDITROLE -- "include" --> ENDSESS
+
+  ADMIN --> INVITE
+  ADMIN --> ASSIGN
+  ADMIN --> UNASSIGN
+  ADMIN --> SETROLE
+  ADMIN --> REVOKE
+  ADMIN --> UNDO
+  ADMIN --> DEFINE
+  ADMIN --> EDITROLE
+  ADMIN --> RETIRE
+  ANY --> ROSTER
+  ANY --> GRID
+  ADMIN -- "generalizes (is a Staff Member)" --> ANY
+  INVITEE --> ACCEPT
+
+  INVITE -. "depends on" .-> NOTIFY
+  ACCEPT -. "depends on" .-> CREDS
+  ENDSESS -. "depends on" .-> CREDS
+  DEFINE -. "starts from" .-> SHIPPED
+
+  %% NOTE: a membership is active the moment it is written. The invitation is
+  %% only about getting the person a password, so reach is real before they can
+  %% exercise it. Nothing distinguishes "invited" from "working" except whether
+  %% an account exists to sign in with.
+
+  %% NOTE: a Staff Member may reach no Property at all. That is a normal state,
+  %% not a half-finished one, and the roster shows it as such.
+
+  %% OPEN: how does ending a session cross the credential boundary? ranza_app is
+  %% granted nothing on auth_session by design (ADR 0005). s4, SP-S4-01
+  %% OPEN: does a lapsed Subscription block REVOKING too, or only granting?
+  %% Blocking it locks an Organization out of removing a compromised account. s1, SP-S1-21
+  %% OPEN: how long is the undo window, measured against which clock? An
+  %% Organization has no business date; a Property does (ADR 0021). s1, SP-S1-22
+  %% OPEN: does an invitation expire, and what happens to the live membership
+  %% behind it if it does? s1, SP-S1-23
+  %% OPEN: what is the permission catalogue? Every command in the product has to
+  %% appear in it or the gate has nothing to check. s2, SP-S2-01
+  %% OPEN: may an Organization's own role grant a permission its author does not
+  %% hold? s3, SP-S3-01
+  %% OPEN: what happens to Staff Members holding an Organization's role when it
+  %% is retired? s3, SP-S3-02

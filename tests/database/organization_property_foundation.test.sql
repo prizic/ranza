@@ -31,7 +31,7 @@ values
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
    '11111111-1111-4111-8111-111111111111', 'owner', 'organization_wide'),
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-   '22222222-2222-4222-8222-222222222222', 'staff', 'assigned_properties'),
+   '22222222-2222-4222-8222-222222222222', 'front_desk', 'assigned_properties'),
   ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
    '33333333-3333-4333-8333-333333333333', 'owner', 'organization_wide');
 
@@ -79,10 +79,13 @@ select is_empty(
 
 select app.set_request_context('11111111-1111-4111-8111-111111111111');
 
+-- Widened when Staff and permissions arrived: a roster is a list of people, and
+-- users_read_self could show a Staff Member only themselves. Reach is still the
+-- Organization — Owner B shares none, and is absent rather than hidden.
 select set_eq(
   'select email from public.users',
-  array['owner-a@example.test'],
-  'a user sees only their own identity row'
+  array['owner-a@example.test', 'staff-a@example.test'],
+  'a user sees themselves and the colleagues they share an Organization with'
 );
 select set_eq(
   'select subject from public.auth_identities',

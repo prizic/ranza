@@ -116,6 +116,86 @@ export interface Messages {
    */
   reservations: string;
   reservationsAt: string;
+
+  /**
+   * Staff and permissions.
+   *
+   * `awaitingPassword` rather than "pending": the membership is not pending —
+   * it is active and the person simply has not set a password yet. Calling it
+   * pending on a screen would teach the wrong model of the thing.
+   */
+  staff: {
+    rosterOf: string;
+    screenSummary: string;
+    peopleTab: string;
+    rolesTab: string;
+    person: string;
+    permission: string;
+    heldByCount: string;
+    shippedGroup: string;
+    authoredGroup: string;
+    invitationSent: string;
+    inviteNotice: string;
+    matrixNote: string;
+    cannotGrant: string;
+    invite: string;
+    inviteTitle: string;
+    inviteDescription: string;
+    sendInvitation: string;
+    cancel: string;
+    linkToPassOn: string;
+    linkExpires: string;
+    email: string;
+    role: string;
+    properties: string;
+    status: string;
+    actions: string;
+    active: string;
+    awaitingPassword: string;
+    revoked: string;
+    revoke: string;
+    undoRevoke: string;
+    reachesNothing: string;
+    alreadyAMember: string;
+    refused: string;
+    lastAdministrator: string;
+    roleIsHeld: string;
+    rolesHeading: string;
+    defineRole: string;
+    defineRoleTitle: string;
+    defineRoleDescription: string;
+    roleName: string;
+    saveRole: string;
+    mayDo: string;
+    heldBy: string;
+    shipped: string;
+    retired: string;
+    retire: string;
+    reinstate: string;
+    noCommands: string;
+    /**
+     * Keyed on a dotless name rather than the permission itself: next-intl
+     * reads a dot as a namespace separator, so `front_desk.book` would be
+     * looked up as a `book` inside a `front_desk` object. The mapping lives in
+     * `features/staff/labels.ts`.
+     */
+    permissions: Record<
+      | "book"
+      | "checkIn"
+      | "checkOut"
+      | "manageFolio"
+      | "postCharge"
+      | "administerStaff"
+      | "defineRoles",
+      string
+    >;
+    emptyRosterTitle: string;
+    emptyRosterDescription: string;
+    roles: Record<
+      "owner" | "manager" | "front_desk" | "housekeeping" | "finance",
+      string
+    >;
+  };
   noReservationsTitle: string;
   noReservationsDescription: string;
   newReservation: string;
@@ -314,6 +394,84 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     reservations: "Rezervasyonlar",
     reservationsAt: "Rezervasyonlar —",
+
+    staff: {
+      rosterOf: "Ekip —",
+      screenSummary:
+        "Burada kimler çalışıyor, hangi tesislere erişiyorlar ve her rol ne yapabilir.",
+      peopleTab: "Kişiler",
+      rolesTab: "Her rol ne yapabilir",
+      person: "Kişi",
+      permission: "Yetki",
+      heldByCount:
+        "{count, plural, =0 {kimse tutmuyor} one {# kişi} other {# kişi}}",
+      shippedGroup: "Ranza’nın gönderdikleri",
+      authoredGroup: "Sizin tanımladıklarınız",
+      invitationSent: "Davet gönderildi",
+      inviteNotice:
+        "Bağlantıyı siz iletirsiniz: henüz e-posta gönderen bir modül yok. Yedi gün sonra geçersiz olur ve yalnızca bir kez gösterilir.",
+      matrixNote:
+        "Ranza\u2019nın gönderdiği roller bir sürümle gelir ve değiştirilmez. Her değişiklik denetim kaydına yazılır ve yalnızca düğmeler gizlenerek değil, veritabanında uygulanır.",
+      cannotGrant: "Kendi rolünüzde olmayan bir yetkiyi veremezsiniz.",
+      invite: "Davet et",
+      inviteTitle: "Ekibe birini davet et",
+      inviteDescription:
+        "Üyelik hemen açılır. Davet bağlantısı yalnızca parola belirlemek içindir.",
+      sendInvitation: "Daveti oluştur",
+      cancel: "Vazgeç",
+      linkToPassOn: "Bu bağlantıyı kendiniz iletin",
+      linkExpires:
+        "Bağlantı yedi gün sonra geçersiz olur ve bir daha gösterilmez.",
+      email: "E-posta",
+      role: "Rol",
+      properties: "Tesisler",
+      status: "Durum",
+      actions: "İşlemler",
+      active: "Aktif",
+      awaitingPassword: "Parola bekleniyor",
+      revoked: "Kaldırıldı",
+      revoke: "Kaldır",
+      undoRevoke: "Geri al",
+      reachesNothing: "Henüz bir tesis atanmadı",
+      alreadyAMember: "Bu kişinin bu organizasyonda zaten bir üyeliği var.",
+      refused: "Bu işlem reddedildi.",
+      lastAdministrator:
+        "Bir organizasyonda ekip yönetebilen en az bir kişi kalmalıdır.",
+      roleIsHeld: "Bu rolü tutan kişiler var; önce onları taşıyın.",
+      rolesHeading: "Roller",
+      defineRole: "Rol tanımla",
+      defineRoleTitle: "Yeni bir rol tanımla",
+      defineRoleDescription:
+        "Bir rol, adı olan bir yetki kümesidir. Yalnızca kendi tuttuğunuz yetkileri verebilirsiniz.",
+      roleName: "Rol adı",
+      saveRole: "Rolü kaydet",
+      mayDo: "Yapabilecekleri",
+      heldBy: "Tutan kişi",
+      shipped: "Ranza",
+      retired: "Emekli",
+      retire: "Emekliye ayır",
+      reinstate: "Geri getir",
+      noCommands: "Henüz bir yetki yok",
+      permissions: {
+        book: "Rezervasyon alma",
+        checkIn: "Giriş yapma",
+        checkOut: "Çıkış yapma",
+        manageFolio: "Folyo açma ve kapatma",
+        postCharge: "Folyoya ücret işleme",
+        administerStaff: "Ekibi yönetme",
+        defineRoles: "Rol tanımlama",
+      },
+      emptyRosterTitle: "Henüz kimse yok",
+      emptyRosterDescription:
+        "Bu organizasyonda görünen bir ekip üyesi bulunmuyor.",
+      roles: {
+        owner: "Sahip",
+        manager: "Müdür",
+        front_desk: "Ön büro",
+        housekeeping: "Kat hizmetleri",
+        finance: "Finans",
+      },
+    },
     noReservationsTitle: "İleri tarihli rezervasyon yok",
     noReservationsDescription:
       "Bu tesiste bugünden itibaren bir rezervasyon bulunmuyor.",
@@ -534,6 +692,83 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     reservations: "Reservations",
     reservationsAt: "Bookings at",
+
+    staff: {
+      rosterOf: "The team at",
+      screenSummary:
+        "Who works here, which Properties they reach, and what each role may do.",
+      peopleTab: "People",
+      rolesTab: "What each role can do",
+      person: "Person",
+      permission: "Permission",
+      heldByCount:
+        "{count, plural, =0 {nobody holds it} one {# person} other {# people}}",
+      shippedGroup: "Ranza ships these",
+      authoredGroup: "You defined these",
+      invitationSent: "Invitation sent",
+      inviteNotice:
+        "You pass the link on yourself — nothing sends email yet. It lapses after seven days and is shown only once.",
+      matrixNote:
+        "The roles Ranza ships arrive in a release and are not editable. Every change is written to the audit log and enforced by the database, not only by hiding buttons.",
+      cannotGrant: "You cannot grant a permission your own role does not hold.",
+      invite: "Invite",
+      inviteTitle: "Invite somebody to the team",
+      inviteDescription:
+        "The membership opens immediately. The link is only the way to a password.",
+      sendInvitation: "Create the invitation",
+      cancel: "Cancel",
+      linkToPassOn: "Pass this link on yourself",
+      linkExpires: "It lapses after seven days, and is never shown again.",
+      email: "Email",
+      role: "Role",
+      properties: "Properties",
+      status: "Status",
+      actions: "Actions",
+      active: "Active",
+      awaitingPassword: "Awaiting a password",
+      revoked: "Revoked",
+      revoke: "Revoke",
+      undoRevoke: "Undo",
+      reachesNothing: "No Property yet",
+      alreadyAMember:
+        "That person already has a membership in this Organization.",
+      refused: "That was refused.",
+      lastAdministrator:
+        "An Organization must keep somebody who can add staff.",
+      roleIsHeld: "Somebody holds this role. Move them first.",
+      rolesHeading: "Roles",
+      defineRole: "Define a role",
+      defineRoleTitle: "Define a new role",
+      defineRoleDescription:
+        "A role is a named set of permissions. You may only grant what your own role holds.",
+      roleName: "Role name",
+      saveRole: "Save the role",
+      mayDo: "May do",
+      heldBy: "Held by",
+      shipped: "Ranza",
+      retired: "Retired",
+      retire: "Retire",
+      reinstate: "Reinstate",
+      noCommands: "Nothing yet",
+      permissions: {
+        book: "Take a booking",
+        checkIn: "Check somebody in",
+        checkOut: "Check somebody out",
+        manageFolio: "Open and close a Folio",
+        postCharge: "Post a charge",
+        administerStaff: "Administer staff",
+        defineRoles: "Define roles",
+      },
+      emptyRosterTitle: "Nobody here yet",
+      emptyRosterDescription: "This Organization has no Staff Member to show.",
+      roles: {
+        owner: "Owner",
+        manager: "Manager",
+        front_desk: "Front desk",
+        housekeeping: "Housekeeping",
+        finance: "Finance",
+      },
+    },
     noReservationsTitle: "Nothing booked ahead",
     noReservationsDescription:
       "Nothing is booked at this Property from today onwards.",
@@ -752,6 +987,80 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     reservations: "الحجوزات",
     reservationsAt: "الحجوزات في",
+
+    staff: {
+      rosterOf: "فريق",
+      screenSummary: "من يعمل هنا، وأي المنشآت يصلها، وما الذي يستطيعه كل دور.",
+      peopleTab: "الأشخاص",
+      rolesTab: "ما يستطيعه كل دور",
+      person: "الشخص",
+      permission: "الصلاحية",
+      heldByCount:
+        "{count, plural, =0 {لا أحد} one {شخص واحد} two {شخصان} few {# أشخاص} many {# شخصًا} other {# شخص}}",
+      shippedGroup: "ترسلها رانزا",
+      authoredGroup: "عرَّفتها أنت",
+      invitationSent: "أُرسلت الدعوة",
+      inviteNotice:
+        "أنت من يمرّر الرابط: لا شيء يرسل البريد بعد. ينتهي بعد سبعة أيام ويُعرض مرة واحدة فقط.",
+      matrixNote:
+        "الأدوار التي ترسلها رانزا تأتي مع الإصدار ولا تُعدَّل. كل تغيير يُكتب في سجل التدقيق وتفرضه قاعدة البيانات، لا إخفاء الأزرار.",
+      cannotGrant: "لا يمكنك منح صلاحية لا يحملها دورك.",
+      invite: "دعوة",
+      inviteTitle: "دعوة شخص إلى الفريق",
+      inviteDescription:
+        "تُفتح العضوية فورًا. الرابط ليس إلا وسيلة لتعيين كلمة المرور.",
+      sendInvitation: "إنشاء الدعوة",
+      cancel: "إلغاء",
+      linkToPassOn: "مرِّر هذا الرابط بنفسك",
+      linkExpires: "ينتهي بعد سبعة أيام، ولن يُعرض مرة أخرى.",
+      email: "البريد الإلكتروني",
+      role: "الدور",
+      properties: "المنشآت",
+      status: "الحالة",
+      actions: "الإجراءات",
+      active: "نشط",
+      awaitingPassword: "بانتظار كلمة المرور",
+      revoked: "مُلغى",
+      revoke: "إلغاء العضوية",
+      undoRevoke: "تراجع",
+      reachesNothing: "لا منشأة بعد",
+      alreadyAMember: "لهذا الشخص عضوية في هذه المؤسسة بالفعل.",
+      refused: "رُفض هذا الإجراء.",
+      lastAdministrator: "يجب أن يبقى في المؤسسة من يستطيع إدارة الفريق.",
+      roleIsHeld: "هذا الدور يحمله أحدهم. انقلهم أولًا.",
+      rolesHeading: "الأدوار",
+      defineRole: "تعريف دور",
+      defineRoleTitle: "تعريف دور جديد",
+      defineRoleDescription:
+        "الدور مجموعة صلاحيات لها اسم. لا يمكنك منح ما لا يحمله دورك.",
+      roleName: "اسم الدور",
+      saveRole: "حفظ الدور",
+      mayDo: "ما يستطيعه",
+      heldBy: "يحمله",
+      shipped: "رانزا",
+      retired: "متقاعد",
+      retire: "إحالة إلى التقاعد",
+      reinstate: "إعادة التفعيل",
+      noCommands: "لا شيء بعد",
+      permissions: {
+        book: "أخذ حجز",
+        checkIn: "تسجيل الدخول",
+        checkOut: "تسجيل المغادرة",
+        manageFolio: "فتح وإغلاق الحساب",
+        postCharge: "تسجيل رسم على الحساب",
+        administerStaff: "إدارة الفريق",
+        defineRoles: "تعريف الأدوار",
+      },
+      emptyRosterTitle: "لا أحد هنا بعد",
+      emptyRosterDescription: "لا يوجد في هذه المؤسسة موظف لعرضه.",
+      roles: {
+        owner: "المالك",
+        manager: "المدير",
+        front_desk: "الاستقبال",
+        housekeeping: "التدبير الفندقي",
+        finance: "المالية",
+      },
+    },
     noReservationsTitle: "لا توجد حجوزات قادمة",
     noReservationsDescription: "لا يوجد حجز في هذه المنشأة من اليوم فصاعدًا.",
     newReservation: "حجز جديد",

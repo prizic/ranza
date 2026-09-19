@@ -101,7 +101,7 @@ beforeAll(async () => {
   await owner.$executeRawUnsafe(
     `insert into public.organization_memberships
        (organization_id, user_id, role, access_scope) values
-       ($1,$2,'staff','assigned_properties'),
+       ($1,$2,'front_desk','assigned_properties'),
        ($3,$4,'owner','organization_wide')
      on conflict (organization_id, user_id) do nothing`,
     ORG,
@@ -247,13 +247,15 @@ describe("each gate of blueprint 3.5 denies on its own", () => {
 
   it("gate 4 — a revoked membership denies", async () => {
     await owner.$executeRawUnsafe(
-      "update public.organization_memberships set status='revoked' where organization_id=$1 and user_id=$2",
+      // `revoked_at` travels with the status: the undo window is measured from
+      // it, and the check constraint refuses one without the other.
+      "update public.organization_memberships set status='revoked', revoked_at=now() where organization_id=$1 and user_id=$2",
       ORG,
       MEMBER,
     );
     await expect(names(MEMBER)).resolves.toEqual([]);
     await owner.$executeRawUnsafe(
-      "update public.organization_memberships set status='active' where organization_id=$1 and user_id=$2",
+      "update public.organization_memberships set status='active', revoked_at=null where organization_id=$1 and user_id=$2",
       ORG,
       MEMBER,
     );

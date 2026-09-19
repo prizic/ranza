@@ -1,6 +1,8 @@
 # 0012. A write is bounded by a policy, not by a check
 
 Status: Accepted
+
+Amended: 2026-09-17 by [ADR 0026](0026-a-role-is-a-named-set-of-permissions-and-reach-is-taken-away-for-free.md). A write policy now carries **five** conditions, not four: blueprint 3.5's four gates and the acting Staff Member's permission for the command. The permission is a fifth conjunct inside these same policies rather than a second mechanism beside them, so there is still one place a write is bounded. Every policy written before that decision was amended in the same migration that introduced the catalogue — `20260916002300_the_permission_catalogue_and_a_fifth_gate`.
 Date: 2026-09-16
 Amended: 2026-09-16 — a policy bounds rows, a grant bounds columns
 
