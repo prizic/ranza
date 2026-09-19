@@ -122,6 +122,16 @@ when changing schema, policies, auth, or a screen somebody presses a button on.
 CI runs `db:test`, `db:drift` and `test:browser` in their own job against a real
 PostgreSQL; `test:integration` still runs only by hand.
 
+**`test:integration` and `test:browser` both refuse a database that is not
+local**, through the same parsed-host check `db:setup` and `db:drift` use — so
+`host=` and `hostaddr=` in the URL and `PGHOSTADDR` in the environment are
+refused too, not merely a hostname that reads wrong. The integration suites got
+that guard late and the lateness is why it is worth stating: run against the
+hosted database once, they left fourteen Reservations and six overlapping
+confirmed bookings behind, and those blocked the next migration from applying
+at all. `reservations` has no audit trail, so the only record of the clean-up is
+the one a person writes by hand.
+
 `test:browser` starts the workspace itself and seeds through it, so it needs
 `pnpm db:up` and nothing else. It refuses any database that is not local — it
 signs in and checks a Guest in, which leaves history that is never deleted —

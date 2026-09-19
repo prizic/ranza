@@ -19,7 +19,7 @@
     "db:setup": "node scripts/db-setup.mjs",
     "db:test": "node scripts/db-test.mjs",
     "db:up": "docker compose up -d --wait",
-    "dev": "turbo run dev --parallel",
+    "dev": "node scripts/dev.mjs",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "lint": "turbo run lint && pnpm lint:boundaries",
@@ -29,7 +29,8 @@
     "test:browser": "playwright test",
     "test:integration": "vitest run --config vitest.integration.mts",
     "test:unit": "vitest run",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "dev:smoke": "node scripts/dev-smoke.mjs"
   },
   "devDependencies": {
     "@better-auth/utils": "0.4.2",

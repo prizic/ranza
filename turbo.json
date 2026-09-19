@@ -15,5 +15,14 @@
     "typecheck": {
       "dependsOn": ["^typecheck"]
     }
-  }
+  },
+  "globalPassThroughEnv": [
+    "DATABASE_URL",
+    "DIRECT_URL",
+    "AUTH_DATABASE_URL",
+    "WORKER_DATABASE_URL",
+    "SHADOW_DATABASE_URL",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL"
+  ]
 }
