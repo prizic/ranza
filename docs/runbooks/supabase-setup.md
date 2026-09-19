@@ -84,9 +84,9 @@ it fails all four assertions; pointed at `ranza_app` it passes.
    the part worth keeping. Creating a role as `postgres` leaves an automatic
    membership behind — granted by `supabase_admin`, with `inherit_option` and
    **`set_option` both false**. So `pg_auth_members` shows `postgres` as a
-   member of all three and `\du` shows nothing amiss, while `set role
-   ranza_auth` is refused: membership without `SET` is not membership you can
-   use. Two of the three had a real grant on top of that; the credential role
+   member of all three and `\du` shows nothing amiss, while the role cannot
+   actually be entered: `set role ranza_auth` is refused, because membership
+   without `SET` is not membership you can use. Two of the three had a real grant on top of that; the credential role
    did not, and no local database has the shape, because locally `ranza` owns
    the cluster.
 
