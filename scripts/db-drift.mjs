@@ -4,6 +4,7 @@
 // compares what they actually produce against what the schema says. Why that
 // is a check rather than a claim is ADR 0001.
 import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -31,10 +32,27 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // named host, not a looser check.
 const url = process.env.SHADOW_DATABASE_URL;
 if (!url) {
+  // The line is read out of .env.example rather than repeated here. A copy
+  // would go stale the first time the example changed, and a refusal that
+  // names the wrong line is worse than one that names none: it gets pasted.
+  // existsSync, because this is the refusal path: reading a file that is not
+  // there would throw ENOENT over the top of the message explaining what to do.
+  const example = path.join(root, ".env.example");
+  const commented = existsSync(example)
+    ? readFileSync(example, "utf8")
+        .split("\n")
+        .find((line) => line.startsWith("# SHADOW_DATABASE_URL="))
+    : undefined;
   console.error(
     "SHADOW_DATABASE_URL is not set.\n" +
       "It must point at a throwaway database: this command DROPs and recreates it.\n" +
-      "See .env.example.",
+      (commented
+        ? "It is commented out in .env.example, and stays that way on purpose: a\n" +
+          "working URL in the file everyone copies is what the local-only check,\n" +
+          "the host parsing and the PGHOSTADDR guard below exist to prevent.\n" +
+          "Uncomment it into your own .env:\n\n" +
+          `  ${commented.replace(/^# /, "")}\n`
+        : "See .env.example."),
   );
   process.exit(1);
 }
