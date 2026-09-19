@@ -15,7 +15,7 @@
 -- purpose: it needs two sessions and pgTAP has one. It lives in
 -- tests/integration/staff.test.ts, which can open two connections.
 begin;
-select plan(54);
+select plan(60);
 
 insert into public.users (id, email) values
   ('61111111-1111-4111-8111-111111111111', 'staff-owner-a@example.test'),
@@ -422,6 +422,15 @@ select throws_ok(
 -- The token is the authentication, so accepting runs without a request context
 -- and reaches exactly the rows that digest names. A digest nobody holds is not
 -- an error, it is no rows.
+--
+-- The context is cleared here rather than merely described. These three
+-- assertions used to inherit whichever context the assertions above left set —
+-- an administrator's — while claiming to run without one, and passed because
+-- nothing looked. 20260916002800 made the claim load-bearing: with a context
+-- set, the caller must be the invitee, and the administrator is not. The test
+-- now runs the path the product runs.
+select set_config('app.user_id', '', true);
+
 select is_empty(
   $$select * from app.accept_staff_invitation('digest-nobody-holds')$$,
   'an unknown invitation token accepts nothing');
@@ -691,6 +700,102 @@ select isnt(
      'a-real-invitee@example.test')),
   NULL,
   'and an owner, who does hold it, gets an id back');
+
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- A definer that writes checks its caller — the other two (SP-S1-33, SP-S4-03)
+-- ---------------------------------------------------------------------------
+-- IG-12's sweep found these the moment chore/insert-grants merged:
+-- app.end_sessions_for() and app.accept_staff_invitation() both write and
+-- neither asked anything about who was calling. 20260916002700 fixed
+-- app.identify_staff_user() and left these two. This is the rest of that rule.
+
+-- Somebody this Organization has never had. Not one of the fixtures above:
+-- by this point in the suite the invitation assertions have given owner B a
+-- membership in Organization A, because SP-S1-01 writes it active at invite
+-- time — so reusing them would have asserted nothing.
+insert into public.users (id, email) values
+  ('6e111111-1111-4111-8111-111111111111', 'staff-stranger@example.test');
+
+insert into public.staff_invitations
+  (id, organization_id, user_id, token_hash, status, expires_at, invited_by)
+values
+  ('6d111111-1111-4111-8111-111111111111',
+   '6a111111-1111-4111-8111-111111111111',
+   '63333333-3333-4333-8333-333333333333',
+   'invitation-hash-one', 'pending', now() + interval '7 days',
+   '61111111-1111-4111-8111-111111111111'),
+  ('6d222222-2222-4222-8222-222222222222',
+   '6a111111-1111-4111-8111-111111111111',
+   '66666666-6666-4666-8666-666666666666',
+   'invitation-hash-two', 'pending', now() + interval '7 days',
+   '61111111-1111-4111-8111-111111111111');
+
+-- app.end_sessions_for() is granted to ranza_worker alone, and that narrow
+-- grant was the whole boundary. The check it can actually make is the worker
+-- context: app.set_worker_context() is executable by ranza_worker and nobody
+-- else, so a caller without one has not come through the dispatcher.
+--
+-- The membership half reads every status on purpose. A reach change is very
+-- often a revocation, and requiring 'active' would make this stop applying in
+-- exactly the case it exists for.
+
+set local role ranza_worker;
+
+select throws_ok(
+  $$select app.end_sessions_for('63333333-3333-4333-8333-333333333333')$$,
+  '42501', NULL,
+  'ending somebody''s sessions outside a worker job is refused');
+
+select app.set_worker_context('6a111111-1111-4111-8111-111111111111',
+                              'staff.endSessionsOnReachChange');
+
+select lives_ok(
+  $$select app.end_sessions_for('63333333-3333-4333-8333-333333333333')$$,
+  'and inside one, for somebody that Organization has, it runs');
+
+select throws_ok(
+  $$select app.end_sessions_for('6e111111-1111-4111-8111-111111111111')$$,
+  '42501', NULL,
+  'but not for somebody that Organization does not have, which is the whole '
+  'risk of a uuid parameter on a definer');
+
+select set_config('app.worker_organization_id', '', true);
+select set_config('app.worker_job', '', true);
+reset role;
+
+-- app.accept_staff_invitation() is the weaker of the two and is written as
+-- what it is. Accepting grants nothing: the membership is written active at
+-- invite time (SP-S1-01) and acceptance only records that it happened
+-- (SP-S1-07), so no hole closes here. What it adds is a tripwire. The flow
+-- deliberately runs with no request context, and if one is ever set it must be
+-- the invitee's.
+
+set local role ranza_app;
+
+select app.set_request_context('61111111-1111-4111-8111-111111111111');
+
+select throws_ok(
+  $$select * from app.accept_staff_invitation('invitation-hash-one')$$,
+  '42501', NULL,
+  'a signed-in caller cannot accept an invitation that is not theirs');
+
+select app.set_request_context('63333333-3333-4333-8333-333333333333');
+
+select lives_ok(
+  $$select * from app.accept_staff_invitation('invitation-hash-one')$$,
+  'the invitee themselves may, if they happen to be signed in');
+
+-- And the arm the product actually uses. A guard that refused this would be
+-- worse than the absence it replaced, so it is asserted rather than assumed:
+-- a second invitation, no context at all, accepted.
+select set_config('app.user_id', '', true);
+
+select is(
+  (select (app.accept_staff_invitation('invitation-hash-two')).user_id),
+  '66666666-6666-4666-8666-666666666666'::uuid,
+  'and with no context at all, which is how sign-up calls it, it still works');
 
 reset role;
 
