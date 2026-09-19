@@ -287,6 +287,16 @@ say the hosted database had them applied. The one gap found so far — an audit
 table that was append-only everywhere except in production — was invisible to
 every local run and took one pgTAP run against Supabase to surface.
 
+A suite can also be local-only by accident, and then it is not run anywhere it
+would count. **Never name the owner role in a test.** `set local role ranza`
+names the local cluster's owner, which does not exist on the hosted database,
+so the suite errors on that line and takes every assertion after it with it —
+three of the twelve had it, and all three reported green forever because they
+were only ever run locally. `set local role none` returns to whichever role
+connected, and that role bypasses policies in both environments: `ranza` is the
+superuser locally, `postgres` carries `BYPASSRLS` on Supabase. The same applies
+to any environment-specific name a test reaches for.
+
 ## Conventions
 
 - **A feature is designed before it is coded**, by the `feature-design` skill in
