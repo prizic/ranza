@@ -120,3 +120,42 @@ so it is asked of `pg_roles` at boot.
 Then prove the guard still works by pointing `DATABASE_URL` at the `postgres`
 role: all four integration assertions must fail. A tenant-isolation test that has
 never been seen to fail is not evidence of anything.
+
+## When a migration fails halfway
+
+`prisma migrate deploy` records a start and a finish. A migration that errors
+leaves a row with `started_at` set and `finished_at` null, and every later
+`deploy` then refuses with **P3009** rather than applying anything — including
+migrations with nothing to do with the failure.
+
+The documented repair is `prisma migrate resolve --rolled-back <name>`. It does
+not always target the row you mean. Locally, after a migration had failed once
+and then succeeded, `resolve --rolled-back` marked the **already rolled-back**
+row a second time and left the applied one untouched, so the next `deploy`
+reported "No pending migrations to apply" against a database that was missing
+the object it should have created. Check what actually changed before trusting
+it:
+
+```sql
+select migration_name, started_at, finished_at, rolled_back_at
+from _prisma_migrations
+where migration_name = '<name>';
+```
+
+If the ledger and the database still disagree, the rows for that one migration
+can be removed — `delete from _prisma_migrations where migration_name =
+'<name>'` — and the migration re-applied with `pnpm db:migrate`, which also
+rewrites its checksum.
+
+**Locally that is an annoyance. On the hosted database it is production
+surgery** — take a backup first, do it in a transaction, and expect to explain
+it.
+
+The prevention is the rule that already exists and is worth restating: **an
+applied migration is never edited, comments included.** A comment-only edit
+changes the checksum, and once file and ledger disagree there, a later real edit
+hides in the same divergence. When the reasoning inside a migration turns out to
+be wrong, correct it in the feature's `edge-cases.csv` row and in the code
+comment beside the thing it describes. When the migration's own SQL must change,
+the tool is a new migration written so that applying it anywhere is safe — see
+`20260916000700_audit_append_only_trigger`.
