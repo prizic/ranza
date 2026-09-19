@@ -27,9 +27,17 @@ packages/db/dist/
 apps/*/next-env.d.ts
 
 # Vendored agent tooling (ECC and installed skills). Reinstallable, not source.
-# Everything under .claude/ is ignored except the skills this repository owns.
+# Everything under .claude/ is ignored except what this repository owns and
+# commits. Those survive `npx ecc-universal install`; everything else is
+# replaced by it, so a rule written into a vendored file is reviewed by nobody
+# and gone by the next install.
 .claude/*
 !.claude/skills/
 .claude/skills/*
 !.claude/skills/feature-design/
 dev-smoke.log
+
+!.claude/skills/ranza-review/
+!.claude/agents/
+.claude/agents/*
+!.claude/agents/ranza-reviewer.md

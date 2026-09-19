@@ -74,6 +74,7 @@ export {
 } from "./components/ui/table";
 
 export { Avatar, AvatarFallback, AvatarImage } from "./components/ui/avatar";
+export { Checkbox } from "./components/ui/checkbox";
 export {
   Breadcrumb,
   BreadcrumbItem,

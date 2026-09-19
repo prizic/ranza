@@ -14,7 +14,7 @@
 -- app.accessible_property_ids(), removing the open-Folio clause — and
 -- confirming it went red.
 begin;
-select plan(57);
+select plan(58);
 
 insert into public.users (id, email) values
   ('41111111-1111-4111-8111-111111111111', 'finance-a@example.test'),
@@ -206,16 +206,31 @@ select throws_ok(
   '42501', NULL,
   'a Folio cannot be opened in another Organization''s Property');
 
--- The other direction, which the policy lets through: a Property in reach,
--- claimed for an Organization that does not own it. The composite foreign key
--- is what refuses here, which is why both layers exist.
+-- The other direction: a Property in reach, claimed for an Organization that
+-- does not own it. The policy refuses first, because the permission gate added
+-- in slice 2 is asked about the Organization the row claims and the actor holds
+-- nothing there.
+select throws_ok(
+  $$insert into public.folios (organization_id, property_id, stay_id, currency)
+    values ('4b111111-1111-4111-8111-111111111111',
+            '4c111111-1111-4111-8111-111111111111',
+            '4f444444-4444-4444-8444-444444444444', 'TRY')$$,
+  '42501', NULL,
+  'a Property cannot be relabelled into another Organization');
+
+-- The composite foreign key is still what makes it unrepresentable rather than
+-- merely refused. Proved separately, with no policy in the way, so that
+-- widening the outer layer cannot quietly take this assertion with it.
+set local role ranza;
 select throws_ok(
   $$insert into public.folios (organization_id, property_id, stay_id, currency)
     values ('4b111111-1111-4111-8111-111111111111',
             '4c111111-1111-4111-8111-111111111111',
             '4f444444-4444-4444-8444-444444444444', 'TRY')$$,
   '23503', NULL,
-  'a Property cannot be relabelled into another Organization');
+  'and is unrepresentable even with no policy in the way');
+set local role ranza_app;
+select app.set_request_context('41111111-1111-4111-8111-111111111111');
 
 select throws_ok(
   $$insert into public.folios (organization_id, property_id, stay_id, currency)
@@ -245,11 +260,13 @@ select throws_ok(
 -- Lines, and the balance that is only ever their sum
 -- ---------------------------------------------------------------------------
 
+-- Written without naming `id`: 20260916002150 withholds it from ranza_app,
+-- because no statement in the product names it either. The row is found
+-- below by its description, which is unique within this Folio.
 select lives_ok(
   $$insert into public.folio_lines
-      (id, organization_id, property_id, folio_id, line_type, description, amount_minor)
-    values ('4bbb1111-1111-4111-8111-111111111111',
-            '4a111111-1111-4111-8111-111111111111',
+      (organization_id, property_id, folio_id, line_type, description, amount_minor)
+    values ('4a111111-1111-4111-8111-111111111111',
             '4c111111-1111-4111-8111-111111111111',
             '4e111111-1111-4111-8111-111111111111',
             'charge', 'Four nights', 400000)$$,
@@ -257,9 +274,8 @@ select lives_ok(
 
 select lives_ok(
   $$insert into public.folio_lines
-      (id, organization_id, property_id, folio_id, line_type, description, amount_minor)
-    values ('4bbb2222-2222-4222-8222-222222222222',
-            '4a111111-1111-4111-8111-111111111111',
+      (organization_id, property_id, folio_id, line_type, description, amount_minor)
+    values ('4a111111-1111-4111-8111-111111111111',
             '4c111111-1111-4111-8111-111111111111',
             '4e111111-1111-4111-8111-111111111111',
             'charge', 'Minibar', 12550)$$,
@@ -323,7 +339,7 @@ select throws_ok(
     values ('4a111111-1111-4111-8111-111111111111',
             '4c111111-1111-4111-8111-111111111111',
             '4e111111-1111-4111-8111-111111111111',
-            'reversal', 'Partial', -50, '4bbb2222-2222-4222-8222-222222222222')$$,
+            'reversal', 'Partial', -50, (select id from public.folio_lines where description = 'Minibar'))$$,
   '23514', NULL,
   'a reversal cancels its line exactly: a partial one is an adjustment, which is not built');
 
@@ -356,14 +372,13 @@ select throws_ok(
 
 select lives_ok(
   $$insert into public.folio_lines
-      (id, organization_id, property_id, folio_id, line_type, description,
+      (organization_id, property_id, folio_id, line_type, description,
        amount_minor, reverses_line_id)
-    values ('4ccc1111-1111-4111-8111-111111111111',
-            '4a111111-1111-4111-8111-111111111111',
+    values ('4a111111-1111-4111-8111-111111111111',
             '4c111111-1111-4111-8111-111111111111',
             '4e111111-1111-4111-8111-111111111111',
             'reversal', 'Minibar was not theirs', -12550,
-            '4bbb2222-2222-4222-8222-222222222222')$$,
+            (select id from public.folio_lines where description = 'Minibar'))$$,
   'a charge is corrected by reversing it');
 
 select results_eq(
@@ -385,7 +400,7 @@ select throws_ok(
     values ('4a111111-1111-4111-8111-111111111111',
             '4c111111-1111-4111-8111-111111111111',
             '4e111111-1111-4111-8111-111111111111',
-            'reversal', 'Again', -12550, '4bbb2222-2222-4222-8222-222222222222')$$,
+            'reversal', 'Again', -12550, (select id from public.folio_lines where description = 'Minibar'))$$,
   '23505', NULL,
   'a line is reversed at most once');
 
@@ -395,19 +410,19 @@ select throws_ok(
 
 select throws_ok(
   $$update public.folio_lines set amount_minor = 1
-    where id = '4bbb1111-1111-4111-8111-111111111111'$$,
+    where description = 'Four nights'$$,
   '42501', NULL,
   'the runtime role cannot rewrite an amount');
 
 select throws_ok(
   $$update public.folio_lines set description = 'Something else'
-    where id = '4bbb1111-1111-4111-8111-111111111111'$$,
+    where description = 'Four nights'$$,
   '42501', NULL,
   'nor a description');
 
 select throws_ok(
   $$delete from public.folio_lines
-    where id = '4bbb1111-1111-4111-8111-111111111111'$$,
+    where description = 'Four nights'$$,
   '42501', NULL,
   'nor remove one');
 
@@ -503,7 +518,7 @@ select throws_ok(
 
 select results_eq(
   $$select amount_minor from public.folio_lines
-    where id = '4bbb1111-1111-4111-8111-111111111111'$$,
+    where description = 'Four nights'$$,
   $$values (400000::bigint)$$,
   'and the line is exactly as it was posted');
 

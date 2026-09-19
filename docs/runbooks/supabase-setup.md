@@ -72,11 +72,34 @@ it fails all four assertions; pointed at `ranza_app` it passes.
 
 5. **Grant membership so tests can switch roles.** The pgTAP suites run
    `set local role ranza_app`, which `postgres` cannot do without membership
-   because it is not a superuser here:
+   because it is not a superuser here. **All three**, not two:
 
    ```sql
    grant ranza_app to postgres;
    grant ranza_worker to postgres;
+   grant ranza_auth to postgres;
+   ```
+
+   `ranza_auth` was missing here until 2026-09-19, and the manner it hid in is
+   the part worth keeping. Creating a role as `postgres` leaves an automatic
+   membership behind — granted by `supabase_admin`, with `inherit_option` and
+   **`set_option` both false**. So `pg_auth_members` shows `postgres` as a
+   member of all three and `\du` shows nothing amiss, while the role cannot
+   actually be entered: `set role ranza_auth` is refused, because membership
+   without `SET` is not membership you can use. Two of the three had a real grant on top of that; the credential role
+   did not, and no local database has the shape, because locally `ranza` owns
+   the cluster.
+
+   It surfaced the first time a suite that switches into `ranza_auth` was run
+   against the hosted database — `insert_grants.test.sql`, whose `ranza_app`
+   half had already passed there. Check `set_option`, not membership:
+
+   ```sql
+   select r.rolname, m.rolname as member, am.inherit_option, am.set_option
+     from pg_auth_members am
+     join pg_roles r on r.oid = am.roleid
+     join pg_roles m on m.oid = am.member
+    where r.rolname in ('ranza_app', 'ranza_auth', 'ranza_worker');
    ```
 
 ## Verifying
@@ -122,3 +145,42 @@ rather than the repository root, and the worker reads `process.env` directly.
 It never overwrites a variable that is already set. To point a dev server at a
 hosted database, export the variable — what you exported wins, there is no file
 to edit, and so there is nothing to remember to change back.
+
+## When a migration fails halfway
+
+`prisma migrate deploy` records a start and a finish. A migration that errors
+leaves a row with `started_at` set and `finished_at` null, and every later
+`deploy` then refuses with **P3009** rather than applying anything — including
+migrations with nothing to do with the failure.
+
+The documented repair is `prisma migrate resolve --rolled-back <name>`. It does
+not always target the row you mean. Locally, after a migration had failed once
+and then succeeded, `resolve --rolled-back` marked the **already rolled-back**
+row a second time and left the applied one untouched, so the next `deploy`
+reported "No pending migrations to apply" against a database that was missing
+the object it should have created. Check what actually changed before trusting
+it:
+
+```sql
+select migration_name, started_at, finished_at, rolled_back_at
+from _prisma_migrations
+where migration_name = '<name>';
+```
+
+If the ledger and the database still disagree, the rows for that one migration
+can be removed — `delete from _prisma_migrations where migration_name =
+'<name>'` — and the migration re-applied with `pnpm db:migrate`, which also
+rewrites its checksum.
+
+**Locally that is an annoyance. On the hosted database it is production
+surgery** — take a backup first, do it in a transaction, and expect to explain
+it.
+
+The prevention is the rule that already exists and is worth restating: **an
+applied migration is never edited, comments included.** A comment-only edit
+changes the checksum, and once file and ledger disagree there, a later real edit
+hides in the same divergence. When the reasoning inside a migration turns out to
+be wrong, correct it in the feature's `edge-cases.csv` row and in the code
+comment beside the thing it describes. When the migration's own SQL must change,
+the tool is a new migration written so that applying it anywhere is safe — see
+`20260916000700_audit_append_only_trigger`.

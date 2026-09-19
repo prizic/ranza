@@ -34,6 +34,18 @@ export default defineConfig({
   // navigation. One run failed here after `pnpm check` had rebuilt `.next`
   // underneath the dev server.
   expect: { timeout: 15_000 },
+  // One at a time, and not for isolation — these tests share a seeded account
+  // and a Property on purpose, and each brings its own Reservation.
+  //
+  // `next dev` compiles a route the first time it is asked for, and three
+  // workers asking for three different routes against a cold `.next` race on a
+  // build manifest: every page then fails with `SyntaxError: Unexpected
+  // non-whitespace character after JSON`, which reads like an application
+  // defect and is not one. Warm, the same three workers pass. CI is never warm.
+  //
+  // The whole suite runs in about thirteen seconds serially, so there is
+  // nothing to buy back. Revisit if that stops being true.
+  workers: 1,
   forbidOnly: Boolean(process.env.CI),
   reporter: "list",
   use: {

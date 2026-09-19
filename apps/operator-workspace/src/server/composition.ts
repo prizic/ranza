@@ -4,6 +4,7 @@ import { createCoreModule } from "@ranza/core";
 import { createPrismaClient } from "@ranza/db";
 import { createFoliosModule } from "@ranza/folios";
 import { createReservationsModule } from "@ranza/reservations";
+import { createStaffModule } from "@ranza/staff";
 
 /**
  * The composition root.
@@ -68,6 +69,11 @@ function compose() {
     // connection would *not* walk through, and the policies around it are the
     // only thing standing between one Organization's money and another's.
     folios: createFoliosModule({ db: tenantDb }),
+    // And again. This one writes the rows that decide what every other module
+    // is allowed to do, which is the strongest argument yet for the guard
+    // above: a privileged connection here would not merely read across
+    // Organizations, it would let somebody grant themselves the right to.
+    staff: createStaffModule({ db: tenantDb }),
   };
 }
 

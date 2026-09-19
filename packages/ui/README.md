@@ -96,13 +96,23 @@ the package root and never reach into `src/`.
 
 ## Tokens
 
-The palette is petrol chrome, a paper work surface, and brass on exactly one
-thing: the slot you are currently in. shadcn's vocabulary (`background`,
-`foreground`, `muted`, `border`, `ring`) is mapped onto it so its components and
-ours read from one system, and a few Ranza-specific names (`petrol`, `brass`,
-`ink-soft`) exist because that vocabulary has no word for "the petrol bar".
+The palette is a teal accent on a pale canvas, white surfaces, and separation
+from a hairline and a low shadow rather than heavy borders — the values in
+[`docs/design/visual-reference.md`](../../docs/design/visual-reference.md),
+which is the agreed direction and the authority when the two disagree.
 
-[`docs/design/visual-reference.md`](../../docs/design/visual-reference.md)
-records a **different** intended direction — teal, Aptos, softer radii — that
-this implementation has not adopted. That gap is deliberate and open; see the
-note in that file.
+shadcn's vocabulary (`background`, `foreground`, `muted`, `border`, `ring`) is
+mapped onto it so its components and ours read from one system. Ranza adds only
+what that vocabulary has no word for: the four status tones, which exist because
+blueprint 18.5 forbids colour alone and a status therefore needs a foreground
+that carries the meaning and a soft fill text stays legible on.
+
+The brief asks for Aptos, and the theme does not use it: it is not licensed for
+the web and would fall through to a system font on every machine that is not
+Windows — three scripts rendered by whatever happened to be installed. IBM Plex
+Sans Arabic carries Latin, Turkish and Arabic in one family with drawn
+diacritics, so Turkish and Arabic are the same voice. That is the one departure
+and the reason is in `globals.css` beside it.
+
+The type scale is a minor third, per Bringhurst, exposed as `text-step--1`
+through `text-step-3`. It is a scale, not a set of suggestions.
