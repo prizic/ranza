@@ -72,11 +72,34 @@ it fails all four assertions; pointed at `ranza_app` it passes.
 
 5. **Grant membership so tests can switch roles.** The pgTAP suites run
    `set local role ranza_app`, which `postgres` cannot do without membership
-   because it is not a superuser here:
+   because it is not a superuser here. **All three**, not two:
 
    ```sql
    grant ranza_app to postgres;
    grant ranza_worker to postgres;
+   grant ranza_auth to postgres;
+   ```
+
+   `ranza_auth` was missing here until 2026-09-19, and the manner it hid in is
+   the part worth keeping. Creating a role as `postgres` leaves an automatic
+   membership behind — granted by `supabase_admin`, with `inherit_option` and
+   **`set_option` both false**. So `pg_auth_members` shows `postgres` as a
+   member of all three and `\du` shows nothing amiss, while `set role
+   ranza_auth` is refused: membership without `SET` is not membership you can
+   use. Two of the three had a real grant on top of that; the credential role
+   did not, and no local database has the shape, because locally `ranza` owns
+   the cluster.
+
+   It surfaced the first time a suite that switches into `ranza_auth` was run
+   against the hosted database — `insert_grants.test.sql`, whose `ranza_app`
+   half had already passed there. Check `set_option`, not membership:
+
+   ```sql
+   select r.rolname, m.rolname as member, am.inherit_option, am.set_option
+     from pg_auth_members am
+     join pg_roles r on r.oid = am.roleid
+     join pg_roles m on m.oid = am.member
+    where r.rolname in ('ranza_app', 'ranza_auth', 'ranza_worker');
    ```
 
 ## Verifying
