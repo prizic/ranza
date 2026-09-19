@@ -269,10 +269,9 @@ select throws_ok(
 
 select lives_ok(
   $$insert into public.reservations
-      (id, organization_id, property_id, accommodation_unit_id,
+      (organization_id, property_id, accommodation_unit_id,
        guest_id, stay_type, status, starts_on, ends_on)
-    values ('4f222222-2222-4222-8222-222222222222',
-            '4a111111-1111-4111-8111-111111111111',
+    values ('4a111111-1111-4111-8111-111111111111',
             '4c111111-1111-4111-8111-111111111111',
             '4d111111-1111-4111-8111-111111111111',
             '4e111111-1111-4111-8111-111111111111',
@@ -340,15 +339,15 @@ select throws_ok(
 -- take out first.
 select lives_ok(
   $$update public.reservations set status = 'checked_in'
-    where id = '4f222222-2222-4222-8222-222222222222'$$,
+    where guest_id = '4e111111-1111-4111-8111-111111111111'
+      and starts_on = date '2026-11-01'$$,
   'a checked-in Reservation hands its nights to its Stay');
 
 select lives_ok(
   $$insert into public.reservations
-      (id, organization_id, property_id, accommodation_unit_id,
+      (organization_id, property_id, accommodation_unit_id,
        guest_id, stay_type, status, starts_on, ends_on)
-    values ('4f333333-3333-4333-8333-333333333333',
-            '4a111111-1111-4111-8111-111111111111',
+    values ('4a111111-1111-4111-8111-111111111111',
             '4c111111-1111-4111-8111-111111111111',
             '4d111111-1111-4111-8111-111111111111',
             '4e222222-2222-4222-8222-222222222222',
@@ -359,7 +358,8 @@ select lives_ok(
 -- re-lettable without deleting anything (blueprint 7.4).
 select lives_ok(
   $$update public.reservations set status = 'cancelled'
-    where id = '4f333333-3333-4333-8333-333333333333'$$,
+    where guest_id = '4e222222-2222-4222-8222-222222222222'
+      and starts_on = date '2026-11-01'$$,
   'a Reservation is cancelled, never removed');
 
 select lives_ok(
