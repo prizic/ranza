@@ -201,7 +201,7 @@ psql(`
          (values ('front_desk'), ('guest_experience'), ('housekeeping'),
                  ('food_and_beverage'), ('inventory'), ('finance'),
                  ('people'), ('staff_administration'), ('analytics'),
-                 ('configuration'))
+                 ('configuration'), ('audit'))
            as wanted (capability_key)
   ), unit as (
     insert into public.accommodation_units

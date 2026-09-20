@@ -243,6 +243,51 @@ export interface Messages {
   closeRefused: string;
   folioClosedNote: string;
 
+  auditLog: string;
+  auditLogFor: string;
+  allRecords: string;
+  noAuditTitle: string;
+  noAuditDescription: string;
+  when: string;
+  what: string;
+  who: string;
+  why: string;
+  subject: string;
+  context: string;
+  contextKey: string;
+  contextValue: string;
+  noContext: string;
+  you: string;
+  noReason: string;
+  actorUnnamed: string;
+  /**
+   * What each recorded action is called, nested noun → verb rather than keyed
+   * on the dotted name the modules write: next-intl splits a key on `.`, so a
+   * flat `"folio.closed"` would be looked up as `folio` then `closed` and never
+   * found. The literals are `KNOWN_ACTIONS` in `features/audit-log/actions.ts`.
+   */
+  auditAction: {
+    reservation: Record<"created" | "checked_in" | "check_in_reversed", string>;
+    stay: Record<"checked_out", string>;
+    folio: Record<"charge_posted" | "line_reversed" | "closed", string>;
+    staff: Record<
+      | "invited"
+      | "role_changed"
+      | "property_assigned"
+      | "property_unassigned"
+      | "revoked"
+      | "revoke_undone"
+      | "role_defined"
+      | "role_retired"
+      | "role_reinstated",
+      string
+    >;
+  };
+  auditSubject: Record<
+    "reservation" | "stay" | "folio" | "membership" | "role",
+    string
+  >;
+
   table: TableMessages;
 
   /** Rail and page-bar names, keyed by route segment. */
@@ -526,6 +571,55 @@ export const messages: Record<SupportedLocale, Messages> = {
     folioClosedNote:
       "Bu folyo kapalı. Satırlar olduğu gibi kalır; kapalı bir folyoya yeni satır işlenemez.",
 
+    auditLog: "Denetim kaydı",
+    auditLogFor: "Son işlemler:",
+    allRecords: "Tüm kayıtlar",
+    noAuditTitle: "Henüz kayıt yok",
+    noAuditDescription:
+      "Bir giriş, çıkış, ücret veya ters kayıt yapıldığında burada görünür.",
+    when: "Ne zaman",
+    what: "Ne",
+    who: "Kim",
+    why: "Neden",
+    subject: "Konu",
+    context: "Ayrıntılar",
+    contextKey: "Alan",
+    contextValue: "Değer",
+    noContext: "Bu kaydın ek ayrıntısı yok.",
+    you: "Siz",
+    noReason: "Gerekçe gerekmiyor",
+    actorUnnamed: "Kimliğiyle kayıtlı ekip üyesi",
+    auditAction: {
+      reservation: {
+        created: "Rezervasyon alındı",
+        checked_in: "Giriş yapıldı",
+        check_in_reversed: "Giriş geri alındı",
+      },
+      stay: { checked_out: "Çıkış yapıldı" },
+      folio: {
+        charge_posted: "Ücret işlendi",
+        line_reversed: "Satır ters kaydedildi",
+        closed: "Folyo kapatıldı",
+      },
+      staff: {
+        invited: "Ekip üyesi davet edildi",
+        role_changed: "Rol değiştirildi",
+        property_assigned: "Tesise atandı",
+        property_unassigned: "Tesis ataması kaldırıldı",
+        revoked: "Üyelik iptal edildi",
+        revoke_undone: "Üyelik iptali geri alındı",
+        role_defined: "Rol tanımlandı",
+        role_retired: "Rol kaldırıldı",
+        role_reinstated: "Rol geri getirildi",
+      },
+    },
+    auditSubject: {
+      reservation: "Rezervasyon",
+      stay: "Konaklama",
+      folio: "Folyo",
+      membership: "Üyelik",
+      role: "Rol",
+    },
     table: {
       results: "{n, plural, other {# sonuç}}",
       capped: "(son {n, number} / {of, number})",
@@ -563,6 +657,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       people: "Ekip",
       analytics: "Analitik",
       configuration: "Ayarlar",
+      "audit-log": "Denetim kaydı",
     },
     screenSummary: {
       "guest-experience":
@@ -823,6 +918,55 @@ export const messages: Record<SupportedLocale, Messages> = {
     folioClosedNote:
       "This folio is closed. Its lines stay exactly as they are, and nothing further can be posted to it.",
 
+    auditLog: "Audit log",
+    auditLogFor: "Recent actions at",
+    allRecords: "All records",
+    noAuditTitle: "Nothing recorded yet",
+    noAuditDescription:
+      "A check-in, check-out, charge or reversal appears here once it happens.",
+    when: "When",
+    what: "What",
+    who: "Who",
+    why: "Why",
+    subject: "Subject",
+    context: "Details",
+    contextKey: "Field",
+    contextValue: "Value",
+    noContext: "This record carries no further details.",
+    you: "You",
+    noReason: "No reason required",
+    actorUnnamed: "Staff Member, identified by id",
+    auditAction: {
+      reservation: {
+        created: "Reservation taken",
+        checked_in: "Checked in",
+        check_in_reversed: "Check-in withdrawn",
+      },
+      stay: { checked_out: "Checked out" },
+      folio: {
+        charge_posted: "Charge posted",
+        line_reversed: "Line reversed",
+        closed: "Folio closed",
+      },
+      staff: {
+        invited: "Staff Member invited",
+        role_changed: "Role changed",
+        property_assigned: "Assigned to a Property",
+        property_unassigned: "Unassigned from a Property",
+        revoked: "Membership revoked",
+        revoke_undone: "Revocation undone",
+        role_defined: "Role defined",
+        role_retired: "Role retired",
+        role_reinstated: "Role reinstated",
+      },
+    },
+    auditSubject: {
+      reservation: "Reservation",
+      stay: "Stay",
+      folio: "Folio",
+      membership: "Membership",
+      role: "Role",
+    },
     table: {
       results: "{n, plural, one {# result} other {# results}}",
       capped: "(latest {n, number} of {of, number})",
@@ -860,6 +1004,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       people: "People",
       analytics: "Analytics",
       configuration: "Configuration",
+      "audit-log": "Audit log",
     },
     screenSummary: {
       "guest-experience":
@@ -1112,6 +1257,55 @@ export const messages: Record<SupportedLocale, Messages> = {
     folioClosedNote:
       "هذا الحساب مغلق. تبقى بنوده كما هي، ولا يمكن قيد أي شيء جديد عليه.",
 
+    auditLog: "سجل التدقيق",
+    auditLogFor: "آخر الإجراءات في",
+    allRecords: "كل السجلات",
+    noAuditTitle: "لا توجد سجلات بعد",
+    noAuditDescription:
+      "يظهر هنا أي تسجيل وصول أو مغادرة أو رسم أو إلغاء فور حدوثه.",
+    when: "متى",
+    what: "ماذا",
+    who: "من",
+    why: "لماذا",
+    subject: "الموضوع",
+    context: "التفاصيل",
+    contextKey: "الحقل",
+    contextValue: "القيمة",
+    noContext: "لا يحمل هذا السجل تفاصيل إضافية.",
+    you: "أنت",
+    noReason: "لا يلزم سبب",
+    actorUnnamed: "عضو فريق معرَّف بالمعرّف",
+    auditAction: {
+      reservation: {
+        created: "تم أخذ حجز",
+        checked_in: "تم تسجيل الوصول",
+        check_in_reversed: "تم سحب تسجيل الوصول",
+      },
+      stay: { checked_out: "تم تسجيل المغادرة" },
+      folio: {
+        charge_posted: "تم إدراج رسم",
+        line_reversed: "تم عكس بند",
+        closed: "تم إغلاق الفوليو",
+      },
+      staff: {
+        invited: "تمت دعوة عضو فريق",
+        role_changed: "تم تغيير الدور",
+        property_assigned: "تم التعيين في منشأة",
+        property_unassigned: "تم إلغاء التعيين من منشأة",
+        revoked: "تم إلغاء العضوية",
+        revoke_undone: "تم التراجع عن إلغاء العضوية",
+        role_defined: "تم تعريف دور",
+        role_retired: "تم سحب الدور",
+        role_reinstated: "تمت إعادة الدور",
+      },
+    },
+    auditSubject: {
+      reservation: "حجز",
+      stay: "إقامة",
+      folio: "فوليو",
+      membership: "عضوية",
+      role: "دور",
+    },
     table: {
       results:
         "{n, plural, zero {لا نتائج} one {نتيجة واحدة} two {نتيجتان} few {# نتائج} many {# نتيجة} other {# نتيجة}}",
@@ -1151,6 +1345,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       people: "الفريق",
       analytics: "التحليلات",
       configuration: "الإعدادات",
+      "audit-log": "سجل التدقيق",
     },
     screenSummary: {
       "guest-experience": "طلبات الضيوف والمقيمين والإعلانات ومتابعة الخدمة.",

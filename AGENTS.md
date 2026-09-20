@@ -193,7 +193,8 @@ expected to assume that.
 
 **Unbuilt is a position, not an oversight.** Blueprint section 13 forbids
 building tables ahead of the workflows that need them, which is why the
-Operator Workspace has eleven rail destinations and two built screens. The
+Operator Workspace has more rail destinations than built screens —
+`src/lib/screens.ts` says which is which. The
 others state their purpose and say what has to exist first — see
 [`docs/handover/operator-workspace-screens.md`](docs/handover/operator-workspace-screens.md).
 

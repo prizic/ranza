@@ -10,7 +10,15 @@ reusable one, because Organization and Property are Ranza concepts
 ```ts
 const core = createCoreModule({ db }); // db: the ranza_app client (ADR 0006)
 await core.listEntitledProperties(userId, TODAY_CAPABILITY);
+await core.recentActivity(userId, propertyId); // { records, total }
 ```
+
+`recentActivity` is the Organization's audit log, read through one of its
+Properties: the audit module knows a scope only as an opaque id and may not name
+a Property (blueprint 9.8), so this module asks `app.can_use_capability()` about
+the Property in its own transaction and hands the Organization it resolves to
+across the audit module's `recentWithin` contract
+([ADR 0028](../../../docs/adr/0028-an-organization-wide-read-is-gated-through-the-property-it-is-opened-from.md)).
 
 `listEntitledProperties` is one SQL statement so that all five gates of
 blueprint 3.5 apply to it at once and each can deny alone: rows are filtered by
