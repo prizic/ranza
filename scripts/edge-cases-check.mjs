@@ -34,6 +34,7 @@ const ENFORCED_BY = new Set([
   "trigger",
   "module",
   "ui_only",
+  "database_function",
 ]);
 const STATUS = new Set([
   "open",
@@ -43,10 +44,11 @@ const STATUS = new Set([
   "prerequisite_missing",
   "current_behaviour_differs",
   "resolved",
+  "proposed",
 ]);
-// CO-S1-04, AL-DIFF-01, CO-NB-10 — or PRE-06, which names what another
+// CO-S1-04, AL-DIFF-01, CO-NB-10, IG-01 — or PRE-06, which names what another
 // feature owes this one and so carries no feature prefix.
-const ID = /^(?:[A-Z]+-(?:S\d+|NB|DIFF|DEF)|PRE)-\d+$/;
+const ID = /^(?:[A-Z]+(?:-(?:S\d+|NB|DIFF|DEF))?|PRE)-\d+$/;
 const BLOCKS = /^blocks: /;
 const REQUIRED = ["situation", "given", "when", "then"];
 
