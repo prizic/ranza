@@ -50,6 +50,7 @@ packages/
                           (ui is Tailwind + shadcn; there is no other CSS)
 prisma/                   schema and migrations (RLS policies live in them)
 tests/                    unit, database (pgTAP) and boundary fixtures
+deploy/                   the container images and the hosted environment
 ```
 
 Each tier has a README stating the rule that defines it. The one that matters

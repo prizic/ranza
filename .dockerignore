@@ -1,0 +1,21 @@
+# The image is built from a `git archive` of a commit (deploy/push.sh), so
+# nothing here should normally be present. It is kept so that a build from a
+# working tree does not ship a developer's environment or gigabytes of
+# node_modules into the context.
+.git
+.env
+.env.*
+!.env.example
+node_modules
+**/node_modules
+**/.next
+**/dist
+.turbo
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+packages/db/generated
+.claude
+.nodeterm
+.playwright-mcp
+docs

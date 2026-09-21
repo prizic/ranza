@@ -34,3 +34,6 @@ apps/*/next-env.d.ts
 !.claude/agents/
 .claude/agents/*
 !.claude/agents/ranza-reviewer.md
+
+# Per-machine credentials for hosted environments. Never committed.
+CLAUDE.local.md
