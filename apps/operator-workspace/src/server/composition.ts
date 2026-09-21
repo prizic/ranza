@@ -1,4 +1,5 @@
 import "server-only";
+import { createAccommodationModule } from "@ranza/accommodation";
 import { createAuthModule } from "@ranza/auth";
 import { createCoreModule } from "@ranza/core";
 import { createPrismaClient } from "@ranza/db";
@@ -74,6 +75,7 @@ function compose() {
     // above: a privileged connection here would not merely read across
     // Organizations, it would let somebody grant themselves the right to.
     staff: createStaffModule({ db: tenantDb }),
+    accommodation: createAccommodationModule({ db: tenantDb }),
   };
 }
 

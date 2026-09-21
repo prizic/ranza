@@ -106,6 +106,7 @@ describe("every catalogue parses", () => {
                 min: 2,
                 n: 2,
                 of: 9,
+                property: "x",
               }),
             ).not.toThrow();
             return;

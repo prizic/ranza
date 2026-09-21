@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Bed,
   Boxes,
   CalendarDays,
   ChefHat,
@@ -73,6 +74,14 @@ export const SCREENS: Screen[] = [
         module: "front_office",
         icon: CalendarDays,
         blueprint: "5.3",
+        built: true,
+      },
+      {
+        segment: "rooms",
+        capability: "front_desk",
+        module: "front_office",
+        icon: Bed,
+        blueprint: "4.7",
         built: true,
       },
       {

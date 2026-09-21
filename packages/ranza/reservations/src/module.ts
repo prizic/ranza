@@ -672,7 +672,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
           unit.unit_type as "unitType"
         from public.accommodation_units as unit
         where unit.property_id = ${propertyId}::uuid
-          and unit.status <> 'out_of_service'
+          and unit.status not in ('out_of_service', 'blocked')
           -- A Unit is sellable when it has no children (ADR 0025): a room with
           -- beds under it is let by the bed, and offering it would be offering
           -- something the sellability trigger then refuses. (No backticks in
@@ -817,7 +817,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
         from public.accommodation_units as unit
         where unit.id = ${booking.accommodationUnitId}::uuid
           and unit.property_id = ${booking.propertyId}::uuid
-          and unit.status <> 'out_of_service'
+          and unit.status not in ('out_of_service', 'blocked')
           -- Let by the bed, so not sellable whole (ADR 0025). Refused here so
           -- the caller gets this module's sentence; the trigger refuses it
           -- again underneath, for every role rather than only this one.

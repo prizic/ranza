@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RANZ-27 Rooms &amp; beds — handoff, 2026-09-21</title>
+    <style>
+      :root {
+        --ink: #1b1b1a;
+        --muted: #6b6a66;
+        --line: #e6e3dc;
+        --bg: #fbfaf7;
+        --card: #ffffff;
+        --accent: #2f6f4e;
+        --warn: #8a4b00;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          16px/1.55 -apple-system,
+          "Segoe UI",
+          Helvetica,
+          Arial,
+          sans-serif;
+      }
+      main {
+        max-width: 68rem;
+        margin: 0 auto;
+        padding: 3rem 1.5rem 6rem;
+      }
+      h1 {
+        font-size: 2.25rem;
+        font-weight: 500;
+        letter-spacing: -0.02em;
+        margin: 0 0 0.25rem;
+      }
+      h2 {
+        font-size: 1.35rem;
+        font-weight: 600;
+        margin: 3rem 0 1rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--line);
+      }
+      h3 {
+        font-size: 1.05rem;
+        font-weight: 600;
+        margin: 1.75rem 0 0.5rem;
+      }
+      .eyebrow {
+        font-family: ui-monospace, Menlo, monospace;
+        font-size: 0.75rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      p,
+      li {
+        max-width: 62rem;
+      }
+      code,
+      pre {
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 0.875em;
+      }
+      code {
+        background: #f1efe9;
+        padding: 0.1em 0.35em;
+        border-radius: 4px;
+      }
+      pre {
+        background: #1f1f1e;
+        color: #e9e7e0;
+        padding: 1rem 1.25rem;
+        border-radius: 8px;
+        overflow: auto;
+        line-height: 1.5;
+      }
+      pre code {
+        background: none;
+        padding: 0;
+        color: inherit;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 1rem 0;
+        font-size: 0.95rem;
+      }
+      th,
+      td {
+        text-align: start;
+        vertical-align: top;
+        padding: 0.55rem 0.75rem;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font-weight: 600;
+        color: var(--muted);
+        font-size: 0.8rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 1.25rem 1.5rem;
+        margin: 1rem 0;
+      }
+      .done {
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .todo {
+        color: var(--warn);
+        font-weight: 600;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      ol li,
+      ul li {
+        margin: 0.35rem 0;
+      }
+      kbd {
+        font-family: ui-monospace, monospace;
+        font-size: 0.85em;
+        border: 1px solid var(--line);
+        border-bottom-width: 2px;
+        border-radius: 4px;
+        padding: 0 0.3em;
+        background: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">
+        Ranza · Sprint M1 · RANZ-27 · handoff for the next session · written
+        2026-09-21 by the session that stopped mid-slice
+      </p>
+      <h1>Rooms &amp; beds — where the work stands and how to finish it</h1>
+      <p class="muted">
+        Read this file, then <code>AGENTS.md</code>, then
+        <code>docs/features/rooms-and-beds/</code>. Do not commit this file; it
+        is a handoff, not documentation.
+      </p>
+
+      <h2>1. The one-paragraph state</h2>
+      <div class="card">
+        <p>
+          <strong>RANZ-45 (audit log) is landed as a draft PR</strong>:
+          <a href="https://github.com/prizic/ranza/pull/51">prizic/ranza#51</a>,
+          branch <code>feat/audit-log</code>, commit <code>2a08d6f</code>,
+          worktree <code>~/Developer/ranza-audit-log</code>. Verified before
+          pushing: <code>pnpm check</code> green on the committed tree, 12 pgTAP
+          suites, 174 integration tests. The user has not yet marked it ready
+          for review.
+        </p>
+        <p>
+          <strong>RANZ-27 (Rooms &amp; beds) is roughly 40% built</strong> on
+          branch <code>feat/rooms-and-beds</code> in worktree
+          <code>~/Developer/ranza-rooms</code>, cut from
+          <code>origin/main</code> at <code>b5dca1a</code>.
+          <em>Nothing is committed yet.</em> The database half — migration,
+          pgTAP suite with every boundary watched go red — is done and green.
+          The module's three source files are written but have
+          <strong>never been typechecked</strong>, and one statement in it needs
+          replacing (section 4). Everything above the module — reservations
+          changes, integration tests, server actions, screen, copy, seed, docs —
+          is not started.
+        </p>
+      </div>
+
+      <h2>
+        2. Files touched so far (all uncommitted, in
+        <code>~/Developer/ranza-rooms</code>)
+      </h2>
+      <table>
+        <tr>
+          <th>File</th>
+          <th>State</th>
+          <th>Notes</th>
+        </tr>
+        <tr>
+          <td>
+            <code>docs/features/rooms-and-beds/use-case.mmd</code>,
+            <code>states.mmd</code>, <code>edge-cases.csv</code>
+          </td>
+          <td class="done">done</td>
+          <td>
+            35 rows, all <code>proposed</code> (the repo's existing status for
+            "agent's position, awaiting approval"). RB-S1-03 was corrected to
+            <code>enforced_by = module</code>. Leave statuses as
+            <code>proposed</code>; the PR review is the approval.
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <code
+              >prisma/migrations/20260916002900_a_unit_is_added_and_blocked_from_the_workspace/migration.sql</code
+            >
+          </td>
+          <td class="done">done, applied locally</td>
+          <td>
+            Adds <code>status_reason</code>; <code>blocked</code> as a fourth
+            status; reason ⇔ blocked check; permission
+            <code>accommodation.configure</code> (module_key
+            <code>front_office</code>) on shipped owner+manager; INSERT/UPDATE
+            policies with five gates; column-list grants (INSERT:
+            organization_id, property_id, name, unit_type, capacity, building,
+            floor, parent_id, parent_unit_type — UPDATE: status, status_reason,
+            updated_at); trigger <code>app.unit_can_be_blocked()</code> (refuses
+            blocking a Unit with beds or an in-house Stay, 55000); trigger
+            <code>app.unit_is_in_service()</code> on <code>stays</code> before
+            insert or update of status, accommodation_unit_id (refuses an
+            in-house Stay on a blocked/out_of_service Unit, 55000, takes
+            <code>for share</code> on the Unit row). No prose inside the
+            function bodies on purpose — see gotcha G4.
+          </td>
+        </tr>
+        <tr>
+          <td><code>prisma/schema.prisma</code></td>
+          <td class="done">done</td>
+          <td>
+            <code>statusReason String? @map("status_reason")</code> on
+            <code>AccommodationUnit</code>. <code>pnpm db:drift</code> not yet
+            run on this branch.
+          </td>
+        </tr>
+        <tr>
+          <td><code>tests/database/rooms_and_beds.test.sql</code></td>
+          <td class="done">done, 42/42</td>
+          <td>
+            Every boundary was broken and seen red (section 5 lists the sabotage
+            runs).
+          </td>
+        </tr>
+        <tr>
+          <td><code>tests/database/insert_grants.test.sql</code></td>
+          <td class="done">done</td>
+          <td>
+            Pinned security-definer inventory 21 → 23
+            (<code>unit_can_be_blocked</code>, <code>unit_is_in_service</code>);
+            writer count stays 3.
+          </td>
+        </tr>
+        <tr>
+          <td><code>tests/database/unit_hierarchy.test.sql</code></td>
+          <td class="done">done</td>
+          <td>
+            Test 22 inverted to <code>lives_ok</code>: a shipped manager now
+            holds the permission.
+          </td>
+        </tr>
+        <tr>
+          <td><code>packages/ranza/accommodation/src/contracts.ts</code></td>
+          <td class="todo">written, untested</td>
+          <td>
+            Types, bounds constants, <code>ROOMS_CAPABILITY</code> (own constant
+            — importing from <code>@ranza/reservations</code> would be a cycle),
+            four error classes.
+          </td>
+        </tr>
+        <tr>
+          <td><code>packages/ranza/accommodation/src/ports.ts</code></td>
+          <td class="todo">written, untested</td>
+          <td><code>AccommodationDeps { db }</code>.</td>
+        </tr>
+        <tr>
+          <td><code>packages/ranza/accommodation/src/module.ts</code></td>
+          <td class="todo">written, untested, one fix pending</td>
+          <td>
+            <code>listUnits</code>, <code>addUnits</code>,
+            <code>blockUnit</code>, <code>unblockUnit</code>. See section 4 for
+            the pending fix.
+          </td>
+        </tr>
+      </table>
+
+      <h2>
+        3. Decisions already taken — do not re-litigate, do record in the PR
+      </h2>
+      <ol>
+        <li>
+          <strong>Rail:</strong> <code>rooms</code> is a child of
+          <code>front-office</code>, gated by the existing
+          <code>front_desk</code> capability (blueprint 4.7 front-desk mode; the
+          map is what the booking form's Unit select draws from; no new
+          capability key means no hosted data change). Not Configuration, not a
+          new "Places" group.
+        </li>
+        <li>
+          <strong>Permission:</strong> <code>accommodation.configure</code>,
+          held by shipped owner and manager, not front desk.
+        </li>
+        <li>
+          <strong>Block = <code>blocked</code></strong
+          >, a fourth allowed status that is blueprint 18.2's word, with a
+          required <code>status_reason</code>.
+          <code>out_of_service</code> untouched for RANZ-28 to reshape. Reusing
+          <code>out_of_service</code> was rejected: RANZ-28 could not then tell
+          a blocked bed from an out-of-order room.
+        </li>
+        <li>
+          <strong>A blocked Unit refuses check-in at the database</strong>
+          (trigger on <code>stays</code>), so the block is not UI-only.
+          <code>for share</code>, not <code>for key share</code>: the FK already
+          takes key-share, which a non-key UPDATE does not conflict with — the
+          explicit lock is load-bearing.
+        </li>
+        <li>
+          <strong>No DELETE.</strong> A mistaken Unit is blocked with a reason;
+          removal is deferred (RB-S3-12) and drawn as an open question in
+          <code>use-case.mmd</code>.
+        </li>
+        <li>
+          <strong>Bulk add shape:</strong> building (optional), floor
+          (optional), first number (digits, width kept — <code>001</code> + 3 →
+          <code>001, 002, 003</code>), count 1–60, type, capacity 1–64,
+          <code>letByTheBed</code> (rooms only, capacity ≤ 26, beds named A…Z,
+          each inheriting the room's building and floor).
+        </li>
+        <li>
+          <strong>Audit actions:</strong> <code>unit.added</code> (subject
+          <code>property</code>, one record per batch),
+          <code>unit.blocked</code> and <code>unit.unblocked</code> (subject
+          <code>accommodation_unit</code>). After PR #51 merges these three need
+          labels in its catalogue and its
+          <code>tests/unit/audit-writers.test.ts</code> will demand them — note
+          it in the PR.
+        </li>
+        <li>
+          <strong>Reads carry the gates in the statement</strong> (ADR 0012), so
+          RB-S1-03 is <code>module</code>, not <code>policy</code>.
+        </li>
+      </ol>
+      <p>
+        The Fable Advisor plan that confirmed all of the above and supplied the
+        corrections is consultation
+        <code>d5872ee0-8051-47b7-a74c-bee130000c11</code> — use
+        <code>follow_up</code> on it rather than a fresh <code>plan</code>. Its
+        full step list is section 6 here.
+      </p>
+
+      <h2>4. The pending fix in <code>module.ts</code></h2>
+      <p>
+        <code>unblockUnit</code> currently reads the old reason with a
+        correlated subquery inside <code>RETURNING</code>. PostgreSQL 17 (local,
+        per <code>docker/postgres/Dockerfile</code>) has no
+        <code>RETURNING OLD</code>, and relying on snapshot semantics in
+        RETURNING is too clever. Replace with two statements in the same
+        transaction:
+      </p>
+      <pre><code>const [before] = await tx.$queryRaw&lt;{ reason: string | null }[]&gt;`
+  select status_reason as "reason" from public.accommodation_units
+   where id = ${unitId}::uuid and status = 'blocked'`;
+// then the update without the subquery, returning organization_id, name
+// audit context: { name, hadBeenBlockedFor: before?.reason ?? null }</code></pre>
+      <p>
+        Then <code>pnpm --filter @ranza/accommodation typecheck</code> (after
+        <code>pnpm --filter @ranza/db generate</code> — a bare tsc fails without
+        it).
+      </p>
+
+      <h2>
+        5. What was proved red (report these in the PR's Verification section)
+      </h2>
+      <p>
+        Each sabotage was applied as the owner, the suite run, then restored;
+        the restored run is 42/42.
+      </p>
+      <table>
+        <tr>
+          <th>Sabotage</th>
+          <th>Assertions that went red</th>
+        </tr>
+        <tr>
+          <td>insert policy without the permission gate</td>
+          <td>front desk can add a Unit</td>
+        </tr>
+        <tr>
+          <td>update policy without the permission gate</td>
+          <td>front desk can block</td>
+        </tr>
+        <tr>
+          <td><code>accommodation_units_blocked_has_a_reason</code> dropped</td>
+          <td>
+            block without a reason; available Unit with a reason; unblock
+            leaving the reason
+          </td>
+        </tr>
+        <tr>
+          <td>update grant widened to <code>name</code></td>
+          <td>a Unit can be renamed</td>
+        </tr>
+        <tr>
+          <td>block trigger ignores the occupant</td>
+          <td>both "somebody is in it" assertions</td>
+        </tr>
+        <tr>
+          <td>block trigger ignores the beds</td>
+          <td>both "let by the bed" assertions</td>
+        </tr>
+        <tr>
+          <td><code>stays_unit_is_in_service</code> dropped</td>
+          <td>five assertions around check-in into a blocked Unit</td>
+        </tr>
+        <tr>
+          <td>manager role loses the permission</td>
+          <td>eleven assertions</td>
+        </tr>
+      </table>
+      <p>
+        Not yet proved: the concurrency claim (RB-S3-07) — that needs the
+        two-client integration test in section 6, step 5, and dropping
+        <code>for share</code> should turn it green-for-two.
+      </p>
+
+      <h2>6. What remains, in order</h2>
+      <ol>
+        <li>
+          <strong>Module wiring.</strong>
+          <code>packages/ranza/accommodation/package.json</code> gains
+          <code>dependencies</code>: <code>@ranza/core</code>,
+          <code>@ranza/db</code>,
+          <code>@ranza/platform-audit</code> (<code>workspace:*</code>) and
+          <code>pnpm install</code>. <code>src/index.ts</code> exports the
+          factory, <code>AccommodationModule</code>,
+          <code>AccommodationDeps</code>, all constants, types and errors.
+          Rewrite <code>README.md</code> (lines saying "deliberately no query
+          yet" are now false) and add to <code>CHANGELOG.md</code> under
+          Unreleased.
+        </li>
+        <li>
+          <strong><code>@ranza/reservations</code>.</strong> In
+          <code>src/module.ts</code>: <code>listBookableUnits</code> (~line 675)
+          and <code>createReservation</code>'s located query (~line 820) change
+          <code>unit.status &lt;&gt; 'out_of_service'</code> to
+          <code>unit.status not in ('out_of_service', 'blocked')</code>; in
+          <code>checkIn</code>'s catch around <code>openStayWithin</code> (~line
+          313) add
+          <code
+            >if (raised(error, "55000")) throw new UnitUnavailableError("that
+            Accommodation Unit is not in service")</code
+          >. Update the comments listing refusal reasons.
+        </li>
+        <li>
+          <strong>Integration tests.</strong> Create
+          <code>tests/integration/accommodation.test.ts</code> (uuid prefix
+          <code>da000000-…</code>; d2, d4–d9 are taken; copy the fixture/seed
+          shape of <code>tests/integration/front-office.test.ts</code>). Cover
+          RB-S1-01/04/05/06/07/09, RB-S2-01/02/03/04/05/06/08/09/12,
+          RB-S3-01/03/05/08/09, and RB-S3-07 both ways with two Prisma clients
+          (block held open → check-in waits → <code>UnitUnavailableError</code>;
+          check-in held open → block waits → <code>UnitOccupiedError</code>).
+          Cleanup must delete beds (<code>parent_id is not null</code>) before
+          rooms — the self-FK is RESTRICT. Add two cases to
+          <code>front-office.test.ts</code>: a blocked Unit is absent from
+          <code>listBookableUnits</code> and <code>createReservation</code> on
+          it rejects; <code>checkIn</code> into a blocked Unit rejects
+          <code>UnitUnavailableError</code> and leaves the Reservation
+          confirmed. Run with
+          <code>set -a; source .env; set +a; pnpm test:integration</code>.
+        </li>
+        <li>
+          <strong>Workspace.</strong>
+          <ul>
+            <li>
+              <code>src/server/composition.ts</code>:
+              <code
+                >accommodation: createAccommodationModule({ db: tenantDb
+                })</code
+              >.
+            </li>
+            <li>
+              <code>src/server/viewer.ts</code>:
+              <code
+                >export async function units(propertyId): Promise&lt;UnitMap |
+                null&gt;</code
+              >
+              (null when no viewer; not <code>cache</code>d); re-export the
+              types pages need.
+            </li>
+            <li>
+              <code>src/server/accommodation.ts</code> (<code>"use server"</code
+              >): <code>addUnits</code>, <code>blockUnit</code>,
+              <code>unblockUnit</code> actions parsing
+              <code>FormData</code> exactly like <code>front-office.ts</code>'s
+              <code>createReservation</code>; outcomes
+              <code
+                >AddUnitsOutcome =
+                "idle"|"done"|"nameTaken"|"invalid"|"refused"</code
+              >
+              (carry the taken name),
+              <code
+                >BlockOutcome =
+                "idle"|"done"|"invalidReason"|"occupied"|"refused"</code
+              >; <code>revalidatePath</code> for
+              <code>/${locale}/rooms</code> and
+              <code>/${locale}/reservations</code>;
+              <code>console.error</code> on unexpected errors.
+            </li>
+            <li>
+              Route
+              <code>src/app/[locale]/(workspace)/rooms/page.tsx</code> mirroring
+              <code>reservations/page.tsx</code> (<code
+                >entitledProperties(FRONT_DESK_CAPABILITY)</code
+              >
+              → <code>frontDeskProperty</code> → <code>units</code>). Relative
+              imports; ADR 0014 is agreed and not applied.
+            </li>
+            <li>
+              <code>src/features/accommodation/components/</code>: counts strip;
+              bed map (group by building → floor, one chip per sellable Unit
+              coloured by state, room card for a room let by the bed); bed list
+              (<code>DataTable</code>, one row per sellable Unit, searchable);
+              <code>add-units-dialog.tsx</code> (copy
+              <code>staff/components/define-role-dialog.tsx</code>'s
+              <code>useActionState</code> + close-on-done shape; restate the
+              bounds constants and assert equality in a unit test);
+              <code>unit-sheet.tsx</code> (block form with the reason, unblock
+              button). Tailwind + shadcn only, logical utilities, no CSS files,
+              no ambient decoration.
+            </li>
+            <li>
+              <code>src/lib/screens.ts</code>: child of
+              <code>front-office</code> —
+              <code
+                >{ segment: "rooms", capability: "front_desk", module:
+                "front_office", icon: BedDouble, blueprint: "5.2", built: true
+                }</code
+              >.
+            </li>
+            <li>
+              <code>src/messages.ts</code>: <code>navigation.rooms</code> in
+              tr/en/ar; a typed <code>rooms: {…}</code> block;
+              <code>staff.permissions.configureAccommodation</code> in all three
+              locales; and <code>src/features/staff/labels.ts</code> gains
+              <code>"accommodation.configure"</code> in
+              <code>PERMISSION_CATALOGUE</code> and
+              <code>"accommodation.configure": "configureAccommodation"</code>
+              in <code>MESSAGE_KEYS</code> — without it the roles grid renders
+              the raw key.
+            </li>
+            <li>
+              <code>scripts/db-seed-dev.mjs</code>: a room
+              <code>103</code> (capacity 3) with beds A, B, C so the map shows a
+              bed. Beds carry <code>parent_unit_type = 'room'</code>,
+              <code>capacity = 1</code>.
+            </li>
+          </ul>
+        </li>
+        <li>
+          <strong>Unit + browser tests.</strong>
+          <code>tests/unit/add-units.test.tsx</code> in the shape of
+          <code>tests/unit/new-reservation.test.tsx</code> (mock the server
+          module, assert the form's min/max match the module's constants).
+          <code>tests/browser/rooms.spec.ts</code> in the shape of
+          <code>tests/browser/reservations.spec.ts</code> if cheap (Playwright
+          hardcodes port 3000).
+        </li>
+        <li>
+          <strong>Docs, same commit.</strong> <code>docs/roadmap.md</code>:
+          "Right now" item 1 (beds/floors/buildings) is done — replace with the
+          next piece; the Phase 2 accommodation row still says "A Unit is flat"
+          (false since 002100) and "allows three states" (now four); the
+          "Decisions not yet applied" row for ADR 0025 goes.
+          <code>docs/handover/operator-workspace-screens.md</code>: a
+          <code>rooms</code> row, and the configuration row no longer says Unit
+          settings live there. <code>AGENTS.md</code> line saying "eleven rail
+          destinations and two built screens" — replace the numbers with a
+          pointer to <code>src/lib/screens.ts</code> (that is what its own
+          "Keeping documentation true" section asks).
+        </li>
+        <li>
+          <strong>Gates.</strong> <code>pnpm check</code>,
+          <code>pnpm db:test</code>, <code>pnpm db:drift</code> (needs
+          <code>ranza_shadow</code>; the script drops and recreates it),
+          <code>pnpm test:integration</code>. Then the mandatory advisor
+          <code>review</code> with the full <code>git diff</code>, then
+          <code>verify_done</code>.
+        </li>
+        <li>
+          <strong>Commit + PR.</strong> One commit on
+          <code>feat/rooms-and-beds</code> in the repo's voice (see
+          <code>git log -1 --format=%B 2a08d6f</code> in the audit-log worktree
+          for the shape; no Co-Authored-By or AI attribution lines — the user's
+          global rule). <code>git push -u origin feat/rooms-and-beds</code>,
+          then <code>gh pr create --draft --base main</code>; the PR body names
+          the decisions in section 3, the sabotage table in section 5, and the
+          three audit labels owed after #51.
+        </li>
+      </ol>
+
+      <h2>7. Gotchas paid for today</h2>
+      <ul>
+        <li>
+          <strong>G1 — Docker/compose.</strong> The one Postgres container
+          belongs to compose project <code>ranza-audit-log</code>. From
+          <code>~/Developer/ranza-rooms</code>, reset it with
+          <code
+            >docker compose -p ranza-audit-log down -v &amp;&amp; docker compose
+            -p ranza-audit-log up -d --wait &amp;&amp; pnpm db:setup</code
+          >; a plain <code>pnpm db:reset</code> from this worktree would try a
+          second container on port 54322. <code>colima start</code> first if
+          <code>docker ps</code> cannot connect. A fresh connection through
+          colima's port forward sometimes stalls (Prisma P1001) — retry, it is
+          not the code.
+        </li>
+        <li>
+          <strong
+            >G2 — <code>pnpm db:migrate:new</code> fails with a handed shadow
+            DB</strong
+          >
+          ("function set_request_context already exists"): Prisma replays into
+          <code>SHADOW_DATABASE_URL</code> twice within one
+          <code>migrate dev</code>. Comment out
+          <code>SHADOW_DATABASE_URL</code> in <code>.env</code> for that one
+          command so Prisma makes its own temporary shadow, then restore the
+          line. The migration for this slice already exists, so you should not
+          need this again.
+        </li>
+        <li>
+          <strong>G3 — <code>.env</code></strong> lives only in each worktree
+          (gitignored); the rooms worktree has a copy. Integration tests do not
+          load it: <code>set -a; source .env; set +a</code> first.
+        </li>
+        <li>
+          <strong>G4 — the definer sweep.</strong>
+          <code>tests/database/insert_grants.test.sql</code> regex-scans every
+          <code>app</code> security-definer function's source for
+          <code>insert </code>/<code>update </code>/<code>delete </code> and
+          pins the count and inventory. Keep prose outside
+          <code>$$</code> bodies; if you add a definer, update the count and the
+          <code>set_eq</code> list deliberately.
+        </li>
+        <li>
+          <strong>G5 — RLS and UPDATE.</strong> An UPDATE whose row the policy's
+          USING hides touches zero rows and raises nothing; only WITH CHECK and
+          column grants raise 42501. Assert row counts or unchanged values, not
+          exceptions, for "may not update".
+        </li>
+        <li>
+          <strong>G6 — pgTAP.</strong> A data-modifying CTE cannot sit inside a
+          scalar subquery; run the statement at top level and assert afterwards.
+        </li>
+        <li>
+          <strong>G7 — PostgreSQL 17</strong>, so no <code>RETURNING OLD</code>.
+        </li>
+        <li>
+          <strong>G8 — the audit-log worktree</strong> has an untracked 27 MB
+          <code>docs/evidence/</code> that makes <code>pnpm check</code> fail on
+          prettier. It is not in the PR; move it aside to run the gate there. Do
+          not commit it.
+        </li>
+        <li>
+          <strong>G9 — the main checkout</strong>
+          <code>~/Developer/ranza</code> holds another session's uncommitted
+          work (sidebar, deploy scripts, hosted-staging runbook). Do not touch
+          it; work in the rooms worktree.
+        </li>
+        <li>
+          <strong>G10 — two pre-existing defects on <code>main</code></strong
+          >, reported not fixed: (a) under two concurrent browsers the workspace
+          layout's per-capability entitlement check exhausts the pool (Prisma
+          P2028); (b) <code>frontDeskProperty</code> falls back to another
+          reachable Property when <code>?property=</code> is not entitled, so
+          disabling a capability shows another Property's data under the
+          switcher's original label. (b) is in the blast radius of the new Rooms
+          page, which will use the same helper — decide whether to fix it in
+          this slice or name it in the PR.
+        </li>
+      </ul>
+
+      <h2>8. Commands, copy-paste</h2>
+      <pre><code>cd ~/Developer/ranza-rooms
+set -a; source .env; set +a
+colima status || colima start
+docker ps | grep ranza || (docker compose -p ranza-audit-log up -d --wait &amp;&amp; pnpm db:setup)
+
+pnpm --filter @ranza/db generate
+pnpm --filter @ranza/accommodation typecheck     # first thing: the module has never compiled
+
+pnpm db:test                                     # 13 suites; rooms_and_beds is 42 assertions
+psql "$DIRECT_URL" -v ON_ERROR_STOP=0 -t -A -f tests/database/rooms_and_beds.test.sql | grep -v '^ok'   # one suite, failures only
+
+pnpm test:integration
+pnpm db:drift
+pnpm check
+
+# dev server (port 3000 is often taken by another session)
+cd apps/operator-workspace &amp;&amp; BETTER_AUTH_URL=http://localhost:3100 npx next dev --port 3100
+WORKSPACE_URL=http://localhost:3100 pnpm db:seed:dev   # from the repo root, needs the dev server up</code></pre>
+
+      <h2>9. Where to read</h2>
+      <ul>
+        <li>
+          <code>docs/handover/m1-where-we-are-2026-09-20.html</code> (in
+          <code>~/Developer/ranza</code>, untracked) — the sprint brief; section
+          08's RANZ-27 and RANZ-28 entries are the task definitions.
+        </li>
+        <li>
+          <code>docs/features/rooms-and-beds/edge-cases.csv</code> — every rule,
+          with the test name that proves it.
+        </li>
+        <li>
+          <code>prisma/migrations/20260916002100_…</code> (the hierarchy,
+          merged) and <code>…002300_…</code> (the permission catalogue and
+          five-gate policy shape).
+        </li>
+        <li>
+          <code>packages/ranza/reservations/src/module.ts</code> — the write
+          pattern (<code>createReservation</code>), and
+          <code>packages/ranza/staff/src/module.ts</code> — arrays via
+          <code>$queryRawUnsafe</code> and error translation.
+        </li>
+        <li>
+          <code
+            >apps/operator-workspace/src/features/front-office/components/new-reservation-dialog.tsx</code
+          >
+          — the dialog + <code>useActionState</code> pattern;
+          <code>features/staff/</code> — the most recent screen with writes.
+        </li>
+      </ul>
+    </main>
+  </body>
+</html>

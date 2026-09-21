@@ -127,6 +127,10 @@ model AccommodationUnit {
   /// the rest is a fact rather than a rule until a Stay records its occupants.
   capacity       Int      @default(1)
   status         String   @default("available")
+  /// Why the Unit is blocked, in the words of whoever blocked it. Present
+  /// exactly when `status` is `blocked`: a check constraint says so, and the
+  /// audit record keeps the history of it.
+  statusReason   String?  @map("status_reason")
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 

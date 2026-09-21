@@ -1,0 +1,62 @@
+%% Slices decide implementation order and nothing else:
+%%   s1 the bed map and the bed list   s2 adding rooms and beds   s3 blocking a bed
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% UML directions: include points base --> included. extend points extension --> base.
+%% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
+%% State transitions are in states.mmd and are deliberately not repeated here.
+%%
+%% Where it lives: under Front Office, gated by the front_desk capability. The daily
+%% job here is a front-desk one — who is in each bed and which is free (blueprint 4.7,
+%% front-desk mode) — and the map is what the booking form's Unit select is drawn from.
+%% Blueprint 4.6 has no "Places" group and 5.2 is not Platform Core, so neither a new
+%% top-level destination nor Configuration is the honest home. Writes are bounded by a
+%% permission of their own (accommodation.configure), not by reaching the front desk.
+flowchart TD
+
+  DESK["Staff Member reaching the Property<br/>reads the map and the list"]
+  CONFIG["Staff Member holding accommodation.configure<br/>adds rooms, blocks and unblocks"]
+  RESIDENT["Resident<br/>reaches their own Unit through their Stay and no further (ADR 0009)"]
+
+  subgraph S1["slice 1 &mdash; the bed map and the bed list"]
+    MAP(["Read every Unit at a Property<br/>rooms with their beds, by building and floor"])
+    OCC(["See who is in each Unit tonight<br/>in house, reserved, empty, blocked, out of service"])
+    COUNT(["Read the counts<br/>rooms, sellable Units, in house, free, blocked"])
+    LIST(["Read the same Units as a list<br/>searchable, one row per sellable Unit"])
+  end
+
+  subgraph S2["slice 2 &mdash; adding rooms and beds"]
+    ADD(["Add rooms in one go<br/>building, floor, first number, how many, type, sleeps"])
+    BEDS(["Let each new room by the bed<br/>one bed per sleeping place, named A, B, C&hellip;"])
+  end
+
+  subgraph S3["slice 3 &mdash; blocking a bed"]
+    BLOCK(["Block a Unit with a reason<br/>it leaves the booking form and refuses check-in"])
+    UNBLOCK(["Unblock it"])
+  end
+
+  subgraph OUT["Not this feature"]
+    EDIT(["Rename a Unit, move it between floors, change its type or capacity"])
+    REMOVE(["Remove a Unit that was never used"])
+    HK(["Dirty, inspected, out of order &mdash; the housekeeping lifecycle (RANZ-28)"])
+    MOVE(["Move a Stay to another Unit &mdash; transfers, refused by a column grant"])
+    RACK(["Units against days &mdash; the room calendar (RANZ-25)"])
+  end
+
+  DESK --> MAP
+  DESK --> LIST
+  CONFIG --> ADD
+  CONFIG --> BLOCK
+  CONFIG --> UNBLOCK
+  RESIDENT -.->|never| MAP
+
+  MAP --> OCC
+  MAP --> COUNT
+  LIST --> OCC
+  BEDS -->|extends| ADD
+  BLOCK --> MAP
+  UNBLOCK --> MAP
+  ADD --> MAP
+
+  %% OPEN: what a Staff Member does with a room added under the wrong number. This
+  %% design blocks it with a reason and defers removal (RB-S3-12); a later slice may
+  %% allow removing a Unit nothing has ever named.

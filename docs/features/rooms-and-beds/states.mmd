@@ -1,0 +1,38 @@
+%% Every allowed transition is drawn and labelled with the command that causes
+%% it. Anything not drawn is forbidden.
+%%
+%% Two things have a shape here and only one of them has a lifecycle. A Unit's
+%% operational status is a lifecycle. Whether a room is let whole or by the bed
+%% is not a state at all — it is derived from whether the room has children
+%% (ADR 0025), so there is no flag to flip and no arrow to draw for it.
+stateDiagram-v2
+
+  state "Accommodation Unit — operational status" as U {
+    [*] --> Available : add
+    Available --> Blocked : block
+    Blocked --> Available : unblock
+    %% `occupied` and `out_of_service` are values the check constraint allows
+    %% today and no command writes. Occupancy is a fact about Stays, not a
+    %% column, and this feature reads it that way (RB-S1-04). Out of service
+    %% is the housekeeping lifecycle's, which RANZ-28 replaces this whole
+    %% constraint with: available, occupied, dirty, inspected, blocked, out of
+    %% order (blueprint 18.2). `blocked` is added here because it is one of
+    %% those six and because a bed blocked here and a bed blocked there must
+    %% be one state, not two.
+    %% No terminal state. A Unit is never deleted: a Stay names it, a Folio
+    %% names that Stay, and an audit record names all three. Blocked is a
+    %% resting state, not an end (RB-S3-12).
+  }
+
+  state "Room — what it holds" as R {
+    [*] --> Whole : add
+    [*] --> ByTheBed : add, let by the bed
+    Whole --> ByTheBed : add beds
+    %% OPEN: `add beds` to an existing whole room is drawn because the trigger
+    %% that guards it exists (a room somebody is in cannot be divided) and the
+    %% bulk-add form creates the room and its beds in one transaction. No
+    %% command in this feature divides an existing room; that is "Not this
+    %% feature" in use-case.mmd and RB-S2-13 says so.
+    %% There is no arrow back. Removing beds from a room is removing Units, and
+    %% a Unit is never deleted.
+  }
