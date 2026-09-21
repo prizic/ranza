@@ -1,0 +1,2605 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ranza M1 — where it stands</title>
+    <meta
+      name="description"
+      content="A newcomer's brief for sprint M1: what is built, what is in flight, what is left, and the order it has to go in. Grounded in origin/main on 2026-09-20."
+    />
+    <style>
+      :root {
+        --canvas: #f3f6f4;
+        --canvas-deep: #e6ece9;
+        --ink: #132f38;
+        --ink-muted: #52656b;
+        --accent: #087466;
+        --accent-dark: #05594f;
+        --accent-soft: #d9eee9;
+        --surface: #ffffff;
+        --surface-strong: #132f38;
+        --success: #176842;
+        --success-soft: #dcefe3;
+        --warning: #8a5a08;
+        --warning-soft: #f7e8c8;
+        --danger: #a33a35;
+        --danger-soft: #f5dfdd;
+        --info: #315f83;
+        --info-soft: #dfeaf2;
+        --line: #c8d3d0;
+        --line-strong: #9caca8;
+        --mono:
+          ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+        --sans:
+          Aptos, "Segoe UI Variable", "Segoe UI", -apple-system,
+          BlinkMacSystemFont, "Helvetica Neue", Arial, "Noto Sans Arabic",
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--canvas);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 16px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: var(--accent-dark);
+        text-decoration-thickness: 1px;
+        text-underline-offset: 3px;
+      }
+      code,
+      kbd {
+        font-family: var(--mono);
+        font-size: 0.86em;
+        background: var(--canvas-deep);
+        padding: 0.1em 0.35em;
+        border-radius: 4px;
+      }
+      pre {
+        font-family: var(--mono);
+        font-size: 0.84rem;
+        line-height: 1.5;
+        background: var(--surface-strong);
+        color: #e8f0ee;
+        padding: 16px 20px;
+        border-radius: 10px;
+        overflow-x: auto;
+        margin: 0;
+      }
+      pre code {
+        background: none;
+        padding: 0;
+        color: inherit;
+        font-size: inherit;
+      }
+      .skip {
+        position: absolute;
+        inset-inline-start: 16px;
+        top: -48px;
+        background: var(--ink);
+        color: #fff;
+        padding: 8px 12px;
+        border-radius: 6px;
+      }
+      .skip:focus {
+        top: 16px;
+        z-index: 10;
+      }
+      .wrap {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 0 16px;
+      }
+      /* Header */
+      header.hero {
+        padding: 64px 0 40px;
+        border-bottom: 1px solid var(--line);
+      }
+      .eyebrow {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--ink-muted);
+        margin: 0 0 20px;
+      }
+      h1 {
+        font-size: clamp(2.2rem, 6vw, 4.4rem);
+        line-height: 1.02;
+        letter-spacing: -0.02em;
+        font-weight: 800;
+        margin: 0 0 20px;
+        max-width: 18ch;
+      }
+      .lede {
+        font-size: 1.15rem;
+        color: var(--ink-muted);
+        max-width: 62ch;
+        margin: 0;
+      }
+      /* Layout */
+      main {
+        display: block;
+        min-width: 0;
+      }
+      section.block {
+        padding: 48px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      section.block:last-of-type {
+        border-bottom: 0;
+      }
+      h2 {
+        font-size: clamp(1.5rem, 3vw, 2.1rem);
+        letter-spacing: -0.015em;
+        line-height: 1.15;
+        margin: 0 0 8px;
+        font-weight: 750;
+      }
+      h3 {
+        font-size: 1.1rem;
+        margin: 28px 0 8px;
+        font-weight: 700;
+      }
+      .num {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--accent);
+        display: block;
+        margin-bottom: 10px;
+      }
+      p {
+        max-width: 72ch;
+      }
+      ul,
+      ol {
+        max-width: 72ch;
+        padding-inline-start: 22px;
+      }
+      li {
+        margin: 6px 0;
+      }
+      /* Contents */
+      nav.toc ol {
+        columns: 2;
+        column-gap: 40px;
+        padding-inline-start: 20px;
+        max-width: none;
+      }
+      nav.toc li {
+        break-inside: avoid;
+        margin: 4px 0;
+      }
+      @media (max-width: 640px) {
+        nav.toc ol {
+          columns: 1;
+        }
+      }
+      /* Verdict box */
+      .verdict {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-inline-start: 4px solid var(--accent);
+        border-radius: 10px;
+        padding: 22px 26px;
+        max-width: 860px;
+      }
+      .verdict ol {
+        margin: 0;
+        max-width: none;
+      }
+      .verdict li {
+        margin: 10px 0;
+      }
+      .verdict strong {
+        color: var(--ink);
+      }
+      /* Callouts */
+      .callout {
+        border-radius: 10px;
+        padding: 18px 22px;
+        margin: 20px 0;
+        max-width: 860px;
+        border: 1px solid transparent;
+      }
+      .callout p:last-child,
+      .callout ul:last-child,
+      .callout ol:last-child {
+        margin-bottom: 0;
+      }
+      .callout .tag {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        display: block;
+        margin-bottom: 6px;
+      }
+      .callout.warn {
+        background: var(--warning-soft);
+        border-color: #e6cf98;
+      }
+      .callout.warn .tag {
+        color: var(--warning);
+      }
+      .callout.danger {
+        background: var(--danger-soft);
+        border-color: #e5b9b6;
+      }
+      .callout.danger .tag {
+        color: var(--danger);
+      }
+      .callout.info {
+        background: var(--info-soft);
+        border-color: #bfd2e2;
+      }
+      .callout.info .tag {
+        color: var(--info);
+      }
+      .callout.ok {
+        background: var(--success-soft);
+        border-color: #b6d9c3;
+      }
+      .callout.ok .tag {
+        color: var(--success);
+      }
+      /* Stats */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+        margin: 24px 0;
+      }
+      .stat {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 18px 20px 14px;
+      }
+      .stat .n {
+        font-size: 2.8rem;
+        font-weight: 300;
+        line-height: 1;
+        letter-spacing: -0.03em;
+        font-variant-numeric: tabular-nums;
+      }
+      .stat .l {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--ink-muted);
+        margin-top: 8px;
+      }
+      /* Tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+        font-size: 0.95rem;
+        margin: 16px 0;
+      }
+      th,
+      td {
+        text-align: start;
+        vertical-align: top;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--ink-muted);
+        background: var(--canvas-deep);
+        font-weight: 600;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      td.mono,
+      .mono {
+        font-family: var(--mono);
+        font-size: 0.84rem;
+      }
+      .tablewrap {
+        overflow-x: auto;
+      }
+      /* Pills */
+      .pill {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 3px 9px;
+        border-radius: 999px;
+        border: 1px solid var(--line-strong);
+        color: var(--ink-muted);
+        background: var(--surface);
+        white-space: nowrap;
+        vertical-align: middle;
+      }
+      .pill.built {
+        background: var(--success-soft);
+        border-color: #b6d9c3;
+        color: var(--success);
+      }
+      .pill.thin {
+        background: var(--warning-soft);
+        border-color: #e6cf98;
+        color: var(--warning);
+      }
+      .pill.planned {
+        background: var(--canvas-deep);
+        border-color: var(--line);
+      }
+      .pill.progress {
+        background: var(--accent-soft);
+        border-color: #a9d3c9;
+        color: var(--accent-dark);
+      }
+      .pill.high {
+        background: var(--danger-soft);
+        border-color: #e5b9b6;
+        color: var(--danger);
+      }
+      .pill.medium {
+        background: var(--info-soft);
+        border-color: #bfd2e2;
+        color: var(--info);
+      }
+      .pill.phase3 {
+        background: var(--warning-soft);
+        border-color: #e6cf98;
+        color: var(--warning);
+      }
+      /* Graph */
+      figure {
+        margin: 24px 0;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 20px;
+      }
+      figure svg {
+        width: 100%;
+        max-width: 100%;
+        height: auto;
+        display: block;
+      }
+      .graph-scroll {
+        overflow-x: auto;
+      }
+      @media (max-width: 760px) {
+        .graph-scroll svg {
+          min-width: 900px;
+        }
+      }
+      figcaption {
+        font-size: 0.9rem;
+        color: var(--ink-muted);
+        margin-top: 12px;
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px 22px;
+        font-size: 0.85rem;
+        color: var(--ink-muted);
+        margin-top: 10px;
+      }
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .sw {
+        width: 26px;
+        height: 0;
+        border-top: 2px solid var(--ink);
+      }
+      .sw.dash {
+        border-top-style: dashed;
+        border-top-color: var(--ink-muted);
+      }
+      .sw.box {
+        width: 18px;
+        height: 12px;
+        border: 1px solid var(--line-strong);
+        border-radius: 3px;
+        background: var(--surface);
+      }
+      .sw.box.prog {
+        background: var(--accent-soft);
+        border-color: #a9d3c9;
+      }
+      .sw.box.ghost {
+        border-style: dashed;
+        background: var(--canvas);
+      }
+      /* Sequence */
+      ol.seq {
+        list-style: none;
+        padding: 0;
+        max-width: 900px;
+        counter-reset: step;
+      }
+      ol.seq li {
+        display: grid;
+        grid-template-columns: 56px 1fr;
+        gap: 14px;
+        padding: 16px 0;
+        border-bottom: 1px solid var(--line);
+        margin: 0;
+      }
+      ol.seq li:last-child {
+        border-bottom: 0;
+      }
+      ol.seq li::before {
+        counter-increment: step;
+        content: counter(step, decimal-leading-zero);
+        font-family: var(--mono);
+        font-size: 1.6rem;
+        font-weight: 300;
+        color: var(--accent);
+        line-height: 1;
+        padding-top: 2px;
+      }
+      ol.seq .t {
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+      ol.seq p {
+        margin: 4px 0 0;
+        color: var(--ink-muted);
+      }
+      /* Timeline */
+      .tl {
+        display: grid;
+        grid-template-columns: 140px 1fr;
+        gap: 0;
+        max-width: 900px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--surface);
+      }
+      .tl > div {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+      .tl > div:nth-last-child(-n + 2) {
+        border-bottom: 0;
+      }
+      .tl .d {
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        color: var(--ink-muted);
+        background: var(--canvas-deep);
+        font-variant-numeric: tabular-nums;
+      }
+      .tl .d b {
+        display: block;
+        color: var(--ink);
+        font-size: 1rem;
+        font-weight: 700;
+      }
+      .tl .tasks {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .chip {
+        display: inline-flex;
+        gap: 8px;
+        align-items: baseline;
+        padding: 6px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--canvas);
+        font-size: 0.9rem;
+      }
+      .chip .id {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        color: var(--ink-muted);
+      }
+      .chip.blocked {
+        border-style: dashed;
+        color: var(--ink-muted);
+      }
+      .chip.prog {
+        background: var(--accent-soft);
+        border-color: #a9d3c9;
+      }
+      /* Task cards */
+      article.task {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 24px 26px;
+        margin: 20px 0;
+      }
+      article.task > header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 10px 14px;
+        margin-bottom: 6px;
+      }
+      article.task .id {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        color: var(--ink-muted);
+        letter-spacing: 0.06em;
+      }
+      article.task h3 {
+        margin: 0;
+        font-size: 1.35rem;
+        letter-spacing: -0.01em;
+      }
+      article.task .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 8px 0 16px;
+      }
+      article.task .why {
+        color: var(--ink-muted);
+        margin: 0 0 16px;
+        max-width: 78ch;
+      }
+      .cols {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+      }
+      .cols > div {
+        background: var(--canvas);
+        border-radius: 10px;
+        padding: 14px 16px;
+      }
+      .cols h4 {
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--ink-muted);
+        margin: 0 0 8px;
+        font-weight: 600;
+      }
+      .cols ul {
+        margin: 0;
+        padding-inline-start: 18px;
+        font-size: 0.93rem;
+      }
+      .cols li {
+        margin: 5px 0;
+      }
+      .read {
+        margin-top: 14px;
+        font-size: 0.88rem;
+        color: var(--ink-muted);
+      }
+      .read code {
+        font-size: 0.82em;
+      }
+      footer {
+        padding: 40px 0 64px;
+        color: var(--ink-muted);
+        font-size: 0.88rem;
+        border-top: 1px solid var(--line);
+      }
+      @media (max-width: 640px) {
+        header.hero {
+          padding: 40px 0 28px;
+        }
+        section.block {
+          padding: 32px 0;
+        }
+        article.task {
+          padding: 18px 16px;
+        }
+        ol.seq li {
+          grid-template-columns: 44px 1fr;
+        }
+        .tl {
+          grid-template-columns: 84px 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <div class="wrap">
+      <header class="hero">
+        <p class="eyebrow">
+          Ranza · Sprint M1 · Brief for a newcomer · Grounded in
+          <code>origin/main</code> on 2026-09-20
+        </p>
+        <h1>Where Ranza stands, and what comes next.</h1>
+        <p class="lede">
+          Eight tasks are in the sprint, one is in flight, none are done. This
+          page says what each one is, what already exists underneath it, what
+          order they have to go in, and one thing about your own checkout you
+          need to fix before anything else.
+        </p>
+      </header>
+
+      <main id="main">
+        <section class="block">
+          <span class="num">Contents</span>
+          <nav class="toc" aria-label="Contents">
+            <ol>
+              <li><a href="#tldr">If you read one thing</a></li>
+              <li><a href="#what">What Ranza is, in a page</a></li>
+              <li><a href="#checkout">Your checkout, right now</a></li>
+              <li><a href="#sprint">The sprint at a glance</a></li>
+              <li><a href="#built">What is built today</a></li>
+              <li><a href="#order">The order — what blocks what</a></li>
+              <li><a href="#dates">The dates, and why they do not fit</a></li>
+              <li><a href="#tasks">Each task, in the order to take them</a></li>
+              <li><a href="#how">How a screen gets built here</a></li>
+              <li><a href="#run">Getting a workspace running</a></li>
+              <li>
+                <a href="#drift">Where the board and the repo disagree</a>
+              </li>
+            </ol>
+          </nav>
+        </section>
+
+        <section class="block" id="tldr">
+          <span class="num">01</span>
+          <h2>If you read one thing</h2>
+          <div class="verdict">
+            <ol>
+              <li>
+                <strong
+                  >Your local <code>main</code> is 56 commits behind
+                  <code>origin/main</code>.</strong
+                >
+                The audit-log work in your worktree was built on the old base,
+                and 8 of the files it touches moved upstream. Nothing is lost,
+                but it has to be rebased before it can become a pull request (<a
+                  href="#checkout"
+                  >section 03</a
+                >).
+              </li>
+              <li>
+                <strong>The audit log (RANZ-45) is close.</strong>
+                <code>pnpm check</code> is green on the dirty tree: format,
+                lint, boundaries, typecheck, 38 unit tests, and the build. Four
+                concrete things need fixing during the rebase; none is large.
+              </li>
+              <li>
+                <strong
+                  >Rooms &amp; beds (RANZ-27) is the critical path.</strong
+                >
+                Three other tasks wait on it. Its database half is already
+                merged and proved; what is left is the first write policy on
+                Units, a permission for it, and the screen.
+              </li>
+              <li>
+                <strong
+                  >The order is fixed by the code, not by the dates.</strong
+                >
+                Housekeeping needs Rooms &amp; beds. Today's readiness tile and
+                Maintenance's "out of order" both need Housekeeping. Close the
+                day needs a rate, and nothing has a price yet.
+              </li>
+              <li>
+                <strong>Two due dates are not credible</strong> — RANZ-27 on Sep
+                23 with three dependants due Sep 24, and RANZ-26 on Sep 24
+                behind a rate that is not in the sprint. Say so on the board
+                rather than discovering it on the 24th.
+              </li>
+              <li>
+                <strong
+                  >The roadmap on <code>main</code> is stale in one
+                  place.</strong
+                >
+                It still says Units are flat; migration
+                <code>…002100</code> made a bed a Unit under a room on Sep 17.
+                Whoever lands RANZ-27 fixes the three rows in the same commit.
+              </li>
+            </ol>
+          </div>
+        </section>
+
+        <section class="block" id="what">
+          <span class="num">02</span>
+          <h2>What Ranza is, in a page</h2>
+          <p>
+            Ranza is a multi-property accommodation platform — hotels, hostels
+            and student residences run from one product, where a student
+            residence is a <em>configuration</em> of a Property, not a separate
+            product (ADR 0004). One <strong>Organization</strong> owns several
+            <strong>Properties</strong>; a Property is divided into
+            <strong>Accommodation Units</strong> — a room, or a bed under a
+            room. A <strong>Guest</strong> (a Resident is a kind of Guest) gets
+            a <strong>Reservation</strong> for some nights, which becomes a
+            <strong>Stay</strong> at check-in, which opens a
+            <strong>Folio</strong> that money is posted to.
+          </p>
+          <p>
+            The whole product is delivered as vertical slices: a module that
+            owns its tables, hand-written row-level security policies proved by
+            tests, a read through one server funnel, a screen, and the
+            entitlement gate that reveals it. Blueprint section 13 forbids
+            building tables ahead of the workflow that needs them, which is why
+            most of the rail is deliberately unbuilt.
+          </p>
+
+          <h3>Vocabulary that is enforced</h3>
+          <p>
+            The repository used to be a dormitory pilot. That vocabulary is
+            superseded and its reappearance is treated as a bug, in code,
+            database names, issues and prompts.
+          </p>
+          <div class="tablewrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Never</th>
+                  <th>Use</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Operator, Dormitory Operator, tenant</td>
+                  <td><strong>Organization</strong></td>
+                </tr>
+                <tr>
+                  <td>Branch</td>
+                  <td><strong>Property</strong></td>
+                </tr>
+                <tr>
+                  <td>Student</td>
+                  <td>
+                    <strong>Resident</strong> (a Student is a Resident type)
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Three tiers, one direction</h3>
+          <div class="tablewrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tier</th>
+                  <th>Rule</th>
+                  <th>Examples</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="mono">packages/platform/</td>
+                  <td>
+                    Host-agnostic. May not even <em>mention</em> Property,
+                    Guest, Resident, Stay, Reservation, Unit or Folio — a script
+                    scans the source text.
+                  </td>
+                  <td class="mono">audit, outbox</td>
+                </tr>
+                <tr>
+                  <td class="mono">packages/ranza/</td>
+                  <td>The domain. Hospitality language is fine.</td>
+                  <td class="mono">
+                    core, accommodation, reservations, guests, folios, staff
+                  </td>
+                </tr>
+                <tr>
+                  <td class="mono">packages/adapters/</td>
+                  <td>Translates between the two. Nothing depends on it.</td>
+                  <td></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Modules expose <code>index.ts</code> only, receive their
+            dependencies through a <code>deps</code> object, and never read
+            <code>process.env</code>. In the workspace app, nothing outside
+            <code>src/server/</code> may import a module or the database —
+            <code>server/viewer.ts</code> is the one path to tenant data (ADR
+            0007). All of this is enforced by <code>pnpm check</code> with
+            fixtures proving each rule fires.
+          </p>
+
+          <h3>The security posture, in three lines</h3>
+          <ul>
+            <li>
+              Row-level security <em>is</em> the authorization boundary. The
+              runtime role <code>ranza_app</code> owns nothing and cannot bypass
+              it.
+            </li>
+            <li>
+              A write is bounded by a policy carrying all five gates of
+              blueprint 3.5 — subscription, entitlement, Property capability,
+              the Staff Member's permission, and the row — not by an application
+              check (ADR 0012, amended by ADR 0026). A policy bounds rows; a
+              column-level grant bounds what can be changed.
+            </li>
+            <li>
+              A passing security test proves nothing until you have watched it
+              fail. Break the boundary, confirm red, restore.
+            </li>
+          </ul>
+
+          <h3>Where to read next</h3>
+          <ul>
+            <li>
+              <code>AGENTS.md</code> — the rules above, in full. Not optional.
+            </li>
+            <li>
+              <code>docs/RANZA_PRODUCT_BLUEPRINT.md</code> — the source of
+              truth. Sections 2 (vocabulary), 3.5 (gates), 4.6 (the rail), 13
+              (phases).
+            </li>
+            <li>
+              <code>docs/roadmap.md</code> — status per blueprint bullet.
+              <code>docs/handover/operator-workspace-screens.md</code> — status
+              per screen, and the five steps every screen follows.
+            </li>
+            <li>
+              <code>docs/design/ranza-mockup.html</code> — open it in a browser.
+              It is what every screen is trying to become; the task links on the
+              board (<code>prizic.github.io/ranza/#rooms</code>
+              and so on) are this file, published. A shape reference, not a spec
+              — the blueprint wins over it. The file is on
+              <code>origin/main</code> and arrives with the rebase in section
+              03; until then the published copy is the one to open.
+            </li>
+          </ul>
+        </section>
+
+        <section class="block" id="checkout">
+          <span class="num">03</span>
+          <h2>Your checkout, right now</h2>
+          <div class="callout danger">
+            <span class="tag">Fix this first</span>
+            <p>
+              Local <code>main</code> is at <code>c27f3d5</code> (PR #37).
+              <code>origin/main</code> is 56 commits ahead: it has merged the
+              Unit hierarchy (#42), the browser harness (#38), staff and
+              permissions with its four slices (#45), column-list write grants
+              (#47), hosted role membership (#48), the review rules (#43) and
+              the drift refusal (#44). The audit-log work in your worktree — 19
+              modified files and 14 new ones, all uncommitted — was written
+              against the old base.
+            </p>
+          </div>
+          <p>
+            These eight files are modified locally <em>and</em> changed
+            upstream, so the rebase will stop on some of them:
+          </p>
+          <ul class="mono" style="font-size: 0.86rem">
+            <li>AGENTS.md</li>
+            <li>apps/operator-workspace/src/lib/screens.ts</li>
+            <li>apps/operator-workspace/src/messages.ts</li>
+            <li>apps/operator-workspace/src/server/viewer.ts</li>
+            <li>docs/handover/operator-workspace-screens.md</li>
+            <li>docs/roadmap.md</li>
+            <li>pnpm-lock.yaml</li>
+            <li>scripts/db-seed-dev.mjs</li>
+          </ul>
+          <p>And four things the rebase will not tell you about:</p>
+          <ol>
+            <li>
+              <strong>ADR number collision.</strong> Your new ADR is
+              <code
+                >0024-an-organization-wide-read-is-gated-through-the-property-it-is-opened-from.md</code
+              >. <code>origin/main</code> already has ADR 0024 (a Guest belongs
+              to an Organization), 0025, 0026 and 0027. Renumber yours to
+              <strong>0028</strong> and fix the link in
+              <code>docs/roadmap.md</code>.
+            </li>
+            <li>
+              <strong>A deferral that is now false.</strong>
+              <code>docs/features/audit-log/edge-cases.csv</code> row
+              <code>AL-DEF-02</code> defers a manager-only log because
+              "Organization staff permissions are not built". They are, since
+              #45: a permission catalogue in
+              <code>public.staff_permissions</code>
+              and a fifth gate in every write policy. The row should now say the
+              mechanism exists and this screen chooses not to require a
+              permission yet — or add one. Either is a decision; write it down.
+            </li>
+            <li>
+              <strong>Three audit actions without a label.</strong> The
+              catalogue in <code>messages.ts</code> knows six action names.
+              Upstream now writes nine: <code>reservation.created</code>,
+              <code>staff.invited</code> and <code>staff.role_defined</code> are
+              new. Your own rule <code>AL-S1-09</code> says an unknown name
+              renders raw rather than blank, and that the label is added in the
+              same commit as the writer — so add the three, in Turkish, English
+              and Arabic.
+            </li>
+            <li>
+              <strong>The count line.</strong> Your <code>AGENTS.md</code> edit
+              says "twelve rail destinations and four built screens"; with the
+              audit log built it is twelve and five. Upstream still says eleven
+              and two, so the merge will fight over the sentence anyway.
+            </li>
+          </ol>
+          <div class="callout ok">
+            <span class="tag">What is verified</span>
+            <p>
+              <code>pnpm check</code> passes on the dirty tree as it stands:
+              Prettier, ESLint, both boundary checks, typecheck, 6 unit test
+              files (38 tests), and <code>next build</code>. What has
+              <em>not</em> been run here is <code>pnpm db:test</code> and
+              <code>pnpm test:integration</code> — they need a database, and
+              <code>tests/integration/audit-log.test.ts</code> is new. Run both
+              after the rebase, locally and against Supabase.
+            </p>
+          </div>
+          <div class="callout info">
+            <span class="tag">One small change made today</span>
+            <p>
+              <code>.nodeterm/project.json</code> — canvas state from the
+              terminal tool you are running — was failing
+              <code>prettier --check</code> and therefore the whole gate. It is
+              now in <code>.gitignore</code> and <code>.prettierignore</code>.
+              That is the only edit to tracked files this brief made.
+            </p>
+          </div>
+          <h3>The way out</h3>
+          <pre><code>git switch -c feat/audit-log
+git add -A && git commit -m "feat(audit-log): the Organization's recent records, from the Workspace"
+git rebase origin/main          # resolve the eight files above
+git mv docs/adr/0024-an-organization-wide-read-*.md docs/adr/0028-an-organization-wide-read-is-gated-through-the-property-it-is-opened-from.md
+# then: the three labels, AL-DEF-02, the count line, the roadmap link
+pnpm check && pnpm db:test && pnpm test:integration
+gh pr create --base main</code></pre>
+          <p>
+            The team's pattern is one branch per slice and a pull request into
+            <code>main</code> — every merged change in the log arrived that way.
+            Do not commit the slice directly to <code>main</code>.
+          </p>
+        </section>
+
+        <section class="block" id="sprint">
+          <span class="num">04</span>
+          <h2>The sprint at a glance</h2>
+          <p>
+            <strong>M1 — The front desk works end to end.</strong> Goal, as
+            written on the board:
+            <em
+              >a Property can be set up, sold by the bed, booked, checked in,
+              checked out and cleaned.</em
+            >
+          </p>
+          <div class="stats">
+            <div class="stat">
+              <div class="n">8</div>
+              <div class="l">tasks</div>
+            </div>
+            <div class="stat">
+              <div class="n">0</div>
+              <div class="l">done</div>
+            </div>
+            <div class="stat">
+              <div class="n">1</div>
+              <div class="l">in progress</div>
+            </div>
+            <div class="stat">
+              <div class="n">7</div>
+              <div class="l">to do</div>
+            </div>
+            <div class="stat">
+              <div class="n">3</div>
+              <div class="l">high priority</div>
+            </div>
+            <div class="stat">
+              <div class="n">22–30</div>
+              <div class="l">Sep, due window</div>
+            </div>
+          </div>
+          <p>
+            Measured against the goal sentence:
+            <em>booked, checked in, checked out</em> already work on
+            <code>main</code> and have browser tests. <em>Set up</em> and
+            <em>sold by the bed</em> are RANZ-27. <em>Cleaned</em> is RANZ-28.
+            The rest of the sprint — calendar, today, close the day,
+            maintenance, audit — is around that spine, not on it.
+          </p>
+        </section>
+
+        <section class="block" id="built">
+          <span class="num">05</span>
+          <h2>What is built today</h2>
+          <p>
+            From <code>apps/operator-workspace/src/lib/screens.ts</code> on
+            <code>origin/main</code>. Every destination is gated by an
+            entitlement, so a screen can look missing when the Organization is
+            merely not entitled — the dev seed grants all of them.
+          </p>
+          <div class="tablewrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Rail destination</th>
+                  <th>State</th>
+                  <th>What is behind it</th>
+                  <th>Sprint task</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Today</td>
+                  <td><span class="pill thin">built, thin</span></td>
+                  <td>
+                    A clock and two facts. Blueprint 18.4 asks for arrivals,
+                    departures, Unit readiness and blockers.
+                  </td>
+                  <td class="mono">RANZ-22</td>
+                </tr>
+                <tr>
+                  <td>Front office · Reservations</td>
+                  <td><span class="pill built">built</span></td>
+                  <td>
+                    The bookings from today onwards and the form that takes one
+                    — a Guest, a Unit, the nights, one transaction. No row
+                    actions: nothing cancels or amends yet.
+                  </td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td>Front office · Arrivals, Departures</td>
+                  <td><span class="pill built">built</span></td>
+                  <td>
+                    The worked example. Check-in, check-out, withdrawing a
+                    mistaken check-in with a reason.
+                    <code>pnpm test:browser</code>
+                    presses the buttons.
+                  </td>
+                  <td class="mono">RANZ-23</td>
+                </tr>
+                <tr>
+                  <td>Finance</td>
+                  <td><span class="pill built">built</span></td>
+                  <td>
+                    Folios and balances, one Folio's lines, post a charge,
+                    reverse one, close. No payments, taxes or deposits.
+                  </td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td>People</td>
+                  <td><span class="pill built">built</span></td>
+                  <td>
+                    Staff and permissions, all four slices: roster, invite,
+                    revoke, roles as named permission sets, an Organization
+                    defining its own, and a reach change ending sessions through
+                    the worker.
+                  </td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td>Housekeeping</td>
+                  <td><span class="pill planned">planned</span></td>
+                  <td>A stub route. Needs the six-state Unit lifecycle.</td>
+                  <td class="mono">RANZ-28</td>
+                </tr>
+                <tr>
+                  <td>
+                    Guest experience, F&amp;B, Inventory, Analytics,
+                    Configuration
+                  </td>
+                  <td><span class="pill planned">planned</span></td>
+                  <td>
+                    Stub routes with a stated purpose each, in the handover doc.
+                  </td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td>Audit log</td>
+                  <td><span class="pill progress">in your worktree</span></td>
+                  <td>
+                    Not on <code>main</code>. The twelfth destination, built,
+                    uncommitted.
+                  </td>
+                  <td class="mono">RANZ-45</td>
+                </tr>
+                <tr>
+                  <td>
+                    Rooms &amp; beds, Room calendar, Close the day, Maintenance
+                  </td>
+                  <td><span class="pill">no route yet</span></td>
+                  <td>
+                    In the mockup, not in <code>screens.ts</code>. Each is a new
+                    destination or a section under an existing one — a decision
+                    for the task.
+                  </td>
+                  <td class="mono">RANZ-27 · 25 · 26 · 33</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Under the screens</h3>
+          <p>
+            Twenty-eight migrations, each carrying its schema, its policies and
+            its grants together. The ones the sprint leans on:
+          </p>
+          <div class="tablewrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Migration</th>
+                  <th>What it settled</th>
+                  <th>Sprint task that leans on it</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="mono">…000300, …000700</td>
+                  <td>
+                    <code>audit.records</code>, append-only by trigger. Nine
+                    action names are written today.
+                  </td>
+                  <td class="mono">RANZ-45</td>
+                </tr>
+                <tr>
+                  <td class="mono">…000400</td>
+                  <td>
+                    <code>accommodation_units</code>, with
+                    <code>status in (available, occupied, out_of_service)</code>
+                    — three of the six states blueprint 18.2 names.
+                  </td>
+                  <td class="mono">RANZ-28, RANZ-33</td>
+                </tr>
+                <tr>
+                  <td class="mono">…002100</td>
+                  <td>
+                    A bed is a Unit under a room: <code>parent_id</code>,
+                    <code>building</code>, <code>floor</code>, two partial
+                    unique indexes, and triggers refusing a booking on a divided
+                    room or dividing an occupied one. 22 pgTAP assertions, each
+                    watched go red. (ADR 0025)
+                  </td>
+                  <td class="mono">RANZ-27 — the half that is done</td>
+                </tr>
+                <tr>
+                  <td class="mono">…001400, …002500</td>
+                  <td>
+                    The transactional outbox, and the worker's first real
+                    handler (a reach change ends sessions).
+                    <code>stay.checked_out</code> is published and nothing
+                    handles it yet.
+                  </td>
+                  <td class="mono">RANZ-28 — the second handler</td>
+                </tr>
+                <tr>
+                  <td class="mono">…002300</td>
+                  <td>
+                    The permission catalogue and a fifth gate in every write
+                    policy. Seven permissions exist:
+                    <code>front_desk.book / check_in / check_out</code>,
+                    <code>finance.manage_folio / post_charge</code>,
+                    <code>staff.administer / define_roles</code>. A permission
+                    not in the catalogue is refused by a trigger.
+                  </td>
+                  <td class="mono">RANZ-27, RANZ-28 — each adds one</td>
+                </tr>
+                <tr>
+                  <td class="mono">…001200</td>
+                  <td>
+                    Folios: integer money, a balance that is only ever a sum, a
+                    correction that is a line. Nothing has a <em>rate</em>.
+                  </td>
+                  <td class="mono">RANZ-26 — blocked on a rate</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Next free migration number is <code>20260916002900</code>. Numbers
+            are contended right now — say so before taking one, and never edit a
+            migration that has reached the hosted database.
+          </p>
+        </section>
+
+        <section class="block" id="order">
+          <span class="num">06</span>
+          <h2>The order — what blocks what</h2>
+          <p>
+            Solid arrows are the board's own <code>blocked_by</code> relations.
+            Dashed arrows are dependencies the code implies and the board does
+            not record. Two blockers, RANZ-21 and RANZ-31, are not in the export
+            at all.
+          </p>
+          <figure>
+            <div class="graph-scroll">
+              <svg
+                viewBox="0 0 1230 400"
+                role="img"
+                aria-labelledby="graph-title graph-desc"
+              >
+                <title id="graph-title">Dependency graph of the M1 tasks</title>
+                <desc id="graph-desc">
+                  RANZ-21 blocks RANZ-27 Rooms and beds, which blocks RANZ-28
+                  Housekeeping, RANZ-33 Maintenance and RANZ-25 Room calendar.
+                  RANZ-31 blocks RANZ-26 Close the day. RANZ-45 Audit log,
+                  RANZ-23 Arrivals and departures and RANZ-22 Today have no
+                  recorded blockers. The code implies Housekeeping also feeds
+                  Maintenance and Today.
+                </desc>
+                <defs>
+                  <marker
+                    id="arrow"
+                    viewBox="0 0 10 10"
+                    refX="9"
+                    refY="5"
+                    markerWidth="8"
+                    markerHeight="8"
+                    orient="auto-start-reverse"
+                  >
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#132f38" />
+                  </marker>
+                  <marker
+                    id="arrow-muted"
+                    viewBox="0 0 10 10"
+                    refX="9"
+                    refY="5"
+                    markerWidth="8"
+                    markerHeight="8"
+                    orient="auto-start-reverse"
+                  >
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#52656b" />
+                  </marker>
+                </defs>
+                <g
+                  stroke="#132f38"
+                  stroke-width="2"
+                  fill="none"
+                  marker-end="url(#arrow)"
+                >
+                  <path d="M140 86 L140 148" />
+                  <path d="M140 206 L140 288" />
+                  <path d="M140 206 L370 288" />
+                  <path d="M140 206 L600 288" />
+                  <path d="M860 86 L860 148" />
+                </g>
+                <g
+                  stroke="#52656b"
+                  stroke-width="2"
+                  stroke-dasharray="6 5"
+                  fill="none"
+                  marker-end="url(#arrow-muted)"
+                >
+                  <path d="M240 318 L268 318" />
+                  <path d="M140 346 L140 378 L1090 378 L1090 348" />
+                </g>
+                <g font-family="ui-monospace, Menlo, monospace">
+                  <rect
+                    x="40"
+                    y="30"
+                    width="200"
+                    height="56"
+                    rx="10"
+                    fill="#f3f6f4"
+                    stroke="#9caca8"
+                    stroke-dasharray="5 4"
+                  />
+                  <text
+                    x="54"
+                    y="50"
+                    font-size="11"
+                    fill="#52656b"
+                    letter-spacing="0.5"
+                  >
+                    RANZ-21
+                  </text>
+                  <text
+                    x="54"
+                    y="72"
+                    font-size="13"
+                    font-weight="400"
+                    fill="#52656b"
+                    font-family="Aptos, 'Segoe UI', sans-serif"
+                  >
+                    not in the export
+                  </text>
+                  <rect
+                    x="760"
+                    y="30"
+                    width="200"
+                    height="56"
+                    rx="10"
+                    fill="#f3f6f4"
+                    stroke="#9caca8"
+                    stroke-dasharray="5 4"
+                  />
+                  <text
+                    x="774"
+                    y="50"
+                    font-size="11"
+                    fill="#52656b"
+                    letter-spacing="0.5"
+                  >
+                    RANZ-31
+                  </text>
+                  <text
+                    x="774"
+                    y="72"
+                    font-size="13"
+                    font-weight="400"
+                    fill="#52656b"
+                    font-family="Aptos, 'Segoe UI', sans-serif"
+                  >
+                    not in the export · a rate?
+                  </text>
+                  <rect
+                    x="40"
+                    y="150"
+                    width="200"
+                    height="56"
+                    rx="10"
+                    fill="#ffffff"
+                    stroke="#132f38"
+                    stroke-width="2"
+                  />
+                  <text
+                    x="54"
+                    y="170"
+                    font-size="11"
+                    fill="#52656b"
+                    letter-spacing="0.5"
+                  >
+                    RANZ-27 · HIGH · SEP 23
+                  </text>
+                  <text
+                    x="54"
+                    y="192"
+                    font-size="15"
+                    font-weight="700"
+                    fill="#132f38"
+                    font-family="Aptos, 'Segoe UI', sans-serif"
+                  >
+                    Rooms &amp; beds
+                  </text>
+                  <rect
+                    x="40"
+                    y="290"
+                    width="200"
+                    height="56"
+                    rx="10"
+                    fill="#ffffff"
+                    stroke="#9caca8"
+                  />
+                  <text
+                    x="54"
+                    y="310"
+                    font-size="11"
+                    fill="#52656b"
+                    letter-spacing="0.5"
+                  >
+                    RANZ-28 · HIGH · SEP 24
+                  </text>
+                  <text
+                    x="54"
+                    y="332"
+                    font-size="15"
+                    font-weight="700"
+                    fill="#132f38"
+                    font-family="Aptos, 'Segoe UI', sans-serif"
+                  >
+                    Housekeeping
+                  </text>
+                  <rect
+                    x="270"
+                    y="290"
+                    width="200"
+                    height="56"
+                    rx="10"
+                    fill="#ffffff"
+                    stroke="#9caca8"
+                  />
+                  <text
+                    x="284"
+                    y="310"
+                    font-size="11"
+                    fill="#52656b"
+                    letter-spacing="0.5"
+                  >
+                    RANZ-33 · MED · SEP 30
+                  </text>
+                  <text
+                    x="284"
+                    y="332"
+                    font-size="15"
+                    font-weight="700"
+                    fill="#132f38"
+                    font-family="Aptos, 'Segoe UI', sans-serif"
+                  >
+                    Maintenance
+                  </text>
+                  <rect
+                    x="500"
+                    y="290"
+                    width="200"
+                    height="56"
+                    rx="10"
+                    fill="#ffffff"
+                    stroke="#9caca8"
+                  />
+                  <text
+                    x="514"
+                    y="310"
+                    font-size="11"
+                    fill="#52656b"
+                    letter-spacing="0.5"
+                  >
+                    RANZ-25 · MED · SEP 24
+                  </text>
+                  <text
+                    x="514"
+                    y="332"
+                    font-size="15"
+                    font-weight="700"
+                    fill="#132f38"
+                    font-family="Aptos, 'Segoe UI', sans-serif"
+                  >
+                    Room calendar
+                  </text>
+                  <rect
+                    x="760"
+                    y="150"
+                    width="200"
+                    height="56"
+                    rx="10"
+                    fill="#ffffff"
+                    stroke="#9caca8"
+                  />
+                  <text
+                    x="774"
+                    y="170"
+                    font-size="11"
+                    fill="#52656b"
+                    letter-spacing="0.5"
+                  >
+                    RANZ-26 · MED · SEP 24
+                  </text>
+                  <text
+                    x="774"
+                    y="192"
+                    font-size="15"
+                    font-weight="700"
+                    fill="#132f38"
+                    font-family="Aptos, 'Segoe UI', sans-serif"
+                  >
+                    Close the day
+                  </text>
+                  <rect
+                    x="990"
+                    y="30"
+                    width="200"
+                    height="56"
+                    rx="10"
+                    fill="#d9eee9"
+                    stroke="#a9d3c9"
+                    stroke-width="2"
+                  />
+                  <text
+                    x="1004"
+                    y="50"
+                    font-size="11"
+                    fill="#05594f"
+                    letter-spacing="0.5"
+                  >
+                    RANZ-45 · HIGH · SEP 24
+                  </text>
+                  <text
+                    x="1004"
+                    y="72"
+                    font-size="15"
+                    font-weight="700"
+                    fill="#132f38"
+                    font-family="Aptos, 'Segoe UI', sans-serif"
+                  >
+                    Audit log · in progress
+                  </text>
+                  <rect
+                    x="990"
+                    y="150"
+                    width="200"
+                    height="56"
+                    rx="10"
+                    fill="#ffffff"
+                    stroke="#9caca8"
+                  />
+                  <text
+                    x="1004"
+                    y="170"
+                    font-size="11"
+                    fill="#52656b"
+                    letter-spacing="0.5"
+                  >
+                    RANZ-23 · MED · SEP 22
+                  </text>
+                  <text
+                    x="1004"
+                    y="192"
+                    font-size="15"
+                    font-weight="700"
+                    fill="#132f38"
+                    font-family="Aptos, 'Segoe UI', sans-serif"
+                  >
+                    Arrivals &amp; departures
+                  </text>
+                  <rect
+                    x="990"
+                    y="290"
+                    width="200"
+                    height="56"
+                    rx="10"
+                    fill="#ffffff"
+                    stroke="#9caca8"
+                  />
+                  <text
+                    x="1004"
+                    y="310"
+                    font-size="11"
+                    fill="#52656b"
+                    letter-spacing="0.5"
+                  >
+                    RANZ-22 · MED · SEP 26
+                  </text>
+                  <text
+                    x="1004"
+                    y="332"
+                    font-size="15"
+                    font-weight="700"
+                    fill="#132f38"
+                    font-family="Aptos, 'Segoe UI', sans-serif"
+                  >
+                    Today · postponed
+                  </text>
+                </g>
+              </svg>
+            </div>
+            <div class="legend">
+              <span><i class="sw"></i> blocked_by on the board</span>
+              <span
+                ><i class="sw dash"></i> implied by the code, not on the
+                board</span
+              >
+              <span><i class="sw box prog"></i> in progress</span>
+              <span><i class="sw box"></i> to do</span>
+              <span
+                ><i class="sw box ghost"></i> referenced, not in the
+                export</span
+              >
+            </div>
+            <figcaption>
+              The two implied edges: Housekeeping's six-state lifecycle is where
+              "out of order" lives, which Maintenance needs; and Today's "Unit
+              readiness" tile reads the same status. The board's "postponed"
+              label on Today is right for exactly that reason.
+            </figcaption>
+          </figure>
+
+          <h3>The sequence I would run</h3>
+          <ol class="seq">
+            <li>
+              <div>
+                <div class="t">RANZ-45 Audit log — land it</div>
+                <p>
+                  Independent, green, and the only thing in flight. Branch,
+                  rebase, the four fixes in section 03, run the database suites,
+                  open the PR. Do this before starting anything that touches the
+                  same files.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div>
+                <div class="t">
+                  RANZ-27 Rooms &amp; beds — the critical path
+                </div>
+                <p>
+                  Three tasks wait on it, and the database half is already
+                  merged. Take the migration first (the permission and the first
+                  write policy on Units), prove it, then the screen.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div>
+                <div class="t">
+                  RANZ-28 Housekeeping — the second outbox handler
+                </div>
+                <p>
+                  Check-out already publishes <code>stay.checked_out</code>;
+                  this makes the worker mark the Unit dirty. It unblocks Today's
+                  readiness and Maintenance's "out of order" at once.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div>
+                <div class="t">RANZ-25 Room calendar — a read</div>
+                <p>
+                  Rooms as rows, days as columns, Reservations and Stays as
+                  bars. No new table, no write policy: the cheapest of the three
+                  dependants once 27 is in.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div>
+                <div class="t">
+                  RANZ-23 Arrivals &amp; departures — after it has a definition
+                </div>
+                <p>
+                  Both screens exist and are the worked example. The task has no
+                  description in the export. Ask what "done" means before
+                  spending a day on it — probably the mockup's single Front desk
+                  screen with tabs and an in-house list.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div>
+                <div class="t">RANZ-22 Today — after 28</div>
+                <p>
+                  Arrivals and departures counts can be added now; Unit
+                  readiness cannot until Housekeeping exists. The "postponed"
+                  label is correct.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div>
+                <div class="t">RANZ-26 Close the day — after a rate exists</div>
+                <p>
+                  The roadmap's own order puts a rate third, after Units and the
+                  status lifecycle. Without a price there is nothing to post per
+                  night and no reason for a business date to roll.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div>
+                <div class="t">RANZ-33 Maintenance — last</div>
+                <p>
+                  The only M1 task that is blueprint Phase 3. It needs a module,
+                  a table and a lifecycle of its own, and "out of order" from
+                  Housekeeping. Its Sep 30 date is the one that fits.
+                </p>
+              </div>
+            </li>
+          </ol>
+        </section>
+
+        <section class="block" id="dates">
+          <span class="num">07</span>
+          <h2>The dates, and why they do not fit</h2>
+          <div class="tl">
+            <div class="d"><b>Sep 22</b>Mon · in 2 days</div>
+            <div class="tasks">
+              <span class="chip"
+                ><span class="id">RANZ-23</span>Arrivals &amp; departures</span
+              >
+              <span style="color: var(--ink-muted); font-size: 0.88rem"
+                >no description on the board</span
+              >
+            </div>
+            <div class="d"><b>Sep 23</b>Tue · in 3 days</div>
+            <div class="tasks">
+              <span class="chip"
+                ><span class="id">RANZ-27</span>Rooms &amp; beds</span
+              >
+              <span style="color: var(--ink-muted); font-size: 0.88rem"
+                >a migration, a policy, a permission and a screen</span
+              >
+            </div>
+            <div class="d"><b>Sep 24</b>Wed · in 4 days</div>
+            <div class="tasks">
+              <span class="chip prog"
+                ><span class="id">RANZ-45</span>Audit log</span
+              >
+              <span class="chip blocked"
+                ><span class="id">RANZ-28</span>Housekeeping</span
+              >
+              <span class="chip blocked"
+                ><span class="id">RANZ-25</span>Room calendar</span
+              >
+              <span class="chip blocked"
+                ><span class="id">RANZ-26</span>Close the day</span
+              >
+            </div>
+            <div class="d"><b>Sep 26</b>Fri · in 6 days</div>
+            <div class="tasks">
+              <span class="chip"><span class="id">RANZ-22</span>Today</span>
+            </div>
+            <div class="d"><b>Sep 30</b>Tue · in 10 days</div>
+            <div class="tasks">
+              <span class="chip blocked"
+                ><span class="id">RANZ-33</span>Maintenance</span
+              >
+            </div>
+          </div>
+          <p
+            style="
+              font-size: 0.88rem;
+              color: var(--ink-muted);
+              margin-top: 10px;
+            "
+          >
+            A dashed chip is waiting on a blocker. "In N days" is counted from
+            Sep 20.
+          </p>
+          <div class="callout warn">
+            <span class="tag">Take a position on this</span>
+            <p>
+              Three tasks are due the day after the task that blocks them, and
+              Close the day is due Sep 24 behind a blocker that is not even in
+              the sprint. The dates were set on Sep 17 before the dependencies
+              were understood; the comments on RANZ-27 are where that
+              understanding arrived. The honest move is to re-date on the board
+              now: 27 first, then 28 and 25 with a gap after it, 26 out of M1
+              unless a rate joins the sprint. The order in section 06 holds
+              either way — it is the dates that are wrong, not the sequence.
+            </p>
+          </div>
+        </section>
+
+        <section class="block" id="tasks">
+          <span class="num">08</span>
+          <h2>Each task, in the order to take them</h2>
+
+          <article class="task" id="ranz-45">
+            <header>
+              <span class="id">RANZ-45</span>
+              <h3>Audit log</h3>
+            </header>
+            <div class="meta">
+              <span class="pill progress">in progress</span>
+              <span class="pill high">high</span>
+              <span class="pill">due Sep 24</span>
+              <span class="pill">frontend</span
+              ><span class="pill">security</span><span class="pill">early</span>
+            </div>
+            <p class="why">
+              Every write in the product already records into
+              <code>audit.records</code>; nothing reads it from a screen.
+              Blueprint 3.6 makes audit a baseline right no package can remove,
+              and a record nobody can open is not evidence of anything. It was
+              chosen as the first task because it needs no migration and so
+              cannot collide with the Unit work.
+            </p>
+            <div class="cols">
+              <div>
+                <h4>Exists on main</h4>
+                <ul>
+                  <li>
+                    <code>packages/platform/audit</code> owns
+                    <code>audit.records</code>, append-only by trigger.
+                  </li>
+                  <li>
+                    Nine action names written today, from reservations, stays,
+                    folios and staff.
+                  </li>
+                  <li>
+                    <code>historyOf(actor, subjectType, subjectId)</code> — one
+                    subject's history, no list read.
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h4>In your worktree</h4>
+                <ul>
+                  <li>
+                    An Organization-wide recent-records read in the module,
+                    capped and reporting the total.
+                  </li>
+                  <li>
+                    <code>auditLog(propertyId)</code> in
+                    <code>server/viewer.ts</code> — the read is gated through
+                    the Property it is opened from (the new ADR).
+                  </li>
+                  <li>
+                    <code>features/audit-log/</code>: table, columns, record
+                    panel, actions; the route; <code>built: true</code>; the
+                    <code>audit</code> capability in the seed.
+                  </li>
+                  <li>
+                    Copy in three locales; a design folder with 17 edge-case
+                    rows; a unit test, an integration test, two boundary
+                    fixtures; the funnel rule extended to the platform tier.
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h4>Watch out</h4>
+                <ul>
+                  <li>
+                    The four rebase items in section 03 — ADR number, AL-DEF-02,
+                    three labels, the count line.
+                  </li>
+                  <li>
+                    Reach is Organization-wide by the shape of the data (<code
+                      >audit.records</code
+                    >
+                    has no <code>property_id</code>);
+                    <code>AL-DIFF-01</code> records this so a later narrowing is
+                    deliberate.
+                  </li>
+                  <li>
+                    Actors are ids, not names — <code>public.users</code> has no
+                    name column and a Staff Member can read only their own row
+                    (<code>PRE-01</code>). Naming a colleague is a later slice
+                    and a migration.
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <p class="read">
+              Read: <code>docs/features/audit-log/</code> ·
+              <code>packages/platform/audit/README.md</code> · ADR 0007 ·
+              <code>docs/handover/operator-workspace-screens.md</code>. Mockup:
+              <a href="../design/ranza-mockup.html#audit">#audit</a>.
+            </p>
+          </article>
+
+          <article class="task" id="ranz-27">
+            <header>
+              <span class="id">RANZ-27</span>
+              <h3>Rooms &amp; beds</h3>
+            </header>
+            <div class="meta">
+              <span class="pill">to do</span>
+              <span class="pill high">high</span>
+              <span class="pill">due Sep 23</span>
+              <span class="pill">database</span
+              ><span class="pill">frontend</span
+              ><span class="pill">migration</span>
+              <span class="pill">blocks 25 · 28 · 33</span>
+            </div>
+            <p class="why">
+              "Sold by the bed" is the sprint goal's own phrase, and it is what
+              ADR 0004 exists for: a student residence is a Property whose Units
+              are beds. The decision and the database are done; the screen and
+              the first write path are not.
+            </p>
+            <div class="cols">
+              <div>
+                <h4>Exists on main</h4>
+                <ul>
+                  <li>
+                    ADR 0025 and migration <code>…002100</code>: a bed is a Unit
+                    with a parent; a Unit is sellable when it has no children
+                    (derived, never a flag); building and floor are columns.
+                  </li>
+                  <li>
+                    Triggers: a Stay or Reservation may not name a Unit with
+                    children; a Unit somebody is in may not be divided.
+                  </li>
+                  <li>
+                    A bed may stand alone — a parentless bed is a dormitory, and
+                    requiring a room would have refused existing rows.
+                  </li>
+                  <li>
+                    <code>listBookableUnits</code> and
+                    <code>createReservation</code> both take leaves only.
+                  </li>
+                  <li>
+                    <code>tests/database/unit_hierarchy.test.sql</code>, 22
+                    assertions, each watched go red.
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h4>What is new</h4>
+                <ul>
+                  <li>
+                    The screen: bed map, bed list, occupancy counts, bulk add,
+                    blocking a bed with a reason.
+                  </li>
+                  <li>
+                    The first write policy on <code>accommodation_units</code> —
+                    five conditions from the start, since nothing writes a Unit
+                    through the application today.
+                  </li>
+                  <li>
+                    A permission in <code>public.staff_permissions</code>,
+                    something like <code>accommodation.configure</code>, in the
+                    same migration. There is no accommodation permission yet.
+                  </li>
+                  <li>
+                    Where it lives in the rail: the mockup has a Places group
+                    (Rooms, Housekeeping, Maintenance); blueprint 4.6 puts Unit
+                    settings under Configuration. Decide, and say why in the PR.
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h4>Watch out</h4>
+                <ul>
+                  <li>
+                    Unique-within-parent is two partial indexes because
+                    <code>null ≠ null</code> in a unique index; keep the
+                    assertion that the room case still fails.
+                  </li>
+                  <li>
+                    A permission not in the catalogue is refused by a trigger —
+                    a typo fails loudly, which is the point.
+                  </li>
+                  <li>
+                    "Block a bed" is a status write. Do not invent a fourth
+                    status here that Housekeeping then has to reconcile — read
+                    RANZ-28 before choosing the value.
+                  </li>
+                  <li>
+                    Fix the three stale roadmap rows ("Units are flat") in the
+                    same commit.
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <p class="read">
+              Read: ADR 0025 · ADR 0012 and 0026 ·
+              <code>packages/ranza/staff/README.md</code> (which rule lives
+              where) · migration <code>…002300</code> (amended policies side by
+              side). Mockup:
+              <a href="../design/ranza-mockup.html#rooms">#rooms</a>.
+            </p>
+          </article>
+
+          <article class="task" id="ranz-28">
+            <header>
+              <span class="id">RANZ-28</span>
+              <h3>Housekeeping</h3>
+            </header>
+            <div class="meta">
+              <span class="pill">to do</span>
+              <span class="pill high">high</span>
+              <span class="pill">due Sep 24</span>
+              <span class="pill">worker</span><span class="pill">frontend</span
+              ><span class="pill">database</span>
+              <span class="pill">blocked by 27</span>
+            </div>
+            <p class="why">
+              "Cleaned" is the last word of the sprint goal. Check-out is the
+              natural trigger for "dirty" and deliberately does not fire it yet
+              — which makes this the workflow that gives the worker its second
+              outbox handler and the product its first status lifecycle on a
+              tenant table.
+            </p>
+            <div class="cols">
+              <div>
+                <h4>Exists on main</h4>
+                <ul>
+                  <li>
+                    <code>accommodation_units.status</code> allows
+                    <code>available</code>, <code>occupied</code>,
+                    <code>out_of_service</code>. Blueprint 18.2 names six:
+                    available, occupied, dirty, inspected, blocked, out of
+                    order.
+                  </li>
+                  <li>
+                    <code>stay.checked_out</code> is already published through
+                    the outbox; nothing subscribes.
+                  </li>
+                  <li>
+                    <code>apps/worker/src/outbox/subscriptions.ts</code> has one
+                    handler and a note on why the others could not go first.
+                  </li>
+                  <li>
+                    A <code>housekeeping</code> stub route, gated,
+                    <code>built: false</code>.
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h4>What is new</h4>
+                <ul>
+                  <li>
+                    The six-state lifecycle and its transitions, as a
+                    constraint, not an application check.
+                  </li>
+                  <li>
+                    The handler: check-out marks the Unit dirty. The worker has
+                    its own role (ADR 0018) and holds no grant it was not given
+                    — this write needs one, bounded to the status column.
+                  </li>
+                  <li>
+                    The screen: what needs cleaning, mark inspected, block with
+                    a reason.
+                  </li>
+                  <li>
+                    A write policy with five gates and a permission (<code
+                      >housekeeping.update_status</code
+                    >
+                    or similar).
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h4>Watch out</h4>
+                <ul>
+                  <li>
+                    Sync inside the transaction or async through the outbox is
+                    ADR 0020 — the dirty mark is the async case; be explicit
+                    about what a Staff Member sees between check-out and the
+                    worker's tick.
+                  </li>
+                  <li>
+                    RANZ-27's "block a bed" and this screen's "blocked" must be
+                    one state, not two.
+                  </li>
+                  <li>
+                    Migration numbers are contended; take
+                    <code>…002900</code> or whatever is next and say so.
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <p class="read">
+              Read: ADR 0016, 0017, 0018, 0020, 0027 ·
+              <code>apps/worker/src/outbox/</code> ·
+              <code>docs/roadmap.md</code>
+              Phase 2, "Housekeeping room-status lifecycle". Mockup:
+              <a href="../design/ranza-mockup.html#housekeeping"
+                >#housekeeping</a
+              >.
+            </p>
+          </article>
+
+          <article class="task" id="ranz-25">
+            <header>
+              <span class="id">RANZ-25</span>
+              <h3>Room calendar</h3>
+            </header>
+            <div class="meta">
+              <span class="pill">to do</span>
+              <span class="pill medium">medium</span>
+              <span class="pill">due Sep 24</span>
+              <span class="pill">frontend</span
+              ><span class="pill">backend</span>
+              <span class="pill">blocked by 27</span>
+            </div>
+            <p class="why">
+              The rack: rooms and beds as rows, days as columns, bookings and
+              stays as bars. It is the first screen that shows the hierarchy
+              RANZ-27 builds, which is why it waits for it.
+            </p>
+            <div class="cols">
+              <div>
+                <h4>Exists on main</h4>
+                <ul>
+                  <li>
+                    Reservations hold their nights; a Stay holds the nights from
+                    check-in on. Availability is an exclusion constraint, not a
+                    query.
+                  </li>
+                  <li>
+                    The reservations list and its polling pattern (ADR 0019,
+                    TanStack Query scoped to the tenant).
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h4>What is new</h4>
+                <ul>
+                  <li>
+                    A read joining Units (with parent) to Reservations and Stays
+                    over a date window, through <code>viewer.ts</code>.
+                  </li>
+                  <li>
+                    The grid. Read-only — no drag to move, because transfers are
+                    refused by a column-level grant on purpose.
+                  </li>
+                  <li>
+                    A destination: <code>rack</code> in the mockup; under Front
+                    office in the rail.
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h4>Watch out</h4>
+                <ul>
+                  <li>
+                    The named gap: a Unit whose Guest is in house can still be
+                    promised over their remaining nights, because the
+                    double-booking constraint stops at <em>confirmed</em>. The
+                    calendar will show that overlap. Show it; do not hide it.
+                  </li>
+                  <li>
+                    Dates are the Property's wall clock, and the business date
+                    (ADR 0021) is still unwritten — use calendar days and say
+                    so.
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <p class="read">
+              Read: ADR 0019, 0021, 0024 ·
+              <code>packages/ranza/reservations</code>. Mockup:
+              <a href="../design/ranza-mockup.html#rack">#rack</a>.
+            </p>
+          </article>
+
+          <article class="task" id="ranz-23">
+            <header>
+              <span class="id">RANZ-23</span>
+              <h3>Arrivals &amp; departures</h3>
+            </header>
+            <div class="meta">
+              <span class="pill">to do</span>
+              <span class="pill medium">medium</span>
+              <span class="pill">due Sep 22</span>
+              <span class="pill">frontend</span>
+            </div>
+            <p class="why">
+              The earliest due date on the board, on the task with the least
+              definition. Both screens exist and are the worked example every
+              new screen is told to read first.
+            </p>
+            <div class="cols">
+              <div>
+                <h4>Exists on main</h4>
+                <ul>
+                  <li>
+                    <code>arrivals</code> and <code>departures</code>: the
+                    lists, check-in, check-out, withdrawing a mistaken check-in
+                    with a reason (ADR 0022).
+                  </li>
+                  <li>
+                    Arrivals polls live.
+                    <code>pnpm test:browser</code> exercises the flow.
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h4>What is new — probably</h4>
+                <ul>
+                  <li>
+                    The mockup's <code>frontdesk</code> is one screen with tabs
+                    (<code>go('frontdesk', { tab: 'arrivals' })</code>) rather
+                    than two destinations, and shows in-house Stays.
+                  </li>
+                  <li>
+                    Nothing else can be inferred. The export has no description,
+                    no comments and no blockers.
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h4>Watch out</h4>
+                <ul>
+                  <li>
+                    Get one sentence of scope before starting. A day spent
+                    re-shaping a working screen to match a mockup that the
+                    blueprint wins over is a day the critical path did not get.
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <p class="read">
+              Read:
+              <code>apps/operator-workspace/src/features/front-office/</code>
+              · ADR 0022. Mockup:
+              <a href="../design/ranza-mockup.html#frontdesk">#frontdesk</a>.
+            </p>
+          </article>
+
+          <article class="task" id="ranz-22">
+            <header>
+              <span class="id">RANZ-22</span>
+              <h3>Today</h3>
+            </header>
+            <div class="meta">
+              <span class="pill">to do</span>
+              <span class="pill medium">medium</span>
+              <span class="pill">due Sep 26</span>
+              <span class="pill">frontend</span
+              ><span class="pill">postponed</span>
+            </div>
+            <p class="why">
+              The landing screen. Built and thin — "a clock and two facts".
+              Blueprint 18.4 asks for arrivals, departures, Unit readiness and
+              blockers, each opening the records that resolve it.
+            </p>
+            <div class="cols">
+              <div>
+                <h4>Exists on main</h4>
+                <ul>
+                  <li>The route, <code>built: true</code>, the clock.</li>
+                  <li>
+                    Arrivals and departures reads that the counts can come from.
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h4>What is new</h4>
+                <ul>
+                  <li>
+                    Four tiles that are links, not decoration: arrivals today,
+                    departures today, Units ready, blockers.
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h4>Watch out</h4>
+                <ul>
+                  <li>
+                    "Units ready" is a Housekeeping question. Two of the four
+                    tiles can be done now; the label says postponed because the
+                    other two cannot.
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <p class="read">
+              Read: blueprint 18.4. Mockup:
+              <a href="../design/ranza-mockup.html#today">#today</a>.
+            </p>
+          </article>
+
+          <article class="task" id="ranz-26">
+            <header>
+              <span class="id">RANZ-26</span>
+              <h3>Close the day</h3>
+            </header>
+            <div class="meta">
+              <span class="pill">to do</span>
+              <span class="pill medium">medium</span>
+              <span class="pill">due Sep 24</span>
+              <span class="pill">backend</span><span class="pill">worker</span>
+              <span class="pill">blocked by 31 (not in export)</span>
+            </div>
+            <p class="why">
+              The night audit: post each in-house Stay's night to its Folio and
+              roll the Property's business date. None of that has a meaning
+              until a Unit has a rate.
+            </p>
+            <div class="cols">
+              <div>
+                <h4>Exists on main</h4>
+                <ul>
+                  <li>
+                    ADR 0021: a business date is the day a Property is working,
+                    rolling at a cutoff, not midnight. The column is unwritten
+                    because nothing posts per night.
+                  </li>
+                  <li>Folios, lines, integer money, reversals (ADR 0015).</li>
+                  <li>
+                    The worker, with a scheduling shape for a nightly run.
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h4>What is new</h4>
+                <ul>
+                  <li>
+                    A rate — almost certainly what RANZ-31 is; it is not in this
+                    export and not in the sprint.
+                  </li>
+                  <li>
+                    Then: the nightly posting, the business-date roll, an
+                    idempotent run so a retried night never posts twice, and a
+                    record of each run.
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h4>Watch out</h4>
+                <ul>
+                  <li>
+                    The roadmap orders it: Units, then the status lifecycle,
+                    then a rate. Sep 24 cannot hold.
+                  </li>
+                  <li>
+                    Everything here is money. Corrections are reversal lines,
+                    never edits or deletes.
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <p class="read">
+              Read: ADR 0015, 0021 · <code>packages/ranza/folios</code>. Mockup:
+              <a href="../design/ranza-mockup.html#nightaudit">#nightaudit</a>.
+            </p>
+          </article>
+
+          <article class="task" id="ranz-33">
+            <header>
+              <span class="id">RANZ-33</span>
+              <h3>Maintenance</h3>
+            </header>
+            <div class="meta">
+              <span class="pill">to do</span>
+              <span class="pill medium">medium</span>
+              <span class="pill">due Sep 30</span>
+              <span class="pill">frontend</span
+              ><span class="pill">backend</span>
+              <span class="pill">blocked by 27</span>
+              <span class="pill phase3">blueprint phase 3</span>
+            </div>
+            <p class="why">
+              Faults, severity, location, parts, handover, return to service
+              (blueprint 4.7). It is the one sprint task outside Phase 2, and
+              nothing of it exists yet — no module, no table, no route.
+            </p>
+            <div class="cols">
+              <div>
+                <h4>Exists on main</h4>
+                <ul>
+                  <li><code>out_of_service</code> as a Unit status value.</li>
+                  <li>
+                    The module pattern to copy:
+                    <code>packages/ranza/staff</code> is the most recent with
+                    its own tables, policies and permission.
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h4>What is new</h4>
+                <ul>
+                  <li>
+                    A maintenance module: a work-order table with a lifecycle, a
+                    policy with five gates, a permission, the read, the screen,
+                    the gate. The full five steps.
+                  </li>
+                  <li>
+                    "Out of order" on the Unit itself belongs to the
+                    Housekeeping lifecycle, not here — this module reports the
+                    fault and asks for the status.
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h4>Watch out</h4>
+                <ul>
+                  <li>
+                    Section 13: build the workflow (report → fix → return to
+                    service), not a table with a form on it.
+                  </li>
+                  <li>
+                    One module may not update another's tables directly
+                    (blueprint 14). Changing Unit status from Maintenance goes
+                    through Accommodation's contract or the outbox.
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <p class="read">
+              Read: blueprint 4.7, 5, 13, 14 ·
+              <code>packages/ranza/staff/</code>
+              as the pattern. Mockup:
+              <a href="../design/ranza-mockup.html#maintenance">#maintenance</a
+              >.
+            </p>
+          </article>
+        </section>
+
+        <section class="block" id="how">
+          <span class="num">09</span>
+          <h2>How a screen gets built here</h2>
+          <p>
+            The same five steps every time, from the handover doc. Arrivals and
+            departures are the worked example; reservations is the most recent
+            one that added a table as well as a screen.
+          </p>
+          <ol class="seq">
+            <li>
+              <div>
+                <div class="t">The module</div>
+                <p>
+                  A package under <code>packages/ranza/</code> owning its
+                  tables, with the migration carrying schema, policies and
+                  grants together. Flat until it has a rule SQL cannot hold.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div>
+                <div class="t">The policies, and the tests that prove them</div>
+                <p>
+                  A pgTAP suite in <code>tests/database/</code>. Then break each
+                  boundary and confirm it goes red. Three suites in this
+                  repository have been green while verifying nothing.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div>
+                <div class="t">The read, through the funnel</div>
+                <p>
+                  Add it to <code>src/server/viewer.ts</code>. Nothing outside
+                  <code>src/server/</code> imports a module or the database; a
+                  fixture proves the rule fires.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div>
+                <div class="t">The screen</div>
+                <p>
+                  A folder under <code>src/features/&lt;domain&gt;/</code> with
+                  the table, columns, detail panel and row actions.
+                  Presentational; data arrives as props. Tailwind and shadcn
+                  only — no CSS files, logical directional utilities so Arabic
+                  mirrors for free.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div>
+                <div class="t">The gate</div>
+                <p>
+                  <code>built: true</code> in
+                  <code>src/lib/screens.ts</code> and a capability row in
+                  <code>scripts/db-seed-dev.mjs</code>. Copy in Turkish, English
+                  and Arabic through the typed catalogue — a missing string is a
+                  type error.
+                </p>
+              </div>
+            </li>
+          </ol>
+          <p>
+            Before any of it: the <code>feature-design</code> skill in
+            <code>.claude/skills/feature-design/</code> writes the use cases,
+            states and edge-case rows into
+            <code>docs/features/&lt;feature&gt;/</code>. A feature is designed
+            before it is coded; the audit-log folder is the freshest example of
+            the shape.
+          </p>
+        </section>
+
+        <section class="block" id="run">
+          <span class="num">10</span>
+          <h2>Getting a workspace running</h2>
+          <pre><code>pnpm db:up && pnpm db:setup     # PostgreSQL in Docker, built with pgTAP
+pnpm dev                        # the workspace on :3000
+pnpm db:seed:dev                # a demo Organization and a Staff Member; needs dev running
+
+# sign in at http://localhost:3000/tr/today
+#   deniz@example.test / correct-horse-battery-staple
+
+pnpm check                      # the gate: format, lint, boundaries, typecheck, tests, build
+pnpm db:test                    # pgTAP suites
+pnpm test:integration           # real database: isolation, auth, each gate denying on its own
+pnpm test:browser               # Playwright through the front desk
+pnpm db:drift                   # migrations and schema.prisma still agree (needs SHADOW_DATABASE_URL)</code></pre>
+          <div class="callout warn">
+            <span class="tag">Two things that bite</span>
+            <ul>
+              <li>
+                <code>pnpm check</code> runs <code>next build</code> into the
+                same <code>.next</code> the dev server serves from. Every route
+                404s afterwards. Restart <code>pnpm dev</code>; it is not a
+                routing bug.
+              </li>
+              <li>
+                The dev seed credentials above are in the committed handover
+                doc; anything that rotates belongs in
+                <code>CLAUDE.local.md</code> (gitignored), never in
+                <code>CLAUDE.md</code>.
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="block" id="drift">
+          <span class="num">11</span>
+          <h2>Where the board and the repository disagree</h2>
+          <p>
+            Found while grounding this page. Each is small; together they are
+            why a newcomer reading only the board would start in the wrong
+            place.
+          </p>
+          <div class="tablewrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Where</th>
+                  <th>The board says</th>
+                  <th>The repository says</th>
+                  <th>Do</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>RANZ-23</td>
+                  <td>To do, due Sep 22, no description</td>
+                  <td>Both screens are built and tested</td>
+                  <td>Write the scope on the task before anyone starts it</td>
+                </tr>
+                <tr>
+                  <td>RANZ-22</td>
+                  <td>To do, postponed</td>
+                  <td><code>today</code> is <code>built: true</code>, thin</td>
+                  <td>
+                    Fine as is; the label is honest. Note the two tiles that can
+                    go now
+                  </td>
+                </tr>
+                <tr>
+                  <td>RANZ-27</td>
+                  <td>Blocked by RANZ-21</td>
+                  <td>
+                    RANZ-21 is not in the export; the database half of 27 merged
+                    as #42
+                  </td>
+                  <td>Check whether 21 is closed and clear the relation</td>
+                </tr>
+                <tr>
+                  <td>RANZ-26</td>
+                  <td>Blocked by RANZ-31, due Sep 24</td>
+                  <td>
+                    RANZ-31 is not in the sprint; a rate is the roadmap's third
+                    slice
+                  </td>
+                  <td>Re-date, or pull a rate into M1 explicitly</td>
+                </tr>
+                <tr>
+                  <td>RANZ-33</td>
+                  <td>M1, blocked by 27 only</td>
+                  <td>
+                    Blueprint Phase 3; also needs "out of order" from
+                    Housekeeping
+                  </td>
+                  <td>Add the relation to 28; keep the Sep 30 date</td>
+                </tr>
+                <tr>
+                  <td><code>docs/roadmap.md</code></td>
+                  <td>—</td>
+                  <td>
+                    Three rows still say Units are flat; migration
+                    <code>…002100</code> says otherwise
+                  </td>
+                  <td>Fix in the RANZ-27 commit, as the doc rules require</td>
+                </tr>
+                <tr>
+                  <td>Your worktree</td>
+                  <td>RANZ-45 in progress</td>
+                  <td>
+                    Built on a base 56 commits old; ADR number taken upstream
+                  </td>
+                  <td>Section 03</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <p>
+          Sources: the task export of 2026-09-20T12:14Z ·
+          <code>origin/main</code> at <code>b5dca1a</code> ·
+          <code>docs/roadmap.md</code>,
+          <code>docs/handover/operator-workspace-screens.md</code>,
+          <code>docs/RANZA_PRODUCT_BLUEPRINT.md</code> §3.5, §4.6, §13, §14 ·
+          the ADRs and migrations named inline · <code>pnpm check</code> run on
+          the local tree today. This page states status on one day; the roadmap
+          and the handover doc are the living versions.
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>

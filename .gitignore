@@ -9,6 +9,7 @@ node_modules/
 coverage/
 playwright-report/
 test-results/
+.playwright-mcp/
 dist/
 .vercel/
 *.tsbuildinfo
@@ -34,6 +35,9 @@ apps/*/next-env.d.ts
 !.claude/agents/
 .claude/agents/*
 !.claude/agents/ranza-reviewer.md
+
+# nodeterm canvas state for whoever runs this repository on that tool. Local, not source.
+.nodeterm/
 
 # Per-machine credentials for hosted environments. Never committed.
 CLAUDE.local.md

@@ -6,6 +6,8 @@ import {
   BellRing,
   Hotel,
   House,
+  LogIn,
+  LogOut,
   Settings,
   Sparkles,
   Users,
@@ -46,8 +48,10 @@ export interface Screen {
   blueprint: string;
   /** Built, or a stated intention with nothing behind it. */
   built: boolean;
+  /** Section grouping in the sidebar: operations, management, or system */
+  section?: string | undefined;
   /** Children make this a rail category rather than a destination. */
-  children?: Screen[];
+  children?: Screen[] | undefined;
 }
 
 export const SCREENS: Screen[] = [
@@ -58,6 +62,7 @@ export const SCREENS: Screen[] = [
     icon: House,
     blueprint: "18.4",
     built: true,
+    section: "operations",
   },
   {
     segment: "front-office",
@@ -66,6 +71,7 @@ export const SCREENS: Screen[] = [
     icon: Hotel,
     blueprint: "5.3",
     built: true,
+    section: "operations",
     children: [
       {
         segment: "reservations",
@@ -79,7 +85,7 @@ export const SCREENS: Screen[] = [
         segment: "arrivals",
         capability: "front_desk",
         module: "front_office",
-        icon: House,
+        icon: LogIn,
         blueprint: "5.3",
         built: true,
       },
@@ -87,7 +93,7 @@ export const SCREENS: Screen[] = [
         segment: "departures",
         capability: "front_desk",
         module: "front_office",
-        icon: House,
+        icon: LogOut,
         blueprint: "5.3",
         built: true,
       },
@@ -100,6 +106,7 @@ export const SCREENS: Screen[] = [
     icon: BellRing,
     blueprint: "5.5",
     built: false,
+    section: "operations",
   },
   {
     segment: "housekeeping",
@@ -108,6 +115,7 @@ export const SCREENS: Screen[] = [
     icon: Sparkles,
     blueprint: "5.4",
     built: false,
+    section: "operations",
   },
   {
     segment: "food-and-beverage",
@@ -116,6 +124,7 @@ export const SCREENS: Screen[] = [
     icon: ChefHat,
     blueprint: "5.6",
     built: false,
+    section: "operations",
   },
   {
     segment: "inventory",
@@ -124,6 +133,7 @@ export const SCREENS: Screen[] = [
     icon: Boxes,
     blueprint: "5.7",
     built: false,
+    section: "management",
   },
   {
     segment: "finance",
@@ -132,6 +142,7 @@ export const SCREENS: Screen[] = [
     icon: Wallet,
     blueprint: "5.9",
     built: true,
+    section: "management",
   },
   {
     segment: "people",
@@ -143,6 +154,7 @@ export const SCREENS: Screen[] = [
     icon: Users,
     blueprint: "7.2",
     built: true,
+    section: "management",
   },
   {
     segment: "analytics",
@@ -151,6 +163,7 @@ export const SCREENS: Screen[] = [
     icon: BarChart3,
     blueprint: "5.14",
     built: false,
+    section: "management",
   },
   {
     segment: "configuration",
@@ -159,6 +172,7 @@ export const SCREENS: Screen[] = [
     icon: Settings,
     blueprint: "5.1",
     built: false,
+    section: "system",
   },
 ];
 

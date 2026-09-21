@@ -159,14 +159,23 @@ export default async function WorkspaceLayout({
       rail={
         <WorkspaceRail
           actions={account}
-          brand={<BrandMark className="size-7 text-primary" />}
+          brand={<BrandMark className="size-6 text-primary" />}
           entitled={entitled}
           labels={{
             back: t("back"),
+            collapse: t("collapse"),
+            expand: t("expand"),
             home: t("productName"),
             mainNavigation: t("mainNavigation"),
+            sections: {
+              operations: t("navSections.operations"),
+              management: t("navSections.management"),
+              system: t("navSections.system"),
+            },
+            workspaceBadge: t("workspaceBadge"),
           }}
           locale={locale}
+          {...(first ? { organization: first.organizationName } : {})}
           root={root}
         />
       }

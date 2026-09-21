@@ -1,0 +1,9 @@
+id,situation,given,when,then,enforced_by,test_name,status
+X-S1-01,An enforcement word nobody defined,a row,it is read,it is refused,vibes,a_test,open
+X-S1-02,A status word nobody defined,a row,it is read,it is refused,module,a_test,done
+PRE-01,A prerequisite without the prefix readiness counts,a row,it is read,s1 needs this first,policy,,prerequisite_missing
+X-S1-03,An approved row with nothing to write first,a row,it is read,it is refused,module,,approved
+x-s1-4,An id in the wrong shape,a row,it is read,it is refused,module,a_test,open
+X-S1-01,An id used twice,a row,it is read,it is refused,module,a_test,open
+X-S1-05,A required field left empty,,it is read,it is refused,module,a_test,open
+X-S1-06,A comma left unquoted,a row, with a comma,it is read,it is refused,module,a_test,open
