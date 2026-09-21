@@ -29,8 +29,9 @@ needed; Traefik issues the certificates through Let's Encrypt on first contact.
 deploy/push.sh
 ```
 
-It ships `HEAD` and runs `deploy/apply.sh` on the host, which ends by hitting
-`/api/auth/ok` on both hostnames and checking the worker is still running.
+It ships `HEAD` and runs `deploy/apply.sh` on the host, which refuses to
+report success until the checks at the bottom of that script pass — read them
+there rather than here, they are what actually runs.
 `docker inspect ranza-workspace --format '{{.Config.Image}}'` says which
 commit is live; images are tagged with it.
 
@@ -79,19 +80,24 @@ seed does it, with a password that is generated rather than known:
 
    The statement is the one in
    [`scripts/db-seed-dev.mjs`](../../scripts/db-seed-dev.mjs) — a single
-   `with … insert` whose branches run from `organization` through
-   `assignment`: Organization, Subscription, Entitlements, Properties,
-   capabilities, membership, assignment. Take it from there rather than from
-   here, so this page cannot drift from what the seed actually inserts; three
-   edits make it psql:
+   `with … insert` whose branches run from `organization` through `unit`:
+   Organization, Subscription, Entitlements, Property, capabilities,
+   membership, assignment, then every module Entitlement and Property
+   capability the Workspace has a destination for, and the Units. Take it
+   from there rather than from here, so this page cannot drift from what the
+   seed actually inserts; three edits make it psql:
 
-   - the branches after `assignment` seed a demo day — Reservations and Stays.
-     Drop them, and end the chain with a statement of your own, since a
-     `with` cannot stand alone: `select count(*) from assignment;`
+   - the branches from `departing_units` onward seed a demo day —
+     Reservations and Stays. Drop them, and end the chain after `unit` with a
+     statement of your own, since a `with` cannot stand alone:
+     `select count(*) from unit;`. Edit the `unit` values to the rooms you
+     want.
    - the JavaScript placeholders — `${ORGANIZATION}`, `${values}` and
      `${userId}` — become psql variables, `:'org'`, `:'property'` and
      `:'user_id'`, passed with `-v` or set with `\set`. The user id is
      `select id from public.users where lower(email) = lower(:'email')`.
+     `${values}` is a list of Properties; `:'property'` is one, which is
+     what a first environment needs.
    - `manager` and `assigned_properties` stay as they are: that pair is the
      path the policies are proven on.
 
