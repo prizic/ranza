@@ -42,6 +42,7 @@ export function useWorkspaceNav(
       ? {
           icon: screen.icon,
           label: label(screen.segment),
+          section: screen.section,
           children: screen.children
             .filter((child) => entitled.includes(child.capability))
             .map((child) => ({
@@ -54,6 +55,7 @@ export function useWorkspaceNav(
           href: localizeHref(locale, screen.segment),
           icon: screen.icon,
           label: label(screen.segment),
+          section: screen.section,
         },
   );
 }

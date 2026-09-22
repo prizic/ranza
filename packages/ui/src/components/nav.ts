@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 
 /**
- * The rail's shape.
+ * The sidebar and rail navigation shapes.
  *
  * Icons are components, so a tree carrying them cannot cross the server/client
  * boundary — it has to be defined in a module the client imports. Each
@@ -10,15 +10,19 @@ import type { LucideIcon } from "lucide-react";
  */
 export interface NavLeaf {
   href: string;
-  /** The short form. A tile is 56px and a long label spills out of it. */
+  /** The short form or readable label for the navigation link. */
   label: string;
   icon: LucideIcon;
+  section?: string | undefined;
+  badge?: string | number | undefined;
 }
 
 export interface NavGroup {
   label: string;
   icon: LucideIcon;
   children: NavLeaf[];
+  section?: string | undefined;
+  badge?: string | number | undefined;
 }
 
 export type NavEntry = NavLeaf | NavGroup;
@@ -50,4 +54,40 @@ export function toMobileNav(entries: readonly NavEntry[]): NavLeaf[] {
       ? [{ href: first.href, label: entry.label, icon: entry.icon }]
       : [];
   });
+}
+
+export interface NavSection {
+  id?: string | undefined;
+  label?: string | undefined;
+  entries: NavEntry[];
+}
+
+/**
+ * Groups entries by their optional `section` property.
+ * Entries without a section are grouped together under undefined id.
+ */
+export function groupNavEntries(
+  entries: readonly NavEntry[],
+  sectionLabels?: Record<string, string>,
+): NavSection[] {
+  const sections: NavSection[] = [];
+  const sectionMap = new Map<string | undefined, NavEntry[]>();
+
+  for (const entry of entries) {
+    const sec = entry.section;
+    const existing = sectionMap.get(sec);
+    if (existing) {
+      existing.push(entry);
+    } else {
+      const list = [entry];
+      sectionMap.set(sec, list);
+      sections.push({
+        id: sec,
+        label: sec && sectionLabels ? (sectionLabels[sec] ?? sec) : sec,
+        entries: list,
+      });
+    }
+  }
+
+  return sections;
 }

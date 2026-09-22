@@ -1,11 +1,18 @@
 export { AppShell } from "./components/app-shell";
-export { AppBottomNav, AppRail } from "./components/app-rail";
-export type { RailLabels } from "./components/app-rail";
+export { AppBottomNav, AppRail, AppSidebar } from "./components/app-rail";
+export type { RailLabels, SidebarLabels } from "./components/app-rail";
+export { SidebarProvider, useSidebar } from "./components/sidebar-context";
+export type { SidebarContextValue } from "./components/sidebar-context";
 export { AppPageBar } from "./components/app-page-bar";
 export { AccountMenu } from "./components/account-menu";
-export { isNavGroup, navGroupFor, toMobileNav } from "./components/nav";
+export {
+  groupNavEntries,
+  isNavGroup,
+  navGroupFor,
+  toMobileNav,
+} from "./components/nav";
 export { SectionTabs } from "./components/section-tabs";
-export type { NavEntry, NavGroup, NavLeaf } from "./components/nav";
+export type { NavEntry, NavGroup, NavLeaf, NavSection } from "./components/nav";
 export { DataTable } from "./components/data-table/data-table";
 export type {
   DataTableLabels,

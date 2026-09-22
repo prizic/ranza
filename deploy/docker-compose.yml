@@ -1,0 +1,192 @@
+# The hosted environment: PostgreSQL, the Operator Workspace, the Guest Portal
+# and the worker, behind the host's Traefik. Run from this directory with the
+# environment file that lives OUTSIDE the source tree, so replacing the tree on
+# deploy cannot take the secrets with it:
+#
+#   docker compose --env-file /opt/apps/ranza/.env <command>
+#
+# deploy/apply.sh does that, in the right order. See deploy/README.md.
+#
+# Four roles, four connection strings, and the separation is the security
+# boundary (docs/runbooks/supabase-setup.md explains why for any host):
+#
+#   ranza        owns the tables      DIRECT_URL, migrations only
+#   ranza_app    tenant queries       DATABASE_URL
+#   ranza_auth   credentials          AUTH_DATABASE_URL
+#   ranza_worker the outbox           WORKER_DATABASE_URL
+#
+# DIRECT_URL is given to `migrate` alone. The applications compare DATABASE_URL
+# against it and refuse to start if they match; not handing it to them at all is
+# the stronger version of that check.
+#
+# Every value is `${NAME:?}`: a missing one fails the command with its name,
+# rather than assembling `ranza_app:@db` and failing later as "authentication".
+
+name: ranza
+
+x-app-environment: &app-environment
+  DATABASE_URL: postgresql://ranza_app:${RANZA_APP_PASSWORD:?}@db:5432/ranza
+  AUTH_DATABASE_URL: postgresql://ranza_auth:${RANZA_AUTH_PASSWORD:?}@db:5432/ranza
+  BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?}
+
+services:
+  db:
+    # Built rather than pulled, the same image `pnpm db:up` uses locally: the
+    # pgTAP suites are meant to run against this database too (AGENTS.md,
+    # "Testing security claims"), and the official image does not ship pgTAP.
+    build: ../docker/postgres
+    container_name: ranza-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ranza
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ranza
+    # Loopback only, for `pnpm db:test` over an SSH tunnel. Deliberately NOT
+    # 54322: db:setup and db:seed:dev refuse any host but localhost and are
+    # hard-wired to that port, so a tunnel landing there would make this
+    # database indistinguishable from a developer's throwaway one.
+    ports:
+      - "127.0.0.1:54329:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ranza -d ranza"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # One-shot. Applies whatever migrations the database has not seen and exits;
+  # every application waits for it to have exited successfully, so a deploy
+  # whose migration fails brings up nothing new rather than a new build against
+  # an old schema.
+  migrate:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: migrate
+    image: ranza-migrate:${RANZA_REVISION:-dev}
+    container_name: ranza-migrate
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DIRECT_URL: postgresql://ranza:${POSTGRES_PASSWORD:?}@db:5432/ranza
+    networks:
+      - internal
+
+  workspace:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: workspace
+    image: ranza-workspace:${RANZA_REVISION:-dev}
+    container_name: ranza-workspace
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *app-environment
+      BETTER_AUTH_URL: https://${WORKSPACE_HOST:?}
+    networks:
+      - web
+      - internal
+    healthcheck:
+      # Better Auth's own liveness route; the image has neither curl nor wget.
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/auth/ok').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ranza-workspace.rule=Host(`${WORKSPACE_HOST:?}`)"
+      - "traefik.http.routers.ranza-workspace.entrypoints=websecure"
+      - "traefik.http.routers.ranza-workspace.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.ranza-workspace-http.rule=Host(`${WORKSPACE_HOST:?}`)"
+      - "traefik.http.routers.ranza-workspace-http.entrypoints=web"
+      - "traefik.http.routers.ranza-workspace-http.middlewares=ranza-redirect-https"
+      - "traefik.http.middlewares.ranza-redirect-https.redirectscheme.scheme=https"
+      - "traefik.http.services.ranza-workspace.loadbalancer.server.port=3000"
+
+  portal:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: portal
+    image: ranza-portal:${RANZA_REVISION:-dev}
+    container_name: ranza-portal
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *app-environment
+      BETTER_AUTH_URL: https://${PORTAL_HOST:?}
+    networks:
+      - web
+      - internal
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/api/auth/ok').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ranza-portal.rule=Host(`${PORTAL_HOST:?}`)"
+      - "traefik.http.routers.ranza-portal.entrypoints=websecure"
+      - "traefik.http.routers.ranza-portal.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.ranza-portal-http.rule=Host(`${PORTAL_HOST:?}`)"
+      - "traefik.http.routers.ranza-portal-http.entrypoints=web"
+      - "traefik.http.routers.ranza-portal-http.middlewares=ranza-redirect-https"
+      - "traefik.http.services.ranza-portal.loadbalancer.server.port=3001"
+
+  worker:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: worker
+    image: ranza-worker:${RANZA_REVISION:-dev}
+    container_name: ranza-worker
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      WORKER_DATABASE_URL: postgresql://ranza_worker:${RANZA_WORKER_PASSWORD:?}@db:5432/ranza
+    # Not on `web`: nothing routes to it and it listens on nothing (ADR 0016).
+    networks:
+      - internal
+    # Long enough for the current outbox pass to finish before the kill.
+    stop_grace_period: 30s
+
+volumes:
+  pgdata:
+
+networks:
+  web:
+    external: true
+  internal:
+    driver: bridge

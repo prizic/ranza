@@ -121,6 +121,31 @@ Then prove the guard still works by pointing `DATABASE_URL` at the `postgres`
 role: all four integration assertions must fail. A tenant-isolation test that has
 never been seen to fail is not evidence of anything.
 
+## How each thing gets its connection string
+
+Three separate mechanisms, and confusing them is what produced a dev server
+answering "DATABASE_URL must be set" on every route while `.env` plainly had
+one.
+
+| What                                             | Reads                                                                                      |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| `pnpm dev` — workspace, worker, portal           | `.env.development`, committed, localhost only                                              |
+| `pnpm db:migrate`, `db:test`, `test:integration` | `.env`, which is yours and is where a hosted project goes                                  |
+| `pnpm test:browser`                              | neither — `playwright.config.ts` passes `env:` explicitly and refuses a non-local database |
+
+`.env.development` is loaded by `scripts/dev.mjs` before turbo starts, because
+two things were both true and each alone was enough to break it. Turbo 2 runs in
+strict env mode and forwarded none of these to the tasks it launched — `turbo
+run dev --dry=json` reported `env: []` and `passThroughEnv: null`. And nothing
+loaded a `.env` for them anyway: Next reads one from the application directory
+rather than the repository root, and the worker reads `process.env` directly.
+`turbo.json` now declares `globalPassThroughEnv` so they are forwarded, and
+`scripts/dev.mjs` puts them there to forward.
+
+It never overwrites a variable that is already set. To point a dev server at a
+hosted database, export the variable — what you exported wins, there is no file
+to edit, and so there is nothing to remember to change back.
+
 ## When a migration fails halfway
 
 `prisma migrate deploy` records a start and a finish. A migration that errors

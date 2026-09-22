@@ -54,11 +54,11 @@ function isLocalHost(value) {
 }
 
 /**
- * Exits the process unless `url` names a host on this machine.
+ * Every host in `url` that is not this machine, or `null` when it is not a URL.
  *
  * Reading `new URL(url).hostname` is not enough, and this is the whole reason
- * this function exists rather than a one-line check at each call site. libpq
- * lets a `host` or `hostaddr` query parameter override the host in the URI, so
+ * this exists rather than a one-line check at each call site. libpq lets a
+ * `host` or `hostaddr` query parameter override the host in the URI, so
  *
  *   postgresql://ranza:ranza@localhost:54322/ranza?host=db.production.internal
  *
@@ -66,27 +66,22 @@ function isLocalHost(value) {
  * db.production.internal. Verified, not assumed: psql fails resolving
  * db.production.internal, which is how we know which host it used.
  *
- * `because` completes "Refusing: ..." and should say what would happen to the
- * database, not that a rule was broken. A refusal that does not say what it
- * prevented gets worked around.
+ * Split out of `requireLocalDatabase` so that something other than a script
+ * about to exit can ask the question — `tests/unit/local-development-env.test.ts`
+ * asks it of every URL in `.env.development`. One implementation, because the
+ * interesting part is the two places a host hides in a libpq URL, and a second
+ * copy of that reasoning would be the copy that forgets one.
  */
-export function requireLocalDatabase(url, { name, because }) {
+export function nonLocalHostsIn(url) {
   let parsed;
   try {
     parsed = new URL(url);
   } catch {
-    console.error(`${name} is not a URL this can read.`);
-    process.exit(1);
+    return null;
   }
 
   // Every place a host can hide, not just the obvious one.
   const offenders = [];
-  if (process.env.PGHOSTADDR) {
-    // Refused rather than only stripped from the children below. Somebody who
-    // exported this meant it, and silently ignoring it would send them looking
-    // for why their override did nothing.
-    offenders.push(`PGHOSTADDR="${process.env.PGHOSTADDR}" in the environment`);
-  }
   if (!isLocalHost(parsed.hostname)) {
     offenders.push(`host "${parsed.hostname}"`);
   }
@@ -97,6 +92,31 @@ export function requireLocalDatabase(url, { name, because }) {
       }
     }
   }
+  return offenders;
+}
+
+/**
+ * Exits the process unless `url` names a host on this machine.
+ *
+ * `because` completes "Refusing: ..." and should say what would happen to the
+ * database, not that a rule was broken. A refusal that does not say what it
+ * prevented gets worked around.
+ */
+export function requireLocalDatabase(url, { name, because }) {
+  const inUrl = nonLocalHostsIn(url);
+  if (inUrl === null) {
+    console.error(`${name} is not a URL this can read.`);
+    process.exit(1);
+  }
+
+  const offenders = [];
+  if (process.env.PGHOSTADDR) {
+    // Refused rather than only stripped from the children below. Somebody who
+    // exported this meant it, and silently ignoring it would send them looking
+    // for why their override did nothing.
+    offenders.push(`PGHOSTADDR="${process.env.PGHOSTADDR}" in the environment`);
+  }
+  offenders.push(...inUrl);
 
   if (offenders.length > 0) {
     console.error(

@@ -1,12 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { AppBottomNav, AppRail, type RailLabels } from "@ranza/ui";
+import { AppBottomNav, AppSidebar, type SidebarLabels } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
 import { useWorkspaceNav } from "../../../lib/nav";
 
 /**
- * The rail, with the tree built on the client.
+ * The workspace sidebar / rail, with the navigation tree built on the client.
  *
  * The server decides *which* destinations exist — it sends the capability keys
  * the Organization is entitled to — and this turns those strings into entries
@@ -19,20 +19,23 @@ export function WorkspaceRail({
   entitled,
   labels,
   locale,
+  organization,
   root,
 }: {
-  actions?: ReactNode;
+  actions?: ReactNode | undefined;
   brand: ReactNode;
   entitled: readonly string[];
-  labels: RailLabels;
+  labels: SidebarLabels;
   locale: SupportedLocale;
+  organization?: string | undefined;
   root: string;
 }) {
   const entries = useWorkspaceNav(locale, entitled);
 
   return (
-    <AppRail
+    <AppSidebar
       {...(actions === undefined ? {} : { actions })}
+      {...(organization === undefined ? {} : { organization })}
       brand={brand}
       entries={entries}
       labels={labels}

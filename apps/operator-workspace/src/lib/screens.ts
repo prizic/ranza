@@ -5,8 +5,11 @@ import {
   CalendarDays,
   ChefHat,
   BellRing,
+  History,
   Hotel,
   House,
+  LogIn,
+  LogOut,
   Settings,
   Sparkles,
   Users,
@@ -24,10 +27,16 @@ import {
  * module" — so these are not the section 5 modules and do not map one to one
  * onto them.
  *
- * Four are built. The rest are routes with a stated purpose and nothing behind
- * them, which is the honest shape while blueprint section 13 forbids building
+ * `built` says which are built. The rest are routes with a stated purpose and
+ * nothing behind them, which is the honest shape while blueprint section 13 forbids building
  * tables ahead of the workflows that need them. `docs/handover/operator-workspace-screens.md`
  * says what each one needs first.
+ *
+ * The audit log is the one entry section 4.6 does not list. It is here because
+ * section 3.6 makes audit a baseline right no package can remove, and a record
+ * nobody can open is not evidence of anything. Where it sits in the rail is an
+ * open question in `docs/features/audit-log/use-case.mmd`; last is the honest
+ * default for a record that is consulted rather than worked.
  *
  * Every entry is gated. A capability the Organization has not bought is absent
  * from the rail entirely (blueprint 4.6) — never greyed out, and never an
@@ -47,8 +56,10 @@ export interface Screen {
   blueprint: string;
   /** Built, or a stated intention with nothing behind it. */
   built: boolean;
+  /** Section grouping in the sidebar: operations, management, or system */
+  section?: string | undefined;
   /** Children make this a rail category rather than a destination. */
-  children?: Screen[];
+  children?: Screen[] | undefined;
 }
 
 export const SCREENS: Screen[] = [
@@ -59,6 +70,7 @@ export const SCREENS: Screen[] = [
     icon: House,
     blueprint: "18.4",
     built: true,
+    section: "operations",
   },
   {
     segment: "front-office",
@@ -67,6 +79,7 @@ export const SCREENS: Screen[] = [
     icon: Hotel,
     blueprint: "5.3",
     built: true,
+    section: "operations",
     children: [
       {
         segment: "reservations",
@@ -88,7 +101,7 @@ export const SCREENS: Screen[] = [
         segment: "arrivals",
         capability: "front_desk",
         module: "front_office",
-        icon: House,
+        icon: LogIn,
         blueprint: "5.3",
         built: true,
       },
@@ -96,7 +109,7 @@ export const SCREENS: Screen[] = [
         segment: "departures",
         capability: "front_desk",
         module: "front_office",
-        icon: House,
+        icon: LogOut,
         blueprint: "5.3",
         built: true,
       },
@@ -109,6 +122,7 @@ export const SCREENS: Screen[] = [
     icon: BellRing,
     blueprint: "5.5",
     built: false,
+    section: "operations",
   },
   {
     segment: "housekeeping",
@@ -117,6 +131,7 @@ export const SCREENS: Screen[] = [
     icon: Sparkles,
     blueprint: "5.4",
     built: false,
+    section: "operations",
   },
   {
     segment: "food-and-beverage",
@@ -125,6 +140,7 @@ export const SCREENS: Screen[] = [
     icon: ChefHat,
     blueprint: "5.6",
     built: false,
+    section: "operations",
   },
   {
     segment: "inventory",
@@ -133,6 +149,7 @@ export const SCREENS: Screen[] = [
     icon: Boxes,
     blueprint: "5.7",
     built: false,
+    section: "management",
   },
   {
     segment: "finance",
@@ -141,6 +158,7 @@ export const SCREENS: Screen[] = [
     icon: Wallet,
     blueprint: "5.9",
     built: true,
+    section: "management",
   },
   {
     segment: "people",
@@ -152,6 +170,7 @@ export const SCREENS: Screen[] = [
     icon: Users,
     blueprint: "7.2",
     built: true,
+    section: "management",
   },
   {
     segment: "analytics",
@@ -160,6 +179,7 @@ export const SCREENS: Screen[] = [
     icon: BarChart3,
     blueprint: "5.14",
     built: false,
+    section: "management",
   },
   {
     segment: "configuration",
@@ -168,6 +188,15 @@ export const SCREENS: Screen[] = [
     icon: Settings,
     blueprint: "5.1",
     built: false,
+    section: "system",
+  },
+  {
+    segment: "audit-log",
+    capability: "audit",
+    module: "platform_core",
+    icon: History,
+    blueprint: "7.4",
+    built: true,
   },
 ];
 

@@ -1,0 +1,21 @@
+%% Anything not drawn here is forbidden.
+%% One state, and no arrow out of it: audit.records is append-only three ways
+%% (revoked grants, no update or delete policy under FORCE, a trigger), so a
+%% record that exists is the record that was written. This feature reads that
+%% state and moves nothing; every transition below is already built.
+stateDiagram-v2
+  direction LR
+
+  state "audit.records" as RecordMachine {
+    state "written" as a_written
+
+    [*] --> a_written : recordWithin, inside the acting module's transaction / built
+    a_written --> [*]
+  }
+
+  note right of a_written
+    Terminal on arrival. A correction to what a record says is a
+    second record, never a change to the first (blueprint 7.4).
+    The reason, when the action requires one, is on the record
+    itself; the record and the action it describes commit together.
+  end note

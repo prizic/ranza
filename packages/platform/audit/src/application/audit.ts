@@ -6,8 +6,10 @@ import {
 } from "../domain/record";
 import {
   append,
+  listForScope,
   listForSubject,
   type AuditClient,
+  type ScopeHistory,
 } from "../infrastructure/repository";
 import type { AuditDeps } from "../ports";
 
@@ -36,6 +38,31 @@ export async function recordWithin(
 /** Reads are bounded so a caller cannot ask for an unbounded history. */
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 500;
+
+function bounded(limit: number): number {
+  return Math.min(Math.max(limit, 1), MAX_LIMIT);
+}
+
+/**
+ * The newest records in one scope, inside a transaction the caller already owns.
+ *
+ * Only the `Within` form exists for this read, and that is the point. This
+ * module knows a scope as an opaque identifier and cannot say what one is
+ * entitled to; the host that can is the one that opens the transaction,
+ * evaluates its own gate inside it, and hands the transaction here. A module
+ * method taking an actor and a scope would be a second path to the same rows
+ * with no gate on it at all.
+ *
+ * Empty when the acting user cannot reach the scope — the same answer as
+ * "nothing has happened", and deliberately so.
+ */
+export async function recentWithin(
+  tx: AuditClient,
+  organizationId: string,
+  limit = DEFAULT_LIMIT,
+): Promise<ScopeHistory> {
+  return listForScope(tx, organizationId, bounded(limit));
+}
 
 /**
  * The audit module: what was done, by whom, and why.
@@ -74,12 +101,7 @@ export function createAuditModule(deps: AuditDeps) {
     limit = DEFAULT_LIMIT,
   ): Promise<AuditRecord[]> {
     return withOrganizationContext(deps.db, { userId: actorId }, (tx) =>
-      listForSubject(
-        tx,
-        subjectType,
-        subjectId,
-        Math.min(Math.max(limit, 1), MAX_LIMIT),
-      ),
+      listForSubject(tx, subjectType, subjectId, bounded(limit)),
     );
   }
 

@@ -122,6 +122,16 @@ when changing schema, policies, auth, or a screen somebody presses a button on.
 CI runs `db:test`, `db:drift` and `test:browser` in their own job against a real
 PostgreSQL; `test:integration` still runs only by hand.
 
+**`test:integration` and `test:browser` both refuse a database that is not
+local**, through the same parsed-host check `db:setup` and `db:drift` use — so
+`host=` and `hostaddr=` in the URL and `PGHOSTADDR` in the environment are
+refused too, not merely a hostname that reads wrong. The integration suites got
+that guard late and the lateness is why it is worth stating: run against the
+hosted database once, they left fourteen Reservations and six overlapping
+confirmed bookings behind, and those blocked the next migration from applying
+at all. `reservations` has no audit trail, so the only record of the clean-up is
+the one a person writes by hand.
+
 `test:browser` starts the workspace itself and seeds through it, so it needs
 `pnpm db:up` and nothing else. It refuses any database that is not local — it
 signs in and checks a Guest in, which leaves history that is never deleted —
@@ -193,7 +203,8 @@ expected to assume that.
 
 **Unbuilt is a position, not an oversight.** Blueprint section 13 forbids
 building tables ahead of the workflows that need them, which is why the
-Operator Workspace has eleven rail destinations and two built screens. The
+Operator Workspace has more rail destinations than built screens —
+`src/lib/screens.ts` says which is which. The
 others state their purpose and say what has to exist first — see
 [`docs/handover/operator-workspace-screens.md`](docs/handover/operator-workspace-screens.md).
 
@@ -286,6 +297,16 @@ A green local run says the migrations produce the right database; it does not
 say the hosted database had them applied. The one gap found so far — an audit
 table that was append-only everywhere except in production — was invisible to
 every local run and took one pgTAP run against Supabase to surface.
+
+A suite can also be local-only by accident, and then it is not run anywhere it
+would count. **Never name the owner role in a test.** `set local role ranza`
+names the local cluster's owner, which does not exist on the hosted database,
+so the suite errors on that line and takes every assertion after it with it —
+three of the twelve had it, and all three reported green forever because they
+were only ever run locally. `set local role none` returns to whichever role
+connected, and that role bypasses policies in both environments: `ranza` is the
+superuser locally, `postgres` carries `BYPASSRLS` on Supabase. The same applies
+to any environment-specific name a test reaches for.
 
 ## Conventions
 

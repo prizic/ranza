@@ -9,6 +9,10 @@ Code comes last. A feature is designed as diagrams and one table, approved a ste
 time, before a line of it is written. This skill does not write application code,
 migrations or tests. Step f hands that to `tdd`.
 
+The table outlives the design. A later fix or change to the feature adds its rows to
+the same `edge-cases.csv` rather than starting a document of its own — AGENTS.md,
+"Edge cases are the specification", says what every change owes it.
+
 Use the vocabulary AGENTS.md binds: Organization, Property, Resident, Stay, Guest. The
 pilot words — Operator, Branch, Student, tenant — are bugs wherever they appear.
 
@@ -26,6 +30,11 @@ docs/features/<feature>/sequence.mmd    only when three or more modules or appli
 **Forbidden**: any extra `.md`, any summary, any handover document, any prose that
 explains a diagram. The diagrams and the CSV are the documentation. A `%%` comment
 inside a `.mmd` is allowed for one purpose only — flagging an open question.
+
+A folder opened by a change outside this skill — a fix or a change to something that
+was never designed here, per AGENTS.md "Edge cases are the specification" — holds
+`edge-cases.csv` alone until the feature is designed. Step d's diagram-to-row rules
+apply once the diagrams exist, not before.
 
 ## Steps
 
@@ -52,17 +61,24 @@ Call the Skill tool with `grilling`. Three rules override it:
 
 The grill is not finished until all of these are covered:
 
-|                 |                                                         |
-| --------------- | ------------------------------------------------------- |
-| actors          | who acts, and on whose behalf                           |
-| goal            | what is true afterwards that was not true before        |
-| preconditions   | what must already hold for the main flow to start       |
-| main flow       | the path when nothing goes wrong                        |
-| **TIME**        | early, late, same day, last day, past midnight          |
-| **CONCURRENCY** | two people or two processes doing it at once            |
-| **MONEY**       | charges, refunds, unpaid balances                       |
-| **ACCESS**      | wrong Organization, wrong Property, lapsed subscription |
-| **REVERSAL**    | the mistake, and how it is undone                       |
+|                 |                                                          |
+| --------------- | -------------------------------------------------------- |
+| actors          | who acts, and on whose behalf                            |
+| goal            | what is true afterwards that was not true before         |
+| preconditions   | what must already hold for the main flow to start        |
+| main flow       | the path when nothing goes wrong                         |
+| **TIME**        | early, late, same day, last day, past midnight           |
+| **CONCURRENCY** | two people or two processes doing it at once             |
+| **MONEY**       | charges, refunds, unpaid balances                        |
+| **ACCESS**      | wrong Organization, wrong Property, lapsed subscription  |
+| **REVERSAL**    | the mistake, and how it is undone                        |
+| **INTERFACE**   | empty, loading, refused, stale, every locale, every role |
+
+The last row is what a person sees, and it is product behaviour as much as the
+other five: what an empty list says, what a refusal keeps, what a Staff Member
+without the permission finds. AGENTS.md, "Edge cases are the specification",
+lists the full interface walk and the backend one; every item that applies
+becomes a row in step d.
 
 ### b. `use-case.mmd`
 
@@ -92,11 +108,26 @@ id,situation,given,when,then,enforced_by,test_name,status
 
 - `enforced_by` is one of `database_constraint`, `policy`, `trigger`, `module`,
   `ui_only`. **`ui_only` is never acceptable for a business rule** — if that is the only
-  answer available, the rule is unenforced and the row stays `open`.
+  answer available, the rule is unenforced and the row stays `open`. It is the right
+  answer for an interface row — an empty state, where focus lands, a mirrored layout —
+  and that row's test lives in the interface.
 - One row per boundary. Every arrow in `states.mmd` has at least one row. Every
   alternative flow in `use-case.mmd` has at least one row.
-- `test_name` is the name of the test that will be written first in step f.
-- `status` is `open` until the user approves that row.
+- `test_name` is the name of the test that will be written first in step f. A row does
+  not change status when that test lands: the test existing, and having been watched
+  fail, is the evidence, and a count of `open` rows is the readiness count.
+- `status` is `open` until the user approves that row, then `approved`. The others,
+  and the only others: `deferred` (not now, with the reason in `then`),
+  `out_of_scope` (another feature's), `prerequisite_missing` (see step e),
+  `current_behaviour_differs` (the code disagrees with the row today), and `resolved`
+  (a `prerequisite_missing` or `current_behaviour_differs` row whose gap has closed —
+  say where, in `then`). A word not in this list fails `pnpm check`
+  (`scripts/edge-cases-check.mjs`), as does a header, an id or an `enforced_by`
+  outside what this step defines.
+- `id` is `<FEATURE>-<GROUP>-<NN>`: `CO-S1-04`, `AL-DIFF-01`. `GROUP` is a slice
+  (`S1`), `NB` for not built, `DIFF` for current behaviour, `DEF` for deferred. A
+  prerequisite is `PRE-<NN>` with no feature prefix, because it names what another
+  feature owes this one.
 - Quote any field containing a comma.
 
 ### e. Consistency check

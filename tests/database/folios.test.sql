@@ -221,7 +221,13 @@ select throws_ok(
 -- The composite foreign key is still what makes it unrepresentable rather than
 -- merely refused. Proved separately, with no policy in the way, so that
 -- widening the outer layer cannot quietly take this assertion with it.
-set local role ranza;
+-- `none` rather than the owner's name. This used to say `set local role ranza`,
+-- which is the local cluster's owner and does not exist on the hosted
+-- database, so this suite could not run there at all — it errored out and
+-- took every assertion after it with it. `none` returns to whichever role
+-- connected, and that role bypasses policies in both environments: `ranza` is
+-- the superuser locally, `postgres` carries BYPASSRLS on Supabase.
+set local role none;
 select throws_ok(
   $$insert into public.folios (organization_id, property_id, stay_id, currency)
     values ('4b111111-1111-4111-8111-111111111111',

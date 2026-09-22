@@ -3,12 +3,18 @@
 .worktrees/
 .env*
 !.env.example
+# Local development defaults, committed on purpose. `pnpm dev` loads it before
+# anything starts, it cannot override a variable that is already set, and every
+# value in it works against localhost:54322 and nowhere else. Gitignoring it
+# would mean a fresh clone has a dev server that does not start.
+!.env.development
 node_modules/
 .next/
 .turbo/
 coverage/
 playwright-report/
 test-results/
+.playwright-mcp/
 dist/
 .vercel/
 *.tsbuildinfo
@@ -30,7 +36,15 @@ apps/*/next-env.d.ts
 !.claude/skills/
 .claude/skills/*
 !.claude/skills/feature-design/
+dev-smoke.log
+
 !.claude/skills/ranza-review/
 !.claude/agents/
 .claude/agents/*
 !.claude/agents/ranza-reviewer.md
+
+# nodeterm canvas state for whoever runs this repository on that tool. Local, not source.
+.nodeterm/
+
+# Per-machine credentials for hosted environments. Never committed.
+CLAUDE.local.md

@@ -1,5 +1,10 @@
 import { withOrganizationContext } from "@ranza/db";
-import type { CapabilityRef, EntitledProperty } from "./contracts";
+import { recentWithin, type ScopeHistory } from "@ranza/platform-audit";
+import {
+  AUDIT_CAPABILITY,
+  type CapabilityRef,
+  type EntitledProperty,
+} from "./contracts";
 import type { CoreDeps } from "./ports";
 
 /**
@@ -11,6 +16,12 @@ import type { CoreDeps } from "./ports";
  * row-level security, in the database, where an application defect cannot skip
  * it. This module's job is to ask the question inside a request context.
  */
+/**
+ * Enough for a working day at a busy Property to be visible at once, and well
+ * inside the audit module's own ceiling. The screen says when the log is longer.
+ */
+const DEFAULT_ACTIVITY_LIMIT = 200;
+
 export function createCoreModule(deps: CoreDeps) {
   /**
    * Every Property the acting Staff Member may use `capability` in.
@@ -58,7 +69,46 @@ export function createCoreModule(deps: CoreDeps) {
     );
   }
 
-  return { listEntitledProperties };
+  /**
+   * The Organization's newest audit records, read through one of its
+   * Properties.
+   *
+   * The log is Organization-wide because that is the scope a record carries,
+   * but the gate is a Property's: blueprint 3.5's commercial gates are
+   * evaluated by `app.can_use_capability()`, which takes a Property, and the
+   * audit module may not name one (blueprint 9.8). So the Property the viewer
+   * opened the screen from is what the gate is asked about, in this
+   * transaction, and the Organization it resolves to is what the audit module
+   * is then handed — the same arrangement as every module that writes a record
+   * inside its own transaction (ADR 0028).
+   *
+   * An empty history is the answer to a Property the viewer cannot reach, one
+   * whose Organization is not entitled, and one that does not exist — all
+   * deliberately the same answer as "nothing has happened".
+   */
+  async function recentActivity(
+    userId: string,
+    propertyId: string,
+    limit = DEFAULT_ACTIVITY_LIMIT,
+  ): Promise<ScopeHistory> {
+    return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      const scope = await tx.$queryRaw<{ organizationId: string }[]>`
+        select property.organization_id as "organizationId"
+        from public.properties as property
+        where property.id = ${propertyId}::uuid
+          and app.can_use_capability(
+            property.id,
+            ${AUDIT_CAPABILITY.moduleKey},
+            ${AUDIT_CAPABILITY.capabilityKey}
+          )
+      `;
+      const [entitled] = scope;
+      if (!entitled) return { records: [], total: 0 };
+      return recentWithin(tx, entitled.organizationId, limit);
+    });
+  }
+
+  return { listEntitledProperties, recentActivity };
 }
 
 export type CoreModule = ReturnType<typeof createCoreModule>;
