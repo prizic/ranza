@@ -81,6 +81,10 @@ model Property {
   /// country, so neither fact can live one level up. A Folio copies it at the
   /// moment it opens.
   currency       String   @default("TRY") @db.Char(3)
+  /// The local time at which this Property's working day ends (ADR 0021). A
+  /// night shift at 02:00 is still working the day before; `app.property_today()`
+  /// is the only place the two are combined.
+  businessDateCutoff DateTime @default(dbgenerated("'04:00:00'::time without time zone")) @map("business_date_cutoff") @db.Time(6)
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 

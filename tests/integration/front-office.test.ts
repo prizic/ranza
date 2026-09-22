@@ -202,7 +202,7 @@ async function seed() {
  */
 async function propertyDay(days: number): Promise<string> {
   const [row] = await owner.$queryRawUnsafe<{ day: string }[]>(
-    `select to_char((now() at time zone property.timezone)::date + $2::int,
+    `select to_char(app.property_today(property.id) + $2::int,
                     'YYYY-MM-DD') as day
        from public.properties as property
       where property.id = $1::uuid`,
@@ -245,9 +245,9 @@ async function reserve(
        (id, organization_id, property_id, accommodation_unit_id,
         guest_id, stay_type, status, starts_on, ends_on)
      select $1::uuid, $2::uuid, $3::uuid, $4::uuid, guest.id, $8, 'confirmed',
-            (now() at time zone property.timezone)::date + $6::int,
+            app.property_today(property.id) + $6::int,
             case when $7::int is null then null
-                 else (now() at time zone property.timezone)::date + $7::int
+                 else app.property_today(property.id) + $7::int
             end
      from public.properties as property, guest
      where property.id = $3::uuid
@@ -653,7 +653,7 @@ describe("checking in", () => {
       { startsOn: string; today: string; plannedOn: string }[]
     >(
       `select to_char(stay.starts_on, 'YYYY-MM-DD') as "startsOn",
-              to_char((now() at time zone property.timezone)::date,
+              to_char(app.property_today(property.id),
                       'YYYY-MM-DD') as "today",
               to_char(reservation.starts_on, 'YYYY-MM-DD') as "plannedOn"
        from public.stays as stay
@@ -968,7 +968,7 @@ describe("checking out", () => {
     >(
       `select stay.status,
               to_char(stay.ends_on, 'YYYY-MM-DD') as "endsOn",
-              to_char((now() at time zone property.timezone)::date,
+              to_char(app.property_today(property.id),
                       'YYYY-MM-DD') as "today"
        from public.stays as stay
        join public.properties as property on property.id = stay.property_id
@@ -1007,7 +1007,7 @@ describe("checking out", () => {
       { departedOn: string; today: string }[]
     >(
       `select event.payload->>'departedOn' as "departedOn",
-              to_char((now() at time zone property.timezone)::date, 'YYYY-MM-DD') as "today"
+              to_char(app.property_today(property.id), 'YYYY-MM-DD') as "today"
          from outbox.events as event
          join public.properties as property on property.id = $2::uuid
         where event.event_type = 'stay.checked_out'
@@ -1065,7 +1065,7 @@ describe("checking out", () => {
       { endsOn: string; today: string }[]
     >(
       `select to_char(stay.ends_on, 'YYYY-MM-DD') as "endsOn",
-              to_char((now() at time zone property.timezone)::date,
+              to_char(app.property_today(property.id),
                       'YYYY-MM-DD') as "today"
        from public.stays as stay
        join public.properties as property on property.id = stay.property_id
@@ -1128,8 +1128,8 @@ describe("today's departures", () => {
          (organization_id, property_id, accommodation_unit_id, reservation_id,
           stay_type, status, starts_on, ends_on)
        select $1::uuid, $2::uuid, $3::uuid, $4::uuid, 'guest', 'in_house',
-              (now() at time zone property.timezone)::date - 3,
-              (now() at time zone property.timezone)::date
+              app.property_today(property.id) - 3,
+              app.property_today(property.id)
        from public.properties as property
        where property.id = $2::uuid`,
       ORG,
@@ -1148,8 +1148,8 @@ describe("today's departures", () => {
          (organization_id, property_id, accommodation_unit_id,
           stay_type, status, starts_on, ends_on)
        select $1::uuid, $2::uuid, $3::uuid, 'guest', 'in_house',
-              (now() at time zone property.timezone)::date - 9,
-              (now() at time zone property.timezone)::date - 2
+              app.property_today(property.id) - 9,
+              app.property_today(property.id) - 2
        from public.properties as property
        where property.id = $2::uuid`,
       ORG,

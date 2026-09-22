@@ -52,9 +52,10 @@ The next few slices, in the order decided by what each one unblocks:
    for.
 2. **A Unit status lifecycle**, which is also the first outbox handler:
    check-out marks the Unit dirty.
-3. **A rate.** Nothing has a price, which is why there is no night audit and why
-   [ADR 0021](adr/0021-a-business-date-is-the-day-a-property-is-working.md)'s
-   business date is still unwritten.
+3. **A rate.** Nothing has a price, which is why there is no night audit. The
+   business date the audit will roll
+   ([ADR 0021](adr/0021-a-business-date-is-the-day-a-property-is-working.md)) is
+   applied already, because the front desk needed it first.
 4. **Cancelling and amending a booking.** The list has no row actions because
    nothing does either, and a Reservation that cannot be cancelled is a Unit
    that cannot be freed except by the day passing.
@@ -134,7 +135,6 @@ yet, so neither the ADR nor this row is a lie.
 | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [ADR 0014](adr/0014-an-application-is-flat-and-its-imports-are-aliased.md) | Applications lose `src/` and import through `@/`. Every new route deepens the climb it describes                                                                      |
 | [ADR 0025](adr/0025-a-bed-is-a-unit-under-a-room.md)                       | A bed is an Accommodation Unit with a parent, a Unit is sellable when it has no children, and a building and a floor are columns. `accommodation_units` is still flat |
-| [ADR 0021](adr/0021-a-business-date-is-the-day-a-property-is-working.md)   | A Property's day rolls at a cutoff, not at midnight. Nothing posts per night yet — nothing has a rate — so the column is unwritten                                    |
 | [ADR 0010](adr/0010-a-second-factor-belongs-to-the-person.md), amended     | Nothing can yet _require_ MFA, and there is no operator-assisted reset for a lost authenticator                                                                       |
 | `docs/design/visual-reference.md`                                          | The palette wins over the current theme where they disagree; they still disagree in places                                                                            |
 

@@ -1,7 +1,23 @@
 # 0021. A business date is the day a Property is working, not the day it is
 
-Status: Accepted — not yet applied
+Status: Accepted — applied in `20260916003500_a_business_date_has_a_cutoff`
 Date: 2026-09-16
+
+Amended: 2026-09-22 — applied, with a different default and a bounded cutoff.
+It is built ahead of the night audit because the front desk needed it first: at
+a midnight rollover, a Guest landing at 00:30 for a one-night booking made for
+the evening before could not be checked in (`ends_on > today` is false) and was
+gone from the arrivals list. The default is **04:00**, not 00:00, because
+hospitality dates a night by the evening it begins; a midnight default would
+have kept the defect at every Property until somebody changed it. The cutoff is
+constrained to **between 03:00 and 12:00**: the rule is wall-clock time less the
+cutoff, wall-clock time runs backwards in a repeated hour, and every daylight
+saving change happens before 03:00 local time, so a cutoff in that window is
+crossed exactly once a day and no business date is ever skipped or repeated.
+The rule is `app.business_date(instant, zone, cutoff)`, a pure function so the
+boundary and the clock changes can be tested, and `app.property_today()` is it
+applied to `now()`. The SQL below needs `cutoff::interval`: Postgres has no
+`timestamp - time` operator.
 
 ## Context
 

@@ -558,7 +558,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
             0
           )::int                                as "balanceMinor",
           coalesce(folio.currency, property.currency) as "currency",
-          stay.ends_on < (now() at time zone property.timezone)::date
+          stay.ends_on < app.property_today(property.id)
                                                 as "overdue"
         from public.stays as stay
         join public.properties as property
@@ -577,7 +577,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
         where stay.property_id = ${propertyId}::uuid
           and stay.status = 'in_house'
           and stay.ends_on is not null
-          and stay.ends_on <= (now() at time zone property.timezone)::date
+          and stay.ends_on <= app.property_today(property.id)
           and app.can_use_capability(
             stay.property_id,
             ${FRONT_DESK_CAPABILITY.moduleKey},
@@ -611,8 +611,8 @@ export function createReservationsModule(deps: ReservationsDeps) {
       // from the server's clock is the wrong day for half of every day at a
       // Property in another timezone.
       const [today] = await tx.$queryRaw<{ on: Date; onText: string }[]>`
-        select (now() at time zone property.timezone)::date as "on",
-               to_char((now() at time zone property.timezone)::date,
+        select app.property_today(property.id) as "on",
+               to_char(app.property_today(property.id),
                        'YYYY-MM-DD') as "onText"
         from public.properties as property
         join public.stays as stay on stay.property_id = property.id

@@ -212,8 +212,8 @@ async function checkInAt(
        (id, organization_id, property_id, accommodation_unit_id,
         guest_id, stay_type, status, starts_on, ends_on)
      select $1::uuid, $2::uuid, $3::uuid, $4::uuid, guest.id, 'guest', 'confirmed',
-            (now() at time zone property.timezone)::date,
-            (now() at time zone property.timezone)::date + 3
+            app.property_today(property.id),
+            app.property_today(property.id) + 3
      from public.properties as property, guest
      where property.id = $3::uuid`,
     reservationId,
