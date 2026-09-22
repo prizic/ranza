@@ -344,7 +344,11 @@ select is_empty(
      where organization_id = '5b111111-1111-4111-8111-111111111111'$$,
   'and none of another Organization''s');
 
-select throws_ok(
+-- The fixture's Staff Member is a manager, and a shipped manager holds
+-- accommodation.configure since 20260916002900. Who may NOT add a Unit — no
+-- permission, no reach, a lapsed Subscription — is rooms_and_beds.test.sql's
+-- job; this only says the door the insert policy opened is the one it meant to.
+select lives_ok(
   $$insert into public.accommodation_units
       (property_id, organization_id, parent_id, parent_unit_type,
        name, unit_type)
@@ -352,8 +356,7 @@ select throws_ok(
             '5a111111-1111-4111-8111-111111111111',
             '5d222222-2222-4222-8222-222222222222', 'room',
             'Z', 'bed')$$,
-  '42501', NULL,
-  'and cannot create one: dividing a room is the Configuration screen''s workflow, which does not exist');
+  'and can create one: dividing a room is the Rooms screen''s workflow (RANZ-27)');
 
 reset role;
 

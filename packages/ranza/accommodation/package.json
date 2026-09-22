@@ -10,5 +10,10 @@
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ranza/core": "workspace:*",
+    "@ranza/db": "workspace:*",
+    "@ranza/platform-audit": "workspace:*"
   }
 }

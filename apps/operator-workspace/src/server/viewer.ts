@@ -18,6 +18,17 @@ import type {
   Departure,
   ReservationRow,
 } from "@ranza/reservations";
+import { ROOMS_CAPABILITY } from "@ranza/accommodation";
+import type {
+  AccommodationUnitStatus,
+  AccommodationUnitType,
+  NewUnits,
+  UnitCounts,
+  UnitEntry,
+  UnitMap,
+  UnitsAdded,
+  UnitState,
+} from "@ranza/accommodation";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import { getComposition } from "./composition";
 
@@ -48,16 +59,25 @@ export {
   TODAY_CAPABILITY,
   FRONT_DESK_CAPABILITY,
   FOLIO_CAPABILITY,
+  ROOMS_CAPABILITY,
 };
 export type {
+  AccommodationUnitStatus,
+  AccommodationUnitType,
   Arrival,
   AuditRecord,
   BookableUnit,
   Departure,
   FolioDetail,
   FolioSummary,
+  NewUnits,
   ReservationRow,
   ScopeHistory,
+  UnitCounts,
+  UnitEntry,
+  UnitMap,
+  UnitsAdded,
+  UnitState,
 };
 
 export interface Viewer {
@@ -235,6 +255,33 @@ export async function folio(folioId: string): Promise<FolioDetail | null> {
   const viewer = await currentViewer();
   if (!viewer) return null;
   return getComposition().folios.folioDetail(viewer.userId, folioId);
+}
+
+/**
+ * Every Unit at one Property and what each is doing tonight (RB-S1-01).
+ *
+ * Same funnel and same non-checking: a Property the viewer cannot reach,
+ * or one whose capability is off, produces an empty list because the policies
+ * and the capability gate decide that, not a condition here.
+ */
+export async function rooms(propertyId: string): Promise<UnitMap> {
+  const viewer = await currentViewer();
+  if (!viewer) {
+    return {
+      today: new Date().toISOString().slice(0, 10),
+      units: [],
+      counts: {
+        rooms: 0,
+        sellable: 0,
+        inHouse: 0,
+        reserved: 0,
+        free: 0,
+        blocked: 0,
+        outOfService: 0,
+      },
+    };
+  }
+  return getComposition().accommodation.listUnits(viewer.userId, propertyId);
 }
 
 /**

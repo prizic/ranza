@@ -33,6 +33,9 @@ export const KNOWN_ACTIONS = [
   "staff.role_defined",
   "staff.role_retired",
   "staff.role_reinstated",
+  "unit.added",
+  "unit.blocked",
+  "unit.unblocked",
 ] as const;
 
 export type KnownAction = (typeof KNOWN_ACTIONS)[number];
@@ -43,6 +46,8 @@ export const KNOWN_SUBJECTS = [
   "folio",
   "membership",
   "role",
+  "property",
+  "accommodation_unit",
 ] as const;
 
 export type KnownSubject = (typeof KNOWN_SUBJECTS)[number];

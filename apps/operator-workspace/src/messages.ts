@@ -271,6 +271,39 @@ export interface Messages {
   closeRefused: string;
   folioClosedNote: string;
 
+  rooms: string;
+  roomsAt: string;
+  roomsSubtitle: string;
+  noRoomsTitle: string;
+  noRoomsDescription: string;
+  addRooms: string;
+  addingRooms: string;
+  firstNumber: string;
+  firstNumberHint: string;
+  roomCount: string;
+  capacityPerRoom: string;
+  building: string;
+  floor: string;
+  letByTheBed: string;
+  letByTheBedHint: string;
+  blockBed: string;
+  blockingBed: string;
+  unblockBed: string;
+  unblockingBed: string;
+  blockReason: string;
+  blockReasonHint: string;
+  statRooms: string;
+  statBeds: string;
+  statOccupied: string;
+  statEmpty: string;
+  statBlocked: string;
+  bedMap: string;
+  bedList: string;
+  freeTonight: string;
+  inHouseTonight: string;
+  reservedTonight: string;
+  blockedStatus: string;
+
   auditLog: string;
   auditLogFor: string;
   allRecords: string;
@@ -310,9 +343,16 @@ export interface Messages {
       | "role_reinstated",
       string
     >;
+    unit: Record<"added" | "blocked" | "unblocked", string>;
   };
   auditSubject: Record<
-    "reservation" | "stay" | "folio" | "membership" | "role",
+    | "reservation"
+    | "stay"
+    | "folio"
+    | "membership"
+    | "role"
+    | "property"
+    | "accommodation_unit",
     string
   >;
 
@@ -627,6 +667,42 @@ export const messages: Record<SupportedLocale, Messages> = {
     folioClosedNote:
       "Bu folyo kapalı. Satırlar olduğu gibi kalır; kapalı bir folyoya yeni satır işlenemez.",
 
+    rooms: "Odalar ve yataklar",
+    roomsAt: "{property} odaları ve yatakları",
+    roomsSubtitle: "Bu tesisteki her oda ve yatak, ve her birinde kim kalıyor.",
+    noRoomsTitle: "Henüz oda yok",
+    noRoomsDescription:
+      "Bu tesise henüz oda eklenmemiş. 'Oda ekle' düğmesini kullanarak odaları toplu ekleyebilirsiniz.",
+    addRooms: "Oda ekle",
+    addingRooms: "Ekleniyor...",
+    firstNumber: "İlk oda numarası",
+    firstNumberHint: "Odalar bu numaradan başlayarak sırayla numaralandırılır.",
+    roomCount: "Oda sayısı",
+    capacityPerRoom: "Oda kapasitesi (kişi)",
+    building: "Bina (isteğe bağlı)",
+    floor: "Kat (isteğe bağlı)",
+    letByTheBed: "Yatak bazında kirala",
+    letByTheBedHint:
+      "Her yatak A, B, C... olarak ayrı ayrı kiralanabilir birim olur.",
+    blockBed: "Yatağı kapat",
+    blockingBed: "Kapatılıyor...",
+    unblockBed: "Yatağı aç",
+    unblockingBed: "Açılıyor...",
+    blockReason: "Kapatma nedeni",
+    blockReasonHint:
+      "Neden kapalı olduğunu belirten en az 3 karakterlik açıklama.",
+    statRooms: "Oda",
+    statBeds: "Yatak",
+    statOccupied: "Dolu",
+    statEmpty: "Boş yatak bu gece",
+    statBlocked: "Kapalı",
+    bedMap: "Yatak haritası",
+    bedList: "Yatak listesi",
+    freeTonight: "Boş",
+    inHouseTonight: "Konaklamada",
+    reservedTonight: "Rezervasyonlu",
+    blockedStatus: "Kapalı",
+
     auditLog: "Denetim kaydı",
     auditLogFor: "Son işlemler:",
     allRecords: "Tüm kayıtlar",
@@ -668,6 +744,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         role_retired: "Rol kaldırıldı",
         role_reinstated: "Rol geri getirildi",
       },
+      unit: {
+        added: "Birim eklendi",
+        blocked: "Birim kapatıldı",
+        unblocked: "Birim açıldı",
+      },
     },
     auditSubject: {
       reservation: "Rezervasyon",
@@ -675,6 +756,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       folio: "Folyo",
       membership: "Üyelik",
       role: "Rol",
+      property: "Tesis",
+      accommodation_unit: "Konaklama birimi",
     },
     table: {
       results: "{n, plural, other {# sonuç}}",
@@ -703,6 +786,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       today: "Bugün",
       "front-office": "Ön büro",
       reservations: "Rezervasyonlar",
+      rooms: "Odalar ve yataklar",
       arrivals: "Girişler",
       departures: "Çıkışlar",
       "guest-experience": "Konuk deneyimi",
@@ -1002,6 +1086,42 @@ export const messages: Record<SupportedLocale, Messages> = {
     folioClosedNote:
       "This folio is closed. Its lines stay exactly as they are, and nothing further can be posted to it.",
 
+    rooms: "Rooms & beds",
+    roomsAt: "Rooms & beds at {property}",
+    roomsSubtitle:
+      "Every room and bed at this Property, and who is in each one.",
+    noRoomsTitle: "No rooms yet",
+    noRoomsDescription:
+      "No rooms have been added to this Property yet. Use 'Add rooms' to create a batch.",
+    addRooms: "Add rooms",
+    addingRooms: "Adding...",
+    firstNumber: "First room number",
+    firstNumberHint: "Rooms are numbered in sequence starting from here.",
+    roomCount: "Number of rooms",
+    capacityPerRoom: "Capacity per room (guests)",
+    building: "Building (optional)",
+    floor: "Floor (optional)",
+    letByTheBed: "Let by the bed",
+    letByTheBedHint: "Each bed becomes a separate unit named A, B, C...",
+    blockBed: "Block bed",
+    blockingBed: "Blocking...",
+    unblockBed: "Unblock bed",
+    unblockingBed: "Unblocking...",
+    blockReason: "Reason for block",
+    blockReasonHint:
+      "A brief reason (at least 3 characters) why this unit is unavailable.",
+    statRooms: "Rooms",
+    statBeds: "Beds",
+    statOccupied: "Occupied",
+    statEmpty: "Empty beds tonight",
+    statBlocked: "Blocked",
+    bedMap: "Bed map",
+    bedList: "Bed list",
+    freeTonight: "Free",
+    inHouseTonight: "In house",
+    reservedTonight: "Reserved",
+    blockedStatus: "Blocked",
+
     auditLog: "Audit log",
     auditLogFor: "Recent actions at",
     allRecords: "All records",
@@ -1043,6 +1163,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         role_retired: "Role retired",
         role_reinstated: "Role reinstated",
       },
+      unit: {
+        added: "Unit added",
+        blocked: "Unit blocked",
+        unblocked: "Unit unblocked",
+      },
     },
     auditSubject: {
       reservation: "Reservation",
@@ -1050,6 +1175,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       folio: "Folio",
       membership: "Membership",
       role: "Role",
+      property: "Property",
+      accommodation_unit: "Accommodation unit",
     },
     table: {
       results: "{n, plural, one {# result} other {# results}}",
@@ -1078,6 +1205,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       today: "Today",
       "front-office": "Front Office",
       reservations: "Reservations",
+      rooms: "Rooms & beds",
       arrivals: "Arrivals",
       departures: "Departures",
       "guest-experience": "Guest Experience",
@@ -1370,6 +1498,40 @@ export const messages: Record<SupportedLocale, Messages> = {
     folioClosedNote:
       "هذا الحساب مغلق. تبقى بنوده كما هي، ولا يمكن قيد أي شيء جديد عليه.",
 
+    rooms: "الغرف والأسرّة",
+    roomsAt: "الغرف والأسرّة في {property}",
+    roomsSubtitle: "كل غرفة وسرير في هذا العقار، ومن يشغل كلًّا منها.",
+    noRoomsTitle: "لا توجد غرف بعد",
+    noRoomsDescription:
+      "لم تتم إضافة أي غرف إلى هذا العقار بعد. استخدم 'إضافة غرف' لإنشائها دفعة واحدة.",
+    addRooms: "إضافة غرف",
+    addingRooms: "جارٍ الإضافة...",
+    firstNumber: "رقم الغرفة الأولى",
+    firstNumberHint: "يتم ترقيم الغرف بالتسلسل بدءاً من هذا الرقم.",
+    roomCount: "عدد الغرف",
+    capacityPerRoom: "سعة الغرفة (أشخاص)",
+    building: "المبنى (اختياري)",
+    floor: "الطابق (اختياري)",
+    letByTheBed: "تأجير بالسرير",
+    letByTheBedHint: "يصبح كل سرير وحدة منفصلة تسمى A، B، C...",
+    blockBed: "إغلاق السرير",
+    blockingBed: "جارٍ الإغلاق...",
+    unblockBed: "فتح السرير",
+    unblockingBed: "جارٍ الفتح...",
+    blockReason: "سبب الإغلاق",
+    blockReasonHint: "سبب موجز (لا يقل عن 3 أحرف) لعدم توفر هذه الوحدة.",
+    statRooms: "الغرف",
+    statBeds: "الأسرّة",
+    statOccupied: "مشغولة",
+    statEmpty: "أسرّة فارغة الليلة",
+    statBlocked: "مغلقة",
+    bedMap: "خريطة الأسرّة",
+    bedList: "قائمة الأسرّة",
+    freeTonight: "فارغ",
+    inHouseTonight: "في الإقامة",
+    reservedTonight: "محجوز",
+    blockedStatus: "مغلق",
+
     auditLog: "سجل التدقيق",
     auditLogFor: "آخر الإجراءات في",
     allRecords: "كل السجلات",
@@ -1411,6 +1573,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         role_retired: "تم سحب الدور",
         role_reinstated: "تمت إعادة الدور",
       },
+      unit: {
+        added: "تمت إضافة وحدة",
+        blocked: "تم إغلاق الوحدة",
+        unblocked: "تم فتح الوحدة",
+      },
     },
     auditSubject: {
       reservation: "حجز",
@@ -1418,6 +1585,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       folio: "فوليو",
       membership: "عضوية",
       role: "دور",
+      property: "منشأة",
+      accommodation_unit: "وحدة إقامة",
     },
     table: {
       results:
@@ -1448,6 +1617,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       today: "اليوم",
       "front-office": "المكتب الأمامي",
       reservations: "الحجوزات",
+      rooms: "الغرف والأسرّة",
       arrivals: "الوصول",
       departures: "المغادرة",
       "guest-experience": "تجربة الضيف",
