@@ -74,6 +74,7 @@ export interface Arrival {
   unitId: string;
   unitName: string;
   unitType: AccommodationUnitType;
+  unitStatus: string;
   canCheckIn: boolean;
   /**
    * The Stay this Reservation's check-in produced, while it is still in house.
@@ -88,6 +89,10 @@ export interface Arrival {
    * the policies and by the trigger that refuses a Stay carrying charges.
    */
   stayId: string | null;
+  eta: string | null;
+  daysLate: number;
+  balanceMinor: number;
+  currency: string;
 }
 
 /** What a completed check-in produced. */
@@ -124,7 +129,10 @@ export interface Departure {
   unitId: string;
   unitName: string;
   unitType: AccommodationUnitType;
+  unitStatus: string;
   overdue: boolean;
+  balanceMinor: number;
+  currency: string;
 }
 
 /** What a completed check-out produced. */

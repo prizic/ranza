@@ -26,9 +26,15 @@ export interface TenantClient {
   $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number>;
 }
 
+interface TransactionOptions {
+  maxWait?: number;
+  timeout?: number;
+}
+
 interface TransactionCapable<TClient extends TenantClient> {
   $transaction<TResult>(
     run: (client: TClient) => Promise<TResult>,
+    options?: TransactionOptions,
   ): Promise<TResult>;
 }
 
@@ -54,11 +60,14 @@ export async function withOrganizationContext<
     throw new TenantContextError("request context requires a valid user id");
   }
 
-  return prisma.$transaction(async (client) => {
-    await client.$executeRawUnsafe(
-      "select app.set_request_context($1::uuid)",
-      context.userId,
-    );
-    return query(client);
-  });
+  return prisma.$transaction(
+    async (client) => {
+      await client.$executeRawUnsafe(
+        "select app.set_request_context($1::uuid)",
+        context.userId,
+      );
+      return query(client);
+    },
+    { maxWait: 15_000, timeout: 30_000 },
+  );
 }

@@ -9,11 +9,18 @@ import {
   DoorOpen,
 } from "lucide-react";
 import type { Arrival, Departure, ReservationRow } from "@ranza/reservations";
-import { DataTableColumnHeader, StatusBadge, type StatusTone } from "@ranza/ui";
-import { formatDate, type SupportedLocale } from "@ranza/i18n";
+import {
+  Avatar,
+  AvatarFallback,
+  DataTableColumnHeader,
+  StatusBadge,
+  type StatusTone,
+} from "@ranza/ui";
+import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
 import { useSortLabels } from "../../../lib/table-labels";
 import { CheckInAction, CheckOutAction } from "./check-in-action";
 import { UndoCheckInDialog } from "./undo-check-in-dialog";
+import { FrontDeskRowMenu } from "./row-menu";
 
 /**
  * `meta.title` is not decoration: the column menu and the search placeholder
@@ -30,6 +37,27 @@ function day(iso: string, locale: SupportedLocale): string {
     month: "short",
     timeZone: "UTC",
   });
+}
+
+function shortRef(id: string): string {
+  if (id.startsWith("RZ-")) return id;
+  const clean = id.replace(/^(res_|stay_)/, "");
+  return `RZ-${clean.slice(0, 6).toUpperCase()}`;
+}
+
+function initialsOf(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return "?";
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  const firstWord = words[0];
+  if (!firstWord) return "?";
+  if (words.length === 1) {
+    return Array.from(firstWord).slice(0, 2).join("").toUpperCase();
+  }
+  const lastWord = words[words.length - 1];
+  const first = Array.from(firstWord)[0] ?? "";
+  const last = lastWord ? (Array.from(lastWord)[0] ?? "") : "";
+  return `${first}${last}`.toUpperCase();
 }
 
 const RESERVATION_TONE: Record<Arrival["status"], StatusTone> = {
@@ -65,102 +93,186 @@ export function useArrivalColumns(
         />
       ),
       cell: ({ row }) => (
-        <div>
-          <p className="font-medium">{row.original.guestName}</p>
-          <p className="text-step--1 text-muted-foreground">
-            {t(`stayType.${row.original.stayType}`)}
-          </p>
+        <div className="flex items-center gap-3">
+          <Avatar className="h-8 w-8 text-step--1">
+            <AvatarFallback>
+              {initialsOf(row.original.guestName)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <p className="font-medium leading-none">
+              <bdi>{row.original.guestName}</bdi>
+            </p>
+            <p className="mt-1 text-step--1 text-muted-foreground">
+              {t(`stayType.${row.original.stayType}`)}
+              {", "}
+              {row.original.endsOn
+                ? t("untilDate", { date: day(row.original.endsOn, locale) })
+                : t("openEnded")}
+            </p>
+          </div>
         </div>
       ),
     },
     {
-      accessorKey: "startsOn",
-      meta: { title: t("period") },
+      id: "reservation",
+      accessorKey: "reservationId",
+      meta: { title: t("reservation") },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
           labels={sort}
-          title={t("period")}
+          title={t("reservation")}
         />
       ),
       cell: ({ row }) => (
-        <p className="whitespace-nowrap text-step--1">
-          <time dateTime={row.original.startsOn}>
-            {day(row.original.startsOn, locale)}
-          </time>
-          {row.original.endsOn ? (
-            <>
-              {" – "}
-              <time dateTime={row.original.endsOn}>
-                {day(row.original.endsOn, locale)}
-              </time>
-            </>
-          ) : (
-            <> · {t("openEnded")}</>
-          )}
-        </p>
+        <div>
+          <span className="font-mono tabular-nums font-medium">
+            {shortRef(row.original.reservationId)}
+          </span>
+          {row.original.daysLate > 0 && row.original.status !== "checked_in" ? (
+            <span className="block text-step--1 font-semibold text-warning">
+              {t("daysLate", { n: row.original.daysLate })}
+            </span>
+          ) : row.original.status === "confirmed" && row.original.eta ? (
+            <span className="block text-step--1 text-muted-foreground">
+              {t("expectedEta", { eta: row.original.eta })}
+            </span>
+          ) : null}
+        </div>
       ),
     },
     {
       accessorKey: "unitName",
-      meta: { title: t("unit") },
+      meta: { title: t("roomAndBed") },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
           labels={sort}
-          title={t("unit")}
+          title={t("roomAndBed")}
         />
       ),
-      cell: ({ row }) => (
-        <p>
-          <span className="font-medium tabular-nums">
-            {row.original.unitName}
-          </span>
-          <span className="block text-step--1 text-muted-foreground">
-            {t(`unitType.${row.original.unitType}`)}
-          </span>
-        </p>
+      cell: ({ row }) =>
+        row.original.unitName ? (
+          <div>
+            <span className="font-medium tabular-nums">
+              {row.original.unitName}
+            </span>
+            <span className="block text-step--1 text-muted-foreground">
+              {t(`unitType.${row.original.unitType}`)}
+            </span>
+          </div>
+        ) : (
+          <span className="text-muted-foreground">{t("notAssigned")}</span>
+        ),
+    },
+    {
+      id: "readiness",
+      accessorKey: "unitStatus",
+      meta: { title: t("readiness") },
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          labels={sort}
+          title={t("readiness")}
+        />
       ),
+      cell: ({ row }) =>
+        row.original.status === "checked_in" ? (
+          <StatusBadge icon={DoorOpen} label={t("checkedIn")} tone="success" />
+        ) : row.original.unitStatus === "available" ? (
+          <StatusBadge icon={CircleCheck} label={t("ready")} tone="success" />
+        ) : row.original.unitStatus === "out_of_service" ? (
+          <StatusBadge
+            icon={CircleDashed}
+            label={t("outOfOrder")}
+            tone="danger"
+          />
+        ) : row.original.unitStatus === "occupied" ? (
+          <StatusBadge
+            icon={CircleDashed}
+            label={t("occupied")}
+            tone="warning"
+          />
+        ) : (
+          <StatusBadge
+            icon={CircleDashed}
+            label={row.original.unitStatus}
+            tone="neutral"
+          />
+        ),
+    },
+    {
+      id: "balance",
+      accessorKey: "balanceMinor",
+      meta: { title: t("balance") },
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          labels={sort}
+          title={t("balance")}
+        />
+      ),
+      cell: ({ row }) => {
+        const isDebt = row.original.balanceMinor > 0;
+        const isCredit = row.original.balanceMinor < 0;
+        const formatted = formatMoney(
+          row.original.balanceMinor,
+          row.original.currency,
+          locale,
+        );
+        return (
+          <div className="tabular-nums">
+            <span
+              className={
+                isDebt
+                  ? "font-semibold text-danger"
+                  : isCredit
+                    ? "font-semibold text-info"
+                    : "font-normal"
+              }
+            >
+              {formatted}
+            </span>
+            {isCredit && (
+              <span className="block text-step--1 text-muted-foreground">
+                {t("credit")}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       id: "action",
       meta: { title: t("action") },
       enableHiding: false,
       header: () => <span className="sr-only">{t("action")}</span>,
-      cell: ({ row }) =>
-        row.original.canCheckIn ? (
-          <CheckInAction
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end gap-1">
+          {row.original.canCheckIn ? (
+            <CheckInAction
+              locale={locale}
+              reservationId={row.original.reservationId}
+            />
+          ) : row.original.stayId ? (
+            <UndoCheckInDialog
+              guestName={row.original.guestName}
+              locale={locale}
+              reservationId={row.original.reservationId}
+              stayId={row.original.stayId}
+              unitName={row.original.unitName}
+            />
+          ) : null}
+          <FrontDeskRowMenu
+            guestName={row.original.guestName}
             locale={locale}
             reservationId={row.original.reservationId}
+            stayId={row.original.stayId}
+            unitId={row.original.unitId}
           />
-        ) : (
-          <div className="flex items-center justify-end gap-1">
-            <StatusBadge
-              icon={RESERVATION_ICON[row.original.status]}
-              label={t(`reservationStatus.${row.original.status}`)}
-              tone={RESERVATION_TONE[row.original.status]}
-            />
-            {/* The badge stays, and the action sits beside it: a state that is
-                only legible from the control offered next to it is a state
-                carried by the control (blueprint 18.5).
-
-                Offered on every row that still names an in-house Stay, not only
-                on the ones that would succeed. Whether charges exist is
-                answered by a trigger in the database for the reason ADR 0022
-                gives, and asking the same question here to decide whether to
-                draw a button would be the weaker of the two — and would hide
-                the one refusal a front desk can act on. */}
-            {row.original.stayId ? (
-              <UndoCheckInDialog
-                guestName={row.original.guestName}
-                locale={locale}
-                reservationId={row.original.reservationId}
-                stayId={row.original.stayId}
-                unitName={row.original.unitName}
-              />
-            ) : null}
-          </div>
-        ),
+        </div>
+      ),
     },
   ];
 }
@@ -181,50 +293,50 @@ export function useDepartureColumns(
           title={t("guest")}
         />
       ),
-      cell: ({ row }) => (
-        <div>
-          <p className="font-medium">
-            {/* A walk-in has no name recorded anywhere yet: Guest profiles are
-                blueprint 5.3 and are not built. The Unit identifies them in the
-                meantime, which is what the front desk would use anyway. */}
-            {row.original.guestName || row.original.unitName}
-          </p>
-          <p className="text-step--1 text-muted-foreground">
-            {t(`stayType.${row.original.stayType}`)}
-          </p>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const name = row.original.guestName || row.original.unitName;
+        return (
+          <div className="flex items-center gap-3">
+            <Avatar className="h-8 w-8 text-step--1">
+              <AvatarFallback>{initialsOf(name)}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="font-medium leading-none">
+                <bdi>{name}</bdi>
+              </p>
+              <p className="mt-1 text-step--1 text-muted-foreground">
+                {t(`stayType.${row.original.stayType}`)}
+              </p>
+            </div>
+          </div>
+        );
+      },
     },
     {
-      accessorKey: "endsOn",
-      meta: { title: t("departure") },
+      id: "reservation",
+      accessorKey: "stayId",
+      meta: { title: t("reservation") },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
           labels={sort}
-          title={t("departure")}
+          title={t("reservation")}
         />
       ),
       cell: ({ row }) => (
-        <StatusBadge
-          icon={row.original.overdue ? CalendarClock : CircleCheck}
-          // The date is in the label, so the tone is never the only carrier of
-          // "this one is late" (blueprint 18.5).
-          label={`${day(row.original.endsOn, locale)} · ${
-            row.original.overdue ? t("overdue") : t("onTime")
-          }`}
-          tone={row.original.overdue ? "warning" : "neutral"}
-        />
+        <span className="font-mono tabular-nums font-medium">
+          {shortRef(row.original.stayId)}
+        </span>
       ),
     },
     {
       accessorKey: "unitName",
-      meta: { title: t("unit") },
+      meta: { title: t("roomAndBed") },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
           labels={sort}
-          title={t("unit")}
+          title={t("roomAndBed")}
         />
       ),
       cell: ({ row }) => (
@@ -239,12 +351,86 @@ export function useDepartureColumns(
       ),
     },
     {
+      id: "leaves",
+      accessorKey: "endsOn",
+      meta: { title: t("leaves") },
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          labels={sort}
+          title={t("leaves")}
+        />
+      ),
+      cell: ({ row }) =>
+        row.original.overdue ? (
+          <StatusBadge
+            icon={CalendarClock}
+            label={t("overdueSince", {
+              date: day(row.original.endsOn, locale),
+            })}
+            tone="warning"
+          />
+        ) : (
+          <StatusBadge icon={CircleCheck} label={t("today")} tone="neutral" />
+        ),
+    },
+    {
+      id: "balance",
+      accessorKey: "balanceMinor",
+      meta: { title: t("balance") },
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          labels={sort}
+          title={t("balance")}
+        />
+      ),
+      cell: ({ row }) => {
+        const isDebt = row.original.balanceMinor > 0;
+        const isCredit = row.original.balanceMinor < 0;
+        const formatted = formatMoney(
+          row.original.balanceMinor,
+          row.original.currency,
+          locale,
+        );
+        return (
+          <div className="tabular-nums">
+            <span
+              className={
+                isDebt
+                  ? "font-semibold text-danger"
+                  : isCredit
+                    ? "font-semibold text-info"
+                    : "font-normal"
+              }
+            >
+              {formatted}
+            </span>
+            {isCredit && (
+              <span className="block text-step--1 text-muted-foreground">
+                {t("credit")}
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
       id: "action",
       meta: { title: t("action") },
       enableHiding: false,
       header: () => <span className="sr-only">{t("action")}</span>,
       cell: ({ row }) => (
-        <CheckOutAction locale={locale} stayId={row.original.stayId} />
+        <div className="flex items-center justify-end gap-1">
+          <CheckOutAction locale={locale} stayId={row.original.stayId} />
+          <FrontDeskRowMenu
+            guestName={row.original.guestName || row.original.unitName}
+            locale={locale}
+            reservationId={null}
+            stayId={row.original.stayId}
+            unitId={row.original.unitId}
+          />
+        </div>
       ),
     },
   ];

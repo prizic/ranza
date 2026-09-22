@@ -114,6 +114,26 @@ export interface Messages {
   checkOutRefused: string;
   noDeparturesTitle: string;
   noDeparturesDescription: string;
+  readiness: string;
+  reservation: string;
+  roomAndBed: string;
+  notAssigned: string;
+  ready: string;
+  outOfOrder: string;
+  occupied: string;
+  daysLate: string;
+  expectedEta: string;
+  credit: string;
+  moreActionsFor: string;
+  reservationDetails: string;
+  openFolio: string;
+  showOnBedMap: string;
+  profile: string;
+  unitOutOfOrder: string;
+  unitOccupied: string;
+  leaves: string;
+  overdueSince: string;
+  untilDate: string;
 
   /**
    * Taking a booking.
@@ -452,6 +472,26 @@ export const messages: Record<SupportedLocale, Messages> = {
     noDeparturesTitle: "Bugün çıkış yok",
     noDeparturesDescription:
       "Bu tesiste bugün ayrılması beklenen bir konaklama bulunmuyor.",
+    readiness: "Hazırlık",
+    reservation: "Rezervasyon",
+    roomAndBed: "Oda ve yatak",
+    notAssigned: "Atanmadı",
+    ready: "Hazır",
+    outOfOrder: "Hizmet dışı",
+    occupied: "Dolu",
+    daysLate: "{n} gün gecikmiş",
+    expectedEta: "beklenen {eta}",
+    credit: "alacak",
+    moreActionsFor: "{guest} için diğer işlemler",
+    reservationDetails: "Rezervasyon detayları",
+    openFolio: "Folyoyu aç",
+    showOnBedMap: "Yatak haritasında göster",
+    profile: "Profil",
+    unitOutOfOrder: "Birim hizmet dışı",
+    unitOccupied: "Birim dolu",
+    leaves: "Çıkış",
+    overdueSince: "{date} tarihinden beri gecikmiş",
+    untilDate: "{date} tarihine kadar",
 
     reservations: "Rezervasyonlar",
     reservationsAt: "Rezervasyonlar —",
@@ -808,6 +848,26 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutRefused: "That Stay cannot be checked out.",
     noDeparturesTitle: "No departures today",
     noDeparturesDescription: "Nobody is due to leave this Property today.",
+    readiness: "Readiness",
+    reservation: "Reservation",
+    roomAndBed: "Room and bed",
+    notAssigned: "Not assigned",
+    ready: "Ready",
+    outOfOrder: "Out of order",
+    occupied: "Occupied",
+    daysLate: "{n, plural, one {# day late} other {# days late}}",
+    expectedEta: "expected {eta}",
+    credit: "credit",
+    moreActionsFor: "More actions for {guest}",
+    reservationDetails: "Reservation details",
+    openFolio: "Open folio",
+    showOnBedMap: "Show on bed map",
+    profile: "Profile",
+    unitOutOfOrder: "Unit is out of service",
+    unitOccupied: "Unit is occupied",
+    leaves: "Leaves",
+    overdueSince: "Overdue since {date}",
+    untilDate: "until {date}",
 
     reservations: "Reservations",
     reservationsAt: "Bookings at",
@@ -1161,6 +1221,27 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutRefused: "لا يمكن تسجيل مغادرة هذه الإقامة.",
     noDeparturesTitle: "لا توجد مغادرات اليوم",
     noDeparturesDescription: "لا أحد من المقرر أن يغادر هذه المنشأة اليوم.",
+    readiness: "الجاهزية",
+    reservation: "الحجز",
+    roomAndBed: "الغرفة والسرير",
+    notAssigned: "غير محدد",
+    ready: "جاهزة",
+    outOfOrder: "خارج الخدمة",
+    occupied: "مشغولة",
+    daysLate:
+      "{n, plural, one {متأخر يوم واحد} two {متأخر يومان} few {متأخر # أيام} many {متأخر # يوماً} other {متأخر # يوم}}",
+    expectedEta: "المتوقع {eta}",
+    credit: "رصيد دائن",
+    moreActionsFor: "مزيد من الإجراءات لـ {guest}",
+    reservationDetails: "تفاصيل الحجز",
+    openFolio: "فتح الحساب",
+    showOnBedMap: "عرض على خريطة الأسرّة",
+    profile: "الملف الشخصي",
+    unitOutOfOrder: "الوحدة خارج الخدمة",
+    unitOccupied: "الوحدة مشغولة",
+    leaves: "المغادرة",
+    overdueSince: "متأخر منذ {date}",
+    untilDate: "حتى {date}",
 
     reservations: "الحجوزات",
     reservationsAt: "الحجوزات في",
