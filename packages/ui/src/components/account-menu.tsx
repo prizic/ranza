@@ -42,39 +42,47 @@ export function AccountMenu({
   const { collapsed, inSidebar } = useSidebar();
   const isExpanded =
     variant === "expanded" || (variant === "auto" && inSidebar && !collapsed);
+  // Until a Staff Member has a display name the host passes the address as
+  // both, and printing it twice says nothing the first line did not.
+  const showEmail = name.trim() !== "" && name !== email;
 
   return (
     <DropdownMenu>
       {isExpanded ? (
         <DropdownMenuTrigger
           aria-label={label}
-          className="group flex w-full items-center gap-3 rounded-xl p-2 text-start transition-all hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring select-none cursor-pointer"
+          className="group flex w-full cursor-pointer items-center gap-3 rounded-2xl border border-white/60 bg-secondary/50 p-2 text-start transition-all duration-300 select-none hover:bg-white/70 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Avatar className="size-9 shrink-0 rounded-lg border border-primary/20 shadow-xs transition-transform duration-150 group-hover:scale-105">
-            <AvatarFallback className="rounded-lg bg-primary/15 text-xs font-bold uppercase tracking-wider text-primary">
+          <Avatar className="size-10 shrink-0 rounded-xl">
+            <AvatarFallback className="rounded-xl bg-primary text-xs font-semibold uppercase tracking-wider text-primary-foreground">
               {initials(name, email)}
             </AvatarFallback>
           </Avatar>
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-xs font-semibold text-foreground transition-colors group-hover:text-primary">
-              {name}
-            </span>
             <span
-              className="truncate text-[11px] text-muted-foreground"
-              dir="ltr"
+              className="truncate text-sm font-medium text-foreground/90"
+              dir={showEmail ? undefined : "ltr"}
             >
-              {email}
+              {name || email}
             </span>
+            {showEmail ? (
+              <span
+                className="truncate text-xs text-muted-foreground"
+                dir="ltr"
+              >
+                {email}
+              </span>
+            ) : null}
           </div>
           <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground/60 transition-colors group-hover:text-foreground" />
         </DropdownMenuTrigger>
       ) : (
         <DropdownMenuTrigger
           aria-label={label}
-          className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl transition-all hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+          className="inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Avatar className="size-8.5 rounded-lg border border-primary/20 shadow-xs">
-            <AvatarFallback className="rounded-lg bg-primary/15 text-xs font-bold uppercase tracking-wider text-primary">
+          <Avatar className="size-9 rounded-xl">
+            <AvatarFallback className="rounded-xl bg-primary text-xs font-semibold uppercase tracking-wider text-primary-foreground">
               {initials(name, email)}
             </AvatarFallback>
           </Avatar>
@@ -83,15 +91,22 @@ export function AccountMenu({
 
       <DropdownMenuContent
         align="end"
-        className="w-60 border border-border/80 shadow-lg"
+        className="w-64 rounded-2xl"
         side="top"
         sideOffset={8}
       >
         <DropdownMenuLabel className="grid gap-0.5 p-2.5">
-          <span className="text-sm font-semibold text-foreground">{name}</span>
-          <span className="text-xs font-normal text-muted-foreground" dir="ltr">
-            {email}
+          <span className="truncate text-sm font-semibold text-foreground">
+            {name || email}
           </span>
+          {showEmail ? (
+            <span
+              className="truncate text-xs font-normal text-muted-foreground"
+              dir="ltr"
+            >
+              {email}
+            </span>
+          ) : null}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {children}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import {
   Ban,
@@ -12,6 +12,7 @@ import {
   LayoutGrid,
   List,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 import {
   Button,
@@ -19,8 +20,8 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  cn,
   EmptyState,
-  PageHeader,
   StatusBadge,
   Table,
   TableBody,
@@ -70,39 +71,32 @@ export function RoomsView({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <PageHeader>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {t("roomsAt", { property: propertyName })}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {t("roomsSubtitle")}
-            </p>
-          </PageHeader>
-          <p className="text-xs text-muted-foreground pt-2">
-            {t("today")}: <span className="font-mono">{data.today}</span>
-          </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="space-y-1">
+          <h2 className="text-lg font-medium text-muted-foreground">
+            {t("roomsAt", { property: propertyName })}
+          </h2>
+          <p className="text-sm text-muted-foreground">{t("roomsSubtitle")}</p>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-lg border bg-muted p-0.5">
+          <div className="inline-flex rounded-full border bg-card p-1 shadow-xs">
             <Button
+              aria-pressed={viewMode === "map"}
               size="sm"
               variant={viewMode === "map" ? "default" : "ghost"}
-              className="h-8 gap-1.5 px-3 text-xs"
               onClick={() => setViewMode("map")}
             >
-              <LayoutGrid aria-hidden="true" className="size-3.5" />
+              <LayoutGrid aria-hidden="true" />
               {t("bedMap")}
             </Button>
             <Button
+              aria-pressed={viewMode === "list"}
               size="sm"
               variant={viewMode === "list" ? "default" : "ghost"}
-              className="h-8 gap-1.5 px-3 text-xs"
               onClick={() => setViewMode("list")}
             >
-              <List aria-hidden="true" className="size-3.5" />
+              <List aria-hidden="true" />
               {t("bedList")}
             </Button>
           </div>
@@ -111,64 +105,31 @@ export function RoomsView({
         </div>
       </div>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-        <Card className="p-4">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <DoorOpen className="size-4" />
-            <span className="text-xs font-medium uppercase tracking-wider">
-              {t("statRooms")}
-            </span>
-          </div>
-          <div className="mt-2 text-2xl font-bold">{data.counts.rooms}</div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Bed className="size-4" />
-            <span className="text-xs font-medium uppercase tracking-wider">
-              {t("statBeds")}
-            </span>
-          </div>
-          <div className="mt-2 text-2xl font-bold">{data.counts.sellable}</div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Users className="size-4" />
-            <span className="text-xs font-medium uppercase tracking-wider">
-              {t("statOccupied")}
-            </span>
-          </div>
-          <div className="mt-2 text-2xl font-bold">{data.counts.inHouse}</div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <CheckCircle2 className="size-4 text-success" />
-            <span className="text-xs font-medium uppercase tracking-wider">
-              {t("statEmpty")}
-            </span>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold">{data.counts.free}</span>
-            {data.counts.reserved > 0 && (
-              <span className="text-xs text-muted-foreground">
-                ({data.counts.reserved} {t("reservedTonight").toLowerCase()})
-              </span>
-            )}
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Ban className="size-4 text-danger" />
-            <span className="text-xs font-medium uppercase tracking-wider">
-              {t("statBlocked")}
-            </span>
-          </div>
-          <div className="mt-2 text-2xl font-bold">{data.counts.blocked}</div>
-        </Card>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
+        <StatTile icon={DoorOpen} label={t("statRooms")} tone="neutral">
+          {data.counts.rooms}
+        </StatTile>
+        <StatTile icon={Bed} label={t("statBeds")} tone="neutral">
+          {data.counts.sellable}
+        </StatTile>
+        <StatTile icon={Users} label={t("statOccupied")} tone="info">
+          {data.counts.inHouse}
+        </StatTile>
+        <StatTile
+          icon={CheckCircle2}
+          label={t("statEmpty")}
+          note={
+            data.counts.reserved > 0
+              ? `${data.counts.reserved} ${t("reservedTonight").toLocaleLowerCase(locale)}`
+              : undefined
+          }
+          tone="success"
+        >
+          {data.counts.free}
+        </StatTile>
+        <StatTile icon={Ban} label={t("statBlocked")} tone="danger">
+          {data.counts.blocked}
+        </StatTile>
       </div>
 
       {/* Main Content */}
@@ -183,19 +144,22 @@ export function RoomsView({
             ([buildingKey, floorsMap]) => (
               <div key={buildingKey} className="space-y-6">
                 {buildingKey !== "default" && (
-                  <div className="flex items-center gap-2 border-b pb-2 text-lg font-semibold">
-                    <Building2 className="size-5 text-muted-foreground" />
+                  <h3 className="flex items-center gap-2.5 text-xl font-medium">
+                    <Building2
+                      aria-hidden="true"
+                      className="size-5 text-muted-foreground"
+                    />
                     {buildingKey}
-                  </div>
+                  </h3>
                 )}
 
                 {Array.from(floorsMap.entries()).map(([floorNum, rooms]) => (
                   <div key={floorNum ?? "nofloor"} className="space-y-3">
-                    <h3 className="text-sm font-medium text-muted-foreground">
+                    <h4 className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">
                       {floorNum !== null
-                        ? `${t("floor")} ${floorNum}`
-                        : t("building")}
-                    </h3>
+                        ? t("floorNumber", { floor: floorNum })
+                        : t("noFloor")}
+                    </h4>
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                       {rooms.map((room) => {
@@ -204,30 +168,30 @@ export function RoomsView({
                         return (
                           <Card
                             key={room.unitId}
-                            className="flex flex-col justify-between overflow-hidden border transition hover:border-foreground/30"
+                            className="justify-between gap-4 rounded-4xl"
                           >
-                            <CardHeader className="p-4 pb-2">
-                              <div className="flex items-center justify-between">
-                                <CardTitle className="text-base font-semibold">
+                            <CardHeader>
+                              <div className="flex items-baseline justify-between gap-3">
+                                <CardTitle className="text-3xl font-light tracking-tight tabular-nums">
                                   {room.name}
                                 </CardTitle>
                                 <span className="text-xs text-muted-foreground">
                                   {isLetByTheBed
-                                    ? `${room.beds.length} ${t("statBeds").toLowerCase()}`
-                                    : `${room.capacity} ${t("statOccupied").toLowerCase()}`}
+                                    ? t("bedCount", { count: room.beds.length })
+                                    : t("sleeps", { count: room.capacity })}
                                 </span>
                               </div>
                             </CardHeader>
 
-                            <CardContent className="p-4 pt-2">
+                            <CardContent>
                               {isLetByTheBed ? (
-                                <div className="grid grid-cols-2 gap-2 pt-1">
+                                <div className="grid grid-cols-2 gap-2">
                                   {room.beds.map((bed) => (
                                     <button
                                       key={bed.unitId}
                                       type="button"
                                       onClick={() => handleSelectUnit(bed)}
-                                      className="flex flex-col items-start rounded-md border p-2 text-start transition hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
+                                      className="hover-lift flex flex-col items-start rounded-2xl border bg-muted/40 p-2.5 text-start transition-colors hover:bg-secondary/70 focus-visible:ring-2 focus-visible:ring-ring"
                                     >
                                       <span className="text-xs font-semibold">
                                         {bed.name}
@@ -239,11 +203,11 @@ export function RoomsView({
                                   ))}
                                 </div>
                               ) : (
-                                <div className="flex items-center justify-between pt-2">
+                                <div className="flex items-center justify-between">
                                   <button
                                     type="button"
                                     onClick={() => handleSelectUnit(room)}
-                                    className="rounded-md focus-visible:ring-2 focus-visible:ring-ring"
+                                    className="rounded-full focus-visible:ring-2 focus-visible:ring-ring"
                                   >
                                     {renderUnitStateBadge(room, t)}
                                   </button>
@@ -262,17 +226,19 @@ export function RoomsView({
         </div>
       ) : (
         /* List View */
-        <div className="rounded-md border bg-card">
+        <div className="overflow-hidden rounded-3xl border bg-card shadow-low">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>{t("rooms")}</TableHead>
-                <TableHead>{t("building")}</TableHead>
-                <TableHead>{t("floor")}</TableHead>
+                <TableHead>{t("buildingColumn")}</TableHead>
+                <TableHead>{t("floorColumn")}</TableHead>
                 <TableHead>{t("stayTypeLabel")}</TableHead>
                 <TableHead>{t("capacityPerRoom")}</TableHead>
-                <TableHead>{t("balance")}</TableHead>
-                <TableHead className="text-end">{t("table.columns")}</TableHead>
+                <TableHead>{t("tonightColumn")}</TableHead>
+                <TableHead className="text-end">
+                  <span className="sr-only">{t("unitActions")}</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -390,4 +356,56 @@ function renderUnitStateBadge(
         />
       );
   }
+}
+
+const TILE_TONE = {
+  neutral: "bg-muted text-muted-foreground",
+  info: "bg-info-soft text-info",
+  success: "bg-success-soft text-success",
+  danger: "bg-danger-soft text-danger",
+} as const;
+
+/**
+ * One count at the head of the map: a tinted icon, the number set large and
+ * light, and what it counts. The tone repeats the icon's meaning; the label
+ * always says it in words.
+ */
+function StatTile({
+  children,
+  icon: Icon,
+  label,
+  note,
+  tone,
+}: {
+  children: ReactNode;
+  icon: LucideIcon;
+  label: string;
+  note?: string | undefined;
+  tone: keyof typeof TILE_TONE;
+}) {
+  return (
+    <div className="flex flex-col justify-between rounded-4xl border border-border/70 bg-card p-5 shadow-low">
+      <span
+        className={cn(
+          "inline-flex size-10 items-center justify-center rounded-2xl",
+          TILE_TONE[tone],
+        )}
+      >
+        <Icon aria-hidden="true" className="size-5" />
+      </span>
+      <div className="mt-6 space-y-1">
+        <p className="flex items-baseline gap-2">
+          <span className="text-4xl font-light tracking-tight tabular-nums">
+            {children}
+          </span>
+          {note ? (
+            <span className="text-xs text-muted-foreground">{note}</span>
+          ) : null}
+        </p>
+        <p className="text-xs font-medium tracking-wider text-muted-foreground/80 uppercase">
+          {label}
+        </p>
+      </div>
+    </div>
+  );
 }

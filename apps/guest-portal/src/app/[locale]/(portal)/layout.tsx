@@ -85,6 +85,9 @@ export default async function PortalLayout({
       pageBar={
         <AppPageBar
           action={<div className="md:hidden">{account}</div>}
+          // The Stay opens with the Property's name in display type, so the
+          // bar's own title stays small rather than set large above it.
+          display={false}
           title={t("stay")}
         />
       }

@@ -4,7 +4,22 @@ export type { RailLabels, SidebarLabels } from "./components/app-rail";
 export { SidebarProvider, useSidebar } from "./components/sidebar-context";
 export type { SidebarContextValue } from "./components/sidebar-context";
 export { AppPageBar } from "./components/app-page-bar";
+export type { PageCrumb } from "./components/app-page-bar";
 export { AccountMenu } from "./components/account-menu";
+export { LanguageSwitcher } from "./components/language-switcher";
+export type { LanguageSwitcherProps } from "./components/language-switcher";
+export { SplitAuthLayout } from "./components/split-auth-layout";
+export type {
+  SplitAuthLayoutProps,
+  SplitAuthService,
+} from "./components/split-auth-layout";
+export {
+  ServiceIconChecklist,
+  ServiceIconContract,
+  ServiceIconDocument,
+  ServiceIconDocumentAlt,
+  ServiceIconHome,
+} from "./components/auth-icons";
 export {
   groupNavEntries,
   isNavGroup,

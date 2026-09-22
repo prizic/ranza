@@ -34,6 +34,16 @@ export interface Messages {
 
   signInTitle: string;
   signInSummary: string;
+  authSlogan: string;
+  authSubSlogan: string;
+  authServices: {
+    stay: string;
+    property: string;
+    unit: string;
+    security: string;
+    records: string;
+  };
+  welcomeBack: string;
   email: string;
   password: string;
   signIn: string;
@@ -74,6 +84,17 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     signInTitle: "Oturum açın",
     signInSummary: "Konaklamanızı görmek için oturum açın.",
+    authSlogan: "HUZURLU KONAKLAMA, DİJİTAL KOLAYLIK",
+    authSubSlogan:
+      "Konaklamanızı, odanızı ve rezervasyon detaylarınızı zahmetsizce yönetin.",
+    authServices: {
+      stay: "Konaklamam",
+      property: "Tesisim",
+      unit: "Oda & Birim",
+      security: "Güvenli Erişim",
+      records: "Rezervasyon",
+    },
+    welcomeBack: "Tekrar hoş geldiniz",
     email: "E-posta",
     password: "Parola",
     signIn: "Oturum aç",
@@ -122,6 +143,17 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     signInTitle: "Sign in",
     signInSummary: "Sign in to see your stay.",
+    authSlogan: "YOUR STAY, ELEVATED",
+    authSubSlogan:
+      "Access your residence details, accommodation unit, and stay history seamlessly.",
+    authServices: {
+      stay: "My Stay",
+      property: "Property",
+      unit: "Unit & Bed",
+      security: "Secure Access",
+      records: "Reservation",
+    },
+    welcomeBack: "Welcome back",
     email: "Email",
     password: "Password",
     signIn: "Sign in",
@@ -172,6 +204,17 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     signInTitle: "تسجيل الدخول",
     signInSummary: "سجّل الدخول لعرض إقامتك.",
+    authSlogan: "إقامتك بكل راحة واطمئنان",
+    authSubSlogan:
+      "تابع تفاصيل إقامتك ووحدتك السكنية وسجل الحجوزات بكل سهولة ويسر.",
+    authServices: {
+      stay: "إقامتي",
+      property: "العقار",
+      unit: "الوحدة السكنية",
+      security: "الوصول الآمن",
+      records: "الحجز",
+    },
+    welcomeBack: "مرحبًا بك من جديد",
     email: "البريد الإلكتروني",
     password: "كلمة المرور",
     signIn: "تسجيل الدخول",

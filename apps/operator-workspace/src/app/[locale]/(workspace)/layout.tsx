@@ -1,15 +1,8 @@
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
-import { Check, ShieldCheck } from "lucide-react";
-import { isSupportedLocale, localizeHref, supportedLocales } from "@ranza/i18n";
-import {
-  AccountMenu,
-  AppShell,
-  BrandMark,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-} from "@ranza/ui";
+import { ShieldCheck } from "lucide-react";
+import { isSupportedLocale, localizeHref } from "@ranza/i18n";
+import { AccountMenu, AppShell, BrandMark, DropdownMenuItem } from "@ranza/ui";
 import { getTranslations } from "next-intl/server";
 import { ALL_SCREENS } from "../../../lib/screens";
 import {
@@ -19,6 +12,7 @@ import {
 } from "../../../server/viewer";
 import { QueryProvider } from "../../providers/query-provider";
 import { PropertySwitcher } from "./property-switcher";
+import { WorkspaceLanguageSwitcher } from "./workspace-language-switcher";
 import { WorkspacePageBar } from "./workspace-page-bar";
 import { WorkspaceBottomNav, WorkspaceRail } from "./workspace-rail";
 
@@ -90,35 +84,6 @@ export default async function WorkspaceLayout({
           {t("security")}
         </a>
       </DropdownMenuItem>
-
-      <DropdownMenuSeparator />
-
-      {/* Language belongs to the person too, and it is set once and then never
-          again — so it lives beside the account rather than costing three
-          permanent controls in a bar that has real work to show. */}
-      <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-        {t("languageLabel")}
-      </DropdownMenuLabel>
-      {supportedLocales.map((supported) => (
-        <DropdownMenuItem asChild key={supported}>
-          <a
-            aria-current={supported === locale ? "true" : undefined}
-            href={localizeHref(supported, "today")}
-            hrefLang={supported}
-            lang={supported}
-          >
-            <Check
-              aria-hidden="true"
-              className={
-                supported === locale
-                  ? "size-4 shrink-0"
-                  : "size-4 shrink-0 invisible"
-              }
-            />
-            {t(`languageName.${supported}`)}
-          </a>
-        </DropdownMenuItem>
-      ))}
     </AccountMenu>
   );
 
@@ -147,6 +112,11 @@ export default async function WorkspaceLayout({
                   }))}
                 />
               ) : null}
+              <div className="h-5 w-[1px] bg-border/60 mx-0.5 hidden sm:block" />
+              <WorkspaceLanguageSwitcher
+                label={t("languageLabel")}
+                locale={locale}
+              />
               {/* The rail is desktop-only, so on a phone the account rides in
                   the page bar rather than earning a second row of chrome. */}
               <div className="md:hidden">{account}</div>
@@ -159,7 +129,7 @@ export default async function WorkspaceLayout({
       rail={
         <WorkspaceRail
           actions={account}
-          brand={<BrandMark className="size-6 text-primary" />}
+          brand={<BrandMark className="size-5" />}
           entitled={entitled}
           labels={{
             back: t("back"),

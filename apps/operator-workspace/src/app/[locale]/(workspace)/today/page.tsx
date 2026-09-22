@@ -75,7 +75,7 @@ export default async function TodayPage({
           </p>
         }
       >
-        <h2 className="text-[clamp(2.75rem,9vw,5.5rem)] leading-[0.95] font-light tracking-[-0.03em] rtl:leading-[1.15] rtl:tracking-normal">
+        <h2 className="text-[clamp(2.75rem,9vw,5.5rem)] leading-[0.95] font-light tracking-[-0.03em] rtl:leading-[1.15]">
           {formatWeekday(now, locale, property.timezone)}
         </h2>
         <p className="mt-3 text-step-1 text-muted-foreground">

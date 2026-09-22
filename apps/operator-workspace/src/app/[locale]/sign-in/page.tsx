@@ -1,6 +1,15 @@
 import { notFound, redirect } from "next/navigation";
-import { isSupportedLocale, localizeHref, supportedLocales } from "@ranza/i18n";
-import { BrandMark } from "@ranza/ui";
+import { isSupportedLocale, localizeHref } from "@ranza/i18n";
+import {
+  BrandMark,
+  LanguageSwitcher,
+  ServiceIconChecklist,
+  ServiceIconContract,
+  ServiceIconDocument,
+  ServiceIconDocumentAlt,
+  ServiceIconHome,
+  SplitAuthLayout,
+} from "@ranza/ui";
 import { getTranslations } from "next-intl/server";
 import { currentViewer } from "../../../server/viewer";
 import { SignInForm } from "./sign-in-form";
@@ -9,6 +18,8 @@ import { SignInForm } from "./sign-in-form";
  * The gate. Deliberately not the workspace shell: there is no Organization, no
  * Property and no navigation yet, so showing the chrome would be showing an
  * empty version of it.
+ *
+ * Composed by SplitAuthLayout, after the Leaders portal sign-in.
  */
 export default async function SignInPage({
   params,
@@ -24,37 +35,58 @@ export default async function SignInPage({
   const t = await getTranslations();
 
   return (
-    <main className="grid min-h-svh place-items-center px-(--page) py-10">
-      <div className="w-full max-w-sm">
-        <p className="flex items-center justify-center gap-2 text-step-1 font-semibold">
-          <BrandMark className="size-6 text-primary" />
-          <span>{t("productName")}</span>
-        </p>
-
-        <div className="mt-6 rounded-xl bg-card p-6 shadow-low">
-          <h1 className="text-step-1 font-semibold">{t("signInTitle")}</h1>
-
-          <SignInForm redirectTo={today} />
+    <SplitAuthLayout
+      brand={
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20">
+            <BrandMark className="size-6" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xl leading-none font-bold tracking-tight text-foreground/80">
+              {t("productName")}
+            </span>
+            <span className="text-xs font-semibold text-primary uppercase tracking-wider mt-1 leading-none">
+              {t("workspaceBadge")}
+            </span>
+          </div>
         </div>
-
-        <nav
-          aria-label={t("languageLabel")}
-          className="mt-6 flex items-center justify-center gap-1 text-step--1"
-        >
-          {supportedLocales.map((supported) => (
-            <a
-              aria-current={supported === locale ? "true" : undefined}
-              className="rounded-sm px-1.5 py-0.5 text-muted-foreground transition-colors hover:text-foreground aria-[current=true]:bg-secondary aria-[current=true]:text-foreground"
-              href={localizeHref(supported, "sign-in")}
-              hrefLang={supported}
-              key={supported}
-              lang={supported}
-            >
-              {supported.toUpperCase()}
-            </a>
-          ))}
-        </nav>
-      </div>
-    </main>
+      }
+      languageSwitcher={
+        <LanguageSwitcher
+          currentLocale={locale}
+          hrefPattern="/{locale}/sign-in"
+          label={t("languageLabel")}
+          variant="pill"
+        />
+      }
+      services={[
+        {
+          icon: <ServiceIconDocument size={28} />,
+          label: t("authServices.records"),
+        },
+        {
+          icon: <ServiceIconHome size={28} />,
+          label: t("authServices.properties"),
+        },
+        {
+          icon: <ServiceIconChecklist size={28} />,
+          label: t("authServices.operations"),
+        },
+        {
+          icon: <ServiceIconDocumentAlt size={28} />,
+          label: t("authServices.security"),
+        },
+        {
+          icon: <ServiceIconContract size={28} />,
+          label: t("authServices.folios"),
+        },
+      ]}
+      slogan={t("authSlogan")}
+      subSlogan={t("authSubSlogan")}
+      welcomeSubtitle={t("signInSummary")}
+      welcomeTitle={t("welcomeBack")}
+    >
+      <SignInForm redirectTo={today} />
+    </SplitAuthLayout>
   );
 }

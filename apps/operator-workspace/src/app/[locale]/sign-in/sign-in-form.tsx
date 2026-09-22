@@ -96,13 +96,16 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
 
   if (challenging) {
     return (
-      <form className="mt-6 grid gap-4" onSubmit={verify}>
-        <p className="text-muted-foreground">{t("challengeSummary")}</p>
+      <form className="mt-4 grid gap-5" onSubmit={verify}>
+        <p className="text-sm font-medium text-muted-foreground">
+          {t("challengeSummary")}
+        </p>
         <Field htmlFor="code" label={t("code")}>
           <Input
             aria-invalid={failed || undefined}
             autoComplete="one-time-code"
             autoFocus
+            className="h-14 rounded-full px-6 text-[15px]"
             id="code"
             inputMode="text"
             name="code"
@@ -110,7 +113,11 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
           />
         </Field>
         {failed ? <FormError>{t("challengeFailed")}</FormError> : null}
-        <Button disabled={pending} type="submit">
+        <Button
+          className="hover-lift h-14 w-full rounded-full text-base font-bold tracking-wide shadow-lg shadow-primary/20"
+          disabled={pending}
+          type="submit"
+        >
           {pending ? t("signingIn") : t("verify")}
         </Button>
       </form>
@@ -118,14 +125,15 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
   }
 
   return (
-    <form className="mt-6 grid gap-4" onSubmit={signIn}>
-      <p className="text-muted-foreground">{t("signInSummary")}</p>
+    <form className="mt-4 grid gap-5" onSubmit={signIn}>
       <Field htmlFor="email" label={t("email")}>
         <Input
           aria-invalid={failed || undefined}
           autoComplete="username"
+          className="h-14 rounded-full px-6 text-[15px]"
           id="email"
           name="email"
+          placeholder="name@organization.com"
           required
           type="email"
         />
@@ -134,6 +142,7 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
         <Input
           aria-invalid={failed || undefined}
           autoComplete="current-password"
+          className="h-14 rounded-full px-6 text-[15px]"
           id="password"
           name="password"
           required
@@ -141,7 +150,11 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
         />
       </Field>
       {failed ? <FormError>{t("signInFailed")}</FormError> : null}
-      <Button disabled={pending} type="submit">
+      <Button
+        className="hover-lift h-14 w-full rounded-full text-base font-bold tracking-wide shadow-lg shadow-primary/20"
+        disabled={pending}
+        type="submit"
+      >
         {pending ? t("signingIn") : t("signIn")}
       </Button>
     </form>

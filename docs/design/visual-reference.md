@@ -58,12 +58,14 @@ matter (section 10).
 
 ## Design tokens
 
-**This file wins.** The approved mockups use this palette — a teal accent on a
-pale canvas — and they are the agreed direction.
+**This file wins.** The palette is the Leaders direction — a deep emerald
+accent and a warm cream secondary on an ivory canvas, white panels separated by
+a long soft shadow, and generous radii. It replaced the teal-on-pale-canvas
+palette of the first approved mockups on 2026-09-22, so those mockups are still
+right about layout and density and no longer right about colour.
 [`packages/ui/src/styles/globals.css`](../../packages/ui/src/styles/globals.css)
-now holds these values; the petrol-and-brass theme the walking skeleton shipped
-before this brief was reconciled with it is gone. Do not edit the values below
-to match the code — the traffic runs the other way.
+holds these values. Do not edit the values below to match the code — the
+traffic runs the other way.
 
 One departure, with its reason recorded beside it in that file: `Aptos` is not
 licensed for the web and would fall through to a system font on every machine
@@ -76,15 +78,15 @@ See also [`ui-references.md`](ui-references.md) for layout and interaction, and
 for how components are organised.
 
 ```css
---canvas: #f3f6f4;
---canvas-deep: #e6ece9;
---ink: #132f38;
---ink-muted: #52656b;
---accent: #087466;
---accent-dark: #05594f;
---accent-soft: #d9eee9;
+--canvas: #fbfaf8;
+--canvas-deep: hsl(170 10% 96%);
+--ink: hsl(170 60% 10%);
+--ink-muted: hsl(170 5% 45%);
+--accent: hsl(172 65% 20%);
+--accent-dark: hsl(172 75% 15%);
+--accent-soft: hsl(38 60% 95%);
 --surface: #ffffff;
---surface-strong: #132f38;
+--surface-strong: hsl(170 60% 10%);
 --success: #176842;
 --success-soft: #dcefe3;
 --warning: #8a5a08;
@@ -93,20 +95,25 @@ for how components are organised.
 --danger-soft: #f5dfdd;
 --info: #315f83;
 --info-soft: #dfeaf2;
---line: #c8d3d0;
---line-strong: #9caca8;
---focus: #126bad;
---radius-sm: 0.45rem;
---radius: 0.75rem;
---radius-lg: 1.15rem;
---shadow: 0 1.25rem 3.25rem rgb(19 47 56 / 10%);
---shadow-low: 0 0.5rem 1.5rem rgb(19 47 56 / 8%);
+--gold: #e4b763;
+--gold-ink: #8a684d;
+--line: hsl(170 10% 90%);
+--line-strong: hsl(170 10% 80%);
+--focus: hsl(172 65% 20%);
+--radius: 1rem;
+--shadow: 0 20px 60px rgba(0, 0, 0, 0.06);
+--shadow-low: 0 4px 14px rgba(10, 41, 36, 0.04);
 font-family: Aptos, "Segoe UI Variable", "Noto Sans Arabic", sans-serif;
 ```
 
 Accent is used for primary action and identity, not decoration. Surfaces are white
 on a soft canvas; separation comes from `--line` and `--shadow-low`, not heavy
 borders. Data tables use `font-variant-numeric: tabular-nums`.
+
+`--gold` is the brand shape on the sign-in screens and nothing else — it sits
+well below even the 3:1 large-text floor on the canvas and never carries text.
+Copy set in the brand's bronze uses `--gold-ink`, which is the reference's
+`#a48166` darkened to clear 4.5:1.
 
 ## Accessibility
 

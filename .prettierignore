@@ -7,3 +7,4 @@ node_modules
 pnpm-lock.yaml
 supabase/.temp
 .nodeterm
+**/TRIAL-RECORD*.html

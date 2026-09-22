@@ -2,12 +2,14 @@
  * Ranza design tokens.
  *
  * The values are the brief in docs/design/visual-reference.md, which is the
- * agreed direction and wins over anything shipped before it: a teal accent on a
- * pale canvas, white surfaces, separation from a hairline and a low shadow
- * rather than heavy borders.
+ * agreed direction and wins over anything shipped before it: the Leaders
+ * direction — a deep emerald accent and a warm cream secondary on an ivory
+ * canvas, white floating panels separated by a long soft shadow rather than a
+ * border, and generous radii.
  *
  * shadcn's vocabulary (`background`, `foreground`, `muted`, `border`, `ring`)
- * is the one used everywhere so its components and ours read from one system. Ranza adds only what that vocabulary has no word for: the
+ * is the one used everywhere so its components and ours read from one system.
+ * Ranza adds only what that vocabulary has no word for: the
  * semantic status tones, which exist because blueprint 18.5 forbids colour
  * alone and a status therefore needs a matching foreground and a soft fill that
  * text stays legible on.
@@ -23,15 +25,15 @@
 
 :root {
   /* --- the brief ------------------------------------------------------- */
-  --canvas: #f3f6f4;
-  --canvas-deep: #e6ece9;
-  --ink: #132f38;
-  --ink-muted: #52656b;
-  --accent: #087466;
-  --accent-dark: #05594f;
-  --accent-soft: #d9eee9;
+  --canvas: #fbfaf8;
+  --canvas-deep: hsl(170 10% 96%);
+  --ink: hsl(170 60% 10%);
+  --ink-muted: hsl(170 5% 45%);
+  --accent: hsl(172 65% 20%);
+  --accent-dark: hsl(172 75% 15%);
+  --accent-soft: hsl(38 60% 95%);
   --surface: #ffffff;
-  --surface-strong: #132f38;
+  --surface-strong: hsl(170 60% 10%);
 
   --success: #176842;
   --success-soft: #dcefe3;
@@ -42,14 +44,18 @@
   --info: #315f83;
   --info-soft: #dfeaf2;
 
-  --line: #c8d3d0;
-  --line-strong: #9caca8;
-  --focus: #126bad;
+  /* The bronze the brand's copy is set in — darkened from the reference's
+     #a48166, which is 3.4:1 on the canvas, to clear 4.5:1. */
+  --gold-ink: #8a684d;
 
-  --radius: 0.75rem;
+  --line: hsl(170 10% 90%);
+  --line-strong: hsl(170 10% 80%);
+  --focus: hsl(172 65% 20%);
 
-  --shadow: 0 1.25rem 3.25rem rgb(19 47 56 / 10%);
-  --shadow-low: 0 0.5rem 1.5rem rgb(19 47 56 / 8%);
+  --radius: 1rem;
+
+  --shadow: 0 20px 60px rgba(0, 0, 0, 0.06);
+  --shadow-low: 0 4px 14px rgba(10, 41, 36, 0.04);
 
   /* --- shadcn's names, pointed at the above ---------------------------- */
   --background: var(--canvas);
@@ -59,7 +65,7 @@
   --popover: var(--surface);
   --popover-foreground: var(--ink);
   --primary: var(--accent);
-  --primary-foreground: var(--surface);
+  --primary-foreground: hsl(0 0% 100%);
   --secondary: var(--accent-soft);
   --secondary-foreground: var(--accent-dark);
   --muted: var(--canvas-deep);
@@ -67,7 +73,7 @@
   --accent-background: var(--accent-soft);
   --accent-foreground: var(--accent-dark);
   --destructive: var(--danger);
-  --destructive-foreground: var(--surface);
+  --destructive-foreground: hsl(0 0% 100%);
   --border: var(--line);
   --input: var(--line-strong);
   --ring: var(--focus);
@@ -108,22 +114,24 @@
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
 
+  --color-gold-ink: var(--gold-ink);
+
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
   --color-ink-muted: var(--ink-muted);
   --color-accent-strong: var(--accent-dark);
   --color-accent-soft: var(--accent-soft);
 
-  /* sm..xl are the brief's own values and stay literal. The three above them
-     are derived the way upstream does it, because the luma components reach
-     for rounded-4xl and a missing step renders as no radius at all. */
-  --radius-sm: 0.45rem;
-  --radius-md: 0.6rem;
+  /* A 1rem base, each step a fixed offset from it. The steps above 3xl exist
+     because the luma components reach for rounded-4xl, and a missing step
+     renders as no radius at all. */
+  --radius-sm: calc(var(--radius) - 0.25rem);
+  --radius-md: calc(var(--radius) - 0.125rem);
   --radius-lg: var(--radius);
-  --radius-xl: 1.15rem;
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xl: calc(var(--radius) + 0.25rem);
+  --radius-2xl: calc(var(--radius) + 0.5rem);
+  --radius-3xl: calc(var(--radius) + 0.75rem);
+  --radius-4xl: calc(var(--radius) + 1rem);
 
   --shadow-low: var(--shadow-low);
   --shadow-raised: var(--shadow);
@@ -136,12 +144,8 @@
   --text-step-3: 1.953rem;
 
   /*
-   * The brief asks for Aptos, which is not licensed for the web and would fall
-   * through to a system font on every machine that is not Windows — three
-   * scripts rendered by whatever happened to be installed. IBM Plex Sans Arabic
-   * carries Latin, Turkish and Arabic in one family with drawn diacritics, so
-   * Turkish and Arabic are the same voice. Each application injects the
-   * variable.
+   * IBM Plex Sans Arabic carries Latin, Turkish and Arabic in one family with
+   * drawn diacritics, so Turkish and Arabic are the same voice.
    */
   --font-sans: var(--font-plex), "Segoe UI", system-ui, sans-serif;
 }
@@ -186,6 +190,28 @@
     font-variant-numeric: tabular-nums;
   }
 
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  /*
+   * Arabic is never letter-spaced. Any spacing other than zero makes the
+   * browser drop the joined letterforms, so tracked Arabic renders as
+   * disconnected glyphs. Stated once here, over every `tracking-*` utility,
+   * rather than as an `rtl:` exception on each one — the exception is the
+   * thing the next tracked label forgets. The one place `!important` belongs:
+   * this is a property of the script, not a style choice a component makes.
+   */
+  :lang(ar) {
+    letter-spacing: normal !important;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -194,4 +220,52 @@
       animation-duration: 0.01ms !important;
     }
   }
+}
+
+/*
+ * The surfaces the Leaders direction is built from. Utilities rather than
+ * classes, so they compose with variants (`md:glass-panel`, `hover:`) like
+ * everything else and a component never names a bespoke class.
+ */
+
+/* A floating panel: near-opaque white, a hairline you feel more than see, and
+   a long soft shadow that lifts it off the ivory canvas. */
+@utility glass-panel {
+  background: rgb(255 255 255 / 85%);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgb(0 0 0 / 4%);
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 2%),
+    0 2px 4px -1px rgb(0 0 0 / 2%),
+    0 20px 40px -8px rgb(10 41 36 / 5%);
+}
+
+/* A lighter translucent chip, for controls laid over a surface. */
+@utility glass {
+  background: rgb(255 255 255 / 75%);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgb(255 255 255 / 60%);
+}
+
+/* Feedback that a surface is pressable: a two-pixel rise with a little
+   overshoot. Motion users asked to be spared is removed by the base layer. */
+@utility hover-lift {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  &:hover {
+    transform: translateY(-2px);
+  }
+}
+
+@utility scrollbar-slim {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+/* Autofill paints its own yellow-grey over the white fields; keep them white. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--color-foreground);
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  transition: background-color 5000s ease-in-out 0s;
 }

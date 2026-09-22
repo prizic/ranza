@@ -15,6 +15,7 @@ export interface Messages {
   propertySwitcher: string;
   mainNavigation: string;
   sections: string;
+  breadcrumb: string;
   back: string;
   collapse: string;
   expand: string;
@@ -31,6 +32,16 @@ export interface Messages {
   noPropertyDescription: string;
   signInTitle: string;
   signInSummary: string;
+  authSlogan: string;
+  authSubSlogan: string;
+  authServices: {
+    records: string;
+    properties: string;
+    operations: string;
+    security: string;
+    folios: string;
+  };
+  welcomeBack: string;
   email: string;
   password: string;
   signIn: string;
@@ -284,6 +295,15 @@ export interface Messages {
   capacityPerRoom: string;
   building: string;
   floor: string;
+  /** Headings and columns, where "(optional)" belongs to the form alone. */
+  buildingColumn: string;
+  floorColumn: string;
+  floorNumber: string;
+  noFloor: string;
+  bedCount: string;
+  sleeps: string;
+  tonightColumn: string;
+  unitActions: string;
   letByTheBed: string;
   letByTheBedHint: string;
   blockBed: string;
@@ -403,6 +423,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     propertySwitcher: "Tesisler",
     mainNavigation: "Ana gezinme",
     sections: "Bölümler",
+    breadcrumb: "Konum",
     back: "Geri",
     collapse: "Menüyü daralt",
     expand: "Menüyü genişlet",
@@ -420,6 +441,17 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Organizasyonunuzdaki bir yönetici sizi bir tesise atadığında burada görünür.",
     signInTitle: "Oturum açın",
     signInSummary: "Ranza çalışma alanı",
+    authSlogan: "KONAKLAMA VE TESİS YÖNETİMİ, YENİDEN TANIMLANDI",
+    authSubSlogan:
+      "Tesisler, sakinler, rezervasyonlar ve folyolar için bütünleşik çalışma alanı.",
+    authServices: {
+      records: "Kayıt & Sicil",
+      properties: "Tesisler",
+      operations: "Ön Büro & Giriş",
+      security: "Güvenlik & Rol",
+      folios: "Folyolar & Maliye",
+    },
+    welcomeBack: "Tekrar hoş geldiniz",
     email: "E-posta",
     password: "Parola",
     signIn: "Oturum aç",
@@ -681,6 +713,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     capacityPerRoom: "Oda kapasitesi (kişi)",
     building: "Bina (isteğe bağlı)",
     floor: "Kat (isteğe bağlı)",
+    buildingColumn: "Bina",
+    floorColumn: "Kat",
+    floorNumber: "{floor}. kat",
+    noFloor: "Katı belirtilmemiş",
+    bedCount: "{count} yatak",
+    sleeps: "{count} kişilik",
+    tonightColumn: "Bu gece",
+    unitActions: "İşlemler",
     letByTheBed: "Yatak bazında kirala",
     letByTheBedHint:
       "Her yatak A, B, C... olarak ayrı ayrı kiralanabilir birim olur.",
@@ -825,6 +865,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     propertySwitcher: "Properties",
     mainNavigation: "Main navigation",
     sections: "Sections",
+    breadcrumb: "Breadcrumb",
     back: "Back",
     collapse: "Collapse sidebar",
     expand: "Expand sidebar",
@@ -842,6 +883,17 @@ export const messages: Record<SupportedLocale, Messages> = {
       "A manager in your Organization assigns you to a Property, and it appears here.",
     signInTitle: "Sign in",
     signInSummary: "Ranza operator workspace",
+    authSlogan: "HOSPITALITY, REFINED",
+    authSubSlogan:
+      "Dedicated workspace for properties, residents, reservations, and folios.",
+    authServices: {
+      records: "Registration",
+      properties: "Properties",
+      operations: "Front Office",
+      security: "Role Security",
+      folios: "Folios & Billing",
+    },
+    welcomeBack: "Welcome back",
     email: "Email",
     password: "Password",
     signIn: "Sign in",
@@ -1101,6 +1153,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     capacityPerRoom: "Capacity per room (guests)",
     building: "Building (optional)",
     floor: "Floor (optional)",
+    buildingColumn: "Building",
+    floorColumn: "Floor",
+    floorNumber: "Floor {floor}",
+    noFloor: "No floor set",
+    bedCount: "{count, plural, one {# bed} other {# beds}}",
+    sleeps: "Sleeps {count}",
+    tonightColumn: "Tonight",
+    unitActions: "Actions",
     letByTheBed: "Let by the bed",
     letByTheBedHint: "Each bed becomes a separate unit named A, B, C...",
     blockBed: "Block bed",
@@ -1243,6 +1303,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     propertySwitcher: "المنشآت",
     mainNavigation: "التنقل الرئيسي",
     sections: "الأقسام",
+    breadcrumb: "مسار التنقل",
     back: "رجوع",
     collapse: "طي القائمة",
     expand: "توسيع القائمة",
@@ -1260,6 +1321,17 @@ export const messages: Record<SupportedLocale, Messages> = {
       "يقوم أحد المديرين في مؤسستك بتعيينك إلى منشأة، فتظهر هنا.",
     signInTitle: "تسجيل الدخول",
     signInSummary: "مساحة عمل رانزا",
+    authSlogan: "إدارة الإقامة والضيافة المتكاملة",
+    authSubSlogan:
+      "مساحة العمل الموحدة للعقارات والمقيمين والحجوزات والسجلات المالية.",
+    authServices: {
+      records: "التسجيل والتوثيق",
+      properties: "العقارات والوحدات",
+      operations: "المكتب الأمامي",
+      security: "الأمان والصلاحيات",
+      folios: "السجلات المالية",
+    },
+    welcomeBack: "مرحبًا بك من جديد",
     email: "البريد الإلكتروني",
     password: "كلمة المرور",
     signIn: "تسجيل الدخول",
@@ -1512,6 +1584,15 @@ export const messages: Record<SupportedLocale, Messages> = {
     capacityPerRoom: "سعة الغرفة (أشخاص)",
     building: "المبنى (اختياري)",
     floor: "الطابق (اختياري)",
+    buildingColumn: "المبنى",
+    floorColumn: "الطابق",
+    floorNumber: "الطابق {floor}",
+    noFloor: "بلا طابق محدد",
+    bedCount:
+      "{count, plural, one {سرير واحد} two {سريران} few {# أسرّة} many {# سريرًا} other {# سرير}}",
+    sleeps: "يتّسع لـ {count}",
+    tonightColumn: "الليلة",
+    unitActions: "الإجراءات",
     letByTheBed: "تأجير بالسرير",
     letByTheBedHint: "يصبح كل سرير وحدة منفصلة تسمى A، B، C...",
     blockBed: "إغلاق السرير",
