@@ -37,6 +37,36 @@ function revalidateRooms(locale: string): void {
   revalidatePath(`/${locale}/arrivals`);
 }
 
+function isUnitNameTakenError(error: unknown): error is UnitNameTakenError {
+  return (
+    error instanceof UnitNameTakenError ||
+    (error instanceof Error && error.name === "UnitNameTakenError")
+  );
+}
+
+function isUnitConfigurationError(
+  error: unknown,
+): error is UnitConfigurationError {
+  return (
+    error instanceof UnitConfigurationError ||
+    (error instanceof Error && error.name === "UnitConfigurationError")
+  );
+}
+
+function isUnitRefusedError(error: unknown): error is UnitRefusedError {
+  return (
+    error instanceof UnitRefusedError ||
+    (error instanceof Error && error.name === "UnitRefusedError")
+  );
+}
+
+function isUnitOccupiedError(error: unknown): error is UnitOccupiedError {
+  return (
+    error instanceof UnitOccupiedError ||
+    (error instanceof Error && error.name === "UnitOccupiedError")
+  );
+}
+
 export async function addRooms(
   _previous: AddRoomsOutcome,
   form: FormData,
@@ -79,13 +109,13 @@ export async function addRooms(
     revalidateRooms(locale);
     return { status: "done" };
   } catch (error: unknown) {
-    if (error instanceof UnitNameTakenError) {
+    if (isUnitNameTakenError(error)) {
       return { status: "taken", message: error.message };
     }
-    if (error instanceof UnitConfigurationError) {
+    if (isUnitConfigurationError(error)) {
       return { status: "invalid", message: error.message };
     }
-    if (error instanceof UnitRefusedError) {
+    if (isUnitRefusedError(error)) {
       return { status: "refused", message: error.message };
     }
     throw error;
@@ -98,17 +128,11 @@ export async function blockUnit(
 ): Promise<BlockOutcome> {
   const viewer = await currentViewer();
   if (!viewer)
-    return {
-      status: "refused",
-      message: "that Accommodation Unit cannot be blocked",
-    };
+    return { status: "refused", message: "that unit cannot be blocked" };
 
   const locale = String(form.get("locale") ?? "");
   if (!isSupportedLocale(locale))
-    return {
-      status: "refused",
-      message: "that Accommodation Unit cannot be blocked",
-    };
+    return { status: "refused", message: "that unit cannot be blocked" };
 
   const unitId = String(form.get("unitId") ?? "");
   const reason = String(form.get("reason") ?? "").trim();
@@ -119,13 +143,13 @@ export async function blockUnit(
     revalidateRooms(locale);
     return { status: "done" };
   } catch (error: unknown) {
-    if (error instanceof UnitOccupiedError) {
+    if (isUnitOccupiedError(error)) {
       return { status: "occupied", message: error.message };
     }
-    if (error instanceof UnitConfigurationError) {
+    if (isUnitConfigurationError(error)) {
       return { status: "invalid", message: error.message };
     }
-    if (error instanceof UnitRefusedError) {
+    if (isUnitRefusedError(error)) {
       return { status: "refused", message: error.message };
     }
     throw error;
@@ -138,17 +162,11 @@ export async function unblockUnit(
 ): Promise<BlockOutcome> {
   const viewer = await currentViewer();
   if (!viewer)
-    return {
-      status: "refused",
-      message: "that Accommodation Unit cannot be unblocked",
-    };
+    return { status: "refused", message: "that unit cannot be unblocked" };
 
   const locale = String(form.get("locale") ?? "");
   if (!isSupportedLocale(locale))
-    return {
-      status: "refused",
-      message: "that Accommodation Unit cannot be unblocked",
-    };
+    return { status: "refused", message: "that unit cannot be unblocked" };
 
   const unitId = String(form.get("unitId") ?? "");
 
@@ -158,7 +176,7 @@ export async function unblockUnit(
     revalidateRooms(locale);
     return { status: "done" };
   } catch (error: unknown) {
-    if (error instanceof UnitRefusedError) {
+    if (isUnitRefusedError(error)) {
       return { status: "refused", message: error.message };
     }
     throw error;
