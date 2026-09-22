@@ -354,7 +354,13 @@ select throws_ok(
   '42501', NULL,
   'a lapsed Subscription invites nobody');
 
-set local role ranza;
+-- `none` rather than the owner's name. This used to say `set local role ranza`,
+-- which is the local cluster's owner and does not exist on the hosted
+-- database, so this suite could not run there at all — it errored out and
+-- took every assertion after it with it. `none` returns to whichever role
+-- connected, and that role bypasses policies in both environments: `ranza` is
+-- the superuser locally, `postgres` carries BYPASSRLS on Supabase.
+set local role none;
 insert into public.organization_memberships
   (organization_id, user_id, role, access_scope) values
   ('6a333333-3333-4333-8333-333333333333',
@@ -456,7 +462,7 @@ select app.set_request_context('61111111-1111-4111-8111-111111111111');
 -- As the owner, because the trigger is what is under test and slice 1 granted
 -- `ranza_app` no UPDATE on this table at all — writing a role is slice 3. A
 -- refusal from a missing grant would look identical and prove nothing.
-set local role ranza;
+set local role none;
 select throws_ok(
   $$update public.staff_roles
        set permissions = array['front_desk.book', 'front_desk.refund_everything']
@@ -558,7 +564,7 @@ select throws_ok(
 -- the author here is the Owner — who holds the whole catalogue — and the test
 -- is the other direction: a role whose author lacks one of the permissions in
 -- it. Housekeeping holds nothing, which is the cleanest version of that.
-set local role ranza;
+set local role none;
 update public.staff_roles
    set permissions = array['staff.define_roles', 'front_desk.check_in']
  where organization_id is null and key = 'housekeeping';
@@ -586,7 +592,7 @@ select throws_ok(
 -- point: moving them automatically would decide their permissions for them.
 select app.set_request_context('61111111-1111-4111-8111-111111111111');
 
-set local role ranza;
+set local role none;
 update public.organization_memberships
    set role = 'night_desk',
        role_scope_id = '6a111111-1111-4111-8111-111111111111'
