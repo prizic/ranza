@@ -17,7 +17,17 @@ await audit.record({
   context: { anything: "else worth explaining later" },
 });
 await audit.historyOf(actorId, "organization", subjectId);
+
+// Inside a transaction the host owns, after the host's own gate:
+const { records, total } = await recentWithin(tx, organizationId);
 ```
+
+`recentWithin` has no module-method twin on purpose. This module knows a scope as
+an opaque identifier and cannot say what one is entitled to, so whichever host
+can is the one that opens the transaction, evaluates its gate inside it, and
+passes the transaction here — the same arrangement as `recordWithin`. A method
+taking an actor and a scope would be a second path to the same rows with no
+gate on it.
 
 A subject is an opaque type name and identifier. This module never learns what
 one means — that translation is a host adapter's job, which is what lets the

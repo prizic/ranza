@@ -81,6 +81,25 @@ assert.match(
 );
 console.log("PASS the funnel rule covers every Ranza domain module");
 
+// And once more for a platform module. The rule named the Ranza tier alone
+// until the audit log became the first screen to read one, and a page
+// importing @ranza/platform-audit directly would have passed.
+const unfunnelledPlatform = cruise(
+  ["apps/operator-workspace/src/app/audit-log/page.ts"],
+  path.join(root, "tests/boundaries/fixtures"),
+);
+assert.notEqual(
+  unfunnelledPlatform.status,
+  0,
+  "a page reaching a platform module outside src/server must fail",
+);
+assert.match(
+  `${unfunnelledPlatform.stdout}${unfunnelledPlatform.stderr}`,
+  /tenant-data-only-through-the-server-funnel/,
+  "the fixture must trip the viewer funnel rule",
+);
+console.log("PASS the funnel rule covers every platform module");
+
 // Blueprint 9.10: a module reaches another module's index, never its internals.
 // The public-contract rule alone exempts anything inside a tier, so a module was
 // free to reach into a sibling — this proves the rule that closes that.

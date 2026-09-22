@@ -2,8 +2,13 @@ import "server-only";
 import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { TODAY_CAPABILITY } from "@ranza/core";
-import type { CapabilityRef, EntitledProperty } from "@ranza/core";
+import { AUDIT_CAPABILITY, TODAY_CAPABILITY } from "@ranza/core";
+import type {
+  AuditRecord,
+  CapabilityRef,
+  EntitledProperty,
+  ScopeHistory,
+} from "@ranza/core";
 import { FOLIO_CAPABILITY } from "@ranza/folios";
 import type { FolioDetail, FolioSummary } from "@ranza/folios";
 import { FRONT_DESK_CAPABILITY } from "@ranza/reservations";
@@ -30,21 +35,29 @@ import { getComposition } from "./composition";
  *   3. run the read inside withOrganizationContext  (the ranza_app client)
  *
  * Step 3 happens inside @ranza/core, so it cannot be forgotten by a caller.
- * Nothing outside src/server/ may import @ranza/db or @ranza/core, which
- * .dependency-cruiser.cjs enforces and tests/boundaries proves.
+ * Nothing outside src/server/ may import @ranza/db, a Ranza module or a
+ * platform module, which .dependency-cruiser.cjs enforces and tests/boundaries
+ * proves.
  */
 
 // Re-exported so a page never imports @ranza/core directly. The boundary rule
 // is absolute rather than carved out for constants: an exception is the crack
 // through which a direct query eventually arrives.
-export { TODAY_CAPABILITY, FRONT_DESK_CAPABILITY, FOLIO_CAPABILITY };
+export {
+  AUDIT_CAPABILITY,
+  TODAY_CAPABILITY,
+  FRONT_DESK_CAPABILITY,
+  FOLIO_CAPABILITY,
+};
 export type {
   Arrival,
+  AuditRecord,
   BookableUnit,
   Departure,
   FolioDetail,
   FolioSummary,
   ReservationRow,
+  ScopeHistory,
 };
 
 export interface Viewer {
@@ -222,4 +235,21 @@ export async function folio(folioId: string): Promise<FolioDetail | null> {
   const viewer = await currentViewer();
   if (!viewer) return null;
   return getComposition().folios.folioDetail(viewer.userId, folioId);
+}
+
+/**
+ * The Organization's recent audit records, read through one of its Properties
+ * — what was done, by whom, and why.
+ *
+ * Same funnel and same non-checking as `arrivals`: the gate is evaluated in the
+ * database, in the same transaction as the read, and a Property the viewer
+ * cannot reach produces an empty history rather than an error (ADR 0028).
+ *
+ * Not `cache`d, for the same reason the front-desk reads are not: a request
+ * that reverses a charge and then reads must see the record it just caused.
+ */
+export async function auditLog(propertyId: string): Promise<ScopeHistory> {
+  const viewer = await currentViewer();
+  if (!viewer) return { records: [], total: 0 };
+  return getComposition().core.recentActivity(viewer.userId, propertyId);
 }

@@ -1,0 +1,49 @@
+%% Slices decide implementation order and nothing else:
+%%   s1 the Organization's recent records   s2 one record   s3 name the actor
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% UML directions: include points base --> included. extend points extension --> base.
+%% Refusals are test cases, not use cases: they are rows in edge-cases.csv.
+%% The one state is in states.mmd and is deliberately not repeated here.
+flowchart TD
+
+  SM["Staff Member<br/>audit, at a Property of the Organization"]
+
+  subgraph S1["slice 1 &mdash; the Organization's recent records"]
+    LIST(["Read what was done, by whom, and why<br/>newest first, capped and saying so"])
+    TRACE(["Trace a correction to its actor and reason"])
+  end
+
+  subgraph S2["slice 2 &mdash; one record"]
+    ONE(["Open one record<br/>the whole reason and every context fact"])
+  end
+
+  subgraph S3["slice 3 &mdash; name the actor"]
+    NAME(["See a colleague's name rather than an id<br/>PRE-01"])
+  end
+
+  subgraph OUT["Not this feature"]
+    WRITE(["Writing a record &mdash; every module that acts already does"])
+    REASON(["Requiring a reason &mdash; the correction that takes one already does"])
+    PROP(["Records scoped to a Property &mdash; a column, AL-DEF-01"])
+    ROLE(["A manager-only log &mdash; staff permissions, AL-DEF-02"])
+    PAGE(["Reading past the cap &mdash; AL-DEF-03"])
+    EXPORT(["Export &mdash; Organization Data export, blueprint 3.6"])
+  end
+
+  TRACE -- "extend" --> LIST
+  ONE -- "extend" --> LIST
+  NAME -- "extend" --> LIST
+  NAME -- "extend" --> ONE
+
+  SM --> LIST
+  SM --> ONE
+
+  LIST -. "depends on" .-> WRITE
+  TRACE -. "depends on" .-> REASON
+
+  %% OPEN: who may open the log. Today: every Staff Member assigned to a Property
+  %% where `audit` is enabled sees the whole Organization's records, which is no
+  %% wider than the policy already allows. Whether it is a manager surface is
+  %% AL-DEF-02.
+  %% OPEN: where it sits in the rail. Blueprint 4.6 lists no Audit destination;
+  %% it is drawn as its own destination because 3.6 makes audit a baseline right.

@@ -4,6 +4,7 @@ import {
   CalendarDays,
   ChefHat,
   BellRing,
+  History,
   Hotel,
   House,
   LogIn,
@@ -25,10 +26,16 @@ import {
  * module" — so these are not the section 5 modules and do not map one to one
  * onto them.
  *
- * Four are built. The rest are routes with a stated purpose and nothing behind
- * them, which is the honest shape while blueprint section 13 forbids building
+ * `built` says which are built. The rest are routes with a stated purpose and
+ * nothing behind them, which is the honest shape while blueprint section 13 forbids building
  * tables ahead of the workflows that need them. `docs/handover/operator-workspace-screens.md`
  * says what each one needs first.
+ *
+ * The audit log is the one entry section 4.6 does not list. It is here because
+ * section 3.6 makes audit a baseline right no package can remove, and a record
+ * nobody can open is not evidence of anything. Where it sits in the rail is an
+ * open question in `docs/features/audit-log/use-case.mmd`; last is the honest
+ * default for a record that is consulted rather than worked.
  *
  * Every entry is gated. A capability the Organization has not bought is absent
  * from the rail entirely (blueprint 4.6) — never greyed out, and never an
@@ -173,6 +180,14 @@ export const SCREENS: Screen[] = [
     blueprint: "5.1",
     built: false,
     section: "system",
+  },
+  {
+    segment: "audit-log",
+    capability: "audit",
+    module: "platform_core",
+    icon: History,
+    blueprint: "7.4",
+    built: true,
   },
 ];
 

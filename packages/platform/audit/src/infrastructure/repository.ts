@@ -102,3 +102,46 @@ export async function listForSubject(
   `;
   return rows.map(toRecord);
 }
+
+/** The newest records in one scope, and how many there are in all. */
+export interface ScopeHistory {
+  records: AuditRecord[];
+  total: number;
+}
+
+/**
+ * The newest records in one scope.
+ *
+ * The scope is named in the predicate even though the read policy already
+ * bounds rows to scopes the acting user reaches: that policy is membership-wide,
+ * so a user in two scopes would otherwise see both interleaved. The policy is
+ * the boundary; the predicate is what makes this one scope's history.
+ *
+ * `total` is the count before the limit, from the same statement, so a capped
+ * list can say so — a silently truncated history looks exactly like a complete
+ * one. `id` breaks ties on `occurred_at` so the order is stable across reads.
+ */
+export async function listForScope(
+  tx: AuditClient,
+  organizationId: string,
+  limit: number,
+): Promise<ScopeHistory> {
+  const rows = await tx.$queryRaw<(Row & { total: number })[]>`
+    select
+      id,
+      organization_id as "organizationId",
+      actor_id        as "actorId",
+      action,
+      subject_type    as "subjectType",
+      subject_id      as "subjectId",
+      reason,
+      context,
+      occurred_at     as "occurredAt",
+      count(*) over()::int as "total"
+    from audit.records
+    where organization_id = ${organizationId}::uuid
+    order by occurred_at desc, id desc
+    limit ${limit}
+  `;
+  return { records: rows.map(toRecord), total: rows[0]?.total ?? 0 };
+}

@@ -32,6 +32,20 @@ export const TODAY_CAPABILITY: CapabilityRef = {
   capabilityKey: "today",
 };
 
+/**
+ * Reading the Organization's audit log — what was done, by whom, and why.
+ *
+ * Audit is Platform Core (blueprint 5.1) and a baseline right no package
+ * selection can remove (3.6), which is why the module key is Core's own. The
+ * capability is still a Property capability like every other destination: it
+ * is what puts the screen in the rail and what the read is gated on, and a
+ * Property that has it off reaches nothing — the same shape as `today`.
+ */
+export const AUDIT_CAPABILITY: CapabilityRef = {
+  moduleKey: PLATFORM_CORE_MODULE,
+  capabilityKey: "audit",
+};
+
 /** A Property the acting Staff Member may use a capability in. */
 export interface EntitledProperty {
   propertyId: string;

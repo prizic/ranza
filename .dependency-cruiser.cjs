@@ -67,8 +67,9 @@ module.exports = {
         "Skipping that does not raise — policies see a null user and deny, so " +
         "the page renders empty and looks like missing data. The three steps " +
         "live together in src/server/viewer.ts, and nothing else may reach the " +
-        "database or a module that does. Every Ranza domain module is covered, " +
-        "not a list of them, so adding one cannot quietly fall outside the rule.",
+        "database or a module that does. Every Ranza domain module and every " +
+        "platform module is covered, not a list of them, so adding one cannot " +
+        "quietly fall outside the rule.",
       severity: "error",
       from: {
         // apps/worker is excluded because it has no funnel and no viewer: it
@@ -77,7 +78,7 @@ module.exports = {
         path: "^apps/(?!worker/)[^/]+/src/",
         pathNot: "^apps/[^/]+/src/server/",
       },
-      to: { path: "^packages/(auth|db|ranza)/" },
+      to: { path: "^packages/(auth|db|ranza|platform)/" },
     },
     {
       name: "the-worker-opens-one-connection-in-one-place",
