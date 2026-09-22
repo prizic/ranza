@@ -101,6 +101,8 @@ describe("every catalogue parses", () => {
               translate(path.join("."), {
                 columns: "x",
                 count: 2,
+                date: "16 Sep",
+                eta: "14:00",
                 guest: "x",
                 max: 2,
                 min: 2,

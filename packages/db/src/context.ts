@@ -26,10 +26,15 @@ export interface TenantClient {
   $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number>;
 }
 
+interface TransactionOptions {
+  maxWait?: number;
+  timeout?: number;
+}
+
 interface TransactionCapable<TClient extends TenantClient> {
   $transaction<TResult>(
     run: (client: TClient) => Promise<TResult>,
-    options?: { maxWait?: number; timeout?: number },
+    options?: TransactionOptions,
   ): Promise<TResult>;
 }
 
@@ -63,6 +68,6 @@ export async function withOrganizationContext<
       );
       return query(client);
     },
-    { timeout: 25000, maxWait: 15000 },
+    { maxWait: 15_000, timeout: 30_000 },
   );
 }

@@ -171,12 +171,26 @@ export function createReservationsModule(deps: ReservationsDeps) {
           unit.id                                       as "unitId",
           unit.name                                     as "unitName",
           unit.unit_type                                as "unitType",
+          unit.status                                   as "unitStatus",
           stay.id                                       as "stayId",
+          null::text                                    as "eta",
+          greatest(0, (today.day - reservation.starts_on))::int as "daysLate",
+          coalesce(
+            (
+              select sum(line.amount_minor)
+              from public.folio_lines as line
+              where line.folio_id = folio.id
+            ),
+            0
+          )::int                                        as "balanceMinor",
+          coalesce(folio.currency, property.currency)   as "currency",
           reservation.status = 'confirmed'
             and reservation.starts_on <= today.day
             and (reservation.ends_on is null
                  or reservation.ends_on > today.day)    as "canCheckIn"
         from public.reservations as reservation
+        join public.properties as property
+          on property.id = reservation.property_id
         -- An inner join: guest_id is NOT NULL and its composite foreign key
         -- proves the Guest is this Organization's, so a Reservation whose
         -- Guest is unreadable is not a state this table can be in.
@@ -191,6 +205,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
         left join public.stays as stay
           on stay.reservation_id = reservation.id
          and stay.status = 'in_house'
+        left join public.folios as folio
+          on folio.stay_id = stay.id
+         and folio.status = 'open'
         -- Once, for the whole query. The Property is fixed by the parameter
         -- below, so this is the same date on every row, and computing it per
         -- row would only invite the two comparisons to disagree across a
@@ -531,6 +548,16 @@ export function createReservationsModule(deps: ReservationsDeps) {
           unit.id                               as "unitId",
           unit.name                             as "unitName",
           unit.unit_type                        as "unitType",
+          unit.status                           as "unitStatus",
+          coalesce(
+            (
+              select sum(line.amount_minor)
+              from public.folio_lines as line
+              where line.folio_id = folio.id
+            ),
+            0
+          )::int                                as "balanceMinor",
+          coalesce(folio.currency, property.currency) as "currency",
           stay.ends_on < (now() at time zone property.timezone)::date
                                                 as "overdue"
         from public.stays as stay
@@ -544,6 +571,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
         -- no Guest recorded anywhere. Nothing creates a walk-in yet.
         left join public.guests as guest
           on guest.id = reservation.guest_id
+        left join public.folios as folio
+          on folio.stay_id = stay.id
+         and folio.status = 'open'
         where stay.property_id = ${propertyId}::uuid
           and stay.status = 'in_house'
           and stay.ends_on is not null
