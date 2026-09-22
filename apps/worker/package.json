@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "esbuild src/main.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/main.mjs --banner:js=\"import{createRequire as __cr}from'node:module';const require=__cr(import.meta.url);\" --external:@prisma/client --external:@nestjs/microservices --external:@nestjs/websockets --external:@nestjs/platform-express --external:class-transformer --external:class-validator",
-    "dev": "node --enable-source-maps dist/main.mjs",
+    "dev": "pnpm build && node --enable-source-maps dist/main.mjs",
     "lint": "eslint src",
     "start": "node dist/main.mjs",
     "typecheck": "tsc --noEmit"
