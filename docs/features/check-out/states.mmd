@@ -20,7 +20,7 @@ stateDiagram-v2
     [*] --> s_reserved : not built
     [*] --> s_in_house : checkIn / built
     s_reserved --> s_in_house : not built
-    s_in_house --> s_departed : checkOut / s1 / built today
+    s_in_house --> s_departed : checkOut / s1 / built
     s_in_house --> s_cancelled : reverseCheckIn / built
     s_departed --> s_in_house : reverseCheckOut / s3 / same business date only
     s_cancelled --> [*]
@@ -37,12 +37,12 @@ stateDiagram-v2
     [*] --> r_requested : not built
     [*] --> r_confirmed : not built
     r_requested --> r_confirmed : not built
-    r_requested --> r_cancelled : not built
-    r_confirmed --> r_cancelled : not built
-    r_confirmed --> r_no_show : not built
+    r_requested --> r_cancelled : cancelReservation / built
+    r_confirmed --> r_cancelled : cancelReservation / built
+    r_confirmed --> r_no_show : markNoShow / built
     r_confirmed --> r_checked_in : checkIn / built
     r_checked_in --> r_confirmed : reverseCheckIn / built
-    r_checked_in --> r_checked_out : checkOut / s1 / not built today
+    r_checked_in --> r_checked_out : checkOut / s1 / built
     r_checked_out --> r_checked_in : reverseCheckOut / s3 / same business date only
     r_cancelled --> [*]
     r_no_show --> [*]
