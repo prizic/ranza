@@ -345,12 +345,25 @@ select is_empty(
 -- app.unit_is_sellable() is — they consult rows the caller's policies may hide
 -- — and neither writes, so the count of writers below is unchanged and the
 -- sweep above still reads zero.
+--
+-- One guest in one Unit (20260916003700) brought one more,
+-- app.unit_holds_one_occupancy(). A definer for the same reason again: whether
+-- a Unit is free is not a question the actor's policies may shrink, or a room
+-- reads empty because the viewer cannot see who is in it. It writes nothing.
+-- The migration after it brought app.stay_and_reservation_agree(), which must
+-- see a Reservation's every Stay to say whether they agree. It writes nothing
+-- either.
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  23,
-  'the definer sweep looked at 23 functions; change this number deliberately');
+  25,
+  'the definer sweep looked at 25 functions; change this number deliberately');
 
+-- The pattern wants whitespace after the verb, so a trigger comparing
+-- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
+-- does exactly that and writes nothing. Reformatting such a comparison so that
+-- a space follows the verb would turn this red for a function that is innocent;
+-- read it before changing the number.
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef and p.prosrc ~* '(insert|update|delete)\s'),
@@ -360,7 +373,8 @@ select is(
 -- Part B: the inventory itself, so a twenty-fourth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions, and the three that
--- write are named in the comment above; the last two are rooms and beds.
+-- write are named in the comment above; then two for rooms and beds, and two
+-- for the front desk.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -374,8 +388,9 @@ select set_eq(
         'organization_keeps_an_administrator','organization_permissions',
         'role_change_keeps_an_administrator','role_is_not_held',
         'role_permissions_are_in_the_catalogue',
-        'unit_can_be_blocked','unit_is_in_service'],
-  'and they are exactly the twenty-three the design gives a reason for');
+        'unit_can_be_blocked','unit_is_in_service','unit_holds_one_occupancy',
+        'stay_and_reservation_agree'],
+  'and they are exactly the twenty-five the design gives a reason for');
 
 select finish();
 rollback;

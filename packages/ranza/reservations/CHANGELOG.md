@@ -22,6 +22,10 @@ everything lands under Unreleased.
   [ADR 0024](../../../docs/adr/0024-a-guest-belongs-to-an-organization-and-a-reservation-holds-its-nights.md).
 - `listReservations()` and `listBookableUnits()`: the booking screen's two
   reads.
+- `UnitHasOccupantError` and `UnitNotInServiceError`. `checkIn()` and
+  `createReservation()` now say when a Unit has somebody in it, or is blocked,
+  rather than refusing generically
+  ([ADR 0029](../../../docs/adr/0029-an-in-house-stay-holds-its-unit-until-it-is-checked-out.md)).
 
 ### Changed
 

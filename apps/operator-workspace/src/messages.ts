@@ -70,6 +70,8 @@ export interface Messages {
   checkingIn: string;
   checkedIn: string;
   unitUnavailable: string;
+  unitOccupied: string;
+  unitNotInService: string;
   checkInRefused: string;
 
   /**
@@ -95,7 +97,12 @@ export interface Messages {
   stayType: Record<"guest" | "resident", string>;
   unitType: Record<"room" | "bed" | "apartment" | "suite", string>;
   reservationStatus: Record<
-    "requested" | "confirmed" | "cancelled" | "no_show" | "checked_in",
+    | "requested"
+    | "confirmed"
+    | "cancelled"
+    | "no_show"
+    | "checked_in"
+    | "checked_out",
     string
   >;
 
@@ -129,8 +136,6 @@ export interface Messages {
   openFolio: string;
   showOnBedMap: string;
   profile: string;
-  unitOutOfOrder: string;
-  unitOccupied: string;
   leaves: string;
   overdueSince: string;
   untilDate: string;
@@ -240,6 +245,7 @@ export interface Messages {
   takingBooking: string;
   discardBooking: string;
   bookingUnavailable: string;
+  bookingOverOccupant: string;
   bookingPeriodInvalid: string;
   bookingGuestInvalid: string;
   bookingRefused: string;
@@ -466,6 +472,10 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkingIn: "Yapılıyor",
     checkedIn: "Giriş yapıldı",
     unitUnavailable: "Bu birim seçilen tarihlerde dolu.",
+    unitOccupied:
+      "Bu birimde hâlâ konaklayan biri var. Önce onun çıkışını yapın ya da misafiri başka bir birime alın.",
+    unitNotInService:
+      "Bu birim bloke ya da hizmet dışı. Blokeyi kaldırın ya da misafiri başka bir birime alın.",
     checkInRefused: "Bu rezervasyon için giriş yapılamıyor.",
     undoCheckIn: "Girişi geri al",
     undoingCheckIn: "Geri alınıyor",
@@ -496,6 +506,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       cancelled: "İptal edildi",
       no_show: "Gelmedi",
       checked_in: "Giriş yapıldı",
+      checked_out: "Çıkış yapıldı",
     },
     arrivals: "Girişler",
     departures: "Çıkışlar",
@@ -528,8 +539,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     openFolio: "Folyoyu aç",
     showOnBedMap: "Yatak haritasında göster",
     profile: "Profil",
-    unitOutOfOrder: "Birim hizmet dışı",
-    unitOccupied: "Birim dolu",
     leaves: "Çıkış",
     overdueSince: "{date} tarihinden beri gecikmiş",
     untilDate: "{date} tarihine kadar",
@@ -633,6 +642,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     takingBooking: "Oluşturuluyor",
     discardBooking: "Vazgeç",
     bookingUnavailable: "Bu birim o geceler için zaten dolu.",
+    bookingOverOccupant:
+      "Bu birimde o gecelerin bazısında konaklayan biri var.",
     bookingPeriodInvalid:
       "Bu tarihler geçerli bir dönem değil. Rezervasyon en az bir gece sürer ve bugünden önce başlayamaz.",
     bookingGuestInvalid:
@@ -888,6 +899,10 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkingIn: "Checking in",
     checkedIn: "Checked in",
     unitUnavailable: "That Unit is occupied for those nights.",
+    unitOccupied:
+      "Somebody is still staying in that Unit. Check them out first, or put this Guest in another Unit.",
+    unitNotInService:
+      "That Unit is blocked or out of service. Unblock it, or put this Guest in another Unit.",
     checkInRefused: "That Reservation cannot be checked in.",
     undoCheckIn: "Undo check-in",
     undoingCheckIn: "Undoing",
@@ -918,6 +933,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       cancelled: "Cancelled",
       no_show: "No show",
       checked_in: "Checked in",
+      checked_out: "Checked out",
     },
     arrivals: "Arrivals",
     departures: "Departures",
@@ -949,8 +965,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     openFolio: "Open folio",
     showOnBedMap: "Show on bed map",
     profile: "Profile",
-    unitOutOfOrder: "Unit is out of service",
-    unitOccupied: "Unit is occupied",
     leaves: "Leaves",
     overdueSince: "Overdue since {date}",
     untilDate: "until {date}",
@@ -1053,6 +1067,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     takingBooking: "Creating",
     discardBooking: "Cancel",
     bookingUnavailable: "That Unit is already booked for those nights.",
+    bookingOverOccupant:
+      "Somebody is staying in that Unit for some of those nights.",
     bookingPeriodInvalid:
       "Those dates are not a period a Reservation can have. It covers at least one night and cannot start before today.",
     bookingGuestInvalid:
@@ -1306,6 +1322,10 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkingIn: "جارٍ التسجيل",
     checkedIn: "تم تسجيل الوصول",
     unitUnavailable: "هذه الوحدة محجوزة في تلك الليالي.",
+    unitOccupied:
+      "لا يزال هناك نزيل في هذه الوحدة. سجّل مغادرته أولًا أو ضع هذا الضيف في وحدة أخرى.",
+    unitNotInService:
+      "هذه الوحدة محظورة أو خارج الخدمة. ارفع الحظر أو ضع هذا الضيف في وحدة أخرى.",
     checkInRefused: "لا يمكن تسجيل الوصول لهذا الحجز.",
     undoCheckIn: "التراجع عن تسجيل الوصول",
     undoingCheckIn: "جارٍ التراجع",
@@ -1336,6 +1356,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       cancelled: "ملغى",
       no_show: "لم يحضر",
       checked_in: "تم تسجيل الوصول",
+      checked_out: "تمت المغادرة",
     },
     arrivals: "الوصول",
     departures: "المغادرة",
@@ -1368,8 +1389,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     openFolio: "فتح الحساب",
     showOnBedMap: "عرض على خريطة الأسرّة",
     profile: "الملف الشخصي",
-    unitOutOfOrder: "الوحدة خارج الخدمة",
-    unitOccupied: "الوحدة مشغولة",
     leaves: "المغادرة",
     overdueSince: "متأخر منذ {date}",
     untilDate: "حتى {date}",
@@ -1467,6 +1486,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     takingBooking: "جارٍ الإنشاء",
     discardBooking: "إلغاء",
     bookingUnavailable: "هذه الوحدة محجوزة بالفعل لتلك الليالي.",
+    bookingOverOccupant: "هناك نزيل يقيم في هذه الوحدة خلال بعض تلك الليالي.",
     bookingPeriodInvalid:
       "هذه التواريخ ليست مدة صالحة. يغطي الحجز ليلة واحدة على الأقل ولا يبدأ قبل اليوم.",
     bookingGuestInvalid: "تحقق من اسم الضيف وبريده الإلكتروني وهاتفه.",

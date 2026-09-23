@@ -60,14 +60,10 @@ The next few slices, in the order decided by what each one unblocks:
    nothing does either, and a Reservation that cannot be cancelled is a Unit
    that cannot be freed except by the day passing.
 
-One gap is named rather than left to be discovered. `reservations_no_double_booking`
-refuses a second **confirmed** Reservation over one Unit's nights, and stops
-there on purpose: a checked-in Reservation hands its nights to the Stay, which
-is what lets a room be re-let the morning its Guest leaves. So a Unit whose
-Guest is in house can still be promised over their remaining nights, and the
-refusal arrives at check-in rather than at the booking. Closing it needs a
-Reservation to consult the Stays on its Unit — a cross-table question an
-exclusion constraint cannot ask, and a decision nobody has made.
+The gap this page used to name is closed: a Unit with somebody in it can no
+longer be promised over their remaining nights, and an overstaying Guest keeps
+their room until they are checked out
+([ADR 0029](adr/0029-an-in-house-stay-holds-its-unit-until-it-is-checked-out.md)).
 
 Per-screen notes for the Operator Workspace are in
 [`handover/operator-workspace-screens.md`](handover/operator-workspace-screens.md),

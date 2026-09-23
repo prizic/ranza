@@ -20,6 +20,8 @@ import {
   createReservationsModule,
   ReservationPeriodError,
   ReservationRefusedError,
+  UnitNotInServiceError,
+  UnitHasOccupantError,
   UnitUnavailableError,
 } from "../../packages/ranza/reservations/src";
 import type { Arrival } from "../../packages/ranza/reservations/src";
@@ -274,6 +276,86 @@ async function reserve(
  */
 const reservationId = () => randomUUID();
 
+/**
+ * A Unit of this run's own, at the front desk's Property.
+ *
+ * For describes that leave a Unit in a state the next run cannot start from —
+ * blocked, or with somebody in house. Units are never deleted, so a fixed one
+ * would arrive at the next run still occupied.
+ */
+async function aUnit(): Promise<string> {
+  const id = randomUUID();
+  await owner.$executeRawUnsafe(
+    `insert into public.accommodation_units
+       (id, property_id, organization_id, name, unit_type, capacity)
+     values ($1::uuid, $2::uuid, $3::uuid, $4, 'room', 2)`,
+    id,
+    PROPERTY,
+    ORG,
+    `FD-${id.slice(0, 6)}`,
+  );
+  return id;
+}
+
+/**
+ * A Reservation whose Guest arrived some days ago: its Stay written as the
+ * owner, and the Reservation moved to checked in in the same statement, so the
+ * pair agrees at commit (CO-S1-29). For a Stay that began before today, which
+ * check-in — dated by the business date — cannot produce.
+ */
+async function arrived(
+  reservation: string,
+  unitId: string,
+  from: number,
+  to: number,
+): Promise<string> {
+  const [row] = await owner.$queryRawUnsafe<{ id: string }[]>(
+    `with moved as (
+       update public.reservations set status = 'checked_in'
+        where id = $1::uuid
+       returning id
+     )
+     insert into public.stays
+       (organization_id, property_id, accommodation_unit_id, reservation_id,
+        stay_type, status, starts_on, ends_on)
+     select $2::uuid, $3::uuid, $4::uuid, moved.id, 'guest', 'in_house',
+            app.property_today($3::uuid) + $5::int,
+            app.property_today($3::uuid) + $6::int
+     from moved
+     returning id`,
+    reservation,
+    ORG,
+    PROPERTY,
+    unitId,
+    from,
+    to,
+  );
+  return row!.id;
+}
+
+/** Somebody in house on a Unit, written as the owner, dated from today. */
+async function inHouse(
+  unitId: string,
+  nights: { from: number; to: number | null },
+): Promise<string> {
+  const [row] = await owner.$queryRawUnsafe<{ id: string }[]>(
+    `insert into public.stays
+       (organization_id, property_id, accommodation_unit_id, stay_type,
+        status, starts_on, ends_on)
+     select $2::uuid, $3::uuid, $1::uuid, 'guest', 'in_house',
+            app.property_today($3::uuid) + $4::int,
+            case when $5::int is null then null
+                 else app.property_today($3::uuid) + $5::int end
+     returning id`,
+    unitId,
+    ORG,
+    PROPERTY,
+    nights.from,
+    nights.to,
+  );
+  return row!.id;
+}
+
 beforeAll(async () => {
   await seed();
 });
@@ -384,18 +466,44 @@ describe("arrivals that are no longer arriving", () => {
       from: -1,
       to: 2,
     });
-    await reserve(TODAY_DONE, PROPERTY, ORG, DEPARTING_A, "Already Here");
+    const here = await aUnit();
+    await reserve(TODAY_DONE, PROPERTY, ORG, here, "Already Here");
     // There used to be a fifth row here: a Reservation arriving and leaving on
     // the same day, which was on the list, was not checkable in, and was the
     // one row the old `canCheckIn` flag still offered the button for. It is
     // gone because it can no longer exist — reservations_period_check requires
     // a night (ADR 0024) — which is the stronger version of the same fix. The
     // `ends_on > today` clause in `canCheckIn` stays as the second line.
-    await owner.$executeRawUnsafe(
-      `update public.reservations set status = 'checked_in'
-        where id = any($1::uuid[])`,
-      [LONG_GONE, TODAY_DONE],
-    );
+    //
+    // Each arrived with a Stay behind it, because a Reservation checked in
+    // with nobody in the room is a pair the database refuses (CO-S1-29). The
+    // Guest from months ago has since left, which is what a Reservation from
+    // months ago is.
+    await arrived(TODAY_DONE, here, 0, 3);
+    // Written departed from the start: an in-house Stay that ended months ago
+    // would be overdue, and would hold the Unit tonight.
+    await owner.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(
+        `update public.reservations set status = 'checked_in' where id = $1::uuid`,
+        LONG_GONE,
+      );
+      await tx.$executeRawUnsafe(
+        `update public.reservations set status = 'checked_out' where id = $1::uuid`,
+        LONG_GONE,
+      );
+      await tx.$executeRawUnsafe(
+        `insert into public.stays
+           (organization_id, property_id, accommodation_unit_id, reservation_id,
+            stay_type, status, starts_on, ends_on)
+         values ($2::uuid, $3::uuid, $4::uuid, $1::uuid, 'guest', 'departed',
+                 app.property_today($3::uuid) - 90,
+                 app.property_today($3::uuid) - 87)`,
+        LONG_GONE,
+        ORG,
+        PROPERTY,
+        UNIT,
+      );
+    });
   });
 
   it("drops a Guest checked in months ago, and a booking that expired unused", async () => {
@@ -670,40 +778,36 @@ describe("checking in", () => {
 
 describe("a failed check-in leaves nothing half-done", () => {
   const FIRST = reservationId();
-  const SECOND = reservationId();
 
   beforeAll(async () => {
-    await reserve(FIRST, PROPERTY, ORG, TAKEN, "Mary Jackson", {
-      from: -1,
-      to: 4,
-    });
-    // Checked in first, and only then is the overlapping booking taken. That
-    // order is not arrangement for its own sake: two *confirmed* Reservations
-    // can no longer overlap on one Unit, so the only way one Unit is promised
-    // twice over one set of nights is over a Guest who is already in it
-    // (ADR 0024). It is the gap that constraint leaves, and this is what
-    // catches it.
-    await reservations.checkIn(MEMBER, FIRST);
-    await reserve(SECOND, PROPERTY, ORG, TAKEN, "Dorothy Vaughan", {
-      from: 0,
-      to: 6,
-    });
+    // Booked while the Unit was in service, and blocked afterwards: the one
+    // way left for a check-in to fail after its Reservation has already moved.
+    // The Reservation update succeeds and the Stay insert is refused by
+    // stays_unit_is_in_service, so everything before it has to roll back.
+    const unit = await aUnit();
+    await reserve(FIRST, PROPERTY, ORG, unit, "Mary Jackson");
+    await owner.$executeRawUnsafe(
+      `update public.accommodation_units
+          set status = 'blocked', status_reason = 'a leak in the ceiling'
+        where id = $1::uuid`,
+      unit,
+    );
   });
 
-  it("rolls back the Reservation and the audit record when the Unit is taken", async () => {
-    await expect(reservations.checkIn(MEMBER, SECOND)).rejects.toBeInstanceOf(
-      UnitUnavailableError,
+  it("rolls back the Reservation and the audit record when the Unit is blocked", async () => {
+    await expect(reservations.checkIn(MEMBER, FIRST)).rejects.toBeInstanceOf(
+      UnitNotInServiceError,
     );
 
     const [reservation] = await owner.$queryRawUnsafe<{ status: string }[]>(
       `select status from public.reservations where id = $1::uuid`,
-      SECOND,
+      FIRST,
     );
     expect(reservation?.status).toBe("confirmed");
 
     const stays = await owner.$queryRawUnsafe<{ id: string }[]>(
       `select id from public.stays where reservation_id = $1::uuid`,
-      SECOND,
+      FIRST,
     );
     expect(stays).toEqual([]);
 
@@ -712,15 +816,189 @@ describe("a failed check-in leaves nothing half-done", () => {
     // an action that did — and an event announcing it is worse, because
     // something downstream acts on it.
     await expect(
-      audit.historyOf(MEMBER, "reservation", SECOND),
+      audit.historyOf(MEMBER, "reservation", FIRST),
     ).resolves.toEqual([]);
 
     await expect(
       owner.$queryRawUnsafe(
         `select id from outbox.events where payload->>'reservationId' = $1`,
-        SECOND,
+        FIRST,
       ),
     ).resolves.toEqual([]);
+  });
+});
+
+describe("one guest in one Unit", () => {
+  it("refuses a booking over nights somebody in house is staying for", async () => {
+    const unit = await aUnit();
+    await inHouse(unit, { from: -2, to: 3 });
+
+    await expect(
+      reservations.createReservation(MEMBER, {
+        propertyId: PROPERTY,
+        accommodationUnitId: unit,
+        guestName: "Christine Darden",
+        guestEmail: null,
+        guestPhone: null,
+        stayType: "guest",
+        startsOn: await propertyDay(1),
+        endsOn: await propertyDay(2),
+      }),
+    ).rejects.toBeInstanceOf(UnitHasOccupantError);
+  });
+
+  it("sells tonight in a room whose Guest is due out this morning, and holds the check-in until they leave", async () => {
+    const unit = await aUnit();
+    const leaving = await inHouse(unit, { from: -2, to: 0 });
+    const tonight = reservationId();
+    await reserve(tonight, PROPERTY, ORG, unit, "Katherine Coleman", {
+      from: 0,
+      to: 1,
+    });
+
+    await expect(reservations.checkIn(MEMBER, tonight)).rejects.toBeInstanceOf(
+      UnitHasOccupantError,
+    );
+
+    await reservations.checkOut(MEMBER, leaving);
+    await expect(reservations.checkIn(MEMBER, tonight)).resolves.toMatchObject({
+      reservationId: tonight,
+    });
+  });
+
+  it("refuses to check a second Guest in on top of one who overstayed", async () => {
+    const unit = await aUnit();
+    // Booked first, while the room was free; the overstay grew into it.
+    const arriving = reservationId();
+    await reserve(arriving, PROPERTY, ORG, unit, "Gladys West", {
+      from: 0,
+      to: 2,
+    });
+    // Written in replica mode, which skips triggers for one transaction only,
+    // so an interrupted run cannot leave the rule switched off.
+    await owner.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(
+        `set local session_replication_role = replica`,
+      );
+      await tx.$executeRawUnsafe(
+        `insert into public.stays
+           (organization_id, property_id, accommodation_unit_id, stay_type,
+            status, starts_on, ends_on)
+         values ($2::uuid, $3::uuid, $1::uuid, 'guest', 'in_house',
+                 app.property_today($3::uuid) - 4,
+                 app.property_today($3::uuid) - 1)`,
+        unit,
+        ORG,
+        PROPERTY,
+      );
+    });
+
+    await expect(reservations.checkIn(MEMBER, arriving)).rejects.toBeInstanceOf(
+      UnitHasOccupantError,
+    );
+
+    const [reservation] = await owner.$queryRawUnsafe<{ status: string }[]>(
+      `select status from public.reservations where id = $1::uuid`,
+      arriving,
+    );
+    expect(reservation?.status).toBe("confirmed");
+  });
+
+  /**
+   * The race the advisory lock exists for.
+   *
+   * A booking reads the Stays on the Unit and a check-in writes one. Without a
+   * lock each reads the other's table before the other commits: the booking
+   * finds no Stay, waits on the Reservation the check-in is moving, and commits
+   * the moment that Reservation stops being confirmed — so the Unit ends up with
+   * a Guest in it and a booking promising the same nights. Several rounds,
+   * because a race that is lost only sometimes is still lost.
+   */
+  it("never lets a booking and a check-in on one Unit both win", async () => {
+    for (let round = 0; round < 6; round += 1) {
+      const unit = await aUnit();
+      const arriving = reservationId();
+      await reserve(arriving, PROPERTY, ORG, unit, `Race Arrival ${round}`, {
+        from: -1,
+        to: 3,
+      });
+
+      const outcomes = await Promise.allSettled([
+        reservations.checkIn(MEMBER, arriving),
+        rivalReservations.createReservation(MEMBER, {
+          propertyId: PROPERTY,
+          accommodationUnitId: unit,
+          guestName: `Race Booking ${round}`,
+          guestEmail: null,
+          guestPhone: null,
+          stayType: "guest",
+          startsOn: await propertyDay(1),
+          endsOn: await propertyDay(2),
+        }),
+      ]);
+
+      // The check-in's Reservation already holds those nights, so the booking
+      // must lose whichever order they arrive in — to the constraint if it gets
+      // there first, to the Stay if it gets there second.
+      expect(outcomes[0].status).toBe("fulfilled");
+      expect(outcomes[1].status).toBe("rejected");
+
+      const [held] = await owner.$queryRawUnsafe<{ count: number }[]>(
+        `select count(*)::int as count from public.reservations
+          where accommodation_unit_id = $1::uuid and status = 'confirmed'`,
+        unit,
+      );
+      expect(held?.count).toBe(0);
+    }
+  });
+
+  /**
+   * The deadlock ADR 0029 orders its locks against.
+   *
+   * Withdrawing a check-in holds the Stay's row while it returns the
+   * Reservation to confirmed, which asks for the Unit's lock. A check-in on the
+   * same Unit holds the Unit's lock and waits, inside the unique index, for the
+   * withdrawal to finish with that row. Unless both take the Unit's lock first,
+   * each waits on the other and Postgres kills one of them — a refusal nobody
+   * at the desk could explain.
+   */
+  it("never deadlocks a withdrawal against a check-in on the same Unit", async () => {
+    for (let round = 0; round < 6; round += 1) {
+      // Same-day turnover: the Guest in the room is due out this morning and
+      // tonight's Guest is at the desk. Somebody withdraws the first check-in —
+      // it was the wrong person — at the moment somebody else checks the second
+      // one in.
+      const unit = await aUnit();
+      const first = reservationId();
+      const second = reservationId();
+      await reserve(first, PROPERTY, ORG, unit, `Withdrawn ${round}`, {
+        from: -2,
+        to: 0,
+      });
+      const stayId = await arrived(first, unit, -2, 0);
+      await reserve(second, PROPERTY, ORG, unit, `Arriving ${round}`, {
+        from: 0,
+        to: 1,
+      });
+
+      const outcomes = await Promise.allSettled([
+        reservations.reverseCheckIn(MEMBER, stayId, "wrong Guest"),
+        rivalReservations.checkIn(MEMBER, second),
+      ]);
+
+      for (const outcome of outcomes) {
+        if (outcome.status === "rejected") {
+          expect(String(outcome.reason)).not.toMatch(/40P01|deadlock/);
+        }
+      }
+      // The withdrawal needs nobody else, so it always succeeds; the check-in
+      // succeeds when it went second and is refused as occupied when it went
+      // first — and either answer is one the desk can act on.
+      expect(outcomes[0].status).toBe("fulfilled");
+      if (outcomes[1].status === "rejected") {
+        expect(outcomes[1].reason).toBeInstanceOf(UnitHasOccupantError);
+      }
+    }
   });
 });
 
@@ -950,16 +1228,15 @@ describe("checking out", () => {
 
   it("frees the Unit by recording when they actually left", async () => {
     const { stayId } = await reservations.checkIn(MEMBER, ARRIVING);
-    await reserve(WAITING, PROPERTY, ORG, DEPARTING_C, "Cahit Arf", {
-      from: 0,
-      to: 3,
-    });
 
-    // Before the departure the Unit is held: the exclusion constraint refuses
-    // the overlap rather than the application noticing it.
-    await expect(reservations.checkIn(MEMBER, WAITING)).rejects.toBeInstanceOf(
-      UnitUnavailableError,
-    );
+    // While they are in, the Unit is theirs: a booking over tonight is refused
+    // at the booking, not at the desk on the day (ADR 0029).
+    await expect(
+      reserve(WAITING, PROPERTY, ORG, DEPARTING_C, "Cahit Arf", {
+        from: 0,
+        to: 3,
+      }),
+    ).rejects.toMatchObject({ message: expect.stringContaining("55006") });
 
     await reservations.checkOut(MEMBER, stayId);
 
@@ -976,15 +1253,27 @@ describe("checking out", () => {
       stayId,
     );
     expect(departed?.status).toBe("departed");
+
+    // And the Reservation says so too, rather than reading as arrived forever
+    // (CO-S1-01, CO-DIFF-02).
+    const [ended] = await owner.$queryRawUnsafe<{ status: string }[]>(
+      `select status from public.reservations where id = $1::uuid`,
+      ARRIVING,
+    );
+    expect(ended?.status).toBe("checked_out");
     // They were booked until tomorrow and left today, and the record says so.
-    // The status alone would have freed the Unit — the exclusion constraint is
-    // partial on it — so without this assertion the date is untested.
+    // The status alone would have freed the Unit — the index and the exclusion
+    // constraint are both partial on it — so without this assertion the date
+    // is untested.
     expect(departed?.endsOn).toBe(departed?.today);
 
-    // The same Unit, the same nights, and now it works. Two things made that
-    // true and both matter: the status left the exclusion constraint's partial
-    // index, and `ends_on` moved to the day they actually left. Nothing was
-    // deleted.
+    // The same Unit, the same nights, and now it works: the Stay left the
+    // current states and ends_on moved to the day they actually left. Nothing
+    // was deleted.
+    await reserve(WAITING, PROPERTY, ORG, DEPARTING_C, "Cahit Arf", {
+      from: 0,
+      to: 3,
+    });
     await expect(reservations.checkIn(MEMBER, WAITING)).resolves.toMatchObject({
       reservationId: WAITING,
     });
@@ -1123,20 +1412,7 @@ describe("today's departures", () => {
       from: -3,
       to: 0,
     });
-    await owner.$executeRawUnsafe(
-      `insert into public.stays
-         (organization_id, property_id, accommodation_unit_id, reservation_id,
-          stay_type, status, starts_on, ends_on)
-       select $1::uuid, $2::uuid, $3::uuid, $4::uuid, 'guest', 'in_house',
-              app.property_today(property.id) - 3,
-              app.property_today(property.id)
-       from public.properties as property
-       where property.id = $2::uuid`,
-      ORG,
-      PROPERTY,
-      DEPARTING_A,
-      onTime,
-    );
+    await arrived(onTime, DEPARTING_A, -3, 0);
 
     // The overdue one is inserted rather than checked in, and that is not a
     // shortcut. An overstay exists because somebody checked in while their

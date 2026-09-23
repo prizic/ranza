@@ -84,13 +84,15 @@ export function NewReservationDialog({
   const message =
     outcome === "unavailable"
       ? t("bookingUnavailable")
-      : outcome === "invalidPeriod"
-        ? t("bookingPeriodInvalid")
-        : outcome === "invalidGuest"
-          ? t("bookingGuestInvalid")
-          : outcome === "refused"
-            ? t("bookingRefused")
-            : null;
+      : outcome === "occupied"
+        ? t("bookingOverOccupant")
+        : outcome === "invalidPeriod"
+          ? t("bookingPeriodInvalid")
+          : outcome === "invalidGuest"
+            ? t("bookingGuestInvalid")
+            : outcome === "refused"
+              ? t("bookingRefused")
+              : null;
 
   return (
     <Dialog onOpenChange={setOpen} open={open}>

@@ -6,6 +6,7 @@ import {
   CalendarClock,
   CircleCheck,
   CircleDashed,
+  DoorClosed,
   DoorOpen,
 } from "lucide-react";
 import type { Arrival, Departure, ReservationRow } from "@ranza/reservations";
@@ -66,6 +67,7 @@ const RESERVATION_TONE: Record<Arrival["status"], StatusTone> = {
   cancelled: "neutral",
   no_show: "danger",
   checked_in: "success",
+  checked_out: "neutral",
 };
 
 const RESERVATION_ICON = {
@@ -74,6 +76,7 @@ const RESERVATION_ICON = {
   cancelled: CircleDashed,
   no_show: CircleDashed,
   checked_in: DoorOpen,
+  checked_out: DoorClosed,
 } as const;
 
 export function useArrivalColumns(

@@ -59,9 +59,13 @@ function RowAction({
   const message =
     outcome === "unavailable"
       ? t("unitUnavailable")
-      : outcome === "refused"
-        ? refusedLabel
-        : null;
+      : outcome === "occupied"
+        ? t("unitOccupied")
+        : outcome === "notInService"
+          ? t("unitNotInService")
+          : outcome === "refused"
+            ? refusedLabel
+            : null;
 
   return (
     <form action={act} className="grid justify-items-end gap-1.5">

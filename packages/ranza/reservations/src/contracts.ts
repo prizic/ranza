@@ -53,7 +53,12 @@ export type ReservationStayType = "guest" | "resident";
  * ([ADR 0022](../../../../docs/adr/0022-a-mistaken-check-in-is-reversed-not-deleted.md)).
  */
 export type ReservationStatus =
-  "requested" | "confirmed" | "cancelled" | "no_show" | "checked_in";
+  | "requested"
+  | "confirmed"
+  | "cancelled"
+  | "no_show"
+  | "checked_in"
+  | "checked_out";
 
 /**
  * A Reservation arriving today, as the front desk sees it.
@@ -169,6 +174,37 @@ export class UnitUnavailableError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "UnitUnavailableError";
+  }
+}
+
+/**
+ * Somebody is in the Unit, or is promised it, over nights this would take.
+ *
+ * Distinct from `UnitUnavailableError`, which is two bookings wanting the same
+ * nights. This one is a person: a Guest in house, perhaps past their planned
+ * departure, or a confirmed booking a check-in would sleep through. A front
+ * desk answers the two differently — the first by moving a booking, this one
+ * by checking somebody out or finding them another room (ADR 0029). Like its
+ * neighbour it reveals nothing the caller did not already name.
+ */
+export class UnitHasOccupantError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnitHasOccupantError";
+  }
+}
+
+/**
+ * The Unit is blocked or out of service, so nobody may be put in it.
+ *
+ * Raised by `stays_unit_is_in_service` for every role. The desk can act on it —
+ * unblock the Unit, or put the Guest elsewhere — which is why it is not the
+ * generic refusal.
+ */
+export class UnitNotInServiceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnitNotInServiceError";
   }
 }
 

@@ -4,8 +4,11 @@ import { revalidatePath } from "next/cache";
 import { isSupportedLocale } from "@ranza/i18n";
 import { GuestDetailsError } from "@ranza/guests";
 import {
+  CheckInError,
   ReservationPeriodError,
   REVERSAL_REASON,
+  UnitNotInServiceError,
+  UnitHasOccupantError,
   UnitUnavailableError,
   type ReservationStayType,
 } from "@ranza/reservations";
@@ -26,12 +29,14 @@ import { currentViewer } from "./viewer";
 /**
  * What the form shows afterwards.
  *
- * `refused` covers every reason the check-in did not happen except the Unit
- * being taken: out of reach, cancelled, already arrived, gone. They are one
- * outcome on purpose, because telling them apart would confirm that a
- * Reservation the viewer cannot see exists.
+ * `refused` covers every reason the check-in did not happen except the three
+ * a front desk can act on — the nights are taken, somebody is still in the
+ * room, the room is blocked: out of reach, cancelled, already arrived, gone.
+ * They are one outcome on purpose, because telling them apart would confirm
+ * that a Reservation the viewer cannot see exists.
  */
-export type CheckInOutcome = "idle" | "done" | "unavailable" | "refused";
+export type CheckInOutcome =
+  "idle" | "done" | "unavailable" | "occupied" | "notInService" | "refused";
 
 /**
  * Both screens, after either action.
@@ -61,7 +66,20 @@ export async function checkInReservation(
   try {
     await getComposition().reservations.checkIn(viewer.userId, reservationId);
   } catch (error) {
-    return error instanceof UnitUnavailableError ? "unavailable" : "refused";
+    if (error instanceof UnitUnavailableError) return "unavailable";
+    if (error instanceof UnitHasOccupantError) return "occupied";
+    if (error instanceof UnitNotInServiceError) return "notInService";
+    // A refusal this module raised is the answer, not an incident. Anything
+    // else — a lost connection, a schema that moved — is shown the same way and
+    // recorded, like the other commands on this screen.
+    if (!(error instanceof CheckInError)) {
+      console.error(
+        "checkInReservation failed unexpectedly",
+        { reservationId },
+        error,
+      );
+    }
+    return "refused";
   }
 
   revalidateFrontDesk(locale);
@@ -165,6 +183,7 @@ export type CreateReservationOutcome =
   | "idle"
   | "done"
   | "unavailable"
+  | "occupied"
   | "invalidPeriod"
   | "invalidGuest"
   | "refused";
@@ -226,6 +245,7 @@ export async function createReservation(
     });
   } catch (error) {
     if (error instanceof UnitUnavailableError) return "unavailable";
+    if (error instanceof UnitHasOccupantError) return "occupied";
     if (error instanceof ReservationPeriodError) return "invalidPeriod";
     if (error instanceof GuestDetailsError) return "invalidGuest";
 

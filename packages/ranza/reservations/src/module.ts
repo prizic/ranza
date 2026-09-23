@@ -18,6 +18,8 @@ import {
   ReservationRefusedError,
   REVERSAL_REASON,
   StayHasChargesError,
+  UnitNotInServiceError,
+  UnitHasOccupantError,
   UnitUnavailableError,
   type Arrival,
   type BookableUnit,
@@ -46,11 +48,28 @@ import type { ReservationsDeps } from "./ports";
 const EXCLUSION_VIOLATION = "23P01";
 
 /**
- * Raised by `stays_withdrawal_is_free_of_charges`. Deliberately not 42501: a
- * policy refusal is also 42501, and "money has been posted" is a different
- * answer from "you cannot".
+ * Raised by `stays_one_in_house_per_unit` when a check-in would put a second
+ * Guest in a Unit somebody is in. Read by code alone, and safe to: the only
+ * other unique index on `stays` is one Stay per Reservation, and the check-in
+ * that reaches the insert has just moved its Reservation out of `confirmed`, so
+ * it cannot already have a Stay.
  */
-const NOT_WITHDRAWABLE = "55000";
+const UNIQUE_VIOLATION = "23505";
+
+/**
+ * Raised by `app.unit_holds_one_occupancy`: a booking over nights somebody is
+ * staying for, or a Stay over nights somebody else is booked for (ADR 0029).
+ */
+const UNIT_OCCUPIED = "55006";
+
+/**
+ * object_not_in_prerequisite_state. Raised by `stays_withdrawal_is_free_of_charges`
+ * when a withdrawn Stay has money on it, and by `stays_unit_is_in_service` when
+ * a Stay would start in a blocked Unit; the two never meet in one command.
+ * Deliberately not 42501: a policy refusal is also 42501, and "money has been
+ * posted" or "the room is blocked" is a different answer from "you cannot".
+ */
+const NOT_IN_PREREQUISITE_STATE = "55000";
 
 /**
  * Whether a failure carries a particular SQLSTATE.
@@ -284,6 +303,17 @@ export function createReservationsModule(deps: ReservationsDeps) {
     reservationId: string,
   ): Promise<CheckedIn> {
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      // The Unit's lock before the Reservation's row lock. The occupancy
+      // trigger takes the same lock when the Stay is inserted below, and a
+      // booking on this Unit takes it before it waits on anything; taking it
+      // here first is what stops the two from each holding what the other
+      // needs. A Reservation the viewer cannot see locks nothing.
+      await tx.$queryRaw`
+        select pg_advisory_xact_lock(2, hashtext(accommodation_unit_id::text))::text
+        from public.reservations
+        where id = ${reservationId}::uuid
+      `;
+
       const moved = await tx.$queryRaw<MovedReservation[]>`
         update public.reservations
            set status = 'checked_in',
@@ -334,6 +364,20 @@ export function createReservationsModule(deps: ReservationsDeps) {
         if (raised(error, EXCLUSION_VIOLATION)) {
           throw new UnitUnavailableError(
             "that Accommodation Unit is occupied for those nights",
+          );
+        }
+        // Somebody is in the room, whatever their dates say, or it is promised
+        // to another booking tonight (ADR 0029). The desk checks them out or
+        // puts this Guest elsewhere.
+        if (raised(error, UNIQUE_VIOLATION) || raised(error, UNIT_OCCUPIED)) {
+          throw new UnitHasOccupantError(
+            "that Accommodation Unit has somebody in it",
+          );
+        }
+        // Blocked or out of service, refused by stays_unit_is_in_service.
+        if (raised(error, NOT_IN_PREREQUISITE_STATE)) {
+          throw new UnitNotInServiceError(
+            "that Accommodation Unit is not in service",
           );
         }
         throw error;
@@ -444,13 +488,25 @@ export function createReservationsModule(deps: ReservationsDeps) {
     }
 
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      // The Unit's lock first, as in checkIn (ADR 0029). A check-in on this
+      // Unit holds it and waits, inside the unique index, for this transaction
+      // to finish with the Stay; had this transaction then asked for it, each
+      // would wait on the other. Today it never asks — the occupancy trigger
+      // does not fire on the way back to confirmed — so this keeps the order
+      // right should that arrow ever be checked again.
+      await tx.$queryRaw`
+        select pg_advisory_xact_lock(2, hashtext(accommodation_unit_id::text))::text
+        from public.stays
+        where id = ${stayId}::uuid
+      `;
+
       let withdrawn;
       try {
         withdrawn = await withdrawStayWithin(tx, stayId);
       } catch (error: unknown) {
         // The one refusal a front desk can act on: money exists, so this is a
         // stay that happened and correcting it is a credit or a refund.
-        if (raised(error, NOT_WITHDRAWABLE)) {
+        if (raised(error, NOT_IN_PREREQUISITE_STATE)) {
           throw new StayHasChargesError(
             "that Stay has charges posted against it",
           );
@@ -640,6 +696,26 @@ export function createReservationsModule(deps: ReservationsDeps) {
           throw new CheckOutError("that Stay cannot be checked out");
         }
         throw error;
+      }
+
+      // The Reservation ends with its Stay (CO-S1-01). Checked at commit by
+      // app.stay_and_reservation_agree, so a check-out that moved one and not
+      // the other would roll back rather than leave them disagreeing. A Stay
+      // that began without a Reservation has nothing to move (CO-S1-06).
+      if (closed.reservationId) {
+        const ended = await tx.$queryRaw<{ id: string }[]>`
+          update public.reservations
+             set status = 'checked_out',
+                 updated_at = now()
+           where id = ${closed.reservationId}::uuid
+             and status = 'checked_in'
+          returning id
+        `;
+        if (ended.length === 0) {
+          // The pair was already broken — a row written before the rule
+          // existed. Reported, not repaired in passing (CO-S1-28).
+          throw new CheckOutError("that Stay's Reservation is not checked in");
+        }
       }
 
       // The same transaction again. A departure is the fact most things want to
@@ -917,6 +993,13 @@ export function createReservationsModule(deps: ReservationsDeps) {
         if (raised(error, EXCLUSION_VIOLATION)) {
           throw new UnitUnavailableError(
             "that Accommodation Unit is booked for those nights",
+          );
+        }
+        // Somebody in house holds some of those nights (ADR 0029): refused at
+        // the booking rather than at the desk on the day.
+        if (raised(error, UNIT_OCCUPIED)) {
+          throw new UnitHasOccupantError(
+            "that Accommodation Unit has somebody staying over those nights",
           );
         }
         throw error;

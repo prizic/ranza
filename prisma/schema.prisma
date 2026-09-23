@@ -356,6 +356,10 @@ model Reservation {
   status              String    @default("requested")
   startsOn            DateTime  @map("starts_on") @db.Date
   endsOn              DateTime? @map("ends_on") @db.Date
+  /// What a front desk reads out to a Guest: `R` and six characters that are
+  /// never confused aloud. Written by a trigger from a sequence, never by the
+  /// application, so no two Reservations share one.
+  reference           String
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -368,6 +372,7 @@ model Reservation {
   stays    Stay[]
 
   @@unique([id, propertyId, organizationId])
+  @@unique([reference], map: "reservations_reference_key")
   @@index([propertyId, startsOn], map: "reservations_property_arrival_idx")
   @@index([guestId], map: "reservations_guest_idx")
   @@map("reservations")
@@ -422,6 +427,8 @@ model Stay {
   // checked. The primary key alone could not prove the Property or the
   // Organization.
   @@unique([id, propertyId, organizationId])
+  /// One Guest in one Unit, whatever the planned dates say (ADR 0029).
+  @@unique([accommodationUnitId], map: "stays_one_in_house_per_unit", where: { status: "in_house" })
   @@index([propertyId], map: "stays_property_idx")
   // Partial: the Resident access path only ever asks about a current Stay.
   @@index([userId], map: "stays_user_idx", where: raw("status = ANY (ARRAY['reserved'::text, 'in_house'::text])"))
