@@ -292,7 +292,13 @@ export function createReservationsModule(deps: ReservationsDeps) {
             when unit_status = 'out_of_service'       then 'unit_out_of_service'
             when occupied                             then 'unit_occupied'
           end                                         as "checkInBlocker",
-          coalesce(occupant_ends_on < today, false)   as "occupantOverdue",
+          case
+            when not occupied               then null
+            when occupant_ends_on is null   then 'open'
+            when occupant_ends_on < today   then 'overdue'
+            when occupant_ends_on = today   then 'today'
+            else 'later'
+          end                                         as "occupantLeaves",
           stay_id                                     as "stayId",
           folio_id                                    as "folioId",
           greatest(0, (today - starts_on))::int       as "daysLate",
@@ -783,8 +789,18 @@ export function createReservationsModule(deps: ReservationsDeps) {
       // the lock is granted: a statement's snapshot is taken when it begins,
       // and one that waited for the lock inside itself would not see the
       // charge whose transaction it was waiting for.
+      //
+      // This relies on READ COMMITTED, which is what withOrganizationContext
+      // runs at. Under REPEATABLE READ the read below would use the
+      // transaction's first snapshot and miss that charge; the race test
+      // asserts the isolation level so raising it fails loudly.
+      //
+      // Taken from the Stay, like reverseCheckIn: a Stay the viewer cannot
+      // read locks nothing.
       await tx.$queryRaw`
-        select pg_advisory_xact_lock(1, hashtext(${stayId}::uuid::text))::text
+        select pg_advisory_xact_lock(1, hashtext(id::text))::text
+        from public.stays
+        where id = ${stayId}::uuid
       `;
 
       const [review] = await tx.$queryRaw<
@@ -1017,7 +1033,12 @@ export function createReservationsModule(deps: ReservationsDeps) {
           reservation.status in ('requested', 'confirmed')
             and app.has_organization_permission(
                   reservation.organization_id, 'front_desk.cancel')
-                                                        as "mayCancel"
+                                                        as "mayCancel",
+          reservation.status = 'confirmed'
+            and reservation.starts_on <= today.day
+            and app.has_organization_permission(
+                  reservation.organization_id, 'front_desk.cancel')
+                                                        as "mayMarkNoShow"
         from public.reservations as reservation
         join public.guests as guest
           on guest.id = reservation.guest_id
@@ -1029,7 +1050,12 @@ export function createReservationsModule(deps: ReservationsDeps) {
           select app.property_today(${propertyId}::uuid) as day
         ) as today
         where reservation.property_id = ${propertyId}::uuid
-          and (reservation.ends_on is null or reservation.ends_on >= today.day)
+          -- A booking still open stays however old it is: one whose nights
+          -- all passed unarrived is on no other screen, and has to be marked a
+          -- no-show or cancelled from here rather than stay confirmed forever.
+          and (reservation.ends_on is null
+               or reservation.ends_on >= today.day
+               or reservation.status in ('requested', 'confirmed'))
           and app.can_use_capability(
             reservation.property_id,
             ${FRONT_DESK_CAPABILITY.moduleKey},

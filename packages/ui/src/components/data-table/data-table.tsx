@@ -88,6 +88,7 @@ export function DataTable<TData, TValue>({
   initialHidden = {},
   labels,
   onRowClick,
+  rowId,
   rowsInDatabase,
   searchColumns,
   toolbarExtra,
@@ -117,6 +118,13 @@ export function DataTable<TData, TValue>({
   labels: DataTableLabels;
   /** Makes rows openable. Clicks on a control inside a cell are left alone. */
   onRowClick?: (row: TData) => void;
+  /**
+   * A row's identity. Without it a row is its index, and on a list that is
+   * refreshed while somebody works in it — a poll, a colleague's change — the
+   * row that left hands its index, and whatever state its cells held, to the
+   * row below: an open dialog stays open on a different record.
+   */
+  rowId?: (row: TData) => string;
   rowsInDatabase?: number;
   /**
    * Row fields the toolbar search looks in. These are keys on the data, not
@@ -186,6 +194,7 @@ export function DataTable<TData, TValue>({
   const table = useReactTable({
     columns: tableColumns,
     data: data as TData[],
+    ...(rowId ? { getRowId: (row: TData) => rowId(row) } : {}),
     state: {
       columnFilters,
       columnVisibility,

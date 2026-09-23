@@ -123,6 +123,7 @@ export interface Messages {
   vacant: string;
   unitBlocked: string;
   occupiedDueOut: string;
+  occupied: string;
   occupiedOverstay: string;
   cancelBooking: string;
   cancelBookingTitle: string;
@@ -564,6 +565,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     vacant: "Boş",
     unitBlocked: "Bloke",
     occupiedDueOut: "Dolu — bugün çıkacak",
+    occupied: "Dolu",
     occupiedOverstay: "Dolu — çıkışı gecikmiş",
     cancelBooking: "Rezervasyonu iptal et",
     cancelBookingTitle: "Rezervasyonu iptal et",
@@ -1038,6 +1040,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     vacant: "Vacant",
     unitBlocked: "Blocked",
     occupiedDueOut: "Occupied — due out today",
+    occupied: "Occupied",
     occupiedOverstay: "Occupied — overstaying",
     cancelBooking: "Cancel booking",
     cancelBookingTitle: "Cancel this booking",
@@ -1509,6 +1512,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     vacant: "شاغرة",
     unitBlocked: "محظورة",
     occupiedDueOut: "مشغولة — مغادرة اليوم",
+    occupied: "مشغولة",
     occupiedOverstay: "مشغولة — تجاوز موعد المغادرة",
     cancelBooking: "إلغاء الحجز",
     cancelBookingTitle: "إلغاء هذا الحجز",

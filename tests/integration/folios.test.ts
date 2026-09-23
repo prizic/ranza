@@ -846,6 +846,15 @@ describe("checking out against the bill", () => {
    * nobody saw.
    */
   it("never settles a charge that raced the check-out (CO-S1-15)", async () => {
+    // The lock-then-read in checkOut is correct under READ COMMITTED only; a
+    // raised isolation level would pass this race silently, so it is pinned.
+    const [level] = await prisma.$transaction((tx) =>
+      tx.$queryRawUnsafe<{ level: string }[]>(
+        `select current_setting('transaction_isolation') as level`,
+      ),
+    );
+    expect(level?.level).toBe("read committed");
+
     for (let round = 0; round < 5; round += 1) {
       const { stayId, folioId } = await checkInAt(
         PROPERTY,

@@ -104,8 +104,11 @@ export interface Arrival {
   canCheckIn: boolean;
   /** Why not, when it is something the desk can act on; null otherwise. */
   checkInBlocker: CheckInBlocker | null;
-  /** When `unit_occupied`: whether the Guest in the room is past their planned departure. */
-  occupantOverdue: boolean;
+  /**
+   * When `unit_occupied`, when the Guest in the room is due to leave: past it,
+   * today, a later day, or never said. Null when the room is not occupied.
+   */
+  occupantLeaves: "overdue" | "today" | "later" | "open" | null;
   /**
    * The Stay this Reservation's check-in produced, while it is still in house.
    *
@@ -417,6 +420,8 @@ export interface ReservationRow {
   unitType: AccommodationUnitType;
   /** Whether the viewer may cancel it, and whether it is still cancellable. */
   mayCancel: boolean;
+  /** Whether the viewer may mark it a no-show: confirmed, and its first night has come. */
+  mayMarkNoShow: boolean;
 }
 
 /**

@@ -47,6 +47,7 @@ export function DeparturesTable({
           )
         }
         labels={labels}
+        rowId={(row) => row.stayId}
         searchColumns={["guestName", "unitName", "reference"]}
       />
     </div>

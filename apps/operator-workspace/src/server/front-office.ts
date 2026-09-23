@@ -348,6 +348,9 @@ async function endBooking(
   try {
     await run(viewer.userId, reservationId);
   } catch (error) {
+    // Out of the module's bounds either way. cancelBooking has already
+    // measured both, so reaching this means the two copies of the bounds
+    // disagree — and "too short" is the likelier of the two.
     if (error instanceof ReservationReasonError) return "reasonTooShort";
     if (!(error instanceof ReservationEndError)) {
       console.error(

@@ -43,6 +43,7 @@ export function ReservationsTable({
           />
         }
         labels={labels}
+        rowId={(row) => row.reservationId}
         searchColumns={["guestName", "unitName"]}
       />
     </div>

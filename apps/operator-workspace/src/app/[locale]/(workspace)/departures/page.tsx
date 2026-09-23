@@ -53,7 +53,7 @@ export default async function DeparturesPage({
     );
   }
 
-  const view: DepartureView = search.view === "in-house" ? "in_house" : "due";
+  const view: DepartureView = search.view === "in_house" ? "in_house" : "due";
   const scope = {
     organizationId: property.organizationId,
     propertyId: property.propertyId,
@@ -97,7 +97,7 @@ export default async function DeparturesPage({
           >
             <Link
               aria-current={view === "in_house" ? "page" : undefined}
-              href={`${base}&view=in-house`}
+              href={`${base}&view=in_house`}
             >
               {t("departuresInHouse")}
             </Link>

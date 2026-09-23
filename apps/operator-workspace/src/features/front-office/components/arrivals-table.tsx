@@ -38,6 +38,7 @@ export function ArrivalsTable({
           />
         }
         labels={labels}
+        rowId={(row) => row.reservationId}
         searchColumns={["guestName", "unitName"]}
       />
     </div>

@@ -655,11 +655,11 @@ describe("the list and check-in agree on every kind of room", () => {
     expect(await listed("occupied")).toMatchObject({
       canCheckIn: false,
       checkInBlocker: "unit_occupied",
-      occupantOverdue: false,
+      occupantLeaves: "today",
     });
     expect(await listed("overstayed")).toMatchObject({
       checkInBlocker: "unit_occupied",
-      occupantOverdue: true,
+      occupantLeaves: "overdue",
     });
   });
 
@@ -1818,5 +1818,118 @@ describe("ending a booking that will not become a Stay", () => {
     await expect(
       reservations.markNoShow(MEMBER, booking),
     ).rejects.toBeInstanceOf(ReservationEndError);
+  });
+});
+
+describe("everybody in house", () => {
+  /**
+   * The view an early leaver and an open-ended Resident are checked out from:
+   * neither is ever due, so neither is on the default list.
+   */
+  it("lists the early leaver and the open-ended Resident that due leaves out", async () => {
+    const early = reservationId();
+    const resident = reservationId();
+    const earlyUnit = await aUnit();
+    const residentUnit = await aUnit();
+    await reserve(early, PROPERTY, ORG, earlyUnit, "Leaves Friday", {
+      from: -1,
+      to: 3,
+    });
+    await reserve(
+      resident,
+      PROPERTY,
+      ORG,
+      residentUnit,
+      "Stays On",
+      { from: -30, to: 0 },
+      "resident",
+      null,
+    );
+    const earlyStay = await arrived(early, earlyUnit, -1, 3);
+    // The Resident arrived a month ago, which check-in — dated by the
+    // business date — cannot produce; the pair is written as the owner.
+    const residentStayId = await owner.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(
+        `update public.reservations set status = 'checked_in' where id = $1::uuid`,
+        resident,
+      );
+      const [row] = await tx.$queryRawUnsafe<{ id: string }[]>(
+        `insert into public.stays
+           (organization_id, property_id, accommodation_unit_id, reservation_id,
+            stay_type, status, starts_on, ends_on)
+         values ($2::uuid, $3::uuid, $4::uuid, $1::uuid, 'resident', 'in_house',
+                 app.property_today($3::uuid) - 30, null)
+         returning id`,
+        resident,
+        ORG,
+        PROPERTY,
+        residentUnit,
+      );
+      return row!.id;
+    });
+
+    const due = await reservations.listDepartures(MEMBER, PROPERTY, "due");
+    expect(due.map((d) => d.stayId)).not.toContain(earlyStay);
+    expect(due.map((d) => d.stayId)).not.toContain(residentStayId);
+
+    const everybody = await reservations.listDepartures(
+      MEMBER,
+      PROPERTY,
+      "in_house",
+    );
+    const leaver = everybody.find((d) => d.stayId === earlyStay);
+    const stayer = everybody.find((d) => d.stayId === residentStayId);
+    expect(leaver).toMatchObject({
+      early: true,
+      overdue: false,
+      mayCheckOut: true,
+      folioVersion: null,
+    });
+    expect(leaver?.reference).toMatch(/^R[0-9A-HJKMNP-TV-Z]{6}$/);
+    expect(stayer).toMatchObject({
+      endsOn: null,
+      early: false,
+      overdue: false,
+    });
+    // Open-ended sorts last: nobody is due, so nobody leads.
+    expect(everybody.at(-1)?.endsOn).toBeNull();
+  });
+});
+
+describe("a booking nobody came for", () => {
+  it("stays on the Reservations list after its nights pass, and can be marked a no-show there", async () => {
+    const unit = await aUnit();
+    const missed = reservationId();
+    await owner.$executeRawUnsafe(
+      `with guest as (insert into public.guests (organization_id, full_name) values ($2::uuid, 'Never Arrived') returning id)
+       insert into public.reservations
+         (id, organization_id, property_id, accommodation_unit_id, guest_id, stay_type, status, starts_on, ends_on)
+       select $1::uuid, $2::uuid, $3::uuid, $4::uuid, guest.id, 'guest', 'confirmed',
+              app.property_today($3::uuid) - 5, app.property_today($3::uuid) - 2
+       from guest`,
+      missed,
+      ORG,
+      PROPERTY,
+      unit,
+    );
+
+    const arrivals = await reservations.listArrivals(MEMBER, PROPERTY);
+    expect(arrivals.map((a) => a.reservationId)).not.toContain(missed);
+
+    const listed = (await reservations.listReservations(MEMBER, PROPERTY)).find(
+      (row) => row.reservationId === missed,
+    );
+    expect(listed).toMatchObject({
+      status: "confirmed",
+      mayCancel: true,
+      mayMarkNoShow: true,
+    });
+
+    await reservations.markNoShow(MEMBER, missed);
+    const after = (await reservations.listReservations(MEMBER, PROPERTY)).find(
+      (row) => row.reservationId === missed,
+    );
+    // Ended and past, so it leaves the list like any finished booking.
+    expect(after).toBeUndefined();
   });
 });

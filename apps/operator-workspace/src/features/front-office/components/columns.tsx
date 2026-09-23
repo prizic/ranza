@@ -225,9 +225,11 @@ export function useArrivalColumns(
               <StatusBadge
                 icon={CircleAlert}
                 label={
-                  arrival.occupantOverdue
+                  arrival.occupantLeaves === "overdue"
                     ? t("occupiedOverstay")
-                    : t("occupiedDueOut")
+                    : arrival.occupantLeaves === "today"
+                      ? t("occupiedDueOut")
+                      : t("occupied")
                 }
                 tone="warning"
               />
@@ -313,6 +315,7 @@ export function useArrivalColumns(
               </span>
             ) : null}
             <FrontDeskRowMenu
+              key={arrival.reservationId}
               booking={
                 arrival.status === "checked_in"
                   ? undefined
@@ -490,7 +493,13 @@ export function useDepartureColumns(
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-1">
           {row.original.mayCheckOut ? (
-            <CheckOutDialog departure={row.original} locale={locale} />
+            // Keyed by the Stay, so a dialog can never outlive the row it
+            // was opened on and submit for whichever row took its place.
+            <CheckOutDialog
+              departure={row.original}
+              key={row.original.stayId}
+              locale={locale}
+            />
           ) : null}
           <FrontDeskRowMenu
             folioId={row.original.folioId}
@@ -640,6 +649,7 @@ export function useReservationColumns(
         row.original.mayCancel ? (
           <div className="flex justify-end">
             <FrontDeskRowMenu
+              key={row.original.reservationId}
               booking={{
                 reservationId: row.original.reservationId,
                 reference: row.original.reference,
@@ -648,8 +658,10 @@ export function useReservationColumns(
                   row.original.unitName,
                 ),
                 mayCancel: true,
-                // A no-show is marked from the arrivals list, on the day.
-                mayMarkNoShow: false,
+                // Here as well as on arrivals: a booking whose nights all
+                // passed unarrived is only on this list, and it is marked a
+                // no-show the morning after.
+                mayMarkNoShow: row.original.mayMarkNoShow,
               }}
               folioId={null}
               guestName={row.original.guestName}
