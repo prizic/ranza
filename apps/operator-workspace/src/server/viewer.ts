@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { AUDIT_CAPABILITY, TODAY_CAPABILITY } from "@ranza/core";
 import type {
   AuditRecord,
+  CapabilityProperties,
   CapabilityRef,
   EntitledProperty,
   ScopeHistory,
@@ -122,7 +123,15 @@ export const currentViewer = cache(async (): Promise<Viewer | null> => {
   };
 });
 
-/** Sends an unauthenticated visitor to sign in rather than to an empty page. */
+/**
+ * Sends an unauthenticated visitor to sign in rather than to an empty page.
+ *
+ * Every page calls it, not only the layout. Moving between pages is a client
+ * navigation that renders the new page and leaves the layout above it as it
+ * was, so a session ended since the last full load (ADR 0027) is noticed here
+ * or not at all — and not noticing it looks like empty pages under a shell
+ * still showing somebody's email.
+ */
 export async function requireViewer(locale: SupportedLocale): Promise<Viewer> {
   const viewer = await currentViewer();
   if (!viewer) redirect(localizeHref(locale, "sign-in"));
@@ -148,6 +157,26 @@ export const entitledProperties = cache(
     );
   },
 );
+
+/**
+ * `entitledProperties` for several capabilities, answered in one read.
+ *
+ * For the shell, which asks about every destination at once: one transaction
+ * rather than one per destination, which on a full page load was more
+ * connections at once than the pool holds. Same gates, same answers.
+ */
+export async function entitledPropertiesByCapability(
+  capabilities: readonly CapabilityRef[],
+): Promise<readonly CapabilityProperties[]> {
+  const viewer = await currentViewer();
+  if (!viewer) {
+    return capabilities.map((capability) => ({ capability, properties: [] }));
+  }
+  return getComposition().core.listEntitledPropertiesByCapability(
+    viewer.userId,
+    capabilities,
+  );
+}
 
 /**
  * The Reservations arriving today at one Property — the Front Office read.

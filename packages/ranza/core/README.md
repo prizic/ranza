@@ -10,6 +10,7 @@ reusable one, because Organization and Property are Ranza concepts
 ```ts
 const core = createCoreModule({ db }); // db: the ranza_app client (ADR 0006)
 await core.listEntitledProperties(userId, TODAY_CAPABILITY);
+await core.listEntitledPropertiesByCapability(userId, [a, b, c]); // one answer each, in order
 await core.recentActivity(userId, propertyId); // { records, total }
 ```
 
@@ -26,6 +27,13 @@ row-level security before `app.can_use_capability()` re-checks Subscription,
 Entitlement, Property capability and Staff reach. The module contains no
 authorization logic of its own — see
 [`prisma/migrations`](../../../prisma/migrations) for where those gates live.
+
+`listEntitledPropertiesByCapability` is the same statement over an `unnest` of
+the requested (module, capability) pairs, for a caller that needs several
+answers at once — the workspace shell, which asks about every destination. One
+transaction rather than one per capability; each answer is exactly what
+`listEntitledProperties` gives for that capability alone, which the integration
+test asserts for every viewer in its fixture.
 
 An empty array means "this viewer may use nothing here". It is never an error,
 which is also why the request context is not optional: without one the policies
