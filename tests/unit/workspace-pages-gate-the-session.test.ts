@@ -11,7 +11,7 @@
  * A text scan, so a page that calls it in a shape this does not read would
  * fail here rather than pass unseen; that is the right way round to be wrong.
  */
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -22,10 +22,11 @@ const workspace = path.resolve(
 
 const GATE = /\bawait requireViewer\(locale\)/;
 
-const pages = readdirSync(workspace, { withFileTypes: true })
-  .filter((entry) => entry.isDirectory())
-  .map((entry) => path.join(workspace, entry.name, "page.tsx"))
-  .filter(existsSync);
+// Every depth, so a page nested under a route — `rooms/[id]/page.tsx` — is
+// held to the same rule as the ones beside it.
+const pages = readdirSync(workspace, { recursive: true, encoding: "utf8" })
+  .filter((file) => path.basename(file) === "page.tsx")
+  .map((file) => path.join(workspace, file));
 
 describe("workspace pages", () => {
   it("are found at all", () => {
