@@ -108,3 +108,33 @@ test("arrivals asks before checking a Guest into a room that is not ready", asyn
   await row.getByRole("button", { name: "Check in anyway" }).click();
   await expect(row).toContainText("Checked in");
 });
+
+test("a manager switches inspection on for one Property and sees what it means", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  // This run's own Property setting starts from "use the default", whatever an
+  // earlier run left.
+  psql(
+    `update public.housekeeping_settings set inspect_after_cleaning = null
+      where property_id = '${propertyId}'`,
+  );
+
+  await signIn(page);
+  await page.goto(`/en/housekeeping?property=${propertyId}`);
+
+  const flow = page.getByTestId("flow");
+  await page.getByRole("combobox", { name: "For this Property" }).click();
+  await page.getByRole("option", { name: "On", exact: true }).click();
+
+  await expect(page.getByText("Saved")).toBeVisible();
+  await expect(flow).toContainText("Inspected");
+
+  await page.getByRole("combobox", { name: "For this Property" }).click();
+  await page
+    .getByRole("option", { name: /Use the Organization's setting/ })
+    .click();
+  await expect(
+    page.getByRole("combobox", { name: "For this Property" }),
+  ).toContainText("Use the Organization's setting");
+});

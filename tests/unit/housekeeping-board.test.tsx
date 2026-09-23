@@ -134,6 +134,27 @@ describe("the housekeeping board", () => {
     }
   });
 
+  it("tells a clean room waiting for inspection from a clean room that is ready (HK-S3-11)", () => {
+    show(
+      boardOf(
+        [
+          room({ status: "clean", ready: false }),
+          room({
+            unitId: "dd000004-0000-4000-8000-000000000002",
+            name: "102",
+            status: "clean",
+            ready: true,
+          }),
+        ],
+        true,
+      ),
+    );
+    const waiting = screen.getByRole("row", { name: /101/ });
+    const ready = screen.getByRole("row", { name: /102/ });
+    expect(waiting).toHaveTextContent("Waiting for inspection");
+    expect(ready).not.toHaveTextContent("Waiting for inspection");
+  });
+
   it("shows a reader without the permission every room and no control (HK-S2-12)", () => {
     show(boardOf([room({})], false));
     expect(screen.getByText("101")).toBeInTheDocument();
