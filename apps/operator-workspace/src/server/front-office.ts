@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { isSupportedLocale } from "@ranza/i18n";
 import { GuestDetailsError } from "@ranza/guests";
 import {
+  BALANCE_REASON,
+  BalanceReasonError,
   CheckInError,
+  CheckOutError,
+  EarlyDepartureError,
+  FolioChangedError,
   ReservationPeriodError,
   REVERSAL_REASON,
   UnitNotInServiceError,
@@ -87,16 +92,50 @@ export async function checkInReservation(
 }
 
 /**
- * Checking a Guest out.
+ * What the check-out dialog shows afterwards.
  *
- * `refused` covers every reason it did not happen — out of reach, already
- * departed, gone. One outcome, because telling them apart would confirm that a
- * Stay the viewer cannot see exists.
+ * `refused` covers every reason the Stay could not be ended — out of reach,
+ * already departed, gone — as one outcome, because telling them apart would
+ * confirm that a Stay the viewer cannot see exists. The rest are about the
+ * review the desk is looking at, which the viewer already holds: the bill
+ * changed, the early departure was not acknowledged, or the balance needs a
+ * reason, or one of the right length.
+ */
+export type CheckOutOutcome =
+  | "idle"
+  | "done"
+  | "folioChanged"
+  | "earlyNotAcknowledged"
+  | "balanceReasonRequired"
+  | "reasonTooShort"
+  | "reasonTooLong"
+  | "refused";
+
+/**
+ * The line count the review showed, as the form carried it. Empty is "there
+ * was no Folio"; anything that is not a whole number is not a review this
+ * screen produced.
+ */
+function folioVersion(
+  value: FormDataEntryValue | null,
+): number | null | undefined {
+  const text = String(value ?? "");
+  if (text === "") return null;
+  return /^\d+$/.test(text) ? Number(text) : undefined;
+}
+
+/**
+ * Checking a Guest out, from the review of their bill (CO-S1-12).
+ *
+ * The same funnel and the same absence of an application check as every other
+ * write here. The reason's bounds are measured here as well as in the module,
+ * for the reason `reverseCheckIn` gives: so the screen can say which way it
+ * missed rather than blaming the Stay.
  */
 export async function checkOutStay(
-  _previous: CheckInOutcome,
+  _previous: CheckOutOutcome,
   form: FormData,
-): Promise<CheckInOutcome> {
+): Promise<CheckOutOutcome> {
   const viewer = await currentViewer();
   if (!viewer) return "refused";
 
@@ -104,9 +143,30 @@ export async function checkOutStay(
   const locale = String(form.get("locale") ?? "");
   if (!isSupportedLocale(locale)) return "refused";
 
+  const version = folioVersion(form.get("folioVersion"));
+  if (version === undefined) return "refused";
+
+  const reason = String(form.get("balanceReason") ?? "").trim();
+  if (reason.length > 0 && reason.length < BALANCE_REASON.min) {
+    return "reasonTooShort";
+  }
+  if (reason.length > BALANCE_REASON.max) return "reasonTooLong";
+
   try {
-    await getComposition().reservations.checkOut(viewer.userId, stayId);
-  } catch {
+    await getComposition().reservations.checkOut(viewer.userId, stayId, {
+      folioVersion: version,
+      earlyDeparture: form.get("earlyDeparture") === "yes",
+      balanceReason: reason.length > 0 ? reason : null,
+    });
+  } catch (error) {
+    if (error instanceof FolioChangedError) return "folioChanged";
+    if (error instanceof EarlyDepartureError) return "earlyNotAcknowledged";
+    if (error instanceof BalanceReasonError) return "balanceReasonRequired";
+    // A refusal this module raised is the answer, not an incident. Anything
+    // else is shown the same way and recorded.
+    if (!(error instanceof CheckOutError)) {
+      console.error("checkOutStay failed unexpectedly", { stayId }, error);
+    }
     return "refused";
   }
 

@@ -119,6 +119,29 @@ export interface Messages {
   checkOut: string;
   checkingOut: string;
   checkOutRefused: string;
+  checkOutFor: string;
+  checkOutTitle: string;
+  checkOutSummary: string;
+  confirmCheckOut: string;
+  keepInHouse: string;
+  plannedDeparture: string;
+  plannedFor: string;
+  noFolio: string;
+  reviewFolio: string;
+  checkOutEarlyAcknowledge: string;
+  checkOutEarlyRequired: string;
+  checkOutBalanceReason: string;
+  checkOutBalanceHint: string;
+  checkOutBalanceReasonRequired: string;
+  checkOutFolioChanged: string;
+  departuresViews: string;
+  departuresDue: string;
+  departuresInHouse: string;
+  nobodyInHouseTitle: string;
+  nobodyInHouseDescription: string;
+  noGuestRecorded: string;
+  walkIn: string;
+  showOnRoomMap: string;
   noDeparturesTitle: string;
   noDeparturesDescription: string;
   readiness: string;
@@ -132,10 +155,7 @@ export interface Messages {
   expectedEta: string;
   credit: string;
   moreActionsFor: string;
-  reservationDetails: string;
   openFolio: string;
-  showOnBedMap: string;
-  profile: string;
   leaves: string;
   overdueSince: string;
   untilDate: string;
@@ -521,6 +541,35 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOut: "Çıkış yap",
     checkingOut: "Yapılıyor",
     checkOutRefused: "Bu konaklama için çıkış yapılamıyor.",
+    checkOutFor: "{guest} için çıkış yap",
+    checkOutTitle: "Çıkış yap",
+    checkOutSummary:
+      "Misafir odadan ayrılır ve oda başkasına verilebilir. Çıkış geri alınamaz; önce hesabı kontrol edin.",
+    confirmCheckOut: "Çıkışı onayla",
+    keepInHouse: "Konaklamaya devam",
+    plannedDeparture: "Planlanan çıkış",
+    plannedFor: "Planlanan: {date}",
+    noFolio: "Hesap yok",
+    reviewFolio: "Hesabı aç",
+    checkOutEarlyAcknowledge:
+      "Misafir planlanan çıkış tarihinden ({date}) önce ayrılıyor.",
+    checkOutEarlyRequired: "Misafirin erken ayrıldığını onaylayın.",
+    checkOutBalanceReason: "Bakiye neden açık kalıyor",
+    checkOutBalanceHint:
+      "Henüz ödeme alınamıyor. Hesap {balance} bakiyesiyle açık kalır ve gerekçeniz kaydedilir.",
+    checkOutBalanceReasonRequired:
+      "Hesapta bakiye var. Açık kalmasının gerekçesini yazın.",
+    checkOutFolioChanged:
+      "Siz bakarken hesaba yeni bir kayıt eklendi. Hesabı yeniden kontrol edip tekrar deneyin.",
+    departuresViews: "Çıkış listesi görünümleri",
+    departuresDue: "Bugün ve gecikenler",
+    departuresInHouse: "Konaklayan herkes",
+    nobodyInHouseTitle: "Konaklayan kimse yok",
+    nobodyInHouseDescription:
+      "Bu tesiste şu anda giriş yapmış bir misafir bulunmuyor.",
+    noGuestRecorded: "Kayıtlı misafir yok",
+    walkIn: "Rezervasyonsuz",
+    showOnRoomMap: "Oda haritasında göster",
     noDeparturesTitle: "Bugün çıkış yok",
     noDeparturesDescription:
       "Bu tesiste bugün ayrılması beklenen bir konaklama bulunmuyor.",
@@ -535,10 +584,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     expectedEta: "beklenen {eta}",
     credit: "alacak",
     moreActionsFor: "{guest} için diğer işlemler",
-    reservationDetails: "Rezervasyon detayları",
     openFolio: "Folyoyu aç",
-    showOnBedMap: "Yatak haritasında göster",
-    profile: "Profil",
     leaves: "Çıkış",
     overdueSince: "{date} tarihinden beri gecikmiş",
     untilDate: "{date} tarihine kadar",
@@ -948,6 +994,35 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOut: "Check out",
     checkingOut: "Checking out",
     checkOutRefused: "That Stay cannot be checked out.",
+    checkOutFor: "Check {guest} out",
+    checkOutTitle: "Check out",
+    checkOutSummary:
+      "The Guest leaves and the room can be let again. A check-out cannot be taken back, so review the bill first.",
+    confirmCheckOut: "Confirm check-out",
+    keepInHouse: "Keep in house",
+    plannedDeparture: "Planned departure",
+    plannedFor: "Planned {date}",
+    noFolio: "No Folio",
+    reviewFolio: "Open the Folio",
+    checkOutEarlyAcknowledge:
+      "The Guest is leaving before their planned departure on {date}.",
+    checkOutEarlyRequired: "Confirm that the Guest is leaving early.",
+    checkOutBalanceReason: "Why the balance stays open",
+    checkOutBalanceHint:
+      "Payments cannot be taken yet. The Folio stays open with {balance} on it, and your reason is recorded.",
+    checkOutBalanceReasonRequired:
+      "The Folio has a balance. Say why it stays open.",
+    checkOutFolioChanged:
+      "Something was posted to the bill while you were looking. Review it again and try once more.",
+    departuresViews: "Departure views",
+    departuresDue: "Due and overdue",
+    departuresInHouse: "Everybody in house",
+    nobodyInHouseTitle: "Nobody is in house",
+    nobodyInHouseDescription:
+      "No Guest is checked in at this Property right now.",
+    noGuestRecorded: "No Guest recorded",
+    walkIn: "No Reservation",
+    showOnRoomMap: "Show on the room map",
     noDeparturesTitle: "No departures today",
     noDeparturesDescription: "Nobody is due to leave this Property today.",
     readiness: "Readiness",
@@ -961,10 +1036,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     expectedEta: "expected {eta}",
     credit: "credit",
     moreActionsFor: "More actions for {guest}",
-    reservationDetails: "Reservation details",
     openFolio: "Open folio",
-    showOnBedMap: "Show on bed map",
-    profile: "Profile",
     leaves: "Leaves",
     overdueSince: "Overdue since {date}",
     untilDate: "until {date}",
@@ -1371,6 +1443,32 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOut: "تسجيل المغادرة",
     checkingOut: "جارٍ التسجيل",
     checkOutRefused: "لا يمكن تسجيل مغادرة هذه الإقامة.",
+    checkOutFor: "تسجيل مغادرة {guest}",
+    checkOutTitle: "تسجيل المغادرة",
+    checkOutSummary:
+      "يغادر الضيف ويمكن تأجير الغرفة من جديد. لا يمكن التراجع عن المغادرة، لذا راجع الحساب أولًا.",
+    confirmCheckOut: "تأكيد المغادرة",
+    keepInHouse: "إبقاء الإقامة",
+    plannedDeparture: "المغادرة المخططة",
+    plannedFor: "مخطط لها في {date}",
+    noFolio: "لا يوجد حساب",
+    reviewFolio: "فتح الحساب",
+    checkOutEarlyAcknowledge: "يغادر الضيف قبل موعد مغادرته المخطط في {date}.",
+    checkOutEarlyRequired: "أكّد أن الضيف يغادر مبكرًا.",
+    checkOutBalanceReason: "سبب إبقاء الرصيد مفتوحًا",
+    checkOutBalanceHint:
+      "لا يمكن تحصيل الدفعات بعد. يبقى الحساب مفتوحًا برصيد {balance}، ويُسجَّل السبب الذي تكتبه.",
+    checkOutBalanceReasonRequired: "على الحساب رصيد. اكتب سبب إبقائه مفتوحًا.",
+    checkOutFolioChanged:
+      "أُضيف قيد إلى الحساب أثناء مراجعتك. راجعه مرة أخرى ثم أعد المحاولة.",
+    departuresViews: "عروض قائمة المغادرة",
+    departuresDue: "المستحقة والمتأخرة",
+    departuresInHouse: "جميع النزلاء المقيمين",
+    nobodyInHouseTitle: "لا يوجد نزلاء مقيمون",
+    nobodyInHouseDescription: "لا يوجد ضيف مسجَّل الوصول في هذا العقار حاليًا.",
+    noGuestRecorded: "لا يوجد ضيف مسجَّل",
+    walkIn: "بلا حجز",
+    showOnRoomMap: "عرض على خريطة الغرف",
     noDeparturesTitle: "لا توجد مغادرات اليوم",
     noDeparturesDescription: "لا أحد من المقرر أن يغادر هذه المنشأة اليوم.",
     readiness: "الجاهزية",
@@ -1385,10 +1483,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     expectedEta: "المتوقع {eta}",
     credit: "رصيد دائن",
     moreActionsFor: "مزيد من الإجراءات لـ {guest}",
-    reservationDetails: "تفاصيل الحجز",
     openFolio: "فتح الحساب",
-    showOnBedMap: "عرض على خريطة الأسرّة",
-    profile: "الملف الشخصي",
     leaves: "المغادرة",
     overdueSince: "متأخر منذ {date}",
     untilDate: "حتى {date}",

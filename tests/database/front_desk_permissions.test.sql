@@ -12,7 +12,7 @@
 -- dropped from the Folio insert, the transition triggers dropped — and
 -- confirming it went red.
 begin;
-select plan(20);
+select plan(21);
 
 insert into public.users (id, email) values
   ('f1111111-1111-4111-8111-111111111111', 'desk-in@example.test'),
@@ -231,6 +231,12 @@ select lives_ok(
   $$update public.folios set status = 'closed', closed_at = now(), updated_at = now()
      where id = 'f0f22222-2222-4222-8222-222222222222'$$,
   'a role that can check out closes a Folio');
+
+select throws_ok(
+  $$update public.folios set status = 'closed', closed_at = now(), updated_at = now()
+     where stay_id = 'f0f11113-1111-4111-8111-111111111111'$$,
+  '55000', null,
+  'but not the Folio of a Guest still in house: the front desk closes only a settled Folio of a Stay that ended');
 
 select app.set_request_context('f1111111-1111-4111-8111-111111111111');
 

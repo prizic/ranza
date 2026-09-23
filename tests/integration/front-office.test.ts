@@ -18,6 +18,7 @@ import {
   CheckInError,
   CheckOutError,
   createReservationsModule,
+  EarlyDepartureError,
   ReservationPeriodError,
   ReservationRefusedError,
   UnitNotInServiceError,
@@ -275,6 +276,18 @@ async function reserve(
  * nothing has ever acted on.
  */
 const reservationId = () => randomUUID();
+
+/**
+ * A check-out confirmed against a review showing no Folio — this Property does
+ * no billing — with the early departure acknowledged, which is harmless when
+ * the Guest is not early. The bill's own rules are tested in folios.test.ts,
+ * where there is a bill.
+ */
+const ACKNOWLEDGED = {
+  folioVersion: null,
+  earlyDeparture: true,
+  balanceReason: null,
+} as const;
 
 /**
  * A Unit of this run's own, at the front desk's Property.
@@ -860,7 +873,7 @@ describe("one guest in one Unit", () => {
       UnitHasOccupantError,
     );
 
-    await reservations.checkOut(MEMBER, leaving);
+    await reservations.checkOut(MEMBER, leaving, ACKNOWLEDGED);
     await expect(reservations.checkIn(MEMBER, tonight)).resolves.toMatchObject({
       reservationId: tonight,
     });
@@ -994,7 +1007,13 @@ describe("one guest in one Unit", () => {
       // The withdrawal needs nobody else, so it always succeeds; the check-in
       // succeeds when it went second and is refused as occupied when it went
       // first — and either answer is one the desk can act on.
-      expect(outcomes[0].status).toBe("fulfilled");
+      // The reason travels with the failure, so a refusal under load reads as
+      // what it was rather than as a bare "rejected".
+      expect(
+        outcomes[0].status === "rejected"
+          ? String(outcomes[0].reason)
+          : "fulfilled",
+      ).toBe("fulfilled");
       if (outcomes[1].status === "rejected") {
         expect(outcomes[1].reason).toBeInstanceOf(UnitHasOccupantError);
       }
@@ -1238,7 +1257,7 @@ describe("checking out", () => {
       }),
     ).rejects.toMatchObject({ message: expect.stringContaining("55006") });
 
-    await reservations.checkOut(MEMBER, stayId);
+    await reservations.checkOut(MEMBER, stayId, ACKNOWLEDGED);
 
     const [departed] = await owner.$queryRawUnsafe<
       { status: string; endsOn: string; today: string }[]
@@ -1290,7 +1309,7 @@ describe("checking out", () => {
       to: 1,
     });
     const { stayId } = await reservations.checkIn(MEMBER, leaving);
-    await reservations.checkOut(MEMBER, stayId);
+    await reservations.checkOut(MEMBER, stayId, ACKNOWLEDGED);
 
     const [row] = await owner.$queryRawUnsafe<
       { departedOn: string; today: string }[]
@@ -1317,7 +1336,7 @@ describe("checking out", () => {
     });
     const { stayId } = await reservations.checkIn(MEMBER, reservation);
 
-    await reservations.checkOut(MEMBER, stayId);
+    await reservations.checkOut(MEMBER, stayId, ACKNOWLEDGED);
 
     const history = await audit.historyOf(MEMBER, "stay", stayId);
     expect(history).toHaveLength(1);
@@ -1348,7 +1367,7 @@ describe("checking out", () => {
     );
     expect(before?.endsOn).toBeNull();
 
-    await reservations.checkOut(MEMBER, stayId);
+    await reservations.checkOut(MEMBER, stayId, ACKNOWLEDGED);
 
     const [after] = await owner.$queryRawUnsafe<
       { endsOn: string; today: string }[]
@@ -1364,6 +1383,111 @@ describe("checking out", () => {
     expect(after?.endsOn).toBe(after?.today);
   });
 
+  it("refuses an early departure nobody acknowledged, and changes nothing", async () => {
+    const reservation = reservationId();
+    const unit = await aUnit();
+    await reserve(reservation, PROPERTY, ORG, unit, "Leaving Early", {
+      from: 0,
+      to: 3,
+    });
+    const { stayId } = await reservations.checkIn(MEMBER, reservation);
+
+    await expect(
+      reservations.checkOut(MEMBER, stayId, {
+        ...ACKNOWLEDGED,
+        earlyDeparture: false,
+      }),
+    ).rejects.toBeInstanceOf(EarlyDepartureError);
+
+    const [stay] = await owner.$queryRawUnsafe<{ status: string }[]>(
+      `select status from public.stays where id = $1::uuid`,
+      stayId,
+    );
+    expect(stay?.status).toBe("in_house");
+
+    await reservations.checkOut(MEMBER, stayId, ACKNOWLEDGED);
+    const history = await audit.historyOf(MEMBER, "stay", stayId);
+    expect(history[0]?.context).toMatchObject({ earlyDeparture: true });
+  });
+
+  it("dates an overdue check-out by today, not by the plan (CO-S1-02)", async () => {
+    const reservation = reservationId();
+    const unit = await aUnit();
+    await reserve(reservation, PROPERTY, ORG, unit, "Stayed On", {
+      from: -5,
+      to: -2,
+    });
+    const stayId = await arrived(reservation, unit, -5, -2);
+
+    await reservations.checkOut(MEMBER, stayId, {
+      ...ACKNOWLEDGED,
+      earlyDeparture: false,
+    });
+
+    const [row] = await owner.$queryRawUnsafe<
+      { endsOn: string; today: string }[]
+    >(
+      `select to_char(stay.ends_on, 'YYYY-MM-DD') as "endsOn",
+              to_char(app.property_today(stay.property_id), 'YYYY-MM-DD') as "today"
+         from public.stays as stay where stay.id = $1::uuid`,
+      stayId,
+    );
+    expect(row?.endsOn).toBe(row?.today);
+  });
+
+  it("refuses a Stay whose Reservation does not match, rather than repairing it (CO-S1-28)", async () => {
+    // A pair broken before the rule existed: the Guest in house behind a
+    // Reservation that never moved. Written in replica mode, which is the only
+    // way to produce what the database now refuses.
+    const reservation = reservationId();
+    const unit = await aUnit();
+    await reserve(reservation, PROPERTY, ORG, unit, "Broken Pair", {
+      from: -1,
+      to: 2,
+    });
+    const [stay] = await owner.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(
+        `set local session_replication_role = replica`,
+      );
+      return tx.$queryRawUnsafe<{ id: string }[]>(
+        `insert into public.stays
+           (organization_id, property_id, accommodation_unit_id, reservation_id,
+            stay_type, status, starts_on, ends_on)
+         values ($2::uuid, $3::uuid, $4::uuid, $1::uuid, 'guest', 'in_house',
+                 app.property_today($3::uuid) - 1, app.property_today($3::uuid) + 2)
+         returning id`,
+        reservation,
+        ORG,
+        PROPERTY,
+        unit,
+      );
+    });
+
+    await expect(
+      reservations.checkOut(MEMBER, stay!.id, ACKNOWLEDGED),
+    ).rejects.toBeInstanceOf(CheckOutError);
+
+    const [after] = await owner.$queryRawUnsafe<{ status: string }[]>(
+      `select status from public.stays where id = $1::uuid`,
+      stay!.id,
+    );
+    expect(after?.status).toBe("in_house");
+  });
+
+  it("checks out a Guest who is not early without asking", async () => {
+    const reservation = reservationId();
+    const unit = await aUnit();
+    await reserve(reservation, PROPERTY, ORG, unit, "Leaving On Time");
+    const stayId = await arrived(reservation, unit, -3, 0);
+
+    await expect(
+      reservations.checkOut(MEMBER, stayId, {
+        ...ACKNOWLEDGED,
+        earlyDeparture: false,
+      }),
+    ).resolves.toMatchObject({ stayId, folioClosed: false });
+  });
+
   it("refuses a Stay that has already departed", async () => {
     const reservation = reservationId();
     await reserve(reservation, PROPERTY, ORG, DEPARTED, "Feza Gürsey", {
@@ -1371,11 +1495,11 @@ describe("checking out", () => {
       to: 1,
     });
     const { stayId } = await reservations.checkIn(MEMBER, reservation);
-    await reservations.checkOut(MEMBER, stayId);
+    await reservations.checkOut(MEMBER, stayId, ACKNOWLEDGED);
 
-    await expect(reservations.checkOut(MEMBER, stayId)).rejects.toBeInstanceOf(
-      CheckOutError,
-    );
+    await expect(
+      reservations.checkOut(MEMBER, stayId, ACKNOWLEDGED),
+    ).rejects.toBeInstanceOf(CheckOutError);
   });
 
   it("refuses a Stay belonging to another Organization", async () => {
@@ -1389,9 +1513,9 @@ describe("checking out", () => {
     );
     const { stayId } = await rivalReservations.checkIn(OUTSIDER, reservation);
 
-    await expect(reservations.checkOut(MEMBER, stayId)).rejects.toBeInstanceOf(
-      CheckOutError,
-    );
+    await expect(
+      reservations.checkOut(MEMBER, stayId, ACKNOWLEDGED),
+    ).rejects.toBeInstanceOf(CheckOutError);
 
     const [stay] = await owner.$queryRawUnsafe<{ status: string }[]>(
       `select status from public.stays where id = $1::uuid`,

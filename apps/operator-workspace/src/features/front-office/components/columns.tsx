@@ -19,7 +19,9 @@ import {
 } from "@ranza/ui";
 import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
 import { useSortLabels } from "../../../lib/table-labels";
-import { CheckInAction, CheckOutAction } from "./check-in-action";
+import { CheckInAction } from "./check-in-action";
+import { CheckOutDialog } from "./check-out-dialog";
+import { unitLabel } from "../unit-label";
 import { UndoCheckInDialog } from "./undo-check-in-dialog";
 import { FrontDeskRowMenu } from "./row-menu";
 
@@ -38,6 +40,41 @@ function day(iso: string, locale: SupportedLocale): string {
     month: "short",
     timeZone: "UTC",
   });
+}
+
+/**
+ * A balance as the desk reads it: owed in red, a credit in blue and said so.
+ */
+function Balance({
+  minor,
+  currency,
+  locale,
+}: {
+  minor: number;
+  currency: string;
+  locale: SupportedLocale;
+}) {
+  const t = useTranslations();
+  return (
+    <div className="tabular-nums">
+      <span
+        className={
+          minor > 0
+            ? "font-semibold text-danger"
+            : minor < 0
+              ? "font-semibold text-info"
+              : "font-normal"
+        }
+      >
+        {formatMoney(minor, currency, locale)}
+      </span>
+      {minor < 0 ? (
+        <span className="block text-step--1 text-muted-foreground">
+          {t("credit")}
+        </span>
+      ) : null}
+    </div>
+  );
 }
 
 function shortRef(id: string): string {
@@ -216,35 +253,13 @@ export function useArrivalColumns(
           title={t("balance")}
         />
       ),
-      cell: ({ row }) => {
-        const isDebt = row.original.balanceMinor > 0;
-        const isCredit = row.original.balanceMinor < 0;
-        const formatted = formatMoney(
-          row.original.balanceMinor,
-          row.original.currency,
-          locale,
-        );
-        return (
-          <div className="tabular-nums">
-            <span
-              className={
-                isDebt
-                  ? "font-semibold text-danger"
-                  : isCredit
-                    ? "font-semibold text-info"
-                    : "font-normal"
-              }
-            >
-              {formatted}
-            </span>
-            {isCredit && (
-              <span className="block text-step--1 text-muted-foreground">
-                {t("credit")}
-              </span>
-            )}
-          </div>
-        );
-      },
+      cell: ({ row }) => (
+        <Balance
+          currency={row.original.currency}
+          locale={locale}
+          minor={row.original.balanceMinor}
+        />
+      ),
     },
     {
       id: "action",
@@ -268,11 +283,9 @@ export function useArrivalColumns(
             />
           ) : null}
           <FrontDeskRowMenu
+            folioId={null}
             guestName={row.original.guestName}
             locale={locale}
-            reservationId={row.original.reservationId}
-            stayId={row.original.stayId}
-            unitId={row.original.unitId}
           />
         </div>
       ),
@@ -297,11 +310,13 @@ export function useDepartureColumns(
         />
       ),
       cell: ({ row }) => {
-        const name = row.original.guestName || row.original.unitName;
+        const name = row.original.guestName || t("noGuestRecorded");
         return (
           <div className="flex items-center gap-3">
             <Avatar className="h-8 w-8 text-step--1">
-              <AvatarFallback>{initialsOf(name)}</AvatarFallback>
+              <AvatarFallback>
+                {initialsOf(row.original.guestName)}
+              </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
               <p className="font-medium leading-none">
@@ -316,8 +331,7 @@ export function useDepartureColumns(
       },
     },
     {
-      id: "reservation",
-      accessorKey: "stayId",
+      accessorKey: "reference",
       meta: { title: t("reservation") },
       header: ({ column }) => (
         <DataTableColumnHeader
@@ -326,11 +340,14 @@ export function useDepartureColumns(
           title={t("reservation")}
         />
       ),
-      cell: ({ row }) => (
-        <span className="font-mono tabular-nums font-medium">
-          {shortRef(row.original.stayId)}
-        </span>
-      ),
+      cell: ({ row }) =>
+        row.original.reference ? (
+          <span className="font-mono tabular-nums font-medium">
+            {row.original.reference}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">{t("walkIn")}</span>
+        ),
     },
     {
       accessorKey: "unitName",
@@ -345,7 +362,7 @@ export function useDepartureColumns(
       cell: ({ row }) => (
         <p>
           <span className="font-medium tabular-nums">
-            {row.original.unitName}
+            <bdi>{unitLabel(row.original.roomName, row.original.unitName)}</bdi>
           </span>
           <span className="block text-step--1 text-muted-foreground">
             {t(`unitType.${row.original.unitType}`)}
@@ -364,18 +381,39 @@ export function useDepartureColumns(
           title={t("leaves")}
         />
       ),
-      cell: ({ row }) =>
-        row.original.overdue ? (
-          <StatusBadge
-            icon={CalendarClock}
-            label={t("overdueSince", {
-              date: day(row.original.endsOn, locale),
-            })}
-            tone="warning"
-          />
-        ) : (
+      cell: ({ row }) => {
+        const { endsOn, overdue, early } = row.original;
+        if (!endsOn) {
+          return (
+            <StatusBadge
+              icon={CalendarClock}
+              label={t("openEnded")}
+              tone="neutral"
+            />
+          );
+        }
+        if (overdue) {
+          return (
+            <StatusBadge
+              icon={CalendarClock}
+              label={t("overdueSince", { date: day(endsOn, locale) })}
+              tone="warning"
+            />
+          );
+        }
+        if (early) {
+          return (
+            <StatusBadge
+              icon={CalendarClock}
+              label={t("plannedFor", { date: day(endsOn, locale) })}
+              tone="neutral"
+            />
+          );
+        }
+        return (
           <StatusBadge icon={CircleCheck} label={t("today")} tone="neutral" />
-        ),
+        );
+      },
     },
     {
       id: "balance",
@@ -388,35 +426,16 @@ export function useDepartureColumns(
           title={t("balance")}
         />
       ),
-      cell: ({ row }) => {
-        const isDebt = row.original.balanceMinor > 0;
-        const isCredit = row.original.balanceMinor < 0;
-        const formatted = formatMoney(
-          row.original.balanceMinor,
-          row.original.currency,
-          locale,
-        );
-        return (
-          <div className="tabular-nums">
-            <span
-              className={
-                isDebt
-                  ? "font-semibold text-danger"
-                  : isCredit
-                    ? "font-semibold text-info"
-                    : "font-normal"
-              }
-            >
-              {formatted}
-            </span>
-            {isCredit && (
-              <span className="block text-step--1 text-muted-foreground">
-                {t("credit")}
-              </span>
-            )}
-          </div>
-        );
-      },
+      cell: ({ row }) =>
+        row.original.folioId ? (
+          <Balance
+            currency={row.original.currency}
+            locale={locale}
+            minor={row.original.balanceMinor}
+          />
+        ) : (
+          <span className="text-muted-foreground">{t("noFolio")}</span>
+        ),
     },
     {
       id: "action",
@@ -425,13 +444,13 @@ export function useDepartureColumns(
       header: () => <span className="sr-only">{t("action")}</span>,
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-1">
-          <CheckOutAction locale={locale} stayId={row.original.stayId} />
+          {row.original.mayCheckOut ? (
+            <CheckOutDialog departure={row.original} locale={locale} />
+          ) : null}
           <FrontDeskRowMenu
-            guestName={row.original.guestName || row.original.unitName}
+            folioId={row.original.folioId}
+            guestName={row.original.guestName || t("noGuestRecorded")}
             locale={locale}
-            reservationId={null}
-            stayId={row.original.stayId}
-            unitId={row.original.unitId}
           />
         </div>
       ),

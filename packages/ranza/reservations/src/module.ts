@@ -1,5 +1,9 @@
 import { withOrganizationContext } from "@ranza/db";
-import { closeEmptyFolioWithin, openFolioWithin } from "@ranza/folios";
+import {
+  closeEmptyFolioWithin,
+  closeSettledFolioWithin,
+  openFolioWithin,
+} from "@ranza/folios";
 import { identifyGuestWithin } from "@ranza/guests";
 import { recordWithin } from "@ranza/platform-audit";
 import { publishWithin } from "@ranza/platform-outbox";
@@ -10,9 +14,13 @@ import {
   withdrawStayWithin,
 } from "@ranza/stays";
 import {
+  BALANCE_REASON,
+  BalanceReasonError,
   CheckInError,
   CheckInReversalError,
   CheckOutError,
+  EarlyDepartureError,
+  FolioChangedError,
   FRONT_DESK_CAPABILITY,
   ReservationPeriodError,
   ReservationRefusedError,
@@ -26,8 +34,10 @@ import {
   type CheckedIn,
   type CheckedOut,
   type CheckInReversed,
+  type CheckOutConfirmation,
   type CreatedReservation,
   type Departure,
+  type DepartureView,
   type NewReservation,
   type ReservationRow,
 } from "./contracts";
@@ -579,119 +589,221 @@ export function createReservationsModule(deps: ReservationsDeps) {
   }
 
   /**
-   * The Stays departing today at one Property, and any still in house past
-   * their planned departure.
+   * The Stays in house at one Property, as the departures screen lists them.
    *
-   * The overdue ones are the point. A departures list that only showed today
-   * would hide the Guest who should have left on Tuesday, which is the row a
-   * front desk most needs to see — so the query asks for every current Stay
-   * whose planned end has arrived or passed.
+   * `due` is the day's work: everybody whose planned departure is today, and
+   * everybody past theirs and still here. The overdue ones are the point — a
+   * list showing only today hides the Guest who should have left on Tuesday,
+   * which is the row a front desk most needs — so they lead.
+   *
+   * `in_house` is everybody, because a front desk also checks out a Guest
+   * leaving early and a Resident with no end date, neither of whom is ever due
+   * (CO-S1-03, CO-S1-05).
+   *
+   * The Folio's line count and balance are read here so the check-out dialog
+   * can show the bill and confirm against it; the count is what the check-out
+   * compares, under the Stay's lock (CO-S1-12).
+   *
+   * Empty for a Property the viewer cannot reach, one whose Organization lost
+   * the Entitlement, and a quiet day — deliberately the same answer.
    */
   async function listDepartures(
     userId: string,
     propertyId: string,
+    view: DepartureView = "due",
   ): Promise<Departure[]> {
-    return withOrganizationContext(
+    const rows = await withOrganizationContext(
       deps.db,
       { userId },
       (tx) =>
-        tx.$queryRaw<Departure[]>`
+        tx.$queryRaw<
+          (Omit<Departure, "balanceMinor"> & { balanceMinor: string })[]
+        >`
         select
-          stay.id                               as "stayId",
-          coalesce(guest.full_name, '')         as "guestName",
-          stay.stay_type                        as "stayType",
-          to_char(stay.ends_on, 'YYYY-MM-DD')   as "endsOn",
-          unit.id                               as "unitId",
-          unit.name                             as "unitName",
-          unit.unit_type                        as "unitType",
-          unit.status                           as "unitStatus",
+          stay.id                                     as "stayId",
+          reservation.id                              as "reservationId",
+          reservation.reference                       as "reference",
+          coalesce(guest.full_name, '')               as "guestName",
+          stay.stay_type                              as "stayType",
+          to_char(stay.starts_on, 'YYYY-MM-DD')       as "startsOn",
+          to_char(stay.ends_on, 'YYYY-MM-DD')         as "endsOn",
+          unit.id                                     as "unitId",
+          unit.name                                   as "unitName",
+          room.name                                   as "roomName",
+          unit.unit_type                              as "unitType",
+          unit.status                                 as "unitStatus",
+          coalesce(stay.ends_on < today.day, false)   as "overdue",
+          coalesce(stay.ends_on > today.day, false)   as "early",
+          folio.id                                    as "folioId",
+          case when folio.id is null then null
+               else (select count(*) from public.folio_lines as line
+                      where line.folio_id = folio.id)::int
+          end                                         as "folioVersion",
+          -- Text, then a number in the contract, as the Folio module does: the
+          -- sum is a bigint, and ::int overflowed on a large enough bill.
           coalesce(
-            (
-              select sum(line.amount_minor)
-              from public.folio_lines as line
-              where line.folio_id = folio.id
-            ),
+            (select sum(line.amount_minor) from public.folio_lines as line
+              where line.folio_id = folio.id),
             0
-          )::int                                as "balanceMinor",
-          coalesce(folio.currency, property.currency) as "currency",
-          stay.ends_on < app.property_today(property.id)
-                                                as "overdue"
+          )::text                                     as "balanceMinor",
+          trim(coalesce(folio.currency, property.currency)) as "currency",
+          app.has_organization_permission(
+            stay.organization_id, 'front_desk.check_out') as "mayCheckOut"
         from public.stays as stay
         join public.properties as property
           on property.id = stay.property_id
         join public.accommodation_units as unit
           on unit.id = stay.accommodation_unit_id
+        left join public.accommodation_units as room
+          on room.id = unit.parent_id
         left join public.reservations as reservation
           on reservation.id = stay.reservation_id
         -- Left, because the Reservation is: a Stay that began without one has
-        -- no Guest recorded anywhere. Nothing creates a walk-in yet.
+        -- no Guest recorded anywhere.
         left join public.guests as guest
           on guest.id = reservation.guest_id
         left join public.folios as folio
           on folio.stay_id = stay.id
          and folio.status = 'open'
+        cross join (
+          select app.property_today(${propertyId}::uuid) as day
+        ) as today
         where stay.property_id = ${propertyId}::uuid
           and stay.status = 'in_house'
-          and stay.ends_on is not null
-          and stay.ends_on <= app.property_today(property.id)
+          and (${view} = 'in_house'
+               or (stay.ends_on is not null and stay.ends_on <= today.day))
           and app.can_use_capability(
             stay.property_id,
             ${FRONT_DESK_CAPABILITY.moduleKey},
             ${FRONT_DESK_CAPABILITY.capabilityKey}
           )
-        order by stay.ends_on, unit.name
+        order by stay.ends_on nulls last,
+                 coalesce(room.name, unit.name), unit.name
       `,
     );
+    return rows.map((row) => ({
+      ...row,
+      balanceMinor: Number(row.balanceMinor),
+    }));
   }
 
   /**
-   * Checks a Stay out: it ends, the Unit becomes free, and the actor is
-   * recorded.
+   * Checks a Stay out: it ends, its Reservation ends with it, a settled Folio
+   * closes, and the actor is recorded.
    *
-   * Two writes and a record in one transaction, for the same reason check-in is
-   * one: a Unit released without a record, or a record of a departure that did
-   * not happen, are each worse than the check-out not happening.
+   * Confirmed against the review the desk saw (`CheckOutConfirmation`), and
+   * everything that review claimed is compared with what is true under the
+   * Stay's lock before anything is written:
    *
-   * What frees the Unit is the status moving out of the exclusion constraint's
-   * partial index, so the same Unit can be let again the same day — which is
-   * the whole reason a front desk asks for this before lunch.
+   * - the Folio's line count, so a charge posted after the review — or a charge
+   *   and its correction, which leave the balance as it was — is not settled by
+   *   a desk that never saw it (CO-S1-12, CO-S1-16);
+   * - an early departure, which must be acknowledged (CO-S1-03, CO-S1-04);
+   * - the balance. Nothing can take a payment yet (PRE-01), so a Folio with
+   *   money on it cannot be settled; the Guest is leaving regardless, so the
+   *   desk leaves it open and says why, and the reason is the audit record's.
+   *   A zero balance closes the Folio in the same transaction.
    *
-   * Nothing here checks whether the actor is allowed to do this. The update
-   * returns no row when they are not, because the policy filtered it; and the
-   * columns they could otherwise have changed are refused by a column-level
-   * grant rather than by this module remembering not to.
+   * The lock is the Stay's (namespace 1), the one every posting to its Folio
+   * takes, so a charge racing this either lands first and changes the count,
+   * or waits and is then refused because the Folio is closed (CO-S1-15).
+   *
+   * Nothing here checks whether the actor is allowed to do this. The Stay's
+   * update returns no row when they are not, the Reservation's policy asks for
+   * check-out again, and the Folio's trigger refuses a Folio that is not
+   * settled — the database's answers, not this module's.
    */
-  async function checkOut(userId: string, stayId: string): Promise<CheckedOut> {
+  async function checkOut(
+    userId: string,
+    stayId: string,
+    confirmation: CheckOutConfirmation,
+  ): Promise<CheckedOut> {
+    const reason = confirmation.balanceReason?.trim() || null;
+    if (
+      reason !== null &&
+      (reason.length < BALANCE_REASON.min || reason.length > BALANCE_REASON.max)
+    ) {
+      throw new BalanceReasonError(
+        `a reason must be between ${BALANCE_REASON.min} and ${BALANCE_REASON.max} characters`,
+      );
+    }
+
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
-      // Today at the Property, decided by the database. A departure date taken
-      // from the server's clock is the wrong day for half of every day at a
-      // Property in another timezone.
-      const [today] = await tx.$queryRaw<{ on: Date; onText: string }[]>`
-        select app.property_today(property.id) as "on",
-               to_char(app.property_today(property.id),
-                       'YYYY-MM-DD') as "onText"
-        from public.properties as property
-        join public.stays as stay on stay.property_id = property.id
-        where stay.id = ${stayId}::uuid
+      // The Stay's lock, in a statement of its own. `folio_line_is_postable`
+      // takes the same lock, so no line can be added between the read below
+      // and the commit. Its own statement because the read must start after
+      // the lock is granted: a statement's snapshot is taken when it begins,
+      // and one that waited for the lock inside itself would not see the
+      // charge whose transaction it was waiting for.
+      await tx.$queryRaw`
+        select pg_advisory_xact_lock(1, hashtext(${stayId}::uuid::text))::text
       `;
-      if (!today) {
-        // No readable Property for that Stay: out of reach, or no such Stay.
+
+      const [review] = await tx.$queryRaw<
+        {
+          today: Date;
+          todayText: string;
+          plannedEndsOn: string | null;
+          folioId: string | null;
+          folioLines: number;
+          balanceMinor: string;
+          currency: string | null;
+        }[]
+      >`
+        select app.property_today(stay.property_id)            as "today",
+               to_char(app.property_today(stay.property_id),
+                       'YYYY-MM-DD')                           as "todayText",
+               to_char(stay.ends_on, 'YYYY-MM-DD')             as "plannedEndsOn",
+               folio.id                                        as "folioId",
+               (select count(*) from public.folio_lines as line
+                 where line.folio_id = folio.id)::int          as "folioLines",
+               coalesce((select sum(line.amount_minor)
+                           from public.folio_lines as line
+                          where line.folio_id = folio.id), 0)::text as "balanceMinor",
+               folio.currency                                  as "currency"
+        from public.stays as stay
+        left join public.folios as folio
+          on folio.stay_id = stay.id and folio.status = 'open'
+        where stay.id = ${stayId}::uuid
+          and stay.status = 'in_house'
+      `;
+      if (!review) {
+        // Out of reach, already departed, withdrawn, or never existed. One
+        // message for all four: telling them apart would confirm that a Stay
+        // the caller cannot see is there.
         throw new CheckOutError("that Stay cannot be checked out");
+      }
+
+      const reviewedVersion = review.folioId ? review.folioLines : null;
+      if (reviewedVersion !== confirmation.folioVersion) {
+        throw new FolioChangedError("the bill changed since it was reviewed");
+      }
+
+      // ISO dates compare as strings; nothing here becomes a Date.
+      const early =
+        review.plannedEndsOn !== null &&
+        review.plannedEndsOn > review.todayText;
+      if (early && !confirmation.earlyDeparture) {
+        throw new EarlyDepartureError(
+          "the Guest is leaving before their planned departure",
+        );
+      }
+
+      // Compared as the database's text, never parsed to a number: a balance
+      // is a sum of bigints and a JavaScript number is not one (ADR 0015).
+      const settled = review.balanceMinor === "0";
+      if (!settled && reason === null) {
+        throw new BalanceReasonError("the Folio has a balance");
       }
 
       let closed;
       try {
-        closed = await closeStayWithin(tx, stayId, today.on);
+        closed = await closeStayWithin(tx, stayId, review.today);
       } catch (error: unknown) {
-        // Out of reach, already departed, cancelled, or never existed. One
-        // message for all four: telling them apart would confirm that a Stay
-        // the caller cannot see is there.
-        //
-        // Only that refusal is translated. A bare `catch` here also swallowed
-        // a constraint violation and a lost connection, reporting both to the
-        // front desk as "you cannot" and to the logs as nothing at all —
-        // hiding which Stay exists is the point, hiding a real failure from
-        // the people running the system is not.
+        // Checked in house under the lock a moment ago, so reaching this means
+        // a policy refused the update: the actor cannot check out here. The
+        // same message as every other refusal. Anything else is not a refusal
+        // and is thrown as it is, so a real failure is not reported as one.
         if (error instanceof StayWriteError) {
           throw new CheckOutError("that Stay cannot be checked out");
         }
@@ -718,6 +830,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
         }
       }
 
+      // A settled Folio closes with the Stay, under the lock that stops a
+      // charge landing between the balance read and this.
+      const folio = settled ? await closeSettledFolioWithin(tx, stayId) : null;
+
       // The same transaction again. A departure is the fact most things want to
       // react to — a final bill, a housekeeping task, a review request — and
       // none of those may hold up a front desk at eleven in the morning
@@ -729,12 +845,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
           stayId,
           accommodationUnitId: closed.accommodationUnitId,
           // Formatted by the database, like every other date this module
-          // publishes. `toISOString()` on the Date beside it happens to be
-          // right — the adapter hands back UTC midnight — but that is a
-          // third-party parsing choice, and an upgrade that changed it to local
-          // midnight would shift this by a day for every host east of UTC with
-          // nothing failing. The string never leaves the Property's own day.
-          departedOn: today.onText,
+          // publishes. The string never leaves the Property's own day.
+          departedOn: review.todayText,
+          folioId: review.folioId,
+          folioClosed: folio !== null,
         },
       });
 
@@ -744,10 +858,21 @@ export function createReservationsModule(deps: ReservationsDeps) {
         action: "stay.checked_out",
         subjectType: "stay",
         subjectId: stayId,
-        context: { accommodationUnitId: closed.accommodationUnitId },
+        // Why the Folio was left with money on it; nothing when it was settled.
+        ...(!settled && reason !== null ? { reason } : {}),
+        context: {
+          accommodationUnitId: closed.accommodationUnitId,
+          reservationId: closed.reservationId,
+          folioId: review.folioId,
+          balanceMinor: review.balanceMinor,
+          currency: review.currency,
+          folioClosed: folio !== null,
+          plannedEndsOn: review.plannedEndsOn,
+          earlyDeparture: early,
+        },
       });
 
-      return { stayId };
+      return { stayId, folioClosed: folio !== null };
     });
   }
 

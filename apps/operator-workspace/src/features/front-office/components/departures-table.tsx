@@ -1,25 +1,27 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import type { Departure } from "@ranza/reservations";
+import type { Departure, DepartureView } from "@ranza/reservations";
 import { DataTable, EmptyState } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
 import { useTableLabels } from "../../../lib/table-labels";
 import { useDepartureColumns } from "./columns";
 
 /**
- * Today's departures, overdue ones first.
+ * The Stays a front desk may check out: due and overdue ones first, or
+ * everybody in house.
  *
  * The order is the query's, not a default sort here: `listDepartures` orders by
- * planned end date, so anybody already past theirs leads. Sorting a column
- * afterwards is the reader's choice.
+ * planned departure, so anybody already past theirs leads.
  */
 export function DeparturesTable({
   departures,
   locale,
+  view,
 }: {
   departures: readonly Departure[];
   locale: SupportedLocale;
+  view: DepartureView;
 }) {
   const t = useTranslations();
   const labels = useTableLabels();
@@ -32,13 +34,20 @@ export function DeparturesTable({
         columns={columns}
         data={departures}
         empty={
-          <EmptyState
-            description={t("noDeparturesDescription")}
-            title={t("noDeparturesTitle")}
-          />
+          view === "due" ? (
+            <EmptyState
+              description={t("noDeparturesDescription")}
+              title={t("noDeparturesTitle")}
+            />
+          ) : (
+            <EmptyState
+              description={t("nobodyInHouseDescription")}
+              title={t("nobodyInHouseTitle")}
+            />
+          )
         }
         labels={labels}
-        searchColumns={["guestName", "unitName"]}
+        searchColumns={["guestName", "unitName", "reference"]}
       />
     </div>
   );

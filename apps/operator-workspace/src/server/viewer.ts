@@ -16,6 +16,7 @@ import type {
   Arrival,
   BookableUnit,
   Departure,
+  DepartureView,
   ReservationRow,
 } from "@ranza/reservations";
 import { ROOMS_CAPABILITY } from "@ranza/accommodation";
@@ -170,7 +171,9 @@ export async function arrivals(
 }
 
 /**
- * The Stays due to leave today at one Property, and any already overdue.
+ * The Stays in house at one Property: those due to leave today and any already
+ * overdue, or with `in_house` everybody — the early leaver and the open-ended
+ * Resident a front desk also checks out.
  *
  * Same funnel and same non-checking as `arrivals`: a Property the viewer cannot
  * reach produces an empty list because the policies and the capability gate
@@ -178,12 +181,14 @@ export async function arrivals(
  */
 export async function departures(
   propertyId: string,
+  view: DepartureView = "due",
 ): Promise<readonly Departure[]> {
   const viewer = await currentViewer();
   if (!viewer) return [];
   return getComposition().reservations.listDepartures(
     viewer.userId,
     propertyId,
+    view,
   );
 }
 

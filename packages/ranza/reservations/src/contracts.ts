@@ -120,29 +120,90 @@ export interface CheckedIn {
  * only today hides the Guest who should have left on Tuesday, which is the row
  * most worth seeing.
  */
+/** Which Stays the departures screen lists. */
+export type DepartureView = "due" | "in_house";
+
 export interface Departure {
   stayId: string;
+  /** Null for a Stay that began without a Reservation. */
+  reservationId: string | null;
+  /** The Reservation's reference, read aloud to a Guest; null without one. */
+  reference: string | null;
   /**
    * From the Reservation, and empty when the Stay began without one. A walk-in
-   * has no name recorded anywhere yet — Guest profiles are blueprint 5.3 and
-   * are not built, so this says nothing rather than inventing something.
+   * has no name recorded anywhere yet, so this says nothing rather than
+   * inventing something.
    */
   guestName: string;
   stayType: ReservationStayType;
-  /** Calendar date as `YYYY-MM-DD`. Never null: an open-ended Stay is not due. */
-  endsOn: string;
+  /** The day they arrived, as `YYYY-MM-DD`. */
+  startsOn: string;
+  /** Their planned departure as `YYYY-MM-DD`, or null for an open-ended Stay. */
+  endsOn: string | null;
   unitId: string;
   unitName: string;
+  /** The room a bed is in, so "A" reads as "401 · A"; null for a room. */
+  roomName: string | null;
   unitType: AccommodationUnitType;
   unitStatus: string;
+  /** Past their planned departure and still here. */
   overdue: boolean;
+  /** Leaving before their planned departure if they leave today. */
+  early: boolean;
+  /** The open Folio, or null when the Property does no billing. */
+  folioId: string | null;
+  /**
+   * The Folio's line count, which the check-out confirms against; null with no
+   * Folio. See `CheckOutConfirmation.folioVersion`.
+   */
+  folioVersion: number | null;
   balanceMinor: number;
   currency: string;
+  /**
+   * Whether the viewer holds front_desk.check_out. Presentation: the policy
+   * decides whether pressing the button does anything.
+   */
+  mayCheckOut: boolean;
 }
+
+/**
+ * What the front desk saw when it decided to check somebody out.
+ *
+ * A check-out is confirmed against a review of the bill, and the review is
+ * what these three carry back. The module compares them with what is true
+ * under the Stay's lock, so a charge posted between the review and the button
+ * is not settled by a desk that never saw it (CO-S1-12).
+ */
+export interface CheckOutConfirmation {
+  /**
+   * How many lines the Folio had when the desk reviewed it, or null when the
+   * review showed no Folio. Lines are only ever added, so the count changes on
+   * every posting — a charge and its correction included, which leave the
+   * balance where it was (CO-S1-16).
+   */
+  folioVersion: number | null;
+  /** The desk acknowledged the Guest is leaving before their planned last night. */
+  earlyDeparture: boolean;
+  /**
+   * Why a Folio with money on it is being left open. Required when the balance
+   * is not zero, because nothing can take a payment yet (PRE-01) and the Guest
+   * is leaving anyway; recorded as the audit record's reason.
+   */
+  balanceReason: string | null;
+}
+
+/**
+ * The bounds on a reason for leaving a Folio open: the audit column's own, like
+ * `REVERSAL_REASON`, so a reason that passes here cannot fail after the Stay
+ * has already ended.
+ */
+export const BALANCE_REASON = { min: 3, max: 2000 } as const;
 
 /** What a completed check-out produced. */
 export interface CheckedOut {
   stayId: string;
+  /** The Folio was settled and is now closed; false when there was none or it was left open. */
+  folioClosed: boolean;
 }
 
 /**
@@ -253,6 +314,34 @@ export class CheckOutError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "CheckOutError";
+  }
+}
+
+/**
+ * The bill changed after the desk reviewed it. Review it again (CO-S1-12).
+ *
+ * Reveals nothing: the caller already holds the Stay's review.
+ */
+export class FolioChangedError extends CheckOutError {
+  constructor(message: string) {
+    super(message);
+    this.name = "FolioChangedError";
+  }
+}
+
+/** The Guest leaves before their planned last night and nobody said so (CO-S1-04). */
+export class EarlyDepartureError extends CheckOutError {
+  constructor(message: string) {
+    super(message);
+    this.name = "EarlyDepartureError";
+  }
+}
+
+/** Money is on the Folio and no reason was given, or one outside the bounds. */
+export class BalanceReasonError extends CheckOutError {
+  constructor(message: string) {
+    super(message);
+    this.name = "BalanceReasonError";
   }
 }
 
