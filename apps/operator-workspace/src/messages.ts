@@ -211,6 +211,7 @@ export interface Messages {
       | "book"
       | "checkIn"
       | "checkOut"
+      | "cancel"
       | "manageFolio"
       | "postCharge"
       | "administerStaff"
@@ -597,6 +598,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         book: "Rezervasyon alma",
         checkIn: "Giriş yapma",
         checkOut: "Çıkış yapma",
+        cancel: "Rezervasyon iptali ve gelmedi kaydı",
         manageFolio: "Folyo açma ve kapatma",
         postCharge: "Folyoya ücret işleme",
         administerStaff: "Ekibi yönetme",
@@ -1017,6 +1019,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         book: "Take a booking",
         checkIn: "Check somebody in",
         checkOut: "Check somebody out",
+        cancel: "Cancel a booking or record a no-show",
         manageFolio: "Open and close a Folio",
         postCharge: "Post a charge",
         administerStaff: "Administer staff",
@@ -1432,6 +1435,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         book: "أخذ حجز",
         checkIn: "تسجيل الدخول",
         checkOut: "تسجيل المغادرة",
+        cancel: "إلغاء حجز أو تسجيل عدم الحضور",
         manageFolio: "فتح وإغلاق الحساب",
         postCharge: "تسجيل رسم على الحساب",
         administerStaff: "إدارة الفريق",
