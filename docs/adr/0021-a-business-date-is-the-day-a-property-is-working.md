@@ -51,10 +51,10 @@ becomes:
 (now() at time zone property.timezone - property.business_date_cutoff)::date
 ```
 
-A cutoff of midnight makes it exactly what it is now, so adopting this changes
-no behaviour anywhere until a Property sets one. That is deliberate: the
-migration is safe to apply before anything depends on it, and the first Property
-to set a cutoff is a configuration change rather than a deployment.
+The default is chosen, not neutral: applying it moved the hours between midnight
+and 04:00 at every Property into the day before, which is the point. Until a
+settings screen exists, a Property's cutoff is changed in SQL, within the bounds
+the check constraint allows.
 
 It sits beside `timezone` and `currency`, for the reason those are there: an
 Organization may hold Properties that operate differently, so none of the three
@@ -77,9 +77,10 @@ rolls the day this defines rather than defining one of its own.
 
 ## Consequences
 
-Every date comparison became a business-date comparison when it landed, because they all resolve through `app.property_today()`. That is the
-intended blast radius and it is why the function was extracted before the
-decision was needed rather than after.
+Every date comparison became a business-date comparison when it landed,
+because they all resolve through `app.property_today()`. That is the intended
+blast radius and it is why the function was extracted before the decision was
+needed rather than after.
 
 `posted_at` on a Folio line stays a `timestamptz` — the instant something was
 recorded is not the day it belongs to, and conflating them is how a correction
