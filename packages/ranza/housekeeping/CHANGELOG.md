@@ -15,3 +15,5 @@ everything lands under Unreleased.
   departure marking the room dirty through `app.mark_unit_dirty_after_check_out()`.
 - `board`: every room at a Property with its status and readiness.
 - `markUnits`: marking one room or many, audited per room.
+- The inspection setting: an Organization default and a Property override,
+  in `housekeeping_settings`, audited as `housekeeping.inspection_set`.

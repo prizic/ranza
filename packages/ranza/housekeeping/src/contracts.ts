@@ -73,6 +73,30 @@ export interface HousekeepingBoard {
   mayMark: boolean;
 }
 
+/**
+ * Whether rooms at a Property are inspected after cleaning before they are
+ * ready (slice 3): what the Organization says, what this Property says, and
+ * what applies. A setting changes what ready means, never what a room holds.
+ */
+export interface InspectionSettings {
+  /** The Organization's default; off when it has never been set. */
+  organizationDefault: boolean;
+  /** This Property's own answer; null means it follows the default. */
+  propertyOverride: boolean | null;
+  /** What applies here: the override, else the default. */
+  effective: boolean;
+  /** Whether the reader may override this Property. */
+  mayConfigure: boolean;
+  /**
+   * Whether the reader may change the default, which also needs reach to
+   * every Property it governs.
+   */
+  mayConfigureDefault: boolean;
+}
+
+/** How an audit record words a setting: a value, or "follows the default". */
+export type InspectionValue = "on" | "off" | "default";
+
 export interface UnitsMarked {
   /** How many rooms the mark reached, after beds were folded into rooms. */
   marked: number;

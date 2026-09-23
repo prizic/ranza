@@ -3,11 +3,13 @@ import { isSupportedLocale } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
 import { getTranslations } from "next-intl/server";
 import { HousekeepingBoard } from "../../../../features/housekeeping/components/housekeeping-board";
+import { InspectionSettings } from "../../../../features/housekeeping/components/inspection-settings";
 import {
   currentViewer,
   entitledProperties,
   HOUSEKEEPING_CAPABILITY,
   housekeepingBoard,
+  housekeepingInspection,
   MARK_BATCH,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
@@ -44,15 +46,27 @@ export default async function HousekeepingPage({
     );
   }
 
-  const board = await housekeepingBoard(property.propertyId);
+  const [board, inspection] = await Promise.all([
+    housekeepingBoard(property.propertyId),
+    housekeepingInspection(property.propertyId),
+  ]);
 
   return (
-    <HousekeepingBoard
-      board={board}
-      locale={locale}
-      markLimit={MARK_BATCH.max}
-      propertyName={property.propertyName}
-      timeZone={property.timezone}
-    />
+    <div className="flex flex-col gap-8">
+      <HousekeepingBoard
+        board={board}
+        locale={locale}
+        markLimit={MARK_BATCH.max}
+        propertyName={property.propertyName}
+        timeZone={property.timezone}
+      />
+      {inspection ? (
+        <InspectionSettings
+          locale={locale}
+          propertyId={property.propertyId}
+          settings={inspection}
+        />
+      ) : null}
+    </div>
   );
 }

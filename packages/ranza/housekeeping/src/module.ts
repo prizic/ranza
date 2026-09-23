@@ -10,6 +10,8 @@ import {
   type HousekeepingCounts,
   type HousekeepingRoom,
   type HousekeepingStatus,
+  type InspectionSettings,
+  type InspectionValue,
   type UnitsMarked,
 } from "./contracts";
 import type { HousekeepingDeps } from "./ports";
@@ -68,6 +70,10 @@ function countsOf(rooms: readonly HousekeepingRoom[]): HousekeepingCounts {
     inspected: rooms.filter((room) => room.status === "inspected").length,
     ready: rooms.filter((room) => room.ready).length,
   };
+}
+
+function wordFor(value: boolean | null): InspectionValue {
+  return value === null ? "default" : value ? "on" : "off";
 }
 
 function isStatus(value: string): value is HousekeepingStatus {
@@ -275,7 +281,171 @@ export function createHousekeepingModule(deps: HousekeepingDeps) {
     });
   }
 
-  return { board, markUnits };
+  /**
+   * What a Property says about inspection, and whether the reader may change
+   * it (HK-S3-09). Null for a Property the reader cannot reach or that has no
+   * housekeeping: there is nothing there to configure.
+   */
+  async function inspectionSettings(
+    userId: string,
+    propertyId: string,
+  ): Promise<InspectionSettings | null> {
+    const [row] = await withOrganizationContext(
+      deps.db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<
+          {
+            organizationDefault: boolean | null;
+            propertyOverride: boolean | null;
+            effective: boolean;
+            hasPermission: boolean;
+            wideReach: boolean;
+          }[]
+        >`
+        select (select setting.inspect_after_cleaning
+                  from public.housekeeping_settings as setting
+                 where setting.organization_id = property.organization_id
+                   and setting.property_id is null) as "organizationDefault",
+               (select setting.inspect_after_cleaning
+                  from public.housekeeping_settings as setting
+                 where setting.property_id = property.id) as "propertyOverride",
+               app.housekeeping_inspection_required(property.id) as effective,
+               app.has_organization_permission(
+                 property.organization_id, 'accommodation.configure'
+               ) as "hasPermission",
+               app.has_organization_wide_reach(property.organization_id)
+                 as "wideReach"
+          from public.properties as property
+         where property.id = ${propertyId}::uuid
+           and app.can_use_capability(
+                 property.id,
+                 ${HOUSEKEEPING_CAPABILITY.moduleKey},
+                 ${HOUSEKEEPING_CAPABILITY.capabilityKey}
+               )
+      `,
+    );
+    if (!row) return null;
+    return {
+      organizationDefault: row.organizationDefault ?? false,
+      propertyOverride: row.propertyOverride,
+      effective: row.effective,
+      mayConfigure: row.hasPermission,
+      mayConfigureDefault: row.hasPermission && row.wideReach,
+    };
+  }
+
+  /**
+   * One Property's own answer: on, off, or null to follow the default again
+   * (HK-S3-02, HK-S3-10). Reset clears the value rather than deleting the row,
+   * and the audit record keeps what it was (HK-S3-08). The policies decide
+   * whether the reader may.
+   */
+  async function setPropertyInspection(
+    userId: string,
+    propertyId: string,
+    value: boolean | null,
+  ): Promise<void> {
+    await withOrganizationContext(deps.db, { userId }, async (tx) => {
+      let changed: { organizationId: string; from: boolean | null }[];
+      try {
+        changed = await tx.$queryRaw`
+          with previous as (
+            select setting.inspect_after_cleaning as value
+              from public.housekeeping_settings as setting
+             where setting.property_id = ${propertyId}::uuid
+          )
+          insert into public.housekeeping_settings
+            (organization_id, property_id, inspect_after_cleaning)
+          select property.organization_id, property.id, ${value}::boolean
+            from public.properties as property
+           where property.id = ${propertyId}::uuid
+          on conflict (property_id) where property_id is not null do update
+             set inspect_after_cleaning = excluded.inspect_after_cleaning
+          returning organization_id as "organizationId",
+                    (select value from previous) as "from"
+        `;
+      } catch (error: unknown) {
+        if (raised(error, INSUFFICIENT_PRIVILEGE)) {
+          throw new HousekeepingRefusedError();
+        }
+        throw error;
+      }
+      const [setting] = changed;
+      if (!setting) throw new HousekeepingRefusedError();
+
+      await recordWithin(tx, {
+        organizationId: setting.organizationId,
+        actorId: userId,
+        action: "housekeeping.inspection_set",
+        subjectType: "property",
+        subjectId: propertyId,
+        context: { from: wordFor(setting.from), to: wordFor(value) },
+      });
+    });
+  }
+
+  /**
+   * The Organization's default, named through a Property the reader is on:
+   * the screen is a Property's, and so is the reach that opens it. Needs reach
+   * to every Property the default governs (HK-S3-05).
+   */
+  async function setOrganizationInspection(
+    userId: string,
+    propertyId: string,
+    value: boolean,
+  ): Promise<void> {
+    await withOrganizationContext(deps.db, { userId }, async (tx) => {
+      let changed: { organizationId: string; from: boolean | null }[];
+      try {
+        changed = await tx.$queryRaw`
+          with target as (
+            select property.organization_id
+              from public.properties as property
+             where property.id = ${propertyId}::uuid
+          ),
+          previous as (
+            select setting.inspect_after_cleaning as value
+              from public.housekeeping_settings as setting
+             where setting.organization_id = (select organization_id from target)
+               and setting.property_id is null
+          )
+          insert into public.housekeeping_settings
+            (organization_id, inspect_after_cleaning)
+          select organization_id, ${value}::boolean from target
+          on conflict (organization_id) where property_id is null do update
+             set inspect_after_cleaning = excluded.inspect_after_cleaning
+          returning organization_id as "organizationId",
+                    (select value from previous) as "from"
+        `;
+      } catch (error: unknown) {
+        if (raised(error, INSUFFICIENT_PRIVILEGE)) {
+          throw new HousekeepingRefusedError();
+        }
+        throw error;
+      }
+      const [setting] = changed;
+      if (!setting) throw new HousekeepingRefusedError();
+
+      await recordWithin(tx, {
+        organizationId: setting.organizationId,
+        actorId: userId,
+        action: "housekeeping.inspection_set",
+        subjectType: "organization",
+        subjectId: setting.organizationId,
+        // A default never set was off, which is what every Property read.
+        context: { from: wordFor(setting.from ?? false), to: wordFor(value) },
+      });
+    });
+  }
+
+  return {
+    board,
+    markUnits,
+    inspectionSettings,
+    setPropertyInspection,
+    setOrganizationInspection,
+  };
 }
 
 export type HousekeepingModule = ReturnType<typeof createHousekeepingModule>;

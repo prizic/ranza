@@ -34,6 +34,7 @@ import type {
   HousekeepingBoard,
   HousekeepingRoom,
   HousekeepingStatus,
+  InspectionSettings,
 } from "@ranza/housekeeping";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import { getComposition } from "./composition";
@@ -81,6 +82,7 @@ export type {
   HousekeepingBoard,
   HousekeepingRoom,
   HousekeepingStatus,
+  InspectionSettings,
   NewUnits,
   ReservationRow,
   ScopeHistory,
@@ -315,6 +317,22 @@ export async function housekeepingBoard(
     };
   }
   return getComposition().housekeeping.board(viewer.userId, propertyId);
+}
+
+/**
+ * Whether rooms at this Property are inspected before they are ready, and
+ * whether the viewer may change that (HK-S3-09). Null where there is nothing to
+ * configure: out of reach, or no housekeeping.
+ */
+export async function housekeepingInspection(
+  propertyId: string,
+): Promise<InspectionSettings | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().housekeeping.inspectionSettings(
+    viewer.userId,
+    propertyId,
+  );
 }
 
 /**

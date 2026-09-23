@@ -66,6 +66,7 @@ model Organization {
   entitlements Entitlement[]
   guests       Guest[]
   staffRoles   StaffRole[]
+  housekeepingSettings HousekeepingSetting[]
 
   @@map("organizations")
 }
@@ -91,6 +92,7 @@ model Property {
   stays        Stay[]
   reservations Reservation[]
   folios       Folio[]
+  housekeepingSettings HousekeepingSetting[]
 
   @@unique([id, organizationId])
   @@index([organizationId], map: "properties_organization_idx")
@@ -180,6 +182,28 @@ model HousekeepingUnitStatus {
 
   @@index([propertyId, status])
   @@map("housekeeping_unit_status")
+}
+
+/// Whether a room must be inspected after cleaning before it counts as ready
+/// (RANZ-28 slice 3). One Organization default, a row with no Property, and at
+/// most one override per Property, where a null value means "use the default".
+/// Two partial unique indexes rather than one over both columns, because null
+/// is not equal to null and that version would allow any number of defaults.
+/// Reset to default clears the value; a row is never deleted.
+model HousekeepingSetting {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId       String   @map("organization_id") @db.Uuid
+  propertyId           String?  @map("property_id") @db.Uuid
+  inspectAfterCleaning Boolean? @map("inspect_after_cleaning")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  property     Property?    @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([organizationId], map: "housekeeping_settings_organization_default_key", where: raw("property_id IS NULL"))
+  @@unique([propertyId], map: "housekeeping_settings_property_override_key", where: raw("property_id IS NOT NULL"))
+  @@map("housekeeping_settings")
 }
 
 /// A named set of permissions (blueprint 7.2). A role is not a label: what a
