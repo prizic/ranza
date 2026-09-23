@@ -16,13 +16,16 @@ import {
 import {
   BALANCE_REASON,
   BalanceReasonError,
+  CANCELLATION_REASON,
   CheckInError,
   CheckInReversalError,
   CheckOutError,
   EarlyDepartureError,
   FolioChangedError,
   FRONT_DESK_CAPABILITY,
+  ReservationEndError,
   ReservationPeriodError,
+  ReservationReasonError,
   ReservationRefusedError,
   REVERSAL_REASON,
   StayHasChargesError,
@@ -39,6 +42,7 @@ import {
   type Departure,
   type DepartureView,
   type NewReservation,
+  type ReservationEnded,
   type ReservationRow,
 } from "./contracts";
 import type { ReservationsDeps } from "./ports";
@@ -164,15 +168,16 @@ export function createReservationsModule(deps: ReservationsDeps) {
    * list, which shows the Guest who should have left on Tuesday and not the one
    * who left in March.
    *
-   * `canCheckIn` is the predicate `checkIn` applies, not a restatement of it.
-   * The two drifted apart once already, and a button that raises when pressed
-   * is worse than one that is not offered.
+   * A late arrival checked in today stays on the list for the rest of the day,
+   * like today's own, because their Stay began today (ADR 0022): taking the
+   * check-in back is done from this row.
    *
-   * One consequence is deliberate rather than overlooked: a late arrival leaves
-   * the list the moment they are checked in, because their start date is not
-   * today, while today's check-ins stay until the day turns over. Showing them
-   * too means asking which Stays opened today, which is a different question on
-   * a different table, and nobody has asked the screen for it yet.
+   * `canCheckIn` mirrors what `checkIn` and the Stay's triggers refuse — the
+   * status, the dates, a blocked Unit, somebody still in the room — and
+   * `checkInBlocker` says which, when the desk can act on it. The integration
+   * suite presses the button on every kind of row and asserts the two agree;
+   * they drifted apart once already, and a button that raises when pressed is
+   * worse than one that is not offered.
    *
    * Cancelled and no-show Reservations are absent because they are not
    * arriving.
@@ -185,89 +190,132 @@ export function createReservationsModule(deps: ReservationsDeps) {
     userId: string,
     propertyId: string,
   ): Promise<Arrival[]> {
-    return withOrganizationContext(
+    const rows = await withOrganizationContext(
       deps.db,
       { userId },
       (tx) =>
-        tx.$queryRaw<Arrival[]>`
-        select
-          reservation.id                                as "reservationId",
-          guest.full_name                               as "guestName",
-          reservation.stay_type                         as "stayType",
-          reservation.status                            as "status",
-          to_char(reservation.starts_on, 'YYYY-MM-DD')  as "startsOn",
-          to_char(reservation.ends_on, 'YYYY-MM-DD')    as "endsOn",
-          unit.id                                       as "unitId",
-          unit.name                                     as "unitName",
-          unit.unit_type                                as "unitType",
-          unit.status                                   as "unitStatus",
-          stay.id                                       as "stayId",
-          null::text                                    as "eta",
-          greatest(0, (today.day - reservation.starts_on))::int as "daysLate",
-          coalesce(
-            (
-              select sum(line.amount_minor)
-              from public.folio_lines as line
-              where line.folio_id = folio.id
-            ),
-            0
-          )::int                                        as "balanceMinor",
-          coalesce(folio.currency, property.currency)   as "currency",
-          reservation.status = 'confirmed'
-            and reservation.starts_on <= today.day
-            and (reservation.ends_on is null
-                 or reservation.ends_on > today.day)    as "canCheckIn"
-        from public.reservations as reservation
-        join public.properties as property
-          on property.id = reservation.property_id
-        -- An inner join: guest_id is NOT NULL and its composite foreign key
-        -- proves the Guest is this Organization's, so a Reservation whose
-        -- Guest is unreadable is not a state this table can be in.
-        join public.guests as guest
-          on guest.id = reservation.guest_id
-        join public.accommodation_units as unit
-          on unit.id = reservation.accommodation_unit_id
-        -- At most one row joins:
-        -- stays_reservation_id_property_id_organization_id_key is unique
-        -- where the status is not cancelled, so however many withdrawn
-        -- Stays a Reservation has behind it, this cannot multiply it.
-        left join public.stays as stay
-          on stay.reservation_id = reservation.id
-         and stay.status = 'in_house'
-        left join public.folios as folio
-          on folio.stay_id = stay.id
-         and folio.status = 'open'
-        -- Once, for the whole query. The Property is fixed by the parameter
-        -- below, so this is the same date on every row, and computing it per
-        -- row would only invite the two comparisons to disagree across a
-        -- midnight that fell between them.
-        cross join (
-          select app.property_today(${propertyId}::uuid) as day
-        ) as today
-        where reservation.property_id = ${propertyId}::uuid
-          and reservation.status in ('requested', 'confirmed', 'checked_in')
-          and (
-            reservation.starts_on = today.day
-            -- A Stay that began today is today's work whatever the
-            -- Reservation planned. Without this a late arrival left the
-            -- list the moment they were checked in, taking the only way to
-            -- take that back with them (ADR 0022).
-            or stay.starts_on = today.day
-            or (
-              reservation.status <> 'checked_in'
-              and reservation.starts_on < today.day
+        tx.$queryRaw<
+          (Omit<Arrival, "balanceMinor"> & { balanceMinor: string })[]
+        >`
+        with arriving as (
+          select
+            reservation.*,
+            guest.full_name                         as guest_name,
+            unit.name                               as unit_name,
+            unit.unit_type,
+            unit.status                             as unit_status,
+            room.name                               as room_name,
+            stay.id                                 as stay_id,
+            folio.id                                as folio_id,
+            folio.currency                          as folio_currency,
+            property.currency                       as property_currency,
+            today.day                               as today,
+            occupant.ends_on                        as occupant_ends_on,
+            occupant.id is not null                 as occupied,
+            reservation.starts_on <= today.day
               and (reservation.ends_on is null
-                   or reservation.ends_on > today.day)
+                   or reservation.ends_on > today.day) as dated_for_today
+          from public.reservations as reservation
+          join public.properties as property
+            on property.id = reservation.property_id
+          -- An inner join: guest_id is NOT NULL and its composite foreign key
+          -- proves the Guest is this Organization's.
+          join public.guests as guest
+            on guest.id = reservation.guest_id
+          join public.accommodation_units as unit
+            on unit.id = reservation.accommodation_unit_id
+          left join public.accommodation_units as room
+            on room.id = unit.parent_id
+          -- At most one row joins: one Stay per Reservation is unique where
+          -- the status is not cancelled.
+          left join public.stays as stay
+            on stay.reservation_id = reservation.id
+           and stay.status = 'in_house'
+          left join public.folios as folio
+            on folio.stay_id = stay.id
+           and folio.status = 'open'
+          -- Somebody else in the room: at most one, because one in-house Stay
+          -- per Unit is unique (ADR 0029).
+          left join public.stays as occupant
+            on occupant.accommodation_unit_id = reservation.accommodation_unit_id
+           and occupant.status = 'in_house'
+           and occupant.reservation_id is distinct from reservation.id
+          -- Once, for the whole query, so the comparisons cannot disagree across
+          -- a cutoff that fell between them.
+          cross join (
+            select app.property_today(${propertyId}::uuid) as day
+          ) as today
+          where reservation.property_id = ${propertyId}::uuid
+            and reservation.status in ('requested', 'confirmed', 'checked_in')
+            and (
+              reservation.starts_on = today.day
+              -- A Stay that began today is today's work whatever the
+              -- Reservation planned (ADR 0022).
+              or stay.starts_on = today.day
+              or (
+                reservation.status <> 'checked_in'
+                and reservation.starts_on < today.day
+                and (reservation.ends_on is null
+                     or reservation.ends_on > today.day)
+              )
             )
-          )
-          and app.can_use_capability(
-            reservation.property_id,
-            ${FRONT_DESK_CAPABILITY.moduleKey},
-            ${FRONT_DESK_CAPABILITY.capabilityKey}
-          )
-        order by unit.name, guest.full_name
+            and app.can_use_capability(
+              reservation.property_id,
+              ${FRONT_DESK_CAPABILITY.moduleKey},
+              ${FRONT_DESK_CAPABILITY.capabilityKey}
+            )
+        )
+        select
+          id                                          as "reservationId",
+          reference                                   as "reference",
+          guest_name                                  as "guestName",
+          stay_type                                   as "stayType",
+          status                                      as "status",
+          to_char(starts_on, 'YYYY-MM-DD')            as "startsOn",
+          to_char(ends_on, 'YYYY-MM-DD')              as "endsOn",
+          accommodation_unit_id                       as "unitId",
+          unit_name                                   as "unitName",
+          room_name                                   as "roomName",
+          unit_type                                   as "unitType",
+          unit_status                                 as "unitStatus",
+          -- What checkIn's update and the Stay triggers refuse, in the order a
+          -- desk would fix them. Every clause mirrors one of them: the status
+          -- and the dates are the update's predicate, the Unit's status is
+          -- stays_unit_is_in_service, the occupant is stays_one_in_house_per_unit.
+          status = 'confirmed' and dated_for_today
+            and unit_status not in ('blocked', 'out_of_service')
+            and not occupied                          as "canCheckIn",
+          case
+            when status = 'requested'                 then 'not_confirmed'
+            when status <> 'confirmed' or not dated_for_today then null
+            when unit_status = 'blocked'              then 'unit_blocked'
+            when unit_status = 'out_of_service'       then 'unit_out_of_service'
+            when occupied                             then 'unit_occupied'
+          end                                         as "checkInBlocker",
+          coalesce(occupant_ends_on < today, false)   as "occupantOverdue",
+          stay_id                                     as "stayId",
+          folio_id                                    as "folioId",
+          greatest(0, (today - starts_on))::int       as "daysLate",
+          -- Text, as the Folio module reads it: a sum of bigints overflowed
+          -- ::int on a large enough bill.
+          coalesce(
+            (select sum(line.amount_minor) from public.folio_lines as line
+              where line.folio_id = arriving.folio_id),
+            0
+          )::text                                     as "balanceMinor",
+          trim(coalesce(folio_currency, property_currency)) as "currency",
+          app.has_organization_permission(
+            organization_id, 'front_desk.check_in')   as "mayCheckIn",
+          app.has_organization_permission(
+            organization_id, 'front_desk.cancel')     as "mayCancel"
+        from arriving
+        order by coalesce(room_name, unit_name), unit_name, guest_name
       `,
     );
+    return rows.map((row) => ({
+      ...row,
+      balanceMinor: Number(row.balanceMinor),
+    }));
   }
 
   /**
@@ -900,8 +948,11 @@ export function createReservationsModule(deps: ReservationsDeps) {
         select
           unit.id        as "unitId",
           unit.name      as "unitName",
+          room.name      as "roomName",
           unit.unit_type as "unitType"
         from public.accommodation_units as unit
+        left join public.accommodation_units as room
+          on room.id = unit.parent_id
         where unit.property_id = ${propertyId}::uuid
           and unit.status not in ('out_of_service', 'blocked')
           -- A Unit is sellable when it has no children (ADR 0025): a room with
@@ -917,7 +968,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
             ${FRONT_DESK_CAPABILITY.moduleKey},
             ${FRONT_DESK_CAPABILITY.capabilityKey}
           )
-        order by unit.name
+        order by coalesce(room.name, unit.name), unit.name
       `,
     );
   }
@@ -932,9 +983,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
    * tinguishable from it not having worked.
    *
    * A Reservation leaves the list when its last night has passed, so the screen
-   * does not grow without bound. Cancelled and no-show Reservations are absent
-   * because nothing yet cancels one; when something does, showing them is part
-   * of that workflow rather than of this read.
+   * does not grow without bound. Until then it stays whatever became of it —
+   * cancelled, a no-show, checked out — because a booking that disappears the
+   * moment it is cancelled reads the same as one that was never taken.
    *
    * `ends_on >= today` and not `>`: nights are half-open, so a Reservation
    * ending today is somebody leaving today, and they are still here this
@@ -951,6 +1002,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
         tx.$queryRaw<ReservationRow[]>`
         select
           reservation.id                                as "reservationId",
+          reservation.reference                         as "reference",
           guest.id                                      as "guestId",
           guest.full_name                               as "guestName",
           guest.email                                   as "guestEmail",
@@ -960,17 +1012,23 @@ export function createReservationsModule(deps: ReservationsDeps) {
           to_char(reservation.ends_on, 'YYYY-MM-DD')    as "endsOn",
           unit.id                                       as "unitId",
           unit.name                                     as "unitName",
-          unit.unit_type                                as "unitType"
+          room.name                                     as "roomName",
+          unit.unit_type                                as "unitType",
+          reservation.status in ('requested', 'confirmed')
+            and app.has_organization_permission(
+                  reservation.organization_id, 'front_desk.cancel')
+                                                        as "mayCancel"
         from public.reservations as reservation
         join public.guests as guest
           on guest.id = reservation.guest_id
         join public.accommodation_units as unit
           on unit.id = reservation.accommodation_unit_id
+        left join public.accommodation_units as room
+          on room.id = unit.parent_id
         cross join (
           select app.property_today(${propertyId}::uuid) as day
         ) as today
         where reservation.property_id = ${propertyId}::uuid
-          and reservation.status in ('requested', 'confirmed', 'checked_in')
           and (reservation.ends_on is null or reservation.ends_on >= today.day)
           and app.can_use_capability(
             reservation.property_id,
@@ -1171,6 +1229,130 @@ export function createReservationsModule(deps: ReservationsDeps) {
     });
   }
 
+  /**
+   * Ends a booking that will never become a Stay: cancelled, with a reason, or
+   * a no-show once its first night has come.
+   *
+   * Both free the Unit, because `reservations_no_double_booking` holds only
+   * confirmed Reservations — the dates stay exactly as they were and hold
+   * nothing, which is the same shape a withdrawn check-in has. Nothing is
+   * deleted.
+   *
+   * A no-show is refused before the first night: until then somebody may still
+   * come, and saying they did not is a cancellation, which asks for a reason.
+   * The status is the no-show's reason, so it asks for none.
+   *
+   * Nothing here checks whether the actor may do this. The update's policy asks
+   * for `front_desk.cancel`, and `reservations_transition_is_drawn` decides
+   * which statuses these may be reached from — requested or confirmed for a
+   * cancellation, confirmed for a no-show — for every role.
+   */
+  async function endReservation(
+    userId: string,
+    reservationId: string,
+    outcome: "cancelled" | "no_show",
+    action: "reservation.cancelled" | "reservation.no_show",
+    reason: string | null,
+  ): Promise<ReservationEnded> {
+    return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      let ended: {
+        organizationId: string;
+        propertyId: string;
+        unitId: string;
+      }[];
+      try {
+        ended = await tx.$queryRaw<
+          { organizationId: string; propertyId: string; unitId: string }[]
+        >`
+          update public.reservations
+             set status = ${outcome},
+                 updated_at = now()
+           where id = ${reservationId}::uuid
+             and status in ('requested', 'confirmed')
+             and (${outcome} = 'cancelled'
+                  or (status = 'confirmed'
+                      and starts_on <= app.property_today(property_id)))
+          returning organization_id       as "organizationId",
+                    property_id           as "propertyId",
+                    accommodation_unit_id as "unitId"
+        `;
+      } catch (error: unknown) {
+        // A policy refusing the new status, or the transition trigger. Both
+        // are "you cannot", which is the one message this command gives.
+        if (raised(error, "42501") || raised(error, "23514")) {
+          throw new ReservationEndError("that booking cannot be ended");
+        }
+        throw error;
+      }
+
+      const [row] = ended;
+      if (!row) {
+        throw new ReservationEndError("that booking cannot be ended");
+      }
+
+      // Ids only, like every event: the queue is read across Organizations.
+      await publishWithin(tx, {
+        organizationId: row.organizationId,
+        eventType: action,
+        payload: {
+          reservationId,
+          propertyId: row.propertyId,
+          accommodationUnitId: row.unitId,
+        },
+      });
+
+      await recordWithin(tx, {
+        organizationId: row.organizationId,
+        actorId: userId,
+        action,
+        subjectType: "reservation",
+        subjectId: reservationId,
+        ...(reason !== null ? { reason } : {}),
+        context: { accommodationUnitId: row.unitId },
+      });
+
+      return { reservationId, status: outcome };
+    });
+  }
+
+  /** Cancels a booking, with a reason (blueprint 4.4). */
+  async function cancelReservation(
+    userId: string,
+    reservationId: string,
+    reason: string,
+  ): Promise<ReservationEnded> {
+    const explanation = reason.trim();
+    if (
+      explanation.length < CANCELLATION_REASON.min ||
+      explanation.length > CANCELLATION_REASON.max
+    ) {
+      throw new ReservationReasonError(
+        `a reason must be between ${CANCELLATION_REASON.min} and ${CANCELLATION_REASON.max} characters`,
+      );
+    }
+    return endReservation(
+      userId,
+      reservationId,
+      "cancelled",
+      "reservation.cancelled",
+      explanation,
+    );
+  }
+
+  /** Records that somebody booked for tonight or before never came. */
+  async function markNoShow(
+    userId: string,
+    reservationId: string,
+  ): Promise<ReservationEnded> {
+    return endReservation(
+      userId,
+      reservationId,
+      "no_show",
+      "reservation.no_show",
+      null,
+    );
+  }
+
   return {
     createReservation,
     listArrivals,
@@ -1180,6 +1362,8 @@ export function createReservationsModule(deps: ReservationsDeps) {
     checkIn,
     checkOut,
     reverseCheckIn,
+    cancelReservation,
+    markNoShow,
   };
 }
 

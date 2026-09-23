@@ -6,11 +6,14 @@ import { GuestDetailsError } from "@ranza/guests";
 import {
   BALANCE_REASON,
   BalanceReasonError,
+  CANCELLATION_REASON,
   CheckInError,
   CheckOutError,
   EarlyDepartureError,
   FolioChangedError,
+  ReservationEndError,
   ReservationPeriodError,
+  ReservationReasonError,
   REVERSAL_REASON,
   UnitNotInServiceError,
   UnitHasOccupantError,
@@ -319,4 +322,71 @@ export async function createReservation(
 
   revalidateFrontDesk(locale);
   return "done";
+}
+
+/**
+ * What cancelling a booking, or marking a no-show, shows afterwards.
+ *
+ * `refused` is every reason the booking could not be ended — already arrived,
+ * already ended, out of reach — as one outcome, for the reason every other
+ * refusal here is one. The reason's length is the viewer's own to correct.
+ */
+export type EndBookingOutcome =
+  "idle" | "done" | "reasonTooShort" | "reasonTooLong" | "refused";
+
+async function endBooking(
+  form: FormData,
+  run: (userId: string, reservationId: string) => Promise<unknown>,
+): Promise<EndBookingOutcome> {
+  const viewer = await currentViewer();
+  if (!viewer) return "refused";
+
+  const reservationId = String(form.get("reservation") ?? "");
+  const locale = String(form.get("locale") ?? "");
+  if (!isSupportedLocale(locale)) return "refused";
+
+  try {
+    await run(viewer.userId, reservationId);
+  } catch (error) {
+    if (error instanceof ReservationReasonError) return "reasonTooShort";
+    if (!(error instanceof ReservationEndError)) {
+      console.error(
+        "ending a booking failed unexpectedly",
+        { reservationId },
+        error,
+      );
+    }
+    return "refused";
+  }
+
+  revalidateFrontDesk(locale);
+  return "done";
+}
+
+/** Cancelling a booking, with a reason (blueprint 4.4). */
+export async function cancelBooking(
+  _previous: EndBookingOutcome,
+  form: FormData,
+): Promise<EndBookingOutcome> {
+  // Trimmed, because that is what the module stores and therefore measures.
+  const reason = String(form.get("reason") ?? "").trim();
+  if (reason.length < CANCELLATION_REASON.min) return "reasonTooShort";
+  if (reason.length > CANCELLATION_REASON.max) return "reasonTooLong";
+  return endBooking(form, (userId, reservationId) =>
+    getComposition().reservations.cancelReservation(
+      userId,
+      reservationId,
+      reason,
+    ),
+  );
+}
+
+/** Recording that somebody booked for tonight or earlier never came. */
+export async function markNoShow(
+  _previous: EndBookingOutcome,
+  form: FormData,
+): Promise<EndBookingOutcome> {
+  return endBooking(form, (userId, reservationId) =>
+    getComposition().reservations.markNoShow(userId, reservationId),
+  );
 }

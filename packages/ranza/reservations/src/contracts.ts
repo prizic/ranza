@@ -67,8 +67,21 @@ export type ReservationStatus =
  * rather than authorization — it says whether the button is worth offering, and
  * the database decides whether pressing it does anything.
  */
+/**
+ * Why a Reservation on the arrivals list cannot be checked in right now, when
+ * the front desk can do something about it.
+ *
+ * - `not_confirmed` — a request nobody has confirmed yet.
+ * - `unit_blocked`, `unit_out_of_service` — unblock the Unit or move the Guest.
+ * - `unit_occupied` — somebody is still in the room: check them out first.
+ */
+export type CheckInBlocker =
+  "not_confirmed" | "unit_blocked" | "unit_out_of_service" | "unit_occupied";
+
 export interface Arrival {
   reservationId: string;
+  /** What the desk reads out to the Guest. */
+  reference: string;
   guestName: string;
   stayType: ReservationStayType;
   status: ReservationStatus;
@@ -78,9 +91,21 @@ export interface Arrival {
   endsOn: string | null;
   unitId: string;
   unitName: string;
+  /** The room a bed is in, so "A" reads as "401 · A"; null for a room. */
+  roomName: string | null;
   unitType: AccommodationUnitType;
   unitStatus: string;
+  /**
+   * Whether check-in would succeed, from the same conditions `checkIn` and the
+   * triggers apply — asserted against the command in the integration suite.
+   * The two drifted apart once already, and a button that raises when pressed
+   * is worse than one that is not offered.
+   */
   canCheckIn: boolean;
+  /** Why not, when it is something the desk can act on; null otherwise. */
+  checkInBlocker: CheckInBlocker | null;
+  /** When `unit_occupied`: whether the Guest in the room is past their planned departure. */
+  occupantOverdue: boolean;
   /**
    * The Stay this Reservation's check-in produced, while it is still in house.
    *
@@ -88,16 +113,20 @@ export interface Arrival {
    * has been withdrawn or the Guest has left. Withdrawing a check-in takes the
    * Stay rather than the Reservation (`reverseCheckIn`), so without this the
    * row knows the thing that happened and not the thing to undo.
-   *
-   * Presentation, on the same footing as `canCheckIn`: it says whether there is
-   * a check-in to offer taking back. Whether it may be taken back is decided by
-   * the policies and by the trigger that refuses a Stay carrying charges.
    */
   stayId: string | null;
-  eta: string | null;
+  /** That Stay's open Folio; null before check-in or without billing. */
+  folioId: string | null;
   daysLate: number;
   balanceMinor: number;
   currency: string;
+  /**
+   * What the viewer's role lets them do. Presentation, like `canCheckIn`: a
+   * control nobody here may use is not offered, and the policies still decide
+   * whether pressing one does anything.
+   */
+  mayCheckIn: boolean;
+  mayCancel: boolean;
 }
 
 /** What a completed check-in produced. */
@@ -356,6 +385,8 @@ export class BalanceReasonError extends CheckOutError {
 export interface BookableUnit {
   unitId: string;
   unitName: string;
+  /** The room a bed is in; null for a room. */
+  roomName: string | null;
   unitType: AccommodationUnitType;
 }
 
@@ -369,6 +400,7 @@ export interface BookableUnit {
  */
 export interface ReservationRow {
   reservationId: string;
+  reference: string;
   guestId: string;
   guestName: string;
   guestEmail: string | null;
@@ -380,7 +412,11 @@ export interface ReservationRow {
   endsOn: string | null;
   unitId: string;
   unitName: string;
+  /** The room a bed is in; null for a room. */
+  roomName: string | null;
   unitType: AccommodationUnitType;
+  /** Whether the viewer may cancel it, and whether it is still cancellable. */
+  mayCancel: boolean;
 }
 
 /**
@@ -445,4 +481,39 @@ export class ReservationPeriodError extends ReservationRefusedError {
     super(message);
     this.name = "ReservationPeriodError";
   }
+}
+
+/**
+ * The bounds on a reason for cancelling a booking: the audit column's own, like
+ * `REVERSAL_REASON`, and measured before the transaction for the same reason.
+ */
+export const CANCELLATION_REASON = { min: 3, max: 2000 } as const;
+
+/**
+ * A booking that could not be cancelled or marked a no-show.
+ *
+ * One type for every reason, like `CheckInError`: already arrived, already
+ * cancelled, another Organization's, never existed — telling them apart would
+ * confirm a Reservation the caller cannot see. The reason's length is the one
+ * exception, and it is `ReservationReasonError`.
+ */
+export class ReservationEndError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ReservationEndError";
+  }
+}
+
+/** A cancellation reason outside `CANCELLATION_REASON`. */
+export class ReservationReasonError extends ReservationEndError {
+  constructor(message: string) {
+    super(message);
+    this.name = "ReservationReasonError";
+  }
+}
+
+/** What cancelling a booking or marking a no-show produced. */
+export interface ReservationEnded {
+  reservationId: string;
+  status: "cancelled" | "no_show";
 }

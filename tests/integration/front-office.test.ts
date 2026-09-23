@@ -19,7 +19,9 @@ import {
   CheckOutError,
   createReservationsModule,
   EarlyDepartureError,
+  ReservationEndError,
   ReservationPeriodError,
+  ReservationReasonError,
   ReservationRefusedError,
   UnitNotInServiceError,
   UnitHasOccupantError,
@@ -555,6 +557,146 @@ describe("arrivals that are no longer arriving", () => {
 });
 
 /**
+ * What the list says about a room, pressed against what check-in does.
+ *
+ * Every kind of row the arrivals list can show that is not simply ready — a
+ * request, a blocked Unit, a Unit out of service, somebody still in the room —
+ * is listed with the reason, and pressing the button on it is refused with the
+ * matching error. A row the list offers is checked in. If the two ever
+ * disagree, a button raises when pressed, which is what this exists to stop.
+ */
+describe("the list and check-in agree on every kind of room", () => {
+  const cases = {
+    ready: reservationId(),
+    requested: reservationId(),
+    blocked: reservationId(),
+    outOfService: reservationId(),
+    occupied: reservationId(),
+    overstayed: reservationId(),
+  };
+  const units: Record<keyof typeof cases, string> = {} as never;
+
+  beforeAll(async () => {
+    for (const key of Object.keys(cases) as (keyof typeof cases)[]) {
+      units[key] = await aUnit();
+      await reserve(cases[key], PROPERTY, ORG, units[key], `Agree ${key}`, {
+        from: 0,
+        to: 2,
+      });
+    }
+    // Not moved to requested, which the transition trigger refuses for every
+    // role: written that way, as a booking engine will write one.
+    await owner.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(
+        `set local session_replication_role = replica`,
+      );
+      await tx.$executeRawUnsafe(
+        `update public.reservations set status = 'requested' where id = $1::uuid`,
+        cases.requested,
+      );
+    });
+    await owner.$executeRawUnsafe(
+      `update public.accommodation_units
+          set status = 'blocked', status_reason = 'paint drying'
+        where id = $1::uuid`,
+      units.blocked,
+    );
+    await owner.$executeRawUnsafe(
+      `update public.accommodation_units set status = 'out_of_service' where id = $1::uuid`,
+      units.outOfService,
+    );
+    // Somebody due out this morning, and somebody who should have left
+    // yesterday; both booked before tonight's Guest, as time arranges it.
+    for (const [key, to] of [
+      ["occupied", 0],
+      ["overstayed", -1],
+    ] as const) {
+      await owner.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(
+          `set local session_replication_role = replica`,
+        );
+        await tx.$executeRawUnsafe(
+          `insert into public.stays
+             (organization_id, property_id, accommodation_unit_id, stay_type,
+              status, starts_on, ends_on)
+           values ($2::uuid, $3::uuid, $1::uuid, 'guest', 'in_house',
+                   app.property_today($3::uuid) - 3, app.property_today($3::uuid) + $4::int)`,
+          units[key],
+          ORG,
+          PROPERTY,
+          to,
+        );
+      });
+    }
+  });
+
+  const listed = async (key: keyof typeof cases) =>
+    (await reservations.listArrivals(MEMBER, PROPERTY)).find(
+      (arrival) => arrival.reservationId === cases[key],
+    );
+
+  it("names what stands in the way, and nothing for a ready room", async () => {
+    expect(await listed("ready")).toMatchObject({
+      canCheckIn: true,
+      checkInBlocker: null,
+    });
+    expect(await listed("requested")).toMatchObject({
+      canCheckIn: false,
+      checkInBlocker: "not_confirmed",
+    });
+    expect(await listed("blocked")).toMatchObject({
+      canCheckIn: false,
+      checkInBlocker: "unit_blocked",
+    });
+    expect(await listed("outOfService")).toMatchObject({
+      canCheckIn: false,
+      checkInBlocker: "unit_out_of_service",
+    });
+    expect(await listed("occupied")).toMatchObject({
+      canCheckIn: false,
+      checkInBlocker: "unit_occupied",
+      occupantOverdue: false,
+    });
+    expect(await listed("overstayed")).toMatchObject({
+      checkInBlocker: "unit_occupied",
+      occupantOverdue: true,
+    });
+  });
+
+  it("refuses each of them when the button is pressed anyway", async () => {
+    await expect(
+      reservations.checkIn(MEMBER, cases.requested),
+    ).rejects.toBeInstanceOf(CheckInError);
+    await expect(
+      reservations.checkIn(MEMBER, cases.blocked),
+    ).rejects.toBeInstanceOf(UnitNotInServiceError);
+    await expect(
+      reservations.checkIn(MEMBER, cases.outOfService),
+    ).rejects.toBeInstanceOf(UnitNotInServiceError);
+    await expect(
+      reservations.checkIn(MEMBER, cases.occupied),
+    ).rejects.toBeInstanceOf(UnitHasOccupantError);
+    await expect(
+      reservations.checkIn(MEMBER, cases.overstayed),
+    ).rejects.toBeInstanceOf(UnitHasOccupantError);
+  });
+
+  it("checks in the one it offers", async () => {
+    await expect(
+      reservations.checkIn(MEMBER, cases.ready),
+    ).resolves.toMatchObject({
+      reservationId: cases.ready,
+    });
+  });
+
+  it("carries the reference and what the viewer may do", async () => {
+    const row = await listed("requested");
+    expect(row?.reference).toMatch(/^R[0-9A-HJKMNP-TV-Z]{6}$/);
+    expect(row).toMatchObject({ mayCheckIn: true, mayCancel: true });
+  });
+});
+
+/**
  * A Guest who should have come yesterday, checked in today.
  *
  * The list is built from the Reservation's planned dates, and that is the
@@ -953,7 +1095,11 @@ describe("one guest in one Unit", () => {
       // The check-in's Reservation already holds those nights, so the booking
       // must lose whichever order they arrive in — to the constraint if it gets
       // there first, to the Stay if it gets there second.
-      expect(outcomes[0].status).toBe("fulfilled");
+      expect(
+        outcomes[0].status === "rejected"
+          ? String(outcomes[0].reason)
+          : "fulfilled",
+      ).toBe("fulfilled");
       expect(outcomes[1].status).toBe("rejected");
 
       const [held] = await owner.$queryRawUnsafe<{ count: number }[]>(
@@ -1574,5 +1720,103 @@ describe("today's departures", () => {
     await expect(
       reservations.listDepartures(MEMBER, OTHER_PROPERTY),
     ).resolves.toEqual([]);
+  });
+});
+
+describe("ending a booking that will not become a Stay", () => {
+  it("cancels with a reason, records it, and frees the nights", async () => {
+    const unit = await aUnit();
+    const booking = reservationId();
+    await reserve(booking, PROPERTY, ORG, unit, "Changed Plans", {
+      from: 2,
+      to: 4,
+    });
+
+    await expect(
+      reservations.cancelReservation(MEMBER, booking, "  "),
+    ).rejects.toBeInstanceOf(ReservationReasonError);
+
+    await expect(
+      reservations.cancelReservation(MEMBER, booking, "guest phoned to cancel"),
+    ).resolves.toEqual({ reservationId: booking, status: "cancelled" });
+
+    const [record] = await audit.historyOf(MEMBER, "reservation", booking);
+    expect(record?.action).toBe("reservation.cancelled");
+    expect(record?.reason).toBe("guest phoned to cancel");
+
+    // The same nights can be sold again: a cancelled booking holds nothing.
+    await expect(
+      reservations.createReservation(MEMBER, {
+        propertyId: PROPERTY,
+        accommodationUnitId: unit,
+        guestName: "Took The Room",
+        guestEmail: null,
+        guestPhone: null,
+        stayType: "guest",
+        startsOn: await propertyDay(2),
+        endsOn: await propertyDay(4),
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it("refuses to cancel a booking whose Guest has arrived", async () => {
+    const unit = await aUnit();
+    const booking = reservationId();
+    await reserve(booking, PROPERTY, ORG, unit, "Already Arrived");
+    await reservations.checkIn(MEMBER, booking);
+
+    await expect(
+      reservations.cancelReservation(MEMBER, booking, "wrong booking"),
+    ).rejects.toBeInstanceOf(ReservationEndError);
+  });
+
+  it("marks a no-show only once their first night has come", async () => {
+    const unit = await aUnit();
+    const future = reservationId();
+    const tonight = reservationId();
+    await reserve(future, PROPERTY, ORG, unit, "Not Yet Due", {
+      from: 3,
+      to: 4,
+    });
+    await reserve(tonight, PROPERTY, ORG, unit, "Never Came", {
+      from: -1,
+      to: 1,
+    });
+
+    await expect(
+      reservations.markNoShow(MEMBER, future),
+    ).rejects.toBeInstanceOf(ReservationEndError);
+
+    await expect(reservations.markNoShow(MEMBER, tonight)).resolves.toEqual({
+      reservationId: tonight,
+      status: "no_show",
+    });
+    // And it leaves the arrivals list, because it is no longer arriving.
+    const listed = await reservations.listArrivals(MEMBER, PROPERTY);
+    expect(listed.map((arrival) => arrival.reservationId)).not.toContain(
+      tonight,
+    );
+  });
+
+  it("refuses another Organization's booking with the same answer", async () => {
+    const booking = reservationId();
+    await reserve(
+      booking,
+      OTHER_PROPERTY,
+      OTHER_ORG,
+      OTHER_SECOND,
+      "Elsewhere",
+      {
+        from: 5,
+        to: 6,
+      },
+    );
+
+    await expect(
+      reservations.cancelReservation(MEMBER, booking, "not mine to cancel"),
+    ).rejects.toBeInstanceOf(ReservationEndError);
+    await expect(
+      reservations.markNoShow(MEMBER, booking),
+    ).rejects.toBeInstanceOf(ReservationEndError);
   });
 });

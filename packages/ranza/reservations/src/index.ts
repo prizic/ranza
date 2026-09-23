@@ -3,6 +3,7 @@ export type { ReservationsModule } from "./module";
 export type { ReservationsDeps } from "./ports";
 export {
   BALANCE_REASON,
+  CANCELLATION_REASON,
   BalanceReasonError,
   CheckInError,
   CheckInReversalError,
@@ -10,7 +11,9 @@ export {
   EarlyDepartureError,
   FolioChangedError,
   FRONT_DESK_CAPABILITY,
+  ReservationEndError,
   ReservationPeriodError,
+  ReservationReasonError,
   ReservationRefusedError,
   REVERSAL_REASON,
   StayHasChargesError,
@@ -21,6 +24,7 @@ export {
 export type {
   Arrival,
   BookableUnit,
+  CheckInBlocker,
   CheckedIn,
   CheckedOut,
   CheckInReversed,
@@ -29,6 +33,7 @@ export type {
   Departure,
   DepartureView,
   NewReservation,
+  ReservationEnded,
   ReservationRow,
   ReservationStatus,
   ReservationStayType,

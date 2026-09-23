@@ -119,6 +119,24 @@ export interface Messages {
   checkOut: string;
   checkingOut: string;
   checkOutRefused: string;
+  awaitingConfirmation: string;
+  vacant: string;
+  unitBlocked: string;
+  occupiedDueOut: string;
+  occupiedOverstay: string;
+  cancelBooking: string;
+  cancelBookingTitle: string;
+  cancelBookingSummary: string;
+  noShowTitle: string;
+  noShowSummary: string;
+  markNoShow: string;
+  keepBooking: string;
+  endBookingRefused: string;
+  saving: string;
+  checkInBlocked: Record<
+    "not_confirmed" | "unit_blocked" | "unit_out_of_service" | "unit_occupied",
+    string
+  >;
   checkOutFor: string;
   checkOutTitle: string;
   checkOutSummary: string;
@@ -148,11 +166,8 @@ export interface Messages {
   reservation: string;
   roomAndBed: string;
   notAssigned: string;
-  ready: string;
   outOfOrder: string;
-  occupied: string;
   daysLate: string;
-  expectedEta: string;
   credit: string;
   moreActionsFor: string;
   openFolio: string;
@@ -355,7 +370,10 @@ export interface Messages {
    * found. The literals are `KNOWN_ACTIONS` in `features/audit-log/actions.ts`.
    */
   auditAction: {
-    reservation: Record<"created" | "checked_in" | "check_in_reversed", string>;
+    reservation: Record<
+      "created" | "checked_in" | "check_in_reversed" | "cancelled" | "no_show",
+      string
+    >;
     stay: Record<"checked_out", string>;
     folio: Record<"charge_posted" | "line_reversed" | "closed", string>;
     staff: Record<
@@ -541,6 +559,27 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOut: "Çıkış yap",
     checkingOut: "Yapılıyor",
     checkOutRefused: "Bu konaklama için çıkış yapılamıyor.",
+    awaitingConfirmation: "Onay bekliyor",
+    vacant: "Boş",
+    unitBlocked: "Bloke",
+    occupiedDueOut: "Dolu — bugün çıkacak",
+    occupiedOverstay: "Dolu — çıkışı gecikmiş",
+    cancelBooking: "Rezervasyonu iptal et",
+    cancelBookingTitle: "Rezervasyonu iptal et",
+    cancelBookingSummary:
+      "Geceler serbest kalır ve başkasına satılabilir. İptal geri alınamaz.",
+    noShowTitle: "Gelmedi olarak işaretle",
+    noShowSummary: "Misafir gelmedi. Geceler serbest kalır; bu geri alınamaz.",
+    markNoShow: "Gelmedi olarak işaretle",
+    keepBooking: "Rezervasyonu koru",
+    endBookingRefused: "Bu rezervasyon artık sonlandırılamıyor.",
+    saving: "Kaydediliyor…",
+    checkInBlocked: {
+      not_confirmed: "Önce rezervasyonun onaylanması gerekiyor.",
+      unit_blocked: "Birim bloke. Blokeyi kaldırın ya da başka birim seçin.",
+      unit_out_of_service: "Birim hizmet dışı. Başka birim seçin.",
+      unit_occupied: "Birimde hâlâ konaklayan var. Önce onun çıkışını yapın.",
+    },
     checkOutFor: "{guest} için çıkış yap",
     checkOutTitle: "Çıkış yap",
     checkOutSummary:
@@ -577,11 +616,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     reservation: "Rezervasyon",
     roomAndBed: "Oda ve yatak",
     notAssigned: "Atanmadı",
-    ready: "Hazır",
     outOfOrder: "Hizmet dışı",
-    occupied: "Dolu",
     daysLate: "{n} gün gecikmiş",
-    expectedEta: "beklenen {eta}",
     credit: "alacak",
     moreActionsFor: "{guest} için diğer işlemler",
     openFolio: "Folyoyu aç",
@@ -785,6 +821,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         created: "Rezervasyon alındı",
         checked_in: "Giriş yapıldı",
         check_in_reversed: "Giriş geri alındı",
+        cancelled: "Rezervasyon iptal edildi",
+        no_show: "Gelmedi olarak işaretlendi",
       },
       stay: { checked_out: "Çıkış yapıldı" },
       folio: {
@@ -994,6 +1032,28 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOut: "Check out",
     checkingOut: "Checking out",
     checkOutRefused: "That Stay cannot be checked out.",
+    awaitingConfirmation: "Awaiting confirmation",
+    vacant: "Vacant",
+    unitBlocked: "Blocked",
+    occupiedDueOut: "Occupied — due out today",
+    occupiedOverstay: "Occupied — overstaying",
+    cancelBooking: "Cancel booking",
+    cancelBookingTitle: "Cancel this booking",
+    cancelBookingSummary:
+      "The nights are freed and can be sold again. A cancellation cannot be taken back.",
+    noShowTitle: "Mark as a no-show",
+    noShowSummary:
+      "The Guest did not come. The nights are freed, and this cannot be taken back.",
+    markNoShow: "Mark as no-show",
+    keepBooking: "Keep the booking",
+    endBookingRefused: "That booking can no longer be ended.",
+    saving: "Saving…",
+    checkInBlocked: {
+      not_confirmed: "The booking has to be confirmed first.",
+      unit_blocked: "The Unit is blocked. Unblock it or choose another.",
+      unit_out_of_service: "The Unit is out of service. Choose another.",
+      unit_occupied: "Somebody is still in the room. Check them out first.",
+    },
     checkOutFor: "Check {guest} out",
     checkOutTitle: "Check out",
     checkOutSummary:
@@ -1029,11 +1089,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     reservation: "Reservation",
     roomAndBed: "Room and bed",
     notAssigned: "Not assigned",
-    ready: "Ready",
     outOfOrder: "Out of order",
-    occupied: "Occupied",
     daysLate: "{n, plural, one {# day late} other {# days late}}",
-    expectedEta: "expected {eta}",
     credit: "credit",
     moreActionsFor: "More actions for {guest}",
     openFolio: "Open folio",
@@ -1236,6 +1293,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         created: "Reservation taken",
         checked_in: "Checked in",
         check_in_reversed: "Check-in withdrawn",
+        cancelled: "Booking cancelled",
+        no_show: "Marked as a no-show",
       },
       stay: { checked_out: "Checked out" },
       folio: {
@@ -1443,6 +1502,27 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOut: "تسجيل المغادرة",
     checkingOut: "جارٍ التسجيل",
     checkOutRefused: "لا يمكن تسجيل مغادرة هذه الإقامة.",
+    awaitingConfirmation: "بانتظار التأكيد",
+    vacant: "شاغرة",
+    unitBlocked: "محظورة",
+    occupiedDueOut: "مشغولة — مغادرة اليوم",
+    occupiedOverstay: "مشغولة — تجاوز موعد المغادرة",
+    cancelBooking: "إلغاء الحجز",
+    cancelBookingTitle: "إلغاء هذا الحجز",
+    cancelBookingSummary:
+      "تتحرر الليالي ويمكن بيعها من جديد. لا يمكن التراجع عن الإلغاء.",
+    noShowTitle: "تسجيل عدم الحضور",
+    noShowSummary: "لم يحضر الضيف. تتحرر الليالي ولا يمكن التراجع عن ذلك.",
+    markNoShow: "تسجيل عدم الحضور",
+    keepBooking: "إبقاء الحجز",
+    endBookingRefused: "لم يعد بالإمكان إنهاء هذا الحجز.",
+    saving: "جارٍ الحفظ…",
+    checkInBlocked: {
+      not_confirmed: "يجب تأكيد الحجز أولًا.",
+      unit_blocked: "الوحدة محظورة. ارفع الحظر أو اختر وحدة أخرى.",
+      unit_out_of_service: "الوحدة خارج الخدمة. اختر وحدة أخرى.",
+      unit_occupied: "لا يزال هناك نزيل في الغرفة. سجّل مغادرته أولًا.",
+    },
     checkOutFor: "تسجيل مغادرة {guest}",
     checkOutTitle: "تسجيل المغادرة",
     checkOutSummary:
@@ -1475,12 +1555,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     reservation: "الحجز",
     roomAndBed: "الغرفة والسرير",
     notAssigned: "غير محدد",
-    ready: "جاهزة",
     outOfOrder: "خارج الخدمة",
-    occupied: "مشغولة",
     daysLate:
       "{n, plural, one {متأخر يوم واحد} two {متأخر يومان} few {متأخر # أيام} many {متأخر # يوماً} other {متأخر # يوم}}",
-    expectedEta: "المتوقع {eta}",
     credit: "رصيد دائن",
     moreActionsFor: "مزيد من الإجراءات لـ {guest}",
     openFolio: "فتح الحساب",
@@ -1674,6 +1751,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         created: "تم أخذ حجز",
         checked_in: "تم تسجيل الوصول",
         check_in_reversed: "تم سحب تسجيل الوصول",
+        cancelled: "أُلغي الحجز",
+        no_show: "سُجِّل عدم الحضور",
       },
       stay: { checked_out: "تم تسجيل المغادرة" },
       folio: {

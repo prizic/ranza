@@ -3,7 +3,9 @@
 import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
+  Ban,
   CalendarClock,
+  CircleAlert,
   CircleCheck,
   CircleDashed,
   DoorClosed,
@@ -75,12 +77,6 @@ function Balance({
       ) : null}
     </div>
   );
-}
-
-function shortRef(id: string): string {
-  if (id.startsWith("RZ-")) return id;
-  const clean = id.replace(/^(res_|stay_)/, "");
-  return `RZ-${clean.slice(0, 6).toUpperCase()}`;
 }
 
 function initialsOf(name: string): string {
@@ -155,8 +151,7 @@ export function useArrivalColumns(
       ),
     },
     {
-      id: "reservation",
-      accessorKey: "reservationId",
+      accessorKey: "reference",
       meta: { title: t("reservation") },
       header: ({ column }) => (
         <DataTableColumnHeader
@@ -168,15 +163,11 @@ export function useArrivalColumns(
       cell: ({ row }) => (
         <div>
           <span className="font-mono tabular-nums font-medium">
-            {shortRef(row.original.reservationId)}
+            {row.original.reference}
           </span>
           {row.original.daysLate > 0 && row.original.status !== "checked_in" ? (
             <span className="block text-step--1 font-semibold text-warning">
               {t("daysLate", { n: row.original.daysLate })}
-            </span>
-          ) : row.original.status === "confirmed" && row.original.eta ? (
-            <span className="block text-step--1 text-muted-foreground">
-              {t("expectedEta", { eta: row.original.eta })}
             </span>
           ) : null}
         </div>
@@ -192,23 +183,20 @@ export function useArrivalColumns(
           title={t("roomAndBed")}
         />
       ),
-      cell: ({ row }) =>
-        row.original.unitName ? (
-          <div>
-            <span className="font-medium tabular-nums">
-              {row.original.unitName}
-            </span>
-            <span className="block text-step--1 text-muted-foreground">
-              {t(`unitType.${row.original.unitType}`)}
-            </span>
-          </div>
-        ) : (
-          <span className="text-muted-foreground">{t("notAssigned")}</span>
-        ),
+      cell: ({ row }) => (
+        <div>
+          <span className="font-medium tabular-nums">
+            <bdi>{unitLabel(row.original.roomName, row.original.unitName)}</bdi>
+          </span>
+          <span className="block text-step--1 text-muted-foreground">
+            {t(`unitType.${row.original.unitType}`)}
+          </span>
+        </div>
+      ),
     },
     {
       id: "readiness",
-      accessorKey: "unitStatus",
+      accessorKey: "checkInBlocker",
       meta: { title: t("readiness") },
       header: ({ column }) => (
         <DataTableColumnHeader
@@ -217,30 +205,59 @@ export function useArrivalColumns(
           title={t("readiness")}
         />
       ),
-      cell: ({ row }) =>
-        row.original.status === "checked_in" ? (
-          <StatusBadge icon={DoorOpen} label={t("checkedIn")} tone="success" />
-        ) : row.original.unitStatus === "available" ? (
-          <StatusBadge icon={CircleCheck} label={t("ready")} tone="success" />
-        ) : row.original.unitStatus === "out_of_service" ? (
-          <StatusBadge
-            icon={CircleDashed}
-            label={t("outOfOrder")}
-            tone="danger"
-          />
-        ) : row.original.unitStatus === "occupied" ? (
-          <StatusBadge
-            icon={CircleDashed}
-            label={t("occupied")}
-            tone="warning"
-          />
-        ) : (
-          <StatusBadge
-            icon={CircleDashed}
-            label={row.original.unitStatus}
-            tone="neutral"
-          />
-        ),
+      // What the room is doing for this arrival, from the same facts check-in
+      // refuses on. "Vacant" rather than "ready": whether it has been cleaned
+      // is the housekeeping lifecycle's to say, and nothing records it yet.
+      cell: ({ row }) => {
+        const arrival = row.original;
+        if (arrival.status === "checked_in") {
+          return (
+            <StatusBadge
+              icon={DoorOpen}
+              label={t("checkedIn")}
+              tone="success"
+            />
+          );
+        }
+        switch (arrival.checkInBlocker) {
+          case "unit_occupied":
+            return (
+              <StatusBadge
+                icon={CircleAlert}
+                label={
+                  arrival.occupantOverdue
+                    ? t("occupiedOverstay")
+                    : t("occupiedDueOut")
+                }
+                tone="warning"
+              />
+            );
+          case "unit_blocked":
+            return (
+              <StatusBadge icon={Ban} label={t("unitBlocked")} tone="danger" />
+            );
+          case "unit_out_of_service":
+            return (
+              <StatusBadge icon={Ban} label={t("outOfOrder")} tone="danger" />
+            );
+          case "not_confirmed":
+            return (
+              <StatusBadge
+                icon={CircleDashed}
+                label={t("awaitingConfirmation")}
+                tone="info"
+              />
+            );
+          default:
+            return (
+              <StatusBadge
+                icon={CircleCheck}
+                label={t("vacant")}
+                tone="success"
+              />
+            );
+        }
+      },
     },
     {
       id: "balance",
@@ -266,29 +283,53 @@ export function useArrivalColumns(
       meta: { title: t("action") },
       enableHiding: false,
       header: () => <span className="sr-only">{t("action")}</span>,
-      cell: ({ row }) => (
-        <div className="flex items-center justify-end gap-1">
-          {row.original.canCheckIn ? (
-            <CheckInAction
+      cell: ({ row }) => {
+        const arrival = row.original;
+        const label = unitLabel(arrival.roomName, arrival.unitName);
+        return (
+          <div className="flex items-center justify-end gap-1">
+            {!arrival.mayCheckIn ? null : arrival.canCheckIn ? (
+              <CheckInAction
+                locale={locale}
+                reservationId={arrival.reservationId}
+              />
+            ) : arrival.stayId ? (
+              <UndoCheckInDialog
+                guestName={arrival.guestName}
+                locale={locale}
+                reservationId={arrival.reservationId}
+                stayId={arrival.stayId}
+                unitName={label}
+              />
+            ) : arrival.checkInBlocker ? (
+              // Where the button would be, what stands in its way, so nobody
+              // presses a button that is certain to be refused.
+              <span className="max-w-48 text-end text-step--1 text-muted-foreground">
+                {t(`checkInBlocked.${arrival.checkInBlocker}`)}
+              </span>
+            ) : null}
+            <FrontDeskRowMenu
+              booking={
+                arrival.status === "checked_in"
+                  ? undefined
+                  : {
+                      reservationId: arrival.reservationId,
+                      reference: arrival.reference,
+                      unitLabel: label,
+                      mayCancel: arrival.mayCancel,
+                      // Every row not checked in on this list has reached its
+                      // first night, so a confirmed one may be marked a no-show.
+                      mayMarkNoShow:
+                        arrival.mayCancel && arrival.status === "confirmed",
+                    }
+              }
+              folioId={arrival.folioId}
+              guestName={arrival.guestName}
               locale={locale}
-              reservationId={row.original.reservationId}
             />
-          ) : row.original.stayId ? (
-            <UndoCheckInDialog
-              guestName={row.original.guestName}
-              locale={locale}
-              reservationId={row.original.reservationId}
-              stayId={row.original.stayId}
-              unitName={row.original.unitName}
-            />
-          ) : null}
-          <FrontDeskRowMenu
-            folioId={null}
-            guestName={row.original.guestName}
-            locale={locale}
-          />
-        </div>
-      ),
+          </div>
+        );
+      },
     },
   ];
 }
@@ -461,10 +502,10 @@ export function useDepartureColumns(
 /**
  * The booking list.
  *
- * The same four columns as arrivals, minus the action: there is nothing to do
- * to a Reservation here yet. Cancelling, amending and assigning a different Unit
- * are all blueprint 5.3 and none of them is built, so a row action would be a
- * menu with nothing in it.
+ * Every booking still ahead of the Property or under way, whatever became of
+ * it. The one action here is cancelling a booking that has not arrived;
+ * amending one and assigning a different Unit are blueprint 5.3 and not built,
+ * so they are not offered.
  *
  * The Guest's email is under their name because it is the only visible evidence
  * that a returning Guest was recognized rather than duplicated. Two rows showing
@@ -501,6 +542,22 @@ export function useReservationColumns(
             )}
           </p>
         </div>
+      ),
+    },
+    {
+      accessorKey: "reference",
+      meta: { title: t("reservation") },
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          labels={sort}
+          title={t("reservation")}
+        />
+      ),
+      cell: ({ row }) => (
+        <span className="font-mono tabular-nums font-medium">
+          {row.original.reference}
+        </span>
       ),
     },
     {
@@ -544,7 +601,7 @@ export function useReservationColumns(
       cell: ({ row }) => (
         <p>
           <span className="font-medium tabular-nums">
-            {row.original.unitName}
+            <bdi>{unitLabel(row.original.roomName, row.original.unitName)}</bdi>
           </span>
           <span className="block text-step--1 text-muted-foreground">
             {t(`unitType.${row.original.unitType}`)}
@@ -569,6 +626,33 @@ export function useReservationColumns(
           tone={RESERVATION_TONE[row.original.status]}
         />
       ),
+    },
+    {
+      id: "action",
+      meta: { title: t("action") },
+      enableHiding: false,
+      header: () => <span className="sr-only">{t("action")}</span>,
+      cell: ({ row }) =>
+        row.original.mayCancel ? (
+          <div className="flex justify-end">
+            <FrontDeskRowMenu
+              booking={{
+                reservationId: row.original.reservationId,
+                reference: row.original.reference,
+                unitLabel: unitLabel(
+                  row.original.roomName,
+                  row.original.unitName,
+                ),
+                mayCancel: true,
+                // A no-show is marked from the arrivals list, on the day.
+                mayMarkNoShow: false,
+              }}
+              folioId={null}
+              guestName={row.original.guestName}
+              locale={locale}
+            />
+          </div>
+        ) : null,
     },
   ];
 }
