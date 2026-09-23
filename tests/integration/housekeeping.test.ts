@@ -488,6 +488,13 @@ describe("marking rooms", { timeout: DATABASE_BUDGET_MS }, () => {
     await expect(
       housekeeping.markUnits(MEMBER, { unitIds: [ROOM], status: "sparkling" }),
     ).rejects.toBeInstanceOf(HousekeepingInputError);
+    // Counted as sent, not after duplicates collapse.
+    await expect(
+      housekeeping.markUnits(MEMBER, {
+        unitIds: Array.from({ length: 61 }, () => ROOM),
+        status: "clean",
+      }),
+    ).rejects.toBeInstanceOf(HousekeepingInputError);
   });
 });
 

@@ -182,12 +182,17 @@ export function createHousekeepingModule(deps: HousekeepingDeps) {
     userId: string,
     request: { unitIds: readonly string[]; status: string },
   ): Promise<UnitsMarked> {
-    const unitIds = [...new Set(request.unitIds)];
-    if (unitIds.length < MARK_BATCH.min || unitIds.length > MARK_BATCH.max) {
+    // Bounded on what was sent, then de-duplicated: a request naming two
+    // hundred ids is refused as two hundred, whatever they collapse to.
+    if (
+      request.unitIds.length < MARK_BATCH.min ||
+      request.unitIds.length > MARK_BATCH.max
+    ) {
       throw new HousekeepingInputError(
         "a mark names between one and sixty rooms",
       );
     }
+    const unitIds = [...new Set(request.unitIds)];
     const { status } = request;
     if (!isStatus(status)) {
       throw new HousekeepingInputError("a room is dirty, clean or inspected");

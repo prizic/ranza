@@ -6,6 +6,8 @@
  * says, what a reader without the permission is shown, what every locale calls
  * a status, and what a refused mark leaves behind.
  */
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -109,6 +111,25 @@ describe("the housekeeping board", () => {
         // Once in the row's badge at least; the stat cards and the facet
         // carry the same word, which is the point.
         expect(screen.getAllByText(words[status]).length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("mirrors for Arabic by construction: no physical direction utility (HK-S1-17)", () => {
+    // AGENTS.md: directional utilities are logical, which is what makes Arabic
+    // mirror without a flag. A physical one here would leave the board
+    // left-aligned in a right-to-left page.
+    const folder = path.resolve(
+      __dirname,
+      "../../apps/operator-workspace/src/features/housekeeping/components",
+    );
+    const physical =
+      /\b(?:m[lr]|p[lr]|left|right|border-[lr]|rounded-[lr]|text-(?:left|right))-/;
+    for (const file of readdirSync(folder)) {
+      const source = readFileSync(path.join(folder, file), "utf8");
+      const classNames = source.match(/className="[^"]*"/g) ?? [];
+      for (const className of classNames) {
+        expect(className, `${file}: ${className}`).not.toMatch(physical);
       }
     }
   });
