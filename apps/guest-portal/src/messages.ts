@@ -14,6 +14,7 @@ import type { SupportedLocale } from "@ranza/i18n";
  */
 export interface Messages {
   productName: string;
+  portalBadge: string;
   skip: string;
   languageLabel: string;
   languageName: Record<SupportedLocale, string>;
@@ -32,17 +33,10 @@ export interface Messages {
   noStayTitle: string;
   noStayDescription: string;
 
-  signInTitle: string;
   signInSummary: string;
-  authSlogan: string;
+  authSloganLead: string;
+  authSloganStrong: string;
   authSubSlogan: string;
-  authServices: {
-    stay: string;
-    property: string;
-    unit: string;
-    security: string;
-    records: string;
-  };
   welcomeBack: string;
   email: string;
   password: string;
@@ -62,6 +56,7 @@ export interface Messages {
 export const messages: Record<SupportedLocale, Messages> = {
   tr: {
     productName: "Ranza",
+    portalBadge: "Portal",
     skip: "İçeriğe geç",
     languageLabel: "Dil",
     languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
@@ -82,18 +77,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     noStayDescription:
       "Bir tesis size konaklama tanımladığında ayrıntılar burada görünür.",
 
-    signInTitle: "Oturum açın",
     signInSummary: "Konaklamanızı görmek için oturum açın.",
-    authSlogan: "HUZURLU KONAKLAMA, DİJİTAL KOLAYLIK",
+    authSloganLead: "Huzurlu konaklama,",
+    authSloganStrong: "DİJİTAL KOLAYLIK",
     authSubSlogan:
       "Konaklamanızı, odanızı ve rezervasyon detaylarınızı zahmetsizce yönetin.",
-    authServices: {
-      stay: "Konaklamam",
-      property: "Tesisim",
-      unit: "Oda & Birim",
-      security: "Güvenli Erişim",
-      records: "Rezervasyon",
-    },
     welcomeBack: "Tekrar hoş geldiniz",
     email: "E-posta",
     password: "Parola",
@@ -122,6 +110,7 @@ export const messages: Record<SupportedLocale, Messages> = {
   },
   en: {
     productName: "Ranza",
+    portalBadge: "Portal",
     skip: "Skip to content",
     languageLabel: "Language",
     languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
@@ -141,18 +130,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     noStayDescription:
       "Details appear here once a Property has set up your stay.",
 
-    signInTitle: "Sign in",
     signInSummary: "Sign in to see your stay.",
-    authSlogan: "YOUR STAY, ELEVATED",
+    authSloganLead: "Your stay,",
+    authSloganStrong: "ELEVATED",
     authSubSlogan:
       "Access your residence details, accommodation unit, and stay history seamlessly.",
-    authServices: {
-      stay: "My Stay",
-      property: "Property",
-      unit: "Unit & Bed",
-      security: "Secure Access",
-      records: "Reservation",
-    },
     welcomeBack: "Welcome back",
     email: "Email",
     password: "Password",
@@ -181,6 +163,7 @@ export const messages: Record<SupportedLocale, Messages> = {
   },
   ar: {
     productName: "Ranza",
+    portalBadge: "البوابة",
     skip: "تخطَّ إلى المحتوى",
     languageLabel: "اللغة",
     languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
@@ -202,18 +185,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     noStayTitle: "لا توجد إقامة لعرضها",
     noStayDescription: "تظهر التفاصيل هنا بمجرد أن تُسجّل المنشأة إقامتك.",
 
-    signInTitle: "تسجيل الدخول",
     signInSummary: "سجّل الدخول لعرض إقامتك.",
-    authSlogan: "إقامتك بكل راحة واطمئنان",
+    authSloganLead: "إقامتك",
+    authSloganStrong: "بكل راحة واطمئنان",
     authSubSlogan:
       "تابع تفاصيل إقامتك ووحدتك السكنية وسجل الحجوزات بكل سهولة ويسر.",
-    authServices: {
-      stay: "إقامتي",
-      property: "العقار",
-      unit: "الوحدة السكنية",
-      security: "الوصول الآمن",
-      records: "الحجز",
-    },
     welcomeBack: "مرحبًا بك من جديد",
     email: "البريد الإلكتروني",
     password: "كلمة المرور",

@@ -44,8 +44,10 @@
   --info: #315f83;
   --info-soft: #dfeaf2;
 
-  /* The bronze the brand's copy is set in — darkened from the reference's
-     #a48166, which is 3.4:1 on the canvas, to clear 4.5:1. */
+  /* The brand's gold, for the lines in the sign-in panel and never for text; and
+     the bronze its copy is set in — darkened from the reference's #a48166,
+     which is 3.4:1 on the canvas, to clear 4.5:1. */
+  --gold: #e4b763;
   --gold-ink: #8a684d;
 
   --line: hsl(170 10% 90%);
@@ -114,6 +116,7 @@
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
 
+  --color-gold: var(--gold);
   --color-gold-ink: var(--gold-ink);
 
   --color-line: var(--line);
@@ -232,6 +235,7 @@
    a long soft shadow that lifts it off the ivory canvas. */
 @utility glass-panel {
   background: rgb(255 255 255 / 85%);
+  -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
   border: 1px solid rgb(0 0 0 / 4%);
   box-shadow:
@@ -243,6 +247,7 @@
 /* A lighter translucent chip, for controls laid over a surface. */
 @utility glass {
   background: rgb(255 255 255 / 75%);
+  -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   border: 1px solid rgb(255 255 255 / 60%);
 }
@@ -253,6 +258,14 @@
   transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   &:hover {
     transform: translateY(-2px);
+  }
+}
+
+/* A strip that scrolls sideways by swipe, where a bar would only take room. */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
   }
 }
 

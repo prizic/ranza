@@ -239,7 +239,7 @@ export function DataTable<TData, TValue>({
           <div className="relative min-w-[120px] flex-1 sm:flex-none">
             <Search className="pointer-events-none absolute end-3.5 top-3 size-4 text-muted-foreground" />
             <Input
-              className="h-10 w-full rounded-full ps-4 pe-10 sm:w-[240px] lg:w-[320px]"
+              className="h-10 w-full rounded-full ps-4 pe-10 sm:w-[240px] lg:w-[320px] [&::-webkit-search-cancel-button]:appearance-none"
               onChange={(event) => setSearch(event.target.value)}
               placeholder={searchPlaceholder}
               type="search"

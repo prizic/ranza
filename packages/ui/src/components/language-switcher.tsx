@@ -73,8 +73,8 @@ export function LanguageSwitcher({
         className={cn(
           "inline-flex items-center justify-center transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring select-none",
           variant === "header"
-            ? "size-9 rounded-full border border-border/60 bg-card text-sm shadow-2xs hover:bg-secondary"
-            : "glass h-10 gap-2 rounded-full px-4 text-sm font-medium shadow-xs hover:bg-secondary",
+            ? "size-11 rounded-full border md:size-9 border-border/60 bg-card text-sm shadow-2xs hover:bg-secondary"
+            : "glass h-11 gap-2 md:h-10 rounded-full px-4 text-sm font-medium shadow-xs hover:bg-secondary",
           className,
         )}
       >

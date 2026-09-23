@@ -58,7 +58,7 @@ export function PropertySwitcher({
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={label}
-        className="flex min-w-0 items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=open]:bg-secondary"
+        className="flex min-h-11 min-w-0 items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=open]:bg-secondary"
       >
         <Building2
           aria-hidden="true"

@@ -110,7 +110,7 @@ Accent is used for primary action and identity, not decoration. Surfaces are whi
 on a soft canvas; separation comes from `--line` and `--shadow-low`, not heavy
 borders. Data tables use `font-variant-numeric: tabular-nums`.
 
-`--gold` is the brand shape on the sign-in screens and nothing else — it sits
+`--gold` draws the lines in the sign-in panel and nothing else — it sits
 well below even the 3:1 large-text floor on the canvas and never carries text.
 Copy set in the brand's bronze uses `--gold-ink`, which is the reference's
 `#a48166` darkened to clear 4.5:1.
@@ -153,18 +153,19 @@ obviously clickable, each with an explicit action affordance.
 
 ## Shell (persists across all Operator Workspace screens)
 
-- **Rail on the start edge, light (`--surface`), 76px.** Icon-over-label tiles,
-  no collapse. _Superseded the original "dark, ~260px sidebar" in this brief:
-  the implementation follows `ryadh/mirhaal/apps/dashboard`, which is the agreed
-  source for interface code._ The **Property switcher** moved to the page bar,
+- **Sidebar on the start edge**, a white panel floating in its own padded
+  column, sectioned, collapsible to icon tiles — the Leaders portal's rail.
+  _Superseded the 76px icon rail this brief first described._ The **Property
+  switcher** moved to the page bar,
   where there is room for a name; it must still be obvious which Property is
   active at all times (section 7.2 user story 10).
 - **Job-based navigation** (section 4.6), not a flat module list. For this screen
   show only: Today, Front Office, Housekeeping, Residents, Billing, Reports,
   Configuration. Do not draw modules the Organization is not entitled to.
-- **Top bar:** global search ("Search residents, reservations, rooms"), business
-  date for the active Property, language switcher showing `TR` as active, a
-  notifications control, and the signed-in Staff Member with role.
+- **Page bar:** a floating bar carrying the trail (Workspace › group › page),
+  the section's sibling pages, the Property switcher and the language switcher;
+  the page's title is set large and light under it. Global search, the business
+  date and notifications are still wanted here and not yet built.
 - Skip link, `main` landmark, focus states.
 
 ## Page content

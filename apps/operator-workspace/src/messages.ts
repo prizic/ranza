@@ -30,17 +30,10 @@ export interface Messages {
   property: string;
   noPropertyTitle: string;
   noPropertyDescription: string;
-  signInTitle: string;
   signInSummary: string;
-  authSlogan: string;
+  authSloganLead: string;
+  authSloganStrong: string;
   authSubSlogan: string;
-  authServices: {
-    records: string;
-    properties: string;
-    operations: string;
-    security: string;
-    folios: string;
-  };
   welcomeBack: string;
   email: string;
   password: string;
@@ -322,6 +315,7 @@ export interface Messages {
   freeTonight: string;
   inHouseTonight: string;
   reservedTonight: string;
+  reservedCount: string;
   blockedStatus: string;
 
   auditLog: string;
@@ -439,18 +433,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     noPropertyTitle: "Henüz bir tesise atanmadınız",
     noPropertyDescription:
       "Organizasyonunuzdaki bir yönetici sizi bir tesise atadığında burada görünür.",
-    signInTitle: "Oturum açın",
-    signInSummary: "Ranza çalışma alanı",
-    authSlogan: "KONAKLAMA VE TESİS YÖNETİMİ, YENİDEN TANIMLANDI",
+    signInSummary: "Tesislerinizi yönetmek için oturum açın.",
+    authSloganLead: "Konaklama ve tesis yönetimi,",
+    authSloganStrong: "YENİDEN TANIMLANDI",
     authSubSlogan:
       "Tesisler, sakinler, rezervasyonlar ve folyolar için bütünleşik çalışma alanı.",
-    authServices: {
-      records: "Kayıt & Sicil",
-      properties: "Tesisler",
-      operations: "Ön Büro & Giriş",
-      security: "Güvenlik & Rol",
-      folios: "Folyolar & Maliye",
-    },
     welcomeBack: "Tekrar hoş geldiniz",
     email: "E-posta",
     password: "Parola",
@@ -741,6 +728,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     freeTonight: "Boş",
     inHouseTonight: "Konaklamada",
     reservedTonight: "Rezervasyonlu",
+    reservedCount: "{count, number} rezervasyonlu",
     blockedStatus: "Kapalı",
 
     auditLog: "Denetim kaydı",
@@ -881,18 +869,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     noPropertyTitle: "You are not assigned to a Property yet",
     noPropertyDescription:
       "A manager in your Organization assigns you to a Property, and it appears here.",
-    signInTitle: "Sign in",
-    signInSummary: "Ranza operator workspace",
-    authSlogan: "HOSPITALITY, REFINED",
+    signInSummary: "Sign in to run your Properties.",
+    authSloganLead: "Hospitality,",
+    authSloganStrong: "REFINED",
     authSubSlogan:
       "Dedicated workspace for properties, residents, reservations, and folios.",
-    authServices: {
-      records: "Registration",
-      properties: "Properties",
-      operations: "Front Office",
-      security: "Role Security",
-      folios: "Folios & Billing",
-    },
     welcomeBack: "Welcome back",
     email: "Email",
     password: "Password",
@@ -1180,6 +1161,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     freeTonight: "Free",
     inHouseTonight: "In house",
     reservedTonight: "Reserved",
+    reservedCount: "{count, number} reserved",
     blockedStatus: "Blocked",
 
     auditLog: "Audit log",
@@ -1319,18 +1301,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     noPropertyTitle: "لم يتم تعيينك إلى منشأة بعد",
     noPropertyDescription:
       "يقوم أحد المديرين في مؤسستك بتعيينك إلى منشأة، فتظهر هنا.",
-    signInTitle: "تسجيل الدخول",
-    signInSummary: "مساحة عمل رانزا",
-    authSlogan: "إدارة الإقامة والضيافة المتكاملة",
+    signInSummary: "سجّل الدخول لإدارة عقاراتك.",
+    authSloganLead: "إدارة الإقامة والضيافة",
+    authSloganStrong: "المتكاملة",
     authSubSlogan:
       "مساحة العمل الموحدة للعقارات والمقيمين والحجوزات والسجلات المالية.",
-    authServices: {
-      records: "التسجيل والتوثيق",
-      properties: "العقارات والوحدات",
-      operations: "المكتب الأمامي",
-      security: "الأمان والصلاحيات",
-      folios: "السجلات المالية",
-    },
     welcomeBack: "مرحبًا بك من جديد",
     email: "البريد الإلكتروني",
     password: "كلمة المرور",
@@ -1611,6 +1586,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     freeTonight: "فارغ",
     inHouseTonight: "في الإقامة",
     reservedTonight: "محجوز",
+    reservedCount:
+      "{count, plural, zero {لا شيء محجوز} one {سرير واحد محجوز} two {سريران محجوزان} few {# أسرّة محجوزة} many {# سريرًا محجوزًا} other {# سرير محجوز}}",
     blockedStatus: "مغلق",
 
     auditLog: "سجل التدقيق",

@@ -29,6 +29,16 @@ so these patterns have to fit the same screens as the hotel ones.
 | [StarRez](https://www.starrez.com/)                                      | Student housing lifecycle                           | Resident assignment, room selection, billing          |
 | [Ulyses Cloud](https://www.softwaredoit.es/ulysescloud/ulysescloud.html) | Room-status tiles grouped by floor                  | A readable floor grid: number, status, pending tasks  |
 
+## Our own products
+
+Two internal applications set the visual language, rather than the layouts
+above. Neither is public, so the pattern is described instead of linked.
+
+| Product        | Pattern to study                                           | What Ranza takes                                                                   |
+| -------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Leaders portal | Floating glass rail and bar, large light titles, card rows | The workspace shell and the palette, recorded in `visual-reference.md`             |
+| EduBoard       | Sign-in                                                    | A framed sheet: the form on the start half, a showcase panel inset on the end half |
+
 ## The direction
 
 Combine: **Mews** for visual calm, **RoomRaccoon** for the reservation calendar,
@@ -57,9 +67,9 @@ languages with RTL, light and dark, the Operator Workspace, the resident Portal,
 the Storefront and the Prizic Control Plane. Nothing behind it is real; state
 lasts until the page reloads.
 
-Its `:root` is [`visual-reference.md`](visual-reference.md)'s token block
-verbatim, so it is also the closest thing to a rendering of the palette the
-theme is supposed to reach and does not yet.
+Its `:root` still carries the teal palette that
+[`visual-reference.md`](visual-reference.md) replaced with the Leaders direction
+on 2026-09-22, so read it for layout and density, not colour.
 
 **It is a shape reference, not a specification.** It shows what a screen wants to
 be once the module under it exists — not what may be built now. Where it and the

@@ -111,7 +111,7 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
             aria-invalid={failed || undefined}
             autoComplete="one-time-code"
             autoFocus
-            className="h-14 rounded-full px-6 text-[15px]"
+            className="h-13 rounded-[0.875rem] px-4 text-base md:text-[15px]"
             id="code"
             inputMode="text"
             name="code"
@@ -120,7 +120,7 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
         </Field>
         {failed ? <FormError>{t("challengeFailed")}</FormError> : null}
         <Button
-          className="hover-lift h-14 w-full rounded-full text-base font-bold tracking-wide shadow-lg shadow-primary/20"
+          className="h-13 w-full rounded-[0.875rem] text-[15px] font-semibold"
           disabled={pending}
           type="submit"
         >
@@ -136,7 +136,7 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
         <Input
           aria-invalid={failed || undefined}
           autoComplete="username"
-          className="h-14 rounded-full px-6 text-[15px]"
+          className="h-13 rounded-[0.875rem] px-4 text-base md:text-[15px]"
           id="email"
           name="email"
           placeholder="name@example.com"
@@ -148,7 +148,7 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
         <Input
           aria-invalid={failed || undefined}
           autoComplete="current-password"
-          className="h-14 rounded-full px-6 text-[15px]"
+          className="h-13 rounded-[0.875rem] px-4 text-base md:text-[15px]"
           id="password"
           name="password"
           required
@@ -157,7 +157,7 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
       </Field>
       {failed ? <FormError>{t("signInFailed")}</FormError> : null}
       <Button
-        className="hover-lift h-14 w-full rounded-full text-base font-bold tracking-wide shadow-lg shadow-primary/20"
+        className="h-13 w-full rounded-[0.875rem] text-[15px] font-semibold"
         disabled={pending}
         type="submit"
       >

@@ -120,7 +120,7 @@ export function RoomsView({
           label={t("statEmpty")}
           note={
             data.counts.reserved > 0
-              ? `${data.counts.reserved} ${t("reservedTonight").toLocaleLowerCase(locale)}`
+              ? t("reservedCount", { count: data.counts.reserved })
               : undefined
           }
           tone="success"

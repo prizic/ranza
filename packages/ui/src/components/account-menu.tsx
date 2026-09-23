@@ -79,7 +79,7 @@ export function AccountMenu({
       ) : (
         <DropdownMenuTrigger
           aria-label={label}
-          className="inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Avatar className="size-9 rounded-xl">
             <AvatarFallback className="rounded-xl bg-primary text-xs font-semibold uppercase tracking-wider text-primary-foreground">

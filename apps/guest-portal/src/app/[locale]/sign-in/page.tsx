@@ -1,15 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
-import {
-  BrandMark,
-  LanguageSwitcher,
-  ServiceIconChecklist,
-  ServiceIconContract,
-  ServiceIconDocument,
-  ServiceIconDocumentAlt,
-  ServiceIconHome,
-  SplitAuthLayout,
-} from "@ranza/ui";
+import { LanguageSwitcher, SplitAuthLayout } from "@ranza/ui";
 import { getTranslations } from "next-intl/server";
 import { currentViewer } from "../../../server/viewer";
 import { SignInForm } from "./sign-in-form";
@@ -20,7 +11,7 @@ import { SignInForm } from "./sign-in-form";
  * it. It also sits outside the (portal) group, whose layout requires a viewer
  * and would otherwise redirect here in a loop.
  *
- * Composed by SplitAuthLayout, after the Leaders portal sign-in.
+ * Composed by SplitAuthLayout, after the EduBoard sign-in.
  */
 export default async function SignInPage({
   params,
@@ -37,21 +28,6 @@ export default async function SignInPage({
 
   return (
     <SplitAuthLayout
-      brand={
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20">
-            <BrandMark className="size-6" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xl leading-none font-bold tracking-tight text-foreground/80">
-              {t("productName")}
-            </span>
-            <span className="text-xs font-semibold text-primary uppercase tracking-wider mt-1 leading-none">
-              {t("stay")}
-            </span>
-          </div>
-        </div>
-      }
       languageSwitcher={
         <LanguageSwitcher
           currentLocale={locale}
@@ -60,32 +36,13 @@ export default async function SignInPage({
           variant="pill"
         />
       }
-      services={[
-        {
-          icon: <ServiceIconHome size={28} />,
-          label: t("authServices.stay"),
-        },
-        {
-          icon: <ServiceIconDocumentAlt size={28} />,
-          label: t("authServices.property"),
-        },
-        {
-          icon: <ServiceIconChecklist size={28} />,
-          label: t("authServices.unit"),
-        },
-        {
-          icon: <ServiceIconDocument size={28} />,
-          label: t("authServices.records"),
-        },
-        {
-          icon: <ServiceIconContract size={28} />,
-          label: t("authServices.security"),
-        },
-      ]}
-      slogan={t("authSlogan")}
-      subSlogan={t("authSubSlogan")}
-      welcomeSubtitle={t("signInSummary")}
-      welcomeTitle={t("welcomeBack")}
+      pitch={t("authSubSlogan")}
+      productBadge={t("portalBadge")}
+      productName={t("productName")}
+      sloganLead={t("authSloganLead")}
+      sloganStrong={t("authSloganStrong")}
+      subtitle={t("signInSummary")}
+      title={t("welcomeBack")}
     >
       <SignInForm redirectTo={stay} />
     </SplitAuthLayout>
