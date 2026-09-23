@@ -345,11 +345,18 @@ select is_empty(
 -- app.unit_is_sellable() is — they consult rows the caller's policies may hide
 -- — and neither writes, so the count of writers below is unchanged and the
 -- sweep above still reads zero.
+--
+-- The audit log's reach (20260916004200) brought five: the four the
+-- audit.records read policy consults about its caller — which Properties,
+-- which Organizations wholly, which with audit.read, and whether a location
+-- belongs to a scope — and app.audit_location_names(), which names an archived
+-- Property the ordinary policy hides. All five ask only about the caller and
+-- none writes.
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  23,
-  'the definer sweep looked at 23 functions; change this number deliberately');
+  28,
+  'the definer sweep looked at 28 functions; change this number deliberately');
 
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -357,10 +364,11 @@ select is(
   3,
   'three of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a twenty-fourth definer is a red test
+-- Part B: the inventory itself, so a twenty-ninth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions, and the three that
--- write are named in the comment above; the last two are rooms and beds.
+-- write are named in the comment above; then two for rooms and beds, and the
+-- last five for the audit log's reach.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -374,8 +382,11 @@ select set_eq(
         'organization_keeps_an_administrator','organization_permissions',
         'role_change_keeps_an_administrator','role_is_not_held',
         'role_permissions_are_in_the_catalogue',
-        'unit_can_be_blocked','unit_is_in_service'],
-  'and they are exactly the twenty-three the design gives a reason for');
+        'unit_can_be_blocked','unit_is_in_service',
+        'audit_reachable_locations','audit_whole_organization_ids',
+        'audit_reader_organization_ids','audit_location_is_in_scope',
+        'audit_location_names'],
+  'and they are exactly the twenty-eight the design gives a reason for');
 
 select finish();
 rollback;

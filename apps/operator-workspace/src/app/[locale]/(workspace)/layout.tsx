@@ -14,6 +14,7 @@ import { getTranslations } from "next-intl/server";
 import { ALL_SCREENS } from "../../../lib/screens";
 import {
   entitledProperties,
+  permittedProperties,
   requireViewer,
   TODAY_CAPABILITY,
 } from "../../../server/viewer";
@@ -52,20 +53,32 @@ export default async function WorkspaceLayout({
   // In parallel, because they are independent reads and the shell waits for the
   // slowest. The unique capability keys are asked once each; two destinations
   // sharing one (arrivals and departures) do not cost two round trips.
+  //
+  // A destination gated by a permission is asked about that instead — the
+  // audit log, which no package selection may remove (ADR 0031).
   const capabilities = [
     ...new Map(
-      ALL_SCREENS.map((screen) => [
+      ALL_SCREENS.filter((screen) => !screen.permission).map((screen) => [
         screen.capability,
         { capabilityKey: screen.capability, moduleKey: screen.module },
       ]),
     ).values(),
   ];
-  const answers = await Promise.all(
-    capabilities.map(async (capability) => ({
+  const permitted = ALL_SCREENS.flatMap((screen) =>
+    screen.permission
+      ? [{ key: screen.capability, permission: screen.permission }]
+      : [],
+  );
+  const answers = await Promise.all([
+    ...capabilities.map(async (capability) => ({
       key: capability.capabilityKey,
       reachable: await entitledProperties(capability),
     })),
-  );
+    ...permitted.map(async (screen) => ({
+      key: screen.key,
+      reachable: await permittedProperties(screen.permission),
+    })),
+  ]);
 
   // Plain strings, so the tree can be built on the client where its icons live.
   const entitled = answers

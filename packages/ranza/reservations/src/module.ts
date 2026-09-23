@@ -378,6 +378,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
       await recordWithin(tx, {
         organizationId: reservation.organizationId,
         actorId: userId,
+        locationId: reservation.propertyId,
         action: "reservation.checked_in",
         subjectType: "reservation",
         subjectId: reservationId,
@@ -508,6 +509,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
       await recordWithin(tx, {
         organizationId: withdrawn.organizationId,
         actorId: userId,
+        locationId: withdrawn.propertyId,
         action: "reservation.check_in_reversed",
         subjectType: "reservation",
         subjectId: withdrawn.reservationId,
@@ -665,6 +667,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
       await recordWithin(tx, {
         organizationId: closed.organizationId,
         actorId: userId,
+        locationId: closed.propertyId,
         action: "stay.checked_out",
         subjectType: "stay",
         subjectId: stayId,
@@ -942,6 +945,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
 
       await recordWithin(tx, {
         organizationId: unit.organizationId,
+        locationId: unit.propertyId,
         actorId: userId,
         action: "reservation.created",
         subjectType: "reservation",

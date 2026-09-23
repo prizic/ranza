@@ -28,6 +28,7 @@ export const PERMISSION_CATALOGUE = [
   "finance.post_charge",
   "staff.administer",
   "staff.define_roles",
+  "audit.read",
 ] as const;
 
 export type ShippedRole = (typeof SHIPPED_ROLES)[number];
@@ -56,6 +57,7 @@ const MESSAGE_KEYS = {
   "finance.post_charge": "postCharge",
   "staff.administer": "administerStaff",
   "staff.define_roles": "defineRoles",
+  "audit.read": "readAudit",
 } as const satisfies Record<PermissionKey, string>;
 
 export type PermissionMessageKey =
