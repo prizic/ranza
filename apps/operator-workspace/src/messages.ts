@@ -153,6 +153,7 @@ export interface Messages {
   checkOutBalanceReasonRequired: string;
   checkOutFolioChanged: string;
   departuresViews: string;
+  inHouseAt: string;
   departuresDue: string;
   departuresInHouse: string;
   nobodyInHouseTitle: string;
@@ -601,6 +602,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutFolioChanged:
       "Siz bakarken hesaba yeni bir kayıt eklendi. Hesabı yeniden kontrol edip tekrar deneyin.",
     departuresViews: "Çıkış listesi görünümleri",
+    inHouseAt: "Şu anda konaklayanlar:",
     departuresDue: "Bugün ve gecikenler",
     departuresInHouse: "Konaklayan herkes",
     nobodyInHouseTitle: "Konaklayan kimse yok",
@@ -1075,6 +1077,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutFolioChanged:
       "Something was posted to the bill while you were looking. Review it again and try once more.",
     departuresViews: "Departure views",
+    inHouseAt: "In house at",
     departuresDue: "Due and overdue",
     departuresInHouse: "Everybody in house",
     nobodyInHouseTitle: "Nobody is in house",
@@ -1542,6 +1545,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutFolioChanged:
       "أُضيف قيد إلى الحساب أثناء مراجعتك. راجعه مرة أخرى ثم أعد المحاولة.",
     departuresViews: "عروض قائمة المغادرة",
+    inHouseAt: "المقيمون حاليًا في",
     departuresDue: "المستحقة والمتأخرة",
     departuresInHouse: "جميع النزلاء المقيمين",
     nobodyInHouseTitle: "لا يوجد نزلاء مقيمون",

@@ -74,7 +74,8 @@ export default async function DeparturesPage({
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-muted-foreground">
-          {t("departuresAt")} {property.propertyName}
+          {view === "due" ? t("departuresAt") : t("inHouseAt")}{" "}
+          {property.propertyName}
         </p>
         <nav aria-label={t("departuresViews")} className="flex gap-1">
           <Button

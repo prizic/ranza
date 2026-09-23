@@ -270,13 +270,17 @@ export function useArrivalColumns(
           title={t("balance")}
         />
       ),
-      cell: ({ row }) => (
-        <Balance
-          currency={row.original.currency}
-          locale={locale}
-          minor={row.original.balanceMinor}
-        />
-      ),
+      // Before check-in there is no bill, and a zero would claim there is one.
+      cell: ({ row }) =>
+        row.original.folioId ? (
+          <Balance
+            currency={row.original.currency}
+            locale={locale}
+            minor={row.original.balanceMinor}
+          />
+        ) : (
+          <span className="text-muted-foreground">{t("noFolio")}</span>
+        ),
     },
     {
       id: "action",
@@ -304,7 +308,7 @@ export function useArrivalColumns(
             ) : arrival.checkInBlocker ? (
               // Where the button would be, what stands in its way, so nobody
               // presses a button that is certain to be refused.
-              <span className="max-w-48 text-end text-step--1 text-muted-foreground">
+              <span className="max-w-48 whitespace-normal text-end text-step--1 text-muted-foreground">
                 {t(`checkInBlocked.${arrival.checkInBlocker}`)}
               </span>
             ) : null}
