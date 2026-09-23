@@ -6,11 +6,10 @@ import type { CapabilityRef } from "@ranza/core";
  *
  * A Reservation is a planned allocation of an Accommodation Unit for a period,
  * which may become a Stay through check-in (blueprint 2 and 5.3). This module
- * covers exactly that pair, and now the act of making one. Group reservations,
- * quotations, deposits, extensions, room moves and no-show handling are also
- * section 5.3 and are deliberately absent — the status below has room for a
- * no-show because the database needs the value to exist, not because anything
- * here sets it.
+ * covers exactly that pair, the act of making one, and the two ways one ends
+ * without a Stay — cancelled, or a no-show. Group reservations, quotations,
+ * deposits, extensions and room moves are also section 5.3 and are
+ * deliberately absent.
  */
 
 /** Entitlement key for Reservations and Front Office (blueprint 5.3). */

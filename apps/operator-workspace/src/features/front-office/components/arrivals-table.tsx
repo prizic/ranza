@@ -39,7 +39,7 @@ export function ArrivalsTable({
         }
         labels={labels}
         rowId={(row) => row.reservationId}
-        searchColumns={["guestName", "unitName"]}
+        searchColumns={["guestName", "unitName", "roomName", "reference"]}
       />
     </div>
   );

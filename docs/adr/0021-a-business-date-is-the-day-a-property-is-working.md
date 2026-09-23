@@ -43,8 +43,9 @@ night-shift traffic.
 
 ### A business date is a Property-level fact with a cutoff
 
-`properties.business_date_cutoff time not null default '00:00'`, and
-`app.property_today()` becomes:
+`properties.business_date_cutoff time not null default '04:00'`, constrained to
+between 03:00 and 12:00 (see the amendment above), and `app.property_today()`
+becomes:
 
 ```sql
 (now() at time zone property.timezone - property.business_date_cutoff)::date
@@ -66,26 +67,17 @@ than a survey of call sites. That was the point of extracting it in
 `20260916001300_check_in_on_the_day`: a definition of "today" that lives in four
 query bodies is a definition that changes in three of them.
 
-### It is decided now and built when something needs it
+### Built for the front desk, ahead of the night audit
 
-Nothing in the product posts anything per night, because nothing has a rate —
-`folio_lines.amount_minor` is supplied by whoever posts a charge, and there is no
-rate plan, no tariff and no price column anywhere. A night audit therefore has
-nothing to post, and a business date with no automatic posting is a column
-nobody reads.
-
-Blueprint section 13 forbids building the table ahead of the workflow that needs
-it. So this records the shape, and the migration is written when the first
-workflow needs a day that is not a calendar day — which is the night audit, and
-the night audit needs pricing first.
+It was first recorded to be built with the night audit, which needs pricing
+first. The front desk needed it sooner — a 00:30 arrival for last evening's
+one-night booking could not be checked in — so it was applied in
+`20260916003500_a_business_date_has_a_cutoff`. The night audit, when it comes,
+rolls the day this defines rather than defining one of its own.
 
 ## Consequences
 
-Recorded in `docs/roadmap.md` under decisions not yet applied, so neither this
-ADR nor that table is a claim about code that exists.
-
-When it lands, every existing date comparison silently becomes a business-date
-comparison, because they all resolve through `app.property_today()`. That is the
+Every date comparison became a business-date comparison when it landed, because they all resolve through `app.property_today()`. That is the
 intended blast radius and it is why the function was extracted before the
 decision was needed rather than after.
 

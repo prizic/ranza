@@ -294,12 +294,12 @@ export function useArrivalColumns(
         const label = unitLabel(arrival.roomName, arrival.unitName);
         return (
           <div className="flex items-center justify-end gap-1">
-            {!arrival.mayCheckIn ? null : arrival.canCheckIn ? (
+            {arrival.canCheckIn && arrival.mayCheckIn ? (
               <CheckInAction
                 locale={locale}
                 reservationId={arrival.reservationId}
               />
-            ) : arrival.stayId ? (
+            ) : arrival.stayId && arrival.mayCheckIn ? (
               <UndoCheckInDialog
                 guestName={arrival.guestName}
                 locale={locale}
@@ -309,7 +309,8 @@ export function useArrivalColumns(
               />
             ) : arrival.checkInBlocker ? (
               // Where the button would be, what stands in its way, so nobody
-              // presses a button that is certain to be refused.
+              // presses a button that is certain to be refused. Shown to
+              // anybody reading the row: it is information, not a control.
               <span className="max-w-48 whitespace-normal text-end text-step--1 text-muted-foreground">
                 {t(`checkInBlocked.${arrival.checkInBlocker}`)}
               </span>
