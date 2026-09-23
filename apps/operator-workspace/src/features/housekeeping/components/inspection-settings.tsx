@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState } from "react";
+import { startTransition, useActionState, useOptimistic } from "react";
 import { useTranslations } from "next-intl";
 import { ArrowRight, CalendarCheck } from "lucide-react";
 import type { InspectionSettings as Settings } from "@ranza/housekeeping";
@@ -50,22 +50,47 @@ export function InspectionSettings({
     FormData
   >(setInspection, { status: "idle" });
 
+  // The choice shows the moment it is made, and the flow with it: the page
+  // only learns what was saved when the refreshed settings arrive, which can
+  // take seconds, and a control still showing the old answer reads as a save
+  // that did not happen. The server's answer replaces this when it lands.
+  const [shown, showChoice] = useOptimistic(
+    settings,
+    (current: Settings, choice: Partial<Settings>): Settings => {
+      const next = { ...current, ...choice };
+      return {
+        ...next,
+        effective: next.propertyOverride ?? next.organizationDefault,
+      };
+    },
+  );
+
   function save(scope: "property" | "organization", value: string) {
     const form = new FormData();
     form.set("locale", locale);
     form.set("propertyId", propertyId);
     form.set("scope", scope);
     form.set("value", value);
-    startTransition(() => dispatch(form));
+    startTransition(() => {
+      showChoice(
+        scope === "organization"
+          ? { organizationDefault: value === "on" }
+          : { propertyOverride: value === "default" ? null : value === "on" },
+      );
+      dispatch(form);
+    });
   }
 
   const onOff = (value: boolean) => (value ? t("on") : t("off"));
   const propertyValue =
-    settings.propertyOverride === null
+    shown.propertyOverride === null
       ? "default"
-      : settings.propertyOverride
+      : shown.propertyOverride
         ? "on"
         : "off";
+  const inheritLabel = t("useDefault", {
+    value: onOff(shown.organizationDefault),
+  });
 
   return (
     <Card className="grid gap-5 p-5">
@@ -84,10 +109,10 @@ export function InspectionSettings({
           <Select
             disabled={!settings.mayConfigureDefault || pending}
             onValueChange={(value) => save("organization", value)}
-            value={settings.organizationDefault ? "on" : "off"}
+            value={shown.organizationDefault ? "on" : "off"}
           >
             <SelectTrigger id="inspection-organization">
-              <SelectValue />
+              <SelectValue>{onOff(shown.organizationDefault)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="on">{t("on")}</SelectItem>
@@ -111,14 +136,17 @@ export function InspectionSettings({
             value={propertyValue}
           >
             <SelectTrigger id="inspection-property">
-              <SelectValue />
+              {/* Named here rather than left to the closed Select to find:
+                  on first render it has no mounted item to read a label
+                  from, and would show nothing. */}
+              <SelectValue>
+                {propertyValue === "default"
+                  ? inheritLabel
+                  : onOff(shown.propertyOverride === true)}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="default">
-                {t("useDefault", {
-                  value: onOff(settings.organizationDefault),
-                })}
-              </SelectItem>
+              <SelectItem value="default">{inheritLabel}</SelectItem>
               <SelectItem value="on">{t("on")}</SelectItem>
               <SelectItem value="off">{t("off")}</SelectItem>
             </SelectContent>
@@ -143,7 +171,7 @@ export function InspectionSettings({
           <li>
             <HousekeepingStatusBadge status="clean" />
           </li>
-          {settings.effective ? (
+          {shown.effective ? (
             <>
               <Step />
               <li>
@@ -163,7 +191,9 @@ export function InspectionSettings({
       </div>
 
       <div aria-live="polite" className="min-h-5">
-        {outcome.status === "done" ? (
+        {pending ? (
+          <p className="text-step--1 text-muted-foreground">{t("saving")}</p>
+        ) : outcome.status === "done" ? (
           <p className="text-step--1 text-success">{t("saved")}</p>
         ) : outcome.status === "refused" || outcome.status === "invalid" ? (
           <FormError>{t("settingRefused")}</FormError>
