@@ -29,6 +29,12 @@ import type {
   UnitsAdded,
   UnitState,
 } from "@ranza/accommodation";
+import { HOUSEKEEPING_CAPABILITY, MARK_BATCH } from "@ranza/housekeeping";
+import type {
+  HousekeepingBoard,
+  HousekeepingRoom,
+  HousekeepingStatus,
+} from "@ranza/housekeeping";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import { getComposition } from "./composition";
 
@@ -59,6 +65,8 @@ export {
   TODAY_CAPABILITY,
   FRONT_DESK_CAPABILITY,
   FOLIO_CAPABILITY,
+  HOUSEKEEPING_CAPABILITY,
+  MARK_BATCH,
   ROOMS_CAPABILITY,
 };
 export type {
@@ -70,6 +78,9 @@ export type {
   Departure,
   FolioDetail,
   FolioSummary,
+  HousekeepingBoard,
+  HousekeepingRoom,
+  HousekeepingStatus,
   NewUnits,
   ReservationRow,
   ScopeHistory,
@@ -282,6 +293,28 @@ export async function rooms(propertyId: string): Promise<UnitMap> {
     };
   }
   return getComposition().accommodation.listUnits(viewer.userId, propertyId);
+}
+
+/**
+ * Every room at one Property and whether it needs cleaning (HK-S1-13).
+ *
+ * Same funnel and same non-checking: a Property the viewer cannot reach, or
+ * one without housekeeping, produces an empty board because the policies and
+ * the capability gate decide that, not a condition here. Not `cache`d: a
+ * request that marks a room and then reads must see its own mark.
+ */
+export async function housekeepingBoard(
+  propertyId: string,
+): Promise<HousekeepingBoard> {
+  const viewer = await currentViewer();
+  if (!viewer) {
+    return {
+      rooms: [],
+      counts: { rooms: 0, dirty: 0, clean: 0, inspected: 0, ready: 0 },
+      mayMark: false,
+    };
+  }
+  return getComposition().housekeeping.board(viewer.userId, propertyId);
 }
 
 /**

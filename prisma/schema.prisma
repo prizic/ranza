@@ -139,6 +139,7 @@ model AccommodationUnit {
   children     AccommodationUnit[] @relation("UnitNesting")
   stays        Stay[]
   reservations Reservation[]
+  housekeeping HousekeepingUnitStatus[]
 
   /// A room's name is unique in its Property; a bed's is unique in its room.
   /// Two partial indexes rather than one over `(property_id, parent_id, name)`,
@@ -152,6 +153,33 @@ model AccommodationUnit {
   @@unique([id, propertyId, organizationId, unitType], map: "accommodation_units_nesting_key")
   @@index([parentId], map: "accommodation_units_parent_idx")
   @@map("accommodation_units")
+}
+
+/// Whether a room needs cleaning (blueprint 5.4, 18.2; ADR 0029). One row per
+/// status holder: a Unit with no parent, so a bed under a room answers to the
+/// room and a bed with no room holds its own. A holder with no row reads as
+/// clean. Whether a Unit is in service is `accommodation_units.status`, a
+/// different lifecycle that coexists with this one.
+model HousekeepingUnitStatus {
+  accommodationUnitId String   @id @map("accommodation_unit_id") @db.Uuid
+  propertyId          String   @map("property_id") @db.Uuid
+  organizationId      String   @map("organization_id") @db.Uuid
+  status              String
+  /// When the status last changed, stamped by the database rather than stated
+  /// by the caller. What a departure compares against: a status changed after
+  /// the Guest left is kept.
+  statusChangedAt     DateTime @default(now()) @map("status_changed_at") @db.Timestamptz(6)
+  /// The Staff Member who changed it, stamped by the database. Null when a
+  /// departure did. No foreign key, for the reason `audit.records.actor_id`
+  /// has none: who acted is history, not a live reference.
+  statusChangedBy     String?  @map("status_changed_by") @db.Uuid
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  unit AccommodationUnit @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([propertyId, status])
+  @@map("housekeeping_unit_status")
 }
 
 /// A named set of permissions (blueprint 7.2). A role is not a label: what a

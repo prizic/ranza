@@ -70,6 +70,10 @@ export interface Messages {
   checkingIn: string;
   checkedIn: string;
   unitUnavailable: string;
+  roomNotReady: string;
+  checkInAnyway: string;
+  notNow: string;
+  notReady: string;
   checkInRefused: string;
 
   /**
@@ -214,7 +218,9 @@ export interface Messages {
       | "manageFolio"
       | "postCharge"
       | "administerStaff"
-      | "defineRoles",
+      | "defineRoles"
+      | "configureAccommodation"
+      | "updateHousekeeping",
       string
     >;
     emptyRosterTitle: string;
@@ -304,6 +310,42 @@ export interface Messages {
   reservedTonight: string;
   blockedStatus: string;
 
+  /** The Housekeeping screen (RANZ-28). */
+  housekeeping: {
+    subtitle: string;
+    noRoomsTitle: string;
+    noRoomsDescription: string;
+    statRooms: string;
+    statDirty: string;
+    statClean: string;
+    statInspected: string;
+    statReady: string;
+    room: string;
+    location: string;
+    status: string;
+    changed: string;
+    occupancy: string;
+    dirty: string;
+    clean: string;
+    inspected: string;
+    notRecorded: string;
+    inHouse: string;
+    vacant: string;
+    outOfService: string;
+    beds: string;
+    floorNumber: string;
+    markClean: string;
+    markInspected: string;
+    markDirty: string;
+    saving: string;
+    marked: string;
+    refused: string;
+    invalid: string;
+    readOnly: string;
+    roomActions: string;
+    actions: string;
+  };
+
   auditLog: string;
   auditLogFor: string;
   allRecords: string;
@@ -344,6 +386,7 @@ export interface Messages {
       string
     >;
     unit: Record<"added" | "blocked" | "unblocked", string>;
+    housekeeping: Record<"status_changed", string>;
   };
   auditSubject: Record<
     | "reservation"
@@ -465,6 +508,10 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkingIn: "Yapılıyor",
     checkedIn: "Giriş yapıldı",
     unitUnavailable: "Bu birim seçilen tarihlerde dolu.",
+    roomNotReady: "Bu oda henüz hazır değil: hâlâ kirli olarak işaretli.",
+    checkInAnyway: "Yine de giriş yap",
+    notNow: "Şimdi değil",
+    notReady: "Hazır değil",
     checkInRefused: "Bu rezervasyon için giriş yapılamıyor.",
     undoCheckIn: "Girişi geri al",
     undoingCheckIn: "Geri alınıyor",
@@ -601,6 +648,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         postCharge: "Folyoya ücret işleme",
         administerStaff: "Ekibi yönetme",
         defineRoles: "Rol tanımlama",
+        configureAccommodation: "Odaları ve yatakları yapılandırma",
+        updateHousekeeping: "Oda durumunu güncelleme",
       },
       emptyRosterTitle: "Henüz kimse yok",
       emptyRosterDescription:
@@ -703,6 +752,44 @@ export const messages: Record<SupportedLocale, Messages> = {
     reservedTonight: "Rezervasyonlu",
     blockedStatus: "Kapalı",
 
+    housekeeping: {
+      subtitle: "{property} — temizlik bekleyen odalar",
+      noRoomsTitle: "Henüz oda yok",
+      noRoomsDescription:
+        "Odalar ve yataklar ekranında eklenen odalar, temizlik durumlarıyla birlikte burada görünür.",
+      statRooms: "Odalar",
+      statDirty: "Kirli",
+      statClean: "Temiz",
+      statInspected: "Kontrol edildi",
+      statReady: "Satışa hazır",
+      room: "Oda",
+      location: "Konum",
+      status: "Durum",
+      changed: "Son değişiklik",
+      occupancy: "Doluluk",
+      dirty: "Kirli",
+      clean: "Temiz",
+      inspected: "Kontrol edildi",
+      notRecorded: "Henüz kaydedilmedi",
+      inHouse: "Misafir konaklıyor",
+      vacant: "Boş",
+      outOfService: "Hizmet dışı",
+      beds: "{count, plural, other {# yatak}}",
+      floorNumber: "{floor}. kat",
+      markClean: "Temiz olarak işaretle",
+      markInspected: "Kontrol edildi olarak işaretle",
+      markDirty: "Kirli olarak işaretle",
+      saving: "Kaydediliyor…",
+      marked: "{count, plural, other {# oda güncellendi}}",
+      refused:
+        "Bu odalar güncellenemedi. Pano, şu anda değiştirebildiklerinizi gösteriyor.",
+      invalid: "Bir ile altmış arasında oda seçin.",
+      readOnly:
+        "Buradaki tüm odaları görebilirsiniz ancak değiştiremezsiniz. Bir yönetici, rolünüze oda durumunu güncelleme izni verebilir.",
+      roomActions: "{room} için işlemler",
+      actions: "İşlemler",
+    },
+
     auditLog: "Denetim kaydı",
     auditLogFor: "Son işlemler:",
     allRecords: "Tüm kayıtlar",
@@ -748,6 +835,9 @@ export const messages: Record<SupportedLocale, Messages> = {
         added: "Birim eklendi",
         blocked: "Birim kapatıldı",
         unblocked: "Birim açıldı",
+      },
+      housekeeping: {
+        status_changed: "Oda durumu değiştirildi",
       },
     },
     auditSubject: {
@@ -886,6 +976,10 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkingIn: "Checking in",
     checkedIn: "Checked in",
     unitUnavailable: "That Unit is occupied for those nights.",
+    roomNotReady: "This room isn't ready yet — it's still marked dirty.",
+    checkInAnyway: "Check in anyway",
+    notNow: "Not now",
+    notReady: "Not ready",
     checkInRefused: "That Reservation cannot be checked in.",
     undoCheckIn: "Undo check-in",
     undoingCheckIn: "Undoing",
@@ -1021,6 +1115,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         postCharge: "Post a charge",
         administerStaff: "Administer staff",
         defineRoles: "Define roles",
+        configureAccommodation: "Configure rooms & beds",
+        updateHousekeeping: "Update room status",
       },
       emptyRosterTitle: "Nobody here yet",
       emptyRosterDescription: "This Organization has no Staff Member to show.",
@@ -1122,6 +1218,44 @@ export const messages: Record<SupportedLocale, Messages> = {
     reservedTonight: "Reserved",
     blockedStatus: "Blocked",
 
+    housekeeping: {
+      subtitle: "Which rooms need cleaning at {property}",
+      noRoomsTitle: "No rooms here yet",
+      noRoomsDescription:
+        "Rooms added under Rooms & beds appear here, with whether each one needs cleaning.",
+      statRooms: "Rooms",
+      statDirty: "Dirty",
+      statClean: "Clean",
+      statInspected: "Inspected",
+      statReady: "Ready to let",
+      room: "Room",
+      location: "Where",
+      status: "Status",
+      changed: "Last changed",
+      occupancy: "Occupancy",
+      dirty: "Dirty",
+      clean: "Clean",
+      inspected: "Inspected",
+      notRecorded: "Not recorded yet",
+      inHouse: "Guest in house",
+      vacant: "Vacant",
+      outOfService: "Out of service",
+      beds: "{count, plural, one {# bed} other {# beds}}",
+      floorNumber: "Floor {floor}",
+      markClean: "Mark clean",
+      markInspected: "Mark inspected",
+      markDirty: "Mark dirty",
+      saving: "Saving…",
+      marked: "{count, plural, one {# room updated} other {# rooms updated}}",
+      refused:
+        "Those rooms couldn't be updated. The board now shows what you can change.",
+      invalid: "Choose between one and sixty rooms.",
+      readOnly:
+        "You can see every room here but not change it. A manager can give your role permission to update room status.",
+      roomActions: "Actions for {room}",
+      actions: "Actions",
+    },
+
     auditLog: "Audit log",
     auditLogFor: "Recent actions at",
     allRecords: "All records",
@@ -1167,6 +1301,9 @@ export const messages: Record<SupportedLocale, Messages> = {
         added: "Unit added",
         blocked: "Unit blocked",
         unblocked: "Unit unblocked",
+      },
+      housekeeping: {
+        status_changed: "Room status changed",
       },
     },
     auditSubject: {
@@ -1303,6 +1440,10 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkingIn: "جارٍ التسجيل",
     checkedIn: "تم تسجيل الوصول",
     unitUnavailable: "هذه الوحدة محجوزة في تلك الليالي.",
+    roomNotReady: "هذه الغرفة ليست جاهزة بعد — لا تزال مُعلَّمة كمتسخة.",
+    checkInAnyway: "تسجيل الدخول على أي حال",
+    notNow: "ليس الآن",
+    notReady: "غير جاهزة",
     checkInRefused: "لا يمكن تسجيل الوصول لهذا الحجز.",
     undoCheckIn: "التراجع عن تسجيل الوصول",
     undoingCheckIn: "جارٍ التراجع",
@@ -1436,6 +1577,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         postCharge: "تسجيل رسم على الحساب",
         administerStaff: "إدارة الفريق",
         defineRoles: "تعريف الأدوار",
+        configureAccommodation: "تهيئة الغرف والأسرّة",
+        updateHousekeeping: "تحديث حالة الغرف",
       },
       emptyRosterTitle: "لا أحد هنا بعد",
       emptyRosterDescription: "لا يوجد في هذه المؤسسة موظف لعرضه.",
@@ -1532,6 +1675,44 @@ export const messages: Record<SupportedLocale, Messages> = {
     reservedTonight: "محجوز",
     blockedStatus: "مغلق",
 
+    housekeeping: {
+      subtitle: "الغرف التي تحتاج إلى تنظيف في {property}",
+      noRoomsTitle: "لا توجد غرف بعد",
+      noRoomsDescription:
+        "تظهر هنا الغرف المضافة من شاشة الغرف والأسرّة، مع ما إذا كانت كل غرفة تحتاج إلى تنظيف.",
+      statRooms: "الغرف",
+      statDirty: "متسخة",
+      statClean: "نظيفة",
+      statInspected: "تم فحصها",
+      statReady: "جاهزة للتأجير",
+      room: "الغرفة",
+      location: "الموقع",
+      status: "الحالة",
+      changed: "آخر تغيير",
+      occupancy: "الإشغال",
+      dirty: "متسخة",
+      clean: "نظيفة",
+      inspected: "تم فحصها",
+      notRecorded: "لم تُسجَّل بعد",
+      inHouse: "نزيل مقيم",
+      vacant: "شاغرة",
+      outOfService: "خارج الخدمة",
+      beds: "{count, plural, zero {لا أسرّة} one {سرير واحد} two {سريران} few {# أسرّة} many {# سريرًا} other {# سرير}}",
+      floorNumber: "الطابق {floor}",
+      markClean: "تعيين كنظيفة",
+      markInspected: "تعيين كمفحوصة",
+      markDirty: "تعيين كمتسخة",
+      saving: "جارٍ الحفظ…",
+      marked:
+        "{count, plural, zero {لم تُحدَّث أي غرفة} one {تم تحديث غرفة واحدة} two {تم تحديث غرفتين} few {تم تحديث # غرف} many {تم تحديث # غرفة} other {تم تحديث # غرفة}}",
+      refused: "تعذّر تحديث هذه الغرف. تعرض اللوحة الآن ما يمكنك تغييره.",
+      invalid: "اختر ما بين غرفة واحدة وستين غرفة.",
+      readOnly:
+        "يمكنك رؤية جميع الغرف هنا دون تغييرها. يمكن للمدير منح دورك صلاحية تحديث حالة الغرف.",
+      roomActions: "إجراءات {room}",
+      actions: "الإجراءات",
+    },
+
     auditLog: "سجل التدقيق",
     auditLogFor: "آخر الإجراءات في",
     allRecords: "كل السجلات",
@@ -1577,6 +1758,9 @@ export const messages: Record<SupportedLocale, Messages> = {
         added: "تمت إضافة وحدة",
         blocked: "تم إغلاق الوحدة",
         unblocked: "تم فتح الوحدة",
+      },
+      housekeeping: {
+        status_changed: "تم تغيير حالة الغرفة",
       },
     },
     auditSubject: {

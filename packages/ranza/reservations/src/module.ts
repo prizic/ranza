@@ -18,6 +18,7 @@ import {
   ReservationRefusedError,
   REVERSAL_REASON,
   StayHasChargesError,
+  UnitNotReadyError,
   UnitUnavailableError,
   type Arrival,
   type BookableUnit,
@@ -109,6 +110,12 @@ interface MovedReservation {
    */
   arrivedOn: Date;
   endsOn: Date | null;
+  /**
+   * Whether housekeeping says the room is ready, read in the same statement
+   * that moves the Reservation, so the warning and the check-in cannot
+   * disagree about a room somebody marked clean in between (HK-S2-17).
+   */
+  unitIsReady: boolean;
 }
 
 export function createReservationsModule(deps: ReservationsDeps) {
@@ -172,6 +179,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
           unit.name                                     as "unitName",
           unit.unit_type                                as "unitType",
           unit.status                                   as "unitStatus",
+          app.unit_is_ready(unit.id)                    as "unitIsReady",
           stay.id                                       as "stayId",
           null::text                                    as "eta",
           greatest(0, (today.day - reservation.starts_on))::int as "daysLate",
@@ -282,6 +290,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
   async function checkIn(
     userId: string,
     reservationId: string,
+    options: { readinessAcknowledged?: boolean } = {},
   ): Promise<CheckedIn> {
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
       const moved = await tx.$queryRaw<MovedReservation[]>`
@@ -298,7 +307,8 @@ export function createReservationsModule(deps: ReservationsDeps) {
           accommodation_unit_id           as "accommodationUnitId",
           stay_type                       as "stayType",
           app.property_today(property_id) as "arrivedOn",
-          ends_on                         as "endsOn"
+          ends_on                         as "endsOn",
+          app.unit_is_ready(accommodation_unit_id) as "unitIsReady"
       `;
 
       const [reservation] = moved;
@@ -307,6 +317,14 @@ export function createReservationsModule(deps: ReservationsDeps) {
         // message for all four: telling them apart would confirm that a
         // Reservation the caller cannot see is there.
         throw new CheckInError("that Reservation cannot be checked in");
+      }
+
+      // A room that is not ready is the desk's call, not a refusal: asked
+      // once, and allowed after they say so (HK-S2-14, HK-S2-15). Thrown
+      // before anything else is written, so the answer they give is to a
+      // check-in that has not half happened.
+      if (!reservation.unitIsReady && !options.readinessAcknowledged) {
+        throw new UnitNotReadyError();
       }
 
       // Every value comes from the row the update returned, never from the
@@ -385,6 +403,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
           stayId: created.stayId,
           accommodationUnitId: reservation.accommodationUnitId,
           folioId: folio?.folioId ?? null,
+          // Only when it was true when the check-in happened: an
+          // acknowledgement for a room somebody cleaned in the meantime is not
+          // a room checked into dirty (HK-S2-17).
+          ...(reservation.unitIsReady ? {} : { roomWasNotReady: true }),
         },
       });
 
