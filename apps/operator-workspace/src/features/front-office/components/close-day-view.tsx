@@ -176,6 +176,7 @@ export function CloseDayView({
                   folioId={null}
                   guestName={row.guestName}
                   locale={locale}
+                  propertyId={day.propertyId}
                 />
               </div>
             </li>
@@ -258,7 +259,7 @@ export function CloseDayView({
                     </span>
                     <Button asChild size="sm" variant="outline">
                       <Link
-                        href={`${localizeHref(locale, "finance")}?folio=${row.folioId}`}
+                        href={`${localizeHref(locale, "finance")}?property=${day.propertyId}&folio=${row.folioId}`}
                       >
                         {t("closeDay.openFolio")}
                       </Link>

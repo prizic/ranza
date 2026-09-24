@@ -39,6 +39,7 @@ vi.mock("../../apps/operator-workspace/src/server/front-office", () => ({
 // the real router, which throws outside a mounted app.
 vi.mock("../../apps/operator-workspace/node_modules/next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("../../apps/operator-workspace/node_modules/next/link", () => ({
   default: ({ children, href }: { children: ReactNode; href: string }) => (

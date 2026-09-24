@@ -7,6 +7,7 @@ import {
   closeTheDay,
   entitledProperties,
   FRONT_DESK_CAPABILITY,
+  requireViewer,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
 
@@ -30,6 +31,7 @@ export default async function CloseDayPage({
   if (!isSupportedLocale(locale)) notFound();
 
   const t = await getTranslations();
+  await requireViewer(locale);
   const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
   const property = frontDeskProperty(properties, await searchParams);
   const day = property ? await closeTheDay(property.propertyId) : null;
