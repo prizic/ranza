@@ -3,10 +3,12 @@
 import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
+  Ban,
   CalendarClock,
   CircleCheck,
   CircleDashed,
   DoorOpen,
+  SprayCan,
 } from "lucide-react";
 import type { Arrival, Departure, ReservationRow } from "@ranza/reservations";
 import {
@@ -180,6 +182,11 @@ export function useArrivalColumns(
       cell: ({ row }) =>
         row.original.status === "checked_in" ? (
           <StatusBadge icon={DoorOpen} label={t("checkedIn")} tone="success" />
+        ) : row.original.unitStatus === "blocked" ? (
+          <StatusBadge icon={Ban} label={t("blockedStatus")} tone="danger" />
+        ) : row.original.unitStatus === "available" &&
+          !row.original.unitIsReady ? (
+          <StatusBadge icon={SprayCan} label={t("notReady")} tone="warning" />
         ) : row.original.unitStatus === "available" ? (
           <StatusBadge icon={CircleCheck} label={t("ready")} tone="success" />
         ) : row.original.unitStatus === "out_of_service" ? (

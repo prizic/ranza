@@ -28,6 +28,8 @@ export const PERMISSION_CATALOGUE = [
   "finance.post_charge",
   "staff.administer",
   "staff.define_roles",
+  "accommodation.configure",
+  "housekeeping.update_status",
   "audit.read",
 ] as const;
 
@@ -57,6 +59,8 @@ const MESSAGE_KEYS = {
   "finance.post_charge": "postCharge",
   "staff.administer": "administerStaff",
   "staff.define_roles": "defineRoles",
+  "accommodation.configure": "configureAccommodation",
+  "housekeeping.update_status": "updateHousekeeping",
   "audit.read": "readAudit",
 } as const satisfies Record<PermissionKey, string>;
 

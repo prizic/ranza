@@ -106,8 +106,11 @@ Header, exactly:
 id,situation,given,when,then,enforced_by,test_name,status
 ```
 
-- `enforced_by` is one of `database_constraint`, `policy`, `trigger`, `module`,
-  `ui_only`. **`ui_only` is never acceptable for a business rule** — if that is the only
+- `enforced_by` is one of `database_constraint`, `policy`, `trigger`,
+  `database_function`, `module`, `ui_only`. `database_function` is a rule decided
+  inside a SQL function that a policy, a command or the worker calls — a security
+  definer such as `app.mark_unit_dirty_after_check_out()`, or `app.unit_is_ready()`.
+  **`ui_only` is never acceptable for a business rule** — if that is the only
   answer available, the rule is unenforced and the row stays `open`. It is the right
   answer for an interface row — an empty state, where focus lands, a mirrored layout —
   and that row's test lives in the interface.
@@ -117,15 +120,19 @@ id,situation,given,when,then,enforced_by,test_name,status
   not change status when that test lands: the test existing, and having been watched
   fail, is the evidence, and a count of `open` rows is the readiness count.
 - `status` is `open` until the user approves that row, then `approved`. The others,
-  and the only others: `deferred` (not now, with the reason in `then`),
+  and the only others: `proposed` (written and waiting for the user's review, as
+  opposed to `open`, which is a question), `deferred` (not now, with the reason in
+  `then`),
   `out_of_scope` (another feature's), `prerequisite_missing` (see step e),
   `current_behaviour_differs` (the code disagrees with the row today), and `resolved`
   (a `prerequisite_missing` or `current_behaviour_differs` row whose gap has closed —
-  say where, in `then`). A word not in this list fails `pnpm check`
+  say where, in `then`). A word not in this list fails `pnpm test`, and so
+  `pnpm check`
   (`scripts/edge-cases-check.mjs`), as does a header, an id or an `enforced_by`
   outside what this step defines.
 - `id` is `<FEATURE>-<GROUP>-<NN>`: `CO-S1-04`, `AL-DIFF-01`. `GROUP` is a slice
   (`S1`), `NB` for not built, `DIFF` for current behaviour, `DEF` for deferred. A
+  table with no slices may drop the group: `IG-01`. A
   prerequisite is `PRE-<NN>` with no feature prefix, because it names what another
   feature owes this one.
 - Quote any field containing a comma.

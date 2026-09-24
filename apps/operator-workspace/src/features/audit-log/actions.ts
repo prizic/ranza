@@ -37,6 +37,8 @@ export const KNOWN_ACTIONS = [
   "unit.added",
   "unit.blocked",
   "unit.unblocked",
+  "housekeeping.status_changed",
+  "housekeeping.inspection_set",
 ] as const;
 
 export type KnownAction = (typeof KNOWN_ACTIONS)[number];
@@ -49,6 +51,7 @@ export const KNOWN_SUBJECTS = [
   "role",
   "property",
   "accommodation_unit",
+  "organization",
 ] as const;
 
 export type KnownSubject = (typeof KNOWN_SUBJECTS)[number];

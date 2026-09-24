@@ -259,6 +259,15 @@ psql(`
     join property on property.id = unit.property_id
     where property.id = (select id from property order by name limit 1)
       and unit.name in ('101', '102', '201')
+  ), not_ready as (
+    -- Room 102 is waiting for cleaning while its Guest arrives today, so the
+    -- Housekeeping board has something to mark and the arrivals list shows
+    -- what checking into a room that is not ready looks like.
+    insert into public.housekeeping_unit_status
+      (accommodation_unit_id, property_id, organization_id, status)
+    select id, property_id, organization_id, 'dirty'
+    from arriving
+    where name = '102'
   )
   insert into public.reservations
     (organization_id, property_id, accommodation_unit_id,
@@ -285,6 +294,6 @@ psql(`
 
 console.log(`Seeded ${ORGANIZATION} with ${PROPERTIES.length} Properties.`);
 console.log(
-  `${ARRIVALS.length} Reservations arrive today at the first one, and 2 Stays are due to leave.`,
+  `${ARRIVALS.length} Reservations arrive today at the first one, 2 Stays are due to leave, and room 102 is waiting for cleaning.`,
 );
 console.log(`Sign in at ${APP}/tr/today as ${EMAIL} / ${PASSWORD}`);

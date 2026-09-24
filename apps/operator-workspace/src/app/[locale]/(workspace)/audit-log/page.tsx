@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
@@ -87,9 +88,9 @@ export default async function AuditLogPage({
     return (
       <>
         <p className="text-muted-foreground">
-          <a className="hover:underline" href={listHref}>
+          <Link className="hover:underline" href={listHref}>
             {t("allRecords")}
-          </a>
+          </Link>
           {" · "}
           {property.organizationName}
         </p>

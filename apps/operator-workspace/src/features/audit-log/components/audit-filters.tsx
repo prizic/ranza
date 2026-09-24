@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import {
@@ -124,9 +125,9 @@ export function AuditFilters({
         </Button>
         {filtered ? (
           <Button asChild variant="ghost">
-            <a href={`${actionHref}?property=${propertyId}`}>
+            <Link href={`${actionHref}?property=${propertyId}`}>
               {t("auditClearFilters")}
-            </a>
+            </Link>
           </Button>
         ) : null}
       </div>

@@ -12,6 +12,7 @@ import type {
   AuditFilters,
   AuditNames,
   AuditPage,
+  CapabilityProperties,
   CapabilityRef,
   EntitledProperty,
 } from "@ranza/core";
@@ -35,6 +36,13 @@ import type {
   UnitsAdded,
   UnitState,
 } from "@ranza/accommodation";
+import { HOUSEKEEPING_CAPABILITY, MARK_BATCH } from "@ranza/housekeeping";
+import type {
+  HousekeepingBoard,
+  HousekeepingRoom,
+  HousekeepingStatus,
+  InspectionSettings,
+} from "@ranza/housekeeping";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import { getComposition } from "./composition";
 
@@ -66,6 +74,8 @@ export {
   TODAY_CAPABILITY,
   FRONT_DESK_CAPABILITY,
   FOLIO_CAPABILITY,
+  HOUSEKEEPING_CAPABILITY,
+  MARK_BATCH,
   ROOMS_CAPABILITY,
 };
 export type {
@@ -80,6 +90,10 @@ export type {
   Departure,
   FolioDetail,
   FolioSummary,
+  HousekeepingBoard,
+  HousekeepingRoom,
+  HousekeepingStatus,
+  InspectionSettings,
   NewUnits,
   ReservationRow,
   UnitCounts,
@@ -131,7 +145,15 @@ export const currentViewer = cache(async (): Promise<Viewer | null> => {
   };
 });
 
-/** Sends an unauthenticated visitor to sign in rather than to an empty page. */
+/**
+ * Sends an unauthenticated visitor to sign in rather than to an empty page.
+ *
+ * Every page calls it, not only the layout. Moving between pages is a client
+ * navigation that renders the new page and leaves the layout above it as it
+ * was, so a session ended since the last full load (ADR 0027) is noticed here
+ * or not at all — and not noticing it looks like empty pages under a shell
+ * still showing somebody's email.
+ */
 export async function requireViewer(locale: SupportedLocale): Promise<Viewer> {
   const viewer = await currentViewer();
   if (!viewer) redirect(localizeHref(locale, "sign-in"));
@@ -157,6 +179,26 @@ export const entitledProperties = cache(
     );
   },
 );
+
+/**
+ * `entitledProperties` for several capabilities, answered in one read.
+ *
+ * For the shell, which asks about every destination at once: one transaction
+ * rather than one per destination, which on a full page load was more
+ * connections at once than the pool holds. Same gates, same answers.
+ */
+export async function entitledPropertiesByCapability(
+  capabilities: readonly CapabilityRef[],
+): Promise<readonly CapabilityProperties[]> {
+  const viewer = await currentViewer();
+  if (!viewer) {
+    return capabilities.map((capability) => ({ capability, properties: [] }));
+  }
+  return getComposition().core.listEntitledPropertiesByCapability(
+    viewer.userId,
+    capabilities,
+  );
+}
 
 /**
  * The Reservations arriving today at one Property — the Front Office read.
@@ -291,6 +333,44 @@ export async function rooms(propertyId: string): Promise<UnitMap> {
     };
   }
   return getComposition().accommodation.listUnits(viewer.userId, propertyId);
+}
+
+/**
+ * Every room at one Property and whether it needs cleaning (HK-S1-13).
+ *
+ * Same funnel and same non-checking: a Property the viewer cannot reach, or
+ * one without housekeeping, produces an empty board because the policies and
+ * the capability gate decide that, not a condition here. Not `cache`d: a
+ * request that marks a room and then reads must see its own mark.
+ */
+export async function housekeepingBoard(
+  propertyId: string,
+): Promise<HousekeepingBoard> {
+  const viewer = await currentViewer();
+  if (!viewer) {
+    return {
+      rooms: [],
+      counts: { rooms: 0, dirty: 0, clean: 0, inspected: 0, ready: 0 },
+      mayMark: false,
+    };
+  }
+  return getComposition().housekeeping.board(viewer.userId, propertyId);
+}
+
+/**
+ * Whether rooms at this Property are inspected before they are ready, and
+ * whether the viewer may change that (HK-S3-09). Null where there is nothing to
+ * configure: out of reach, or no housekeeping.
+ */
+export async function housekeepingInspection(
+  propertyId: string,
+): Promise<InspectionSettings | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().housekeeping.inspectionSettings(
+    viewer.userId,
+    propertyId,
+  );
 }
 
 /**

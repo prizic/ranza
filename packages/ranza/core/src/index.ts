@@ -10,6 +10,7 @@ export type {
   AuditEntry,
   AuditFilters,
   AuditPage,
+  CapabilityProperties,
   CapabilityRef,
   EntitledProperty,
 } from "./contracts";

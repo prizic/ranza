@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { CircleCheck, Undo2 } from "lucide-react";
 import type { AuditPage } from "@ranza/core";
@@ -108,9 +109,13 @@ export function AuditTable({
                   </time>
                 </TableCell>
                 <TableCell className="align-top">
-                  <a
+                  {/* Not prefetched: one row is one request, and all it would
+                      fetch is the loading boundary — the row's own data is
+                      read on the click. */}
+                  <Link
                     className="block hover:underline"
                     href={`${recordHref}&record=${entry.id}`}
+                    prefetch={false}
                   >
                     {/* A correction is the row this screen exists for, so it
                         is said three ways — tone, icon and word — never by
@@ -137,7 +142,7 @@ export function AuditTable({
                       {words.subjectType(entry.subjectType)} ·{" "}
                       {words.name(entry.subjectId)}
                     </span>
-                  </a>
+                  </Link>
                 </TableCell>
                 <TableCell className="align-top text-step--1">
                   {words.where(entry)}
@@ -182,14 +187,14 @@ export function AuditTable({
         <nav className="flex flex-wrap items-center justify-between gap-2">
           {newestHref ? (
             <Button asChild variant="outline">
-              <a href={newestHref}>{t("auditNewest")}</a>
+              <Link href={newestHref}>{t("auditNewest")}</Link>
             </Button>
           ) : (
             <span />
           )}
           {olderHref ? (
             <Button asChild variant="outline">
-              <a href={olderHref}>{t("auditOlder")}</a>
+              <Link href={olderHref}>{t("auditOlder")}</Link>
             </Button>
           ) : null}
         </nav>

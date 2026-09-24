@@ -13,12 +13,13 @@ import {
 import { getTranslations } from "next-intl/server";
 import { ALL_SCREENS } from "../../../lib/screens";
 import {
-  entitledProperties,
+  entitledPropertiesByCapability,
   permittedProperties,
   requireViewer,
   TODAY_CAPABILITY,
 } from "../../../server/viewer";
 import { QueryProvider } from "../../providers/query-provider";
+import { PropertyLink } from "./property-link";
 import { PropertySwitcher } from "./property-switcher";
 import { WorkspacePageBar } from "./workspace-page-bar";
 import { WorkspaceBottomNav, WorkspaceRail } from "./workspace-rail";
@@ -31,6 +32,12 @@ import { WorkspaceBottomNav, WorkspaceRail } from "./workspace-rail";
  * the Organization has not bought is absent, not greyed out, and locked upsells
  * belong in a separate Explore area. Hiding a control is never the boundary
  * though: the server and the database deny it either way.
+ *
+ * It renders on a full load and not again as the rail moves between pages —
+ * those are client navigations that render only the page beneath. So each page
+ * checks the session for itself (`requireViewer`), and the rail shows what was
+ * entitled when the workspace was opened; a capability withdrawn since stays
+ * listed until the next full load, and its page answers with the empty state.
  */
 export default async function WorkspaceLayout({
   children,
@@ -50,16 +57,18 @@ export default async function WorkspaceLayout({
   // Entitlement, different Property capability — and navigation lists what was
   // bought, not what exists (blueprint 4.6).
   //
-  // In parallel, because they are independent reads and the shell waits for the
-  // slowest. The unique capability keys are asked once each; two destinations
-  // sharing one (arrivals and departures) do not cost two round trips.
+  // All in one read rather than one per destination: a transaction each was a
+  // connection each, and a full page load asked for more at once than the pool
+  // holds. The unique capabilities are asked once each; two destinations
+  // sharing one (arrivals and departures) do not cost two answers.
   //
   // A destination gated by a permission is asked about that instead — the
-  // audit log, which no package selection may remove (ADR 0031).
+  // audit log, which no package selection may remove (ADR 0031) — alongside
+  // the capability read rather than after it.
   const capabilities = [
     ...new Map(
       ALL_SCREENS.filter((screen) => !screen.permission).map((screen) => [
-        screen.capability,
+        `${screen.module}:${screen.capability}`,
         { capabilityKey: screen.capability, moduleKey: screen.module },
       ]),
     ).values(),
@@ -69,25 +78,32 @@ export default async function WorkspaceLayout({
       ? [{ key: screen.capability, permission: screen.permission }]
       : [],
   );
-  const answers = await Promise.all([
-    ...capabilities.map(async (capability) => ({
-      key: capability.capabilityKey,
-      reachable: await entitledProperties(capability),
-    })),
-    ...permitted.map(async (screen) => ({
-      key: screen.key,
-      reachable: await permittedProperties(screen.permission),
-    })),
+  const [byCapability, byPermission] = await Promise.all([
+    entitledPropertiesByCapability(capabilities),
+    Promise.all(
+      permitted.map(async (screen) => ({
+        key: screen.key,
+        reachable: await permittedProperties(screen.permission),
+      })),
+    ),
   ]);
 
   // Plain strings, so the tree can be built on the client where its icons live.
-  const entitled = answers
-    .filter((answer) => answer.reachable.length > 0)
-    .map((answer) => answer.key);
+  const entitled = [
+    ...byCapability
+      .filter((answer) => answer.properties.length > 0)
+      .map((answer) => answer.capability.capabilityKey),
+    ...byPermission
+      .filter((answer) => answer.reachable.length > 0)
+      .map((answer) => answer.key),
+  ];
 
   const properties =
-    answers.find((answer) => answer.key === TODAY_CAPABILITY.capabilityKey)
-      ?.reachable ?? [];
+    byCapability.find(
+      (answer) =>
+        answer.capability.moduleKey === TODAY_CAPABILITY.moduleKey &&
+        answer.capability.capabilityKey === TODAY_CAPABILITY.capabilityKey,
+    )?.properties ?? [];
 
   const root = localizeHref(locale, "today");
   const [first] = properties;
@@ -98,10 +114,10 @@ export default async function WorkspaceLayout({
         {/* Account security is not an entitled capability — it belongs to the
             person, not the Organization — so it is reached through the account
             rather than added to the rail, which lists only what was bought. */}
-        <a href={localizeHref(locale, "security")}>
+        <PropertyLink href={localizeHref(locale, "security")}>
           <ShieldCheck aria-hidden="true" className="size-4" />
           {t("security")}
-        </a>
+        </PropertyLink>
       </DropdownMenuItem>
 
       <DropdownMenuSeparator />
@@ -112,6 +128,9 @@ export default async function WorkspaceLayout({
       <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
         {t("languageLabel")}
       </DropdownMenuLabel>
+      {/* A full load rather than a Link: the language decides `lang`, `dir`
+          and the message catalogue on the root layout, which a client
+          navigation would keep. */}
       {supportedLocales.map((supported) => (
         <DropdownMenuItem asChild key={supported}>
           <a

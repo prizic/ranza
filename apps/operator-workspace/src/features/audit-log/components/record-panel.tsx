@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { AuditEntry, AuditNames } from "@ranza/core";
 import { Fact, FactList, Separator } from "@ranza/ui";
@@ -42,13 +43,16 @@ export function RecordPanel({
         <Fact label={t("subject")}>
           {words.subjectType(entry.subjectType)}{" "}
           {entry.subjectType === "folio" ? (
-            <a
+            // Not prefetched: one row is one request, and all it would fetch is
+            // the loading boundary — the row's own data is read on the click.
+            <Link
               className="hover:underline"
               href={`${folioHref}&folio=${entry.subjectId}`}
+              prefetch={false}
               title={entry.subjectId}
             >
               {subject}
-            </a>
+            </Link>
           ) : (
             <span title={entry.subjectId}>{subject}</span>
           )}

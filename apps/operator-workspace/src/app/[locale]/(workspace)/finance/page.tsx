@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
@@ -7,8 +8,9 @@ import { FolioPanel } from "../../../../features/finance/components/folio-panel"
 import {
   entitledProperties,
   folio,
-  folios,
   FOLIO_CAPABILITY,
+  folios,
+  requireViewer,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
 
@@ -34,6 +36,7 @@ export default async function FinancePage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  await requireViewer(locale);
 
   const t = await getTranslations();
   const search = await searchParams;
@@ -59,9 +62,9 @@ export default async function FinancePage({
     return (
       <>
         <p className="text-muted-foreground">
-          <a className="hover:underline" href={back}>
+          <Link className="hover:underline" href={back}>
             {t("allFolios")}
-          </a>
+          </Link>
           {" · "}
           {property.propertyName}
         </p>

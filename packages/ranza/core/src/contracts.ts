@@ -89,3 +89,9 @@ export interface EntitledProperty {
   organizationId: string;
   organizationName: string;
 }
+
+/** Every Property one capability may be used in — an answer from `listEntitledPropertiesByCapability`. */
+export interface CapabilityProperties {
+  capability: CapabilityRef;
+  properties: EntitledProperty[];
+}

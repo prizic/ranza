@@ -75,6 +75,13 @@ export interface Arrival {
   unitName: string;
   unitType: AccommodationUnitType;
   unitStatus: string;
+  /**
+   * Whether housekeeping says the room is ready (ADR 0029): not dirty, as
+   * `app.unit_is_ready()` reads it. True where the Property has no
+   * housekeeping, because a room nobody records is a room nobody warns about.
+   * Presentation, like `canCheckIn`: check-in reads it again for itself.
+   */
+  unitIsReady: boolean;
   canCheckIn: boolean;
   /**
    * The Stay this Reservation's check-in produced, while it is still in house.
@@ -169,6 +176,21 @@ export class UnitUnavailableError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "UnitUnavailableError";
+  }
+}
+
+/**
+ * The room is not ready and the desk has not said to go ahead (HK-S2-14).
+ *
+ * Not a refusal: nothing is wrong with the Reservation, and checking in anyway
+ * is allowed once acknowledged. Its own type so the desk is asked rather than
+ * told no, and so the check-in rolls back whole — no Stay, no Folio, no event —
+ * until they answer.
+ */
+export class UnitNotReadyError extends Error {
+  constructor() {
+    super("that Accommodation Unit is not ready");
+    this.name = "UnitNotReadyError";
   }
 }
 

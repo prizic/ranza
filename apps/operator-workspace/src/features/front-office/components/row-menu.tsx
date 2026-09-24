@@ -9,7 +9,7 @@ import {
   Receipt,
   User,
 } from "lucide-react";
-import { isolate, type SupportedLocale } from "@ranza/i18n";
+import { isolate, localizeHref, type SupportedLocale } from "@ranza/i18n";
 import {
   Button,
   DropdownMenu,
@@ -17,6 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@ranza/ui";
+import { useWithProperty } from "../../../lib/nav";
 
 interface FrontDeskRowMenuProps {
   guestName: string;
@@ -32,6 +33,7 @@ export function FrontDeskRowMenu({
   unitId,
 }: FrontDeskRowMenuProps) {
   const t = useTranslations();
+  const withProperty = useWithProperty();
 
   return (
     <DropdownMenu>
@@ -46,20 +48,20 @@ export function FrontDeskRowMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem asChild>
-          <Link href={`/${locale}/reservations`}>
+          <Link href={withProperty(localizeHref(locale, "reservations"))}>
             <CalendarCheck className="size-4" />
             <span>{t("reservationDetails")}</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href={`/${locale}/finance`}>
+          <Link href={withProperty(localizeHref(locale, "finance"))}>
             <Receipt className="size-4" />
             <span>{t("openFolio")}</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild disabled={!unitId}>
           {unitId ? (
-            <Link href={`/${locale}/inventory`}>
+            <Link href={withProperty(localizeHref(locale, "inventory"))}>
               <BedSingle className="size-4" />
               <span>{t("showOnBedMap")}</span>
             </Link>
@@ -71,7 +73,7 @@ export function FrontDeskRowMenu({
           )}
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href={`/${locale}/people`}>
+          <Link href={withProperty(localizeHref(locale, "people"))}>
             <User className="size-4" />
             <span>{t("profile")}</span>
           </Link>

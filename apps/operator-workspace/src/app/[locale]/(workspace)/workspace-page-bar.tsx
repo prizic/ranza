@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { AppPageBar, SectionTabs } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
-import { useWorkspaceNav } from "../../../lib/nav";
+import { useWithProperty, useWorkspaceNav } from "../../../lib/nav";
 import { pageTitleFor, useWorkspacePageTitles } from "../../../lib/page-titles";
 
 /**
@@ -29,6 +29,7 @@ export function WorkspacePageBar({
   const titles = useWorkspacePageTitles(locale);
   const entries = useWorkspaceNav(locale, entitled);
   const t = useTranslations();
+  const withProperty = useWithProperty();
   const match = pageTitleFor(pathname, titles);
 
   if (!match) return null;
@@ -36,7 +37,14 @@ export function WorkspacePageBar({
   return (
     <AppPageBar
       {...(action === undefined ? {} : { action })}
-      {...(match.parent === undefined ? {} : { parent: match.parent })}
+      {...(match.parent === undefined
+        ? {}
+        : {
+            parent: {
+              ...match.parent,
+              href: withProperty(match.parent.href),
+            },
+          })}
       tabs={<SectionTabs entries={entries} label={t("sections")} />}
       title={match.title}
     />
