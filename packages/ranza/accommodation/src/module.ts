@@ -405,6 +405,7 @@ export function createAccommodationModule(deps: AccommodationDeps) {
 
         await recordWithin(tx, {
           organizationId: first.organizationId,
+          locationId: input.propertyId,
           actorId: userId,
           action: "unit.added",
           subjectType: "property",
@@ -490,10 +491,14 @@ export function createAccommodationModule(deps: AccommodationDeps) {
     }
 
     await withOrganizationContext(deps.db, { userId }, async (tx) => {
-      let blocked: { organizationId: string; name: string }[];
+      let blocked: {
+        organizationId: string;
+        propertyId: string;
+        name: string;
+      }[];
       try {
         blocked = await tx.$queryRaw<
-          { organizationId: string; name: string }[]
+          { organizationId: string; propertyId: string; name: string }[]
         >`
           update public.accommodation_units
              set status = 'blocked',
@@ -501,7 +506,9 @@ export function createAccommodationModule(deps: AccommodationDeps) {
                  updated_at = now()
            where id = ${unitId}::uuid
              and status = 'available'
-          returning organization_id as "organizationId", name
+          returning organization_id as "organizationId",
+                    property_id     as "propertyId",
+                    name
         `;
       } catch (error: unknown) {
         if (raised(error, NOT_PERMITTED_BY_STATE)) {
@@ -524,6 +531,7 @@ export function createAccommodationModule(deps: AccommodationDeps) {
 
       await recordWithin(tx, {
         organizationId: unit.organizationId,
+        locationId: unit.propertyId,
         actorId: userId,
         action: "unit.blocked",
         subjectType: "accommodation_unit",
@@ -552,10 +560,14 @@ export function createAccommodationModule(deps: AccommodationDeps) {
         );
       }
 
-      let unblocked: { organizationId: string; name: string }[];
+      let unblocked: {
+        organizationId: string;
+        propertyId: string;
+        name: string;
+      }[];
       try {
         unblocked = await tx.$queryRaw<
-          { organizationId: string; name: string }[]
+          { organizationId: string; propertyId: string; name: string }[]
         >`
           update public.accommodation_units
              set status = 'available',
@@ -563,7 +575,9 @@ export function createAccommodationModule(deps: AccommodationDeps) {
                  updated_at = now()
            where id = ${unitId}::uuid
              and status = 'blocked'
-          returning organization_id as "organizationId", name
+          returning organization_id as "organizationId",
+                    property_id     as "propertyId",
+                    name
         `;
       } catch (error: unknown) {
         if (raised(error, INSUFFICIENT_PRIVILEGE)) {
@@ -584,6 +598,7 @@ export function createAccommodationModule(deps: AccommodationDeps) {
       // The reason it had been blocked for, kept where the history is.
       await recordWithin(tx, {
         organizationId: unit.organizationId,
+        locationId: unit.propertyId,
         actorId: userId,
         action: "unit.unblocked",
         subjectType: "accommodation_unit",

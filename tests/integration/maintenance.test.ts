@@ -40,6 +40,7 @@ import {
   ReservationRefusedError,
   UnitNotInServiceError,
 } from "../../packages/ranza/reservations/src";
+import { roomReturnedSubscription } from "../../apps/worker/src/outbox/room-returned";
 import { subscriptions } from "../../apps/worker/src/outbox/subscriptions";
 
 const ORG = "dd000002-0000-4000-8000-000000000001";
@@ -68,6 +69,7 @@ const TWICE_HELD_ROOM = unit(10);
 const CONFIRMED_ROOM = unit(11);
 const FAR_ROOM = unit(12);
 const ELSEWHERE_ROOM = unit(13);
+const JUST_LEFT_ROOM = unit(14);
 
 // ranza_app for Staff Members, exactly as the host composes it, and
 // ranza_worker for the dispatcher, exactly as apps/worker does.
@@ -121,6 +123,7 @@ async function seed() {
     [BOOKED_ROOM, "MTI-107", PROPERTY],
     [TWICE_HELD_ROOM, "MTI-108", PROPERTY],
     [CONFIRMED_ROOM, "MTI-109", PROPERTY],
+    [JUST_LEFT_ROOM, "MTI-110", PROPERTY],
     [FAR_ROOM, "MTI-301", FAR_PROPERTY],
     [ELSEWHERE_ROOM, "MTI-201", ELSEWHERE_PROPERTY],
   ];
@@ -280,6 +283,16 @@ async function settle(values: {
     returnAs: values.returnAs ?? null,
   });
 }
+
+/**
+ * A check-out as a desk confirms it: no Folio to review here, and the Guest
+ * leaving before the planned last night is acknowledged (ADR 0030).
+ */
+const REVIEWED = {
+  folioVersion: null,
+  earlyDeparture: true,
+  balanceReason: null,
+} as const;
 
 /** A confirmed Reservation from today, for `nights` nights. */
 async function booked(unitId: string, nights = 2): Promise<string> {
@@ -618,7 +631,9 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
 
     await maintenance.takeOutOfOrder(DESK, { requestId, acknowledged: true });
     expect(await statusOf(OCCUPIED_ROOM)).toBe("out_of_service");
-    await expect(reservations.checkOut(MANAGER, stayId)).resolves.toBeDefined();
+    await expect(
+      reservations.checkOut(MANAGER, stayId, REVIEWED),
+    ).resolves.toBeDefined();
     await maintenance.returnToService(DESK, { requestId });
   });
 
@@ -959,6 +974,42 @@ describe("coming back", { timeout: DATABASE_BUDGET_MS }, () => {
     await settle({});
   });
 
+  it("brings a room a Guest has just left back dirty, before the worker has marked it (MT-S2-30)", async () => {
+    await settle({ returnAs: "inspected" });
+    await housekeeping.markUnits(MANAGER, {
+      unitIds: [JUST_LEFT_ROOM],
+      status: "inspected",
+    });
+    const reservationId = await booked(JUST_LEFT_ROOM, 2);
+    const { stayId } = await reservations.checkIn(MANAGER, reservationId, {
+      readinessAcknowledged: true,
+    });
+    await reservations.checkOut(MANAGER, stayId, REVIEWED);
+
+    // The row still reads inspected: the departure's own event is waiting for
+    // the worker. The room is dirty all the same, because a Guest left it.
+    const { requestId } = await report(DESK, JUST_LEFT_ROOM, {
+      outOfOrder: { acknowledged: true },
+    });
+    await maintenance.returnToService(DESK, { requestId });
+
+    // Only the return is delivered, as when the worker is behind on
+    // departures and reaches this one first.
+    for (;;) {
+      const { claimed } = await dispatcher.dispatch([roomReturnedSubscription]);
+      if (claimed === 0) break;
+    }
+    const [row] = await owner.$queryRawUnsafe<{ status: string }[]>(
+      `select status from public.housekeeping_unit_status
+        where accommodation_unit_id = $1::uuid`,
+      JUST_LEFT_ROOM,
+    );
+    expect(row?.status).toBe("dirty");
+
+    await drain();
+    await settle({});
+  });
+
   it("returns the room on done, publishes it, and the worker makes it dirty (MT-S2-14, MT-S2-17)", async () => {
     await settle({ returnOnDone: true, returnAs: "dirty" });
     const { requestId } = await report(DESK, RETURNING_ROOM, {
@@ -1147,5 +1198,73 @@ describe("coming back", { timeout: DATABASE_BUDGET_MS }, () => {
     expect(await audited("maintenance_setting.changed", ORG)).not.toHaveLength(
       0,
     );
+  });
+});
+
+describe("where each record is filed", { timeout: DATABASE_BUDGET_MS }, () => {
+  // ADR 0031: a record names the Property it happened at, or none when it is
+  // about the whole Organization. audit.records is append-only, so a writer
+  // that forgets misfiles every record it ever writes. The Property is read
+  // from the subject's own row, not from what the writer was given.
+  it("files every maintenance record at its subject's Property, and only the Organization's default at none", async () => {
+    const records = await owner.$queryRawUnsafe<
+      {
+        action: string;
+        subjectType: string;
+        locationId: string | null;
+        subjectProperty: string | null;
+      }[]
+    >(
+      `select record.action,
+            record.subject_type as "subjectType",
+            record.location_id  as "locationId",
+            case record.subject_type
+              when 'maintenance_request' then
+                (select property_id from public.maintenance_requests
+                  where id = record.subject_id)
+              when 'maintenance_equipment' then
+                (select property_id from public.maintenance_equipment
+                  where id = record.subject_id)
+              when 'accommodation_unit' then
+                (select property_id from public.accommodation_units
+                  where id = record.subject_id)
+              when 'folio' then
+                (select property_id from public.folios
+                  where id = record.subject_id)
+              when 'property' then record.subject_id
+            end                 as "subjectProperty"
+       from audit.records as record
+      where record.organization_id = $1::uuid
+        and record.occurred_at >= $2
+        and (record.action like 'maintenance%'
+             or record.action in ('unit.taken_out_of_order',
+                                  'unit.returned_to_service',
+                                  'folio.charge_posted'))`,
+      ORG,
+      runStarted,
+    );
+
+    // Every writer this suite drives, so a record never written cannot pass
+    // for one filed correctly.
+    expect([...new Set(records.map((record) => record.action))]).toEqual(
+      expect.arrayContaining([
+        "maintenance_request.reported",
+        "maintenance_request.moved",
+        "maintenance_request.cancelled",
+        "maintenance_request.assigned",
+        "maintenance_request.prioritised",
+        "maintenance_request.hold_released",
+        "unit.taken_out_of_order",
+        "unit.returned_to_service",
+        "maintenance_setting.changed",
+      ]),
+    );
+    const misfiled = records.filter((record) =>
+      record.subjectType === "organization"
+        ? record.locationId !== null
+        : record.locationId === null ||
+          record.locationId !== record.subjectProperty,
+    );
+    expect(misfiled).toEqual([]);
   });
 });

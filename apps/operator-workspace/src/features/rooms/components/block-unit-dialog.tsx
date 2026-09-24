@@ -78,6 +78,7 @@ export function BlockUnitDialog({
     <Link
       className={buttonVariants({ variant: "outline", size: "sm" })}
       href={reportHref}
+      prefetch={false}
     >
       <Wrench aria-hidden="true" className="size-4" />
       {t("maintenance.reportProblem")}

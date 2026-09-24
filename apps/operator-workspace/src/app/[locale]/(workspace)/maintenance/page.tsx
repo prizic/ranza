@@ -5,7 +5,6 @@ import { getTranslations } from "next-intl/server";
 import { MaintenanceBoard } from "../../../../features/maintenance/components/maintenance-board";
 import {
   CANCEL_REASON,
-  currentViewer,
   DETAILS,
   entitledProperties,
   EQUIPMENT_CATEGORY,
@@ -16,6 +15,7 @@ import {
   maintenanceBoard,
   maintenanceReportOptions,
   maintenanceSettings,
+  requireViewer,
   RETURN_NOTE,
   SERVICE_INTERVAL,
   TITLE,
@@ -42,14 +42,14 @@ export default async function MaintenancePage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  await requireViewer(locale);
 
   const t = await getTranslations();
   const query = await searchParams;
-  const viewer = await currentViewer();
   const properties = await entitledProperties(MAINTENANCE_CAPABILITY);
   const property = frontDeskProperty(properties, query);
 
-  if (!property || !viewer) {
+  if (!property) {
     return (
       <EmptyState
         description={t("notEntitledDescription")}

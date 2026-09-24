@@ -9,6 +9,7 @@ import { EmptyState, Fact, FactList, PageHeader } from "@ranza/ui";
 import { getTranslations } from "next-intl/server";
 import {
   entitledProperties,
+  requireViewer,
   TODAY_CAPABILITY,
 } from "../../../../server/viewer";
 import { LocalClock } from "./local-clock";
@@ -34,6 +35,7 @@ export default async function TodayPage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  await requireViewer(locale);
 
   const t = await getTranslations();
   const properties = await entitledProperties(TODAY_CAPABILITY);

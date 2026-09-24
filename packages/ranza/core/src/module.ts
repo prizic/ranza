@@ -1,7 +1,24 @@
 import { withOrganizationContext } from "@ranza/db";
-import { recentWithin, type ScopeHistory } from "@ranza/platform-audit";
 import {
-  AUDIT_CAPABILITY,
+  cleanSearch,
+  getWithin,
+  recentWithin,
+  type AuditRecord,
+} from "@ranza/platform-audit";
+import {
+  auditScope,
+  dayRange,
+  MIN_SEARCH_LENGTH,
+  namesFor,
+  searchIds,
+  type AuditNames,
+  type AuditScope,
+} from "./audit-log";
+import {
+  type AuditEntry,
+  type AuditFilters,
+  type AuditPage,
+  type CapabilityProperties,
   type CapabilityRef,
   type EntitledProperty,
 } from "./contracts";
@@ -16,11 +33,40 @@ import type { CoreDeps } from "./ports";
  * row-level security, in the database, where an application defect cannot skip
  * it. This module's job is to ask the question inside a request context.
  */
+/** One screen of the log. The rest is a page away, never out of reach. */
+const AUDIT_PAGE_SIZE = 50;
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
 /**
- * Enough for a working day at a busy Property to be visible at once, and well
- * inside the audit module's own ceiling. The screen says when the log is longer.
+ * A `YYYY-MM-DD` that names a real day Postgres accepts, or undefined — never
+ * a cast error. JavaScript takes year 0 and Postgres does not, so the year is
+ * bounded before the date is.
  */
-const DEFAULT_ACTIVITY_LIMIT = 200;
+function calendarDay(value: string | undefined): string | undefined {
+  if (value === undefined || !DAY.test(value)) return undefined;
+  if (Number(value.slice(0, 4)) < 1) return undefined;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) &&
+    parsed.toISOString().slice(0, 10) === value
+    ? value
+    : undefined;
+}
+
+function located(
+  record: AuditRecord,
+  names: AuditNames,
+  scope: AuditScope,
+): AuditEntry {
+  const location = record.locationId
+    ? names.locations[record.locationId]
+    : undefined;
+  return {
+    ...record,
+    propertyName: location?.name ?? null,
+    timeZone: location?.timezone ?? scope.timezone,
+  };
+}
 
 export function createCoreModule(deps: CoreDeps) {
   /**
@@ -70,45 +116,191 @@ export function createCoreModule(deps: CoreDeps) {
   }
 
   /**
-   * The Organization's newest audit records, read through one of its
-   * Properties.
+   * `listEntitledProperties` for several capabilities at once, in one
+   * transaction — one entry per requested capability, in the order asked.
    *
-   * The log is Organization-wide because that is the scope a record carries,
-   * but the gate is a Property's: blueprint 3.5's commercial gates are
-   * evaluated by `app.can_use_capability()`, which takes a Property, and the
-   * audit module may not name one (blueprint 9.8). So the Property the viewer
-   * opened the screen from is what the gate is asked about, in this
-   * transaction, and the Organization it resolves to is what the audit module
-   * is then handed — the same arrangement as every module that writes a record
-   * inside its own transaction (ADR 0028).
+   * The shell asks about every destination to build its navigation, and one
+   * transaction per destination is a connection each: a dozen at once on every
+   * full page load, more than the pool holds. The question is unchanged — the
+   * same `app.can_use_capability()` per Property, behind the same row-level
+   * security — so each entry is exactly what `listEntitledProperties` would
+   * answer for that capability alone.
    *
-   * An empty history is the answer to a Property the viewer cannot reach, one
-   * whose Organization is not entitled, and one that does not exist — all
-   * deliberately the same answer as "nothing has happened".
+   * Keyed on the position asked rather than the capability key, because two
+   * modules may name a capability alike and are still different gates.
    */
-  async function recentActivity(
+  async function listEntitledPropertiesByCapability(
+    userId: string,
+    capabilities: readonly CapabilityRef[],
+  ): Promise<CapabilityProperties[]> {
+    if (capabilities.length === 0) return [];
+
+    const rows = await withOrganizationContext(
+      deps.db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<(EntitledProperty & { position: number })[]>`
+        select
+          requested.position::int  as "position",
+          property.id              as "propertyId",
+          property.name            as "propertyName",
+          property.timezone        as "timezone",
+          organization.id          as "organizationId",
+          organization.name        as "organizationName"
+        from unnest(
+          ${capabilities.map((capability) => capability.moduleKey)}::text[],
+          ${capabilities.map((capability) => capability.capabilityKey)}::text[]
+        ) with ordinality as requested(module_key, capability_key, position)
+        cross join public.properties as property
+        join public.organizations as organization
+          on organization.id = property.organization_id
+        where app.can_use_capability(
+          property.id,
+          requested.module_key,
+          requested.capability_key
+        )
+        order by requested.position, organization.name, property.name
+      `,
+    );
+
+    return capabilities.map((capability, index) => ({
+      capability,
+      properties: rows
+        .filter((row) => row.position === index + 1)
+        .map((row) => ({
+          propertyId: row.propertyId,
+          propertyName: row.propertyName,
+          timezone: row.timezone,
+          organizationId: row.organizationId,
+          organizationName: row.organizationName,
+        })),
+    }));
+  }
+
+  /**
+   * Every Property the viewer reaches, in an Organization where they hold
+   * `permission`.
+   *
+   * Reach and permission, in the statement, and no commercial gate: this is
+   * for a destination no package selection may remove — the audit log, which
+   * is a baseline right (blueprint 3.6, ADR 0031). It is what puts that
+   * destination in the rail and what its Property switcher offers.
+   */
+  async function listPermittedProperties(
+    userId: string,
+    permission: string,
+  ): Promise<EntitledProperty[]> {
+    return withOrganizationContext(deps.db, { userId }, (tx) =>
+      tx.$queryRawUnsafe<EntitledProperty[]>(
+        `select property.id              as "propertyId",
+                property.name            as "propertyName",
+                property.timezone        as "timezone",
+                organization.id          as "organizationId",
+                organization.name        as "organizationName"
+           from public.properties as property
+           join public.organizations as organization
+             on organization.id = property.organization_id
+          where property.id in (select app.accessible_property_ids())
+            and app.has_organization_permission(property.organization_id, $1)
+          order by organization.name, property.name`,
+        permission,
+      ),
+    );
+  }
+
+  /**
+   * One page of the audit log, opened from a Property.
+   *
+   * The log is the Organization's, narrowed to what the viewer reaches: the
+   * records of every Property they reach, and — when their reach is the whole
+   * Organization — the records about the Organization itself. Which rows those
+   * are is the read policy's decision; the Property opened from decides only
+   * which Organization, whose clock the date filter means, and that the viewer
+   * holds `audit.read` there.
+   *
+   * Empty for a Property the viewer cannot reach, one where they may not read
+   * the log, and one that does not exist — deliberately the same answer as
+   * "nothing has happened".
+   */
+  async function auditLog(
     userId: string,
     propertyId: string,
-    limit = DEFAULT_ACTIVITY_LIMIT,
-  ): Promise<ScopeHistory> {
+    filters: AuditFilters = {},
+  ): Promise<AuditPage> {
+    const empty: AuditPage = {
+      entries: [],
+      total: 0,
+      nextCursor: null,
+      labels: {},
+      locations: {},
+      roles: {},
+    };
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
-      const scope = await tx.$queryRaw<{ organizationId: string }[]>`
-        select property.organization_id as "organizationId"
-        from public.properties as property
-        where property.id = ${propertyId}::uuid
-          and app.can_use_capability(
-            property.id,
-            ${AUDIT_CAPABILITY.moduleKey},
-            ${AUDIT_CAPABILITY.capabilityKey}
-          )
-      `;
-      const [entitled] = scope;
-      if (!entitled) return { records: [], total: 0 };
-      return recentWithin(tx, entitled.organizationId, limit);
+      const scope = await auditScope(tx, propertyId);
+      if (!scope) return empty;
+
+      const range = await dayRange(
+        tx,
+        scope.timezone,
+        calendarDay(filters.from),
+        calendarDay(filters.to),
+      );
+      const text = cleanSearch(filters.q);
+      const searching = text !== undefined && text.length >= MIN_SEARCH_LENGTH;
+      const found = searching
+        ? await searchIds(tx, scope.organizationId, text)
+        : undefined;
+
+      const page = await recentWithin(tx, scope.organizationId, {
+        limit: AUDIT_PAGE_SIZE,
+        actions: filters.actions,
+        locationId: filters.propertyId,
+        from: range.from,
+        to: range.to,
+        cursor: filters.cursor,
+        ...(searching && found
+          ? { text, actorIds: found.actorIds, subjectIds: found.subjectIds }
+          : {}),
+      });
+      const names = await namesFor(tx, scope.organizationId, page.records);
+      return {
+        ...names,
+        entries: page.records.map((record) => located(record, names, scope)),
+        total: page.total,
+        nextCursor: page.nextCursor,
+      };
     });
   }
 
-  return { listEntitledProperties, recentActivity };
+  /**
+   * One record, by id, opened from a Property — so a link to it keeps working
+   * however many records are written after it.
+   *
+   * Null for a record that does not exist, one in another Organization, and
+   * one the viewer may not read, alike.
+   */
+  async function auditRecord(
+    userId: string,
+    propertyId: string,
+    recordId: string,
+  ): Promise<(AuditNames & { entry: AuditEntry }) | null> {
+    return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      const scope = await auditScope(tx, propertyId);
+      if (!scope) return null;
+      const record = await getWithin(tx, scope.organizationId, recordId);
+      if (!record) return null;
+      const names = await namesFor(tx, scope.organizationId, [record]);
+      return { ...names, entry: located(record, names, scope) };
+    });
+  }
+
+  return {
+    listEntitledProperties,
+    listEntitledPropertiesByCapability,
+    listPermittedProperties,
+    auditLog,
+    auditRecord,
+  };
 }
 
 export type CoreModule = ReturnType<typeof createCoreModule>;

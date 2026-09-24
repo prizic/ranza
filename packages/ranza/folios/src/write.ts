@@ -1,5 +1,5 @@
 import type { TenantClient } from "@ranza/db";
-import { recordWithin } from "@ranza/platform-audit";
+import { recordWithin, type AuditClient } from "@ranza/platform-audit";
 import { FolioAmountError, FolioWriteError, type Charge } from "./contracts";
 
 /**
@@ -166,7 +166,7 @@ export function assertPostable(charge: Charge): void {
  * database rather than from a condition this module remembered to write.
  */
 export async function postChargeWithin(
-  tx: FolioWriteClient,
+  tx: FolioWriteClient & AuditClient,
   userId: string,
   charge: Charge,
 ): Promise<{ lineId: string; organizationId: string }> {
@@ -177,19 +177,37 @@ export async function postChargeWithin(
   // to prove rather than something plausible to accept.
   let posted;
   try {
-    posted = await tx.$queryRaw<{ id: string; organizationId: string }[]>`
-      insert into public.folio_lines
-        (organization_id, property_id, folio_id, line_type, description, amount_minor)
-      select
-        folio.organization_id,
-        folio.property_id,
-        folio.id,
-        'charge',
-        ${charge.description.trim()},
-        ${charge.amountMinor}::bigint
-      from public.folios as folio
-      where folio.id = ${charge.folioId}::uuid
-      returning id, organization_id as "organizationId"
+    // The currency comes back with the line, from the Folio that decided it,
+    // so the audit record says what the amount was in rather than leaving a
+    // bare number for somebody to guess the unit of.
+    posted = await tx.$queryRaw<
+      {
+        id: string;
+        organizationId: string;
+        propertyId: string;
+        currency: string;
+      }[]
+    >`
+      with posted as (
+        insert into public.folio_lines
+          (organization_id, property_id, folio_id, line_type, description, amount_minor)
+        select
+          folio.organization_id,
+          folio.property_id,
+          folio.id,
+          'charge',
+          ${charge.description.trim()},
+          ${charge.amountMinor}::bigint
+        from public.folios as folio
+        where folio.id = ${charge.folioId}::uuid
+        returning id, organization_id, property_id, folio_id
+      )
+      select posted.id,
+             posted.organization_id as "organizationId",
+             posted.property_id     as "propertyId",
+             folio.currency::text   as "currency"
+        from posted
+        join public.folios as folio on folio.id = posted.folio_id
     `;
   } catch (error: unknown) {
     // Closed, unentitled, out of reach. One message for all of them: telling
@@ -210,6 +228,7 @@ export async function postChargeWithin(
 
   await recordWithin(tx, {
     organizationId: line.organizationId,
+    locationId: line.propertyId,
     actorId: userId,
     action: "folio.charge_posted",
     subjectType: "folio",
@@ -217,9 +236,46 @@ export async function postChargeWithin(
     context: {
       lineId: line.id,
       amountMinor: charge.amountMinor,
+      currency: line.currency,
       description: charge.description.trim(),
     },
   });
 
   return { lineId: line.id, organizationId: line.organizationId };
+}
+
+/**
+ * Closes the Folio of a Stay that has just departed, when it is settled.
+ *
+ * Settled means the lines sum to zero. The caller has already taken the Stay's
+ * advisory lock and read the balance under it, so this cannot close a Folio a
+ * charge landed on a moment ago; and `folios_front_desk_closes_only_a_settled_folio`
+ * refuses anything else for a caller without `finance.manage_folio`, so the
+ * condition below is the second statement of that rule rather than the only
+ * one.
+ *
+ * Returns null when there is nothing to close: no Folio, one already closed,
+ * or one with money still on it — which the front desk has decided to leave
+ * open, with a reason the caller records.
+ */
+export async function closeSettledFolioWithin(
+  tx: FolioWriteClient,
+  stayId: string,
+): Promise<{ folioId: string } | null> {
+  const rows = await tx.$queryRaw<{ id: string }[]>`
+    update public.folios as folio
+       set status = 'closed',
+           closed_at = now(),
+           updated_at = now()
+     where folio.stay_id = ${stayId}::uuid
+       and folio.status = 'open'
+       and coalesce(
+             (select sum(line.amount_minor)
+                from public.folio_lines as line
+               where line.folio_id = folio.id),
+             0) = 0
+    returning folio.id
+  `;
+
+  return rows[0] ? { folioId: rows[0].id } : null;
 }

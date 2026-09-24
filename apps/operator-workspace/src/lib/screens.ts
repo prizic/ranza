@@ -43,13 +43,26 @@ import {
  * from the rail entirely (blueprint 4.6) — never greyed out, and never an
  * upsell. Hiding is not the boundary: the server and the database deny an
  * unentitled route either way (blueprint 3.5).
+ *
+ * The audit log is gated by a permission instead, because audit is not
+ * something an Organization buys (blueprint 3.6): it is in the rail for
+ * whoever may read it, whatever the Organization's package (ADR 0031).
  */
 
 export interface Screen {
   /** Route segment, locale-prefixed at render. */
   segment: string;
-  /** Matched against `property_capabilities.capability_key` (gate 3). */
+  /**
+   * Matched against `property_capabilities.capability_key` (gate 3), and the
+   * key the rail filters on. For an entry gated by `permission` it is that
+   * key alone and names no capability.
+   */
   capability: string;
+  /**
+   * A staff permission that decides this entry instead of a capability — for
+   * the one destination no package selection may remove.
+   */
+  permission?: string | undefined;
   /** Matched against `entitlements.module_key` (gate 2). */
   module: string;
   icon: LucideIcon;
@@ -206,6 +219,7 @@ export const SCREENS: Screen[] = [
   {
     segment: "audit-log",
     capability: "audit",
+    permission: "audit.read",
     module: "platform_core",
     icon: History,
     blueprint: "7.4",

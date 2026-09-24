@@ -177,8 +177,8 @@ assert.deepEqual(
     problem.replace(/^tests\/edge-cases\/fixtures\/edge-cases\.csv:/, ""),
   ),
   [
-    '2 (X-S1-01) enforced_by "vibes" is not one of database_constraint, policy, trigger, module, ui_only',
-    '3 (X-S1-02) status "done" is not one of open, approved, deferred, out_of_scope, prerequisite_missing, current_behaviour_differs, resolved',
+    `2 (X-S1-01) enforced_by "vibes" is not one of ${[...ENFORCED_BY].join(", ")}`,
+    `3 (X-S1-02) status "done" is not one of ${[...STATUS].join(", ")}`,
     '4 (PRE-01) a prerequisite_missing row\'s then must start "blocks: <slices>."',
     "5 (X-S1-03) an approved row names the test that is written first",
     "6 (x-s1-4) id must be <FEATURE>-<S#|NB|DIFF|DEF>-<NN> or PRE-<NN>",

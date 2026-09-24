@@ -11,6 +11,8 @@
  *   `select distinct` removed from the mark   HK-S2-03
  *   the all-or-nothing count check removed    HK-S2-07
  *   the check-in readiness guard removed      HK-S2-14, HK-S2-15, HK-S2-17
+ *   the board reading the stored status       HK-S1-22
+ *   the mark recording the stored status      HK-S1-22
  * HK-S1-05 and HK-S1-09 say nothing happens, so they stay green without a
  * handler; the pgTAP suite breaks the guards they rely on.
  */
@@ -30,6 +32,7 @@ import {
   HousekeepingRefusedError,
 } from "../../packages/ranza/housekeeping/src";
 import { subscriptions } from "../../apps/worker/src/outbox/subscriptions";
+import { latestRecord } from "./audit-record";
 
 const ORG = "dc000002-0000-4000-8000-000000000001";
 const PROPERTY = "dc000003-0000-4000-8000-000000000001";
@@ -197,8 +200,8 @@ async function arriving(
        (id, organization_id, property_id, accommodation_unit_id,
         guest_id, stay_type, status, starts_on, ends_on)
      select $1::uuid, $2::uuid, $3::uuid, $4::uuid, guest.id, 'guest', 'confirmed',
-            (now() at time zone property.timezone)::date,
-            (now() at time zone property.timezone)::date + 1
+            app.property_today(property.id),
+            app.property_today(property.id) + 1
      from public.properties as property, guest
      where property.id = $3::uuid`,
     reservationId,
@@ -208,6 +211,17 @@ async function arriving(
   );
   return reservationId;
 }
+
+/**
+ * A check-out as the desk confirms it: no Folio on the bill, because these
+ * Properties do no billing, and the early departure acknowledged, because every
+ * Guest here was booked until tomorrow and leaves today.
+ */
+const REVIEWED = {
+  folioVersion: null,
+  earlyDeparture: true,
+  balanceReason: null,
+} as const;
 
 /** The same Reservation, checked in. */
 async function inHouse(unitId: string, propertyId = PROPERTY): Promise<string> {
@@ -243,6 +257,21 @@ async function statusOf(unitId: string): Promise<StatusRow | undefined> {
     unitId,
   );
   return row;
+}
+
+/** A room of the test's own at the Property, with nothing recorded about it. */
+async function aRoomOfItsOwn(): Promise<string> {
+  const room = randomUUID();
+  await owner.$executeRawUnsafe(
+    `insert into public.accommodation_units
+       (id, property_id, organization_id, name, unit_type, capacity)
+     values ($1::uuid, $2::uuid, $3::uuid, $4, 'room', 2)`,
+    room,
+    PROPERTY,
+    ORG,
+    `HK-${room.slice(0, 6)}`,
+  );
+  return room;
 }
 
 beforeAll(async () => {
@@ -300,7 +329,7 @@ describe(
   () => {
     it("marks the room a Guest left, naming no Staff Member (HK-S1-01)", async () => {
       const stayId = await inHouse(ROOM);
-      await reservations.checkOut(MEMBER, stayId);
+      await reservations.checkOut(MEMBER, stayId, REVIEWED);
       expect(await statusOf(ROOM)).toBeUndefined();
 
       await drain();
@@ -337,7 +366,7 @@ describe(
 
     it("keeps a status somebody changed after the Guest left (HK-S1-05)", async () => {
       const stayId = await inHouse(RACED_ROOM);
-      await reservations.checkOut(MEMBER, stayId);
+      await reservations.checkOut(MEMBER, stayId, REVIEWED);
       // The desk is told the room is done before the worker gets to it.
       await owner.$executeRawUnsafe(
         `insert into public.housekeeping_unit_status
@@ -355,7 +384,7 @@ describe(
 
     it("marks the room when a Guest leaves a bed in it (HK-S1-02)", async () => {
       const stayId = await inHouse(SHARED_BED);
-      await reservations.checkOut(MEMBER, stayId);
+      await reservations.checkOut(MEMBER, stayId, REVIEWED);
 
       await drain();
 
@@ -365,7 +394,7 @@ describe(
 
     it("marks nothing where housekeeping is not available (HK-S1-09)", async () => {
       const stayId = await inHouse(UNSOLD_ROOM, NO_HOUSEKEEPING);
-      await reservations.checkOut(MEMBER, stayId);
+      await reservations.checkOut(MEMBER, stayId, REVIEWED);
 
       await drain();
 
@@ -388,9 +417,13 @@ describe(
 describe("marking rooms", { timeout: DATABASE_BUDGET_MS }, () => {
   async function auditOf(unitId: string) {
     return owner.$queryRawUnsafe<
-      { actorId: string; context: { status: string; previousStatus: string } }[]
+      {
+        actorId: string;
+        locationId: string | null;
+        context: { status: string; previousStatus: string };
+      }[]
     >(
-      `select actor_id as "actorId", context
+      `select actor_id as "actorId", location_id as "locationId", context
          from audit.records
         where action = 'housekeeping.status_changed' and subject_id = $1::uuid
           and occurred_at >= $2
@@ -411,6 +444,9 @@ describe("marking rooms", { timeout: DATABASE_BUDGET_MS }, () => {
     expect(row?.changedBy).toBe(MEMBER);
     const [latest] = await auditOf(ROOM);
     expect(latest?.actorId).toBe(MEMBER);
+    // Filed at its Property, so a reader whose reach is that Property sees it
+    // (ADR 0031).
+    expect(latest?.locationId).toBe(PROPERTY);
     expect(latest?.context).toMatchObject({
       status: "clean",
       previousStatus: "dirty",
@@ -698,9 +734,13 @@ describe(
   () => {
     async function inspectionRecords() {
       return owner.$queryRawUnsafe<
-        { subjectType: string; context: { from: string; to: string } }[]
+        {
+          subjectType: string;
+          locationId: string | null;
+          context: { from: string; to: string };
+        }[]
       >(
-        `select subject_type as "subjectType", context
+        `select subject_type as "subjectType", location_id as "locationId", context
          from audit.records
         where action = 'housekeeping.inspection_set'
           and organization_id = $1::uuid and occurred_at >= $2
@@ -743,8 +783,10 @@ describe(
       expect(after?.changedAt.getTime()).toBe(before?.changedAt.getTime());
 
       const [latest] = await inspectionRecords();
+      // The default is about the whole Organization, so it names no Property.
       expect(latest).toMatchObject({
         subjectType: "organization",
+        locationId: null,
         context: { from: "off", to: "on" },
       });
 
@@ -776,9 +818,11 @@ describe(
       const [reset, override] = await inspectionRecords();
       expect(reset).toMatchObject({
         subjectType: "property",
+        locationId: PROPERTY,
         context: { from: "off", to: "default" },
       });
       expect(override).toMatchObject({
+        locationId: PROPERTY,
         context: { from: "default", to: "off" },
       });
     });
@@ -790,6 +834,116 @@ describe(
       await expect(
         housekeeping.setOrganizationInspection(FINANCE, PROPERTY, false),
       ).rejects.toBeInstanceOf(HousekeepingRefusedError);
+    });
+  },
+);
+
+describe(
+  "a room a Guest has just left",
+  { timeout: DATABASE_BUDGET_MS },
+  () => {
+    /**
+     * A room is re-let only by checking its Guest out first (ADR 0033), and
+     * it turns dirty only when the worker delivers the departure — a couple of
+     * seconds, or as long as the worker is down. Until then it is not ready
+     * either: a Guest has left it since anybody last said what state it is in
+     * (HK-S1-21). Marked inspected rather than clean, so the answer holds
+     * whatever an earlier describe left the inspection setting at.
+     */
+    it("is not ready before the worker marks it, and stays as marked after (HK-S1-21)", async () => {
+      const room = await aRoomOfItsOwn();
+      // Ready for its first Guest, whatever the inspection setting: a status
+      // row exists, and the departure below is later than it.
+      await housekeeping.markUnits(MEMBER, {
+        unitIds: [room],
+        status: "inspected",
+      });
+      const leaving = await inHouse(room);
+      await reservations.checkOut(MEMBER, leaving, REVIEWED);
+      // No drain: the worker has not got to the departure yet.
+      expect((await statusOf(room))?.status).toBe("inspected");
+
+      // Taken after the check-out, because until then the Guest in the room
+      // holds tonight (ADR 0033).
+      const next = await arriving(room);
+      const arrival = (await reservations.listArrivals(MEMBER, PROPERTY)).find(
+        (row) => row.reservationId === next,
+      );
+      expect(arrival?.unitIsReady).toBe(false);
+      await expect(reservations.checkIn(MEMBER, next)).rejects.toBeInstanceOf(
+        UnitNotReadyError,
+      );
+
+      await housekeeping.markUnits(MEMBER, {
+        unitIds: [room],
+        status: "inspected",
+      });
+      await expect(reservations.checkIn(MEMBER, next)).resolves.toBeDefined();
+
+      // The worker arrives late and leaves the later mark alone (HK-S1-05).
+      await drain();
+      expect((await statusOf(room))?.status).toBe("inspected");
+    });
+
+    /**
+     * The board is where somebody is told to clean it. Until the worker writes
+     * the room dirty, its stored row still says what it was before the Guest
+     * left; the board, its counts, and the status a mark records it replaced
+     * all say dirty regardless, or the desk hears "not ready" while nobody is
+     * sent to the room (HK-S1-22).
+     */
+    it("reads dirty on the board, and is marked from dirty, before the worker gets there (HK-S1-22)", async () => {
+      const room = await aRoomOfItsOwn();
+      await housekeeping.markUnits(MEMBER, {
+        unitIds: [room],
+        status: "inspected",
+      });
+      const dirtyBefore = (await housekeeping.board(MEMBER, PROPERTY)).counts
+        .dirty;
+
+      const leaving = await inHouse(room);
+      await reservations.checkOut(MEMBER, leaving, REVIEWED);
+      expect((await statusOf(room))?.status).toBe("inspected");
+
+      const board = await housekeeping.board(MEMBER, PROPERTY);
+      const [departure] = await owner.$queryRawUnsafe<
+        { departedAt: Date; occurredAt: Date }[]
+      >(
+        `select stay.departed_at as "departedAt", event.occurred_at as "occurredAt"
+           from public.stays as stay
+           join outbox.events as event
+             on event.event_type = 'stay.checked_out'
+            and event.payload->>'stayId' = stay.id::text
+          where stay.id = $1::uuid`,
+        leaving,
+      );
+      expect(board.rooms.find((row) => row.unitId === room)).toMatchObject({
+        status: "dirty",
+        ready: false,
+        changedAt: departure?.departedAt.toISOString(),
+      });
+      expect(board.counts.dirty).toBe(dirtyBefore + 1);
+      // The moment the board and readiness compare is the worker's own.
+      expect(departure?.departedAt.getTime()).toBe(
+        departure?.occurredAt.getTime(),
+      );
+
+      await housekeeping.markUnits(MEMBER, {
+        unitIds: [room],
+        status: "clean",
+      });
+      expect(
+        (await latestRecord(owner, "housekeeping.status_changed", room))
+          ?.context,
+      ).toMatchObject({ status: "clean", previousStatus: "dirty" });
+      expect(
+        (await housekeeping.board(MEMBER, PROPERTY)).rooms.find(
+          (row) => row.unitId === room,
+        )?.status,
+      ).toBe("clean");
+
+      await drain();
+      expect((await statusOf(room))?.status).toBe("clean");
     });
   },
 );

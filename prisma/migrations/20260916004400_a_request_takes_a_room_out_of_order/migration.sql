@@ -566,10 +566,12 @@ create trigger maintenance_requests_work_starts_with_an_assignee
 -- redelivery harmless (MT-S2-17, MT-S2-18). The room holds the status for its
 -- beds (ADR 0029), so a bed's return marks its room.
 --
--- A room comes back no better than it was: the worse of its status and the
--- setting's (MT-S2-30). Fixing a sink does not clean a room, and without this
--- anybody who may take a room out of order could take a dirty one out and
--- return it at once to have it read inspected. A room with no row is clean.
+-- A room comes back no better than it was: the worse of its state and the
+-- setting's (MT-S2-30), its state being app.unit_housekeeping_state's — dirty
+-- when a Guest has left it since its status was set, clean with no row. Fixing
+-- a sink does not clean a room, and without this anybody who may take a room
+-- out of order could take a dirty one out and return it at once to have it
+-- read inspected.
 create function app.mark_unit_returned_to_service(target_event_id uuid)
 returns boolean
 language plpgsql
@@ -583,6 +585,7 @@ declare
   return_moment timestamptz;
   returned_request uuid;
   return_status text;
+  current_status text;
   holder uuid;
   holder_property uuid;
   written integer;
@@ -630,18 +633,27 @@ begin
     return false;
   end if;
 
+  -- What the room is as housekeeping sees it, not what its row says: a room a
+  -- Guest has left since its status was last set is dirty, whatever the row
+  -- still reads, and a room with no row is clean (20260916003960). Read from
+  -- the row alone, a room a Guest had just left came back clean or inspected,
+  -- and the write stamped over the departure so nothing showed it again.
+  select state.status
+    into current_status
+    from app.unit_housekeeping_state(holder) as state;
+
   insert into public.housekeeping_unit_status
     (accommodation_unit_id, property_id, organization_id, status)
   values (holder, holder_property, acting_organization,
-          case when return_status = 'inspected' then 'clean' else return_status end)
+          case
+            when 'dirty' in (coalesce(current_status, 'clean'), return_status)
+              then 'dirty'
+            when 'clean' in (coalesce(current_status, 'clean'), return_status)
+              then 'clean'
+            else 'inspected'
+          end)
   on conflict (accommodation_unit_id) do update
-     set status = case
-           when 'dirty' in (public.housekeeping_unit_status.status, excluded.status)
-             then 'dirty'
-           when 'clean' in (public.housekeeping_unit_status.status, excluded.status)
-             then 'clean'
-           else 'inspected'
-         end
+     set status = excluded.status
    where public.housekeeping_unit_status.status_changed_at < return_moment;
 
   get diagnostics written = row_count;

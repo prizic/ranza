@@ -79,6 +79,9 @@ export function PropertySwitcher({
           <span className="truncate text-sm font-medium">{organization}</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {/* A full load rather than a Link, on purpose: ADR 0019 drops the
+            client cache on a Property switch, and a new document drops it by
+            construction. */}
         {slots.map((slot) => (
           <DropdownMenuItem asChild key={slot.id}>
             <a

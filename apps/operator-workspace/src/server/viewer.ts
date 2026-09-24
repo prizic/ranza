@@ -2,12 +2,19 @@ import "server-only";
 import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { AUDIT_CAPABILITY, TODAY_CAPABILITY } from "@ranza/core";
+import {
+  AUDIT_READ_PERMISSION,
+  MIN_SEARCH_LENGTH,
+  TODAY_CAPABILITY,
+} from "@ranza/core";
 import type {
-  AuditRecord,
+  AuditEntry,
+  AuditFilters,
+  AuditNames,
+  AuditPage,
+  CapabilityProperties,
   CapabilityRef,
   EntitledProperty,
-  ScopeHistory,
 } from "@ranza/core";
 import { FOLIO_CAPABILITY } from "@ranza/folios";
 import type { FolioDetail, FolioSummary } from "@ranza/folios";
@@ -16,6 +23,7 @@ import type {
   Arrival,
   BookableUnit,
   Departure,
+  DepartureView,
   ReservationRow,
 } from "@ranza/reservations";
 import { ROOMS_CAPABILITY } from "@ranza/accommodation";
@@ -95,7 +103,8 @@ import { getComposition } from "./composition";
 // is absolute rather than carved out for constants: an exception is the crack
 // through which a direct query eventually arrives.
 export {
-  AUDIT_CAPABILITY,
+  AUDIT_READ_PERMISSION,
+  MIN_SEARCH_LENGTH,
   TODAY_CAPABILITY,
   FRONT_DESK_CAPABILITY,
   FOLIO_CAPABILITY,
@@ -120,7 +129,10 @@ export type {
   AccommodationUnitStatus,
   AccommodationUnitType,
   Arrival,
-  AuditRecord,
+  AuditEntry,
+  AuditFilters,
+  AuditNames,
+  AuditPage,
   BookableUnit,
   Departure,
   FolioDetail,
@@ -147,7 +159,6 @@ export type {
   UnitHold,
   NewUnits,
   ReservationRow,
-  ScopeHistory,
   UnitCounts,
   UnitEntry,
   UnitMap,
@@ -197,7 +208,15 @@ export const currentViewer = cache(async (): Promise<Viewer | null> => {
   };
 });
 
-/** Sends an unauthenticated visitor to sign in rather than to an empty page. */
+/**
+ * Sends an unauthenticated visitor to sign in rather than to an empty page.
+ *
+ * Every page calls it, not only the layout. Moving between pages is a client
+ * navigation that renders the new page and leaves the layout above it as it
+ * was, so a session ended since the last full load (ADR 0027) is noticed here
+ * or not at all — and not noticing it looks like empty pages under a shell
+ * still showing somebody's email.
+ */
 export async function requireViewer(locale: SupportedLocale): Promise<Viewer> {
   const viewer = await currentViewer();
   if (!viewer) redirect(localizeHref(locale, "sign-in"));
@@ -225,6 +244,26 @@ export const entitledProperties = cache(
 );
 
 /**
+ * `entitledProperties` for several capabilities, answered in one read.
+ *
+ * For the shell, which asks about every destination at once: one transaction
+ * rather than one per destination, which on a full page load was more
+ * connections at once than the pool holds. Same gates, same answers.
+ */
+export async function entitledPropertiesByCapability(
+  capabilities: readonly CapabilityRef[],
+): Promise<readonly CapabilityProperties[]> {
+  const viewer = await currentViewer();
+  if (!viewer) {
+    return capabilities.map((capability) => ({ capability, properties: [] }));
+  }
+  return getComposition().core.listEntitledPropertiesByCapability(
+    viewer.userId,
+    capabilities,
+  );
+}
+
+/**
  * The Reservations arriving today at one Property — the Front Office read.
  *
  * It does not re-check that the viewer may reach `propertyId`. A Property they
@@ -245,7 +284,9 @@ export async function arrivals(
 }
 
 /**
- * The Stays due to leave today at one Property, and any already overdue.
+ * The Stays in house at one Property: those due to leave today and any already
+ * overdue, or with `in_house` everybody — the early leaver and the open-ended
+ * Resident a front desk also checks out.
  *
  * Same funnel and same non-checking as `arrivals`: a Property the viewer cannot
  * reach produces an empty list because the policies and the capability gate
@@ -253,12 +294,14 @@ export async function arrivals(
  */
 export async function departures(
   propertyId: string,
+  view: DepartureView = "due",
 ): Promise<readonly Departure[]> {
   const viewer = await currentViewer();
   if (!viewer) return [];
   return getComposition().reservations.listDepartures(
     viewer.userId,
     propertyId,
+    view,
   );
 }
 
@@ -398,20 +441,65 @@ export async function housekeepingInspection(
 }
 
 /**
- * The Organization's recent audit records, read through one of its Properties
- * — what was done, by whom, and why.
+ * Every Property the viewer reaches in an Organization where they hold
+ * `permission` — the gate for a destination no package selection may remove.
  *
- * Same funnel and same non-checking as `arrivals`: the gate is evaluated in the
- * database, in the same transaction as the read, and a Property the viewer
- * cannot reach produces an empty history rather than an error (ADR 0028).
+ * `cache`d like `entitledProperties`: the layout and the page beneath it ask
+ * the same question in one request.
+ */
+export const permittedProperties = cache(
+  async (permission: string): Promise<readonly EntitledProperty[]> => {
+    const viewer = await currentViewer();
+    if (!viewer) return [];
+    return getComposition().core.listPermittedProperties(
+      viewer.userId,
+      permission,
+    );
+  },
+);
+
+const NO_AUDIT: AuditPage = {
+  entries: [],
+  total: 0,
+  nextCursor: null,
+  labels: {},
+  locations: {},
+  roles: {},
+};
+
+/**
+ * One page of the audit log, opened from a Property — what was done, by whom,
+ * where, and why.
+ *
+ * Same funnel and same non-checking as `arrivals`: the permission is asked in
+ * the database, in the same transaction as the read, and the read policy
+ * decides which records the viewer reaches. A Property they cannot open the
+ * log from produces an empty page rather than an error (ADR 0031).
  *
  * Not `cache`d, for the same reason the front-desk reads are not: a request
  * that reverses a charge and then reads must see the record it just caused.
  */
-export async function auditLog(propertyId: string): Promise<ScopeHistory> {
+export async function auditLog(
+  propertyId: string,
+  filters: AuditFilters,
+): Promise<AuditPage> {
   const viewer = await currentViewer();
-  if (!viewer) return { records: [], total: 0 };
-  return getComposition().core.recentActivity(viewer.userId, propertyId);
+  if (!viewer) return NO_AUDIT;
+  return getComposition().core.auditLog(viewer.userId, propertyId, filters);
+}
+
+/**
+ * One audit record by id — so a link to it keeps working however many
+ * records are written after it. Null for one that does not exist and one the
+ * viewer may not read, alike.
+ */
+export async function auditRecord(
+  propertyId: string,
+  recordId: string,
+): Promise<(AuditNames & { entry: AuditEntry }) | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().core.auditRecord(viewer.userId, propertyId, recordId);
 }
 
 /**

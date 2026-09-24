@@ -2,6 +2,7 @@
 
 Status: Accepted
 Date: 2026-09-24
+Amended: 2026-09-24 — "its own status" in the no-better rule is the room's state as `app.unit_housekeeping_state` reads it, after #60.
 
 ## Context
 
@@ -132,8 +133,10 @@ service coexist (ADR 0029), so that is noise rather than harm.
 
 The setting still hands `maintenance.manage` a say over housekeeping status:
 "returns inspected" is exactly that. So a room comes back **no better than it
-was** — the worse of its own status and the setting's, with a room that has no
-status counting as clean. Fixing a sink does not clean a room, and without the
+was** — the worse of its own state and the setting's, its state being what
+`app.unit_housekeeping_state` says (ADR 0029 as amended by #60): dirty when a
+Guest has left it since its status was set, even while the row still reads
+clean, and clean when it has no status at all. Fixing a sink does not clean a room, and without the
 rule anybody who may take a room out of order could take a dirty one out and
 return it at once to have it read inspected, stepping around both
 `housekeeping.update_status` and the inspection setting. That rule was decided

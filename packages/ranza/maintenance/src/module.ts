@@ -2,7 +2,6 @@ import {
   lockUnitWithin,
   returnUnitToServiceWithin,
   takeUnitOutOfServiceWithin,
-  type UnitWriteClient,
 } from "@ranza/accommodation";
 import { withOrganizationContext } from "@ranza/db";
 import { recordWithin } from "@ranza/platform-audit";
@@ -46,7 +45,7 @@ import {
 import { createEquipmentCommands, recordServiceWithin } from "./equipment";
 import { boundedDate } from "./input";
 import { createMoneyCommands } from "./money";
-import type { MaintenanceDeps } from "./ports";
+import type { MaintenanceDeps, WriteClient } from "./ports";
 import {
   CHECK_VIOLATION,
   INSUFFICIENT_PRIVILEGE,
@@ -424,7 +423,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
    * moved, and moving a booking is not built (MT-DEF-07).
    */
   async function impactOf(
-    tx: UnitWriteClient,
+    tx: WriteClient,
     unitId: string,
   ): Promise<OutOfOrderImpact> {
     const inHouse = await tx.$queryRaw<OutOfOrderImpact["inHouse"][number][]>`
@@ -475,7 +474,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
 
   /** A request the caller can see, with whether it holds its Unit now. */
   async function requestWithin(
-    tx: UnitWriteClient,
+    tx: WriteClient,
     requestId: string,
   ): Promise<RequestRow> {
     const [request] = await tx.$queryRaw<RequestRow[]>`
@@ -501,7 +500,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
 
   /** What a Property's setting says, with the product's own defaults under it. */
   async function effectiveSettingsWithin(
-    tx: UnitWriteClient,
+    tx: WriteClient,
     propertyId: string,
   ): Promise<SettingValues> {
     const [row] = await tx.$queryRaw<
@@ -539,7 +538,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
    * This chooses between two outcomes; the policies still bound each write.
    */
   async function mayReturnOnDone(
-    tx: UnitWriteClient,
+    tx: WriteClient,
     request: RequestRow,
   ): Promise<boolean> {
     const { returnOnDone } = await effectiveSettingsWithin(
@@ -569,7 +568,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
    * while already held changes only the expected-back date (MT-S2-20).
    */
   async function holdWithin(
-    tx: UnitWriteClient,
+    tx: WriteClient,
     userId: string,
     request: RequestRow,
     options: { expectedBackOn: string | null; acknowledged: boolean },
@@ -613,6 +612,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
 
     await recordWithin(tx, {
       organizationId: request.organizationId,
+      locationId: request.propertyId,
       actorId: userId,
       action: "unit.taken_out_of_order",
       subjectType: "accommodation_unit",
@@ -637,7 +637,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
    * because the room did not come back.
    */
   async function releaseWithin(
-    tx: UnitWriteClient,
+    tx: WriteClient,
     userId: string,
     request: RequestRow,
     note: string | null,
@@ -679,6 +679,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
     if ((left?.count ?? 0) > 0) {
       await recordWithin(tx, {
         organizationId: request.organizationId,
+        locationId: request.propertyId,
         actorId: userId,
         action: "maintenance_request.hold_released",
         subjectType: "maintenance_request",
@@ -701,6 +702,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
     });
     await recordWithin(tx, {
       organizationId: request.organizationId,
+      locationId: request.propertyId,
       actorId: userId,
       action: "unit.returned_to_service",
       subjectType: "accommodation_unit",
@@ -765,6 +767,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
       let written: {
         requestId: string;
         organizationId: string;
+        propertyId: string;
         number: number;
       }[];
       try {
@@ -779,6 +782,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
            where property.id = ${input.propertyId}::uuid
           returning id as "requestId",
                     organization_id as "organizationId",
+                    property_id as "propertyId",
                     number
         `;
       } catch (error: unknown) {
@@ -789,6 +793,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
 
       await recordWithin(tx, {
         organizationId: request.organizationId,
+        locationId: request.propertyId,
         actorId: userId,
         action: "maintenance_request.reported",
         subjectType: "maintenance_request",
@@ -899,6 +904,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
 
       await recordWithin(tx, {
         organizationId: request.organizationId,
+        locationId: request.propertyId,
         actorId: userId,
         action: "maintenance_request.moved",
         subjectType: "maintenance_request",
@@ -967,6 +973,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
 
       await recordWithin(tx, {
         organizationId: request.organizationId,
+        locationId: request.propertyId,
         actorId: userId,
         action: "maintenance_request.cancelled",
         subjectType: "maintenance_request",
@@ -1009,6 +1016,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
 
       await recordWithin(tx, {
         organizationId: request.organizationId,
+        locationId: request.propertyId,
         actorId: userId,
         action: "maintenance_request.assigned",
         subjectType: "maintenance_request",
@@ -1056,6 +1064,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
 
       await recordWithin(tx, {
         organizationId: request.organizationId,
+        locationId: request.propertyId,
         actorId: userId,
         action: "maintenance_request.prioritised",
         subjectType: "maintenance_request",
@@ -1289,6 +1298,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
 
       await recordWithin(tx, {
         organizationId: setting.organizationId,
+        locationId: propertyId,
         actorId: userId,
         action: "maintenance_setting.changed",
         subjectType: "property",
@@ -1350,6 +1360,9 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
 
       await recordWithin(tx, {
         organizationId: setting.organizationId,
+        // The default is about the whole Organization, so it names no Property
+        // (ADR 0031).
+        locationId: null,
         actorId: userId,
         action: "maintenance_setting.changed",
         subjectType: "organization",

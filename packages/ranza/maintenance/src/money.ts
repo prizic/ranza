@@ -57,6 +57,7 @@ export function createMoneyCommands(deps: MaintenanceDeps) {
     await withOrganizationContext(deps.db, { userId }, async (tx) => {
       let changed: {
         organizationId: string;
+        propertyId: string;
         number: number;
         previousCost: string | null;
         previousVendor: string | null;
@@ -72,7 +73,8 @@ export function createMoneyCommands(deps: MaintenanceDeps) {
              set cost_minor = ${costMinor}::bigint,
                  vendor = ${vendor}
            where id = ${input.requestId}::uuid
-          returning organization_id as "organizationId", number,
+          returning organization_id as "organizationId",
+                    property_id as "propertyId", number,
                     (select cost from previous) as "previousCost",
                     (select vendor from previous) as "previousVendor"
         `;
@@ -84,6 +86,7 @@ export function createMoneyCommands(deps: MaintenanceDeps) {
 
       await recordWithin(tx, {
         organizationId: row.organizationId,
+        locationId: row.propertyId,
         actorId: userId,
         action: "maintenance_request.costed",
         subjectType: "maintenance_request",
@@ -212,6 +215,7 @@ export function createMoneyCommands(deps: MaintenanceDeps) {
 
       await recordWithin(tx, {
         organizationId: request.organizationId,
+        locationId: request.propertyId,
         actorId: userId,
         action: "maintenance_request.guest_charged",
         subjectType: "maintenance_request",

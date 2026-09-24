@@ -17,6 +17,7 @@ export type {
 } from "./contracts";
 export {
   closeEmptyFolioWithin,
+  closeSettledFolioWithin,
   DESCRIPTION_MAX,
   openFolioWithin,
   postChargeWithin,

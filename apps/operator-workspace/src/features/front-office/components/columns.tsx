@@ -5,8 +5,10 @@ import type { ColumnDef } from "@tanstack/react-table";
 import {
   Ban,
   CalendarClock,
+  CircleAlert,
   CircleCheck,
   CircleDashed,
+  DoorClosed,
   DoorOpen,
   SprayCan,
 } from "lucide-react";
@@ -20,7 +22,9 @@ import {
 } from "@ranza/ui";
 import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
 import { useSortLabels } from "../../../lib/table-labels";
-import { CheckInAction, CheckOutAction } from "./check-in-action";
+import { CheckInAction } from "./check-in-action";
+import { CheckOutDialog } from "./check-out-dialog";
+import { unitLabel } from "../unit-label";
 import { UndoCheckInDialog } from "./undo-check-in-dialog";
 import { FrontDeskRowMenu } from "./row-menu";
 
@@ -41,10 +45,39 @@ function day(iso: string, locale: SupportedLocale): string {
   });
 }
 
-function shortRef(id: string): string {
-  if (id.startsWith("RZ-")) return id;
-  const clean = id.replace(/^(res_|stay_)/, "");
-  return `RZ-${clean.slice(0, 6).toUpperCase()}`;
+/**
+ * A balance as the desk reads it: owed in red, a credit in blue and said so.
+ */
+function Balance({
+  minor,
+  currency,
+  locale,
+}: {
+  minor: number;
+  currency: string;
+  locale: SupportedLocale;
+}) {
+  const t = useTranslations();
+  return (
+    <div className="tabular-nums">
+      <span
+        className={
+          minor > 0
+            ? "font-semibold text-danger"
+            : minor < 0
+              ? "font-semibold text-info"
+              : "font-normal"
+        }
+      >
+        {formatMoney(minor, currency, locale)}
+      </span>
+      {minor < 0 ? (
+        <span className="block text-step--1 text-muted-foreground">
+          {t("credit")}
+        </span>
+      ) : null}
+    </div>
+  );
 }
 
 function initialsOf(name: string): string {
@@ -68,6 +101,7 @@ const RESERVATION_TONE: Record<Arrival["status"], StatusTone> = {
   cancelled: "neutral",
   no_show: "danger",
   checked_in: "success",
+  checked_out: "neutral",
 };
 
 const RESERVATION_ICON = {
@@ -76,10 +110,12 @@ const RESERVATION_ICON = {
   cancelled: CircleDashed,
   no_show: CircleDashed,
   checked_in: DoorOpen,
+  checked_out: DoorClosed,
 } as const;
 
 export function useArrivalColumns(
   locale: SupportedLocale,
+  propertyId: string,
 ): ColumnDef<Arrival, unknown>[] {
   const t = useTranslations();
   const sort = useSortLabels();
@@ -117,8 +153,7 @@ export function useArrivalColumns(
       ),
     },
     {
-      id: "reservation",
-      accessorKey: "reservationId",
+      accessorKey: "reference",
       meta: { title: t("reservation") },
       header: ({ column }) => (
         <DataTableColumnHeader
@@ -130,15 +165,11 @@ export function useArrivalColumns(
       cell: ({ row }) => (
         <div>
           <span className="font-mono tabular-nums font-medium">
-            {shortRef(row.original.reservationId)}
+            {row.original.reference}
           </span>
           {row.original.daysLate > 0 && row.original.status !== "checked_in" ? (
             <span className="block text-step--1 font-semibold text-warning">
               {t("daysLate", { n: row.original.daysLate })}
-            </span>
-          ) : row.original.status === "confirmed" && row.original.eta ? (
-            <span className="block text-step--1 text-muted-foreground">
-              {t("expectedEta", { eta: row.original.eta })}
             </span>
           ) : null}
         </div>
@@ -154,23 +185,20 @@ export function useArrivalColumns(
           title={t("roomAndBed")}
         />
       ),
-      cell: ({ row }) =>
-        row.original.unitName ? (
-          <div>
-            <span className="font-medium tabular-nums">
-              {row.original.unitName}
-            </span>
-            <span className="block text-step--1 text-muted-foreground">
-              {t(`unitType.${row.original.unitType}`)}
-            </span>
-          </div>
-        ) : (
-          <span className="text-muted-foreground">{t("notAssigned")}</span>
-        ),
+      cell: ({ row }) => (
+        <div>
+          <span className="font-medium tabular-nums">
+            <bdi>{unitLabel(row.original.roomName, row.original.unitName)}</bdi>
+          </span>
+          <span className="block text-step--1 text-muted-foreground">
+            {t(`unitType.${row.original.unitType}`)}
+          </span>
+        </div>
+      ),
     },
     {
       id: "readiness",
-      accessorKey: "unitStatus",
+      accessorKey: "checkInBlocker",
       meta: { title: t("readiness") },
       header: ({ column }) => (
         <DataTableColumnHeader
@@ -179,35 +207,71 @@ export function useArrivalColumns(
           title={t("readiness")}
         />
       ),
-      cell: ({ row }) =>
-        row.original.status === "checked_in" ? (
-          <StatusBadge icon={DoorOpen} label={t("checkedIn")} tone="success" />
-        ) : row.original.unitStatus === "blocked" ? (
-          <StatusBadge icon={Ban} label={t("blockedStatus")} tone="danger" />
-        ) : row.original.unitStatus === "available" &&
-          !row.original.unitIsReady ? (
-          <StatusBadge icon={SprayCan} label={t("notReady")} tone="warning" />
-        ) : row.original.unitStatus === "available" ? (
-          <StatusBadge icon={CircleCheck} label={t("ready")} tone="success" />
-        ) : row.original.unitStatus === "out_of_service" ? (
-          <StatusBadge
-            icon={CircleDashed}
-            label={t("outOfOrder")}
-            tone="danger"
-          />
-        ) : row.original.unitStatus === "occupied" ? (
-          <StatusBadge
-            icon={CircleDashed}
-            label={t("occupied")}
-            tone="warning"
-          />
-        ) : (
-          <StatusBadge
-            icon={CircleDashed}
-            label={row.original.unitStatus}
-            tone="neutral"
-          />
-        ),
+      // What the room is doing for this arrival: first whatever check-in
+      // refuses on, from the same facts; then housekeeping's answer, which
+      // is asked about at check-in and never refused (ADR 0029).
+      cell: ({ row }) => {
+        const arrival = row.original;
+        if (arrival.status === "checked_in") {
+          return (
+            <StatusBadge
+              icon={DoorOpen}
+              label={t("checkedIn")}
+              tone="success"
+            />
+          );
+        }
+        switch (arrival.checkInBlocker) {
+          case "unit_occupied":
+            return (
+              <StatusBadge
+                icon={CircleAlert}
+                label={
+                  arrival.occupantLeaves === "overdue"
+                    ? t("occupiedOverstay")
+                    : arrival.occupantLeaves === "today"
+                      ? t("occupiedDueOut")
+                      : t("occupied")
+                }
+                tone="warning"
+              />
+            );
+          case "unit_blocked":
+            return (
+              <StatusBadge
+                icon={Ban}
+                label={t("blockedStatus")}
+                tone="danger"
+              />
+            );
+          case "unit_out_of_service":
+            return (
+              <StatusBadge icon={Ban} label={t("outOfOrder")} tone="danger" />
+            );
+          case "not_confirmed":
+            return (
+              <StatusBadge
+                icon={CircleDashed}
+                label={t("awaitingConfirmation")}
+                tone="info"
+              />
+            );
+          default:
+            return arrival.unitIsReady ? (
+              <StatusBadge
+                icon={CircleCheck}
+                label={t("ready")}
+                tone="success"
+              />
+            ) : (
+              <StatusBadge
+                icon={SprayCan}
+                label={t("notReady")}
+                tone="warning"
+              />
+            );
+        }
+      },
     },
     {
       id: "balance",
@@ -220,72 +284,80 @@ export function useArrivalColumns(
           title={t("balance")}
         />
       ),
-      cell: ({ row }) => {
-        const isDebt = row.original.balanceMinor > 0;
-        const isCredit = row.original.balanceMinor < 0;
-        const formatted = formatMoney(
-          row.original.balanceMinor,
-          row.original.currency,
-          locale,
-        );
-        return (
-          <div className="tabular-nums">
-            <span
-              className={
-                isDebt
-                  ? "font-semibold text-danger"
-                  : isCredit
-                    ? "font-semibold text-info"
-                    : "font-normal"
-              }
-            >
-              {formatted}
-            </span>
-            {isCredit && (
-              <span className="block text-step--1 text-muted-foreground">
-                {t("credit")}
-              </span>
-            )}
-          </div>
-        );
-      },
+      // Before check-in there is no bill, and a zero would claim there is one.
+      cell: ({ row }) =>
+        row.original.folioId ? (
+          <Balance
+            currency={row.original.currency}
+            locale={locale}
+            minor={row.original.balanceMinor}
+          />
+        ) : (
+          <span className="text-muted-foreground">{t("noFolio")}</span>
+        ),
     },
     {
       id: "action",
       meta: { title: t("action") },
       enableHiding: false,
       header: () => <span className="sr-only">{t("action")}</span>,
-      cell: ({ row }) => (
-        <div className="flex items-center justify-end gap-1">
-          {row.original.canCheckIn ? (
-            <CheckInAction
+      cell: ({ row }) => {
+        const arrival = row.original;
+        const label = unitLabel(arrival.roomName, arrival.unitName);
+        return (
+          <div className="flex items-center justify-end gap-1">
+            {arrival.canCheckIn && arrival.mayCheckIn ? (
+              <CheckInAction
+                locale={locale}
+                reservationId={arrival.reservationId}
+              />
+            ) : arrival.stayId && arrival.mayCheckIn ? (
+              <UndoCheckInDialog
+                guestName={arrival.guestName}
+                locale={locale}
+                reservationId={arrival.reservationId}
+                stayId={arrival.stayId}
+                unitName={label}
+              />
+            ) : arrival.checkInBlocker ? (
+              // Where the button would be, what stands in its way, so nobody
+              // presses a button that is certain to be refused. Shown to
+              // anybody reading the row: it is information, not a control.
+              <span className="max-w-48 whitespace-normal text-end text-step--1 text-muted-foreground">
+                {t(`checkInBlocked.${arrival.checkInBlocker}`)}
+              </span>
+            ) : null}
+            <FrontDeskRowMenu
+              key={arrival.reservationId}
+              booking={
+                arrival.status === "checked_in"
+                  ? undefined
+                  : {
+                      reservationId: arrival.reservationId,
+                      reference: arrival.reference,
+                      unitLabel: label,
+                      mayCancel: arrival.mayCancel,
+                      // Every row not checked in on this list has reached its
+                      // first night, so a confirmed one may be marked a no-show.
+                      mayMarkNoShow:
+                        arrival.mayCancel && arrival.status === "confirmed",
+                    }
+              }
+              folioId={arrival.folioId}
+              guestName={arrival.guestName}
               locale={locale}
-              reservationId={row.original.reservationId}
+              propertyId={propertyId}
             />
-          ) : row.original.stayId ? (
-            <UndoCheckInDialog
-              guestName={row.original.guestName}
-              locale={locale}
-              reservationId={row.original.reservationId}
-              stayId={row.original.stayId}
-              unitName={row.original.unitName}
-            />
-          ) : null}
-          <FrontDeskRowMenu
-            guestName={row.original.guestName}
-            locale={locale}
-            reservationId={row.original.reservationId}
-            stayId={row.original.stayId}
-            unitId={row.original.unitId}
-          />
-        </div>
-      ),
+          </div>
+        );
+      },
     },
   ];
 }
 
 export function useDepartureColumns(
   locale: SupportedLocale,
+  propertyId: string,
 ): ColumnDef<Departure, unknown>[] {
   const t = useTranslations();
   const sort = useSortLabels();
@@ -301,11 +373,13 @@ export function useDepartureColumns(
         />
       ),
       cell: ({ row }) => {
-        const name = row.original.guestName || row.original.unitName;
+        const name = row.original.guestName || t("noGuestRecorded");
         return (
           <div className="flex items-center gap-3">
             <Avatar className="h-8 w-8 text-step--1">
-              <AvatarFallback>{initialsOf(name)}</AvatarFallback>
+              <AvatarFallback>
+                {initialsOf(row.original.guestName)}
+              </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
               <p className="font-medium leading-none">
@@ -320,8 +394,7 @@ export function useDepartureColumns(
       },
     },
     {
-      id: "reservation",
-      accessorKey: "stayId",
+      accessorKey: "reference",
       meta: { title: t("reservation") },
       header: ({ column }) => (
         <DataTableColumnHeader
@@ -330,11 +403,14 @@ export function useDepartureColumns(
           title={t("reservation")}
         />
       ),
-      cell: ({ row }) => (
-        <span className="font-mono tabular-nums font-medium">
-          {shortRef(row.original.stayId)}
-        </span>
-      ),
+      cell: ({ row }) =>
+        row.original.reference ? (
+          <span className="font-mono tabular-nums font-medium">
+            {row.original.reference}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">{t("walkIn")}</span>
+        ),
     },
     {
       accessorKey: "unitName",
@@ -349,7 +425,7 @@ export function useDepartureColumns(
       cell: ({ row }) => (
         <p>
           <span className="font-medium tabular-nums">
-            {row.original.unitName}
+            <bdi>{unitLabel(row.original.roomName, row.original.unitName)}</bdi>
           </span>
           <span className="block text-step--1 text-muted-foreground">
             {t(`unitType.${row.original.unitType}`)}
@@ -368,18 +444,39 @@ export function useDepartureColumns(
           title={t("leaves")}
         />
       ),
-      cell: ({ row }) =>
-        row.original.overdue ? (
-          <StatusBadge
-            icon={CalendarClock}
-            label={t("overdueSince", {
-              date: day(row.original.endsOn, locale),
-            })}
-            tone="warning"
-          />
-        ) : (
+      cell: ({ row }) => {
+        const { endsOn, overdue, early } = row.original;
+        if (!endsOn) {
+          return (
+            <StatusBadge
+              icon={CalendarClock}
+              label={t("openEnded")}
+              tone="neutral"
+            />
+          );
+        }
+        if (overdue) {
+          return (
+            <StatusBadge
+              icon={CalendarClock}
+              label={t("overdueSince", { date: day(endsOn, locale) })}
+              tone="warning"
+            />
+          );
+        }
+        if (early) {
+          return (
+            <StatusBadge
+              icon={CalendarClock}
+              label={t("plannedFor", { date: day(endsOn, locale) })}
+              tone="neutral"
+            />
+          );
+        }
+        return (
           <StatusBadge icon={CircleCheck} label={t("today")} tone="neutral" />
-        ),
+        );
+      },
     },
     {
       id: "balance",
@@ -392,35 +489,16 @@ export function useDepartureColumns(
           title={t("balance")}
         />
       ),
-      cell: ({ row }) => {
-        const isDebt = row.original.balanceMinor > 0;
-        const isCredit = row.original.balanceMinor < 0;
-        const formatted = formatMoney(
-          row.original.balanceMinor,
-          row.original.currency,
-          locale,
-        );
-        return (
-          <div className="tabular-nums">
-            <span
-              className={
-                isDebt
-                  ? "font-semibold text-danger"
-                  : isCredit
-                    ? "font-semibold text-info"
-                    : "font-normal"
-              }
-            >
-              {formatted}
-            </span>
-            {isCredit && (
-              <span className="block text-step--1 text-muted-foreground">
-                {t("credit")}
-              </span>
-            )}
-          </div>
-        );
-      },
+      cell: ({ row }) =>
+        row.original.folioId ? (
+          <Balance
+            currency={row.original.currency}
+            locale={locale}
+            minor={row.original.balanceMinor}
+          />
+        ) : (
+          <span className="text-muted-foreground">{t("noFolio")}</span>
+        ),
     },
     {
       id: "action",
@@ -429,13 +507,21 @@ export function useDepartureColumns(
       header: () => <span className="sr-only">{t("action")}</span>,
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-1">
-          <CheckOutAction locale={locale} stayId={row.original.stayId} />
+          {row.original.mayCheckOut ? (
+            // Keyed by the Stay, so a dialog can never outlive the row it
+            // was opened on and submit for whichever row took its place.
+            <CheckOutDialog
+              departure={row.original}
+              key={row.original.stayId}
+              locale={locale}
+              propertyId={propertyId}
+            />
+          ) : null}
           <FrontDeskRowMenu
-            guestName={row.original.guestName || row.original.unitName}
+            folioId={row.original.folioId}
+            guestName={row.original.guestName || t("noGuestRecorded")}
             locale={locale}
-            reservationId={null}
-            stayId={row.original.stayId}
-            unitId={row.original.unitId}
+            propertyId={propertyId}
           />
         </div>
       ),
@@ -446,10 +532,10 @@ export function useDepartureColumns(
 /**
  * The booking list.
  *
- * The same four columns as arrivals, minus the action: there is nothing to do
- * to a Reservation here yet. Cancelling, amending and assigning a different Unit
- * are all blueprint 5.3 and none of them is built, so a row action would be a
- * menu with nothing in it.
+ * Every booking still ahead of the Property or under way, whatever became of
+ * it. The one action here is cancelling a booking that has not arrived;
+ * amending one and assigning a different Unit are blueprint 5.3 and not built,
+ * so they are not offered.
  *
  * The Guest's email is under their name because it is the only visible evidence
  * that a returning Guest was recognized rather than duplicated. Two rows showing
@@ -457,6 +543,7 @@ export function useDepartureColumns(
  */
 export function useReservationColumns(
   locale: SupportedLocale,
+  propertyId: string,
 ): ColumnDef<ReservationRow, unknown>[] {
   const t = useTranslations();
   const sort = useSortLabels();
@@ -486,6 +573,22 @@ export function useReservationColumns(
             )}
           </p>
         </div>
+      ),
+    },
+    {
+      accessorKey: "reference",
+      meta: { title: t("reservation") },
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          labels={sort}
+          title={t("reservation")}
+        />
+      ),
+      cell: ({ row }) => (
+        <span className="font-mono tabular-nums font-medium">
+          {row.original.reference}
+        </span>
       ),
     },
     {
@@ -529,7 +632,7 @@ export function useReservationColumns(
       cell: ({ row }) => (
         <p>
           <span className="font-medium tabular-nums">
-            {row.original.unitName}
+            <bdi>{unitLabel(row.original.roomName, row.original.unitName)}</bdi>
           </span>
           <span className="block text-step--1 text-muted-foreground">
             {t(`unitType.${row.original.unitType}`)}
@@ -554,6 +657,37 @@ export function useReservationColumns(
           tone={RESERVATION_TONE[row.original.status]}
         />
       ),
+    },
+    {
+      id: "action",
+      meta: { title: t("action") },
+      enableHiding: false,
+      header: () => <span className="sr-only">{t("action")}</span>,
+      cell: ({ row }) =>
+        row.original.mayCancel ? (
+          <div className="flex justify-end">
+            <FrontDeskRowMenu
+              key={row.original.reservationId}
+              booking={{
+                reservationId: row.original.reservationId,
+                reference: row.original.reference,
+                unitLabel: unitLabel(
+                  row.original.roomName,
+                  row.original.unitName,
+                ),
+                mayCancel: true,
+                // Here as well as on arrivals: a booking whose nights all
+                // passed unarrived is only on this list, and it is marked a
+                // no-show the morning after.
+                mayMarkNoShow: row.original.mayMarkNoShow,
+              }}
+              folioId={null}
+              guestName={row.original.guestName}
+              locale={locale}
+              propertyId={propertyId}
+            />
+          </div>
+        ) : null,
     },
   ];
 }

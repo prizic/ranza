@@ -235,10 +235,11 @@ beforeAll(async () => {
   runStarted = clock!.now;
   await cleanUp();
   await seed();
-  [{ today }] = await owner.$queryRawUnsafe<{ today: string }[]>(
+  const [propertyToday] = await owner.$queryRawUnsafe<{ today: string }[]>(
     "select to_char(app.property_today($1::uuid), 'YYYY-MM-DD') as today",
     PROPERTY,
   );
+  today = propertyToday!.today;
 }, DATABASE_BUDGET_MS);
 
 /**
@@ -716,10 +717,9 @@ describe("money", { timeout: DATABASE_BUDGET_MS }, () => {
       maintenance.chargeGuest(DESK, { requestId, folioId, amountMinor: 1000 }),
     ).rejects.toBeInstanceOf(MaintenanceRefusedError);
 
-    await owner.$executeRawUnsafe(
-      "update public.folios set status = 'closed', closed_at = now() where id = $1::uuid",
-      folioId,
-    );
+    // Closed the way a Folio is closed: through its module, by somebody who
+    // may manage Folios.
+    await folios.closeFolio(MANAGER, folioId);
     await expect(
       maintenance.chargeGuest(MANAGER, {
         requestId,
@@ -727,5 +727,74 @@ describe("money", { timeout: DATABASE_BUDGET_MS }, () => {
         amountMinor: 1000,
       }),
     ).rejects.toBeInstanceOf(MaintenanceRefusedError);
+  });
+});
+
+describe("where each record is filed", { timeout: DATABASE_BUDGET_MS }, () => {
+  // ADR 0031: a record names the Property it happened at, or none when it is
+  // about the whole Organization. audit.records is append-only, so a writer
+  // that forgets misfiles every record it ever writes. The Property is read
+  // from the subject's own row, not from what the writer was given.
+  it("files every maintenance record at its subject's Property, and only the Organization's default at none", async () => {
+    const records = await owner.$queryRawUnsafe<
+      {
+        action: string;
+        subjectType: string;
+        locationId: string | null;
+        subjectProperty: string | null;
+      }[]
+    >(
+      `select record.action,
+            record.subject_type as "subjectType",
+            record.location_id  as "locationId",
+            case record.subject_type
+              when 'maintenance_request' then
+                (select property_id from public.maintenance_requests
+                  where id = record.subject_id)
+              when 'maintenance_equipment' then
+                (select property_id from public.maintenance_equipment
+                  where id = record.subject_id)
+              when 'accommodation_unit' then
+                (select property_id from public.accommodation_units
+                  where id = record.subject_id)
+              when 'folio' then
+                (select property_id from public.folios
+                  where id = record.subject_id)
+              when 'property' then record.subject_id
+            end                 as "subjectProperty"
+       from audit.records as record
+      where record.organization_id = $1::uuid
+        and record.occurred_at >= $2
+        and (record.action like 'maintenance%'
+             or record.action in ('unit.taken_out_of_order',
+                                  'unit.returned_to_service',
+                                  'folio.charge_posted'))`,
+      ORG,
+      runStarted,
+    );
+
+    // Every writer this suite drives, so a record never written cannot pass
+    // for one filed correctly.
+    expect([...new Set(records.map((record) => record.action))]).toEqual(
+      expect.arrayContaining([
+        "maintenance_equipment.added",
+        "maintenance_equipment.changed",
+        "maintenance_equipment.retired",
+        "maintenance_equipment.restored",
+        "maintenance_equipment.serviced",
+        "maintenance_request.reported",
+        "maintenance_request.moved",
+        "maintenance_request.costed",
+        "maintenance_request.guest_charged",
+        "folio.charge_posted",
+      ]),
+    );
+    const misfiled = records.filter((record) =>
+      record.subjectType === "organization"
+        ? record.locationId !== null
+        : record.locationId === null ||
+          record.locationId !== record.subjectProperty,
+    );
+    expect(misfiled).toEqual([]);
   });
 });

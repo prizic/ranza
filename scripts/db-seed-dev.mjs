@@ -161,7 +161,7 @@ psql(`
     insert into public.properties (organization_id, name)
     select organization.id, wanted.name
     from organization, (values ${values}) as wanted (name)
-    returning id, organization_id, timezone
+    returning id, organization_id, timezone, business_date_cutoff
   ), guest as (
     insert into public.guests (organization_id, full_name, email)
     select organization.id, wanted.name, wanted.email
@@ -201,7 +201,7 @@ psql(`
          (values ('front_desk'), ('guest_experience'), ('housekeeping'),
                  ('food_and_beverage'), ('inventory'), ('finance'),
                  ('people'), ('staff_administration'), ('analytics'),
-                 ('configuration'), ('audit'), ('maintenance'))
+                 ('configuration'), ('maintenance'))
            as wanted (capability_key)
   ), unit as (
     insert into public.accommodation_units
@@ -227,8 +227,8 @@ psql(`
     select
       d.organization_id, d.property_id, d.id,
       guest.id, 'guest', 'checked_in',
-      (now() at time zone property.timezone)::date - wanted.arrived,
-      (now() at time zone property.timezone)::date - wanted.leaves
+      app.business_date(now(), property.timezone, property.business_date_cutoff) - wanted.arrived,
+      app.business_date(now(), property.timezone, property.business_date_cutoff) - wanted.leaves
     from departing_units as d
     join property on property.id = d.property_id
     join (values (1, 'Cahit Arf', 4, 0), (2, 'Halide Edib', 9, 2))
@@ -279,9 +279,9 @@ psql(`
     guest.id,
     wanted.stay_type,
     wanted.status,
-    (now() at time zone property.timezone)::date,
+    app.business_date(now(), property.timezone, property.business_date_cutoff),
     case when wanted.nights = 0 then null
-         else (now() at time zone property.timezone)::date + wanted.nights end
+         else app.business_date(now(), property.timezone, property.business_date_cutoff) + wanted.nights end
   from arriving
   join property on property.id = arriving.property_id
   join (values ${ARRIVALS.map(

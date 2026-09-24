@@ -267,10 +267,14 @@ export function RoomsView({
                                     : `${room.capacity} ${t("statOccupied").toLowerCase()}`}
                                 </span>
                               </div>
+                              {/* Not prefetched: one tile is one request, and
+                                  all it would fetch is the loading boundary —
+                                  the report form is read on the click. */}
                               {isLetByTheBed && reportHref(room.unitId) ? (
                                 <Link
                                   className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                                   href={reportHref(room.unitId) ?? ""}
+                                  prefetch={false}
                                 >
                                   {t("maintenance.reportProblem")}
                                 </Link>

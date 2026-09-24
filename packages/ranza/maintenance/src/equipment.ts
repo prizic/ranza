@@ -1,4 +1,3 @@
-import type { UnitWriteClient } from "@ranza/accommodation";
 import { withOrganizationContext } from "@ranza/db";
 import { recordWithin } from "@ranza/platform-audit";
 import {
@@ -19,7 +18,7 @@ import {
   type Reported,
 } from "./contracts";
 import { boundedDate } from "./input";
-import type { MaintenanceDeps } from "./ports";
+import type { MaintenanceDeps, WriteClient } from "./ports";
 import { CHECK_VIOLATION, raised, refusal, says } from "./refusals";
 
 /**
@@ -143,11 +142,12 @@ function itemOf(row: ItemRow): EquipmentItem {
  * need not keep the register (20260916004600). This reads back what it wrote.
  */
 export async function recordServiceWithin(
-  tx: UnitWriteClient,
+  tx: WriteClient,
   userId: string,
   request: {
     requestId: string;
     organizationId: string;
+    propertyId: string;
     number: number;
     equipmentId: string | null;
   },
@@ -167,6 +167,7 @@ export async function recordServiceWithin(
 
   await recordWithin(tx, {
     organizationId: request.organizationId,
+    locationId: request.propertyId,
     actorId: userId,
     action: "maintenance_equipment.serviced",
     subjectType: "maintenance_equipment",
@@ -292,7 +293,11 @@ export function createEquipmentCommands(deps: MaintenanceDeps) {
   ): Promise<{ equipmentId: string }> {
     const item = boundedEquipment(input);
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
-      let added: { equipmentId: string; organizationId: string }[];
+      let added: {
+        equipmentId: string;
+        organizationId: string;
+        propertyId: string;
+      }[];
       try {
         added = await tx.$queryRaw`
           insert into public.maintenance_equipment
@@ -304,7 +309,8 @@ export function createEquipmentCommands(deps: MaintenanceDeps) {
                  ${item.serviceIntervalMonths}::int, ${item.lastServicedOn}::date
             from public.properties as property
            where property.id = ${propertyId}::uuid
-          returning id as "equipmentId", organization_id as "organizationId"
+          returning id as "equipmentId", organization_id as "organizationId",
+                    property_id as "propertyId"
         `;
       } catch (error: unknown) {
         throw equipmentRefusal(error);
@@ -314,6 +320,7 @@ export function createEquipmentCommands(deps: MaintenanceDeps) {
 
       await recordWithin(tx, {
         organizationId: row.organizationId,
+        locationId: row.propertyId,
         actorId: userId,
         action: "maintenance_equipment.added",
         subjectType: "maintenance_equipment",
@@ -347,6 +354,7 @@ export function createEquipmentCommands(deps: MaintenanceDeps) {
       const [previous] = await tx.$queryRaw<
         {
           organizationId: string;
+          propertyId: string;
           name: string;
           category: string;
           unitId: string | null;
@@ -355,7 +363,8 @@ export function createEquipmentCommands(deps: MaintenanceDeps) {
           lastServicedOn: string | null;
         }[]
       >`
-        select organization_id as "organizationId", name, category,
+        select organization_id as "organizationId",
+               property_id as "propertyId", name, category,
                accommodation_unit_id as "unitId", location,
                service_interval_months as "serviceIntervalMonths",
                to_char(last_serviced_on, 'YYYY-MM-DD') as "lastServicedOn"
@@ -386,9 +395,10 @@ export function createEquipmentCommands(deps: MaintenanceDeps) {
         throw equipmentRefusal(error);
       }
 
-      const { organizationId, ...from } = previous;
+      const { organizationId, propertyId, ...from } = previous;
       await recordWithin(tx, {
         organizationId,
+        locationId: propertyId,
         actorId: userId,
         action: "maintenance_equipment.changed",
         subjectType: "maintenance_equipment",
@@ -410,14 +420,19 @@ export function createEquipmentCommands(deps: MaintenanceDeps) {
     action: string,
   ): Promise<void> {
     await withOrganizationContext(deps.db, { userId }, async (tx) => {
-      let changed: { organizationId: string; name: string }[];
+      let changed: {
+        organizationId: string;
+        propertyId: string;
+        name: string;
+      }[];
       try {
         changed = await tx.$queryRaw`
           update public.maintenance_equipment
              set retired_at = case when ${retired}::boolean then now() end
            where id = ${equipmentId}::uuid
              and (retired_at is null) = ${retired}::boolean
-          returning organization_id as "organizationId", name
+          returning organization_id as "organizationId",
+                    property_id as "propertyId", name
         `;
       } catch (error: unknown) {
         throw refusal(error);
@@ -427,6 +442,7 @@ export function createEquipmentCommands(deps: MaintenanceDeps) {
 
       await recordWithin(tx, {
         organizationId: row.organizationId,
+        locationId: row.propertyId,
         actorId: userId,
         action,
         subjectType: "maintenance_equipment",
@@ -471,6 +487,7 @@ export function createEquipmentCommands(deps: MaintenanceDeps) {
       let written: {
         requestId: string;
         organizationId: string;
+        propertyId: string;
         number: number;
         priority: string;
       }[];
@@ -491,7 +508,7 @@ export function createEquipmentCommands(deps: MaintenanceDeps) {
            where equipment.id = ${input.equipmentId}::uuid
              and equipment.retired_at is null
           returning id as "requestId", organization_id as "organizationId",
-                    number, priority
+                    property_id as "propertyId", number, priority
         `;
       } catch (error: unknown) {
         throw refusal(error);
@@ -501,6 +518,7 @@ export function createEquipmentCommands(deps: MaintenanceDeps) {
 
       await recordWithin(tx, {
         organizationId: request.organizationId,
+        locationId: request.propertyId,
         actorId: userId,
         action: "maintenance_request.reported",
         subjectType: "maintenance_request",

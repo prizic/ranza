@@ -10,7 +10,7 @@ import {
   PERMISSION_CATALOGUE,
 } from "../../../../features/staff/labels";
 import { readRoles, readRoster } from "../../../../server/staff";
-import { entitledProperties } from "../../../../server/viewer";
+import { entitledProperties, requireViewer } from "../../../../server/viewer";
 
 /**
  * Staff and permissions: who works for this Organization, and what each role
@@ -38,6 +38,7 @@ export default async function PeoplePage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  await requireViewer(locale);
 
   const t = await getTranslations();
   const properties = await entitledProperties(STAFF_ADMINISTRATION);

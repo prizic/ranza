@@ -1,4 +1,6 @@
+import type { UnitWriteClient } from "@ranza/accommodation";
 import type { PrismaClient } from "@ranza/db";
+import type { AuditClient } from "@ranza/platform-audit";
 
 /**
  * What the host must provide (ADR 0006).
@@ -16,3 +18,6 @@ export interface MaintenanceDeps {
    */
   db: PrismaClient;
 }
+
+/** A transaction that writes a Unit and records what it did. */
+export type WriteClient = UnitWriteClient & AuditClient;
