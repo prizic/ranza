@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { formatDate, isSupportedLocale } from "@ranza/i18n";
 import {
   Ban,
   Bed,
@@ -69,12 +70,23 @@ export function RoomsView({
   const maintenanceHref = `/${locale}/maintenance?property=${propertyId}`;
   const reportHref = (unitId: string) =>
     maintenance.mayReport ? `${maintenanceHref}&report=${unitId}` : null;
-  // Out of order, with the request that holds it when there is one: the front
-  // desk reads the same words Arrivals uses (MT-S2-28, MT-DIFF-01).
-  const outOfOrderLabel = (hold: UnitHold | undefined) =>
-    hold
-      ? `${mt("outOfOrder")} · ${mt("reference", { number: hold.number })}`
-      : mt("outOfOrder");
+  // Out of order, with the request that holds it and when the room is expected
+  // back: the front desk reads the same words Arrivals uses (MT-S2-28,
+  // MT-DIFF-01). Day and month only — a tile has no room for the year.
+  const outOfOrderLabel = (hold: UnitHold | undefined) => {
+    if (!hold) return mt("outOfOrder");
+    const back =
+      hold.expectedBackOn && isSupportedLocale(locale)
+        ? ` · ${mt("backOn", {
+            date: formatDate(
+              new Date(`${hold.expectedBackOn}T12:00:00Z`),
+              locale,
+              { timeZone: "UTC", year: undefined },
+            ),
+          })}`
+        : "";
+    return `${mt("outOfOrder")} · ${mt("reference", { number: hold.number })}${back}`;
+  };
 
   function handleSelectUnit(unit: UnitEntry, roomId: string | null = null) {
     setSelectedUnit(unit);

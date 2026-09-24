@@ -25,6 +25,7 @@ stateDiagram-v2
     WaitingForParts --> Done : move
     Done --> New : reopen
     Done --> InProgress : reopen
+    Done --> WaitingForParts : reopen
     New --> Cancelled : cancel (reason)
     InProgress --> Cancelled : cancel (reason)
     WaitingForParts --> Cancelled : cancel (reason)

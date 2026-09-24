@@ -22,7 +22,7 @@ export function RequestCard({
   onOpen: () => void;
 }) {
   const t = useTranslations("maintenance");
-  const where =
+  const room =
     request.unit === null
       ? null
       : request.unit.roomName === null
@@ -31,6 +31,10 @@ export function RequestCard({
             bed: request.unit.name,
             room: request.unit.roomName,
           });
+  const where =
+    [room, request.equipment?.name ?? null]
+      .filter((part) => part !== null)
+      .join(" · ") || null;
 
   return (
     <Card className="p-0 transition-colors hover:bg-muted/40">

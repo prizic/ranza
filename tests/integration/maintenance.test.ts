@@ -1046,6 +1046,41 @@ describe("coming back", { timeout: DATABASE_BUDGET_MS }, () => {
     await maintenance.returnToService(DESK, { requestId });
   });
 
+  it("keeps a done request that still holds its room on the board past thirty days (MT-S1-10, MT-S2-15)", async () => {
+    await settle({ returnOnDone: false });
+    const held = await report(DESK, CONFIRMED_ROOM, {
+      outOfOrder: { acknowledged: true },
+    });
+    await maintenance.move(MANAGER, {
+      requestId: held.requestId,
+      from: "new",
+      to: "done",
+    });
+    const finished = await report(DESK, ROOM);
+    await maintenance.move(MANAGER, {
+      requestId: finished.requestId,
+      from: "new",
+      to: "done",
+    });
+    await owner.$executeRawUnsafe(
+      `update public.maintenance_requests
+          set status_changed_at = now() - interval '31 days'
+        where id in ($1::uuid, $2::uuid)`,
+      held.requestId,
+      finished.requestId,
+    );
+
+    // The one that holds its room is the only place Return to service is
+    // offered; the one that does not has aged off.
+    const board = await maintenance.board(MANAGER, PROPERTY);
+    const shown = board.requests.map((request) => request.requestId);
+    expect(shown).toContain(held.requestId);
+    expect(shown).not.toContain(finished.requestId);
+
+    await settle({ returnOnDone: true });
+    await maintenance.returnToService(DESK, { requestId: held.requestId });
+  });
+
   it("releases the room when its request is cancelled (MT-S2-16)", async () => {
     const { requestId } = await report(DESK, ROOM, {
       outOfOrder: { acknowledged: true },

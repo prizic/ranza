@@ -210,7 +210,9 @@ function countsOf(cards: readonly MaintenanceRequestCard[]): MaintenanceCounts {
 export function createMaintenanceModule(deps: MaintenanceDeps) {
   /**
    * Every request at a Property that is open, or was done or cancelled in the
-   * last thirty days, with what the reader may do (MT-S1-10).
+   * last thirty days, or still holds its room, with what the reader may do
+   * (MT-S1-10). A done request that holds its room waits for somebody to
+   * return it (MT-S2-15); if it aged off the board nothing would offer that.
    *
    * One statement, so the cards and the counts agree. The commercial gates are
    * in the predicate: a Property out of reach, or without maintenance, returns
@@ -307,7 +309,12 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
           left join public.maintenance_requests as request
             on request.property_id = scope.id
            and (request.status not in ('done', 'cancelled')
-                or request.status_changed_at > now() - make_interval(days => ${RECENT_DAYS}))
+                or request.status_changed_at > now() - make_interval(days => ${RECENT_DAYS})
+                or exists (
+                  select 1
+                    from public.maintenance_unit_holds as holding
+                   where holding.request_id = request.id
+                     and holding.returned_at is null))
           left join public.accommodation_units as unit
             on unit.id = request.accommodation_unit_id
           left join public.accommodation_units as room

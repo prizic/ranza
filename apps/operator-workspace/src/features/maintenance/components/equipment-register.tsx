@@ -135,6 +135,7 @@ export function EquipmentRegisterPanel({
                 <TableHead>{t("equipmentName")}</TableHead>
                 <TableHead>{t("whereIs")}</TableHead>
                 <TableHead>{t("state")}</TableHead>
+                <TableHead>{t("lastServiced")}</TableHead>
                 <TableHead>{t("nextService")}</TableHead>
                 {mayChange ? (
                   <TableHead className="text-end">
@@ -177,6 +178,15 @@ export function EquipmentRegisterPanel({
                         </span>
                       ) : null}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {item.lastServicedOn === null ? (
+                      <span className="text-muted-foreground">
+                        {t("neverServiced")}
+                      </span>
+                    ) : (
+                      formatDay(item.lastServicedOn, locale)
+                    )}
                   </TableCell>
                   <TableCell>
                     {item.nextServiceOn === null ||

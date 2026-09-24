@@ -78,6 +78,17 @@ test("a problem reported from Rooms takes the room out of order until it is done
   await expect(card).toContainText("Out of order");
   await expect(card).toContainText("Urgent");
 
+  // MT-S1-29: a priority filter hides a card that does not match it, and
+  // "Out of order only" keeps one that holds its room.
+  await page.getByRole("combobox", { name: "Priority" }).click();
+  await page.getByRole("option", { name: "Can wait" }).click();
+  await expect(card).toBeHidden();
+  await page.getByRole("combobox", { name: "Priority" }).click();
+  await page.getByRole("option", { name: "Any priority" }).click();
+  await page.getByRole("checkbox", { name: "Out of order only" }).click();
+  await expect(card).toBeVisible();
+  await page.getByRole("checkbox", { name: "Out of order only" }).click();
+
   // MT-S2-28, MT-DIFF-01: Rooms says so, in the words Arrivals uses.
   await page.goto(`/en/rooms?property=${propertyId}`);
   await expect(
