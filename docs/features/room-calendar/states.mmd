@@ -1,0 +1,83 @@
+%% The calendar has no command of its own. What it draws changes because commands
+%% owned by other features run, and because the Property's day passes. Both machines
+%% below are derived: every arrow names the command that moves it, or says that no
+%% command does. Anything not drawn is forbidden.
+%% "not built" means no command reaches it on main today; "front desk branch" means
+%% feat/front-desk-occupancy adds the command and it is not merged.
+%% Slices: s1 draws both machines. s2 changes the default view and adds no transition.
+%% Ids are prefixed because a state id is global in Mermaid.
+stateDiagram-v2
+  direction LR
+
+  state "One booking or Stay, as a bar" as BarMachine {
+    state "requested — dashed, holds no night" as b_requested
+    state "confirmed — the planned nights" as b_confirmed
+    state "in house — the Stay's nights" as b_in_house
+    state "overdue — still in house, drawn through tonight" as b_overdue
+    state "departed — muted" as b_departed
+    state "not drawn (terminal)" as b_gone
+
+    [*] --> b_requested : not built
+    [*] --> b_confirmed : createReservation / built
+    [*] --> b_in_house : walk-in check-in / not built
+    b_requested --> b_confirmed : confirm / not built
+    b_requested --> b_gone : cancel / front desk branch
+    b_confirmed --> b_gone : cancel, markNoShow / front desk branch
+    b_confirmed --> b_in_house : checkIn / built
+    b_in_house --> b_confirmed : reverseCheckIn / built, no charges
+    b_in_house --> b_overdue : the planned end passes / no command
+    b_in_house --> b_departed : checkOut / built
+    b_in_house --> b_gone : checkOut on the day of arrival / built, holds no night
+    b_overdue --> b_confirmed : reverseCheckIn / built, no charges
+    b_overdue --> b_departed : checkOut / built
+    b_departed --> b_in_house : reverseCheckOut / not built
+    b_gone --> [*]
+  }
+
+  state "One sellable Unit on one night — what the counts read" as NightMachine {
+    state "free" as n_free
+    state "held — confirmed, in house, overdue or departed" as n_held
+    state "overlap — two bars hold the night" as n_overlap
+    state "blocked — tonight and after" as n_blocked
+    state "blocked with a booking" as n_blocked_booked
+
+    [*] --> n_free : addUnits / built
+    n_free --> n_held : createReservation / built
+    n_free --> n_held : walk-in check-in / not built
+    n_held --> n_free : checkOut before that night / built
+    n_held --> n_free : cancel, markNoShow / front desk branch
+    n_held --> n_overlap : createReservation over an in-house Stay / built, the named gap
+    n_held --> n_overlap : an overdue Stay reaches a booked night / no command
+    n_overlap --> n_held : checkOut of the in-house Stay / built
+    n_overlap --> n_held : cancel, markNoShow of the booking / front desk branch
+    n_free --> n_blocked : blockUnit / built
+    n_blocked --> n_free : unblockUnit / built
+    n_held --> n_blocked_booked : blockUnit over a confirmed booking / built
+    n_blocked_booked --> n_held : unblockUnit / built
+    n_blocked_booked --> n_blocked : cancel, markNoShow / front desk branch
+  }
+
+  note right of b_in_house
+    A checked-in Reservation is drawn once, as its Stay.
+    The Reservation's own status - checked_in, and checked_out
+    on the front desk branch - never draws a bar of its own.
+  end note
+
+  note right of b_overdue
+    Drawn through tonight, not to the planned end: the
+    Guest is in the Unit. Leaving today is not overdue.
+  end note
+
+  note right of n_free
+    A requested bar holds nothing: its night stays free
+    and a clash with it is labelled, not counted.
+    No terminal state: a Unit is never deleted (RB-S3-12).
+  end note
+
+  note right of n_blocked
+    A block has no dates, so it is drawn from today on
+    and never on a past night.
+    Not drawn, so forbidden: booking a blocked Unit
+    (createReservation refuses it) and blocking a Unit
+    with a Stay in house (accommodation_units_can_be_blocked).
+  end note
