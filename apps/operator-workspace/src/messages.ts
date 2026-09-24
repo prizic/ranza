@@ -523,7 +523,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkingIn: "Yapılıyor",
     checkedIn: "Giriş yapıldı",
     unitUnavailable: "Bu birim seçilen tarihlerde dolu.",
-    roomNotReady: "Bu oda henüz hazır değil: hâlâ kirli olarak işaretli.",
+    roomNotReady:
+      "Bu oda henüz hazır değil: temizlenmedi ya da kontrol bekliyor.",
     checkInAnyway: "Yine de giriş yap",
     notNow: "Şimdi değil",
     notReady: "Hazır değil",
@@ -1010,7 +1011,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkingIn: "Checking in",
     checkedIn: "Checked in",
     unitUnavailable: "That Unit is occupied for those nights.",
-    roomNotReady: "This room isn't ready yet — it's still marked dirty.",
+    roomNotReady:
+      "This room isn't ready yet — it hasn't been cleaned, or it's waiting for inspection.",
     checkInAnyway: "Check in anyway",
     notNow: "Not now",
     notReady: "Not ready",
@@ -1493,7 +1495,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkingIn: "جارٍ التسجيل",
     checkedIn: "تم تسجيل الوصول",
     unitUnavailable: "هذه الوحدة محجوزة في تلك الليالي.",
-    roomNotReady: "هذه الغرفة ليست جاهزة بعد — لا تزال مُعلَّمة كمتسخة.",
+    roomNotReady:
+      "هذه الغرفة ليست جاهزة بعد — لم تُنظَّف أو أنها بانتظار الفحص.",
     checkInAnyway: "تسجيل الدخول على أي حال",
     notNow: "ليس الآن",
     notReady: "غير جاهزة",

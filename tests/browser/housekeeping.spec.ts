@@ -18,6 +18,16 @@ import { signIn, testProperty } from "./front-desk";
  * change and a check-in are history that is never deleted.
  */
 
+// Readiness depends on the inspection setting, and a spec that dies halfway
+// through changing it leaves it changed. Every spec here starts from the test
+// Property following its Organization, which sets nothing: inspection off.
+test.beforeEach(() => {
+  psql(
+    `update public.housekeeping_settings set inspect_after_cleaning = null
+      where property_id = '${testProperty()}'`,
+  );
+});
+
 /** A room of this run's own, with a Guest arriving today. Dirty unless told. */
 function aRoomWithAnArrival(
   propertyId: string,
@@ -103,7 +113,7 @@ test("arrivals asks before checking a Guest into a room that is not ready", asyn
   await expect(row).toContainText("Not ready");
 
   await row.getByRole("button", { name: "Check in" }).click();
-  await expect(row).toContainText("still marked dirty");
+  await expect(row).toContainText("isn't ready yet");
 
   await row.getByRole("button", { name: "Check in anyway" }).click();
   await expect(row).toContainText("Checked in");
@@ -113,12 +123,6 @@ test("a manager switches inspection on for one Property and sees what it means",
   page,
 }) => {
   const propertyId = testProperty();
-  // This run's own Property setting starts from "use the default", whatever an
-  // earlier run left.
-  psql(
-    `update public.housekeeping_settings set inspect_after_cleaning = null
-      where property_id = '${propertyId}'`,
-  );
 
   await signIn(page);
   await page.goto(`/en/housekeeping?property=${propertyId}`);
