@@ -42,10 +42,10 @@ export interface EndableBooking {
  * Only destinations that exist and open on this Guest's own record: their
  * Folio when there is one, and the room map. Both name the row's Property, so
  * following one never switches the Property being worked in, and neither is
- * prefetched: a menu item is one request, read on the click. It used to offer a reservation
- * page, a profile and an inventory bed map, none of which is built — the
- * profile opened the staff roster — and a menu of links that do not do what
- * they say is worse than a shorter one.
+ * prefetched: a menu item is one request, read on the click. It used to
+ * offer a reservation page, a profile and an inventory bed map, none of which
+ * is built — the profile opened the staff roster — and a menu of links that
+ * do not do what they say is worse than a shorter one.
  */
 export function FrontDeskRowMenu({
   booking,

@@ -319,8 +319,11 @@ select results_eq(
 -- What ready means before any departure is delivered
 -- ---------------------------------------------------------------------------
 
-select ok(app.unit_is_ready('8c111111-1111-4111-8111-111111111111'),
-  'a room with no status row is ready: a room is born clean');
+-- 101 has no status row, and a Guest left it today. Before the departure is
+-- delivered it is not ready (HK-S1-21, 20260916003950): a room is born clean
+-- only while nobody has left it, which room_turnover.test.sql asserts.
+select ok(not app.unit_is_ready('8c111111-1111-4111-8111-111111111111'),
+  'a room a Guest left today is not ready before the departure is delivered');
 
 select is(app.unit_status_holder('8c2b2222-2222-4222-8222-222222222222'),
   '8c222222-2222-4222-8222-222222222222'::uuid,

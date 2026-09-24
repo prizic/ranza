@@ -6,6 +6,16 @@ Status: Accepted
 
 Amended: 2026-09-23 — inspection (slice 3), and what a room with no row means under it.
 
+Amended: 2026-09-24 — a room a Guest has just left is not ready. Once
+[ADR 0033](0033-an-in-house-stay-holds-its-unit-until-it-is-checked-out.md) made
+check-out the only way to re-let a room, every turnover passed through the
+seconds between a check-out and the worker marking the room dirty, and
+readiness read the room as ready in them — and for as long as the worker was
+down. `app.unit_is_ready` now also asks what the worker asks: has a Guest left
+the room since its status last changed? Departures from yesterday's business
+date on, so switching housekeeping on at a Property with a history does not read
+every room as unready (`20260916003950`).
+
 ## Context
 
 Blueprint 18.2 names six states for an Accommodation Unit: available, occupied,

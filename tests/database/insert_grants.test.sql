@@ -387,7 +387,7 @@ select is(
   4,
   'four of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a thirty-third definer is a red test
+-- Part B: the inventory itself, so a thirty-sixth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
 -- four are housekeeping; five are the audit log's reach; and the last three

@@ -44,16 +44,11 @@ single function across the credential boundary
 
 The next few slices, in the order decided by what each one unblocks:
 
-1. **A Unit status lifecycle**, which is also the first outbox handler:
-   check-out marks the Unit dirty. A Unit can already be blocked out of order
-   from the rooms screen under `accommodation.configure`; cleaning is a
-   different permission, because whoever cleans a room should not be able to
-   restructure the Property.
-2. **A rate.** Nothing has a price, which is why there is no night audit. The
+1. **A rate.** Nothing has a price, which is why there is no night audit. The
    business date the audit will roll
    ([ADR 0021](adr/0021-a-business-date-is-the-day-a-property-is-working.md)) is
    applied already, because the front desk needed it first.
-3. **Amending a booking and moving a Guest.** Cancelling and no-shows are
+2. **Amending a booking and moving a Guest.** Cancelling and no-shows are
    built; changing a booking's dates or Unit is not, so a booking on a blocked
    Unit is cancelled and taken again rather than moved.
 

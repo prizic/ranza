@@ -819,3 +819,61 @@ describe(
     });
   },
 );
+
+describe(
+  "a room a Guest has just left",
+  { timeout: DATABASE_BUDGET_MS },
+  () => {
+    /**
+     * A room is re-let only by checking its Guest out first (ADR 0033), and
+     * it turns dirty only when the worker delivers the departure — a couple of
+     * seconds, or as long as the worker is down. Until then it is not ready
+     * either: a Guest has left it since anybody last said what state it is in
+     * (HK-S1-21). Marked inspected rather than clean, so the answer holds
+     * whatever an earlier describe left the inspection setting at.
+     */
+    it("is not ready before the worker marks it, and stays as marked after (HK-S1-21)", async () => {
+      const room = randomUUID();
+      await owner.$executeRawUnsafe(
+        `insert into public.accommodation_units
+           (id, property_id, organization_id, name, unit_type, capacity)
+         values ($1::uuid, $2::uuid, $3::uuid, $4, 'room', 2)`,
+        room,
+        PROPERTY,
+        ORG,
+        `HK-${room.slice(0, 6)}`,
+      );
+      // Ready for its first Guest, whatever the inspection setting: a status
+      // row exists, and the departure below is later than it.
+      await housekeeping.markUnits(MEMBER, {
+        unitIds: [room],
+        status: "inspected",
+      });
+      const leaving = await inHouse(room);
+      await reservations.checkOut(MEMBER, leaving, REVIEWED);
+      // No drain: the worker has not got to the departure yet.
+      expect((await statusOf(room))?.status).toBe("inspected");
+
+      // Taken after the check-out, because until then the Guest in the room
+      // holds tonight (ADR 0033).
+      const next = await arriving(room);
+      const arrival = (await reservations.listArrivals(MEMBER, PROPERTY)).find(
+        (row) => row.reservationId === next,
+      );
+      expect(arrival?.unitIsReady).toBe(false);
+      await expect(reservations.checkIn(MEMBER, next)).rejects.toBeInstanceOf(
+        UnitNotReadyError,
+      );
+
+      await housekeeping.markUnits(MEMBER, {
+        unitIds: [room],
+        status: "inspected",
+      });
+      await expect(reservations.checkIn(MEMBER, next)).resolves.toBeDefined();
+
+      // The worker arrives late and leaves the later mark alone (HK-S1-05).
+      await drain();
+      expect((await statusOf(room))?.status).toBe("inspected");
+    });
+  },
+);
