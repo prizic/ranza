@@ -355,7 +355,8 @@ describe("when the page itself fails", () => {
 
 describe("who sees it in the rail", () => {
   const railFor = (entitled: string[]) =>
-    renderHook(() => useWorkspaceNav("en", entitled), {
+    // The Property comes from the URL, so there is no default to fall back to.
+    renderHook(() => useWorkspaceNav("en", entitled, undefined), {
       wrapper: ({ children }) => (
         <NextIntlClientProvider locale="en" messages={messages.en}>
           {children}

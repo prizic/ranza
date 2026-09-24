@@ -4,21 +4,24 @@ import type { EntitledProperty } from "@ranza/core";
 /**
  * Which Property a front desk screen is showing.
  *
- * Both screens answer this the same way, and answering it differently on one of
- * them would be a bug nobody notices until the Property switcher disagrees with
- * the list beneath it.
+ * Every front desk screen answers this the same way, and answering it
+ * differently on one of them would be a bug nobody notices until the Property
+ * switcher disagrees with the list beneath it.
  *
- * A Property the viewer may not reach is simply absent from `properties`, so an
- * unknown or forged `?property=` falls back to the first one they can reach
- * rather than erroring — what a viewer cannot see should not be distinguishable
- * from what does not exist.
+ * `properties` holds only the Properties where the viewer may use this screen's
+ * capability. With no `?property=`, the screen opens on the first of them. A
+ * `?property=` that names none of them — switched off there, out of reach,
+ * unknown or forged — shows nothing rather than another Property: the page
+ * bar's switcher reads the same parameter and would name the Property the URL
+ * asked for above another one's rooms (HK-S1-24). All of those look alike, so
+ * what a viewer cannot see stays indistinguishable from what does not exist.
  */
 export function frontDeskProperty(
   properties: readonly EntitledProperty[],
   search: { property?: string },
 ): EntitledProperty | undefined {
-  return (
-    properties.find((candidate) => candidate.propertyId === search.property) ??
-    properties[0]
+  if (!search.property) return properties[0];
+  return properties.find(
+    (candidate) => candidate.propertyId === search.property,
   );
 }

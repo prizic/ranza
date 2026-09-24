@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
 import { EmptyState, PageHeader } from "@ranza/ui";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { DefineRoleDialog } from "../../../../features/staff/components/define-role-dialog";
 import { InviteDialog } from "../../../../features/staff/components/invite-dialog";
 import { StaffScreen } from "../../../../features/staff/components/staff-screen";
@@ -38,6 +38,7 @@ export default async function PeoplePage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
   await requireViewer(locale);
 
   const t = await getTranslations();

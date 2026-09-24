@@ -16,6 +16,7 @@ import { useWithProperty, useWorkspaceNav } from "../../../lib/nav";
 export function WorkspaceRail({
   actions,
   brand,
+  defaultProperty,
   entitled,
   labels,
   locale,
@@ -24,14 +25,16 @@ export function WorkspaceRail({
 }: {
   actions?: ReactNode | undefined;
   brand: ReactNode;
+  /** The Property the switcher names when the URL names none. */
+  defaultProperty: string | undefined;
   entitled: readonly string[];
   labels: SidebarLabels;
   locale: SupportedLocale;
   organization?: string | undefined;
   root: string;
 }) {
-  const entries = useWorkspaceNav(locale, entitled);
-  const withProperty = useWithProperty();
+  const entries = useWorkspaceNav(locale, entitled, defaultProperty);
+  const withProperty = useWithProperty(defaultProperty);
 
   return (
     <AppSidebar
@@ -46,18 +49,21 @@ export function WorkspaceRail({
 }
 
 export function WorkspaceBottomNav({
+  defaultProperty,
   entitled,
   label,
   locale,
   root,
 }: {
+  /** The Property the switcher names when the URL names none. */
+  defaultProperty: string | undefined;
   entitled: readonly string[];
   label: string;
   locale: SupportedLocale;
   root: string;
 }) {
-  const entries = useWorkspaceNav(locale, entitled);
-  const withProperty = useWithProperty();
+  const entries = useWorkspaceNav(locale, entitled, defaultProperty);
+  const withProperty = useWithProperty(defaultProperty);
 
   return (
     <AppBottomNav entries={entries} label={label} root={withProperty(root)} />

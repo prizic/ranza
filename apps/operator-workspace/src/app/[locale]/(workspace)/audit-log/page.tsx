@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ANY } from "../../../../features/audit-log/actions";
 import {
   AuditFilters,
@@ -58,6 +58,7 @@ export default async function AuditLogPage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
 
   const t = await getTranslations();
   const search = await searchParams;

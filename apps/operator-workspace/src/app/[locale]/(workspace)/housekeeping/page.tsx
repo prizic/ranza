@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { HousekeepingBoard } from "../../../../features/housekeeping/components/housekeeping-board";
 import { InspectionSettings } from "../../../../features/housekeeping/components/inspection-settings";
 import {
@@ -19,8 +19,8 @@ import { frontDeskProperty } from "../../../../server/front-desk";
  * whether it needs cleaning.
  *
  * Gated by the housekeeping capability. A viewer whose Organization is not
- * entitled to it, or who reaches no Property that has it, sees the empty state;
- * the database decides the rest.
+ * entitled to it, who reaches no Property that has it, or who names one where
+ * it is switched off, sees the empty state; the database decides the rest.
  */
 export default async function HousekeepingPage({
   params,
@@ -31,6 +31,7 @@ export default async function HousekeepingPage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
   await requireViewer(locale);
 
   const t = await getTranslations();
@@ -40,8 +41,8 @@ export default async function HousekeepingPage({
   if (!property) {
     return (
       <EmptyState
-        description={t("notEntitledDescription")}
-        title={t("notEntitledTitle")}
+        description={t("housekeeping.unavailableDescription")}
+        title={t("housekeeping.unavailableTitle")}
       />
     );
   }

@@ -13,6 +13,8 @@ export interface Messages {
   languageName: Record<SupportedLocale, string>;
   today: string;
   propertySwitcher: string;
+  /** The switcher's label when the URL names a Property it does not list. */
+  chooseProperty: string;
   mainNavigation: string;
   sections: string;
   back: string;
@@ -63,6 +65,9 @@ export interface Messages {
   departuresAt: string;
   noFrontDeskTitle: string;
   noFrontDeskDescription: string;
+  /** Finance is off at the Property named, or at every one the viewer reaches. */
+  noFinanceTitle: string;
+  noFinanceDescription: string;
   noArrivalsTitle: string;
   noArrivalsDescription: string;
   openEnded: string;
@@ -442,6 +447,9 @@ export interface Messages {
   /** The Housekeeping screen (RANZ-28). */
   housekeeping: {
     subtitle: string;
+    /** No Property the viewer may use housekeeping at, or not the one named. */
+    unavailableTitle: string;
+    unavailableDescription: string;
     noRoomsTitle: string;
     noRoomsDescription: string;
     statRooms: string;
@@ -660,6 +668,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     today: "Bugün",
     propertySwitcher: "Tesisler",
+    chooseProperty: "Tesis seçin",
     mainNavigation: "Ana gezinme",
     sections: "Bölümler",
     back: "Geri",
@@ -716,6 +725,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     noFrontDeskTitle: "Ön büro bu tesiste açık değil",
     noFrontDeskDescription:
       "Ön büro, organizasyonunuzun aboneliğinde yer aldığında ve tesiste etkinleştirildiğinde burada görünür.",
+    noFinanceTitle: "Finans bu tesiste açık değil",
+    noFinanceDescription:
+      "Finans, organizasyonunuzun aboneliğinde yer aldığında ve tesiste etkinleştirildiğinde burada görünür.",
     noArrivalsTitle: "Bugün giriş yok",
     noArrivalsDescription:
       "Bugün için bu tesiste bekleyen bir rezervasyon bulunmuyor.",
@@ -1122,6 +1134,9 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     housekeeping: {
       subtitle: "{property} — temizlik bekleyen odalar",
+      unavailableTitle: "Kat hizmetleri bu tesiste açık değil",
+      unavailableDescription:
+        "Kat hizmetleri, organizasyonunuzun aboneliğinde yer aldığında ve tesiste etkinleştirildiğinde burada görünür.",
       noRoomsTitle: "Henüz oda yok",
       noRoomsDescription:
         "Odalar ve yataklar ekranında eklenen odalar, temizlik durumlarıyla birlikte burada görünür.",
@@ -1368,6 +1383,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     today: "Today",
     propertySwitcher: "Properties",
+    chooseProperty: "Choose a Property",
     mainNavigation: "Main navigation",
     sections: "Sections",
     back: "Back",
@@ -1423,6 +1439,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     departuresAt: "Leaving today at",
     noFrontDeskTitle: "The front desk is not open at this Property",
     noFrontDeskDescription:
+      "It appears here once your Organization's Subscription includes it and the Property has it enabled.",
+    noFinanceTitle: "Finance is not open at this Property",
+    noFinanceDescription:
       "It appears here once your Organization's Subscription includes it and the Property has it enabled.",
     noArrivalsTitle: "No arrivals today",
     noArrivalsDescription: "Nobody is booked to arrive at this Property today.",
@@ -1830,6 +1849,9 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     housekeeping: {
       subtitle: "Which rooms need cleaning at {property}",
+      unavailableTitle: "Housekeeping is not on at this Property",
+      unavailableDescription:
+        "It appears here once your Organization's Subscription includes it and the Property has it enabled.",
       noRoomsTitle: "No rooms here yet",
       noRoomsDescription:
         "Rooms added under Rooms & beds appear here, with whether each one needs cleaning.",
@@ -2075,6 +2097,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     today: "اليوم",
     propertySwitcher: "المنشآت",
+    chooseProperty: "اختر منشأة",
     mainNavigation: "التنقل الرئيسي",
     sections: "الأقسام",
     back: "رجوع",
@@ -2130,6 +2153,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     noFrontDeskTitle: "المكتب الأمامي غير مفعّل في هذه المنشأة",
     noFrontDeskDescription:
       "يظهر هنا عندما يشمله اشتراك مؤسستك ويتم تفعيله في المنشأة.",
+    noFinanceTitle: "المالية غير مفعّلة في هذه المنشأة",
+    noFinanceDescription:
+      "تظهر هنا عندما يشملها اشتراك مؤسستك ويتم تفعيلها في المنشأة.",
     noArrivalsTitle: "لا يوجد وصول اليوم",
     noArrivalsDescription: "لا توجد حجوزات وصول لهذه المنشأة اليوم.",
     openEnded: "مفتوح المدة",
@@ -2523,6 +2549,9 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     housekeeping: {
       subtitle: "الغرف التي تحتاج إلى تنظيف في {property}",
+      unavailableTitle: "التدبير الفندقي غير مفعّل في هذه المنشأة",
+      unavailableDescription:
+        "يظهر هنا عندما يشمله اشتراك مؤسستك ويتم تفعيله في المنشأة.",
       noRoomsTitle: "لا توجد غرف بعد",
       noRoomsDescription:
         "تظهر هنا الغرف المضافة من شاشة الغرف والأسرّة، مع ما إذا كانت كل غرفة تحتاج إلى تنظيف.",

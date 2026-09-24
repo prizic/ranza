@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { LiveArrivals } from "../../../../features/front-office/components/live-arrivals";
 import { frontOfficeKeys } from "../../../../features/front-office/query-keys";
 import { Hydrated, requestQueryClient } from "../../../providers/hydrate";
@@ -40,6 +40,7 @@ export default async function ArrivalsPage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
 
   const t = await getTranslations();
   const viewer = await requireViewer(locale);

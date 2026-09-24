@@ -13,10 +13,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const setPropertyInspection = vi.fn();
 const setOrganizationInspection = vi.fn();
 const markUnits = vi.fn();
+const revalidatePath = vi.fn();
 
 // The application resolves its own copy of next, so the mock names that copy.
 vi.mock("../../apps/operator-workspace/node_modules/next/cache", () => ({
-  revalidatePath: vi.fn(),
+  revalidatePath: (...args: unknown[]) => revalidatePath(...args),
 }));
 vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
   currentViewer: async () => ({ userId: VIEWER }),
@@ -37,6 +38,8 @@ const ROOM = "dd000004-0000-4000-8000-000000000001";
 
 const { markRooms, setInspection } =
   await import("../../apps/operator-workspace/src/server/housekeeping");
+const { HousekeepingRefusedError } =
+  await import("../../packages/ranza/housekeeping/src");
 
 function form(fields: Record<string, string | string[]>): FormData {
   const data = new FormData();
@@ -54,6 +57,7 @@ beforeEach(() => {
   setPropertyInspection.mockReset().mockResolvedValue(undefined);
   setOrganizationInspection.mockReset().mockResolvedValue(undefined);
   markUnits.mockReset().mockResolvedValue({ marked: 1 });
+  revalidatePath.mockReset();
 });
 
 describe("the inspection setting's form", () => {
@@ -128,6 +132,20 @@ describe("the mark's form", () => {
       unitIds: [ROOM, ROOM],
       status: "clean",
     });
+  });
+
+  // HK-S2-13: what follows a refusal is the board the page reads next, so the
+  // refusal has to make it read again — the board a refused viewer is left
+  // looking at is otherwise the one that still offers them the controls.
+  it("answers a refused mark as refused and reads the board again (HK-S2-13)", async () => {
+    markUnits.mockRejectedValue(new HousekeepingRefusedError());
+    expect(
+      await markRooms(
+        idle,
+        form({ locale: "en", status: "clean", unitId: ROOM }),
+      ),
+    ).toEqual({ status: "refused" });
+    expect(revalidatePath).toHaveBeenCalledWith("/en/housekeeping");
   });
 
   it("refuses a malformed room id before it reaches the module", async () => {

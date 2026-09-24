@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { LiveRoomCalendar } from "../../../../features/room-calendar/components/live-room-calendar";
 import { frontOfficeKeys } from "../../../../features/front-office/query-keys";
 import {
@@ -43,6 +43,7 @@ export default async function RoomCalendarPage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
 
   const t = await getTranslations();
   const viewer = await requireViewer(locale);
