@@ -345,22 +345,33 @@ select is_empty(
 -- app.unit_is_sellable() is — they consult rows the caller's policies may hide
 -- — and neither writes, so the count of writers below is unchanged and the
 -- sweep above still reads zero.
+--
+-- Housekeeping (20260916003000) brought two more. app.housekeeping_status_holder_is_a_room()
+-- is a definer so a Unit the caller cannot see is still recognised as a bed,
+-- and it does not write. app.mark_unit_dirty_after_check_out() writes: it is
+-- the whole of what ranza_worker may do to housekeeping_unit_status, and it
+-- names app.worker_organization_id(), which is what IG-12 asks of a writer.
+-- The inspection setting (20260916003200) brought two that do not write:
+-- app.has_organization_wide_reach(), so a policy can read the caller's
+-- membership, and app.housekeeping_inspection_required(), so readiness never
+-- reads an invisible setting as "off".
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  23,
-  'the definer sweep looked at 23 functions; change this number deliberately');
+  27,
+  'the definer sweep looked at 27 functions; change this number deliberately');
 
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef and p.prosrc ~* '(insert|update|delete)\s'),
-  3,
-  'three of them write, which is what makes the assertion above a test');
+  4,
+  'four of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a twenty-fourth definer is a red test
+-- Part B: the inventory itself, so a twenty-eighth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions, and the three that
--- write are named in the comment above; the last two are rooms and beds.
+-- write are named in the comment above; two are rooms and beds; the last
+-- four are housekeeping.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -374,8 +385,10 @@ select set_eq(
         'organization_keeps_an_administrator','organization_permissions',
         'role_change_keeps_an_administrator','role_is_not_held',
         'role_permissions_are_in_the_catalogue',
-        'unit_can_be_blocked','unit_is_in_service'],
-  'and they are exactly the twenty-three the design gives a reason for');
+        'unit_can_be_blocked','unit_is_in_service',
+        'housekeeping_status_holder_is_a_room','mark_unit_dirty_after_check_out',
+        'has_organization_wide_reach','housekeeping_inspection_required'],
+  'and they are exactly the twenty-seven the design gives a reason for');
 
 select finish();
 rollback;

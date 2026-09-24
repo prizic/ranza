@@ -6,6 +6,7 @@ import { GuestDetailsError } from "@ranza/guests";
 import {
   ReservationPeriodError,
   REVERSAL_REASON,
+  UnitNotReadyError,
   UnitUnavailableError,
   type ReservationStayType,
 } from "@ranza/reservations";
@@ -30,8 +31,19 @@ import { currentViewer } from "./viewer";
  * being taken: out of reach, cancelled, already arrived, gone. They are one
  * outcome on purpose, because telling them apart would confirm that a
  * Reservation the viewer cannot see exists.
+ *
+ * `notReady` is not a refusal: housekeeping says the room is dirty, nothing was
+ * written, and the desk is asked whether to check in anyway (HK-S2-14).
  */
-export type CheckInOutcome = "idle" | "done" | "unavailable" | "refused";
+export type CheckInOutcome =
+  "idle" | "done" | "unavailable" | "notReady" | "refused";
+
+function isNotReady(error: unknown): error is UnitNotReadyError {
+  return (
+    error instanceof UnitNotReadyError ||
+    (error instanceof Error && error.name === "UnitNotReadyError")
+  );
+}
 
 /**
  * Both screens, after either action.
@@ -45,6 +57,7 @@ function revalidateFrontDesk(locale: string): void {
   revalidatePath(`/${locale}/arrivals`);
   revalidatePath(`/${locale}/departures`);
   revalidatePath(`/${locale}/reservations`);
+  revalidatePath(`/${locale}/housekeeping`);
 }
 
 export async function checkInReservation(
@@ -58,9 +71,16 @@ export async function checkInReservation(
   const locale = String(form.get("locale") ?? "");
   if (!isSupportedLocale(locale)) return "refused";
 
+  // The second press, after the warning: the submit button that says
+  // "check in anyway" carries this, and nothing else does.
+  const readinessAcknowledged = form.get("acknowledge") === "true";
+
   try {
-    await getComposition().reservations.checkIn(viewer.userId, reservationId);
+    await getComposition().reservations.checkIn(viewer.userId, reservationId, {
+      readinessAcknowledged,
+    });
   } catch (error) {
+    if (isNotReady(error)) return "notReady";
     return error instanceof UnitUnavailableError ? "unavailable" : "refused";
   }
 

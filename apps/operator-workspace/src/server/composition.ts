@@ -4,6 +4,7 @@ import { createAuthModule } from "@ranza/auth";
 import { createCoreModule } from "@ranza/core";
 import { createPrismaClient } from "@ranza/db";
 import { createFoliosModule } from "@ranza/folios";
+import { createHousekeepingModule } from "@ranza/housekeeping";
 import { createReservationsModule } from "@ranza/reservations";
 import { createStaffModule } from "@ranza/staff";
 
@@ -76,6 +77,7 @@ function compose() {
     // Organizations, it would let somebody grant themselves the right to.
     staff: createStaffModule({ db: tenantDb }),
     accommodation: createAccommodationModule({ db: tenantDb }),
+    housekeeping: createHousekeepingModule({ db: tenantDb }),
   };
 }
 

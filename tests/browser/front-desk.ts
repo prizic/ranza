@@ -67,9 +67,9 @@ export function testProperty(): string {
        -- Folio there is nowhere to put one.
        from target,
             -- And staff_administration, because the roster is the other screen
-            -- a browser test signs in to look at.
+            -- a browser test signs in to look at; housekeeping for the board.
             (values ('today'), ('front_desk'), ('finance'),
-                    ('staff_administration')) as wanted (key)
+                    ('staff_administration'), ('housekeeping')) as wanted (key)
        where not exists (
          select 1 from public.property_capabilities as held
          where held.property_id = target.id

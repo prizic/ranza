@@ -130,7 +130,7 @@ export const SCREENS: Screen[] = [
     module: "housekeeping",
     icon: Sparkles,
     blueprint: "5.4",
-    built: false,
+    built: true,
     section: "operations",
   },
   {

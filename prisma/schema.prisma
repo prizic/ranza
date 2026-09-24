@@ -66,6 +66,7 @@ model Organization {
   entitlements Entitlement[]
   guests       Guest[]
   staffRoles   StaffRole[]
+  housekeepingSettings HousekeepingSetting[]
 
   @@map("organizations")
 }
@@ -91,6 +92,7 @@ model Property {
   stays        Stay[]
   reservations Reservation[]
   folios       Folio[]
+  housekeepingSettings HousekeepingSetting[]
 
   @@unique([id, organizationId])
   @@index([organizationId], map: "properties_organization_idx")
@@ -139,6 +141,7 @@ model AccommodationUnit {
   children     AccommodationUnit[] @relation("UnitNesting")
   stays        Stay[]
   reservations Reservation[]
+  housekeeping HousekeepingUnitStatus[]
 
   /// A room's name is unique in its Property; a bed's is unique in its room.
   /// Two partial indexes rather than one over `(property_id, parent_id, name)`,
@@ -152,6 +155,55 @@ model AccommodationUnit {
   @@unique([id, propertyId, organizationId, unitType], map: "accommodation_units_nesting_key")
   @@index([parentId], map: "accommodation_units_parent_idx")
   @@map("accommodation_units")
+}
+
+/// Whether a room needs cleaning (blueprint 5.4, 18.2; ADR 0029). One row per
+/// status holder: a Unit with no parent, so a bed under a room answers to the
+/// room and a bed with no room holds its own. A holder with no row reads as
+/// clean. Whether a Unit is in service is `accommodation_units.status`, a
+/// different lifecycle that coexists with this one.
+model HousekeepingUnitStatus {
+  accommodationUnitId String   @id @map("accommodation_unit_id") @db.Uuid
+  propertyId          String   @map("property_id") @db.Uuid
+  organizationId      String   @map("organization_id") @db.Uuid
+  status              String
+  /// When the status last changed, stamped by the database rather than stated
+  /// by the caller. What a departure compares against: a status changed after
+  /// the Guest left is kept.
+  statusChangedAt     DateTime @default(now()) @map("status_changed_at") @db.Timestamptz(6)
+  /// The Staff Member who changed it, stamped by the database. Null when a
+  /// departure did. No foreign key, for the reason `audit.records.actor_id`
+  /// has none: who acted is history, not a live reference.
+  statusChangedBy     String?  @map("status_changed_by") @db.Uuid
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  unit AccommodationUnit @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([propertyId, status])
+  @@map("housekeeping_unit_status")
+}
+
+/// Whether a room must be inspected after cleaning before it counts as ready
+/// (RANZ-28 slice 3). One Organization default, a row with no Property, and at
+/// most one override per Property, where a null value means "use the default".
+/// Two partial unique indexes rather than one over both columns, because null
+/// is not equal to null and that version would allow any number of defaults.
+/// Reset to default clears the value; a row is never deleted.
+model HousekeepingSetting {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId       String   @map("organization_id") @db.Uuid
+  propertyId           String?  @map("property_id") @db.Uuid
+  inspectAfterCleaning Boolean? @map("inspect_after_cleaning")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  property     Property?    @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([organizationId], map: "housekeeping_settings_organization_default_key", where: raw("property_id IS NULL"))
+  @@unique([propertyId], map: "housekeeping_settings_property_override_key", where: raw("property_id IS NOT NULL"))
+  @@map("housekeeping_settings")
 }
 
 /// A named set of permissions (blueprint 7.2). A role is not a label: what a
