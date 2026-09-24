@@ -1,6 +1,7 @@
 import "server-only";
 import { createAccommodationModule } from "@ranza/accommodation";
 import { createAuthModule } from "@ranza/auth";
+import { createBusinessDayModule } from "@ranza/business-day";
 import { createCoreModule } from "@ranza/core";
 import { createPrismaClient } from "@ranza/db";
 import { createFoliosModule } from "@ranza/folios";
@@ -78,6 +79,7 @@ function compose() {
     staff: createStaffModule({ db: tenantDb }),
     accommodation: createAccommodationModule({ db: tenantDb }),
     housekeeping: createHousekeepingModule({ db: tenantDb }),
+    businessDay: createBusinessDayModule({ db: tenantDb }),
   };
 }
 

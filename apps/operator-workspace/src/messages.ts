@@ -99,6 +99,7 @@ export interface Messages {
   reasonTooLong: string;
   undoCheckInRefused: string;
   stayHasCharges: string;
+  checkInDayClosed: string;
   stayType: Record<"guest" | "resident", string>;
   unitType: Record<"room" | "bed" | "apartment" | "suite", string>;
   reservationStatus: Record<
@@ -257,6 +258,7 @@ export interface Messages {
       | "checkIn"
       | "checkOut"
       | "cancel"
+      | "closeDay"
       | "manageFolio"
       | "postCharge"
       | "administerStaff"
@@ -517,6 +519,7 @@ export interface Messages {
     >;
     unit: Record<"added" | "blocked" | "unblocked", string>;
     housekeeping: Record<"status_changed" | "inspection_set", string>;
+    business_day: Record<"closed", string>;
   };
   auditSubject: Record<
     | "reservation"
@@ -526,9 +529,66 @@ export interface Messages {
     | "role"
     | "property"
     | "accommodation_unit"
-    | "organization",
+    | "organization"
+    | "business_day_close",
     string
   >;
+
+  /**
+   * Close the day (ADR 0034). `{date}` is a business date, already formatted;
+   * `{time}` is the Property's cutoff. Nothing here mentions Accounting or says
+   * a close cannot be undone: nothing receives the day's totals yet, and
+   * reopening a day is designed and deferred.
+   */
+  closeDay: {
+    at: string;
+    dueTitle: string;
+    dueDescription: string;
+    waiting: string;
+    preparingTitle: string;
+    preparingDescription: string;
+    notArrivedTitle: string;
+    notArrivedHelp: string;
+    notDepartedTitle: string;
+    notDepartedHelp: string;
+    roomNightsTitle: string;
+    roomNightsHelp: string;
+    foliosTitle: string;
+    foliosHelp: string;
+    nothingOpen: string;
+    stepDone: string;
+    stepOpen: string;
+    notBlocking: string;
+    notAvailable: string;
+    dueOn: string;
+    dueOutOn: string;
+    leftOn: string;
+    openArrivals: string;
+    openDepartures: string;
+    openFolio: string;
+    close: string;
+    closing: string;
+    dialogTitle: string;
+    dialogQuiet: string;
+    dialogOpen: string;
+    final: string;
+    keepOpen: string;
+    reasonHint: string;
+    noPermission: string;
+    alreadyClosed: string;
+    reasonRequired: string;
+    refused: string;
+    recentTitle: string;
+    recentEmpty: string;
+    day: string;
+    closedBy: string;
+    automatically: string;
+    arrived: string;
+    departed: string;
+    nights: string;
+    leftOpen: string;
+    foliosOpen: string;
+  };
 
   table: TableMessages;
 
@@ -666,6 +726,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     undoCheckInRefused: "Bu giriş geri alınamıyor.",
     stayHasCharges:
       "Bu konaklamaya tutarlar işlendi; artık gerçekleşmiş sayılır ve giriş geri alınamaz. Tutarları Finans'ta düzeltin.",
+    checkInDayClosed:
+      "Bu girişin yapıldığı iş günü kapatıldı, bu yüzden giriş geri alınamaz. Misafir kalmıyorsa çıkışını Çıkışlar ekranından yapın.",
     stayType: { guest: "Misafir", resident: "Sakin" },
     unitType: {
       room: "Oda",
@@ -825,6 +887,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         checkIn: "Giriş yapma",
         checkOut: "Çıkış yapma",
         cancel: "Rezervasyon iptali ve gelmedi kaydı",
+        closeDay: "Günü kapatma",
         manageFolio: "Folyo açma ve kapatma",
         postCharge: "Folyoya ücret işleme",
         administerStaff: "Ekibi yönetme",
@@ -1108,6 +1171,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         status_changed: "Oda durumu değiştirildi",
         inspection_set: "Temizlik sonrası kontrol ayarı değiştirildi",
       },
+      business_day: { closed: "İş günü kapatıldı" },
     },
     auditSubject: {
       reservation: "Rezervasyon",
@@ -1118,6 +1182,69 @@ export const messages: Record<SupportedLocale, Messages> = {
       property: "Tesis",
       accommodation_unit: "Konaklama birimi",
       organization: "Organizasyon",
+      business_day_close: "İş günü",
+    },
+    closeDay: {
+      at: "Günün kapatıldığı tesis:",
+      dueTitle: "{date} kapatılmayı bekliyor",
+      dueDescription:
+        "Gün {time} saatinde bitti. Hâlâ açık olanları çözün ya da bir gerekçeyle kapatın.",
+      waiting:
+        "{n, plural, one {Kapatılmayı bekleyen # gün var.} other {Kapatılmayı bekleyen # gün var; önce en eskisi kapatılır.}}",
+      preparingTitle: "{date} hâlâ açık",
+      preparingDescription:
+        "{time} saatinden sonra kapatılabilir. Aşağıda açık kalan her şey kapatmayı bekletir.",
+      notArrivedTitle: "Giriş yapmamış rezervasyonlar",
+      notArrivedHelp:
+        "Gelmedi olarak işaretleyin, rezervasyonu iptal edin ya da hâlâ geliyorlarsa girişlerini yapın.",
+      notDepartedTitle: "Çıkış günü geçmiş konaklayanlar",
+      notDepartedHelp: "Çıkışlarını Çıkışlar ekranından yapın.",
+      roomNightsTitle: "Oda geceleri",
+      roomNightsHelp:
+        "Odalara fiyat tanımlandığında oda geceleri burada işlenecek. Günü kapatmak hiçbir ücret işlemez.",
+      foliosTitle: "Açık bırakılan folyolar",
+      foliosHelp:
+        "Hesabı açıkken ayrılan misafirler. Kapanışla birlikte kaydedilir; kapatmayı bekletmez.",
+      nothingOpen: "Açık bir şey kalmadı.",
+      stepDone: "Tamam",
+      stepOpen: "{n, plural, other {# açık}}",
+      notBlocking: "Kapatmayı bekletmez",
+      notAvailable: "Henüz yok",
+      dueOn: "Beklenen giriş {date}",
+      dueOutOn: "Beklenen çıkış {date}",
+      leftOn: "Ayrıldı {date}",
+      openArrivals: "Girişleri aç",
+      openDepartures: "Çıkışları aç",
+      openFolio: "Folyoyu aç",
+      close: "{date} gününü kapat",
+      closing: "Kapatılıyor…",
+      dialogTitle: "{date} kapatılsın mı?",
+      dialogQuiet:
+        "Açık bir şey kalmadı. Kapanış, günün girişlerini, çıkışlarını ve dolu geceleri kaydeder.",
+      dialogOpen:
+        "{n, plural, one {# kayıt hâlâ açık. Gerekçenizle birlikte kapanışa kaydedilir.} other {# kayıt hâlâ açık. Gerekçenizle birlikte kapanışa kaydedilir.}}",
+      final:
+        "Kapatılmış bir günü yeniden açmak henüz mümkün değil; kapatmadan önce tarihi kontrol edin.",
+      keepOpen: "Şimdi değil",
+      reasonHint:
+        "Günün neden açık kayıtlarla kapandığını yazın. Kapanışla birlikte saklanır.",
+      noPermission:
+        "Bu günü görebilirsiniz; kapatmak için Günü kapatma yetkisi gerekir.",
+      alreadyClosed: "Bu gün başka bir masa tarafından zaten kapatıldı.",
+      reasonRequired:
+        "Hâlâ açık kayıtlar var, bu yüzden bir gerekçe gerekiyor.",
+      refused:
+        "Bu gün şu anda kapatılamıyor. Sayfa kapatılabilecek günü gösteriyor.",
+      recentTitle: "Son kapatılan günler",
+      recentEmpty: "Bu tesiste henüz kapatılmış bir gün yok.",
+      day: "Gün",
+      closedBy: "Kapatan",
+      automatically: "Otomatik",
+      arrived: "Girişler",
+      departed: "Çıkışlar",
+      nights: "Geceler",
+      leftOpen: "Açık kalan",
+      foliosOpen: "Açık folyolar",
     },
     table: {
       results: "{n, plural, other {# sonuç}}",
@@ -1149,6 +1276,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       rooms: "Odalar ve yataklar",
       arrivals: "Girişler",
       departures: "Çıkışlar",
+      "close-day": "Günü kapat",
       "guest-experience": "Konuk deneyimi",
       housekeeping: "Kat hizmetleri",
       "food-and-beverage": "Yiyecek içecek",
@@ -1273,6 +1401,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     undoCheckInRefused: "That check-in cannot be withdrawn.",
     stayHasCharges:
       "Charges have been posted to this Stay, so it counts as having happened and the check-in can't be undone. Correct the charges in Finance.",
+    checkInDayClosed:
+      "The business day this check-in was made on has been closed, so it can't be withdrawn. If the Guest is not staying, check them out on the departures screen.",
     stayType: { guest: "Guest", resident: "Resident" },
     unitType: {
       room: "Room",
@@ -1432,6 +1562,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         checkIn: "Check somebody in",
         checkOut: "Check somebody out",
         cancel: "Cancel a booking or record a no-show",
+        closeDay: "Close the day",
         manageFolio: "Open and close a Folio",
         postCharge: "Post a charge",
         administerStaff: "Administer staff",
@@ -1714,6 +1845,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         status_changed: "Room status changed",
         inspection_set: "Room check after cleaning changed",
       },
+      business_day: { closed: "Business day closed" },
     },
     auditSubject: {
       reservation: "Reservation",
@@ -1724,6 +1856,68 @@ export const messages: Record<SupportedLocale, Messages> = {
       property: "Property",
       accommodation_unit: "Accommodation unit",
       organization: "Organization",
+      business_day_close: "Business day",
+    },
+    closeDay: {
+      at: "Closing the day at",
+      dueTitle: "{date} is ready to close",
+      dueDescription:
+        "The day ended at {time}. Clear what is still open, or close it with a reason.",
+      waiting:
+        "{n, plural, one {# day is waiting to be closed.} other {# days are waiting to be closed; the oldest comes first.}}",
+      preparingTitle: "{date} is still open",
+      preparingDescription:
+        "It can be closed after {time}. Anything still open below will hold the close up.",
+      notArrivedTitle: "Arrivals not checked in",
+      notArrivedHelp:
+        "Mark a no-show, cancel the booking, or check them in if they are still coming.",
+      notDepartedTitle: "Departures still in house",
+      notDepartedHelp: "Check them out on the departures screen.",
+      roomNightsTitle: "Room nights",
+      roomNightsHelp:
+        "Room nights will be posted here once rooms have rates. Closing a day charges nothing.",
+      foliosTitle: "Folios left open",
+      foliosHelp:
+        "Guests who left with their bill still open. They are recorded with the close and do not hold it up.",
+      nothingOpen: "Nothing left open.",
+      stepDone: "Done",
+      stepOpen: "{n, plural, other {# open}}",
+      notBlocking: "Does not hold up the close",
+      notAvailable: "Not available yet",
+      dueOn: "Due {date}",
+      dueOutOn: "Due out {date}",
+      leftOn: "Left {date}",
+      openArrivals: "Open arrivals",
+      openDepartures: "Open departures",
+      openFolio: "Open Folio",
+      close: "Close {date}",
+      closing: "Closing…",
+      dialogTitle: "Close {date}?",
+      dialogQuiet:
+        "Nothing is left open. The close records the day's arrivals, departures and nights occupied.",
+      dialogOpen:
+        "{n, plural, one {# item is still open. It is recorded with the close, with your reason.} other {# items are still open. They are recorded with the close, with your reason.}}",
+      final:
+        "Reopening a closed day is not available yet, so check the date before you close it.",
+      keepOpen: "Not now",
+      reasonHint:
+        "Say why the day closes with items open. It is kept with the close.",
+      noPermission:
+        "You can see this day, but closing it needs the Close the day permission.",
+      alreadyClosed: "This day has already been closed by another desk.",
+      reasonRequired: "Items are still open, so a reason is needed.",
+      refused:
+        "This day cannot be closed right now. The page shows the day that can.",
+      recentTitle: "Recently closed",
+      recentEmpty: "No day has been closed here yet.",
+      day: "Day",
+      closedBy: "Closed by",
+      automatically: "Automatically",
+      arrived: "Arrivals",
+      departed: "Departures",
+      nights: "Nights",
+      leftOpen: "Left open",
+      foliosOpen: "Folios open",
     },
     table: {
       results: "{n, plural, one {# result} other {# results}}",
@@ -1755,6 +1949,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       rooms: "Rooms & beds",
       arrivals: "Arrivals",
       departures: "Departures",
+      "close-day": "Close the day",
       "guest-experience": "Guest Experience",
       housekeeping: "Housekeeping",
       "food-and-beverage": "Food & Beverage",
@@ -1877,6 +2072,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     undoCheckInRefused: "لا يمكن التراجع عن تسجيل الوصول هذا.",
     stayHasCharges:
       "سُجِّلت مبالغ على هذه الإقامة، لذلك تُعدّ قد حدثت فعلًا ولا يمكن التراجع عن تسجيل الوصول. صحِّح المبالغ من قسم المالية.",
+    checkInDayClosed:
+      "أُغلق يوم العمل الذي سُجِّل فيه هذا الوصول، لذلك لا يمكن التراجع عنه. إن لم يكن الضيف مقيمًا، فسجّل مغادرته من شاشة المغادرة.",
     stayType: { guest: "ضيف", resident: "مقيم" },
     unitType: {
       room: "غرفة",
@@ -2030,6 +2227,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         checkIn: "تسجيل الدخول",
         checkOut: "تسجيل المغادرة",
         cancel: "إلغاء حجز أو تسجيل عدم الحضور",
+        closeDay: "إغلاق اليوم",
         manageFolio: "فتح وإغلاق الحساب",
         postCharge: "تسجيل رسم على الحساب",
         administerStaff: "إدارة الفريق",
@@ -2306,6 +2504,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         status_changed: "تم تغيير حالة الغرفة",
         inspection_set: "تم تغيير إعداد الفحص بعد التنظيف",
       },
+      business_day: { closed: "أُغلق يوم العمل" },
     },
     auditSubject: {
       reservation: "حجز",
@@ -2316,6 +2515,69 @@ export const messages: Record<SupportedLocale, Messages> = {
       property: "منشأة",
       accommodation_unit: "وحدة إقامة",
       organization: "المؤسسة",
+      business_day_close: "يوم العمل",
+    },
+    closeDay: {
+      at: "إغلاق اليوم في",
+      dueTitle: "{date} جاهز للإغلاق",
+      dueDescription:
+        "انتهى اليوم عند {time}. عالج ما زال مفتوحًا، أو أغلقه مع ذكر السبب.",
+      waiting:
+        "{n, plural, zero {لا أيام تنتظر الإغلاق.} one {يوم واحد ينتظر الإغلاق.} two {يومان ينتظران الإغلاق، ويُغلق الأقدم أولًا.} few {# أيام تنتظر الإغلاق، ويُغلق الأقدم أولًا.} many {# يومًا تنتظر الإغلاق، ويُغلق الأقدم أولًا.} other {# يوم تنتظر الإغلاق، ويُغلق الأقدم أولًا.}}",
+      preparingTitle: "{date} ما زال مفتوحًا",
+      preparingDescription:
+        "يمكن إغلاقه بعد {time}. أي شيء ما زال مفتوحًا أدناه سيؤخر الإغلاق.",
+      notArrivedTitle: "حجوزات لم يُسجَّل وصولها",
+      notArrivedHelp:
+        "سجّل عدم الحضور، أو ألغِ الحجز، أو سجّل وصولهم إن كانوا ما زالوا قادمين.",
+      notDepartedTitle: "مغادرات ما زالت في المنشأة",
+      notDepartedHelp: "سجّل مغادرتهم من شاشة المغادرة.",
+      roomNightsTitle: "ليالي الغرف",
+      roomNightsHelp:
+        "ستُسجَّل ليالي الغرف هنا عندما تكون للغرف أسعار. إغلاق اليوم لا يفرض أي رسوم.",
+      foliosTitle: "حسابات بقيت مفتوحة",
+      foliosHelp:
+        "ضيوف غادروا وحسابهم ما زال مفتوحًا. يُسجَّلون مع الإغلاق ولا يؤخرونه.",
+      nothingOpen: "لم يبقَ شيء مفتوح.",
+      stepDone: "تم",
+      stepOpen:
+        "{n, plural, zero {لا شيء مفتوح} one {عنصر مفتوح} two {عنصران مفتوحان} few {# عناصر مفتوحة} many {# عنصرًا مفتوحًا} other {# عنصر مفتوح}}",
+      notBlocking: "لا يؤخر الإغلاق",
+      notAvailable: "غير متاح بعد",
+      dueOn: "الوصول المتوقع {date}",
+      dueOutOn: "المغادرة المتوقعة {date}",
+      leftOn: "غادر {date}",
+      openArrivals: "فتح الوصول",
+      openDepartures: "فتح المغادرة",
+      openFolio: "فتح الحساب",
+      close: "إغلاق {date}",
+      closing: "جارٍ الإغلاق…",
+      dialogTitle: "إغلاق {date}؟",
+      dialogQuiet:
+        "لم يبقَ شيء مفتوح. يسجّل الإغلاق حالات الوصول والمغادرة والليالي المشغولة في هذا اليوم.",
+      dialogOpen:
+        "{n, plural, zero {لا شيء مفتوح.} one {ما زال عنصر واحد مفتوحًا. سيُسجَّل مع الإغلاق مع سببك.} two {ما زال عنصران مفتوحين. سيُسجَّلان مع الإغلاق مع سببك.} few {ما زالت # عناصر مفتوحة. ستُسجَّل مع الإغلاق مع سببك.} many {ما زال # عنصرًا مفتوحًا. ستُسجَّل مع الإغلاق مع سببك.} other {ما زال # عنصر مفتوحًا. ستُسجَّل مع الإغلاق مع سببك.}}",
+      final:
+        "إعادة فتح يوم مغلق غير متاحة بعد، لذا تحقّق من التاريخ قبل الإغلاق.",
+      keepOpen: "ليس الآن",
+      reasonHint:
+        "اذكر سبب إغلاق اليوم مع وجود عناصر مفتوحة. يُحفظ مع الإغلاق.",
+      noPermission:
+        "يمكنك رؤية هذا اليوم، لكن إغلاقه يتطلب صلاحية إغلاق اليوم.",
+      alreadyClosed: "أغلق مكتب آخر هذا اليوم بالفعل.",
+      reasonRequired: "ما زالت هناك عناصر مفتوحة، لذلك يلزم ذكر سبب.",
+      refused:
+        "لا يمكن إغلاق هذا اليوم الآن. تعرض الصفحة اليوم الذي يمكن إغلاقه.",
+      recentTitle: "أيام أُغلقت مؤخرًا",
+      recentEmpty: "لم يُغلق أي يوم هنا بعد.",
+      day: "اليوم",
+      closedBy: "أغلقه",
+      automatically: "تلقائيًا",
+      arrived: "الوصول",
+      departed: "المغادرة",
+      nights: "الليالي",
+      leftOpen: "بقي مفتوحًا",
+      foliosOpen: "حسابات مفتوحة",
     },
     table: {
       results:
@@ -2349,6 +2611,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       rooms: "الغرف والأسرّة",
       arrivals: "الوصول",
       departures: "المغادرة",
+      "close-day": "إغلاق اليوم",
       "guest-experience": "تجربة الضيف",
       housekeeping: "خدمة الغرف",
       "food-and-beverage": "الأطعمة والمشروبات",

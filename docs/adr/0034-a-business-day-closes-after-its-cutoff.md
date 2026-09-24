@@ -43,16 +43,27 @@ what is open so the desk can clear it, and says when the day can be closed.
 `app.property_today()` is never moved by a close, so everything that already
 reads it — arrivals, departures, check-in, the no-show rule — is unchanged.
 
-That freezes the snapshot by construction. Every date the front desk writes is
-`app.property_today()` or later: a check-in's arrival, a check-out's departure,
-and a booking's first night. So a day before today receives no new dated write
-except in two ways, and each is closed by a trigger:
+That freezes the snapshot, with one gap the clock leaves open. Every date the
+front desk writes is `app.property_today()` or later — a check-in's arrival, a
+check-out's departure, a booking's first night — but that "today" is read at the
+start of a transaction, so a check-in or check-out that began before the cutoff
+can commit after the day has closed. A trigger closes it, and the other two ways
+a closed day could change:
 
+- **A Stay's dates** (`stays_keep_closed_days`). A Stay may not begin, end or be
+  withdrawn on a day that is closed. It takes the Property's lock shared where
+  the close takes it exclusive, so check-ins do not queue behind each other, a
+  close waits for one in flight and then counts it, and one that arrives after
+  the close is refused and pressed again on the new day. Withdrawing a check-in
+  on a closed day is the case a person meets: it would put an unarrived booking
+  back into a day that is finalized.
 - **A cutoff or time zone change** that would move today back onto a closed day
   is refused (`properties_keep_today_after_the_last_close`).
-- **Withdrawing a check-in** dated on a closed day is refused
-  (`stays_withdrawal_keeps_closed_days`): it would put an unarrived booking back
-  into a day that is finalized.
+
+Both refuse with SQLSTATE `RZ001`, the first code in a class Postgres does not
+use and this product now does. `55000` was taken: withdrawing a check-in
+already raises it for "money has been posted", and the desk needs to be told
+which of the two it is.
 
 ### The close is one append-only row, stamped by the database
 
@@ -62,24 +73,29 @@ Staff Member and the worker closing the same day at the same moment make one
 row, and the loser is told the day is already closed.
 
 The closer supplies four columns — the Organization, the Property, the day and a
-reason — by a column-level grant. Everything else is the database's. A
-`security definer` trigger, `app.business_day_close_is_stamped()`, runs before
-the insert and
+reason — by a column-level grant. Everything else is the database's. A trigger,
+`app.business_day_close_is_stamped()`, runs before the insert and
 
 1. checks its caller: a Staff Member must reach the Property with the front desk
    capability, and the worker must be in that Organization's context — so a
    Property in another Organization is refused before anything about it is read;
-2. takes the Property's advisory lock, namespace 3 (1 is the Stay, 2 the Unit);
+2. takes the Property's advisory lock, namespace 3 (1 is the Stay, 2 the Unit),
+   exclusive;
 3. refuses a day that has not ended, and a day whose previous day is not
    closed — the first close at a Property is the day before today;
 4. names the closer: the Staff Member, or the worker's job;
 5. computes the snapshot — arrivals, departures, nights occupied, departed Guests
    whose Folio is still open — and the items left open.
 
-It is a definer so the snapshot is the Property's and not the closer's: a
-Folio the closer's policies no longer admit is still counted. Both paths end in
-this one insert, so a manual close and an automatic one cannot record different
-things.
+It runs as the closer, and its snapshot is still the Property's: a closer must
+reach the Property, and Staff read stays, reservations and folios by reach
+alone, so nothing the Property holds is hidden from the count. The worker
+reaches it from inside a definer, as that definer's owner. Making it a definer
+would have guarded against nothing that exists, and no test could have told the
+two apart; the three read policies are pinned instead, so narrowing one fails
+the build and says the trigger must become a definer then (CD-S1-17). Both paths
+end in this one insert, so a manual close and an automatic one cannot record
+different things.
 
 Items left open are bookings whose first night was the day or earlier and which
 are still `requested` or `confirmed`, and Guests in house whose departure was the

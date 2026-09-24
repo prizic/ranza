@@ -112,6 +112,7 @@ describe("every catalogue parses", () => {
                 property: "x",
                 room: "x",
                 value: "x",
+                time: "04:00",
               }),
             ).not.toThrow();
             return;

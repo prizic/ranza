@@ -16,6 +16,7 @@ import type {
   CapabilityRef,
   EntitledProperty,
 } from "@ranza/core";
+import type { CloseTheDay } from "@ranza/business-day";
 import { FOLIO_CAPABILITY } from "@ranza/folios";
 import type { FolioDetail, FolioSummary } from "@ranza/folios";
 import { FRONT_DESK_CAPABILITY } from "@ranza/reservations";
@@ -88,6 +89,7 @@ export type {
   AuditNames,
   AuditPage,
   BookableUnit,
+  CloseTheDay,
   Departure,
   FolioDetail,
   FolioSummary,
@@ -241,6 +243,23 @@ export async function departures(
     propertyId,
     view,
   );
+}
+
+/**
+ * Close the day at one Property: the day waiting to be closed, what is still
+ * open on it, and the recent closes — or null when the viewer cannot reach the
+ * Property with the front desk, which is the same answer for one that does not
+ * exist.
+ *
+ * Not `cache`d: closing, a no-show and a cancellation all change it, and the
+ * request that made one re-reads.
+ */
+export async function closeTheDay(
+  propertyId: string,
+): Promise<CloseTheDay | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().businessDay.getCloseTheDay(viewer.userId, propertyId);
 }
 
 /**

@@ -41,6 +41,7 @@ export const KNOWN_ACTIONS = [
   "unit.unblocked",
   "housekeeping.status_changed",
   "housekeeping.inspection_set",
+  "business_day.closed",
 ] as const;
 
 export type KnownAction = (typeof KNOWN_ACTIONS)[number];
@@ -54,6 +55,7 @@ export const KNOWN_SUBJECTS = [
   "property",
   "accommodation_unit",
   "organization",
+  "business_day_close",
 ] as const;
 
 export type KnownSubject = (typeof KNOWN_SUBJECTS)[number];

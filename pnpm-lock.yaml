@@ -120,6 +120,9 @@ importers:
       '@ranza/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@ranza/business-day':
+        specifier: workspace:*
+        version: link:../../packages/ranza/business-day
       '@ranza/core':
         specifier: workspace:*
         version: link:../../packages/ranza/core
@@ -283,6 +286,21 @@ importers:
       '@ranza/platform-audit':
         specifier: workspace:*
         version: link:../../platform/audit
+
+  packages/ranza/business-day:
+    dependencies:
+      '@ranza/db':
+        specifier: workspace:*
+        version: link:../../db
+      '@ranza/platform-audit':
+        specifier: workspace:*
+        version: link:../../platform/audit
+      '@ranza/platform-outbox':
+        specifier: workspace:*
+        version: link:../../platform/outbox
+      '@ranza/reservations':
+        specifier: workspace:*
+        version: link:../reservations
 
   packages/ranza/core:
     dependencies:

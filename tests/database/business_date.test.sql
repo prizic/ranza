@@ -10,7 +10,7 @@
 -- the cutoff instead of subtracting it, returning the calendar date, dropping
 -- the cutoff check, widening it to 02:00 — and confirming it went red.
 begin;
-select plan(17);
+select plan(18);
 
 -- ---------------------------------------------------------------------------
 -- The boundary, at a Property that never changes its clocks
@@ -212,12 +212,23 @@ select is(
   'the new cutoff is what today is read with from now on'
 );
 
+-- One trigger fires, and it only refuses: a cutoff may not move today back onto
+-- a day that is closed (ADR 0034). Anything else here would be something
+-- re-dating rows when a cutoff moves, which CO-S1-20 forbids, so the guard is
+-- named and its body is read for a write rather than the count simply raised.
 select is(
-  (select count(*) from information_schema.triggers
+  (select coalesce(string_agg(trigger_name::text, ',' order by trigger_name), '')
+     from information_schema.triggers
     where event_object_schema = 'public' and event_object_table = 'properties'
       and event_manipulation = 'UPDATE'),
-  0::bigint,
-  'nothing fires when a Property changes: moving a cutoff writes nothing else'
+  'properties_keep_today_after_the_last_close',
+  'nothing fires when a Property changes but the guard that keeps today after the last close'
+);
+
+select ok(
+  (select prosrc !~* '(insert|update|delete)\s' from pg_proc
+    where proname = 'properties_keep_today_after_the_last_close'),
+  'and the guard writes nothing: moving a cutoff writes nothing else'
 );
 
 select * from finish();

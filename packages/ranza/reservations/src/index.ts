@@ -5,6 +5,7 @@ export {
   BALANCE_REASON,
   CANCELLATION_REASON,
   BalanceReasonError,
+  CheckInDayClosedError,
   CheckInError,
   CheckInReversalError,
   CheckOutError,
