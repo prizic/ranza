@@ -21,14 +21,17 @@ import { useReservationColumns } from "./columns";
  */
 export function ReservationsTable({
   locale,
+  propertyId,
   reservations,
 }: {
   locale: SupportedLocale;
   reservations: readonly ReservationRow[];
+  /** The Property the rows belong to, which links out of them name. */
+  propertyId: string;
 }) {
   const t = useTranslations();
   const labels = useTableLabels();
-  const columns = useReservationColumns(locale);
+  const columns = useReservationColumns(locale, propertyId);
 
   return (
     <div className="mt-4">
@@ -43,7 +46,8 @@ export function ReservationsTable({
           />
         }
         labels={labels}
-        searchColumns={["guestName", "unitName"]}
+        getRowId={(row) => row.reservationId}
+        searchColumns={["guestName", "unitName", "roomName", "reference"]}
       />
     </div>
   );

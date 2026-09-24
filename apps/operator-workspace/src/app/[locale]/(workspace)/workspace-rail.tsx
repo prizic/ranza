@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { AppBottomNav, AppSidebar, type SidebarLabels } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
-import { useWorkspaceNav } from "../../../lib/nav";
+import { useWithProperty, useWorkspaceNav } from "../../../lib/nav";
 
 /**
  * The workspace sidebar / rail, with the navigation tree built on the client.
@@ -31,6 +31,7 @@ export function WorkspaceRail({
   root: string;
 }) {
   const entries = useWorkspaceNav(locale, entitled);
+  const withProperty = useWithProperty();
 
   return (
     <AppSidebar
@@ -39,7 +40,7 @@ export function WorkspaceRail({
       brand={brand}
       entries={entries}
       labels={labels}
-      root={root}
+      root={withProperty(root)}
     />
   );
 }
@@ -56,6 +57,9 @@ export function WorkspaceBottomNav({
   root: string;
 }) {
   const entries = useWorkspaceNav(locale, entitled);
+  const withProperty = useWithProperty();
 
-  return <AppBottomNav entries={entries} label={label} root={root} />;
+  return (
+    <AppBottomNav entries={entries} label={label} root={withProperty(root)} />
+  );
 }

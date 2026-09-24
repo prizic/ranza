@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { psql } from "./local-database";
 import { signIn, testProperty } from "./front-desk";
@@ -9,12 +9,12 @@ import { signIn, testProperty } from "./front-desk";
  * The room calendar in a browser (RANZ-25).
  *
  * The integration suite proves which bars the read returns. This proves what
- * only a browser can: that they are drawn where their dates are, that the
- * named gap is visible as two bars and a word, that the drawer opens from the
+ * only a browser can: that they are drawn where their dates are, that an
+ * overlap is visible as two bars and a word, that the drawer opens from the
  * bar and from the reader's side of the screen, and that Arabic mirrors.
  *
- * Each run brings its own room, an in-house Guest and a booking made over
- * their remaining nights, and takes nothing back: Stays and Reservations are
+ * Each run brings its own room, an in-house Guest and a booking over their
+ * remaining nights, and takes nothing back: Stays and Reservations are
  * operational history.
  */
 
@@ -26,35 +26,40 @@ interface Fixture {
 }
 
 /**
- * An in-house Guest from yesterday to three days on, and a booking made over
- * some of those nights — by default from tomorrow to four days on.
+ * An in-house Guest from yesterday to three days on, and a booking over some
+ * of those nights — by default from tomorrow to four days on.
+ *
+ * unit_holds_one_occupancy refuses that booking now, so it is a row from
+ * before the trigger (RC-S1-25), written with the trigger lifted for the one
+ * statement. The other way an overlap arises, the day passing (RC-S1-26),
+ * would mean moving the shared test Property's timezone under every other
+ * spec.
  */
-function aRoomWithTheNamedGap(promisedNights = { from: 1, to: 4 }): Fixture {
+function aRoomWithAnOverlap(promisedNights = { from: 1, to: 4 }): Fixture {
   const propertyId = testProperty();
   const tag = `CAL-${randomUUID().slice(0, 6)}`;
   const inHouse = `Resident ${tag}`;
   const promised = `Promised ${tag}`;
-  psql(
+  const room = psql(
     `with room as (
        insert into public.accommodation_units
          (property_id, organization_id, name, unit_type, capacity)
        select id, organization_id, '${tag}', 'room', 2
          from public.properties where id = '${propertyId}'
        returning id, property_id, organization_id
-     ), guests as (
+     ), guest as (
        insert into public.guests (organization_id, full_name)
-       select organization_id, name
-         from room, (values ('${inHouse}'), ('${promised}')) as names (name)
-       returning id, full_name
+       select organization_id, '${inHouse}' from room
+       returning id
      ), arrived as (
        insert into public.reservations
          (organization_id, property_id, accommodation_unit_id, guest_id,
           stay_type, status, starts_on, ends_on)
-       select room.organization_id, room.property_id, room.id, guests.id,
+       select room.organization_id, room.property_id, room.id, guest.id,
               'guest', 'checked_in',
               app.property_today(room.property_id) - 1,
               app.property_today(room.property_id) + 3
-         from room, guests where guests.full_name = '${inHouse}'
+         from room, guest
        returning id, organization_id, property_id, accommodation_unit_id,
                  starts_on, ends_on
      ), stay as (
@@ -65,14 +70,32 @@ function aRoomWithTheNamedGap(promisedNights = { from: 1, to: 4 }): Fixture {
               'guest', 'in_house', starts_on, ends_on
          from arrived
      )
+     select id from room`,
+  );
+  psql(
+    `begin;
+     alter table public.reservations
+       disable trigger reservations_unit_holds_one_occupancy;
+     with guest as (
+       insert into public.guests (organization_id, full_name)
+       select organization_id, '${promised}'
+         from public.accommodation_units where id = '${room}'
+       returning id
+     )
      insert into public.reservations
        (organization_id, property_id, accommodation_unit_id, guest_id,
         stay_type, status, starts_on, ends_on)
-     select room.organization_id, room.property_id, room.id, guests.id,
+     select unit.organization_id, unit.property_id, unit.id, guest.id,
             'guest', 'confirmed',
-            app.property_today(room.property_id) + ${promisedNights.from},
-            app.property_today(room.property_id) + ${promisedNights.to}
-       from room, guests where guests.full_name = '${promised}'`,
+            app.property_today(unit.property_id) + ${promisedNights.from},
+            app.property_today(unit.property_id) + ${promisedNights.to}
+       from public.accommodation_units as unit, guest
+      where unit.id = '${room}';
+     -- The deferred pair check has to fire before the table can be altered.
+     set constraints all immediate;
+     alter table public.reservations
+       enable trigger reservations_unit_holds_one_occupancy;
+     commit;`,
   );
   return { propertyId, tag, inHouse, promised };
 }
@@ -87,10 +110,27 @@ async function openCalendar(
   );
 }
 
-test("RC-S1-25: the named gap is two bars, each marked, and a count", async ({
+/**
+ * Until React has hydrated it, a control is the server's copy, which the page
+ * moves into place as it streams: focus given to it then is dropped, and so is
+ * everything typed after. A warm server answers fast enough for a test to type
+ * in that gap, which a person never does. React marks a node it has taken over
+ * with a `__reactProps` key, so that is what is waited for, not a delay.
+ */
+async function whenHydrated(control: Locator): Promise<void> {
+  await expect
+    .poll(() =>
+      control.evaluate((node) =>
+        Object.keys(node).some((key) => key.startsWith("__reactProps")),
+      ),
+    )
+    .toBe(true);
+}
+
+test("RC-S1-25: an overlap is two bars, each marked, and a count", async ({
   page,
 }) => {
-  const fixture = aRoomWithTheNamedGap();
+  const fixture = aRoomWithAnOverlap();
   await signIn(page);
   await openCalendar(page, "en", fixture);
 
@@ -122,7 +162,7 @@ test("RC-S1-25: the named gap is two bars, each marked, and a count", async ({
 test("RC-S1-58 and RC-S1-64: a bar opens its drawer, which points to where the command lives", async ({
   page,
 }) => {
-  const fixture = aRoomWithTheNamedGap();
+  const fixture = aRoomWithAnOverlap();
   await signIn(page);
   await openCalendar(page, "en", fixture);
 
@@ -150,7 +190,7 @@ test("RC-S1-58 and RC-S1-64: a bar opens its drawer, which points to where the c
 test("RC-S1-60: the next week is a link that opens the same week", async ({
   page,
 }) => {
-  const fixture = aRoomWithTheNamedGap();
+  const fixture = aRoomWithAnOverlap();
   await signIn(page);
   await openCalendar(page, "en", fixture);
 
@@ -180,7 +220,7 @@ test("RC-S1-60: the next week is a link that opens the same week", async ({
 test("RC-S1-55: in Arabic the days run right to left and the drawer opens from the left", async ({
   page,
 }) => {
-  const fixture = aRoomWithTheNamedGap();
+  const fixture = aRoomWithAnOverlap();
   await signIn(page);
   await openCalendar(page, "ar", fixture);
 
@@ -210,7 +250,7 @@ test("RC-S1-25 at 30 days: the word is shown only where it can be read", async (
   page,
 }) => {
   // One night of overlap: the booking holds only the night after tomorrow.
-  const fixture = aRoomWithTheNamedGap({ from: 2, to: 3 });
+  const fixture = aRoomWithAnOverlap({ from: 2, to: 3 });
   await signIn(page);
   await page.goto(
     `/en/room-calendar?property=${fixture.propertyId}&q=${fixture.tag}&days=30`,
@@ -248,7 +288,7 @@ test("RC-S1-25 at 30 days: the word is shown only where it can be read", async (
 test("RC-S1-57: the room column stays pinned while the days scroll", async ({
   page,
 }) => {
-  const fixture = aRoomWithTheNamedGap();
+  const fixture = aRoomWithAnOverlap();
   await signIn(page);
   await page.setViewportSize({ width: 900, height: 800 });
   await page.goto(
@@ -272,7 +312,7 @@ test("RC-S1-57: the room column stays pinned while the days scroll", async ({
 test("RC-S1-60: a date typed from the keyboard opens that week, and nothing half typed reaches the URL", async ({
   page,
 }) => {
-  const fixture = aRoomWithTheNamedGap();
+  const fixture = aRoomWithAnOverlap();
   await signIn(page);
   await openCalendar(page, "en", fixture);
 
@@ -291,6 +331,7 @@ test("RC-S1-60: a date typed from the keyboard opens that week, and nothing half
   });
 
   const input = page.getByLabel("Go to a date");
+  await whenHydrated(input);
   // Focus rather than click: a click lands mid-field, on a later part or the
   // picker button. The order of the parts is the browser's own, so the date
   // is read back rather than assumed; the year passes through 0002, 0020 and

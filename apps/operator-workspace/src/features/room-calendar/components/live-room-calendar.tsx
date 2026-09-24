@@ -4,7 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { formatDate, formatTime, type SupportedLocale } from "@ranza/i18n";
+import {
+  formatDate,
+  formatTime,
+  localizeHref,
+  type SupportedLocale,
+} from "@ranza/i18n";
 import { Button, EmptyState, PageHeader, Skeleton } from "@ranza/ui";
 import type { RoomCalendar } from "../../../server/viewer";
 import { frontOfficeKeys, type Scope } from "../../front-office/query-keys";
@@ -219,7 +224,9 @@ export function LiveRoomCalendar({
         <EmptyState
           action={
             <Button asChild variant="outline">
-              <Link href={`/${locale}/rooms?property=${scope.propertyId}`}>
+              <Link
+                href={`${localizeHref(locale, "rooms")}?property=${scope.propertyId}`}
+              >
                 {t("goToRooms")}
               </Link>
             </Button>

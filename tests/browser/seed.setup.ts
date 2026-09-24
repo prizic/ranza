@@ -56,5 +56,11 @@ setup("a seeded Staff Member exists", () => {
  * By the time any spec calls `testProperty()` it is only ever reading.
  */
 setup("the browser tests have a Property of their own", () => {
-  testProperty();
+  // Following its Organization, which sets nothing: inspection off. A run that
+  // died halfway through the inspection spec leaves it switched on, and then
+  // every arrival in the suite checks into a room that is not ready.
+  psql(
+    `update public.housekeeping_settings set inspect_after_cleaning = null
+      where property_id = '${testProperty()}'`,
+  );
 });

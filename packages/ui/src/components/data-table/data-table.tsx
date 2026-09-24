@@ -84,6 +84,7 @@ export function DataTable<TData, TValue>({
   data,
   empty,
   facets = [],
+  getRowId,
   initialFilters = [],
   initialHidden = {},
   labels,
@@ -111,6 +112,15 @@ export function DataTable<TData, TValue>({
   /** Shown when the table has no rows at all, as opposed to no matches. */
   empty?: ReactNode;
   facets?: readonly Facet[];
+  /**
+   * A stable id for a row. Selection is keyed by it, so a table whose data is
+   * refreshed while rows are ticked keeps the same rows ticked rather than the
+   * same positions — without it, a room added above the selection would move
+   * the tick onto its neighbour. A row's cells keep their state the same way:
+   * on a polled list, a row that left would otherwise hand an open dialog, and
+   * whatever was typed in it, to the row that took its place.
+   */
+  getRowId?: (row: TData) => string;
   /** Filters applied on first render, for a link that arrives already narrowed. */
   initialFilters?: ColumnFiltersState;
   initialHidden?: VisibilityState;
@@ -184,6 +194,7 @@ export function DataTable<TData, TValue>({
   }, [columns, labels, selectable]);
 
   const table = useReactTable({
+    ...(getRowId ? { getRowId: (row: TData) => getRowId(row) } : {}),
     columns: tableColumns,
     data: data as TData[],
     state: {

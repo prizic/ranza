@@ -2,8 +2,7 @@
 %% owned by other features run, and because the Property's day passes. Both machines
 %% below are derived: every arrow names the command that moves it, or says that no
 %% command does. Anything not drawn is forbidden.
-%% "not built" means no command reaches it on main today; "front desk branch" means
-%% feat/front-desk-occupancy adds the command and it is not merged.
+%% "not built" means no command reaches it on main today.
 %% Slices: s1 draws both machines. s2 changes the default view and adds no transition.
 %% Ids are prefixed because a state id is global in Mermaid.
 stateDiagram-v2
@@ -21,8 +20,8 @@ stateDiagram-v2
     [*] --> b_confirmed : createReservation / built
     [*] --> b_in_house : walk-in check-in / not built
     b_requested --> b_confirmed : confirm / not built
-    b_requested --> b_gone : cancel / front desk branch
-    b_confirmed --> b_gone : cancel, markNoShow / front desk branch
+    b_requested --> b_gone : cancelReservation / built
+    b_confirmed --> b_gone : cancelReservation, markNoShow / built
     b_confirmed --> b_in_house : checkIn / built
     b_in_house --> b_confirmed : reverseCheckIn / built, no charges
     b_in_house --> b_overdue : the planned end passes / no command
@@ -45,22 +44,22 @@ stateDiagram-v2
     n_free --> n_held : createReservation / built
     n_free --> n_held : walk-in check-in / not built
     n_held --> n_free : checkOut before that night / built
-    n_held --> n_free : cancel, markNoShow / front desk branch
-    n_held --> n_overlap : createReservation over an in-house Stay / built, the named gap
+    n_held --> n_free : cancelReservation, markNoShow / built
+    n_held --> n_overlap : a row written before unit_holds_one_occupancy / no command
     n_held --> n_overlap : an overdue Stay reaches a booked night / no command
     n_overlap --> n_held : checkOut of the in-house Stay / built
-    n_overlap --> n_held : cancel, markNoShow of the booking / front desk branch
+    n_overlap --> n_held : cancelReservation, markNoShow of the booking / built
     n_free --> n_blocked : blockUnit / built
     n_blocked --> n_free : unblockUnit / built
     n_held --> n_blocked_booked : blockUnit over a confirmed booking / built
     n_blocked_booked --> n_held : unblockUnit / built
-    n_blocked_booked --> n_blocked : cancel, markNoShow / front desk branch
+    n_blocked_booked --> n_blocked : cancelReservation, markNoShow / built
   }
 
   note right of b_in_house
     A checked-in Reservation is drawn once, as its Stay.
     The Reservation's own status - checked_in, and checked_out
-    on the front desk branch - never draws a bar of its own.
+    since #60 - never draws a bar of its own.
   end note
 
   note right of b_overdue
@@ -78,6 +77,8 @@ stateDiagram-v2
     A block has no dates, so it is drawn from today on
     and never on a past night.
     Not drawn, so forbidden: booking a blocked Unit
-    (createReservation refuses it) and blocking a Unit
-    with a Stay in house (accommodation_units_can_be_blocked).
+    (createReservation refuses it), blocking a Unit
+    with a Stay in house (accommodation_units_can_be_blocked),
+    and booking over a Guest in house
+    (unit_holds_one_occupancy, since #60).
   end note

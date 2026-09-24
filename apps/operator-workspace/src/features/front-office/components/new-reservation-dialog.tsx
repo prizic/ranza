@@ -27,6 +27,7 @@ import {
   createReservation,
   type CreateReservationOutcome,
 } from "../../../server/front-office";
+import { unitLabel } from "../unit-label";
 
 /**
  * Taking a booking.
@@ -84,13 +85,15 @@ export function NewReservationDialog({
   const message =
     outcome === "unavailable"
       ? t("bookingUnavailable")
-      : outcome === "invalidPeriod"
-        ? t("bookingPeriodInvalid")
-        : outcome === "invalidGuest"
-          ? t("bookingGuestInvalid")
-          : outcome === "refused"
-            ? t("bookingRefused")
-            : null;
+      : outcome === "occupied"
+        ? t("bookingOverOccupant")
+        : outcome === "invalidPeriod"
+          ? t("bookingPeriodInvalid")
+          : outcome === "invalidGuest"
+            ? t("bookingGuestInvalid")
+            : outcome === "refused"
+              ? t("bookingRefused")
+              : null;
 
   return (
     <Dialog onOpenChange={setOpen} open={open}>
@@ -163,7 +166,8 @@ export function NewReservationDialog({
                 <SelectContent>
                   {units.map((unit) => (
                     <SelectItem key={unit.unitId} value={unit.unitId}>
-                      {unit.unitName} · {t(`unitType.${unit.unitType}`)}
+                      {unitLabel(unit.roomName, unit.unitName)} ·{" "}
+                      {t(`unitType.${unit.unitType}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>

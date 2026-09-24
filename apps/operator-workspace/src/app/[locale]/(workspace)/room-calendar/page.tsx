@@ -12,11 +12,11 @@ import {
 } from "../../../../features/room-calendar/view";
 import { Hydrated, requestQueryClient } from "../../../providers/hydrate";
 import {
-  currentViewer,
   entitledProperties,
   FRONT_DESK_CAPABILITY,
   ROOM_CALENDAR_DEFAULT_LENGTH,
   ROOM_CALENDAR_LENGTHS,
+  requireViewer,
   roomCalendar,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
@@ -45,7 +45,7 @@ export default async function RoomCalendarPage({
   if (!isSupportedLocale(locale)) notFound();
 
   const t = await getTranslations();
-  const viewer = await currentViewer();
+  const viewer = await requireViewer(locale);
   const search = await searchParams;
   const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
   const property = frontDeskProperty(
@@ -53,7 +53,7 @@ export default async function RoomCalendarPage({
     typeof search.property === "string" ? { property: search.property } : {},
   );
 
-  if (!property || !viewer) {
+  if (!property) {
     return (
       <EmptyState
         description={t("noFrontDeskDescription")}

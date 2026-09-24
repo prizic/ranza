@@ -13,6 +13,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { latestRecord } from "./audit-record";
 import { createPrismaClient } from "../../packages/db/src";
 import { createOutboxDispatcher } from "../../packages/platform/outbox/src";
 import { subscriptions } from "../../apps/worker/src/outbox/subscriptions";
@@ -524,6 +525,22 @@ describe("changing reach", () => {
       { organizationId: ORG, userId, propertyId: PROPERTY },
     );
 
+    // The membership is the subject — by its own id, as every staff record
+    // names it — and the Property it happened at is the record's location.
+    const [membership] = await owner.$queryRawUnsafe<{ id: string }[]>(
+      `select id from public.organization_memberships
+        where organization_id = $1::uuid and user_id = $2::uuid`,
+      ORG,
+      userId,
+    );
+    const assigned = await latestRecord(
+      owner,
+      "staff.property_assigned",
+      membership!.id,
+    );
+    expect(assigned?.locationId).toBe(PROPERTY);
+    expect(assigned?.context).toMatchObject({ userId, propertyId: PROPERTY });
+
     const [row] = await owner.$queryRawUnsafe<
       { rows: bigint; status: string }[]
     >(
@@ -570,6 +587,23 @@ describe("the last administrator", () => {
       { organizationId: ORG, userId: SECOND_OWNER, roleKey: "front_desk" },
     );
     expect(await roleOf(SECOND_OWNER)).toBe("front_desk/active");
+
+    const [membership] = await owner.$queryRawUnsafe<{ id: string }[]>(
+      `select id from public.organization_memberships
+        where organization_id = $1::uuid and user_id = $2::uuid`,
+      ORG,
+      SECOND_OWNER,
+    );
+    const changed = await latestRecord(
+      owner,
+      "staff.role_changed",
+      membership!.id,
+    );
+    expect(changed?.context).toMatchObject({
+      from: "owner",
+      to: "front_desk",
+      userId: SECOND_OWNER,
+    });
 
     await owner.$executeRawUnsafe(
       `update public.organization_memberships set role = 'owner'
@@ -706,7 +740,7 @@ describe("an Organization's own roles", () => {
   });
 
   it("ends the sessions of everybody holding a role that changes", async () => {
-    const { key } = await staff.defineRole(
+    const { key, roleId } = await staff.defineRole(
       { userId: OWNER },
       {
         organizationId: ORG,
@@ -746,6 +780,19 @@ describe("an Organization's own roles", () => {
     // One per holder. The handler wants a person to sign out, not a role to
     // expand later against a roster that has moved on.
     expect((await countEvents()) - before).toBe(2);
+
+    // Recorded as what the role now allows that it did not, and the reverse —
+    // not as somebody's role changing, which is a different record.
+    const edited = await latestRecord(
+      owner,
+      "staff.role_permissions_changed",
+      roleId,
+    );
+    expect(edited?.context).toMatchObject({
+      added: ["front_desk.check_out"],
+      removed: [],
+      holders: 2,
+    });
   });
 
   it("refuses to retire a role somebody holds, and keeps one nobody does", async () => {

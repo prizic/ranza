@@ -163,12 +163,26 @@ interface Tally {
 }
 
 /**
+ * Whether a bar is somebody booked into or staying in the room — the two
+ * things confirming a booking is refused against
+ * (reservations_no_double_booking, unit_holds_one_occupancy).
+ *
+ * A departed Stay still holds its nights for the free count, because the room
+ * was taken on them, but it collides with nothing: those nights are history,
+ * and checking the Guest out is the only fix an overlap it made ever has
+ * (RC-S1-28).
+ */
+function occupies(bar: RoomCalendarBar): boolean {
+  return bar.holds && !(bar.kind === "stay" && bar.status === "departed");
+}
+
+/**
  * Marks what one Unit's bars mean together, and counts it.
  *
- * An overlap is a pair of holding bars sharing a night in the window, counted
- * once per pair however many nights they share, so the number reads as "this
- * many collisions". A requested bar holds nothing and so is never one side of
- * a pair (RC-S1-30).
+ * An overlap is a pair of occupying bars sharing a night in the window,
+ * counted once per pair however many nights they share, so the number reads as
+ * "this many collisions". A requested bar holds nothing and so is never one
+ * side of a pair (RC-S1-30).
  */
 function markBars(
   bars: RoomCalendarBar[],
@@ -176,9 +190,9 @@ function markBars(
   window: { today: string; from: string; to: string },
   tally: Tally,
 ): void {
-  const holding = bars.filter((bar) => bar.holds);
-  holding.forEach((a, index) => {
-    for (const b of holding.slice(index + 1)) {
+  const occupying = bars.filter(occupies);
+  occupying.forEach((a, index) => {
+    for (const b of occupying.slice(index + 1)) {
       if (shareANight(a, b, window.from, window.to)) {
         a.overlaps = true;
         b.overlaps = true;
@@ -188,7 +202,7 @@ function markBars(
   });
   for (const bar of bars) {
     if (!bar.holds) {
-      const clashing = holding.filter((held) =>
+      const clashing = occupying.filter((held) =>
         shareANight(bar, held, window.from, window.to),
       );
       // A confirmed booking first: that is the clash confirming would be
@@ -204,7 +218,7 @@ function markBars(
     // A block has no start date, so only the nights from today on are its.
     const firstBlocked =
       window.from > window.today ? window.from : window.today;
-    for (const bar of holding) {
+    for (const bar of occupying) {
       if (
         firstBlocked < window.to &&
         shareANight(

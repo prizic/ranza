@@ -15,5 +15,9 @@ export type {
   FolioStatus,
   FolioSummary,
 } from "./contracts";
-export { closeEmptyFolioWithin, openFolioWithin } from "./write";
+export {
+  closeEmptyFolioWithin,
+  closeSettledFolioWithin,
+  openFolioWithin,
+} from "./write";
 export type { FolioWriteClient } from "./write";

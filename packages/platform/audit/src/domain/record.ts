@@ -27,6 +27,13 @@ export class AuditEntryError extends Error {
 export interface AuditEntry {
   /** Opaque tenancy scope. */
   organizationId: string;
+  /**
+   * Where inside the scope it happened, as the host names it — opaque here.
+   * Omitted or null for an action about the whole scope. Read reach narrows to
+   * it, so a record written without one is visible only to whoever reaches the
+   * whole scope and to the actor.
+   */
+  locationId?: string | null;
   /** Who acted. Never inferred here: the caller knows, this module does not. */
   actorId: string;
   action: string;
@@ -37,8 +44,9 @@ export interface AuditEntry {
   context?: Record<string, unknown>;
 }
 
-export interface AuditRecord extends AuditEntry {
+export interface AuditRecord extends Omit<AuditEntry, "locationId"> {
   id: string;
+  locationId: string | null;
   occurredAt: Date;
 }
 
@@ -55,6 +63,13 @@ export function assertRecordable(entry: AuditEntry): void {
   }
   if (!UUID.test(entry.actorId)) {
     throw new AuditEntryError("actorId must be a uuid");
+  }
+  if (
+    entry.locationId !== undefined &&
+    entry.locationId !== null &&
+    !UUID.test(entry.locationId)
+  ) {
+    throw new AuditEntryError("locationId must be a uuid");
   }
   if (!UUID.test(entry.subjectId)) {
     throw new AuditEntryError("subjectId must be a uuid");

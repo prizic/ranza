@@ -26,8 +26,23 @@ everything lands under Unreleased.
   [ADR 0024](../../../docs/adr/0024-a-guest-belongs-to-an-organization-and-a-reservation-holds-its-nights.md).
 - `listReservations()` and `listBookableUnits()`: the booking screen's two
   reads.
+- `UnitHasOccupantError` and `UnitNotInServiceError`. `checkIn()` and
+  `createReservation()` now say when a Unit has somebody in it, or is blocked,
+  rather than refusing generically
+  ([ADR 0033](../../../docs/adr/0033-an-in-house-stay-holds-its-unit-until-it-is-checked-out.md)).
 
 ### Changed
+
+- `checkOut()` takes a `CheckOutConfirmation`: the Folio's line count the desk
+  reviewed, an early-departure acknowledgement, and a reason when a balance is
+  left open. It ends the Reservation with the Stay (`checked_out`) and closes a
+  settled Folio in the same transaction. New refusals: `FolioChangedError`,
+  `EarlyDepartureError`, `BalanceReasonError`
+  ([ADR 0030](../../../docs/adr/0030-a-check-out-confirms-the-bill-it-reviewed.md)).
+- `listDepartures()` takes a view — `due` or `in_house` — so an early leaver and
+  an open-ended Resident can be checked out, and carries the reference, the
+  room a bed is in, the Folio's line count and whether the viewer may check out.
+  Balances are read as text, so a large one no longer overflows.
 
 - A Reservation names a `Guest` rather than carrying a `guest_name` string. The
   table is owned by [`@ranza/guests`](../guests/README.md); this module writes

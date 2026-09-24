@@ -95,9 +95,19 @@ export async function closeStayWithin(
   tx: StayWriteClient,
   stayId: string,
   departedOn: Date,
-): Promise<{ organizationId: string; accommodationUnitId: string }> {
+): Promise<{
+  organizationId: string;
+  propertyId: string;
+  accommodationUnitId: string;
+  reservationId: string | null;
+}> {
   const rows = await tx.$queryRaw<
-    { organizationId: string; accommodationUnitId: string }[]
+    {
+      organizationId: string;
+      propertyId: string;
+      accommodationUnitId: string;
+      reservationId: string | null;
+    }[]
   >`
     update public.stays
        set status = 'departed',
@@ -107,7 +117,9 @@ export async function closeStayWithin(
        and status = 'in_house'
     returning
       organization_id       as "organizationId",
-      accommodation_unit_id as "accommodationUnitId"
+      property_id           as "propertyId",
+      accommodation_unit_id as "accommodationUnitId",
+      reservation_id        as "reservationId"
   `;
 
   const [row] = rows;
@@ -141,12 +153,14 @@ export async function withdrawStayWithin(
   stayId: string,
 ): Promise<{
   organizationId: string;
+  propertyId: string;
   accommodationUnitId: string;
   reservationId: string | null;
 }> {
   const rows = await tx.$queryRaw<
     {
       organizationId: string;
+      propertyId: string;
       accommodationUnitId: string;
       reservationId: string | null;
     }[]
@@ -158,6 +172,7 @@ export async function withdrawStayWithin(
        and status = 'in_house'
     returning
       organization_id       as "organizationId",
+      property_id           as "propertyId",
       accommodation_unit_id as "accommodationUnitId",
       reservation_id        as "reservationId"
   `;

@@ -8,8 +8,9 @@
 %% Where it lives: under Front Office, after Reservations, gated by the front_desk
 %% capability like Arrivals, Departures and Rooms & beds. The calendar changes nothing:
 %% every command it points at already has one home, and a move is refused by a column
-%% grant on purpose. It shows the named gap - an in-house Stay and a confirmed
-%% Reservation holding the same night - rather than hiding it.
+%% grant on purpose. It shows an overlap - an in-house Stay and a confirmed
+%% Reservation holding the same night - rather than hiding it; since #60 one
+%% arises only by a Guest staying past their date, or from rows written before.
 flowchart TD
 
   DESK["Staff Member reaching the Property<br/>with the front_desk capability"]
@@ -42,7 +43,7 @@ flowchart TD
     SAVED(["Named saved views &mdash; blueprint 18.6"])
     DATED(["A block with a start and an end &mdash; Maintenance (RANZ-33)"])
     CATEGORY(["Group by room category &mdash; there are none before rates (RANZ-31)"])
-    CLOSEGAP(["Refuse a booking over an in-house Stay &mdash; a decision nobody has made"])
+    CLOSEGAP(["Refuse a booking over an in-house Stay &mdash; the database does, since #60"])
   end
 
   DESK --> READ

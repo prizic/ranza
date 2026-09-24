@@ -99,12 +99,12 @@ describe("every catalogue parses", () => {
             // formatted by nothing else until a screen renders it.
             expect(() =>
               translate(path.join("."), {
+                balance: "₺45,00",
                 columns: "x",
                 count: 2,
                 date: "16 Sep",
                 days: 14,
-                eta: "14:00",
-                floor: 3,
+                floor: 2,
                 from: "16 Sep",
                 guest: "x",
                 max: 2,
@@ -117,6 +117,7 @@ describe("every catalogue parses", () => {
                 status: "x",
                 time: "14:00",
                 to: "20 Sep",
+                value: "x",
               }),
             ).not.toThrow();
             return;

@@ -26,6 +26,17 @@ import type {
   RoomCalendarUnit,
 } from "../../packages/ranza/reservations/src";
 
+// The rail carries the Property onto every link from the URL's query, which
+// outside Next's router has no search params to read. Mocked at the path the
+// application resolves it from: the root package has no Next of its own.
+vi.mock(
+  "../../apps/operator-workspace/node_modules/next/navigation.js",
+  async (original) => ({
+    ...(await original<Record<string, unknown>>()),
+    useSearchParams: () => new URLSearchParams({ property: "p-1" }),
+  }),
+);
+
 // The application's own providers, so the retry policy and the hydration a
 // page uses are the ones under test rather than a test's own.
 const { QueryProvider } =
@@ -361,6 +372,9 @@ describe("who sees it in the rail", () => {
     const frontOffice = railFor(["today", "front_desk"]).find(
       (entry) => "children" in entry && entry.children,
     );
-    expect(JSON.stringify(frontOffice)).toContain("/en/room-calendar");
+    // And carries the Property, so opening it does not switch Property.
+    expect(JSON.stringify(frontOffice)).toContain(
+      "/en/room-calendar?property=p-1",
+    );
   });
 });

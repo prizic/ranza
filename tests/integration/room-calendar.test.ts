@@ -17,6 +17,7 @@ import { createPrismaClient } from "../../packages/db/src";
 import {
   createReservationsModule,
   FRONT_DESK_CAPABILITY,
+  UnitHasOccupantError,
 } from "../../packages/ranza/reservations/src";
 import type {
   RoomCalendar,
@@ -33,6 +34,7 @@ const FAR_EAST = "dc000003-0000-4000-8000-000000000004";
 const FAR_WEST = "dc000003-0000-4000-8000-000000000005";
 const UNGATED = "dc000003-0000-4000-8000-000000000006";
 const ROLLING = "dc000003-0000-4000-8000-000000000007";
+const ROLLED_INTO = "dc000003-0000-4000-8000-000000000008";
 const MEMBER = "dc000001-0000-4000-8000-000000000001";
 const OUTSIDER = "dc000001-0000-4000-8000-000000000002";
 const UNASSIGNED = "dc000001-0000-4000-8000-000000000003";
@@ -86,7 +88,8 @@ async function seed(): Promise<void> {
        ($4,$8,'Calendar Kiritimati','Pacific/Kiritimati'),
        ($5,$8,'Calendar Pago Pago','Pacific/Pago_Pago'),
        ($6,$8,'Calendar Ungated','Europe/Istanbul'),
-       ($7,$8,'Calendar Rolling','Europe/Istanbul')
+       ($7,$8,'Calendar Rolling','Europe/Istanbul'),
+       ($10,$8,'Calendar Rolled Into','Europe/Istanbul')
      on conflict (id) do nothing`,
     PROPERTY,
     SECOND,
@@ -97,6 +100,7 @@ async function seed(): Promise<void> {
     ROLLING,
     ORG,
     OTHER_ORG,
+    ROLLED_INTO,
   );
   await sql(
     `insert into public.subscriptions (organization_id, status) values
@@ -253,6 +257,132 @@ async function stayOn(
     nights.from,
     nights.to,
   );
+  return id;
+}
+
+/**
+ * A checked-in Reservation and its in-house Stay, over nights that may be in
+ * the past — the state an overdue Guest is in, which check-in itself cannot
+ * produce today. One transaction, because the database checks the pair at
+ * commit: a checked_in Reservation with no Stay in house is refused.
+ */
+async function checkedInOn(
+  unitId: string,
+  guestName: string,
+  nights: { from: number; to: number },
+): Promise<{ reservationId: string; stayId: string }> {
+  const reservationId = await book(unitId, guestName, nights);
+  const stayId = randomUUID();
+  await owner.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(
+      `update public.reservations set status = 'checked_in' where id = $1::uuid`,
+      reservationId,
+    );
+    await tx.$executeRawUnsafe(
+      `insert into public.stays
+         (id, organization_id, property_id, accommodation_unit_id,
+          reservation_id, stay_type, status, starts_on, ends_on)
+       values ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::uuid, 'guest',
+               'in_house',
+               app.property_today($3::uuid) + $6::int,
+               app.property_today($3::uuid) + $7::int)`,
+      stayId,
+      ORG,
+      PROPERTY,
+      unitId,
+      reservationId,
+      nights.from,
+      nights.to,
+    );
+  });
+  return { reservationId, stayId };
+}
+
+async function openFolio(stayId: string): Promise<string> {
+  const [folio] = await owner.$queryRawUnsafe<{ id: string }[]>(
+    `insert into public.folios (organization_id, property_id, stay_id, currency)
+     values ($1::uuid, $2::uuid, $3::uuid, 'TRY') returning id`,
+    ORG,
+    PROPERTY,
+    stayId,
+  );
+  return folio!.id;
+}
+
+/** A charge, or with `reverses` the reversal of one; returns the line's id. */
+async function post(
+  folioId: string,
+  description: string,
+  amountMinor: number,
+  reverses: string | null = null,
+): Promise<string> {
+  const [line] = await owner.$queryRawUnsafe<{ id: string }[]>(
+    `insert into public.folio_lines
+       (organization_id, property_id, folio_id, line_type, description,
+        amount_minor, reverses_line_id)
+     values ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7::uuid) returning id`,
+    ORG,
+    PROPERTY,
+    folioId,
+    reverses ? "reversal" : "charge",
+    description,
+    amountMinor,
+    reverses,
+  );
+  return line!.id;
+}
+
+/** What the desk saw when it confirmed a check-out: no Folio, leaving early allowed. */
+const LEAVING = {
+  folioVersion: null,
+  earlyDeparture: true,
+  balanceReason: null,
+} as const;
+
+/**
+ * A confirmed booking over a Guest already in house, written the only way one
+ * can be now: with unit_holds_one_occupancy lifted, as a row from before that
+ * trigger existed. The calendar has to draw such a row, and none can be made
+ * through the product any more (RC-S1-25).
+ */
+async function bookOverAGuest(
+  unitId: string,
+  guestName: string,
+  nights: { from: number; to: number },
+): Promise<string> {
+  const id = randomUUID();
+  await owner.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(
+      `alter table public.reservations disable trigger reservations_unit_holds_one_occupancy`,
+    );
+    await tx.$executeRawUnsafe(
+      `with guest as (
+         insert into public.guests (organization_id, full_name)
+         values ($2::uuid, $4) returning id
+       )
+       insert into public.reservations
+         (id, organization_id, property_id, accommodation_unit_id, guest_id,
+          stay_type, status, starts_on, ends_on)
+       select $1::uuid, $2::uuid, $3::uuid, $5::uuid, guest.id, 'guest',
+              'confirmed',
+              app.property_today($3::uuid) + $6::int,
+              app.property_today($3::uuid) + $7::int
+         from guest`,
+      id,
+      ORG,
+      PROPERTY,
+      guestName,
+      unitId,
+      nights.from,
+      nights.to,
+    );
+    // Deferred checks queued by the insert must run before the table can be
+    // altered again.
+    await tx.$executeRawUnsafe(`set constraints all immediate`);
+    await tx.$executeRawUnsafe(
+      `alter table public.reservations enable trigger reservations_unit_holds_one_occupancy`,
+    );
+  });
   return id;
 }
 
@@ -539,12 +669,10 @@ describe("bars", () => {
 
   it("RC-S1-68: a withdrawn overdue check-in draws the Reservation again", async () => {
     const room = await unit("Withdrawn-overdue-1");
-    const id = await book(room, "Overdue Withdrawn", { from: -3, to: -1 });
-    await sql(
-      `update public.reservations set status = 'checked_in' where id = $1::uuid`,
-      id,
-    );
-    const stayId = await stayOn(room, { from: -3, to: -1 }, "in_house", id);
+    const { stayId } = await checkedInOn(room, "Overdue Withdrawn", {
+      from: -3,
+      to: -1,
+    });
     await reservations.reverseCheckIn(MEMBER, stayId, "Never arrived");
     const bars = barsOf(await calendar(), room);
     expect(bars).toHaveLength(1);
@@ -606,13 +734,11 @@ describe("bars", () => {
 
   it("RC-S1-69: an overdue Stay checked out ends on the day it left", async () => {
     const room = await unit("Overdue-out-1");
-    const id = await book(room, "Overdue Leaver", { from: -3, to: -1 });
-    await sql(
-      `update public.reservations set status = 'checked_in' where id = $1::uuid`,
-      id,
-    );
-    const stayId = await stayOn(room, { from: -3, to: -1 }, "in_house", id);
-    await reservations.checkOut(MEMBER, stayId);
+    const { stayId } = await checkedInOn(room, "Overdue Leaver", {
+      from: -3,
+      to: -1,
+    });
+    await reservations.checkOut(MEMBER, stayId, LEAVING);
     const [bar] = barsOf(await calendar(), room);
     expect(bar).toMatchObject({
       status: "departed",
@@ -630,14 +756,12 @@ describe("bars", () => {
 
   it("RC-S1-20: an early check-out frees the later nights", async () => {
     const room = await unit("Early-1");
-    const id = await book(room, "Early Leaver", { from: -2, to: 5 });
-    await sql(
-      `update public.reservations set status = 'checked_in' where id = $1::uuid`,
-      id,
-    );
-    const stayId = await stayOn(room, { from: -2, to: 5 }, "in_house", id);
+    const { stayId } = await checkedInOn(room, "Early Leaver", {
+      from: -2,
+      to: 5,
+    });
     const before = await calendar();
-    await reservations.checkOut(MEMBER, stayId);
+    await reservations.checkOut(MEMBER, stayId, LEAVING);
     const after = await calendar();
     expect(barsOf(after, room)[0]).toMatchObject({
       status: "departed",
@@ -655,10 +779,47 @@ describe("bars", () => {
 
   it("RC-S1-21: cancelled and no-show are not drawn", async () => {
     const room = await unit("Cancelled-1");
-    await book(room, "Cancelled Guest", { from: 0, to: 2 }, "cancelled");
-    await book(room, "No Show Guest", { from: 3, to: 5 }, "no_show");
-    await stayOn(room, { from: -2, to: 3 }, "cancelled");
+    const cancelled = await book(room, "Cancelled Guest", { from: 1, to: 3 });
+    const noShow = await book(room, "No Show Guest", { from: 0, to: 1 });
+    // The front desk's own commands, since #60: a reason for the one, and the
+    // first night having come for the other.
+    await reservations.cancelReservation(MEMBER, cancelled, "Guest phoned");
+    await reservations.markNoShow(MEMBER, noShow);
+    await stayOn(room, { from: -2, to: 0 }, "cancelled");
     expect(barsOf(await calendar(), room)).toEqual([]);
+  });
+
+  it("RC-DEF-01: a checked-out Reservation is drawn once, through its departed Stay", async () => {
+    const room = await unit("Checked-out-1");
+    const id = await book(room, "Checked Out Guest", { from: 0, to: 2 });
+    const { stayId } = await reservations.checkIn(MEMBER, id);
+    await reservations.checkOut(MEMBER, stayId, LEAVING);
+    const [status] = await owner.$queryRawUnsafe<{ status: string }[]>(
+      `select status from public.reservations where id = $1::uuid`,
+      id,
+    );
+    expect(status?.status).toBe("checked_out");
+    // Checked in and out today: the Stay held no night, and the Reservation
+    // draws nothing of its own.
+    expect(barsOf(await calendar(), room)).toEqual([]);
+
+    // Stayed two nights: one bar, the departed Stay, and nothing for the
+    // checked-out Reservation beside it.
+    const stayed = await unit("Checked-out-2");
+    const { reservationId, stayId: left } = await checkedInOn(
+      stayed,
+      "Stayed Two Nights",
+      { from: -2, to: 2 },
+    );
+    await reservations.checkOut(MEMBER, left, LEAVING);
+    const [after] = await owner.$queryRawUnsafe<{ status: string }[]>(
+      `select status from public.reservations where id = $1::uuid`,
+      reservationId,
+    );
+    expect(after?.status).toBe("checked_out");
+    const bars = barsOf(await calendar(), stayed);
+    expect(bars).toHaveLength(1);
+    expect(bars[0]).toMatchObject({ kind: "stay", status: "departed" });
   });
 
   it("RC-S1-22: a Stay with no Reservation is drawn without a Guest", async () => {
@@ -681,22 +842,28 @@ describe("bars", () => {
 });
 
 describe("nights, overlaps and blocks", () => {
-  it("RC-S1-25: a booking made over an in-house Guest is shown as an overlap", async () => {
+  it("RC-S1-25: a booking over a Guest in house is refused now, and one written before is drawn as an overlap", async () => {
     const room = await unit("Gap-1");
     const first = await book(room, "In House Guest", { from: 0, to: 4 });
     await reservations.checkIn(MEMBER, first);
-    // Through the product, not a fixture: the gap is reachable by a front
-    // desk today, which is why the calendar must show it.
-    await reservations.createReservation(MEMBER, {
-      propertyId: PROPERTY,
-      accommodationUnitId: room,
-      guestName: "Promised Guest",
-      guestEmail: null,
-      guestPhone: null,
-      stayType: "guest",
-      startsOn: await day(2),
-      endsOn: await day(5),
-    });
+    // Through the product, the gap is closed: unit_holds_one_occupancy (#60)
+    // refuses the booking for every role.
+    await expect(
+      reservations.createReservation(MEMBER, {
+        propertyId: PROPERTY,
+        accommodationUnitId: room,
+        guestName: "Promised Guest",
+        guestEmail: null,
+        guestPhone: null,
+        stayType: "guest",
+        startsOn: await day(2),
+        endsOn: await day(5),
+      }),
+    ).rejects.toBeInstanceOf(UnitHasOccupantError);
+    expect(barsOf(await calendar(), room)).toHaveLength(1);
+
+    // A row from before that trigger is still drawn, and marked.
+    await bookOverAGuest(room, "Promised Before", { from: 2, to: 5 });
     const found = await calendar();
     const bars = barsOf(found, room);
     expect(bars).toHaveLength(2);
@@ -704,14 +871,60 @@ describe("nights, overlaps and blocks", () => {
     expect(found.overlaps).toBeGreaterThanOrEqual(1);
   });
 
-  it("RC-S1-26: an overdue Guest overlaps the booking arriving today", async () => {
-    const room = await unit("Overdue-gap-1");
-    await stayOn(room, { from: -3, to: -1 }, "in_house");
-    await book(room, "Arriving Today", { from: 0, to: 2 });
-    expect(barsOf(await calendar(), room).map((bar) => bar.overlaps)).toEqual([
-      true,
-      true,
+  it("RC-S1-26: a Guest who stays past their date overlaps the booking that follows — the day passing, not a write", async () => {
+    // Leaving today and booked from today is a changeover, which the database
+    // allows. Then the Property's day moves on with the Guest still in the
+    // room: they are overdue, held through tonight, and hold the booking's
+    // first night. Nothing was written that a trigger could refuse.
+    await sql(
+      `update public.properties set timezone = 'Pacific/Pago_Pago' where id = $1::uuid`,
+      ROLLED_INTO,
+    );
+    const room = await unit("Overdue-gap-1", { propertyId: ROLLED_INTO });
+    await sql(
+      `insert into public.stays
+         (organization_id, property_id, accommodation_unit_id, stay_type,
+          status, starts_on, ends_on)
+       values ($1::uuid, $2::uuid, $3::uuid, 'guest', 'in_house',
+               app.property_today($2::uuid) - 2, app.property_today($2::uuid))`,
+      ORG,
+      ROLLED_INTO,
+      room,
+    );
+    await book(
+      room,
+      "Arriving After",
+      { from: 0, to: 3 },
+      "confirmed",
+      ROLLED_INTO,
+    );
+    expect(
+      barsOf(await calendar({}, ROLLED_INTO), room).some((bar) => bar.overlaps),
+    ).toBe(false);
+
+    await sql(
+      `update public.properties set timezone = 'Pacific/Kiritimati' where id = $1::uuid`,
+      ROLLED_INTO,
+    );
+    const bars = barsOf(await calendar({}, ROLLED_INTO), room);
+    const overdue = bars.find((bar) => bar.kind === "stay");
+    expect(overdue?.overdue).toBe(true);
+    expect(bars.map((bar) => bar.overlaps)).toEqual([true, true]);
+
+    // RC-S1-28 by the only route this overlap has: checking the Guest out. The
+    // departed Stay still covers the booking's first night — it ends on the
+    // day they left — but that night is history, and #60 does not count a
+    // departed Stay as anyone in the room.
+    if (overdue?.kind !== "stay") throw new Error("no Stay bar");
+    await reservations.checkOut(MEMBER, overdue.stayId, LEAVING);
+    const cleared = await calendar({}, ROLLED_INTO);
+    expect(
+      barsOf(cleared, room).map((bar) => [bar.kind, bar.status, bar.overlaps]),
+    ).toEqual([
+      ["stay", "departed", false],
+      ["reservation", "confirmed", false],
     ]);
+    expect(cleared.overlaps).toBe(0);
   });
 
   it("RC-S1-27: a changeover day is not an overlap", async () => {
@@ -727,20 +940,20 @@ describe("nights, overlaps and blocks", () => {
   it("RC-S1-28: checking the Guest out, or cancelling the booking, clears the overlap", async () => {
     const byCheckOut = await unit("Cleared-1");
     const stayId = await stayOn(byCheckOut, { from: -2, to: 3 }, "in_house");
-    await book(byCheckOut, "Overlapping Guest", { from: 1, to: 4 });
+    await bookOverAGuest(byCheckOut, "Overlapping Guest", { from: 1, to: 4 });
     expect(barsOf(await calendar(), byCheckOut)[0]?.overlaps).toBe(true);
-    await reservations.checkOut(MEMBER, stayId);
+    await reservations.checkOut(MEMBER, stayId, LEAVING);
     expect(
       barsOf(await calendar(), byCheckOut).some((bar) => bar.overlaps),
     ).toBe(false);
 
     const byCancel = await unit("Cleared-2");
     await stayOn(byCancel, { from: -2, to: 3 }, "in_house");
-    const booking = await book(byCancel, "Cancelled Later", { from: 1, to: 4 });
-    await sql(
-      `update public.reservations set status = 'cancelled' where id = $1::uuid`,
-      booking,
-    );
+    const booking = await bookOverAGuest(byCancel, "Cancelled Later", {
+      from: 1,
+      to: 4,
+    });
+    await reservations.cancelReservation(MEMBER, booking, "Double booked");
     expect(barsOf(await calendar(), byCancel).some((bar) => bar.overlaps)).toBe(
       false,
     );
@@ -849,34 +1062,28 @@ describe("the Folio in the drawer", () => {
   it("RC-S1-48: a Stay shows its Folio balance, and says when the Folio is closed", async () => {
     const room = await unit("Balance-1");
     const stayId = await stayOn(room, { from: -1, to: 2 }, "in_house");
-    const [folio] = await owner.$queryRawUnsafe<{ id: string }[]>(
-      `insert into public.folios (organization_id, property_id, stay_id, currency)
-       values ($1::uuid, $2::uuid, $3::uuid, 'TRY') returning id`,
-      ORG,
-      PROPERTY,
-      stayId,
-    );
-    await sql(
-      `insert into public.folio_lines
-         (organization_id, property_id, folio_id, line_type, description, amount_minor)
-       values ($1::uuid, $2::uuid, $3::uuid, 'charge', 'Room night', 125000),
-              ($1::uuid, $2::uuid, $3::uuid, 'charge', 'Minibar', 4550)`,
-      ORG,
-      PROPERTY,
-      folio!.id,
-    );
-    let [bar] = barsOf(await calendar(), room);
-    expect(bar).toMatchObject({
+    const folio = await openFolio(stayId);
+    await post(folio, "Room night", 125000);
+    await post(folio, "Minibar", 4550);
+    expect(barsOf(await calendar(), room)[0]).toMatchObject({
       kind: "stay",
       balance: { balanceMinor: 129550, currency: "TRY", closed: false },
     });
 
+    // Closed: only a settled Folio of a Stay that has ended may be (#60), so
+    // a departed Stay whose one charge was reversed.
+    const left = await unit("Balance-2");
+    const departed = await stayOn(left, { from: -3, to: -1 }, "departed");
+    const settled = await openFolio(departed);
+    const charge = await post(settled, "Room night", 90000);
+    await post(settled, "Reversed", -90000, charge);
     await sql(
       `update public.folios set status = 'closed', closed_at = now() where id = $1::uuid`,
-      folio!.id,
+      settled,
     );
-    [bar] = barsOf(await calendar(), room);
-    expect(bar).toMatchObject({ balance: { closed: true } });
+    expect(barsOf(await calendar(), left)[0]).toMatchObject({
+      balance: { balanceMinor: 0, currency: "TRY", closed: true },
+    });
   });
 
   it("RC-S1-49: a booking, or a Stay without a Folio, shows no balance", async () => {

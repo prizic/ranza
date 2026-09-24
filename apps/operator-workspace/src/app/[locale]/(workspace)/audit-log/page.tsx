@@ -1,42 +1,60 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
 import { getTranslations } from "next-intl/server";
+import { ANY } from "../../../../features/audit-log/actions";
+import {
+  AuditFilters,
+  type AuditFilterValues,
+} from "../../../../features/audit-log/components/audit-filters";
 import { AuditTable } from "../../../../features/audit-log/components/audit-table";
 import { RecordPanel } from "../../../../features/audit-log/components/record-panel";
 import {
+  AUDIT_READ_PERMISSION,
   auditLog,
-  AUDIT_CAPABILITY,
-  entitledProperties,
+  auditRecord,
+  MIN_SEARCH_LENGTH,
+  permittedProperties,
   requireViewer,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
 
+type Search = Record<string, string | string[] | undefined>;
+
+/** One value per parameter; a repeated one is a URL somebody edited. */
+function one(search: Search, key: string): string | undefined {
+  const value = search[key];
+  const first = Array.isArray(value) ? value[0] : value;
+  return first === undefined || first === "" || first === ANY
+    ? undefined
+    : first;
+}
+
 /**
- * The audit log: what was done, by whom, and why.
+ * The audit log: what was done, by whom, where, and why.
  *
- * One route with two states, as Finance is — `?record=` opens one row of the
- * list the page already holds, so the second state costs no second read and a
- * record can be bookmarked or sent to a colleague. A record older than the cap
- * is therefore not openable from here; reading past the cap is AL-DEF-03.
+ * One route with two states. `?record=` opens one record by id, so a link to
+ * it keeps working however many records are written after it; everything
+ * else is the list, narrowed by filters that are URL parameters and answered
+ * by the server over every record the viewer may read (ADR 0031).
  *
- * The list is the Organization's, not the Property's: a record carries the
- * scope it was written in, and that scope is an Organization. The Property is
- * still what the screen is opened from, because that is what the gate is asked
- * about (ADR 0028) and whose wall clock the times are shown in — so the
- * sub-heading names the Organization, and the switcher still chooses the
- * Property.
+ * `?property=` is the Property the log is opened from — the page bar's
+ * switcher, as on every screen. It decides which Organization's log this is
+ * and that the viewer may read it there. `?at=` is the separate narrowing to
+ * one Property's records.
  *
- * Nothing is filtered again here. The gate and the policies decided the list
- * inside the read's own transaction, and a second application-side check would
- * be the weaker of the two while inviting somebody to trust it instead.
+ * Nothing is filtered again here. The permission is asked and the rows are
+ * chosen by the read policy inside the read's own transaction, and a second
+ * application-side check would be the weaker of the two while inviting
+ * somebody to trust it instead.
  */
 export default async function AuditLogPage({
   params,
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ property?: string; record?: string }>;
+  searchParams: Promise<Search>;
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
@@ -44,8 +62,12 @@ export default async function AuditLogPage({
   const t = await getTranslations();
   const search = await searchParams;
   const viewer = await requireViewer(locale);
-  const properties = await entitledProperties(AUDIT_CAPABILITY);
-  const property = frontDeskProperty(properties, search);
+  const properties = await permittedProperties(AUDIT_READ_PERMISSION);
+  const opened = one(search, "property");
+  const property = frontDeskProperty(
+    properties,
+    opened === undefined ? {} : { property: opened },
+  );
 
   if (!property) {
     return (
@@ -56,48 +78,107 @@ export default async function AuditLogPage({
     );
   }
 
-  const { records, total } = await auditLog(property.propertyId);
-  const listHref = `${localizeHref(locale, "audit-log")}?property=${property.propertyId}`;
+  const route = localizeHref(locale, "audit-log");
+  const listHref = `${route}?property=${property.propertyId}`;
   const folioHref = `${localizeHref(locale, "finance")}?property=${property.propertyId}`;
 
-  // A `?record=` that is not in the list — older than the cap, or guessed —
-  // falls through to the list, exactly as a record that never existed would.
-  const selected = search.record
-    ? (records.find((record) => record.id === search.record) ?? null)
-    : null;
-
-  if (selected) {
+  const recordId = one(search, "record");
+  if (recordId) {
+    const found = await auditRecord(property.propertyId, recordId);
     return (
       <>
         <p className="text-muted-foreground">
-          <a className="hover:underline" href={listHref}>
+          <Link className="hover:underline" href={listHref}>
             {t("allRecords")}
-          </a>
+          </Link>
           {" · "}
           {property.organizationName}
         </p>
-        <RecordPanel
-          folioHref={folioHref}
-          locale={locale}
-          record={selected}
-          timeZone={property.timezone}
-          viewerId={viewer.userId}
-        />
+        {found ? (
+          <RecordPanel
+            entry={found.entry}
+            folioHref={folioHref}
+            locale={locale}
+            names={found}
+            viewerId={viewer.userId}
+          />
+        ) : (
+          // Absent, in another Organization, or not one this viewer may
+          // read — one answer for all three.
+          <div className="mt-6">
+            <EmptyState
+              description={t("auditRecordMissingDescription")}
+              title={t("auditRecordMissingTitle")}
+            />
+          </div>
+        )}
       </>
     );
   }
+
+  const values: AuditFilterValues = {
+    action: one(search, "action"),
+    at: one(search, "at"),
+    from: one(search, "from"),
+    to: one(search, "to"),
+    q: one(search, "q"),
+  };
+  const cursor = one(search, "cursor");
+  // Shorter than this the server does not search; say so rather than
+  // silently show every record as though it matched.
+  const searchTooShort =
+    values.q !== undefined && values.q.trim().length < MIN_SEARCH_LENGTH;
+
+  const page = await auditLog(property.propertyId, {
+    actions: values.action ? [values.action] : undefined,
+    propertyId: values.at,
+    from: values.from,
+    to: values.to,
+    q: values.q,
+    cursor,
+  });
+
+  // Every link on the page carries the filters, so paging and opening a
+  // record never silently drop what the reader narrowed to.
+  const filtersQuery = new URLSearchParams({ property: property.propertyId });
+  for (const [key, value] of Object.entries(values)) {
+    if (value) filtersQuery.set(key, value);
+  }
+  const filteredHref = `${route}?${filtersQuery.toString()}`;
+  const olderHref = page.nextCursor
+    ? `${filteredHref}&cursor=${encodeURIComponent(page.nextCursor)}`
+    : null;
+
+  const organizationProperties = properties
+    .filter((candidate) => candidate.organizationId === property.organizationId)
+    .map((candidate) => ({
+      id: candidate.propertyId,
+      name: candidate.propertyName,
+    }));
 
   return (
     <>
       <p className="text-muted-foreground">
         {t("auditLogFor")} {property.organizationName}
       </p>
+      <AuditFilters
+        actionHref={route}
+        properties={organizationProperties}
+        propertyId={property.propertyId}
+        values={values}
+      />
+      {searchTooShort ? (
+        <p className="mt-2 text-step--1 text-muted-foreground" role="status">
+          {t("auditSearchTooShort")}
+        </p>
+      ) : null}
       <AuditTable
+        filtered={Object.values(values).some(Boolean)}
         locale={locale}
-        recordHref={listHref}
-        records={records}
-        timeZone={property.timezone}
-        total={total}
+        newestHref={cursor ? filteredHref : null}
+        olderHref={olderHref}
+        page={page}
+        recordHref={filteredHref}
         viewerId={viewer.userId}
       />
     </>

@@ -47,11 +47,21 @@ await reservations.listReservations(userId, propertyId);
 await reservations.listBookableUnits(userId, propertyId);
 await reservations.createReservation(userId, booking);
 await reservations.listArrivals(userId, propertyId);
-await reservations.listDepartures(userId, propertyId);
+await reservations.listDepartures(userId, propertyId, "due" | "in_house");
 await reservations.checkIn(userId, reservationId);
-await reservations.checkOut(userId, stayId);
+await reservations.checkOut(userId, stayId, {
+  folioVersion,
+  earlyDeparture,
+  balanceReason,
+});
 await reservations.listRoomCalendar(userId, propertyId, { from, days });
 ```
+
+`checkOut` is confirmed against the review of the bill the desk saw: the Folio's
+line count, whether the Guest is leaving early, and — while nothing can take a
+payment — why a balance is left open. It compares all three under the Stay's
+lock and refuses a review that is no longer true
+([ADR 0030](../../../docs/adr/0030-a-check-out-confirms-the-bill-it-reviewed.md)).
 
 `listArrivals` returns the Reservations arriving **on the Property's own day**,
 which is not the reader's: a front desk in İzmir and one in Dubai are working
@@ -114,11 +124,12 @@ their beds beneath them, against a window of 7, 14 or 30 days, with each booking
 and Stay as a bar. It is one statement, because two could straddle a check-in
 and draw its Guest twice or not at all. A checked-in Reservation is drawn once,
 as its Stay; an overdue Guest is held through tonight, because they are still
-in the room; and a booking made over an in-house Guest's remaining nights — the
-gap `reservations_no_double_booking` leaves, since it stops at `confirmed` — is
-returned and marked as an overlap rather than hidden. The nightly free count and
-the overlap count cover every Unit, so a screen that filters by floor cannot
-hide one. Days are `app.property_today`'s, so the calendar follows the business
+in the room; and two people in one room on one night — which
+`unit_holds_one_occupancy` refuses to write, so it arises only by an overdue
+Guest staying into a booked night or from a row written before that trigger —
+are returned and marked as an overlap rather than hidden. A departed Stay is
+history and overlaps nothing. The nightly free count and the overlap count
+cover every Unit, so a screen that filters by floor cannot hide one. Days are `app.property_today`'s, so the calendar follows the business
 date when that function does. What each bar shows is specified row by row in
 [`docs/features/room-calendar/edge-cases.csv`](../../../docs/features/room-calendar/edge-cases.csv).
 

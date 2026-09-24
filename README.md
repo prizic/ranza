@@ -39,6 +39,7 @@ packages/
   ranza/                  Ranza domain modules (core domain)
     core/                 Organization, Property, membership, Entitlement reads
     accommodation/        Accommodation Units inside a Property
+    housekeeping/         whether a room needs cleaning, and marking it
     guests/               the people a Reservation and a Stay are for
     stays/                Stays, and the Resident access path
     reservations/         Reservations, taking a booking, check-in, check-out

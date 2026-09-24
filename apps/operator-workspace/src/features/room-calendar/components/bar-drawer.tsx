@@ -6,6 +6,7 @@ import {
   directionFor,
   formatDate,
   formatMoney,
+  localizeHref,
   type SupportedLocale,
 } from "@ranza/i18n";
 import {
@@ -252,7 +253,11 @@ function DrawerBody({
         </FactList>
 
         <Button asChild className="w-full">
-          <Link href={`/${locale}/${target}?property=${propertyId}`}>
+          {/* Not prefetched: one bar is one link, read on the click. */}
+          <Link
+            href={`${localizeHref(locale, target)}?property=${propertyId}`}
+            prefetch={false}
+          >
             {t(`open.${target}`)}
           </Link>
         </Button>

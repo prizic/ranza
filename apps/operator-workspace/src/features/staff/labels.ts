@@ -24,10 +24,14 @@ export const PERMISSION_CATALOGUE = [
   "front_desk.book",
   "front_desk.check_in",
   "front_desk.check_out",
+  "front_desk.cancel",
   "finance.manage_folio",
   "finance.post_charge",
   "staff.administer",
   "staff.define_roles",
+  "accommodation.configure",
+  "housekeeping.update_status",
+  "audit.read",
 ] as const;
 
 export type ShippedRole = (typeof SHIPPED_ROLES)[number];
@@ -52,10 +56,14 @@ const MESSAGE_KEYS = {
   "front_desk.book": "book",
   "front_desk.check_in": "checkIn",
   "front_desk.check_out": "checkOut",
+  "front_desk.cancel": "cancel",
   "finance.manage_folio": "manageFolio",
   "finance.post_charge": "postCharge",
   "staff.administer": "administerStaff",
   "staff.define_roles": "defineRoles",
+  "accommodation.configure": "configureAccommodation",
+  "housekeeping.update_status": "updateHousekeeping",
+  "audit.read": "readAudit",
 } as const satisfies Record<PermissionKey, string>;
 
 export type PermissionMessageKey =

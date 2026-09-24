@@ -59,7 +59,15 @@ describe("a front-office cache key", () => {
 
   it("keeps two lists on one Property apart", () => {
     expect(frontOfficeKeys.arrivals(scope)).not.toEqual(
-      frontOfficeKeys.departures(scope),
+      frontOfficeKeys.departures(scope, "due"),
+    );
+  });
+
+  // "Due" and "in house" are two lists of one table; answering one from the
+  // other's cache would show a Guest who is not leaving as leaving.
+  it("keeps the two departures views apart", () => {
+    expect(frontOfficeKeys.departures(scope, "due")).not.toEqual(
+      frontOfficeKeys.departures(scope, "in_house"),
     );
   });
 
@@ -69,7 +77,8 @@ describe("a front-office cache key", () => {
     const all = frontOfficeKeys.all(scope);
     for (const key of [
       frontOfficeKeys.arrivals(scope),
-      frontOfficeKeys.departures(scope),
+      frontOfficeKeys.departures(scope, "due"),
+      frontOfficeKeys.departures(scope, "in_house"),
     ]) {
       expect(key.slice(0, all.length)).toEqual([...all]);
     }

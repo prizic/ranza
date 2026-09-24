@@ -1,24 +1,24 @@
 import type { OutboxSubscription } from "@ranza/platform-outbox";
+import { roomDirtySubscription } from "./room-dirty";
 import { staffReachSubscription } from "./staff-reach";
 
 /**
  * Which consumer wants which event.
  *
- * One. `staff.reach_changed` ends every session that Staff Member holds — the
- * handler that makes Staff and permissions mean anything, because without it a
- * role cut at nine keeps working until the session lapses.
+ * Two.
  *
- * `stay.checked_in` and `stay.checked_out` are still published and still
- * unconsumed; the dispatcher marks each one delivered and moves on. That
- * remains a position rather than an omission. Every candidate handler for them
- * needs a blueprint 5.x workflow that does not exist, and blueprint section 13
- * forbids building the table ahead of the workflow that needs it:
+ *   - `staff.reach_changed` ends every session that Staff Member holds — the
+ *     handler that makes Staff and permissions mean anything, because without
+ *     it a role cut at nine keeps working until the session lapses.
+ *   - `stay.checked_out` makes the room the Guest left dirty, which is the
+ *     housekeeping lifecycle's first command (ADR 0029). It writes a status of
+ *     its own table, not `accommodation_units.status`: whether a room needs
+ *     cleaning and whether it is in service are two facts that coexist.
  *
- *   - **Mark the Unit dirty on departure.** `accommodation_units.status` allows
- *     `available`, `occupied` and `out_of_service`; blueprint 18.2 names six
- *     states. Adding one here would be deciding the housekeeping lifecycle in a
- *     worker, and `docs/roadmap.md` already records that check-out deliberately
- *     does not fire it.
+ * `stay.checked_in` is still published and still unconsumed, and the other
+ * candidates for `stay.checked_out` are still waiting for workflows that do
+ * not exist, which blueprint section 13 forbids building ahead of:
+ *
  *   - **Close the Folio on departure.** ADR 0015 is explicit that folio closure
  *     rules are blueprint 5.9's own concern and that a rule invented at this
  *     point would be inventing that workflow.
@@ -39,10 +39,10 @@ import { staffReachSubscription } from "./staff-reach";
  * of its own (ADR 0016); a consumer name that is stable forever, because
  * `outbox.deliveries` is keyed on it; and an explicit grant for anything it
  * touches. The default is nothing at all, which is the friction that makes each
- * one deliberate — `staff.reach_changed` reaches the credential tables through
- * a single function and no table grant, which is what that friction bought
- * (ADR 0027).
+ * one deliberate — both handlers reach their tables through a single function
+ * and no table grant, which is what that friction bought (ADR 0027).
  */
 export const subscriptions: readonly OutboxSubscription[] = [
   staffReachSubscription,
+  roomDirtySubscription,
 ];

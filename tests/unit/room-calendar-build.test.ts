@@ -136,16 +136,35 @@ describe("overlaps", () => {
     const calendar = build([
       row({
         bars: [
-          stay({
-            startsOn: "2026-09-01",
-            heldUntil: addDays(FROM, 1),
-            status: "departed",
-          }),
+          stay({ startsOn: "2026-09-01", heldUntil: addDays(FROM, 1) }),
           bar({ startsOn: "2026-09-10", heldUntil: "2026-09-12" }),
         ],
       }),
     ]);
     expect(calendar.overlaps).toBe(0);
+  });
+
+  it("RC-S1-28: a departed Stay collides with nothing, though it still holds its nights", () => {
+    // An overdue Guest checked out: their Stay ends the day they left, which
+    // covers the first night of the booking they stayed into.
+    const calendar = build([
+      row({
+        bars: [
+          stay({
+            status: "departed",
+            startsOn: addDays(TODAY, -3),
+            heldUntil: TODAY,
+          }),
+          bar({ startsOn: addDays(TODAY, -1), heldUntil: addDays(TODAY, 2) }),
+        ],
+      }),
+    ]);
+    expect(calendar.overlaps).toBe(0);
+    expect(calendar.units[0]!.bars.some((b) => b.overlaps)).toBe(false);
+    const lastNight = calendar.nights.find(
+      (night) => night.day === addDays(TODAY, -2),
+    );
+    expect(lastNight?.free).toBe(0);
   });
 
   it("RC-S1-29 and RC-S1-30: a requested clash is labelled and never counted", () => {
@@ -172,7 +191,7 @@ describe("overlaps", () => {
     });
   });
 
-  it("RC-S1-29: a request over a Stay alone clashes with the Stay, where nothing refuses it", () => {
+  it("RC-S1-29: a request over a Guest in house clashes with the Stay, and confirming it would be refused", () => {
     const calendar = build([
       row({
         bars: [
@@ -188,6 +207,26 @@ describe("overlaps", () => {
     const requested = calendar.units[0]!.bars[1]!;
     expect(requested.clashesWith).toBe("stay");
     expect(calendar.overlaps).toBe(0);
+  });
+
+  it("RC-S1-29: a request over a departed Stay's nights clashes with nothing — they are history", () => {
+    const calendar = build([
+      row({
+        bars: [
+          stay({
+            status: "departed",
+            startsOn: addDays(TODAY, -3),
+            heldUntil: TODAY,
+          }),
+          bar({
+            status: "requested",
+            startsOn: addDays(TODAY, -2),
+            heldUntil: addDays(TODAY, -1),
+          }),
+        ],
+      }),
+    ]);
+    expect(calendar.units[0]!.bars[1]!.clashesWith).toBeNull();
   });
 
   it("RC-S1-31: counts every Unit, whatever a screen later hides", () => {
