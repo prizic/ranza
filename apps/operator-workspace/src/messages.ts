@@ -1052,8 +1052,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditNotPermittedDescription:
       "Denetim kaydını okumak ayrı bir izindir ve atandığınız tesislerde geçerlidir. Ekibi yöneten biri, Ekip ekranından size bu izni içeren bir rol verebilir, rolünüz organizasyonunuzun oluşturduğu bir rolse ona “Denetim kaydını okuma” iznini ekleyebilir ya da hiçbir tesise atanmadıysanız sizi bir tesise atayabilir.",
     auditNotHereTitle: "Bu tesiste denetim kaydını okuyamıyorsunuz",
-    auditNotHereDescription:
-      "Rolünüz başka bir tesiste okuyabiliyor. Tesisler menüsünden o tesisi seçin.",
+    auditNotHereDescription: "Rolünüz buradan okuyabiliyor:",
     noAuditDescription:
       "Bir giriş, çıkış, ücret veya ters kayıt yapıldığında burada görünür.",
     when: "Ne zaman",
@@ -1678,8 +1677,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditNotPermittedDescription:
       "Reading the audit log is a permission of its own, used at the Properties you're assigned to. Under People, someone who administers staff can give you a role that has it, add “Reading the audit log” to your role if it is one your Organization created, or assign you a Property if you have none.",
     auditNotHereTitle: "The audit log isn't open to you at this Property",
-    auditNotHereDescription:
-      "Your role can read it at another Property. Choose that one under Properties.",
+    auditNotHereDescription: "Your role can read it here:",
     noAuditDescription:
       "A check-in, check-out, charge or reversal appears here once it happens.",
     when: "When",
@@ -2289,8 +2287,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditNotPermittedDescription:
       "قراءة سجل التدقيق صلاحية مستقلة تُستخدم في المنشآت التي عُيّنت فيها. يمكن لمن يدير الفريق أن يمنحك من شاشة الفريق دورًا يتضمنها، أو أن يضيف صلاحية «قراءة سجل التدقيق» إلى دورك إن كان دورًا أنشأته مؤسستك، أو أن يعيّنك في منشأة إن لم تكن معيّنًا في أي منشأة.",
     auditNotHereTitle: "لا يمكنك قراءة سجل التدقيق في هذه المنشأة",
-    auditNotHereDescription:
-      "يتيح لك دورك قراءته في منشأة أخرى. اخترها من قائمة المنشآت.",
+    auditNotHereDescription: "يتيح لك دورك قراءته من هنا:",
     noAuditDescription:
       "يظهر هنا أي تسجيل وصول أو مغادرة أو رسم أو إلغاء فور حدوثه.",
     when: "متى",

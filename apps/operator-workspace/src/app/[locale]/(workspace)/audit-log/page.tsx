@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { EmptyState } from "@ranza/ui";
+import { Button, EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ANY } from "../../../../features/audit-log/actions";
 import {
@@ -73,10 +73,35 @@ export default async function AuditLogPage({
   if (!property) {
     // The switcher names a Property the log cannot be opened from, and there
     // is one it can: a named Property no longer falls back to another, so say
-    // which way to go rather than a refusal that is untrue for this viewer.
+    // where it opens rather than a refusal that is untrue for this viewer.
+    // Linked here rather than left to the switcher, which lists the Properties
+    // Today is open at and leads back to Today — neither is this question.
+    // One link per Organization: the log is the Organization's, and which of
+    // its Properties it is opened from changes nothing in it (ADR 0031).
     if (properties.length > 0) {
+      const entrances = new Map<string, (typeof properties)[number]>();
+      for (const candidate of properties) {
+        if (!entrances.has(candidate.organizationId)) {
+          entrances.set(candidate.organizationId, candidate);
+        }
+      }
       return (
         <EmptyState
+          action={
+            <ul className="flex flex-wrap gap-2">
+              {[...entrances.values()].map((entrance) => (
+                <li key={entrance.organizationId}>
+                  <Button asChild size="sm" variant="outline">
+                    <Link
+                      href={`${localizeHref(locale, "audit-log")}?property=${entrance.propertyId}`}
+                    >
+                      {entrance.organizationName}
+                    </Link>
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          }
           description={t("auditNotHereDescription")}
           title={t("auditNotHereTitle")}
         />

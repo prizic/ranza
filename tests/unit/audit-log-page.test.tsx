@@ -16,6 +16,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider, createTranslator } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  localizeHref,
   supportedLocales,
   type SupportedLocale,
 } from "../../packages/i18n/src";
@@ -76,6 +77,12 @@ const KADIKOY = {
   organizationName: "Deniz Otelleri",
 };
 
+const BESIKTAS = {
+  ...KADIKOY,
+  propertyId: "d9000004-0000-4000-8000-000000000003",
+  propertyName: "Deniz Otel Beşiktaş",
+};
+
 beforeEach(() => {
   permittedProperties.mockReset();
   auditLog.mockReset();
@@ -117,12 +124,22 @@ describe("the audit log page", () => {
   // "You can't read the audit log" would be untrue for them.
   for (const as of supportedLocales) {
     it(`sends somebody who may read it elsewhere to the switcher, in ${as}`, async () => {
-      permittedProperties.mockResolvedValue([KADIKOY]);
+      permittedProperties.mockResolvedValue([KADIKOY, BESIKTAS]);
       await show(as, { property: "d9000004-0000-4000-8000-000000000002" });
 
       const say = messages[as];
       expect(screen.getByText(say.auditNotHereTitle)).toBeInTheDocument();
       expect(screen.getByText(say.auditNotHereDescription)).toBeInTheDocument();
+      // Where it does open, as a way there: the switcher lists Today's
+      // Properties and leads back to Today, so it cannot be the answer. One
+      // way per Organization, since the log is the Organization's.
+      expect(screen.getAllByRole("link")).toHaveLength(1);
+      expect(
+        screen.getByRole("link", { name: KADIKOY.organizationName }),
+      ).toHaveAttribute(
+        "href",
+        `${localizeHref(as, "audit-log")}?property=${KADIKOY.propertyId}`,
+      );
       expect(
         screen.queryByText(say.auditNotPermittedTitle),
       ).not.toBeInTheDocument();
