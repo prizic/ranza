@@ -4,7 +4,7 @@ import path from "node:path";
 import { expect, test as setup } from "@playwright/test";
 
 import { psql } from "./local-database";
-import { testProperty } from "./front-desk";
+import { propertyWithHousekeepingOff, testProperty } from "./front-desk";
 
 /**
  * Somebody to sign in as.
@@ -55,7 +55,7 @@ setup("a seeded Staff Member exists", () => {
  *
  * By the time any spec calls `testProperty()` it is only ever reading.
  */
-setup("the browser tests have a Property of their own", () => {
+setup("the browser tests have Properties of their own", () => {
   // Following its Organization, which sets nothing: inspection off. A run that
   // died halfway through the inspection spec leaves it switched on, and then
   // every arrival in the suite checks into a room that is not ready.
@@ -63,4 +63,5 @@ setup("the browser tests have a Property of their own", () => {
     `update public.housekeeping_settings set inspect_after_cleaning = null
       where property_id = '${testProperty()}'`,
   );
+  propertyWithHousekeepingOff();
 });

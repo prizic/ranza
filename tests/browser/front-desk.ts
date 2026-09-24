@@ -31,6 +31,45 @@ const TEST_PROPERTY = "E2E Test Property";
  * the first by name and this one has no business being it.
  */
 export function testProperty(): string {
+  // Today for the Property switcher, front_desk for the screen itself. Finance
+  // as well, so a check-in opens a Folio: the refusal that matters most on this
+  // screen is the one a charge causes, and without a Folio there is nowhere to
+  // put one. And staff_administration, because the roster is the other screen
+  // a browser test signs in to look at; housekeeping for the board.
+  return aPropertyOfTheTests(TEST_PROPERTY, {
+    today: true,
+    front_desk: true,
+    finance: true,
+    staff_administration: true,
+    housekeeping: true,
+  });
+}
+
+/**
+ * A second Property of the tests' own, where housekeeping is switched off
+ * (HK-S1-24): the case in which a screen once showed another Property's rooms
+ * under this one's name. Its front desk is on, so it is a Property the viewer
+ * plainly reaches and the switcher lists.
+ */
+export function propertyWithHousekeepingOff(): string {
+  return aPropertyOfTheTests(`${TEST_PROPERTY} (housekeeping off)`, {
+    today: true,
+    front_desk: true,
+    housekeeping: false,
+  });
+}
+
+/**
+ * Finds or creates one of the tests' Properties by name, with the capabilities
+ * it starts with. A capability already recorded is left as it is.
+ */
+function aPropertyOfTheTests(
+  name: string,
+  capabilities: Record<string, boolean>,
+): string {
+  const wanted = Object.entries(capabilities)
+    .map(([key, enabled]) => `('${key}', ${enabled})`)
+    .join(", ");
   const propertyId = psql(
     `with member as (
        select id from public.users where lower(email) = lower('${EMAIL}')
@@ -47,29 +86,21 @@ export function testProperty(): string {
      ), existing as (
        select id from public.properties
        where organization_id = (select id from home)
-         and name = '${TEST_PROPERTY}'
+         and name = '${name}'
      ), created as (
        insert into public.properties (organization_id, name)
-       select (select id from home), '${TEST_PROPERTY}'
+       select (select id from home), '${name}'
        where not exists (select 1 from existing)
          and exists (select 1 from home)
        returning id
      ), target as (
        select id from existing union all select id from created
      ), capability as (
-       -- Today for the Property switcher, front_desk for the screen itself.
        -- An Entitlement is the Organization's and the seed already granted it.
        insert into public.property_capabilities
          (property_id, organization_id, capability_key, enabled)
-       select target.id, (select id from home), wanted.key, true
-       -- Finance as well, so a check-in opens a Folio: the refusal that
-       -- matters most on this screen is the one a charge causes, and without a
-       -- Folio there is nowhere to put one.
-       from target,
-            -- And staff_administration, because the roster is the other screen
-            -- a browser test signs in to look at; housekeeping for the board.
-            (values ('today'), ('front_desk'), ('finance'),
-                    ('staff_administration'), ('housekeeping')) as wanted (key)
+       select target.id, (select id from home), wanted.key, wanted.enabled
+       from target, (values ${wanted}) as wanted (key, enabled)
        where not exists (
          select 1 from public.property_capabilities as held
          where held.property_id = target.id

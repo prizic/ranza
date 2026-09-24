@@ -3,7 +3,11 @@ import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
 import { psql } from "./local-database";
-import { signIn, testProperty } from "./front-desk";
+import {
+  propertyWithHousekeepingOff,
+  signIn,
+  testProperty,
+} from "./front-desk";
 
 /**
  * Housekeeping through the screens a front desk actually uses (RANZ-28).
@@ -115,6 +119,24 @@ test("arrivals asks before checking a Guest into a room that is not ready", asyn
   await row.getByRole("button", { name: "Check in" }).click();
   await expect(row).toContainText("isn't ready yet");
 
+  // The whole warning, inside its cell, at a desk's usual width: the reason
+  // is the part that was once cut off, after "it hasn't been clean".
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const warning = row.getByText("isn't ready yet");
+  await expect(warning).toContainText("waiting for inspection");
+  expect(
+    await warning.evaluate(
+      (element) => element.scrollWidth - element.clientWidth,
+    ),
+  ).toBe(0);
+  const table = page.getByRole("table");
+  expect(
+    await table.evaluate(
+      (element) =>
+        element.parentElement!.scrollWidth - element.parentElement!.clientWidth,
+    ),
+  ).toBe(0);
+
   await row.getByRole("button", { name: "Check in anyway" }).click();
   await expect(row).toContainText("Checked in");
 });
@@ -141,4 +163,21 @@ test("a manager switches inspection on for one Property and sees what it means",
   await expect(
     page.getByRole("combobox", { name: "For this Property" }),
   ).toContainText("Use the Organization's setting");
+});
+
+test("a Property with housekeeping switched off shows the empty state, not another Property's rooms", async ({
+  page,
+}) => {
+  const switchedOff = propertyWithHousekeepingOff();
+
+  await signIn(page);
+  await page.goto(`/en/housekeeping?property=${switchedOff}`);
+
+  // HK-S1-24: the board of the first Property with housekeeping, under this
+  // one's name in the switcher, is what this once showed.
+  await expect(page.getByText(/Which rooms need cleaning at/)).toHaveCount(0);
+  await expect(page.getByRole("table")).toHaveCount(0);
+  await expect(
+    page.getByText("Housekeeping is not on at this Property"),
+  ).toBeVisible();
 });

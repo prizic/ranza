@@ -46,8 +46,8 @@ export default async function FinancePage({
   if (!property) {
     return (
       <EmptyState
-        description={t("notEntitledDescription")}
-        title={t("notEntitledTitle")}
+        description={t("noFinanceDescription")}
+        title={t("noFinanceTitle")}
       />
     );
   }
