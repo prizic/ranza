@@ -660,6 +660,86 @@ describe("the last administrator", () => {
   });
 });
 
+// SP-S1-34. Defining a role was bounded by what the author holds; assigning one
+// was not, so a role holding only staff.administer was one step from Owner.
+// This is the whole attack, through the module the People screen calls.
+describe("a role handed out is bounded by the hander's own", () => {
+  async function aNarrowAdministrator(): Promise<string> {
+    const { key } = await staff.defineRole(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        name: `Rota keeper ${randomUUID().slice(0, 8)}`,
+        permissions: ["staff.administer"],
+      },
+    );
+    const { membershipId } = await staff.invite(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        email: anAddress(),
+        roleKey: key,
+        roleScopeId: ORG,
+        // Organization-wide, so they reach a Property. The commercial gate asks
+        // about a Property the actor reaches, and somebody who reaches none is
+        // refused by it before the ceiling is ever asked — which is the reason
+        // this suite once passed with the ceiling removed.
+        accessScope: "organization_wide",
+      },
+    );
+    const [row] = await owner.$queryRawUnsafe<{ userId: string }[]>(
+      `select user_id as "userId" from public.organization_memberships
+        where id = $1::uuid`,
+      membershipId,
+    );
+    return row!.userId;
+  }
+
+  it("refuses a holder of staff.administer alone making themselves Owner", async () => {
+    const narrow = await aNarrowAdministrator();
+
+    await expect(
+      staff.changeRole(
+        { userId: narrow },
+        { organizationId: ORG, userId: narrow, roleKey: "owner" },
+      ),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+    await expect(
+      staff.invite(
+        { userId: narrow },
+        { organizationId: ORG, email: anAddress(), roleKey: "owner" },
+      ),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+
+    const [row] = await owner.$queryRawUnsafe<{ role: string }[]>(
+      `select role from public.organization_memberships
+        where organization_id = $1::uuid and user_id = $2::uuid`,
+      ORG,
+      narrow,
+    );
+    expect(row?.role).not.toBe("owner");
+  });
+
+  it("still lets them revoke somebody whose role they could not grant", async () => {
+    const narrow = await aNarrowAdministrator();
+    const { membershipId } = await staff.invite(
+      { userId: OWNER },
+      { organizationId: ORG, email: anAddress(), roleKey: "manager" },
+    );
+    const [manager] = await owner.$queryRawUnsafe<{ userId: string }[]>(
+      `select user_id as "userId" from public.organization_memberships
+        where id = $1::uuid`,
+      membershipId,
+    );
+
+    await staff.revoke(
+      { userId: narrow },
+      { organizationId: ORG, userId: manager!.userId },
+    );
+    expect(await roleOf(manager!.userId)).toBe("manager/revoked");
+  });
+});
+
 describe("the roster", () => {
   it("is Organization-wide and no wider", async () => {
     const email = anAddress();
