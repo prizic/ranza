@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
 import { CircleCheck, Lock } from "lucide-react";
@@ -38,9 +39,12 @@ export function useFolioColumns(
         />
       ),
       cell: ({ row }) => (
-        <a
+        // Not prefetched: one row is one request, and all it would fetch is
+        // the loading boundary — the row's own data is read on the click.
+        <Link
           className="block hover:underline"
           href={`${folioHref}&folio=${row.original.folioId}`}
+          prefetch={false}
         >
           {/* A walk-in has no name recorded anywhere yet: Guest profiles are
               blueprint 5.3 and are not built. The Unit identifies them in the
@@ -51,7 +55,7 @@ export function useFolioColumns(
           <span className="block text-step--1 text-muted-foreground">
             {row.original.unitName}
           </span>
-        </a>
+        </Link>
       ),
     },
     {

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 
 /**
@@ -35,12 +36,12 @@ export function AppPageBar({
                 the heading. A link, because a trail that cannot be followed is
                 decoration, and never hidden on small screens: on a phone this
                 is the only way back out of a child page. */}
-            <a
+            <Link
               className="flex min-h-11 shrink-0 items-center transition-colors hover:text-primary"
               href={parent.href}
             >
               {parent.title}
-            </a>
+            </Link>
             <ChevronLeft
               aria-hidden="true"
               className="size-4 shrink-0 text-muted-foreground ltr:-scale-x-100"

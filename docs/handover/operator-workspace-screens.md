@@ -114,16 +114,24 @@ blueprint 4.6 says navigation shows only entitled capabilities and locked
 upsells do not clutter it — but it means a screen can look "missing" when it is
 only unentitled. `scripts/db-seed-dev.mjs` grants all of them locally.
 
-**The shell opens one transaction per destination.** `layout.tsx` asks
-`entitledProperties()` once per unique capability, in parallel, and the page
-beneath it adds its own — more concurrent transactions than `pg-pool`'s default
-of ten, so the last ones queue for a connection. Warm, that costs one round
-trip. After ten idle seconds the pool has closed its clients, and on a machine
-under load a fresh connection through Docker can take seconds to open, which
-surfaces as Prisma's `P2028 Unable to start a transaction` on the first render
-after a pause. Reloading is the answer while developing; the structural fix is
-one query over a `VALUES` list of the capabilities, one transaction instead of
-eleven.
+**The shell renders once, not on every page.** Every link between workspace
+pages is a `next/link`, so moving between them renders only the page beneath the
+layout. The layout's gate therefore does not run again, and every page calls
+`requireViewer()` itself — a new page that skips it shows an ended session empty
+pages under a stale shell instead of sending it to sign-in. The language items
+and the Property switcher stay plain anchors on purpose; each says why. Every
+other link carries the current `?property=` (`useWithProperty()` in
+`src/lib/nav.ts`, or `PropertyLink` from the server-rendered shell), so only the
+switcher changes the Property — with a full load, which is what drops the client
+cache the way ADR 0019 asks. Links in table rows set `prefetch={false}`: a
+prefetch fetches only as far as the loading boundary, and one per visible row is
+a request each for nothing.
+
+The layout asks about every destination in one read
+(`entitledPropertiesByCapability()`, one transaction), and the page beneath adds
+its own. It used to open a transaction per destination, more at once than
+`pg-pool`'s default of ten, which surfaced after an idle pause as Prisma's
+`P2028 Unable to start a transaction`.
 
 **`pnpm check` runs `next build`**, which writes into the same `.next` a running
 `pnpm dev` serves from. Every route 404s afterwards, including ones that plainly

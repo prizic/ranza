@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
 import { CircleCheck, Undo2 } from "lucide-react";
@@ -85,9 +86,12 @@ export function useAuditColumns(
         />
       ),
       cell: ({ row }) => (
-        <a
+        // Not prefetched: one row is one request, and all it would fetch is
+        // the loading boundary — the row's own data is read on the click.
+        <Link
           className="block hover:underline"
           href={`${recordHref}&record=${row.original.id}`}
+          prefetch={false}
         >
           {/* A correction is the row this screen exists for, so it is said
               three ways — tone, icon and word — never by colour alone
@@ -113,7 +117,7 @@ export function useAuditColumns(
               {shortId(row.original.subjectId)}
             </span>
           </span>
-        </a>
+        </Link>
       ),
     },
     {

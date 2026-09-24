@@ -7,6 +7,7 @@ import {
   departures,
   entitledProperties,
   FRONT_DESK_CAPABILITY,
+  requireViewer,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
 
@@ -26,6 +27,7 @@ export default async function DeparturesPage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  await requireViewer(locale);
 
   const t = await getTranslations();
   const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
