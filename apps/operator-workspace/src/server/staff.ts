@@ -6,6 +6,7 @@ import {
   AlreadyAMemberError,
   LastAdministratorError,
   RoleIsHeldError,
+  StaffRefusedError,
   type Role,
   type StaffMember,
 } from "@ranza/staff";
@@ -31,6 +32,11 @@ import { currentViewer } from "./viewer";
  * Organization the viewer cannot see exists. `lastAdministrator` is separate
  * because it is the one refusal the actor can act on — find another Owner
  * first.
+ *
+ * What is not one of the module's refusals is a fault, and is logged before it
+ * is shown as `refused`. Shown that way because telling it apart would say too
+ * much; logged because that is how F-1 hid: every role change failed, the
+ * screen said "refused", and nothing anywhere recorded why.
  */
 export type StaffOutcome =
   | "idle"
@@ -56,6 +62,9 @@ function outcomeFor(error: unknown): StaffOutcome {
   if (error instanceof AlreadyAMemberError) return "alreadyAMember";
   if (error instanceof LastAdministratorError) return "lastAdministrator";
   if (error instanceof RoleIsHeldError) return "roleIsHeld";
+  if (!(error instanceof StaffRefusedError)) {
+    console.error("staff command failed", error);
+  }
   return "refused";
 }
 
