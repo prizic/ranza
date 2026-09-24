@@ -24,6 +24,35 @@ import { signIn, testProperty } from "./front-desk";
  * Each run invites somebody new and takes nothing back. A membership is
  * operational history and is revoked rather than deleted.
  */
+/** A colleague of this run's own, holding the shipped Front desk role. */
+function aColleague(propertyId: string): string {
+  const email = `e2e-role-${randomUUID().slice(0, 8)}@example.test`;
+  psql(
+    `with home as (
+       select organization_id as id from public.properties where id = '${propertyId}'
+     ), person as (
+       insert into public.users (email) values ('${email}') returning id
+     )
+     insert into public.organization_memberships
+       (organization_id, user_id, role, access_scope)
+     select home.id, person.id, 'front_desk', 'assigned_properties'
+     from home, person`,
+  );
+  return email;
+}
+
+/** Which role somebody holds, by scope as well as key: `front_desk@shipped`. */
+function roleOf(email: string): string {
+  return psql(
+    `select membership.role || '@' || case
+              when membership.role_scope_id = '00000000-0000-0000-0000-000000000000'
+              then 'shipped' else 'organization' end
+     from public.organization_memberships as membership
+     join public.users as member on member.id = membership.user_id
+     where member.email = '${email}'`,
+  );
+}
+
 test("an administrator invites a colleague and is given the link to pass on", async ({
   page,
 }) => {
@@ -100,9 +129,13 @@ test("an Organization defines a role of its own and sees it beside the shipped o
   await expect(
     page.getByRole("checkbox", { name: `${name}: Check somebody in` }),
   ).toBeChecked();
-  // And a shipped role is on the same grid, shown and not editable.
+  // And a shipped role is on the same grid, shown and not editable. The first
+  // of that name: shipped columns come before the Organization's own, and the
+  // Organization may have a "Front desk" of its own (see "picked apart" below).
   await expect(
-    page.getByRole("checkbox", { name: "Front desk: Check somebody in" }),
+    page
+      .getByRole("checkbox", { name: "Front desk: Check somebody in" })
+      .first(),
   ).toBeDisabled();
 });
 
@@ -130,36 +163,18 @@ test("an administrator changes somebody's role from the roster", async ({
 }) => {
   const propertyId = testProperty();
   const suffix = randomUUID().slice(0, 8);
-  const colleague = `e2e-role-${suffix}@example.test`;
   const roleName = `Night desk ${suffix}`;
   const roleKey = `night_desk_${suffix}`;
 
+  const colleague = aColleague(propertyId);
   psql(
-    `with home as (
-       select organization_id as id from public.properties where id = '${propertyId}'
-     ), person as (
-       insert into public.users (email) values ('${colleague}') returning id
-     ), role as (
-       insert into public.staff_roles
-         (scope_id, key, organization_id, name, permissions, status)
-       select id, '${roleKey}', id, '${roleName}', array['front_desk.check_in'], 'active'
-       from home
-     )
-     insert into public.organization_memberships
-       (organization_id, user_id, role, access_scope)
-     select home.id, person.id, 'front_desk', 'assigned_properties'
-     from home, person`,
+    `insert into public.staff_roles
+       (scope_id, key, organization_id, name, permissions, status)
+     select organization_id, '${roleKey}', organization_id, '${roleName}',
+            array['front_desk.check_in'], 'active'
+     from public.properties where id = '${propertyId}'`,
   );
-  const roleOf = () =>
-    psql(
-      `select membership.role || '@' || case
-                when membership.role_scope_id = '00000000-0000-0000-0000-000000000000'
-                then 'shipped' else 'organization' end
-       from public.organization_memberships as membership
-       join public.users as member on member.id = membership.user_id
-       where member.email = '${colleague}'`,
-    );
-  expect(roleOf()).toBe("front_desk@shipped");
+  expect(roleOf(colleague)).toBe("front_desk@shipped");
 
   await signIn(page);
   await page.goto(`/en/people?property=${propertyId}`);
@@ -171,14 +186,14 @@ test("an administrator changes somebody's role from the roster", async ({
   await page.getByRole("option", { exact: true, name: "Housekeeping" }).click();
   await expect(select).toBeEnabled();
   await expect(row.getByText("That was refused.")).toHaveCount(0);
-  await expect.poll(roleOf).toBe("housekeeping@shipped");
+  await expect.poll(() => roleOf(colleague)).toBe("housekeeping@shipped");
 
   // One the Organization wrote, which only the scope half tells apart.
   await select.click();
   await page.getByRole("option", { exact: true, name: roleName }).click();
   await expect(select).toBeEnabled();
   await expect(row.getByText("That was refused.")).toHaveCount(0);
-  await expect.poll(roleOf).toBe(`${roleKey}@organization`);
+  await expect.poll(() => roleOf(colleague)).toBe(`${roleKey}@organization`);
 
   // And it survives a reload: the screen shows what the database holds.
   await page.reload();
@@ -199,4 +214,59 @@ test("an administrator changes somebody's role from the roster", async ({
        where record.action = 'staff.role_changed' and member.email = '${colleague}'`,
     ),
   ).toBe(`front_desk>housekeeping,housekeeping>${roleKey}`);
+});
+
+/**
+ * An Organization's own "Front desk", beside the shipped one.
+ *
+ * An authored role's key is a slug of its name, so this one is `front_desk`
+ * exactly as the shipped one is. Both pickers named every role from its key
+ * alone, so the two read the same and nothing said which was which. Each is
+ * now named by its scope and sits in the roles grid's two groups, and picking
+ * the Organization's own gives the Organization's own. Watched go red before
+ * it was believed: without the groups there is no telling which to press.
+ *
+ * A role is retired, never deleted, so this one stays the Organization's and a
+ * later run finds it rather than writing it again.
+ */
+test("an Organization's own Front desk is picked apart from the shipped one", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const colleague = aColleague(propertyId);
+  psql(
+    `insert into public.staff_roles
+       (scope_id, key, organization_id, name, permissions, status)
+     select organization_id, 'front_desk', organization_id, 'Front desk',
+            array['front_desk.check_in'], 'active'
+     from public.properties where id = '${propertyId}'
+     on conflict do nothing`,
+  );
+
+  await signIn(page);
+  await page.goto(`/en/people?property=${propertyId}`);
+  const select = page
+    .getByRole("row")
+    .filter({ hasText: colleague })
+    .getByRole("combobox", { name: `Role: ${colleague}` });
+  await select.click();
+
+  const ranzas = page
+    .getByRole("group", { name: "Ranza ships these" })
+    .getByRole("option", { exact: true, name: "Front desk" });
+  const ours = page
+    .getByRole("group", { name: "You defined these" })
+    .getByRole("option", { exact: true, name: "Front desk" });
+  await expect(ranzas).toHaveAttribute("data-state", "checked");
+  await expect(ours).toHaveAttribute("data-state", "unchecked");
+
+  await ours.click();
+  await expect(select).toBeEnabled();
+  await expect(
+    page
+      .getByRole("row")
+      .filter({ hasText: colleague })
+      .getByText("That was refused."),
+  ).toHaveCount(0);
+  await expect.poll(() => roleOf(colleague)).toBe("front_desk@organization");
 });
