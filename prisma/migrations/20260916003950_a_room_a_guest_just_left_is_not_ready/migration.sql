@@ -1,7 +1,12 @@
 -- A room a Guest has just left is not ready (RANZ-23 meeting RANZ-28; ADR 0029
 -- amended, ADR 0033).
 --
--- Hand-written; this migration adds no column and no table.
+-- CreateIndex
+CREATE INDEX "stays_departed_unit_idx" ON "stays"("accommodation_unit_id", "ends_on") WHERE (status = 'departed');
+
+-- ---------------------------------------------------------------------------
+-- Hand-written from here down
+-- ---------------------------------------------------------------------------
 --
 -- ON THE NUMBER. 003950 is inside the range feat/front-desk-occupancy owns
 -- (003500 to 003999), and it has to sort after both housekeeping's 003200,
@@ -31,6 +36,14 @@
 -- anybody ever left as not ready until somebody marked it. Yesterday rather than
 -- today covers a check-out at 03:59 whose delivery lands after the cutoff.
 --
+-- The index above is what makes the question cheap. Readiness is asked once per
+-- room by the board and once per row by arrivals, and both poll; departed Stays
+-- are never deleted (blueprint 7.4), so without an index on who left which Unit
+-- every call read the whole table, and read more of it every day. The Unit is
+-- matched as `unit.id = holder or unit.parent_id = holder` rather than
+-- coalesce(parent_id, id), which is the same set — a holder is a room or a bed
+-- with no room above it — and can use the primary key and the parent index.
+--
 -- Still security invoker, as 003200 left it: it reads accommodation_units,
 -- housekeeping_unit_status and now stays, all under reach-only read policies,
 -- so the board, the arrivals list and checkIn get the same answer for one
@@ -48,10 +61,10 @@ as $$
               when holder.status = 'dirty' then false
               when exists (
                 select 1
-                  from public.stays as stay
-                  join public.accommodation_units as unit
-                    on unit.id = stay.accommodation_unit_id
-                 where coalesce(unit.parent_id, unit.id) = holder.id
+                  from public.accommodation_units as unit
+                  join public.stays as stay
+                    on stay.accommodation_unit_id = unit.id
+                 where (unit.id = holder.id or unit.parent_id = holder.id)
                    and stay.status = 'departed'
                    and stay.ends_on >= app.property_today(holder.property_id) - 1
                    and stay.updated_at

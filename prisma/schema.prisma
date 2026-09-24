@@ -482,6 +482,10 @@ model Stay {
   /// One Guest in one Unit, whatever the planned dates say (ADR 0033).
   @@unique([accommodationUnitId], map: "stays_one_in_house_per_unit", where: { status: "in_house" })
   @@index([propertyId], map: "stays_property_idx")
+  /// Who left a Unit lately, which readiness asks of every room on every poll
+  /// (ADR 0029 as amended). Departed Stays are never deleted, so without it the
+  /// question reads the whole table.
+  @@index([accommodationUnitId, endsOn], map: "stays_departed_unit_idx", where: { status: "departed" })
   // Partial: the Resident access path only ever asks about a current Stay.
   @@index([userId], map: "stays_user_idx", where: raw("status = ANY (ARRAY['reserved'::text, 'in_house'::text])"))
   @@map("stays")

@@ -6,8 +6,8 @@
 -- strictly later, the worker's own.
 --
 -- Every assertion here was checked by breaking the thing it asserts — the
--- departure clause removed, the date bound removed, the bound narrowed to today
--- — and confirming it went red.
+-- departure clause removed, the date bound removed, the bound narrowed to today,
+-- the bed's arm of the Unit match dropped — and confirming it went red.
 begin;
 select plan(6);
 
