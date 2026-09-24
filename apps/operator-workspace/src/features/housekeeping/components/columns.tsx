@@ -112,8 +112,18 @@ export function useHousekeepingColumns({
           title={t("status")}
         />
       ),
+      // Clean and not ready means inspection applies here: the badge alone
+      // would call two rooms the same that the front desk must treat
+      // differently.
       cell: ({ row }) => (
-        <HousekeepingStatusBadge status={row.original.status} />
+        <div className="grid justify-items-start gap-1">
+          <HousekeepingStatusBadge status={row.original.status} />
+          {row.original.status === "clean" && !row.original.ready ? (
+            <span className="text-step--1 text-muted-foreground">
+              {t("awaitingInspection")}
+            </span>
+          ) : null}
+        </div>
       ),
     },
     {

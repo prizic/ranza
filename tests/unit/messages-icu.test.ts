@@ -111,6 +111,7 @@ describe("every catalogue parses", () => {
                 of: 9,
                 property: "x",
                 room: "x",
+                value: "x",
               }),
             ).not.toThrow();
             return;

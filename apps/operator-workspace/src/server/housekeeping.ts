@@ -23,6 +23,12 @@ export interface MarkOutcome {
   marked?: number;
 }
 
+/**
+ * A form field that must be an id. Anything else is a malformed request, which
+ * is "invalid" rather than a Postgres cast error surfacing as a crash.
+ */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function isRefused(error: unknown): error is HousekeepingRefusedError {
   return (
     error instanceof HousekeepingRefusedError ||
@@ -63,6 +69,7 @@ export async function markRooms(
 
   const unitIds = form.getAll("unitId").map(String);
   const status = String(form.get("status") ?? "");
+  if (!unitIds.every((id) => UUID.test(id))) return { status: "invalid" };
 
   try {
     const { marked } = await getComposition().housekeeping.markUnits(
@@ -81,4 +88,60 @@ export async function markRooms(
     }
     throw error;
   }
+}
+
+export interface InspectionOutcome {
+  status: "idle" | "done" | "invalid" | "refused";
+}
+
+/**
+ * Changing whether rooms are inspected after cleaning (slice 3).
+ *
+ * `scope` is `property` or `organization`; `value` is `on`, `off`, or — for a
+ * Property only — `default`, which clears its own answer so it follows the
+ * Organization again (HK-S3-10). The policies decide who may (HK-S3-05,
+ * HK-S3-07); nothing here checks.
+ */
+export async function setInspection(
+  _previous: InspectionOutcome,
+  form: FormData,
+): Promise<InspectionOutcome> {
+  const viewer = await currentViewer();
+  if (!viewer) return { status: "refused" };
+
+  const locale = String(form.get("locale") ?? "");
+  if (!isSupportedLocale(locale)) return { status: "invalid" };
+  const propertyId = String(form.get("propertyId") ?? "");
+  const scope = String(form.get("scope") ?? "");
+  const value = String(form.get("value") ?? "");
+  if (!UUID.test(propertyId)) return { status: "invalid" };
+
+  const housekeeping = getComposition().housekeeping;
+  try {
+    if (scope === "property" && ["on", "off", "default"].includes(value)) {
+      await housekeeping.setPropertyInspection(
+        viewer.userId,
+        propertyId,
+        value === "default" ? null : value === "on",
+      );
+    } else if (scope === "organization" && ["on", "off"].includes(value)) {
+      await housekeeping.setOrganizationInspection(
+        viewer.userId,
+        propertyId,
+        value === "on",
+      );
+    } else {
+      return { status: "invalid" };
+    }
+  } catch (error: unknown) {
+    if (isRefused(error)) {
+      revalidateHousekeeping(locale);
+      return { status: "refused" };
+    }
+    throw error;
+  }
+
+  // What ready means moved, so every screen that reads readiness is stale.
+  revalidateHousekeeping(locale);
+  return { status: "done" };
 }

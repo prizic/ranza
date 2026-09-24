@@ -2,6 +2,7 @@ import { withOrganizationContext } from "@ranza/db";
 import { recentWithin, type ScopeHistory } from "@ranza/platform-audit";
 import {
   AUDIT_CAPABILITY,
+  type CapabilityProperties,
   type CapabilityRef,
   type EntitledProperty,
 } from "./contracts";
@@ -70,6 +71,68 @@ export function createCoreModule(deps: CoreDeps) {
   }
 
   /**
+   * `listEntitledProperties` for several capabilities at once, in one
+   * transaction — one entry per requested capability, in the order asked.
+   *
+   * The shell asks about every destination to build its navigation, and one
+   * transaction per destination is a connection each: a dozen at once on every
+   * full page load, more than the pool holds. The question is unchanged — the
+   * same `app.can_use_capability()` per Property, behind the same row-level
+   * security — so each entry is exactly what `listEntitledProperties` would
+   * answer for that capability alone.
+   *
+   * Keyed on the position asked rather than the capability key, because two
+   * modules may name a capability alike and are still different gates.
+   */
+  async function listEntitledPropertiesByCapability(
+    userId: string,
+    capabilities: readonly CapabilityRef[],
+  ): Promise<CapabilityProperties[]> {
+    if (capabilities.length === 0) return [];
+
+    const rows = await withOrganizationContext(
+      deps.db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<(EntitledProperty & { position: number })[]>`
+        select
+          requested.position::int  as "position",
+          property.id              as "propertyId",
+          property.name            as "propertyName",
+          property.timezone        as "timezone",
+          organization.id          as "organizationId",
+          organization.name        as "organizationName"
+        from unnest(
+          ${capabilities.map((capability) => capability.moduleKey)}::text[],
+          ${capabilities.map((capability) => capability.capabilityKey)}::text[]
+        ) with ordinality as requested(module_key, capability_key, position)
+        cross join public.properties as property
+        join public.organizations as organization
+          on organization.id = property.organization_id
+        where app.can_use_capability(
+          property.id,
+          requested.module_key,
+          requested.capability_key
+        )
+        order by requested.position, organization.name, property.name
+      `,
+    );
+
+    return capabilities.map((capability, index) => ({
+      capability,
+      properties: rows
+        .filter((row) => row.position === index + 1)
+        .map((row) => ({
+          propertyId: row.propertyId,
+          propertyName: row.propertyName,
+          timezone: row.timezone,
+          organizationId: row.organizationId,
+          organizationName: row.organizationName,
+        })),
+    }));
+  }
+
+  /**
    * The Organization's newest audit records, read through one of its
    * Properties.
    *
@@ -108,7 +171,11 @@ export function createCoreModule(deps: CoreDeps) {
     });
   }
 
-  return { listEntitledProperties, recentActivity };
+  return {
+    listEntitledProperties,
+    listEntitledPropertiesByCapability,
+    recentActivity,
+  };
 }
 
 export type CoreModule = ReturnType<typeof createCoreModule>;

@@ -3,7 +3,7 @@ import { isSupportedLocale } from "@ranza/i18n";
 import { EmptyState, PlannedScreen } from "@ranza/ui";
 import { getTranslations } from "next-intl/server";
 import { screenFor } from "../../../../lib/screens";
-import { entitledProperties } from "../../../../server/viewer";
+import { entitledProperties, requireViewer } from "../../../../server/viewer";
 
 const SEGMENT = "food-and-beverage";
 
@@ -25,6 +25,7 @@ export default async function Page({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  await requireViewer(locale);
 
   const t = await getTranslations();
   const screen = screenFor(SEGMENT);

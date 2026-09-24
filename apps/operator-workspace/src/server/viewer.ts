@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { AUDIT_CAPABILITY, TODAY_CAPABILITY } from "@ranza/core";
 import type {
   AuditRecord,
+  CapabilityProperties,
   CapabilityRef,
   EntitledProperty,
   ScopeHistory,
@@ -34,6 +35,7 @@ import type {
   HousekeepingBoard,
   HousekeepingRoom,
   HousekeepingStatus,
+  InspectionSettings,
 } from "@ranza/housekeeping";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import { getComposition } from "./composition";
@@ -81,6 +83,7 @@ export type {
   HousekeepingBoard,
   HousekeepingRoom,
   HousekeepingStatus,
+  InspectionSettings,
   NewUnits,
   ReservationRow,
   ScopeHistory,
@@ -133,7 +136,15 @@ export const currentViewer = cache(async (): Promise<Viewer | null> => {
   };
 });
 
-/** Sends an unauthenticated visitor to sign in rather than to an empty page. */
+/**
+ * Sends an unauthenticated visitor to sign in rather than to an empty page.
+ *
+ * Every page calls it, not only the layout. Moving between pages is a client
+ * navigation that renders the new page and leaves the layout above it as it
+ * was, so a session ended since the last full load (ADR 0027) is noticed here
+ * or not at all — and not noticing it looks like empty pages under a shell
+ * still showing somebody's email.
+ */
 export async function requireViewer(locale: SupportedLocale): Promise<Viewer> {
   const viewer = await currentViewer();
   if (!viewer) redirect(localizeHref(locale, "sign-in"));
@@ -159,6 +170,26 @@ export const entitledProperties = cache(
     );
   },
 );
+
+/**
+ * `entitledProperties` for several capabilities, answered in one read.
+ *
+ * For the shell, which asks about every destination at once: one transaction
+ * rather than one per destination, which on a full page load was more
+ * connections at once than the pool holds. Same gates, same answers.
+ */
+export async function entitledPropertiesByCapability(
+  capabilities: readonly CapabilityRef[],
+): Promise<readonly CapabilityProperties[]> {
+  const viewer = await currentViewer();
+  if (!viewer) {
+    return capabilities.map((capability) => ({ capability, properties: [] }));
+  }
+  return getComposition().core.listEntitledPropertiesByCapability(
+    viewer.userId,
+    capabilities,
+  );
+}
 
 /**
  * The Reservations arriving today at one Property — the Front Office read.
@@ -315,6 +346,22 @@ export async function housekeepingBoard(
     };
   }
   return getComposition().housekeeping.board(viewer.userId, propertyId);
+}
+
+/**
+ * Whether rooms at this Property are inspected before they are ready, and
+ * whether the viewer may change that (HK-S3-09). Null where there is nothing to
+ * configure: out of reach, or no housekeeping.
+ */
+export async function housekeepingInspection(
+  propertyId: string,
+): Promise<InspectionSettings | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().housekeeping.inspectionSettings(
+    viewer.userId,
+    propertyId,
+  );
 }
 
 /**

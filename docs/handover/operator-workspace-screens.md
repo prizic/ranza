@@ -81,7 +81,7 @@ database has the migration.
 | `reservations`          | 5.3, 18.6 | **built**       | Nothing. What is booked at this Property from today onwards, and the form that takes one — a Guest, a Unit and the nights, in one transaction ([ADR 0024](../adr/0024-a-guest-belongs-to-an-organization-and-a-reservation-holds-its-nights.md)). No row actions, because nothing cancels, amends or moves a Reservation. Blueprint 18.6's timeline, conflict preview and side drawer are the shape this becomes; it is a list until a Unit has a floor and a rate.                                                                                                                                                       |
 | `arrivals` `departures` | 5.3       | **built**       | Nothing. The worked example — the list, check-in, check-out, and withdrawing a mistaken check-in with a reason ([ADR 0022](../adr/0022-a-mistaken-check-in-is-reversed-not-deleted.md)).                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `guest-experience`      | 5.5       | planned         | A requests table with a status lifecycle, and the Portal side that raises one. Blueprint 4.3 lists the Portal capabilities; none are built beyond the Stay.                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `housekeeping`          | 5.4       | **built**       | `features/housekeeping/`. Every room at a Property and whether it needs cleaning; marking one or many from the board, and check-out marking the room dirty through `apps/worker` ([ADR 0029](../adr/0029-housekeeping-status-is-a-room-s-own-row.md)). Arrivals warns before checking a Guest into a room that is not ready. What comes next: the inspection setting (an Organization default with a Property override), then daily cleaning of rooms still in use                                                                                                                                                        |
+| `housekeeping`          | 5.4       | **built**       | `features/housekeeping/`. Every room at a Property and whether it needs cleaning; marking one or many from the board, and check-out marking the room dirty through `apps/worker` ([ADR 0029](../adr/0029-housekeeping-status-is-a-room-s-own-row.md)). Arrivals warns before checking a Guest into a room that is not ready. Whether a cleaned room is inspected before it is ready is set on the same screen: an Organization default and a Property override. What comes next: daily cleaning of rooms still in use                                                                                                     |
 | `food-and-beverage`     | 5.6       | planned         | Outlets, meal plans and consumption. Depends on Inventory for stock movement, and on a Folio to post a charge to.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `inventory`             | 5.7, 5.8  | planned         | Stock items, movements and counts. The reusable half belongs in `packages/platform/inventory`, with a host adapter translating Ranza concepts — `packages/platform` may not name a Property or a Stay (blueprint 9.8).                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `finance`               | 5.9       | **built**       | `features/finance/`. A Property's Folios with their balances, one Folio's lines, adding a charge, reversing one and closing. Payments, taxes, discounts and split folios are blueprint 5.9 and are not built; Accounting is 5.10 and a separate module behind an adapter.                                                                                                                                                                                                                                                                                                                                                 |
@@ -114,16 +114,24 @@ blueprint 4.6 says navigation shows only entitled capabilities and locked
 upsells do not clutter it — but it means a screen can look "missing" when it is
 only unentitled. `scripts/db-seed-dev.mjs` grants all of them locally.
 
-**The shell opens one transaction per destination.** `layout.tsx` asks
-`entitledProperties()` once per unique capability, in parallel, and the page
-beneath it adds its own — more concurrent transactions than `pg-pool`'s default
-of ten, so the last ones queue for a connection. Warm, that costs one round
-trip. After ten idle seconds the pool has closed its clients, and on a machine
-under load a fresh connection through Docker can take seconds to open, which
-surfaces as Prisma's `P2028 Unable to start a transaction` on the first render
-after a pause. Reloading is the answer while developing; the structural fix is
-one query over a `VALUES` list of the capabilities, one transaction instead of
-eleven.
+**The shell renders once, not on every page.** Every link between workspace
+pages is a `next/link`, so moving between them renders only the page beneath the
+layout. The layout's gate therefore does not run again, and every page calls
+`requireViewer()` itself — a new page that skips it shows an ended session empty
+pages under a stale shell instead of sending it to sign-in. The language items
+and the Property switcher stay plain anchors on purpose; each says why. Every
+other link carries the current `?property=` (`useWithProperty()` in
+`src/lib/nav.ts`, or `PropertyLink` from the server-rendered shell), so only the
+switcher changes the Property — with a full load, which is what drops the client
+cache the way ADR 0019 asks. Links in table rows set `prefetch={false}`: a
+prefetch fetches only as far as the loading boundary, and one per visible row is
+a request each for nothing.
+
+The layout asks about every destination in one read
+(`entitledPropertiesByCapability()`, one transaction), and the page beneath adds
+its own. It used to open a transaction per destination, more at once than
+`pg-pool`'s default of ten, which surfaced after an idle pause as Prisma's
+`P2028 Unable to start a transaction`.
 
 **`pnpm check` runs `next build`**, which writes into the same `.next` a running
 `pnpm dev` serves from. Every route 404s afterwards, including ones that plainly

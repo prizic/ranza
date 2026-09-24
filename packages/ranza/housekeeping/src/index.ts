@@ -13,5 +13,7 @@ export type {
   HousekeepingCounts,
   HousekeepingRoom,
   HousekeepingStatus,
+  InspectionSettings,
+  InspectionValue,
   UnitsMarked,
 } from "./contracts";

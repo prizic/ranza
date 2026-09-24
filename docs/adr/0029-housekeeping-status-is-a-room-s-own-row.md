@@ -4,6 +4,8 @@ Date: 2026-09-22
 
 Status: Accepted
 
+Amended: 2026-09-23 — inspection (slice 3), and what a room with no row means under it.
+
 ## Context
 
 Blueprint 18.2 names six states for an Accommodation Unit: available, occupied,
@@ -84,3 +86,22 @@ Housekeeping status lives in `public.housekeeping_unit_status`, one row per
 - A room let by the bed turns wholly dirty when any one bed's Guest leaves. That
   is right for hotels and most residences, and is the part to revisit for
   hostel-style rooms.
+
+## Amendment — inspection (2026-09-23)
+
+Whether a cleaned room is inspected before it is ready is an Organization
+default with a Property override, in `housekeeping_settings`
+(`20260916003200_check_rooms_after_cleaning`). It changes what
+`app.unit_is_ready()` answers and nothing any row holds.
+
+**A room with no row is clean under inspection too, and so it waits.** The
+alternative, where only rooms cleaned after inspection was switched on wait,
+was cheaper but would have shown two rooms as "Clean" on the board and treated
+them differently at check-in. So switching inspection on means every room waits
+until it is inspected, and each clears as it is (HK-S3-11). The board says
+"waiting for inspection" under such a room, because the status alone no longer
+answers whether it can be let.
+
+`app.housekeeping_inspection_required()` is a definer, like the other gates
+readiness reads. An invoker version would read a setting the caller cannot see
+as "off", and so call a room ready: the wrong direction for a check to fail.

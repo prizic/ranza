@@ -344,6 +344,20 @@ export interface Messages {
     readOnly: string;
     roomActions: string;
     actions: string;
+    inspectionTitle: string;
+    inspectionHint: string;
+    organizationDefault: string;
+    thisProperty: string;
+    useDefault: string;
+    on: string;
+    off: string;
+    flow: string;
+    flowReady: string;
+    saved: string;
+    settingRefused: string;
+    defaultNeedsReach: string;
+    settingReadOnly: string;
+    awaitingInspection: string;
   };
 
   auditLog: string;
@@ -386,7 +400,7 @@ export interface Messages {
       string
     >;
     unit: Record<"added" | "blocked" | "unblocked", string>;
-    housekeeping: Record<"status_changed", string>;
+    housekeeping: Record<"status_changed" | "inspection_set", string>;
   };
   auditSubject: Record<
     | "reservation"
@@ -395,7 +409,8 @@ export interface Messages {
     | "membership"
     | "role"
     | "property"
-    | "accommodation_unit",
+    | "accommodation_unit"
+    | "organization",
     string
   >;
 
@@ -508,7 +523,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkingIn: "Yapılıyor",
     checkedIn: "Giriş yapıldı",
     unitUnavailable: "Bu birim seçilen tarihlerde dolu.",
-    roomNotReady: "Bu oda henüz hazır değil: hâlâ kirli olarak işaretli.",
+    roomNotReady:
+      "Bu oda henüz hazır değil: temizlenmedi ya da kontrol bekliyor.",
     checkInAnyway: "Yine de giriş yap",
     notNow: "Şimdi değil",
     notReady: "Hazır değil",
@@ -788,6 +804,23 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Buradaki tüm odaları görebilirsiniz ancak değiştiremezsiniz. Bir yönetici, rolünüze oda durumunu güncelleme izni verebilir.",
       roomActions: "{room} için işlemler",
       actions: "İşlemler",
+      inspectionTitle: "Temizlikten sonra odaları kontrol et",
+      inspectionHint:
+        "Açıkken, temizlenen bir oda yeniden satılmadan önce birinin onu kontrol edildi olarak işaretlemesini bekler. Bunu değiştirmek hiçbir odanın durumunu değiştirmez.",
+      organizationDefault: "Tüm organizasyon için",
+      thisProperty: "Bu tesis için",
+      useDefault: "Organizasyon ayarını kullan ({value})",
+      on: "Açık",
+      off: "Kapalı",
+      flow: "Bir odanın geçtiği adımlar",
+      flowReady: "Satışa hazır",
+      saved: "Kaydedildi",
+      settingRefused:
+        "Bu ayar değiştirilemedi. Şu an gördüğünüz, geçerli olandır.",
+      defaultNeedsReach:
+        "Organizasyon ayarını yalnızca tüm tesislere erişimi olan biri değiştirebilir.",
+      settingReadOnly: "Bunu bir yönetici değiştirebilir.",
+      awaitingInspection: "Kontrol bekliyor",
     },
 
     auditLog: "Denetim kaydı",
@@ -838,6 +871,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       housekeeping: {
         status_changed: "Oda durumu değiştirildi",
+        inspection_set: "Temizlik sonrası kontrol ayarı değiştirildi",
       },
     },
     auditSubject: {
@@ -848,6 +882,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       role: "Rol",
       property: "Tesis",
       accommodation_unit: "Konaklama birimi",
+      organization: "Organizasyon",
     },
     table: {
       results: "{n, plural, other {# sonuç}}",
@@ -976,7 +1011,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkingIn: "Checking in",
     checkedIn: "Checked in",
     unitUnavailable: "That Unit is occupied for those nights.",
-    roomNotReady: "This room isn't ready yet — it's still marked dirty.",
+    roomNotReady:
+      "This room isn't ready yet — it hasn't been cleaned, or it's waiting for inspection.",
     checkInAnyway: "Check in anyway",
     notNow: "Not now",
     notReady: "Not ready",
@@ -1254,6 +1290,23 @@ export const messages: Record<SupportedLocale, Messages> = {
         "You can see every room here but not change it. A manager can give your role permission to update room status.",
       roomActions: "Actions for {room}",
       actions: "Actions",
+      inspectionTitle: "Check rooms after cleaning",
+      inspectionHint:
+        "When on, a cleaned room waits for someone to mark it inspected before it can be let again. Switching this never changes what any room is marked.",
+      organizationDefault: "For the whole Organization",
+      thisProperty: "For this Property",
+      useDefault: "Use the Organization's setting ({value})",
+      on: "On",
+      off: "Off",
+      flow: "What a room goes through",
+      flowReady: "Ready to let",
+      saved: "Saved",
+      settingRefused:
+        "That setting couldn't be changed. What you see now is what applies.",
+      defaultNeedsReach:
+        "Only someone who reaches every Property can change the Organization's setting.",
+      settingReadOnly: "A manager can change this.",
+      awaitingInspection: "Waiting for inspection",
     },
 
     auditLog: "Audit log",
@@ -1304,6 +1357,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       housekeeping: {
         status_changed: "Room status changed",
+        inspection_set: "Room check after cleaning changed",
       },
     },
     auditSubject: {
@@ -1314,6 +1368,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       role: "Role",
       property: "Property",
       accommodation_unit: "Accommodation unit",
+      organization: "Organization",
     },
     table: {
       results: "{n, plural, one {# result} other {# results}}",
@@ -1440,7 +1495,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkingIn: "جارٍ التسجيل",
     checkedIn: "تم تسجيل الوصول",
     unitUnavailable: "هذه الوحدة محجوزة في تلك الليالي.",
-    roomNotReady: "هذه الغرفة ليست جاهزة بعد — لا تزال مُعلَّمة كمتسخة.",
+    roomNotReady:
+      "هذه الغرفة ليست جاهزة بعد — لم تُنظَّف أو أنها بانتظار الفحص.",
     checkInAnyway: "تسجيل الدخول على أي حال",
     notNow: "ليس الآن",
     notReady: "غير جاهزة",
@@ -1711,6 +1767,22 @@ export const messages: Record<SupportedLocale, Messages> = {
         "يمكنك رؤية جميع الغرف هنا دون تغييرها. يمكن للمدير منح دورك صلاحية تحديث حالة الغرف.",
       roomActions: "إجراءات {room}",
       actions: "الإجراءات",
+      inspectionTitle: "فحص الغرف بعد التنظيف",
+      inspectionHint:
+        "عند التفعيل، تنتظر الغرفة المنظَّفة حتى يعلّمها أحدهم كمفحوصة قبل تأجيرها مجددًا. تغيير هذا الإعداد لا يغيّر حالة أي غرفة.",
+      organizationDefault: "للمؤسسة بأكملها",
+      thisProperty: "لهذا العقار",
+      useDefault: "استخدام إعداد المؤسسة ({value})",
+      on: "مفعّل",
+      off: "معطّل",
+      flow: "المراحل التي تمر بها الغرفة",
+      flowReady: "جاهزة للتأجير",
+      saved: "تم الحفظ",
+      settingRefused: "تعذّر تغيير هذا الإعداد. ما تراه الآن هو المطبَّق.",
+      defaultNeedsReach:
+        "لا يمكن تغيير إعداد المؤسسة إلا لمن يصل إلى جميع العقارات.",
+      settingReadOnly: "يمكن للمدير تغيير هذا.",
+      awaitingInspection: "بانتظار الفحص",
     },
 
     auditLog: "سجل التدقيق",
@@ -1761,6 +1833,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       housekeeping: {
         status_changed: "تم تغيير حالة الغرفة",
+        inspection_set: "تم تغيير إعداد الفحص بعد التنظيف",
       },
     },
     auditSubject: {
@@ -1771,6 +1844,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       role: "دور",
       property: "منشأة",
       accommodation_unit: "وحدة إقامة",
+      organization: "المؤسسة",
     },
     table: {
       results:

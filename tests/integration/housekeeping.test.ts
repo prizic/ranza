@@ -251,10 +251,14 @@ beforeAll(async () => {
   );
   runStarted = clock!.now;
   await seed();
-  // A run that failed before its afterAll leaves statuses behind, and every
-  // test below starts from a room that has none.
+  // A run that failed before its afterAll leaves statuses and settings
+  // behind, and every test below starts from a room that has none.
   await owner.$executeRawUnsafe(
     `delete from public.housekeeping_unit_status where organization_id = $1::uuid`,
+    ORG,
+  );
+  await owner.$executeRawUnsafe(
+    `delete from public.housekeeping_settings where organization_id = $1::uuid`,
     ORG,
   );
   // Anything published before this file ran is delivered now, so each test
@@ -265,6 +269,7 @@ beforeAll(async () => {
 afterAll(async () => {
   for (const statement of [
     `delete from public.housekeeping_unit_status where organization_id = '${ORG}'`,
+    `delete from public.housekeeping_settings where organization_id = '${ORG}'`,
     `delete from public.folios where organization_id = '${ORG}'`,
     `delete from public.stays where organization_id = '${ORG}'`,
     `delete from public.reservations where organization_id = '${ORG}'`,
@@ -686,3 +691,105 @@ describe("a blocked room", { timeout: DATABASE_BUDGET_MS }, () => {
     expect(unblocked).toMatchObject({ status: "dirty", outOfService: false });
   });
 });
+
+describe(
+  "checking rooms after cleaning",
+  { timeout: DATABASE_BUDGET_MS },
+  () => {
+    async function inspectionRecords() {
+      return owner.$queryRawUnsafe<
+        { subjectType: string; context: { from: string; to: string } }[]
+      >(
+        `select subject_type as "subjectType", context
+         from audit.records
+        where action = 'housekeeping.inspection_set'
+          and organization_id = $1::uuid and occurred_at >= $2
+        order by occurred_at desc, id desc`,
+        ORG,
+        runStarted,
+      );
+    }
+
+    it("says what applies and who may change it (HK-S3-09)", async () => {
+      expect(await housekeeping.inspectionSettings(MEMBER, PROPERTY)).toEqual({
+        organizationDefault: false,
+        propertyOverride: null,
+        effective: false,
+        mayConfigure: true,
+        mayConfigureDefault: true,
+      });
+      expect(
+        await housekeeping.inspectionSettings(FINANCE, PROPERTY),
+      ).toMatchObject({ mayConfigure: false, mayConfigureDefault: false });
+      expect(
+        await housekeeping.inspectionSettings(MEMBER, NO_HOUSEKEEPING),
+      ).toBeNull();
+    });
+
+    it("switching it on changes what ready means and no room's status (HK-S3-01, HK-S3-06, HK-S3-08)", async () => {
+      await housekeeping.markUnits(MEMBER, {
+        unitIds: [CLEAN_ARRIVAL],
+        status: "clean",
+      });
+      const before = await statusOf(CLEAN_ARRIVAL);
+
+      await housekeeping.setOrganizationInspection(MEMBER, PROPERTY, true);
+
+      const room = (await housekeeping.board(MEMBER, PROPERTY)).rooms.find(
+        (entry) => entry.unitId === CLEAN_ARRIVAL,
+      );
+      expect(room).toMatchObject({ status: "clean", ready: false });
+      const after = await statusOf(CLEAN_ARRIVAL);
+      expect(after?.changedAt.getTime()).toBe(before?.changedAt.getTime());
+
+      const [latest] = await inspectionRecords();
+      expect(latest).toMatchObject({
+        subjectType: "organization",
+        context: { from: "off", to: "on" },
+      });
+
+      // A room never marked is clean too, and waits the same way (HK-S3-11).
+      const unmarked = (await housekeeping.board(MEMBER, PROPERTY)).rooms.find(
+        (entry) => entry.unitId === LONE_BED,
+      );
+      expect(unmarked).toMatchObject({ status: "clean", ready: false });
+    });
+
+    it("changing an existing default records what it was (HK-S3-08)", async () => {
+      await housekeeping.setOrganizationInspection(MEMBER, PROPERTY, false);
+      const [latest] = await inspectionRecords();
+      expect(latest).toMatchObject({ context: { from: "on", to: "off" } });
+      await housekeeping.setOrganizationInspection(MEMBER, PROPERTY, true);
+    });
+
+    it("a Property's own answer wins, and resetting it follows the default again (HK-S3-02, HK-S3-10)", async () => {
+      await housekeeping.setPropertyInspection(MEMBER, PROPERTY, false);
+      expect(
+        await housekeeping.inspectionSettings(MEMBER, PROPERTY),
+      ).toMatchObject({ propertyOverride: false, effective: false });
+
+      await housekeeping.setPropertyInspection(MEMBER, PROPERTY, null);
+      expect(
+        await housekeeping.inspectionSettings(MEMBER, PROPERTY),
+      ).toMatchObject({ propertyOverride: null, effective: true });
+
+      const [reset, override] = await inspectionRecords();
+      expect(reset).toMatchObject({
+        subjectType: "property",
+        context: { from: "off", to: "default" },
+      });
+      expect(override).toMatchObject({
+        context: { from: "default", to: "off" },
+      });
+    });
+
+    it("refuses somebody without accommodation.configure (HK-S3-07)", async () => {
+      await expect(
+        housekeeping.setPropertyInspection(FINANCE, PROPERTY, false),
+      ).rejects.toBeInstanceOf(HousekeepingRefusedError);
+      await expect(
+        housekeeping.setOrganizationInspection(FINANCE, PROPERTY, false),
+      ).rejects.toBeInstanceOf(HousekeepingRefusedError);
+    });
+  },
+);

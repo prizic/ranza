@@ -32,6 +32,11 @@ await housekeeping.markUnits(userId, { unitIds, status: "clean" });
 
 - `board` returns every holder at a Property with its status, whether it is
   ready, whether somebody is in house, and whether the reader may mark.
+- `inspectionSettings`, `setPropertyInspection` and `setOrganizationInspection`
+  read and change whether a cleaned room waits to be inspected before it is
+  ready: an Organization default, and a Property override that is on, off, or
+  "use the default". The setting changes what ready means, never what a room
+  holds (`20260916003200_check_rooms_after_cleaning`).
 - `markUnits` is all or nothing: a selection naming a Unit the caller cannot see
   is refused whole. Every room it reaches gets its own audit record,
   `housekeeping.status_changed`, carrying the status it replaced.

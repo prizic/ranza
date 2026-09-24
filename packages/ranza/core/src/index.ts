@@ -6,5 +6,9 @@ export {
   PLATFORM_CORE_MODULE,
   TODAY_CAPABILITY,
 } from "./contracts";
-export type { CapabilityRef, EntitledProperty } from "./contracts";
+export type {
+  CapabilityProperties,
+  CapabilityRef,
+  EntitledProperty,
+} from "./contracts";
 export type { AuditRecord, ScopeHistory } from "@ranza/platform-audit";
