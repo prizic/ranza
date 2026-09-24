@@ -276,7 +276,7 @@ export class UnitUnavailableError extends Error {
  * nights. This one is a person: a Guest in house, perhaps past their planned
  * departure, or a confirmed booking a check-in would sleep through. A front
  * desk answers the two differently — the first by moving a booking, this one
- * by checking somebody out or finding them another room (ADR 0029). Like its
+ * by checking somebody out or finding them another room (ADR 0033). Like its
  * neighbour it reveals nothing the caller did not already name.
  */
 export class UnitHasOccupantError extends Error {

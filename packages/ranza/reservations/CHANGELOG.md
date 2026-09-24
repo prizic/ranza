@@ -25,7 +25,7 @@ everything lands under Unreleased.
 - `UnitHasOccupantError` and `UnitNotInServiceError`. `checkIn()` and
   `createReservation()` now say when a Unit has somebody in it, or is blocked,
   rather than refusing generically
-  ([ADR 0029](../../../docs/adr/0029-an-in-house-stay-holds-its-unit-until-it-is-checked-out.md)).
+  ([ADR 0033](../../../docs/adr/0033-an-in-house-stay-holds-its-unit-until-it-is-checked-out.md)).
 
 ### Changed
 

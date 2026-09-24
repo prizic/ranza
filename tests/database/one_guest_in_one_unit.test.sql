@@ -1,4 +1,4 @@
--- One guest in one Unit (20260916003700, ADR 0029).
+-- One guest in one Unit (20260916003700, ADR 0033).
 --
 -- Written as the owner: the rules under test are an index and a trigger, which
 -- bind every role, so a policy has nothing to add here and would only make a

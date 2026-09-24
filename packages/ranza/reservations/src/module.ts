@@ -72,7 +72,7 @@ const UNIQUE_VIOLATION = "23505";
 
 /**
  * Raised by `app.unit_holds_one_occupancy`: a booking over nights somebody is
- * staying for, or a Stay over nights somebody else is booked for (ADR 0029).
+ * staying for, or a Stay over nights somebody else is booked for (ADR 0033).
  */
 const UNIT_OCCUPIED = "55006";
 
@@ -235,7 +235,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
             on folio.stay_id = stay.id
            and folio.status = 'open'
           -- Somebody else in the room: at most one, because one in-house Stay
-          -- per Unit is unique (ADR 0029).
+          -- per Unit is unique (ADR 0033).
           left join public.stays as occupant
             on occupant.accommodation_unit_id = reservation.accommodation_unit_id
            and occupant.status = 'in_house'
@@ -431,7 +431,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
           );
         }
         // Somebody is in the room, whatever their dates say, or it is promised
-        // to another booking tonight (ADR 0029). The desk checks them out or
+        // to another booking tonight (ADR 0033). The desk checks them out or
         // puts this Guest elsewhere.
         if (raised(error, UNIQUE_VIOLATION) || raised(error, UNIT_OCCUPIED)) {
           throw new UnitHasOccupantError(
@@ -552,7 +552,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
     }
 
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
-      // The Unit's lock first, as in checkIn (ADR 0029). A check-in on this
+      // The Unit's lock first, as in checkIn (ADR 0033). A check-in on this
       // Unit holds it and waits, inside the unique index, for this transaction
       // to finish with the Stay; had this transaction then asked for it, each
       // would wait on the other. Today it never asks — the occupancy trigger
@@ -1204,7 +1204,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
             "that Accommodation Unit is booked for those nights",
           );
         }
-        // Somebody in house holds some of those nights (ADR 0029): refused at
+        // Somebody in house holds some of those nights (ADR 0033): refused at
         // the booking rather than at the desk on the day.
         if (raised(error, UNIT_OCCUPIED)) {
           throw new UnitHasOccupantError(

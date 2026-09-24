@@ -1112,7 +1112,7 @@ describe("one guest in one Unit", () => {
   });
 
   /**
-   * The deadlock ADR 0029 orders its locks against.
+   * The deadlock ADR 0033 orders its locks against.
    *
    * Withdrawing a check-in holds the Stay's row while it returns the
    * Reservation to confirmed, which asks for the Unit's lock. A check-in on the
@@ -1395,7 +1395,7 @@ describe("checking out", () => {
     const { stayId } = await reservations.checkIn(MEMBER, ARRIVING);
 
     // While they are in, the Unit is theirs: a booking over tonight is refused
-    // at the booking, not at the desk on the day (ADR 0029).
+    // at the booking, not at the desk on the day (ADR 0033).
     await expect(
       reserve(WAITING, PROPERTY, ORG, DEPARTING_C, "Cahit Arf", {
         from: 0,

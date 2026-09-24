@@ -1,4 +1,4 @@
--- One guest in one Unit (RANZ-23; ADR 0029).
+-- One guest in one Unit (RANZ-23; ADR 0033).
 --
 -- Hand-written; this migration adds no column and no table.
 --

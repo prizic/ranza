@@ -427,7 +427,7 @@ model Stay {
   // checked. The primary key alone could not prove the Property or the
   // Organization.
   @@unique([id, propertyId, organizationId])
-  /// One Guest in one Unit, whatever the planned dates say (ADR 0029).
+  /// One Guest in one Unit, whatever the planned dates say (ADR 0033).
   @@unique([accommodationUnitId], map: "stays_one_in_house_per_unit", where: { status: "in_house" })
   @@index([propertyId], map: "stays_property_idx")
   // Partial: the Resident access path only ever asks about a current Stay.
