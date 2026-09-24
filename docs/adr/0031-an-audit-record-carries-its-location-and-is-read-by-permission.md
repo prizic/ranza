@@ -87,7 +87,9 @@ a clause of the blueprint rather than a preference:
   rewriting history. They are visible to Organization-wide readers and to
   whoever wrote them. That is a narrowing, and it is the safe direction.
 - Every writer names its location: reservations, stays, Folios and units by
-  their Property; staff assignments by the Property assigned. Staff commands
+  their Property; a housekeeping mark and a Property's inspection setting by
+  their Property, while the Organization's default names none; staff
+  assignments by the Property assigned. Staff commands
   now name the membership by its own id — `staff.invited` always did — with
   the person in `context.userId`.
 - Editing what a role allows is `staff.role_permissions_changed`, recording

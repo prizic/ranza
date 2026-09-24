@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import {
@@ -125,9 +124,12 @@ export function AuditFilters({
         </Button>
         {filtered ? (
           <Button asChild variant="ghost">
-            <Link href={`${actionHref}?property=${propertyId}`}>
+            {/* A full load, like the form it resets: the fields take their
+                values only when they first render, so a client navigation
+                would leave them showing filters the table no longer applies. */}
+            <a href={`${actionHref}?property=${propertyId}`}>
               {t("auditClearFilters")}
-            </Link>
+            </a>
           </Button>
         ) : null}
       </div>
