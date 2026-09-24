@@ -1,10 +1,11 @@
 import {
   BarChart3,
   Bed,
+  BellRing,
   Boxes,
   CalendarDays,
+  CalendarRange,
   ChefHat,
-  BellRing,
   History,
   Hotel,
   House,
@@ -87,6 +88,14 @@ export const SCREENS: Screen[] = [
         module: "front_office",
         icon: CalendarDays,
         blueprint: "5.3",
+        built: true,
+      },
+      {
+        segment: "room-calendar",
+        capability: "front_desk",
+        module: "front_office",
+        icon: CalendarRange,
+        blueprint: "18.6",
         built: true,
       },
       {
