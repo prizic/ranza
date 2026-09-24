@@ -36,12 +36,21 @@ export interface Messages {
   signIn: string;
   signingIn: string;
   signInFailed: string;
+  /** The auth route's rate limit answered 429 — not a wrong password. */
+  signInThrottled: string;
+  /** A 5xx, or no answer at all. */
+  signInUnavailable: string;
 
   challengeTitle: string;
   challengeSummary: string;
   code: string;
   verify: string;
   challengeFailed: string;
+  /**
+   * The second-factor challenge is spent — five wrong codes, or it timed out —
+   * and only a new sign-in starts another. Shown back at the password step.
+   */
+  challengeExpired: string;
 
   security: string;
   securitySummary: string;
@@ -408,6 +417,16 @@ export interface Messages {
   auditLogFor: string;
   allRecords: string;
   noAuditTitle: string;
+  /**
+   * Said to a Staff Member who holds `audit.read` at no Property they reach —
+   * usually a role without the permission; occasionally a role with it and no
+   * Property assigned, so the remedy names both. Giving them a role that has it
+   * comes first: a shipped role cannot be edited, and the shipped Front desk
+   * and Housekeeping roles are who mostly lands here. Not the Subscription copy: audit is not something an
+   * Organization buys (ADR 0031).
+   */
+  auditNotPermittedTitle: string;
+  auditNotPermittedDescription: string;
   noAuditDescription: string;
   when: string;
   what: string;
@@ -449,6 +468,12 @@ export interface Messages {
   auditNo: string;
   auditNone: string;
   /**
+   * The inspection setting a Property had before it had one of its own: it
+   * followed the Organization's. Written by the housekeeping module as
+   * `default`, beside `on` and `off`, which reuse the Housekeeping screen's words.
+   */
+  auditInspectionFollowsOrganization: string;
+  /**
    * What each context fact is called. Keyed on what the modules write, which
    * is why the keys are camelCase; a key this does not know shows as itself.
    */
@@ -486,7 +511,9 @@ export interface Messages {
     | "building"
     | "floor"
     | "letByTheBed"
-    | "hadBeenBlockedFor",
+    | "hadBeenBlockedFor"
+    | "status"
+    | "previousStatus",
     string
   >;
   /**
@@ -599,6 +626,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     signIn: "Oturum aç",
     signingIn: "Açılıyor",
     signInFailed: "E-posta veya parola hatalı.",
+    signInThrottled: "Çok fazla deneme yapıldı. Biraz sonra tekrar deneyin.",
+    signInUnavailable: "Giriş şu anda yapılamıyor. Biraz sonra tekrar deneyin.",
 
     challengeTitle: "İkinci adım",
     challengeSummary:
@@ -606,6 +635,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     code: "Kod",
     verify: "Doğrula",
     challengeFailed: "Kod geçerli değil.",
+    challengeExpired:
+      "Çok fazla kod denendi ya da süre doldu. Yeni bir kod girmek için yeniden oturum açın.",
 
     security: "Güvenlik",
     securitySummary: "Hesabınıza nasıl giriş yapıldığını yönetin.",
@@ -995,6 +1026,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditLogFor: "Son işlemler:",
     allRecords: "Tüm kayıtlar",
     noAuditTitle: "Henüz kayıt yok",
+    auditNotPermittedTitle: "Denetim kaydını okuyamıyorsunuz",
+    auditNotPermittedDescription:
+      "Denetim kaydını okumak ayrı bir izindir ve atandığınız tesislerde geçerlidir. Ekibi yöneten biri, Ekip ekranından size bu izni içeren bir rol verebilir, rolünüz organizasyonunuzun oluşturduğu bir rolse ona “Denetim kaydını okuma” iznini ekleyebilir ya da hiçbir tesise atanmadıysanız sizi bir tesise atayabilir.",
     noAuditDescription:
       "Bir giriş, çıkış, ücret veya ters kayıt yapıldığında burada görünür.",
     when: "Ne zaman",
@@ -1037,6 +1071,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditYes: "Evet",
     auditNo: "Hayır",
     auditNone: "Yok",
+    auditInspectionFollowsOrganization: "Organizasyonun ayarı",
     auditContext: {
       amountMinor: "Tutar",
       balanceMinor: "Kapanıştaki bakiye",
@@ -1072,6 +1107,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       floor: "Kat",
       letByTheBed: "Yatak bazında kiralanır",
       hadBeenBlockedFor: "Kapatılma gerekçesi",
+      status: "Durum",
+      previousStatus: "Önceki durum",
     },
     auditAction: {
       reservation: {
@@ -1207,6 +1244,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     signIn: "Sign in",
     signingIn: "Signing in",
     signInFailed: "That email and password did not match.",
+    signInThrottled: "Too many attempts. Try again shortly.",
+    signInUnavailable: "Signing in isn't working right now. Try again shortly.",
 
     challengeTitle: "Second step",
     challengeSummary:
@@ -1214,6 +1253,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     code: "Code",
     verify: "Verify",
     challengeFailed: "That code is not valid.",
+    challengeExpired:
+      "Too many codes were tried, or too much time passed. Sign in again to enter a new code.",
 
     security: "Security",
     securitySummary: "Manage how your account is signed in to.",
@@ -1601,6 +1642,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditLogFor: "Recent actions at",
     allRecords: "All records",
     noAuditTitle: "Nothing recorded yet",
+    auditNotPermittedTitle: "You can't read the audit log",
+    auditNotPermittedDescription:
+      "Reading the audit log is a permission of its own, used at the Properties you're assigned to. Under People, someone who administers staff can give you a role that has it, add “Reading the audit log” to your role if it is one your Organization created, or assign you a Property if you have none.",
     noAuditDescription:
       "A check-in, check-out, charge or reversal appears here once it happens.",
     when: "When",
@@ -1643,6 +1687,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditYes: "Yes",
     auditNo: "No",
     auditNone: "None",
+    auditInspectionFollowsOrganization: "The Organization's setting",
     auditContext: {
       amountMinor: "Amount",
       balanceMinor: "Balance at closing",
@@ -1678,6 +1723,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       floor: "Floor",
       letByTheBed: "Let by the bed",
       hadBeenBlockedFor: "Had been blocked for",
+      status: "Status",
+      previousStatus: "Previous status",
     },
     auditAction: {
       reservation: {
@@ -1812,6 +1859,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     signIn: "تسجيل الدخول",
     signingIn: "جارٍ الدخول",
     signInFailed: "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+    signInThrottled: "محاولات كثيرة جدًا. حاول مرة أخرى بعد قليل.",
+    signInUnavailable: "تسجيل الدخول لا يعمل الآن. حاول مرة أخرى بعد قليل.",
 
     challengeTitle: "الخطوة الثانية",
     challengeSummary:
@@ -1819,6 +1868,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     code: "الرمز",
     verify: "تحقّق",
     challengeFailed: "هذا الرمز غير صالح.",
+    challengeExpired:
+      "جُرّبت رموز كثيرة جدًا أو انتهت المهلة. سجّل الدخول مرة أخرى لإدخال رمز جديد.",
 
     security: "الأمان",
     securitySummary: "تحكّم في طريقة تسجيل الدخول إلى حسابك.",
@@ -2192,6 +2243,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditLogFor: "آخر الإجراءات في",
     allRecords: "كل السجلات",
     noAuditTitle: "لا توجد سجلات بعد",
+    auditNotPermittedTitle: "لا يمكنك قراءة سجل التدقيق",
+    auditNotPermittedDescription:
+      "قراءة سجل التدقيق صلاحية مستقلة تُستخدم في المنشآت التي عُيّنت فيها. يمكن لمن يدير الفريق أن يمنحك من شاشة الفريق دورًا يتضمنها، أو أن يضيف صلاحية «قراءة سجل التدقيق» إلى دورك إن كان دورًا أنشأته مؤسستك، أو أن يعيّنك في منشأة إن لم تكن معيّنًا في أي منشأة.",
     noAuditDescription:
       "يظهر هنا أي تسجيل وصول أو مغادرة أو رسم أو إلغاء فور حدوثه.",
     when: "متى",
@@ -2235,6 +2289,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditYes: "نعم",
     auditNo: "لا",
     auditNone: "لا يوجد",
+    auditInspectionFollowsOrganization: "إعداد المؤسسة",
     auditContext: {
       amountMinor: "المبلغ",
       balanceMinor: "الرصيد عند الإغلاق",
@@ -2270,6 +2325,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       floor: "الطابق",
       letByTheBed: "يُؤجَّر بالسرير",
       hadBeenBlockedFor: "سبب الإغلاق السابق",
+      status: "الحالة",
+      previousStatus: "الحالة السابقة",
     },
     auditAction: {
       reservation: {

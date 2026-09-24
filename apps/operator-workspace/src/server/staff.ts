@@ -147,7 +147,7 @@ export async function changeStaffRole(
         {
           organizationId: String(form.get("organization") ?? ""),
           userId: String(form.get("member") ?? ""),
-          roleKey: String(form.get("role") ?? ""),
+          ...roleFrom(String(form.get("role") ?? "")),
         },
       )
       .then(() => revalidateRoster(locale)),

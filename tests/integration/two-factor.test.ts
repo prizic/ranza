@@ -233,18 +233,27 @@ describe("what a guessed code costs", () => {
     jar = {};
     await post("/sign-in/email", { email: EMAIL, password: PASSWORD });
 
-    const outcomes: number[] = [];
+    const outcomes: { status: number; code: unknown }[] = [];
     for (let attempt = 0; attempt < 8; attempt += 1) {
       const response = await post("/two-factor/verify-totp", {
         code: "000000",
       });
-      outcomes.push(response.status);
+      outcomes.push({ status: response.status, code: response.body?.code });
       if (response.body?.code === "TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE") break;
     }
 
     // Exhausted well before the million codes a six-digit secret allows.
     expect(outcomes.length).toBeLessThanOrEqual(6);
-    expect(outcomes.at(-1)).not.toBe(200);
+    // The codes the sign-in forms read to tell a wrong code from a spent
+    // challenge. Their own tests only ever see mocks of these answers, so it
+    // is here, against Better Auth itself, that the shape is held.
+    expect(outcomes.slice(0, -1)).toEqual(
+      outcomes.slice(0, -1).map(() => ({ status: 401, code: "INVALID_CODE" })),
+    );
+    expect(outcomes.at(-1)).toEqual({
+      status: 400,
+      code: "TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE",
+    });
 
     // And the challenge is spent: the correct code no longer helps, so a
     // guesser has to go back and produce the password again.
@@ -252,6 +261,7 @@ describe("what a guessed code costs", () => {
       code: await codeFrom(totpURI),
     });
     expect(correct.status).not.toBe(200);
+    expect(correct.body?.code).toBe("INVALID_TWO_FACTOR_COOKIE");
   });
 
   it("still lets the real person in after signing in again", async () => {
@@ -261,5 +271,29 @@ describe("what a guessed code costs", () => {
       code: await codeFrom(totpURI),
     });
     expect(verify.status).toBe(200);
+  });
+
+  it("answers each mismatch with the code the sign-in forms read", async () => {
+    jar = {};
+    expect(
+      await post("/sign-in/email", {
+        email: EMAIL,
+        password: "not-the-password",
+      }),
+    ).toMatchObject({
+      status: 401,
+      body: { code: "INVALID_EMAIL_OR_PASSWORD" },
+    });
+    expect(
+      await post("/sign-in/email", {
+        email: "not-an-address",
+        password: PASSWORD,
+      }),
+    ).toMatchObject({ status: 400, body: { code: "INVALID_EMAIL" } });
+
+    await post("/sign-in/email", { email: EMAIL, password: PASSWORD });
+    expect(
+      await post("/two-factor/verify-backup-code", { code: "AAAAA-AAAAA" }),
+    ).toMatchObject({ status: 401, body: { code: "INVALID_BACKUP_CODE" } });
   });
 });

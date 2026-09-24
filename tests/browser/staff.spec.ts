@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { expect, test } from "@playwright/test";
 
+import { psql } from "./local-database";
 import { signIn, testProperty } from "./front-desk";
 
 /**
@@ -103,4 +104,99 @@ test("an Organization defines a role of its own and sees it beside the shipped o
   await expect(
     page.getByRole("checkbox", { name: "Front desk: Check somebody in" }),
   ).toBeDisabled();
+});
+
+/**
+ * Changing somebody's role from the roster.
+ *
+ * The select's value is `<scope>:<key>` — the pair the database keys on, so
+ * an Organization's own role can never resolve to a shipped one that shares
+ * its name. The server action used to pass that pair through as the key, and
+ * every change was refused: "That was refused." on the screen, nothing in the
+ * database, nothing in the audit log. The module's own tests called it
+ * directly and never saw the pair, and no browser test changed a role.
+ *
+ * Both halves of the pair are exercised: a role Ranza ships, whose scope half
+ * is empty, and one this Organization authored, whose scope half is the
+ * Organization. Watched go red before it was believed: without `roleFrom` in
+ * `changeStaffRole` this fails at the first change.
+ *
+ * The colleague and the authored role are written in SQL rather than through
+ * their own screens, which have tests of their own; this one is about the
+ * select.
+ */
+test("an administrator changes somebody's role from the roster", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const suffix = randomUUID().slice(0, 8);
+  const colleague = `e2e-role-${suffix}@example.test`;
+  const roleName = `Night desk ${suffix}`;
+  const roleKey = `night_desk_${suffix}`;
+
+  psql(
+    `with home as (
+       select organization_id as id from public.properties where id = '${propertyId}'
+     ), person as (
+       insert into public.users (email) values ('${colleague}') returning id
+     ), role as (
+       insert into public.staff_roles
+         (scope_id, key, organization_id, name, permissions, status)
+       select id, '${roleKey}', id, '${roleName}', array['front_desk.check_in'], 'active'
+       from home
+     )
+     insert into public.organization_memberships
+       (organization_id, user_id, role, access_scope)
+     select home.id, person.id, 'front_desk', 'assigned_properties'
+     from home, person`,
+  );
+  const roleOf = () =>
+    psql(
+      `select membership.role || '@' || case
+                when membership.role_scope_id = '00000000-0000-0000-0000-000000000000'
+                then 'shipped' else 'organization' end
+       from public.organization_memberships as membership
+       join public.users as member on member.id = membership.user_id
+       where member.email = '${colleague}'`,
+    );
+  expect(roleOf()).toBe("front_desk@shipped");
+
+  await signIn(page);
+  await page.goto(`/en/people?property=${propertyId}`);
+  const row = page.getByRole("row").filter({ hasText: colleague });
+  const select = row.getByRole("combobox", { name: `Role: ${colleague}` });
+
+  // A role Ranza ships.
+  await select.click();
+  await page.getByRole("option", { exact: true, name: "Housekeeping" }).click();
+  await expect(select).toBeEnabled();
+  await expect(row.getByText("That was refused.")).toHaveCount(0);
+  await expect.poll(roleOf).toBe("housekeeping@shipped");
+
+  // One the Organization wrote, which only the scope half tells apart.
+  await select.click();
+  await page.getByRole("option", { exact: true, name: roleName }).click();
+  await expect(select).toBeEnabled();
+  await expect(row.getByText("That was refused.")).toHaveCount(0);
+  await expect.poll(roleOf).toBe(`${roleKey}@organization`);
+
+  // And it survives a reload: the screen shows what the database holds.
+  await page.reload();
+  await expect(
+    page
+      .getByRole("row")
+      .filter({ hasText: colleague })
+      .getByRole("combobox", { name: `Role: ${colleague}` }),
+  ).toHaveText(roleName);
+
+  // Every change is on the record, from and to.
+  expect(
+    psql(
+      `select string_agg(record.context->>'from' || '>' || (record.context->>'to'), ',' order by record.occurred_at)
+       from audit.records as record
+       join public.organization_memberships as membership on membership.id = record.subject_id
+       join public.users as member on member.id = membership.user_id
+       where record.action = 'staff.role_changed' and member.email = '${colleague}'`,
+    ),
+  ).toBe(`front_desk>housekeeping,housekeeping>${roleKey}`);
 });

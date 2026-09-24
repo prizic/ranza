@@ -722,6 +722,78 @@ describe("an Organization's own roles", () => {
     expect(row?.context?.key).toBe(key);
   });
 
+  it("records which role was meant when an authored key is a shipped one's", async () => {
+    // A key is a slug of the name, so an Organization's own "Front desk" is
+    // `front_desk` exactly as the shipped one is. The log keeps role keys and is
+    // never rewritten, so each record says whether its key was the
+    // Organization's own — otherwise it names the wrong role forever.
+    const { key } = await staff.defineRole(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        name: "Front desk",
+        permissions: ["front_desk.check_in"],
+      },
+    );
+    expect(key).toBe("front_desk");
+
+    const shipped = await staff.invite(
+      { userId: OWNER },
+      { organizationId: ORG, email: anAddress(), roleKey: "front_desk" },
+    );
+    expect(
+      (await latestRecord(owner, "staff.invited", shipped.membershipId))
+        ?.context,
+    ).toMatchObject({ role: "front_desk", roleAuthored: false });
+
+    const authored = await staff.invite(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        email: anAddress(),
+        roleKey: key,
+        roleScopeId: ORG,
+      },
+    );
+    expect(
+      (await latestRecord(owner, "staff.invited", authored.membershipId))
+        ?.context,
+    ).toMatchObject({ role: "front_desk", roleAuthored: true });
+
+    const [person] = await owner.$queryRawUnsafe<{ userId: string }[]>(
+      `select user_id as "userId" from public.organization_memberships
+        where id = $1::uuid`,
+      shipped.membershipId,
+    );
+    await staff.changeRole(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        userId: person!.userId,
+        roleKey: key,
+        roleScopeId: ORG,
+      },
+    );
+    expect(
+      (await latestRecord(owner, "staff.role_changed", shipped.membershipId))
+        ?.context,
+    ).toMatchObject({
+      from: "front_desk",
+      fromAuthored: false,
+      to: "front_desk",
+      toAuthored: true,
+    });
+
+    await staff.changeRole(
+      { userId: OWNER },
+      { organizationId: ORG, userId: person!.userId, roleKey: "front_desk" },
+    );
+    expect(
+      (await latestRecord(owner, "staff.role_changed", shipped.membershipId))
+        ?.context,
+    ).toMatchObject({ fromAuthored: true, toAuthored: false });
+  });
+
   it("refuses an author who may not define roles at all", async () => {
     // DESK holds the Front desk role, which carries no staff.define_roles, so
     // the policy refuses before the subset question is reached. The subset

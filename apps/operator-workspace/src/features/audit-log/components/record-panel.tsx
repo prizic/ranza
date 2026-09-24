@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import type { AuditEntry, AuditNames } from "@ranza/core";
 import { Fact, FactList, Separator } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
+import { readAs } from "../actions";
 import { useAuditWords, whenLabel } from "../words";
 import { ContextFacts } from "./context-facts";
 
@@ -83,9 +84,9 @@ export function RecordPanel({
       <Separator className="my-6" />
 
       <ContextFacts
+        action={readAs(entry.action, entry.subjectType)}
         context={entry.context ?? {}}
         locale={locale}
-        subjectType={entry.subjectType}
         words={words}
       />
     </section>
