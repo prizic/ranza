@@ -43,7 +43,7 @@ import {
 } from "../../../server/maintenance";
 import { ConditionBadge, formatDay } from "./look";
 import { OutcomeMessage } from "./outcome-message";
-import { useCommand } from "./use-command";
+import { submitWithoutReset, useCommand } from "./use-command";
 
 export interface EquipmentLimits {
   name: number;
@@ -338,7 +338,7 @@ function EquipmentDialog({
       }}
       open
     >
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
             {item ? t("editEquipment") : t("addEquipment")}
@@ -346,7 +346,7 @@ function EquipmentDialog({
           <DialogDescription>{t("noEquipmentDescription")}</DialogDescription>
         </DialogHeader>
 
-        <form action={act} className="grid gap-4">
+        <form className="grid gap-4" onSubmit={submitWithoutReset(act)}>
           <input name="locale" type="hidden" value={locale} />
           <input name="propertyId" type="hidden" value={propertyId} />
           {item ? (

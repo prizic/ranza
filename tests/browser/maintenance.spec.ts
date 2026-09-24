@@ -113,6 +113,76 @@ test("a problem reported from Rooms takes the room out of order until it is done
   ).not.toContainText("Out of order");
 });
 
+test("taking out a room somebody is booked into asks first, and the answer keeps the form", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const unitName = aRoom(propertyId);
+  const guestName = `Test Maintenance ${unitName.slice(-8)}`;
+  psql(
+    `with guest as (
+       insert into public.guests (organization_id, full_name)
+       select organization_id, '${guestName}'
+         from public.properties where id = '${propertyId}'
+       returning id
+     )
+     insert into public.reservations
+       (organization_id, property_id, accommodation_unit_id,
+        guest_id, stay_type, status, starts_on, ends_on)
+     select unit.organization_id, unit.property_id, unit.id,
+            guest.id, 'guest', 'confirmed',
+            app.property_today(unit.property_id),
+            app.property_today(unit.property_id) + 2
+       from public.accommodation_units as unit, guest
+      where unit.property_id = '${propertyId}' and unit.name = '${unitName}'`,
+  );
+
+  await signIn(page);
+  await page.goto(`/en/maintenance?property=${propertyId}`);
+  await page.getByRole("button", { name: "New request" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "Report a problem" });
+  const room = dialog.getByRole("combobox", { name: "Room or bed" });
+  await room.click();
+  await page.getByRole("option", { name: unitName }).click();
+  await expect(room).toContainText(unitName);
+  await dialog
+    .getByRole("textbox", { name: "What is wrong?" })
+    .fill("Broken window latch");
+  const outOfOrder = dialog.getByRole("checkbox", {
+    name: "Take it out of order until it is fixed",
+  });
+  await outOfOrder.click();
+  await dialog.getByRole("button", { name: "Send request" }).click();
+
+  // MT-S2-10: who is booked, before anything is written — and the room and
+  // the switch are still what was sent. React resets a form after its action,
+  // and Radix answered that reset by clearing both, so the confirmation below
+  // either never appeared or sent a report that left the room in service.
+  await expect(dialog.getByText("Somebody is affected")).toBeVisible();
+  await expect(dialog).toContainText(guestName);
+  await expect(room).toContainText(unitName);
+  await expect(outOfOrder).toBeChecked();
+
+  await dialog
+    .getByRole("button", { name: "Take it out of order anyway" })
+    .click();
+  await expect(page.getByText(/Request MT-\d+ sent\./)).toBeVisible();
+  await expect(
+    page
+      .getByRole("button", { name: /^Open MT-\d+$/ })
+      .filter({ hasText: "Broken window latch" })
+      .filter({ hasText: unitName }),
+  ).toContainText("Out of order");
+  // Nothing was cancelled: the desk moves the booking, not the form.
+  expect(
+    psql(
+      `select reservation.status from public.reservations as reservation
+         join public.guests as guest on guest.id = reservation.guest_id
+        where guest.full_name = '${guestName}'`,
+    ),
+  ).toBe("confirmed");
+});
+
 test("the board reads right to left in Arabic", async ({ page }) => {
   const propertyId = testProperty();
   await signIn(page);

@@ -31,6 +31,7 @@ import {
 import { ImpactNotice } from "./impact-notice";
 import { PRIORITY_LOOK } from "./look";
 import { OutcomeMessage } from "./outcome-message";
+import { submitWithoutReset } from "./use-command";
 
 const PRIORITIES: readonly Priority[] = ["urgent", "this_week", "can_wait"];
 
@@ -44,9 +45,9 @@ const PRIORITIES: readonly Priority[] = ["urgent", "this_week", "can_wait"];
  * kept, the people affected are listed, and the same submit with the
  * acknowledgement goes ahead (MT-S2-09, MT-S2-10).
  *
- * Every field is controlled: React resets a form's uncontrolled fields after
- * each action, and the second submit after an impact must carry the first
- * one's words.
+ * Every field is controlled and the form is submitted without React's reset
+ * (`submitWithoutReset`): the second submit after an impact must carry the
+ * first one's words, its room and its switch.
  */
 export function ReportDialog({
   locale,
@@ -102,8 +103,13 @@ export function ReportDialog({
 
   const unit = options.units.find((candidate) => candidate.unitId === unitId);
   const blocked = unit?.status === "blocked";
+  // A warning is about taking this room out: unticked, there is nothing to
+  // confirm, and the button goes back to sending a report.
   const impact =
-    outcome.status === "impact" && warnedUnitId === unitId
+    outcome.status === "impact" &&
+    warnedUnitId === unitId &&
+    outOfOrder &&
+    !blocked
       ? outcome.impact
       : undefined;
   const unitLabel = (candidate: ReportOptions["units"][number]) =>
@@ -113,18 +119,19 @@ export function ReportDialog({
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="sm:max-w-lg">
+      {/* It scrolls: with the people affected listed it is taller than a
+          laptop's window, and its confirm button is at the bottom. */}
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{t("reportTitle")}</DialogTitle>
           <DialogDescription>{t("reportDescription")}</DialogDescription>
         </DialogHeader>
 
         <form
-          action={act}
           className="grid gap-4"
-          onSubmit={() => {
+          onSubmit={submitWithoutReset(act, () => {
             submittedUnitId.current = unitId;
-          }}
+          })}
         >
           <input name="locale" type="hidden" value={locale} />
           <input name="propertyId" type="hidden" value={propertyId} />
