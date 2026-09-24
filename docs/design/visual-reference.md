@@ -150,6 +150,9 @@ an entry is a bug.
   Leaders' nine would otherwise scroll off a laptop screen.
 - **Phones.** Below `md` the pages of a group sit under the page bar as a tab
   strip, because the dock at the foot opens a group on its first page only.
+- **The page bar's avatar opens the account menu.** In Leaders it is a picture
+  only, and the account is reached from the sidebar's foot; Ranza offers it in
+  both places, because on a phone there is no sidebar.
 
 ## Accessibility
 

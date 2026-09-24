@@ -57,9 +57,10 @@ function useActiveHref(root: string) {
  * Leaders' spacing a 900px laptop would scroll the last of them out of view.
  *
  * Two modes:
- * 1. Expanded: sections, inline accordion groups for sub-items (Front Office ->
- *    Arrivals / Departures), and the account card at the foot.
- * 2. Collapsed: centred icon tiles with tooltips, and flyout menus for groups.
+ * 1. Expanded: one list, with inline accordion groups for sub-items (Front
+ *    Office -> Arrivals / Departures), and the account card at the foot.
+ * 2. Collapsed: centred icon tiles with tooltips, flyout menus for groups, and
+ *    a rule between the groups of destinations.
  */
 export function AppSidebar({
   actions,
