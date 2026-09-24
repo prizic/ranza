@@ -44,12 +44,12 @@ export function PropertySwitcher({
   // One Property is not a choice. Name it, and offer no menu to open.
   if (slots.length === 1) {
     return (
-      <p className="flex min-w-0 items-center gap-2 text-sm font-medium">
+      <p className="flex min-w-0 items-center gap-2 px-2 text-sm font-medium">
         <Building2
           aria-hidden="true"
           className="size-4 shrink-0 text-muted-foreground"
         />
-        <span className="truncate">{active.name}</span>
+        <span className="min-w-0 truncate sm:max-w-[12rem]">{active.name}</span>
       </p>
     );
   }
@@ -58,13 +58,13 @@ export function PropertySwitcher({
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={label}
-        className="flex min-h-11 min-w-0 items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=open]:bg-secondary"
+        className="flex h-11 min-w-0 items-center gap-2 rounded-full px-3 text-sm font-medium transition-colors hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=open]:bg-secondary md:h-9"
       >
         <Building2
           aria-hidden="true"
           className="size-4 shrink-0 text-muted-foreground"
         />
-        <span className="max-w-[12rem] truncate">{active.name}</span>
+        <span className="min-w-0 truncate sm:max-w-[12rem]">{active.name}</span>
         <ChevronsUpDown
           aria-hidden="true"
           className="size-4 shrink-0 text-muted-foreground"

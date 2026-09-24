@@ -17,9 +17,9 @@ export interface Messages {
   portalBadge: string;
   skip: string;
   languageLabel: string;
-  languageName: Record<SupportedLocale, string>;
   mainNavigation: string;
-  back: string;
+  collapse: string;
+  expand: string;
   account: string;
   stay: string;
 
@@ -34,8 +34,9 @@ export interface Messages {
   noStayDescription: string;
 
   signInSummary: string;
-  authSloganLead: string;
-  authSloganStrong: string;
+  /** The sign-in screen's slogan: set in heavy capitals, so written in
+      sentence case and uppercased by the locale's own rules. */
+  authSlogan: string;
   authSubSlogan: string;
   welcomeBack: string;
   email: string;
@@ -59,9 +60,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     portalBadge: "Portal",
     skip: "İçeriğe geç",
     languageLabel: "Dil",
-    languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     mainNavigation: "Ana gezinme",
-    back: "Geri",
+    collapse: "Menüyü daralt",
+    expand: "Menüyü genişlet",
     account: "Hesap",
     stay: "Konaklamam",
 
@@ -78,8 +79,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Bir tesis size konaklama tanımladığında ayrıntılar burada görünür.",
 
     signInSummary: "Konaklamanızı görmek için oturum açın.",
-    authSloganLead: "Huzurlu konaklama,",
-    authSloganStrong: "DİJİTAL KOLAYLIK",
+    authSlogan: "Huzurlu konaklama, dijital kolaylık.",
     authSubSlogan:
       "Konaklamanızı, odanızı ve rezervasyon detaylarınızı zahmetsizce yönetin.",
     welcomeBack: "Tekrar hoş geldiniz",
@@ -113,9 +113,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     portalBadge: "Portal",
     skip: "Skip to content",
     languageLabel: "Language",
-    languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     mainNavigation: "Main navigation",
-    back: "Back",
+    collapse: "Collapse sidebar",
+    expand: "Expand sidebar",
     account: "Account",
     stay: "My stay",
 
@@ -131,8 +131,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Details appear here once a Property has set up your stay.",
 
     signInSummary: "Sign in to see your stay.",
-    authSloganLead: "Your stay,",
-    authSloganStrong: "ELEVATED",
+    authSlogan: "Your stay, elevated.",
     authSubSlogan:
       "Access your residence details, accommodation unit, and stay history seamlessly.",
     welcomeBack: "Welcome back",
@@ -166,9 +165,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     portalBadge: "البوابة",
     skip: "تخطَّ إلى المحتوى",
     languageLabel: "اللغة",
-    languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     mainNavigation: "التنقل الرئيسي",
-    back: "رجوع",
+    collapse: "طي القائمة",
+    expand: "توسيع القائمة",
     account: "الحساب",
     stay: "إقامتي",
 
@@ -186,8 +185,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     noStayDescription: "تظهر التفاصيل هنا بمجرد أن تُسجّل المنشأة إقامتك.",
 
     signInSummary: "سجّل الدخول لعرض إقامتك.",
-    authSloganLead: "إقامتك",
-    authSloganStrong: "بكل راحة واطمئنان",
+    authSlogan: "إقامتك بكل راحة واطمئنان.",
     authSubSlogan:
       "تابع تفاصيل إقامتك ووحدتك السكنية وسجل الحجوزات بكل سهولة ويسر.",
     welcomeBack: "مرحبًا بك من جديد",

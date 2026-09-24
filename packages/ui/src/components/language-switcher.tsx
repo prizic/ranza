@@ -41,7 +41,9 @@ type LinkSource =
 export type LanguageSwitcherProps = LinkSource & {
   className?: string;
   currentLocale: string;
-  /** Accessible name for the trigger. Localized. */
+  /** Names the control, localized; the current language is added to it,
+      so the name holds the words the pill shows and a voice user can say
+      them. */
   label?: string;
   /** `header` is the round flag in the page bar; `pill` adds the name, for
       the sign-in screens where it is the only control in its corner. */
@@ -49,8 +51,9 @@ export type LanguageSwitcherProps = LinkSource & {
 };
 
 /**
- * The language control, after the Leaders portal's: the current flag, opening
- * onto every language by its own name.
+ * The language control, as the Leaders portal draws it: the current flag alone
+ * in the page bar, or flag and name on the sign-in screen, opening onto every
+ * language by its own name.
  *
  * Each option is a link to the same page in that language. The locale lives in
  * the URL, so the link is the whole mechanism — there is nothing to persist.
@@ -69,64 +72,42 @@ export function LanguageSwitcher({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label={label}
+        aria-label={`${label}: ${currentOption.nativeName}`}
         className={cn(
-          "inline-flex items-center justify-center transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring select-none",
+          "inline-flex shrink-0 cursor-pointer items-center justify-center transition-colors select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
           variant === "header"
-            ? "size-11 rounded-full border md:size-9 border-border/60 bg-card text-sm shadow-2xs hover:bg-secondary"
-            : "glass h-11 gap-2 md:h-10 rounded-full px-4 text-sm font-medium shadow-xs hover:bg-secondary",
+            ? "size-11 rounded-full text-lg hover:bg-secondary md:size-9"
+            : "h-11 gap-3 rounded-lg border border-border/50 bg-background/80 px-4 backdrop-blur-sm hover:bg-secondary md:h-10",
           className,
         )}
       >
-        <span className="text-base shrink-0 leading-none">
+        <span aria-hidden="true" className="leading-none">
           {currentOption.flag}
         </span>
-        {variant === "pill" && (
+        {variant === "pill" ? (
           <>
-            <span className="text-xs font-semibold text-foreground">
+            <span className="text-sm font-medium">
               {currentOption.nativeName}
             </span>
-            <ChevronDown className="size-3 text-muted-foreground opacity-70 shrink-0" />
+            <ChevronDown
+              aria-hidden="true"
+              className="size-4 shrink-0 opacity-50"
+            />
           </>
-        )}
+        ) : null}
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent
-        align={variant === "header" ? "end" : "center"}
-        className="w-48 rounded-2xl"
-        sideOffset={6}
-      >
+      <DropdownMenuContent align="end" className="min-w-[140px]">
         {LOCALES.map((option) => {
           const isActive = option.code === currentLocale;
           const href = getHref
             ? getHref(option.code)
             : hrefPattern.replace("{locale}", option.code);
 
-          const content = (
-            <>
-              <span className="text-base shrink-0 leading-none">
-                {option.flag}
-              </span>
-              <span
-                className={cn(
-                  "flex-1 text-xs font-medium",
-                  isActive
-                    ? "font-semibold text-foreground"
-                    : "text-muted-foreground",
-                )}
-              >
-                {option.nativeName}
-              </span>
-              {isActive && (
-                <Check className="size-3.5 text-primary shrink-0 ms-auto" />
-              )}
-            </>
-          );
-
           return (
             <DropdownMenuItem
               asChild
-              className="cursor-pointer gap-2.5 rounded-xl px-2.5 py-2 focus:bg-secondary focus:text-secondary-foreground"
+              className="relative cursor-pointer gap-2 ps-8"
               key={option.code}
             >
               <a
@@ -135,7 +116,14 @@ export function LanguageSwitcher({
                 hrefLang={option.code}
                 lang={option.code}
               >
-                {content}
+                {isActive ? (
+                  <Check
+                    aria-hidden="true"
+                    className="absolute start-2 size-4"
+                  />
+                ) : null}
+                <span aria-hidden="true">{option.flag}</span>
+                <span>{option.nativeName}</span>
               </a>
             </DropdownMenuItem>
           );

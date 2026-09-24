@@ -73,7 +73,7 @@ export function RoomsView({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
-          <h2 className="text-lg font-medium text-muted-foreground">
+          <h2 className="text-sm font-medium text-muted-foreground">
             {t("roomsAt", { property: propertyName })}
           </h2>
           <p className="text-sm text-muted-foreground">{t("roomsSubtitle")}</p>
@@ -384,7 +384,7 @@ function StatTile({
   tone: keyof typeof TILE_TONE;
 }) {
   return (
-    <div className="flex flex-col justify-between rounded-4xl border border-border/70 bg-card p-5 shadow-low">
+    <div className="flex flex-col justify-between rounded-[2rem] border border-slate-100 bg-card p-5">
       <span
         className={cn(
           "inline-flex size-10 items-center justify-center rounded-2xl",
@@ -395,14 +395,14 @@ function StatTile({
       </span>
       <div className="mt-6 space-y-1">
         <p className="flex items-baseline gap-2">
-          <span className="text-4xl font-light tracking-tight tabular-nums">
+          <span className="text-4xl font-light tracking-tight tabular-nums md:text-5xl">
             {children}
           </span>
           {note ? (
             <span className="text-xs text-muted-foreground">{note}</span>
           ) : null}
         </p>
-        <p className="text-xs font-medium tracking-wider text-muted-foreground/80 uppercase">
+        <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
           {label}
         </p>
       </div>

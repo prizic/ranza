@@ -69,7 +69,7 @@ export default async function AuditLogPage({
   if (selected) {
     return (
       <>
-        <p className="text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           <a className="hover:underline" href={listHref}>
             {t("allRecords")}
           </a>
@@ -89,7 +89,7 @@ export default async function AuditLogPage({
 
   return (
     <>
-      <p className="text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         {t("auditLogFor")} {property.organizationName}
       </p>
       <AuditTable

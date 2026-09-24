@@ -86,7 +86,9 @@ export default async function PeoplePage({
           </span>
         }
       >
-        <p className="text-muted-foreground">{t("staff.screenSummary")}</p>
+        <p className="text-sm text-muted-foreground">
+          {t("staff.screenSummary")}
+        </p>
         <p className="mt-1 text-sm text-muted-foreground">
           {home.organizationName}
         </p>

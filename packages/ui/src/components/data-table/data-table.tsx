@@ -47,10 +47,10 @@ import { cn } from "../../lib/utils";
  */
 const ROW_CARD = cn(
   "border-0 hover:bg-transparent",
-  "[&>td]:border-y [&>td]:border-border/70 [&>td]:bg-card [&>td]:py-3.5 [&>td]:transition-colors",
-  "[&>td:first-child]:rounded-s-2xl [&>td:first-child]:border-s [&>td:first-child]:ps-5",
-  "[&>td:last-child]:rounded-e-2xl [&>td:last-child]:border-e [&>td:last-child]:pe-4",
-  "[&:hover>td]:bg-secondary/40 data-[state=selected]:[&>td]:bg-secondary",
+  "[&>td]:border-y [&>td]:border-black/5 [&>td]:bg-card [&>td]:py-4 [&>td]:transition-colors md:[&>td]:py-5",
+  "[&>td:first-child]:rounded-s-[2rem] [&>td:first-child]:border-s [&>td:first-child]:ps-5 md:[&>td:first-child]:ps-6",
+  "[&>td:last-child]:rounded-e-[2rem] [&>td:last-child]:border-e [&>td:last-child]:pe-4 md:[&>td:last-child]:pe-6",
+  "[&:hover>td]:border-black/10 [&:hover>td]:bg-secondary/40 data-[state=selected]:[&>td]:bg-secondary",
 );
 
 export interface Facet {
@@ -237,9 +237,12 @@ export function DataTable<TData, TValue>({
       <div className="flex flex-wrap items-center gap-2">
         {searchColumns?.length ? (
           <div className="relative min-w-[120px] flex-1 sm:flex-none">
-            <Search className="pointer-events-none absolute end-3.5 top-3 size-4 text-muted-foreground" />
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute start-3.5 top-3 size-4 text-muted-foreground"
+            />
             <Input
-              className="h-10 w-full rounded-full ps-4 pe-10 sm:w-[240px] lg:w-[320px] [&::-webkit-search-cancel-button]:appearance-none"
+              className="h-10 w-full rounded-2xl border-slate-200/80 bg-white ps-10 pe-4 shadow-2xs hover:border-slate-300 sm:w-[240px] lg:w-[320px] [&::-webkit-search-cancel-button]:appearance-none"
               onChange={(event) => setSearch(event.target.value)}
               placeholder={searchPlaceholder}
               type="search"
@@ -302,7 +305,7 @@ export function DataTable<TData, TValue>({
         </div>
       ) : null}
 
-      {/* Each row is its own soft card, as in the Leaders lists. Separate
+      {/* Each row is its own white card, as in the Leaders lists. Separate
           borders rather than a wrapper, so the table stays a table to a screen
           reader and a row still means a row. */}
       <div>
@@ -313,7 +316,7 @@ export function DataTable<TData, TValue>({
               <TableRow className="hover:bg-transparent" key={group.id}>
                 {group.headers.map((header) => (
                   <TableHead
-                    className="h-9 text-start text-[11px] font-medium tracking-[0.14em] text-muted-foreground/80 uppercase"
+                    className="h-9 text-start text-[10px] font-bold tracking-widest text-muted-foreground/80 uppercase"
                     key={header.id}
                     scope="col"
                   >

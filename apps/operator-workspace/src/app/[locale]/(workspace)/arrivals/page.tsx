@@ -75,7 +75,7 @@ export default async function ArrivalsPage({
 
   return (
     <>
-      <p className="text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         {t("arrivalsAt")} {property.propertyName}
       </p>
       <Hydrated client={client}>

@@ -23,20 +23,21 @@ import {
 import { SidebarProvider, useSidebar } from "./sidebar-context";
 import { cn } from "../lib/utils";
 
+/** Every string is the host's, localized. Required rather than defaulted: an
+    English fallback here is English on an Arabic page. */
 export interface RailLabels {
-  /** Accessible name for the navigation landmark */
+  /** Names the navigation landmark. */
   mainNavigation: string;
-  back?: string | undefined;
-  /** Accessible name for brand link */
+  /** The product's name, beside the mark; also names the link home. */
   home: string;
-  /** Label for collapse toggle */
-  collapse?: string | undefined;
-  /** Label for expand toggle */
-  expand?: string | undefined;
-  /** Localized titles for sections: e.g. { operations: "Operasyon", management: "Yönetim" } */
+  /** The toggle that folds the sidebar to icons, and the one that opens it. */
+  collapse: string;
+  expand: string;
+  /** Section titles, keyed by `Screen.section`. */
   sections?: Record<string, string> | undefined;
-  /** Subtitle or badge in expanded sidebar header */
-  workspaceBadge?: string | undefined;
+  /** Which application this is, under the product's name when there is no
+      Organization to name instead. */
+  badge?: string | undefined;
 }
 
 export type SidebarLabels = RailLabels;
@@ -48,8 +49,14 @@ function useActiveHref(root: string) {
 }
 
 /**
- * The workspace sidebar: a panel floating in its own padded column, as in the
- * Leaders portal it takes its look from.
+ * The workspace sidebar, drawn as the Leaders portal draws its own
+ * (leaders-portal/src/components/layout/sidebar-content.tsx): a glass panel
+ * floating in its own padded column, the brand at its head, and the account at
+ * its foot.
+ *
+ * Leaders tightens its rows on a short screen; the thresholds here are higher
+ * because the workspace has a dozen destinations to Leaders' nine, and at
+ * Leaders' spacing a 900px laptop would scroll the last of them out of view.
  *
  * Two modes:
  * 1. Expanded: sections, inline accordion groups for sub-items (Front Office ->
@@ -135,15 +142,15 @@ function AppSidebarInner({
     <aside
       aria-label={labels.mainNavigation}
       className={cn(
-        "sticky top-0 z-30 hidden h-svh shrink-0 p-3 transition-[width] duration-300 ease-out select-none md:flex",
-        collapsed ? "w-24" : "w-68 xl:w-72",
+        "sticky top-0 z-30 hidden h-svh shrink-0 p-2 transition-[width] duration-300 ease-out select-none md:flex xl:p-3 2xl:p-4",
+        collapsed ? "w-24" : "w-[240px] xl:w-[260px] 2xl:w-[280px]",
       )}
     >
-      <div className="glass-panel flex min-h-0 w-full flex-col overflow-hidden rounded-3xl">
+      <div className="glass-panel flex min-h-0 w-full flex-col overflow-hidden rounded-2xl lg:rounded-3xl">
         <div
           className={cn(
-            "flex h-20 shrink-0 items-center",
-            collapsed ? "px-3" : "px-5",
+            "flex h-16 shrink-0 items-center lg:h-20 xl:h-24 [@media(max-height:750px)]:h-14 [@media(min-height:751px)_and_(max-height:960px)]:h-20",
+            collapsed ? "px-3" : "px-4 lg:px-6",
           )}
         >
           {collapsed ? (
@@ -156,40 +163,42 @@ function AppSidebarInner({
                 {brand}
               </a>
               <button
-                aria-label={labels.expand ?? "Expand sidebar"}
+                aria-label={labels.expand}
                 className="inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground/70 transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                 onClick={() => setCollapsed(false)}
-                title={labels.expand ?? "Expand sidebar"}
+                title={labels.expand}
                 type="button"
               >
                 <PanelLeft className="size-4 rtl:rotate-180" />
               </button>
             </div>
           ) : (
-            <div className="flex w-full items-center gap-2.5">
+            <div className="flex w-full items-center gap-2">
               <a
                 aria-label={labels.home}
-                className="group flex min-w-0 items-center gap-3.5 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="group flex min-w-0 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:gap-3.5"
                 href={root}
               >
-                <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-transform duration-500 group-hover:scale-105 group-hover:rotate-3">
+                <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-transform duration-500 group-hover:scale-105 group-hover:rotate-3 lg:size-10 xl:size-11 [@media(max-height:750px)]:size-8">
                   {brand}
                 </div>
                 <div className="flex min-w-0 flex-col">
-                  <span className="truncate text-lg font-semibold tracking-tight text-foreground/85 transition-colors group-hover:text-foreground">
-                    {labels.home || "Ranza"}
+                  <span className="truncate text-sm font-semibold tracking-tight text-foreground/80 transition-colors group-hover:text-foreground lg:text-base xl:text-lg">
+                    {labels.home}
                   </span>
-                  <span className="truncate text-sm font-medium text-muted-foreground">
-                    {organization || labels.workspaceBadge || "Workspace"}
-                  </span>
+                  {(organization ?? labels.badge) ? (
+                    <span className="truncate text-xs font-medium text-muted-foreground xl:text-sm">
+                      {organization ?? labels.badge}
+                    </span>
+                  ) : null}
                 </div>
               </a>
 
               <button
-                aria-label={labels.collapse ?? "Collapse sidebar"}
-                className="ms-auto inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground/70 transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+                aria-label={labels.collapse}
+                className="ms-auto inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                 onClick={toggle}
-                title={labels.collapse ?? "Collapse sidebar"}
+                title={labels.collapse}
                 type="button"
               >
                 <PanelLeftClose className="size-4 rtl:rotate-180" />
@@ -201,12 +210,15 @@ function AppSidebarInner({
         {/* Navigation Body */}
         <nav
           className={cn(
-            "scrollbar-slim flex-1 space-y-5 overflow-x-hidden overflow-y-auto py-2 focus:outline-none",
-            collapsed ? "px-2" : "px-3.5",
+            "scrollbar-slim min-h-0 flex-1 space-y-4 overflow-x-hidden overflow-y-auto py-2 focus:outline-none lg:py-4",
+            collapsed ? "px-2" : "px-2.5 lg:px-3.5 xl:px-4",
           )}
         >
           {sections.map((section, secIdx) => (
-            <div className="space-y-1" key={section.id ?? `section-${secIdx}`}>
+            <div
+              className="space-y-1 lg:space-y-2"
+              key={section.id ?? `section-${secIdx}`}
+            >
               {/* Section Header */}
               {section.label ? (
                 collapsed ? (
@@ -217,14 +229,14 @@ function AppSidebarInner({
                     />
                   ) : null
                 ) : (
-                  <div className="px-3.5 pb-1.5 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/60 select-none">
+                  <div className="px-3 pb-1 text-[10px] font-bold tracking-[0.2em] text-muted-foreground/70 uppercase select-none lg:px-3.5 xl:px-4">
                     {section.label}
                   </div>
                 )
               ) : null}
 
               {/* Entries in this section */}
-              <ul className="space-y-1" role="list">
+              <ul className="space-y-1 lg:space-y-2" role="list">
                 {section.entries.map((entry) =>
                   isNavGroup(entry) ? (
                     <li key={entry.label}>
@@ -263,7 +275,7 @@ function AppSidebarInner({
         {actions ? (
           <div
             className={cn(
-              "mt-auto shrink-0 p-3.5",
+              "mt-auto shrink-0 border-t border-border/20 p-2.5 lg:p-3.5 xl:p-4",
               collapsed && "flex flex-col items-center gap-2 px-2",
             )}
           >
@@ -287,10 +299,10 @@ function ExpandedLeafItem({
     <a
       aria-current={active ? "page" : undefined}
       className={cn(
-        "hover-lift group relative flex items-center gap-3.5 rounded-xl px-3.5 py-2.5 text-[15px] font-medium transition-colors duration-300 select-none",
+        "hover-lift group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-300 select-none lg:gap-3.5 lg:px-3.5 lg:py-2.5 lg:text-[15px] xl:px-4 xl:py-3 xl:text-base [@media(max-height:800px)]:py-1.5 [@media(min-height:801px)_and_(max-height:960px)]:py-2",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active
-          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/15"
+          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/10"
           : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
       )}
       href={leaf.href}
@@ -298,18 +310,12 @@ function ExpandedLeafItem({
       <leaf.icon
         aria-hidden="true"
         className={cn(
-          "size-5 shrink-0 transition-transform duration-300",
+          "size-4 shrink-0 transition-transform duration-300 lg:size-5 xl:size-5.5",
           !active && "group-hover:scale-110",
         )}
         strokeWidth={active ? 2 : 1.5}
       />
       <span className="truncate flex-1 text-start">{leaf.label}</span>
-      {active && leaf.badge === undefined ? (
-        <span
-          aria-hidden="true"
-          className="size-1.5 shrink-0 rounded-full bg-primary-foreground/60"
-        />
-      ) : null}
       {leaf.badge !== undefined ? (
         <span
           className={cn(
@@ -345,7 +351,7 @@ function ExpandedGroupItem({
       <button
         aria-expanded={isOpen}
         className={cn(
-          "group relative flex w-full cursor-pointer items-center gap-3.5 rounded-xl px-3.5 py-2.5 text-[15px] font-medium transition-colors duration-300 select-none",
+          "group relative flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-300 select-none lg:gap-3.5 lg:px-3.5 lg:py-2.5 lg:text-[15px] xl:px-4 xl:py-3 xl:text-base [@media(max-height:800px)]:py-1.5 [@media(min-height:801px)_and_(max-height:960px)]:py-2",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           hasActiveChild
             ? "bg-secondary text-secondary-foreground"
@@ -357,7 +363,7 @@ function ExpandedGroupItem({
         <group.icon
           aria-hidden="true"
           className={cn(
-            "size-5 shrink-0 transition-transform duration-300",
+            "size-4 shrink-0 transition-transform duration-300 lg:size-5 xl:size-5.5",
             !hasActiveChild && "group-hover:scale-110",
           )}
           strokeWidth={hasActiveChild ? 2 : 1.5}
@@ -373,17 +379,17 @@ function ExpandedGroupItem({
       </button>
 
       {isOpen ? (
-        <div className="relative ms-6 space-y-1 border-s border-border ps-3 py-1">
+        <div className="relative ms-5 space-y-1 border-s border-border/60 py-1 ps-3 xl:ms-6">
           {group.children.map((child) => {
             const childActive = isActive(child.href);
             return (
               <a
                 aria-current={childActive ? "page" : undefined}
                 className={cn(
-                  "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200",
+                  "hover-lift group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-300 [@media(max-height:800px)]:py-1.5 [@media(min-height:801px)_and_(max-height:960px)]:py-2",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   childActive
-                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/15"
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/10"
                     : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground",
                 )}
                 href={child.href}
@@ -421,7 +427,7 @@ function CollapsedLeafItem({
           "hover-lift flex size-11 items-center justify-center rounded-xl transition-colors duration-300",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           active
-            ? "bg-primary text-primary-foreground shadow-lg shadow-primary/15"
+            ? "bg-primary text-primary-foreground shadow-lg shadow-primary/10"
             : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
         )}
         href={leaf.href}

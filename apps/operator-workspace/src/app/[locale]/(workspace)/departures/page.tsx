@@ -42,7 +42,7 @@ export default async function DeparturesPage({
 
   return (
     <>
-      <p className="text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         {t("departuresAt")} {property.propertyName}
       </p>
       <DeparturesTable

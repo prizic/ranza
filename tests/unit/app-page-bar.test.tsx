@@ -46,6 +46,19 @@ describe("AppPageBar", () => {
     expect(headings[0]?.textContent).toBe("Today");
   });
 
+  it("keeps the section's tabs out of the bar, which holds only the trail and its controls", () => {
+    render(
+      <AppPageBar
+        breadcrumbLabel="Breadcrumb"
+        crumbs={crumbs}
+        tabs={<nav aria-label="Sections" />}
+        title="Arrivals"
+      />,
+    );
+    const tabs = screen.getByRole("navigation", { name: "Sections" });
+    expect(tabs.closest("header")).toBeNull();
+  });
+
   it("names the trail as a landmark and keeps the way back as a link", () => {
     render(
       <AppPageBar

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { LanguageSwitcher } from "../../packages/ui/src";
 
 function open() {
-  fireEvent.keyDown(screen.getByRole("button", { name: "Change language" }), {
+  fireEvent.keyDown(screen.getByRole("button", { name: /^Change language/ }), {
     key: "ArrowDown",
   });
 }
@@ -13,7 +13,7 @@ describe("LanguageSwitcher", () => {
     cleanup();
   });
 
-  it("shows the current language's flag in the page bar", () => {
+  it("shows the current language's flag in the page bar, and says which it is", () => {
     render(
       <LanguageSwitcher
         currentLocale="tr"
@@ -21,7 +21,10 @@ describe("LanguageSwitcher", () => {
         label="Change language"
       />,
     );
-    const trigger = screen.getByRole("button", { name: "Change language" });
+    // The flag is decoration; the name is what a screen reader announces.
+    const trigger = screen.getByRole("button", {
+      name: "Change language: Türkçe",
+    });
     expect(trigger.textContent).toContain("🇹🇷");
     expect(trigger.textContent).not.toContain("Türkçe");
   });
@@ -35,7 +38,10 @@ describe("LanguageSwitcher", () => {
         variant="pill"
       />,
     );
-    const trigger = screen.getByRole("button", { name: "Change language" });
+    // The name holds the words on the pill, so saying them reaches it.
+    const trigger = screen.getByRole("button", {
+      name: "Change language: العربية",
+    });
     expect(trigger.textContent).toContain("🇸🇦");
     expect(trigger.textContent).toContain("العربية");
   });
@@ -50,12 +56,14 @@ describe("LanguageSwitcher", () => {
     );
     open();
 
-    const turkish = screen.getByRole("menuitem", { name: /Türkçe/ });
+    // Exact names: the flag beside each is hidden, so it is not read out as
+    // "flag: Turkey" — or as "T R" where the platform draws no flags.
+    const turkish = screen.getByRole("menuitem", { name: "Türkçe" });
     expect(turkish.getAttribute("href")).toBe("/tr/sign-in");
     expect(turkish.getAttribute("hreflang")).toBe("tr");
     expect(turkish.getAttribute("aria-current")).toBeNull();
 
-    const english = screen.getByRole("menuitem", { name: /English/ });
+    const english = screen.getByRole("menuitem", { name: "English" });
     expect(english.getAttribute("href")).toBe("/en/sign-in");
     expect(english.getAttribute("aria-current")).toBe("true");
   });

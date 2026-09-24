@@ -58,27 +58,32 @@ matter (section 10).
 
 ## Design tokens
 
-**This file wins.** The palette is the Leaders direction — a deep emerald
-accent and a warm cream secondary on an ivory canvas, white panels separated by
-a long soft shadow, and generous radii. It replaced the teal-on-pale-canvas
-palette of the first approved mockups on 2026-09-22, so those mockups are still
-right about layout and density and no longer right about colour.
+**This file wins.** The palette is the Leaders portal's, matched rather than
+paraphrased — a deep emerald accent and a warm cream secondary on a white
+canvas, white panels lifted by a hairline and a long soft shadow, generous
+radii, and Geist. It replaced the teal-on-pale-canvas palette of the first
+approved mockups on 2026-09-22, so those mockups are still right about layout
+and density and no longer right about colour. On 2026-09-24 the ivory canvas
+and IBM Plex of that first pass gave way to Leaders' own white canvas and
+Geist, on the direction that the Leaders portal is the source of truth.
 [`packages/ui/src/styles/globals.css`](../../packages/ui/src/styles/globals.css)
 holds these values. Do not edit the values below to match the code — the
 traffic runs the other way.
 
-One departure, with its reason recorded beside it in that file: `Aptos` is not
-licensed for the web and would fall through to a system font on every machine
-that is not Windows, so the three scripts would each be rendered by whatever
-happened to be installed. IBM Plex Sans Arabic carries Latin, Turkish and Arabic
-in one family, so Turkish and Arabic are the same voice.
+The first brief asked for `Aptos`, which is not licensed for the web and would
+fall through to a system font on every machine that is not Windows. The theme
+sets Geist instead, as Leaders does, for Turkish and English — loaded with its
+Latin Extended subset, so ğ, ş, ı and İ are drawn by Geist rather than
+borrowed mid-word from another face. Geist draws no Arabic, so an Arabic page
+leads with IBM Plex Sans Arabic; the reason is recorded beside the stack in
+`globals.css`.
 
 See also [`ui-references.md`](ui-references.md) for layout and interaction, and
 [ADR 0013](../adr/0013-an-interface-is-shadcn-a-feature-folder-and-a-shared-kit.md)
 for how components are organised.
 
 ```css
---canvas: #fbfaf8;
+--canvas: #ffffff;
 --canvas-deep: hsl(170 10% 96%);
 --ink: hsl(170 60% 10%);
 --ink-muted: hsl(170 5% 45%);
@@ -95,6 +100,11 @@ for how components are organised.
 --danger-soft: #f5dfdd;
 --info: #315f83;
 --info-soft: #dfeaf2;
+--sign-in-canvas: #fbfaf8;
+--sign-in-ink: #474747;
+--sign-in-ink-muted: #72716f;
+--sign-in-field: #d9d9d9;
+--sign-in-cta: #1f1e1c;
 --gold: #e4b763;
 --gold-ink: #8a684d;
 --line: hsl(170 10% 90%);
@@ -103,15 +113,20 @@ for how components are organised.
 --radius: 1rem;
 --shadow: 0 20px 60px rgba(0, 0, 0, 0.06);
 --shadow-low: 0 4px 14px rgba(10, 41, 36, 0.04);
-font-family: Aptos, "Segoe UI Variable", "Noto Sans Arabic", sans-serif;
+font-family: Geist, "IBM Plex Sans Arabic", system-ui, sans-serif;
+/* Arabic: "IBM Plex Sans Arabic", system-ui, sans-serif */
 ```
 
-Accent is used for primary action and identity, not decoration. Surfaces are white
-on a soft canvas; separation comes from `--line` and `--shadow-low`, not heavy
-borders. Data tables use `font-variant-numeric: tabular-nums`.
+Accent is used for primary action and identity, not decoration. Surfaces are
+white on a white canvas, so separation comes from the floating panels' hairline
+and long shadow and from `--line`, not heavy borders. Data tables use
+`font-variant-numeric: tabular-nums`.
 
-`--gold` draws the lines in the sign-in panel and nothing else — it sits
-well below even the 3:1 large-text floor on the canvas and never carries text.
+The sign-in screen has a palette of its own, which is Leaders' login: an ivory
+ground, charcoal type and a near-black call to action. Its muted grey is
+Leaders' `#8c8b89` darkened to clear 4.5:1 on the ivory. `--gold` fills the
+sign-in swoosh and nothing else — it sits well below even the 3:1 large-text
+floor on the canvas and never carries text.
 Copy set in the brand's bronze uses `--gold-ink`, which is the reference's
 `#a48166` darkened to clear 4.5:1.
 

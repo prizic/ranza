@@ -10,13 +10,11 @@ export interface Messages {
   productName: string;
   skip: string;
   languageLabel: string;
-  languageName: Record<SupportedLocale, string>;
   today: string;
   propertySwitcher: string;
   mainNavigation: string;
   sections: string;
   breadcrumb: string;
-  back: string;
   collapse: string;
   expand: string;
   workspaceBadge: string;
@@ -31,8 +29,9 @@ export interface Messages {
   noPropertyTitle: string;
   noPropertyDescription: string;
   signInSummary: string;
-  authSloganLead: string;
-  authSloganStrong: string;
+  /** The sign-in screen's slogan: set in heavy capitals, so written in
+      sentence case and uppercased by the locale's own rules. */
+  authSlogan: string;
   authSubSlogan: string;
   welcomeBack: string;
   email: string;
@@ -412,13 +411,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     productName: "Ranza",
     skip: "İçeriğe geç",
     languageLabel: "Dil",
-    languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     today: "Bugün",
     propertySwitcher: "Tesisler",
     mainNavigation: "Ana gezinme",
     sections: "Bölümler",
     breadcrumb: "Konum",
-    back: "Geri",
     collapse: "Menüyü daralt",
     expand: "Menüyü genişlet",
     workspaceBadge: "Çalışma Alanı",
@@ -434,8 +431,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     noPropertyDescription:
       "Organizasyonunuzdaki bir yönetici sizi bir tesise atadığında burada görünür.",
     signInSummary: "Tesislerinizi yönetmek için oturum açın.",
-    authSloganLead: "Konaklama ve tesis yönetimi,",
-    authSloganStrong: "YENİDEN TANIMLANDI",
+    authSlogan: "Konaklama yönetimi, yeniden tanımlandı.",
     authSubSlogan:
       "Tesisler, sakinler, rezervasyonlar ve folyolar için bütünleşik çalışma alanı.",
     welcomeBack: "Tekrar hoş geldiniz",
@@ -848,13 +844,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     productName: "Ranza",
     skip: "Skip to content",
     languageLabel: "Language",
-    languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     today: "Today",
     propertySwitcher: "Properties",
     mainNavigation: "Main navigation",
     sections: "Sections",
     breadcrumb: "Breadcrumb",
-    back: "Back",
     collapse: "Collapse sidebar",
     expand: "Expand sidebar",
     workspaceBadge: "Workspace",
@@ -870,8 +864,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     noPropertyDescription:
       "A manager in your Organization assigns you to a Property, and it appears here.",
     signInSummary: "Sign in to run your Properties.",
-    authSloganLead: "Hospitality,",
-    authSloganStrong: "REFINED",
+    authSlogan: "Hospitality, refined.",
     authSubSlogan:
       "Dedicated workspace for properties, residents, reservations, and folios.",
     welcomeBack: "Welcome back",
@@ -1280,13 +1273,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     productName: "Ranza",
     skip: "تخطَّ إلى المحتوى",
     languageLabel: "اللغة",
-    languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     today: "اليوم",
     propertySwitcher: "المنشآت",
     mainNavigation: "التنقل الرئيسي",
     sections: "الأقسام",
     breadcrumb: "مسار التنقل",
-    back: "رجوع",
     collapse: "طي القائمة",
     expand: "توسيع القائمة",
     workspaceBadge: "مساحة العمل",
@@ -1302,8 +1293,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     noPropertyDescription:
       "يقوم أحد المديرين في مؤسستك بتعيينك إلى منشأة، فتظهر هنا.",
     signInSummary: "سجّل الدخول لإدارة عقاراتك.",
-    authSloganLead: "إدارة الإقامة والضيافة",
-    authSloganStrong: "المتكاملة",
+    authSlogan: "إدارة الإقامة والضيافة المتكاملة.",
     authSubSlogan:
       "مساحة العمل الموحدة للعقارات والمقيمين والحجوزات والسجلات المالية.",
     welcomeBack: "مرحبًا بك من جديد",

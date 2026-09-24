@@ -1,15 +1,8 @@
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { isSupportedLocale, localizeHref, supportedLocales } from "@ranza/i18n";
-import { Check } from "lucide-react";
-import {
-  AccountMenu,
-  AppShell,
-  AppPageBar,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-} from "@ranza/ui";
+import { isSupportedLocale, localizeHref } from "@ranza/i18n";
+import { AccountMenu, AppShell, AppPageBar, LanguageSwitcher } from "@ranza/ui";
 import { requireViewer } from "../../../server/viewer";
 import { PortalBottomNav, PortalRail } from "./portal-rail";
 
@@ -23,6 +16,10 @@ import { PortalBottomNav, PortalRail } from "./portal-rail";
  * built, so none of them appear. A capability that is not entitled is absent
  * rather than disabled, and one that does not exist yet is absent for the same
  * reason.
+ *
+ * Language is the flag at the end of the bar, as in the Workspace and in the
+ * Leaders portal both are drawn after; the Portal has one page, so every
+ * language's link is that page.
  *
  * It is the Workspace's shell, deliberately. A Resident who also works for the
  * Organization should not have to learn two products, and sharing the chrome is
@@ -42,37 +39,6 @@ export default async function PortalLayout({
   const viewer = await requireViewer(locale);
   const root = localizeHref(locale, "stay");
 
-  const account = (
-    <AccountMenu email={viewer.email} label={t("account")} name={viewer.email}>
-      {/* Language belongs to the person, and is set once and then never again —
-          so it lives beside the account rather than costing a permanent control
-          in the bar. */}
-      <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-        {t("languageLabel")}
-      </DropdownMenuLabel>
-      {supportedLocales.map((supported) => (
-        <DropdownMenuItem asChild key={supported}>
-          <a
-            aria-current={supported === locale ? "true" : undefined}
-            href={localizeHref(supported, "stay")}
-            hrefLang={supported}
-            lang={supported}
-          >
-            <Check
-              aria-hidden="true"
-              className={
-                supported === locale
-                  ? "size-4 shrink-0"
-                  : "size-4 shrink-0 invisible"
-              }
-            />
-            {t(`languageName.${supported}`)}
-          </a>
-        </DropdownMenuItem>
-      ))}
-    </AccountMenu>
-  );
-
   return (
     <AppShell
       bottomNav={
@@ -84,7 +50,23 @@ export default async function PortalLayout({
       }
       pageBar={
         <AppPageBar
-          action={<div className="md:hidden">{account}</div>}
+          action={
+            <>
+              <LanguageSwitcher
+                currentLocale={locale}
+                hrefPattern="/{locale}/stay"
+                label={t("languageLabel")}
+              />
+              <div aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
+              <AccountMenu
+                email={viewer.email}
+                label={t("account")}
+                locale={locale}
+                name={viewer.email}
+                variant="compact"
+              />
+            </>
+          }
           // The Stay opens with the Property's name in display type, so the
           // bar's own title stays small rather than set large above it.
           display={false}
@@ -93,9 +75,18 @@ export default async function PortalLayout({
       }
       rail={
         <PortalRail
-          actions={account}
+          actions={
+            <AccountMenu
+              email={viewer.email}
+              label={t("account")}
+              locale={locale}
+              name={viewer.email}
+            />
+          }
           labels={{
-            back: t("back"),
+            badge: t("portalBadge"),
+            collapse: t("collapse"),
+            expand: t("expand"),
             home: t("productName"),
             mainNavigation: t("mainNavigation"),
           }}

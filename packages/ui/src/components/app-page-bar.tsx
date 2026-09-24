@@ -11,15 +11,22 @@ export interface PageCrumb {
 /**
  * The bar above every surface, and the page's title under it.
  *
- * Taken from the Leaders portal: a floating glass bar that carries the trail —
- * a quiet uppercase root, then the levels above, then the page — with the
- * section switch and the page's controls on its end edge; and the title itself
- * set large and light at the head of the content, where it reads as the page
- * rather than as chrome.
+ * Leaders' header (leaders-portal/src/components/layout/header.tsx): a floating
+ * glass bar that carries the trail — a quiet uppercase root, then the levels
+ * above, then the page — with the page's controls on its end edge; and the title
+ * itself set light at the head of the content, where it reads as the page rather
+ * than as chrome.
  *
  * A page whose content opens with its own display type (Today sets the weekday)
  * passes `display={false}`, and the bar's last crumb becomes the heading
  * instead, so there is still exactly one `h1`.
+ *
+ * On a phone the bar's width goes to the Property, the language and the
+ * account, and the page's name — set under the bar anyway, or opened by the
+ * page's own display type — is left to assistive technology.
+ *
+ * `tabs` — the pages of the section this one belongs to — sit under the bar
+ * rather than in it, where Leaders keeps nothing but the trail and its controls.
  *
  * The title arrives as a prop rather than being resolved from the pathname here,
  * because the routes are locale-prefixed and this package deliberately knows
@@ -33,7 +40,7 @@ export function AppPageBar({
   tabs,
   title,
 }: {
-  /** The page's primary control, on the end edge of the bar. */
+  /** The page's controls, on the end edge of the bar. */
   action?: ReactNode;
   /** Names the trail's landmark. Localized; required once there are crumbs. */
   breadcrumbLabel?: string | undefined;
@@ -46,16 +53,21 @@ export function AppPageBar({
   title: string;
 }) {
   const leaf = display ? (
-    <span aria-current="page" className="truncate text-sm font-semibold">
+    <span
+      aria-current="page"
+      className="truncate text-sm font-semibold tracking-tight text-foreground max-sm:sr-only"
+    >
       {title}
     </span>
   ) : (
-    <h1 className="truncate text-sm font-semibold tracking-normal">{title}</h1>
+    <h1 className="truncate text-sm font-semibold tracking-tight text-foreground max-sm:sr-only">
+      {title}
+    </h1>
   );
 
   return (
     <>
-      <header className="glass-panel sticky top-3 z-20 mx-4 mt-3 flex h-16 shrink-0 items-center justify-between gap-3 rounded-2xl px-4 sm:mx-6 sm:px-6 md:mx-8">
+      <header className="glass-panel mb-6 flex h-16 shrink-0 items-center justify-between gap-4 rounded-2xl ps-4 pe-3 sm:px-6">
         {crumbs.length > 0 ? (
           <nav aria-label={breadcrumbLabel} className="min-w-0">
             <ol className="flex min-w-0 items-center gap-2">
@@ -78,18 +90,20 @@ export function AppPageBar({
           <div className="min-w-0">{leaf}</div>
         )}
 
-        <div className="ms-auto flex items-center gap-2">
-          {tabs}
-          {/* A wrapper of its own rather than sitting beside the tabs directly:
-              it is an element serialized from a server component, and as one
-              item of a two-child array React validates it as a dynamic child
-              and asks for a key it cannot have. */}
-          {action ? <div className="flex items-center">{action}</div> : null}
-        </div>
+        {/* A wrapper of its own: the action is an element serialized from a
+            server component, and as one item of a children array React
+            validates it as a dynamic child and asks for a key it cannot have. */}
+        {action ? (
+          <div className="ms-auto flex min-w-0 items-center gap-2 sm:gap-3">
+            {action}
+          </div>
+        ) : null}
       </header>
 
+      {tabs}
+
       {display ? (
-        <h1 className="mx-4 mt-7 text-4xl leading-tight font-light tracking-tight text-foreground sm:mx-6 md:mx-8 md:mt-9 md:text-5xl">
+        <h1 className="mb-1.5 text-2xl leading-tight font-light tracking-tight text-foreground sm:text-3xl">
           {title}
         </h1>
       ) : null}
@@ -99,12 +113,12 @@ export function AppPageBar({
 
 function Crumb({ crumb, root }: { crumb: PageCrumb; root: boolean }) {
   const className = cn(
-    "truncate transition-colors",
+    "truncate font-medium transition-colors",
     root
-      ? "text-xs font-medium tracking-wide uppercase text-muted-foreground/70"
-      : "text-sm font-medium text-muted-foreground/70",
+      ? "text-xs tracking-wide text-muted-foreground uppercase opacity-70 hover:opacity-100"
+      : "text-sm tracking-tight text-muted-foreground/60",
     crumb.href &&
-      "flex min-h-11 items-center hover:text-foreground hover:underline decoration-muted-foreground/30 underline-offset-4",
+      "flex min-h-11 items-center decoration-muted-foreground/30 underline-offset-4 hover:text-foreground hover:underline",
   );
   return crumb.href ? (
     <a className={className} href={crumb.href}>

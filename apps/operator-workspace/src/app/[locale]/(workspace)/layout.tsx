@@ -73,18 +73,16 @@ export default async function WorkspaceLayout({
   const root = localizeHref(locale, "today");
   const [first] = properties;
 
-  const account = (
-    <AccountMenu email={viewer.email} label={t("account")} name={viewer.email}>
-      <DropdownMenuItem asChild>
-        {/* Account security is not an entitled capability — it belongs to the
-            person, not the Organization — so it is reached through the account
-            rather than added to the rail, which lists only what was bought. */}
-        <a href={localizeHref(locale, "security")}>
-          <ShieldCheck aria-hidden="true" className="size-4" />
-          {t("security")}
-        </a>
-      </DropdownMenuItem>
-    </AccountMenu>
+  const accountItems = (
+    <DropdownMenuItem asChild>
+      {/* Account security is not an entitled capability — it belongs to the
+          person, not the Organization — so it is reached through the account
+          rather than added to the rail, which lists only what was bought. */}
+      <a href={localizeHref(locale, "security")}>
+        <ShieldCheck aria-hidden="true" className="size-4" />
+        {t("security")}
+      </a>
+    </DropdownMenuItem>
   );
 
   return (
@@ -100,27 +98,35 @@ export default async function WorkspaceLayout({
       pageBar={
         <WorkspacePageBar
           action={
-            <div className="flex items-center gap-2">
-              {first ? (
-                <PropertySwitcher
-                  label={t("propertySwitcher")}
-                  organization={first.organizationName}
-                  slots={properties.map((property) => ({
-                    href: `${root}?property=${property.propertyId}`,
-                    id: property.propertyId,
-                    name: property.propertyName,
-                  }))}
+            <>
+              <div className="flex min-w-0 items-center gap-1">
+                {first ? (
+                  <PropertySwitcher
+                    label={t("propertySwitcher")}
+                    organization={first.organizationName}
+                    slots={properties.map((property) => ({
+                      href: `${root}?property=${property.propertyId}`,
+                      id: property.propertyId,
+                      name: property.propertyName,
+                    }))}
+                  />
+                ) : null}
+                <WorkspaceLanguageSwitcher
+                  label={t("languageLabel")}
+                  locale={locale}
                 />
-              ) : null}
-              <div className="h-5 w-[1px] bg-border/60 mx-0.5 hidden sm:block" />
-              <WorkspaceLanguageSwitcher
-                label={t("languageLabel")}
+              </div>
+              <div aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
+              <AccountMenu
+                email={viewer.email}
+                label={t("account")}
                 locale={locale}
-              />
-              {/* The rail is desktop-only, so on a phone the account rides in
-                  the page bar rather than earning a second row of chrome. */}
-              <div className="md:hidden">{account}</div>
-            </div>
+                name={viewer.email}
+                variant="compact"
+              >
+                {accountItems}
+              </AccountMenu>
+            </>
           }
           entitled={entitled}
           locale={locale}
@@ -128,11 +134,19 @@ export default async function WorkspaceLayout({
       }
       rail={
         <WorkspaceRail
-          actions={account}
+          actions={
+            <AccountMenu
+              email={viewer.email}
+              label={t("account")}
+              locale={locale}
+              name={viewer.email}
+            >
+              {accountItems}
+            </AccountMenu>
+          }
           brand={<BrandMark className="size-5" />}
           entitled={entitled}
           labels={{
-            back: t("back"),
             collapse: t("collapse"),
             expand: t("expand"),
             home: t("productName"),
@@ -142,7 +156,7 @@ export default async function WorkspaceLayout({
               management: t("navSections.management"),
               system: t("navSections.system"),
             },
-            workspaceBadge: t("workspaceBadge"),
+            badge: t("workspaceBadge"),
           }}
           locale={locale}
           {...(first ? { organization: first.organizationName } : {})}

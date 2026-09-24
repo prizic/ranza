@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { BedDouble, Building2, DoorOpen, LogIn, LogOut } from "lucide-react";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { LanguageSwitcher, SplitAuthLayout } from "@ranza/ui";
 import { getTranslations } from "next-intl/server";
@@ -11,7 +12,9 @@ import { SignInForm } from "./sign-in-form";
  * it. It also sits outside the (portal) group, whose layout requires a viewer
  * and would otherwise redirect here in a loop.
  *
- * Composed by SplitAuthLayout, after the EduBoard sign-in.
+ * Composed by SplitAuthLayout, after the Leaders portal's sign-in. Its service
+ * row names what the Stay page shows — the Portal has built nothing else, and
+ * the row is not a place to promise it.
  */
 export default async function SignInPage({
   params,
@@ -25,6 +28,18 @@ export default async function SignInPage({
   if (await currentViewer()) redirect(stay);
 
   const t = await getTranslations();
+  const services = (
+    [
+      [BedDouble, t("stay")],
+      [Building2, t("property")],
+      [DoorOpen, t("unit")],
+      [LogIn, t("arrival")],
+      [LogOut, t("departure")],
+    ] as const
+  ).map(([Icon, label]) => ({
+    icon: <Icon aria-hidden="true" strokeWidth={1.25} />,
+    label,
+  }));
 
   return (
     <SplitAuthLayout
@@ -36,11 +51,11 @@ export default async function SignInPage({
           variant="pill"
         />
       }
-      pitch={t("authSubSlogan")}
       productBadge={t("portalBadge")}
       productName={t("productName")}
-      sloganLead={t("authSloganLead")}
-      sloganStrong={t("authSloganStrong")}
+      services={services}
+      slogan={t("authSlogan")}
+      subSlogan={t("authSubSlogan")}
       subtitle={t("signInSummary")}
       title={t("welcomeBack")}
     >

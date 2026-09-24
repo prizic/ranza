@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 
 /**
- * The frame: a rail down the start edge, a page bar across the top of what is
- * left, and the work surface under it. On a phone the rail is replaced by a
- * dock at the foot, which is why `main` reserves room for it.
+ * The frame, as the Leaders portal lays it out: a sidebar down the start edge,
+ * a page bar across the top of what is left, and the work surface under it. On
+ * a phone the rail is replaced by a dock at the foot, which is why `main`
+ * reserves room for it.
  *
  * Every part is a slot. The rail needs the navigation tree, which carries icon
  * components and therefore cannot cross the server/client boundary; the page
@@ -35,10 +36,12 @@ export function AppShell({
 
       {rail}
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      {/* Leaders' content column: centred, capped at 1600px, the page bar
+          floating at its head with the work surface under it. */}
+      <div className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-1 flex-col px-4 pt-4 md:px-8">
         {pageBar}
         <main
-          className="w-full flex-1 px-4 py-5 pb-[calc(4.75rem+env(safe-area-inset-bottom))] focus:outline-none sm:px-6 sm:py-6 md:px-8 md:pb-8"
+          className="w-full flex-1 pb-[calc(4.75rem+env(safe-area-inset-bottom))] focus:outline-none md:pb-12"
           id="main-content"
           tabIndex={-1}
         >
