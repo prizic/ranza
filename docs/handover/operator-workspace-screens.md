@@ -118,14 +118,17 @@ only unentitled. `scripts/db-seed-dev.mjs` grants all of them locally.
 pages is a `next/link`, so moving between them renders only the page beneath the
 layout. The layout's gate therefore does not run again, and every page calls
 `requireViewer()` itself — a new page that skips it shows an ended session empty
-pages under a stale shell instead of sending it to sign-in. The language items
-and the Property switcher stay plain anchors on purpose; each says why. Every
-other link carries the current `?property=` (`useWithProperty()` in
-`src/lib/nav.ts`, or `PropertyLink` from the server-rendered shell), so only the
-switcher changes the Property — with a full load, which is what drops the client
-cache the way ADR 0019 asks. Links in table rows set `prefetch={false}`: a
-prefetch fetches only as far as the loading boundary, and one per visible row is
-a request each for nothing.
+pages under a stale shell instead of sending it to sign-in. The same goes for
+the language: every page and layout calls `setRequestLocale(locale)`, because
+the root layout's call covers only a full load, and a page that skips it renders
+its server copy in Turkish on `/en` and `/ar`. Both rules are held by tests in
+`tests/unit/`. The language items and the Property switcher stay plain anchors
+on purpose; each says why. Every other link carries the current `?property=`
+(`useWithProperty()` in `src/lib/nav.ts`, or `PropertyLink` from the
+server-rendered shell), so only the switcher changes the Property — with a full
+load, which is what drops the client cache the way ADR 0019 asks. Links in table
+rows set `prefetch={false}`: a prefetch fetches only as far as the loading
+boundary, and one per visible row is a request each for nothing.
 
 The layout asks about every capability destination in one read
 (`entitledPropertiesByCapability()`, one transaction) and about the audit log's
