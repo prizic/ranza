@@ -23,10 +23,12 @@
 --
 -- Revoking is never blocked, on the reasoning of SP-S1-21: taking reach away
 -- must not depend on what the actor holds any more than on money. A demotion is
--- not exempt. A policy sees only the row as it will be, so a demotion and a
--- promotion to the same role look alike, and either one hands that role's
--- permissions to somebody. An administrator who may not grant a role may still
--- revoke whoever holds it.
+-- not exempt: the ceiling is asked of the role a membership is left holding,
+-- and handing somebody a role the actor may not hand out is refused whichever
+-- way it moves them. An administrator who may not grant a role may still revoke
+-- whoever holds it, and may not undo that revoke, which hands the role back. So
+-- revoking the only holder of the whole catalogue leaves nobody who can hand it
+-- out again; SP-S1-34 records that as open.
 --
 -- The last-administrator trigger and the role-is-held trigger are untouched;
 -- this only narrows who may write the row.

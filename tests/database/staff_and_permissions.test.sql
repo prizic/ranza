@@ -15,7 +15,7 @@
 -- purpose: it needs two sessions and pgTAP has one. It lives in
 -- tests/integration/staff.test.ts, which can open two connections.
 begin;
-select plan(70);
+select plan(71);
 
 insert into public.users (id, email) values
   ('61111111-1111-4111-8111-111111111111', 'staff-owner-a@example.test'),
@@ -730,8 +730,8 @@ select lives_ok(
        and user_id = '68888888-8888-4888-8888-888888888888'$$,
   'and one of the Organization''s own within their own');
 
--- A policy sees only the row as it will be, so a demotion to a role they may
--- not grant looks exactly like granting it, and is refused the same way.
+-- The ceiling is asked of the role the row is left holding, so a demotion to a
+-- role they may not grant is refused like granting it.
 select throws_ok(
   $$update public.organization_memberships
        set role = 'front_desk', updated_at = now()
@@ -755,6 +755,18 @@ select is(
       and user_id = '69999999-9999-4999-8999-999999999999'),
   'revoked',
   'and the revoke is written');
+
+-- And not undone by them: bringing the Manager back hands the Manager role
+-- out again. This is the dead end SP-S1-34 leaves open — revoke the only
+-- holder of the whole catalogue and nobody can hand it out again — asserted so
+-- that whichever way it is decided, the change is seen.
+select throws_ok(
+  $$update public.organization_memberships
+       set status = 'active', revoked_at = null, updated_at = now()
+     where organization_id = '6a111111-1111-4111-8111-111111111111'
+       and user_id = '69999999-9999-4999-8999-999999999999'$$,
+  '42501', NULL,
+  'but undoing that revoke hands the role back, and is refused like granting it');
 
 -- ---------------------------------------------------------------------------
 -- A definer asks the gates itself
