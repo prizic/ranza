@@ -4,8 +4,19 @@ import { revalidatePath } from "next/cache";
 import { isSupportedLocale } from "@ranza/i18n";
 import { GuestDetailsError } from "@ranza/guests";
 import {
+  BALANCE_REASON,
+  BalanceReasonError,
+  CANCELLATION_REASON,
+  CheckInError,
+  CheckOutError,
+  EarlyDepartureError,
+  FolioChangedError,
+  ReservationEndError,
   ReservationPeriodError,
+  ReservationReasonError,
   REVERSAL_REASON,
+  UnitHasOccupantError,
+  UnitNotInServiceError,
   UnitNotReadyError,
   UnitUnavailableError,
   type ReservationStayType,
@@ -27,16 +38,23 @@ import { currentViewer } from "./viewer";
 /**
  * What the form shows afterwards.
  *
- * `refused` covers every reason the check-in did not happen except the Unit
- * being taken: out of reach, cancelled, already arrived, gone. They are one
- * outcome on purpose, because telling them apart would confirm that a
- * Reservation the viewer cannot see exists.
+ * `refused` covers every reason the check-in did not happen except the three
+ * a front desk can act on — the nights are taken, somebody is still in the
+ * room, the room is blocked: out of reach, cancelled, already arrived, gone.
+ * They are one outcome on purpose, because telling them apart would confirm
+ * that a Reservation the viewer cannot see exists.
  *
  * `notReady` is not a refusal: housekeeping says the room is dirty, nothing was
  * written, and the desk is asked whether to check in anyway (HK-S2-14).
  */
 export type CheckInOutcome =
-  "idle" | "done" | "unavailable" | "notReady" | "refused";
+  | "idle"
+  | "done"
+  | "unavailable"
+  | "occupied"
+  | "notInService"
+  | "notReady"
+  | "refused";
 
 function isNotReady(error: unknown): error is UnitNotReadyError {
   return (
@@ -81,7 +99,20 @@ export async function checkInReservation(
     });
   } catch (error) {
     if (isNotReady(error)) return "notReady";
-    return error instanceof UnitUnavailableError ? "unavailable" : "refused";
+    if (error instanceof UnitUnavailableError) return "unavailable";
+    if (error instanceof UnitHasOccupantError) return "occupied";
+    if (error instanceof UnitNotInServiceError) return "notInService";
+    // A refusal this module raised is the answer, not an incident. Anything
+    // else — a lost connection, a schema that moved — is shown the same way and
+    // recorded, like the other commands on this screen.
+    if (!(error instanceof CheckInError)) {
+      console.error(
+        "checkInReservation failed unexpectedly",
+        { reservationId },
+        error,
+      );
+    }
+    return "refused";
   }
 
   revalidateFrontDesk(locale);
@@ -89,16 +120,50 @@ export async function checkInReservation(
 }
 
 /**
- * Checking a Guest out.
+ * What the check-out dialog shows afterwards.
  *
- * `refused` covers every reason it did not happen — out of reach, already
- * departed, gone. One outcome, because telling them apart would confirm that a
- * Stay the viewer cannot see exists.
+ * `refused` covers every reason the Stay could not be ended — out of reach,
+ * already departed, gone — as one outcome, because telling them apart would
+ * confirm that a Stay the viewer cannot see exists. The rest are about the
+ * review the desk is looking at, which the viewer already holds: the bill
+ * changed, the early departure was not acknowledged, or the balance needs a
+ * reason, or one of the right length.
+ */
+export type CheckOutOutcome =
+  | "idle"
+  | "done"
+  | "folioChanged"
+  | "earlyNotAcknowledged"
+  | "balanceReasonRequired"
+  | "reasonTooShort"
+  | "reasonTooLong"
+  | "refused";
+
+/**
+ * The line count the review showed, as the form carried it. Empty is "there
+ * was no Folio"; anything that is not a whole number is not a review this
+ * screen produced.
+ */
+function folioVersion(
+  value: FormDataEntryValue | null,
+): number | null | undefined {
+  const text = String(value ?? "");
+  if (text === "") return null;
+  return /^\d+$/.test(text) ? Number(text) : undefined;
+}
+
+/**
+ * Checking a Guest out, from the review of their bill (CO-S1-12).
+ *
+ * The same funnel and the same absence of an application check as every other
+ * write here. The reason's bounds are measured here as well as in the module,
+ * for the reason `reverseCheckIn` gives: so the screen can say which way it
+ * missed rather than blaming the Stay.
  */
 export async function checkOutStay(
-  _previous: CheckInOutcome,
+  _previous: CheckOutOutcome,
   form: FormData,
-): Promise<CheckInOutcome> {
+): Promise<CheckOutOutcome> {
   const viewer = await currentViewer();
   if (!viewer) return "refused";
 
@@ -106,9 +171,30 @@ export async function checkOutStay(
   const locale = String(form.get("locale") ?? "");
   if (!isSupportedLocale(locale)) return "refused";
 
+  const version = folioVersion(form.get("folioVersion"));
+  if (version === undefined) return "refused";
+
+  const reason = String(form.get("balanceReason") ?? "").trim();
+  if (reason.length > 0 && reason.length < BALANCE_REASON.min) {
+    return "reasonTooShort";
+  }
+  if (reason.length > BALANCE_REASON.max) return "reasonTooLong";
+
   try {
-    await getComposition().reservations.checkOut(viewer.userId, stayId);
-  } catch {
+    await getComposition().reservations.checkOut(viewer.userId, stayId, {
+      folioVersion: version,
+      earlyDeparture: form.get("earlyDeparture") === "yes",
+      balanceReason: reason.length > 0 ? reason : null,
+    });
+  } catch (error) {
+    if (error instanceof FolioChangedError) return "folioChanged";
+    if (error instanceof EarlyDepartureError) return "earlyNotAcknowledged";
+    if (error instanceof BalanceReasonError) return "balanceReasonRequired";
+    // A refusal this module raised is the answer, not an incident. Anything
+    // else is shown the same way and recorded.
+    if (!(error instanceof CheckOutError)) {
+      console.error("checkOutStay failed unexpectedly", { stayId }, error);
+    }
     return "refused";
   }
 
@@ -185,6 +271,7 @@ export type CreateReservationOutcome =
   | "idle"
   | "done"
   | "unavailable"
+  | "occupied"
   | "invalidPeriod"
   | "invalidGuest"
   | "refused";
@@ -246,6 +333,7 @@ export async function createReservation(
     });
   } catch (error) {
     if (error instanceof UnitUnavailableError) return "unavailable";
+    if (error instanceof UnitHasOccupantError) return "occupied";
     if (error instanceof ReservationPeriodError) return "invalidPeriod";
     if (error instanceof GuestDetailsError) return "invalidGuest";
 
@@ -259,4 +347,74 @@ export async function createReservation(
 
   revalidateFrontDesk(locale);
   return "done";
+}
+
+/**
+ * What cancelling a booking, or marking a no-show, shows afterwards.
+ *
+ * `refused` is every reason the booking could not be ended — already arrived,
+ * already ended, out of reach — as one outcome, for the reason every other
+ * refusal here is one. The reason's length is the viewer's own to correct.
+ */
+export type EndBookingOutcome =
+  "idle" | "done" | "reasonTooShort" | "reasonTooLong" | "refused";
+
+async function endBooking(
+  form: FormData,
+  run: (userId: string, reservationId: string) => Promise<unknown>,
+): Promise<EndBookingOutcome> {
+  const viewer = await currentViewer();
+  if (!viewer) return "refused";
+
+  const reservationId = String(form.get("reservation") ?? "");
+  const locale = String(form.get("locale") ?? "");
+  if (!isSupportedLocale(locale)) return "refused";
+
+  try {
+    await run(viewer.userId, reservationId);
+  } catch (error) {
+    // Out of the module's bounds either way. cancelBooking has already
+    // measured both, so reaching this means the two copies of the bounds
+    // disagree — and "too short" is the likelier of the two.
+    if (error instanceof ReservationReasonError) return "reasonTooShort";
+    if (!(error instanceof ReservationEndError)) {
+      console.error(
+        "ending a booking failed unexpectedly",
+        { reservationId },
+        error,
+      );
+    }
+    return "refused";
+  }
+
+  revalidateFrontDesk(locale);
+  return "done";
+}
+
+/** Cancelling a booking, with a reason (blueprint 4.4). */
+export async function cancelBooking(
+  _previous: EndBookingOutcome,
+  form: FormData,
+): Promise<EndBookingOutcome> {
+  // Trimmed, because that is what the module stores and therefore measures.
+  const reason = String(form.get("reason") ?? "").trim();
+  if (reason.length < CANCELLATION_REASON.min) return "reasonTooShort";
+  if (reason.length > CANCELLATION_REASON.max) return "reasonTooLong";
+  return endBooking(form, (userId, reservationId) =>
+    getComposition().reservations.cancelReservation(
+      userId,
+      reservationId,
+      reason,
+    ),
+  );
+}
+
+/** Recording that somebody booked for tonight or earlier never came. */
+export async function markNoShow(
+  _previous: EndBookingOutcome,
+  form: FormData,
+): Promise<EndBookingOutcome> {
+  return endBooking(form, (userId, reservationId) =>
+    getComposition().reservations.markNoShow(userId, reservationId),
+  );
 }

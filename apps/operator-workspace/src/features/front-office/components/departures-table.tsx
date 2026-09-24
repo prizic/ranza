@@ -1,29 +1,34 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import type { Departure } from "@ranza/reservations";
+import type { Departure, DepartureView } from "@ranza/reservations";
 import { DataTable, EmptyState } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
 import { useTableLabels } from "../../../lib/table-labels";
 import { useDepartureColumns } from "./columns";
 
 /**
- * Today's departures, overdue ones first.
+ * The Stays a front desk may check out: due and overdue ones first, or
+ * everybody in house.
  *
  * The order is the query's, not a default sort here: `listDepartures` orders by
- * planned end date, so anybody already past theirs leads. Sorting a column
- * afterwards is the reader's choice.
+ * planned departure, so anybody already past theirs leads.
  */
 export function DeparturesTable({
   departures,
   locale,
+  propertyId,
+  view,
 }: {
   departures: readonly Departure[];
   locale: SupportedLocale;
+  view: DepartureView;
+  /** The Property the rows belong to, which links out of them name. */
+  propertyId: string;
 }) {
   const t = useTranslations();
   const labels = useTableLabels();
-  const columns = useDepartureColumns(locale);
+  const columns = useDepartureColumns(locale, propertyId);
 
   return (
     <div className="mt-4">
@@ -32,13 +37,21 @@ export function DeparturesTable({
         columns={columns}
         data={departures}
         empty={
-          <EmptyState
-            description={t("noDeparturesDescription")}
-            title={t("noDeparturesTitle")}
-          />
+          view === "due" ? (
+            <EmptyState
+              description={t("noDeparturesDescription")}
+              title={t("noDeparturesTitle")}
+            />
+          ) : (
+            <EmptyState
+              description={t("nobodyInHouseDescription")}
+              title={t("nobodyInHouseTitle")}
+            />
+          )
         }
         labels={labels}
-        searchColumns={["guestName", "unitName"]}
+        getRowId={(row) => row.stayId}
+        searchColumns={["guestName", "unitName", "roomName", "reference"]}
       />
     </div>
   );

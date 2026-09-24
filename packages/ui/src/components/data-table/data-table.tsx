@@ -116,7 +116,9 @@ export function DataTable<TData, TValue>({
    * A stable id for a row. Selection is keyed by it, so a table whose data is
    * refreshed while rows are ticked keeps the same rows ticked rather than the
    * same positions — without it, a room added above the selection would move
-   * the tick onto its neighbour.
+   * the tick onto its neighbour. A row's cells keep their state the same way:
+   * on a polled list, a row that left would otherwise hand an open dialog, and
+   * whatever was typed in it, to the row that took its place.
    */
   getRowId?: (row: TData) => string;
   /** Filters applied on first render, for a link that arrives already narrowed. */

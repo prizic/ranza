@@ -72,6 +72,7 @@ export default async function ReservationsPage({
       </div>
       <ReservationsTable
         locale={locale}
+        propertyId={property.propertyId}
         reservations={await reservations(property.propertyId)}
       />
     </>

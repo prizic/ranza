@@ -46,7 +46,7 @@ function aFreeUnit(propertyId: string): string {
  */
 function propertyDay(propertyId: string, days: number): string {
   return psql(
-    `select to_char((now() at time zone timezone)::date + ${days}, 'YYYY-MM-DD')
+    `select to_char(app.property_today(id) + ${days}, 'YYYY-MM-DD')
      from public.properties where id = '${propertyId}'`,
   );
 }

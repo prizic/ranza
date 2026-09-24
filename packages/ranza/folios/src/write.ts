@@ -115,3 +115,39 @@ export async function closeEmptyFolioWithin(
 
   return rows[0] ? { folioId: rows[0].id } : null;
 }
+
+/**
+ * Closes the Folio of a Stay that has just departed, when it is settled.
+ *
+ * Settled means the lines sum to zero. The caller has already taken the Stay's
+ * advisory lock and read the balance under it, so this cannot close a Folio a
+ * charge landed on a moment ago; and `folios_front_desk_closes_only_a_settled_folio`
+ * refuses anything else for a caller without `finance.manage_folio`, so the
+ * condition below is the second statement of that rule rather than the only
+ * one.
+ *
+ * Returns null when there is nothing to close: no Folio, one already closed,
+ * or one with money still on it — which the front desk has decided to leave
+ * open, with a reason the caller records.
+ */
+export async function closeSettledFolioWithin(
+  tx: FolioWriteClient,
+  stayId: string,
+): Promise<{ folioId: string } | null> {
+  const rows = await tx.$queryRaw<{ id: string }[]>`
+    update public.folios as folio
+       set status = 'closed',
+           closed_at = now(),
+           updated_at = now()
+     where folio.stay_id = ${stayId}::uuid
+       and folio.status = 'open'
+       and coalesce(
+             (select sum(line.amount_minor)
+                from public.folio_lines as line
+               where line.folio_id = folio.id),
+             0) = 0
+    returning folio.id
+  `;
+
+  return rows[0] ? { folioId: rows[0].id } : null;
+}

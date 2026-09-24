@@ -36,7 +36,9 @@ function openForm() {
       <NewReservationDialog
         locale="en"
         propertyId="d9000003-0000-4000-8000-000000000001"
-        units={[{ unitId: "u1", unitName: "101", unitType: "room" }]}
+        units={[
+          { unitId: "u1", unitName: "101", roomName: null, unitType: "room" },
+        ]}
       />
     </NextIntlClientProvider>,
   );

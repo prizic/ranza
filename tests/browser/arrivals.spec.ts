@@ -55,8 +55,8 @@ function anArrivalToday(propertyId: string): string {
             guest.id, 'guest', 'confirmed',
             -- The Property's own day, which is what the arrivals list compares
             -- against. The runner's date is somebody else's.
-            (now() at time zone target.timezone)::date,
-            (now() at time zone target.timezone)::date + 2
+            app.property_today(target.id),
+            app.property_today(target.id) + 2
      from unit, target, guest`,
   );
 

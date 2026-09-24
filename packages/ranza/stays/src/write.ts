@@ -99,12 +99,14 @@ export async function closeStayWithin(
   organizationId: string;
   propertyId: string;
   accommodationUnitId: string;
+  reservationId: string | null;
 }> {
   const rows = await tx.$queryRaw<
     {
       organizationId: string;
       propertyId: string;
       accommodationUnitId: string;
+      reservationId: string | null;
     }[]
   >`
     update public.stays
@@ -116,7 +118,8 @@ export async function closeStayWithin(
     returning
       organization_id       as "organizationId",
       property_id           as "propertyId",
-      accommodation_unit_id as "accommodationUnitId"
+      accommodation_unit_id as "accommodationUnitId",
+      reservation_id        as "reservationId"
   `;
 
   const [row] = rows;

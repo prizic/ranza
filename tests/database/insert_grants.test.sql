@@ -361,23 +361,37 @@ select is_empty(
 -- belongs to a scope — and app.audit_location_names(), which names an archived
 -- Property the ordinary policy hides. All five ask only about the caller and
 -- none writes.
+-- One guest in one Unit (20260916003700) brought one more,
+-- app.unit_holds_one_occupancy(). A definer for the same reason again: whether
+-- a Unit is free is not a question the actor's policies may shrink, or a room
+-- reads empty because the viewer cannot see who is in it. It writes nothing.
+-- The migration after it brought app.stay_and_reservation_agree(), which must
+-- see a Reservation's every Stay to say whether they agree. It writes nothing
+-- either. Then app.front_desk_closes_only_a_settled_folio(), which reads a
+-- Folio's lines the front desk cannot see, to refuse closing one with money on
+-- it; nothing written.
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  32,
-  'the definer sweep looked at 32 functions; change this number deliberately');
+  35,
+  'the definer sweep looked at 35 functions; change this number deliberately');
 
+-- The pattern wants whitespace after the verb, so a trigger comparing
+-- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
+-- does exactly that and writes nothing. Reformatting such a comparison so that
+-- a space follows the verb would turn this red for a function that is innocent;
+-- read it before changing the number.
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef and p.prosrc ~* '(insert|update|delete)\s'),
   4,
   'four of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a thirty-third definer is a red test
+-- Part B: the inventory itself, so a thirty-sixth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
--- four are housekeeping; and the last five are the audit log's reach. The four
--- that write are named in the comments above.
+-- four are housekeeping; five are the audit log's reach; and the last three
+-- are the front desk's. The four that write are named in the comments above.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -396,8 +410,10 @@ select set_eq(
         'has_organization_wide_reach','housekeeping_inspection_required',
         'audit_reachable_locations','audit_whole_organization_ids',
         'audit_reader_organization_ids','audit_location_is_in_scope',
-        'audit_location_names'],
-  'and they are exactly the thirty-two the design gives a reason for');
+        'audit_location_names',
+        'unit_holds_one_occupancy','stay_and_reservation_agree',
+        'front_desk_closes_only_a_settled_folio'],
+  'and they are exactly the thirty-five the design gives a reason for');
 
 select finish();
 rollback;

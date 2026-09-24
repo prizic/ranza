@@ -63,8 +63,8 @@ function aRoomWithAnArrival(
         guest_id, stay_type, status, starts_on, ends_on)
      select unit.organization_id, unit.property_id, unit.id,
             guest.id, 'guest', 'confirmed',
-            (now() at time zone target.timezone)::date,
-            (now() at time zone target.timezone)::date + 2
+            app.property_today(target.id),
+            app.property_today(target.id) + 2
      from unit, target, guest`,
   );
 

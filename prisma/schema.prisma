@@ -82,6 +82,10 @@ model Property {
   /// country, so neither fact can live one level up. A Folio copies it at the
   /// moment it opens.
   currency       String   @default("TRY") @db.Char(3)
+  /// The local time at which this Property's working day ends (ADR 0021). A
+  /// night shift at 02:00 is still working the day before; `app.property_today()`
+  /// is the only place the two are combined.
+  businessDateCutoff DateTime @default(dbgenerated("'04:00:00'::time without time zone")) @map("business_date_cutoff") @db.Time(6)
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -404,6 +408,10 @@ model Reservation {
   status              String    @default("requested")
   startsOn            DateTime  @map("starts_on") @db.Date
   endsOn              DateTime? @map("ends_on") @db.Date
+  /// What a front desk reads out to a Guest: `R` and six characters that are
+  /// never confused aloud. Written by a trigger from a sequence, never by the
+  /// application, so no two Reservations share one.
+  reference           String
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -416,6 +424,7 @@ model Reservation {
   stays    Stay[]
 
   @@unique([id, propertyId, organizationId])
+  @@unique([reference], map: "reservations_reference_key")
   @@index([propertyId, startsOn], map: "reservations_property_arrival_idx")
   @@index([guestId], map: "reservations_guest_idx")
   @@map("reservations")
@@ -446,6 +455,10 @@ model Stay {
   endsOn              DateTime? @map("ends_on") @db.Date
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// The moment the Guest left: set by the database when the Stay becomes
+  /// departed and never moved after, so housekeeping can tell whether a room
+  /// was marked before or after it. Null on every Stay that has not departed.
+  departedAt          DateTime? @map("departed_at") @db.Timestamptz(6)
 
   property    Property          @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
   unit        AccommodationUnit @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
@@ -470,7 +483,13 @@ model Stay {
   // checked. The primary key alone could not prove the Property or the
   // Organization.
   @@unique([id, propertyId, organizationId])
+  /// One Guest in one Unit, whatever the planned dates say (ADR 0033).
+  @@unique([accommodationUnitId], map: "stays_one_in_house_per_unit", where: { status: "in_house" })
   @@index([propertyId], map: "stays_property_idx")
+  /// Who left a Unit lately, which readiness asks of every room on every poll
+  /// (ADR 0029 as amended). Departed Stays are never deleted, so without it the
+  /// question reads the whole table.
+  @@index([accommodationUnitId, endsOn], map: "stays_departed_unit_idx", where: { status: "departed" })
   // Partial: the Resident access path only ever asks about a current Stay.
   @@index([userId], map: "stays_user_idx", where: raw("status = ANY (ARRAY['reserved'::text, 'in_house'::text])"))
   @@map("stays")

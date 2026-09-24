@@ -1,7 +1,23 @@
 # 0021. A business date is the day a Property is working, not the day it is
 
-Status: Accepted — not yet applied
+Status: Accepted — applied in `20260916003500_a_business_date_has_a_cutoff`
 Date: 2026-09-16
+
+Amended: 2026-09-22 — applied, with a different default and a bounded cutoff.
+It is built ahead of the night audit because the front desk needed it first: at
+a midnight rollover, a Guest landing at 00:30 for a one-night booking made for
+the evening before could not be checked in (`ends_on > today` is false) and was
+gone from the arrivals list. The default is **04:00**, not 00:00, because
+hospitality dates a night by the evening it begins; a midnight default would
+have kept the defect at every Property until somebody changed it. The cutoff is
+constrained to **between 03:00 and 12:00**: the rule is wall-clock time less the
+cutoff, wall-clock time runs backwards in a repeated hour, and every daylight
+saving change happens before 03:00 local time, so a cutoff in that window is
+crossed exactly once a day and no business date is ever skipped or repeated.
+The rule is `app.business_date(instant, zone, cutoff)`, a pure function so the
+boundary and the clock changes can be tested, and `app.property_today()` is it
+applied to `now()`. The SQL below needs `cutoff::interval`: Postgres has no
+`timestamp - time` operator.
 
 ## Context
 
@@ -27,17 +43,18 @@ night-shift traffic.
 
 ### A business date is a Property-level fact with a cutoff
 
-`properties.business_date_cutoff time not null default '00:00'`, and
-`app.property_today()` becomes:
+`properties.business_date_cutoff time not null default '04:00'`, constrained to
+between 03:00 and 12:00 (see the amendment above), and `app.property_today()`
+becomes:
 
 ```sql
 (now() at time zone property.timezone - property.business_date_cutoff)::date
 ```
 
-A cutoff of midnight makes it exactly what it is now, so adopting this changes
-no behaviour anywhere until a Property sets one. That is deliberate: the
-migration is safe to apply before anything depends on it, and the first Property
-to set a cutoff is a configuration change rather than a deployment.
+The default is chosen, not neutral: applying it moved the hours between midnight
+and 04:00 at every Property into the day before, which is the point. Until a
+settings screen exists, a Property's cutoff is changed in SQL, within the bounds
+the check constraint allows.
 
 It sits beside `timezone` and `currency`, for the reason those are there: an
 Organization may hold Properties that operate differently, so none of the three
@@ -50,28 +67,20 @@ than a survey of call sites. That was the point of extracting it in
 `20260916001300_check_in_on_the_day`: a definition of "today" that lives in four
 query bodies is a definition that changes in three of them.
 
-### It is decided now and built when something needs it
+### Built for the front desk, ahead of the night audit
 
-Nothing in the product posts anything per night, because nothing has a rate —
-`folio_lines.amount_minor` is supplied by whoever posts a charge, and there is no
-rate plan, no tariff and no price column anywhere. A night audit therefore has
-nothing to post, and a business date with no automatic posting is a column
-nobody reads.
-
-Blueprint section 13 forbids building the table ahead of the workflow that needs
-it. So this records the shape, and the migration is written when the first
-workflow needs a day that is not a calendar day — which is the night audit, and
-the night audit needs pricing first.
+It was first recorded to be built with the night audit, which needs pricing
+first. The front desk needed it sooner — a 00:30 arrival for last evening's
+one-night booking could not be checked in — so it was applied in
+`20260916003500_a_business_date_has_a_cutoff`. The night audit, when it comes,
+rolls the day this defines rather than defining one of its own.
 
 ## Consequences
 
-Recorded in `docs/roadmap.md` under decisions not yet applied, so neither this
-ADR nor that table is a claim about code that exists.
-
-When it lands, every existing date comparison silently becomes a business-date
-comparison, because they all resolve through `app.property_today()`. That is the
-intended blast radius and it is why the function was extracted before the
-decision was needed rather than after.
+Every date comparison became a business-date comparison when it landed,
+because they all resolve through `app.property_today()`. That is the intended
+blast radius and it is why the function was extracted before the decision was
+needed rather than after.
 
 `posted_at` on a Folio line stays a `timestamptz` — the instant something was
 recorded is not the day it belongs to, and conflating them is how a correction

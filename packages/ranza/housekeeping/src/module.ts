@@ -85,10 +85,13 @@ export function createHousekeepingModule(deps: HousekeepingDeps) {
    * Every status holder at a Property — each room, and each bed with no room
    * above it — with its status and whether it is ready (HK-S1-13).
    *
-   * One statement, so the counts and the rows come from one snapshot. A holder
-   * with no row reads as clean. Readiness is `app.unit_is_ready()`, the one
-   * definition the arrivals list and check-in read too, so the board cannot
-   * call a room ready that check-in then warns about.
+   * One statement, so the counts and the rows come from one snapshot. The
+   * status is `app.unit_housekeeping_state()`'s: a holder with no row reads as
+   * clean, and one a Guest has left since its status last changed reads as
+   * dirty before the worker has written so (HK-S1-22). Readiness is
+   * `app.unit_is_ready()`, which reads the same state and is the one definition
+   * the arrivals list and check-in read too, so the board cannot call a room
+   * ready — or clean — that check-in then warns about.
    *
    * The commercial gates are in the predicate (HK-S1-15). A Property out of
    * reach, or one without housekeeping, returns no rows rather than a refusal
@@ -111,9 +114,9 @@ export function createHousekeepingModule(deps: HousekeepingDeps) {
                (select count(*)::int
                   from public.accommodation_units as bed
                  where bed.parent_id = unit.id) as "bedCount",
-               coalesce(state.status, 'clean') as status,
+               state.status,
                app.unit_is_ready(unit.id) as ready,
-               state.status_changed_at as "changedAt",
+               state.changed_at as "changedAt",
                exists (
                  select 1
                    from public.stays as stay
@@ -134,8 +137,7 @@ export function createHousekeepingModule(deps: HousekeepingDeps) {
                  unit.organization_id, 'housekeeping.update_status'
                ) as "mayMark"
           from public.accommodation_units as unit
-          left join public.housekeeping_unit_status as state
-            on state.accommodation_unit_id = unit.id
+          cross join app.unit_housekeeping_state(unit.id) as state
          where unit.property_id = ${propertyId}::uuid
            and unit.parent_id is null
            and app.can_use_capability(
@@ -181,8 +183,10 @@ export function createHousekeepingModule(deps: HousekeepingDeps) {
    *
    * Any status may follow any other, including itself, because a correction is
    * one tap with no reason and a double submit must be harmless (HK-S2-06).
-   * The previous status comes from the statement's own snapshot, so the audit
-   * record says what the mark actually replaced.
+   * The previous status is `app.unit_housekeeping_state()`'s, read in the
+   * statement's own snapshot, so the audit record says what the mark replaced
+   * as the board showed it: clean for a room with no row, dirty for one a Guest
+   * has left since it was last marked (HK-S1-22).
    */
   async function markUnits(
     userId: string,
@@ -219,7 +223,7 @@ export function createHousekeepingModule(deps: HousekeepingDeps) {
         organizationId: string;
         propertyId: string;
         name: string;
-        previousStatus: HousekeepingStatus | null;
+        previousStatus: HousekeepingStatus;
       }[];
       try {
         marked = await tx.$queryRaw`
@@ -230,9 +234,9 @@ export function createHousekeepingModule(deps: HousekeepingDeps) {
              where unit.id = any (${unitIds}::uuid[])
           ),
           previous as (
-            select state.accommodation_unit_id as holder, state.status
-              from public.housekeeping_unit_status as state
-             where state.accommodation_unit_id in (select holder from target)
+            select target.holder, state.status
+              from target
+             cross join app.unit_housekeeping_state(target.holder) as state
           )
           insert into public.housekeeping_unit_status
             (accommodation_unit_id, property_id, organization_id, status)
@@ -274,8 +278,7 @@ export function createHousekeepingModule(deps: HousekeepingDeps) {
           context: {
             name: room.name,
             status,
-            // A room with no row was clean: that is what the board showed.
-            previousStatus: room.previousStatus ?? "clean",
+            previousStatus: room.previousStatus,
           },
         });
       }
