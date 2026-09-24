@@ -19,6 +19,13 @@ boundary and the clock changes can be tested, and `app.property_today()` is it
 applied to `now()`. The SQL below needs `cutoff::interval`: Postgres has no
 `timestamp - time` operator.
 
+Amended: 2026-09-24 — the night audit closes a day the clock has already ended
+and never moves `app.property_today()`
+([ADR 0034](0034-a-business-day-closes-after-its-cutoff.md)). A change to a
+Property's cutoff or time zone that would move today back onto a closed day is
+refused, because a closed day's snapshot depends on nothing being dated on it
+afterwards.
+
 ## Context
 
 Three places already ask what day it is at a Property, and all three answer it

@@ -1,0 +1,45 @@
+%% Anything not drawn here is forbidden.
+%% Every transition carries its command and its slice.
+%% A business day is per Property and per business date (ADR 0021): the day a
+%% Property is working, which rolls at its cutoff, not at midnight.
+%% draft and superseded are derived, never stored (ADR 0034): draft is "the
+%% cutoff has passed and there is no close"; superseded is "a later revision
+%% exists". A close row is append-only, so a stored state could never leave.
+%% Only finalized is stored today. reopened, corrected and superseded are
+%% blueprint 18.2's and are drawn so the deferral is visible, not built.
+stateDiagram-v2
+  direction LR
+
+  state "open (the working day)" as d_open
+  state "draft (cutoff passed, not closed)" as d_draft
+  state "finalized" as d_finalized
+  state "reopened" as d_reopened
+  state "corrected" as d_corrected
+  state "superseded" as d_superseded
+
+  [*] --> d_open : the business date begins
+  d_open --> d_draft : the cutoff passes / derived, no command
+  d_draft --> d_finalized : closeDay / s1 / built
+  d_draft --> d_finalized : closeDueDays (worker) / s2 / built, only when nothing is open
+  d_finalized --> d_reopened : reopenDay / not built, CD-DEF-02
+  d_reopened --> d_corrected : closeDay / not built, CD-DEF-03
+  d_finalized --> d_superseded : a later revision is written / not built
+  d_corrected --> d_superseded : a later revision is written / not built
+
+  note right of d_draft
+    Days close in order: a draft day waits for the day before it.
+    The first close at a Property is its business date before today.
+    Refused while the cutoff has not passed: the clock decides that,
+    never a close, so app.property_today() is never moved by one.
+  end note
+
+  note right of d_finalized
+    One row per Property and business date, append-only.
+    It freezes: arrivals, departures, nights occupied,
+    departed Guests whose Folio is still open,
+    and the items left open, which need a reason.
+    Named: the Staff Member, or the job.
+    Nothing written after it may be dated on it:
+    a check-in on it cannot be withdrawn,
+    and a cutoff or time zone cannot move today back onto it.
+  end note
