@@ -4,7 +4,7 @@ import {
   isSupportedLocale,
   type SupportedLocale,
 } from "@ranza/i18n";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { EmptyState, Fact, FactList, PageHeader } from "@ranza/ui";
 import { ownStays } from "../../../../server/viewer";
 
@@ -46,6 +46,7 @@ export default async function StayPage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
 
   const t = await getTranslations();
   const stays = await ownStays();
