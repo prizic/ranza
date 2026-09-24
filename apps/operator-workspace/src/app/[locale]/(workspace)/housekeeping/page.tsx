@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { HousekeepingBoard } from "../../../../features/housekeeping/components/housekeeping-board";
 import { InspectionSettings } from "../../../../features/housekeeping/components/inspection-settings";
 import {
@@ -31,6 +31,7 @@ export default async function HousekeepingPage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
   await requireViewer(locale);
 
   const t = await getTranslations();

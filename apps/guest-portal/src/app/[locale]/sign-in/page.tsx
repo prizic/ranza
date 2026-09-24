@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { isSupportedLocale, localizeHref, supportedLocales } from "@ranza/i18n";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { BrandMark } from "@ranza/ui";
 import { currentViewer } from "../../../server/viewer";
 import { SignInForm } from "./sign-in-form";
@@ -18,6 +18,7 @@ export default async function SignInPage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
 
   const stay = localizeHref(locale, "stay");
   if (await currentViewer()) redirect(stay);

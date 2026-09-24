@@ -10,7 +10,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@ranza/ui";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ALL_SCREENS } from "../../../lib/screens";
 import {
   entitledPropertiesByCapability,
@@ -48,6 +48,7 @@ export default async function WorkspaceLayout({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
 
   const t = await getTranslations();
   const viewer = await requireViewer(locale);

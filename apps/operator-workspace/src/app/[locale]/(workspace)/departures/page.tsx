@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { Button, EmptyState } from "@ranza/ui";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { DepartureView } from "@ranza/reservations";
 import { LiveDepartures } from "../../../../features/front-office/components/live-departures";
 import { frontOfficeKeys } from "../../../../features/front-office/query-keys";
@@ -37,6 +37,7 @@ export default async function DeparturesPage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
 
   const t = await getTranslations();
   const viewer = await requireViewer(locale);
