@@ -9,6 +9,9 @@ export {
   ReservationPeriodError,
   ReservationRefusedError,
   REVERSAL_REASON,
+  ROOM_CALENDAR_DEFAULT_LENGTH,
+  ROOM_CALENDAR_LEAD_DAYS,
+  ROOM_CALENDAR_LENGTHS,
   StayHasChargesError,
   UnitUnavailableError,
 } from "./contracts";
@@ -24,4 +27,13 @@ export type {
   ReservationRow,
   ReservationStatus,
   ReservationStayType,
+  RoomCalendar,
+  RoomCalendarBalance,
+  RoomCalendarBar,
+  RoomCalendarLength,
+  RoomCalendarNight,
+  RoomCalendarReservationBar,
+  RoomCalendarStayBar,
+  RoomCalendarUnit,
+  RoomCalendarWindow,
 } from "./contracts";
