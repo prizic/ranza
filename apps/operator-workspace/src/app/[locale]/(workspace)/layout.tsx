@@ -151,11 +151,6 @@ export default async function WorkspaceLayout({
             expand: t("expand"),
             home: t("productName"),
             mainNavigation: t("mainNavigation"),
-            sections: {
-              operations: t("navSections.operations"),
-              management: t("navSections.management"),
-              system: t("navSections.system"),
-            },
             badge: t("workspaceBadge"),
           }}
           locale={locale}

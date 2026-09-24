@@ -18,11 +18,6 @@ export interface Messages {
   collapse: string;
   expand: string;
   workspaceBadge: string;
-  navSections: {
-    operations: string;
-    management: string;
-    system: string;
-  };
   account: string;
   organization: string;
   property: string;
@@ -419,11 +414,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     collapse: "Menüyü daralt",
     expand: "Menüyü genişlet",
     workspaceBadge: "Çalışma Alanı",
-    navSections: {
-      operations: "Operasyon",
-      management: "Yönetim",
-      system: "Sistem",
-    },
     account: "Hesap",
     organization: "Organizasyon",
     property: "Tesis",
@@ -852,11 +842,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     collapse: "Collapse sidebar",
     expand: "Expand sidebar",
     workspaceBadge: "Workspace",
-    navSections: {
-      operations: "Operations",
-      management: "Management",
-      system: "System",
-    },
     account: "Account",
     organization: "Organization",
     property: "Property",
@@ -1281,11 +1266,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     collapse: "طي القائمة",
     expand: "توسيع القائمة",
     workspaceBadge: "مساحة العمل",
-    navSections: {
-      operations: "العمليات",
-      management: "الإدارة",
-      system: "النظام",
-    },
     account: "الحساب",
     organization: "المؤسسة",
     property: "المنشأة",

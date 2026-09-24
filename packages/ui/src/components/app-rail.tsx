@@ -33,8 +33,6 @@ export interface RailLabels {
   /** The toggle that folds the sidebar to icons, and the one that opens it. */
   collapse: string;
   expand: string;
-  /** Section titles, keyed by `Screen.section`. */
-  sections?: Record<string, string> | undefined;
   /** Which application this is, under the product's name when there is no
       Organization to name instead. */
   badge?: string | undefined;
@@ -136,7 +134,7 @@ function AppSidebarInner({
     }));
   };
 
-  const sections = groupNavEntries(entries, labels.sections);
+  const sections = groupNavEntries(entries);
 
   return (
     <aside
@@ -214,7 +212,7 @@ function AppSidebarInner({
         {/* Navigation Body */}
         <nav
           className={cn(
-            "scrollbar-slim min-h-0 flex-1 space-y-4 overflow-x-hidden overflow-y-auto py-2 focus:outline-none lg:py-4",
+            "scrollbar-slim min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-auto py-2 focus:outline-none lg:space-y-2 lg:py-4",
             collapsed ? "px-2" : "px-2.5 lg:px-3.5 xl:px-4",
           )}
         >
@@ -223,20 +221,14 @@ function AppSidebarInner({
               className="space-y-1 lg:space-y-2"
               key={section.id ?? `section-${secIdx}`}
             >
-              {/* Section Header */}
-              {section.label ? (
-                collapsed ? (
-                  secIdx > 0 ? (
-                    <div
-                      aria-hidden="true"
-                      className="my-2 h-px w-8 mx-auto bg-border/60"
-                    />
-                  ) : null
-                ) : (
-                  <div className="px-3 pb-1 text-[10px] font-bold tracking-[0.2em] text-muted-foreground/70 uppercase select-none lg:px-3.5 xl:px-4">
-                    {section.label}
-                  </div>
-                )
+              {/* Expanded, the sections run together as Leaders' one list;
+                  collapsed to icons, a rule between them keeps the groups
+                  apart where there are no words to do it. */}
+              {collapsed && secIdx > 0 ? (
+                <div
+                  aria-hidden="true"
+                  className="mx-auto my-2 h-px w-8 bg-border/60"
+                />
               ) : null}
 
               {/* Entries in this section */}

@@ -58,18 +58,14 @@ export function toMobileNav(entries: readonly NavEntry[]): NavLeaf[] {
 
 export interface NavSection {
   id?: string | undefined;
-  label?: string | undefined;
   entries: NavEntry[];
 }
 
 /**
- * Groups entries by their optional `section` property.
+ * Groups entries by their optional `section` property, in first-seen order.
  * Entries without a section are grouped together under undefined id.
  */
-export function groupNavEntries(
-  entries: readonly NavEntry[],
-  sectionLabels?: Record<string, string>,
-): NavSection[] {
+export function groupNavEntries(entries: readonly NavEntry[]): NavSection[] {
   const sections: NavSection[] = [];
   const sectionMap = new Map<string | undefined, NavEntry[]>();
 
@@ -81,11 +77,7 @@ export function groupNavEntries(
     } else {
       const list = [entry];
       sectionMap.set(sec, list);
-      sections.push({
-        id: sec,
-        label: sec && sectionLabels ? (sectionLabels[sec] ?? sec) : sec,
-        entries: list,
-      });
+      sections.push({ id: sec, entries: list });
     }
   }
 

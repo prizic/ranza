@@ -29,7 +29,6 @@
   --ink: hsl(170 60% 10%);
   --ink-muted: hsl(170 5% 45%);
   --accent: hsl(172 65% 20%);
-  --accent-dark: hsl(172 75% 15%);
   --accent-soft: hsl(38 60% 95%);
   --surface: #ffffff;
   --surface-strong: hsl(170 60% 10%);
@@ -83,11 +82,11 @@
   --primary: var(--accent);
   --primary-foreground: hsl(0 0% 100%);
   --secondary: var(--accent-soft);
-  --secondary-foreground: var(--accent-dark);
+  --secondary-foreground: var(--accent);
   --muted: var(--canvas-deep);
   --muted-foreground: var(--ink-muted);
   --accent-background: var(--accent-soft);
-  --accent-foreground: var(--accent-dark);
+  --accent-foreground: var(--accent);
   --destructive: var(--danger);
   --destructive-foreground: hsl(0 0% 100%);
   --border: var(--line);
@@ -151,7 +150,6 @@
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
   --color-ink-muted: var(--ink-muted);
-  --color-accent-strong: var(--accent-dark);
   --color-accent-soft: var(--accent-soft);
 
   /* A 1rem base, each step a fixed offset from it. The steps above 3xl exist

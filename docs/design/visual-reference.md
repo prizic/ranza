@@ -88,7 +88,6 @@ for how components are organised.
 --ink: hsl(170 60% 10%);
 --ink-muted: hsl(170 5% 45%);
 --accent: hsl(172 65% 20%);
---accent-dark: hsl(172 75% 15%);
 --accent-soft: hsl(38 60% 95%);
 --surface: #ffffff;
 --surface-strong: hsl(170 60% 10%);
@@ -129,6 +128,28 @@ sign-in swoosh and nothing else — it sits well below even the 3:1 large-text
 floor on the canvas and never carries text.
 Copy set in the brand's bronze uses `--gold-ink`, which is the reference's
 `#a48166` darkened to clear 4.5:1.
+
+### Where Ranza departs from Leaders, and why
+
+Everything not listed here is Leaders' own value or class. A departure without
+an entry is a bug.
+
+- **Contrast.** `--danger` is `#a33a35`, not Leaders' `hsl(0 70% 60%)`, which
+  is below 4.5:1 on white; the sign-in greys above are darkened for the same
+  reason.
+- **Arabic** is set in IBM Plex Sans Arabic, because Geist draws none.
+- **Sign-in** has no padlock and no "protected by security protocols" line —
+  the page does not demonstrate either — and no Leaders logo figure behind it,
+  which is another company's mark. It has no "forgot password" link, because
+  Ranza has no reset flow and a link to nowhere is worse than none. Its service
+  row names Ranza's built screens.
+- **Sidebar.** Ranza has destinations nested under a group (Front Office), and
+  Leaders has no pattern for them, so a group opens as an indented list. The
+  sidebar also folds to icons, which Leaders' does not, and tightens its rows
+  below 960px of height where Leaders waits for 800px: twelve destinations to
+  Leaders' nine would otherwise scroll off a laptop screen.
+- **Phones.** Below `md` the pages of a group sit under the page bar as a tab
+  strip, because the dock at the foot opens a group on its first page only.
 
 ## Accessibility
 
