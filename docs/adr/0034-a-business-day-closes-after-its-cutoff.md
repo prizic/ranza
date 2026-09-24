@@ -51,7 +51,9 @@ can commit after the day has closed. A trigger closes it, and the other two ways
 a closed day could change:
 
 - **A Stay's dates** (`stays_keep_closed_days`). A Stay may not begin, end or be
-  withdrawn on a day that is closed. It takes the Property's lock shared where
+  withdrawn on a day that is closed, and a departed Stay's dates may not move
+  onto or off one — they are what the close counted. An in-house Stay's planned
+  departure may still move: a close counts it by its status. It takes the Property's lock shared where
   the close takes it exclusive, so check-ins do not queue behind each other, a
   close waits for one in flight and then counts it, and one that arrives after
   the close is refused and pressed again on the new day. Withdrawing a check-in
@@ -103,6 +105,11 @@ day or earlier. A close with any of them needs a reason, and records each of
 them as an exception (`business_day_closes_exceptions_need_a_reason`). A
 departed Guest whose Folio is still open is counted and never blocks, because
 nothing in the product can take a payment yet (ADR 0030).
+
+A day that is already closed is answered as closed (23505) by the stamp itself,
+before the reason constraint can answer: a check constraint is evaluated before
+a unique index, and "give a reason" is the wrong thing to tell somebody whose
+day is simply done.
 
 The row is append-only for every role, the owner included, by a statement
 trigger, for the reasons ADR 0015 gives about `folio_lines`.

@@ -19,8 +19,9 @@ one. The unique key on the Property and the day makes two closes one.
 
 It also owns the refusals that keep a closed day closed: a Stay cannot begin,
 end or be withdrawn on it — including a check-in or check-out that began before
-the cutoff and commits after the close — and a cutoff or time zone cannot move
-today back onto it. Both raise `RZ001`.
+the cutoff and commits after the close — a departed Stay cannot be re-dated onto
+or off it, and a cutoff or time zone cannot move today back onto it. Both raise
+`RZ001`.
 
 ## Contract
 

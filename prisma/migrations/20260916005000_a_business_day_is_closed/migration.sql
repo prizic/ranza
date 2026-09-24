@@ -140,9 +140,14 @@ begin
    where close.property_id = new.property_id;
 
   -- Closes are contiguous from the first, so a day between the first and the
-  -- last is already closed and falls through to the unique key, which says so
-  -- with 23505. Only a day outside that range is refused here.
-  if last_closed is null then
+  -- last is already closed. That is said here, with the unique key's own 23505,
+  -- rather than left to the key: a check constraint is evaluated before a unique
+  -- index, so a closed day with items open and no reason would otherwise answer
+  -- "needs a reason" to somebody whose day is simply done.
+  if new.business_date between first_closed and last_closed then
+    raise exception 'business day % is already closed at this Property', new.business_date
+      using errcode = '23505';
+  elsif last_closed is null then
     if new.business_date <> today - 1 then
       raise exception 'the first close at a Property is the day before today, %', today - 1
         using errcode = '55000';
@@ -293,12 +298,20 @@ grant insert (organization_id, property_id, business_date, reason)
 -- transaction's), and a check-in or check-out that began before the cutoff can
 -- commit after the day has closed. So a Stay is refused a date on or before the
 -- last close whenever one is written: begun (a check-in), ended (a check-out),
--- or taken back (a withdrawn check-in, which would put an unarrived booking
--- back into a day that is finalized).
+-- taken back (a withdrawn check-in, which would put an unarrived booking back
+-- into a day that is finalized), or re-dated after it happened — a departed
+-- Stay's dates are what a closed day counted. An in-house Stay's planned
+-- departure is not: a close counts it by its status, so moving that date is
+-- left to whatever amends a booking.
 --
 -- Lock 3 shared, where the close takes it exclusive: check-ins and check-outs
 -- do not queue behind each other, and each waits for a close in progress and
 -- then sees it, while a close waits for each and then counts it.
+--
+-- Security invoker, reading closes through business_day_closes'
+-- read policy, which is by reach alone; whoever may write a Stay reaches its
+-- Property. business_day_close.test.sql pins that policy beside the three the
+-- stamp relies on, and asserts the refusal for a role that cannot close a day.
 create function app.stays_keep_closed_days()
 returns trigger
 language plpgsql
@@ -308,11 +321,30 @@ as $$
 declare
   dated date;
 begin
-  dated := case
-    when tg_op = 'INSERT' then new.starts_on
-    when new.status = 'departed' then new.ends_on
-    else old.starts_on
-  end;
+  if tg_op = 'INSERT' then
+    dated := new.starts_on;
+  else
+    if new.status is distinct from old.status then
+      dated := case
+        when new.status = 'departed' then new.ends_on
+        when old.status = 'in_house' and new.status = 'cancelled' then old.starts_on
+        when old.status = 'departed' then old.ends_on
+      end;
+    end if;
+    -- least() skips nulls, so each of these only ever narrows the date.
+    if new.starts_on is distinct from old.starts_on then
+      dated := least(dated, old.starts_on, new.starts_on);
+    end if;
+    if old.status = 'departed' and new.status = 'departed'
+       and new.ends_on is distinct from old.ends_on then
+      dated := least(dated, old.ends_on, new.ends_on);
+    end if;
+  end if;
+
+  if dated is null then
+    return new;
+  end if;
+
   perform pg_advisory_xact_lock_shared(3, hashtext(new.property_id::text));
   if exists (
     select 1
@@ -333,9 +365,8 @@ create trigger stays_keep_closed_days_on_insert
   execute function app.stays_keep_closed_days();
 
 create trigger stays_keep_closed_days_on_update
-  before update of status on public.stays
+  before update of status, starts_on, ends_on on public.stays
   for each row
-  when (old.status = 'in_house' and new.status in ('departed', 'cancelled'))
   execute function app.stays_keep_closed_days();
 
 -- A cutoff or time zone that would make today a day already closed. Changing

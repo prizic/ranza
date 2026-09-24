@@ -9,8 +9,21 @@
 -- Closes that the clock could not have produced yet (a history ending five
 -- days ago) are written in replica mode, which skips the stamping trigger; the
 -- rules that trigger enforces are asserted separately, through ranza_app.
+--
+-- Checked by breaking each thing in turn, in a transaction with the proof of
+-- the change printed before the suite ran: the permission clause, the unique
+-- key, the not-ended, order, first-close, before-first and already-closed
+-- branches, the caller check, the reason constraint, both guards and each of
+-- the Stay guard's branches, the append-only trigger, a table-level grant, the
+-- read policy widened and narrowed, a restrictive policy added, a requested
+-- booking excluded, the overstay rule, the nights' departed-after branch, and
+-- the closer's stamp — each red on the assertion named for it. Two produced no
+-- red and are recorded instead: the policy's commercial gates are held first
+-- by the stamp's caller check (CD-S1-31, CD-S1-32), so only removing both
+-- goes red. The nights' departed-after branch was silent until the Guest who
+-- checked out this morning was added to the busy Property.
 begin;
-select plan(52);
+select plan(58);
 
 insert into public.users (id, email) values
   ('bd100000-0000-4000-8000-000000000001', 'close-desk@example.test'),
@@ -71,7 +84,7 @@ select ('bd300000-0000-4000-8000-0000000000' || lpad(n::text, 2, '0'))::uuid,
             when n <= 12 or n = 15 then 'bd200000-0000-4000-8000-000000000002'::uuid
             else 'bd200000-0000-4000-8000-000000000005'::uuid end,
        'bd0a0000-0000-4000-8000-00000000000a', 'CLOSE-' || n, 'room', 2
-from generate_series(1, 16) as n;
+from generate_series(1, 17) as n;
 
 insert into public.guests (id, organization_id, full_name) values
   ('bd400000-0000-4000-8000-000000000001',
@@ -210,6 +223,14 @@ select 'bd500000-0000-4000-8000-000000000013', 'bd0a0000-0000-4000-8000-00000000
        'bd200000-0000-4000-8000-000000000005', 'bd300000-0000-4000-8000-000000000016',
        'guest', 'in_house', today - 3, today + 1
 from (select app.property_today('bd200000-0000-4000-8000-000000000005') as today) as t;
+-- And one who left yesterday, whose departure the close will count.
+insert into public.stays
+  (id, organization_id, property_id, accommodation_unit_id, stay_type, status,
+   starts_on, ends_on)
+select 'bd500000-0000-4000-8000-000000000014', 'bd0a0000-0000-4000-8000-00000000000a',
+       'bd200000-0000-4000-8000-000000000005', 'bd300000-0000-4000-8000-000000000017',
+       'guest', 'departed', today - 3, today - 1
+from (select app.property_today('bd200000-0000-4000-8000-000000000005') as today) as t;
 
 -- The backlog Property: a history ending five days ago, which the clock could
 -- only have produced over a week.
@@ -275,6 +296,14 @@ select is_empty(
        and grantee in ('ranza_worker', 'ranza_auth')$$,
   'neither the worker nor the credential role holds anything on a close');
 
+-- The table-level view omits a column grant, so the column-level one is read
+-- as well: `grant insert (reason)` to the worker would pass the check above.
+select is_empty(
+  $$select privilege_type || ' ' || column_name from information_schema.column_privileges
+     where table_schema = 'public' and table_name = 'business_day_closes'
+       and grantee in ('ranza_worker', 'ranza_auth')$$,
+  'nor any column of one');
+
 -- A tripwire rather than a behaviour. The stamping trigger runs as the closer,
 -- and its counts are the Property's only because every Staff read of these
 -- three tables is by reach alone and a closer must reach the Property. The day
@@ -283,17 +312,18 @@ select is_empty(
 select set_eq(
   $$select tablename::text || ' ' || qual from pg_policies
      where schemaname = 'public' and cmd = 'SELECT'
-       and tablename in ('stays', 'reservations', 'folios')
+       and tablename in ('stays', 'reservations', 'folios', 'business_day_closes')
        and policyname <> 'stays_read_own'$$,
   array['stays (property_id IN ( SELECT app.accessible_property_ids() AS accessible_property_ids))',
         'reservations (property_id IN ( SELECT app.accessible_property_ids() AS accessible_property_ids))',
-        'folios (property_id IN ( SELECT app.accessible_property_ids() AS accessible_property_ids))'],
-  'the counts see every row the Property has: Staff read these three by reach alone');
+        'folios (property_id IN ( SELECT app.accessible_property_ids() AS accessible_property_ids))',
+        'business_day_closes (property_id IN ( SELECT app.accessible_property_ids() AS accessible_property_ids))'],
+  'the counts see every row the Property has, and the date guard every close: Staff read all four by reach alone');
 
 select is_empty(
   $$select tablename || ' ' || policyname from pg_policies
      where schemaname = 'public' and permissive = 'RESTRICTIVE'
-       and tablename in ('stays', 'reservations', 'folios')$$,
+       and tablename in ('stays', 'reservations', 'folios', 'business_day_closes')$$,
   'and no restrictive policy narrows any of them');
 
 set local role ranza_app;
@@ -411,6 +441,13 @@ select is(
   'Guest in 8 extends by phone; booking 1 arrives tomorrow',
   'and the reason it was closed anyway');
 
+select throws_ok(
+  $$insert into public.business_day_closes (organization_id, property_id, business_date)
+    values ('bd0a0000-0000-4000-8000-00000000000a', 'bd200000-0000-4000-8000-000000000002',
+            app.property_today('bd200000-0000-4000-8000-000000000002') - 1)$$,
+  '23505', null,
+  'a day already closed says so, even with items open and no reason given');
+
 select ok(
   (select exceptions @> '[{"reservationId": "bd600000-0000-4000-8000-000000000002"}]'
      from public.business_day_closes
@@ -470,6 +507,14 @@ select throws_ok(
   'RZ001', null,
   'a check-in on a closed day cannot be withdrawn');
 
+select app.set_request_context('bd100000-0000-4000-8000-000000000006');
+select throws_ok(
+  $$update public.stays set status = 'cancelled', updated_at = now()
+     where id = 'bd500000-0000-4000-8000-000000000011'$$,
+  'RZ001', null,
+  'nor by a role that cannot close a day: the guard sees every close by reach');
+select app.set_request_context('bd100000-0000-4000-8000-000000000001');
+
 select lives_ok(
   $$update public.stays set status = 'cancelled', updated_at = now()
      where id = 'bd500000-0000-4000-8000-000000000012'$$,
@@ -491,6 +536,22 @@ select lives_ok(
            updated_at = now()
      where id = 'bd500000-0000-4000-8000-000000000013'$$,
   'and a departure today is recorded as ever');
+
+select throws_ok(
+  $$update public.stays
+       set ends_on = app.property_today('bd200000-0000-4000-8000-000000000005') - 1,
+           updated_at = now()
+     where id = 'bd500000-0000-4000-8000-000000000013'$$,
+  'RZ001', null,
+  'a departure cannot be re-dated onto a closed day');
+
+select throws_ok(
+  $$update public.stays
+       set ends_on = app.property_today('bd200000-0000-4000-8000-000000000005'),
+           updated_at = now()
+     where id = 'bd500000-0000-4000-8000-000000000014'$$,
+  'RZ001', null,
+  'nor off one: the day that counted it is closed');
 
 select lives_ok(
   $$insert into public.business_day_closes (organization_id, property_id, business_date)
@@ -545,7 +606,7 @@ select throws_ok(
 select set_eq(
   $$select property_id from public.business_day_closes$$,
   array['bd200000-0000-4000-8000-000000000002'::uuid],
-  'closes are read only where the front desk is: one Property reached, one Property''s closes');
+  'closes are read only where the reader reaches: one Property reached, one Property''s closes');
 
 select app.set_request_context('bd100000-0000-4000-8000-000000000001');
 select throws_ok(
@@ -589,7 +650,7 @@ select throws_ok(
     values ('bd0a0000-0000-4000-8000-00000000000a', 'bd200000-0000-4000-8000-000000000008',
             app.property_today('bd200000-0000-4000-8000-000000000008') - 1)$$,
   '42501', null,
-  'a ranza_app session with no user cannot reach the worker''s branch of the stamp');
+  'a ranza_app session with no user is refused: it may not even ask for a worker context');
 
 select app.set_request_context('bd100000-0000-4000-8000-000000000001');
 select lives_ok(
@@ -613,6 +674,15 @@ select throws_ok(
      where property_id = 'bd200000-0000-4000-8000-000000000001'$$,
   '42501', null,
   'nor deleted');
+
+-- A planned departure is not what a close counts — it counts an in-house Stay
+-- by its status — so it may still move onto a closed day. The owner does it:
+-- nothing in the product amends a Stay's dates yet.
+select lives_ok(
+  $$update public.stays
+       set ends_on = app.property_today('bd200000-0000-4000-8000-000000000002') - 1
+     where id = 'bd500000-0000-4000-8000-000000000004'$$,
+  'an in-house Stay''s planned departure may still move onto a closed day');
 
 select throws_ok(
   $$insert into public.stays

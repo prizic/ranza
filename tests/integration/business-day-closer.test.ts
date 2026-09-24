@@ -126,7 +126,7 @@ async function history(propertyId: string, daysAgo: number[]): Promise<void> {
 }
 
 describe("a pass", () => {
-  it("closes a quiet day in the job's name", async () => {
+  it("the worker closes a quiet day in its own name", async () => {
     const property = await aProperty();
 
     const report = await closer.closeDueDays();
@@ -137,7 +137,7 @@ describe("a pass", () => {
     ]);
   });
 
-  it("closes a backlog of quiet days one day per pass, oldest first", async () => {
+  it("a backlog of quiet days closes one day per pass, oldest first", async () => {
     const property = await aProperty();
     await history(property, [4]);
 
@@ -150,7 +150,7 @@ describe("a pass", () => {
     expect(await closes(property)).toHaveLength(4);
   });
 
-  it("does not stop because one Property failed", async () => {
+  it("one Property failing does not stop the pass", async () => {
     const broken = await aProperty();
     const quiet = await aProperty();
     // A failure the close function does not catch, at one Property only.
@@ -220,6 +220,12 @@ describe("two at once", () => {
     if (desk.status === "rejected") {
       expect(desk.reason).toBeInstanceOf(DayAlreadyClosedError);
     }
+    // The pass never rejects — a Property's failure is in its report — so the
+    // report is what says the losing side lost cleanly.
     expect(pass.status).toBe("fulfilled");
+    const report = pass.status === "fulfilled" ? pass.value : null;
+    expect(
+      report?.failures.filter((failure) => failure.propertyId === property),
+    ).toEqual([]);
   });
 });

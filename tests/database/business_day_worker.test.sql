@@ -8,8 +8,16 @@
 --
 -- Privileges are read from pg_proc.proacl rather than has_function_privilege,
 -- which raises when the function is absent and takes the suite with it.
+--
+-- Checked by breaking each thing in turn, proof printed first: execute granted
+-- to ranza_app, the context check (asserted on a Property that does not exist,
+-- the one place it is not subsumed by the Organization check), the
+-- Organization, archived and capability checks, the capability read directly
+-- instead of through capability_is_available, the publish, the three discovery
+-- predicates, the class-55 handler left bare, the stamp's worker branch and its
+-- already-closed branch — each red on the assertion named for it.
 begin;
-select plan(24);
+select plan(29);
 
 insert into public.organizations (id, name, status) values
   ('be0a0000-0000-4000-8000-00000000000a', 'Worker Close Organization', 'active'),
@@ -54,6 +62,28 @@ select 'be600000-0000-4000-8000-000000000001', 'be0a0000-0000-4000-8000-00000000
        today - 1, today + 1
 from (select app.property_today('be200000-0000-4000-8000-000000000002') as today) as t;
 
+-- An Organization whose Subscription has lapsed and one that never bought the
+-- front desk, each with a Property that has the capability on.
+insert into public.organizations (id, name, status) values
+  ('be0c0000-0000-4000-8000-00000000000c', 'Worker Close Lapsed', 'active'),
+  ('be0d0000-0000-4000-8000-00000000000d', 'Worker Close Unbought', 'active');
+insert into public.subscriptions (organization_id, status) values
+  ('be0c0000-0000-4000-8000-00000000000c', 'past_due'),
+  ('be0d0000-0000-4000-8000-00000000000d', 'active');
+insert into public.entitlements (organization_id, module_key) values
+  ('be0c0000-0000-4000-8000-00000000000c', 'front_office');
+insert into public.properties (id, organization_id, name) values
+  ('be200000-0000-4000-8000-000000000008', 'be0c0000-0000-4000-8000-00000000000c',
+   'Worker Close Lapsed Property'),
+  ('be200000-0000-4000-8000-000000000009', 'be0d0000-0000-4000-8000-00000000000d',
+   'Worker Close Unbought Property');
+insert into public.property_capabilities
+  (property_id, organization_id, capability_key, enabled) values
+  ('be200000-0000-4000-8000-000000000008', 'be0c0000-0000-4000-8000-00000000000c',
+   'front_desk', true),
+  ('be200000-0000-4000-8000-000000000009', 'be0d0000-0000-4000-8000-00000000000d',
+   'front_desk', true);
+
 set local session_replication_role = replica;
 insert into public.business_day_closes
   (organization_id, property_id, business_date, closed_by_job)
@@ -89,6 +119,20 @@ select is(
   'TABLE(organization_id uuid, property_id uuid, business_date date)',
   'and what is due is ids and a date, nothing else');
 
+-- Nothing else is granted, table or column: ADR 0018 says the worker holds
+-- nothing on properties or on a close, and the table-level view alone would
+-- miss a column grant.
+select is_empty(
+  $$select table_name || ' ' || privilege_type from information_schema.table_privileges
+     where table_schema = 'public' and grantee = 'ranza_worker'
+       and table_name in ('properties', 'business_day_closes')
+    union all
+    select table_name || ' ' || privilege_type || ' ' || column_name
+      from information_schema.column_privileges
+     where table_schema = 'public' and grantee = 'ranza_worker'
+       and table_name in ('properties', 'business_day_closes')$$,
+  'the worker holds nothing on properties or on a close, not a column');
+
 -- ---------------------------------------------------------------------------
 -- What is due
 -- ---------------------------------------------------------------------------
@@ -109,6 +153,12 @@ select ok(
   not exists (select 1 from app.properties_due_for_close()
                where property_id = 'be200000-0000-4000-8000-000000000006'),
   'an archived Property has nothing due');
+
+select ok(
+  not exists (select 1 from app.properties_due_for_close()
+               where property_id in ('be200000-0000-4000-8000-000000000008',
+                                     'be200000-0000-4000-8000-000000000009')),
+  'nor one whose Subscription has lapsed, or whose Organization never bought the front desk');
 
 select ok(
   not exists (select 1 from app.properties_due_for_close()
@@ -184,6 +234,23 @@ select is(
     app.property_today('be200000-0000-4000-8000-000000000006') - 1),
   'unavailable',
   'nor an archived Property, even when asked directly');
+
+select app.set_worker_context('be0c0000-0000-4000-8000-00000000000c', 'business_day.close');
+select is(
+  app.close_business_day_automatically(
+    'be200000-0000-4000-8000-000000000008',
+    app.property_today('be200000-0000-4000-8000-000000000008') - 1),
+  'unavailable',
+  'nor where the Subscription has lapsed, even when asked directly');
+
+select app.set_worker_context('be0d0000-0000-4000-8000-00000000000d', 'business_day.close');
+select is(
+  app.close_business_day_automatically(
+    'be200000-0000-4000-8000-000000000009',
+    app.property_today('be200000-0000-4000-8000-000000000009') - 1),
+  'unavailable',
+  'nor where the front desk was never bought');
+select app.set_worker_context('be0a0000-0000-4000-8000-00000000000a', 'business_day.close');
 
 -- Any other class-55 refusal — a lock timeout, an object in use — is raised,
 -- not answered as a day waiting: the closer reports a raise as a failure and
@@ -279,6 +346,26 @@ select is(
     app.property_today('be200000-0000-4000-8000-000000000002') - 1),
   'closed',
   'a day closes on the pass after its last item is resolved');
+
+-- A day already closed, with an item written onto it since by somebody who
+-- could, is answered as closed: the stamp says 23505 before the reason
+-- constraint can say anything.
+set local role none;
+insert into public.reservations
+  (organization_id, property_id, accommodation_unit_id, guest_id, stay_type,
+   status, starts_on, ends_on)
+select 'be0a0000-0000-4000-8000-00000000000a', 'be200000-0000-4000-8000-000000000002',
+       'be300000-0000-4000-8000-000000000001', 'be400000-0000-4000-8000-000000000001',
+       'guest', 'confirmed', today - 1, today + 3
+from (select app.property_today('be200000-0000-4000-8000-000000000002') as today) as t;
+set local role ranza_worker;
+select app.set_worker_context('be0a0000-0000-4000-8000-00000000000a', 'business_day.close');
+select is(
+  app.close_business_day_automatically(
+    'be200000-0000-4000-8000-000000000002',
+    app.property_today('be200000-0000-4000-8000-000000000002') - 1),
+  'already_closed',
+  'a day already closed is answered already_closed, whatever has been written onto it since');
 
 set local role none;
 

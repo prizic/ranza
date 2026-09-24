@@ -12,9 +12,15 @@
  * ran on the same day, and every assertion about "the day to close" would be
  * about a different day.
  *
- * Every assertion was checked by breaking what it asserts: the Property's lock
- * removed from the stamp and from the withdrawal guard, the unique key dropped,
- * the publish and the audit record taken out of closeDay.
+ * Checked by breaking what each asserts, one at a time:
+ *   - the Property's lock taken out of the stamp, and separately out of the
+ *     Stay guard: all four races red each time — each second command is first
+ *     required to be seen waiting on that lock, so a race that did not happen
+ *     cannot pass;
+ *   - the publish, the audit record and the unique-violation mapping each taken
+ *     out of closeDay: the recorded-and-published and two-desks tests red;
+ *   - the character count reverted to UTF-16 units: the reason test red;
+ *   - the RZ001 mapping in checkIn and checkOut: the in-flight tests red.
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -323,17 +329,36 @@ function heldOpen(transaction: (hold: () => Promise<void>) => Promise<void>): {
 }
 
 /**
- * Time for the second command to reach the lock and wait there. Without the
- * lock it finishes well inside this, and the assertion after it goes red.
+ * Until `command` is seen waiting on the Property's lock (advisory namespace 3)
+ * — the proof that the race happened. A command that finishes without waiting
+ * fails the test there and then: under load a fixed pause let the second
+ * command arrive after the first had committed, and the race passed without
+ * ever being run.
  */
-async function waitOn(command: Promise<unknown>): Promise<void> {
-  await Promise.race([
-    command.then(
-      () => undefined,
-      () => undefined,
-    ),
-    new Promise((resolve) => setTimeout(resolve, 1500)),
-  ]);
+async function untilWaitingOnTheDay(
+  command: Promise<unknown>,
+  propertyId: string,
+): Promise<void> {
+  const settled = command.then(
+    () => "settled",
+    () => "settled",
+  );
+  for (let poll = 0; poll < 400; poll += 1) {
+    const [row] = await owner.$queryRawUnsafe<{ waiting: number }[]>(
+      `select count(*)::int as waiting
+         from pg_locks
+        where locktype = 'advisory' and not granted
+          and classid = 3 and objsubid = 2
+          and objid = ((hashtext($1)::bigint + 4294967296) % 4294967296)::oid`,
+      propertyId,
+    );
+    if ((row?.waiting ?? 0) > 0) return;
+    const pause = new Promise((resolve) => setTimeout(resolve, 50, "waiting"));
+    if ((await Promise.race([settled, pause])) === "settled") {
+      throw new Error("it finished without waiting on the day's lock");
+    }
+  }
+  throw new Error("it never reached the day's lock");
 }
 
 describe("the day to close", () => {
@@ -347,6 +372,16 @@ describe("the day to close", () => {
 
   it("a night shift prepares the day it cannot yet close", async () => {
     const property = await aProperty();
+    // Due tonight and not here yet, and due out today and still in — written
+    // before yesterday closes, or the Stay could not begin on a closed day.
+    const tonight = await aBooking(
+      property,
+      await aUnit(property),
+      "confirmed",
+      0,
+      2,
+    );
+    const leaving = await aStay(property, await aUnit(property), -2, 0);
     await days.closeDay(DESK, property, await day(property, -1), null);
 
     const view = await days.getCloseTheDay(DESK, property);
@@ -354,6 +389,8 @@ describe("the day to close", () => {
     expect(view?.waiting).toBe(0);
     expect(view?.checklistDay).toBe(await day(property, 0));
     expect(view?.cutoff).toBe("04:00");
+    expect(view?.notArrived.map((row) => row.reservationId)).toEqual([tonight]);
+    expect(view?.notDeparted.map((row) => row.stayId)).toEqual([leaving]);
 
     await expect(
       days.closeDay(DESK, property, await day(property, 0), null),
@@ -694,7 +731,7 @@ describe("two people at once", () => {
     );
     await writing.written;
     const closing = days.closeDay(DESK, property, yesterday, null);
-    await waitOn(closing);
+    await untilWaitingOnTheDay(closing, property);
     writing.release();
 
     await writing.committed;
@@ -738,7 +775,7 @@ describe("two people at once", () => {
       unit,
       yesterday,
     );
-    await waitOn(writing);
+    await untilWaitingOnTheDay(writing, property);
     closing.release();
 
     await closing.committed;
@@ -772,7 +809,7 @@ describe("two people at once", () => {
       stay,
       "Checked into the wrong room",
     );
-    await waitOn(withdrawing);
+    await untilWaitingOnTheDay(withdrawing, property);
     closing.release();
 
     await closing.committed;
@@ -813,7 +850,7 @@ describe("two people at once", () => {
       yesterday,
       "Withdrawn at night",
     );
-    await waitOn(closing);
+    await untilWaitingOnTheDay(closing, property);
     withdrawing.release();
 
     await withdrawing.committed;
