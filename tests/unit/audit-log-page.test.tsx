@@ -39,6 +39,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("next-intl/server", () => ({
   getTranslations: async () =>
     createTranslator({ locale, messages: messages[locale] as never }),
+  setRequestLocale: vi.fn(),
 }));
 vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
   AUDIT_READ_PERMISSION: "audit.read",
@@ -54,11 +55,11 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
 const { default: AuditLogPage } =
   await import("../../apps/operator-workspace/src/app/[locale]/(workspace)/audit-log/page");
 
-async function show(as: SupportedLocale) {
+async function show(as: SupportedLocale, search: Record<string, string> = {}) {
   locale = as;
   const page = await AuditLogPage({
     params: Promise.resolve({ locale: as }),
-    searchParams: Promise.resolve({}),
+    searchParams: Promise.resolve(search),
   });
   render(
     <NextIntlClientProvider locale={as} messages={messages[as]}>
@@ -66,6 +67,14 @@ async function show(as: SupportedLocale) {
     </NextIntlClientProvider>,
   );
 }
+
+const KADIKOY = {
+  propertyId: "d9000004-0000-4000-8000-000000000001",
+  propertyName: "Deniz Otel Kadıköy",
+  timezone: "Europe/Istanbul",
+  organizationId: "d9000002-0000-4000-8000-000000000001",
+  organizationName: "Deniz Otelleri",
+};
 
 beforeEach(() => {
   permittedProperties.mockReset();
@@ -103,16 +112,27 @@ describe("the audit log page", () => {
     }
   });
 
+  // A named Property no longer falls back to another one (#63), so somebody
+  // who may read the log at Kadıköy but has the switcher on Moda lands here.
+  // "You can't read the audit log" would be untrue for them.
+  for (const as of supportedLocales) {
+    it(`sends somebody who may read it elsewhere to the switcher, in ${as}`, async () => {
+      permittedProperties.mockResolvedValue([KADIKOY]);
+      await show(as, { property: "d9000004-0000-4000-8000-000000000002" });
+
+      const say = messages[as];
+      expect(screen.getByText(say.auditNotHereTitle)).toBeInTheDocument();
+      expect(screen.getByText(say.auditNotHereDescription)).toBeInTheDocument();
+      expect(
+        screen.queryByText(say.auditNotPermittedTitle),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText(say.notEntitledTitle)).not.toBeInTheDocument();
+      expect(auditLog).not.toHaveBeenCalled();
+    });
+  }
+
   it("shows somebody who may read it the log, not the refusal", async () => {
-    permittedProperties.mockResolvedValue([
-      {
-        propertyId: "d9000004-0000-4000-8000-000000000001",
-        propertyName: "Deniz Otel Kadıköy",
-        timezone: "Europe/Istanbul",
-        organizationId: "d9000002-0000-4000-8000-000000000001",
-        organizationName: "Deniz Otelleri",
-      },
-    ]);
+    permittedProperties.mockResolvedValue([KADIKOY]);
     auditLog.mockResolvedValue({
       entries: [],
       total: 0,

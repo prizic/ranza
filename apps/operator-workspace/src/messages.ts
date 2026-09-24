@@ -435,6 +435,13 @@ export interface Messages {
    */
   auditNotPermittedTitle: string;
   auditNotPermittedDescription: string;
+  /**
+   * Said instead when the switcher names a Property the viewer cannot read the
+   * log from while there is one they can: the refusal above would be untrue
+   * for them. Since #63 a named Property no longer falls back to another one.
+   */
+  auditNotHereTitle: string;
+  auditNotHereDescription: string;
   noAuditDescription: string;
   when: string;
   what: string;
@@ -1044,6 +1051,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditNotPermittedTitle: "Denetim kaydını okuyamıyorsunuz",
     auditNotPermittedDescription:
       "Denetim kaydını okumak ayrı bir izindir ve atandığınız tesislerde geçerlidir. Ekibi yöneten biri, Ekip ekranından size bu izni içeren bir rol verebilir, rolünüz organizasyonunuzun oluşturduğu bir rolse ona “Denetim kaydını okuma” iznini ekleyebilir ya da hiçbir tesise atanmadıysanız sizi bir tesise atayabilir.",
+    auditNotHereTitle: "Bu tesiste denetim kaydını okuyamıyorsunuz",
+    auditNotHereDescription:
+      "Rolünüz başka bir tesiste okuyabiliyor. Tesisler menüsünden o tesisi seçin.",
     noAuditDescription:
       "Bir giriş, çıkış, ücret veya ters kayıt yapıldığında burada görünür.",
     when: "Ne zaman",
@@ -1667,6 +1677,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditNotPermittedTitle: "You can't read the audit log",
     auditNotPermittedDescription:
       "Reading the audit log is a permission of its own, used at the Properties you're assigned to. Under People, someone who administers staff can give you a role that has it, add “Reading the audit log” to your role if it is one your Organization created, or assign you a Property if you have none.",
+    auditNotHereTitle: "The audit log isn't open to you at this Property",
+    auditNotHereDescription:
+      "Your role can read it at another Property. Choose that one under Properties.",
     noAuditDescription:
       "A check-in, check-out, charge or reversal appears here once it happens.",
     when: "When",
@@ -2275,6 +2288,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditNotPermittedTitle: "لا يمكنك قراءة سجل التدقيق",
     auditNotPermittedDescription:
       "قراءة سجل التدقيق صلاحية مستقلة تُستخدم في المنشآت التي عُيّنت فيها. يمكن لمن يدير الفريق أن يمنحك من شاشة الفريق دورًا يتضمنها، أو أن يضيف صلاحية «قراءة سجل التدقيق» إلى دورك إن كان دورًا أنشأته مؤسستك، أو أن يعيّنك في منشأة إن لم تكن معيّنًا في أي منشأة.",
+    auditNotHereTitle: "لا يمكنك قراءة سجل التدقيق في هذه المنشأة",
+    auditNotHereDescription:
+      "يتيح لك دورك قراءته في منشأة أخرى. اخترها من قائمة المنشآت.",
     noAuditDescription:
       "يظهر هنا أي تسجيل وصول أو مغادرة أو رسم أو إلغاء فور حدوثه.",
     when: "متى",

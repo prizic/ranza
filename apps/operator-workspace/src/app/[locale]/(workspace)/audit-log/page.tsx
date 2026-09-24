@@ -70,12 +70,23 @@ export default async function AuditLogPage({
     opened === undefined ? {} : { property: opened },
   );
 
-  // No Property to open the log from means no `audit.read` wherever the
-  // viewer reaches — a permission, not the Subscription the other screens'
-  // refusal speaks of: audit is not something an Organization buys. A role
-  // that holds it with no Property assigned lands here too, and telling the
-  // two apart would take a read of its own, so the copy names both remedies.
   if (!property) {
+    // The switcher names a Property the log cannot be opened from, and there
+    // is one it can: a named Property no longer falls back to another, so say
+    // which way to go rather than a refusal that is untrue for this viewer.
+    if (properties.length > 0) {
+      return (
+        <EmptyState
+          description={t("auditNotHereDescription")}
+          title={t("auditNotHereTitle")}
+        />
+      );
+    }
+    // No Property to open the log from means no `audit.read` wherever the
+    // viewer reaches — a permission, not the Subscription the other screens'
+    // refusal speaks of: audit is not something an Organization buys. A role
+    // that holds it with no Property assigned lands here too, and telling the
+    // two apart would take a read of its own, so the copy names both remedies.
     return (
       <EmptyState
         description={t("auditNotPermittedDescription")}
