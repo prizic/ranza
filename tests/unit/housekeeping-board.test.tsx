@@ -4,7 +4,7 @@
  * The policies decide what a mark may do and the integration suite proves
  * them. These are the rows only the interface can keep: what an empty board
  * says, what a reader without the permission is shown, what every locale calls
- * a status, and what a refused mark leaves behind.
+ * a status, and what follows a refused mark.
  */
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -59,9 +59,8 @@ function boardOf(rooms: HousekeepingRoom[], mayMark: boolean): Board {
   };
 }
 
-function show(board: Board, locale: SupportedLocale = "en") {
-  cleanup();
-  render(
+function screenOf(board: Board, locale: SupportedLocale) {
+  return (
     <NextIntlClientProvider locale={locale} messages={messages[locale]}>
       <HousekeepingBoard
         board={board}
@@ -70,8 +69,20 @@ function show(board: Board, locale: SupportedLocale = "en") {
         propertyName="Deniz Otel"
         timeZone="Europe/Istanbul"
       />
-    </NextIntlClientProvider>,
+    </NextIntlClientProvider>
   );
+}
+
+let rerenderScreen: ((ui: ReturnType<typeof screenOf>) => void) | undefined;
+
+function show(board: Board, locale: SupportedLocale = "en") {
+  cleanup();
+  rerenderScreen = render(screenOf(board, locale)).rerender;
+}
+
+/** The same mounted board, handed new props — what a revalidation does. */
+function rerender(board: Board, locale: SupportedLocale = "en") {
+  rerenderScreen!(screenOf(board, locale));
 }
 
 afterEach(() => {
@@ -167,16 +178,34 @@ describe("the housekeeping board", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("keeps the selection when a mark is refused (HK-S2-13)", async () => {
+  // Decided by the product owner, 2026-09-24. Every refusal the product can
+  // produce — the permission taken away, housekeeping switched off, the
+  // Subscription lapsed, the Property out of reach — also changes what the
+  // board is allowed to show, so what follows a refusal is the board the server
+  // sends next, not the selection that was refused.
+  it("follows a refused mark with the board as the viewer may now use it (HK-S2-13)", async () => {
     markRooms.mockResolvedValue({ status: "refused" });
-    show(boardOf([room({})], true));
+    const rooms = [room({})];
+    show(boardOf(rooms, true));
 
-    const tick = screen.getByRole("checkbox", { name: "Select row" });
-    fireEvent.click(tick);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select row" }));
     fireEvent.click(screen.getByRole("button", { name: "Mark clean" }));
 
     expect(await screen.findByText(/couldn't be updated/)).toBeInTheDocument();
     expect(markRooms).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("checkbox", { name: "Select row" })).toBeChecked();
+
+    // The page revalidates after the refusal and hands the board back without
+    // the permission that was taken away.
+    rerender(boardOf(rooms, false));
+
+    expect(screen.getByText(/couldn't be updated/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/can see every room here but not change it/),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Mark clean" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /101/ })).toHaveTextContent("Dirty");
   });
 });

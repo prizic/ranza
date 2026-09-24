@@ -115,7 +115,10 @@ export default async function WorkspaceLayout({
         {/* Account security is not an entitled capability — it belongs to the
             person, not the Organization — so it is reached through the account
             rather than added to the rail, which lists only what was bought. */}
-        <PropertyLink href={localizeHref(locale, "security")}>
+        <PropertyLink
+          defaultProperty={first?.propertyId}
+          href={localizeHref(locale, "security")}
+        >
           <ShieldCheck aria-hidden="true" className="size-4" />
           {t("security")}
         </PropertyLink>
@@ -159,6 +162,7 @@ export default async function WorkspaceLayout({
     <AppShell
       bottomNav={
         <WorkspaceBottomNav
+          defaultProperty={first?.propertyId}
           entitled={entitled}
           label={t("mainNavigation")}
           locale={locale}
@@ -171,6 +175,7 @@ export default async function WorkspaceLayout({
             <div className="flex items-center gap-2">
               {first ? (
                 <PropertySwitcher
+                  chooseLabel={t("chooseProperty")}
                   label={t("propertySwitcher")}
                   organization={first.organizationName}
                   slots={properties.map((property) => ({
@@ -185,6 +190,7 @@ export default async function WorkspaceLayout({
               <div className="md:hidden">{account}</div>
             </div>
           }
+          defaultProperty={first?.propertyId}
           entitled={entitled}
           locale={locale}
         />
@@ -193,6 +199,7 @@ export default async function WorkspaceLayout({
         <WorkspaceRail
           actions={account}
           brand={<BrandMark className="size-6 text-primary" />}
+          defaultProperty={first?.propertyId}
           entitled={entitled}
           labels={{
             back: t("back"),
