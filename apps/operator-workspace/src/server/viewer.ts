@@ -36,6 +36,31 @@ import type {
   HousekeepingStatus,
   InspectionSettings,
 } from "@ranza/housekeeping";
+import {
+  BOARD_STATES,
+  CANCEL_REASON,
+  DETAILS,
+  MAINTENANCE_CAPABILITY,
+  PRIORITIES,
+  RETURN_AS,
+  RETURN_NOTE,
+  TITLE,
+} from "@ranza/maintenance";
+import type {
+  BoardState,
+  MaintenanceBoard,
+  MaintenanceRequestCard,
+  MaintenanceSettings,
+  OutOfOrderImpact,
+  Priority,
+  ReportOptions,
+  RequestStatus,
+  ReturnAs,
+  RoomsMaintenance,
+  SettingOverrides,
+  SettingValues,
+  UnitHold,
+} from "@ranza/maintenance";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import { getComposition } from "./composition";
 
@@ -69,6 +94,14 @@ export {
   HOUSEKEEPING_CAPABILITY,
   MARK_BATCH,
   ROOMS_CAPABILITY,
+  BOARD_STATES,
+  CANCEL_REASON,
+  DETAILS,
+  MAINTENANCE_CAPABILITY,
+  PRIORITIES,
+  RETURN_AS,
+  RETURN_NOTE,
+  TITLE,
 };
 export type {
   AccommodationUnitStatus,
@@ -83,6 +116,19 @@ export type {
   HousekeepingRoom,
   HousekeepingStatus,
   InspectionSettings,
+  BoardState,
+  MaintenanceBoard,
+  MaintenanceRequestCard,
+  MaintenanceSettings,
+  OutOfOrderImpact,
+  Priority,
+  ReportOptions,
+  RequestStatus,
+  ReturnAs,
+  RoomsMaintenance,
+  SettingOverrides,
+  SettingValues,
+  UnitHold,
   NewUnits,
   ReservationRow,
   ScopeHistory,
@@ -350,4 +396,72 @@ export async function auditLog(propertyId: string): Promise<ScopeHistory> {
   const viewer = await currentViewer();
   if (!viewer) return { records: [], total: 0 };
   return getComposition().core.recentActivity(viewer.userId, propertyId);
+}
+
+/**
+ * Every open request at one Property, and the ones done or cancelled in the
+ * last thirty days, with what the viewer may do (MT-S1-10).
+ *
+ * Same funnel and same non-checking as the housekeeping board: a Property the
+ * viewer cannot reach, or one without maintenance, produces an empty board
+ * because the database decides that. Not `cache`d: a request that moves a card
+ * and then reads must see its own move.
+ */
+export async function maintenanceBoard(
+  propertyId: string,
+): Promise<MaintenanceBoard> {
+  const viewer = await currentViewer();
+  if (!viewer) {
+    return {
+      today: new Date().toISOString().slice(0, 10),
+      requests: [],
+      counts: {
+        new: 0,
+        in_progress: 0,
+        waiting_for_parts: 0,
+        done: 0,
+        cancelled: 0,
+        outOfOrder: 0,
+      },
+      mayReport: false,
+      mayManage: false,
+      mayTakeOutOfOrder: false,
+    };
+  }
+  return getComposition().maintenance.board(viewer.userId, propertyId);
+}
+
+/** The Units and the assignees the report form offers (MT-S1-18). */
+export async function maintenanceReportOptions(
+  propertyId: string,
+): Promise<ReportOptions> {
+  const viewer = await currentViewer();
+  if (!viewer) return { units: [], assignees: [] };
+  return getComposition().maintenance.reportOptions(viewer.userId, propertyId);
+}
+
+/**
+ * What a Property's Maintenance setting says and inherits, and whether the
+ * viewer may change it. Null where there is nothing to configure.
+ */
+export async function maintenanceSettings(
+  propertyId: string,
+): Promise<MaintenanceSettings | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().maintenance.settings(viewer.userId, propertyId);
+}
+
+/**
+ * What Rooms shows of maintenance: the Units a request holds out of order, and
+ * whether the viewer may report a problem there (MT-S2-28, MT-S1-24). Empty
+ * and false where maintenance is not available: Rooms is the front desk's,
+ * and a Property may have it without maintenance.
+ */
+export async function roomsMaintenance(
+  propertyId: string,
+): Promise<RoomsMaintenance> {
+  const viewer = await currentViewer();
+  if (!viewer) return { holds: [], mayReport: false };
+  return getComposition().maintenance.roomsView(viewer.userId, propertyId);
 }

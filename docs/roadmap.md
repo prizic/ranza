@@ -103,9 +103,12 @@ a specification.
 
 ## Phase 3 — Operational services
 
-Not started. Guest and Resident services · F&B and meal workflows · Maintenance
-and facilities · Inventory movements and stock control · Procurement through
-receiving.
+| Bullet                     |             | Evidence, or what is missing                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| -------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Maintenance and facilities | **partial** | `20260916004300_a_problem_is_reported_and_worked`, `20260916004400_a_request_takes_a_room_out_of_order`, `packages/ranza/maintenance`, `tests/database/maintenance.test.sql`, [ADR 0032](adr/0032-out-of-order-is-a-unit-status-a-maintenance-request-holds.md). A problem is reported and worked on a board, and a request holds its room out of order until the last hold lets go; a room comes back dirty, clean or inspected through `apps/worker`. Missing: the equipment register, the service plan, and what a repair cost (RANZ-33 slices 3 to 5) |
+
+Not started. Guest and Resident services · F&B and meal workflows · Inventory
+movements and stock control · Procurement through receiving.
 
 The reusable halves — inventory, procurement — belong in `packages/platform/`
 with a host adapter, because a platform module may not name a Property or a Stay

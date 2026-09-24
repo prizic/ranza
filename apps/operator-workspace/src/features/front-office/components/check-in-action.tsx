@@ -62,9 +62,11 @@ function RowAction({
   const message =
     outcome === "unavailable"
       ? t("unitUnavailable")
-      : outcome === "refused"
-        ? refusedLabel
-        : null;
+      : outcome === "notInService"
+        ? t("unitNotInService")
+        : outcome === "refused"
+          ? refusedLabel
+          : null;
 
   return (
     <form

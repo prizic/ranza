@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { cn } from "../lib/utils";
+import { Card } from "./ui/card";
 import { Label } from "./ui/label";
 
 /**
@@ -116,5 +117,31 @@ export function FormError({
     <p className={cn("text-step--1 text-destructive", className)} role="alert">
       {children}
     </p>
+  );
+}
+
+/**
+ * One count above a board: an icon, a label, a number. Moved up from the
+ * Housekeeping board when Maintenance became its second caller (ADR 0013).
+ */
+export function Stat({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+  value: number;
+}) {
+  return (
+    <Card className="p-4">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Icon aria-hidden="true" className="size-4" />
+        <span className="text-xs font-medium tracking-wider uppercase">
+          {label}
+        </span>
+      </div>
+      <div className="mt-2 text-2xl font-bold tabular-nums">{value}</div>
+    </Card>
   );
 }

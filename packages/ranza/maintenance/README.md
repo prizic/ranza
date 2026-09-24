@@ -41,7 +41,7 @@ await maintenance.report(userId, {
 await maintenance.move(userId, { requestId, from: "new", to: "in_progress" });
 ```
 
-- `board`, `reportOptions`, `outOfOrderImpact`, `unitHolds` and `settings` are
+- `board`, `reportOptions`, `outOfOrderImpact`, `roomsView` and `settings` are
   reads; each carries the commercial gates in its own statement and returns
   nothing for a Property out of reach or without maintenance.
 - `report`, `move`, `cancel`, `assign` and `prioritise` work a request. A move

@@ -34,9 +34,12 @@ import { currentViewer } from "./viewer";
  *
  * `notReady` is not a refusal: housekeeping says the room is dirty, nothing was
  * written, and the desk is asked whether to check in anyway (HK-S2-14).
+ *
+ * `notInService` is: the room is blocked or out of order, and the desk returns
+ * it to service or moves the booking first (MT-S2-29).
  */
 export type CheckInOutcome =
-  "idle" | "done" | "unavailable" | "notReady" | "refused";
+  "idle" | "done" | "unavailable" | "notReady" | "notInService" | "refused";
 
 function isNotReady(error: unknown): error is UnitNotReadyError {
   return (
@@ -81,6 +84,11 @@ export async function checkInReservation(
     });
   } catch (error) {
     if (isNotReady(error)) return "notReady";
+    // Blocked or out of order: a refusal the desk can act on, so it is told
+    // as such rather than folded into "refused" (MT-S2-29).
+    if (error instanceof Error && error.name === "UnitNotInServiceError") {
+      return "notInService";
+    }
     return error instanceof UnitUnavailableError ? "unavailable" : "refused";
   }
 

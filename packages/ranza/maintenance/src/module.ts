@@ -38,6 +38,7 @@ import {
   type ReportOptions,
   type RequestStatus,
   type ReturnAs,
+  type RoomsMaintenance,
   type SettingOverrides,
   type SettingValues,
   type UnitHold,
@@ -152,9 +153,19 @@ function boundedDetails(details: string | null | undefined): string | null {
   return trimmed === "" ? null : trimmed;
 }
 
+/**
+ * A calendar day as `YYYY-MM-DD`. Round-tripped rather than parsed, because
+ * `Date` accepts the 31st of February as the 3rd of March, and Postgres would
+ * then refuse what this let through.
+ */
 function boundedDate(value: string | null | undefined): string | null {
   if (value === null || value === undefined || value === "") return null;
-  if (!isoDate.test(value) || Number.isNaN(Date.parse(value))) {
+  const day = isoDate.test(value) ? new Date(`${value}T00:00:00Z`) : null;
+  if (
+    !day ||
+    Number.isNaN(day.getTime()) ||
+    day.toISOString().slice(0, 10) !== value
+  ) {
     throw new MaintenanceInputError("a date is written YYYY-MM-DD");
   }
   return value;
@@ -833,7 +844,11 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
       const request = await requestWithin(tx, input.requestId);
       if (request.status !== from) throw new RequestMovedError(request.status);
       if (from === to) {
-        return { returned: false, stillOutOfOrder: request.holding };
+        return {
+          returned: false,
+          stillOutOfOrder: request.holding,
+          heldElsewhere: false,
+        };
       }
 
       // A move that may return a room takes the room's lock before the
@@ -874,10 +889,14 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
       });
 
       if (!releasing) {
-        return { returned: false, stillOutOfOrder: request.holding };
+        return {
+          returned: false,
+          stillOutOfOrder: request.holding,
+          heldElsewhere: false,
+        };
       }
       const { returned } = await releaseWithin(tx, userId, request, null);
-      return { returned, stillOutOfOrder: false };
+      return { returned, stillOutOfOrder: false, heldElsewhere: !returned };
     });
   }
 
@@ -931,7 +950,11 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
         reason,
         context: { number: request.number, from: input.from },
       });
-      return { returned, stillOutOfOrder: false };
+      return {
+        returned,
+        stillOutOfOrder: false,
+        heldElsewhere: request.holding && !returned,
+      };
     });
   }
 
@@ -1071,16 +1094,29 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
     });
   }
 
-  /** Every Unit held out of order at a Property, for Rooms (MT-S2-28). */
-  async function unitHolds(
+  /**
+   * What Rooms shows of maintenance (MT-S2-28): every Unit held out of order
+   * at a Property, and whether the reader may report a problem there. Empty
+   * and false where maintenance is not available.
+   */
+  async function roomsView(
     userId: string,
     propertyId: string,
-  ): Promise<UnitHold[]> {
-    return withOrganizationContext(
-      deps.db,
-      { userId },
-      (tx) =>
-        tx.$queryRaw<UnitHold[]>`
+  ): Promise<RoomsMaintenance> {
+    return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      const [scope] = await tx.$queryRaw<{ mayReport: boolean }[]>`
+        select app.has_organization_permission(
+                 property.organization_id, 'maintenance.report') as "mayReport"
+          from public.properties as property
+         where property.id = ${propertyId}::uuid
+           and app.can_use_capability(
+                 property.id,
+                 ${MAINTENANCE_CAPABILITY.moduleKey},
+                 ${MAINTENANCE_CAPABILITY.capabilityKey})
+      `;
+      if (!scope) return { holds: [], mayReport: false };
+
+      const holds = await tx.$queryRaw<UnitHold[]>`
         select request.accommodation_unit_id as "unitId",
                request.id                    as "requestId",
                request.number,
@@ -1090,13 +1126,10 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
             on request.id = hold.request_id
          where hold.property_id = ${propertyId}::uuid
            and hold.returned_at is null
-           and app.can_use_capability(
-                 hold.property_id,
-                 ${MAINTENANCE_CAPABILITY.moduleKey},
-                 ${MAINTENANCE_CAPABILITY.capabilityKey})
          order by request.number
-      `,
-    );
+      `;
+      return { holds, mayReport: scope.mayReport };
+    });
   }
 
   /**
@@ -1313,7 +1346,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
     prioritise,
     takeOutOfOrder,
     returnToService,
-    unitHolds,
+    roomsView,
     settings,
     setPropertySettings,
     setOrganizationSettings,

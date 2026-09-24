@@ -67,14 +67,23 @@ export function testProperty(): string {
        -- Folio there is nowhere to put one.
        from target,
             -- And staff_administration, because the roster is the other screen
-            -- a browser test signs in to look at; housekeeping for the board.
+            -- a browser test signs in to look at; housekeeping for the board;
+            -- maintenance for its board and the Rooms hand-over.
             (values ('today'), ('front_desk'), ('finance'),
-                    ('staff_administration'), ('housekeeping')) as wanted (key)
+                    ('staff_administration'), ('housekeeping'),
+                    ('maintenance')) as wanted (key)
        where not exists (
          select 1 from public.property_capabilities as held
          where held.property_id = target.id
            and held.capability_key = wanted.key
        )
+     ), entitlement as (
+       -- A database seeded before maintenance existed has no Entitlement for
+       -- it, and the capability alone would not reveal the screen.
+       insert into public.entitlements (organization_id, module_key, status)
+       select (select id from home), 'maintenance', 'active'
+       where exists (select 1 from home)
+       on conflict (organization_id, module_key) do nothing
      ), assignment as (
        insert into public.property_assignments
          (property_id, organization_id, user_id)

@@ -662,6 +662,27 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
     expect(await statusOf(TWICE_HELD_ROOM)).toBe("available");
   });
 
+  it("says so when a done request lets go and another still holds the room (MT-S2-11)", async () => {
+    const first = await report(DESK, TWICE_HELD_ROOM, {
+      outOfOrder: { acknowledged: true },
+    });
+    const second = await report(DESK, TWICE_HELD_ROOM, {
+      outOfOrder: { acknowledged: true },
+    });
+    await expect(
+      maintenance.move(MANAGER, {
+        requestId: first.requestId,
+        from: "new",
+        to: "done",
+      }),
+    ).resolves.toEqual({
+      returned: false,
+      stillOutOfOrder: false,
+      heldElsewhere: true,
+    });
+    await maintenance.returnToService(DESK, { requestId: second.requestId });
+  });
+
   it("agrees with its holds when a take and a return meet (MT-S2-12)", async () => {
     const held = await report(DESK, CONTESTED_ROOM, {
       outOfOrder: { acknowledged: true },
@@ -671,6 +692,7 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
     // A takes the room's lock and a second hold, and waits. B returns the
     // first hold meanwhile: it must wait for A, then count A's hold.
     const a = gate();
+    const locked = gate();
     const taking = withOrganizationContext(
       prisma,
       { userId: DESK },
@@ -680,9 +702,13 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
         insert into public.maintenance_unit_holds (request_id, organization_id, property_id)
         values (${other.requestId}::uuid, ${ORG}::uuid, ${PROPERTY}::uuid)
         returning request_id`;
+        locked.open();
         await a.opened;
       },
     );
+    // B starts only once A holds the lock, so the order under test is the one
+    // that happens, whatever the machine's load.
+    await locked.opened;
     const returning = maintenance.returnToService(DESK, {
       requestId: held.requestId,
     });
@@ -702,6 +728,7 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
     // A cancels and waits; B takes the room out meanwhile. B must wait for A
     // and then see the request cancelled, rather than holding behind it.
     const a = gate();
+    const cancelled = gate();
     const cancelling = withOrganizationContext(
       prisma,
       { userId: MANAGER },
@@ -711,10 +738,11 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
              set status = 'cancelled', cancel_reason = 'reported twice'
            where id = ${requestId}::uuid
           returning id`;
+        cancelled.open();
         await a.opened;
       },
     );
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await cancelled.opened;
     const taking = maintenance.takeOutOfOrder(DESK, {
       requestId,
       acknowledged: true,
@@ -736,6 +764,7 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
     // the room FOR SHARE. B takes the room out meanwhile: it must wait, and
     // then be told about the Guest rather than miss them.
     const a = gate();
+    const inserted = gate();
     const checkingIn = owner.$transaction(
       async (tx) => {
         await tx.$executeRawUnsafe(
@@ -749,11 +778,12 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
           PROPERTY,
           SHARED_BED_A,
         );
+        inserted.open();
         await a.opened;
       },
       { timeout: 30_000 },
     );
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await inserted.opened;
     const taking = maintenance.takeOutOfOrder(DESK, {
       requestId,
       acknowledged: false,
@@ -810,6 +840,25 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
     } finally {
       await maintenance.returnToService(DESK, { requestId });
     }
+  });
+
+  it("tells Rooms which Units are held and by which request (MT-S2-28)", async () => {
+    const { requestId, number } = await report(DESK, ROOM, {
+      outOfOrder: { acknowledged: true },
+    });
+    const rooms = await maintenance.roomsView(DESK, PROPERTY);
+    expect(rooms.mayReport).toBe(true);
+    expect(rooms.holds).toContainEqual({
+      unitId: ROOM,
+      requestId,
+      number,
+      expectedBackOn: null,
+    });
+    // Where maintenance is not available there is nothing to show or offer.
+    await expect(
+      maintenance.roomsView(DESK, ELSEWHERE_PROPERTY),
+    ).resolves.toEqual({ holds: [], mayReport: false });
+    await maintenance.returnToService(DESK, { requestId });
   });
 
   it("names the request in the audit record when a room is taken out later (MT-S2-02)", async () => {
@@ -876,7 +925,11 @@ describe("coming back", { timeout: DATABASE_BUDGET_MS }, () => {
     });
     await expect(
       maintenance.move(MANAGER, { requestId, from: "new", to: "done" }),
-    ).resolves.toEqual({ returned: true, stillOutOfOrder: false });
+    ).resolves.toEqual({
+      returned: true,
+      stillOutOfOrder: false,
+      heldElsewhere: false,
+    });
     const [hold] = await owner.$queryRawUnsafe<{ returnedAs: string }[]>(
       `select returned_as as "returnedAs" from public.maintenance_unit_holds
         where request_id = $1::uuid`,
@@ -913,7 +966,11 @@ describe("coming back", { timeout: DATABASE_BUDGET_MS }, () => {
     });
     await expect(
       maintenance.move(MANAGER, { requestId, from: "new", to: "done" }),
-    ).resolves.toEqual({ returned: true, stillOutOfOrder: false });
+    ).resolves.toEqual({
+      returned: true,
+      stillOutOfOrder: false,
+      heldElsewhere: false,
+    });
     expect(await statusOf(RETURNING_ROOM)).toBe("available");
 
     await drain();
@@ -951,7 +1008,11 @@ describe("coming back", { timeout: DATABASE_BUDGET_MS }, () => {
     });
     await expect(
       maintenance.move(MANAGER, { requestId, from: "new", to: "done" }),
-    ).resolves.toEqual({ returned: false, stillOutOfOrder: true });
+    ).resolves.toEqual({
+      returned: false,
+      stillOutOfOrder: true,
+      heldElsewhere: false,
+    });
     expect(await statusOf(CONFIRMED_ROOM)).toBe("out_of_service");
 
     // Switching the setting now rewrites nothing already held.
@@ -974,7 +1035,11 @@ describe("coming back", { timeout: DATABASE_BUDGET_MS }, () => {
     });
     await expect(
       maintenance.move(TECHNICIAN, { requestId, from: "new", to: "done" }),
-    ).resolves.toEqual({ returned: false, stillOutOfOrder: true });
+    ).resolves.toEqual({
+      returned: false,
+      stillOutOfOrder: true,
+      heldElsewhere: false,
+    });
     await expect(
       maintenance.returnToService(TECHNICIAN, { requestId }),
     ).rejects.toBeInstanceOf(ReleaseNeedsPermissionError);

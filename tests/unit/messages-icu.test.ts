@@ -99,19 +99,27 @@ describe("every catalogue parses", () => {
             // formatted by nothing else until a screen renders it.
             expect(() =>
               translate(path.join("."), {
+                bed: "x",
                 columns: "x",
                 count: 2,
                 date: "16 Sep",
                 eta: "14:00",
                 floor: 2,
+                from: "16 Sep",
                 guest: "x",
                 max: 2,
                 min: 2,
                 n: 2,
+                name: "x",
+                number: 12,
                 of: 9,
                 property: "x",
                 room: "x",
+                state: "x",
+                unit: "x",
                 value: "x",
+                when: "16 Sep",
+                who: "x",
               }),
             ).not.toThrow();
             return;

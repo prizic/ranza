@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  startTransition,
-  useActionState,
-  useEffect,
-  useRef,
-  type ComponentType,
-} from "react";
+import { startTransition, useActionState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { CalendarCheck, DoorOpen, Info } from "lucide-react";
 import type {
@@ -17,11 +11,11 @@ import type {
 import type { SupportedLocale } from "@ranza/i18n";
 import {
   Button,
-  Card,
   DataTable,
   EmptyState,
   FormError,
   PageHeader,
+  Stat,
 } from "@ranza/ui";
 import { useTableLabels } from "../../../lib/table-labels";
 import { markRooms, type MarkOutcome } from "../../../server/housekeeping";
@@ -208,27 +202,5 @@ export function HousekeepingBoard({
         searchColumns={["name", "building"]}
       />
     </div>
-  );
-}
-
-function Stat({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: ComponentType<{ className?: string }>;
-  label: string;
-  value: number;
-}) {
-  return (
-    <Card className="p-4">
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Icon aria-hidden="true" className="size-4" />
-        <span className="text-xs font-medium tracking-wider uppercase">
-          {label}
-        </span>
-      </div>
-      <div className="mt-2 text-2xl font-bold tabular-nums">{value}</div>
-    </Card>
   );
 }

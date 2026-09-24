@@ -12,7 +12,9 @@ import {
   LayoutGrid,
   List,
   Users,
+  Wrench,
 } from "lucide-react";
+import Link from "next/link";
 import {
   Button,
   Card,
@@ -29,7 +31,12 @@ import {
   TableHeader,
   TableRow,
 } from "@ranza/ui";
-import type { UnitEntry, UnitMap } from "../../../server/viewer";
+import type {
+  RoomsMaintenance,
+  UnitEntry,
+  UnitHold,
+  UnitMap,
+} from "../../../server/viewer";
 import { AddRoomsDialog } from "./add-rooms-dialog";
 import { BlockUnitDialog } from "./block-unit-dialog";
 
@@ -38,19 +45,40 @@ export function RoomsView({
   propertyId,
   data,
   propertyName,
+  maintenance,
 }: {
   locale: string;
   propertyId: string;
   data: UnitMap;
   propertyName: string;
+  maintenance: RoomsMaintenance;
 }) {
   const t = useTranslations();
+  const mt = useTranslations("maintenance");
   const [viewMode, setViewMode] = useState<"map" | "list">("map");
   const [selectedUnit, setSelectedUnit] = useState<UnitEntry | null>(null);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
 
-  function handleSelectUnit(unit: UnitEntry) {
+  // A bed under a room out of order is held by the room's request.
+  const holdByUnit = new Map(
+    maintenance.holds.map((hold) => [hold.unitId, hold]),
+  );
+  const holdFor = (unitId: string, roomId: string | null) =>
+    holdByUnit.get(unitId) ?? (roomId ? holdByUnit.get(roomId) : undefined);
+  const maintenanceHref = `/${locale}/maintenance?property=${propertyId}`;
+  const reportHref = (unitId: string) =>
+    maintenance.mayReport ? `${maintenanceHref}&report=${unitId}` : null;
+  // Out of order, with the request that holds it when there is one: the front
+  // desk reads the same words Arrivals uses (MT-S2-28, MT-DIFF-01).
+  const outOfOrderLabel = (hold: UnitHold | undefined) =>
+    hold
+      ? `${mt("outOfOrder")} · ${mt("reference", { number: hold.number })}`
+      : mt("outOfOrder");
+
+  function handleSelectUnit(unit: UnitEntry, roomId: string | null = null) {
     setSelectedUnit(unit);
+    setSelectedRoomId(roomId);
     setBlockDialogOpen(true);
   }
 
@@ -208,8 +236,18 @@ export function RoomsView({
                           >
                             <CardHeader className="p-4 pb-2">
                               <div className="flex items-center justify-between">
-                                <CardTitle className="text-base font-semibold">
+                                <CardTitle className="flex items-center gap-2 text-base font-semibold">
                                   {room.name}
+                                  {isLetByTheBed &&
+                                  room.status === "out_of_service" ? (
+                                    <StatusBadge
+                                      icon={Wrench}
+                                      label={outOfOrderLabel(
+                                        holdByUnit.get(room.unitId),
+                                      )}
+                                      tone="danger"
+                                    />
+                                  ) : null}
                                 </CardTitle>
                                 <span className="text-xs text-muted-foreground">
                                   {isLetByTheBed
@@ -217,6 +255,14 @@ export function RoomsView({
                                     : `${room.capacity} ${t("statOccupied").toLowerCase()}`}
                                 </span>
                               </div>
+                              {isLetByTheBed && reportHref(room.unitId) ? (
+                                <Link
+                                  className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                                  href={reportHref(room.unitId) ?? ""}
+                                >
+                                  {t("maintenance.reportProblem")}
+                                </Link>
+                              ) : null}
                             </CardHeader>
 
                             <CardContent className="p-4 pt-2">
@@ -226,14 +272,22 @@ export function RoomsView({
                                     <button
                                       key={bed.unitId}
                                       type="button"
-                                      onClick={() => handleSelectUnit(bed)}
+                                      onClick={() =>
+                                        handleSelectUnit(bed, room.unitId)
+                                      }
                                       className="flex flex-col items-start rounded-md border p-2 text-start transition hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
                                     >
                                       <span className="text-xs font-semibold">
                                         {bed.name}
                                       </span>
                                       <div className="pt-1.5">
-                                        {renderUnitStateBadge(bed, t)}
+                                        {renderUnitStateBadge(
+                                          bed,
+                                          t,
+                                          outOfOrderLabel(
+                                            holdFor(bed.unitId, room.unitId),
+                                          ),
+                                        )}
                                       </div>
                                     </button>
                                   ))}
@@ -245,7 +299,13 @@ export function RoomsView({
                                     onClick={() => handleSelectUnit(room)}
                                     className="rounded-md focus-visible:ring-2 focus-visible:ring-ring"
                                   >
-                                    {renderUnitStateBadge(room, t)}
+                                    {renderUnitStateBadge(
+                                      room,
+                                      t,
+                                      outOfOrderLabel(
+                                        holdByUnit.get(room.unitId),
+                                      ),
+                                    )}
                                   </button>
                                 </div>
                               )}
@@ -287,16 +347,20 @@ export function RoomsView({
                       <TableCell>{room.floor ?? "—"}</TableCell>
                       <TableCell>{t("unitType.bed")}</TableCell>
                       <TableCell>1</TableCell>
-                      <TableCell>{renderUnitStateBadge(bed, t)}</TableCell>
+                      <TableCell>
+                        {renderUnitStateBadge(
+                          bed,
+                          t,
+                          outOfOrderLabel(holdFor(bed.unitId, room.unitId)),
+                        )}
+                      </TableCell>
                       <TableCell className="text-end">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleSelectUnit(bed)}
+                          onClick={() => handleSelectUnit(bed, room.unitId)}
                         >
-                          {bed.status === "blocked"
-                            ? t("unblockBed")
-                            : t("blockBed")}
+                          {unitActionLabel(bed, t)}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -314,16 +378,20 @@ export function RoomsView({
                       )}
                     </TableCell>
                     <TableCell>{room.capacity}</TableCell>
-                    <TableCell>{renderUnitStateBadge(room, t)}</TableCell>
+                    <TableCell>
+                      {renderUnitStateBadge(
+                        room,
+                        t,
+                        outOfOrderLabel(holdByUnit.get(room.unitId)),
+                      )}
+                    </TableCell>
                     <TableCell className="text-end">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleSelectUnit(room)}
                       >
-                        {room.status === "blocked"
-                          ? t("unblockBed")
-                          : t("blockBed")}
+                        {unitActionLabel(room, t)}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -335,18 +403,38 @@ export function RoomsView({
       )}
 
       <BlockUnitDialog
+        hold={
+          selectedUnit
+            ? (holdFor(selectedUnit.unitId, selectedRoomId) ?? null)
+            : null
+        }
         locale={locale}
+        maintenanceHref={maintenanceHref}
         open={blockDialogOpen}
         onOpenChange={setBlockDialogOpen}
+        reportHref={selectedUnit ? reportHref(selectedUnit.unitId) : null}
         unit={selectedUnit}
       />
     </div>
   );
 }
 
+/**
+ * What pressing a Unit opens: its block, or — out of order — its request.
+ */
+function unitActionLabel(
+  unit: UnitEntry,
+  t: ReturnType<typeof useTranslations>,
+): string {
+  if (unit.status === "blocked") return t("unblockBed");
+  if (unit.state?.kind === "out_of_service") return t("maintenance.outOfOrder");
+  return t("blockBed");
+}
+
 function renderUnitStateBadge(
   unit: UnitEntry,
   t: ReturnType<typeof useTranslations>,
+  outOfOrderLabel: string,
 ) {
   const state = unit.state;
   if (!state) return null;
@@ -378,7 +466,7 @@ function renderUnitStateBadge(
       );
     case "out_of_service":
       return (
-        <StatusBadge icon={Ban} tone="neutral" label={t("blockedStatus")} />
+        <StatusBadge icon={Wrench} tone="danger" label={outOfOrderLabel} />
       );
     case "free":
     default:

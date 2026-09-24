@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { IBM_Plex_Sans_Arabic } from "next/font/google";
 import { notFound } from "next/navigation";
 import { directionFor, isSupportedLocale, supportedLocales } from "@ranza/i18n";
+import { DirectionProvider } from "@ranza/ui";
 import { NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
@@ -65,7 +66,11 @@ export default async function LocaleLayout({
       <body>
         {/* The catalogue crosses to the client once, here, rather than
             being handed to each client component as a `copy` prop. */}
-        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider>
+          <DirectionProvider dir={directionFor(locale)}>
+            {children}
+          </DirectionProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

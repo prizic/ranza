@@ -37,6 +37,7 @@ export type {
   RequestStatus,
   RequestUnit,
   ReturnAs,
+  RoomsMaintenance,
   SettingOverrides,
   SettingValues,
   StaffName,

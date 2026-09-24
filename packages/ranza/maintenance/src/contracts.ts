@@ -165,6 +165,13 @@ export interface UnitHold {
   expectedBackOn: string | null;
 }
 
+/** What Rooms shows of maintenance at a Property. */
+export interface RoomsMaintenance {
+  holds: readonly UnitHold[];
+  /** Whether Rooms offers "Report a problem" (MT-S1-24). */
+  mayReport: boolean;
+}
+
 export interface SettingValues {
   assigneeRequired: boolean;
   returnOnDone: boolean;
@@ -205,6 +212,8 @@ export interface Moved {
   returned: boolean;
   /** The request still holds its room after the move. */
   stillOutOfOrder: boolean;
+  /** The request let go of its room, and another request still holds it. */
+  heldElsewhere: boolean;
 }
 
 /**
