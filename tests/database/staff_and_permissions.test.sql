@@ -15,7 +15,7 @@
 -- purpose: it needs two sessions and pgTAP has one. It lives in
 -- tests/integration/staff.test.ts, which can open two connections.
 begin;
-select plan(60);
+select plan(71);
 
 insert into public.users (id, email) values
   ('61111111-1111-4111-8111-111111111111', 'staff-owner-a@example.test'),
@@ -626,6 +626,147 @@ select throws_ok(
        and user_id = '66666666-6666-4666-8666-666666666666'$$,
   '55000', NULL,
   'a retired role cannot be taken up again while it is retired');
+
+-- ---------------------------------------------------------------------------
+-- Assigning a role is bounded like defining one (SP-S1-34)
+-- ---------------------------------------------------------------------------
+-- Defining a role has a ceiling (SP-S3-01); assigning one had none, so a role
+-- an Owner wrote holding only staff.administer was one step from Owner. This
+-- administrator holds staff.administer and Finance's two permissions: enough
+-- to hand out Finance, and not Owner, Manager, or a role of the Organization's
+-- own holding something they lack. Finance rather than Housekeeping because
+-- the section above rewrote Housekeeping's permissions in this transaction.
+
+set local role none;
+insert into public.users (id, email) values
+  ('67777777-7777-4777-8777-777777777777', 'staff-rota-admin@example.test'),
+  ('68888888-8888-4888-8888-888888888888', 'staff-rota-desk@example.test'),
+  ('69999999-9999-4999-8999-999999999999', 'staff-rota-manager@example.test'),
+  ('6f111111-1111-4111-8111-111111111111', 'staff-rota-invitee@example.test'),
+  ('6f222222-2222-4222-8222-222222222222', 'staff-rota-finance@example.test');
+insert into public.staff_roles
+  (scope_id, key, organization_id, name, permissions) values
+  ('6a111111-1111-4111-8111-111111111111', 'rota_admin',
+   '6a111111-1111-4111-8111-111111111111', 'Rota admin',
+   array['staff.administer', 'finance.manage_folio', 'finance.post_charge']),
+  ('6a111111-1111-4111-8111-111111111111', 'night_auditor',
+   '6a111111-1111-4111-8111-111111111111', 'Night auditor',
+   array['audit.read']);
+insert into public.organization_memberships
+  (organization_id, user_id, role, role_scope_id, access_scope) values
+  ('6a111111-1111-4111-8111-111111111111',
+   '67777777-7777-4777-8777-777777777777', 'rota_admin',
+   '6a111111-1111-4111-8111-111111111111', 'organization_wide'),
+  ('6a111111-1111-4111-8111-111111111111',
+   '68888888-8888-4888-8888-888888888888', 'front_desk',
+   '00000000-0000-0000-0000-000000000000', 'assigned_properties'),
+  ('6a111111-1111-4111-8111-111111111111',
+   '69999999-9999-4999-8999-999999999999', 'manager',
+   '00000000-0000-0000-0000-000000000000', 'organization_wide');
+set local role ranza_app;
+select app.set_request_context('67777777-7777-4777-8777-777777777777');
+
+select throws_ok(
+  $$update public.organization_memberships
+       set role = 'owner',
+           role_scope_id = '00000000-0000-0000-0000-000000000000',
+           updated_at = now()
+     where organization_id = '6a111111-1111-4111-8111-111111111111'
+       and user_id = '67777777-7777-4777-8777-777777777777'$$,
+  '42501', NULL,
+  'an administrator whose role is narrower than Owner cannot make themselves Owner');
+
+select throws_ok(
+  $$update public.organization_memberships
+       set role = 'manager', updated_at = now()
+     where organization_id = '6a111111-1111-4111-8111-111111111111'
+       and user_id = '68888888-8888-4888-8888-888888888888'$$,
+  '42501', NULL,
+  'nor make a colleague Manager');
+
+select throws_ok(
+  $$insert into public.organization_memberships
+      (organization_id, user_id, role) values
+      ('6a111111-1111-4111-8111-111111111111',
+       '6f111111-1111-4111-8111-111111111111', 'owner')$$,
+  '42501', NULL,
+  'nor invite somebody in as Owner');
+
+-- The same insert with a role inside the ceiling succeeds, so the refusal
+-- above is the role and not the reach, the Subscription or the permission.
+select lives_ok(
+  $$insert into public.organization_memberships
+      (organization_id, user_id, role) values
+      ('6a111111-1111-4111-8111-111111111111',
+       '6f222222-2222-4222-8222-222222222222', 'finance')$$,
+  'but may invite somebody in as Finance, which is within their own');
+
+-- A role of the Organization's own is found by its scope, not only its key.
+select throws_ok(
+  $$update public.organization_memberships
+       set role = 'night_auditor',
+           role_scope_id = '6a111111-1111-4111-8111-111111111111',
+           updated_at = now()
+     where organization_id = '6a111111-1111-4111-8111-111111111111'
+       and user_id = '68888888-8888-4888-8888-888888888888'$$,
+  '42501', NULL,
+  'nor hand out a role of the Organization''s own that holds what they lack');
+
+select lives_ok(
+  $$update public.organization_memberships
+       set role = 'finance',
+           role_scope_id = '00000000-0000-0000-0000-000000000000',
+           updated_at = now()
+     where organization_id = '6a111111-1111-4111-8111-111111111111'
+       and user_id = '68888888-8888-4888-8888-888888888888'$$,
+  'but may hand out a shipped role within their own');
+
+select lives_ok(
+  $$update public.organization_memberships
+       set role = 'rota_admin',
+           role_scope_id = '6a111111-1111-4111-8111-111111111111',
+           updated_at = now()
+     where organization_id = '6a111111-1111-4111-8111-111111111111'
+       and user_id = '68888888-8888-4888-8888-888888888888'$$,
+  'and one of the Organization''s own within their own');
+
+-- The ceiling is asked of the role the row is left holding, so a demotion to a
+-- role they may not grant is refused like granting it.
+select throws_ok(
+  $$update public.organization_memberships
+       set role = 'front_desk', updated_at = now()
+     where organization_id = '6a111111-1111-4111-8111-111111111111'
+       and user_id = '69999999-9999-4999-8999-999999999999'$$,
+  '42501', NULL,
+  'a demotion to a role they may not grant is refused like granting it');
+
+-- SP-S1-21's reasoning: taking reach away never depends on what the actor
+-- holds, so the Manager they could not demote they may still revoke.
+select lives_ok(
+  $$update public.organization_memberships
+       set status = 'revoked', revoked_at = now(), updated_at = now()
+     where organization_id = '6a111111-1111-4111-8111-111111111111'
+       and user_id = '69999999-9999-4999-8999-999999999999'$$,
+  'but revoking somebody whose role they could not grant is never blocked');
+
+select is(
+  (select status from public.organization_memberships
+    where organization_id = '6a111111-1111-4111-8111-111111111111'
+      and user_id = '69999999-9999-4999-8999-999999999999'),
+  'revoked',
+  'and the revoke is written');
+
+-- And not undone by them: bringing the Manager back hands the Manager role
+-- out again. This is the dead end SP-S1-34 leaves open — revoke the only
+-- holder of the whole catalogue and nobody can hand it out again — asserted so
+-- that whichever way it is decided, the change is seen.
+select throws_ok(
+  $$update public.organization_memberships
+       set status = 'active', revoked_at = null, updated_at = now()
+     where organization_id = '6a111111-1111-4111-8111-111111111111'
+       and user_id = '69999999-9999-4999-8999-999999999999'$$,
+  '42501', NULL,
+  'but undoing that revoke hands the role back, and is refused like granting it');
 
 -- ---------------------------------------------------------------------------
 -- A definer asks the gates itself

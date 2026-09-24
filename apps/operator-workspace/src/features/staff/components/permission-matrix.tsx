@@ -16,7 +16,7 @@ import {
   cn,
 } from "@ranza/ui";
 import { editRole, reinstateRole, retireRole } from "../../../server/staff";
-import { asPermission, asShippedRole } from "../labels";
+import { asPermission, shippedRoleOf } from "../labels";
 
 /**
  * What each role may do — permissions down, roles across.
@@ -108,7 +108,7 @@ export function PermissionMatrix({
   }
 
   function roleName(role: Role): string {
-    const shipped = asShippedRole(role.key);
+    const shipped = shippedRoleOf(role);
     return shipped ? t(`staff.roles.${shipped}`) : role.name;
   }
 

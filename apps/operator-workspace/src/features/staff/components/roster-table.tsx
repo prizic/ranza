@@ -16,7 +16,6 @@ import {
   DataTableRowActions,
   Select,
   SelectContent,
-  SelectItem,
   SelectTrigger,
   SelectValue,
   StatusBadge,
@@ -34,7 +33,8 @@ import {
   undoStaffRevoke,
   type StaffOutcome,
 } from "../../../server/staff";
-import { asShippedRole } from "../labels";
+import { shippedRoleOf } from "../labels";
+import { RoleOptions, roleOptionValue } from "./role-options";
 
 /** Every role Ranza ships lives in this scope, which is not an Organization. */
 const NIL_SCOPE = "00000000-0000-0000-0000-000000000000";
@@ -202,21 +202,25 @@ function RolePicker({
   const t = useTranslations();
   const [pending, startTransition] = useTransition();
   const [outcome, setOutcome] = useState<StaffOutcome>("idle");
-  // `<scope>:<key>`, the pair the database keys on. The key alone is ambiguous:
-  // an Organization may author a role whose slug matches a shipped one, and the
-  // select would then resolve to whichever came first.
-  const optionFor = (role: Role) => `${role.organizationId ?? ""}:${role.key}`;
   const [held, setHeld] = useState(
     // The nil uuid is a scope, not an Organization, so it maps to the empty
     // half of the pair the way a shipped role does everywhere else.
     () =>
-      `${member.roleScopeId === NIL_SCOPE ? "" : member.roleScopeId}:${member.roleId}`,
+      roleOptionValue({
+        key: member.roleId,
+        organizationId:
+          member.roleScopeId === NIL_SCOPE ? null : member.roleScopeId,
+      }),
   );
 
-  function label(role: Role): string {
-    const shipped = asShippedRole(role.key);
-    return shipped ? t(`staff.roles.${shipped}`) : role.name;
-  }
+  const options = roles.map((role) => {
+    const shipped = shippedRoleOf(role);
+    return {
+      key: role.key,
+      organizationId: role.organizationId,
+      name: shipped ? t(`staff.roles.${shipped}`) : role.name,
+    };
+  });
 
   function change(next: string): void {
     const previous = held;
@@ -252,11 +256,7 @@ function RolePicker({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {roles.map((role) => (
-            <SelectItem key={optionFor(role)} value={optionFor(role)}>
-              {label(role)}
-            </SelectItem>
-          ))}
+          <RoleOptions roles={options} />
         </SelectContent>
       </Select>
       {outcome === "lastAdministrator" ? (
