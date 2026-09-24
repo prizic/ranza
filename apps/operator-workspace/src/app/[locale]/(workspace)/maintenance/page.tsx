@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { MaintenanceBoard } from "../../../../features/maintenance/components/maintenance-board";
 import {
   CANCEL_REASON,
@@ -42,6 +42,7 @@ export default async function MaintenancePage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
   await requireViewer(locale);
 
   const t = await getTranslations();

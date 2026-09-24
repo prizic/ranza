@@ -18,18 +18,21 @@ import { pageTitleFor, useWorkspacePageTitles } from "../../../lib/page-titles";
  */
 export function WorkspacePageBar({
   action,
+  defaultProperty,
   entitled,
   locale,
 }: {
   action?: ReactNode;
+  /** The Property the switcher names when the URL names none. */
+  defaultProperty: string | undefined;
   entitled: readonly string[];
   locale: SupportedLocale;
 }) {
   const pathname = usePathname();
   const titles = useWorkspacePageTitles(locale);
-  const entries = useWorkspaceNav(locale, entitled);
+  const entries = useWorkspaceNav(locale, entitled, defaultProperty);
   const t = useTranslations();
-  const withProperty = useWithProperty();
+  const withProperty = useWithProperty(defaultProperty);
   const match = pageTitleFor(pathname, titles);
 
   if (!match) return null;

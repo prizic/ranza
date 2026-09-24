@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { RoomsView } from "../../../../features/rooms/components/rooms-view";
 import {
   entitledProperties,
@@ -27,6 +27,7 @@ export default async function RoomsPage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
 
   const t = await getTranslations();
   await requireViewer(locale);

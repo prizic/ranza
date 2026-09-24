@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { NewReservationDialog } from "../../../../features/front-office/components/new-reservation-dialog";
 import { ReservationsTable } from "../../../../features/front-office/components/reservations-table";
 import {
@@ -36,6 +36,7 @@ export default async function ReservationsPage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
   await requireViewer(locale);
 
   const t = await getTranslations();

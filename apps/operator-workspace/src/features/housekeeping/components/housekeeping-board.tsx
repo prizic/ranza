@@ -32,8 +32,10 @@ import { STATUS_LOOK } from "./status";
  * is disabled while one is in flight and a double press cannot send two
  * (HK-S2-06).
  *
- * A selection is cleared only when a mark lands. A refused mark keeps it, so
- * the desk can see what they picked and try again (HK-S2-13).
+ * A selection is cleared when a mark lands. A refusal is followed by the board
+ * the page revalidates to, which is read-only when the refusal was the viewer's
+ * permission going, and then shows no selection control at all (HK-S2-13,
+ * decided by the product owner, 2026-09-24).
  */
 export function HousekeepingBoard({
   board,

@@ -56,8 +56,11 @@ export default async function LocaleLayout({
   // a wrong language is harder to notice than a missing page.
   if (!isSupportedLocale(locale)) notFound();
 
-  // Tells next-intl which locale this render is for, so the pages beneath stay
-  // static. Without it every page that reads a string becomes dynamic, and
+  // Tells next-intl which locale this render is for. It covers this layout and
+  // nothing a client navigation renders without it, so every page and layout
+  // beneath sets it again for itself; a page that does not falls back to
+  // Turkish on /en and /ar (tests/unit/pages-set-their-locale.test.ts).
+  // Without it every page that reads a string becomes dynamic, and
   // generateStaticParams above would be prerendering nothing.
   setRequestLocale(locale);
 

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { isSupportedLocale, localizeHref, supportedLocales } from "@ranza/i18n";
 import { Check } from "lucide-react";
 import {
@@ -37,6 +37,7 @@ export default async function PortalLayout({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
 
   const t = await getTranslations();
   const viewer = await requireViewer(locale);
