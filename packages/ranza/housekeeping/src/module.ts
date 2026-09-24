@@ -217,6 +217,7 @@ export function createHousekeepingModule(deps: HousekeepingDeps) {
       let marked: {
         unitId: string;
         organizationId: string;
+        propertyId: string;
         name: string;
         previousStatus: HousekeepingStatus | null;
       }[];
@@ -242,6 +243,7 @@ export function createHousekeepingModule(deps: HousekeepingDeps) {
              set status = excluded.status
           returning accommodation_unit_id as "unitId",
                     organization_id as "organizationId",
+                    property_id as "propertyId",
                     (select unit.name
                        from public.accommodation_units as unit
                       where unit.id = accommodation_unit_id) as name,
@@ -264,6 +266,7 @@ export function createHousekeepingModule(deps: HousekeepingDeps) {
       for (const room of marked) {
         await recordWithin(tx, {
           organizationId: room.organizationId,
+          locationId: room.propertyId,
           actorId: userId,
           action: "housekeeping.status_changed",
           subjectType: "accommodation_unit",
@@ -376,6 +379,7 @@ export function createHousekeepingModule(deps: HousekeepingDeps) {
 
       await recordWithin(tx, {
         organizationId: setting.organizationId,
+        locationId: propertyId,
         actorId: userId,
         action: "housekeeping.inspection_set",
         subjectType: "property",

@@ -355,11 +355,17 @@ select is_empty(
 -- app.has_organization_wide_reach(), so a policy can read the caller's
 -- membership, and app.housekeeping_inspection_required(), so readiness never
 -- reads an invisible setting as "off".
+-- The audit log's reach (20260916004200) brought five: the four the
+-- audit.records read policy consults about its caller — which Properties,
+-- which Organizations wholly, which with audit.read, and whether a location
+-- belongs to a scope — and app.audit_location_names(), which names an archived
+-- Property the ordinary policy hides. All five ask only about the caller and
+-- none writes.
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  27,
-  'the definer sweep looked at 27 functions; change this number deliberately');
+  32,
+  'the definer sweep looked at 32 functions; change this number deliberately');
 
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -367,11 +373,11 @@ select is(
   4,
   'four of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a twenty-eighth definer is a red test
+-- Part B: the inventory itself, so a thirty-third definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
--- reason for; the ten after are staff and permissions, and the three that
--- write are named in the comment above; two are rooms and beds; the last
--- four are housekeeping.
+-- reason for; the ten after are staff and permissions; two are rooms and beds;
+-- four are housekeeping; and the last five are the audit log's reach. The four
+-- that write are named in the comments above.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -387,8 +393,11 @@ select set_eq(
         'role_permissions_are_in_the_catalogue',
         'unit_can_be_blocked','unit_is_in_service',
         'housekeeping_status_holder_is_a_room','mark_unit_dirty_after_check_out',
-        'has_organization_wide_reach','housekeeping_inspection_required'],
-  'and they are exactly the twenty-seven the design gives a reason for');
+        'has_organization_wide_reach','housekeeping_inspection_required',
+        'audit_reachable_locations','audit_whole_organization_ids',
+        'audit_reader_organization_ids','audit_location_is_in_scope',
+        'audit_location_names'],
+  'and they are exactly the thirty-two the design gives a reason for');
 
 select finish();
 rollback;

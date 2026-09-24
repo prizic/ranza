@@ -2,13 +2,19 @@ import "server-only";
 import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { AUDIT_CAPABILITY, TODAY_CAPABILITY } from "@ranza/core";
+import {
+  AUDIT_READ_PERMISSION,
+  MIN_SEARCH_LENGTH,
+  TODAY_CAPABILITY,
+} from "@ranza/core";
 import type {
-  AuditRecord,
+  AuditEntry,
+  AuditFilters,
+  AuditNames,
+  AuditPage,
   CapabilityProperties,
   CapabilityRef,
   EntitledProperty,
-  ScopeHistory,
 } from "@ranza/core";
 import { FOLIO_CAPABILITY } from "@ranza/folios";
 import type { FolioDetail, FolioSummary } from "@ranza/folios";
@@ -63,7 +69,8 @@ import { getComposition } from "./composition";
 // is absolute rather than carved out for constants: an exception is the crack
 // through which a direct query eventually arrives.
 export {
-  AUDIT_CAPABILITY,
+  AUDIT_READ_PERMISSION,
+  MIN_SEARCH_LENGTH,
   TODAY_CAPABILITY,
   FRONT_DESK_CAPABILITY,
   FOLIO_CAPABILITY,
@@ -75,7 +82,10 @@ export type {
   AccommodationUnitStatus,
   AccommodationUnitType,
   Arrival,
-  AuditRecord,
+  AuditEntry,
+  AuditFilters,
+  AuditNames,
+  AuditPage,
   BookableUnit,
   Departure,
   FolioDetail,
@@ -86,7 +96,6 @@ export type {
   InspectionSettings,
   NewUnits,
   ReservationRow,
-  ScopeHistory,
   UnitCounts,
   UnitEntry,
   UnitMap,
@@ -365,18 +374,63 @@ export async function housekeepingInspection(
 }
 
 /**
- * The Organization's recent audit records, read through one of its Properties
- * — what was done, by whom, and why.
+ * Every Property the viewer reaches in an Organization where they hold
+ * `permission` — the gate for a destination no package selection may remove.
  *
- * Same funnel and same non-checking as `arrivals`: the gate is evaluated in the
- * database, in the same transaction as the read, and a Property the viewer
- * cannot reach produces an empty history rather than an error (ADR 0028).
+ * `cache`d like `entitledProperties`: the layout and the page beneath it ask
+ * the same question in one request.
+ */
+export const permittedProperties = cache(
+  async (permission: string): Promise<readonly EntitledProperty[]> => {
+    const viewer = await currentViewer();
+    if (!viewer) return [];
+    return getComposition().core.listPermittedProperties(
+      viewer.userId,
+      permission,
+    );
+  },
+);
+
+const NO_AUDIT: AuditPage = {
+  entries: [],
+  total: 0,
+  nextCursor: null,
+  labels: {},
+  locations: {},
+  roles: {},
+};
+
+/**
+ * One page of the audit log, opened from a Property — what was done, by whom,
+ * where, and why.
+ *
+ * Same funnel and same non-checking as `arrivals`: the permission is asked in
+ * the database, in the same transaction as the read, and the read policy
+ * decides which records the viewer reaches. A Property they cannot open the
+ * log from produces an empty page rather than an error (ADR 0031).
  *
  * Not `cache`d, for the same reason the front-desk reads are not: a request
  * that reverses a charge and then reads must see the record it just caused.
  */
-export async function auditLog(propertyId: string): Promise<ScopeHistory> {
+export async function auditLog(
+  propertyId: string,
+  filters: AuditFilters,
+): Promise<AuditPage> {
   const viewer = await currentViewer();
-  if (!viewer) return { records: [], total: 0 };
-  return getComposition().core.recentActivity(viewer.userId, propertyId);
+  if (!viewer) return NO_AUDIT;
+  return getComposition().core.auditLog(viewer.userId, propertyId, filters);
+}
+
+/**
+ * One audit record by id — so a link to it keeps working however many
+ * records are written after it. Null for one that does not exist and one the
+ * viewer may not read, alike.
+ */
+export async function auditRecord(
+  propertyId: string,
+  recordId: string,
+): Promise<(AuditNames & { entry: AuditEntry }) | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().core.auditRecord(viewer.userId, propertyId, recordId);
 }

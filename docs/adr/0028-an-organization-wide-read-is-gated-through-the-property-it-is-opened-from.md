@@ -2,6 +2,7 @@
 
 Status: Accepted
 Date: 2026-09-20
+Amended: 2026-09-23 by [ADR 0031](0031-an-audit-record-carries-its-location-and-is-read-by-permission.md). The shape this ADR fixes stands — a gated Ranza caller, a `…Within` read across the platform contract, one transaction — but what the audit log is gated on does not. The gate is now the `audit.read` permission and the Property's reach, with no commercial gate: audit is a baseline right (blueprint 3.6), so the `app.can_use_capability(…, 'audit')` statement below and the `property_capabilities` row it needed are gone. Reach is no longer Organization-wide either: a record carries a location, and the read policy narrows to the Properties the reader reaches. The paragraph about `users_read_self` was already wrong when written — `20260916002200` had replaced it with `users_read_self_and_colleagues` — and the log now names colleagues.
 
 ## Context
 

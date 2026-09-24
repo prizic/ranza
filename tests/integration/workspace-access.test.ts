@@ -11,7 +11,6 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
-  AUDIT_CAPABILITY,
   createCoreModule,
   TODAY_CAPABILITY,
 } from "../../packages/ranza/core/src";
@@ -19,6 +18,13 @@ import {
   createPrismaClient,
   withOrganizationContext,
 } from "../../packages/db/src";
+
+// A second platform_core capability, so the Organization's one Entitlement
+// covers it; the fixture enables it on the unassigned Property only.
+const SECOND_CAPABILITY = {
+  moduleKey: TODAY_CAPABILITY.moduleKey,
+  capabilityKey: "staff_administration",
+};
 
 const ORG = "d1d1d1d1-0000-4000-8000-000000000001";
 const OTHER_ORG = "d1d1d1d1-0000-4000-8000-000000000002";
@@ -116,7 +122,7 @@ beforeAll(async () => {
      on conflict (property_id, capability_key) do nothing`,
     UNASSIGNED,
     ORG,
-    AUDIT_CAPABILITY.capabilityKey,
+    SECOND_CAPABILITY.capabilityKey,
   );
   // A Staff Member assigned to one Property who is also a Resident at the
   // other. Their Stay makes the unassigned Property visible to them
@@ -334,7 +340,7 @@ describe("the shell's one read answers what each question alone would", () => {
     moduleKey: "housekeeping",
     capabilityKey: TODAY_CAPABILITY.capabilityKey,
   };
-  const ASKED = [AUDIT_CAPABILITY, TODAY_CAPABILITY, SAME_KEY_OTHER_MODULE];
+  const ASKED = [SECOND_CAPABILITY, TODAY_CAPABILITY, SAME_KEY_OTHER_MODULE];
 
   const oneByOne = (userId: string) =>
     Promise.all(

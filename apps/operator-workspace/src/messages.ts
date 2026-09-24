@@ -220,7 +220,8 @@ export interface Messages {
       | "administerStaff"
       | "defineRoles"
       | "configureAccommodation"
-      | "updateHousekeeping",
+      | "updateHousekeeping"
+      | "readAudit",
       string
     >;
     emptyRosterTitle: string;
@@ -377,6 +378,74 @@ export interface Messages {
   you: string;
   noReason: string;
   actorUnnamed: string;
+  auditWhere: string;
+  auditOrganizationWide: string;
+  auditFilters: string;
+  auditActionFilter: string;
+  auditAnyAction: string;
+  auditProperty: string;
+  auditEveryProperty: string;
+  auditFrom: string;
+  auditTo: string;
+  auditSearch: string;
+  auditSearchHint: string;
+  auditSearchTooShort: string;
+  auditApply: string;
+  auditClearFilters: string;
+  auditOlder: string;
+  auditNewest: string;
+  /** How many records match the filters, across every page. */
+  auditMatching: string;
+  auditNoMatchesTitle: string;
+  auditNoMatchesDescription: string;
+  auditRecordMissingTitle: string;
+  auditRecordMissingDescription: string;
+  /** Said once under the list, because the times in it are not all one clock. */
+  auditLocalTime: string;
+  auditYes: string;
+  auditNo: string;
+  auditNone: string;
+  /**
+   * What each context fact is called. Keyed on what the modules write, which
+   * is why the keys are camelCase; a key this does not know shows as itself.
+   */
+  auditContext: Record<
+    | "amountMinor"
+    | "balanceMinor"
+    | "description"
+    | "lineId"
+    | "reversedLineId"
+    | "reversalLineId"
+    | "stayId"
+    | "folioId"
+    | "accommodationUnitId"
+    | "guestId"
+    | "guestCreated"
+    | "startsOn"
+    | "endsOn"
+    | "from"
+    | "to"
+    | "role"
+    | "added"
+    | "removed"
+    | "permissions"
+    | "propertyIds"
+    | "properties"
+    | "propertyId"
+    | "userId"
+    | "name"
+    | "names"
+    | "key"
+    | "holders"
+    | "unitIds"
+    | "unitType"
+    | "capacity"
+    | "building"
+    | "floor"
+    | "letByTheBed"
+    | "hadBeenBlockedFor",
+    string
+  >;
   /**
    * What each recorded action is called, nested noun → verb rather than keyed
    * on the dotted name the modules write: next-intl splits a key on `.`, so a
@@ -390,6 +459,7 @@ export interface Messages {
     staff: Record<
       | "invited"
       | "role_changed"
+      | "role_permissions_changed"
       | "property_assigned"
       | "property_unassigned"
       | "revoked"
@@ -666,6 +736,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         defineRoles: "Rol tanımlama",
         configureAccommodation: "Odaları ve yatakları yapılandırma",
         updateHousekeeping: "Oda durumunu güncelleme",
+        readAudit: "Denetim kaydını okuma",
       },
       emptyRosterTitle: "Henüz kimse yok",
       emptyRosterDescription:
@@ -841,6 +912,70 @@ export const messages: Record<SupportedLocale, Messages> = {
     you: "Siz",
     noReason: "Gerekçe gerekmiyor",
     actorUnnamed: "Kimliğiyle kayıtlı ekip üyesi",
+    auditWhere: "Nerede",
+    auditOrganizationWide: "Tüm organizasyon",
+    auditFilters: "Denetim kaydını filtrele",
+    auditActionFilter: "İşlem",
+    auditAnyAction: "Tüm işlemler",
+    auditProperty: "Tesis",
+    auditEveryProperty: "Erişebildiğiniz tüm tesisler",
+    auditFrom: "Başlangıç",
+    auditTo: "Bitiş",
+    auditSearch: "Ara",
+    auditSearchHint: "Misafir, oda, ekip arkadaşı veya gerekçeden bir kelime",
+    auditSearchTooShort: "Aramak için en az iki karakter yazın.",
+    auditApply: "Uygula",
+    auditClearFilters: "Filtreleri temizle",
+    auditOlder: "Daha eski kayıtlar",
+    auditNewest: "En yenilere dön",
+    auditMatching: "{n, plural, other {# kayıt}}",
+    auditNoMatchesTitle: "Bu filtrelere uyan kayıt yok",
+    auditNoMatchesDescription:
+      "Tarih aralığını genişletin, başka bir işlem seçin veya filtreleri temizleyin.",
+    auditRecordMissingTitle: "Bu kayıt açılamıyor",
+    auditRecordMissingDescription:
+      "Kayıt yok ya da okuma yetkiniz olan bir kayıt değil.",
+    auditLocalTime:
+      "Her saat, işlemin yapıldığı tesisin saatine göredir; tüm organizasyonla ilgili kayıtlar bu tesisin saatini kullanır.",
+    auditYes: "Evet",
+    auditNo: "Hayır",
+    auditNone: "Yok",
+    auditContext: {
+      amountMinor: "Tutar",
+      balanceMinor: "Kapanıştaki bakiye",
+      description: "Açıklama",
+      lineId: "Satır",
+      reversedLineId: "Ters kaydedilen satır",
+      reversalLineId: "Ters kayıt satırı",
+      stayId: "Konaklama",
+      folioId: "Folyo",
+      accommodationUnitId: "Birim",
+      guestId: "Misafir",
+      guestCreated: "Yeni misafir kaydı",
+      startsOn: "Giriş",
+      endsOn: "Çıkış",
+      from: "Önceki",
+      to: "Yeni",
+      role: "Rol",
+      added: "Eklenen izinler",
+      removed: "Kaldırılan izinler",
+      permissions: "İzinler",
+      propertyIds: "Tesisler",
+      properties: "Tesisler",
+      propertyId: "Tesis",
+      userId: "Ekip üyesi",
+      name: "Ad",
+      names: "Adlar",
+      key: "Rol anahtarı",
+      holders: "Bu role sahip kişiler",
+      unitIds: "Birimler",
+      unitType: "Birim türü",
+      capacity: "Kapasite",
+      building: "Bina",
+      floor: "Kat",
+      letByTheBed: "Yatak bazında kiralanır",
+      hadBeenBlockedFor: "Kapatılma gerekçesi",
+    },
     auditAction: {
       reservation: {
         created: "Rezervasyon alındı",
@@ -856,6 +991,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       staff: {
         invited: "Ekip üyesi davet edildi",
         role_changed: "Rol değiştirildi",
+        role_permissions_changed: "Rol izinleri değiştirildi",
         property_assigned: "Tesise atandı",
         property_unassigned: "Tesis ataması kaldırıldı",
         revoked: "Üyelik iptal edildi",
@@ -1153,6 +1289,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         defineRoles: "Define roles",
         configureAccommodation: "Configure rooms & beds",
         updateHousekeeping: "Update room status",
+        readAudit: "Reading the audit log",
       },
       emptyRosterTitle: "Nobody here yet",
       emptyRosterDescription: "This Organization has no Staff Member to show.",
@@ -1327,6 +1464,70 @@ export const messages: Record<SupportedLocale, Messages> = {
     you: "You",
     noReason: "No reason required",
     actorUnnamed: "Staff Member, identified by id",
+    auditWhere: "Where",
+    auditOrganizationWide: "Whole Organization",
+    auditFilters: "Filter the audit log",
+    auditActionFilter: "Action",
+    auditAnyAction: "Any action",
+    auditProperty: "Property",
+    auditEveryProperty: "Every Property you reach",
+    auditFrom: "From",
+    auditTo: "To",
+    auditSearch: "Search",
+    auditSearchHint: "Guest, room, colleague or words from a reason",
+    auditSearchTooShort: "Type at least two characters to search.",
+    auditApply: "Apply",
+    auditClearFilters: "Clear filters",
+    auditOlder: "Older records",
+    auditNewest: "Back to the newest",
+    auditMatching: "{n, plural, one {# record} other {# records}}",
+    auditNoMatchesTitle: "Nothing matches these filters",
+    auditNoMatchesDescription:
+      "Widen the dates, choose another action, or clear the filters.",
+    auditRecordMissingTitle: "That record cannot be opened",
+    auditRecordMissingDescription:
+      "It does not exist, or it is not one you may read.",
+    auditLocalTime:
+      "Each time is on the clock of the Property where it happened; records about the whole Organization use this Property's.",
+    auditYes: "Yes",
+    auditNo: "No",
+    auditNone: "None",
+    auditContext: {
+      amountMinor: "Amount",
+      balanceMinor: "Balance at closing",
+      description: "Description",
+      lineId: "Line",
+      reversedLineId: "Reversed line",
+      reversalLineId: "Reversal line",
+      stayId: "Stay",
+      folioId: "Folio",
+      accommodationUnitId: "Unit",
+      guestId: "Guest",
+      guestCreated: "New guest record",
+      startsOn: "Arrival",
+      endsOn: "Departure",
+      from: "From",
+      to: "To",
+      role: "Role",
+      added: "Permissions added",
+      removed: "Permissions removed",
+      permissions: "Permissions",
+      propertyIds: "Properties",
+      properties: "Properties",
+      propertyId: "Property",
+      userId: "Staff Member",
+      name: "Name",
+      names: "Names",
+      key: "Role key",
+      holders: "People holding it",
+      unitIds: "Units",
+      unitType: "Unit type",
+      capacity: "Capacity",
+      building: "Building",
+      floor: "Floor",
+      letByTheBed: "Let by the bed",
+      hadBeenBlockedFor: "Had been blocked for",
+    },
     auditAction: {
       reservation: {
         created: "Reservation taken",
@@ -1342,6 +1543,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       staff: {
         invited: "Staff Member invited",
         role_changed: "Role changed",
+        role_permissions_changed: "Role permissions changed",
         property_assigned: "Assigned to a Property",
         property_unassigned: "Unassigned from a Property",
         revoked: "Membership revoked",
@@ -1635,6 +1837,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         defineRoles: "تعريف الأدوار",
         configureAccommodation: "تهيئة الغرف والأسرّة",
         updateHousekeeping: "تحديث حالة الغرف",
+        readAudit: "قراءة سجل التدقيق",
       },
       emptyRosterTitle: "لا أحد هنا بعد",
       emptyRosterDescription: "لا يوجد في هذه المؤسسة موظف لعرضه.",
@@ -1803,6 +2006,71 @@ export const messages: Record<SupportedLocale, Messages> = {
     you: "أنت",
     noReason: "لا يلزم سبب",
     actorUnnamed: "عضو فريق معرَّف بالمعرّف",
+    auditWhere: "أين",
+    auditOrganizationWide: "المؤسسة كلها",
+    auditFilters: "تصفية سجل التدقيق",
+    auditActionFilter: "الإجراء",
+    auditAnyAction: "كل الإجراءات",
+    auditProperty: "المنشأة",
+    auditEveryProperty: "كل المنشآت التي تصل إليها",
+    auditFrom: "من",
+    auditTo: "إلى",
+    auditSearch: "بحث",
+    auditSearchHint: "ضيف أو غرفة أو زميل أو كلمات من سبب",
+    auditSearchTooShort: "اكتب حرفين على الأقل للبحث.",
+    auditApply: "تطبيق",
+    auditClearFilters: "مسح الفلاتر",
+    auditOlder: "سجلات أقدم",
+    auditNewest: "العودة إلى الأحدث",
+    auditMatching:
+      "{n, plural, zero {لا سجلات} one {سجل واحد} two {سجلان} few {# سجلات} many {# سجلًا} other {# سجل}}",
+    auditNoMatchesTitle: "لا شيء يطابق هذه الفلاتر",
+    auditNoMatchesDescription:
+      "وسّع نطاق التواريخ أو اختر إجراءً آخر أو امسح الفلاتر.",
+    auditRecordMissingTitle: "لا يمكن فتح هذا السجل",
+    auditRecordMissingDescription:
+      "إما أنه غير موجود أو أنه ليس سجلًا يحق لك قراءته.",
+    auditLocalTime:
+      "كل وقت معروض بتوقيت المنشأة التي حدث فيها؛ والسجلات الخاصة بالمؤسسة كلها تستخدم توقيت هذه المنشأة.",
+    auditYes: "نعم",
+    auditNo: "لا",
+    auditNone: "لا يوجد",
+    auditContext: {
+      amountMinor: "المبلغ",
+      balanceMinor: "الرصيد عند الإغلاق",
+      description: "الوصف",
+      lineId: "البند",
+      reversedLineId: "البند المعكوس",
+      reversalLineId: "بند العكس",
+      stayId: "الإقامة",
+      folioId: "الفوليو",
+      accommodationUnitId: "الوحدة",
+      guestId: "الضيف",
+      guestCreated: "سجل ضيف جديد",
+      startsOn: "الوصول",
+      endsOn: "المغادرة",
+      from: "من",
+      to: "إلى",
+      role: "الدور",
+      added: "الصلاحيات المضافة",
+      removed: "الصلاحيات المحذوفة",
+      permissions: "الصلاحيات",
+      propertyIds: "المنشآت",
+      properties: "المنشآت",
+      propertyId: "المنشأة",
+      userId: "عضو الفريق",
+      name: "الاسم",
+      names: "الأسماء",
+      key: "مفتاح الدور",
+      holders: "من يحملون الدور",
+      unitIds: "الوحدات",
+      unitType: "نوع الوحدة",
+      capacity: "السعة",
+      building: "المبنى",
+      floor: "الطابق",
+      letByTheBed: "يُؤجَّر بالسرير",
+      hadBeenBlockedFor: "سبب الإغلاق السابق",
+    },
     auditAction: {
       reservation: {
         created: "تم أخذ حجز",
@@ -1818,6 +2086,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       staff: {
         invited: "تمت دعوة عضو فريق",
         role_changed: "تم تغيير الدور",
+        role_permissions_changed: "تم تغيير صلاحيات الدور",
         property_assigned: "تم التعيين في منشأة",
         property_unassigned: "تم إلغاء التعيين من منشأة",
         revoked: "تم إلغاء العضوية",

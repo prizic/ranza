@@ -14,6 +14,7 @@ import { getTranslations } from "next-intl/server";
 import { ALL_SCREENS } from "../../../lib/screens";
 import {
   entitledPropertiesByCapability,
+  permittedProperties,
   requireViewer,
   TODAY_CAPABILITY,
 } from "../../../server/viewer";
@@ -60,23 +61,45 @@ export default async function WorkspaceLayout({
   // connection each, and a full page load asked for more at once than the pool
   // holds. The unique capabilities are asked once each; two destinations
   // sharing one (arrivals and departures) do not cost two answers.
+  //
+  // A destination gated by a permission is asked about that instead — the
+  // audit log, which no package selection may remove (ADR 0031) — alongside
+  // the capability read rather than after it.
   const capabilities = [
     ...new Map(
-      ALL_SCREENS.map((screen) => [
+      ALL_SCREENS.filter((screen) => !screen.permission).map((screen) => [
         `${screen.module}:${screen.capability}`,
         { capabilityKey: screen.capability, moduleKey: screen.module },
       ]),
     ).values(),
   ];
-  const answers = await entitledPropertiesByCapability(capabilities);
+  const permitted = ALL_SCREENS.flatMap((screen) =>
+    screen.permission
+      ? [{ key: screen.capability, permission: screen.permission }]
+      : [],
+  );
+  const [byCapability, byPermission] = await Promise.all([
+    entitledPropertiesByCapability(capabilities),
+    Promise.all(
+      permitted.map(async (screen) => ({
+        key: screen.key,
+        reachable: await permittedProperties(screen.permission),
+      })),
+    ),
+  ]);
 
   // Plain strings, so the tree can be built on the client where its icons live.
-  const entitled = answers
-    .filter((answer) => answer.properties.length > 0)
-    .map((answer) => answer.capability.capabilityKey);
+  const entitled = [
+    ...byCapability
+      .filter((answer) => answer.properties.length > 0)
+      .map((answer) => answer.capability.capabilityKey),
+    ...byPermission
+      .filter((answer) => answer.reachable.length > 0)
+      .map((answer) => answer.key),
+  ];
 
   const properties =
-    answers.find(
+    byCapability.find(
       (answer) =>
         answer.capability.moduleKey === TODAY_CAPABILITY.moduleKey &&
         answer.capability.capabilityKey === TODAY_CAPABILITY.capabilityKey,

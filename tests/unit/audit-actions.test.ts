@@ -12,6 +12,7 @@ import {
   isKnownSubject,
   KNOWN_ACTIONS,
   KNOWN_SUBJECTS,
+  readAs,
 } from "../../apps/operator-workspace/src/features/audit-log/actions";
 
 /**
@@ -44,6 +45,16 @@ describe("the audit log's vocabulary", () => {
       expect(isKnownSubject(subject)).toBe(true);
     }
     expect(isKnownSubject("guest")).toBe(false);
+  });
+
+  it("reads an old role edit as a permissions change, and nothing else", () => {
+    expect(readAs("staff.role_changed", "role")).toBe(
+      "staff.role_permissions_changed",
+    );
+    expect(readAs("staff.role_changed", "membership")).toBe(
+      "staff.role_changed",
+    );
+    expect(readAs("folio.closed", "folio")).toBe("folio.closed");
   });
 
   it("calls only the reversals corrections", () => {

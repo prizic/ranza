@@ -13,6 +13,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { latestRecord } from "./audit-record";
 import { createAuditModule } from "../../packages/platform/audit/src";
 import {
   CheckInError,
@@ -526,6 +527,10 @@ describe("checking in", () => {
     expect(history[0]?.action).toBe("reservation.checked_in");
     expect(history[0]?.actorId).toBe(MEMBER);
     expect(history[0]?.context).toMatchObject({ stayId });
+    expect(
+      (await latestRecord(owner, "reservation.checked_in", TO_CHECK_IN))
+        ?.locationId,
+    ).toBe(PROPERTY);
   });
 
   it("refuses a Reservation that has already arrived", async () => {
@@ -737,6 +742,10 @@ describe("taking a booking", () => {
       endsOn: await propertyDay(33),
     });
     expect(created.guestCreated).toBe(true);
+    expect(
+      (await latestRecord(owner, "reservation.created", created.reservationId))
+        ?.locationId,
+    ).toBe(PROPERTY);
 
     const listed = await reservations.listReservations(MEMBER, PROPERTY);
     const booking = listed.find(
@@ -976,6 +985,9 @@ describe("checking out", () => {
       stayId,
     );
     expect(departed?.status).toBe("departed");
+    expect(
+      (await latestRecord(owner, "stay.checked_out", stayId))?.locationId,
+    ).toBe(PROPERTY);
     // They were booked until tomorrow and left today, and the record says so.
     // The status alone would have freed the Unit — the exclusion constraint is
     // partial on it — so without this assertion the date is untested.

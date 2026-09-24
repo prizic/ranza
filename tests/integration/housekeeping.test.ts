@@ -388,9 +388,13 @@ describe(
 describe("marking rooms", { timeout: DATABASE_BUDGET_MS }, () => {
   async function auditOf(unitId: string) {
     return owner.$queryRawUnsafe<
-      { actorId: string; context: { status: string; previousStatus: string } }[]
+      {
+        actorId: string;
+        locationId: string | null;
+        context: { status: string; previousStatus: string };
+      }[]
     >(
-      `select actor_id as "actorId", context
+      `select actor_id as "actorId", location_id as "locationId", context
          from audit.records
         where action = 'housekeeping.status_changed' and subject_id = $1::uuid
           and occurred_at >= $2
@@ -411,6 +415,9 @@ describe("marking rooms", { timeout: DATABASE_BUDGET_MS }, () => {
     expect(row?.changedBy).toBe(MEMBER);
     const [latest] = await auditOf(ROOM);
     expect(latest?.actorId).toBe(MEMBER);
+    // Filed at its Property, so a reader whose reach is that Property sees it
+    // (ADR 0031).
+    expect(latest?.locationId).toBe(PROPERTY);
     expect(latest?.context).toMatchObject({
       status: "clean",
       previousStatus: "dirty",
@@ -698,9 +705,13 @@ describe(
   () => {
     async function inspectionRecords() {
       return owner.$queryRawUnsafe<
-        { subjectType: string; context: { from: string; to: string } }[]
+        {
+          subjectType: string;
+          locationId: string | null;
+          context: { from: string; to: string };
+        }[]
       >(
-        `select subject_type as "subjectType", context
+        `select subject_type as "subjectType", location_id as "locationId", context
          from audit.records
         where action = 'housekeeping.inspection_set'
           and organization_id = $1::uuid and occurred_at >= $2
@@ -743,8 +754,10 @@ describe(
       expect(after?.changedAt.getTime()).toBe(before?.changedAt.getTime());
 
       const [latest] = await inspectionRecords();
+      // The default is about the whole Organization, so it names no Property.
       expect(latest).toMatchObject({
         subjectType: "organization",
+        locationId: null,
         context: { from: "off", to: "on" },
       });
 
@@ -776,9 +789,11 @@ describe(
       const [reset, override] = await inspectionRecords();
       expect(reset).toMatchObject({
         subjectType: "property",
+        locationId: PROPERTY,
         context: { from: "off", to: "default" },
       });
       expect(override).toMatchObject({
+        locationId: PROPERTY,
         context: { from: "default", to: "off" },
       });
     });
