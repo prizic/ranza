@@ -137,8 +137,8 @@ status counting as clean. Fixing a sink does not clean a room, and without the
 rule anybody who may take a room out of order could take a dirty one out and
 return it at once to have it read inspected, stepping around both
 `housekeeping.update_status` and the inspection setting. That rule was decided
-while this ADR was written, after review, and is MT-S2-30; the product owner
-confirms or overturns it with the rest of the rows.
+while this ADR was written, after review, and is MT-S2-30; the product owner,
+Albaraa Zain, signed it off on 2026-09-24 with the rest of the rows.
 
 ### The setting
 
