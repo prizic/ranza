@@ -6,15 +6,22 @@ Status: Accepted
 
 Amended: 2026-09-23 — inspection (slice 3), and what a room with no row means under it.
 
-Amended: 2026-09-24 — a room a Guest has just left is not ready. Once
+Amended: 2026-09-24 — a room a Guest has just left is dirty before the worker
+says so. Once
 [ADR 0033](0033-an-in-house-stay-holds-its-unit-until-it-is-checked-out.md) made
 check-out the only way to re-let a room, every turnover passed through the
-seconds between a check-out and the worker marking the room dirty, and
-readiness read the room as ready in them — and for as long as the worker was
-down. `app.unit_is_ready` now also asks what the worker asks: has a Guest left
-the room since its status last changed? Departures from yesterday's business
-date on, so switching housekeeping on at a Property with a history does not read
-every room as unready (`20260916003950`).
+seconds between a check-out and the worker marking the room dirty — and through
+as long as the worker was down — while the room read clean and ready. The stored
+row is still the only thing anybody writes, but what a room _is_ now reads one
+function, `app.unit_housekeeping_state`: dirty when a Guest has left it since its
+status last changed, its row otherwise, clean with no row. The board's status,
+counts and filter, the status a mark records it replaced, and `app.unit_is_ready`
+all read it, so the desk and the housekeeper see the same room (`20260916003950`,
+`20260916003960`). Departures count from yesterday's business date on, so
+switching housekeeping on at a Property with a history does not read every room
+dirty. The moment of a departure is `stays.departed_at`, which the database
+stamps as a Stay departs and never moves after, rather than `stays.updated_at`,
+which any later write to a departed Stay would move.
 
 ## Context
 

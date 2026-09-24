@@ -11,6 +11,8 @@
  *   `select distinct` removed from the mark   HK-S2-03
  *   the all-or-nothing count check removed    HK-S2-07
  *   the check-in readiness guard removed      HK-S2-14, HK-S2-15, HK-S2-17
+ *   the board reading the stored status       HK-S1-22
+ *   the mark recording the stored status      HK-S1-22
  * HK-S1-05 and HK-S1-09 say nothing happens, so they stay green without a
  * handler; the pgTAP suite breaks the guards they rely on.
  */
@@ -30,6 +32,7 @@ import {
   HousekeepingRefusedError,
 } from "../../packages/ranza/housekeeping/src";
 import { subscriptions } from "../../apps/worker/src/outbox/subscriptions";
+import { latestRecord } from "./audit-record";
 
 const ORG = "dc000002-0000-4000-8000-000000000001";
 const PROPERTY = "dc000003-0000-4000-8000-000000000001";
@@ -254,6 +257,21 @@ async function statusOf(unitId: string): Promise<StatusRow | undefined> {
     unitId,
   );
   return row;
+}
+
+/** A room of the test's own at the Property, with nothing recorded about it. */
+async function aRoomOfItsOwn(): Promise<string> {
+  const room = randomUUID();
+  await owner.$executeRawUnsafe(
+    `insert into public.accommodation_units
+       (id, property_id, organization_id, name, unit_type, capacity)
+     values ($1::uuid, $2::uuid, $3::uuid, $4, 'room', 2)`,
+    room,
+    PROPERTY,
+    ORG,
+    `HK-${room.slice(0, 6)}`,
+  );
+  return room;
 }
 
 beforeAll(async () => {
@@ -833,16 +851,7 @@ describe(
      * whatever an earlier describe left the inspection setting at.
      */
     it("is not ready before the worker marks it, and stays as marked after (HK-S1-21)", async () => {
-      const room = randomUUID();
-      await owner.$executeRawUnsafe(
-        `insert into public.accommodation_units
-           (id, property_id, organization_id, name, unit_type, capacity)
-         values ($1::uuid, $2::uuid, $3::uuid, $4, 'room', 2)`,
-        room,
-        PROPERTY,
-        ORG,
-        `HK-${room.slice(0, 6)}`,
-      );
+      const room = await aRoomOfItsOwn();
       // Ready for its first Guest, whatever the inspection setting: a status
       // row exists, and the departure below is later than it.
       await housekeeping.markUnits(MEMBER, {
@@ -874,6 +883,67 @@ describe(
       // The worker arrives late and leaves the later mark alone (HK-S1-05).
       await drain();
       expect((await statusOf(room))?.status).toBe("inspected");
+    });
+
+    /**
+     * The board is where somebody is told to clean it. Until the worker writes
+     * the room dirty, its stored row still says what it was before the Guest
+     * left; the board, its counts, and the status a mark records it replaced
+     * all say dirty regardless, or the desk hears "not ready" while nobody is
+     * sent to the room (HK-S1-22).
+     */
+    it("reads dirty on the board, and is marked from dirty, before the worker gets there (HK-S1-22)", async () => {
+      const room = await aRoomOfItsOwn();
+      await housekeeping.markUnits(MEMBER, {
+        unitIds: [room],
+        status: "inspected",
+      });
+      const dirtyBefore = (await housekeeping.board(MEMBER, PROPERTY)).counts
+        .dirty;
+
+      const leaving = await inHouse(room);
+      await reservations.checkOut(MEMBER, leaving, REVIEWED);
+      expect((await statusOf(room))?.status).toBe("inspected");
+
+      const board = await housekeeping.board(MEMBER, PROPERTY);
+      const [departure] = await owner.$queryRawUnsafe<
+        { departedAt: Date; occurredAt: Date }[]
+      >(
+        `select stay.departed_at as "departedAt", event.occurred_at as "occurredAt"
+           from public.stays as stay
+           join outbox.events as event
+             on event.event_type = 'stay.checked_out'
+            and event.payload->>'stayId' = stay.id::text
+          where stay.id = $1::uuid`,
+        leaving,
+      );
+      expect(board.rooms.find((row) => row.unitId === room)).toMatchObject({
+        status: "dirty",
+        ready: false,
+        changedAt: departure?.departedAt.toISOString(),
+      });
+      expect(board.counts.dirty).toBe(dirtyBefore + 1);
+      // The moment the board and readiness compare is the worker's own.
+      expect(departure?.departedAt.getTime()).toBe(
+        departure?.occurredAt.getTime(),
+      );
+
+      await housekeeping.markUnits(MEMBER, {
+        unitIds: [room],
+        status: "clean",
+      });
+      expect(
+        (await latestRecord(owner, "housekeeping.status_changed", room))
+          ?.context,
+      ).toMatchObject({ status: "clean", previousStatus: "dirty" });
+      expect(
+        (await housekeeping.board(MEMBER, PROPERTY)).rooms.find(
+          (row) => row.unitId === room,
+        )?.status,
+      ).toBe("clean");
+
+      await drain();
+      expect((await statusOf(room))?.status).toBe("clean");
     });
   },
 );

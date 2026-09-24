@@ -43,11 +43,18 @@ export interface HousekeepingRoom {
   floor: number | null;
   /** How many beds the room is let by; zero for a room let whole. */
   bedCount: number;
-  /** `clean` when the room has no row: a room is born clean. */
+  /**
+   * `clean` when the room has no row: a room is born clean. `dirty` when a
+   * Guest has left it since its status last changed, whatever the row says:
+   * the worker's mark is on its way, and nobody should wait for it.
+   */
   status: HousekeepingStatus;
   /** Whether it may be let tonight as far as housekeeping is concerned. */
   ready: boolean;
-  /** When the status last changed, as an ISO instant; null if it never has. */
+  /**
+   * When the status last changed, as an ISO instant — the departure itself
+   * while the worker has yet to write the room dirty; null if it never has.
+   */
   changedAt: string | null;
   /** Whether somebody is in house in the room or any of its beds. */
   inHouse: boolean;
