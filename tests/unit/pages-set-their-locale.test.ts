@@ -36,6 +36,21 @@ const READS_REQUEST_LOCALE =
 
 const COMMENTS = /\/\*[\s\S]*?\*\/|\/\/.*$/gm;
 
+// Next resolves these apart from the page's body, so the page's
+// `setRequestLocale` does not cover them: each has to hand its reads the
+// locale it was given, or /en gets a Turkish <title> on a client navigation.
+const GENERATE =
+  /export\s+(?:async\s+)?function\s+generate(?:Metadata|Viewport)\b|export\s+const\s+generate(?:Metadata|Viewport)\b/g;
+
+// From each `generate*` export to the next top-level export, or the end.
+function generateBodies(source: string): string[] {
+  return [...source.matchAll(GENERATE)].map((match) => {
+    const start = match.index ?? 0;
+    const next = source.indexOf("\nexport ", start + match[0].length);
+    return source.slice(start, next === -1 ? undefined : next);
+  });
+}
+
 const files = APPLICATIONS.flatMap((application) => {
   const root = path.resolve(
     __dirname,
@@ -65,5 +80,18 @@ describe("pages and layouts under [locale]", () => {
         path.relative(path.resolve(__dirname, "../../apps"), file),
       );
     expect(unset).toEqual([]);
+  });
+
+  it("hand generateMetadata's and generateViewport's reads their locale", () => {
+    const unguarded = files
+      .filter((file) =>
+        generateBodies(readFileSync(file, "utf8").replace(COMMENTS, "")).some(
+          (body) => READS_REQUEST_LOCALE.test(body),
+        ),
+      )
+      .map((file) =>
+        path.relative(path.resolve(__dirname, "../../apps"), file),
+      );
+    expect(unguarded).toEqual([]);
   });
 });
