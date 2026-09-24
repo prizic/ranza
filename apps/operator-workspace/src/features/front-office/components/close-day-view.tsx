@@ -87,7 +87,7 @@ export function CloseDayView({
             {day.dayToClose ? (
               <StatusBadge
                 icon={CalendarCheck}
-                label={t("closeDay.waiting", { n: day.waiting })}
+                label={t("closeDay.waitingBadge", { n: day.waiting })}
                 tone={day.waiting > 1 ? "warning" : "info"}
               />
             ) : (
@@ -95,24 +95,34 @@ export function CloseDayView({
             )}
           </CardAction>
         </CardHeader>
-        {day.dayToClose ? (
-          <CardContent>
-            {day.mayClose ? (
-              <CloseDayDialog
-                businessDate={day.dayToClose}
-                dayLabel={longDay(day.dayToClose, locale)}
-                // A new day to close is a new form: a reason typed for the
-                // day before must not survive into this one.
-                key={day.dayToClose}
-                locale={locale}
-                openItems={open}
-                propertyId={day.propertyId}
-              />
+        <CardContent className="grid gap-4">
+          {day.waiting > 1 ? (
+            <p className="text-step--1">
+              {t("closeDay.waiting", { n: day.waiting })}
+            </p>
+          ) : null}
+          <p className="text-step--1 text-muted-foreground">
+            {t("closeDay.automatic")}
+          </p>
+          {day.dayToClose ? (
+            day.mayClose ? (
+              <div>
+                <CloseDayDialog
+                  businessDate={day.dayToClose}
+                  dayLabel={longDay(day.dayToClose, locale)}
+                  // A new day to close is a new form: a reason typed for the
+                  // day before must not survive into this one.
+                  key={day.dayToClose}
+                  locale={locale}
+                  openItems={open}
+                  propertyId={day.propertyId}
+                />
+              </div>
             ) : (
               <p className="text-step--1">{t("closeDay.noPermission")}</p>
-            )}
-          </CardContent>
-        ) : null}
+            )
+          ) : null}
+        </CardContent>
       </Card>
 
       <Step
@@ -184,20 +194,13 @@ export function CloseDayView({
               className="flex flex-wrap items-center justify-between gap-3 py-3"
               key={row.stayId}
             >
-              <div className="grid gap-0.5">
-                <bdi className="font-medium">
-                  {row.guestName ?? unitLabel(row.roomName, row.unitName)}
-                </bdi>
-                <span className="text-step--1 text-muted-foreground">
-                  <bdi className="tabular-nums">
-                    {unitLabel(row.roomName, row.unitName)}
-                  </bdi>
-                  {" · "}
-                  {t("closeDay.dueOutOn", {
-                    date: shortDay(row.endsOn, locale),
-                  })}
-                </span>
-              </div>
+              <StayLine
+                detail={t("closeDay.dueOutOn", {
+                  date: shortDay(row.endsOn, locale),
+                })}
+                guestName={row.guestName}
+                unit={unitLabel(row.roomName, row.unitName)}
+              />
               <Button asChild size="sm" variant="outline">
                 <Link href={departuresHref}>
                   {t("closeDay.openDepartures")}
@@ -242,20 +245,13 @@ export function CloseDayView({
                   className="flex flex-wrap items-center justify-between gap-3 py-3"
                   key={row.folioId}
                 >
-                  <div className="grid gap-0.5">
-                    <bdi className="font-medium">
-                      {row.guestName ?? unitLabel(row.roomName, row.unitName)}
-                    </bdi>
-                    <span className="text-step--1 text-muted-foreground">
-                      <bdi className="tabular-nums">
-                        {unitLabel(row.roomName, row.unitName)}
-                      </bdi>
-                      {" · "}
-                      {t("closeDay.leftOn", {
-                        date: shortDay(row.departedOn, locale),
-                      })}
-                    </span>
-                  </div>
+                  <StayLine
+                    detail={t("closeDay.leftOn", {
+                      date: shortDay(row.departedOn, locale),
+                    })}
+                    guestName={row.guestName}
+                    unit={unitLabel(row.roomName, row.unitName)}
+                  />
                   <div className="flex items-center gap-3">
                     <span className="font-semibold tabular-nums">
                       {formatMoney(row.balanceMinor, row.currency, locale)}
@@ -342,6 +338,35 @@ export function CloseDayView({
           </Table>
         )}
       </section>
+    </div>
+  );
+}
+
+/**
+ * Who a Stay is, and where. A Stay that began without a Reservation has no
+ * Guest recorded anywhere, and then the room is its name and is said once.
+ */
+function StayLine({
+  detail,
+  guestName,
+  unit,
+}: {
+  detail: string;
+  guestName: string | null;
+  unit: string;
+}) {
+  return (
+    <div className="grid gap-0.5">
+      <bdi className="font-medium tabular-nums">{guestName ?? unit}</bdi>
+      <span className="text-step--1 text-muted-foreground">
+        {guestName ? (
+          <>
+            <bdi className="tabular-nums">{unit}</bdi>
+            {" · "}
+          </>
+        ) : null}
+        {detail}
+      </span>
     </div>
   );
 }

@@ -370,11 +370,17 @@ select is_empty(
 -- either. Then app.front_desk_closes_only_a_settled_folio(), which reads a
 -- Folio's lines the front desk cannot see, to refuse closing one with money on
 -- it; nothing written.
+--
+-- Close the day (20260916005100) brought two, both for the worker alone.
+-- app.properties_due_for_close() is its second cross-Organization read (ADR
+-- 0018 amended) and writes nothing; app.close_business_day_automatically()
+-- writes a close and its event, and checks worker_organization_id() before
+-- anything, which is what keeps the sweep above at zero.
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  35,
-  'the definer sweep looked at 35 functions; change this number deliberately');
+  37,
+  'the definer sweep looked at 37 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -384,14 +390,15 @@ select is(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef and p.prosrc ~* '(insert|update|delete)\s'),
-  4,
-  'four of them write, which is what makes the assertion above a test');
+  5,
+  'five of them write, which is what makes the assertion above a test');
 
 -- Part B: the inventory itself, so a thirty-sixth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
--- four are housekeeping; five are the audit log's reach; and the last three
--- are the front desk's. The four that write are named in the comments above.
+-- four are housekeeping; five are the audit log's reach; three are the front
+-- desk's; and the last two are the worker's close. The five that write are
+-- named in the comments above.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -412,8 +419,9 @@ select set_eq(
         'audit_reader_organization_ids','audit_location_is_in_scope',
         'audit_location_names',
         'unit_holds_one_occupancy','stay_and_reservation_agree',
-        'front_desk_closes_only_a_settled_folio'],
-  'and they are exactly the thirty-five the design gives a reason for');
+        'front_desk_closes_only_a_settled_folio',
+        'properties_due_for_close','close_business_day_automatically'],
+  'and they are exactly the thirty-seven the design gives a reason for');
 
 select finish();
 rollback;

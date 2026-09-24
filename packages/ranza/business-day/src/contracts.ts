@@ -16,6 +16,9 @@
  */
 export const CLOSE_REASON = { min: 3, max: 2000 } as const;
 
+/** The job the worker closes a day as, named on the close (ADR 0018). */
+export const CLOSE_JOB = "business_day.close";
+
 /**
  * A booking whose first night has come and nobody arrived: requested or
  * confirmed, with its first night on the day being closed or before.
@@ -145,4 +148,25 @@ export class CloseInputError extends Error {
     super(message);
     this.name = "CloseInputError";
   }
+}
+
+/**
+ * What `app.close_business_day_automatically()` did with one due day.
+ *
+ * `open_items` is the ordinary answer, not a failure: the day waits for its
+ * desk, and the next pass asks again.
+ */
+export type AutomaticCloseOutcome =
+  "closed" | "open_items" | "already_closed" | "not_due" | "unavailable";
+
+/**
+ * One pass of the worker: what was due, what closed, what waits on its desk,
+ * and each Property whose close failed, with the error, so the caller reports
+ * every one rather than a count.
+ */
+export interface DayCloserReport {
+  due: number;
+  closed: number;
+  open: number;
+  failures: { propertyId: string; error: unknown }[];
 }

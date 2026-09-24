@@ -25,9 +25,10 @@ import { staffReachSubscription } from "./staff-reach";
  *   - **Send the confirmation.** Notifications are blueprint 5.12 and there is
  *     no module. A provider, a template and a delivery record are three
  *     decisions, not a handler.
- *   - **Post the nightly room charge.** That is the night audit, which needs a
- *     business date first (ADR 0021) and, before that, something with a rate to
- *     charge. Nothing has a price column anywhere.
+ *   - **Post the nightly room charge.** Closing the day is built (ADR 0034) and
+ *     is a scheduled job, not a handler; posting room nights is its third
+ *     slice, and still needs something with a rate to charge. Nothing has a
+ *     price column anywhere.
  *
  * The machinery landed before any of them on purpose. The lease, the
  * idempotency and the retry schedule are proved by

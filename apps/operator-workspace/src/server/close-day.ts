@@ -68,14 +68,18 @@ export async function closeBusinessDay(
       reason.length > 0 ? reason : null,
     );
   } catch (error) {
-    // Every refusal refreshes the screen too. It is usually stale when the
-    // close is refused — another desk closed it, an item was reopened, the
-    // cutoff moved the day on — and a dialog left showing the old day is a
-    // dead end: no reason field for an item it cannot see, or a day that can
-    // no longer be closed.
-    revalidatePath(`/${locale}/close-day`);
+    // A refusal means the screen is stale — another desk or the worker closed
+    // the day, an item reappeared, the cutoff moved the day on — and it is
+    // refreshed either way, at one of two moments. An item that reappeared is
+    // refreshed now: the dialog stays, because the day is the same, and gains
+    // the reason field it needs. The other two change which day is waiting, so
+    // refreshing now would take the dialog, and the message saying why, away
+    // with it; the dialog refreshes the screen when it is dismissed instead.
     if (error instanceof DayAlreadyClosedError) return "alreadyClosed";
-    if (error instanceof CloseReasonRequiredError) return "reasonRequired";
+    if (error instanceof CloseReasonRequiredError) {
+      revalidatePath(`/${locale}/close-day`);
+      return "reasonRequired";
+    }
     if (
       !(error instanceof BusinessDayCloseError) &&
       !(error instanceof CloseInputError)

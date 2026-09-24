@@ -30,6 +30,18 @@ await days.getCloseTheDay(userId, propertyId); // the checklist, or null
 await days.closeDay(userId, propertyId, "2026-09-23", reasonOrNull);
 ```
 
+The worker closes a quiet day through the closer, which takes the
+`ranza_worker` client and nothing else:
+
+```ts
+const closer = createDayCloser({ db }); // db: the ranza_worker client (ADR 0018)
+const { due, closed, open, failures } = await closer.closeDueDays();
+```
+
+It reaches the table only through two functions granted to that role — which
+days are due, across Organizations, and closing one inside an Organization's
+context, only when nothing is open. ADR 0018 is amended for the first.
+
 `closeDay` throws `DayAlreadyClosedError` when another desk or the worker got
 there first, `CloseReasonRequiredError` when items are open and no reason was
 given, and `BusinessDayCloseError` for everything else — out of reach, not

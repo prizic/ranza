@@ -545,8 +545,10 @@ export interface Messages {
     dueTitle: string;
     dueDescription: string;
     waiting: string;
+    waitingBadge: string;
     preparingTitle: string;
     preparingDescription: string;
+    automatic: string;
     notArrivedTitle: string;
     notArrivedHelp: string;
     notDepartedTitle: string;
@@ -1191,9 +1193,12 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Gün {time} saatinde bitti. Hâlâ açık olanları çözün ya da bir gerekçeyle kapatın.",
       waiting:
         "{n, plural, one {Kapatılmayı bekleyen # gün var.} other {Kapatılmayı bekleyen # gün var; önce en eskisi kapatılır.}}",
+      waitingBadge: "{n, plural, other {# gün bekliyor}}",
       preparingTitle: "{date} hâlâ açık",
       preparingDescription:
         "{time} saatinden sonra kapatılabilir. Aşağıda açık kalan her şey kapatmayı bekletir.",
+      automatic:
+        "Açık hiçbir şey kalmayan bir gün, bitişinden kısa süre sonra kendiliğinden kapanır.",
       notArrivedTitle: "Giriş yapmamış rezervasyonlar",
       notArrivedHelp:
         "Gelmedi olarak işaretleyin, rezervasyonu iptal edin ya da hâlâ geliyorlarsa girişlerini yapın.",
@@ -1230,11 +1235,12 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Günün neden açık kayıtlarla kapandığını yazın. Kapanışla birlikte saklanır.",
       noPermission:
         "Bu günü görebilirsiniz; kapatmak için Günü kapatma yetkisi gerekir.",
-      alreadyClosed: "Bu gün başka bir masa tarafından zaten kapatıldı.",
+      alreadyClosed:
+        "Bu gün zaten kapatıldı; başka bir masa ya da otomatik kapanış tarafından.",
       reasonRequired:
         "Hâlâ açık kayıtlar var, bu yüzden bir gerekçe gerekiyor.",
       refused:
-        "Bu gün şu anda kapatılamıyor. Sayfa kapatılabilecek günü gösteriyor.",
+        "Bu gün şu anda kapatılamıyor. Bunu kapattığınızda sayfa kapatılabilecek günü gösterecek.",
       recentTitle: "Son kapatılan günler",
       recentEmpty: "Bu tesiste henüz kapatılmış bir gün yok.",
       day: "Gün",
@@ -1865,9 +1871,12 @@ export const messages: Record<SupportedLocale, Messages> = {
         "The day ended at {time}. Clear what is still open, or close it with a reason.",
       waiting:
         "{n, plural, one {# day is waiting to be closed.} other {# days are waiting to be closed; the oldest comes first.}}",
+      waitingBadge: "{n, plural, one {# day waiting} other {# days waiting}}",
       preparingTitle: "{date} is still open",
       preparingDescription:
         "It can be closed after {time}. Anything still open below will hold the close up.",
+      automatic:
+        "A day with nothing left open closes by itself shortly after it ends.",
       notArrivedTitle: "Arrivals not checked in",
       notArrivedHelp:
         "Mark a no-show, cancel the booking, or check them in if they are still coming.",
@@ -1904,10 +1913,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Say why the day closes with items open. It is kept with the close.",
       noPermission:
         "You can see this day, but closing it needs the Close the day permission.",
-      alreadyClosed: "This day has already been closed by another desk.",
+      alreadyClosed:
+        "This day has already been closed, by another desk or automatically.",
       reasonRequired: "Items are still open, so a reason is needed.",
       refused:
-        "This day cannot be closed right now. The page shows the day that can.",
+        "This day cannot be closed right now. Close this and the page will show the day that can.",
       recentTitle: "Recently closed",
       recentEmpty: "No day has been closed here yet.",
       day: "Day",
@@ -2524,9 +2534,13 @@ export const messages: Record<SupportedLocale, Messages> = {
         "انتهى اليوم عند {time}. عالج ما زال مفتوحًا، أو أغلقه مع ذكر السبب.",
       waiting:
         "{n, plural, zero {لا أيام تنتظر الإغلاق.} one {يوم واحد ينتظر الإغلاق.} two {يومان ينتظران الإغلاق، ويُغلق الأقدم أولًا.} few {# أيام تنتظر الإغلاق، ويُغلق الأقدم أولًا.} many {# يومًا تنتظر الإغلاق، ويُغلق الأقدم أولًا.} other {# يوم تنتظر الإغلاق، ويُغلق الأقدم أولًا.}}",
+      waitingBadge:
+        "{n, plural, zero {لا أيام تنتظر} one {يوم واحد ينتظر} two {يومان ينتظران} few {# أيام تنتظر} many {# يومًا تنتظر} other {# يوم تنتظر}}",
       preparingTitle: "{date} ما زال مفتوحًا",
       preparingDescription:
         "يمكن إغلاقه بعد {time}. أي شيء ما زال مفتوحًا أدناه سيؤخر الإغلاق.",
+      automatic:
+        "اليوم الذي لم يبقَ فيه شيء مفتوح يُغلق تلقائيًا بعد انتهائه بقليل.",
       notArrivedTitle: "حجوزات لم يُسجَّل وصولها",
       notArrivedHelp:
         "سجّل عدم الحضور، أو ألغِ الحجز، أو سجّل وصولهم إن كانوا ما زالوا قادمين.",
@@ -2564,10 +2578,10 @@ export const messages: Record<SupportedLocale, Messages> = {
         "اذكر سبب إغلاق اليوم مع وجود عناصر مفتوحة. يُحفظ مع الإغلاق.",
       noPermission:
         "يمكنك رؤية هذا اليوم، لكن إغلاقه يتطلب صلاحية إغلاق اليوم.",
-      alreadyClosed: "أغلق مكتب آخر هذا اليوم بالفعل.",
+      alreadyClosed: "أُغلق هذا اليوم بالفعل، من مكتب آخر أو تلقائيًا.",
       reasonRequired: "ما زالت هناك عناصر مفتوحة، لذلك يلزم ذكر سبب.",
       refused:
-        "لا يمكن إغلاق هذا اليوم الآن. تعرض الصفحة اليوم الذي يمكن إغلاقه.",
+        "لا يمكن إغلاق هذا اليوم الآن. أغلق هذه النافذة وستعرض الصفحة اليوم الذي يمكن إغلاقه.",
       recentTitle: "أيام أُغلقت مؤخرًا",
       recentEmpty: "لم يُغلق أي يوم هنا بعد.",
       day: "اليوم",

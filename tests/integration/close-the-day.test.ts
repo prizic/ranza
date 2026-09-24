@@ -30,6 +30,8 @@ import {
 } from "../../packages/ranza/business-day/src";
 import {
   CheckInDayClosedError,
+  CheckInError,
+  CheckOutError,
   createReservationsModule,
   ReservationPeriodError,
 } from "../../packages/ranza/reservations/src";
@@ -562,6 +564,56 @@ describe("recorded and published", () => {
       propertyId: property,
       businessDate: yesterday,
     });
+  });
+});
+
+/**
+ * Today itself closed, in replica mode: a state the clock never produces, and
+ * exactly what a check-in or check-out in flight meets when the day it read at
+ * its start is closed before it commits.
+ */
+async function closedUnderfoot(propertyId: string): Promise<void> {
+  await owner.$transaction([
+    owner.$executeRawUnsafe(`set local session_replication_role = replica`),
+    owner.$executeRawUnsafe(
+      `insert into public.business_day_closes
+         (organization_id, property_id, business_date, closed_by_job)
+       values ($1::uuid, $2::uuid, app.property_today($2::uuid), 'test.fixture')`,
+      ORG,
+      propertyId,
+    ),
+  ]);
+}
+
+describe("a command in flight when its day closes", () => {
+  it("a check-in whose day closes under it is refused as a check-in", async () => {
+    const property = await aProperty();
+    const booking = await aBooking(
+      property,
+      await aUnit(property),
+      "confirmed",
+      0,
+      2,
+    );
+    await closedUnderfoot(property);
+
+    const refused = reservations.checkIn(DESK, booking);
+    await expect(refused).rejects.toBeInstanceOf(CheckInError);
+    await expect(refused).rejects.toThrow(/closed during the check-in/);
+  });
+
+  it("a check-out whose day closes under it is refused as a check-out", async () => {
+    const property = await aProperty();
+    const stay = await aStay(property, await aUnit(property), -2, 0);
+    await closedUnderfoot(property);
+
+    const refused = reservations.checkOut(DESK, stay, {
+      folioVersion: null,
+      earlyDeparture: false,
+      balanceReason: null,
+    });
+    await expect(refused).rejects.toBeInstanceOf(CheckOutError);
+    await expect(refused).rejects.toThrow(/closed during the check-out/);
   });
 });
 

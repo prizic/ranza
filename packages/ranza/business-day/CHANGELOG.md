@@ -16,3 +16,7 @@ everything lands under Unreleased.
   ([ADR 0034](../../../docs/adr/0034-a-business-day-closes-after-its-cutoff.md)).
 - `getCloseTheDay()` and `closeDay()`, which publishes and audits
   `business_day.closed`.
+- `createDayCloser()`, the worker's half: one pass asks which days are due
+  through `app.properties_due_for_close()` and closes each quiet one through
+  `app.close_business_day_automatically()`, one transaction per Property, and
+  reports every failure with its Property rather than stopping.
