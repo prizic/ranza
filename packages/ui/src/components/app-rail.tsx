@@ -149,8 +149,12 @@ function AppSidebarInner({
       <div className="glass-panel flex min-h-0 w-full flex-col overflow-hidden rounded-2xl lg:rounded-3xl">
         <div
           className={cn(
-            "flex h-16 shrink-0 items-center lg:h-20 xl:h-24 [@media(max-height:750px)]:h-14 [@media(min-height:751px)_and_(max-height:960px)]:h-20",
-            collapsed ? "px-3" : "px-4 lg:px-6",
+            "flex shrink-0 items-center",
+            // Collapsed, the mark and the toggle stack, so the block takes
+            // their height; a fixed one leaves the mark against the edge.
+            collapsed
+              ? "px-3 py-4"
+              : "h-16 px-4 lg:h-20 lg:px-6 xl:h-24 [@media(max-height:750px)]:h-14 [@media(min-height:751px)_and_(max-height:960px)]:h-20",
           )}
         >
           {collapsed ? (
