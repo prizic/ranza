@@ -292,6 +292,14 @@ async function exceptionsOf(propertyId: string, businessDate: string) {
   return row?.exceptions ?? null;
 }
 
+/**
+ * The bounds for an owner transaction held open across a race. Prisma's
+ * five-second default expired under load while the second command was still
+ * being watched, rolling the first back and releasing its lock before the race
+ * had run. `withOrganizationContext` already sets bounds of its own.
+ */
+const HELD = { maxWait: 15_000, timeout: 60_000 };
+
 /** A promise, and the function that settles it. */
 function gate(): { opened: Promise<void>; open: () => void } {
   let open!: () => void;
@@ -731,7 +739,7 @@ describe("two people at once", () => {
           yesterday,
         );
         await hold();
-      }),
+      }, HELD),
     );
     await writing.written;
     const closing = days.closeDay(DESK, property, yesterday, null);
