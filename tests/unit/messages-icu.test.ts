@@ -103,12 +103,15 @@ describe("every catalogue parses", () => {
                 columns: "x",
                 count: 2,
                 date: "16 Sep",
+                floor: 2,
                 guest: "x",
                 max: 2,
                 min: 2,
                 n: 2,
                 of: 9,
                 property: "x",
+                room: "x",
+                value: "x",
               }),
             ).not.toThrow();
             return;

@@ -11,6 +11,19 @@ everything lands under Unreleased.
 
 ### Added
 
+- `locationId` on an entry and a record: where inside the scope it happened,
+  opaque to this module. Read reach narrows to it (ADR 0031).
+- `recentWithin(tx, scope, filter)` narrows by actions, location, time range
+  and text, and pages by keyset; `getWithin(tx, scope, id)` reads one record.
+
+### Changed
+
+- `recentWithin`'s third argument is a filter object rather than a limit, and
+  `ScopeHistory` gains `nextCursor`. `total` is now a count of every matching
+  record rather than a window over the page.
+- The runtime role may insert only the eight columns a record is made of —
+  not `id`, not `occurred_at`.
+
 - `recordWithin(tx, entry)`: the same validation and statement as `record()`,
   joining a transaction the caller already owns. A caller writing several things
   at once needs the record to share their fate — two transactions can

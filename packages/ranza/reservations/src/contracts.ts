@@ -95,10 +95,18 @@ export interface Arrival {
   unitType: AccommodationUnitType;
   unitStatus: string;
   /**
+   * Whether housekeeping says the room is ready (ADR 0029): not dirty, as
+   * `app.unit_is_ready()` reads it. True where the Property has no
+   * housekeeping, because a room nobody records is a room nobody warns about.
+   * Presentation, like `canCheckIn`: check-in reads it again for itself.
+   */
+  unitIsReady: boolean;
+  /**
    * Whether check-in would succeed, from the same conditions `checkIn` and the
    * triggers apply — asserted against the command in the integration suite.
    * The two drifted apart once already, and a button that raises when pressed
-   * is worse than one that is not offered.
+   * is worse than one that is not offered. A room housekeeping has not made
+   * ready is still offered: that is asked about, not refused (`unitIsReady`).
    */
   canCheckIn: boolean;
   /** Why not, when it is something the desk can act on; null otherwise. */
@@ -297,6 +305,21 @@ export class UnitNotInServiceError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "UnitNotInServiceError";
+  }
+}
+
+/**
+ * The room is not ready and the desk has not said to go ahead (HK-S2-14).
+ *
+ * Not a refusal: nothing is wrong with the Reservation, and checking in anyway
+ * is allowed once acknowledged. Its own type so the desk is asked rather than
+ * told no, and so the check-in rolls back whole — no Stay, no Folio, no event —
+ * until they answer.
+ */
+export class UnitNotReadyError extends Error {
+  constructor() {
+    super("that Accommodation Unit is not ready");
+    this.name = "UnitNotReadyError";
   }
 }
 

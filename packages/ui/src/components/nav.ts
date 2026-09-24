@@ -30,6 +30,18 @@ export type NavEntry = NavLeaf | NavGroup;
 export const isNavGroup = (entry: NavEntry): entry is NavGroup =>
   "children" in entry;
 
+/**
+ * The path of an href, without its query string.
+ *
+ * A host may carry state on its links — which Property is being worked in, say
+ * — and a link is still the page it points at whatever it carries, so every
+ * "is this the current page" question compares paths.
+ */
+export function hrefPath(href: string): string {
+  const query = href.indexOf("?");
+  return query === -1 ? href : href.slice(0, query);
+}
+
 /** The group a route sits in, so the rail can open itself where the reader is. */
 export function navGroupFor(
   pathname: string,
@@ -38,7 +50,9 @@ export function navGroupFor(
   return (
     entries
       .filter(isNavGroup)
-      .find((group) => group.children.some((c) => c.href === pathname)) ?? null
+      .find((group) =>
+        group.children.some((c) => hrefPath(c.href) === pathname),
+      ) ?? null
   );
 }
 

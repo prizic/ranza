@@ -10,6 +10,7 @@ import {
   CircleDashed,
   DoorClosed,
   DoorOpen,
+  SprayCan,
 } from "lucide-react";
 import type { Arrival, Departure, ReservationRow } from "@ranza/reservations";
 import {
@@ -114,6 +115,7 @@ const RESERVATION_ICON = {
 
 export function useArrivalColumns(
   locale: SupportedLocale,
+  propertyId: string,
 ): ColumnDef<Arrival, unknown>[] {
   const t = useTranslations();
   const sort = useSortLabels();
@@ -205,9 +207,9 @@ export function useArrivalColumns(
           title={t("readiness")}
         />
       ),
-      // What the room is doing for this arrival, from the same facts check-in
-      // refuses on. "Vacant" rather than "ready": whether it has been cleaned
-      // is the housekeeping lifecycle's to say, and nothing records it yet.
+      // What the room is doing for this arrival: first whatever check-in
+      // refuses on, from the same facts; then housekeeping's answer, which
+      // is asked about at check-in and never refused (ADR 0029).
       cell: ({ row }) => {
         const arrival = row.original;
         if (arrival.status === "checked_in") {
@@ -236,7 +238,11 @@ export function useArrivalColumns(
             );
           case "unit_blocked":
             return (
-              <StatusBadge icon={Ban} label={t("unitBlocked")} tone="danger" />
+              <StatusBadge
+                icon={Ban}
+                label={t("blockedStatus")}
+                tone="danger"
+              />
             );
           case "unit_out_of_service":
             return (
@@ -251,11 +257,17 @@ export function useArrivalColumns(
               />
             );
           default:
-            return (
+            return arrival.unitIsReady ? (
               <StatusBadge
                 icon={CircleCheck}
-                label={t("vacant")}
+                label={t("ready")}
                 tone="success"
+              />
+            ) : (
+              <StatusBadge
+                icon={SprayCan}
+                label={t("notReady")}
+                tone="warning"
               />
             );
         }
@@ -334,6 +346,7 @@ export function useArrivalColumns(
               folioId={arrival.folioId}
               guestName={arrival.guestName}
               locale={locale}
+              propertyId={propertyId}
             />
           </div>
         );
@@ -344,6 +357,7 @@ export function useArrivalColumns(
 
 export function useDepartureColumns(
   locale: SupportedLocale,
+  propertyId: string,
 ): ColumnDef<Departure, unknown>[] {
   const t = useTranslations();
   const sort = useSortLabels();
@@ -500,12 +514,14 @@ export function useDepartureColumns(
               departure={row.original}
               key={row.original.stayId}
               locale={locale}
+              propertyId={propertyId}
             />
           ) : null}
           <FrontDeskRowMenu
             folioId={row.original.folioId}
             guestName={row.original.guestName || t("noGuestRecorded")}
             locale={locale}
+            propertyId={propertyId}
           />
         </div>
       ),
@@ -527,6 +543,7 @@ export function useDepartureColumns(
  */
 export function useReservationColumns(
   locale: SupportedLocale,
+  propertyId: string,
 ): ColumnDef<ReservationRow, unknown>[] {
   const t = useTranslations();
   const sort = useSortLabels();
@@ -667,6 +684,7 @@ export function useReservationColumns(
               folioId={null}
               guestName={row.original.guestName}
               locale={locale}
+              propertyId={propertyId}
             />
           </div>
         ) : null,

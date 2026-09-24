@@ -13,6 +13,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { latestRecord } from "./audit-record";
 import { createAuditModule } from "../../packages/platform/audit/src";
 import {
   closeEmptyFolioWithin,
@@ -226,6 +227,14 @@ describe("withdrawing a check-in", () => {
     const { stayId } = await reservations.checkIn(MEMBER, wrong);
 
     await reservations.reverseCheckIn(MEMBER, stayId, REASON);
+
+    const withdrawn = await latestRecord(
+      owner,
+      "reservation.check_in_reversed",
+      wrong,
+    );
+    expect(withdrawn?.locationId).toBe(PROPERTY);
+    expect(withdrawn?.reason).toBe(REASON);
 
     // Cancelled, not deleted and not back to `reserved`: a Stay that was in
     // house and is now reserved is indistinguishable from one that never

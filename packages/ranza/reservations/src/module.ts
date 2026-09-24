@@ -29,8 +29,9 @@ import {
   ReservationRefusedError,
   REVERSAL_REASON,
   StayHasChargesError,
-  UnitNotInServiceError,
   UnitHasOccupantError,
+  UnitNotInServiceError,
+  UnitNotReadyError,
   UnitUnavailableError,
   type Arrival,
   type BookableUnit,
@@ -142,6 +143,12 @@ interface MovedReservation {
    */
   arrivedOn: Date;
   endsOn: Date | null;
+  /**
+   * Whether housekeeping says the room is ready, read in the same statement
+   * that moves the Reservation, so the warning and the check-in cannot
+   * disagree about a room somebody marked clean in between (HK-S2-17).
+   */
+  unitIsReady: boolean;
 }
 
 export function createReservationsModule(deps: ReservationsDeps) {
@@ -278,6 +285,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
           room_name                                   as "roomName",
           unit_type                                   as "unitType",
           unit_status                                 as "unitStatus",
+          -- Housekeeping's answer (ADR 0029), not a blocker: a room that is
+          -- not ready is asked about at check-in, never refused.
+          app.unit_is_ready(accommodation_unit_id)    as "unitIsReady",
           -- What checkIn's update and the Stay triggers refuse, in the order a
           -- desk would fix them. Every clause mirrors one of them: the status
           -- and the dates are the update's predicate, the Unit's status is
@@ -365,6 +375,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
   async function checkIn(
     userId: string,
     reservationId: string,
+    options: { readinessAcknowledged?: boolean } = {},
   ): Promise<CheckedIn> {
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
       // The Unit's lock before the Reservation's row lock. The occupancy
@@ -392,7 +403,8 @@ export function createReservationsModule(deps: ReservationsDeps) {
           accommodation_unit_id           as "accommodationUnitId",
           stay_type                       as "stayType",
           app.property_today(property_id) as "arrivedOn",
-          ends_on                         as "endsOn"
+          ends_on                         as "endsOn",
+          app.unit_is_ready(accommodation_unit_id) as "unitIsReady"
       `;
 
       const [reservation] = moved;
@@ -401,6 +413,14 @@ export function createReservationsModule(deps: ReservationsDeps) {
         // message for all four: telling them apart would confirm that a
         // Reservation the caller cannot see is there.
         throw new CheckInError("that Reservation cannot be checked in");
+      }
+
+      // A room that is not ready is the desk's call, not a refusal: asked
+      // once, and allowed after they say so (HK-S2-14, HK-S2-15). Thrown
+      // before anything else is written, so the answer they give is to a
+      // check-in that has not half happened.
+      if (!reservation.unitIsReady && !options.readinessAcknowledged) {
+        throw new UnitNotReadyError();
       }
 
       // Every value comes from the row the update returned, never from the
@@ -486,6 +506,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
       await recordWithin(tx, {
         organizationId: reservation.organizationId,
         actorId: userId,
+        locationId: reservation.propertyId,
         action: "reservation.checked_in",
         subjectType: "reservation",
         subjectId: reservationId,
@@ -493,6 +514,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
           stayId: created.stayId,
           accommodationUnitId: reservation.accommodationUnitId,
           folioId: folio?.folioId ?? null,
+          // Only when it was true when the check-in happened: an
+          // acknowledgement for a room somebody cleaned in the meantime is not
+          // a room checked into dirty (HK-S2-17).
+          ...(reservation.unitIsReady ? {} : { roomWasNotReady: true }),
         },
       });
 
@@ -628,6 +653,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
       await recordWithin(tx, {
         organizationId: withdrawn.organizationId,
         actorId: userId,
+        locationId: withdrawn.propertyId,
         action: "reservation.check_in_reversed",
         subjectType: "reservation",
         subjectId: withdrawn.reservationId,
@@ -919,6 +945,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
       await recordWithin(tx, {
         organizationId: closed.organizationId,
         actorId: userId,
+        locationId: closed.propertyId,
         action: "stay.checked_out",
         subjectType: "stay",
         subjectId: stayId,
@@ -1234,6 +1261,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
 
       await recordWithin(tx, {
         organizationId: unit.organizationId,
+        locationId: unit.propertyId,
         actorId: userId,
         action: "reservation.created",
         subjectType: "reservation",
@@ -1329,6 +1357,8 @@ export function createReservationsModule(deps: ReservationsDeps) {
 
       await recordWithin(tx, {
         organizationId: row.organizationId,
+        // Filed at its Property, like every Reservation record (ADR 0031).
+        locationId: row.propertyId,
         actorId: userId,
         action,
         subjectType: "reservation",

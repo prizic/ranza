@@ -50,6 +50,11 @@ export function LiveDepartures({
   // Present on first paint from the prefetch. A refusal leaves the last good
   // rows on screen rather than blanking a working list.
   return (
-    <DeparturesTable departures={data ?? []} locale={locale} view={view} />
+    <DeparturesTable
+      departures={data ?? []}
+      locale={locale}
+      propertyId={scope.propertyId}
+      view={view}
+    />
   );
 }

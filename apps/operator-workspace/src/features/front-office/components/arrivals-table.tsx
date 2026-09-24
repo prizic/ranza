@@ -17,13 +17,16 @@ import { useArrivalColumns } from "./columns";
 export function ArrivalsTable({
   arrivals,
   locale,
+  propertyId,
 }: {
   arrivals: readonly Arrival[];
   locale: SupportedLocale;
+  /** The Property the rows belong to, which links out of them name. */
+  propertyId: string;
 }) {
   const t = useTranslations();
   const labels = useTableLabels();
-  const columns = useArrivalColumns(locale);
+  const columns = useArrivalColumns(locale, propertyId);
 
   return (
     <div className="mt-4">
@@ -38,7 +41,7 @@ export function ArrivalsTable({
           />
         }
         labels={labels}
-        rowId={(row) => row.reservationId}
+        getRowId={(row) => row.reservationId}
         searchColumns={["guestName", "unitName", "roomName", "reference"]}
       />
     </div>

@@ -17,15 +17,18 @@ import { useDepartureColumns } from "./columns";
 export function DeparturesTable({
   departures,
   locale,
+  propertyId,
   view,
 }: {
   departures: readonly Departure[];
   locale: SupportedLocale;
   view: DepartureView;
+  /** The Property the rows belong to, which links out of them name. */
+  propertyId: string;
 }) {
   const t = useTranslations();
   const labels = useTableLabels();
-  const columns = useDepartureColumns(locale);
+  const columns = useDepartureColumns(locale, propertyId);
 
   return (
     <div className="mt-4">
@@ -47,7 +50,7 @@ export function DeparturesTable({
           )
         }
         labels={labels}
-        rowId={(row) => row.stayId}
+        getRowId={(row) => row.stayId}
         searchColumns={["guestName", "unitName", "roomName", "reference"]}
       />
     </div>

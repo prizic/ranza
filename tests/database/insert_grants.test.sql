@@ -346,6 +346,21 @@ select is_empty(
 -- — and neither writes, so the count of writers below is unchanged and the
 -- sweep above still reads zero.
 --
+-- Housekeeping (20260916003000) brought two more. app.housekeeping_status_holder_is_a_room()
+-- is a definer so a Unit the caller cannot see is still recognised as a bed,
+-- and it does not write. app.mark_unit_dirty_after_check_out() writes: it is
+-- the whole of what ranza_worker may do to housekeeping_unit_status, and it
+-- names app.worker_organization_id(), which is what IG-12 asks of a writer.
+-- The inspection setting (20260916003200) brought two that do not write:
+-- app.has_organization_wide_reach(), so a policy can read the caller's
+-- membership, and app.housekeeping_inspection_required(), so readiness never
+-- reads an invisible setting as "off".
+-- The audit log's reach (20260916004200) brought five: the four the
+-- audit.records read policy consults about its caller — which Properties,
+-- which Organizations wholly, which with audit.read, and whether a location
+-- belongs to a scope — and app.audit_location_names(), which names an archived
+-- Property the ordinary policy hides. All five ask only about the caller and
+-- none writes.
 -- One guest in one Unit (20260916003700) brought one more,
 -- app.unit_holds_one_occupancy(). A definer for the same reason again: whether
 -- a Unit is free is not a question the actor's policies may shrink, or a room
@@ -358,8 +373,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  26,
-  'the definer sweep looked at 26 functions; change this number deliberately');
+  35,
+  'the definer sweep looked at 35 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -369,14 +384,14 @@ select is(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef and p.prosrc ~* '(insert|update|delete)\s'),
-  3,
-  'three of them write, which is what makes the assertion above a test');
+  4,
+  'four of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a twenty-fourth definer is a red test
+-- Part B: the inventory itself, so a thirty-third definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
--- reason for; the ten after are staff and permissions, and the three that
--- write are named in the comment above; then two for rooms and beds, and three
--- for the front desk.
+-- reason for; the ten after are staff and permissions; two are rooms and beds;
+-- four are housekeeping; five are the audit log's reach; and the last three
+-- are the front desk's. The four that write are named in the comments above.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -390,9 +405,15 @@ select set_eq(
         'organization_keeps_an_administrator','organization_permissions',
         'role_change_keeps_an_administrator','role_is_not_held',
         'role_permissions_are_in_the_catalogue',
-        'unit_can_be_blocked','unit_is_in_service','unit_holds_one_occupancy',
-        'stay_and_reservation_agree','front_desk_closes_only_a_settled_folio'],
-  'and they are exactly the twenty-six the design gives a reason for');
+        'unit_can_be_blocked','unit_is_in_service',
+        'housekeeping_status_holder_is_a_room','mark_unit_dirty_after_check_out',
+        'has_organization_wide_reach','housekeeping_inspection_required',
+        'audit_reachable_locations','audit_whole_organization_ids',
+        'audit_reader_organization_ids','audit_location_is_in_scope',
+        'audit_location_names',
+        'unit_holds_one_occupancy','stay_and_reservation_agree',
+        'front_desk_closes_only_a_settled_folio'],
+  'and they are exactly the thirty-five the design gives a reason for');
 
 select finish();
 rollback;

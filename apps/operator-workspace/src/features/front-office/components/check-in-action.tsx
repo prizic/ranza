@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button, FormError } from "@ranza/ui";
 import { claimCheckInFocus } from "../check-in-focus";
@@ -41,6 +41,9 @@ export function CheckInAction({
   // go afterwards — today that is withdrawing a check-in, which replaces its
   // own dialog with this button. Claimed rather than read, so it happens once.
   const button = useRef<HTMLButtonElement>(null);
+  // "Not now" after the warning: the row goes back to its plain button, and
+  // the next press asks again, because the server is what decides.
+  const [declined, setDeclined] = useState(false);
   useEffect(() => {
     if (claimCheckInFocus(reservationId)) button.current?.focus();
   }, [reservationId]);
@@ -57,12 +60,50 @@ export function CheckInAction({
             : null;
 
   return (
-    <form action={act} className="grid justify-items-end gap-1.5">
+    <form
+      action={act}
+      className="grid justify-items-end gap-1.5"
+      onSubmit={() => setDeclined(false)}
+    >
       <input name="reservation" type="hidden" value={reservationId} />
       <input name="locale" type="hidden" value={locale} />
-      <Button disabled={pending} ref={button} size="sm" type="submit">
-        {pending ? t("checkingIn") : t("checkIn")}
-      </Button>
+      {outcome === "notReady" && !declined ? (
+        // The question, in place of the button that asked it. A second submit
+        // of the same form, so it works before the JavaScript arrives and the
+        // server reads readiness again rather than trusting this screen
+        // (HK-S2-15, HK-S2-17).
+        <div aria-live="polite" className="grid justify-items-end gap-1.5">
+          <p className="max-w-56 text-end text-step--1 text-warning">
+            {t("roomNotReady")}
+          </p>
+          <div className="flex gap-1.5">
+            <Button
+              disabled={pending}
+              onClick={() => setDeclined(true)}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              {t("notNow")}
+            </Button>
+            <Button
+              disabled={pending}
+              name="acknowledge"
+              ref={button}
+              size="sm"
+              type="submit"
+              value="true"
+              variant="outline"
+            >
+              {pending ? t("checkingIn") : t("checkInAnyway")}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button disabled={pending} ref={button} size="sm" type="submit">
+          {pending ? t("checkingIn") : t("checkIn")}
+        </Button>
+      )}
       {message ? (
         // Polite rather than assertive: the button already changed, so this is
         // additional detail and not an interruption.

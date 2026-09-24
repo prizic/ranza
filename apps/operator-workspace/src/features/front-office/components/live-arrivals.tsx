@@ -57,5 +57,11 @@ export function LiveArrivals({
   // `data` is present on first paint because the route prefetched it and
   // `Hydrated` handed it over. A 401 or a refusal leaves the last good rows on
   // screen rather than blanking a working list.
-  return <ArrivalsTable arrivals={data ?? []} locale={locale} />;
+  return (
+    <ArrivalsTable
+      arrivals={data ?? []}
+      locale={locale}
+      propertyId={scope.propertyId}
+    />
+  );
 }

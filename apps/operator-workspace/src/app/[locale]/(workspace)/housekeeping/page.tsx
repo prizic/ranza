@@ -1,44 +1,43 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
-import { EmptyState, PlannedScreen } from "@ranza/ui";
+import { EmptyState } from "@ranza/ui";
 import { getTranslations } from "next-intl/server";
-import { screenFor } from "../../../../lib/screens";
-import { entitledProperties } from "../../../../server/viewer";
-
-const SEGMENT = "housekeeping";
+import { HousekeepingBoard } from "../../../../features/housekeeping/components/housekeeping-board";
+import { InspectionSettings } from "../../../../features/housekeeping/components/inspection-settings";
+import {
+  entitledProperties,
+  HOUSEKEEPING_CAPABILITY,
+  housekeepingBoard,
+  housekeepingInspection,
+  MARK_BATCH,
+  requireViewer,
+} from "../../../../server/viewer";
+import { frontDeskProperty } from "../../../../server/front-desk";
 
 /**
- * Housekeeping — a destination with nothing behind it yet.
+ * Housekeeping (RANZ-28, blueprint 5.4): every room at this Property and
+ * whether it needs cleaning.
  *
- * The route is real and the gate is real: a viewer whose Organization is not
- * entitled to it sees the empty state, exactly as they would for a capability
- * that exists. What is missing is the workflow, and blueprint section 13
- * forbids building the tables for one ahead of the workflow that needs them.
- *
- * docs/handover/operator-workspace-screens.md says what this screen must do
- * and what has to exist first.
+ * Gated by the housekeeping capability. A viewer whose Organization is not
+ * entitled to it, or who reaches no Property that has it, sees the empty state;
+ * the database decides the rest.
  */
-export default async function Page({
+export default async function HousekeepingPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ property?: string }>;
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  await requireViewer(locale);
 
   const t = await getTranslations();
-  const screen = screenFor(SEGMENT);
-  if (!screen) notFound();
+  const properties = await entitledProperties(HOUSEKEEPING_CAPABILITY);
+  const property = frontDeskProperty(properties, await searchParams);
 
-  // Same gate as every built screen. Entitlement is not waived because the
-  // workflow is unfinished — a Property that has not bought this reaches
-  // nothing, and that is what the empty state says.
-  const properties = await entitledProperties({
-    moduleKey: screen.module,
-    capabilityKey: screen.capability,
-  });
-
-  if (properties.length === 0) {
+  if (!property) {
     return (
       <EmptyState
         description={t("notEntitledDescription")}
@@ -47,18 +46,27 @@ export default async function Page({
     );
   }
 
+  const [board, inspection] = await Promise.all([
+    housekeepingBoard(property.propertyId),
+    housekeepingInspection(property.propertyId),
+  ]);
+
   return (
-    <PlannedScreen
-      blueprintSection={screen.blueprint}
-      handoverHref="https://github.com/prizic/ranza/blob/main/docs/handover/operator-workspace-screens.md"
-      handoverLabel={t("handoverLabel")}
-      heading={t("planned")}
-      summary={
-        t.has(`screenSummary.${SEGMENT}`) ? t(`screenSummary.${SEGMENT}`) : ""
-      }
-      title={
-        t.has(`navigation.${SEGMENT}`) ? t(`navigation.${SEGMENT}`) : SEGMENT
-      }
-    />
+    <div className="flex flex-col gap-8">
+      <HousekeepingBoard
+        board={board}
+        locale={locale}
+        markLimit={MARK_BATCH.max}
+        propertyName={property.propertyName}
+        timeZone={property.timezone}
+      />
+      {inspection ? (
+        <InspectionSettings
+          locale={locale}
+          propertyId={property.propertyId}
+          settings={inspection}
+        />
+      ) : null}
+    </div>
   );
 }

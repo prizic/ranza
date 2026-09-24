@@ -259,19 +259,37 @@ export function createFoliosModule(deps: FoliosDeps) {
       // to prove rather than something plausible to accept.
       let posted;
       try {
-        posted = await tx.$queryRaw<{ id: string; organizationId: string }[]>`
-          insert into public.folio_lines
-            (organization_id, property_id, folio_id, line_type, description, amount_minor)
-          select
-            folio.organization_id,
-            folio.property_id,
-            folio.id,
-            'charge',
-            ${charge.description.trim()},
-            ${charge.amountMinor}::bigint
-          from public.folios as folio
-          where folio.id = ${charge.folioId}::uuid
-          returning id, organization_id as "organizationId"
+        // The currency comes back with the line, from the Folio that
+        // decided it, so the audit record says what the amount was in rather
+        // than leaving a bare number for somebody to guess the unit of.
+        posted = await tx.$queryRaw<
+          {
+            id: string;
+            organizationId: string;
+            propertyId: string;
+            currency: string;
+          }[]
+        >`
+          with posted as (
+            insert into public.folio_lines
+              (organization_id, property_id, folio_id, line_type, description, amount_minor)
+            select
+              folio.organization_id,
+              folio.property_id,
+              folio.id,
+              'charge',
+              ${charge.description.trim()},
+              ${charge.amountMinor}::bigint
+            from public.folios as folio
+            where folio.id = ${charge.folioId}::uuid
+            returning id, organization_id, property_id, folio_id
+          )
+          select posted.id,
+                 posted.organization_id as "organizationId",
+                 posted.property_id     as "propertyId",
+                 folio.currency::text   as "currency"
+            from posted
+            join public.folios as folio on folio.id = posted.folio_id
         `;
       } catch {
         // Closed, unentitled, out of reach. One message for all of them:
@@ -290,6 +308,7 @@ export function createFoliosModule(deps: FoliosDeps) {
 
       await recordWithin(tx, {
         organizationId: line.organizationId,
+        locationId: line.propertyId,
         actorId: userId,
         action: "folio.charge_posted",
         subjectType: "folio",
@@ -297,6 +316,7 @@ export function createFoliosModule(deps: FoliosDeps) {
         context: {
           lineId: line.id,
           amountMinor: charge.amountMinor,
+          currency: line.currency,
           description: charge.description.trim(),
         },
       });
@@ -340,27 +360,50 @@ export function createFoliosModule(deps: FoliosDeps) {
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
       let reversed;
       try {
+        // What was taken off comes back with the reversal — the original
+        // line's amount and description and the Folio's currency — because a
+        // reversal is the record a reader of the audit log is most often
+        // looking for, and "which charge, for how much" is its first question.
         reversed = await tx.$queryRaw<
-          { id: string; folioId: string; organizationId: string }[]
+          {
+            id: string;
+            folioId: string;
+            organizationId: string;
+            propertyId: string;
+            amountMinor: string;
+            description: string;
+            currency: string;
+          }[]
         >`
-          insert into public.folio_lines
-            (organization_id, property_id, folio_id, line_type, description,
-             amount_minor, reverses_line_id)
-          select
-            original.organization_id,
-            original.property_id,
-            original.folio_id,
-            'reversal',
-            ${explanation},
-            -original.amount_minor,
-            original.id
-          from public.folio_lines as original
-          where original.id = ${lineId}::uuid
-            and original.line_type = 'charge'
-          returning
-            id,
-            folio_id        as "folioId",
-            organization_id as "organizationId"
+          with reversed as (
+            insert into public.folio_lines
+              (organization_id, property_id, folio_id, line_type, description,
+               amount_minor, reverses_line_id)
+            select
+              original.organization_id,
+              original.property_id,
+              original.folio_id,
+              'reversal',
+              ${explanation},
+              -original.amount_minor,
+              original.id
+            from public.folio_lines as original
+            where original.id = ${lineId}::uuid
+              and original.line_type = 'charge'
+            returning id, folio_id, organization_id, property_id, amount_minor,
+                      reverses_line_id
+          )
+          select reversed.id,
+                 reversed.folio_id        as "folioId",
+                 reversed.organization_id as "organizationId",
+                 reversed.property_id     as "propertyId",
+                 (-reversed.amount_minor)::text as "amountMinor",
+                 original.description,
+                 folio.currency::text     as "currency"
+            from reversed
+            join public.folio_lines as original
+              on original.id = reversed.reverses_line_id
+            join public.folios as folio on folio.id = reversed.folio_id
         `;
       } catch {
         // Already reversed, the Folio is closed, or out of reach.
@@ -374,12 +417,20 @@ export function createFoliosModule(deps: FoliosDeps) {
 
       await recordWithin(tx, {
         organizationId: line.organizationId,
+        locationId: line.propertyId,
         actorId: userId,
         action: "folio.line_reversed",
         subjectType: "folio",
         subjectId: line.folioId,
         reason: explanation,
-        context: { reversedLineId: lineId, reversalLineId: line.id },
+        context: {
+          reversedLineId: lineId,
+          reversalLineId: line.id,
+          // The amount taken off, positive, as it was charged.
+          amountMinor: Number(line.amountMinor),
+          currency: line.currency,
+          description: line.description,
+        },
       });
 
       return { lineId: line.id };
@@ -403,14 +454,18 @@ export function createFoliosModule(deps: FoliosDeps) {
     folioId: string,
   ): Promise<{ folioId: string }> {
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
-      const closed = await tx.$queryRaw<{ organizationId: string }[]>`
+      const closed = await tx.$queryRaw<
+        { organizationId: string; propertyId: string; currency: string }[]
+      >`
         update public.folios
            set status = 'closed',
                closed_at = now(),
                updated_at = now()
          where id = ${folioId}::uuid
            and status = 'open'
-        returning organization_id as "organizationId"
+        returning organization_id as "organizationId",
+                  property_id     as "propertyId",
+                  currency::text  as "currency"
       `;
 
       const [folio] = closed;
@@ -421,12 +476,26 @@ export function createFoliosModule(deps: FoliosDeps) {
         throw new FolioWriteError("that Folio could not be closed");
       }
 
+      // The balance it was closed on is the fact a closure is later
+      // questioned about. Read in the same transaction, so it is the balance
+      // the closure saw.
+      const [balance] = await tx.$queryRaw<{ balanceMinor: string }[]>`
+        select coalesce(sum(amount_minor), 0)::text as "balanceMinor"
+        from public.folio_lines
+        where folio_id = ${folioId}::uuid
+      `;
+
       await recordWithin(tx, {
         organizationId: folio.organizationId,
+        locationId: folio.propertyId,
         actorId: userId,
         action: "folio.closed",
         subjectType: "folio",
         subjectId: folioId,
+        context: {
+          balanceMinor: Number(balance?.balanceMinor ?? 0),
+          currency: folio.currency,
+        },
       });
 
       return { folioId };

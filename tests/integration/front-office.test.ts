@@ -13,6 +13,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { latestRecord } from "./audit-record";
 import { createAuditModule } from "../../packages/platform/audit/src";
 import {
   CheckInError,
@@ -789,6 +790,10 @@ describe("checking in", () => {
     expect(history[0]?.action).toBe("reservation.checked_in");
     expect(history[0]?.actorId).toBe(MEMBER);
     expect(history[0]?.context).toMatchObject({ stayId });
+    expect(
+      (await latestRecord(owner, "reservation.checked_in", TO_CHECK_IN))
+        ?.locationId,
+    ).toBe(PROPERTY);
   });
 
   it("refuses a Reservation that has already arrived", async () => {
@@ -1180,6 +1185,10 @@ describe("taking a booking", () => {
       endsOn: await propertyDay(33),
     });
     expect(created.guestCreated).toBe(true);
+    expect(
+      (await latestRecord(owner, "reservation.created", created.reservationId))
+        ?.locationId,
+    ).toBe(PROPERTY);
 
     const listed = await reservations.listReservations(MEMBER, PROPERTY);
     const booking = listed.find(
@@ -1418,6 +1427,9 @@ describe("checking out", () => {
       stayId,
     );
     expect(departed?.status).toBe("departed");
+    expect(
+      (await latestRecord(owner, "stay.checked_out", stayId))?.locationId,
+    ).toBe(PROPERTY);
 
     // And the Reservation says so too, rather than reading as arrived forever
     // (CO-S1-01, CO-DIFF-02).
@@ -1743,6 +1755,11 @@ describe("ending a booking that will not become a Stay", () => {
     const [record] = await audit.historyOf(MEMBER, "reservation", booking);
     expect(record?.action).toBe("reservation.cancelled");
     expect(record?.reason).toBe("guest phoned to cancel");
+    // Filed at its Property, or a reader whose reach is that Property never
+    // sees it, and the record cannot be refiled (ADR 0031).
+    expect(
+      (await latestRecord(owner, "reservation.cancelled", booking))?.locationId,
+    ).toBe(PROPERTY);
 
     // The same nights can be sold again: a cancelled booking holds nothing.
     await expect(
@@ -1791,6 +1808,9 @@ describe("ending a booking that will not become a Stay", () => {
       reservationId: tonight,
       status: "no_show",
     });
+    expect(
+      (await latestRecord(owner, "reservation.no_show", tonight))?.locationId,
+    ).toBe(PROPERTY);
     // And it leaves the arrivals list, because it is no longer arriving.
     const listed = await reservations.listArrivals(MEMBER, PROPERTY);
     expect(listed.map((arrival) => arrival.reservationId)).not.toContain(

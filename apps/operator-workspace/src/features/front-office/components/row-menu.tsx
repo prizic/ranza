@@ -40,7 +40,9 @@ export interface EndableBooking {
  * Where else a row's Guest can be looked at, and the booking's own endings.
  *
  * Only destinations that exist and open on this Guest's own record: their
- * Folio when there is one, and the room map. It used to offer a reservation
+ * Folio when there is one, and the room map. Both name the row's Property, so
+ * following one never switches the Property being worked in, and neither is
+ * prefetched: a menu item is one request, read on the click. It used to offer a reservation
  * page, a profile and an inventory bed map, none of which is built — the
  * profile opened the staff roster — and a menu of links that do not do what
  * they say is worse than a shorter one.
@@ -50,11 +52,13 @@ export function FrontDeskRowMenu({
   folioId,
   guestName,
   locale,
+  propertyId,
 }: {
   booking?: EndableBooking | undefined;
   folioId: string | null;
   guestName: string;
   locale: SupportedLocale;
+  propertyId: string;
 }) {
   const t = useTranslations();
   const [ending, setEnding] = useState<EndBookingKind | null>(null);
@@ -76,7 +80,8 @@ export function FrontDeskRowMenu({
           {folioId ? (
             <DropdownMenuItem asChild>
               <Link
-                href={`${localizeHref(locale, "finance")}?folio=${folioId}`}
+                href={`${localizeHref(locale, "finance")}?property=${propertyId}&folio=${folioId}`}
+                prefetch={false}
               >
                 <Receipt className="size-4" />
                 <span>{t("openFolio")}</span>
@@ -84,7 +89,10 @@ export function FrontDeskRowMenu({
             </DropdownMenuItem>
           ) : null}
           <DropdownMenuItem asChild>
-            <Link href={localizeHref(locale, "rooms")}>
+            <Link
+              href={`${localizeHref(locale, "rooms")}?property=${propertyId}`}
+              prefetch={false}
+            >
               <BedDouble className="size-4" />
               <span>{t("showOnRoomMap")}</span>
             </Link>

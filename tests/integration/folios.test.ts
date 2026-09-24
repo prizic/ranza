@@ -13,6 +13,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { latestRecord } from "./audit-record";
 import { createAuditModule } from "../../packages/platform/audit/src";
 import { createPrismaClient } from "../../packages/db/src";
 import {
@@ -392,6 +393,23 @@ describe("the balance is the sum of the lines", () => {
 
     const untouched = detail!.lines.find((line) => line.lineId === lineId);
     expect(untouched?.reversed).toBe(false);
+
+    // What the audit log shows for it: where, and which charge for how much —
+    // the facts a reversal is looked up for (AL-S1-06).
+    const reversal = await latestRecord(owner, "folio.line_reversed", folioId);
+    expect(reversal?.locationId).toBe(PROPERTY);
+    expect(reversal?.reason).toBe("Charged to the wrong room");
+    expect(reversal?.context).toMatchObject({
+      reversedLineId: wrong.lineId,
+      amountMinor: 12550,
+      currency: expect.stringMatching(/^[A-Z]{3}$/),
+      description: "Minibar",
+    });
+    const charge = await latestRecord(owner, "folio.charge_posted", folioId);
+    expect(charge?.locationId).toBe(PROPERTY);
+    expect(charge?.context).toMatchObject({
+      currency: expect.stringMatching(/^[A-Z]{3}$/),
+    });
   });
 
   it("refuses to reverse the same line twice", async () => {
@@ -552,6 +570,10 @@ describe("closing a Folio", () => {
 
     const history = await audit.historyOf(MEMBER, "folio", folioId);
     expect(history.map((entry) => entry.action)).toContain("folio.closed");
+
+    const closed = await latestRecord(owner, "folio.closed", folioId);
+    expect(closed?.locationId).toBe(PROPERTY);
+    expect(closed?.context).toMatchObject({ balanceMinor: 400000 });
   });
 
   it("refuses a second closure rather than reporting success", async () => {

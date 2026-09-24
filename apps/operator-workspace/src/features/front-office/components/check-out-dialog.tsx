@@ -67,9 +67,11 @@ function day(iso: string, locale: SupportedLocale): string {
 export function CheckOutDialog({
   departure,
   locale,
+  propertyId,
 }: {
   departure: Departure;
   locale: SupportedLocale;
+  propertyId: string;
 }) {
   const t = useTranslations();
   const [outcome, act, pending] = useActionState<CheckOutOutcome, FormData>(
@@ -165,7 +167,8 @@ export function CheckOutDialog({
           {departure.folioId ? (
             <Link
               className="text-step--1 underline underline-offset-4"
-              href={`${localizeHref(locale, "finance")}?folio=${departure.folioId}`}
+              href={`${localizeHref(locale, "finance")}?property=${propertyId}&folio=${departure.folioId}`}
+              prefetch={false}
             >
               {t("reviewFolio")}
             </Link>
