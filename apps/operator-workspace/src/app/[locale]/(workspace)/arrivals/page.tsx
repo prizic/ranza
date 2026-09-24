@@ -7,9 +7,9 @@ import { frontOfficeKeys } from "../../../../features/front-office/query-keys";
 import { Hydrated, requestQueryClient } from "../../../providers/hydrate";
 import {
   arrivals,
-  currentViewer,
   entitledProperties,
   FRONT_DESK_CAPABILITY,
+  requireViewer,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
 
@@ -42,11 +42,11 @@ export default async function ArrivalsPage({
   if (!isSupportedLocale(locale)) notFound();
 
   const t = await getTranslations();
-  const viewer = await currentViewer();
+  const viewer = await requireViewer(locale);
   const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
   const property = frontDeskProperty(properties, await searchParams);
 
-  if (!property || !viewer) {
+  if (!property) {
     return (
       <EmptyState
         description={t("noFrontDeskDescription")}

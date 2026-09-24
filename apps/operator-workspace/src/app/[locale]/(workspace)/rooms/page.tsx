@@ -4,9 +4,9 @@ import { EmptyState } from "@ranza/ui";
 import { getTranslations } from "next-intl/server";
 import { RoomsView } from "../../../../features/rooms/components/rooms-view";
 import {
-  currentViewer,
   entitledProperties,
   FRONT_DESK_CAPABILITY,
+  requireViewer,
   rooms,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
@@ -28,11 +28,11 @@ export default async function RoomsPage({
   if (!isSupportedLocale(locale)) notFound();
 
   const t = await getTranslations();
-  const viewer = await currentViewer();
+  await requireViewer(locale);
   const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
   const property = frontDeskProperty(properties, await searchParams);
 
-  if (!property || !viewer) {
+  if (!property) {
     return (
       <EmptyState
         description={t("noFrontDeskDescription")}

@@ -5,12 +5,12 @@ import { getTranslations } from "next-intl/server";
 import { HousekeepingBoard } from "../../../../features/housekeeping/components/housekeeping-board";
 import { InspectionSettings } from "../../../../features/housekeeping/components/inspection-settings";
 import {
-  currentViewer,
   entitledProperties,
   HOUSEKEEPING_CAPABILITY,
   housekeepingBoard,
   housekeepingInspection,
   MARK_BATCH,
+  requireViewer,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
 
@@ -31,13 +31,13 @@ export default async function HousekeepingPage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  await requireViewer(locale);
 
   const t = await getTranslations();
-  const viewer = await currentViewer();
   const properties = await entitledProperties(HOUSEKEEPING_CAPABILITY);
   const property = frontDeskProperty(properties, await searchParams);
 
-  if (!property || !viewer) {
+  if (!property) {
     return (
       <EmptyState
         description={t("notEntitledDescription")}
