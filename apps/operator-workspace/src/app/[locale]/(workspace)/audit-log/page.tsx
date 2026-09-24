@@ -161,8 +161,13 @@ export default async function AuditLogPage({
       <p className="text-muted-foreground">
         {t("auditLogFor")} {property.organizationName}
       </p>
+      {/* Keyed on the applied filters, so a client navigation that changes
+          them — "Clear filters" above all — remounts the form rather than
+          leaving it showing values the table no longer reflects. Paging keeps
+          the key, and the form with it. */}
       <AuditFilters
         actionHref={route}
+        key={filtersQuery.toString()}
         properties={organizationProperties}
         propertyId={property.propertyId}
         values={values}

@@ -127,11 +127,12 @@ cache the way ADR 0019 asks. Links in table rows set `prefetch={false}`: a
 prefetch fetches only as far as the loading boundary, and one per visible row is
 a request each for nothing.
 
-The layout asks about every destination in one read
-(`entitledPropertiesByCapability()`, one transaction), and the page beneath adds
-its own. It used to open a transaction per destination, more at once than
-`pg-pool`'s default of ten, which surfaced after an idle pause as Prisma's
-`P2028 Unable to start a transaction`.
+The layout asks about every capability destination in one read
+(`entitledPropertiesByCapability()`, one transaction) and about the audit log's
+permission in a second, alongside it; the page beneath adds its own. It used to
+open a transaction per destination, more at once than `pg-pool`'s default of
+ten, which surfaced after an idle pause as Prisma's `P2028 Unable to start a
+transaction`.
 
 **`pnpm check` runs `next build`**, which writes into the same `.next` a running
 `pnpm dev` serves from. Every route 404s afterwards, including ones that plainly
