@@ -63,6 +63,21 @@ export const CANCEL_REASON = { min: 3, max: 200 } as const;
 /** A note returning a room, kept in the audit record (MT-S2-21). */
 export const RETURN_NOTE = { max: 200 } as const;
 
+/** `maintenance_equipment_*_check` (MT-S3-03). */
+export const EQUIPMENT_NAME = { min: 1, max: 120 } as const;
+export const EQUIPMENT_CATEGORY = { min: 1, max: 60 } as const;
+export const EQUIPMENT_LOCATION = { min: 1, max: 120 } as const;
+export const SERVICE_INTERVAL = { min: 1, max: 120 } as const;
+
+/** How soon a service counts as due (MT-S3-04, MT-S4-01). */
+export const DUE_WITHIN_DAYS = 14;
+
+/** `maintenance_requests_vendor_check` (MT-S5-01). */
+export const VENDOR = { max: 120 } as const;
+
+/** `maintenance_requests_kind_check`. */
+export type RequestKind = "fault" | "service";
+
 /** How long a done or cancelled request stays on the board (MT-S1-10). */
 export const RECENT_DAYS = 30;
 
@@ -88,6 +103,16 @@ export interface RequestHold {
   overdue: boolean;
 }
 
+/** A damage charge a request put on a Folio (MT-S5-03). */
+export interface RequestCharge {
+  lineId: string;
+  amountMinor: number;
+  currency: string;
+  guestName: string | null;
+  /** A reversal line cancels it on the Folio (MT-S5-08). */
+  reversed: boolean;
+}
+
 export interface MaintenanceRequestCard {
   requestId: string;
   /** Per Property; shown as MT-12. */
@@ -95,8 +120,15 @@ export interface MaintenanceRequestCard {
   title: string;
   details: string | null;
   status: RequestStatus;
+  kind: RequestKind;
   priority: Priority;
   unit: RequestUnit | null;
+  equipment: { equipmentId: string; name: string } | null;
+  /** What the repair cost, in minor units of `currency` (MT-S5-01). */
+  costMinor: number | null;
+  currency: string;
+  vendor: string | null;
+  charges: readonly RequestCharge[];
   assignee: (StaffName & { reachesProperty: boolean }) | null;
   reporter: StaffName;
   reportedAt: string;
@@ -126,6 +158,8 @@ export interface MaintenanceBoard {
   mayReport: boolean;
   mayManage: boolean;
   mayTakeOutOfOrder: boolean;
+  /** `finance.post_charge` where the Property does billing (MT-S5-05). */
+  mayCharge: boolean;
 }
 
 /** A Unit the report form offers, with whatever stops it being held. */
@@ -138,6 +172,8 @@ export interface ReportableUnit {
 
 export interface ReportOptions {
   units: readonly ReportableUnit[];
+  /** Equipment in use at the Property, for a problem with no room (MT-S3-07). */
+  equipment: readonly { equipmentId: string; name: string; where: string }[];
   /** Everybody who reaches the Property, for the assignee picker. */
   assignees: readonly StaffName[];
 }
@@ -201,6 +237,63 @@ export const PRODUCT_DEFAULTS: SettingValues = {
   returnAs: "dirty",
 };
 
+/** What an item's dates and open requests say about it (MT-S3-04). */
+export type EquipmentCondition = "working" | "due" | "overdue" | "fault";
+
+export interface EquipmentItem {
+  equipmentId: string;
+  name: string;
+  category: string;
+  unit: RequestUnit | null;
+  location: string | null;
+  serviceIntervalMonths: number | null;
+  lastServicedOn: string | null;
+  /** When the next service falls due; null with no interval. */
+  nextServiceOn: string | null;
+  condition: EquipmentCondition;
+  retired: boolean;
+  /** The open fault that makes it `fault`, if any. */
+  openFault: { requestId: string; number: number } | null;
+  /** The open work order the plan shows instead of its button (MT-S4-03). */
+  openWorkOrder: { requestId: string; number: number } | null;
+}
+
+export interface EquipmentRegister {
+  today: string;
+  items: readonly EquipmentItem[];
+  mayManageEquipment: boolean;
+  mayReport: boolean;
+}
+
+export interface EquipmentInput {
+  name: string;
+  category: string;
+  unitId: string | null;
+  location: string | null;
+  serviceIntervalMonths: number | null;
+  lastServicedOn: string | null;
+}
+
+/**
+ * A change to an item, with the last-serviced date the form was opened on. A
+ * date the person did not touch is not theirs to write: a work order done
+ * while the form was open recorded a service, and it stays (MT-S3-05).
+ */
+export interface EquipmentChange extends EquipmentInput {
+  lastServicedOnWas: string | null;
+}
+
+/** A Stay a damage charge may go on: it used the room, and its Folio is open. */
+export interface ChargeableStay {
+  stayId: string;
+  folioId: string;
+  guestName: string | null;
+  unitName: string;
+  inHouse: boolean;
+  endsOn: string | null;
+  currency: string;
+}
+
 export interface Reported {
   requestId: string;
   number: number;
@@ -234,8 +327,8 @@ export class MaintenanceInputError extends Error {
  * where they cannot see.
  */
 export class MaintenanceRefusedError extends Error {
-  constructor() {
-    super("that maintenance change was refused");
+  constructor(options?: ErrorOptions) {
+    super("that maintenance change was refused", options);
     this.name = "MaintenanceRefusedError";
   }
 }

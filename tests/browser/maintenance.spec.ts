@@ -52,7 +52,11 @@ test("a problem reported from Rooms takes the room out of order until it is done
 
   // MT-S2-01: reported and taken out of order in one step.
   await dialog.getByRole("textbox", { name: "What is wrong?" }).fill(title);
-  await dialog.getByRole("radio", { name: "Urgent" }).click();
+  await dialog.getByRole("button", { name: "Urgent" }).click();
+  await expect(dialog.getByRole("button", { name: "Urgent" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await dialog
     .getByRole("checkbox", { name: "Take it out of order until it is fixed" })
     .click();
@@ -119,4 +123,85 @@ test("the board reads right to left in Arabic", async ({ page }) => {
     .getByRole("heading", { level: 2, name: /منجز/ })
     .boundingBox();
   expect(first && last && first.x > last.x).toBe(true);
+});
+
+test("equipment is registered, serviced through a work order, and retired", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const name = `E2E boiler ${randomUUID().slice(0, 8)}`;
+
+  await signIn(page);
+  await page.goto(`/en/maintenance?property=${propertyId}`);
+  await page.getByRole("tab", { name: "Equipment" }).click();
+
+  // MT-S3-01, MT-S3-02: an item in a named place. Never serviced, so its first
+  // service is due today — no fixture date to drift.
+  await page.getByRole("button", { name: "Add equipment" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "Add equipment" });
+  await dialog.getByRole("textbox", { name: "Name" }).fill(name);
+  await dialog.getByRole("textbox", { name: "Category" }).fill("Heating");
+  await dialog.getByRole("textbox", { name: "Place" }).fill("Boiler room");
+  await dialog
+    .getByRole("spinbutton", { name: "Serviced every (months)" })
+    .fill("6");
+  await dialog.getByRole("button", { name: "Save" }).click();
+  // The first action this suite sends from the Equipment tab, which a cold
+  // `next dev` compiles on submission (see playwright.config.ts): measured at
+  // over fifteen seconds cold and under five warm.
+  await expect(dialog).toBeHidden({ timeout: 45_000 });
+
+  const row = page.getByRole("row").filter({ hasText: name });
+  await expect(row).toContainText("Service due");
+  await expect(row).toContainText("Boiler room");
+
+  // MT-S4-01, MT-S4-02: the plan raises a work order, and then shows it
+  // instead of the button (MT-S4-03).
+  await page.getByRole("tab", { name: "Service plan" }).click();
+  const planned = page.getByRole("listitem").filter({ hasText: name });
+  await expect(planned).toContainText("Due today");
+  await planned.getByRole("button", { name: "Create work order" }).click();
+  await expect(planned).toContainText(/Work order MT-\d+ open/);
+
+  // MT-S5-01: what it cost, in the drawer, as a person types it.
+  await page.getByRole("tab", { name: "Requests" }).click();
+  const card = page
+    .getByRole("button", { name: /^Open MT-\d+$/ })
+    .filter({ hasText: `Service: ${name}` });
+  await card.click();
+  const sheet = page.getByRole("dialog");
+  await expect(sheet).toContainText("Service");
+  await expect(sheet).toContainText(name);
+  await sheet.getByRole("textbox", { name: /^Cost/ }).fill("450,5");
+  await sheet.getByRole("textbox", { name: "Done by" }).fill("Boğaz Teknik");
+  await sheet.getByRole("button", { name: "Save" }).click();
+  await expect(sheet.getByText("Saved.")).toBeVisible();
+
+  // MT-S4-04: done records the service, so the item is working again.
+  // "Saved." is already on the drawer from the cost, so it proves nothing
+  // here: wait for the move itself, or the reload below races it.
+  await sheet.getByRole("button", { name: "Move to Done" }).click();
+  await expect(
+    sheet.getByRole("button", { name: "Move to Done" }),
+  ).toBeHidden();
+  await page.keyboard.press("Escape");
+
+  await page.reload();
+  await page
+    .getByRole("button", { name: /^Open MT-\d+$/ })
+    .filter({ hasText: `Service: ${name}` })
+    .click();
+  await expect(
+    page.getByRole("dialog").getByRole("textbox", { name: /^Cost/ }),
+  ).toHaveValue("450.5");
+  await page.keyboard.press("Escape");
+
+  await page.getByRole("tab", { name: "Equipment" }).click();
+  await expect(row).toContainText("Working");
+
+  // MT-S3-06: retired, not deleted — gone from the register until asked for.
+  await row.getByRole("button", { name: "Retire" }).click();
+  await expect(row).toBeHidden();
+  await page.getByRole("checkbox", { name: "Show retired" }).click();
+  await expect(row).toContainText("Retired");
 });

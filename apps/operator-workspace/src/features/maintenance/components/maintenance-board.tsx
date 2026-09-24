@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type {
   MaintenanceBoard as Board,
+  EquipmentRegister,
   MaintenanceSettings as Settings,
   Priority,
   ReportOptions,
@@ -37,12 +38,17 @@ import {
   TabsTrigger,
 } from "@ranza/ui";
 import type { MaintenanceOutcome } from "../../../server/maintenance";
+import {
+  EquipmentRegisterPanel,
+  type EquipmentLimits,
+} from "./equipment-register";
 import { STATE_ICON } from "./look";
 import { MaintenanceSettingsCard } from "./maintenance-settings";
 import { OutcomeMessage } from "./outcome-message";
 import { ReportDialog } from "./report-dialog";
 import { RequestCard } from "./request-card";
 import { RequestSheet } from "./request-sheet";
+import { ServicePlan } from "./service-plan";
 
 const COLUMNS: readonly RequestStatus[] = [
   "new",
@@ -56,11 +62,14 @@ export interface MaintenanceLimits {
   details: number;
   cancelReason: number;
   note: number;
+  vendor: number;
+  equipment: EquipmentLimits;
 }
 
 /**
- * The Maintenance screen (RANZ-33): the requests board and, for whoever may
- * change it, how maintenance works at this Property.
+ * The Maintenance screen (RANZ-33): the requests board, the equipment
+ * register, its service plan and, for whoever may change it, how maintenance
+ * works at this Property.
  *
  * Presentational: the board arrives through the server funnel, and every
  * change goes back through a server action whose writes the policies bound.
@@ -69,6 +78,7 @@ export interface MaintenanceLimits {
 export function MaintenanceBoard({
   board,
   options,
+  register,
   settings,
   locale,
   propertyId,
@@ -79,6 +89,7 @@ export function MaintenanceBoard({
 }: {
   board: Board;
   options: ReportOptions;
+  register: EquipmentRegister;
   settings: Settings | null;
   locale: SupportedLocale;
   propertyId: string;
@@ -325,15 +336,32 @@ export function MaintenanceBoard({
 
       <OutcomeMessage outcome={reported} />
 
-      {settings ? (
-        <Tabs defaultValue="requests">
-          <TabsList>
-            <TabsTrigger value="requests">{t("requestsTab")}</TabsTrigger>
+      <Tabs defaultValue="requests">
+        <TabsList>
+          <TabsTrigger value="requests">{t("requestsTab")}</TabsTrigger>
+          <TabsTrigger value="equipment">{t("equipmentTab")}</TabsTrigger>
+          <TabsTrigger value="plan">{t("planTab")}</TabsTrigger>
+          {settings ? (
             <TabsTrigger value="settings">{t("settingsTab")}</TabsTrigger>
-          </TabsList>
-          <TabsContent className="pt-4" value="requests">
-            {requests}
-          </TabsContent>
+          ) : null}
+        </TabsList>
+        <TabsContent className="pt-4" value="requests">
+          {requests}
+        </TabsContent>
+        <TabsContent className="pt-4" value="equipment">
+          <EquipmentRegisterPanel
+            limits={limits.equipment}
+            locale={locale}
+            propertyId={propertyId}
+            propertyName={propertyName}
+            register={register}
+            units={options.units}
+          />
+        </TabsContent>
+        <TabsContent className="pt-4" value="plan">
+          <ServicePlan locale={locale} register={register} />
+        </TabsContent>
+        {settings ? (
           <TabsContent className="pt-4" value="settings">
             <MaintenanceSettingsCard
               locale={locale}
@@ -341,10 +369,8 @@ export function MaintenanceBoard({
               settings={settings}
             />
           </TabsContent>
-        </Tabs>
-      ) : (
-        requests
-      )}
+        ) : null}
+      </Tabs>
 
       {board.mayReport ? (
         <ReportDialog
@@ -369,6 +395,7 @@ export function MaintenanceBoard({
           key={selected.requestId}
           limits={limits}
           locale={locale}
+          mayCharge={board.mayCharge}
           mayManage={board.mayManage}
           mayTakeOutOfOrder={board.mayTakeOutOfOrder}
           onOpenChange={(isOpen) => {

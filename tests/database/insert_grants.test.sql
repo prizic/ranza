@@ -362,23 +362,29 @@ select is_empty(
 -- app.worker_organization_id(). The request, hold and setting triggers are
 -- invokers — they read only what the acting Staff Member already reaches — and
 -- app.unit_is_in_service() was replaced, not added.
+--
+-- The service plan (20260916004600) brought one more, and it writes:
+-- app.maintenance_service_is_recorded() sets an item's last service when its
+-- work order is done, because finishing a work order is maintenance.manage and
+-- the register is maintenance.equipment. It names
+-- app.has_organization_permission() for the first of those before it writes.
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  28,
-  'the definer sweep looked at 28 functions; change this number deliberately');
+  29,
+  'the definer sweep looked at 29 functions; change this number deliberately');
 
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef and p.prosrc ~* '(insert|update|delete)\s'),
-  5,
-  'five of them write, which is what makes the assertion above a test');
+  6,
+  'six of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a twenty-ninth definer is a red test
+-- Part B: the inventory itself, so a thirtieth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions, and the three that
 -- write are named in the comment above; two are rooms and beds; four are
--- housekeeping; the last is maintenance.
+-- housekeeping; the last two are maintenance.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -395,8 +401,8 @@ select set_eq(
         'unit_can_be_blocked','unit_is_in_service',
         'housekeeping_status_holder_is_a_room','mark_unit_dirty_after_check_out',
         'has_organization_wide_reach','housekeeping_inspection_required',
-        'mark_unit_returned_to_service'],
-  'and they are exactly the twenty-eight the design gives a reason for');
+        'mark_unit_returned_to_service', 'maintenance_service_is_recorded'],
+  'and they are exactly the twenty-nine the design gives a reason for');
 
 select finish();
 rollback;

@@ -10,6 +10,7 @@ import {
   type FolioSummary,
 } from "./contracts";
 import type { FoliosDeps } from "./ports";
+import { assertPostable, DESCRIPTION_MAX, postChargeWithin } from "./write";
 
 /**
  * Billing and Folios: the first time the product holds money.
@@ -27,9 +28,6 @@ import type { FoliosDeps } from "./ports";
  * is what makes "the balance is the sum of the lines" a fact rather than a
  * convention (ADR 0015).
  */
-
-/** Matches `folio_lines_description_check`. Said here so the caller learns which field. */
-const DESCRIPTION_MAX = 200;
 
 /**
  * A reversal's reason has to satisfy two things at once, so it is checked
@@ -79,35 +77,6 @@ function toSummary(row: SummaryRow): FolioSummary {
 
 function toLine(row: LineRow): FolioLine {
   return { ...row, amountMinor: Number(row.amountMinor) };
-}
-
-/**
- * Rejects an amount the database would reject anyway.
- *
- * Both places on purpose. The check constraint is the boundary that holds when
- * this code is wrong; this is the one that says which field was wrong before a
- * constraint violation has to be decoded. It also catches the two things the
- * constraint cannot see, because by then they are no longer integers: a
- * fractional amount silently truncated on the way, and one beyond the range a
- * JavaScript number represents exactly.
- */
-function assertPostable(charge: Charge): void {
-  if (!Number.isSafeInteger(charge.amountMinor)) {
-    throw new FolioAmountError(
-      "an amount is a whole number of minor units, within the exact integer range",
-    );
-  }
-  if (charge.amountMinor <= 0) {
-    throw new FolioAmountError(
-      "a charge is positive; to take money off, reverse a line",
-    );
-  }
-  const description = charge.description.trim();
-  if (description.length < 1 || description.length > DESCRIPTION_MAX) {
-    throw new FolioAmountError(
-      `a description must be between 1 and ${DESCRIPTION_MAX} characters`,
-    );
-  }
 }
 
 /**
@@ -252,56 +221,9 @@ export function createFoliosModule(deps: FoliosDeps) {
     charge: Charge,
   ): Promise<{ lineId: string }> {
     assertPostable(charge);
-
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
-      // organization_id and property_id are read from the Folio rather than
-      // taken from the caller, so the composite foreign key has something true
-      // to prove rather than something plausible to accept.
-      let posted;
-      try {
-        posted = await tx.$queryRaw<{ id: string; organizationId: string }[]>`
-          insert into public.folio_lines
-            (organization_id, property_id, folio_id, line_type, description, amount_minor)
-          select
-            folio.organization_id,
-            folio.property_id,
-            folio.id,
-            'charge',
-            ${charge.description.trim()},
-            ${charge.amountMinor}::bigint
-          from public.folios as folio
-          where folio.id = ${charge.folioId}::uuid
-          returning id, organization_id as "organizationId"
-        `;
-      } catch {
-        // Closed, unentitled, out of reach. One message for all of them:
-        // telling them apart would confirm that a Folio the caller cannot see
-        // is there.
-        throw new FolioWriteError("that charge could not be posted");
-      }
-
-      const [line] = posted;
-      if (!line) {
-        // The select found no Folio: out of reach, or no such Folio. The
-        // insert wrote nothing rather than raising, which is the quiet half of
-        // the same refusal.
-        throw new FolioWriteError("that charge could not be posted");
-      }
-
-      await recordWithin(tx, {
-        organizationId: line.organizationId,
-        actorId: userId,
-        action: "folio.charge_posted",
-        subjectType: "folio",
-        subjectId: charge.folioId,
-        context: {
-          lineId: line.id,
-          amountMinor: charge.amountMinor,
-          description: charge.description.trim(),
-        },
-      });
-
-      return { lineId: line.id };
+      const { lineId } = await postChargeWithin(tx, userId, charge);
+      return { lineId };
     });
   }
 

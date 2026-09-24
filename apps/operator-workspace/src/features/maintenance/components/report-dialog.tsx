@@ -81,6 +81,7 @@ export function ReportDialog({
     { status: "idle" },
   );
   const [unitId, setUnitId] = useState(initialUnitId ?? "");
+  const [equipmentId, setEquipmentId] = useState("");
   const [priority, setPriority] = useState<Priority>("this_week");
   const [assigneeId, setAssigneeId] = useState("");
   const [outOfOrder, setOutOfOrder] = useState(false);
@@ -128,6 +129,7 @@ export function ReportDialog({
           <input name="locale" type="hidden" value={locale} />
           <input name="propertyId" type="hidden" value={propertyId} />
           <input name="unitId" type="hidden" value={unitId} />
+          <input name="equipmentId" type="hidden" value={equipmentId} />
           <input name="priority" type="hidden" value={priority} />
           <input name="assigneeId" type="hidden" value={assigneeId} />
           {impact ? (
@@ -135,11 +137,17 @@ export function ReportDialog({
           ) : null}
 
           <Field htmlFor="report-unit" label={t("unit")}>
-            <Select onValueChange={setUnitId} value={unitId}>
+            <Select
+              onValueChange={(value) =>
+                setUnitId(value === "none" ? "" : value)
+              }
+              value={unitId === "" ? "none" : unitId}
+            >
               <SelectTrigger id="report-unit">
                 <SelectValue placeholder={t("chooseUnit")} />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="none">{t("noRoomChosen")}</SelectItem>
                 {options.units.map((candidate) => (
                   <SelectItem key={candidate.unitId} value={candidate.unitId}>
                     {unitLabel(candidate)}
@@ -151,6 +159,34 @@ export function ReportDialog({
               </SelectContent>
             </Select>
           </Field>
+
+          {options.equipment.length > 0 ? (
+            <Field htmlFor="report-equipment" label={t("equipment")}>
+              <Select
+                onValueChange={(value) =>
+                  setEquipmentId(value === "none" ? "" : value)
+                }
+                value={equipmentId === "" ? "none" : equipmentId}
+              >
+                <SelectTrigger id="report-equipment">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t("noEquipmentChosen")}</SelectItem>
+                  {options.equipment.map((item) => (
+                    <SelectItem key={item.equipmentId} value={item.equipmentId}>
+                      {item.name} · {item.where}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          ) : null}
+          {unitId === "" && equipmentId === "" ? (
+            <p className="text-step--1 text-muted-foreground">
+              {t("chooseRoomOrEquipment")}
+            </p>
+          ) : null}
 
           <Field htmlFor="report-title" label={t("whatIsWrong")}>
             <Input
@@ -181,15 +217,14 @@ export function ReportDialog({
             <legend className="mb-1.5 text-step--1 font-medium">
               {t("howUrgent")}
             </legend>
-            <div className="flex flex-wrap gap-2" role="radiogroup">
+            <div className="flex flex-wrap gap-2">
               {PRIORITIES.map((value) => {
                 const Icon = PRIORITY_LOOK[value].icon;
                 return (
                   <Button
-                    aria-checked={priority === value}
+                    aria-pressed={priority === value}
                     key={value}
                     onClick={() => setPriority(value)}
-                    role="radio"
                     size="sm"
                     type="button"
                     variant={priority === value ? "default" : "outline"}
@@ -225,7 +260,7 @@ export function ReportDialog({
             </Field>
           ) : null}
 
-          {mayTakeOutOfOrder ? (
+          {mayTakeOutOfOrder && unitId !== "" ? (
             <div className="grid gap-3 rounded-lg border p-3">
               <div className="flex items-start gap-3">
                 <Checkbox
@@ -271,7 +306,10 @@ export function ReportDialog({
                 {t("close")}
               </Button>
             </DialogClose>
-            <Button disabled={pending || unitId === ""} type="submit">
+            <Button
+              disabled={pending || (unitId === "" && equipmentId === "")}
+              type="submit"
+            >
               {pending
                 ? t("saving")
                 : impact

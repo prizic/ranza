@@ -12,6 +12,12 @@
  *
  * Deliberately not every dotted literal: an outbox `eventType` and a
  * permission key are dotted too and are not actions.
+ *
+ * Every source file of a module is read, not only `module.ts`: a write
+ * contract a caller runs inside its own transaction (`write.ts`) records its
+ * own action, and a scan of one file would call that action's label an
+ * orphan. `contracts.ts` and `index.ts` are left out because they write
+ * nothing and are where a dotted constant would sit.
  */
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -32,18 +38,19 @@ function actionsWrittenBy(file: string): string[] {
     });
 }
 
+const NOT_WRITERS = new Set(["contracts.ts", "index.ts"]);
+
+function sourcesOf(module: string): string[] {
+  const directory = path.join(ranza, module, "src");
+  return readdirSync(directory)
+    .filter((file) => file.endsWith(".ts") && !NOT_WRITERS.has(file))
+    .map((file) => path.join(directory, file));
+}
+
 const written = new Set(
   readdirSync(ranza, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
-    .map((entry) => path.join(ranza, entry.name, "src/module.ts"))
-    .filter((file) => {
-      try {
-        readFileSync(file);
-        return true;
-      } catch {
-        return false;
-      }
-    })
+    .flatMap((entry) => sourcesOf(entry.name))
     .flatMap(actionsWrittenBy),
 );
 

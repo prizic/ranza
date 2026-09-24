@@ -224,7 +224,8 @@ export interface Messages {
       | "updateHousekeeping"
       | "reportMaintenance"
       | "manageMaintenance"
-      | "takeOutOfOrder",
+      | "takeOutOfOrder"
+      | "manageEquipment",
       string
     >;
     emptyRosterTitle: string;
@@ -475,6 +476,66 @@ export interface Messages {
     defaultNeedsReach: string;
     settingReadOnly: string;
     reportProblem: string;
+    equipmentTab: string;
+    planTab: string;
+    addEquipment: string;
+    editEquipment: string;
+    equipmentName: string;
+    equipmentNamePlaceholder: string;
+    category: string;
+    categoryPlaceholder: string;
+    whereIs: string;
+    atRoom: string;
+    atPlace: string;
+    place: string;
+    placePlaceholder: string;
+    interval: string;
+    intervalHint: string;
+    lastServiced: string;
+    nextService: string;
+    notScheduled: string;
+    neverServiced: string;
+    retire: string;
+    restore: string;
+    retired: string;
+    showRetired: string;
+    noEquipmentTitle: string;
+    noEquipmentDescription: string;
+    equipmentReadOnly: string;
+    noPlanTitle: string;
+    noPlanDescription: string;
+    daysOverdue: string;
+    dueToday: string;
+    inDays: string;
+    everyMonths: string;
+    createWorkOrder: string;
+    workOrderOpen: string;
+    workOrderTitle: string;
+    service: string;
+    equipment: string;
+    noEquipmentChosen: string;
+    noRoomChosen: string;
+    chooseRoomOrEquipment: string;
+    costTitle: string;
+    cost: string;
+    vendor: string;
+    vendorPlaceholder: string;
+    noCost: string;
+    chargeTitle: string;
+    chargeHint: string;
+    guest: string;
+    chooseGuest: string;
+    amount: string;
+    charge: string;
+    noChargeable: string;
+    reversedCharge: string;
+    inHouseNow: string;
+    leftOn: string;
+    loading: string;
+    chargeUnavailable: string;
+    actions: string;
+    change: string;
+    conditions: Record<"working" | "due" | "overdue" | "fault", string>;
     states: Record<
       "new" | "in_progress" | "waiting_for_parts" | "done" | "cancelled",
       string
@@ -537,7 +598,13 @@ export interface Messages {
       | "cancelled"
       | "assigned"
       | "prioritised"
-      | "hold_released",
+      | "hold_released"
+      | "costed"
+      | "guest_charged",
+      string
+    >;
+    maintenance_equipment: Record<
+      "added" | "changed" | "retired" | "restored" | "serviced",
       string
     >;
     maintenance_setting: Record<"changed", string>;
@@ -551,7 +618,8 @@ export interface Messages {
     | "property"
     | "accommodation_unit"
     | "organization"
-    | "maintenance_request",
+    | "maintenance_request"
+    | "maintenance_equipment",
     string
   >;
 
@@ -813,6 +881,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         reportMaintenance: "Bakım sorunu bildirme",
         manageMaintenance: "Bakım taleplerini yönetme",
         takeOutOfOrder: "Odaları hizmet dışı bırakma ve geri alma",
+        manageEquipment: "Ekipman kaydını yönetme",
       },
       emptyRosterTitle: "Henüz kimse yok",
       emptyRosterDescription:
@@ -1092,6 +1161,75 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Varsayılanı değiştirmek için tüm tesislere erişim gerekir.",
       settingReadOnly: "Bunu değiştirmek için bakım yönetme yetkisi gerekir.",
       reportProblem: "Sorun bildir",
+      equipmentTab: "Ekipman",
+      planTab: "Bakım planı",
+      addEquipment: "Ekipman ekle",
+      editEquipment: "Ekipmanı değiştir",
+      equipmentName: "Ad",
+      equipmentNamePlaceholder: "Çamaşır makineleri",
+      category: "Kategori",
+      categoryPlaceholder: "Çamaşırhane",
+      whereIs: "Nerede",
+      atRoom: "Bir odada",
+      atPlace: "Başka bir yerde",
+      place: "Yer",
+      placePlaceholder: "Çamaşır odası",
+      interval: "Bakım sıklığı (ay)",
+      intervalHint: "Düzenli bakımı yoksa boş bırakın.",
+      lastServiced: "Son bakım",
+      nextService: "Sonraki bakım",
+      notScheduled: "Planlanmadı",
+      neverServiced: "Henüz bakım yapılmadı",
+      retire: "Kullanımdan kaldır",
+      restore: "Geri al",
+      retired: "Kullanımda değil",
+      showRetired: "Kullanımda olmayanları göster",
+      noEquipmentTitle: "{property} için ekipman yok",
+      noEquipmentDescription:
+        "Bakımı yapılan ve bozulabilen şeyleri — kazanlar, asansörler, makineler — kaydedin ve bakımlarını planlayın.",
+      equipmentReadOnly:
+        "Kaydı değiştirmek için ekipman yönetme yetkisi gerekir.",
+      noPlanTitle: "Planlanmış bir şey yok",
+      noPlanDescription:
+        "Ekipman altında bir kaleme bakım sıklığı verin; sonraki bakım tarihine göre burada görünür.",
+      daysOverdue: "{count, plural, other {# gün gecikti}}",
+      dueToday: "Bugün",
+      inDays: "{count, plural, other {# gün içinde}}",
+      everyMonths: "{count, plural, one {her ay} other {her # ayda bir}}",
+      createWorkOrder: "İş emri oluştur",
+      workOrderOpen: "MT-{number} iş emri açık",
+      workOrderTitle: "Bakım: {name}",
+      service: "Periyodik bakım",
+      equipment: "Ekipman",
+      noEquipmentChosen: "Ekipman yok",
+      noRoomChosen: "Oda yok",
+      chooseRoomOrEquipment: "Bir oda, ekipman ya da ikisini seçin.",
+      costTitle: "Maliyet",
+      cost: "Tutar",
+      vendor: "Yapan",
+      vendorPlaceholder: "Boğaz Teknik",
+      noCost: "Maliyet girilmedi",
+      chargeTitle: "Konuğa ücret yansıt",
+      chargeHint:
+        "Konuğun folyosuna bir satır. Hata olursa folyoda iptal edilir.",
+      guest: "Konuk",
+      chooseGuest: "Konuk seçin",
+      amount: "Tutar",
+      charge: "Yansıt",
+      noChargeable: "Bu odada kalan kimsenin açık folyosu yok.",
+      reversedCharge: "iptal edildi",
+      inHouseNow: "konaklıyor",
+      leftOn: "{date} tarihinde ayrıldı",
+      loading: "Yükleniyor…",
+      chargeUnavailable: "Konuklar şu anda yüklenemedi. Tekrar deneyin.",
+      actions: "İşlemler",
+      change: "Değiştir",
+      conditions: {
+        working: "Çalışıyor",
+        due: "Bakım zamanı",
+        overdue: "Bakım gecikti",
+        fault: "Arızalı",
+      },
       states: {
         new: "Yeni",
         in_progress: "Sürüyor",
@@ -1170,9 +1308,18 @@ export const messages: Record<SupportedLocale, Messages> = {
         assigned: "Talep atandı",
         prioritised: "Öncelik değişti",
         hold_released: "Oda bırakıldı, başka bir talep tutuyor",
+        costed: "Maliyet girildi",
+        guest_charged: "Hasar konuğa yansıtıldı",
       },
       maintenance_setting: {
         changed: "Bakım ayarı değişti",
+      },
+      maintenance_equipment: {
+        added: "Ekipman eklendi",
+        changed: "Ekipman değiştirildi",
+        retired: "Ekipman kullanımdan kaldırıldı",
+        restored: "Ekipman geri alındı",
+        serviced: "Ekipmana bakım yapıldı",
       },
     },
     auditSubject: {
@@ -1185,6 +1332,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       accommodation_unit: "Konaklama birimi",
       organization: "Organizasyon",
       maintenance_request: "Bakım talebi",
+      maintenance_equipment: "Ekipman",
     },
     table: {
       results: "{n, plural, other {# sonuç}}",
@@ -1462,6 +1610,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         reportMaintenance: "Report a maintenance problem",
         manageMaintenance: "Work maintenance requests",
         takeOutOfOrder: "Take rooms out of order and back",
+        manageEquipment: "Keep the equipment register",
       },
       emptyRosterTitle: "Nobody here yet",
       emptyRosterDescription: "This Organization has no Staff Member to show.",
@@ -1740,6 +1889,76 @@ export const messages: Record<SupportedLocale, Messages> = {
       settingReadOnly:
         "Changing this needs the permission to manage maintenance.",
       reportProblem: "Report a problem",
+      equipmentTab: "Equipment",
+      planTab: "Service plan",
+      addEquipment: "Add equipment",
+      editEquipment: "Change equipment",
+      equipmentName: "Name",
+      equipmentNamePlaceholder: "Washing machines",
+      category: "Category",
+      categoryPlaceholder: "Laundry",
+      whereIs: "Where it is",
+      atRoom: "In a room",
+      atPlace: "Somewhere else",
+      place: "Place",
+      placePlaceholder: "Laundry room",
+      interval: "Serviced every (months)",
+      intervalHint: "Leave it empty if it is not serviced on a schedule.",
+      lastServiced: "Last serviced",
+      nextService: "Next service",
+      notScheduled: "Not scheduled",
+      neverServiced: "Not serviced yet",
+      retire: "Retire",
+      restore: "Restore",
+      retired: "Retired",
+      showRetired: "Show retired",
+      noEquipmentTitle: "No equipment at {property}",
+      noEquipmentDescription:
+        "Register what is serviced and can break — boilers, lifts, machines — and plan its servicing.",
+      equipmentReadOnly:
+        "Changing the register needs the permission to keep equipment.",
+      noPlanTitle: "Nothing is scheduled",
+      noPlanDescription:
+        "Give an item a service interval under Equipment and it appears here by its next service date.",
+      daysOverdue:
+        "{count, plural, one {# day overdue} other {# days overdue}}",
+      dueToday: "Due today",
+      inDays: "{count, plural, one {in # day} other {in # days}}",
+      everyMonths: "{count, plural, one {every month} other {every # months}}",
+      createWorkOrder: "Create work order",
+      workOrderOpen: "Work order MT-{number} open",
+      workOrderTitle: "Service: {name}",
+      service: "Service",
+      equipment: "Equipment",
+      noEquipmentChosen: "No equipment",
+      noRoomChosen: "No room",
+      chooseRoomOrEquipment: "Choose a room, equipment or both.",
+      costTitle: "What it cost",
+      cost: "Cost",
+      vendor: "Done by",
+      vendorPlaceholder: "Boğaz Teknik",
+      noCost: "No cost recorded",
+      chargeTitle: "Charge a Guest",
+      chargeHint:
+        "A line on the Guest's Folio. A mistake is reversed on the Folio.",
+      guest: "Guest",
+      chooseGuest: "Choose a Guest",
+      amount: "Amount",
+      charge: "Charge",
+      noChargeable: "Nobody who stayed in this room has an open Folio.",
+      reversedCharge: "reversed",
+      inHouseNow: "in house",
+      leftOn: "left {date}",
+      loading: "Loading…",
+      chargeUnavailable: "The Guests could not be loaded just now. Try again.",
+      actions: "Actions",
+      change: "Change",
+      conditions: {
+        working: "Working",
+        due: "Service due",
+        overdue: "Service overdue",
+        fault: "Fault",
+      },
       states: {
         new: "New",
         in_progress: "In progress",
@@ -1818,9 +2037,18 @@ export const messages: Record<SupportedLocale, Messages> = {
         assigned: "Request assigned",
         prioritised: "Priority changed",
         hold_released: "Room let go, still held by another request",
+        costed: "Cost recorded",
+        guest_charged: "Guest charged for damage",
       },
       maintenance_setting: {
         changed: "Maintenance setting changed",
+      },
+      maintenance_equipment: {
+        added: "Equipment added",
+        changed: "Equipment changed",
+        retired: "Equipment retired",
+        restored: "Equipment restored",
+        serviced: "Equipment serviced",
       },
     },
     auditSubject: {
@@ -1833,6 +2061,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       accommodation_unit: "Accommodation unit",
       organization: "Organization",
       maintenance_request: "Maintenance request",
+      maintenance_equipment: "Equipment",
     },
     table: {
       results: "{n, plural, one {# result} other {# results}}",
@@ -2106,6 +2335,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         reportMaintenance: "الإبلاغ عن مشكلة صيانة",
         manageMaintenance: "إدارة طلبات الصيانة",
         takeOutOfOrder: "إخراج الغرف من الخدمة وإعادتها",
+        manageEquipment: "إدارة سجل المعدات",
       },
       emptyRosterTitle: "لا أحد هنا بعد",
       emptyRosterDescription: "لا يوجد في هذه المؤسسة موظف لعرضه.",
@@ -2375,6 +2605,76 @@ export const messages: Record<SupportedLocale, Messages> = {
         "تغيير الإعداد الافتراضي يتطلب الوصول إلى كل العقارات.",
       settingReadOnly: "تغيير هذا يتطلب صلاحية إدارة الصيانة.",
       reportProblem: "الإبلاغ عن مشكلة",
+      equipmentTab: "المعدات",
+      planTab: "خطة الصيانة الدورية",
+      addEquipment: "إضافة معدات",
+      editEquipment: "تعديل المعدات",
+      equipmentName: "الاسم",
+      equipmentNamePlaceholder: "غسالات",
+      category: "الفئة",
+      categoryPlaceholder: "الغسيل",
+      whereIs: "مكانها",
+      atRoom: "في غرفة",
+      atPlace: "في مكان آخر",
+      place: "المكان",
+      placePlaceholder: "غرفة الغسيل",
+      interval: "الصيانة كل (أشهر)",
+      intervalHint: "اتركه فارغًا إن لم تكن لها صيانة دورية.",
+      lastServiced: "آخر صيانة",
+      nextService: "الصيانة التالية",
+      notScheduled: "غير مجدولة",
+      neverServiced: "لم تُصَن بعد",
+      retire: "إخراج من الاستخدام",
+      restore: "إعادة إلى الاستخدام",
+      retired: "خارج الاستخدام",
+      showRetired: "إظهار ما هو خارج الاستخدام",
+      noEquipmentTitle: "لا معدات في {property}",
+      noEquipmentDescription:
+        "سجّل ما يحتاج إلى صيانة ويمكن أن يتعطل — الغلايات والمصاعد والآلات — وخطط لصيانته.",
+      equipmentReadOnly: "تعديل السجل يتطلب صلاحية إدارة المعدات.",
+      noPlanTitle: "لا شيء مجدول",
+      noPlanDescription:
+        "حدّد فترة صيانة لعنصر في قسم المعدات فيظهر هنا حسب موعد صيانته التالية.",
+      daysOverdue:
+        "{count, plural, one {متأخرة يومًا واحدًا} two {متأخرة يومين} few {متأخرة # أيام} many {متأخرة # يومًا} other {متأخرة # يوم}}",
+      dueToday: "مستحقة اليوم",
+      inDays:
+        "{count, plural, one {خلال يوم واحد} two {خلال يومين} few {خلال # أيام} many {خلال # يومًا} other {خلال # يوم}}",
+      everyMonths:
+        "{count, plural, one {كل شهر} two {كل شهرين} few {كل # أشهر} many {كل # شهرًا} other {كل # شهر}}",
+      createWorkOrder: "إنشاء أمر عمل",
+      workOrderOpen: "أمر العمل MT-{number} مفتوح",
+      workOrderTitle: "صيانة: {name}",
+      service: "صيانة دورية",
+      equipment: "المعدات",
+      noEquipmentChosen: "بدون معدات",
+      noRoomChosen: "بدون غرفة",
+      chooseRoomOrEquipment: "اختر غرفة أو معدات أو كليهما.",
+      costTitle: "التكلفة",
+      cost: "المبلغ",
+      vendor: "المنفِّذ",
+      vendorPlaceholder: "بوغاز تكنيك",
+      noCost: "لم تُسجَّل تكلفة",
+      chargeTitle: "تحميل الضيف التكلفة",
+      chargeHint: "سطر في حساب الضيف. يُلغى الخطأ من الحساب نفسه.",
+      guest: "الضيف",
+      chooseGuest: "اختر ضيفًا",
+      amount: "المبلغ",
+      charge: "تحميل",
+      noChargeable: "لا أحد ممن أقاموا في هذه الغرفة لديه حساب مفتوح.",
+      reversedCharge: "أُلغي",
+      inHouseNow: "مقيم",
+      leftOn: "غادر {date}",
+      loading: "جارٍ التحميل…",
+      chargeUnavailable: "تعذّر تحميل الضيوف الآن. حاول مرة أخرى.",
+      actions: "الإجراءات",
+      change: "تعديل",
+      conditions: {
+        working: "تعمل",
+        due: "حان موعد الصيانة",
+        overdue: "الصيانة متأخرة",
+        fault: "معطلة",
+      },
       states: {
         new: "جديد",
         in_progress: "قيد التنفيذ",
@@ -2453,9 +2753,18 @@ export const messages: Record<SupportedLocale, Messages> = {
         assigned: "أُسند الطلب",
         prioritised: "تغيرت الأولوية",
         hold_released: "أُفرج عن الغرفة وما زال طلب آخر يحجزها",
+        costed: "سُجّلت التكلفة",
+        guest_charged: "حُمّل الضيف تكلفة الضرر",
       },
       maintenance_setting: {
         changed: "تغير إعداد الصيانة",
+      },
+      maintenance_equipment: {
+        added: "أُضيفت معدات",
+        changed: "عُدّلت المعدات",
+        retired: "أُخرجت المعدات من الاستخدام",
+        restored: "أُعيدت المعدات إلى الاستخدام",
+        serviced: "صينت المعدات",
       },
     },
     auditSubject: {
@@ -2468,6 +2777,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       accommodation_unit: "وحدة إقامة",
       organization: "المؤسسة",
       maintenance_request: "طلب صيانة",
+      maintenance_equipment: "المعدات",
     },
     table: {
       results:

@@ -8,18 +8,25 @@ import {
   currentViewer,
   DETAILS,
   entitledProperties,
+  EQUIPMENT_CATEGORY,
+  EQUIPMENT_LOCATION,
+  EQUIPMENT_NAME,
+  equipmentRegister,
   MAINTENANCE_CAPABILITY,
   maintenanceBoard,
   maintenanceReportOptions,
   maintenanceSettings,
   RETURN_NOTE,
+  SERVICE_INTERVAL,
   TITLE,
+  VENDOR,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
 
 /**
  * Maintenance (RANZ-33, blueprint 5.13 and 6.5): the problems reported at
- * this Property, the work on them, and the rooms they hold out of order.
+ * this Property, the work on them, the rooms they hold out of order, and the
+ * equipment serviced on a plan.
  *
  * Gated by the maintenance capability. A viewer whose Organization is not
  * entitled to it, or who reaches no Property that has it, sees the empty state;
@@ -51,10 +58,11 @@ export default async function MaintenancePage({
     );
   }
 
-  const [board, options, settings] = await Promise.all([
+  const [board, options, settings, register] = await Promise.all([
     maintenanceBoard(property.propertyId),
     maintenanceReportOptions(property.propertyId),
     maintenanceSettings(property.propertyId),
+    equipmentRegister(property.propertyId),
   ]);
   // Only a Unit the form can offer: a stale link, or one to another
   // Property, opens nothing rather than a form that cannot be sent.
@@ -72,11 +80,19 @@ export default async function MaintenancePage({
         details: DETAILS.max,
         cancelReason: CANCEL_REASON.max,
         note: RETURN_NOTE.max,
+        vendor: VENDOR.max,
+        equipment: {
+          name: EQUIPMENT_NAME.max,
+          category: EQUIPMENT_CATEGORY.max,
+          location: EQUIPMENT_LOCATION.max,
+          interval: SERVICE_INTERVAL.max,
+        },
       }}
       locale={locale}
       options={options}
       propertyId={property.propertyId}
       propertyName={property.propertyName}
+      register={register}
       reportUnitId={reportUnitId}
       settings={settings}
       timeZone={property.timezone}

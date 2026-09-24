@@ -331,6 +331,9 @@ importers:
       '@ranza/db':
         specifier: workspace:*
         version: link:../../db
+      '@ranza/folios':
+        specifier: workspace:*
+        version: link:../folios
       '@ranza/platform-audit':
         specifier: workspace:*
         version: link:../../platform/audit

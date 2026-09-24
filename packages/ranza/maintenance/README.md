@@ -16,11 +16,21 @@ request holding it lets go.
 - `maintenance_settings`: an Organization default and Property overrides for
   whether work needs an assignee, whether a room returns when its request is
   done, and what it returns as.
+- `maintenance_equipment`: what is serviced and can break at a Property, in a
+  Unit or a named place, with a service interval. Retired, never deleted,
+  because requests still name it. Its condition — fault, overdue, due or
+  working — is computed when read, never stored.
+- `maintenance_request_charges`: which Folio lines a request charged a Guest.
+  The line itself is the Folio's, posted through `@ranza/folios`, so a charge
+  takes `finance.post_charge` and a mistake is a reversal on the Folio.
 
 The tables, policies and triggers are in
 [`20260916004300_a_problem_is_reported_and_worked`](../../../prisma/migrations/20260916004300_a_problem_is_reported_and_worked/migration.sql)
+[`20260916004400_a_request_takes_a_room_out_of_order`](../../../prisma/migrations/20260916004400_a_request_takes_a_room_out_of_order/migration.sql),
+[`20260916004500_equipment_is_registered`](../../../prisma/migrations/20260916004500_equipment_is_registered/migration.sql),
+[`20260916004600_a_service_plan`](../../../prisma/migrations/20260916004600_a_service_plan/migration.sql)
 and
-[`20260916004400_a_request_takes_a_room_out_of_order`](../../../prisma/migrations/20260916004400_a_request_takes_a_room_out_of_order/migration.sql).
+[`20260916004700_what_a_repair_cost`](../../../prisma/migrations/20260916004700_what_a_repair_cost/migration.sql).
 Why out of order is `accommodation_units.status` held by requests is
 [ADR 0032](../../../docs/adr/0032-out-of-order-is-a-unit-status-a-maintenance-request-holds.md);
 the design is [`docs/features/maintenance/`](../../../docs/features/maintenance/).
@@ -50,6 +60,15 @@ await maintenance.move(userId, { requestId, from: "new", to: "in_progress" });
   that somebody is in, or is booked on, waits for an acknowledgement and
   writes nothing until it comes.
 - `setPropertySettings` and `setOrganizationSettings` change the setting.
+- `equipmentRegister` reads the register with each item's condition and next
+  service; the service plan is the same read by date. `addEquipment`,
+  `changeEquipment`, `retireEquipment` and `restoreEquipment` keep it, and
+  `createWorkOrder` raises a service request for an item — one open at a time.
+  A service request moved to Done records the Property's today as the item's
+  last service.
+- `recordCost` records what a repair cost, in whole minor units, and who did
+  it. `chargeableStays` lists the Stays in the request's room whose Folio is
+  open, and `chargeGuest` posts a line on one of them.
 
 ## Rules
 
@@ -61,5 +80,7 @@ await maintenance.move(userId, { requestId, from: "new", to: "in_progress" });
 - `unit.returned_to_service` carries ids only. What the room comes back as is
   stamped on the hold by the database and read from there by the worker.
 
-Verified against a real database by `tests/database/maintenance.test.sql` and
-`tests/integration/maintenance.test.ts`.
+Verified against a real database by `tests/database/maintenance.test.sql`,
+`tests/database/maintenance_equipment_and_money.test.sql`,
+`tests/integration/maintenance.test.ts` and
+`tests/integration/maintenance-equipment-and-money.test.ts`.

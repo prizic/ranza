@@ -1,14 +1,17 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { isSupportedLocale } from "@ranza/i18n";
 import { MaintenanceInputError } from "@ranza/maintenance";
 import type {
+  ChargeableStay,
   OutOfOrderImpact,
   RequestStatus,
   ReturnAs,
   SettingOverrides,
 } from "@ranza/maintenance";
+import { toMinorUnits } from "../lib/amount";
 import { getComposition } from "./composition";
 import { currentViewer } from "./viewer";
 
@@ -146,17 +149,24 @@ export async function reportProblem(
   form: FormData,
 ): Promise<MaintenanceOutcome> {
   const propertyId = text(form, "propertyId");
-  const unitId = text(form, "unitId");
+  const unitId = optional(form, "unitId");
+  const equipmentId = optional(form, "equipmentId");
   const assigneeId = optional(form, "assigneeId");
   const outOfOrder = form.get("outOfOrder") === "on";
 
   return run(
     form,
-    [propertyId, unitId, ...(assigneeId ? [assigneeId] : [])],
+    [
+      propertyId,
+      ...(unitId ? [unitId] : []),
+      ...(equipmentId ? [equipmentId] : []),
+      ...(assigneeId ? [assigneeId] : []),
+    ],
     async (userId) => {
       const reported = await getComposition().maintenance.report(userId, {
         propertyId,
         unitId,
+        equipmentId,
         title: text(form, "title"),
         details: optional(form, "details"),
         priority: text(form, "priority"),
@@ -327,4 +337,147 @@ export async function saveMaintenanceSettings(
     });
     return {};
   });
+}
+
+function interval(value: string): number | null {
+  const trimmed = value.trim();
+  if (trimmed === "") return null;
+  return /^\d+$/.test(trimmed) ? Number(trimmed) : Number.NaN;
+}
+
+/** Register an item, or change one when `equipmentId` is sent (MT-S3-01, MT-S3-05). */
+export async function saveEquipment(
+  _previous: MaintenanceOutcome,
+  form: FormData,
+): Promise<MaintenanceOutcome> {
+  const propertyId = text(form, "propertyId");
+  const equipmentId = optional(form, "equipmentId");
+  const atRoom = text(form, "where") === "room";
+  const unitId = atRoom ? optional(form, "unitId") : null;
+  return run(
+    form,
+    [
+      propertyId,
+      ...(equipmentId ? [equipmentId] : []),
+      ...(unitId ? [unitId] : []),
+    ],
+    async (userId) => {
+      const input = {
+        name: text(form, "name"),
+        category: text(form, "category"),
+        unitId,
+        location: atRoom ? null : optional(form, "location"),
+        serviceIntervalMonths: interval(text(form, "interval")),
+        lastServicedOn: optional(form, "lastServicedOn"),
+      };
+      const maintenance = getComposition().maintenance;
+      if (equipmentId) {
+        await maintenance.changeEquipment(userId, equipmentId, {
+          ...input,
+          lastServicedOnWas: optional(form, "lastServicedOnWas"),
+        });
+      } else {
+        await maintenance.addEquipment(userId, propertyId, input);
+      }
+      return {};
+    },
+  );
+}
+
+/** Retire an item, or restore one (MT-S3-06). */
+export async function setEquipmentRetired(
+  _previous: MaintenanceOutcome,
+  form: FormData,
+): Promise<MaintenanceOutcome> {
+  const equipmentId = text(form, "equipmentId");
+  const retired = form.get("retired") === "true";
+  return run(form, [equipmentId], async (userId) => {
+    const maintenance = getComposition().maintenance;
+    if (retired) await maintenance.retireEquipment(userId, equipmentId);
+    else await maintenance.restoreEquipment(userId, equipmentId);
+    return {};
+  });
+}
+
+/**
+ * Raise a work order for an item (MT-S4-02), titled in the reader's language
+ * with the item's name.
+ */
+export async function createWorkOrder(
+  _previous: MaintenanceOutcome,
+  form: FormData,
+): Promise<MaintenanceOutcome> {
+  const equipmentId = text(form, "equipmentId");
+  const locale = text(form, "locale");
+  return run(form, [equipmentId], async (userId) => {
+    if (!isSupportedLocale(locale)) throw new MaintenanceInputError("locale");
+    const t = await getTranslations({ locale, namespace: "maintenance" });
+    const reported = await getComposition().maintenance.createWorkOrder(
+      userId,
+      {
+        equipmentId,
+        title: t("workOrderTitle", { name: text(form, "name") }),
+      },
+    );
+    return { number: reported.number };
+  });
+}
+
+/** Record what a repair cost and who did it (MT-S5-01). */
+export async function recordRepairCost(
+  _previous: MaintenanceOutcome,
+  form: FormData,
+): Promise<MaintenanceOutcome> {
+  const requestId = text(form, "requestId");
+  return run(form, [requestId], async (userId) => {
+    const typed = text(form, "cost").trim();
+    const costMinor =
+      typed === "" ? null : toMinorUnits(typed, text(form, "currency"));
+    if (typed !== "" && costMinor === null) {
+      throw new MaintenanceInputError("a cost is an amount");
+    }
+    await getComposition().maintenance.recordCost(userId, {
+      requestId,
+      costMinor,
+      vendor: optional(form, "vendor"),
+    });
+    return {};
+  });
+}
+
+/** Charge a Guest for damage (MT-S5-03). */
+export async function chargeGuestForDamage(
+  _previous: MaintenanceOutcome,
+  form: FormData,
+): Promise<MaintenanceOutcome> {
+  const requestId = text(form, "requestId");
+  const folioId = text(form, "folioId");
+  return run(form, [requestId, folioId], async (userId) => {
+    const amountMinor = toMinorUnits(
+      text(form, "amount"),
+      text(form, "currency"),
+    );
+    if (amountMinor === null || amountMinor <= 0) {
+      throw new MaintenanceInputError("a charge is a positive amount");
+    }
+    await getComposition().maintenance.chargeGuest(userId, {
+      requestId,
+      folioId,
+      amountMinor,
+    });
+    return {};
+  });
+}
+
+/**
+ * The Stays a damage charge may go on, read when the charge form opens rather
+ * than for every card on the board (MT-S5-07). Empty for anything malformed or
+ * refused: the form then says nobody can be charged.
+ */
+export async function loadChargeableStays(
+  requestId: string,
+): Promise<ChargeableStay[]> {
+  const viewer = await currentViewer();
+  if (!viewer || !UUID.test(requestId)) return [];
+  return getComposition().maintenance.chargeableStays(viewer.userId, requestId);
 }

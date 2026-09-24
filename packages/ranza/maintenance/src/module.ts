@@ -8,8 +8,6 @@ import { withOrganizationContext } from "@ranza/db";
 import { recordWithin } from "@ranza/platform-audit";
 import { publishWithin } from "@ranza/platform-outbox";
 import {
-  AssigneeOutOfReachError,
-  AssigneeRequiredError,
   BOARD_STATES,
   CANCEL_REASON,
   DETAILS,
@@ -36,6 +34,8 @@ import {
   type Priority,
   type Reported,
   type ReportOptions,
+  type RequestCharge,
+  type RequestKind,
   type RequestStatus,
   type ReturnAs,
   type RoomsMaintenance,
@@ -43,7 +43,17 @@ import {
   type SettingValues,
   type UnitHold,
 } from "./contracts";
+import { createEquipmentCommands, recordServiceWithin } from "./equipment";
+import { boundedDate } from "./input";
+import { createMoneyCommands } from "./money";
 import type { MaintenanceDeps } from "./ports";
+import {
+  CHECK_VIOLATION,
+  INSUFFICIENT_PRIVILEGE,
+  raised,
+  refusal,
+  says,
+} from "./refusals";
 
 /**
  * The Maintenance screen: reporting a problem, working it on a board, and
@@ -56,70 +66,6 @@ import type { MaintenanceDeps } from "./ports";
  * below asks whether the actor may do something — except which of two outcomes
  * a done move has, which is a choice between writes and not a guard on one.
  */
-
-/** A policy said no, or a column grant did. */
-const INSUFFICIENT_PRIVILEGE = "42501";
-
-/** A check constraint, or a trigger speaking for one. */
-const CHECK_VIOLATION = "23514";
-
-/** A foreign key: the Unit is at another Property, or does not exist. */
-const FOREIGN_KEY_VIOLATION = "23503";
-
-/** A trigger refused a state (a done request cancelled, a closed hold). */
-const NOT_PERMITTED_BY_STATE = "55000";
-
-/**
- * Whether a failure carries a particular SQLSTATE. Read from the code rather
- * than from a constraint name, and from the message as well as Prisma's
- * `meta`, for the reasons `@ranza/accommodation` gives beside its own copy.
- */
-function raised(error: unknown, code: string): boolean {
-  if (typeof error !== "object" || error === null) return false;
-  const { meta, message } = error as {
-    meta?: { driverAdapterError?: { cause?: { code?: unknown } } };
-    message?: unknown;
-  };
-  return (
-    meta?.driverAdapterError?.cause?.code === code ||
-    (typeof message === "string" && message.includes(code))
-  );
-}
-
-/** Whether a failure's message says something a trigger is known to say. */
-function says(error: unknown, words: string): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    typeof (error as { message?: unknown }).message === "string" &&
-    (error as { message: string }).message.includes(words)
-  );
-}
-
-/**
- * Turns what a write to a request can raise into this module's errors, and
- * rethrows anything it does not recognise.
- */
-function refusal(error: unknown): Error {
-  if (raised(error, CHECK_VIOLATION)) {
-    if (says(error, "assignee does not reach")) {
-      return new AssigneeOutOfReachError();
-    }
-    if (says(error, "starts with somebody assigned")) {
-      return new AssigneeRequiredError();
-    }
-  }
-  if (
-    raised(error, INSUFFICIENT_PRIVILEGE) ||
-    raised(error, FOREIGN_KEY_VIOLATION) ||
-    raised(error, NOT_PERMITTED_BY_STATE)
-  ) {
-    return new MaintenanceRefusedError();
-  }
-  return error instanceof Error ? error : new Error(String(error));
-}
-
-const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 
 function isPriority(value: string): value is Priority {
   return (PRIORITIES as readonly string[]).includes(value);
@@ -153,30 +99,14 @@ function boundedDetails(details: string | null | undefined): string | null {
   return trimmed === "" ? null : trimmed;
 }
 
-/**
- * A calendar day as `YYYY-MM-DD`. Round-tripped rather than parsed, because
- * `Date` accepts the 31st of February as the 3rd of March, and Postgres would
- * then refuse what this let through.
- */
-function boundedDate(value: string | null | undefined): string | null {
-  if (value === null || value === undefined || value === "") return null;
-  const day = isoDate.test(value) ? new Date(`${value}T00:00:00Z`) : null;
-  if (
-    !day ||
-    Number.isNaN(day.getTime()) ||
-    day.toISOString().slice(0, 10) !== value
-  ) {
-    throw new MaintenanceInputError("a date is written YYYY-MM-DD");
-  }
-  return value;
-}
-
 /** A request as the commands below need it: where it is, and what it holds. */
 interface RequestRow {
   requestId: string;
   organizationId: string;
   propertyId: string;
   unitId: string | null;
+  equipmentId: string | null;
+  kind: RequestKind;
   number: number;
   status: RequestStatus;
   holding: boolean;
@@ -188,10 +118,17 @@ interface CardRow {
   title: string;
   details: string | null;
   status: RequestStatus;
+  kind: RequestKind;
   priority: Priority;
   unitId: string | null;
   unitName: string | null;
   roomName: string | null;
+  equipmentId: string | null;
+  equipmentName: string | null;
+  costMinor: bigint | null;
+  currency: string;
+  vendor: string | null;
+  charges: RequestCharge[] | null;
   assigneeId: string | null;
   assigneeEmail: string | null;
   assigneeReaches: boolean;
@@ -206,6 +143,7 @@ interface CardRow {
   mayReport: boolean;
   mayManage: boolean;
   mayTakeOutOfOrder: boolean;
+  mayCharge: boolean;
 }
 
 function cardOf(row: CardRow): MaintenanceRequestCard {
@@ -215,11 +153,20 @@ function cardOf(row: CardRow): MaintenanceRequestCard {
     title: row.title,
     details: row.details,
     status: row.status,
+    kind: row.kind,
     priority: row.priority,
     unit:
       row.unitId === null || row.unitName === null
         ? null
         : { unitId: row.unitId, name: row.unitName, roomName: row.roomName },
+    equipment:
+      row.equipmentId === null || row.equipmentName === null
+        ? null
+        : { equipmentId: row.equipmentId, name: row.equipmentName },
+    costMinor: row.costMinor === null ? null : Number(row.costMinor),
+    currency: row.currency,
+    vendor: row.vendor,
+    charges: row.charges ?? [],
     assignee:
       row.assigneeId === null
         ? null
@@ -279,7 +226,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
       (tx) =>
         tx.$queryRaw<(CardRow | (Partial<CardRow> & { requestId: null }))[]>`
         with scope as (
-          select property.id, property.organization_id,
+          select property.id, property.organization_id, property.currency,
                  app.property_today(property.id) as today
             from public.properties as property
            where property.id = ${propertyId}::uuid
@@ -293,10 +240,34 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
                request.title,
                request.details,
                request.status,
+               request.kind,
                request.priority,
                unit.id                    as "unitId",
                unit.name                  as "unitName",
                room.name                  as "roomName",
+               equipment.id               as "equipmentId",
+               equipment.name             as "equipmentName",
+               request.cost_minor         as "costMinor",
+               scope.currency,
+               request.vendor,
+               (select json_agg(json_build_object(
+                         'lineId', line.id,
+                         'amountMinor', line.amount_minor,
+                         'currency', folio.currency,
+                         'guestName', guest.full_name,
+                         'reversed', exists (
+                           select 1 from public.folio_lines as cancelling
+                            where cancelling.reverses_line_id = line.id))
+                         order by line.posted_at)
+                  from public.maintenance_request_charges as charge
+                  join public.folio_lines as line on line.id = charge.folio_line_id
+                  join public.folios as folio on folio.id = charge.folio_id
+                  left join public.stays as stay on stay.id = folio.stay_id
+                  left join public.reservations as reservation
+                    on reservation.id = stay.reservation_id
+                  left join public.guests as guest on guest.id = reservation.guest_id
+                 where charge.request_id = request.id)
+                                          as charges,
                request.assignee_id        as "assigneeId",
                assignee.email             as "assigneeEmail",
                (request.assignee_id is not null and exists (
@@ -327,7 +298,11 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
                  scope.organization_id, 'maintenance.manage') as "mayManage",
                app.has_organization_permission(
                  scope.organization_id, 'maintenance.take_out_of_order')
-                                          as "mayTakeOutOfOrder"
+                                          as "mayTakeOutOfOrder",
+               (app.can_use_capability(scope.id, 'billing_folios', 'finance')
+                and app.has_organization_permission(
+                      scope.organization_id, 'finance.post_charge'))
+                                          as "mayCharge"
           from scope
           left join public.maintenance_requests as request
             on request.property_id = scope.id
@@ -337,6 +312,8 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
             on unit.id = request.accommodation_unit_id
           left join public.accommodation_units as room
             on room.id = unit.parent_id
+          left join public.maintenance_equipment as equipment
+            on equipment.id = request.equipment_id
           left join public.users as assignee
             on assignee.id = request.assignee_id
           left join public.users as reporter
@@ -359,6 +336,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
       mayReport: first?.mayReport ?? false,
       mayManage: first?.mayManage ?? false,
       mayTakeOutOfOrder: first?.mayTakeOutOfOrder ?? false,
+      mayCharge: first?.mayCharge ?? false,
     };
   }
 
@@ -411,7 +389,24 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
                  ${MAINTENANCE_CAPABILITY.capabilityKey})
          order by account.email
       `;
-      return { units, assignees };
+      const equipment = await tx.$queryRaw<
+        ReportOptions["equipment"][number][]
+      >`
+        select equipment.id as "equipmentId",
+               equipment.name,
+               coalesce(unit.name, equipment.location) as "where"
+          from public.maintenance_equipment as equipment
+          left join public.accommodation_units as unit
+            on unit.id = equipment.accommodation_unit_id
+         where equipment.property_id = ${propertyId}::uuid
+           and equipment.retired_at is null
+           and app.can_use_capability(
+                 equipment.property_id,
+                 ${MAINTENANCE_CAPABILITY.moduleKey},
+                 ${MAINTENANCE_CAPABILITY.capabilityKey})
+         order by equipment.name, "where"
+      `;
+      return { units, assignees, equipment };
     });
   }
 
@@ -481,6 +476,8 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
              request.organization_id       as "organizationId",
              request.property_id           as "propertyId",
              request.accommodation_unit_id as "unitId",
+             request.equipment_id          as "equipmentId",
+             request.kind,
              request.number,
              request.status,
              exists (
@@ -725,7 +722,9 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
     userId: string,
     input: {
       propertyId: string;
-      unitId: string;
+      /** The room or bed, the item, or both (MT-S3-07). */
+      unitId?: string | null;
+      equipmentId?: string | null;
       title: string;
       details?: string | null;
       priority: string;
@@ -746,6 +745,14 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
     const priority = input.priority;
     const expectedBackOn = boundedDate(input.outOfOrder?.expectedBackOn);
     const assigneeId = input.assigneeId || null;
+    const unitId = input.unitId || null;
+    const equipmentId = input.equipmentId || null;
+    if (unitId === null && equipmentId === null) {
+      throw new MaintenanceInputError("a problem is about a room or equipment");
+    }
+    if (input.outOfOrder && unitId === null) {
+      throw new MaintenanceInputError("only a room is taken out of order");
+    }
 
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
       let written: {
@@ -757,9 +764,10 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
         written = await tx.$queryRaw`
           insert into public.maintenance_requests
             (organization_id, property_id, title, details,
-             accommodation_unit_id, priority, assignee_id)
+             accommodation_unit_id, equipment_id, priority, assignee_id)
           select property.organization_id, property.id, ${title}, ${details},
-                 ${input.unitId}::uuid, ${priority}, ${assigneeId}::uuid
+                 ${unitId}::uuid, ${equipmentId}::uuid, ${priority},
+                 ${assigneeId}::uuid
             from public.properties as property
            where property.id = ${input.propertyId}::uuid
           returning id as "requestId",
@@ -781,13 +789,14 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
         context: {
           number: request.number,
           title,
-          unitId: input.unitId,
+          unitId,
+          equipmentId,
           priority,
           assigneeId,
         },
       });
 
-      if (input.outOfOrder) {
+      if (input.outOfOrder && unitId !== null) {
         await holdWithin(
           tx,
           userId,
@@ -795,7 +804,9 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
             requestId: request.requestId,
             organizationId: request.organizationId,
             propertyId: input.propertyId,
-            unitId: input.unitId,
+            unitId,
+            equipmentId,
+            kind: "fault",
             number: request.number,
             status: "new",
             holding: false,
@@ -887,6 +898,12 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
         subjectId: request.requestId,
         context: { number: request.number, from, to },
       });
+
+      // A work order done is the service done (MT-S4-04). Not a fault: a
+      // repair is not a service (MT-S4-05).
+      if (to === "done" && request.kind === "service") {
+        await recordServiceWithin(tx, userId, request);
+      }
 
       if (!releasing) {
         return {
@@ -1350,6 +1367,8 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
     settings,
     setPropertySettings,
     setOrganizationSettings,
+    ...createEquipmentCommands(deps),
+    ...createMoneyCommands(deps),
   };
 }
 

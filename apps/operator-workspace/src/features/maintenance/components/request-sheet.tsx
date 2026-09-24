@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { RotateCcw, Wrench, X } from "lucide-react";
+import { CalendarClock, RotateCcw, Wrench, X } from "lucide-react";
 import type {
   BoardState,
   MaintenanceRequestCard,
@@ -42,9 +42,11 @@ import {
   formatInstant,
   OutOfOrderBadge,
   PriorityBadge,
+  Section,
   STATE_ICON,
 } from "./look";
 import { OutcomeMessage } from "./outcome-message";
+import { RequestMoney } from "./request-money";
 import { useCommand } from "./use-command";
 
 const BOARD: readonly BoardState[] = [
@@ -77,6 +79,7 @@ export function RequestSheet({
   assignees,
   mayManage,
   mayTakeOutOfOrder,
+  mayCharge,
   limits,
   onOpenChange,
 }: {
@@ -87,7 +90,8 @@ export function RequestSheet({
   assignees: ReportOptions["assignees"];
   mayManage: boolean;
   mayTakeOutOfOrder: boolean;
-  limits: { cancelReason: number; note: number };
+  mayCharge: boolean;
+  limits: { cancelReason: number; note: number; vendor: number };
   onOpenChange: (open: boolean) => void;
 }) {
   const t = useTranslations("maintenance");
@@ -127,7 +131,7 @@ export function RequestSheet({
     byName.takeOut.outcome.status === "impact"
       ? byName.takeOut.outcome.impact
       : undefined;
-  const where =
+  const room =
     request.unit === null
       ? null
       : request.unit.roomName === null
@@ -136,6 +140,9 @@ export function RequestSheet({
             bed: request.unit.name,
             room: request.unit.roomName,
           });
+  const where = [room, request.equipment?.name ?? null]
+    .filter((part) => part !== null)
+    .join(" · ");
   const base = { requestId: request.requestId };
 
   return (
@@ -156,13 +163,20 @@ export function RequestSheet({
               tone={request.status === "done" ? "success" : "neutral"}
             />
             <PriorityBadge priority={request.priority} />
+            {request.kind === "service" ? (
+              <StatusBadge
+                icon={CalendarClock}
+                label={t("service")}
+                tone="info"
+              />
+            ) : null}
             {holding ? <OutOfOrderBadge /> : null}
           </div>
         </SheetHeader>
 
         <div className="grid gap-5 p-4">
           <dl className="grid gap-3 text-step--1">
-            <Fact label={t("where")}>{where ?? "—"}</Fact>
+            <Fact label={t("where")}>{where || "—"}</Fact>
             <Fact label={t("details")}>
               <span className="whitespace-pre-wrap">
                 {request.details ?? t("noDetails")}
@@ -403,6 +417,14 @@ export function RequestSheet({
             </Section>
           ) : null}
 
+          <RequestMoney
+            locale={locale}
+            mayCharge={mayCharge}
+            mayManage={mayManage}
+            request={request}
+            vendorMax={limits.vendor}
+          />
+
           {mayManage && open ? (
             <Section title={t("cancelRequest")}>
               {cancelling ? (
@@ -482,16 +504,5 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="m-0">{children}</dd>
     </div>
-  );
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="grid gap-2">
-      <h3 className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-        {title}
-      </h3>
-      {children}
-    </section>
   );
 }

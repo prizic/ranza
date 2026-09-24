@@ -20,3 +20,10 @@ everything lands under Unreleased.
   whether work needs an assignee, how a room returns, and what it returns as.
 - `unit.returned_to_service`, applied to housekeeping status by
   `app.mark_unit_returned_to_service()` in `apps/worker`.
+- `maintenance_equipment` and `equipmentRegister`: equipment in a Unit or a
+  named place, with a service interval and a condition computed when read.
+- The service plan: `createWorkOrder` raises a service request for an item, at
+  most one open per item, and Done records the item's last service.
+- `recordCost` and `chargeGuest`: what a repair cost, and a damage charge on
+  the open Folio of a Stay in the request's room, posted through
+  `@ranza/folios` and linked in `maintenance_request_charges`.

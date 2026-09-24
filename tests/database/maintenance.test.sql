@@ -41,7 +41,7 @@
 --   the worker function without the returned_at match   MT-S2-19 (forged)
 --   the worker function without the context check       MT-S2-19
 begin;
-select plan(64);
+select plan(65);
 
 insert into public.users (id, email) values
   ('91111111-1111-4111-8111-111111111111', 'mt-manager@example.test'),
@@ -179,34 +179,48 @@ select results_eq(
             ('owner', true, true, true) $$,
   'MT-S1-28: every shipped role reports; owner and manager work the board; four take rooms out of order');
 
+select results_eq(
+  $$ select key from public.staff_roles
+      where organization_id is null
+        and 'maintenance.equipment' = any (permissions)
+      order by key $$,
+  $$ values ('manager'), ('owner') $$,
+  'MT-S1-28: owner and manager keep the equipment register');
+
 -- MT-S1-22, MT-S1-03: the columns a caller may name.
 select set_eq(
   $$ select column_name::text from information_schema.column_privileges
       where table_schema = 'public' and table_name = 'maintenance_requests'
         and grantee = 'ranza_app' and privilege_type = 'INSERT' $$,
   array['organization_id', 'property_id', 'title', 'details',
-        'accommodation_unit_id', 'priority', 'assignee_id'],
+        'accommodation_unit_id', 'equipment_id', 'kind', 'priority',
+        'assignee_id'],
   'MT-S1-03: a report names where and what, never its number, reporter or times');
 
 select set_eq(
   $$ select column_name::text from information_schema.column_privileges
       where table_schema = 'public' and table_name = 'maintenance_requests'
         and grantee = 'ranza_app' and privilege_type = 'UPDATE' $$,
-  array['status', 'cancel_reason', 'priority', 'assignee_id'],
-  'MT-S1-22: an update touches the state, the reason, the priority and the assignee');
+  array['status', 'cancel_reason', 'priority', 'assignee_id', 'cost_minor',
+        'vendor'],
+  'MT-S1-22: an update touches the state, the reason, the priority, the assignee and the cost');
 
 -- MT-S1-23. Read off the catalogue, which returns no row rather than raising.
 select is_empty(
   $$ select policyname from pg_policies
       where schemaname = 'public'
-        and tablename in ('maintenance_requests', 'maintenance_unit_holds', 'maintenance_settings')
+        and tablename in ('maintenance_requests', 'maintenance_unit_holds',
+                          'maintenance_settings', 'maintenance_equipment',
+                          'maintenance_request_charges')
         and cmd in ('DELETE', 'ALL') $$,
   'MT-S1-23: no maintenance table has a delete policy');
 
 select is_empty(
   $$ select class.relname
        from pg_class as class, aclexplode(class.relacl) as privilege
-      where class.relname in ('maintenance_requests', 'maintenance_unit_holds', 'maintenance_settings')
+      where class.relname in ('maintenance_requests', 'maintenance_unit_holds',
+                              'maintenance_settings', 'maintenance_equipment',
+                              'maintenance_request_charges')
         and privilege.grantee = 'ranza_app'::regrole
         and privilege.privilege_type in ('DELETE', 'TRUNCATE') $$,
   'MT-S1-23: and ranza_app may delete from none of them');

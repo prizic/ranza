@@ -96,6 +96,7 @@ model Property {
   housekeepingSettings HousekeepingSetting[]
   maintenanceRequests  MaintenanceRequest[]
   maintenanceSettings  MaintenanceSetting[]
+  maintenanceEquipment MaintenanceEquipment[]
 
   @@unique([id, organizationId])
   @@index([organizationId], map: "properties_organization_idx")
@@ -146,6 +147,7 @@ model AccommodationUnit {
   reservations Reservation[]
   housekeeping HousekeepingUnitStatus[]
   maintenance  MaintenanceRequest[]
+  equipment    MaintenanceEquipment[]
 
   /// A room's name is unique in its Property; a bed's is unique in its room.
   /// Two partial indexes rather than one over `(property_id, parent_id, name)`,
@@ -225,6 +227,10 @@ model MaintenanceRequest {
   title               String
   details             String?
   accommodationUnitId String?  @map("accommodation_unit_id") @db.Uuid
+  /// The equipment it is about, when it is about equipment (slice 3).
+  equipmentId         String?  @map("equipment_id") @db.Uuid
+  /// A fault somebody found, or a service the plan asked for (slice 4).
+  kind                String   @default("fault")
   priority            String   @default("this_week")
   status              String   @default("new")
   /// Why it was cancelled. Present exactly when `status` is `cancelled`.
@@ -238,18 +244,83 @@ model MaintenanceRequest {
   reportedAt          DateTime @default(now()) @map("reported_at") @db.Timestamptz(6)
   /// When `status` last changed, stamped by the database.
   statusChangedAt     DateTime @default(now()) @map("status_changed_at") @db.Timestamptz(6)
+  /// What the repair cost, in whole minor units of the Property's currency.
+  costMinor           BigInt?  @map("cost_minor")
+  /// Who did the work, in the words of whoever recorded it.
+  vendor              String?
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
 
-  property Property              @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  unit     AccommodationUnit?    @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  hold     MaintenanceUnitHold?
+  property  Property                     @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  unit      AccommodationUnit?           @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  equipment MaintenanceEquipment?        @relation(fields: [equipmentId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  hold      MaintenanceUnitHold?
+  charges   MaintenanceRequestCharge[]
 
   @@unique([propertyId, number])
   @@unique([id, propertyId, organizationId])
   @@index([propertyId, status])
   @@index([accommodationUnitId])
+  @@index([equipmentId])
+  /// One open work order per item (MT-S4-03).
+  @@unique([equipmentId], map: "maintenance_requests_one_open_work_order", where: raw("((kind = 'service'::text) AND (status <> ALL (ARRAY['done'::text, 'cancelled'::text])))"))
   @@map("maintenance_requests")
+}
+
+/// Something at a Property that is serviced and can break (RANZ-33 slice 3):
+/// a boiler, a lift, four washing machines. It is at a Unit or at a named
+/// place, never both. Retired rather than deleted: its requests keep naming
+/// it. Its condition — working, due, overdue, fault — is read off its dates
+/// and open requests, never stored.
+model MaintenanceEquipment {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId        String    @map("organization_id") @db.Uuid
+  propertyId            String    @map("property_id") @db.Uuid
+  name                  String
+  category              String
+  accommodationUnitId   String?   @map("accommodation_unit_id") @db.Uuid
+  /// A place that is not a Unit: "Laundry room", "Roof".
+  location              String?
+  serviceIntervalMonths Int?      @map("service_interval_months")
+  lastServicedOn        DateTime? @map("last_serviced_on") @db.Date
+  /// When it was retired, stamped by the database; null while in use.
+  retiredAt             DateTime? @map("retired_at") @db.Timestamptz(6)
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  property Property             @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  unit     AccommodationUnit?   @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  requests MaintenanceRequest[]
+
+  @@unique([id, propertyId, organizationId])
+  @@index([propertyId])
+  @@map("maintenance_equipment")
+}
+
+/// A charge a request put on a Guest's Folio for damage (RANZ-33 slice 5).
+/// The line itself is the Folio's, posted through its write contract; this
+/// says which request it was for. Never deleted: a mistaken charge is reversed
+/// on the Folio, and the request reads the reversal from there.
+model MaintenanceRequestCharge {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  propertyId     String   @map("property_id") @db.Uuid
+  requestId      String   @map("request_id") @db.Uuid
+  folioId        String   @map("folio_id") @db.Uuid
+  folioLineId    String   @map("folio_line_id") @db.Uuid
+  /// Who charged it, stamped by the database.
+  chargedBy      String   @map("charged_by") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  request MaintenanceRequest @relation(fields: [requestId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  folio   Folio              @relation(fields: [folioId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  line    FolioLine          @relation(fields: [folioLineId, folioId], references: [id, folioId], onDelete: Restrict, onUpdate: NoAction)
+
+  /// A line is charged for one request at most; the line names its Folio, so
+  /// this is uniqueness on the line.
+  @@unique([folioLineId, folioId])
+  @@index([requestId])
+  @@map("maintenance_request_charges")
 }
 
 /// Whether a request holds its Unit out of order (ADR 0032). One row per
@@ -638,6 +709,7 @@ model Folio {
   property Property    @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
   stay     Stay        @relation(fields: [stayId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
   lines    FolioLine[]
+  maintenanceCharges MaintenanceRequestCharge[]
 
   @@unique([id, propertyId, organizationId])
   /// One Folio per Stay in this slice. Split folios are blueprint 5.9 and are
@@ -675,6 +747,7 @@ model FolioLine {
 
   folio    Folio      @relation(fields: [folioId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
   reverses FolioLine? @relation("FolioLineReversal", fields: [reversesLineId, folioId], references: [id, folioId], onDelete: Restrict, onUpdate: NoAction)
+  maintenanceCharge MaintenanceRequestCharge?
   reversal FolioLine? @relation("FolioLineReversal")
 
   /// What the reversal's composite foreign key resolves against, so a reversal

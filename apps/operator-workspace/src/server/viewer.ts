@@ -40,14 +40,22 @@ import {
   BOARD_STATES,
   CANCEL_REASON,
   DETAILS,
+  EQUIPMENT_CATEGORY,
+  EQUIPMENT_LOCATION,
+  EQUIPMENT_NAME,
   MAINTENANCE_CAPABILITY,
   PRIORITIES,
   RETURN_AS,
   RETURN_NOTE,
+  SERVICE_INTERVAL,
   TITLE,
+  VENDOR,
 } from "@ranza/maintenance";
 import type {
   BoardState,
+  ChargeableStay,
+  EquipmentItem,
+  EquipmentRegister,
   MaintenanceBoard,
   MaintenanceRequestCard,
   MaintenanceSettings,
@@ -102,6 +110,11 @@ export {
   RETURN_AS,
   RETURN_NOTE,
   TITLE,
+  EQUIPMENT_CATEGORY,
+  EQUIPMENT_LOCATION,
+  EQUIPMENT_NAME,
+  SERVICE_INTERVAL,
+  VENDOR,
 };
 export type {
   AccommodationUnitStatus,
@@ -117,6 +130,9 @@ export type {
   HousekeepingStatus,
   InspectionSettings,
   BoardState,
+  ChargeableStay,
+  EquipmentItem,
+  EquipmentRegister,
   MaintenanceBoard,
   MaintenanceRequestCard,
   MaintenanceSettings,
@@ -426,6 +442,7 @@ export async function maintenanceBoard(
       mayReport: false,
       mayManage: false,
       mayTakeOutOfOrder: false,
+      mayCharge: false,
     };
   }
   return getComposition().maintenance.board(viewer.userId, propertyId);
@@ -436,7 +453,7 @@ export async function maintenanceReportOptions(
   propertyId: string,
 ): Promise<ReportOptions> {
   const viewer = await currentViewer();
-  if (!viewer) return { units: [], assignees: [] };
+  if (!viewer) return { units: [], assignees: [], equipment: [] };
   return getComposition().maintenance.reportOptions(viewer.userId, propertyId);
 }
 
@@ -464,4 +481,26 @@ export async function roomsMaintenance(
   const viewer = await currentViewer();
   if (!viewer) return { holds: [], mayReport: false };
   return getComposition().maintenance.roomsView(viewer.userId, propertyId);
+}
+
+/**
+ * The equipment register at one Property, each item with its condition and
+ * next service; the service plan is the same read by date (MT-S3-04, MT-S4-01).
+ */
+export async function equipmentRegister(
+  propertyId: string,
+): Promise<EquipmentRegister> {
+  const viewer = await currentViewer();
+  if (!viewer) {
+    return {
+      today: new Date().toISOString().slice(0, 10),
+      items: [],
+      mayManageEquipment: false,
+      mayReport: false,
+    };
+  }
+  return getComposition().maintenance.equipmentRegister(
+    viewer.userId,
+    propertyId,
+  );
 }

@@ -44,6 +44,13 @@ export const KNOWN_ACTIONS = [
   "maintenance_request.assigned",
   "maintenance_request.prioritised",
   "maintenance_request.hold_released",
+  "maintenance_request.costed",
+  "maintenance_request.guest_charged",
+  "maintenance_equipment.added",
+  "maintenance_equipment.changed",
+  "maintenance_equipment.retired",
+  "maintenance_equipment.restored",
+  "maintenance_equipment.serviced",
   "unit.taken_out_of_order",
   "unit.returned_to_service",
   "maintenance_setting.changed",
@@ -61,6 +68,7 @@ export const KNOWN_SUBJECTS = [
   "accommodation_unit",
   "organization",
   "maintenance_request",
+  "maintenance_equipment",
 ] as const;
 
 export type KnownSubject = (typeof KNOWN_SUBJECTS)[number];
