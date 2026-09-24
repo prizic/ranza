@@ -4,7 +4,11 @@ import path from "node:path";
 import { expect, test as setup } from "@playwright/test";
 
 import { psql } from "./local-database";
-import { propertyWithHousekeepingOff, testProperty } from "./front-desk";
+import {
+  aPropertyTheViewerDoesNotReach,
+  propertyWithHousekeepingOff,
+  testProperty,
+} from "./front-desk";
 
 /**
  * Somebody to sign in as.
@@ -64,4 +68,5 @@ setup("the browser tests have Properties of their own", () => {
       where property_id = '${testProperty()}'`,
   );
   propertyWithHousekeepingOff();
+  aPropertyTheViewerDoesNotReach();
 });

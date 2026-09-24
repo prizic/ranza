@@ -11,9 +11,13 @@ import { useWithProperty } from "../../../lib/nav";
  * selection lives in the query string, which a layout cannot read.
  */
 export function PropertyLink({
+  defaultProperty,
   href,
   ...props
-}: ComponentProps<typeof Link> & { href: string }) {
-  const withProperty = useWithProperty();
+}: ComponentProps<typeof Link> & {
+  defaultProperty: string | undefined;
+  href: string;
+}) {
+  const withProperty = useWithProperty(defaultProperty);
   return <Link href={withProperty(href)} {...props} />;
 }

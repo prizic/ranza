@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 
 import { psql } from "./local-database";
 import {
+  aPropertyTheViewerDoesNotReach,
   propertyWithHousekeepingOff,
   signIn,
   testProperty,
@@ -180,4 +181,107 @@ test("a Property with housekeeping switched off shows the empty state, not anoth
   await expect(
     page.getByText("Housekeeping is not on at this Property"),
   ).toBeVisible();
+  // Reached, and off there — not a Property the viewer cannot reach at all.
+  await expect(page.getByRole("button", { name: "Properties" })).toContainText(
+    "(housekeeping off)",
+  );
+});
+
+/** A capability a test switched off on a Property it does not own, restored. */
+let switchedOffForTheTest: string | undefined;
+
+test.afterEach(() => {
+  if (!switchedOffForTheTest) return;
+  psql(
+    `update public.property_capabilities set enabled = true
+      where property_id = '${switchedOffForTheTest}'
+        and capability_key = 'housekeeping'`,
+  );
+  switchedOffForTheTest = undefined;
+});
+
+test("from a page with no Property named, the rail opens Housekeeping at the one the switcher names", async ({
+  page,
+}) => {
+  // Signing in lands on Today with no ?property=, and the switcher names its
+  // first Property. Housekeeping is switched off there for this test.
+  await signIn(page);
+  const switcher = page.getByRole("button", { name: "Properties" });
+  await switcher.click();
+  const current = page.locator('[role="menuitem"][aria-current="true"]');
+  const named = new URL(
+    (await current.getAttribute("href"))!,
+    page.url(),
+  ).searchParams.get("property")!;
+  const name = (await current.innerText()).trim();
+  await page.keyboard.press("Escape");
+
+  // Only what this test switched off is switched back on afterwards, and it
+  // must have been on: restoring a Property that was already off would change
+  // a developer's demo data rather than put it back.
+  const changed = psql(
+    `update public.property_capabilities set enabled = false
+      where property_id = '${named}' and capability_key = 'housekeeping'
+        and enabled
+      returning property_id`,
+  );
+  expect(changed, "housekeeping was not on at the switcher's Property").toBe(
+    named,
+  );
+  switchedOffForTheTest = named;
+  await page.reload();
+
+  await page
+    .locator("aside")
+    .getByRole("link", { name: "Housekeeping" })
+    .click();
+  // Arrived and rendered before anything is asserted absent: an absence
+  // checked mid-navigation is true of the page being left.
+  await expect(page).toHaveURL(/\/en\/housekeeping/);
+  await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
+  await expect(page.locator("main").getByRole("heading").first()).toBeVisible();
+
+  // HK-S1-24 through the everyday path: the rail once linked to the screen
+  // with no Property, and the screen then showed the board of the first
+  // Property that has housekeeping while the switcher still named this one.
+  await expect(page.getByRole("table")).toHaveCount(0);
+  await expect(switcher).toContainText(name);
+  await expect(page).toHaveURL(
+    new RegExp(`/en/housekeeping\\?property=${named}$`),
+  );
+
+  // The empty state's copy is the server's, and a page reached by in-app
+  // navigation is rendered in the default locale — the audit evidence run's
+  // F-2, fixed on its own branch — so it is read after a full load.
+  await page.reload();
+  await expect(
+    page.getByText("Housekeeping is not on at this Property"),
+  ).toBeVisible();
+});
+
+test("a Property the viewer does not reach shows the empty state under a switcher naming none", async ({
+  page,
+}) => {
+  const unreached = aPropertyTheViewerDoesNotReach();
+
+  await signIn(page);
+  await page.goto(`/en/housekeeping?property=${unreached}`);
+
+  await expect(
+    page.getByText("Housekeeping is not on at this Property"),
+  ).toBeVisible();
+  // Not the viewer's first Property, where housekeeping is on: that would
+  // contradict the page beneath it.
+  await expect(page.getByRole("button", { name: "Properties" })).toContainText(
+    "Choose a Property",
+  );
+
+  // Today is the one page that shows a Property's day rather than an empty
+  // state, so it goes back to the day the switcher names instead of showing
+  // the first Property's under a switcher naming none.
+  await page.goto(`/en/today?property=${unreached}`);
+  await expect(page).toHaveURL(/\/en\/today$/);
+  await expect(
+    page.getByRole("button", { name: "Properties" }),
+  ).not.toContainText("Choose a Property");
 });

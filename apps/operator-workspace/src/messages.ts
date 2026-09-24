@@ -13,6 +13,8 @@ export interface Messages {
   languageName: Record<SupportedLocale, string>;
   today: string;
   propertySwitcher: string;
+  /** The switcher's label when the URL names a Property it does not list. */
+  chooseProperty: string;
   mainNavigation: string;
   sections: string;
   back: string;
@@ -581,6 +583,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     today: "Bugün",
     propertySwitcher: "Tesisler",
+    chooseProperty: "Tesis seçin",
     mainNavigation: "Ana gezinme",
     sections: "Bölümler",
     back: "Geri",
@@ -1195,6 +1198,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     today: "Today",
     propertySwitcher: "Properties",
+    chooseProperty: "Choose a Property",
     mainNavigation: "Main navigation",
     sections: "Sections",
     back: "Back",
@@ -1806,6 +1810,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     today: "اليوم",
     propertySwitcher: "المنشآت",
+    chooseProperty: "اختر منشأة",
     mainNavigation: "التنقل الرئيسي",
     sections: "الأقسام",
     back: "رجوع",

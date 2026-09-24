@@ -60,6 +60,51 @@ export function propertyWithHousekeepingOff(): string {
 }
 
 /**
+ * A Property in an Organization the seeded Staff Member does not belong to,
+ * with housekeeping on: a real id the viewer cannot reach, which a stale link,
+ * or somebody else's, puts in `?property=`.
+ */
+export function aPropertyTheViewerDoesNotReach(): string {
+  const propertyId = psql(
+    `with existing_organization as (
+       select id from public.organizations where name = 'E2E Other Organization'
+     ), created_organization as (
+       insert into public.organizations (name, status)
+       select 'E2E Other Organization', 'active'
+       where not exists (select 1 from existing_organization)
+       returning id
+     ), organization as (
+       select id from existing_organization
+       union all select id from created_organization
+     ), existing as (
+       select id from public.properties
+       where organization_id = (select id from organization)
+         and name = 'E2E Unreached Property'
+     ), created as (
+       insert into public.properties (organization_id, name)
+       select (select id from organization), 'E2E Unreached Property'
+       where not exists (select 1 from existing)
+       returning id
+     ), target as (
+       select id from existing union all select id from created
+     ), capability as (
+       insert into public.property_capabilities
+         (property_id, organization_id, capability_key, enabled)
+       select target.id, (select id from organization), wanted.key, true
+       from target, (values ('today'), ('housekeeping')) as wanted (key)
+       where not exists (
+         select 1 from public.property_capabilities as held
+         where held.property_id = target.id
+           and held.capability_key = wanted.key
+       )
+     )
+     select id from target`,
+  );
+  expect(propertyId.split("\n").length).toBe(1);
+  return propertyId;
+}
+
+/**
  * Finds or creates one of the tests' Properties by name, with the capabilities
  * it starts with. A capability already recorded is left as it is.
  */

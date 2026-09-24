@@ -40,7 +40,7 @@ import { STATUS_LOOK } from "./status";
  *
  * A selection is cleared when a mark lands. A refusal is followed by the board
  * the page revalidates to, which is read-only when the refusal was the viewer's
- * permission going: there is nothing left to keep a selection of (HK-S2-13,
+ * permission going, and then shows no selection control at all (HK-S2-13,
  * decided by the product owner, 2026-09-24).
  */
 export function HousekeepingBoard({
