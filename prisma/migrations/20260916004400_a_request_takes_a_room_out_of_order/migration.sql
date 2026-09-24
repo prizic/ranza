@@ -571,7 +571,21 @@ create trigger maintenance_requests_work_starts_with_an_assignee
 -- when a Guest has left it since its status was set, clean with no row. Fixing
 -- a sink does not clean a room, and without this anybody who may take a room
 -- out of order could take a dirty one out and return it at once to have it
--- read inspected.
+-- read inspected. Read from the row alone, a room a Guest had just left came
+-- back clean or inspected, and the write stamped over the departure so nothing
+-- showed it again.
+--
+-- The state is read in one statement and written in the next, so the write
+-- compares again with the row it locks: a housekeeping mark committed between
+-- the two is merged, not overwritten. A departure is not re-read that way. A
+-- check-out that commits while this runs is stamped at its own start, earlier
+-- than this write, so the write is the later word (ADR 0029) and the room reads
+-- what the write says — as it would after a mark made at the same moment. No
+-- lock closes that: the check-out would wait, and still carry the earlier
+-- stamp.
+--
+-- No prose inside the body: tests/database/insert_grants.test.sql reads every
+-- app definer's source (as 20260916003000 says of its own).
 create function app.mark_unit_returned_to_service(target_event_id uuid)
 returns boolean
 language plpgsql
@@ -633,11 +647,6 @@ begin
     return false;
   end if;
 
-  -- What the room is as housekeeping sees it, not what its row says: a room a
-  -- Guest has left since its status was last set is dirty, whatever the row
-  -- still reads, and a room with no row is clean (20260916003960). Read from
-  -- the row alone, a room a Guest had just left came back clean or inspected,
-  -- and the write stamped over the departure so nothing showed it again.
   select state.status
     into current_status
     from app.unit_housekeeping_state(holder) as state;
@@ -653,7 +662,13 @@ begin
             else 'inspected'
           end)
   on conflict (accommodation_unit_id) do update
-     set status = excluded.status
+     set status = case
+           when 'dirty' in (public.housekeeping_unit_status.status, excluded.status)
+             then 'dirty'
+           when 'clean' in (public.housekeeping_unit_status.status, excluded.status)
+             then 'clean'
+           else 'inspected'
+         end
    where public.housekeeping_unit_status.status_changed_at < return_moment;
 
   get diagnostics written = row_count;

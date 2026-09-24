@@ -70,6 +70,7 @@ const CONFIRMED_ROOM = unit(11);
 const FAR_ROOM = unit(12);
 const ELSEWHERE_ROOM = unit(13);
 const JUST_LEFT_ROOM = unit(14);
+const RACED_ROOM = unit(15);
 
 // ranza_app for Staff Members, exactly as the host composes it, and
 // ranza_worker for the dispatcher, exactly as apps/worker does.
@@ -124,6 +125,7 @@ async function seed() {
     [TWICE_HELD_ROOM, "MTI-108", PROPERTY],
     [CONFIRMED_ROOM, "MTI-109", PROPERTY],
     [JUST_LEFT_ROOM, "MTI-110", PROPERTY],
+    [RACED_ROOM, "MTI-111", PROPERTY],
     [FAR_ROOM, "MTI-301", FAR_PROPERTY],
     [ELSEWHERE_ROOM, "MTI-201", ELSEWHERE_PROPERTY],
   ];
@@ -1006,6 +1008,64 @@ describe("coming back", { timeout: DATABASE_BUDGET_MS }, () => {
     );
     expect(row?.status).toBe("dirty");
 
+    await drain();
+    await settle({});
+  });
+
+  it("merges a mark committed while the worker returned the room, rather than overwriting it (MT-S2-30)", async () => {
+    await settle({ returnAs: "inspected" });
+    await housekeeping.markUnits(MANAGER, {
+      unitIds: [RACED_ROOM],
+      status: "clean",
+    });
+    const { requestId } = await report(DESK, RACED_ROOM, {
+      outOfOrder: { acknowledged: true },
+    });
+
+    // A marks the room dirty and waits, holding the row. Its stamp is its own
+    // start, before the return below.
+    const a = gate();
+    const marked = gate();
+    const marking = withOrganizationContext(
+      prisma,
+      { userId: MANAGER },
+      async (tx) => {
+        await tx.$queryRaw`
+          update public.housekeeping_unit_status set status = 'dirty'
+           where accommodation_unit_id = ${RACED_ROOM}::uuid
+          returning accommodation_unit_id`;
+        marked.open();
+        await a.opened;
+      },
+    );
+    await marked.opened;
+    await maintenance.returnToService(DESK, { requestId });
+
+    // The worker reads the room while A is uncommitted — clean — and then
+    // waits on A's row. When A commits, the row it finally writes over says
+    // dirty, and that is what the room must end as.
+    const returning = (async () => {
+      for (;;) {
+        const { claimed } = await dispatcher.dispatch([
+          roomReturnedSubscription,
+        ]);
+        if (claimed === 0) return;
+      }
+    })();
+    await untilWaiting(
+      "query ilike '%mark_unit_returned_to_service%'",
+      "the worker",
+    );
+    a.open();
+    await marking;
+    await returning;
+
+    const [row] = await owner.$queryRawUnsafe<{ status: string }[]>(
+      `select status from public.housekeeping_unit_status
+        where accommodation_unit_id = $1::uuid`,
+      RACED_ROOM,
+    );
+    expect(row?.status).toBe("dirty");
     await drain();
     await settle({});
   });
