@@ -331,8 +331,11 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
         payload: { closeId: row.closeId, propertyId, businessDate: day },
       });
 
+      // Filed at the Property (ADR 0031), so a reader assigned to it sees the
+      // close and a reader of another Property does not.
       await recordWithin(tx, {
         organizationId: row.organizationId,
+        locationId: propertyId,
         actorId: userId,
         action: "business_day.closed",
         subjectType: "business_day_close",

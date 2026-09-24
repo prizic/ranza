@@ -42,6 +42,7 @@ import {
   createReservationsModule,
   ReservationPeriodError,
 } from "../../packages/ranza/reservations/src";
+import { latestRecord } from "./audit-record";
 
 // ranza_app, twice, so a race runs on two real connections rather than two
 // promises queued on one.
@@ -609,18 +610,21 @@ describe("recorded and published", () => {
       "Booking kept for tomorrow",
     );
 
-    const [audited] = await owner.$queryRawUnsafe<
-      { actorId: string; reason: string; context: unknown }[]
-    >(
-      `select actor_id as "actorId", reason, context from audit.records
-        where action = 'business_day.closed' and subject_id = $1::uuid`,
-      closeId,
-    );
-    expect(audited).toEqual({
-      actorId: DESK,
+    // Filed at the Property it happened at (ADR 0031): without it the record
+    // is visible only to readers of the whole Organization, and an audit
+    // record is never rewritten, so it would stay misfiled.
+    expect(await latestRecord(owner, "business_day.closed", closeId)).toEqual({
+      locationId: property,
+      subjectId: closeId,
       reason: "Booking kept for tomorrow",
       context: { propertyId: property, businessDate: yesterday },
     });
+    const [actor] = await owner.$queryRawUnsafe<{ actorId: string }[]>(
+      `select actor_id as "actorId" from audit.records
+        where action = 'business_day.closed' and subject_id = $1::uuid`,
+      closeId,
+    );
+    expect(actor?.actorId).toBe(DESK);
 
     const [published] = await owner.$queryRawUnsafe<{ payload: unknown }[]>(
       `select payload from outbox.events
