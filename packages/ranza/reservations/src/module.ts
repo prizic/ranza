@@ -18,6 +18,7 @@ import {
   ReservationRefusedError,
   REVERSAL_REASON,
   StayHasChargesError,
+  UnitNotInServiceError,
   UnitNotReadyError,
   UnitUnavailableError,
   type Arrival,
@@ -52,6 +53,13 @@ const EXCLUSION_VIOLATION = "23P01";
  * answer from "you cannot".
  */
 const NOT_WITHDRAWABLE = "55000";
+
+/**
+ * Raised by `app.unit_is_in_service()` when a Stay would begin on a Unit that
+ * is blocked or out of order, or on a bed in a room that is. The same code as
+ * the withdrawal refusal, from a different trigger on a different statement.
+ */
+const NOT_IN_SERVICE = "55000";
 
 /**
  * Whether a failure carries a particular SQLSTATE.
@@ -116,6 +124,11 @@ interface MovedReservation {
    * disagree about a room somebody marked clean in between (HK-S2-17).
    */
   unitIsReady: boolean;
+  /**
+   * Whether the Unit, and the room above it when it is a bed, is neither
+   * blocked nor out of order, read in the same statement (MT-S2-29).
+   */
+  unitInService: boolean;
 }
 
 export function createReservationsModule(deps: ReservationsDeps) {
@@ -178,7 +191,12 @@ export function createReservationsModule(deps: ReservationsDeps) {
           unit.id                                       as "unitId",
           unit.name                                     as "unitName",
           unit.unit_type                                as "unitType",
-          unit.status                                   as "unitStatus",
+          -- A room out of order covers its beds (ADR 0032, MT-S2-06).
+          coalesce(
+            (select room.status from public.accommodation_units as room
+              where room.id = unit.parent_id
+                and room.status = 'out_of_service'),
+            unit.status)                                as "unitStatus",
           app.unit_is_ready(unit.id)                    as "unitIsReady",
           stay.id                                       as "stayId",
           null::text                                    as "eta",
@@ -308,7 +326,16 @@ export function createReservationsModule(deps: ReservationsDeps) {
           stay_type                       as "stayType",
           app.property_today(property_id) as "arrivedOn",
           ends_on                         as "endsOn",
-          app.unit_is_ready(accommodation_unit_id) as "unitIsReady"
+          app.unit_is_ready(accommodation_unit_id) as "unitIsReady",
+          not exists (
+            select 1
+              from public.accommodation_units as unit
+              left join public.accommodation_units as room
+                on room.id = unit.parent_id
+             where unit.id = public.reservations.accommodation_unit_id
+               and (unit.status in ('blocked', 'out_of_service')
+                    or room.status in ('blocked', 'out_of_service'))
+          )                               as "unitInService"
       `;
 
       const [reservation] = moved;
@@ -317,6 +344,13 @@ export function createReservationsModule(deps: ReservationsDeps) {
         // message for all four: telling them apart would confirm that a
         // Reservation the caller cannot see is there.
         throw new CheckInError("that Reservation cannot be checked in");
+      }
+
+      // A Unit that is blocked or out of order, or a bed in a room that is, is
+      // told as such (MT-S2-29) rather than surfacing as the raw refusal of
+      // app.unit_is_in_service(), which stays underneath as the backstop.
+      if (!reservation.unitInService) {
+        throw new UnitNotInServiceError();
       }
 
       // A room that is not ready is the desk's call, not a refusal: asked
@@ -353,6 +387,11 @@ export function createReservationsModule(deps: ReservationsDeps) {
           throw new UnitUnavailableError(
             "that Accommodation Unit is occupied for those nights",
           );
+        }
+        // Taken out of order between the check above and the Stay: the
+        // trigger's refusal, told the same way.
+        if (raised(error, NOT_IN_SERVICE)) {
+          throw new UnitNotInServiceError();
         }
         throw error;
       }
@@ -570,7 +609,11 @@ export function createReservationsModule(deps: ReservationsDeps) {
           unit.id                               as "unitId",
           unit.name                             as "unitName",
           unit.unit_type                        as "unitType",
-          unit.status                           as "unitStatus",
+          coalesce(
+            (select room.status from public.accommodation_units as room
+              where room.id = unit.parent_id
+                and room.status = 'out_of_service'),
+            unit.status)                        as "unitStatus",
           coalesce(
             (
               select sum(line.amount_minor)
@@ -725,6 +768,12 @@ export function createReservationsModule(deps: ReservationsDeps) {
         from public.accommodation_units as unit
         where unit.property_id = ${propertyId}::uuid
           and unit.status not in ('out_of_service', 'blocked')
+          -- A room out of order covers its beds (ADR 0032, MT-S2-06).
+          and not exists (
+            select 1 from public.accommodation_units as room
+            where room.id = unit.parent_id
+              and room.status in ('out_of_service', 'blocked')
+          )
           -- A Unit is sellable when it has no children (ADR 0025): a room with
           -- beds under it is let by the bed, and offering it would be offering
           -- something the sellability trigger then refuses. (No backticks in
@@ -870,6 +919,11 @@ export function createReservationsModule(deps: ReservationsDeps) {
         where unit.id = ${booking.accommodationUnitId}::uuid
           and unit.property_id = ${booking.propertyId}::uuid
           and unit.status not in ('out_of_service', 'blocked')
+          and not exists (
+            select 1 from public.accommodation_units as room
+            where room.id = unit.parent_id
+              and room.status in ('out_of_service', 'blocked')
+          )
           -- Let by the bed, so not sellable whole (ADR 0025). Refused here so
           -- the caller gets this module's sentence; the trigger refuses it
           -- again underneath, for every role rather than only this one.

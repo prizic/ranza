@@ -194,6 +194,18 @@ export class UnitNotReadyError extends Error {
   }
 }
 
+/**
+ * The Unit is blocked or out of order, or is a bed in a room that is
+ * (MT-S2-29). A refusal the desk can act on: move the booking, or return the
+ * room to service first. Nothing was written.
+ */
+export class UnitNotInServiceError extends Error {
+  constructor() {
+    super("that Accommodation Unit is not in service");
+    this.name = "UnitNotInServiceError";
+  }
+}
+
 /** What withdrawing a check-in produced. */
 export interface CheckInReversed {
   reservationId: string;

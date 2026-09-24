@@ -355,23 +355,30 @@ select is_empty(
 -- app.has_organization_wide_reach(), so a policy can read the caller's
 -- membership, and app.housekeeping_inspection_required(), so readiness never
 -- reads an invisible setting as "off".
+--
+-- Maintenance (20260916004400) brought one, and it writes:
+-- app.mark_unit_returned_to_service() is the whole of what ranza_worker may do
+-- when a room comes back into service, and it names
+-- app.worker_organization_id(). The request, hold and setting triggers are
+-- invokers — they read only what the acting Staff Member already reaches — and
+-- app.unit_is_in_service() was replaced, not added.
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  27,
-  'the definer sweep looked at 27 functions; change this number deliberately');
+  28,
+  'the definer sweep looked at 28 functions; change this number deliberately');
 
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef and p.prosrc ~* '(insert|update|delete)\s'),
-  4,
-  'four of them write, which is what makes the assertion above a test');
+  5,
+  'five of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a twenty-eighth definer is a red test
+-- Part B: the inventory itself, so a twenty-ninth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions, and the three that
--- write are named in the comment above; two are rooms and beds; the last
--- four are housekeeping.
+-- write are named in the comment above; two are rooms and beds; four are
+-- housekeeping; the last is maintenance.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -387,8 +394,9 @@ select set_eq(
         'role_permissions_are_in_the_catalogue',
         'unit_can_be_blocked','unit_is_in_service',
         'housekeeping_status_holder_is_a_room','mark_unit_dirty_after_check_out',
-        'has_organization_wide_reach','housekeeping_inspection_required'],
-  'and they are exactly the twenty-seven the design gives a reason for');
+        'has_organization_wide_reach','housekeeping_inspection_required',
+        'mark_unit_returned_to_service'],
+  'and they are exactly the twenty-eight the design gives a reason for');
 
 select finish();
 rollback;

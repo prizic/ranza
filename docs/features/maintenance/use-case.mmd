@@ -1,0 +1,119 @@
+%% Slices decide implementation order and nothing else:
+%%   s1 reporting a problem, the requests board, moving, assigning, cancelling
+%%   s2 out of order and back in service; the Maintenance setting
+%%   s3 the equipment register
+%%   s4 the service plan
+%%   s5 money: what a repair cost, and charging a Guest for damage
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% UML directions: include points base --> included. extend points extension --> base.
+%% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
+%% State transitions are in states.mmd and are deliberately not repeated here.
+%%
+%% Product owner, 2026-09-23/24 grill. Anyone at the Property reports; a few
+%% work the board. Every action is its own permission with defaults on the
+%% shipped roles, and an Organization composes its roles as it likes. How a
+%% room comes back is a setting (Organization default, Property override).
+%%
+%% Out of order is accommodation_units.status, as ADR 0029 hands it over and
+%% ADR 0032 decides: a request HOLDS its Unit out of order, and the Unit comes
+%% back when the last hold is released. A room out of order covers its beds.
+%%
+%% Decided by the agent at the product owner's request (Q5), to be overturned
+%% when the rows are approved: taking a Unit out of order is its own
+%% permission, usable when reporting or later, held by default by Owner,
+%% Manager, Front Desk and Housekeeping.
+flowchart TD
+
+  REPORTER["Staff Member holding maintenance.report<br/>anyone at the Property by default"]
+  MANAGER["Staff Member holding maintenance.manage<br/>works the board"]
+  OOO["Staff Member holding maintenance.take_out_of_order"]
+  EQUIP["Staff Member holding maintenance.equipment"]
+  FINANCE["Staff Member holding finance.post_charge"]
+  READER["Staff Member reaching the Property<br/>without the permissions"]
+  ORGADMIN["Staff Member with Organization-wide reach<br/>and maintenance.manage"]
+  PROPADMIN["Staff Member with reach to one Property<br/>and maintenance.manage"]
+  WORKER["Worker<br/>handles unit.returned_to_service from the outbox"]
+
+  subgraph S1["slice 1 &mdash; requests"]
+    REPORT(["Report a problem<br/>about a Unit, from Maintenance or from Rooms"])
+    BOARD(["Read the requests board<br/>by state, with counts and filters"])
+    MOVE(["Move a request to another state"])
+    ASSIGN(["Assign it to a Staff Member at the Property, or unassign"])
+    PRIORITY(["Change its priority<br/>Urgent, This week, Can wait"])
+    CANCEL(["Cancel it with a reason<br/>reported by mistake, not a fault"])
+    REOPEN(["Reopen a done or cancelled request"])
+  end
+
+  subgraph S2["slice 2 &mdash; out of order"]
+    TAKE(["Take the Unit out of order<br/>when reporting, or later while open"])
+    WARN(["See who is affected first<br/>the Guest in house, the Reservations holding its nights"])
+    RETURN(["Return the Unit to service"])
+    AUTORETURN(["Return it when the request is done<br/>when the setting says so"])
+    RETURNAS(["The room comes back dirty, clean or inspected<br/>as the setting says"])
+    ORGSET(["Set the Organization default<br/>assignee before work, how a room returns, returns as"])
+    PROPSET(["Override it for one Property"])
+    RESET(["Reset a Property to the default"])
+  end
+
+  subgraph S3["slice 3 &mdash; equipment"]
+    ADDEQ(["Add equipment<br/>name, category, where, service interval, last serviced"])
+    EDITEQ(["Change it"])
+    RETIRE(["Retire it, or restore it"])
+    REGISTER(["Read the register<br/>with a condition worked out, not stored"])
+    ONEQ(["Report a problem about equipment<br/>with or without a Unit"])
+  end
+
+  subgraph S4["slice 4 &mdash; service plan"]
+    PLAN(["Read the service plan<br/>equipment by next service date"])
+    WORKORDER(["Create a work order for an item"])
+    SERVICED(["A done work order records the service"])
+  end
+
+  subgraph S5["slice 5 &mdash; money"]
+    COST(["Record what the repair cost, and who did it"])
+    CHARGE(["Charge a Guest for damage<br/>a line on an open Folio of a Stay in that Unit"])
+  end
+
+  subgraph OUT["Not this feature"]
+    PLANNED(["Out of order planned for future dates &mdash; deferred"])
+    PORTAL(["A Resident reports a problem from the Portal &mdash; deferred"])
+    PHOTOS(["Photos and evidence &mdash; deferred, no file foundation"])
+    TODAY(["Open issues on Today &mdash; deferred"])
+    VENDORS(["A vendor register and parts stock &mdash; deferred"])
+    AUTOPLAN(["Work orders raised by the worker when due &mdash; deferred"])
+    REHOME(["Moving an affected Reservation to another Unit &mdash; not built"])
+    SLA(["Service-level timers and escalation &mdash; deferred"])
+  end
+
+  REPORTER --> REPORT
+  REPORTER --> ONEQ
+  REPORTER --> WORKORDER
+  MANAGER --> MOVE
+  MANAGER --> ASSIGN
+  MANAGER --> PRIORITY
+  MANAGER --> CANCEL
+  MANAGER --> REOPEN
+  MANAGER --> COST
+  READER --> BOARD
+  READER --> REGISTER
+  READER --> PLAN
+  OOO --> TAKE
+  OOO --> RETURN
+  EQUIP --> ADDEQ
+  EQUIP --> EDITEQ
+  EQUIP --> RETIRE
+  FINANCE --> CHARGE
+  ORGADMIN --> ORGSET
+  PROPADMIN --> PROPSET
+  PROPADMIN --> RESET
+  WORKER --> RETURNAS
+
+  TAKE -. extend .-> REPORT
+  WARN -. include .-> TAKE
+  AUTORETURN -. extend .-> MOVE
+  RETURNAS -. include .-> RETURN
+  RETURNAS -. include .-> AUTORETURN
+  RESET -. extend .-> PROPSET
+  ONEQ -. extend .-> REPORT
+  SERVICED -. extend .-> MOVE
+  WORKORDER -. include .-> REPORT

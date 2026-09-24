@@ -10,6 +10,7 @@ export {
   ReservationRefusedError,
   REVERSAL_REASON,
   StayHasChargesError,
+  UnitNotInServiceError,
   UnitNotReadyError,
   UnitUnavailableError,
 } from "./contracts";
