@@ -1,0 +1,19 @@
+{
+  "label": "before",
+  "down": {
+    "documentsBefore": 1,
+    "afterMs": 15055,
+    "url": "/en/finance",
+    "documentRequests": ["/en/finance"],
+    "body": "This page couldn’t load A server error occurred. Reload to try again. Reload ERROR 3914836991"
+  },
+  "readySecondsAfterStart": 1,
+  "up": {
+    "documentsBefore": 2,
+    "railStillThere": false,
+    "afterMs": 15567,
+    "url": "/en/people",
+    "documentRequests": ["/en/people"],
+    "body": "Skip to content Ranza WORKSPACE OPERATIONS Today Front Office Guest Experience Housekeeping Food & Beverage MANAGEMENT Inventory Finance People Analytics SYSTEM Configuration Audit log DE deniz@example.test deniz@example.test People Deniz Otel Kadıköy Who works here, which Properties they reach, and"
+  }
+}

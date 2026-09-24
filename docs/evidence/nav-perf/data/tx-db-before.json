@@ -1,0 +1,215 @@
+{
+  "1": [
+    {
+      "name": "full-load:today",
+      "tenantTx": 12,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 12
+      },
+      "authQueries": 3,
+      "appDbMs": 766,
+      "authDbMs": 8
+    },
+    {
+      "name": "idle-8s:today",
+      "tenantTx": 0,
+      "kinds": {},
+      "authQueries": 0,
+      "appDbMs": 0,
+      "authDbMs": 0
+    },
+    {
+      "name": "click:finance",
+      "tenantTx": 13,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 12,
+        "folios read": 1
+      },
+      "authQueries": 3,
+      "appDbMs": 661,
+      "authDbMs": 3
+    },
+    {
+      "name": "click:people",
+      "tenantTx": 14,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 12,
+        "People screen read (roster or roles)": 2
+      },
+      "authQueries": 3,
+      "appDbMs": 131,
+      "authDbMs": 2
+    },
+    {
+      "name": "click:audit-log",
+      "tenantTx": 13,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 12,
+        "audit log read (gate)": 1
+      },
+      "authQueries": 3,
+      "appDbMs": 229,
+      "authDbMs": 2
+    },
+    {
+      "name": "idle-8s+hover-rows:audit-log",
+      "tenantTx": 0,
+      "kinds": {},
+      "authQueries": 0,
+      "appDbMs": 0,
+      "authDbMs": 0
+    },
+    {
+      "name": "click:today",
+      "tenantTx": 12,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 12
+      },
+      "authQueries": 3,
+      "appDbMs": 1103,
+      "authDbMs": 9
+    }
+  ],
+  "2": [
+    {
+      "name": "full-load:today",
+      "tenantTx": 12,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 12
+      },
+      "authQueries": 3,
+      "appDbMs": 383,
+      "authDbMs": 4
+    },
+    {
+      "name": "idle-8s:today",
+      "tenantTx": 0,
+      "kinds": {},
+      "authQueries": 0,
+      "appDbMs": 0,
+      "authDbMs": 0
+    },
+    {
+      "name": "click:finance",
+      "tenantTx": 13,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 12,
+        "folios read": 1
+      },
+      "authQueries": 3,
+      "appDbMs": 522,
+      "authDbMs": 9
+    },
+    {
+      "name": "click:people",
+      "tenantTx": 14,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 12,
+        "People screen read (roster or roles)": 2
+      },
+      "authQueries": 3,
+      "appDbMs": 582,
+      "authDbMs": 9270
+    },
+    {
+      "name": "click:audit-log",
+      "tenantTx": 13,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 12,
+        "audit log read (gate)": 1
+      },
+      "authQueries": 3,
+      "appDbMs": 44629,
+      "authDbMs": 320
+    },
+    {
+      "name": "idle-8s+hover-rows:audit-log",
+      "tenantTx": 0,
+      "kinds": {},
+      "authQueries": 0,
+      "appDbMs": 0,
+      "authDbMs": 0
+    },
+    {
+      "name": "click:today",
+      "tenantTx": 12,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 12
+      },
+      "authQueries": 3,
+      "appDbMs": 318,
+      "authDbMs": 3
+    }
+  ],
+  "3": [
+    {
+      "name": "full-load:today",
+      "tenantTx": 12,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 12
+      },
+      "authQueries": 3,
+      "appDbMs": 543,
+      "authDbMs": 3
+    },
+    {
+      "name": "idle-8s:today",
+      "tenantTx": 0,
+      "kinds": {},
+      "authQueries": 0,
+      "appDbMs": 0,
+      "authDbMs": 0
+    },
+    {
+      "name": "click:finance",
+      "tenantTx": 13,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 12,
+        "folios read": 1
+      },
+      "authQueries": 3,
+      "appDbMs": 457,
+      "authDbMs": 4
+    },
+    {
+      "name": "click:people",
+      "tenantTx": 14,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 12,
+        "People screen read (roster or roles)": 2
+      },
+      "authQueries": 3,
+      "appDbMs": 484,
+      "authDbMs": 17
+    },
+    {
+      "name": "click:audit-log",
+      "tenantTx": 13,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 12,
+        "audit log read (gate)": 1
+      },
+      "authQueries": 3,
+      "appDbMs": 633,
+      "authDbMs": 2
+    },
+    {
+      "name": "idle-8s+hover-rows:audit-log",
+      "tenantTx": 0,
+      "kinds": {},
+      "authQueries": 0,
+      "appDbMs": 0,
+      "authDbMs": 0
+    },
+    {
+      "name": "click:today",
+      "tenantTx": 12,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 12
+      },
+      "authQueries": 3,
+      "appDbMs": 495,
+      "authDbMs": 7
+    }
+  ]
+}
