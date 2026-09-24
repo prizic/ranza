@@ -1240,7 +1240,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       reasonRequired:
         "Hâlâ açık kayıtlar var, bu yüzden bir gerekçe gerekiyor.",
       refused:
-        "Bu gün şu anda kapatılamıyor. Bunu kapattığınızda sayfa kapatılabilecek günü gösterecek.",
+        "Bu gün şu anda kapatılamıyor. Bu pencereyi kapattığınızda sayfa kapatılabilecek günü gösterecek.",
       recentTitle: "Son kapatılan günler",
       recentEmpty: "Bu tesiste henüz kapatılmış bir gün yok.",
       day: "Gün",
@@ -1917,7 +1917,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         "This day has already been closed, by another desk or automatically.",
       reasonRequired: "Items are still open, so a reason is needed.",
       refused:
-        "This day cannot be closed right now. Close this and the page will show the day that can.",
+        "This day cannot be closed right now. Dismiss this and the page will show the day that can be closed.",
       recentTitle: "Recently closed",
       recentEmpty: "No day has been closed here yet.",
       day: "Day",

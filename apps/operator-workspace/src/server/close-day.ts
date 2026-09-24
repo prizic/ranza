@@ -55,10 +55,10 @@ export async function closeBusinessDay(
   // Trimmed, because that is what the module stores and measures. An empty
   // field is no reason, which a day with nothing open does not need.
   const reason = String(form.get("reason") ?? "").trim();
-  if (reason.length > 0 && reason.length < CLOSE_REASON.min) {
-    return "reasonTooShort";
-  }
-  if (reason.length > CLOSE_REASON.max) return "reasonTooLong";
+  // Characters, as the module and the table count them.
+  const length = [...reason].length;
+  if (length > 0 && length < CLOSE_REASON.min) return "reasonTooShort";
+  if (length > CLOSE_REASON.max) return "reasonTooLong";
 
   try {
     await getComposition().businessDay.closeDay(

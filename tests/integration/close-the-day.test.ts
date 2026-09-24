@@ -24,6 +24,7 @@ import {
 } from "../../packages/db/src";
 import {
   BusinessDayCloseError,
+  CloseInputError,
   CloseReasonRequiredError,
   createBusinessDayModule,
   DayAlreadyClosedError,
@@ -50,16 +51,19 @@ const rivalReservations = createReservationsModule({ db: rival });
 const ORG = randomUUID();
 const DESK = randomUUID();
 const OTHER_DESK = randomUUID();
+const HOUSEKEEPER = randomUUID();
 const DESK_EMAIL = `close-desk-${DESK}@example.test`;
 const GUEST = randomUUID();
 
 beforeAll(async () => {
   await owner.$executeRawUnsafe(
-    `insert into public.users (id, email) values ($1,$3), ($2,$4)`,
+    `insert into public.users (id, email) values ($1,$3), ($2,$4), ($5,$6)`,
     DESK,
     OTHER_DESK,
     DESK_EMAIL,
     `close-other-${OTHER_DESK}@example.test`,
+    HOUSEKEEPER,
+    `close-housekeeper-${HOUSEKEEPER}@example.test`,
   );
   await owner.$executeRawUnsafe(
     `insert into public.organizations (id, name, status)
@@ -79,10 +83,12 @@ beforeAll(async () => {
     `insert into public.organization_memberships
        (organization_id, user_id, role, access_scope)
      values ($1, $2, 'front_desk', 'organization_wide'),
-            ($1, $3, 'front_desk', 'organization_wide')`,
+            ($1, $3, 'front_desk', 'organization_wide'),
+            ($1, $4, 'housekeeping', 'organization_wide')`,
     ORG,
     DESK,
     OTHER_DESK,
+    HOUSEKEEPER,
   );
   await owner.$executeRawUnsafe(
     `insert into public.guests (id, organization_id, full_name)
@@ -393,6 +399,31 @@ describe("the day to close", () => {
         automatic: true,
       },
     ]);
+  });
+
+  it("is shown to a viewer without close_day, who is not offered the close", async () => {
+    const property = await aProperty();
+    const view = await days.getCloseTheDay(HOUSEKEEPER, property);
+    expect(view?.dayToClose).toBe(await day(property, -1));
+    expect(view?.mayClose).toBe(false);
+    await expect(
+      days.closeDay(HOUSEKEEPER, property, view!.dayToClose!, null),
+    ).rejects.toBeInstanceOf(BusinessDayCloseError);
+  });
+
+  it("measures a reason in characters, as the table does", async () => {
+    const property = await aProperty();
+    await aBooking(property, await aUnit(property), "confirmed", -1, 2);
+    // Two characters and four UTF-16 units: long enough by .length, too short
+    // by char_length, and answered as the reason it is.
+    await expect(
+      days.closeDay(
+        DESK,
+        property,
+        await day(property, -1),
+        "\u{1F600}\u{1F600}",
+      ),
+    ).rejects.toBeInstanceOf(CloseInputError);
   });
 
   it("is nothing at all for a Property the viewer cannot reach", async () => {

@@ -270,10 +270,13 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
     const day = calendarDay(businessDate);
     if (!day) throw new CloseInputError("that is not a calendar day");
     const explanation = reason?.trim() || null;
+    // Characters, as the table's char_length counts them — not UTF-16 units,
+    // or two characters outside the basic plane would pass here and fail
+    // there, reported as the wrong refusal.
+    const length = explanation === null ? 0 : [...explanation].length;
     if (
       explanation !== null &&
-      (explanation.length < CLOSE_REASON.min ||
-        explanation.length > CLOSE_REASON.max)
+      (length < CLOSE_REASON.min || length > CLOSE_REASON.max)
     ) {
       throw new CloseInputError(
         `a reason must be between ${CLOSE_REASON.min} and ${CLOSE_REASON.max} characters`,

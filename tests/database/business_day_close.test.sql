@@ -10,7 +10,7 @@
 -- days ago) are written in replica mode, which skips the stamping trigger; the
 -- rules that trigger enforces are asserted separately, through ranza_app.
 begin;
-select plan(49);
+select plan(52);
 
 insert into public.users (id, email) values
   ('bd100000-0000-4000-8000-000000000001', 'close-desk@example.test'),
@@ -76,6 +76,46 @@ from generate_series(1, 16) as n;
 insert into public.guests (id, organization_id, full_name) values
   ('bd400000-0000-4000-8000-000000000001',
    'bd0a0000-0000-4000-8000-00000000000a', 'Close Guest');
+
+-- An Organization's own check-in-only role; and two more Organizations the
+-- desk belongs to, one whose Subscription has lapsed and one that never bought
+-- the front desk, each with a Property that has the capability on.
+insert into public.users (id, email) values
+  ('bd100000-0000-4000-8000-000000000006', 'close-check-in-only@example.test');
+insert into public.staff_roles (scope_id, key, organization_id, name, permissions) values
+  ('bd0a0000-0000-4000-8000-00000000000a', 'desk_in_only',
+   'bd0a0000-0000-4000-8000-00000000000a', 'Check-in only', array['front_desk.check_in']);
+insert into public.organization_memberships
+  (organization_id, user_id, role, role_scope_id, access_scope) values
+  ('bd0a0000-0000-4000-8000-00000000000a', 'bd100000-0000-4000-8000-000000000006',
+   'desk_in_only', 'bd0a0000-0000-4000-8000-00000000000a', 'organization_wide');
+
+insert into public.organizations (id, name, status) values
+  ('bd0c0000-0000-4000-8000-00000000000c', 'Close Lapsed', 'active'),
+  ('bd0d0000-0000-4000-8000-00000000000d', 'Close Unbought', 'active');
+insert into public.subscriptions (organization_id, status) values
+  ('bd0c0000-0000-4000-8000-00000000000c', 'past_due'),
+  ('bd0d0000-0000-4000-8000-00000000000d', 'active');
+insert into public.entitlements (organization_id, module_key) values
+  ('bd0c0000-0000-4000-8000-00000000000c', 'front_office'),
+  ('bd0d0000-0000-4000-8000-00000000000d', 'billing_folios');
+insert into public.properties (id, organization_id, name) values
+  ('bd200000-0000-4000-8000-000000000009', 'bd0c0000-0000-4000-8000-00000000000c',
+   'Close Lapsed Property'),
+  ('bd200000-0000-4000-8000-000000000010', 'bd0d0000-0000-4000-8000-00000000000d',
+   'Close Unbought Property');
+insert into public.property_capabilities
+  (property_id, organization_id, capability_key, enabled) values
+  ('bd200000-0000-4000-8000-000000000009', 'bd0c0000-0000-4000-8000-00000000000c',
+   'front_desk', true),
+  ('bd200000-0000-4000-8000-000000000010', 'bd0d0000-0000-4000-8000-00000000000d',
+   'front_desk', true);
+insert into public.organization_memberships
+  (organization_id, user_id, role, access_scope) values
+  ('bd0c0000-0000-4000-8000-00000000000c', 'bd100000-0000-4000-8000-000000000001',
+   'front_desk', 'organization_wide'),
+  ('bd0d0000-0000-4000-8000-00000000000d', 'bd100000-0000-4000-8000-000000000001',
+   'front_desk', 'organization_wide');
 
 -- The quiet Property: one Guest departed the day before yesterday and left
 -- their Folio open. Nothing is open, so the day closes without a reason.
@@ -478,6 +518,14 @@ select throws_ok(
   '42501', null,
   'a role without close_day cannot close: finance');
 
+select app.set_request_context('bd100000-0000-4000-8000-000000000006');
+select throws_ok(
+  $$insert into public.business_day_closes (organization_id, property_id, business_date)
+    values ('bd0a0000-0000-4000-8000-00000000000a', 'bd200000-0000-4000-8000-000000000008',
+            app.property_today('bd200000-0000-4000-8000-000000000008') - 1)$$,
+  '42501', null,
+  'a role without close_day cannot close: an Organization''s check-in-only role');
+
 select app.set_request_context('bd100000-0000-4000-8000-000000000005');
 select throws_ok(
   $$insert into public.business_day_closes (organization_id, property_id, business_date)
@@ -506,6 +554,20 @@ select throws_ok(
             app.property_today('bd200000-0000-4000-8000-000000000006') - 1)$$,
   '42501', null,
   'a day cannot be closed without the front desk capability');
+
+select throws_ok(
+  $$insert into public.business_day_closes (organization_id, property_id, business_date)
+    values ('bd0c0000-0000-4000-8000-00000000000c', 'bd200000-0000-4000-8000-000000000009',
+            app.property_today('bd200000-0000-4000-8000-000000000009') - 1)$$,
+  '42501', null,
+  'nor where the Subscription has lapsed');
+
+select throws_ok(
+  $$insert into public.business_day_closes (organization_id, property_id, business_date)
+    values ('bd0d0000-0000-4000-8000-00000000000d', 'bd200000-0000-4000-8000-000000000010',
+            app.property_today('bd200000-0000-4000-8000-000000000010') - 1)$$,
+  '42501', null,
+  'nor where the Organization never bought the front desk');
 
 select throws_ok(
   $$insert into public.business_day_closes

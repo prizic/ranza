@@ -11,6 +11,13 @@ everything lands under Unreleased.
 
 ### Added
 
+- `CheckInDayClosedError`: `reverseCheckIn()` refuses to withdraw a check-in
+  whose business day has been closed
+  ([ADR 0034](../../../docs/adr/0034-a-business-day-closes-after-its-cutoff.md)),
+  told apart from the charges refusal. `checkIn()` and `checkOut()` answer the
+  same database refusal, `RZ001`, with `CheckInError` and `CheckOutError`: it
+  is met only by one that began before the cutoff and commits after the day
+  closed, and pressing again succeeds on the new day.
 - `createReservation()`: the first thing in the product that creates one. A
   Guest and a Reservation in one transaction, with the audit record and the
   outbox event inside it. Created `confirmed`, because a front desk taking a

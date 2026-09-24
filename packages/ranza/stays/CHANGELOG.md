@@ -19,6 +19,11 @@ everything lands under Unreleased.
 
 ### Changed
 
+- `stays_keep_closed_days`: a Stay cannot begin, end or be withdrawn on a
+  business day that is closed, including a check-in or check-out that began
+  before the cutoff and commits after the close (`RZ001`). Added by
+  [`@ranza/business-day`](../business-day/README.md) in
+  `20260916005000_a_business_day_is_closed`; this module still owns the table.
 - `stays_insert_front_desk` and `stays_update_front_desk` now also require an
   `in_house` Stay to have started: `starts_on <= app.property_today(property_id)`.
   A `reserved` Stay is unaffected, because a future booking is what it exists to
