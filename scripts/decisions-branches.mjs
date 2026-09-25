@@ -130,9 +130,63 @@ function notesOf(root, files, ref, readNotes) {
     );
 }
 
+function mergeBase(root, commit) {
+  try {
+    return git(root, "merge-base", "HEAD", commit).trim();
+  } catch {
+    return null;
+  }
+}
+
+function fileAt(root, commit, file) {
+  try {
+    return git(root, "show", `${commit}:${file}`);
+  } catch {
+    return null;
+  }
+}
+
+const tablePath = (slug) => `docs/features/${slug}/edge-cases.csv`;
+
+// Everything but the id: a change of answer, status, enforcement or test is a
+// change of decision.
+function sameRow(a, b) {
+  return Object.keys(a).every((key) => a[key] === b[key]);
+}
+
+function byId(csv) {
+  return new Map(csv === null ? [] : rowsOf(csv).map((row) => [row.id, row]));
+}
+
+// The branch's own Arabic, when it has any; rows are still matched by hash,
+// so a translation of different English is never shown.
+function arabicAt(root, commit, slug) {
+  const json = fileAt(root, commit, `docs/decisions/ar/${slug}.json`);
+  return json === null ? { title: "", entries: {} } : JSON.parse(json);
+}
+
+// A three-way comparison against where the branch left HEAD's history: a row
+// is the branch's decision only if the branch added it or changed it since
+// then. Comparing with HEAD alone would show a stale branch's copy of a row
+// HEAD has since removed as a new decision, and would never show a row the
+// branch changed.
+function branchDecisions(root, slug, ref, headRows) {
+  const base = mergeBase(root, ref.commit);
+  const baseRows = byId(base && fileAt(root, base, tablePath(slug)));
+  const decisions = [];
+  for (const row of byId(fileAt(root, ref.commit, tablePath(slug))).values()) {
+    const before = baseRows.get(row.id);
+    const now = headRows.get(row.id);
+    if (before && sameRow(before, row)) continue;
+    if (now && sameRow(now, row)) continue;
+    decisions.push({ ...row, ref, change: now ? "changed" : "added" });
+  }
+  return decisions;
+}
+
 // Returns one entry per feature with something unmerged: a whole table HEAD
-// does not have, or the rows branches add to a table HEAD already has. Every
-// row and note keeps the branch it belongs to.
+// does not have, or the rows branches add or change in a table HEAD has.
+// Every row and note keeps the branch it belongs to.
 export function readBranchFeatures(root, current, readNotes) {
   const bySlug = new Map(current.map((feature) => [feature.slug, feature]));
   const head = featureFiles(root, "HEAD");
@@ -150,34 +204,25 @@ export function readBranchFeatures(root, current, readNotes) {
   for (const [slug, found] of candidates) {
     const ranked = owners(root, slug, found);
     const existing = bySlug.get(slug);
-    if (!existing?.hasTable) {
-      const [owner] = ranked;
-      const rows = rowsOf(git(root, "cat-file", "blob", owner.blob));
-      result.push({
-        slug,
-        newFeature: true,
-        rows: rows.map((row) => ({ ...row, ref: owner.ref })),
-        notes: notesOf(root, owner.files, owner.ref, readNotes),
-      });
-      continue;
-    }
-    const known = new Set(existing.rows.map((row) => row.id));
-    const added = new Map();
-    for (const { ref, blob } of ranked) {
-      for (const row of rowsOf(git(root, "cat-file", "blob", blob))) {
-        if (!known.has(row.id) && !added.has(row.id)) {
-          added.set(row.id, { ...row, ref });
-        }
+    const headRows = new Map(
+      (existing?.rows ?? []).map((row) => [row.id, row]),
+    );
+    const decided = new Map();
+    for (const { ref } of ranked) {
+      for (const row of branchDecisions(root, slug, ref, headRows)) {
+        if (!decided.has(row.id)) decided.set(row.id, row);
       }
     }
-    if (added.size) {
-      result.push({
-        slug,
-        newFeature: false,
-        rows: [...added.values()],
-        notes: [],
-      });
-    }
+    if (decided.size === 0) continue;
+    const [owner] = ranked;
+    const newFeature = !existing?.hasTable;
+    result.push({
+      slug,
+      newFeature,
+      rows: [...decided.values()],
+      notes: newFeature ? notesOf(root, owner.files, owner.ref, readNotes) : [],
+      ar: arabicAt(root, owner.ref.commit, slug),
+    });
   }
   return result.sort((a, b) => a.slug.localeCompare(b.slug));
 }

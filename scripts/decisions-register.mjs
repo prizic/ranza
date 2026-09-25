@@ -326,7 +326,8 @@ const WARNINGS = {
 
 function renderRow(row, entry, adrFiles) {
   const kind = kindOf(row.status);
-  const state = row.ref ? "branch" : translationState(row, entry);
+  const translated = translationState(row, entry);
+  const state = row.ref && translated !== "current" ? "branch" : translated;
   const ar = (key) =>
     state === "current" ? prose(entry[key], adrFiles) : undefined;
   const search = [row.id, ...ROW_FIELDS.map((key) => row[key])]
@@ -342,7 +343,7 @@ function renderRow(row, entry, adrFiles) {
     <dt>${plain("When", "عندما")}</dt><dd>${both(prose(row.when, adrFiles), ar("when"))}</dd>
     <dt>${kind === "decided" ? plain("Decided", "القرار") : plain("Then", "النتيجة")}</dt><dd class="answer">${both(prose(row.then, adrFiles), ar("then"))}</dd>
   </dl>
-  <p class="meta">${plain("Enforced by", "يُفرَض عبر")} <b>${plain(row.enforced_by.replaceAll("_", " "), ENFORCED_AR[row.enforced_by])}</b>${row.test_name ? ` · ${plain("test", "الاختبار")} <code>${escapeHtml(row.test_name)}</code>` : ""}${row.ref ? ` · ${plain("on", "على")} <code>${escapeHtml(row.ref.name)}</code>` : ""}</p>
+  <p class="meta">${plain("Enforced by", "يُفرَض عبر")} <b>${plain(row.enforced_by.replaceAll("_", " "), ENFORCED_AR[row.enforced_by])}</b>${row.test_name ? ` · ${plain("test", "الاختبار")} <code>${escapeHtml(row.test_name)}</code>` : ""}${row.ref ? ` · ${row.change === "changed" ? plain("changes this row on", "يغيّر هذا الصف على") : plain("on", "على")} <code>${escapeHtml(row.ref.name)}</code>` : ""}</p>
 </article>`;
 }
 
@@ -379,7 +380,7 @@ function sourceLine(feature) {
     .join(", ");
   return feature.newFeature
     ? `${file} ${plain("on", "على")} ${where} · ${plain(`table last changed ${changed}`, `آخر تعديل للجدول ${changed}`)} · ${count}`
-    : `${plain("Rows not yet on this branch, from", "صفوف لم تُدمَج بعد، من")} ${where} · ${count}`;
+    : `${plain("Rows added or changed on branches not yet merged, from", "صفوف أُضيفت أو تغيّرت على فروع لم تُدمَج بعد، من")} ${where} · ${count}`;
 }
 
 function renderFeature(feature, adrFiles) {
@@ -454,7 +455,7 @@ export function renderRegister({
   const onBranches = unmerged.map((feature) => ({
     ...feature,
     branchOnly: true,
-    ar: { title: "", entries: {} },
+    ar: feature.ar ?? { title: "", entries: {} },
   }));
   const unmergedCount = onBranches.flatMap(kindsOf).length;
   const all = counts([...withTable, ...onBranches].flatMap(kindsOf));
@@ -525,6 +526,8 @@ body { margin: 0; background: var(--canvas); color: var(--ink); font: 15px/1.55 
 html[data-lang="ar"] body { font-family: var(--arabic); font-size: 16px; line-height: 1.75; }
 main { max-width: 1080px; margin: 0 auto; padding: 56px 20px 96px; }
 a { color: var(--accent); }
+/* An ADR reference is one name; "ADR" and its number never part at a line end. */
+a[href^="adr/"] { white-space: nowrap; }
 code, .id { font-family: var(--mono); font-size: 0.86em; direction: ltr; unicode-bidi: isolate; }
 .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .lang { font: 600 14px/1 var(--sans); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 9px 16px; cursor: pointer; white-space: nowrap; }
@@ -784,8 +787,12 @@ function main(args) {
   );
   for (const feature of unmerged) {
     const branches = [...new Set(feature.rows.map((row) => row.ref.name))];
+    const changed = feature.rows.filter((row) => row.change === "changed");
+    const detail = feature.newFeature
+      ? `${feature.rows.length} rows`
+      : `${feature.rows.length - changed.length} added, ${changed.length} changed`;
     console.log(
-      `  unmerged: ${feature.slug} — ${feature.rows.length} rows ${feature.newFeature ? "" : "added "}on ${branches.join(", ")}`,
+      `  unmerged: ${feature.slug} — ${detail} on ${branches.join(", ")}`,
     );
   }
   console.log(

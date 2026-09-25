@@ -33,7 +33,14 @@ beforeAll(() => {
   git("init", "-q", "-b", "main");
   git("config", "user.email", "t@example.com");
   git("config", "user.name", "t");
-  commit(table("check-out", "CO-S1-01"), "main");
+  commit(table("check-out", "CO-S1-01", "CO-S1-99"), "main");
+
+  // A branch left behind while main later removes CO-S1-99: its copy of that
+  // row is main's old one, not a decision the branch made.
+  git("checkout", "-q", "-b", "feat/stale");
+  commit({ "stale.txt": "x" }, "stale work");
+  git("checkout", "-q", "main");
+  commit(table("check-out", "CO-S1-01"), "main drops CO-S1-99");
 
   git("checkout", "-q", "-b", "feat/merged");
   commit(table("merged", "MG-S1-01"), "merged");
@@ -59,6 +66,17 @@ beforeAll(() => {
   git("checkout", "-q", "-b", "feat/close-the-day");
   commit(table("check-out", "CO-S1-01", "CO-S5-01"), "adds a row");
   git("checkout", "-q", "main");
+  git("checkout", "-q", "-b", "feat/reopen");
+  commit(
+    {
+      "docs/features/check-out/edge-cases.csv": [
+        HEADER,
+        "CO-S1-01,s,g,w,t,module,a_test,open",
+      ].join("\n"),
+    },
+    "reopens a row",
+  );
+  git("checkout", "-q", "main");
 });
 
 afterAll(() => rmSync(repo, { recursive: true, force: true }));
@@ -68,7 +86,18 @@ describe("decisions on unmerged branches", () => {
     {
       slug: "check-out",
       hasTable: true,
-      rows: [{ id: "CO-S1-01" }],
+      rows: [
+        {
+          id: "CO-S1-01",
+          situation: "s",
+          given: "g",
+          when: "w",
+          then: "t",
+          enforced_by: "module",
+          test_name: "a_test",
+          status: "approved",
+        },
+      ],
       notes: [],
       ar: { title: "", entries: {} },
     },
@@ -95,13 +124,24 @@ describe("decisions on unmerged branches", () => {
     ]);
   });
 
-  it("finds the rows a branch adds to a table this branch already has", () => {
+  it("finds the rows branches add to, or change in, a table this branch has", () => {
     const found = readBranchFeatures(repo, current, readNotes);
     const checkOut = found.find((f) => f.slug === "check-out");
     expect(checkOut?.newFeature).toBe(false);
-    expect(checkOut?.rows.map((row) => [row.id, row.ref.name])).toEqual([
-      ["CO-S5-01", "feat/close-the-day"],
+    expect(
+      checkOut?.rows
+        .map((row) => [row.id, row.change, row.status, row.ref.name])
+        .sort(),
+    ).toEqual([
+      ["CO-S1-01", "changed", "open", "feat/reopen"],
+      ["CO-S5-01", "added", "approved", "feat/close-the-day"],
     ]);
+  });
+
+  it("does not bring back a row main removed after a branch left it", () => {
+    const found = readBranchFeatures(repo, current, readNotes);
+    const ids = found.flatMap((f) => f.rows.map((row) => row.id));
+    expect(ids).not.toContain("CO-S1-99");
   });
 
   it("leaves out a branch whose tip is already merged", () => {
