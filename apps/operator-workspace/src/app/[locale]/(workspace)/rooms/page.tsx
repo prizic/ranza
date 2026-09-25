@@ -8,6 +8,7 @@ import {
   FRONT_DESK_CAPABILITY,
   requireViewer,
   rooms,
+  roomsMaintenance,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
 
@@ -42,7 +43,10 @@ export default async function RoomsPage({
     );
   }
 
-  const data = await rooms(property.propertyId);
+  const [data, maintenance] = await Promise.all([
+    rooms(property.propertyId),
+    roomsMaintenance(property.propertyId),
+  ]);
 
   return (
     <RoomsView
@@ -50,6 +54,7 @@ export default async function RoomsPage({
       propertyId={property.propertyId}
       propertyName={property.propertyName}
       data={data}
+      maintenance={maintenance}
     />
   );
 }

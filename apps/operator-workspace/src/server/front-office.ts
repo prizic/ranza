@@ -46,6 +46,9 @@ import { currentViewer } from "./viewer";
  *
  * `notReady` is not a refusal: housekeeping says the room is dirty, nothing was
  * written, and the desk is asked whether to check in anyway (HK-S2-14).
+ *
+ * `notInService` is: the room is blocked or out of order, and the desk returns
+ * it to service or moves the booking first (MT-S2-29).
  */
 export type CheckInOutcome =
   | "idle"
