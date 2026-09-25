@@ -27,7 +27,7 @@ stateDiagram-v2
     I_Accepted --> [*]
     I_Withdrawn --> [*]
     I_Expired --> [*]
-    %% OPEN: whether `expire` exists at all, and after how long. SP-S1-23.
+    %% DECIDED (SP-S1-23): whether `expire` exists at all, and after how long. SP-S1-23.
     %% Drawn because an invitation that never expires is a password-setting link
     %% that never expires, which is a decision rather than an omission.
   }
@@ -45,10 +45,10 @@ stateDiagram-v2
     R_Active --> R_Active : edit
     R_Active --> R_Retired : retire
     R_Retired --> R_Active : reinstate
-    %% OPEN: what happens to Staff Members holding it when it is retired —
+    %% DECIDED (SP-S3-02): what happens to Staff Members holding it when it is retired —
     %% refused while anyone holds it, or they fall back to something? SP-S3-02.
     %% `reinstate` is drawn because retiring is not deletion; whether it is
-    %% offered is part of that same open question.
+    %% offered is part of that same decision.
   }
 
   %% The membership is active from the moment it is written, which is why it
@@ -57,4 +57,4 @@ stateDiagram-v2
 
   %% Ending a session is not a state of any of these. It is an effect of
   %% change_role, assign, unassign, revoke and edit — drawn in use-case.mmd as
-  %% an include, and open on how it reaches auth_session at all. SP-S4-01.
+  %% an include; how it reaches auth_session at all is decided in SP-S4-01.
