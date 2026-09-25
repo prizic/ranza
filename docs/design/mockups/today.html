@@ -1,0 +1,3658 @@
+<!doctype html>
+<html lang="tr" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Ranza — Today, by role</title>
+    <style>
+      :root {
+        --canvas: #ffffff;
+        --canvas-deep: hsl(170 10% 96%);
+        --ink: hsl(170 60% 10%);
+        --ink-muted: hsl(170 5% 45%);
+        --accent: hsl(172 65% 20%);
+        --accent-soft: hsl(38 60% 95%);
+        --secondary: hsl(170 12% 95%);
+        --success: #176842;
+        --success-soft: #dcefe3;
+        --warning: #8a5a08;
+        --warning-soft: #f7e8c8;
+        --danger: #a33a35;
+        --danger-soft: #f5dfdd;
+        --info: #315f83;
+        --info-soft: #dfeaf2;
+        --line: hsl(170 10% 90%);
+        --line-strong: hsl(170 10% 80%);
+        --focus: hsl(172 65% 20%);
+        --shadow: 0 20px 60px rgba(0, 0, 0, 0.06);
+        --shadow-low: 0 4px 14px rgba(10, 41, 36, 0.04);
+        --font:
+          Geist, "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI",
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: var(--font);
+        color: var(--ink);
+        background: var(--canvas-deep);
+        font-size: 14px;
+        line-height: 1.45;
+        -webkit-font-smoothing: antialiased;
+      }
+      [lang="ar"] {
+        font-family: "IBM Plex Sans Arabic", system-ui, sans-serif;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      :focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: 2px;
+      }
+      .num {
+        font-variant-numeric: tabular-nums;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+      svg.i {
+        width: 1em;
+        height: 1em;
+        flex: none;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.75;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      [dir="rtl"] .flip {
+        transform: scaleX(-1);
+      }
+
+      /* ---------- the document around the variants ---------- */
+      .doc {
+        max-width: 1520px;
+        margin: 0 auto;
+        padding: 48px 24px 96px;
+      }
+      .doc > header h1 {
+        font-size: 40px;
+        font-weight: 300;
+        letter-spacing: -0.02em;
+        margin: 0 0 8px;
+      }
+      .doc > header p {
+        max-width: 72ch;
+        color: var(--ink-muted);
+        margin: 0 0 6px;
+      }
+      .toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 20px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      .toc a {
+        display: inline-block;
+        padding: 6px 14px;
+        border-radius: 999px;
+        background: #fff;
+        border: 1px solid var(--line);
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .toc a:hover {
+        border-color: var(--line-strong);
+      }
+      .variant {
+        margin-top: 72px;
+      }
+      .variant > h2 {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--ink-muted);
+        margin: 0 0 6px;
+      }
+      .variant > h3 {
+        font-size: 26px;
+        font-weight: 300;
+        letter-spacing: -0.01em;
+        margin: 0 0 10px;
+      }
+      .notes {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 10px;
+        margin: 0 0 18px;
+        padding: 0;
+        list-style: none;
+      }
+      .notes li {
+        background: #fff;
+        border: 1px dashed var(--line-strong);
+        border-radius: 14px;
+        padding: 10px 14px;
+        font-size: 12.5px;
+        color: var(--ink-muted);
+      }
+      .notes b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      /* ---------- the workspace shell (Leaders) ---------- */
+      .frame {
+        border-radius: 28px;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--line);
+        background: var(--canvas);
+      }
+      .shell {
+        display: grid;
+        grid-template-columns: 260px minmax(0, 1fr);
+        min-height: 880px;
+      }
+      .rail {
+        padding: 12px;
+      }
+      .rail-panel {
+        height: 100%;
+        border-radius: 24px;
+        background: #fff;
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow-low);
+        display: flex;
+        flex-direction: column;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 22px 20px;
+      }
+      .brand-mark {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: var(--accent);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        box-shadow: 0 6px 14px hsl(172 65% 20% / 0.2);
+      }
+      .brand b {
+        display: block;
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .brand small {
+        color: var(--ink-muted);
+        font-size: 12px;
+      }
+      .nav {
+        list-style: none;
+        margin: 0;
+        padding: 6px 14px;
+        display: grid;
+        gap: 6px;
+      }
+      .nav a {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        border-radius: 14px;
+        color: var(--ink-muted);
+        font-weight: 500;
+        font-size: 14.5px;
+      }
+      .nav a[aria-current="page"] {
+        background: var(--accent);
+        color: #fff;
+        box-shadow: 0 10px 20px hsl(172 65% 20% / 0.12);
+      }
+      .nav svg.i {
+        font-size: 18px;
+      }
+      .rail-foot {
+        margin-top: auto;
+        padding: 14px 18px;
+        border-top: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+      }
+      .avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        display: grid;
+        place-items: center;
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .main {
+        padding: 16px 28px 40px 16px;
+        min-width: 0;
+      }
+      [dir="rtl"] .main {
+        padding: 16px 16px 40px 28px;
+      }
+      .bar {
+        height: 64px;
+        border-radius: 18px;
+        background: #fff;
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow-low);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-inline: 22px 12px;
+        margin-bottom: 26px;
+      }
+      .crumbs {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--ink-muted);
+      }
+      .crumbs .root {
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        opacity: 0.7;
+      }
+      .crumbs b {
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .bar-end {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .pill-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 36px;
+        padding-inline: 12px;
+        border-radius: 999px;
+        font-weight: 500;
+        font-size: 13.5px;
+      }
+      .pill-btn:hover {
+        background: var(--secondary);
+      }
+      .sep {
+        width: 1px;
+        height: 24px;
+        background: var(--line);
+        margin-inline: 4px;
+      }
+
+      /* ---------- the Today page ---------- */
+      .today {
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+      }
+      .hello {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .eyebrow {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--ink-muted);
+      }
+      [lang="ar"] .eyebrow {
+        letter-spacing: 0;
+        font-size: 12px;
+      }
+      .hello h1 {
+        margin: 4px 0 0;
+        font-size: 32px;
+        font-weight: 300;
+        letter-spacing: -0.02em;
+      }
+      .hello h1 span {
+        color: var(--ink-muted);
+        font-weight: 200;
+      }
+      .hello h1 b {
+        font-weight: 500;
+      }
+      .hello .late {
+        margin-top: 6px;
+        font-size: 13px;
+        color: var(--warning);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .clock {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+      }
+      .clock .time {
+        font-size: 44px;
+        font-weight: 300;
+        line-height: 1;
+        letter-spacing: -0.02em;
+      }
+      .clock small {
+        display: block;
+        margin-top: 6px;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--ink-muted);
+      }
+      .cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 40px;
+        padding-inline: 18px;
+        border-radius: 999px;
+        background: var(--accent);
+        color: #fff;
+        font-weight: 500;
+        box-shadow: 0 6px 14px hsl(172 65% 20% / 0.18);
+      }
+      .fresh {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--ink-muted);
+      }
+      .fresh.stale {
+        color: var(--warning);
+        background: var(--warning-soft);
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-weight: 500;
+      }
+
+      /* needs attention */
+      .attention h2,
+      .card h2 {
+        font-size: 15px;
+        font-weight: 600;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .count {
+        font-size: 12px;
+        font-weight: 600;
+        padding: 1px 8px;
+        border-radius: 999px;
+        background: var(--secondary);
+        color: var(--ink-muted);
+      }
+      .queue {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+        list-style: none;
+        padding: 0;
+      }
+      .item {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        height: 100%;
+        padding: 14px 16px;
+        border-radius: 18px;
+        background: #fff;
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow-low);
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s;
+      }
+      .item:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow);
+      }
+      .item h3 {
+        margin: 0;
+        font-size: 14.5px;
+        font-weight: 600;
+      }
+      .item p {
+        margin: 0;
+        font-size: 12.5px;
+        color: var(--ink-muted);
+      }
+      .item .go {
+        margin-top: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--accent);
+      }
+      .clear {
+        margin-top: 12px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 18px;
+        border-radius: 18px;
+        background: var(--success-soft);
+        color: var(--success);
+        font-weight: 500;
+      }
+
+      /* status pills: icon + word, never colour alone */
+      .st {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        width: fit-content;
+        padding: 3px 9px;
+        border-radius: 999px;
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1px solid transparent;
+        white-space: nowrap;
+      }
+      [lang="ar"] .st {
+        letter-spacing: 0;
+        font-size: 11.5px;
+      }
+      .st.ok {
+        background: var(--success-soft);
+        color: var(--success);
+      }
+      .st.warn {
+        background: var(--warning-soft);
+        color: var(--warning);
+      }
+      .st.bad {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+      .st.info {
+        background: var(--info-soft);
+        color: var(--info);
+      }
+      .st.mute {
+        background: var(--secondary);
+        color: var(--ink-muted);
+      }
+
+      /* stat tiles */
+      .tiles {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .tile {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 176px;
+        padding: 20px;
+        border-radius: 32px;
+        background: #fff;
+        border: 1px solid #f1f5f9;
+        box-shadow: var(--shadow-low);
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s,
+          border-color 0.2s;
+      }
+      .tile:hover {
+        transform: translateY(-2px);
+        border-color: #e2e8f0;
+        box-shadow: var(--shadow);
+      }
+      .tile-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+      }
+      .tile-icon {
+        display: grid;
+        place-items: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 16px;
+        font-size: 19px;
+        background: var(--secondary);
+        color: var(--accent);
+      }
+      .tile-icon.gold {
+        background: var(--accent-soft);
+        color: #8a684d;
+      }
+      .tile .open {
+        font-size: 12px;
+        color: var(--ink-muted);
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .tile .big {
+        display: block;
+        margin-top: 18px;
+        font-size: 48px;
+        font-weight: 300;
+        line-height: 1;
+        letter-spacing: -0.03em;
+      }
+      .tile .big small {
+        font-size: 20px;
+        color: var(--ink-muted);
+        font-weight: 300;
+        letter-spacing: 0;
+      }
+      .tile .label,
+      .tile .sub {
+        display: block;
+      }
+      .tile .label {
+        margin-top: 8px;
+        font-size: 11.5px;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--ink-muted);
+      }
+      [lang="ar"] .tile .label {
+        letter-spacing: 0;
+        font-size: 13px;
+      }
+      .tile .sub {
+        margin-top: 4px;
+        font-size: 12.5px;
+        color: var(--ink-muted);
+      }
+      .progress {
+        margin-top: 12px;
+        height: 6px;
+        border-radius: 999px;
+        background: var(--secondary);
+        overflow: hidden;
+        display: flex;
+      }
+      .progress i {
+        display: block;
+        height: 100%;
+        background: var(--accent);
+        border-radius: 999px;
+      }
+      .progress i.ghost {
+        background: hsl(172 65% 20% / 0.25);
+        border-radius: 0;
+      }
+
+      /* main row */
+      .row {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+        gap: 16px;
+        align-items: start;
+      }
+      .stack {
+        display: grid;
+        gap: 16px;
+      }
+      .card {
+        border-radius: 28px;
+        background: #fff;
+        border: 1px solid #f1f5f9;
+        box-shadow: var(--shadow-low);
+        padding: 20px 22px;
+      }
+      .card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+      .seg {
+        display: inline-flex;
+        padding: 3px;
+        border-radius: 999px;
+        background: var(--secondary);
+      }
+      .seg a {
+        padding: 5px 14px;
+        border-radius: 999px;
+        font-size: 12.5px;
+        font-weight: 500;
+        color: var(--ink-muted);
+      }
+      .seg a[aria-current="page"] {
+        background: #fff;
+        color: var(--ink);
+        box-shadow: var(--shadow-low);
+      }
+      table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0 6px;
+      }
+      th {
+        text-align: start;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--ink-muted);
+        padding: 0 12px 2px;
+      }
+      [lang="ar"] th {
+        letter-spacing: 0;
+        font-size: 12px;
+      }
+      td {
+        padding: 12px;
+        background: var(--canvas-deep);
+        font-size: 13.5px;
+        vertical-align: middle;
+      }
+      td:first-child {
+        border-start-start-radius: 16px;
+        border-end-start-radius: 16px;
+      }
+      td:last-child {
+        border-start-end-radius: 16px;
+        border-end-end-radius: 16px;
+        text-align: end;
+      }
+      td .who {
+        font-weight: 600;
+      }
+      td .ref {
+        display: block;
+        font-size: 11.5px;
+        color: var(--ink-muted);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .act {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 32px;
+        padding-inline: 14px;
+        border-radius: 999px;
+        font-size: 12.5px;
+        font-weight: 600;
+        background: var(--accent);
+        color: #fff;
+      }
+      .act.quiet {
+        background: #fff;
+        color: var(--ink);
+        border: 1px solid var(--line);
+      }
+      .act[aria-disabled="true"] {
+        background: var(--secondary);
+        color: var(--ink-muted);
+        cursor: not-allowed;
+      }
+      .why {
+        display: block;
+        margin-top: 4px;
+        font-size: 11px;
+        color: var(--ink-muted);
+      }
+      .more {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--accent);
+      }
+
+      /* rooms panel */
+      .stackbar {
+        display: flex;
+        height: 14px;
+        border-radius: 999px;
+        overflow: hidden;
+        gap: 2px;
+        margin: 6px 0 14px;
+      }
+      .stackbar i {
+        display: block;
+      }
+      .legend {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .legend li {
+        display: grid;
+        grid-template-columns: 14px 1fr auto;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+      }
+      .legend .sw {
+        width: 12px;
+        height: 12px;
+        border-radius: 4px;
+      }
+      .legend b {
+        font-weight: 600;
+      }
+      .floors {
+        list-style: none;
+        margin: 16px 0 0;
+        padding: 16px 0 0;
+        border-top: 1px solid var(--line);
+        display: grid;
+        gap: 10px;
+      }
+      .floors li {
+        font-size: 12.5px;
+      }
+      .floors .f {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 4px;
+      }
+      .floors .progress {
+        margin-top: 0;
+        height: 5px;
+      }
+
+      /* activity */
+      .feed {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 2px;
+      }
+      .feed a {
+        display: grid;
+        grid-template-columns: 32px 1fr auto;
+        gap: 10px;
+        align-items: start;
+        padding: 9px 8px;
+        border-radius: 14px;
+        font-size: 13px;
+      }
+      .feed a:hover {
+        background: var(--canvas-deep);
+      }
+      .feed .avatar {
+        width: 32px;
+        height: 32px;
+        font-size: 11.5px;
+      }
+      .feed time {
+        font-size: 11.5px;
+        color: var(--ink-muted);
+      }
+
+      /* organization overview (S3) */
+      .props {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .prop {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 18px;
+        border-radius: 20px;
+        background: #fff;
+        border: 1px solid var(--line);
+      }
+      .prop[aria-current="true"] {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px var(--accent);
+      }
+      .prop b {
+        display: block;
+        font-weight: 600;
+      }
+      .prop small {
+        color: var(--ink-muted);
+        font-size: 12px;
+      }
+      .prop .pct {
+        font-size: 28px;
+        font-weight: 300;
+      }
+
+      /* failure and empty */
+      .failed {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 8px;
+        min-height: 176px;
+        padding: 20px;
+        border-radius: 32px;
+        background: var(--danger-soft);
+        color: var(--danger);
+        border: 1px solid hsl(3 50% 42% / 0.15);
+      }
+      .failed .act {
+        width: fit-content;
+        background: #fff;
+        color: var(--danger);
+        border: 1px solid hsl(3 50% 42% / 0.25);
+      }
+      .empty {
+        text-align: center;
+        padding: 34px 20px;
+        border-radius: 22px;
+        background: var(--canvas-deep);
+      }
+      .empty h3 {
+        margin: 10px 0 4px;
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .empty p {
+        margin: 0 auto 14px;
+        max-width: 40ch;
+        color: var(--ink-muted);
+        font-size: 13px;
+      }
+      .empty .glyph {
+        font-size: 28px;
+        color: var(--accent);
+      }
+
+      /* phone */
+      .phones {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 28px;
+      }
+      .phone {
+        width: 390px;
+        border-radius: 44px;
+        border: 10px solid #111;
+        background: var(--canvas);
+        overflow: hidden;
+        box-shadow: var(--shadow);
+      }
+      .phone .pbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin: 12px 14px 0;
+        padding: 8px 10px 8px 14px;
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow-low);
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .phone .pbody {
+        padding: 18px 16px 110px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .phone .hello h1 {
+        font-size: 26px;
+      }
+      .phone .tiles {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .phone .tile {
+        min-height: 128px;
+        padding: 14px;
+        border-radius: 24px;
+      }
+      .phone .tile .big {
+        font-size: 34px;
+        margin-top: 10px;
+      }
+      .phone .tile-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 12px;
+        font-size: 16px;
+      }
+      .phone .queue {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      .phone .item {
+        flex-direction: row;
+        align-items: center;
+        padding: 12px 14px;
+      }
+      .phone .item .go {
+        margin: 0 0 0 auto;
+      }
+      .mlist {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .mlist li {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: 18px;
+        background: var(--canvas-deep);
+      }
+      .mlist .grow {
+        flex: 1;
+        min-width: 0;
+      }
+      .mlist .who {
+        font-weight: 600;
+        display: block;
+      }
+      .mlist small {
+        color: var(--ink-muted);
+        font-size: 12px;
+      }
+      .dock {
+        position: relative;
+        margin-top: -86px;
+        display: flex;
+        justify-content: space-around;
+        padding: 10px 8px 22px;
+        background: rgba(255, 255, 255, 0.96);
+        border-top: 1px solid var(--line);
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--ink-muted);
+      }
+      .dock span {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 10px;
+        border-radius: 14px;
+      }
+      .dock span[aria-current="page"] {
+        background: var(--accent);
+        color: #fff;
+      }
+      .dock svg.i {
+        font-size: 18px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="i-login" viewBox="0 0 24 24">
+        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+        <path d="m10 17 5-5-5-5" />
+        <path d="M15 12H3" />
+      </symbol>
+      <symbol id="i-logout" viewBox="0 0 24 24">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+        <path d="m16 17 5-5-5-5" />
+        <path d="M21 12H9" />
+      </symbol>
+      <symbol id="i-bed" viewBox="0 0 24 24">
+        <path d="M2 4v16" />
+        <path d="M2 8h18a2 2 0 0 1 2 2v10" />
+        <path d="M2 17h20" />
+        <path d="M6 8v9" />
+      </symbol>
+      <symbol id="i-sparkles" viewBox="0 0 24 24">
+        <path
+          d="M9.9 15.5A2 2 0 0 0 8.5 14.1L2.4 12.5a.5.5 0 0 1 0-1l6.1-1.6a2 2 0 0 0 1.4-1.4l1.6-6.1a.5.5 0 0 1 1 0l1.6 6.1a2 2 0 0 0 1.4 1.4l6.1 1.6a.5.5 0 0 1 0 1l-6.1 1.6a2 2 0 0 0-1.4 1.4l-1.6 6.1a.5.5 0 0 1-1 0z"
+        />
+      </symbol>
+      <symbol id="i-wallet" viewBox="0 0 24 24">
+        <path
+          d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"
+        />
+        <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" />
+      </symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24">
+        <path
+          d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3"
+        />
+        <path d="M12 9v4" />
+        <path d="M12 17h.01" />
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24">
+        <path d="M20 6 9 17l-5-5" />
+      </symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 6v6l4 2" />
+      </symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24">
+        <path d="M5 12h14" />
+        <path d="m12 5 7 7-7 7" />
+      </symbol>
+      <symbol id="i-house" viewBox="0 0 24 24">
+        <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
+        <path
+          d="M3 10a2 2 0 0 1 .7-1.5l7-6a2 2 0 0 1 2.6 0l7 6a2 2 0 0 1 .7 1.5v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
+        />
+      </symbol>
+      <symbol id="i-hotel" viewBox="0 0 24 24">
+        <path d="M10 22v-6.6" />
+        <path d="M14 15.4V22" />
+        <path d="M14 2a2 2 0 0 1 2 2v18H8V4a2 2 0 0 1 2-2z" />
+        <path d="M8 8H4a2 2 0 0 0-2 2v12h20V10a2 2 0 0 0-2-2h-4" />
+      </symbol>
+      <symbol id="i-users" viewBox="0 0 24 24">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M22 21v-2a4 4 0 0 0-3-3.9" />
+        <path d="M16 3.1a4 4 0 0 1 0 7.8" />
+      </symbol>
+      <symbol id="i-history" viewBox="0 0 24 24">
+        <path d="M3 12a9 9 0 1 0 9-9 9.8 9.8 0 0 0-6.7 2.7L3 8" />
+        <path d="M3 3v5h5" />
+        <path d="M12 7v5l4 2" />
+      </symbol>
+      <symbol id="i-building" viewBox="0 0 24 24">
+        <rect x="4" y="2" width="16" height="20" rx="2" />
+        <path d="M9 22v-4h6v4" />
+        <path
+          d="M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"
+        />
+      </symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24">
+        <path d="M3 12a9 9 0 0 1 9-9 9.8 9.8 0 0 1 6.7 2.7L21 8" />
+        <path d="M21 3v5h-5" />
+        <path d="M21 12a9 9 0 0 1-9 9 9.8 9.8 0 0 1-6.7-2.7L3 16" />
+        <path d="M8 16H3v5" />
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24">
+        <path d="M5 12h14" />
+        <path d="M12 5v14" />
+      </symbol>
+      <symbol id="i-wrench" viewBox="0 0 24 24">
+        <path
+          d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"
+        />
+      </symbol>
+      <symbol id="i-calendar" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="18" rx="2" />
+        <path d="M16 2v4M8 2v4M3 10h18" />
+      </symbol>
+      <symbol id="i-chevrons" viewBox="0 0 24 24">
+        <path d="m7 15 5 5 5-5" />
+        <path d="m7 9 5-5 5 5" />
+      </symbol>
+      <symbol id="i-globe" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M2 12h20" />
+        <path
+          d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+        />
+      </symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24">
+        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+      </symbol>
+    </svg>
+
+    <div class="doc">
+      <header>
+        <p class="eyebrow">Ranza · Operator Workspace · docs/design/mockups</p>
+        <h1>Today, by role</h1>
+        <p>
+          One home screen, shaped by what the viewer may do rather than by the
+          name of their role, because an Organization defines roles of its own
+          (ADR 0026). Blueprint 18.4: every number opens the records and the
+          action that resolve it. Tiles, rows and attention items are all links.
+        </p>
+        <p>
+          Static on purpose: no JavaScript, so each state is its own variant.
+          Numbers are fixture data for Galata Rezidans (Boğaziçi Konukevleri)
+          and add up across variants. Everything shown is drawn from the schema.
+          No payment, arrival time, check-out time, request or maintenance
+          record is shown, because none exists yet.
+        </p>
+        <nav aria-label="Variants">
+          <ul class="toc">
+            <li><a href="#front-desk">Front desk</a></li>
+            <li><a href="#housekeeping">Housekeeping</a></li>
+            <li><a href="#finance">Finance</a></li>
+            <li><a href="#manager">Manager and Owner</a></li>
+            <li><a href="#phone">Phone</a></li>
+            <li><a href="#arabic">Arabic (RTL)</a></li>
+            <li><a href="#quiet">A quiet dormitory day</a></li>
+            <li><a href="#failed">Refresh failed</a></li>
+            <li><a href="#after-midnight">After midnight</a></li>
+          </ul>
+        </nav>
+      </header>
+
+      <!-- ================================================================== -->
+      <section class="variant" id="front-desk" aria-labelledby="fd-title">
+        <h2>Variant 1 · focus: front desk</h2>
+        <h3 id="fd-title">Selin at the desk, 09:41</h3>
+        <ul class="notes">
+          <li>
+            <b>Who gets this:</b> anyone holding
+            <code>front_desk.check_in</code> or <code>check_out</code>. That's
+            the shipped Front desk role and any custom role with those
+            permissions.
+          </li>
+          <li>
+            <b>Balances show</b> because this role holds
+            <code>finance.manage_folio</code>. A viewer without it gets the same
+            table with no Balance column, and no "owes" attention item.
+          </li>
+          <li>
+            <b>Row actions</b> are slice 2: the same dialogs as Arrivals and
+            Departures, so nothing new can write. In slice 1 the row itself
+            opens the Arrivals list at that booking.
+          </li>
+        </ul>
+        <div class="frame">
+          <div class="shell">
+            <aside class="rail" aria-label="Main navigation">
+              <div class="rail-panel">
+                <div class="brand">
+                  <span class="brand-mark">R</span>
+                  <span><b>Ranza</b><small>Boğaziçi Konukevleri</small></span>
+                </div>
+                <ul class="nav">
+                  <li>
+                    <a href="#front-desk" aria-current="page"
+                      ><svg class="i"><use href="#i-house" /></svg>Bugün</a
+                    >
+                  </li>
+                  <li>
+                    <a href="#front-desk"
+                      ><svg class="i"><use href="#i-hotel" /></svg>Ön büro</a
+                    >
+                  </li>
+                  <li>
+                    <a href="#front-desk"
+                      ><svg class="i"><use href="#i-sparkles" /></svg>Kat
+                      hizmetleri</a
+                    >
+                  </li>
+                  <li>
+                    <a href="#front-desk"
+                      ><svg class="i"><use href="#i-wallet" /></svg>Finans</a
+                    >
+                  </li>
+                </ul>
+                <div class="rail-foot">
+                  <span class="avatar">SA</span>
+                  <span><b>Selin Aydın</b><br /><small>Ön büro</small></span>
+                </div>
+              </div>
+            </aside>
+            <main class="main">
+              <div class="bar">
+                <div class="crumbs">
+                  <span class="root">Çalışma alanı</span>
+                  <svg class="i flip"><use href="#i-arrow" /></svg>
+                  <b>Bugün</b>
+                </div>
+                <div class="bar-end">
+                  <span class="pill-btn"
+                    ><svg class="i"><use href="#i-building" /></svg>Galata
+                    Rezidans<svg class="i"><use href="#i-chevrons" /></svg
+                  ></span>
+                  <span class="pill-btn"
+                    ><svg class="i"><use href="#i-globe" /></svg>TR</span
+                  >
+                  <span class="sep"></span>
+                  <span class="avatar">SA</span>
+                </div>
+              </div>
+
+              <div class="today">
+                <div class="hello">
+                  <div>
+                    <span class="eyebrow">Perşembe · 25 Eylül 2026</span>
+                    <h1><span>Günaydın,</span> <b>Selin</b></h1>
+                  </div>
+                  <div class="clock">
+                    <span class="fresh"
+                      ><svg class="i"><use href="#i-refresh" /></svg>Güncellendi
+                      09:41</span
+                    >
+                    <div>
+                      <span class="time num">09:41</span>
+                      <small>Europe/Istanbul</small>
+                    </div>
+                    <a class="cta" href="#front-desk"
+                      ><svg class="i"><use href="#i-plus" /></svg>Yeni
+                      rezervasyon</a
+                    >
+                  </div>
+                </div>
+
+                <section class="attention" aria-labelledby="fd-att">
+                  <h2 id="fd-att">
+                    Dikkat gerekiyor <span class="count num">4</span>
+                  </h2>
+                  <ul class="queue">
+                    <li>
+                      <a class="item" href="#front-desk">
+                        <span class="st bad"
+                          ><svg class="i"><use href="#i-alert" /></svg>Oda hazır
+                          değil</span
+                        >
+                        <h3>204 · Lina Haddad</h3>
+                        <p>Bugün geliyor; oda hâlâ kirli.</p>
+                        <span class="go"
+                          >Gelişi aç
+                          <svg class="i flip"><use href="#i-arrow" /></svg
+                        ></span>
+                      </a>
+                    </li>
+                    <li>
+                      <a class="item" href="#front-desk">
+                        <span class="st warn"
+                          ><svg class="i"><use href="#i-clock" /></svg>Gecikmiş
+                          çıkış</span
+                        >
+                        <h3>311 · Jonas Weber</h3>
+                        <p>Dün (24 Eyl) ayrılacaktı, hâlâ konaklıyor.</p>
+                        <span class="go"
+                          >Çıkışı aç
+                          <svg class="i flip"><use href="#i-arrow" /></svg
+                        ></span>
+                      </a>
+                    </li>
+                    <li>
+                      <a class="item" href="#front-desk">
+                        <span class="st warn"
+                          ><svg class="i"><use href="#i-wallet" /></svg>Borçlu
+                          ayrılıyor</span
+                        >
+                        <h3>118 · Ece Koç</h3>
+                        <p>Bugün ayrılıyor, bakiye ₺1.840.</p>
+                        <span class="go"
+                          >Folyoyu aç
+                          <svg class="i flip"><use href="#i-arrow" /></svg
+                        ></span>
+                      </a>
+                    </li>
+                    <li>
+                      <a class="item" href="#front-desk">
+                        <span class="st info"
+                          ><svg class="i"><use href="#i-bed" /></svg>Giriş
+                          yapılamaz</span
+                        >
+                        <h3>402 · B · Yusuf Kaya</h3>
+                        <p>Yatak 27 Eyl'e kadar dolu.</p>
+                        <span class="go"
+                          >Gelişi aç
+                          <svg class="i flip"><use href="#i-arrow" /></svg
+                        ></span>
+                      </a>
+                    </li>
+                  </ul>
+                </section>
+
+                <ul class="tiles">
+                  <li>
+                    <a class="tile" href="#front-desk">
+                      <span class="tile-top"
+                        ><span class="tile-icon"
+                          ><svg class="i"><use href="#i-login" /></svg></span
+                        ><span class="open"
+                          >Gelişler
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></span>
+                      <span>
+                        <span class="big num">7<small> / 18</small></span>
+                        <span class="label">Giriş yapıldı</span>
+                        <span class="progress"><i style="width: 39%"></i></span>
+                      </span>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="tile" href="#front-desk">
+                      <span class="tile-top"
+                        ><span class="tile-icon"
+                          ><svg class="i"><use href="#i-logout" /></svg></span
+                        ><span class="open"
+                          >Çıkışlar
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></span>
+                      <span>
+                        <span class="big num">9<small> / 12</small></span>
+                        <span class="label">Çıkış yapıldı</span>
+                        <span class="progress"><i style="width: 75%"></i></span>
+                      </span>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="tile" href="#front-desk">
+                      <span class="tile-top"
+                        ><span class="tile-icon gold"
+                          ><svg class="i"><use href="#i-bed" /></svg></span
+                        ><span class="open"
+                          >Odalar
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></span>
+                      <span>
+                        <span class="big num">82<small>%</small></span>
+                        <span class="label">Konaklayan · 79 / 96</span>
+                        <span class="progress"
+                          ><i style="width: 82%"></i
+                          ><i class="ghost" style="width: 7%"></i
+                        ></span>
+                        <span class="sub">Bu gece beklenen %89</span>
+                      </span>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="tile" href="#front-desk">
+                      <span class="tile-top"
+                        ><span class="tile-icon"
+                          ><svg class="i"><use href="#i-sparkles" /></svg></span
+                        ><span class="open"
+                          >Kat hizmetleri
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></span>
+                      <span>
+                        <span class="big num">8<small> / 11</small></span>
+                        <span class="label">Bekleyen gelişe hazır oda</span>
+                        <span class="sub">3 oda henüz hazır değil</span>
+                      </span>
+                    </a>
+                  </li>
+                </ul>
+
+                <div class="row">
+                  <section class="card" aria-labelledby="fd-mov">
+                    <div class="card-head">
+                      <h2 id="fd-mov">Bugünkü hareket</h2>
+                      <nav class="seg" aria-label="Hareket">
+                        <a href="#front-desk" aria-current="page"
+                          >Gelişler · 11</a
+                        >
+                        <a href="#front-desk">Çıkışlar · 3</a>
+                      </nav>
+                    </div>
+                    <table>
+                      <caption class="sr-only">
+                        Bugün gelecek, henüz giriş yapmamış konuklar
+                      </caption>
+                      <thead>
+                        <tr>
+                          <th scope="col">Konuk</th>
+                          <th scope="col">Oda</th>
+                          <th scope="col">Oda durumu</th>
+                          <th scope="col">Kalış</th>
+                          <th scope="col">
+                            <span class="sr-only">İşlem</span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>
+                            <span class="who">Lina Haddad</span
+                            ><span class="ref">RZ-2609-0142 · Konuk</span>
+                          </td>
+                          <td class="num">204</td>
+                          <td>
+                            <span class="st bad"
+                              ><svg class="i"><use href="#i-alert" /></svg
+                              >Kirli</span
+                            >
+                          </td>
+                          <td class="num">3 gece</td>
+                          <td>
+                            <a class="act quiet" href="#front-desk"
+                              >Yine de giriş…</a
+                            ><span class="why">Önce sorar</span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <span class="who">Mert Şahin</span
+                            ><span class="ref">RZ-2609-0137 · Sakin</span>
+                          </td>
+                          <td class="num">305 · A</td>
+                          <td>
+                            <span class="st ok"
+                              ><svg class="i"><use href="#i-check" /></svg
+                              >Hazır</span
+                            >
+                          </td>
+                          <td class="num">Açık uçlu</td>
+                          <td>
+                            <a class="act" href="#front-desk">Giriş yap</a>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <span class="who">Hannah Müller</span
+                            ><span class="ref">RZ-2609-0139 · Konuk</span>
+                          </td>
+                          <td class="num">112</td>
+                          <td>
+                            <span class="st ok"
+                              ><svg class="i"><use href="#i-check" /></svg
+                              >Kontrol edildi</span
+                            >
+                          </td>
+                          <td class="num">2 gece</td>
+                          <td>
+                            <a class="act" href="#front-desk">Giriş yap</a>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <span class="who">Yusuf Kaya</span
+                            ><span class="ref">RZ-2609-0131 · Sakin</span>
+                          </td>
+                          <td class="num">402 · B</td>
+                          <td>
+                            <span class="st info"
+                              ><svg class="i"><use href="#i-bed" /></svg>27
+                              Eyl'e kadar dolu</span
+                            >
+                          </td>
+                          <td class="num">31 Oca'ya kadar</td>
+                          <td>
+                            <span class="act" aria-disabled="true"
+                              >Giriş yap</span
+                            ><span class="why">Yatak dolu</span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <span class="who">Zeynep Arslan</span
+                            ><span class="ref">RZ-2609-0144 · Konuk</span>
+                          </td>
+                          <td class="num">208</td>
+                          <td>
+                            <span class="st warn"
+                              ><svg class="i"><use href="#i-sparkles" /></svg
+                              >Temiz · kontrol bekliyor</span
+                            >
+                          </td>
+                          <td class="num">5 gece</td>
+                          <td>
+                            <a class="act quiet" href="#front-desk"
+                              >Yine de giriş…</a
+                            ><span class="why">Önce sorar</span>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <a class="more" href="#front-desk"
+                      >11 gelişin tümü
+                      <svg class="i flip"><use href="#i-arrow" /></svg
+                    ></a>
+                  </section>
+
+                  <div class="stack">
+                    <section class="card" aria-labelledby="fd-rooms">
+                      <div class="card-head">
+                        <h2 id="fd-rooms">Odalar</h2>
+                        <a
+                          class="open"
+                          href="#front-desk"
+                          style="font-size: 12px; color: var(--ink-muted)"
+                          >Pano <svg class="i flip"><use href="#i-arrow" /></svg
+                        ></a>
+                      </div>
+                      <div
+                        class="stackbar"
+                        role="img"
+                        aria-label="48 odanın 31'i hazır, 6'sı temiz ve kontrol bekliyor, 9'u kirli, 2'si hizmet dışı"
+                      >
+                        <i style="flex: 31; background: var(--success)"></i>
+                        <i style="flex: 6; background: #c9a23d"></i>
+                        <i style="flex: 9; background: var(--danger)"></i>
+                        <i style="flex: 2; background: var(--line-strong)"></i>
+                      </div>
+                      <ul class="legend">
+                        <li>
+                          <span
+                            class="sw"
+                            style="background: var(--success)"
+                          ></span
+                          >Hazır<b class="num">31</b>
+                        </li>
+                        <li>
+                          <span class="sw" style="background: #c9a23d"></span
+                          >Temiz, kontrol bekliyor<b class="num">6</b>
+                        </li>
+                        <li>
+                          <span
+                            class="sw"
+                            style="background: var(--danger)"
+                          ></span
+                          >Kirli<b class="num">9</b>
+                        </li>
+                        <li>
+                          <span
+                            class="sw"
+                            style="background: var(--line-strong)"
+                          ></span
+                          >Hizmet dışı<b class="num">2</b>
+                        </li>
+                      </ul>
+                      <ul class="floors" aria-label="Katlara göre hazır odalar">
+                        <li>
+                          <span class="f"
+                            ><span>1. kat</span
+                            ><span class="num">11 / 12</span></span
+                          ><span class="progress"
+                            ><i style="width: 92%"></i
+                          ></span>
+                        </li>
+                        <li>
+                          <span class="f"
+                            ><span>2. kat</span
+                            ><span class="num">6 / 12</span></span
+                          ><span class="progress"
+                            ><i style="width: 50%"></i
+                          ></span>
+                        </li>
+                        <li>
+                          <span class="f"
+                            ><span>3. kat</span
+                            ><span class="num">8 / 12</span></span
+                          ><span class="progress"
+                            ><i style="width: 67%"></i
+                          ></span>
+                        </li>
+                        <li>
+                          <span class="f"
+                            ><span>4. kat</span
+                            ><span class="num">6 / 12</span></span
+                          ><span class="progress"
+                            ><i style="width: 50%"></i
+                          ></span>
+                        </li>
+                      </ul>
+                    </section>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================== -->
+      <section class="variant" id="housekeeping" aria-labelledby="hk-title">
+        <h2>Variant 2 · focus: housekeeping</h2>
+        <h3 id="hk-title">Ayşe on the floor, 08:15</h3>
+        <ul class="notes">
+          <li>
+            <b>Who gets this:</b> <code>housekeeping.update_status</code>
+            without front-desk permissions. That's the shipped Housekeeping
+            role.
+          </li>
+          <li>
+            <b>"Clean first"</b> is the smart part. It orders dirty rooms by who
+            needs them: an arrival today first, then rooms whose Guest leaves
+            today, then the rest. The arrivals list's
+            <code>unitIsReady</code> and the board's <code>inHouse</code>
+            already carry both.
+          </li>
+          <li>
+            <b>No money anywhere.</b> This viewer holds no finance permission,
+            so the summary never carries a balance for them. The server leaves
+            it out; it isn't just hidden.
+          </li>
+        </ul>
+        <div class="frame">
+          <div class="shell">
+            <aside class="rail" aria-label="Main navigation">
+              <div class="rail-panel">
+                <div class="brand">
+                  <span class="brand-mark">R</span>
+                  <span><b>Ranza</b><small>Boğaziçi Konukevleri</small></span>
+                </div>
+                <ul class="nav">
+                  <li>
+                    <a href="#housekeeping" aria-current="page"
+                      ><svg class="i"><use href="#i-house" /></svg>Bugün</a
+                    >
+                  </li>
+                  <li>
+                    <a href="#housekeeping"
+                      ><svg class="i"><use href="#i-sparkles" /></svg>Kat
+                      hizmetleri</a
+                    >
+                  </li>
+                </ul>
+                <div class="rail-foot">
+                  <span class="avatar">AD</span>
+                  <span
+                    ><b>Ayşe Demir</b><br /><small>Kat hizmetleri</small></span
+                  >
+                </div>
+              </div>
+            </aside>
+            <main class="main">
+              <div class="bar">
+                <div class="crumbs">
+                  <span class="root">Çalışma alanı</span>
+                  <svg class="i flip"><use href="#i-arrow" /></svg>
+                  <b>Bugün</b>
+                </div>
+                <div class="bar-end">
+                  <span class="pill-btn"
+                    ><svg class="i"><use href="#i-building" /></svg>Galata
+                    Rezidans</span
+                  >
+                  <span class="pill-btn"
+                    ><svg class="i"><use href="#i-globe" /></svg>TR</span
+                  >
+                  <span class="sep"></span>
+                  <span class="avatar">AD</span>
+                </div>
+              </div>
+              <div class="today">
+                <div class="hello">
+                  <div>
+                    <span class="eyebrow">Perşembe · 25 Eylül 2026</span>
+                    <h1><span>Günaydın,</span> <b>Ayşe</b></h1>
+                  </div>
+                  <div class="clock">
+                    <span class="fresh"
+                      ><svg class="i"><use href="#i-refresh" /></svg>Güncellendi
+                      08:15</span
+                    >
+                    <div>
+                      <span class="time num">08:15</span>
+                      <small>Europe/Istanbul</small>
+                    </div>
+                  </div>
+                </div>
+
+                <section class="attention" aria-labelledby="hk-att">
+                  <h2 id="hk-att">
+                    Dikkat gerekiyor <span class="count num">3</span>
+                  </h2>
+                  <ul class="queue">
+                    <li>
+                      <a class="item" href="#housekeeping">
+                        <span class="st bad"
+                          ><svg class="i"><use href="#i-alert" /></svg>Bugün
+                          geliş</span
+                        >
+                        <h3>204 kirli</h3>
+                        <p>Bugün bir konuk bu odaya geliyor.</p>
+                        <span class="go"
+                          >Panoda aç
+                          <svg class="i flip"><use href="#i-arrow" /></svg
+                        ></span>
+                      </a>
+                    </li>
+                    <li>
+                      <a class="item" href="#housekeeping">
+                        <span class="st warn"
+                          ><svg class="i"><use href="#i-sparkles" /></svg
+                          >Kontrol bekliyor</span
+                        >
+                        <h3>208 temiz</h3>
+                        <p>
+                          Bugün geliş var; kontrol edilmeden hazır sayılmaz.
+                        </p>
+                        <span class="go"
+                          >Panoda aç
+                          <svg class="i flip"><use href="#i-arrow" /></svg
+                        ></span>
+                      </a>
+                    </li>
+                    <li>
+                      <a class="item" href="#housekeeping">
+                        <span class="st mute"
+                          ><svg class="i"><use href="#i-wrench" /></svg>Hizmet
+                          dışı</span
+                        >
+                        <h3>509</h3>
+                        <p>22 Eyl'den beri kullanılamıyor.</p>
+                        <span class="go"
+                          >Panoda aç
+                          <svg class="i flip"><use href="#i-arrow" /></svg
+                        ></span>
+                      </a>
+                    </li>
+                  </ul>
+                </section>
+
+                <ul class="tiles">
+                  <li>
+                    <a class="tile" href="#housekeeping">
+                      <span class="tile-top"
+                        ><span class="tile-icon"
+                          ><svg class="i"><use href="#i-sparkles" /></svg></span
+                        ><span class="open"
+                          >Kirli
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></span>
+                      <span
+                        ><span class="big num">9</span
+                        ><span class="label">Temizlenecek</span
+                        ><span class="sub">+3 bugün boşalacak</span></span
+                      >
+                    </a>
+                  </li>
+                  <li>
+                    <a class="tile" href="#housekeeping">
+                      <span class="tile-top"
+                        ><span class="tile-icon gold"
+                          ><svg class="i"><use href="#i-check" /></svg></span
+                        ><span class="open"
+                          >Temiz
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></span>
+                      <span
+                        ><span class="big num">6</span
+                        ><span class="label">Kontrol bekliyor</span></span
+                      >
+                    </a>
+                  </li>
+                  <li>
+                    <a class="tile" href="#housekeeping">
+                      <span class="tile-top"
+                        ><span class="tile-icon"
+                          ><svg class="i"><use href="#i-bed" /></svg></span
+                        ><span class="open"
+                          >Hazır
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></span>
+                      <span
+                        ><span class="big num">31<small> / 46</small></span
+                        ><span class="label">Hazır oda</span
+                        ><span class="progress"><i style="width: 67%"></i></span
+                      ></span>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="tile" href="#housekeeping">
+                      <span class="tile-top"
+                        ><span class="tile-icon"
+                          ><svg class="i"><use href="#i-login" /></svg></span
+                        ><span class="open"
+                          >Önce bunlar
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></span>
+                      <span
+                        ><span class="big num">3</span
+                        ><span class="label">Oda bekleyen geliş</span></span
+                      >
+                    </a>
+                  </li>
+                </ul>
+
+                <div class="row">
+                  <section class="card" aria-labelledby="hk-q">
+                    <div class="card-head">
+                      <h2 id="hk-q">Önce bunları temizleyin</h2>
+                      <span class="count num">12 oda</span>
+                    </div>
+                    <table>
+                      <caption class="sr-only">
+                        Kirli odalar, ihtiyaca göre sıralı
+                      </caption>
+                      <thead>
+                        <tr>
+                          <th scope="col">Oda</th>
+                          <th scope="col">Neden önce</th>
+                          <th scope="col">Durum</th>
+                          <th scope="col">
+                            <span class="sr-only">İşlem</span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>
+                            <span class="who num">204</span
+                            ><span class="ref">2. kat</span>
+                          </td>
+                          <td>
+                            <span class="st bad"
+                              ><svg class="i"><use href="#i-login" /></svg>Bugün
+                              geliş</span
+                            >
+                          </td>
+                          <td>Kirli · 07:02'den beri</td>
+                          <td>
+                            <a class="act" href="#housekeeping"
+                              >Temiz işaretle</a
+                            >
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <span class="who num">215</span
+                            ><span class="ref">2. kat</span>
+                          </td>
+                          <td>
+                            <span class="st bad"
+                              ><svg class="i"><use href="#i-login" /></svg>Bugün
+                              geliş</span
+                            >
+                          </td>
+                          <td>Kirli · dünden beri</td>
+                          <td>
+                            <a class="act" href="#housekeeping"
+                              >Temiz işaretle</a
+                            >
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <span class="who num">208</span
+                            ><span class="ref">2. kat</span>
+                          </td>
+                          <td>
+                            <span class="st warn"
+                              ><svg class="i"><use href="#i-login" /></svg>Bugün
+                              geliş · kontrol</span
+                            >
+                          </td>
+                          <td>Temiz · kontrol bekliyor</td>
+                          <td>
+                            <a class="act" href="#housekeeping"
+                              >Kontrol edildi</a
+                            >
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <span class="who num">118</span
+                            ><span class="ref">1. kat</span>
+                          </td>
+                          <td>
+                            <span class="st info"
+                              ><svg class="i"><use href="#i-logout" /></svg
+                              >Bugün boşalıyor</span
+                            >
+                          </td>
+                          <td>Konuk hâlâ odada</td>
+                          <td>
+                            <span class="act" aria-disabled="true"
+                              >Temiz işaretle</span
+                            ><span class="why">Konuk çıkınca</span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <span class="who num">407</span
+                            ><span class="ref">4. kat</span>
+                          </td>
+                          <td><span class="st mute">Sırada</span></td>
+                          <td>Kirli · 06:40'tan beri</td>
+                          <td>
+                            <a class="act quiet" href="#housekeeping"
+                              >Temiz işaretle</a
+                            >
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <a class="more" href="#housekeeping"
+                      >Panonun tümü
+                      <svg class="i flip"><use href="#i-arrow" /></svg
+                    ></a>
+                  </section>
+                  <section class="card" aria-labelledby="hk-floors">
+                    <div class="card-head"><h2 id="hk-floors">Katlar</h2></div>
+                    <div
+                      class="stackbar"
+                      role="img"
+                      aria-label="31 hazır, 6 kontrol bekliyor, 9 kirli, 2 hizmet dışı"
+                    >
+                      <i style="flex: 31; background: var(--success)"></i>
+                      <i style="flex: 6; background: #c9a23d"></i>
+                      <i style="flex: 9; background: var(--danger)"></i>
+                      <i style="flex: 2; background: var(--line-strong)"></i>
+                    </div>
+                    <ul class="floors" style="border: 0; padding: 0; margin: 0">
+                      <li>
+                        <span class="f"
+                          ><span>1. kat</span
+                          ><span class="num">11 / 12 hazır</span></span
+                        ><span class="progress"
+                          ><i style="width: 92%"></i
+                        ></span>
+                      </li>
+                      <li>
+                        <span class="f"
+                          ><span>2. kat · 2 geliş bekliyor</span
+                          ><span class="num">6 / 12 hazır</span></span
+                        ><span class="progress"
+                          ><i style="width: 50%"></i
+                        ></span>
+                      </li>
+                      <li>
+                        <span class="f"
+                          ><span>3. kat</span
+                          ><span class="num">8 / 12 hazır</span></span
+                        ><span class="progress"
+                          ><i style="width: 67%"></i
+                        ></span>
+                      </li>
+                      <li>
+                        <span class="f"
+                          ><span>4. kat</span
+                          ><span class="num">6 / 12 hazır</span></span
+                        ><span class="progress"
+                          ><i style="width: 50%"></i
+                        ></span>
+                      </li>
+                    </ul>
+                  </section>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================== -->
+      <section class="variant" id="finance" aria-labelledby="fn-title">
+        <h2>Variant 3 · focus: finance</h2>
+        <h3 id="fn-title">Can in the back office, 11:05</h3>
+        <ul class="notes">
+          <li>
+            <b>Who gets this:</b> <code>finance.*</code> without front-desk
+            permissions. That's the shipped Finance role.
+          </li>
+          <li>
+            <b>"Owed" is honest:</b> Ranza records charges and reversals, not
+            payments yet. So the copy says "balance", never "unpaid" or
+            "collected".
+          </li>
+          <li>
+            <b>Money</b> is whole minor units in the Property's currency (ADR
+            0015), formatted per locale: ₺1.840 in Turkish, TRY 1,840 in
+            English.
+          </li>
+        </ul>
+        <div class="frame">
+          <div class="shell">
+            <aside class="rail" aria-label="Main navigation">
+              <div class="rail-panel">
+                <div class="brand">
+                  <span class="brand-mark">R</span>
+                  <span><b>Ranza</b><small>Boğaziçi Konukevleri</small></span>
+                </div>
+                <ul class="nav">
+                  <li>
+                    <a href="#finance" aria-current="page"
+                      ><svg class="i"><use href="#i-house" /></svg>Bugün</a
+                    >
+                  </li>
+                  <li>
+                    <a href="#finance"
+                      ><svg class="i"><use href="#i-wallet" /></svg>Finans</a
+                    >
+                  </li>
+                </ul>
+                <div class="rail-foot">
+                  <span class="avatar">CÖ</span>
+                  <span><b>Can Öztürk</b><br /><small>Finans</small></span>
+                </div>
+              </div>
+            </aside>
+            <main class="main">
+              <div class="bar">
+                <div class="crumbs">
+                  <span class="root">Çalışma alanı</span
+                  ><svg class="i flip"><use href="#i-arrow" /></svg><b>Bugün</b>
+                </div>
+                <div class="bar-end">
+                  <span class="pill-btn"
+                    ><svg class="i"><use href="#i-building" /></svg>Galata
+                    Rezidans<svg class="i"><use href="#i-chevrons" /></svg
+                  ></span>
+                  <span class="pill-btn"
+                    ><svg class="i"><use href="#i-globe" /></svg>TR</span
+                  >
+                  <span class="sep"></span><span class="avatar">CÖ</span>
+                </div>
+              </div>
+              <div class="today">
+                <div class="hello">
+                  <div>
+                    <span class="eyebrow">Perşembe · 25 Eylül 2026</span>
+                    <h1><span>İyi günler,</span> <b>Can</b></h1>
+                  </div>
+                  <div class="clock">
+                    <span class="fresh"
+                      ><svg class="i"><use href="#i-refresh" /></svg>Güncellendi
+                      11:05</span
+                    >
+                    <div>
+                      <span class="time num">11:05</span
+                      ><small>Europe/Istanbul</small>
+                    </div>
+                  </div>
+                </div>
+
+                <section class="attention" aria-labelledby="fn-att">
+                  <h2 id="fn-att">
+                    Dikkat gerekiyor <span class="count num">2</span>
+                  </h2>
+                  <ul class="queue">
+                    <li>
+                      <a class="item" href="#finance">
+                        <span class="st warn"
+                          ><svg class="i"><use href="#i-wallet" /></svg>Borçlu
+                          ayrılıyor</span
+                        >
+                        <h3>118 · Ece Koç · ₺1.840</h3>
+                        <p>Bugün ayrılıyor.</p>
+                        <span class="go"
+                          >Folyoyu aç
+                          <svg class="i flip"><use href="#i-arrow" /></svg
+                        ></span>
+                      </a>
+                    </li>
+                    <li>
+                      <a class="item" href="#finance">
+                        <span class="st bad"
+                          ><svg class="i"><use href="#i-clock" /></svg>Gecikmiş
+                          · bakiyeli</span
+                        >
+                        <h3>311 · Jonas Weber · ₺2.100</h3>
+                        <p>Dün ayrılacaktı, bakiyesi açık.</p>
+                        <span class="go"
+                          >Folyoyu aç
+                          <svg class="i flip"><use href="#i-arrow" /></svg
+                        ></span>
+                      </a>
+                    </li>
+                  </ul>
+                </section>
+
+                <ul class="tiles">
+                  <li>
+                    <a class="tile" href="#finance">
+                      <span class="tile-top"
+                        ><span class="tile-icon gold"
+                          ><svg class="i"><use href="#i-logout" /></svg></span
+                        ><span class="open"
+                          >Çıkışlar
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></span>
+                      <span
+                        ><span class="big num"><small>₺</small>4.260</span
+                        ><span class="label">Bugün ayrılanlarda bakiye</span
+                        ><span class="sub">3 konuk</span></span
+                      >
+                    </a>
+                  </li>
+                  <li>
+                    <a class="tile" href="#finance">
+                      <span class="tile-top"
+                        ><span class="tile-icon"
+                          ><svg class="i"><use href="#i-wallet" /></svg></span
+                        ><span class="open"
+                          >Folyolar
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></span>
+                      <span
+                        ><span class="big num">64</span
+                        ><span class="label">Açık folyo</span></span
+                      >
+                    </a>
+                  </li>
+                  <li>
+                    <a class="tile" href="#finance">
+                      <span class="tile-top"
+                        ><span class="tile-icon"
+                          ><svg class="i"><use href="#i-wallet" /></svg></span
+                        ><span class="open"
+                          >Folyolar
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></span>
+                      <span
+                        ><span class="big num"><small>₺</small>38.915</span
+                        ><span class="label">Açık folyolarda bakiye</span></span
+                      >
+                    </a>
+                  </li>
+                  <li>
+                    <a class="tile" href="#finance">
+                      <span class="tile-top"
+                        ><span class="tile-icon"
+                          ><svg class="i"><use href="#i-clock" /></svg></span
+                        ><span class="open"
+                          >Gecikenler
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></span>
+                      <span
+                        ><span class="big num">1</span
+                        ><span class="label">Gecikmiş, bakiyeli</span
+                        ><span class="sub">₺2.100</span></span
+                      >
+                    </a>
+                  </li>
+                </ul>
+
+                <div class="row">
+                  <section class="card" aria-labelledby="fn-dep">
+                    <div class="card-head">
+                      <h2 id="fn-dep">Bakiyesiyle ayrılanlar</h2>
+                      <span class="count num">4</span>
+                    </div>
+                    <table>
+                      <caption class="sr-only">
+                        Bugün veya daha önce ayrılması gereken, bakiyesi açık
+                        konuklar
+                      </caption>
+                      <thead>
+                        <tr>
+                          <th scope="col">Konuk</th>
+                          <th scope="col">Oda</th>
+                          <th scope="col">Ayrılış</th>
+                          <th scope="col">Bakiye</th>
+                          <th scope="col">
+                            <span class="sr-only">İşlem</span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>
+                            <span class="who">Jonas Weber</span
+                            ><span class="ref">RZ-2609-0098</span>
+                          </td>
+                          <td class="num">311</td>
+                          <td>
+                            <span class="st bad"
+                              ><svg class="i"><use href="#i-clock" /></svg
+                              >Dün</span
+                            >
+                          </td>
+                          <td class="num"><b>₺2.100</b></td>
+                          <td>
+                            <a class="act quiet" href="#finance">Folyoyu aç</a>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <span class="who">Ece Koç</span
+                            ><span class="ref">RZ-2609-0101</span>
+                          </td>
+                          <td class="num">118</td>
+                          <td><span class="st warn">Bugün</span></td>
+                          <td class="num"><b>₺1.840</b></td>
+                          <td>
+                            <a class="act quiet" href="#finance">Folyoyu aç</a>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <span class="who">Omar Nasser</span
+                            ><span class="ref">RZ-2609-0104</span>
+                          </td>
+                          <td class="num">221</td>
+                          <td><span class="st warn">Bugün</span></td>
+                          <td class="num"><b>₺1.620</b></td>
+                          <td>
+                            <a class="act quiet" href="#finance">Folyoyu aç</a>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <span class="who">Defne Yıldız</span
+                            ><span class="ref">RZ-2609-0107</span>
+                          </td>
+                          <td class="num">406 · A</td>
+                          <td><span class="st warn">Bugün</span></td>
+                          <td class="num"><b>₺800</b></td>
+                          <td>
+                            <a class="act quiet" href="#finance">Folyoyu aç</a>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </section>
+                  <section class="card" aria-labelledby="fn-top">
+                    <div class="card-head">
+                      <h2 id="fn-top">En yüksek açık bakiyeler</h2>
+                    </div>
+                    <ul class="feed">
+                      <li>
+                        <a href="#finance"
+                          ><span class="avatar">MŞ</span
+                          ><span
+                            >Mert Şahin<br /><small class="num"
+                              >305 · A · sakin</small
+                            ></span
+                          ><b class="num">₺6.400</b></a
+                        >
+                      </li>
+                      <li>
+                        <a href="#finance"
+                          ><span class="avatar">AK</span
+                          ><span
+                            >Aylin Kurt<br /><small class="num"
+                              >210</small
+                            ></span
+                          ><b class="num">₺3.950</b></a
+                        >
+                      </li>
+                      <li>
+                        <a href="#finance"
+                          ><span class="avatar">JW</span
+                          ><span
+                            >Jonas Weber<br /><small class="num"
+                              >311 · gecikmiş</small
+                            ></span
+                          ><b class="num">₺2.100</b></a
+                        >
+                      </li>
+                      <li>
+                        <a href="#finance"
+                          ><span class="avatar">EK</span
+                          ><span
+                            >Ece Koç<br /><small class="num">118</small></span
+                          ><b class="num">₺1.840</b></a
+                        >
+                      </li>
+                    </ul>
+                    <a class="more" href="#finance"
+                      >64 folyonun tümü
+                      <svg class="i flip"><use href="#i-arrow" /></svg
+                    ></a>
+                  </section>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================== -->
+      <section class="variant" id="manager" aria-labelledby="mg-title">
+        <h2>Variant 4 · focus: manager and owner</h2>
+        <h3 id="mg-title">Deniz, 14:32: the whole day, then what happened</h3>
+        <ul class="notes">
+          <li>
+            <b>Who gets this:</b> <code>staff.administer</code> or
+            <code>audit.read</code>. That's the shipped Owner and Manager roles.
+          </li>
+          <li>
+            <b>Slice 3 pieces</b> are marked. The Organization strip appears
+            only for a viewer who reaches more than one Property, and choosing
+            one is a full load, like the switcher (ADR 0019). Recent activity is
+            the audit log, so it follows <code>audit.read</code>.
+          </li>
+          <li>
+            <b>The 14-day line</b> is booked occupancy from Reservations and
+            Stays, not a forecast model. A visually hidden table carries the
+            same values.
+          </li>
+        </ul>
+        <div class="frame">
+          <div class="shell">
+            <aside class="rail" aria-label="Main navigation">
+              <div class="rail-panel">
+                <div class="brand">
+                  <span class="brand-mark">R</span
+                  ><span><b>Ranza</b><small>Boğaziçi Konukevleri</small></span>
+                </div>
+                <ul class="nav">
+                  <li>
+                    <a href="#manager" aria-current="page"
+                      ><svg class="i"><use href="#i-house" /></svg>Bugün</a
+                    >
+                  </li>
+                  <li>
+                    <a href="#manager"
+                      ><svg class="i"><use href="#i-hotel" /></svg>Ön büro</a
+                    >
+                  </li>
+                  <li>
+                    <a href="#manager"
+                      ><svg class="i"><use href="#i-sparkles" /></svg>Kat
+                      hizmetleri</a
+                    >
+                  </li>
+                  <li>
+                    <a href="#manager"
+                      ><svg class="i"><use href="#i-wallet" /></svg>Finans</a
+                    >
+                  </li>
+                  <li>
+                    <a href="#manager"
+                      ><svg class="i"><use href="#i-users" /></svg>Personel</a
+                    >
+                  </li>
+                  <li>
+                    <a href="#manager"
+                      ><svg class="i"><use href="#i-history" /></svg>Denetim
+                      kaydı</a
+                    >
+                  </li>
+                </ul>
+                <div class="rail-foot">
+                  <span class="avatar">DA</span
+                  ><span><b>Deniz Arslan</b><br /><small>Müdür</small></span>
+                </div>
+              </div>
+            </aside>
+            <main class="main">
+              <div class="bar">
+                <div class="crumbs">
+                  <span class="root">Çalışma alanı</span
+                  ><svg class="i flip"><use href="#i-arrow" /></svg><b>Bugün</b>
+                </div>
+                <div class="bar-end">
+                  <span class="pill-btn"
+                    ><svg class="i"><use href="#i-building" /></svg>Galata
+                    Rezidans<svg class="i"><use href="#i-chevrons" /></svg
+                  ></span>
+                  <span class="pill-btn"
+                    ><svg class="i"><use href="#i-globe" /></svg>TR</span
+                  >
+                  <span class="sep"></span><span class="avatar">DA</span>
+                </div>
+              </div>
+              <div class="today">
+                <div class="hello">
+                  <div>
+                    <span class="eyebrow">Perşembe · 25 Eylül 2026</span>
+                    <h1><span>İyi günler,</span> <b>Deniz</b></h1>
+                  </div>
+                  <div class="clock">
+                    <span class="fresh"
+                      ><svg class="i"><use href="#i-refresh" /></svg>Güncellendi
+                      14:32</span
+                    >
+                    <div>
+                      <span class="time num">14:32</span
+                      ><small>Europe/Istanbul</small>
+                    </div>
+                    <a class="cta" href="#manager"
+                      ><svg class="i"><use href="#i-plus" /></svg>Yeni
+                      rezervasyon</a
+                    >
+                  </div>
+                </div>
+
+                <section aria-labelledby="mg-org">
+                  <h2 id="mg-org" class="eyebrow" style="margin: 0 0 10px">
+                    Boğaziçi Konukevleri · 3 tesis · dilim 3
+                  </h2>
+                  <ul class="props">
+                    <li>
+                      <a class="prop" href="#manager" aria-current="true"
+                        ><span
+                          ><b>Galata Rezidans</b
+                          ><small>4 dikkat · 11 geliş bekliyor</small></span
+                        ><span class="pct num">82%</span></a
+                      >
+                    </li>
+                    <li>
+                      <a class="prop" href="#manager"
+                        ><span
+                          ><b>Kadıköy Rezidans</b
+                          ><small>Her şey yolunda · 2 geliş</small></span
+                        ><span class="pct num">74%</span></a
+                      >
+                    </li>
+                    <li>
+                      <a class="prop" href="#manager"
+                        ><span
+                          ><b>Beşiktaş Rezidans</b
+                          ><small>1 dikkat · geliş yok</small></span
+                        ><span class="pct num">91%</span></a
+                      >
+                    </li>
+                  </ul>
+                </section>
+
+                <section class="attention" aria-labelledby="mg-att">
+                  <h2 id="mg-att">
+                    Dikkat gerekiyor <span class="count num">5</span>
+                  </h2>
+                  <ul class="queue">
+                    <li>
+                      <a class="item" href="#manager"
+                        ><span class="st bad"
+                          ><svg class="i"><use href="#i-alert" /></svg>Oda hazır
+                          değil</span
+                        >
+                        <h3>204 · Lina Haddad</h3>
+                        <p>Bugün geliyor; oda kirli.</p>
+                        <span class="go"
+                          >Gelişi aç
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></a>
+                    </li>
+                    <li>
+                      <a class="item" href="#manager"
+                        ><span class="st warn"
+                          ><svg class="i"><use href="#i-clock" /></svg>Gecikmiş
+                          çıkış</span
+                        >
+                        <h3>311 · Jonas Weber</h3>
+                        <p>Dün ayrılacaktı · ₺2.100.</p>
+                        <span class="go"
+                          >Çıkışı aç
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></a>
+                    </li>
+                    <li>
+                      <a class="item" href="#manager"
+                        ><span class="st warn"
+                          ><svg class="i"><use href="#i-wallet" /></svg>Borçlu
+                          ayrılıyor</span
+                        >
+                        <h3>3 konuk · ₺4.260</h3>
+                        <p>Bugün ayrılanlarda açık bakiye.</p>
+                        <span class="go"
+                          >Çıkışları aç
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></a>
+                    </li>
+                    <li>
+                      <a class="item" href="#manager"
+                        ><span class="st info"
+                          ><svg class="i"><use href="#i-bed" /></svg>Giriş
+                          yapılamaz</span
+                        >
+                        <h3>402 · B · Yusuf Kaya</h3>
+                        <p>Yatak 27 Eyl'e kadar dolu.</p>
+                        <span class="go"
+                          >Gelişi aç
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></a>
+                    </li>
+                    <li>
+                      <a class="item" href="#manager"
+                        ><span class="st mute"
+                          ><svg class="i"><use href="#i-wrench" /></svg>Hizmet
+                          dışı</span
+                        >
+                        <h3>2 oda</h3>
+                        <p>509 ve 512 satışa kapalı.</p>
+                        <span class="go"
+                          >Odaları aç
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></a>
+                    </li>
+                  </ul>
+                </section>
+
+                <ul class="tiles">
+                  <li>
+                    <a class="tile" href="#manager"
+                      ><span class="tile-top"
+                        ><span class="tile-icon gold"
+                          ><svg class="i"><use href="#i-bed" /></svg></span
+                        ><span class="open"
+                          >Odalar
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span></span
+                      ><span
+                        ><span class="big num">82<small>%</small></span
+                        ><span class="label">Doluluk · 79 / 96</span
+                        ><span class="progress"
+                          ><i style="width: 82%"></i
+                          ><i class="ghost" style="width: 7%"></i></span
+                        ><span class="sub">Bu gece beklenen %89</span></span
+                      ></a
+                    >
+                  </li>
+                  <li>
+                    <a class="tile" href="#manager"
+                      ><span class="tile-top"
+                        ><span class="tile-icon"
+                          ><svg class="i"><use href="#i-login" /></svg></span
+                        ><span class="open"
+                          >Gelişler
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span></span
+                      ><span
+                        ><span class="big num">7<small> / 18</small></span
+                        ><span class="label">Giriş yapıldı</span
+                        ><span class="progress"
+                          ><i style="width: 39%"></i></span></span
+                    ></a>
+                  </li>
+                  <li>
+                    <a class="tile" href="#manager"
+                      ><span class="tile-top"
+                        ><span class="tile-icon"
+                          ><svg class="i"><use href="#i-logout" /></svg></span
+                        ><span class="open"
+                          >Çıkışlar
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span></span
+                      ><span
+                        ><span class="big num">9<small> / 12</small></span
+                        ><span class="label">Çıkış yapıldı</span
+                        ><span class="progress"
+                          ><i style="width: 75%"></i></span></span
+                    ></a>
+                  </li>
+                  <li>
+                    <a class="tile" href="#manager"
+                      ><span class="tile-top"
+                        ><span class="tile-icon"
+                          ><svg class="i"><use href="#i-sparkles" /></svg></span
+                        ><span class="open"
+                          >Kat hizmetleri
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span></span
+                      ><span
+                        ><span class="big num">31<small> / 46</small></span
+                        ><span class="label">Hazır oda</span
+                        ><span class="sub"
+                          >9 kirli · 6 kontrol bekliyor</span
+                        ></span
+                      ></a
+                    >
+                  </li>
+                </ul>
+
+                <div class="row">
+                  <section class="card" aria-labelledby="mg-chart">
+                    <div class="card-head">
+                      <h2 id="mg-chart">Önümüzdeki 14 gün · rezerve doluluk</h2>
+                      <span class="count"
+                        >Ortalama <b class="num">84%</b> · dilim 3</span
+                      >
+                    </div>
+                    <svg
+                      viewBox="0 0 640 200"
+                      role="img"
+                      aria-labelledby="mg-chart-desc"
+                      style="width: 100%; height: auto"
+                    >
+                      <title id="mg-chart-desc">
+                        14 günlük rezerve doluluk, %74 ile %93 arası
+                      </title>
+                      <g stroke="hsl(170 10% 90%)" stroke-width="1">
+                        <line x1="36" y1="20" x2="630" y2="20" />
+                        <line x1="36" y1="75" x2="630" y2="75" />
+                        <line x1="36" y1="130" x2="630" y2="130" />
+                        <line x1="36" y1="185" x2="630" y2="185" />
+                      </g>
+                      <g
+                        font-size="10"
+                        fill="hsl(170 5% 45%)"
+                        font-family="system-ui"
+                      >
+                        <text x="0" y="24">100%</text>
+                        <text x="6" y="79">75%</text>
+                        <text x="6" y="134">50%</text>
+                        <text x="6" y="189">25%</text>
+                      </g>
+                      <line
+                        x1="36"
+                        y1="55.2"
+                        x2="630"
+                        y2="55.2"
+                        stroke="hsl(38 45% 55%)"
+                        stroke-dasharray="4 4"
+                      />
+                      <path
+                        d="M36 59.6 L81.7 53 L127.4 48.6 L173 42 L218.7 37.6 L264.4 35.4 L310 46.4 L355.7 57.4 L401.4 68.4 L447 77.2 L492.7 72.8 L538.4 61.8 L584 50.8 L630 44.2 L630 185 L36 185 Z"
+                        fill="hsl(172 65% 20% / 0.08)"
+                      />
+                      <path
+                        d="M36 59.6 L81.7 53 L127.4 48.6 L173 42 L218.7 37.6 L264.4 35.4 L310 46.4 L355.7 57.4 L401.4 68.4 L447 77.2 L492.7 72.8 L538.4 61.8 L584 50.8 L630 44.2"
+                        fill="none"
+                        stroke="hsl(172 65% 20%)"
+                        stroke-width="2.5"
+                        stroke-linejoin="round"
+                      />
+                      <circle cx="36" cy="59.6" r="4" fill="hsl(172 65% 20%)" />
+                    </svg>
+                    <table class="sr-only">
+                      <caption>
+                        Önümüzdeki 14 günün rezerve doluluğu
+                      </caption>
+                      <thead>
+                        <tr>
+                          <th scope="col">Gün</th>
+                          <th scope="col">Doluluk</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>25 Eyl</td>
+                          <td>82%</td>
+                        </tr>
+                        <tr>
+                          <td>26 Eyl</td>
+                          <td>85%</td>
+                        </tr>
+                        <tr>
+                          <td>27 Eyl</td>
+                          <td>87%</td>
+                        </tr>
+                        <tr>
+                          <td>28 Eyl</td>
+                          <td>90%</td>
+                        </tr>
+                        <tr>
+                          <td>29 Eyl</td>
+                          <td>92%</td>
+                        </tr>
+                        <tr>
+                          <td>30 Eyl</td>
+                          <td>93%</td>
+                        </tr>
+                        <tr>
+                          <td>1 Eki</td>
+                          <td>88%</td>
+                        </tr>
+                        <tr>
+                          <td>2 Eki</td>
+                          <td>83%</td>
+                        </tr>
+                        <tr>
+                          <td>3 Eki</td>
+                          <td>78%</td>
+                        </tr>
+                        <tr>
+                          <td>4 Eki</td>
+                          <td>74%</td>
+                        </tr>
+                        <tr>
+                          <td>5 Eki</td>
+                          <td>76%</td>
+                        </tr>
+                        <tr>
+                          <td>6 Eki</td>
+                          <td>81%</td>
+                        </tr>
+                        <tr>
+                          <td>7 Eki</td>
+                          <td>86%</td>
+                        </tr>
+                        <tr>
+                          <td>8 Eki</td>
+                          <td>89%</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </section>
+                  <section class="card" aria-labelledby="mg-feed">
+                    <div class="card-head">
+                      <h2 id="mg-feed">Son hareketler</h2>
+                      <a
+                        href="#manager"
+                        style="font-size: 12px; color: var(--ink-muted)"
+                        >Denetim kaydı
+                        <svg class="i flip"><use href="#i-arrow" /></svg
+                      ></a>
+                    </div>
+                    <ul class="feed">
+                      <li>
+                        <a href="#manager"
+                          ><span class="avatar">SA</span
+                          ><span
+                            ><b>Selin Aydın</b> Hannah Müller'in girişini yaptı
+                            · 112</span
+                          ><time>14:28</time></a
+                        >
+                      </li>
+                      <li>
+                        <a href="#manager"
+                          ><span class="avatar">AD</span
+                          ><span
+                            ><b>Ayşe Demir</b> 3 odayı temiz işaretledi</span
+                          ><time>14:10</time></a
+                        >
+                      </li>
+                      <li>
+                        <a href="#manager"
+                          ><span class="avatar">CÖ</span
+                          ><span
+                            ><b>Can Öztürk</b> 221'e ₺240 masraf ekledi</span
+                          ><time>13:52</time></a
+                        >
+                      </li>
+                      <li>
+                        <a href="#manager"
+                          ><span class="avatar">SA</span
+                          ><span
+                            ><b>Selin Aydın</b> bir girişi geri aldı ·
+                            gerekçeyle</span
+                          ><time>13:40</time></a
+                        >
+                      </li>
+                      <li>
+                        <a href="#manager"
+                          ><span class="avatar">EK</span
+                          ><span><b>Elif Kaya</b> Mehmet Tan'ı davet etti</span
+                          ><time>12:15</time></a
+                        >
+                      </li>
+                    </ul>
+                  </section>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================== -->
+      <section class="variant" id="phone" aria-labelledby="ph-title">
+        <h2>Variant 5 · phone (390 px)</h2>
+        <h3 id="ph-title">
+          Task first: attention, then your list, then the numbers
+        </h3>
+        <ul class="notes">
+          <li>
+            <b>Order changes on a phone</b> (blueprint 18.8). The screen leads
+            with what to do next, and the tiles come after the list. No
+            horizontal scroll; every target is 44 px or larger.
+          </li>
+          <li>
+            <b>The dock</b> is the shell's own bottom navigation. The Property
+            switcher stays in the bar.
+          </li>
+        </ul>
+        <div class="phones">
+          <div class="phone">
+            <div class="pbar">
+              <span style="display: flex; gap: 8px; align-items: center"
+                ><svg class="i"><use href="#i-building" /></svg>Galata
+                Rezidans</span
+              >
+              <span style="display: flex; gap: 6px"
+                ><span class="pill-btn" style="height: 32px"
+                  ><svg class="i"><use href="#i-globe" /></svg></span
+                ><span class="avatar">SA</span></span
+              >
+            </div>
+            <div class="pbody">
+              <div class="hello">
+                <div>
+                  <span class="eyebrow">Perşembe · 25 Eylül</span>
+                  <h1><span>Günaydın,</span> <b>Selin</b></h1>
+                  <span class="fresh" style="margin-top: 6px"
+                    ><svg class="i"><use href="#i-refresh" /></svg>09:41 ·
+                    Europe/Istanbul</span
+                  >
+                </div>
+              </div>
+              <section class="attention" aria-label="Dikkat gerekiyor">
+                <h2>Dikkat gerekiyor <span class="count num">4</span></h2>
+                <ul class="queue">
+                  <li>
+                    <a class="item" href="#phone"
+                      ><span
+                        ><span class="st bad"
+                          ><svg class="i"><use href="#i-alert" /></svg>Hazır
+                          değil</span
+                        >
+                        <h3 style="margin-top: 6px">204 · Lina Haddad</h3></span
+                      ><span class="go"
+                        ><svg class="i flip"><use href="#i-arrow" /></svg></span
+                    ></a>
+                  </li>
+                  <li>
+                    <a class="item" href="#phone"
+                      ><span
+                        ><span class="st warn"
+                          ><svg class="i"><use href="#i-clock" /></svg
+                          >Gecikmiş</span
+                        >
+                        <h3 style="margin-top: 6px">311 · Jonas Weber</h3></span
+                      ><span class="go"
+                        ><svg class="i flip"><use href="#i-arrow" /></svg></span
+                    ></a>
+                  </li>
+                  <li>
+                    <a class="item" href="#phone"
+                      ><span
+                        style="
+                          font-size: 13px;
+                          font-weight: 600;
+                          color: var(--accent);
+                        "
+                        >2 tane daha</span
+                      ><span class="go"
+                        ><svg class="i flip"><use href="#i-arrow" /></svg></span
+                    ></a>
+                  </li>
+                </ul>
+              </section>
+              <section aria-label="Sıradaki gelişler">
+                <h2 style="font-size: 15px; margin: 0 0 10px">
+                  Sıradaki gelişler
+                </h2>
+                <ul class="mlist">
+                  <li>
+                    <span class="grow"
+                      ><span class="who">Mert Şahin</span
+                      ><small class="num">305 · A · </small
+                      ><span class="st ok"
+                        ><svg class="i"><use href="#i-check" /></svg>Hazır</span
+                      ></span
+                    ><a class="act" href="#phone">Giriş</a>
+                  </li>
+                  <li>
+                    <span class="grow"
+                      ><span class="who">Hannah Müller</span
+                      ><small class="num">112 · </small
+                      ><span class="st ok"
+                        ><svg class="i"><use href="#i-check" /></svg>Hazır</span
+                      ></span
+                    ><a class="act" href="#phone">Giriş</a>
+                  </li>
+                  <li>
+                    <span class="grow"
+                      ><span class="who">Lina Haddad</span
+                      ><small class="num">204 · </small
+                      ><span class="st bad"
+                        ><svg class="i"><use href="#i-alert" /></svg>Kirli</span
+                      ></span
+                    ><a class="act quiet" href="#phone">Aç</a>
+                  </li>
+                </ul>
+                <a class="more" href="#phone"
+                  >11 gelişin tümü
+                  <svg class="i flip"><use href="#i-arrow" /></svg
+                ></a>
+              </section>
+              <ul class="tiles">
+                <li>
+                  <a class="tile" href="#phone"
+                    ><span class="tile-top"
+                      ><span class="tile-icon"
+                        ><svg class="i">
+                          <use href="#i-login" /></svg></span></span
+                    ><span
+                      ><span class="big num">7<small>/18</small></span
+                      ><span class="label">Giriş</span></span
+                    ></a
+                  >
+                </li>
+                <li>
+                  <a class="tile" href="#phone"
+                    ><span class="tile-top"
+                      ><span class="tile-icon"
+                        ><svg class="i">
+                          <use href="#i-logout" /></svg></span></span
+                    ><span
+                      ><span class="big num">9<small>/12</small></span
+                      ><span class="label">Çıkış</span></span
+                    ></a
+                  >
+                </li>
+                <li>
+                  <a class="tile" href="#phone"
+                    ><span class="tile-top"
+                      ><span class="tile-icon gold"
+                        ><svg class="i"><use href="#i-bed" /></svg></span></span
+                    ><span
+                      ><span class="big num">82<small>%</small></span
+                      ><span class="label">Doluluk</span></span
+                    ></a
+                  >
+                </li>
+                <li>
+                  <a class="tile" href="#phone"
+                    ><span class="tile-top"
+                      ><span class="tile-icon"
+                        ><svg class="i">
+                          <use href="#i-sparkles" /></svg></span></span
+                    ><span
+                      ><span class="big num">8<small>/11</small></span
+                      ><span class="label">Hazır oda</span></span
+                    ></a
+                  >
+                </li>
+              </ul>
+            </div>
+            <nav class="dock" aria-label="Ana gezinme">
+              <span aria-current="page"
+                ><svg class="i"><use href="#i-house" /></svg>Bugün</span
+              >
+              <span
+                ><svg class="i"><use href="#i-hotel" /></svg>Ön büro</span
+              >
+              <span
+                ><svg class="i"><use href="#i-sparkles" /></svg>Kat</span
+              >
+              <span
+                ><svg class="i"><use href="#i-wallet" /></svg>Finans</span
+              >
+            </nav>
+          </div>
+
+          <div class="phone">
+            <div class="pbar">
+              <span style="display: flex; gap: 8px; align-items: center"
+                ><svg class="i"><use href="#i-building" /></svg>Galata
+                Rezidans</span
+              >
+              <span class="avatar">AD</span>
+            </div>
+            <div class="pbody">
+              <div class="hello">
+                <div>
+                  <span class="eyebrow">Perşembe · 25 Eylül</span>
+                  <h1><span>Günaydın,</span> <b>Ayşe</b></h1>
+                </div>
+              </div>
+              <section aria-label="Önce bunlar">
+                <h2 style="font-size: 15px; margin: 0 0 10px">
+                  Önce bunları temizleyin
+                </h2>
+                <ul class="mlist">
+                  <li>
+                    <span class="grow"
+                      ><span class="who num">204</span
+                      ><span class="st bad"
+                        ><svg class="i"><use href="#i-login" /></svg>Bugün
+                        geliş</span
+                      ></span
+                    ><a class="act" href="#phone">Temiz</a>
+                  </li>
+                  <li>
+                    <span class="grow"
+                      ><span class="who num">215</span
+                      ><span class="st bad"
+                        ><svg class="i"><use href="#i-login" /></svg>Bugün
+                        geliş</span
+                      ></span
+                    ><a class="act" href="#phone">Temiz</a>
+                  </li>
+                  <li>
+                    <span class="grow"
+                      ><span class="who num">208</span
+                      ><span class="st warn"
+                        ><svg class="i"><use href="#i-sparkles" /></svg
+                        >Kontrol</span
+                      ></span
+                    ><a class="act" href="#phone">Kontrol</a>
+                  </li>
+                  <li>
+                    <span class="grow"
+                      ><span class="who num">407</span
+                      ><span class="st mute">Sırada</span></span
+                    ><a class="act quiet" href="#phone">Temiz</a>
+                  </li>
+                </ul>
+              </section>
+              <ul class="tiles">
+                <li>
+                  <a class="tile" href="#phone"
+                    ><span class="tile-top"
+                      ><span class="tile-icon"
+                        ><svg class="i">
+                          <use href="#i-sparkles" /></svg></span></span
+                    ><span
+                      ><span class="big num">9</span
+                      ><span class="label">Kirli</span></span
+                    ></a
+                  >
+                </li>
+                <li>
+                  <a class="tile" href="#phone"
+                    ><span class="tile-top"
+                      ><span class="tile-icon"
+                        ><svg class="i"><use href="#i-bed" /></svg></span></span
+                    ><span
+                      ><span class="big num">31</span
+                      ><span class="label">Hazır</span></span
+                    ></a
+                  >
+                </li>
+              </ul>
+            </div>
+            <nav class="dock" aria-label="Ana gezinme">
+              <span aria-current="page"
+                ><svg class="i"><use href="#i-house" /></svg>Bugün</span
+              >
+              <span
+                ><svg class="i"><use href="#i-sparkles" /></svg>Kat</span
+              >
+            </nav>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================== -->
+      <section class="variant" id="arabic" aria-labelledby="ar-title">
+        <h2>Variant 6 · Arabic, right to left</h2>
+        <h3 id="ar-title">The same front desk, mirrored by construction</h3>
+        <ul class="notes">
+          <li>
+            <b>Logical utilities only</b> (<code>ps</code>/<code>pe</code>,
+            <code>text-start</code>), so the rail, progress bars and arrows
+            mirror with no Arabic-specific code. Arrows flip; clocks and
+            numerals keep their own order.
+          </li>
+          <li>
+            <b>Uppercase tracking is dropped</b> for Arabic, which has no case.
+            Eyebrows and labels grow a size instead.
+          </li>
+        </ul>
+        <div class="frame" dir="rtl" lang="ar">
+          <div class="shell">
+            <aside class="rail" aria-label="التنقل الرئيسي">
+              <div class="rail-panel">
+                <div class="brand">
+                  <span class="brand-mark">R</span
+                  ><span><b>رانزا</b><small>Boğaziçi Konukevleri</small></span>
+                </div>
+                <ul class="nav">
+                  <li>
+                    <a href="#arabic" aria-current="page"
+                      ><svg class="i"><use href="#i-house" /></svg>اليوم</a
+                    >
+                  </li>
+                  <li>
+                    <a href="#arabic"
+                      ><svg class="i"><use href="#i-hotel" /></svg>المكتب
+                      الأمامي</a
+                    >
+                  </li>
+                  <li>
+                    <a href="#arabic"
+                      ><svg class="i"><use href="#i-sparkles" /></svg>التدبير
+                      المنزلي</a
+                    >
+                  </li>
+                  <li>
+                    <a href="#arabic"
+                      ><svg class="i"><use href="#i-wallet" /></svg>المالية</a
+                    >
+                  </li>
+                </ul>
+                <div class="rail-foot">
+                  <span class="avatar">SA</span
+                  ><span
+                    ><b>Selin Aydın</b><br /><small>المكتب الأمامي</small></span
+                  >
+                </div>
+              </div>
+            </aside>
+            <main class="main">
+              <div class="bar">
+                <div class="crumbs">
+                  <span class="root">مساحة العمل</span
+                  ><svg class="i flip"><use href="#i-arrow" /></svg><b>اليوم</b>
+                </div>
+                <div class="bar-end">
+                  <span class="pill-btn"
+                    ><svg class="i"><use href="#i-building" /></svg>Galata
+                    Rezidans<svg class="i"><use href="#i-chevrons" /></svg
+                  ></span>
+                  <span class="pill-btn"
+                    ><svg class="i"><use href="#i-globe" /></svg>AR</span
+                  >
+                  <span class="sep"></span><span class="avatar">SA</span>
+                </div>
+              </div>
+              <div class="today">
+                <div class="hello">
+                  <div>
+                    <span class="eyebrow">الخميس · 25 سبتمبر 2026</span>
+                    <h1><span>صباح الخير،</span> <b>Selin</b></h1>
+                  </div>
+                  <div class="clock">
+                    <span class="fresh"
+                      ><svg class="i"><use href="#i-refresh" /></svg>حُدِّث
+                      09:41</span
+                    >
+                    <div>
+                      <span class="time num" dir="ltr">09:41</span
+                      ><small>Europe/Istanbul</small>
+                    </div>
+                    <a class="cta" href="#arabic"
+                      ><svg class="i"><use href="#i-plus" /></svg>حجز جديد</a
+                    >
+                  </div>
+                </div>
+                <section class="attention" aria-labelledby="ar-att">
+                  <h2 id="ar-att">
+                    يحتاج إلى انتباه <span class="count num">4</span>
+                  </h2>
+                  <ul class="queue">
+                    <li>
+                      <a class="item" href="#arabic"
+                        ><span class="st bad"
+                          ><svg class="i"><use href="#i-alert" /></svg>الغرفة
+                          غير جاهزة</span
+                        >
+                        <h3>204 · Lina Haddad</h3>
+                        <p>تصل اليوم، والغرفة ما زالت متسخة.</p>
+                        <span class="go"
+                          >افتح الوصول
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></a>
+                    </li>
+                    <li>
+                      <a class="item" href="#arabic"
+                        ><span class="st warn"
+                          ><svg class="i"><use href="#i-clock" /></svg>مغادرة
+                          متأخرة</span
+                        >
+                        <h3>311 · Jonas Weber</h3>
+                        <p>كان موعد مغادرته أمس.</p>
+                        <span class="go"
+                          >افتح المغادرة
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></a>
+                    </li>
+                    <li>
+                      <a class="item" href="#arabic"
+                        ><span class="st warn"
+                          ><svg class="i"><use href="#i-wallet" /></svg>يغادر
+                          برصيد</span
+                        >
+                        <h3>118 · Ece Koç</h3>
+                        <p>يغادر اليوم والرصيد ‎1,840 ₺‎.</p>
+                        <span class="go"
+                          >افتح الفاتورة
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></a>
+                    </li>
+                    <li>
+                      <a class="item" href="#arabic"
+                        ><span class="st info"
+                          ><svg class="i"><use href="#i-bed" /></svg>لا يمكن
+                          تسجيل الدخول</span
+                        >
+                        <h3>402 · B · Yusuf Kaya</h3>
+                        <p>السرير مشغول حتى 27 سبتمبر.</p>
+                        <span class="go"
+                          >افتح الوصول
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span
+                      ></a>
+                    </li>
+                  </ul>
+                </section>
+                <ul class="tiles">
+                  <li>
+                    <a class="tile" href="#arabic"
+                      ><span class="tile-top"
+                        ><span class="tile-icon"
+                          ><svg class="i"><use href="#i-login" /></svg></span
+                        ><span class="open"
+                          >الوصول
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span></span
+                      ><span
+                        ><span class="big num">7<small> / 18</small></span
+                        ><span class="label">تم تسجيل الدخول</span
+                        ><span class="progress"
+                          ><i style="width: 39%"></i></span></span
+                    ></a>
+                  </li>
+                  <li>
+                    <a class="tile" href="#arabic"
+                      ><span class="tile-top"
+                        ><span class="tile-icon"
+                          ><svg class="i"><use href="#i-logout" /></svg></span
+                        ><span class="open"
+                          >المغادرة
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span></span
+                      ><span
+                        ><span class="big num">9<small> / 12</small></span
+                        ><span class="label">تم تسجيل الخروج</span
+                        ><span class="progress"
+                          ><i style="width: 75%"></i></span></span
+                    ></a>
+                  </li>
+                  <li>
+                    <a class="tile" href="#arabic"
+                      ><span class="tile-top"
+                        ><span class="tile-icon gold"
+                          ><svg class="i"><use href="#i-bed" /></svg></span
+                        ><span class="open"
+                          >الغرف
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span></span
+                      ><span
+                        ><span class="big num">82<small>%</small></span
+                        ><span class="label">الإشغال · 79 / 96</span
+                        ><span class="progress"
+                          ><i style="width: 82%"></i
+                          ><i class="ghost" style="width: 7%"></i></span
+                        ><span class="sub">المتوقع الليلة 89%</span></span
+                      ></a
+                    >
+                  </li>
+                  <li>
+                    <a class="tile" href="#arabic"
+                      ><span class="tile-top"
+                        ><span class="tile-icon"
+                          ><svg class="i"><use href="#i-sparkles" /></svg></span
+                        ><span class="open"
+                          >التدبير المنزلي
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span></span
+                      ><span
+                        ><span class="big num">8<small> / 11</small></span
+                        ><span class="label">غرف جاهزة للقادمين</span></span
+                      ></a
+                    >
+                  </li>
+                </ul>
+              </div>
+            </main>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================== -->
+      <section class="variant" id="quiet" aria-labelledby="qt-title">
+        <h2>Variant 7 · a quiet dormitory day</h2>
+        <h3 id="qt-title">
+          Beşiktaş Rezidans in mid-term: nobody arrives, nobody leaves
+        </h3>
+        <ul class="notes">
+          <li>
+            <b>Zero is an answer, not an absence.</b> The tiles stay where they
+            always are, for muscle memory, and read calmly. The empty list says
+            why, and offers the one useful next step.
+          </li>
+          <li>
+            <b>Beds, not rooms:</b> a dormitory lets by the bed, so occupancy
+            counts beds (<code>unit_type = 'bed'</code>). Nothing new in the
+            product.
+          </li>
+        </ul>
+        <div class="frame">
+          <div class="shell">
+            <aside class="rail" aria-label="Main navigation">
+              <div class="rail-panel">
+                <div class="brand">
+                  <span class="brand-mark">R</span
+                  ><span><b>Ranza</b><small>Boğaziçi Konukevleri</small></span>
+                </div>
+                <ul class="nav">
+                  <li>
+                    <a href="#quiet" aria-current="page"
+                      ><svg class="i"><use href="#i-house" /></svg>Bugün</a
+                    >
+                  </li>
+                  <li>
+                    <a href="#quiet"
+                      ><svg class="i"><use href="#i-hotel" /></svg>Ön büro</a
+                    >
+                  </li>
+                  <li>
+                    <a href="#quiet"
+                      ><svg class="i"><use href="#i-sparkles" /></svg>Kat
+                      hizmetleri</a
+                    >
+                  </li>
+                </ul>
+                <div class="rail-foot">
+                  <span class="avatar">SA</span
+                  ><span><b>Selin Aydın</b><br /><small>Ön büro</small></span>
+                </div>
+              </div>
+            </aside>
+            <main class="main">
+              <div class="bar">
+                <div class="crumbs">
+                  <span class="root">Çalışma alanı</span
+                  ><svg class="i flip"><use href="#i-arrow" /></svg><b>Bugün</b>
+                </div>
+                <div class="bar-end">
+                  <span class="pill-btn"
+                    ><svg class="i"><use href="#i-building" /></svg>Beşiktaş
+                    Rezidans<svg class="i">
+                      <use href="#i-chevrons" /></svg></span
+                  ><span class="sep"></span><span class="avatar">SA</span>
+                </div>
+              </div>
+              <div class="today">
+                <div class="hello">
+                  <div>
+                    <span class="eyebrow">Perşembe · 25 Eylül 2026</span>
+                    <h1><span>Günaydın,</span> <b>Selin</b></h1>
+                  </div>
+                  <div class="clock">
+                    <span class="fresh"
+                      ><svg class="i"><use href="#i-refresh" /></svg>Güncellendi
+                      10:02</span
+                    >
+                    <div>
+                      <span class="time num">10:02</span
+                      ><small>Europe/Istanbul</small>
+                    </div>
+                  </div>
+                </div>
+                <div class="clear">
+                  <svg class="i"><use href="#i-check" /></svg>Dikkat gerektiren
+                  bir şey yok.
+                </div>
+                <ul class="tiles">
+                  <li>
+                    <a class="tile" href="#quiet"
+                      ><span class="tile-top"
+                        ><span class="tile-icon"
+                          ><svg class="i"><use href="#i-login" /></svg></span
+                        ><span class="open"
+                          >Gelişler
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span></span
+                      ><span
+                        ><span class="big num" style="color: var(--ink-muted)"
+                          >0</span
+                        ><span class="label">Bugün geliş yok</span
+                        ><span class="sub"
+                          >Sıradaki: 1 Eki · 4 sakin</span
+                        ></span
+                      ></a
+                    >
+                  </li>
+                  <li>
+                    <a class="tile" href="#quiet"
+                      ><span class="tile-top"
+                        ><span class="tile-icon"
+                          ><svg class="i"><use href="#i-logout" /></svg></span
+                        ><span class="open"
+                          >Çıkışlar
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span></span
+                      ><span
+                        ><span class="big num" style="color: var(--ink-muted)"
+                          >0</span
+                        ><span class="label">Bugün çıkış yok</span></span
+                      ></a
+                    >
+                  </li>
+                  <li>
+                    <a class="tile" href="#quiet"
+                      ><span class="tile-top"
+                        ><span class="tile-icon gold"
+                          ><svg class="i"><use href="#i-bed" /></svg></span
+                        ><span class="open"
+                          >Yataklar
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span></span
+                      ><span
+                        ><span class="big num">91<small>%</small></span
+                        ><span class="label">Dolu yatak · 204 / 224</span
+                        ><span class="progress"><i style="width: 91%"></i></span
+                        ><span class="sub">20 boş yatak</span></span
+                      ></a
+                    >
+                  </li>
+                  <li>
+                    <a class="tile" href="#quiet"
+                      ><span class="tile-top"
+                        ><span class="tile-icon"
+                          ><svg class="i"><use href="#i-sparkles" /></svg></span
+                        ><span class="open"
+                          >Kat hizmetleri
+                          <svg class="i flip">
+                            <use href="#i-arrow" /></svg></span></span
+                      ><span
+                        ><span class="big num">56<small> / 56</small></span
+                        ><span class="label">Hazır oda</span></span
+                      ></a
+                    >
+                  </li>
+                </ul>
+                <section class="card" aria-labelledby="qt-mov">
+                  <div class="card-head">
+                    <h2 id="qt-mov">Bugünkü hareket</h2>
+                    <nav class="seg" aria-label="Hareket">
+                      <a href="#quiet" aria-current="page">Gelişler · 0</a
+                      ><a href="#quiet">Çıkışlar · 0</a>
+                    </nav>
+                  </div>
+                  <div class="empty">
+                    <span class="glyph"
+                      ><svg class="i"><use href="#i-calendar" /></svg
+                    ></span>
+                    <h3>Bugün kimse gelmiyor</h3>
+                    <p>
+                      Sıradaki gelişler 1 Ekim'de: 4 sakin. Yeni bir rezervasyon
+                      da buradan alınır.
+                    </p>
+                    <a class="act" href="#quiet">Rezervasyonları aç</a>
+                  </div>
+                </section>
+              </div>
+            </main>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================== -->
+      <section class="variant" id="failed" aria-labelledby="fl-title">
+        <h2>Variant 8 · a refresh failed</h2>
+        <h3 id="fl-title">
+          Keep what was true, say how old it is, let one card fail alone
+        </h3>
+        <ul class="notes">
+          <li>
+            <b>Stale, not blank.</b> The last good numbers stay, and the
+            freshness line turns amber and says their time (ADR 0019's live
+            screen).
+          </li>
+          <li>
+            <b>A card fails on its own.</b> Here the housekeeping read failed,
+            and the other three tiles are untouched. The failure is logged to
+            the console for the reporter, never swallowed.
+          </li>
+        </ul>
+        <div class="frame">
+          <div style="padding: 24px 28px 32px">
+            <div class="today">
+              <div class="hello">
+                <div>
+                  <span class="eyebrow">Perşembe · 25 Eylül 2026</span>
+                  <h1><span>Günaydın,</span> <b>Selin</b></h1>
+                </div>
+                <div class="clock">
+                  <span class="fresh stale"
+                    ><svg class="i"><use href="#i-alert" /></svg>Yenilenemedi ·
+                    09:41 verisi</span
+                  >
+                  <div>
+                    <span class="time num">09:44</span
+                    ><small>Europe/Istanbul</small>
+                  </div>
+                </div>
+              </div>
+              <ul class="tiles">
+                <li>
+                  <a class="tile" href="#failed"
+                    ><span class="tile-top"
+                      ><span class="tile-icon"
+                        ><svg class="i"><use href="#i-login" /></svg></span
+                      ><span class="open"
+                        >Gelişler
+                        <svg class="i flip">
+                          <use href="#i-arrow" /></svg></span></span
+                    ><span
+                      ><span class="big num">7<small> / 18</small></span
+                      ><span class="label">Giriş yapıldı</span
+                      ><span class="progress"
+                        ><i style="width: 39%"></i></span></span
+                  ></a>
+                </li>
+                <li>
+                  <a class="tile" href="#failed"
+                    ><span class="tile-top"
+                      ><span class="tile-icon"
+                        ><svg class="i"><use href="#i-logout" /></svg></span
+                      ><span class="open"
+                        >Çıkışlar
+                        <svg class="i flip">
+                          <use href="#i-arrow" /></svg></span></span
+                    ><span
+                      ><span class="big num">9<small> / 12</small></span
+                      ><span class="label">Çıkış yapıldı</span
+                      ><span class="progress"
+                        ><i style="width: 75%"></i></span></span
+                  ></a>
+                </li>
+                <li>
+                  <a class="tile" href="#failed"
+                    ><span class="tile-top"
+                      ><span class="tile-icon gold"
+                        ><svg class="i"><use href="#i-bed" /></svg></span
+                      ><span class="open"
+                        >Odalar
+                        <svg class="i flip">
+                          <use href="#i-arrow" /></svg></span></span
+                    ><span
+                      ><span class="big num">82<small>%</small></span
+                      ><span class="label">Konaklayan · 79 / 96</span></span
+                    ></a
+                  >
+                </li>
+                <li>
+                  <div class="failed" role="status">
+                    <span
+                      style="
+                        display: flex;
+                        gap: 8px;
+                        align-items: center;
+                        font-weight: 600;
+                      "
+                      ><svg class="i"><use href="#i-alert" /></svg>Oda durumu
+                      alınamadı</span
+                    >
+                    <span style="font-size: 12.5px"
+                      >Diğer kartlar güncel. Yeniden deneyin ya da panoyu
+                      açın.</span
+                    >
+                    <a class="act" href="#failed"
+                      ><svg class="i"><use href="#i-refresh" /></svg>Yeniden
+                      dene</a
+                    >
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================== -->
+      <section class="variant" id="after-midnight" aria-labelledby="mn-title">
+        <h2>Variant 9 · after midnight, before the day closes</h2>
+        <h3 id="mn-title">01:20: the Property is still working Thursday</h3>
+        <ul class="notes">
+          <li>
+            <b>The business date, not the clock</b> (ADR 0021). Until the
+            Property's cutoff (04:00 by default), "today" is still Thursday. The
+            heading says so, so the night desk isn't confused by Friday on the
+            clock.
+          </li>
+        </ul>
+        <div class="frame">
+          <div style="padding: 24px 28px 32px">
+            <div class="hello">
+              <div>
+                <span class="eyebrow">Perşembe · 25 Eylül 2026</span>
+                <h1><span>İyi geceler,</span> <b>Selin</b></h1>
+                <span class="late"
+                  ><svg class="i"><use href="#i-moon" /></svg>Saat 26 Eylül, ama
+                  tesis 04:00'e kadar 25 Eylül'ü çalışıyor.</span
+                >
+              </div>
+              <div class="clock">
+                <span class="fresh"
+                  ><svg class="i"><use href="#i-refresh" /></svg>Güncellendi
+                  01:20</span
+                >
+                <div>
+                  <span class="time num">01:20</span
+                  ><small>Europe/Istanbul</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>
