@@ -88,3 +88,13 @@ missing.
 | business date             | تاريخ العمل                   |
 | reverse / undo            | عكس / التراجع                 |
 | row-level security policy | سياسة أمان على مستوى الصف     |
+| Folio line                | القيد                         |
+| capability                | الإمكانية                     |
+| Entitlement               | الاستحقاق                     |
+
+Files translated before these three terms were added are not uniform on them:
+`front-desk` and `rooms-and-beds` say قدرة for capability, and `audit-log` and
+`insert-grants` say بند for a Folio line. Use the table above in anything new,
+and bring an older entry into line when its row is next translated rather than
+by search and replace — both words also have ordinary meanings (ability, a
+clause, an item) that some entries use on purpose.
