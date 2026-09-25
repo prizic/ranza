@@ -74,7 +74,7 @@ export default async function DeparturesPage({
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           {view === "due" ? t("departuresAt") : t("inHouseAt")}{" "}
           {property.propertyName}
         </p>

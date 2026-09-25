@@ -99,7 +99,7 @@ export function BlockUnitDialog({
           </DialogTitle>
           <DialogDescription>
             {unit.building ? `${unit.building} • ` : ""}
-            {unit.floor !== null ? `${t("floor")} ${unit.floor}` : ""}
+            {unit.floor !== null ? t("floorNumber", { floor: unit.floor }) : ""}
           </DialogDescription>
         </DialogHeader>
 

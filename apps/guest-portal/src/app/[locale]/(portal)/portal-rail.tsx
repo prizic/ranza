@@ -45,7 +45,7 @@ export function PortalRail({
   return (
     <AppRail
       {...(actions === undefined ? {} : { actions })}
-      brand={<BrandMark className="size-7 text-primary" />}
+      brand={<BrandMark className="size-5" />}
       entries={entries}
       labels={labels}
       root={root}

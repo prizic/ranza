@@ -6,8 +6,8 @@ import { DefineRoleDialog } from "../../../../features/staff/components/define-r
 import { InviteDialog } from "../../../../features/staff/components/invite-dialog";
 import { StaffScreen } from "../../../../features/staff/components/staff-screen";
 import {
-  asShippedRole,
   PERMISSION_CATALOGUE,
+  shippedRoleOf,
 } from "../../../../features/staff/labels";
 import { readRoles, readRoster } from "../../../../server/staff";
 import { entitledProperties, requireViewer } from "../../../../server/viewer";
@@ -77,10 +77,10 @@ export default async function PeoplePage({
               roles={roles
                 .filter((role) => role.status === "active")
                 .map((role) => {
-                  const shipped = asShippedRole(role.key);
+                  const shipped = shippedRoleOf(role);
                   return {
                     key: role.key,
-                    scopeId: role.organizationId,
+                    organizationId: role.organizationId,
                     name: shipped ? t(`staff.roles.${shipped}`) : role.name,
                   };
                 })}
@@ -88,7 +88,9 @@ export default async function PeoplePage({
           </span>
         }
       >
-        <p className="text-muted-foreground">{t("staff.screenSummary")}</p>
+        <p className="text-sm text-muted-foreground">
+          {t("staff.screenSummary")}
+        </p>
         <p className="mt-1 text-sm text-muted-foreground">
           {home.organizationName}
         </p>
