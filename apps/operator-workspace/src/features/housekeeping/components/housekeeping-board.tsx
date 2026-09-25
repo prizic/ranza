@@ -85,9 +85,10 @@ export function HousekeepingBoard({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader>
-        <h1 className="text-step-2 font-semibold tracking-tight">
+        {/* h2: the page bar (AppPageBar) already sets this route's one h1. */}
+        <h2 className="text-step-2 font-semibold tracking-tight">
           {t("subtitle", { property: propertyName })}
-        </h1>
+        </h2>
       </PageHeader>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">

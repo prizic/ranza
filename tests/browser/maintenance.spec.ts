@@ -188,20 +188,21 @@ test("the board reads right to left in Arabic", async ({ page }) => {
   await signIn(page);
   await page.goto(`/ar/maintenance?property=${propertyId}`);
 
-  // MT-S1-27.
+  // MT-S1-27. Level 2: the page bar sets this route's one h1, and the
+  // board's own heading sits under it.
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(
-    page.getByRole("heading", { level: 1, name: /^الصيانة في/ }),
+    page.getByRole("heading", { level: 2, name: /^الصيانة في/ }),
   ).toBeVisible();
 
   // And the board inside the tabs mirrors too: a Radix primitive takes its
   // direction from context, not from <html dir>, so New — the first column —
-  // is the rightmost one.
+  // is the rightmost one. Level 3: each column sits under the board's h2.
   const first = await page
-    .getByRole("heading", { level: 2, name: /جديد/ })
+    .getByRole("heading", { level: 3, name: /جديد/ })
     .boundingBox();
   const last = await page
-    .getByRole("heading", { level: 2, name: /منجز/ })
+    .getByRole("heading", { level: 3, name: /منجز/ })
     .boundingBox();
   expect(first && last && first.x > last.x).toBe(true);
 });
