@@ -57,7 +57,7 @@ export default async function ReservationsPage({
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           {t("reservationsAt")} {property.propertyName}
         </p>
         {/* Offered whenever the Property has a Unit in service. Whether this

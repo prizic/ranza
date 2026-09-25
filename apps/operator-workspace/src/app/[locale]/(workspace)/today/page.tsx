@@ -6,7 +6,7 @@ import {
   isSupportedLocale,
   localizeHref,
 } from "@ranza/i18n";
-import { EmptyState, Fact, FactList, PageHeader } from "@ranza/ui";
+import { EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import {
   entitledProperties,
@@ -65,39 +65,57 @@ export default async function TodayPage({
 
   const now = new Date();
 
-  return (
-    <>
-      <PageHeader
-        aside={
-          <p className="flex flex-col items-end text-end">
-            <span className="text-step-2 leading-none tabular-nums">
-              <LocalClock
-                initial={formatTime(now, locale, property.timezone)}
-                locale={locale}
-                timeZone={property.timezone}
-              />
-            </span>
-            <span className="text-step--1 text-muted-foreground">
-              {property.timezone}
-            </span>
-          </p>
-        }
-      >
-        <h2 className="text-[clamp(2.75rem,9vw,5.5rem)] leading-[0.95] font-light tracking-[-0.03em] rtl:leading-[1.15] rtl:tracking-normal">
-          {formatWeekday(now, locale, property.timezone)}
-        </h2>
-        <p className="mt-3 text-step-1 text-muted-foreground">
-          {formatDate(now, locale, {
-            month: "long",
-            timeZone: property.timezone,
-          })}
-        </p>
-      </PageHeader>
+  const facts = [
+    { label: t("property"), value: property.propertyName },
+    { label: t("organization"), value: property.organizationName },
+  ];
 
-      <FactList>
-        <Fact label={t("property")}>{property.propertyName}</Fact>
-        <Fact label={t("organization")}>{property.organizationName}</Fact>
-      </FactList>
-    </>
+  // Laid out as the Leaders dashboard opens: a small tracked line over the day
+  // set light, the Property's own clock opposite it as a large numeral, and the
+  // stored facts under them as cards.
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div className="space-y-0.5">
+          <p className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase">
+            {formatDate(now, locale, {
+              month: "long",
+              timeZone: property.timezone,
+            })}
+          </p>
+          <h2 className="text-2xl font-light tracking-tight sm:text-3xl">
+            {formatWeekday(now, locale, property.timezone)}
+          </h2>
+        </div>
+        <p className="flex flex-col md:items-end">
+          <span className="text-4xl leading-none font-light tracking-tight tabular-nums md:text-5xl">
+            <LocalClock
+              initial={formatTime(now, locale, property.timezone)}
+              locale={locale}
+              timeZone={property.timezone}
+            />
+          </span>
+          <span className="mt-1.5 text-xs font-medium tracking-wider text-muted-foreground uppercase">
+            {property.timezone}
+          </span>
+        </p>
+      </div>
+
+      <dl className="m-0 grid gap-4 sm:grid-cols-2">
+        {facts.map((fact) => (
+          <div
+            className="rounded-[2rem] border border-slate-100 bg-card p-5"
+            key={fact.label}
+          >
+            <dt className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+              {fact.label}
+            </dt>
+            <dd className="m-0 mt-3 text-xl font-light tracking-tight md:text-2xl">
+              {fact.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }

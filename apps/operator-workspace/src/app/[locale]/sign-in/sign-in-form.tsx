@@ -3,7 +3,19 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Button, Field, FormError, Input } from "@ranza/ui";
+import { Button, FormError, Input, Label } from "@ranza/ui";
+
+/*
+ * Leaders' login fields: tall pills on the ivory card, named by their
+ * placeholder, with the label kept for assistive technology. 16px text on a
+ * phone, so iOS does not zoom into the field.
+ */
+const FIELD =
+  "h-13 rounded-full border-[1.5px] border-sign-in-field bg-transparent px-6 text-base text-sign-in-ink shadow-none placeholder:text-sign-in-ink-muted md:text-[15px] lg:h-14";
+const SUBMIT =
+  "h-13 w-full rounded-full bg-sign-in-cta text-base font-bold tracking-wide text-white shadow-md hover:bg-sign-in-cta/90 lg:h-14";
+const ERROR =
+  "rounded-2xl border border-danger/15 bg-danger-soft p-4 text-center text-sm text-danger";
 
 type Failure = "mismatch" | "throttled" | "expired" | "unavailable";
 
@@ -173,27 +185,32 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
 
   if (challenging) {
     return (
-      <form className="mt-6 grid gap-4" onSubmit={verify}>
-        <p className="text-muted-foreground">{t("challengeSummary")}</p>
-        <Field htmlFor="code" label={t("code")}>
-          <Input
-            aria-invalid={failure === "mismatch" || undefined}
-            autoComplete="one-time-code"
-            autoFocus
-            id="code"
-            inputMode="text"
-            name="code"
-            required
-          />
-        </Field>
+      <form className="grid gap-5" onSubmit={verify}>
+        <p className="text-sm font-medium text-sign-in-ink-muted">
+          {t("challengeSummary")}
+        </p>
         {failure ? (
-          <FormError>
+          <FormError className={ERROR}>
             {failure === "mismatch"
               ? t("challengeFailed")
               : t(FAILURE[failure])}
           </FormError>
         ) : null}
-        <Button disabled={pending} type="submit">
+        <Label className="sr-only" htmlFor="code">
+          {t("code")}
+        </Label>
+        <Input
+          aria-invalid={failure === "mismatch" || undefined}
+          autoComplete="one-time-code"
+          autoFocus
+          className={FIELD}
+          id="code"
+          inputMode="text"
+          name="code"
+          placeholder={t("code")}
+          required
+        />
+        <Button className={SUBMIT} disabled={pending} type="submit">
           {pending ? t("signingIn") : t("verify")}
         </Button>
       </form>
@@ -201,34 +218,39 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
   }
 
   return (
-    <form className="mt-6 grid gap-4" onSubmit={signIn}>
-      <p className="text-muted-foreground">{t("signInSummary")}</p>
-      <Field htmlFor="email" label={t("email")}>
-        <Input
-          aria-invalid={failure === "mismatch" || undefined}
-          autoComplete="username"
-          id="email"
-          name="email"
-          required
-          type="email"
-        />
-      </Field>
-      <Field htmlFor="password" label={t("password")}>
-        <Input
-          aria-invalid={failure === "mismatch" || undefined}
-          autoComplete="current-password"
-          id="password"
-          name="password"
-          required
-          type="password"
-        />
-      </Field>
+    <form className="grid gap-5" onSubmit={signIn}>
       {failure ? (
-        <FormError>
+        <FormError className={ERROR}>
           {failure === "mismatch" ? t("signInFailed") : t(FAILURE[failure])}
         </FormError>
       ) : null}
-      <Button disabled={pending} type="submit">
+      <Label className="sr-only" htmlFor="email">
+        {t("email")}
+      </Label>
+      <Input
+        aria-invalid={failure === "mismatch" || undefined}
+        autoComplete="username"
+        className={FIELD}
+        id="email"
+        name="email"
+        placeholder={t("email")}
+        required
+        type="email"
+      />
+      <Label className="sr-only" htmlFor="password">
+        {t("password")}
+      </Label>
+      <Input
+        aria-invalid={failure === "mismatch" || undefined}
+        autoComplete="current-password"
+        className={FIELD}
+        id="password"
+        name="password"
+        placeholder={t("password")}
+        required
+        type="password"
+      />
+      <Button className={`mt-2 ${SUBMIT}`} disabled={pending} type="submit">
         {pending ? t("signingIn") : t("signIn")}
       </Button>
     </form>

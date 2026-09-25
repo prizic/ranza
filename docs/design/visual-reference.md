@@ -58,33 +58,39 @@ matter (section 10).
 
 ## Design tokens
 
-**This file wins.** The approved mockups use this palette — a teal accent on a
-pale canvas — and they are the agreed direction.
+**This file wins.** The palette is the Leaders portal's, matched rather than
+paraphrased — a deep emerald accent and a warm cream secondary on a white
+canvas, white panels lifted by a hairline and a long soft shadow, generous
+radii, and Geist. It replaced the teal-on-pale-canvas palette of the first
+approved mockups on 2026-09-22, so those mockups are still right about layout
+and density and no longer right about colour. On 2026-09-24 the ivory canvas
+and IBM Plex of that first pass gave way to Leaders' own white canvas and
+Geist, on the direction that the Leaders portal is the source of truth.
 [`packages/ui/src/styles/globals.css`](../../packages/ui/src/styles/globals.css)
-now holds these values; the petrol-and-brass theme the walking skeleton shipped
-before this brief was reconciled with it is gone. Do not edit the values below
-to match the code — the traffic runs the other way.
+holds these values. Do not edit the values below to match the code — the
+traffic runs the other way.
 
-One departure, with its reason recorded beside it in that file: `Aptos` is not
-licensed for the web and would fall through to a system font on every machine
-that is not Windows, so the three scripts would each be rendered by whatever
-happened to be installed. IBM Plex Sans Arabic carries Latin, Turkish and Arabic
-in one family, so Turkish and Arabic are the same voice.
+The first brief asked for `Aptos`, which is not licensed for the web and would
+fall through to a system font on every machine that is not Windows. The theme
+sets Geist instead, as Leaders does, for Turkish and English — loaded with its
+Latin Extended subset, so ğ, ş, ı and İ are drawn by Geist rather than
+borrowed mid-word from another face. Geist draws no Arabic, so an Arabic page
+leads with IBM Plex Sans Arabic; the reason is recorded beside the stack in
+`globals.css`.
 
 See also [`ui-references.md`](ui-references.md) for layout and interaction, and
 [ADR 0013](../adr/0013-an-interface-is-shadcn-a-feature-folder-and-a-shared-kit.md)
 for how components are organised.
 
 ```css
---canvas: #f3f6f4;
---canvas-deep: #e6ece9;
---ink: #132f38;
---ink-muted: #52656b;
---accent: #087466;
---accent-dark: #05594f;
---accent-soft: #d9eee9;
+--canvas: #ffffff;
+--canvas-deep: hsl(170 10% 96%);
+--ink: hsl(170 60% 10%);
+--ink-muted: hsl(170 5% 45%);
+--accent: hsl(172 65% 20%);
+--accent-soft: hsl(38 60% 95%);
 --surface: #ffffff;
---surface-strong: #132f38;
+--surface-strong: hsl(170 60% 10%);
 --success: #176842;
 --success-soft: #dcefe3;
 --warning: #8a5a08;
@@ -93,20 +99,60 @@ for how components are organised.
 --danger-soft: #f5dfdd;
 --info: #315f83;
 --info-soft: #dfeaf2;
---line: #c8d3d0;
---line-strong: #9caca8;
---focus: #126bad;
---radius-sm: 0.45rem;
---radius: 0.75rem;
---radius-lg: 1.15rem;
---shadow: 0 1.25rem 3.25rem rgb(19 47 56 / 10%);
---shadow-low: 0 0.5rem 1.5rem rgb(19 47 56 / 8%);
-font-family: Aptos, "Segoe UI Variable", "Noto Sans Arabic", sans-serif;
+--sign-in-canvas: #fbfaf8;
+--sign-in-ink: #474747;
+--sign-in-ink-muted: #72716f;
+--sign-in-field: #d9d9d9;
+--sign-in-cta: #1f1e1c;
+--gold: #e4b763;
+--gold-ink: #8a684d;
+--line: hsl(170 10% 90%);
+--line-strong: hsl(170 10% 80%);
+--focus: hsl(172 65% 20%);
+--radius: 1rem;
+--shadow: 0 20px 60px rgba(0, 0, 0, 0.06);
+--shadow-low: 0 4px 14px rgba(10, 41, 36, 0.04);
+font-family: Geist, "IBM Plex Sans Arabic", system-ui, sans-serif;
+/* Arabic: "IBM Plex Sans Arabic", system-ui, sans-serif */
 ```
 
-Accent is used for primary action and identity, not decoration. Surfaces are white
-on a soft canvas; separation comes from `--line` and `--shadow-low`, not heavy
-borders. Data tables use `font-variant-numeric: tabular-nums`.
+Accent is used for primary action and identity, not decoration. Surfaces are
+white on a white canvas, so separation comes from the floating panels' hairline
+and long shadow and from `--line`, not heavy borders. Data tables use
+`font-variant-numeric: tabular-nums`.
+
+The sign-in screen has a palette of its own, which is Leaders' login: an ivory
+ground, charcoal type and a near-black call to action. Its muted grey is
+Leaders' `#8c8b89` darkened to clear 4.5:1 on the ivory. `--gold` fills the
+sign-in swoosh and nothing else — it sits well below even the 3:1 large-text
+floor on the canvas and never carries text.
+Copy set in the brand's bronze uses `--gold-ink`, which is the reference's
+`#a48166` darkened to clear 4.5:1.
+
+### Where Ranza departs from Leaders, and why
+
+Everything not listed here is Leaders' own value or class. A departure without
+an entry is a bug.
+
+- **Contrast.** `--danger` is `#a33a35`, not Leaders' `hsl(0 70% 60%)`, which
+  is below 4.5:1 on white; the sign-in greys above are darkened for the same
+  reason.
+- **Arabic** is set in IBM Plex Sans Arabic, because Geist draws none.
+- **Sign-in** has no padlock and no "protected by security protocols" line —
+  the page does not demonstrate either — and no Leaders logo figure behind it,
+  which is another company's mark. It has no "forgot password" link, because
+  Ranza has no reset flow and a link to nowhere is worse than none. Its service
+  row names Ranza's built screens.
+- **Sidebar.** Ranza has destinations nested under a group (Front Office), and
+  Leaders has no pattern for them, so a group opens as an indented list. The
+  sidebar also folds to icons, which Leaders' does not, and tightens its rows
+  below 960px of height where Leaders waits for 800px: twelve destinations to
+  Leaders' nine would otherwise scroll off a laptop screen.
+- **Phones.** Below `md` the pages of a group sit under the page bar as a tab
+  strip, because the dock at the foot opens a group on its first page only.
+- **The page bar's avatar opens the account menu.** In Leaders it is a picture
+  only, and the account is reached from the sidebar's foot; Ranza offers it in
+  both places, because on a phone there is no sidebar.
 
 ## Accessibility
 
@@ -146,18 +192,19 @@ obviously clickable, each with an explicit action affordance.
 
 ## Shell (persists across all Operator Workspace screens)
 
-- **Rail on the start edge, light (`--surface`), 76px.** Icon-over-label tiles,
-  no collapse. _Superseded the original "dark, ~260px sidebar" in this brief:
-  the implementation follows `ryadh/mirhaal/apps/dashboard`, which is the agreed
-  source for interface code._ The **Property switcher** moved to the page bar,
+- **Sidebar on the start edge**, a white panel floating in its own padded
+  column, sectioned, collapsible to icon tiles — the Leaders portal's rail.
+  _Superseded the 76px icon rail this brief first described._ The **Property
+  switcher** moved to the page bar,
   where there is room for a name; it must still be obvious which Property is
   active at all times (section 7.2 user story 10).
 - **Job-based navigation** (section 4.6), not a flat module list. For this screen
   show only: Today, Front Office, Housekeeping, Residents, Billing, Reports,
   Configuration. Do not draw modules the Organization is not entitled to.
-- **Top bar:** global search ("Search residents, reservations, rooms"), business
-  date for the active Property, language switcher showing `TR` as active, a
-  notifications control, and the signed-in Staff Member with role.
+- **Page bar:** a floating bar carrying the trail (Workspace › group › page),
+  the section's sibling pages, the Property switcher and the language switcher;
+  the page's title is set large and light under it. Global search, the business
+  date and notifications are still wanted here and not yet built.
 - Skip link, `main` landmark, focus states.
 
 ## Page content

@@ -10,29 +10,27 @@ export interface Messages {
   productName: string;
   skip: string;
   languageLabel: string;
-  languageName: Record<SupportedLocale, string>;
   today: string;
   propertySwitcher: string;
   /** The switcher's label when the URL names a Property it does not list. */
   chooseProperty: string;
   mainNavigation: string;
   sections: string;
-  back: string;
+  breadcrumb: string;
   collapse: string;
   expand: string;
   workspaceBadge: string;
-  navSections: {
-    operations: string;
-    management: string;
-    system: string;
-  };
   account: string;
   organization: string;
   property: string;
   noPropertyTitle: string;
   noPropertyDescription: string;
-  signInTitle: string;
   signInSummary: string;
+  /** The sign-in screen's slogan: set in heavy capitals, so written in
+      sentence case and uppercased by the locale's own rules. */
+  authSlogan: string;
+  authSubSlogan: string;
+  welcomeBack: string;
   email: string;
   password: string;
   signIn: string;
@@ -348,6 +346,15 @@ export interface Messages {
   capacityPerRoom: string;
   building: string;
   floor: string;
+  /** Headings and columns, where "(optional)" belongs to the form alone. */
+  buildingColumn: string;
+  floorColumn: string;
+  floorNumber: string;
+  noFloor: string;
+  bedCount: string;
+  sleeps: string;
+  tonightColumn: string;
+  unitActions: string;
   letByTheBed: string;
   letByTheBedHint: string;
   blockBed: string;
@@ -366,6 +373,7 @@ export interface Messages {
   freeTonight: string;
   inHouseTonight: string;
   reservedTonight: string;
+  reservedCount: string;
   blockedStatus: string;
 
   /** The Housekeeping screen (RANZ-28). */
@@ -614,29 +622,26 @@ export const messages: Record<SupportedLocale, Messages> = {
     productName: "Ranza",
     skip: "İçeriğe geç",
     languageLabel: "Dil",
-    languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     today: "Bugün",
     propertySwitcher: "Tesisler",
     chooseProperty: "Tesis seçin",
     mainNavigation: "Ana gezinme",
     sections: "Bölümler",
-    back: "Geri",
+    breadcrumb: "Konum",
     collapse: "Menüyü daralt",
     expand: "Menüyü genişlet",
     workspaceBadge: "Çalışma Alanı",
-    navSections: {
-      operations: "Operasyon",
-      management: "Yönetim",
-      system: "Sistem",
-    },
     account: "Hesap",
     organization: "Organizasyon",
     property: "Tesis",
     noPropertyTitle: "Henüz bir tesise atanmadınız",
     noPropertyDescription:
       "Organizasyonunuzdaki bir yönetici sizi bir tesise atadığında burada görünür.",
-    signInTitle: "Oturum açın",
-    signInSummary: "Ranza çalışma alanı",
+    signInSummary: "Tesislerinizi yönetmek için oturum açın.",
+    authSlogan: "Konaklama yönetimi, yeniden tanımlandı.",
+    authSubSlogan:
+      "Tesisler, sakinler, rezervasyonlar ve folyolar için bütünleşik çalışma alanı.",
+    welcomeBack: "Tekrar hoş geldiniz",
     email: "E-posta",
     password: "Parola",
     signIn: "Oturum aç",
@@ -964,6 +969,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     capacityPerRoom: "Oda kapasitesi (kişi)",
     building: "Bina (isteğe bağlı)",
     floor: "Kat (isteğe bağlı)",
+    buildingColumn: "Bina",
+    floorColumn: "Kat",
+    floorNumber: "{floor}. kat",
+    noFloor: "Katı belirtilmemiş",
+    bedCount: "{count} yatak",
+    sleeps: "{count} kişilik",
+    tonightColumn: "Bu gece",
+    unitActions: "İşlemler",
     letByTheBed: "Yatak bazında kirala",
     letByTheBedHint:
       "Her yatak A, B, C... olarak ayrı ayrı kiralanabilir birim olur.",
@@ -984,6 +997,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     freeTonight: "Boş",
     inHouseTonight: "Konaklamada",
     reservedTonight: "Rezervasyonlu",
+    reservedCount: "{count, number} rezervasyonlu",
     blockedStatus: "Kapalı",
 
     housekeeping: {
@@ -1241,29 +1255,26 @@ export const messages: Record<SupportedLocale, Messages> = {
     productName: "Ranza",
     skip: "Skip to content",
     languageLabel: "Language",
-    languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     today: "Today",
     propertySwitcher: "Properties",
     chooseProperty: "Choose a Property",
     mainNavigation: "Main navigation",
     sections: "Sections",
-    back: "Back",
+    breadcrumb: "Breadcrumb",
     collapse: "Collapse sidebar",
     expand: "Expand sidebar",
     workspaceBadge: "Workspace",
-    navSections: {
-      operations: "Operations",
-      management: "Management",
-      system: "System",
-    },
     account: "Account",
     organization: "Organization",
     property: "Property",
     noPropertyTitle: "You are not assigned to a Property yet",
     noPropertyDescription:
       "A manager in your Organization assigns you to a Property, and it appears here.",
-    signInTitle: "Sign in",
-    signInSummary: "Ranza operator workspace",
+    signInSummary: "Sign in to run your Properties.",
+    authSlogan: "Hospitality, refined.",
+    authSubSlogan:
+      "Dedicated workspace for properties, residents, reservations, and folios.",
+    welcomeBack: "Welcome back",
     email: "Email",
     password: "Password",
     signIn: "Sign in",
@@ -1590,6 +1601,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     capacityPerRoom: "Capacity per room (guests)",
     building: "Building (optional)",
     floor: "Floor (optional)",
+    buildingColumn: "Building",
+    floorColumn: "Floor",
+    floorNumber: "Floor {floor}",
+    noFloor: "No floor set",
+    bedCount: "{count, plural, one {# bed} other {# beds}}",
+    sleeps: "Sleeps {count}",
+    tonightColumn: "Tonight",
+    unitActions: "Actions",
     letByTheBed: "Let by the bed",
     letByTheBedHint: "Each bed becomes a separate unit named A, B, C...",
     blockBed: "Block bed",
@@ -1609,6 +1628,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     freeTonight: "Free",
     inHouseTonight: "In house",
     reservedTonight: "Reserved",
+    reservedCount: "{count, number} reserved",
     blockedStatus: "Blocked",
 
     housekeeping: {
@@ -1865,29 +1885,26 @@ export const messages: Record<SupportedLocale, Messages> = {
     productName: "Ranza",
     skip: "تخطَّ إلى المحتوى",
     languageLabel: "اللغة",
-    languageName: { tr: "Türkçe", en: "English", ar: "العربية" },
     today: "اليوم",
     propertySwitcher: "المنشآت",
     chooseProperty: "اختر منشأة",
     mainNavigation: "التنقل الرئيسي",
     sections: "الأقسام",
-    back: "رجوع",
+    breadcrumb: "مسار التنقل",
     collapse: "طي القائمة",
     expand: "توسيع القائمة",
     workspaceBadge: "مساحة العمل",
-    navSections: {
-      operations: "العمليات",
-      management: "الإدارة",
-      system: "النظام",
-    },
     account: "الحساب",
     organization: "المؤسسة",
     property: "المنشأة",
     noPropertyTitle: "لم يتم تعيينك إلى منشأة بعد",
     noPropertyDescription:
       "يقوم أحد المديرين في مؤسستك بتعيينك إلى منشأة، فتظهر هنا.",
-    signInTitle: "تسجيل الدخول",
-    signInSummary: "مساحة عمل رانزا",
+    signInSummary: "سجّل الدخول لإدارة عقاراتك.",
+    authSlogan: "إدارة الإقامة والضيافة المتكاملة.",
+    authSubSlogan:
+      "مساحة العمل الموحدة للعقارات والمقيمين والحجوزات والسجلات المالية.",
+    welcomeBack: "مرحبًا بك من جديد",
     email: "البريد الإلكتروني",
     password: "كلمة المرور",
     signIn: "تسجيل الدخول",
@@ -2202,6 +2219,15 @@ export const messages: Record<SupportedLocale, Messages> = {
     capacityPerRoom: "سعة الغرفة (أشخاص)",
     building: "المبنى (اختياري)",
     floor: "الطابق (اختياري)",
+    buildingColumn: "المبنى",
+    floorColumn: "الطابق",
+    floorNumber: "الطابق {floor}",
+    noFloor: "بلا طابق محدد",
+    bedCount:
+      "{count, plural, one {سرير واحد} two {سريران} few {# أسرّة} many {# سريرًا} other {# سرير}}",
+    sleeps: "يتّسع لـ {count}",
+    tonightColumn: "الليلة",
+    unitActions: "الإجراءات",
     letByTheBed: "تأجير بالسرير",
     letByTheBedHint: "يصبح كل سرير وحدة منفصلة تسمى A، B، C...",
     blockBed: "إغلاق السرير",
@@ -2220,6 +2246,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     freeTonight: "فارغ",
     inHouseTonight: "في الإقامة",
     reservedTonight: "محجوز",
+    reservedCount:
+      "{count, plural, zero {لا شيء محجوز} one {سرير واحد محجوز} two {سريران محجوزان} few {# أسرّة محجوزة} many {# سريرًا محجوزًا} other {# سرير محجوز}}",
     blockedStatus: "مغلق",
 
     housekeeping: {

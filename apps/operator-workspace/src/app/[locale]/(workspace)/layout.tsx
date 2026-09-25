@@ -1,15 +1,8 @@
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
-import { Check, ShieldCheck } from "lucide-react";
-import { isSupportedLocale, localizeHref, supportedLocales } from "@ranza/i18n";
-import {
-  AccountMenu,
-  AppShell,
-  BrandMark,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-} from "@ranza/ui";
+import { ShieldCheck } from "lucide-react";
+import { isSupportedLocale, localizeHref } from "@ranza/i18n";
+import { AccountMenu, AppShell, BrandMark, DropdownMenuItem } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ALL_SCREENS } from "../../../lib/screens";
 import {
@@ -21,6 +14,7 @@ import {
 import { QueryProvider } from "../../providers/query-provider";
 import { PropertyLink } from "./property-link";
 import { PropertySwitcher } from "./property-switcher";
+import { WorkspaceLanguageSwitcher } from "./workspace-language-switcher";
 import { WorkspacePageBar } from "./workspace-page-bar";
 import { WorkspaceBottomNav, WorkspaceRail } from "./workspace-rail";
 
@@ -109,53 +103,19 @@ export default async function WorkspaceLayout({
   const root = localizeHref(locale, "today");
   const [first] = properties;
 
-  const account = (
-    <AccountMenu email={viewer.email} label={t("account")} name={viewer.email}>
-      <DropdownMenuItem asChild>
-        {/* Account security is not an entitled capability — it belongs to the
-            person, not the Organization — so it is reached through the account
-            rather than added to the rail, which lists only what was bought. */}
-        <PropertyLink
-          defaultProperty={first?.propertyId}
-          href={localizeHref(locale, "security")}
-        >
-          <ShieldCheck aria-hidden="true" className="size-4" />
-          {t("security")}
-        </PropertyLink>
-      </DropdownMenuItem>
-
-      <DropdownMenuSeparator />
-
-      {/* Language belongs to the person too, and it is set once and then never
-          again — so it lives beside the account rather than costing three
-          permanent controls in a bar that has real work to show. */}
-      <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-        {t("languageLabel")}
-      </DropdownMenuLabel>
-      {/* A full load rather than a Link: the language decides `lang`, `dir`
-          and the message catalogue on the root layout, which a client
-          navigation would keep. */}
-      {supportedLocales.map((supported) => (
-        <DropdownMenuItem asChild key={supported}>
-          <a
-            aria-current={supported === locale ? "true" : undefined}
-            href={localizeHref(supported, "today")}
-            hrefLang={supported}
-            lang={supported}
-          >
-            <Check
-              aria-hidden="true"
-              className={
-                supported === locale
-                  ? "size-4 shrink-0"
-                  : "size-4 shrink-0 invisible"
-              }
-            />
-            {t(`languageName.${supported}`)}
-          </a>
-        </DropdownMenuItem>
-      ))}
-    </AccountMenu>
+  const accountItems = (
+    <DropdownMenuItem asChild>
+      {/* Account security is not an entitled capability — it belongs to the
+          person, not the Organization — so it is reached through the account
+          rather than added to the rail, which lists only what was bought. */}
+      <PropertyLink
+        defaultProperty={first?.propertyId}
+        href={localizeHref(locale, "security")}
+      >
+        <ShieldCheck aria-hidden="true" className="size-4" />
+        {t("security")}
+      </PropertyLink>
+    </DropdownMenuItem>
   );
 
   return (
@@ -172,23 +132,36 @@ export default async function WorkspaceLayout({
       pageBar={
         <WorkspacePageBar
           action={
-            <div className="flex items-center gap-2">
-              {first ? (
-                <PropertySwitcher
-                  chooseLabel={t("chooseProperty")}
-                  label={t("propertySwitcher")}
-                  organization={first.organizationName}
-                  slots={properties.map((property) => ({
-                    href: `${root}?property=${property.propertyId}`,
-                    id: property.propertyId,
-                    name: property.propertyName,
-                  }))}
+            <>
+              <div className="flex min-w-0 items-center gap-1">
+                {first ? (
+                  <PropertySwitcher
+                    chooseLabel={t("chooseProperty")}
+                    label={t("propertySwitcher")}
+                    organization={first.organizationName}
+                    slots={properties.map((property) => ({
+                      href: `${root}?property=${property.propertyId}`,
+                      id: property.propertyId,
+                      name: property.propertyName,
+                    }))}
+                  />
+                ) : null}
+                <WorkspaceLanguageSwitcher
+                  label={t("languageLabel")}
+                  locale={locale}
                 />
-              ) : null}
-              {/* The rail is desktop-only, so on a phone the account rides in
-                  the page bar rather than earning a second row of chrome. */}
-              <div className="md:hidden">{account}</div>
-            </div>
+              </div>
+              <div aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
+              <AccountMenu
+                email={viewer.email}
+                label={t("account")}
+                locale={locale}
+                name={viewer.email}
+                variant="compact"
+              >
+                {accountItems}
+              </AccountMenu>
+            </>
           }
           defaultProperty={first?.propertyId}
           entitled={entitled}
@@ -197,22 +170,25 @@ export default async function WorkspaceLayout({
       }
       rail={
         <WorkspaceRail
-          actions={account}
-          brand={<BrandMark className="size-6 text-primary" />}
+          actions={
+            <AccountMenu
+              email={viewer.email}
+              label={t("account")}
+              locale={locale}
+              name={viewer.email}
+            >
+              {accountItems}
+            </AccountMenu>
+          }
+          brand={<BrandMark className="size-5" />}
           defaultProperty={first?.propertyId}
           entitled={entitled}
           labels={{
-            back: t("back"),
             collapse: t("collapse"),
             expand: t("expand"),
             home: t("productName"),
             mainNavigation: t("mainNavigation"),
-            sections: {
-              operations: t("navSections.operations"),
-              management: t("navSections.management"),
-              system: t("navSections.system"),
-            },
-            workspaceBadge: t("workspaceBadge"),
+            badge: t("workspaceBadge"),
           }}
           locale={locale}
           {...(first ? { organization: first.organizationName } : {})}

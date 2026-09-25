@@ -3,13 +3,13 @@
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { AppPageBar, SectionTabs } from "@ranza/ui";
-import type { SupportedLocale } from "@ranza/i18n";
+import { AppPageBar, navGroupFor, SectionTabs } from "@ranza/ui";
+import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import { useWithProperty, useWorkspaceNav } from "../../../lib/nav";
 import { pageTitleFor, useWorkspacePageTitles } from "../../../lib/page-titles";
 
 /**
- * Resolves the page's own title from the route.
+ * Resolves the page's own title, and the trail above it, from the route.
  *
  * A client component because it reads the pathname, which a router layout
  * cannot. A route with no entry renders no bar and therefore no heading — see
@@ -29,7 +29,7 @@ export function WorkspacePageBar({
   locale: SupportedLocale;
 }) {
   const pathname = usePathname();
-  const titles = useWorkspacePageTitles(locale);
+  const titles = useWorkspacePageTitles();
   const entries = useWorkspaceNav(locale, entitled, defaultProperty);
   const t = useTranslations();
   const withProperty = useWithProperty(defaultProperty);
@@ -37,17 +37,21 @@ export function WorkspacePageBar({
 
   if (!match) return null;
 
+  // A nav group has no page of its own, so it is named without a link.
+  const group = navGroupFor(pathname, entries);
+
   return (
     <AppPageBar
       {...(action === undefined ? {} : { action })}
-      {...(match.parent === undefined
-        ? {}
-        : {
-            parent: {
-              ...match.parent,
-              href: withProperty(match.parent.href),
-            },
-          })}
+      breadcrumbLabel={t("breadcrumb")}
+      crumbs={[
+        {
+          href: withProperty(localizeHref(locale, "today")),
+          label: t("workspaceBadge"),
+        },
+        ...(group ? [{ label: group.label }] : []),
+      ]}
+      display={match.display}
       tabs={<SectionTabs entries={entries} label={t("sections")} />}
       title={match.title}
     />

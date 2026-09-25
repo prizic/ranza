@@ -1,22 +1,27 @@
 import "../globals.css";
 import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Sans_Arabic } from "next/font/google";
+import { Geist, IBM_Plex_Sans_Arabic } from "next/font/google";
 import { notFound } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { directionFor, isSupportedLocale, supportedLocales } from "@ranza/i18n";
 
 /**
- * One typeface for three scripts — the same choice the Workspace makes, for the
- * same reason: IBM Plex Sans Arabic carries the Plex Latin alongside the
- * Arabic, so Turkish and Arabic are the same voice. The shared theme reads it
- * from --font-plex, so a Portal that did not load it would quietly fall back to
- * a system font and stop looking like the rest of the product.
+ * The same two faces the Workspace loads: Geist for Turkish and English, IBM
+ * Plex Sans Arabic for Arabic. The shared theme reads them from --font-geist and
+ * --font-plex, so a Portal that did not load them would quietly fall back to a
+ * system font and stop looking like the rest of the product.
  */
+const geist = Geist({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-geist",
+  display: "swap",
+});
+
 const plex = IBM_Plex_Sans_Arabic({
   subsets: ["arabic", "latin"],
-  weight: ["300", "400", "600"],
+  weight: ["300", "400", "500", "600", "700"],
   variable: "--font-plex",
   display: "swap",
 });
@@ -73,7 +78,11 @@ export default async function LocaleLayout({
   setRequestLocale(locale);
 
   return (
-    <html className={plex.variable} dir={directionFor(locale)} lang={locale}>
+    <html
+      className={`${geist.variable} ${plex.variable}`}
+      dir={directionFor(locale)}
+      lang={locale}
+    >
       <body>
         {/* The catalogue crosses to the client once, here, rather than being
             handed to each client component as a `copy` prop. */}

@@ -129,7 +129,7 @@ export default async function AuditLogPage({
     const found = await auditRecord(property.propertyId, recordId);
     return (
       <>
-        <p className="text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           <Link className="hover:underline" href={listHref}>
             {t("allRecords")}
           </Link>
@@ -200,7 +200,7 @@ export default async function AuditLogPage({
 
   return (
     <>
-      <p className="text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         {t("auditLogFor")} {property.organizationName}
       </p>
       <AuditFilters
