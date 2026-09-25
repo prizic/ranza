@@ -1,73 +1,131 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import { cn } from "../lib/utils";
+
+export interface PageCrumb {
+  /** Absent for a level that has no page of its own, such as a nav group. */
+  href?: string | undefined;
+  label: string;
+}
 
 /**
- * The bar that names the page, above every surface.
+ * The bar above every surface, and the page's title under it.
  *
- * It is the top bar as well as the heading: a separate chrome row and a page
- * title underneath it were two bands saying one thing, and the bar's end was
- * empty on every page. The section switch and the page's primary control live
- * there instead of costing a row above the content.
+ * Leaders' header (leaders-portal/src/components/layout/header.tsx): a floating
+ * glass bar that carries the trail — a quiet uppercase root, then the levels
+ * above, then the page — with the page's controls on its end edge; and the title
+ * itself set light at the head of the content, where it reads as the page rather
+ * than as chrome.
  *
- * Ported from ryadh/mirhaal/apps/dashboard. The title arrives as a prop rather
- * than being resolved from the pathname here, because Ranza's routes are
- * locale-prefixed and this package deliberately knows nothing about locales.
+ * A page whose content opens with its own display type (Today sets the weekday)
+ * passes `display={false}`, and the bar's last crumb becomes the heading
+ * instead, so there is still exactly one `h1`.
+ *
+ * On a phone the bar's width goes to the Property, the language and the
+ * account, and the page's name — set under the bar anyway, or opened by the
+ * page's own display type — is left to assistive technology.
+ *
+ * `tabs` — the pages of the section this one belongs to — sit under the bar
+ * rather than in it, where Leaders keeps nothing but the trail and its controls.
+ *
+ * The title arrives as a prop rather than being resolved from the pathname here,
+ * because the routes are locale-prefixed and this package deliberately knows
+ * nothing about locales.
  */
 export function AppPageBar({
   action,
-  parent,
-  title,
+  breadcrumbLabel,
+  crumbs = [],
+  display = true,
   tabs,
+  title,
 }: {
-  /** The page's primary control, on the end edge of the same bar. */
+  /** The page's controls, on the end edge of the bar. */
   action?: ReactNode;
-  /** A child page names its parent so the bar can carry the way back. */
-  parent?: { href: string; title: string };
-  title: string;
+  /** Names the trail's landmark. Localized; required once there are crumbs. */
+  breadcrumbLabel?: string | undefined;
+  /** The levels above this page, outermost first. Folded away on a phone,
+      where the dock at the foot is the way back and the bar needs its width
+      for the page's own controls. */
+  crumbs?: readonly PageCrumb[];
+  display?: boolean;
   tabs?: ReactNode;
+  title: string;
 }) {
-  return (
-    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 bg-card px-4 shadow-[inset_0_-1px_0_0_var(--border)] sm:px-6">
-      <h1 className="flex min-w-0 items-center gap-1.5 text-2xl font-extrabold tracking-tight">
-        {parent ? (
-          <>
-            {/* Context, not the page's name — muted so the leaf still reads as
-                the heading. A link, because a trail that cannot be followed is
-                decoration, and never hidden on small screens: on a phone this
-                is the only way back out of a child page. */}
-            <Link
-              className="flex min-h-11 shrink-0 items-center transition-colors hover:text-primary"
-              href={parent.href}
-            >
-              {parent.title}
-            </Link>
-            <ChevronLeft
-              aria-hidden="true"
-              className="size-4 shrink-0 text-muted-foreground ltr:-scale-x-100"
-            />
-          </>
-        ) : null}
-        <span
-          className={
-            parent
-              ? // A sub-view of the section, not a page competing with it.
-                "truncate text-lg font-semibold text-muted-foreground"
-              : "truncate"
-          }
-        >
-          {title}
-        </span>
-      </h1>
+  const leaf = display ? (
+    <span
+      aria-current="page"
+      className="truncate text-sm font-semibold tracking-tight text-foreground max-sm:sr-only"
+    >
+      {title}
+    </span>
+  ) : (
+    <h1 className="truncate text-sm font-semibold tracking-tight text-foreground max-sm:sr-only">
+      {title}
+    </h1>
+  );
 
-      <div className="ms-auto flex items-center gap-2">
-        {tabs}
-        {/* A wrapper of its own rather than sitting beside the tabs directly:
-            it is an element serialized from a server component, and as one item
-            of a two-child array React validates it as a dynamic child and asks
-            for a key it cannot have. */}
-        {action ? <div className="flex items-center">{action}</div> : null}
-      </div>
-    </header>
+  return (
+    <>
+      <header className="glass-panel mb-6 flex h-16 shrink-0 items-center justify-between gap-4 rounded-2xl ps-4 pe-3 sm:px-6">
+        {crumbs.length > 0 ? (
+          <nav aria-label={breadcrumbLabel} className="min-w-0">
+            <ol className="flex min-w-0 items-center gap-2">
+              {crumbs.map((crumb, index) => (
+                <li
+                  className="hidden min-w-0 items-center gap-2 sm:flex"
+                  key={`${index}-${crumb.label}`}
+                >
+                  <Crumb crumb={crumb} root={index === 0} />
+                  <ChevronRight
+                    aria-hidden="true"
+                    className="size-3 shrink-0 text-muted-foreground/40 rtl:rotate-180"
+                  />
+                </li>
+              ))}
+              <li className="min-w-0">{leaf}</li>
+            </ol>
+          </nav>
+        ) : (
+          <div className="min-w-0">{leaf}</div>
+        )}
+
+        {/* A wrapper of its own: the action is an element serialized from a
+            server component, and as one item of a children array React
+            validates it as a dynamic child and asks for a key it cannot have. */}
+        {action ? (
+          <div className="ms-auto flex min-w-0 items-center gap-2 sm:gap-3">
+            {action}
+          </div>
+        ) : null}
+      </header>
+
+      {tabs}
+
+      {display ? (
+        <h1 className="mb-1.5 text-2xl leading-tight font-light tracking-tight text-foreground sm:text-3xl">
+          {title}
+        </h1>
+      ) : null}
+    </>
+  );
+}
+
+function Crumb({ crumb, root }: { crumb: PageCrumb; root: boolean }) {
+  const className = cn(
+    "truncate font-medium transition-colors",
+    root
+      ? "text-xs tracking-wide text-muted-foreground uppercase opacity-70 hover:opacity-100"
+      : "text-sm tracking-tight text-muted-foreground/60",
+    crumb.href &&
+      "flex min-h-11 items-center decoration-muted-foreground/30 underline-offset-4 hover:text-foreground hover:underline",
+  );
+  return crumb.href ? (
+    <Link className={className} href={crumb.href}>
+      {crumb.label}
+    </Link>
+  ) : (
+    <span className={className}>{crumb.label}</span>
   );
 }

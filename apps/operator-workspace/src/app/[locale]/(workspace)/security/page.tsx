@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { requireViewer } from "../../../../server/viewer";
 import { TwoFactorPanel } from "./two-factor-panel";
 
@@ -19,13 +19,14 @@ export default async function SecurityPage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
 
   const t = await getTranslations();
   const viewer = await requireViewer(locale);
 
   return (
     <>
-      <p className="text-muted-foreground">{t("securitySummary")}</p>
+      <p className="text-sm text-muted-foreground">{t("securitySummary")}</p>
 
       <TwoFactorPanel enabled={viewer.twoFactorEnabled} />
     </>

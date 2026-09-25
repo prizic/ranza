@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { messages } from "../../apps/operator-workspace/src/messages";
 import { signIn, testProperty } from "./front-desk";
 import { psql } from "./local-database";
 
@@ -88,4 +89,9 @@ test("a session ended while the workspace is open goes to sign in on the next pa
     .first()
     .click();
   await expect(page).toHaveURL(/\/en\/sign-in$/);
+  // Reached by a client-side redirect, so the sign-in page sets its own locale
+  // too; it used to fall back to Turkish here.
+  await expect(
+    page.getByRole("heading", { name: messages.en.welcomeBack }),
+  ).toBeVisible();
 });

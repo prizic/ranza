@@ -9,12 +9,14 @@ import { cn } from "../lib/utils";
  * The pages beside this one, taken from the rail's own category tree — so the
  * bar and the rail can never list a different set.
  *
- * Rendered in the page bar's empty end rather than as a strip above the
- * content, which cost a row on every page.
+ * Only where the rail is not: from `md` the rail's second level lists the same
+ * pages. Below it the dock at the foot opens a section on its first page, so
+ * without this strip a phone could not reach the others at all. Drawn as the
+ * Leaders tab list — a muted track with the current page lifted out in white —
+ * and scrolled sideways when a phone is narrower than the section.
  *
  * They are links to routes, not tabs over one: each has its own URL, can be
- * bookmarked, and is what the rail's second level already offers. This is the
- * same navigation said twice, in the two places a reader looks.
+ * bookmarked, and is what the rail's second level already offers.
  */
 export function SectionTabs({
   entries,
@@ -31,17 +33,20 @@ export function SectionTabs({
   if (!group || group.children.length < 2) return null;
 
   return (
-    <nav aria-label={label} className="hidden gap-1 sm:flex">
+    <nav
+      aria-label={label}
+      className="mb-6 flex w-fit max-w-full gap-1 overflow-x-auto rounded-md bg-muted p-1 scrollbar-none md:hidden"
+    >
       {group.children.map(({ href, label: child }) => {
         const active = pathname === hrefPath(href);
         return (
           <Link
             aria-current={active ? "page" : undefined}
             className={cn(
-              "rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors",
+              "flex min-h-9 shrink-0 items-center rounded-sm px-3 text-sm font-medium whitespace-nowrap transition-all",
               active
-                ? "bg-secondary text-foreground"
-                : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
             )}
             href={href}
             key={href}

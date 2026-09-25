@@ -336,13 +336,16 @@ describe("Arabic mirrors by construction", () => {
 
 describe("where the screen lives", () => {
   function railLinks(entitled: string[]): string[] {
-    const { result } = renderHook(() => useWorkspaceNav("en", entitled), {
-      wrapper: ({ children }: { children: ReactNode }) => (
-        <NextIntlClientProvider locale="en" messages={messages.en}>
-          {children}
-        </NextIntlClientProvider>
-      ),
-    });
+    const { result } = renderHook(
+      () => useWorkspaceNav("en", entitled, undefined),
+      {
+        wrapper: ({ children }: { children: ReactNode }) => (
+          <NextIntlClientProvider locale="en" messages={messages.en}>
+            {children}
+          </NextIntlClientProvider>
+        ),
+      },
+    );
     return result.current.flatMap((entry) =>
       "children" in entry && entry.children
         ? entry.children.map((child) => child.href)

@@ -33,18 +33,29 @@ export function PlannedScreen({
   title: string;
 }) {
   return (
-    <section className="max-w-prose rounded-xl bg-card p-6 shadow-low">
-      <p className="flex items-center gap-2 text-step--1 font-medium text-muted-foreground">
-        <Compass aria-hidden="true" className="size-4" />
+    // Named by `title` rather than repeating it: the page's own heading already
+    // sets the screen's name large directly above.
+    <section
+      aria-label={title}
+      className="max-w-2xl rounded-4xl border border-border/70 bg-card p-7 shadow-low sm:p-9"
+    >
+      <p className="flex items-center gap-3 text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">
+        <span className="inline-flex size-11 items-center justify-center rounded-2xl bg-secondary text-secondary-foreground">
+          <Compass aria-hidden="true" className="size-5" />
+        </span>
         {heading}
       </p>
-      <h2 className="mt-3 text-step-1 font-semibold">{title}</h2>
-      <p className="mt-2 text-muted-foreground">{summary}</p>
-      <p className="mt-4 text-step--1 text-muted-foreground">
-        <a className="underline underline-offset-4" href={handoverHref}>
+      <p className="mt-7 text-2xl leading-snug font-light text-balance">
+        {summary}
+      </p>
+      <p className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/70 pt-5 text-step--1 text-muted-foreground">
+        <a
+          className="font-medium text-primary underline-offset-4 hover:underline"
+          href={handoverHref}
+        >
           {handoverLabel}
         </a>
-        <span className="ms-2 tabular-nums opacity-70">
+        <span className="tabular-nums opacity-70">
           Blueprint {blueprintSection}
         </span>
       </p>

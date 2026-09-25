@@ -1,0 +1,81 @@
+%% Every allowed transition is drawn and labelled with the command that causes
+%% it. Anything not drawn is forbidden.
+%%
+%% Four lifecycles. A request's state, whether that request holds its Unit out
+%% of order, the Unit's own status, and equipment in or out of use. They are
+%% separate on purpose: a done request may still hold its room when returning
+%% it takes a confirmation (the setting), and a room is out of order while ANY
+%% request holds it, not while one particular request is open (ADR 0032).
+%%
+%% Equipment condition — working, service due, overdue, fault — is not a
+%% state. It is read off the service dates, the Property's today and the open
+%% requests naming the item, so nothing has to keep it true.
+stateDiagram-v2
+
+  state "Maintenance request" as R {
+    [*] --> New : report
+    New --> InProgress : move
+    New --> WaitingForParts : move
+    New --> Done : move
+    InProgress --> New : move
+    InProgress --> WaitingForParts : move
+    InProgress --> Done : move
+    WaitingForParts --> New : move
+    WaitingForParts --> InProgress : move
+    WaitingForParts --> Done : move
+    Done --> New : reopen
+    Done --> InProgress : reopen
+    Done --> WaitingForParts : reopen
+    New --> Cancelled : cancel (reason)
+    InProgress --> Cancelled : cancel (reason)
+    WaitingForParts --> Cancelled : cancel (reason)
+    Cancelled --> New : reopen
+    %% Any move between the four board states, as the product owner chose (Q4).
+    %% Cancelled was added on the agent's second opinion, approved with the
+    %% rest: Done means fixed, so a mistaken report has somewhere else to go.
+    %% A done request is not cancelled: it was fixed. Reopen it first.
+    %% Moving into In progress or Waiting for parts is refused while nobody is
+    %% assigned, where the setting requires an assignee (MT-S2-25).
+    %% Every move names the state the mover saw; a request somebody else moved
+    %% in between is refused rather than overwritten (MT-S1-14).
+    %% No terminal state. A request is never deleted.
+  }
+
+  state "The request's hold on its Unit" as H {
+    [*] --> NotHolding : report
+    [*] --> Holding : report and take out of order
+    NotHolding --> Holding : take out of order (request not done or cancelled)
+    Holding --> Released : return to service
+    Holding --> Released : move to done (setting returns on done)
+    Holding --> Released : cancel
+    Released --> Holding : take out of order (request reopened)
+    %% A done request keeps its hold when the setting asks for a confirmation;
+    %% the board shows it as done and still out of order (MT-S2-15).
+    %% A cancelled request never holds: cancelling releases (MT-S2-16).
+  }
+
+  state "Accommodation Unit — operational status" as U {
+    [*] --> Available : add
+    Available --> Blocked : block
+    Blocked --> Available : unblock
+    Available --> OutOfOrder : take out of order (the first hold)
+    OutOfOrder --> OutOfOrder : take out of order (another hold), release (not the last)
+    OutOfOrder --> Available : release the last hold
+    %% Blocked and out of order exclude each other: each is entered from
+    %% available only. A blocked Unit is already unsellable; its problem can
+    %% still be reported, without a hold (MT-S2-08).
+    %% A room out of order covers its beds: none of them is bookable or can be
+    %% checked in to, whatever each bed's own status (MT-S2-06). The beds'
+    %% statuses are not rewritten, so each keeps its own block.
+    %% Blocking is accommodation.configure's; out of order is
+    %% maintenance.take_out_of_order's. One trigger holds them apart (MT-S2-04).
+    %% Coming back, the room's housekeeping status is set by the worker, not
+    %% here: that is housekeeping_unit_status (ADR 0029, MT-S2-17).
+  }
+
+  state "Equipment" as E {
+    [*] --> InUse : add
+    InUse --> Retired : retire
+    Retired --> InUse : restore
+    %% Never deleted: a request names it, and an audit record names both.
+  }

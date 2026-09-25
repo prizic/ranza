@@ -13,6 +13,10 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AuditEntry, AuditPage } from "../../packages/ranza/core/src";
+import {
+  supportedLocales,
+  type SupportedLocale,
+} from "../../packages/i18n/src";
 import { messages } from "../../apps/operator-workspace/src/messages";
 import { AuditTable } from "../../apps/operator-workspace/src/features/audit-log/components/audit-table";
 import { RecordPanel } from "../../apps/operator-workspace/src/features/audit-log/components/record-panel";
@@ -39,14 +43,17 @@ function entry(overrides: Partial<AuditEntry>): AuditEntry {
   };
 }
 
-function pageOf(entries: AuditEntry[]): AuditPage {
+function pageOf(
+  entries: AuditEntry[],
+  roles: AuditPage["roles"] = {},
+): AuditPage {
   return {
     entries,
     total: entries.length,
     nextCursor: null,
     labels: { [COLLEAGUE]: "ayse@example.test", [ROOM]: "204" },
     locations: {},
-    roles: {},
+    roles,
   };
 }
 
@@ -67,15 +74,19 @@ function show(entries: AuditEntry[]) {
   );
 }
 
-function open(record: AuditEntry) {
+function open(
+  record: AuditEntry,
+  locale: SupportedLocale = "en",
+  roles: AuditPage["roles"] = {},
+) {
   cleanup();
   render(
-    <NextIntlClientProvider locale="en" messages={messages.en}>
+    <NextIntlClientProvider locale={locale} messages={messages[locale]}>
       <RecordPanel
         entry={record}
-        folioHref="/en/finance?property=x"
-        locale="en"
-        names={pageOf([record])}
+        folioHref={`/${locale}/finance?property=x`}
+        locale={locale}
+        names={pageOf([record], roles)}
         viewerId={VIEWER}
       />
     </NextIntlClientProvider>,
@@ -222,9 +233,145 @@ describe("what a record's facts say", () => {
     expect(within(facts).getByText("ayse@example.test")).toBeInTheDocument();
   });
 
+  // An authored role's key is a slug of its name, so an Organization's own
+  // "Front desk" is `front_desk` too. The record says which one it was, and a
+  // record written before it did reads shipped first, as above.
+  it("an Organization's own role is named as its own, even with a shipped key", () => {
+    open(
+      entry({
+        action: "staff.role_changed",
+        subjectType: "membership",
+        context: {
+          from: "front_desk",
+          fromAuthored: false,
+          to: "front_desk",
+          toAuthored: true,
+          userId: COLLEAGUE,
+        },
+      }),
+      "en",
+      { front_desk: "Front desk (nights)" },
+    );
+    const facts = screen.getByRole("table");
+    expect(within(facts).getByText("Front desk")).toBeInTheDocument();
+    expect(within(facts).getByText("Front desk (nights)")).toBeInTheDocument();
+    // Folded into the role's name, not rows of their own.
+    expect(within(facts).queryByText("fromAuthored")).not.toBeInTheDocument();
+    expect(within(facts).queryByText("toAuthored")).not.toBeInTheDocument();
+  });
+
+  it("an invitation to an Organization's own role names that role", () => {
+    open(
+      entry({
+        action: "staff.invited",
+        subjectType: "membership",
+        context: {
+          role: "front_desk",
+          roleAuthored: true,
+          propertyIds: [],
+          userId: COLLEAGUE,
+        },
+      }),
+      "en",
+      { front_desk: "Front desk (nights)" },
+    );
+    const facts = screen.getByRole("table");
+    expect(within(facts).getByText("Front desk (nights)")).toBeInTheDocument();
+    expect(within(facts).queryByText("Front desk")).not.toBeInTheDocument();
+    expect(within(facts).queryByText("roleAuthored")).not.toBeInTheDocument();
+  });
+
   it("a_fact_this_screen_does_not_know_is_shown_as_itself", () => {
     open(entry({ context: { somethingNew: "yes indeed" } }));
     expect(screen.getByText("somethingNew")).toBeInTheDocument();
     expect(screen.getByText("yes indeed")).toBeInTheDocument();
+  });
+
+  // F-4 of the evidence run: the housekeeping writers merged after the log,
+  // and their facts showed as `status` → clean and `previousStatus` → dirty
+  // in every language.
+  for (const locale of supportedLocales) {
+    const say = messages[locale];
+
+    it(`a room's status change says before and after, in ${locale}`, () => {
+      open(
+        entry({
+          action: "housekeeping.status_changed",
+          subjectType: "accommodation_unit",
+          context: { name: "102", status: "clean", previousStatus: "dirty" },
+        }),
+        locale,
+      );
+      const facts = screen.getByRole("table");
+      expect(
+        within(facts).getByText(say.auditContext.status),
+      ).toBeInTheDocument();
+      expect(
+        within(facts).getByText(say.auditContext.previousStatus),
+      ).toBeInTheDocument();
+      expect(
+        within(facts).getByText(say.housekeeping.clean),
+      ).toBeInTheDocument();
+      expect(
+        within(facts).getByText(say.housekeeping.dirty),
+      ).toBeInTheDocument();
+      // Neither the keys nor the values the module wrote.
+      for (const raw of ["status", "previousStatus", "clean", "dirty"]) {
+        expect(within(facts).queryByText(raw)).not.toBeInTheDocument();
+      }
+    });
+
+    it(`an inspection setting says what it was and became, in ${locale}`, () => {
+      open(
+        entry({
+          action: "housekeeping.inspection_set",
+          subjectType: "property",
+          context: { from: "default", to: "on" },
+        }),
+        locale,
+      );
+      const facts = screen.getByRole("table");
+      expect(
+        within(facts).getByText(say.auditInspectionFollowsOrganization),
+      ).toBeInTheDocument();
+      expect(within(facts).getByText(say.housekeeping.on)).toBeInTheDocument();
+      expect(within(facts).queryByText("default")).not.toBeInTheDocument();
+      expect(within(facts).queryByText("on")).not.toBeInTheDocument();
+    });
+  }
+
+  it("a status change without a previous status names that rather than None", () => {
+    open(
+      entry({
+        action: "housekeeping.status_changed",
+        subjectType: "accommodation_unit",
+        context: { name: "201", status: "inspected", previousStatus: null },
+      }),
+    );
+    const facts = screen.getByRole("table");
+    expect(within(facts).getByText("Inspected")).toBeInTheDocument();
+    expect(within(facts).getByText("Not recorded yet")).toBeInTheDocument();
+  });
+
+  it("a status another action writes is not read as a room's", () => {
+    open(entry({ context: { status: "clean", previousStatus: "dirty" } }));
+    const facts = screen.getByRole("table");
+    expect(within(facts).getByText("clean")).toBeInTheDocument();
+    expect(within(facts).queryByText("Clean")).not.toBeInTheDocument();
+  });
+
+  it("an Organization's inspection setting switched off reads Off", () => {
+    open(
+      entry({
+        action: "housekeeping.inspection_set",
+        subjectType: "organization",
+        locationId: null,
+        propertyName: null,
+        context: { from: "on", to: "off" },
+      }),
+    );
+    const facts = screen.getByRole("table");
+    expect(within(facts).getByText("On")).toBeInTheDocument();
+    expect(within(facts).getByText("Off")).toBeInTheDocument();
   });
 });

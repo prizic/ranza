@@ -32,6 +32,10 @@ export const PERMISSION_CATALOGUE = [
   "staff.define_roles",
   "accommodation.configure",
   "housekeeping.update_status",
+  "maintenance.report",
+  "maintenance.manage",
+  "maintenance.take_out_of_order",
+  "maintenance.equipment",
   "audit.read",
 ] as const;
 
@@ -42,6 +46,21 @@ export function asShippedRole(key: string): ShippedRole | null {
   return (SHIPPED_ROLES as readonly string[]).includes(key)
     ? (key as ShippedRole)
     : null;
+}
+
+/**
+ * The shipped role this is, or null for one an Organization wrote.
+ *
+ * By scope, not by key. An authored role's key is a slug of its name, so an
+ * Organization's own "Front desk" is `front_desk` too, and naming it from the
+ * key alone showed it as the shipped one — beside the shipped one, in the
+ * same picker.
+ */
+export function shippedRoleOf(role: {
+  key: string;
+  organizationId: string | null;
+}): ShippedRole | null {
+  return role.organizationId === null ? asShippedRole(role.key) : null;
 }
 
 /**
@@ -65,6 +84,10 @@ const MESSAGE_KEYS = {
   "staff.define_roles": "defineRoles",
   "accommodation.configure": "configureAccommodation",
   "housekeeping.update_status": "updateHousekeeping",
+  "maintenance.report": "reportMaintenance",
+  "maintenance.manage": "manageMaintenance",
+  "maintenance.take_out_of_order": "takeOutOfOrder",
+  "maintenance.equipment": "manageEquipment",
   "audit.read": "readAudit",
 } as const satisfies Record<PermissionKey, string>;
 

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { NewReservationDialog } from "../../../../features/front-office/components/new-reservation-dialog";
 import { ReservationsTable } from "../../../../features/front-office/components/reservations-table";
 import {
@@ -36,6 +36,7 @@ export default async function ReservationsPage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
   await requireViewer(locale);
 
   const t = await getTranslations();
@@ -56,7 +57,7 @@ export default async function ReservationsPage({
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           {t("reservationsAt")} {property.propertyName}
         </p>
         {/* Offered whenever the Property has a Unit in service. Whether this

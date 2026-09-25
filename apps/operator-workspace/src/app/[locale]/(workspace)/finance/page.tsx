@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { FoliosTable } from "../../../../features/finance/components/folios-table";
 import { FolioPanel } from "../../../../features/finance/components/folio-panel";
 import {
@@ -36,6 +36,7 @@ export default async function FinancePage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
   await requireViewer(locale);
 
   const t = await getTranslations();
@@ -46,8 +47,8 @@ export default async function FinancePage({
   if (!property) {
     return (
       <EmptyState
-        description={t("notEntitledDescription")}
-        title={t("notEntitledTitle")}
+        description={t("noFinanceDescription")}
+        title={t("noFinanceTitle")}
       />
     );
   }
@@ -61,7 +62,7 @@ export default async function FinancePage({
     const back = `${localizeHref(locale, "finance")}?property=${property.propertyId}`;
     return (
       <>
-        <p className="text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           <Link className="hover:underline" href={back}>
             {t("allFolios")}
           </Link>
@@ -75,7 +76,7 @@ export default async function FinancePage({
 
   return (
     <>
-      <p className="text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         {t("foliosAt")} {property.propertyName}
       </p>
       <FoliosTable

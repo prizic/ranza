@@ -1,22 +1,27 @@
 import "../globals.css";
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
-import { IBM_Plex_Sans_Arabic } from "next/font/google";
+import { Geist, IBM_Plex_Sans_Arabic } from "next/font/google";
 import { notFound } from "next/navigation";
 import { directionFor, isSupportedLocale, supportedLocales } from "@ranza/i18n";
+import { DirectionProvider } from "@ranza/ui";
 import { NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 /**
- * One typeface for three scripts.
- *
- * IBM Plex Sans Arabic carries the Plex Latin alongside the Arabic, so Turkish
- * and Arabic are the same voice rather than two families bolted together — and
- * its Turkish diacritics are drawn rather than synthesised.
+ * Geist for Turkish and English, as in the Leaders portal the interface is
+ * matched to; IBM Plex Sans Arabic for Arabic, which Geist does not draw. The
+ * shared theme orders the two — see packages/ui's globals.css.
  */
+const geist = Geist({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-geist",
+  display: "swap",
+});
+
 const plex = IBM_Plex_Sans_Arabic({
   subsets: ["arabic", "latin"],
-  weight: ["300", "400", "600"],
+  weight: ["300", "400", "500", "600", "700"],
   variable: "--font-plex",
   display: "swap",
 });
@@ -55,17 +60,28 @@ export default async function LocaleLayout({
   // a wrong language is harder to notice than a missing page.
   if (!isSupportedLocale(locale)) notFound();
 
-  // Tells next-intl which locale this render is for, so the pages beneath stay
-  // static. Without it every page that reads a string becomes dynamic, and
+  // Tells next-intl which locale this render is for. It covers this layout and
+  // nothing a client navigation renders without it, so every page and layout
+  // beneath sets it again for itself; a page that does not falls back to
+  // Turkish on /en and /ar (tests/unit/pages-set-their-locale.test.ts).
+  // Without it every page that reads a string becomes dynamic, and
   // generateStaticParams above would be prerendering nothing.
   setRequestLocale(locale);
 
   return (
-    <html className={plex.variable} dir={directionFor(locale)} lang={locale}>
+    <html
+      className={`${geist.variable} ${plex.variable}`}
+      dir={directionFor(locale)}
+      lang={locale}
+    >
       <body>
         {/* The catalogue crosses to the client once, here, rather than
             being handed to each client component as a `copy` prop. */}
-        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider>
+          <DirectionProvider dir={directionFor(locale)}>
+            {children}
+          </DirectionProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

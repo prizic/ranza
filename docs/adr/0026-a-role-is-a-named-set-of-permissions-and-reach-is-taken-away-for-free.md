@@ -4,6 +4,21 @@ Date: 2026-09-17
 
 Status: Accepted
 
+Amended: 2026-09-24 — a role handed out is bounded by the hander's own. A
+command that grants — invite, change a role, undo a revoke — may leave a
+membership holding only a role whose permissions are all within the acting
+Staff Member's (SP-S1-34), the same ceiling slice 3 put on defining one. Without
+it, an Owner could author a role holding staff.administer alone and its holder
+could make themselves Owner. Decision 3 still holds: revoking is never refused,
+by money or by this. A demotion is changing a role and is bounded like one: the
+ceiling is asked of the role a membership is left holding. An administrator who
+may not grant a role may still revoke whoever holds it, but not undo that
+revoke; whether that dead end stands is open (SP-S1-34). An UPDATE policy's
+USING clause does see the row being replaced — the policies key on the
+resulting row because that is what a command hands out, not because the old row
+is invisible, as "When money may say no" below implies.
+`20260916004250_assigning_a_role_is_bounded_like_defining_one`.
+
 ## Context
 
 Staff and permissions is the first feature whose subject is authorization

@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  startTransition,
-  useActionState,
-  useEffect,
-  useRef,
-  type ComponentType,
-} from "react";
+import { startTransition, useActionState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { CalendarCheck, DoorOpen, Info } from "lucide-react";
 import type {
@@ -17,11 +11,11 @@ import type {
 import type { SupportedLocale } from "@ranza/i18n";
 import {
   Button,
-  Card,
   DataTable,
   EmptyState,
   FormError,
   PageHeader,
+  Stat,
 } from "@ranza/ui";
 import { useTableLabels } from "../../../lib/table-labels";
 import { markRooms, type MarkOutcome } from "../../../server/housekeeping";
@@ -38,8 +32,10 @@ import { STATUS_LOOK } from "./status";
  * is disabled while one is in flight and a double press cannot send two
  * (HK-S2-06).
  *
- * A selection is cleared only when a mark lands. A refused mark keeps it, so
- * the desk can see what they picked and try again (HK-S2-13).
+ * A selection is cleared when a mark lands. A refusal is followed by the board
+ * the page revalidates to, which is read-only when the refusal was the viewer's
+ * permission going, and then shows no selection control at all (HK-S2-13,
+ * decided by the product owner, 2026-09-24).
  */
 export function HousekeepingBoard({
   board,
@@ -208,27 +204,5 @@ export function HousekeepingBoard({
         searchColumns={["name", "building"]}
       />
     </div>
-  );
-}
-
-function Stat({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: ComponentType<{ className?: string }>;
-  label: string;
-  value: number;
-}) {
-  return (
-    <Card className="p-4">
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Icon aria-hidden="true" className="size-4" />
-        <span className="text-xs font-medium tracking-wider uppercase">
-          {label}
-        </span>
-      </div>
-      <div className="mt-2 text-2xl font-bold tabular-nums">{value}</div>
-    </Card>
   );
 }

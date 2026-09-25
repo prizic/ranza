@@ -35,9 +35,17 @@ import { SCREENS } from "./screens";
  * page falls back to the first Property the viewer reaches — a Property switch
  * nobody asked for. Only the switcher changes the Property, and it does so with
  * a full load, because ADR 0019 drops the client cache on a Property switch.
+ *
+ * A page reached with no `?property=` — Today, straight after signing in — is
+ * working in the Property the switcher names by default, so a link from it
+ * names that one too. Left bare, the next screen opened on the first Property
+ * with its own capability, which need not be the one the switcher still showed
+ * (HK-S1-24).
  */
-export function useWithProperty(): (href: string) => string {
-  const property = useSearchParams().get("property");
+export function useWithProperty(
+  defaultProperty: string | undefined,
+): (href: string) => string {
+  const property = useSearchParams().get("property") || defaultProperty;
   return (href) =>
     property ? `${href}?property=${encodeURIComponent(property)}` : href;
 }
@@ -45,9 +53,10 @@ export function useWithProperty(): (href: string) => string {
 export function useWorkspaceNav(
   locale: SupportedLocale,
   entitled: readonly string[],
+  defaultProperty: string | undefined,
 ): NavEntry[] {
   const t = useTranslations("navigation");
-  const withProperty = useWithProperty();
+  const withProperty = useWithProperty(defaultProperty);
   const label = (segment: string) => (t.has(segment) ? t(segment) : segment);
   return SCREENS.filter((screen) =>
     screen.children

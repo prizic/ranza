@@ -4,7 +4,15 @@ export type { RailLabels, SidebarLabels } from "./components/app-rail";
 export { SidebarProvider, useSidebar } from "./components/sidebar-context";
 export type { SidebarContextValue } from "./components/sidebar-context";
 export { AppPageBar } from "./components/app-page-bar";
+export type { PageCrumb } from "./components/app-page-bar";
 export { AccountMenu } from "./components/account-menu";
+export { LanguageSwitcher } from "./components/language-switcher";
+export type { LanguageSwitcherProps } from "./components/language-switcher";
+export { SplitAuthLayout } from "./components/split-auth-layout";
+export type {
+  AuthService,
+  SplitAuthLayoutProps,
+} from "./components/split-auth-layout";
 export {
   groupNavEntries,
   isNavGroup,
@@ -32,6 +40,7 @@ export { fieldMatches, toAsciiDigits } from "./lib/search";
 export { StatusBadge } from "./components/status-badge";
 export type { StatusBadgeProps, StatusTone } from "./components/status-badge";
 export { BrandMark } from "./components/brand-mark";
+export { DirectionProvider } from "./components/direction-provider";
 export { EmptyState } from "./components/empty-state";
 export { PlannedScreen } from "./components/planned-screen";
 export type { EmptyStateProps } from "./components/empty-state";
@@ -41,6 +50,7 @@ export {
   Field,
   FormError,
   PageHeader,
+  Stat,
 } from "./components/patterns";
 
 export { Badge } from "./components/ui/badge";
@@ -102,7 +112,10 @@ export { Progress } from "./components/ui/progress";
 export {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "./components/ui/select";

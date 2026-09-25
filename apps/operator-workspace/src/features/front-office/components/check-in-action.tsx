@@ -73,10 +73,15 @@ export function CheckInAction({
         // server reads readiness again rather than trusting this screen
         // (HK-S2-15, HK-S2-17).
         <div aria-live="polite" className="grid justify-items-end gap-1.5">
-          <p className="max-w-56 text-end text-step--1 text-warning">
+          <p className="max-w-48 text-end text-step--1 whitespace-normal text-warning">
             {t("roomNotReady")}
           </p>
-          <div className="flex gap-1.5">
+          {/* Stacked rather than side by side: at a desk's usual width the
+              row's edge padding (packages/ui data-table ROW_CARD) already
+              claims back what two buttons in a line need, and a column
+              sized to the wider of two stacked buttons is narrower than one
+              sized to both plus the gap between them. */}
+          <div className="flex flex-col items-end gap-1.5">
             <Button
               disabled={pending}
               onClick={() => setDeclined(true)}
@@ -108,7 +113,9 @@ export function CheckInAction({
         // Polite rather than assertive: the button already changed, so this is
         // additional detail and not an interruption.
         <div aria-live="polite">
-          <FormError>{message}</FormError>
+          <FormError className="max-w-56 text-end whitespace-normal">
+            {message}
+          </FormError>
         </div>
       ) : null}
     </form>

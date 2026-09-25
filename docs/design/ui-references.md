@@ -29,6 +29,17 @@ so these patterns have to fit the same screens as the hotel ones.
 | [StarRez](https://www.starrez.com/)                                      | Student housing lifecycle                           | Resident assignment, room selection, billing          |
 | [Ulyses Cloud](https://www.softwaredoit.es/ulysescloud/ulysescloud.html) | Room-status tiles grouped by floor                  | A readable floor grid: number, status, pending tasks  |
 
+## Our own products
+
+One internal application sets the visual language, rather than the layouts
+above, and is the source of truth for it. It is not public, so the pattern is
+described instead of linked.
+
+| Product        | Pattern to study                                                                | What Ranza takes                                                              |
+| -------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Leaders portal | Floating glass sidebar and bar, light titles, card rows, stat cards             | The workspace shell, the palette and Geist, recorded in `visual-reference.md` |
+| Leaders portal | Sign-in: ivory ground, gold swoosh, service row, floating card with pill fields | The sign-in screen of both applications                                       |
+
 ## The direction
 
 Combine: **Mews** for visual calm, **RoomRaccoon** for the reservation calendar,
@@ -57,9 +68,9 @@ languages with RTL, light and dark, the Operator Workspace, the resident Portal,
 the Storefront and the Prizic Control Plane. Nothing behind it is real; state
 lasts until the page reloads.
 
-Its `:root` is [`visual-reference.md`](visual-reference.md)'s token block
-verbatim, so it is also the closest thing to a rendering of the palette the
-theme is supposed to reach and does not yet.
+Its `:root` still carries the teal palette that
+[`visual-reference.md`](visual-reference.md) replaced with the Leaders direction
+on 2026-09-22, so read it for layout and density, not colour.
 
 **It is a shape reference, not a specification.** It shows what a screen wants to
 be once the module under it exists — not what may be built now. Where it and the

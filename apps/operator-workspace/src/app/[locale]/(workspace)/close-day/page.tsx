@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { CloseDayView } from "../../../../features/front-office/components/close-day-view";
 import {
   closeTheDay,
@@ -29,6 +29,7 @@ export default async function CloseDayPage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
 
   const t = await getTranslations();
   await requireViewer(locale);
@@ -47,7 +48,7 @@ export default async function CloseDayPage({
 
   return (
     <>
-      <p className="text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         {t("closeDay.at")} {property.propertyName}
       </p>
       <CloseDayView day={day} locale={locale} />

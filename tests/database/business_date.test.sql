@@ -194,7 +194,14 @@ insert into public.reservations
   ('b5111111-1111-4111-8111-111111111111', 'b1111111-1111-4111-8111-111111111111',
    'b2111111-1111-4111-8111-111111111111', 'b3111111-1111-4111-8111-111111111111',
    'b4111111-1111-4111-8111-111111111111', 'guest', 'confirmed',
-   date '2026-10-01', date '2026-10-03');
+   app.property_today('b2111111-1111-4111-8111-111111111111') + 30,
+   app.property_today('b2111111-1111-4111-8111-111111111111') + 32);
+
+-- What it was written with, read before the cutoff moves: moving it can move
+-- today, so the expectation cannot be recomputed afterwards.
+create temporary table written_with as
+  select (starts_on, ends_on)::text as dates from public.reservations
+   where id = 'b5111111-1111-4111-8111-111111111111';
 
 update public.properties set business_date_cutoff = time '06:00'
  where id = 'b2111111-1111-4111-8111-111111111111';
@@ -202,7 +209,7 @@ update public.properties set business_date_cutoff = time '06:00'
 select is(
   (select (starts_on, ends_on)::text from public.reservations
     where id = 'b5111111-1111-4111-8111-111111111111'),
-  '(2026-10-01,2026-10-03)',
+  (select dates from written_with),
   'a Reservation keeps the dates it was written with when the cutoff moves (CO-S1-20)'
 );
 

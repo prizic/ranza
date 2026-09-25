@@ -18,6 +18,10 @@ everything lands under Unreleased.
   same database refusal, `RZ001`, with `CheckInError` and `CheckOutError`: it
   is met only by one that began before the cutoff and commits after the day
   closed, and pressing again succeeds on the new day.
+- `listRoomCalendar()`: the room calendar's read (RANZ-25). Units against a
+  window of days, bookings and Stays as bars, the named gap marked as an
+  overlap rather than hidden, and nightly free counts. Read-only; no table and
+  no policy of its own.
 - `createReservation()`: the first thing in the product that creates one. A
   Guest and a Reservation in one transaction, with the audit record and the
   outbox event inside it. Created `confirmed`, because a front desk taking a

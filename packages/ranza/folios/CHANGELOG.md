@@ -16,6 +16,13 @@ everything lands under Unreleased.
   ([ADR 0024](../../../docs/adr/0024-a-guest-belongs-to-an-organization-and-a-reservation-holds-its-nights.md)).
   The join is still left: a Stay that began without a Reservation has no Guest
   recorded anywhere, and the Unit names them instead.
+- `folio_line_is_postable()` also refuses a line on a Folio whose Stay was
+  withdrawn. Without it, reversing a check-in left an open Folio attached to a
+  Stay that did not happen and it still accepted charges. An invariant rather
+  than a closure rule — it says what is representable, not when a Folio should
+  be closed. Added by
+  [`@ranza/reservations`](../reservations/README.md) in
+  `20260916001500_check_in_reversal`; this module still owns the function.
 
 ### Fixed
 
@@ -27,18 +34,12 @@ everything lands under Unreleased.
   ([ADR 0022](../../../docs/adr/0022-a-mistaken-check-in-is-reversed-not-deleted.md)).
   Reproduced on two connections before it was fixed.
 
-### Changed
-
-- `folio_line_is_postable()` also refuses a line on a Folio whose Stay was
-  withdrawn. Without it, reversing a check-in left an open Folio attached to a
-  Stay that did not happen and it still accepted charges. An invariant rather
-  than a closure rule — it says what is representable, not when a Folio should
-  be closed. Added by
-  [`@ranza/reservations`](../reservations/README.md) in
-  `20260916001500_check_in_reversal`; this module still owns the function.
-
 ### Added
 
+- `postChargeWithin(tx, userId, charge)`: a charge posted inside another
+  module's transaction, under the same policy, bounds and audit record as
+  `postCharge`, which now wraps it. Maintenance posts a damage charge this way
+  and links the line to its request in the same transaction.
 - The `folios` table: the financial record a Stay accrues against, carrying its
   own currency and holding no total.
 - The `folio_lines` table: append-only charges and the reversals that correct

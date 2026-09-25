@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { EmptyState } from "@ranza/ui";
-import { getTranslations } from "next-intl/server";
+import { Button, EmptyState } from "@ranza/ui";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ANY } from "../../../../features/audit-log/actions";
 import {
   AuditFilters,
@@ -58,6 +58,7 @@ export default async function AuditLogPage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
 
   const t = await getTranslations();
   const search = await searchParams;
@@ -70,10 +71,51 @@ export default async function AuditLogPage({
   );
 
   if (!property) {
+    // The switcher names a Property the log cannot be opened from, and there
+    // is one it can: a named Property no longer falls back to another, so say
+    // where it opens rather than a refusal that is untrue for this viewer.
+    // Linked here rather than left to the switcher, which lists the Properties
+    // Today is open at and leads back to Today — neither is this question.
+    // One link per Organization: the log is the Organization's, and which of
+    // its Properties it is opened from changes nothing in it (ADR 0031).
+    if (properties.length > 0) {
+      const entrances = new Map<string, (typeof properties)[number]>();
+      for (const candidate of properties) {
+        if (!entrances.has(candidate.organizationId)) {
+          entrances.set(candidate.organizationId, candidate);
+        }
+      }
+      return (
+        <EmptyState
+          action={
+            <ul className="flex flex-wrap gap-2">
+              {[...entrances.values()].map((entrance) => (
+                <li key={entrance.organizationId}>
+                  <Button asChild size="sm" variant="outline">
+                    <Link
+                      href={`${localizeHref(locale, "audit-log")}?property=${entrance.propertyId}`}
+                    >
+                      {entrance.organizationName}
+                    </Link>
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          }
+          description={t("auditNotHereDescription")}
+          title={t("auditNotHereTitle")}
+        />
+      );
+    }
+    // No Property to open the log from means no `audit.read` wherever the
+    // viewer reaches — a permission, not the Subscription the other screens'
+    // refusal speaks of: audit is not something an Organization buys. A role
+    // that holds it with no Property assigned lands here too, and telling the
+    // two apart would take a read of its own, so the copy names both remedies.
     return (
       <EmptyState
-        description={t("notEntitledDescription")}
-        title={t("notEntitledTitle")}
+        description={t("auditNotPermittedDescription")}
+        title={t("auditNotPermittedTitle")}
       />
     );
   }
@@ -87,7 +129,7 @@ export default async function AuditLogPage({
     const found = await auditRecord(property.propertyId, recordId);
     return (
       <>
-        <p className="text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           <Link className="hover:underline" href={listHref}>
             {t("allRecords")}
           </Link>
@@ -158,7 +200,7 @@ export default async function AuditLogPage({
 
   return (
     <>
-      <p className="text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         {t("auditLogFor")} {property.organizationName}
       </p>
       <AuditFilters

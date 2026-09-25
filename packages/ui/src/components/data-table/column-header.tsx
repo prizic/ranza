@@ -51,7 +51,10 @@ export function DataTableColumnHeader<TData, TValue>({
         // Cycles through all three: toggleSorting alone never returns to
         // unsorted, so the reader could not undo a sort once applied.
         aria-label={`${title} — ${next}`}
-        className={cn("-mx-2 h-8", sorted && "text-foreground")}
+        className={cn(
+          "-mx-2 h-8 text-[11px] tracking-[0.14em] uppercase",
+          sorted && "text-foreground",
+        )}
         onClick={() =>
           sorted === false
             ? column.toggleSorting(false)
