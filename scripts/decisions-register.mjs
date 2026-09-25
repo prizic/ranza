@@ -17,6 +17,7 @@ import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, existsSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { readBranchFeatures } from "./decisions-branches.mjs";
 import { parseCsv } from "./csv.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -320,18 +321,19 @@ const WARNINGS = {
   missing: "لم يُترجَم هذا الصف بعد — النص بالإنجليزية.",
   stale:
     "تغيّر هذا القرار بعد ترجمته — يُعرض النص الإنجليزي حتى تُحدَّث الترجمة.",
+  branch: "قرار على فرع لم يُدمَج بعد — يُترجَم عند دمجه.",
 };
 
 function renderRow(row, entry, adrFiles) {
   const kind = kindOf(row.status);
-  const state = translationState(row, entry);
+  const state = row.ref ? "branch" : translationState(row, entry);
   const ar = (key) =>
     state === "current" ? prose(entry[key], adrFiles) : undefined;
   const search = [row.id, ...ROW_FIELDS.map((key) => row[key])]
     .concat(state === "current" ? ROW_FIELDS.map((key) => entry[key]) : [])
     .join(" ")
     .toLowerCase();
-  return `<article class="row" data-kind="${kind}" data-search="${escapeHtml(search)}">
+  return `<article class="row${row.ref ? " unmerged" : ""}" data-kind="${kind}" data-search="${escapeHtml(search)}">
   <div class="row-head"><span class="id">${escapeHtml(row.id)}</span><span class="pill ${kind}">${plain(row.status.replaceAll("_", " "), STATUS_AR[row.status])}</span></div>
   ${state === "current" ? "" : `<p class="warning ar" lang="ar" dir="rtl">${WARNINGS[state]}</p>`}
   <h4>${both(prose(row.situation, adrFiles), ar("situation"))}</h4>
@@ -340,7 +342,7 @@ function renderRow(row, entry, adrFiles) {
     <dt>${plain("When", "عندما")}</dt><dd>${both(prose(row.when, adrFiles), ar("when"))}</dd>
     <dt>${kind === "decided" ? plain("Decided", "القرار") : plain("Then", "النتيجة")}</dt><dd class="answer">${both(prose(row.then, adrFiles), ar("then"))}</dd>
   </dl>
-  <p class="meta">${plain("Enforced by", "يُفرَض عبر")} <b>${plain(row.enforced_by.replaceAll("_", " "), ENFORCED_AR[row.enforced_by])}</b>${row.test_name ? ` · ${plain("test", "الاختبار")} <code>${escapeHtml(row.test_name)}</code>` : ""}</p>
+  <p class="meta">${plain("Enforced by", "يُفرَض عبر")} <b>${plain(row.enforced_by.replaceAll("_", " "), ENFORCED_AR[row.enforced_by])}</b>${row.test_name ? ` · ${plain("test", "الاختبار")} <code>${escapeHtml(row.test_name)}</code>` : ""}${row.ref ? ` · ${plain("on", "على")} <code>${escapeHtml(row.ref.name)}</code>` : ""}</p>
 </article>`;
 }
 
@@ -363,6 +365,23 @@ function renderNote(note, feature, rowsById, adrFiles) {
 </li>`;
 }
 
+function sourceLine(feature) {
+  const count = plain(
+    `${feature.rows.length} ${feature.rows.length === 1 ? "row" : "rows"}`,
+    `عدد الصفوف: ${feature.rows.length}`,
+  );
+  const file = `<code>docs/features/${escapeHtml(feature.slug)}/edge-cases.csv</code>`;
+  if (!feature.branchOnly) return `${file} · ${count}`;
+  const branches = [...new Set(feature.rows.map((row) => row.ref.name))];
+  const changed = feature.rows[0].ref.changed;
+  const where = branches
+    .map((name) => `<code>${escapeHtml(name)}</code>`)
+    .join(", ");
+  return feature.newFeature
+    ? `${file} ${plain("on", "على")} ${where} · ${plain(`table last changed ${changed}`, `آخر تعديل للجدول ${changed}`)} · ${count}`
+    : `${plain("Rows not yet on this branch, from", "صفوف لم تُدمَج بعد، من")} ${where} · ${count}`;
+}
+
 function renderFeature(feature, adrFiles) {
   const rowsById = new Map(feature.rows.map((row) => [row.id, row]));
   const tally = counts(kindsOf(feature));
@@ -379,10 +398,11 @@ function renderFeature(feature, adrFiles) {
         `<span class="pill ${kind}">${tally[kind]} ${plain(label.en.toLowerCase(), label.ar)}</span>`,
     )
     .join("");
-  return `<section class="feature" id="${escapeHtml(feature.slug)}">
+  const anchor = feature.branchOnly ? `unmerged-${feature.slug}` : feature.slug;
+  return `<section class="feature" id="${escapeHtml(anchor)}">
   <header class="feature-head">
     <h2>${plain(titleOf(feature.slug), feature.ar.title)}</h2>
-    <p class="source"><code>docs/features/${escapeHtml(feature.slug)}/edge-cases.csv</code> · ${plain(`${feature.rows.length} ${feature.rows.length === 1 ? "row" : "rows"}`, `عدد الصفوف: ${feature.rows.length}`)}</p>
+    <p class="source">${sourceLine(feature)}</p>
     <div class="pills">${summary}</div>
   </header>
   ${
@@ -426,12 +446,22 @@ export function renderRegister({
   adrs,
   adrTranslations,
   generatedAt,
+  unmerged = [],
 }) {
   const adrFiles = new Map(adrs.map((adr) => [adr.number, adr.file]));
   const withTable = features.filter((feature) => feature.hasTable);
   const withoutTable = features.filter((feature) => !feature.hasTable);
-  const all = counts(withTable.flatMap(kindsOf));
+  const onBranches = unmerged.map((feature) => ({
+    ...feature,
+    branchOnly: true,
+    ar: { title: "", entries: {} },
+  }));
+  const unmergedCount = onBranches.flatMap(kindsOf).length;
+  const all = counts([...withTable, ...onBranches].flatMap(kindsOf));
   const total = Object.values(all).reduce((sum, n) => sum + n, 0);
+  const featureCount =
+    withTable.length +
+    onBranches.filter((feature) => feature.newFeature).length;
   const rowCount = withTable.reduce((sum, f) => sum + f.rows.length, 0);
   const translated = coverage(withTable, adrs, adrTranslations);
 
@@ -514,6 +544,11 @@ html[data-lang="ar"] h1 { letter-spacing: 0; line-height: 1.25; }
 .totals span { color: var(--ink-muted); font-size: 13px; }
 .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 48px; }
 .columns h2 { font-size: 11px; line-height: 1; color: var(--ink-muted); margin: 0 0 12px; }
+.columns h2.sub { margin-top: 28px; }
+.unmerged-intro { margin-top: 64px; padding-top: 32px; border-top: 2px solid var(--ink); }
+.unmerged-intro h2 { font-size: 32px; letter-spacing: -0.02em; margin: 0 0 8px; font-weight: 600; }
+html[data-lang="ar"] .unmerged-intro h2 { letter-spacing: 0; }
+.row.unmerged { border-style: dashed; }
 .columns ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
 .columns li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
 .columns li a { text-decoration: none; }
@@ -578,19 +613,30 @@ html[data-lang="ar"] .row dt { font-size: 13px; line-height: 1.75; }
 ${translationNote}
 
 <div class="totals">
-  <div><b>${total}</b><span>${plain(`questions across ${withTable.length} features`, `سؤالًا في ${withTable.length} ميزات`)}</span></div>
+  <div><b>${total}</b><span>${plain(`questions across ${featureCount} features`, `سؤالًا في ${featureCount} ميزة`)}</span></div>
   ${Object.entries(KINDS)
     .map(
       ([kind, label]) =>
         `<div><b>${all[kind]}</b><span>${plain(label.en.toLowerCase(), label.ar)}</span></div>`,
     )
     .join("")}
+  ${unmergedCount ? `<div><b>${unmergedCount}</b><span>${plain("of them only on unmerged branches", "منها على فروع لم تُدمَج")}</span></div>` : ""}
 </div>
 
 <div class="columns">
   <div>
     <h2>${plain("Features", "الميزات")}</h2>
     <ul>${index}</ul>
+    ${
+      onBranches.length
+        ? `<h2 class="sub">${plain("On branches, not merged", "على فروع لم تُدمَج")}</h2><ul>${onBranches
+            .map(
+              (feature) =>
+                `<li><a href="#unmerged-${escapeHtml(feature.slug)}">${plain(titleOf(feature.slug), undefined)}</a><span class="meta"><code>${escapeHtml([...new Set(feature.rows.map((row) => row.ref.name))].join(", "))}</code></span></li>`,
+            )
+            .join("")}</ul>`
+        : ""
+    }
     ${
       withoutTable.length
         ? `<p class="meta">${plain("No decision table yet:", "لا يوجد جدول قرارات بعد:")} ${withoutTable.map((feature) => `<code>${escapeHtml(feature.slug)}</code>`).join(", ")}</p>`
@@ -610,6 +656,18 @@ ${translationNote}
 </div>
 
 ${withTable.map((feature) => renderFeature(feature, adrFiles)).join("\n")}
+${
+  onBranches.length
+    ? `<section class="unmerged-intro" id="unmerged">
+  <h2>${plain("Decided on branches, not yet merged", "قرارات على فروع لم تُدمَج بعد")}</h2>
+  <p class="lede">${plain(
+    "These tables and rows exist only on branches in this clone that are not part of this one — someone with other branches checked out sees a different list. They are real decisions under review, not settled ones: a branch can still change or drop them. Each row names its branch.",
+    "هذه الجداول والصفوف موجودة فقط على فروع في هذه النسخة لم تُدمَج في هذا الفرع — ومن لديه فروع أخرى يرى قائمة مختلفة. إنها قرارات قيد المراجعة لا قرارات نهائية: قد يغيّرها الفرع أو يسقطها. كل صف يذكر فرعه.",
+  )}</p>
+</section>
+${onBranches.map((feature) => renderFeature(feature, adrFiles)).join("\n")}`
+    : ""
+}
 <p class="empty" hidden>${plain("Nothing matches.", "لا توجد نتائج مطابقة.")}</p>
 </main>
 <script>
@@ -700,6 +758,9 @@ function main(args) {
     return;
   }
 
+  const unmerged = args.includes("--no-branches")
+    ? []
+    : readBranchFeatures(root, features, readNotes);
   const output = path.join(root, "docs/decisions.html");
   writeFileSync(
     output,
@@ -707,6 +768,7 @@ function main(args) {
       features,
       adrs,
       adrTranslations,
+      unmerged,
       generatedAt:
         new Date().toISOString().slice(0, 16).replace("T", " ") + " UTC",
     }),
@@ -720,6 +782,12 @@ function main(args) {
   console.log(
     `wrote ${path.relative(root, output)}: ${rows} rows from ${withTable.length} features, ${adrs.length} ADRs`,
   );
+  for (const feature of unmerged) {
+    const branches = [...new Set(feature.rows.map((row) => row.ref.name))];
+    console.log(
+      `  unmerged: ${feature.slug} — ${feature.rows.length} rows ${feature.newFeature ? "" : "added "}on ${branches.join(", ")}`,
+    );
+  }
   console.log(
     `Arabic: ${translated.current} current, ${translated.stale} out of date, ${translated.missing} missing rows, ${translated.notes} untranslated notes, ${translated.adrs} untranslated ADR titles, ${orphaned} orphaned — see \`pnpm decisions --pending ar\``,
   );

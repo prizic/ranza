@@ -5,6 +5,17 @@ the answers settled on — from `docs/features/*/edge-cases.csv`. This folder
 holds the Arabic for it. The English tables stay the record; nothing here can
 change a decision.
 
+## What the page reads
+
+- every `docs/features/*/edge-cases.csv` on the branch it runs in, and the
+  `%% OPEN:` / `%% DECIDED:` notes in the same folder's diagrams
+- the ADR index
+- decisions that exist only on **unmerged branches in this clone** — whole
+  tables this branch lacks, and rows branches add to tables it has — shown in
+  their own section with the branch each came from. They are read from git,
+  not checked out, and are not translated until they merge. `pnpm decisions
+--no-branches` leaves them out.
+
 ## Shape
 
 `ar/<feature>.json`, one per feature folder:
