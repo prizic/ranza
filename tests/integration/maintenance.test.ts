@@ -590,6 +590,16 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
     expect(bookable).not.toContain(SHARED_BED_A);
     expect(bookable).not.toContain(SHARED_BED_B);
     expect(bookable).toContain(ROOM);
+    // And the room calendar reads its beds out of order with it.
+    const calendar = await reservations.listRoomCalendar(MANAGER, PROPERTY, {
+      from: null,
+      days: null,
+    });
+    const room = calendar.units.find((row) => row.unitId === SHARED_ROOM);
+    expect(room?.beds.map((bed) => bed.status)).toEqual([
+      "out_of_service",
+      "out_of_service",
+    ]);
     await maintenance.returnToService(DESK, { requestId });
 
     const bed = await report(DESK, SHARED_BED_A, {
