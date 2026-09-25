@@ -114,6 +114,7 @@ pnpm check            # full gate: format, lint, boundaries, typecheck, tests, b
 pnpm db:test          # pgTAP suites in tests/database
 pnpm test:integration # real database: tenant isolation and the auth flow
 pnpm test:browser     # the workspace in a browser, against the local database
+pnpm decisions        # docs/decisions.html: every feature's questions and settled answers
 ```
 
 `pnpm check` must pass before any commit. It does **not** touch a database, so

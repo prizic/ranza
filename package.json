@@ -20,6 +20,7 @@
     "db:setup": "node scripts/db-setup.mjs",
     "db:test": "node scripts/db-test.mjs",
     "db:up": "docker compose up -d --wait",
+    "decisions": "node scripts/decisions-register.mjs",
     "dev": "node scripts/dev.mjs",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
