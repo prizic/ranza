@@ -15,12 +15,16 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { latestRecord } from "./audit-record";
 import { createAuditModule } from "../../packages/platform/audit/src";
-import { createPrismaClient } from "../../packages/db/src";
+import {
+  createPrismaClient,
+  withOrganizationContext,
+} from "../../packages/db/src";
 import {
   createFoliosModule,
   FolioAmountError,
   FolioWriteError,
   FOLIO_CAPABILITY,
+  postChargeWithin,
 } from "../../packages/ranza/folios/src";
 import {
   BalanceReasonError,
@@ -583,6 +587,66 @@ describe("closing a Folio", () => {
     await expect(folios.closeFolio(MEMBER, folioId)).rejects.toBeInstanceOf(
       FolioWriteError,
     );
+  });
+
+  /**
+   * Finance closes a Folio while a charge to it is posted and not yet
+   * committed — a damage charge from maintenance, say. A line's insert takes
+   * only a key-share lock on its Folio, which the closure's update does not
+   * conflict with, so without the Stay's lock the closure would commit first,
+   * audit a balance without the charge, and the charge would then land on a
+   * closed Folio. The charge is held open here, so the interleaving is the
+   * one that matters every run rather than one a timer happens to produce.
+   */
+  it("waits for a charge in flight before closing on its balance (MT-S5-10)", async () => {
+    const { folioId } = await checkInAt(
+      PROPERTY,
+      ORG,
+      await aBilledUnit(),
+      "Sabahattin Ali",
+    );
+    let releaseCharge!: () => void;
+    const chargeHeld = new Promise<void>((resolve) => {
+      releaseCharge = resolve;
+    });
+    let chargePosted!: () => void;
+    const posted = new Promise<void>((resolve) => {
+      chargePosted = resolve;
+    });
+
+    const charging = withOrganizationContext(
+      rival,
+      { userId: MEMBER },
+      async (tx) => {
+        await postChargeWithin(tx, MEMBER, {
+          folioId: folioId!,
+          description: "Broken lamp",
+          amountMinor: 2500,
+        });
+        chargePosted();
+        await chargeHeld;
+      },
+    );
+    await posted;
+
+    let closed = false;
+    const closing = folios.closeFolio(MEMBER, folioId!).then(() => {
+      closed = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const closedBeforeTheChargeCommitted = closed;
+    releaseCharge();
+    await Promise.all([charging, closing]);
+
+    expect(closedBeforeTheChargeCommitted).toBe(false);
+    const [lines] = await owner.$queryRawUnsafe<{ balanceMinor: number }[]>(
+      `select coalesce(sum(amount_minor), 0)::int as "balanceMinor"
+         from public.folio_lines where folio_id = $1::uuid`,
+      folioId,
+    );
+    expect(lines?.balanceMinor).toBe(2500);
+    const record = await latestRecord(owner, "folio.closed", folioId!);
+    expect(record?.context).toMatchObject({ balanceMinor: 2500 });
   });
 });
 

@@ -32,6 +32,7 @@ import {
 } from "vitest";
 import type { PropertySettings } from "../../packages/ranza/core/src";
 import type { InspectionSettings } from "../../packages/ranza/housekeeping/src";
+import type { MaintenanceSettings } from "../../packages/ranza/maintenance/src";
 import {
   isolate,
   supportedLocales,
@@ -42,10 +43,12 @@ import { screenFor } from "../../apps/operator-workspace/src/lib/screens";
 
 const settingsFor = vi.fn<() => Promise<PropertySettings | null>>();
 const inspectionFor = vi.fn<() => Promise<InspectionSettings | null>>();
+const maintenanceFor = vi.fn<() => Promise<MaintenanceSettings | null>>();
 const saveProperty = vi.fn();
 const renameOrganization = vi.fn();
 const previewBusinessDate = vi.fn();
 let locale: SupportedLocale = "en";
+let maintenanceShown: MaintenanceSettings | null = null;
 
 vi.mock("../../apps/operator-workspace/node_modules/server-only", () => ({}));
 vi.mock("next/navigation", () => ({
@@ -92,6 +95,7 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
     })),
   propertySettings: () => settingsFor(),
   housekeepingInspection: () => inspectionFor(),
+  maintenanceSettings: () => maintenanceFor(),
   timezoneNames: async () => ["Europe/Istanbul", "Pacific/Kiritimati", "UTC"],
 }));
 vi.mock("../../apps/operator-workspace/src/server/configuration", () => ({
@@ -101,6 +105,9 @@ vi.mock("../../apps/operator-workspace/src/server/configuration", () => ({
 }));
 vi.mock("../../apps/operator-workspace/src/server/housekeeping", () => ({
   setInspection: vi.fn(),
+}));
+vi.mock("../../apps/operator-workspace/src/server/maintenance", () => ({
+  saveMaintenanceSettings: vi.fn(),
 }));
 
 const { default: ConfigurationPage } =
@@ -140,6 +147,7 @@ async function pageFor(
   locale = as;
   settingsFor.mockResolvedValue(settings);
   inspectionFor.mockResolvedValue(inspection);
+  maintenanceFor.mockResolvedValue(maintenanceShown);
   const page = await ConfigurationPage({
     params: Promise.resolve({ locale: as }),
     searchParams: Promise.resolve({}),
@@ -267,6 +275,43 @@ describe("what the page holds", () => {
     await show(MANAGER);
     expect(document.getElementById("housekeeping")).toBeNull();
     expect(screen.queryByRole("link", { name: "Housekeeping" })).toBeNull();
+  });
+
+  it("the_maintenance_setting_is_maintenances_own", async () => {
+    maintenanceShown = {
+      organizationDefault: {
+        assigneeRequired: false,
+        returnOnDone: true,
+        returnAs: "dirty",
+      },
+      propertyOverride: {
+        assigneeRequired: null,
+        returnOnDone: null,
+        returnAs: null,
+      },
+      effective: {
+        assigneeRequired: false,
+        returnOnDone: true,
+        returnAs: "dirty",
+      },
+      mayConfigure: true,
+      mayConfigureDefault: true,
+    };
+    try {
+      await show(MANAGER);
+      expect(card("maintenance")).toBeVisible();
+      expect(screen.getByRole("link", { name: "Maintenance" })).toHaveAttribute(
+        "href",
+        "#maintenance",
+      );
+    } finally {
+      maintenanceShown = null;
+    }
+  });
+
+  it("no maintenance section without maintenance", async () => {
+    await show(MANAGER);
+    expect(document.getElementById("maintenance")).toBeNull();
   });
 
   it("links to Rooms for this Property and to People, rather than repeating them", async () => {

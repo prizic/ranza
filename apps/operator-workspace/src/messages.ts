@@ -275,6 +275,10 @@ export interface Messages {
       | "defineRoles"
       | "configureAccommodation"
       | "updateHousekeeping"
+      | "reportMaintenance"
+      | "manageMaintenance"
+      | "takeOutOfOrder"
+      | "manageEquipment"
       | "readAudit"
       | "manageConfiguration",
       string
@@ -364,6 +368,7 @@ export interface Messages {
   unblockingBed: string;
   blockReason: string;
   blockReasonHint: string;
+  blockReasonPlaceholder: string;
   statRooms: string;
   statBeds: string;
   statOccupied: string;
@@ -429,6 +434,91 @@ export interface Messages {
     >;
   };
 
+  /**
+   * The room calendar (RANZ-25). Grouped, so the screen's copy reads as one
+   * block in each language and `useTranslations("roomCalendar")` scopes it.
+   */
+  roomCalendar: {
+    title: string;
+    subtitle: string;
+    previous: string;
+    next: string;
+    today: string;
+    goTo: string;
+    length: string;
+    lengthOption: string;
+    floorFilter: string;
+    allFloors: string;
+    floorOption: string;
+    noFloor: string;
+    noBuilding: string;
+    search: string;
+    showRequested: string;
+    showDeparted: string;
+    collapseAll: string;
+    expandAll: string;
+    overlapCount: string;
+    bookedWhileBlockedCount: string;
+    legend: string;
+    requested: string;
+    confirmed: string;
+    inHouse: string;
+    overdue: string;
+    departed: string;
+    overlap: string;
+    clashes: string;
+    bookedWhileBlocked: string;
+    blocked: string;
+    outOfService: string;
+    gridLabel: string;
+    roomColumn: string;
+    freeRow: string;
+    freeOn: string;
+    expand: string;
+    collapse: string;
+    bedsTakenLabel: string;
+    barLabel: string;
+    noGuestRecorded: string;
+    noEndDate: string;
+    refreshFailed: string;
+    noRoomsTitle: string;
+    noRoomsDescription: string;
+    goToRooms: string;
+    noMatchTitle: string;
+    noMatchDescription: string;
+    clearFilters: string;
+    filteredNote: string;
+    nothingBooked: string;
+    failedTitle: string;
+    failedDescription: string;
+    retry: string;
+    loading: string;
+    goneTitle: string;
+    goneNote: string;
+    changedNote: string;
+    overlapNote: string;
+    clashNote: string;
+    clashStayNote: string;
+    clashesStay: string;
+    windowFailed: string;
+    blockedNote: string;
+    overdueNote: string;
+    arrives: string;
+    arrived: string;
+    leaves: string;
+    left: string;
+    booked: string;
+    nightsLabel: string;
+    nights: string;
+    stayType: string;
+    guest: string;
+    resident: string;
+    balance: string;
+    folioClosed: string;
+    open: Record<"arrivals" | "departures" | "reservations", string>;
+    /** The short word a bar carries beside a warning's icon, when it fits. */
+    barWord: Record<"overlap" | "bookedWhileBlocked" | "clashes", string>;
+  };
   /** The Housekeeping screen (RANZ-28). */
   housekeeping: {
     subtitle: string;
@@ -480,6 +570,184 @@ export interface Messages {
     defaultNeedsReach: string;
     settingReadOnly: string;
     awaitingInspection: string;
+  };
+
+  /** The Maintenance screen (RANZ-33). */
+  maintenance: {
+    heading: string;
+    newRequest: string;
+    requestsTab: string;
+    settingsTab: string;
+    statOpen: string;
+    statUrgent: string;
+    statOutOfOrder: string;
+    statDone: string;
+    reference: string;
+    bedInRoom: string;
+    outOfOrder: string;
+    backOn: string;
+    overdueSince: string;
+    notAssigned: string;
+    noLongerHere: string;
+    formerStaff: string;
+    emptyColumn: string;
+    noRequestsTitle: string;
+    noRequestsDescription: string;
+    readOnly: string;
+    filterPriority: string;
+    filterAssignee: string;
+    allPriorities: string;
+    everyone: string;
+    unassigned: string;
+    outOfOrderOnly: string;
+    showCancelled: string;
+    moveTo: string;
+    cardActions: string;
+    openRequest: string;
+    reportedBy: string;
+    reportedOn: string;
+    where: string;
+    details: string;
+    noDetails: string;
+    assignee: string;
+    priority: string;
+    state: string;
+    cancelReason: string;
+    outOfOrderSince: string;
+    heldAfterDone: string;
+    assign: string;
+    reopen: string;
+    cancelRequest: string;
+    cancelTitle: string;
+    cancelHint: string;
+    reason: string;
+    reasonPlaceholder: string;
+    keep: string;
+    takeOutOfOrder: string;
+    takeOutHint: string;
+    expectedBack: string;
+    returnToService: string;
+    returnHint: string;
+    note: string;
+    notePlaceholder: string;
+    reportTitle: string;
+    reportDescription: string;
+    whatIsWrong: string;
+    whatPlaceholder: string;
+    moreDetails: string;
+    unit: string;
+    chooseUnit: string;
+    howUrgent: string;
+    assignTo: string;
+    decideLater: string;
+    outOfOrderSwitch: string;
+    unitBlocked: string;
+    alreadyOut: string;
+    send: string;
+    saving: string;
+    save: string;
+    close: string;
+    impactTitle: string;
+    impactInHouse: string;
+    impactInHouseOpen: string;
+    impactBooking: string;
+    aGuest: string;
+    impactHint: string;
+    confirmOutOfOrder: string;
+    reported: string;
+    saved: string;
+    returned: string;
+    heldElsewhere: string;
+    stillOut: string;
+    refused: string;
+    invalid: string;
+    stale: string;
+    blocked: string;
+    needsAssignee: string;
+    outOfReach: string;
+    needsReturnPermission: string;
+    settingsTitle: string;
+    settingsHint: string;
+    assigneeRequired: string;
+    whenReturns: string;
+    onDone: string;
+    onConfirmation: string;
+    returnsAs: string;
+    organizationDefault: string;
+    thisProperty: string;
+    useDefault: string;
+    yes: string;
+    no: string;
+    settingRefused: string;
+    defaultNeedsReach: string;
+    settingReadOnly: string;
+    reportProblem: string;
+    equipmentTab: string;
+    planTab: string;
+    addEquipment: string;
+    editEquipment: string;
+    equipmentName: string;
+    equipmentNamePlaceholder: string;
+    category: string;
+    categoryPlaceholder: string;
+    whereIs: string;
+    atRoom: string;
+    atPlace: string;
+    place: string;
+    placePlaceholder: string;
+    interval: string;
+    intervalHint: string;
+    lastServiced: string;
+    nextService: string;
+    notScheduled: string;
+    neverServiced: string;
+    retire: string;
+    restore: string;
+    retired: string;
+    showRetired: string;
+    noEquipmentTitle: string;
+    noEquipmentDescription: string;
+    equipmentReadOnly: string;
+    noPlanTitle: string;
+    noPlanDescription: string;
+    daysOverdue: string;
+    dueToday: string;
+    inDays: string;
+    everyMonths: string;
+    createWorkOrder: string;
+    workOrderOpen: string;
+    workOrderTitle: string;
+    service: string;
+    equipment: string;
+    noEquipmentChosen: string;
+    noRoomChosen: string;
+    chooseRoomOrEquipment: string;
+    costTitle: string;
+    cost: string;
+    vendor: string;
+    vendorPlaceholder: string;
+    noCost: string;
+    chargeTitle: string;
+    chargeHint: string;
+    guest: string;
+    chooseGuest: string;
+    amount: string;
+    charge: string;
+    noChargeable: string;
+    reversedCharge: string;
+    inHouseNow: string;
+    leftOn: string;
+    loading: string;
+    chargeUnavailable: string;
+    actions: string;
+    change: string;
+    conditions: Record<"working" | "due" | "overdue" | "fault", string>;
+    states: Record<
+      "new" | "in_progress" | "waiting_for_parts" | "done" | "cancelled",
+      string
+    >;
+    priorities: Record<"urgent" | "this_week" | "can_wait", string>;
+    returnAs: Record<"dirty" | "clean" | "inspected", string>;
   };
 
   auditLog: string;
@@ -620,10 +888,33 @@ export interface Messages {
       | "role_reinstated",
       string
     >;
-    unit: Record<"added" | "blocked" | "unblocked", string>;
+    unit: Record<
+      | "added"
+      | "blocked"
+      | "unblocked"
+      | "taken_out_of_order"
+      | "returned_to_service",
+      string
+    >;
     housekeeping: Record<"status_changed" | "inspection_set", string>;
     property: Record<"configured", string>;
     organization: Record<"configured", string>;
+    maintenance_request: Record<
+      | "reported"
+      | "moved"
+      | "cancelled"
+      | "assigned"
+      | "prioritised"
+      | "hold_released"
+      | "costed"
+      | "guest_charged",
+      string
+    >;
+    maintenance_equipment: Record<
+      "added" | "changed" | "retired" | "restored" | "serviced",
+      string
+    >;
+    maintenance_setting: Record<"changed", string>;
   };
   auditSubject: Record<
     | "reservation"
@@ -633,7 +924,9 @@ export interface Messages {
     | "role"
     | "property"
     | "accommodation_unit"
-    | "organization",
+    | "organization"
+    | "maintenance_request"
+    | "maintenance_equipment",
     string
   >;
 
@@ -754,7 +1047,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     unitOccupied:
       "Bu birimde hâlâ konaklayan biri var. Önce onun çıkışını yapın ya da misafiri başka bir birime alın.",
     unitNotInService:
-      "Bu birim bloke ya da hizmet dışı. Blokeyi kaldırın ya da misafiri başka bir birime alın.",
+      "Bu birim bloke ya da hizmet dışı. Blokeyi kaldırın ya da hizmete döndürün, veya misafiri başka bir birime alın.",
+    blockReasonPlaceholder: "Bakım ya da onarım",
     roomNotReady:
       "Bu oda henüz hazır değil: temizlenmedi ya da kontrol bekliyor.",
     checkInAnyway: "Yine de giriş yap",
@@ -943,6 +1237,10 @@ export const messages: Record<SupportedLocale, Messages> = {
         defineRoles: "Rol tanımlama",
         configureAccommodation: "Odaları ve yatakları yapılandırma",
         updateHousekeeping: "Oda durumunu güncelleme",
+        reportMaintenance: "Bakım sorunu bildirme",
+        manageMaintenance: "Bakım taleplerini yönetme",
+        takeOutOfOrder: "Odaları hizmet dışı bırakma ve geri alma",
+        manageEquipment: "Ekipman kaydını yönetme",
         readAudit: "Denetim kaydını okuma",
         manageConfiguration: "Ayarları yönetme",
       },
@@ -1057,6 +1355,105 @@ export const messages: Record<SupportedLocale, Messages> = {
     reservedTonight: "Rezervasyonlu",
     reservedCount: "{count, number} rezervasyonlu",
     blockedStatus: "Kapalı",
+    roomCalendar: {
+      title: "{property} oda takvimi",
+      subtitle:
+        "Odalar ve yataklar, tesisin iş günlerine göre. Yalnızca görüntüleme: rezervasyon, yapıldığı yerde değiştirilir.",
+      previous: "Önceki hafta",
+      next: "Sonraki hafta",
+      today: "Bugün",
+      goTo: "Tarihe git",
+      length: "Gösterilen gün",
+      lengthOption: "{days, plural, other {# gün}}",
+      floorFilter: "Kat",
+      allFloors: "Tüm katlar",
+      floorOption: "Kat {floor}",
+      noFloor: "Katsız",
+      noBuilding: "Binasız",
+      search: "Oda veya misafir ara",
+      showRequested: "Talep",
+      showDeparted: "Ayrılan",
+      collapseAll: "Tüm yatakları daralt",
+      expandAll: "Tüm yatakları göster",
+      overlapCount: "{count, plural, other {# çakışma}}",
+      bookedWhileBlockedCount:
+        "{count, plural, other {# kapalı odada rezervasyon}}",
+      legend: "İşaretlerin anlamı",
+      requested: "Talep",
+      confirmed: "Onaylı",
+      inHouse: "Konaklıyor",
+      overdue: "Gecikmiş",
+      departed: "Ayrıldı",
+      overlap: "Çakışma",
+      clashes: "Bir rezervasyonla çakışıyor",
+      bookedWhileBlocked: "Kapalı odada rezervasyon",
+      blocked: "Kapalı",
+      outOfService: "Hizmet dışı",
+      gridLabel: "Gecelere göre odalar ve yataklar",
+      roomColumn: "Oda",
+      freeRow: "Boş",
+      freeOn: "{date}: {of, number} içinden {n, plural, other {# boş}}",
+      expand: "{room} yataklarını göster",
+      collapse: "{room} yataklarını daralt",
+      bedsTakenLabel: "{of, number} yatağın {n, number} tanesi dolu",
+      barLabel: "{guest}, {status}, {from} – {to}",
+      noGuestRecorded: "Kayıtlı misafir yok",
+      noEndDate: "Bitiş tarihi yok",
+      refreshFailed: "Yenilenemedi. Takvim {time} itibarıyla gösteriliyor.",
+      noRoomsTitle: "Henüz oda yok",
+      noRoomsDescription:
+        "Oda ve yatak eklediğinizde burada günlere göre görünür.",
+      goToRooms: "Odalar ve yataklara git",
+      noMatchTitle: "Eşleşen oda yok",
+      noMatchDescription:
+        "Seçilen kat, arama veya filtrelerle eşleşen bir şey yok.",
+      clearFilters: "Filtreleri temizle",
+      filteredNote:
+        "Filtrelendi. Boş ve çakışma sayıları yine tüm odaları kapsar.",
+      nothingBooked: "{from} – {to} arasında rezervasyon yok.",
+      failedTitle: "Oda takvimi gösterilemedi",
+      failedDescription: "Hiçbir şey değiştirilmedi. Birazdan tekrar deneyin.",
+      retry: "Tekrar dene",
+      loading: "Oda takvimi yükleniyor",
+      goneTitle: "Artık takvimde değil",
+      goneNote:
+        "Bu rezervasyon, açtığınızdan beri iptal edildi, çıkış yaptı ya da bu aralığın dışına çıktı.",
+      changedNote: "Bu rezervasyon, açtığınızdan beri değişti.",
+      overlapNote:
+        "Bu odada bu gecelerin bir kısmını başka bir rezervasyon tutuyor. Misafir gelmeden çözün.",
+      clashNote:
+        "Bu talep onaylı bir rezervasyonla çakışıyor; bu haliyle onaylanırsa reddedilir.",
+      clashStayNote:
+        "Bu talep bu gecelerde konaklayan bir misafirle çakışıyor; bu haliyle onaylanırsa reddedilir.",
+      clashesStay: "Konaklayan bir misafirle çakışıyor",
+      windowFailed:
+        "Bu aralık açılamadı. {time} itibarıyla önceki aralık gösteriliyor.",
+      blockedNote:
+        "Bu oda kullanım dışı ({reason}); serbest bırakılana kadar girişi reddedilir.",
+      overdueNote: "Gecikmiş: {date} tarihinde ayrılmaları gerekiyordu.",
+      arrives: "Geliş",
+      arrived: "Geldi",
+      leaves: "Ayrılış",
+      left: "Ayrıldı",
+      booked: "Rezervasyon",
+      nightsLabel: "Gece",
+      nights: "{count, plural, other {# gece}}",
+      stayType: "Tür",
+      guest: "Misafir",
+      resident: "Sakin",
+      balance: "Bakiye",
+      folioClosed: "Folyo kapalı",
+      open: {
+        arrivals: "Girişlerde aç",
+        departures: "Çıkışlarda aç",
+        reservations: "Rezervasyonlarda aç",
+      },
+      barWord: {
+        overlap: "Çakışma",
+        bookedWhileBlocked: "Kapalı",
+        clashes: "Çakışıyor",
+      },
+    },
 
     configuration: {
       subtitle: "{property} ve organizasyonu için ayarlar",
@@ -1175,6 +1572,216 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Organizasyon ayarını yalnızca tüm tesislere erişimi olan biri değiştirebilir.",
       settingReadOnly: "Bunu bir yönetici değiştirebilir.",
       awaitingInspection: "Kontrol bekliyor",
+    },
+    maintenance: {
+      heading: "{property} bakım",
+      newRequest: "Yeni talep",
+      requestsTab: "Talepler",
+      settingsTab: "Ayarlar",
+      statOpen: "Açık",
+      statUrgent: "Acil",
+      statOutOfOrder: "Hizmet dışı",
+      statDone: "30 günde biten",
+      reference: "MT-{number}",
+      bedInRoom: "Yatak {bed} · {room}",
+      outOfOrder: "Hizmet dışı",
+      backOn: "Dönüş {date}",
+      overdueSince: "{date} tarihinde dönmesi gerekiyordu",
+      notAssigned: "Atanmadı",
+      noLongerHere: "{name} (artık bu tesiste değil)",
+      formerStaff: "Eski bir çalışan",
+      emptyColumn: "Burada bir şey yok",
+      noRequestsTitle: "{property} için talep yok",
+      noRequestsDescription:
+        "Bir şey bozulduğunda buradan ya da Odalar ekranından bildirin. Tesisteki herkes bildirebilir.",
+      readOnly:
+        "Tüm talepleri görebilirsiniz. Taşımak, atamak ve iptal etmek için bakım yönetme yetkisi gerekir.",
+      filterPriority: "Öncelik",
+      filterAssignee: "Atanan",
+      allPriorities: "Tüm öncelikler",
+      everyone: "Herkes",
+      unassigned: "Atanmamış",
+      outOfOrderOnly: "Yalnızca hizmet dışı",
+      showCancelled: "İptal edilenleri göster",
+      moveTo: "{state} durumuna taşı",
+      cardActions: "MT-{number} işlemleri",
+      openRequest: "MT-{number} aç",
+      reportedBy: "Bildiren: {who}",
+      reportedOn: "Bildirim: {when}",
+      where: "Nerede",
+      details: "Ayrıntılar",
+      noDetails: "Ayrıntı verilmedi.",
+      assignee: "Atanan kişi",
+      priority: "Öncelik",
+      state: "Durum",
+      cancelReason: "İptal nedeni",
+      outOfOrderSince: "{when} tarihinden beri",
+      heldAfterDone:
+        "Tamamlandı; oda biri hizmete döndürene kadar hizmet dışı kalır.",
+      assign: "Ata",
+      reopen: "Yeniden aç",
+      cancelRequest: "Talebi iptal et",
+      cancelTitle: "MT-{number} iptal edilsin mi?",
+      cancelHint:
+        "Yalnızca yanlışlıkla bildirilen ya da arıza olmayan talepleri iptal edin. Onarılan bir şeyi Tamamlandı'ya taşıyın.",
+      reason: "Neden",
+      reasonPlaceholder: "İki kez bildirildi",
+      keep: "Vazgeç",
+      takeOutOfOrder: "Odayı hizmet dışı bırak",
+      takeOutHint:
+        "Ön büro, oda hizmete dönene kadar onu satamaz ve kimseyi giriş yaptıramaz.",
+      expectedBack: "Beklenen dönüş (isteğe bağlı)",
+      returnToService: "Hizmete döndür",
+      returnHint:
+        "Oda yeniden kullanılabilir olur. Olduğundan daha temiz geri dönmez.",
+      note: "Not (isteğe bağlı)",
+      notePlaceholder: "Kontrol edildi, çalışıyor",
+      reportTitle: "Sorun bildir",
+      reportDescription:
+        "Tesisteki herkes bildirebilir. Bakım ekibi hemen görür.",
+      whatIsWrong: "Sorun ne?",
+      whatPlaceholder: "Duş gideri tıkalı",
+      moreDetails: "Ayrıntılar (isteğe bağlı)",
+      unit: "Oda ya da yatak",
+      chooseUnit: "Oda ya da yatak seçin",
+      howUrgent: "Ne kadar acil?",
+      assignTo: "Ata",
+      decideLater: "Sonra karar ver",
+      outOfOrderSwitch: "Onarılana kadar hizmet dışı bırak",
+      unitBlocked: "Bu oda bloke; zaten satılmıyor.",
+      alreadyOut: "Zaten hizmet dışı",
+      send: "Talebi gönder",
+      saving: "Kaydediliyor…",
+      save: "Kaydet",
+      close: "Kapat",
+      impactTitle: "Etkilenen biri var",
+      impactInHouse: "{guest}, {date} tarihine kadar {unit} biriminde kalıyor.",
+      impactInHouseOpen: "{guest}, {unit} biriminde kalıyor.",
+      impactBooking: "{guest}, {from} tarihinden itibaren {unit} için rezerve.",
+      aGuest: "Bir konuk",
+      impactHint:
+        "Hiçbir şey iptal edilmez ya da taşınmaz. Ön büronun onları taşıması gerekecek.",
+      confirmOutOfOrder: "Yine de hizmet dışı bırak",
+      reported: "MT-{number} talebi gönderildi.",
+      saved: "Kaydedildi.",
+      returned: "Oda yeniden hizmette.",
+      heldElsewhere:
+        "Bırakıldı. Oda başka bir talep nedeniyle hizmet dışı kalıyor.",
+      stillOut:
+        "Tamamlandı. Oda, odaları hizmete döndürme yetkisi olan biri onaylayana kadar hizmet dışı kalır.",
+      refused: "Bu işlem gerçekleşmedi. Sayfa şu anki durumu gösteriyor.",
+      invalid: "Formda doğru olmayan bir şey var.",
+      stale: "Bu talebi önce başka biri taşıdı. Şimdi {state} durumunda.",
+      blocked: "Bu oda bloke; hizmet dışı bırakılamaz.",
+      needsAssignee:
+        "Önce birini atayın. Bu tesis iş başlamadan önce bir atama ister.",
+      outOfReach: "Bu kişi bu tesiste çalışmıyor.",
+      needsReturnPermission:
+        "Odayı hizmete döndürmek için odaları hizmet dışı bırakma yetkisi gerekir.",
+      settingsTitle: "Burada bakım nasıl işler",
+      settingsHint:
+        "Bir tesis, aksini belirtmedikçe organizasyonunu izler. Değişiklik bir sonraki işleme uygulanır, zaten hizmet dışı olana değil.",
+      assigneeRequired: "İş başlamadan önce biri atanır",
+      whenReturns: "Oda hizmete döner",
+      onDone: "Talebi tamamlandığında",
+      onConfirmation: "Yalnızca biri onayladığında",
+      returnsAs: "Şu durumda döner",
+      organizationDefault: "Organizasyon varsayılanı",
+      thisProperty: "Bu tesis",
+      useDefault: "Organizasyonunkini kullan ({value})",
+      yes: "Evet",
+      no: "Hayır",
+      settingRefused: "Ayar kaydedilmedi.",
+      defaultNeedsReach:
+        "Varsayılanı değiştirmek için tüm tesislere erişim gerekir.",
+      settingReadOnly: "Bunu değiştirmek için bakım yönetme yetkisi gerekir.",
+      reportProblem: "Sorun bildir",
+      equipmentTab: "Ekipman",
+      planTab: "Bakım planı",
+      addEquipment: "Ekipman ekle",
+      editEquipment: "Ekipmanı değiştir",
+      equipmentName: "Ad",
+      equipmentNamePlaceholder: "Çamaşır makineleri",
+      category: "Kategori",
+      categoryPlaceholder: "Çamaşırhane",
+      whereIs: "Nerede",
+      atRoom: "Bir odada",
+      atPlace: "Başka bir yerde",
+      place: "Yer",
+      placePlaceholder: "Çamaşır odası",
+      interval: "Bakım sıklığı (ay)",
+      intervalHint: "Düzenli bakımı yoksa boş bırakın.",
+      lastServiced: "Son bakım",
+      nextService: "Sonraki bakım",
+      notScheduled: "Planlanmadı",
+      neverServiced: "Henüz bakım yapılmadı",
+      retire: "Kullanımdan kaldır",
+      restore: "Geri al",
+      retired: "Kullanımda değil",
+      showRetired: "Kullanımda olmayanları göster",
+      noEquipmentTitle: "{property} için ekipman yok",
+      noEquipmentDescription:
+        "Bakımı yapılan ve bozulabilen şeyleri — kazanlar, asansörler, makineler — kaydedin ve bakımlarını planlayın.",
+      equipmentReadOnly:
+        "Kaydı değiştirmek için ekipman yönetme yetkisi gerekir.",
+      noPlanTitle: "Planlanmış bir şey yok",
+      noPlanDescription:
+        "Ekipman altında bir kaleme bakım sıklığı verin; sonraki bakım tarihine göre burada görünür.",
+      daysOverdue: "{count, plural, other {# gün gecikti}}",
+      dueToday: "Bugün",
+      inDays: "{count, plural, other {# gün içinde}}",
+      everyMonths: "{count, plural, one {her ay} other {her # ayda bir}}",
+      createWorkOrder: "İş emri oluştur",
+      workOrderOpen: "MT-{number} iş emri açık",
+      workOrderTitle: "Bakım: {name}",
+      service: "Periyodik bakım",
+      equipment: "Ekipman",
+      noEquipmentChosen: "Ekipman yok",
+      noRoomChosen: "Oda yok",
+      chooseRoomOrEquipment: "Bir oda, ekipman ya da ikisini seçin.",
+      costTitle: "Maliyet",
+      cost: "Tutar",
+      vendor: "Yapan",
+      vendorPlaceholder: "Boğaz Teknik",
+      noCost: "Maliyet girilmedi",
+      chargeTitle: "Konuğa ücret yansıt",
+      chargeHint:
+        "Konuğun folyosuna bir satır. Hata olursa folyoda iptal edilir.",
+      guest: "Konuk",
+      chooseGuest: "Konuk seçin",
+      amount: "Tutar",
+      charge: "Yansıt",
+      noChargeable: "Bu odada kalan kimsenin açık folyosu yok.",
+      reversedCharge: "iptal edildi",
+      inHouseNow: "konaklıyor",
+      leftOn: "{date} tarihinde ayrıldı",
+      loading: "Yükleniyor…",
+      chargeUnavailable: "Konuklar şu anda yüklenemedi. Tekrar deneyin.",
+      actions: "İşlemler",
+      change: "Değiştir",
+      conditions: {
+        working: "Çalışıyor",
+        due: "Bakım zamanı",
+        overdue: "Bakım gecikti",
+        fault: "Arızalı",
+      },
+      states: {
+        new: "Yeni",
+        in_progress: "Sürüyor",
+        waiting_for_parts: "Parça bekleniyor",
+        done: "Tamamlandı",
+        cancelled: "İptal edildi",
+      },
+      priorities: {
+        urgent: "Acil",
+        this_week: "Bu hafta",
+        can_wait: "Bekleyebilir",
+      },
+      returnAs: {
+        dirty: "Kirli",
+        clean: "Temiz",
+        inspected: "Kontrol edildi",
+      },
     },
 
     auditLog: "Denetim kaydı",
@@ -1298,6 +1905,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         added: "Birim eklendi",
         blocked: "Birim kapatıldı",
         unblocked: "Birim açıldı",
+        taken_out_of_order: "Hizmet dışı bırakıldı",
+        returned_to_service: "Hizmete döndü",
       },
       housekeeping: {
         status_changed: "Oda durumu değiştirildi",
@@ -1305,6 +1914,26 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       property: { configured: "Tesis ayarları değiştirildi" },
       organization: { configured: "Organizasyon yeniden adlandırıldı" },
+      maintenance_request: {
+        reported: "Sorun bildirildi",
+        moved: "Talep taşındı",
+        cancelled: "Talep iptal edildi",
+        assigned: "Talep atandı",
+        prioritised: "Öncelik değişti",
+        hold_released: "Oda bırakıldı, başka bir talep tutuyor",
+        costed: "Maliyet girildi",
+        guest_charged: "Hasar konuğa yansıtıldı",
+      },
+      maintenance_setting: {
+        changed: "Bakım ayarı değişti",
+      },
+      maintenance_equipment: {
+        added: "Ekipman eklendi",
+        changed: "Ekipman değiştirildi",
+        retired: "Ekipman kullanımdan kaldırıldı",
+        restored: "Ekipman geri alındı",
+        serviced: "Ekipmana bakım yapıldı",
+      },
     },
     auditSubject: {
       reservation: "Rezervasyon",
@@ -1315,6 +1944,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       property: "Tesis",
       accommodation_unit: "Konaklama birimi",
       organization: "Organizasyon",
+      maintenance_request: "Bakım talebi",
+      maintenance_equipment: "Ekipman",
     },
     table: {
       results: "{n, plural, other {# sonuç}}",
@@ -1343,11 +1974,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       today: "Bugün",
       "front-office": "Ön büro",
       reservations: "Rezervasyonlar",
+      "room-calendar": "Oda takvimi",
       rooms: "Odalar ve yataklar",
       arrivals: "Girişler",
       departures: "Çıkışlar",
       "guest-experience": "Konuk deneyimi",
       housekeeping: "Kat hizmetleri",
+      maintenance: "Bakım",
       "food-and-beverage": "Yiyecek içecek",
       inventory: "Stok",
       finance: "Finans",
@@ -1450,7 +2083,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     unitOccupied:
       "Somebody is still staying in that Unit. Check them out first, or put this Guest in another Unit.",
     unitNotInService:
-      "That Unit is blocked or out of service. Unblock it, or put this Guest in another Unit.",
+      "That Unit is blocked or out of order. Unblock it or return it to service, or put this Guest in another Unit.",
+    blockReasonPlaceholder: "Maintenance or repair",
     roomNotReady:
       "This room isn't ready yet — it hasn't been cleaned, or it's waiting for inspection.",
     checkInAnyway: "Check in anyway",
@@ -1639,6 +2273,10 @@ export const messages: Record<SupportedLocale, Messages> = {
         defineRoles: "Define roles",
         configureAccommodation: "Configure rooms & beds",
         updateHousekeeping: "Update room status",
+        reportMaintenance: "Report a maintenance problem",
+        manageMaintenance: "Work maintenance requests",
+        takeOutOfOrder: "Take rooms out of order and back",
+        manageEquipment: "Keep the equipment register",
         readAudit: "Reading the audit log",
         manageConfiguration: "Manage configuration",
       },
@@ -1752,6 +2390,107 @@ export const messages: Record<SupportedLocale, Messages> = {
     reservedTonight: "Reserved",
     reservedCount: "{count, number} reserved",
     blockedStatus: "Blocked",
+    roomCalendar: {
+      title: "Room calendar at {property}",
+      subtitle:
+        "Rooms and beds against the Property's business days. Read-only: a booking is changed where it was made.",
+      previous: "Previous week",
+      next: "Next week",
+      today: "Today",
+      goTo: "Go to a date",
+      length: "Days shown",
+      lengthOption: "{days, plural, one {# day} other {# days}}",
+      floorFilter: "Floor",
+      allFloors: "All floors",
+      floorOption: "Floor {floor}",
+      noFloor: "No floor",
+      noBuilding: "No building",
+      search: "Search a room or Guest",
+      showRequested: "Requested",
+      showDeparted: "Departed",
+      collapseAll: "Fold all beds",
+      expandAll: "Show all beds",
+      overlapCount: "{count, plural, one {# overlap} other {# overlaps}}",
+      bookedWhileBlockedCount:
+        "{count, plural, one {# booked while blocked} other {# booked while blocked}}",
+      legend: "What the marks mean",
+      requested: "Requested",
+      confirmed: "Confirmed",
+      inHouse: "In house",
+      overdue: "Overdue",
+      departed: "Departed",
+      overlap: "Overlap",
+      clashes: "Clashes with a booking",
+      bookedWhileBlocked: "Booked while blocked",
+      blocked: "Blocked",
+      outOfService: "Out of service",
+      gridLabel: "Rooms and beds by night",
+      roomColumn: "Room",
+      freeRow: "Free",
+      freeOn:
+        "{date}: {n, plural, one {# of {of, number} free} other {# of {of, number} free}}",
+      expand: "Show the beds of {room}",
+      collapse: "Fold the beds of {room}",
+      bedsTakenLabel: "{n, number} of {of, number} beds taken",
+      barLabel: "{guest}, {status}, {from} to {to}",
+      noGuestRecorded: "No Guest recorded",
+      noEndDate: "No end date",
+      refreshFailed:
+        "Couldn't refresh. Showing the calendar as it was at {time}.",
+      noRoomsTitle: "No rooms yet",
+      noRoomsDescription:
+        "Add rooms and beds, and they appear here against the days.",
+      goToRooms: "Go to Rooms & beds",
+      noMatchTitle: "No rooms match",
+      noMatchDescription:
+        "Nothing on this calendar matches the floor, search or filters chosen.",
+      clearFilters: "Clear filters",
+      filteredNote:
+        "Filtered. The free and overlap counts still cover every room.",
+      nothingBooked: "Nothing is booked from {from} to {to}.",
+      failedTitle: "The room calendar could not be shown",
+      failedDescription: "Nothing was changed. Try again in a moment.",
+      retry: "Try again",
+      loading: "Loading the room calendar",
+      goneTitle: "No longer on the calendar",
+      goneNote:
+        "This booking was cancelled, checked out or moved out of this window since you opened it.",
+      changedNote: "This booking has changed since you opened it.",
+      overlapNote:
+        "Another booking holds some of these nights in this room. Resolve it before the Guest arrives.",
+      clashNote:
+        "This request clashes with a confirmed booking; confirming it as it stands would be refused.",
+      clashStayNote:
+        "This request clashes with a Guest in house on these nights; confirming it as it stands would be refused.",
+      clashesStay: "Clashes with a Guest in house",
+      windowFailed:
+        "That window couldn't be opened. Still showing the one before, as it was at {time}.",
+      blockedNote:
+        "This room is out of use ({reason}), so its check-in will be refused until it is released.",
+      overdueNote: "Overdue: they were due to leave on {date}.",
+      arrives: "Arrives",
+      arrived: "Arrived",
+      leaves: "Leaves",
+      left: "Left",
+      booked: "Booked",
+      nightsLabel: "Nights",
+      nights: "{count, plural, one {# night} other {# nights}}",
+      stayType: "Type",
+      guest: "Guest",
+      resident: "Resident",
+      balance: "Balance",
+      folioClosed: "Folio closed",
+      open: {
+        arrivals: "Open in Arrivals",
+        departures: "Open in Departures",
+        reservations: "Open in Reservations",
+      },
+      barWord: {
+        overlap: "Overlap",
+        bookedWhileBlocked: "Blocked",
+        clashes: "Clash",
+      },
+    },
 
     configuration: {
       subtitle: "Settings for {property} and its Organization",
@@ -1872,6 +2611,217 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Only someone who reaches every Property can change the Organization's setting.",
       settingReadOnly: "A manager can change this.",
       awaitingInspection: "Waiting for inspection",
+    },
+    maintenance: {
+      heading: "Maintenance at {property}",
+      newRequest: "New request",
+      requestsTab: "Requests",
+      settingsTab: "Settings",
+      statOpen: "Open",
+      statUrgent: "Urgent",
+      statOutOfOrder: "Out of order",
+      statDone: "Done in 30 days",
+      reference: "MT-{number}",
+      bedInRoom: "Bed {bed} · {room}",
+      outOfOrder: "Out of order",
+      backOn: "Back {date}",
+      overdueSince: "Was due back {date}",
+      notAssigned: "Not assigned",
+      noLongerHere: "{name} (no longer at this Property)",
+      formerStaff: "A former Staff Member",
+      emptyColumn: "Nothing here",
+      noRequestsTitle: "No requests at {property}",
+      noRequestsDescription:
+        "When something breaks, report it here or from Rooms. Anyone at the Property can.",
+      readOnly:
+        "You can see every request. Moving, assigning and cancelling them needs the permission to manage maintenance.",
+      filterPriority: "Priority",
+      filterAssignee: "Assignee",
+      allPriorities: "Any priority",
+      everyone: "Anyone",
+      unassigned: "Not assigned",
+      outOfOrderOnly: "Out of order only",
+      showCancelled: "Show cancelled",
+      moveTo: "Move to {state}",
+      cardActions: "Actions for MT-{number}",
+      openRequest: "Open MT-{number}",
+      reportedBy: "Reported by {who}",
+      reportedOn: "Reported {when}",
+      where: "Where",
+      details: "Details",
+      noDetails: "No details given.",
+      assignee: "Assigned to",
+      priority: "Priority",
+      state: "State",
+      cancelReason: "Why it was cancelled",
+      outOfOrderSince: "Since {when}",
+      heldAfterDone:
+        "Done, and the room stays out of order until someone returns it to service.",
+      assign: "Assign",
+      reopen: "Reopen",
+      cancelRequest: "Cancel request",
+      cancelTitle: "Cancel MT-{number}?",
+      cancelHint:
+        "Cancel only what was reported by mistake or is not a fault. When something is fixed, move it to Done instead.",
+      reason: "Reason",
+      reasonPlaceholder: "Reported twice",
+      keep: "Keep it",
+      takeOutOfOrder: "Take room out of order",
+      takeOutHint:
+        "The front desk will not be able to sell it or check anyone into it until it returns to service.",
+      expectedBack: "Expected back (optional)",
+      returnToService: "Return to service",
+      returnHint:
+        "The room becomes available again. It comes back no cleaner than it was.",
+      note: "Note (optional)",
+      notePlaceholder: "Checked and working",
+      reportTitle: "Report a problem",
+      reportDescription:
+        "Anyone at the Property can report. The people who work on maintenance see it straight away.",
+      whatIsWrong: "What is wrong?",
+      whatPlaceholder: "The shower drain is blocked",
+      moreDetails: "Details (optional)",
+      unit: "Room or bed",
+      chooseUnit: "Choose a room or bed",
+      howUrgent: "How urgent?",
+      assignTo: "Assign to",
+      decideLater: "Decide later",
+      outOfOrderSwitch: "Take it out of order until it is fixed",
+      unitBlocked: "This room is blocked, so it is already not sold.",
+      alreadyOut: "Already out of order",
+      send: "Send request",
+      saving: "Saving…",
+      save: "Save",
+      close: "Close",
+      impactTitle: "Somebody is affected",
+      impactInHouse: "{guest} is staying in {unit} until {date}.",
+      impactInHouseOpen: "{guest} is staying in {unit}.",
+      impactBooking: "{guest} is booked into {unit} from {from}.",
+      aGuest: "A Guest",
+      impactHint:
+        "Nothing will be cancelled or moved. The front desk will need to move them.",
+      confirmOutOfOrder: "Take it out of order anyway",
+      reported: "Request MT-{number} sent.",
+      saved: "Saved.",
+      returned: "The room is back in service.",
+      heldElsewhere:
+        "Let go. Another request still keeps the room out of order.",
+      stillOut:
+        "Done. The room stays out of order until someone who may return rooms confirms it.",
+      refused: "That did not go through. The page now shows what is true.",
+      invalid: "Something in the form is not right.",
+      stale: "Someone else moved this request first. It is now {state}.",
+      blocked: "This room is blocked, so it cannot be taken out of order.",
+      needsAssignee:
+        "Assign someone first. This Property asks for an assignee before work starts.",
+      outOfReach: "That person does not work at this Property.",
+      needsReturnPermission:
+        "Returning the room needs the permission to take rooms out of order.",
+      settingsTitle: "How maintenance works here",
+      settingsHint:
+        "A Property follows its Organization unless it says otherwise. A change applies to the next move, never to what is already out of order.",
+      assigneeRequired: "Somebody is assigned before work starts",
+      whenReturns: "A room comes back into service",
+      onDone: "When its request is done",
+      onConfirmation: "Only when someone confirms",
+      returnsAs: "It comes back as",
+      organizationDefault: "Organization default",
+      thisProperty: "This Property",
+      useDefault: "Use the Organization's ({value})",
+      yes: "Yes",
+      no: "No",
+      settingRefused: "The setting was not saved.",
+      defaultNeedsReach: "Changing the default needs access to every Property.",
+      settingReadOnly:
+        "Changing this needs the permission to manage maintenance.",
+      reportProblem: "Report a problem",
+      equipmentTab: "Equipment",
+      planTab: "Service plan",
+      addEquipment: "Add equipment",
+      editEquipment: "Change equipment",
+      equipmentName: "Name",
+      equipmentNamePlaceholder: "Washing machines",
+      category: "Category",
+      categoryPlaceholder: "Laundry",
+      whereIs: "Where it is",
+      atRoom: "In a room",
+      atPlace: "Somewhere else",
+      place: "Place",
+      placePlaceholder: "Laundry room",
+      interval: "Serviced every (months)",
+      intervalHint: "Leave it empty if it is not serviced on a schedule.",
+      lastServiced: "Last serviced",
+      nextService: "Next service",
+      notScheduled: "Not scheduled",
+      neverServiced: "Not serviced yet",
+      retire: "Retire",
+      restore: "Restore",
+      retired: "Retired",
+      showRetired: "Show retired",
+      noEquipmentTitle: "No equipment at {property}",
+      noEquipmentDescription:
+        "Register what is serviced and can break — boilers, lifts, machines — and plan its servicing.",
+      equipmentReadOnly:
+        "Changing the register needs the permission to keep equipment.",
+      noPlanTitle: "Nothing is scheduled",
+      noPlanDescription:
+        "Give an item a service interval under Equipment and it appears here by its next service date.",
+      daysOverdue:
+        "{count, plural, one {# day overdue} other {# days overdue}}",
+      dueToday: "Due today",
+      inDays: "{count, plural, one {in # day} other {in # days}}",
+      everyMonths: "{count, plural, one {every month} other {every # months}}",
+      createWorkOrder: "Create work order",
+      workOrderOpen: "Work order MT-{number} open",
+      workOrderTitle: "Service: {name}",
+      service: "Service",
+      equipment: "Equipment",
+      noEquipmentChosen: "No equipment",
+      noRoomChosen: "No room",
+      chooseRoomOrEquipment: "Choose a room, equipment or both.",
+      costTitle: "What it cost",
+      cost: "Cost",
+      vendor: "Done by",
+      vendorPlaceholder: "Boğaz Teknik",
+      noCost: "No cost recorded",
+      chargeTitle: "Charge a Guest",
+      chargeHint:
+        "A line on the Guest's Folio. A mistake is reversed on the Folio.",
+      guest: "Guest",
+      chooseGuest: "Choose a Guest",
+      amount: "Amount",
+      charge: "Charge",
+      noChargeable: "Nobody who stayed in this room has an open Folio.",
+      reversedCharge: "reversed",
+      inHouseNow: "in house",
+      leftOn: "left {date}",
+      loading: "Loading…",
+      chargeUnavailable: "The Guests could not be loaded just now. Try again.",
+      actions: "Actions",
+      change: "Change",
+      conditions: {
+        working: "Working",
+        due: "Service due",
+        overdue: "Service overdue",
+        fault: "Fault",
+      },
+      states: {
+        new: "New",
+        in_progress: "In progress",
+        waiting_for_parts: "Waiting for parts",
+        done: "Done",
+        cancelled: "Cancelled",
+      },
+      priorities: {
+        urgent: "Urgent",
+        this_week: "This week",
+        can_wait: "Can wait",
+      },
+      returnAs: {
+        dirty: "Dirty",
+        clean: "Clean",
+        inspected: "Inspected",
+      },
     },
 
     auditLog: "Audit log",
@@ -1995,6 +2945,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         added: "Unit added",
         blocked: "Unit blocked",
         unblocked: "Unit unblocked",
+        taken_out_of_order: "Taken out of order",
+        returned_to_service: "Returned to service",
       },
       housekeeping: {
         status_changed: "Room status changed",
@@ -2002,6 +2954,26 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       property: { configured: "Property settings changed" },
       organization: { configured: "Organization renamed" },
+      maintenance_request: {
+        reported: "Problem reported",
+        moved: "Request moved",
+        cancelled: "Request cancelled",
+        assigned: "Request assigned",
+        prioritised: "Priority changed",
+        hold_released: "Room let go, still held by another request",
+        costed: "Cost recorded",
+        guest_charged: "Guest charged for damage",
+      },
+      maintenance_setting: {
+        changed: "Maintenance setting changed",
+      },
+      maintenance_equipment: {
+        added: "Equipment added",
+        changed: "Equipment changed",
+        retired: "Equipment retired",
+        restored: "Equipment restored",
+        serviced: "Equipment serviced",
+      },
     },
     auditSubject: {
       reservation: "Reservation",
@@ -2012,6 +2984,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       property: "Property",
       accommodation_unit: "Accommodation unit",
       organization: "Organization",
+      maintenance_request: "Maintenance request",
+      maintenance_equipment: "Equipment",
     },
     table: {
       results: "{n, plural, one {# result} other {# results}}",
@@ -2040,11 +3014,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       today: "Today",
       "front-office": "Front Office",
       reservations: "Reservations",
+      "room-calendar": "Room calendar",
       rooms: "Rooms & beds",
       arrivals: "Arrivals",
       departures: "Departures",
       "guest-experience": "Guest Experience",
       housekeeping: "Housekeeping",
+      maintenance: "Maintenance",
       "food-and-beverage": "Food & Beverage",
       inventory: "Inventory",
       finance: "Finance",
@@ -2145,7 +3121,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     unitOccupied:
       "لا يزال هناك نزيل في هذه الوحدة. سجّل مغادرته أولًا أو ضع هذا الضيف في وحدة أخرى.",
     unitNotInService:
-      "هذه الوحدة محظورة أو خارج الخدمة. ارفع الحظر أو ضع هذا الضيف في وحدة أخرى.",
+      "هذه الوحدة محظورة أو خارج الخدمة. ارفع الحظر أو أعدها إلى الخدمة، أو ضع هذا الضيف في وحدة أخرى.",
+    blockReasonPlaceholder: "صيانة أو إصلاح",
     roomNotReady:
       "هذه الغرفة ليست جاهزة بعد — لم تُنظَّف أو أنها بانتظار الفحص.",
     checkInAnyway: "تسجيل الدخول على أي حال",
@@ -2328,6 +3305,10 @@ export const messages: Record<SupportedLocale, Messages> = {
         defineRoles: "تعريف الأدوار",
         configureAccommodation: "تهيئة الغرف والأسرّة",
         updateHousekeeping: "تحديث حالة الغرف",
+        reportMaintenance: "الإبلاغ عن مشكلة صيانة",
+        manageMaintenance: "إدارة طلبات الصيانة",
+        takeOutOfOrder: "إخراج الغرف من الخدمة وإعادتها",
+        manageEquipment: "إدارة سجل المعدات",
         readAudit: "قراءة سجل التدقيق",
         manageConfiguration: "إدارة الإعدادات",
       },
@@ -2437,6 +3418,106 @@ export const messages: Record<SupportedLocale, Messages> = {
     reservedCount:
       "{count, plural, zero {لا شيء محجوز} one {سرير واحد محجوز} two {سريران محجوزان} few {# أسرّة محجوزة} many {# سريرًا محجوزًا} other {# سرير محجوز}}",
     blockedStatus: "مغلق",
+    roomCalendar: {
+      title: "تقويم الغرف في {property}",
+      subtitle:
+        "الغرف والأسرّة مقابل أيام عمل المنشأة. للعرض فقط: يُعدَّل الحجز حيث أُنشئ.",
+      previous: "الأسبوع السابق",
+      next: "الأسبوع التالي",
+      today: "اليوم",
+      goTo: "الانتقال إلى تاريخ",
+      length: "الأيام المعروضة",
+      lengthOption:
+        "{days, plural, zero {# يوم} one {يوم واحد} two {يومان} few {# أيام} many {# يومًا} other {# يوم}}",
+      floorFilter: "الطابق",
+      allFloors: "كل الطوابق",
+      floorOption: "الطابق {floor}",
+      noFloor: "بلا طابق",
+      noBuilding: "بلا مبنى",
+      search: "ابحث عن غرفة أو ضيف",
+      showRequested: "مطلوبة",
+      showDeparted: "مغادِرة",
+      collapseAll: "طيّ كل الأسرّة",
+      expandAll: "إظهار كل الأسرّة",
+      overlapCount:
+        "{count, plural, zero {لا تداخلات} one {تداخل واحد} two {تداخلان} few {# تداخلات} many {# تداخلًا} other {# تداخل}}",
+      bookedWhileBlockedCount:
+        "{count, plural, zero {لا حجوزات على غرف مغلقة} one {حجز واحد على غرفة مغلقة} two {حجزان على غرف مغلقة} few {# حجوزات على غرف مغلقة} many {# حجزًا على غرف مغلقة} other {# حجز على غرف مغلقة}}",
+      legend: "معنى العلامات",
+      requested: "مطلوب",
+      confirmed: "مؤكد",
+      inHouse: "مقيم",
+      overdue: "متأخر",
+      departed: "غادر",
+      overlap: "تداخل",
+      clashes: "يتعارض مع حجز",
+      bookedWhileBlocked: "محجوز وهو مغلق",
+      blocked: "مغلق",
+      outOfService: "خارج الخدمة",
+      gridLabel: "الغرف والأسرّة حسب الليلة",
+      roomColumn: "الغرفة",
+      freeRow: "متاح",
+      freeOn:
+        "{date}: {n, plural, zero {لا شيء متاح من {of, number}} one {واحد متاح من {of, number}} two {اثنان متاحان من {of, number}} few {# متاحة من {of, number}} many {# متاحًا من {of, number}} other {# متاح من {of, number}}}",
+      expand: "إظهار أسرّة {room}",
+      collapse: "طيّ أسرّة {room}",
+      bedsTakenLabel: "{n, number} من {of, number} أسرّة مشغولة",
+      barLabel: "{guest}، {status}، من {from} إلى {to}",
+      noGuestRecorded: "لا ضيف مسجّل",
+      noEndDate: "بلا تاريخ انتهاء",
+      refreshFailed: "تعذّر التحديث. يُعرض التقويم كما كان في {time}.",
+      noRoomsTitle: "لا غرف بعد",
+      noRoomsDescription: "أضف الغرف والأسرّة لتظهر هنا مقابل الأيام.",
+      goToRooms: "الانتقال إلى الغرف والأسرّة",
+      noMatchTitle: "لا غرف مطابقة",
+      noMatchDescription:
+        "لا شيء في هذا التقويم يطابق الطابق أو البحث أو المرشحات المختارة.",
+      clearFilters: "مسح المرشحات",
+      filteredNote: "مُرشَّح. أعداد المتاح والتداخل ما زالت تشمل كل الغرف.",
+      nothingBooked: "لا حجوزات من {from} إلى {to}.",
+      failedTitle: "تعذّر عرض تقويم الغرف",
+      failedDescription: "لم يتغير شيء. حاول مرة أخرى بعد قليل.",
+      retry: "حاول مرة أخرى",
+      loading: "جارٍ تحميل تقويم الغرف",
+      goneTitle: "لم يعد في التقويم",
+      goneNote:
+        "أُلغي هذا الحجز أو سُجّلت مغادرته أو خرج من هذه الفترة منذ فتحته.",
+      changedNote: "تغيّر هذا الحجز منذ فتحته.",
+      overlapNote:
+        "حجز آخر يشغل بعض هذه الليالي في هذه الغرفة. عالج ذلك قبل وصول الضيف.",
+      clashNote: "هذا الطلب يتعارض مع حجز مؤكد؛ وتأكيده على حاله سيُرفض.",
+      clashStayNote:
+        "هذا الطلب يتعارض مع ضيف مقيم في هذه الليالي؛ وتأكيده على حاله سيُرفض.",
+      clashesStay: "يتعارض مع ضيف مقيم",
+      windowFailed:
+        "تعذّر فتح هذه الفترة. تُعرض الفترة السابقة كما كانت في {time}.",
+      blockedNote:
+        "هذه الغرفة خارج الاستخدام ({reason})، لذا سيُرفض تسجيل الوصول حتى تُحرَّر.",
+      overdueNote: "متأخر: كان موعد مغادرته {date}.",
+      arrives: "الوصول",
+      arrived: "وصل",
+      leaves: "المغادرة",
+      left: "غادر",
+      booked: "الحجز",
+      nightsLabel: "الليالي",
+      nights:
+        "{count, plural, zero {لا ليالٍ} one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلةً} other {# ليلة}}",
+      stayType: "النوع",
+      guest: "ضيف",
+      resident: "مقيم",
+      balance: "الرصيد",
+      folioClosed: "الفوليو مغلق",
+      open: {
+        arrivals: "فتح في الوصول",
+        departures: "فتح في المغادرة",
+        reservations: "فتح في الحجوزات",
+      },
+      barWord: {
+        overlap: "تداخل",
+        bookedWhileBlocked: "مغلق",
+        clashes: "تعارض",
+      },
+    },
 
     configuration: {
       subtitle: "إعدادات {property} ومؤسستها",
@@ -2551,6 +3632,214 @@ export const messages: Record<SupportedLocale, Messages> = {
         "لا يمكن تغيير إعداد المؤسسة إلا لمن يصل إلى جميع العقارات.",
       settingReadOnly: "يمكن للمدير تغيير هذا.",
       awaitingInspection: "بانتظار الفحص",
+    },
+    maintenance: {
+      heading: "الصيانة في {property}",
+      newRequest: "طلب جديد",
+      requestsTab: "الطلبات",
+      settingsTab: "الإعدادات",
+      statOpen: "مفتوحة",
+      statUrgent: "عاجلة",
+      statOutOfOrder: "خارج الخدمة",
+      statDone: "منجزة خلال 30 يومًا",
+      reference: "MT-{number}",
+      bedInRoom: "السرير {bed} · {room}",
+      outOfOrder: "خارج الخدمة",
+      backOn: "يعود {date}",
+      overdueSince: "كان يُفترض أن يعود {date}",
+      notAssigned: "غير مُسنَد",
+      noLongerHere: "{name} (لم يعد في هذا العقار)",
+      formerStaff: "موظف سابق",
+      emptyColumn: "لا شيء هنا",
+      noRequestsTitle: "لا طلبات في {property}",
+      noRequestsDescription:
+        "عندما يتعطل شيء، أبلغ عنه هنا أو من شاشة الغرف. يمكن لأي شخص في العقار الإبلاغ.",
+      readOnly:
+        "يمكنك رؤية كل الطلبات. نقلها وإسنادها وإلغاؤها يتطلب صلاحية إدارة الصيانة.",
+      filterPriority: "الأولوية",
+      filterAssignee: "المُسنَد إليه",
+      allPriorities: "كل الأولويات",
+      everyone: "الجميع",
+      unassigned: "غير مُسنَدة",
+      outOfOrderOnly: "خارج الخدمة فقط",
+      showCancelled: "إظهار الملغاة",
+      moveTo: "نقل إلى {state}",
+      cardActions: "إجراءات MT-{number}",
+      openRequest: "فتح MT-{number}",
+      reportedBy: "أبلغ عنه {who}",
+      reportedOn: "تاريخ الإبلاغ: {when}",
+      where: "المكان",
+      details: "التفاصيل",
+      noDetails: "لم تُذكر تفاصيل.",
+      assignee: "مُسنَد إلى",
+      priority: "الأولوية",
+      state: "الحالة",
+      cancelReason: "سبب الإلغاء",
+      outOfOrderSince: "منذ {when}",
+      heldAfterDone:
+        "تم الإنجاز، وتبقى الغرفة خارج الخدمة حتى يعيدها أحدهم إلى الخدمة.",
+      assign: "إسناد",
+      reopen: "إعادة فتح",
+      cancelRequest: "إلغاء الطلب",
+      cancelTitle: "إلغاء MT-{number}؟",
+      cancelHint:
+        "ألغِ فقط ما أُبلغ عنه خطأً أو ما ليس عطلًا. وإذا أُصلح شيء فانقله إلى «منجز» بدلًا من ذلك.",
+      reason: "السبب",
+      reasonPlaceholder: "أُبلغ عنه مرتين",
+      keep: "الإبقاء عليه",
+      takeOutOfOrder: "إخراج الغرفة من الخدمة",
+      takeOutHint:
+        "لن يتمكن المكتب الأمامي من بيعها أو تسجيل دخول أي شخص إليها حتى تعود إلى الخدمة.",
+      expectedBack: "العودة المتوقعة (اختياري)",
+      returnToService: "إعادة إلى الخدمة",
+      returnHint: "تصبح الغرفة متاحة مجددًا. ولا تعود أنظف مما كانت عليه.",
+      note: "ملاحظة (اختيارية)",
+      notePlaceholder: "تم الفحص ويعمل",
+      reportTitle: "الإبلاغ عن مشكلة",
+      reportDescription:
+        "يمكن لأي شخص في العقار الإبلاغ. يراه فريق الصيانة فورًا.",
+      whatIsWrong: "ما المشكلة؟",
+      whatPlaceholder: "مصرف الدش مسدود",
+      moreDetails: "التفاصيل (اختيارية)",
+      unit: "الغرفة أو السرير",
+      chooseUnit: "اختر غرفة أو سريرًا",
+      howUrgent: "ما مدى الاستعجال؟",
+      assignTo: "إسناد إلى",
+      decideLater: "القرار لاحقًا",
+      outOfOrderSwitch: "إخراجها من الخدمة حتى تُصلح",
+      unitBlocked: "هذه الغرفة محجوبة، فهي لا تُباع أصلًا.",
+      alreadyOut: "خارج الخدمة بالفعل",
+      send: "إرسال الطلب",
+      saving: "جارٍ الحفظ…",
+      save: "حفظ",
+      close: "إغلاق",
+      impactTitle: "هناك من يتأثر",
+      impactInHouse: "{guest} يقيم في {unit} حتى {date}.",
+      impactInHouseOpen: "{guest} يقيم في {unit}.",
+      impactBooking: "{guest} محجوز في {unit} ابتداءً من {from}.",
+      aGuest: "ضيف",
+      impactHint: "لن يُلغى أو يُنقل أي شيء. سيحتاج المكتب الأمامي إلى نقلهم.",
+      confirmOutOfOrder: "إخراجها من الخدمة على أي حال",
+      reported: "أُرسل الطلب MT-{number}.",
+      saved: "تم الحفظ.",
+      returned: "عادت الغرفة إلى الخدمة.",
+      heldElsewhere: "أُفرج عنها، وما زال طلب آخر يبقي الغرفة خارج الخدمة.",
+      stillOut:
+        "تم الإنجاز. تبقى الغرفة خارج الخدمة حتى يؤكد ذلك من يملك صلاحية إعادة الغرف.",
+      refused: "لم يتم ذلك. تعرض الصفحة الآن الوضع الحالي.",
+      invalid: "هناك خطأ في النموذج.",
+      stale: "نقل شخص آخر هذا الطلب أولًا. حالته الآن {state}.",
+      blocked: "هذه الغرفة محجوبة، فلا يمكن إخراجها من الخدمة.",
+      needsAssignee:
+        "أسند الطلب إلى شخص أولًا. يطلب هذا العقار إسنادًا قبل بدء العمل.",
+      outOfReach: "هذا الشخص لا يعمل في هذا العقار.",
+      needsReturnPermission:
+        "إعادة الغرفة إلى الخدمة تتطلب صلاحية إخراج الغرف من الخدمة.",
+      settingsTitle: "كيف تعمل الصيانة هنا",
+      settingsHint:
+        "يتبع العقار مؤسسته ما لم يحدد غير ذلك. ينطبق التغيير على الإجراء التالي، لا على ما هو خارج الخدمة بالفعل.",
+      assigneeRequired: "يُسند الطلب إلى شخص قبل بدء العمل",
+      whenReturns: "تعود الغرفة إلى الخدمة",
+      onDone: "عند إنجاز طلبها",
+      onConfirmation: "فقط عندما يؤكد أحدهم",
+      returnsAs: "تعود بحالة",
+      organizationDefault: "الإعداد الافتراضي للمؤسسة",
+      thisProperty: "هذا العقار",
+      useDefault: "استخدام إعداد المؤسسة ({value})",
+      yes: "نعم",
+      no: "لا",
+      settingRefused: "لم يُحفظ الإعداد.",
+      defaultNeedsReach:
+        "تغيير الإعداد الافتراضي يتطلب الوصول إلى كل العقارات.",
+      settingReadOnly: "تغيير هذا يتطلب صلاحية إدارة الصيانة.",
+      reportProblem: "الإبلاغ عن مشكلة",
+      equipmentTab: "المعدات",
+      planTab: "خطة الصيانة الدورية",
+      addEquipment: "إضافة معدات",
+      editEquipment: "تعديل المعدات",
+      equipmentName: "الاسم",
+      equipmentNamePlaceholder: "غسالات",
+      category: "الفئة",
+      categoryPlaceholder: "الغسيل",
+      whereIs: "مكانها",
+      atRoom: "في غرفة",
+      atPlace: "في مكان آخر",
+      place: "المكان",
+      placePlaceholder: "غرفة الغسيل",
+      interval: "الصيانة كل (أشهر)",
+      intervalHint: "اتركه فارغًا إن لم تكن لها صيانة دورية.",
+      lastServiced: "آخر صيانة",
+      nextService: "الصيانة التالية",
+      notScheduled: "غير مجدولة",
+      neverServiced: "لم تُصَن بعد",
+      retire: "إخراج من الاستخدام",
+      restore: "إعادة إلى الاستخدام",
+      retired: "خارج الاستخدام",
+      showRetired: "إظهار ما هو خارج الاستخدام",
+      noEquipmentTitle: "لا معدات في {property}",
+      noEquipmentDescription:
+        "سجّل ما يحتاج إلى صيانة ويمكن أن يتعطل — الغلايات والمصاعد والآلات — وخطط لصيانته.",
+      equipmentReadOnly: "تعديل السجل يتطلب صلاحية إدارة المعدات.",
+      noPlanTitle: "لا شيء مجدول",
+      noPlanDescription:
+        "حدّد فترة صيانة لعنصر في قسم المعدات فيظهر هنا حسب موعد صيانته التالية.",
+      daysOverdue:
+        "{count, plural, one {متأخرة يومًا واحدًا} two {متأخرة يومين} few {متأخرة # أيام} many {متأخرة # يومًا} other {متأخرة # يوم}}",
+      dueToday: "مستحقة اليوم",
+      inDays:
+        "{count, plural, one {خلال يوم واحد} two {خلال يومين} few {خلال # أيام} many {خلال # يومًا} other {خلال # يوم}}",
+      everyMonths:
+        "{count, plural, one {كل شهر} two {كل شهرين} few {كل # أشهر} many {كل # شهرًا} other {كل # شهر}}",
+      createWorkOrder: "إنشاء أمر عمل",
+      workOrderOpen: "أمر العمل MT-{number} مفتوح",
+      workOrderTitle: "صيانة: {name}",
+      service: "صيانة دورية",
+      equipment: "المعدات",
+      noEquipmentChosen: "بدون معدات",
+      noRoomChosen: "بدون غرفة",
+      chooseRoomOrEquipment: "اختر غرفة أو معدات أو كليهما.",
+      costTitle: "التكلفة",
+      cost: "المبلغ",
+      vendor: "المنفِّذ",
+      vendorPlaceholder: "بوغاز تكنيك",
+      noCost: "لم تُسجَّل تكلفة",
+      chargeTitle: "تحميل الضيف التكلفة",
+      chargeHint: "سطر في حساب الضيف. يُلغى الخطأ من الحساب نفسه.",
+      guest: "الضيف",
+      chooseGuest: "اختر ضيفًا",
+      amount: "المبلغ",
+      charge: "تحميل",
+      noChargeable: "لا أحد ممن أقاموا في هذه الغرفة لديه حساب مفتوح.",
+      reversedCharge: "أُلغي",
+      inHouseNow: "مقيم",
+      leftOn: "غادر {date}",
+      loading: "جارٍ التحميل…",
+      chargeUnavailable: "تعذّر تحميل الضيوف الآن. حاول مرة أخرى.",
+      actions: "الإجراءات",
+      change: "تعديل",
+      conditions: {
+        working: "تعمل",
+        due: "حان موعد الصيانة",
+        overdue: "الصيانة متأخرة",
+        fault: "معطلة",
+      },
+      states: {
+        new: "جديد",
+        in_progress: "قيد التنفيذ",
+        waiting_for_parts: "بانتظار قطع الغيار",
+        done: "منجز",
+        cancelled: "ملغى",
+      },
+      priorities: {
+        urgent: "عاجل",
+        this_week: "هذا الأسبوع",
+        can_wait: "يمكن أن ينتظر",
+      },
+      returnAs: {
+        dirty: "متسخة",
+        clean: "نظيفة",
+        inspected: "مفحوصة",
+      },
     },
 
     auditLog: "سجل التدقيق",
@@ -2675,6 +3964,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         added: "تمت إضافة وحدة",
         blocked: "تم إغلاق الوحدة",
         unblocked: "تم فتح الوحدة",
+        taken_out_of_order: "أُخرجت من الخدمة",
+        returned_to_service: "أُعيدت إلى الخدمة",
       },
       housekeeping: {
         status_changed: "تم تغيير حالة الغرفة",
@@ -2682,6 +3973,26 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       property: { configured: "تم تغيير إعدادات المنشأة" },
       organization: { configured: "تمت إعادة تسمية المؤسسة" },
+      maintenance_request: {
+        reported: "أُبلغ عن مشكلة",
+        moved: "نُقل الطلب",
+        cancelled: "أُلغي الطلب",
+        assigned: "أُسند الطلب",
+        prioritised: "تغيرت الأولوية",
+        hold_released: "أُفرج عن الغرفة وما زال طلب آخر يحجزها",
+        costed: "سُجّلت التكلفة",
+        guest_charged: "حُمّل الضيف تكلفة الضرر",
+      },
+      maintenance_setting: {
+        changed: "تغير إعداد الصيانة",
+      },
+      maintenance_equipment: {
+        added: "أُضيفت معدات",
+        changed: "عُدّلت المعدات",
+        retired: "أُخرجت المعدات من الاستخدام",
+        restored: "أُعيدت المعدات إلى الاستخدام",
+        serviced: "صينت المعدات",
+      },
     },
     auditSubject: {
       reservation: "حجز",
@@ -2692,6 +4003,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       property: "منشأة",
       accommodation_unit: "وحدة إقامة",
       organization: "المؤسسة",
+      maintenance_request: "طلب صيانة",
+      maintenance_equipment: "المعدات",
     },
     table: {
       results:
@@ -2722,11 +4035,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       today: "اليوم",
       "front-office": "المكتب الأمامي",
       reservations: "الحجوزات",
+      "room-calendar": "تقويم الغرف",
       rooms: "الغرف والأسرّة",
       arrivals: "الوصول",
       departures: "المغادرة",
       "guest-experience": "تجربة الضيف",
       housekeeping: "خدمة الغرف",
+      maintenance: "الصيانة",
       "food-and-beverage": "الأطعمة والمشروبات",
       inventory: "المخزون",
       finance: "المالية",

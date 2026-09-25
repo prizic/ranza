@@ -43,6 +43,8 @@ export function testProperty(): string {
     finance: true,
     staff_administration: true,
     housekeeping: true,
+    // Maintenance, for its board and the Rooms hand-over.
+    maintenance: true,
     configuration: true,
   });
 }
@@ -153,6 +155,13 @@ function aPropertyOfTheTests(
          where held.property_id = target.id
            and held.capability_key = wanted.key
        )
+     ), entitlement as (
+       -- A database seeded before maintenance existed has no Entitlement for
+       -- it, and the capability alone would not reveal the screen.
+       insert into public.entitlements (organization_id, module_key, status)
+       select (select id from home), 'maintenance', 'active'
+       where exists (select 1 from home)
+       on conflict (organization_id, module_key) do nothing
      ), assignment as (
        insert into public.property_assignments
          (property_id, organization_id, user_id)

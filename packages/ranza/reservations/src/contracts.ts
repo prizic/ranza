@@ -1,4 +1,7 @@
-import type { AccommodationUnitType } from "@ranza/accommodation";
+import type {
+  AccommodationUnitStatus,
+  AccommodationUnitType,
+} from "@ranza/accommodation";
 import type { CapabilityRef } from "@ranza/core";
 
 /**
@@ -295,7 +298,8 @@ export class UnitHasOccupantError extends Error {
 }
 
 /**
- * The Unit is blocked or out of service, so nobody may be put in it.
+ * The Unit is blocked or out of service, or is a bed under a room that is
+ * (ADR 0032), so nobody may be put in it.
  *
  * Raised by `stays_unit_is_in_service` for every role. The desk can act on it —
  * unblock the Unit, or put the Guest elsewhere — which is why it is not the
@@ -543,4 +547,130 @@ export class ReservationReasonError extends ReservationEndError {
 export interface ReservationEnded {
   reservationId: string;
   status: "cancelled" | "no_show";
+}
+
+/**
+ * How many days the room calendar may show. An allow-list rather than a bound,
+ * so the read is never asked for a range nobody designed a screen for
+ * (RC-S1-06); a longer view is one more entry here (RC-DEF-08).
+ */
+export const ROOM_CALENDAR_LENGTHS = [7, 14, 30] as const;
+export type RoomCalendarLength = (typeof ROOM_CALENDAR_LENGTHS)[number];
+export const ROOM_CALENDAR_DEFAULT_LENGTH: RoomCalendarLength = 14;
+
+/** A default window opens this many days before today, so recent departures stay in view. */
+export const ROOM_CALENDAR_LEAD_DAYS = 3;
+
+/** Which window to read. Anything not valid falls back to the default rather than being refused. */
+export interface RoomCalendarWindow {
+  /** `YYYY-MM-DD`, or null for three days before the Property's today. */
+  from: string | null;
+  days: number | null;
+}
+
+/** A Stay's Folio as the calendar's drawer shows it — the same sum Departures shows. */
+export interface RoomCalendarBalance {
+  balanceMinor: number;
+  currency: string;
+  closed: boolean;
+}
+
+interface RoomCalendarBarBase {
+  stayType: ReservationStayType;
+  /** Null for a Stay with no Reservation: nobody's name was recorded. */
+  guestName: string | null;
+  /** First night, `YYYY-MM-DD`. */
+  startsOn: string;
+  /** The planned end — the departure day — or null for no end date. */
+  endsOn: string | null;
+  /**
+   * The day the bar is drawn to. The planned end, except for an overdue Stay,
+   * which is drawn through tonight because the Guest is still in the Unit
+   * (RC-S1-15). Null for no end date.
+   */
+  heldUntil: string | null;
+  overdue: boolean;
+  /** Whether it holds its nights. A requested booking holds nothing yet (RC-S1-11). */
+  holds: boolean;
+  /**
+   * Two bars on one night of this Unit, each somebody booked or staying
+   * (RC-S1-25, RC-S1-26). A departed Stay is never one of them: its nights are
+   * history, so checking an overdue Guest out clears it (RC-S1-28).
+   */
+  overlaps: boolean;
+  /**
+   * For a requested booking over a holding bar: what it clashes with — a
+   * confirmed booking, or a Guest in house. Labelled, never counted
+   * (RC-S1-29); confirming it as it stands would be refused either way, by
+   * `reservations_no_double_booking` or by `unit_holds_one_occupancy`. A
+   * departed Stay is history and clashes with nothing. Null when it clashes
+   * with nothing, and always null on a bar that holds its nights.
+   */
+  clashesWith: "booking" | "stay" | null;
+  /** Holding a night, from today on, of a Unit that is blocked or out of service (RC-S1-34). */
+  bookedWhileBlocked: boolean;
+}
+
+/** A booking not yet checked in. */
+export interface RoomCalendarReservationBar extends RoomCalendarBarBase {
+  kind: "reservation";
+  reservationId: string;
+  status: "requested" | "confirmed";
+}
+
+/**
+ * A Stay. A checked-in Reservation is drawn only as this, so one Guest is one
+ * bar (RC-S1-12), carrying the dates that were booked beside the ones stayed.
+ */
+export interface RoomCalendarStayBar extends RoomCalendarBarBase {
+  kind: "stay";
+  stayId: string;
+  reservationId: string | null;
+  status: "in_house" | "departed";
+  bookedStartsOn: string | null;
+  bookedEndsOn: string | null;
+  /** Null when the Stay has no Folio — shown as nothing, never as zero (RC-S1-49). */
+  balance: RoomCalendarBalance | null;
+}
+
+export type RoomCalendarBar = RoomCalendarReservationBar | RoomCalendarStayBar;
+
+/** A row of the calendar: a room, a bed, or a room with its beds beneath it. */
+export interface RoomCalendarUnit {
+  unitId: string;
+  name: string;
+  unitType: AccommodationUnitType;
+  building: string | null;
+  floor: number | null;
+  status: AccommodationUnitStatus;
+  statusReason: string | null;
+  /** A Unit with no children is what is let. A room with beds is not; its beds are. */
+  sellable: boolean;
+  bars: RoomCalendarBar[];
+  beds: RoomCalendarUnit[];
+}
+
+/** One night of the window: how many sellable Units nothing holds (RC-S1-24). */
+export interface RoomCalendarNight {
+  day: string;
+  free: number;
+}
+
+/**
+ * The room calendar for one Property over one window.
+ *
+ * The counts cover every Unit whatever a screen filters, so hiding a floor
+ * never hides an overlap (RC-S1-31).
+ */
+export interface RoomCalendar {
+  /** The Property's own today (RC-S1-04). */
+  today: string;
+  /** The window's first day. */
+  from: string;
+  days: RoomCalendarLength;
+  sellable: number;
+  nights: RoomCalendarNight[];
+  overlaps: number;
+  bookedWhileBlocked: number;
+  units: RoomCalendarUnit[];
 }

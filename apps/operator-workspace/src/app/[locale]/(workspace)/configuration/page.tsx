@@ -3,6 +3,7 @@ import { isolate, isSupportedLocale } from "@ranza/i18n";
 import { EmptyState, PageHeader } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { InspectionSettings } from "../../../../features/housekeeping/components/inspection-settings";
+import { MaintenanceSettingsCard } from "../../../../features/maintenance/components/maintenance-settings";
 import { OrganizationCard } from "../../../../features/configuration/components/organization-card";
 import {
   ElsewhereCard,
@@ -21,6 +22,7 @@ import {
   entitledProperties,
   entitledPropertiesByCapability,
   housekeepingInspection,
+  maintenanceSettings,
   propertySettings,
   requireViewer,
   timezoneNames,
@@ -31,9 +33,10 @@ import {
  * Property, in one place.
  *
  * The Property's own settings and the Organization's name are edited here.
- * Inspection after cleaning is Housekeeping's setting, shown by the same
- * component and saved by the same command as on that screen, so the two can
- * never disagree (CF-S3-06). Rooms and staff have screens of their own and are
+ * Inspection after cleaning is Housekeeping's setting, and how maintenance
+ * works is Maintenance's; each is shown by the same component and saved by the
+ * same command as on its own screen, so the two can never disagree (CF-S3-06,
+ * CF-S3-12). Rooms and staff have screens of their own and are
  * linked, not repeated.
  *
  * Gated like every screen; a reader without the permission sees every value
@@ -80,8 +83,9 @@ export default async function ConfigurationPage({
     );
   }
 
-  const [inspection, timezones, capabilities] = await Promise.all([
+  const [inspection, maintenance, timezones, capabilities] = await Promise.all([
     housekeepingInspection(property.propertyId),
+    maintenanceSettings(property.propertyId),
     timezoneNames(),
     entitledPropertiesByCapability(
       GATED_SCREENS.map((screen) => ({
@@ -118,6 +122,9 @@ export default async function ConfigurationPage({
             label: t("configuration.housekeepingTitle"),
           },
         ]
+      : []),
+    ...(maintenance
+      ? [{ id: "maintenance" as const, label: t("navigation.maintenance") }]
       : []),
     ...(switchedOn.length > 0
       ? [{ id: "modules" as const, label: t("configuration.modulesTitle") }]
@@ -159,6 +166,15 @@ export default async function ConfigurationPage({
                 locale={locale}
                 propertyId={property.propertyId}
                 settings={inspection}
+              />
+            </section>
+          ) : null}
+          {maintenance ? (
+            <section className="scroll-mt-24" id="maintenance">
+              <MaintenanceSettingsCard
+                locale={locale}
+                propertyId={property.propertyId}
+                settings={maintenance}
               />
             </section>
           ) : null}

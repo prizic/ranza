@@ -1,10 +1,11 @@
 import {
   BarChart3,
   Bed,
+  BellRing,
   Boxes,
   CalendarDays,
+  CalendarRange,
   ChefHat,
-  BellRing,
   History,
   Hotel,
   House,
@@ -14,6 +15,7 @@ import {
   Sparkles,
   Users,
   Wallet,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
 
@@ -103,6 +105,14 @@ export const SCREENS: Screen[] = [
         built: true,
       },
       {
+        segment: "room-calendar",
+        capability: "front_desk",
+        module: "front_office",
+        icon: CalendarRange,
+        blueprint: "18.6",
+        built: true,
+      },
+      {
         segment: "rooms",
         capability: "front_desk",
         module: "front_office",
@@ -143,6 +153,18 @@ export const SCREENS: Screen[] = [
     module: "housekeeping",
     icon: Sparkles,
     blueprint: "5.4",
+    built: true,
+    section: "operations",
+  },
+  // Blueprint 4.6 lists no Maintenance destination: its work sits under the
+  // physical places, next to Housekeeping, where the mockup puts it and where
+  // a desk that finds a broken room will look (RANZ-33, blueprint 5.13).
+  {
+    segment: "maintenance",
+    capability: "maintenance",
+    module: "maintenance",
+    icon: Wrench,
+    blueprint: "5.13",
     built: true,
     section: "operations",
   },

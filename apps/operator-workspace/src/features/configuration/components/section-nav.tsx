@@ -8,6 +8,7 @@ import {
   Landmark,
   Sparkles,
   ToggleRight,
+  Wrench,
 } from "lucide-react";
 import { cn } from "@ranza/ui";
 
@@ -20,6 +21,7 @@ const ICONS = {
   property: Building2,
   time: CalendarClock,
   housekeeping: Sparkles,
+  maintenance: Wrench,
   modules: ToggleRight,
   elsewhere: ExternalLink,
 } as const;

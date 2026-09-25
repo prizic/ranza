@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import { formatDate, isSupportedLocale } from "@ranza/i18n";
 import {
   Ban,
   Bed,
@@ -12,8 +13,10 @@ import {
   LayoutGrid,
   List,
   Users,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
+import Link from "next/link";
 import {
   Button,
   Card,
@@ -30,7 +33,12 @@ import {
   TableHeader,
   TableRow,
 } from "@ranza/ui";
-import type { UnitEntry, UnitMap } from "../../../server/viewer";
+import type {
+  RoomsMaintenance,
+  UnitEntry,
+  UnitHold,
+  UnitMap,
+} from "../../../server/viewer";
 import { AddRoomsDialog } from "./add-rooms-dialog";
 import { BlockUnitDialog } from "./block-unit-dialog";
 
@@ -39,19 +47,51 @@ export function RoomsView({
   propertyId,
   data,
   propertyName,
+  maintenance,
 }: {
   locale: string;
   propertyId: string;
   data: UnitMap;
   propertyName: string;
+  maintenance: RoomsMaintenance;
 }) {
   const t = useTranslations();
+  const mt = useTranslations("maintenance");
   const [viewMode, setViewMode] = useState<"map" | "list">("map");
   const [selectedUnit, setSelectedUnit] = useState<UnitEntry | null>(null);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
 
-  function handleSelectUnit(unit: UnitEntry) {
+  // A bed under a room out of order is held by the room's request.
+  const holdByUnit = new Map(
+    maintenance.holds.map((hold) => [hold.unitId, hold]),
+  );
+  const holdFor = (unitId: string, roomId: string | null) =>
+    holdByUnit.get(unitId) ?? (roomId ? holdByUnit.get(roomId) : undefined);
+  const maintenanceHref = `/${locale}/maintenance?property=${propertyId}`;
+  const reportHref = (unitId: string) =>
+    maintenance.mayReport ? `${maintenanceHref}&report=${unitId}` : null;
+  // Out of order, with the request that holds it and when the room is expected
+  // back: the front desk reads the same words Arrivals uses (MT-S2-28,
+  // MT-DIFF-01). Day and month only — a tile has no room for the year.
+  const outOfOrderLabel = (hold: UnitHold | undefined) => {
+    if (!hold) return mt("outOfOrder");
+    const back =
+      hold.expectedBackOn && isSupportedLocale(locale)
+        ? ` · ${mt("backOn", {
+            date: formatDate(
+              new Date(`${hold.expectedBackOn}T12:00:00Z`),
+              locale,
+              { timeZone: "UTC", year: undefined },
+            ),
+          })}`
+        : "";
+    return `${mt("outOfOrder")} · ${mt("reference", { number: hold.number })}${back}`;
+  };
+
+  function handleSelectUnit(unit: UnitEntry, roomId: string | null = null) {
     setSelectedUnit(unit);
+    setSelectedRoomId(roomId);
     setBlockDialogOpen(true);
   }
 
@@ -172,8 +212,19 @@ export function RoomsView({
                           >
                             <CardHeader>
                               <div className="flex items-baseline justify-between gap-3">
-                                <CardTitle className="text-3xl font-light tracking-tight tabular-nums">
+                                <CardTitle className="flex items-center gap-2 text-3xl font-light tracking-tight tabular-nums">
                                   {room.name}
+                                  {isLetByTheBed &&
+                                  room.status === "out_of_service" ? (
+                                    <StatusBadge
+                                      className={OUT_OF_ORDER_WRAPS}
+                                      icon={Wrench}
+                                      label={outOfOrderLabel(
+                                        holdByUnit.get(room.unitId),
+                                      )}
+                                      tone="danger"
+                                    />
+                                  ) : null}
                                 </CardTitle>
                                 <span className="text-xs text-muted-foreground">
                                   {isLetByTheBed
@@ -181,6 +232,18 @@ export function RoomsView({
                                     : t("sleeps", { count: room.capacity })}
                                 </span>
                               </div>
+                              {/* Not prefetched: one tile is one request, and
+                                  all it would fetch is the loading boundary —
+                                  the report form is read on the click. */}
+                              {isLetByTheBed && reportHref(room.unitId) ? (
+                                <Link
+                                  className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                                  href={reportHref(room.unitId) ?? ""}
+                                  prefetch={false}
+                                >
+                                  {t("maintenance.reportProblem")}
+                                </Link>
+                              ) : null}
                             </CardHeader>
 
                             <CardContent>
@@ -190,14 +253,22 @@ export function RoomsView({
                                     <button
                                       key={bed.unitId}
                                       type="button"
-                                      onClick={() => handleSelectUnit(bed)}
+                                      onClick={() =>
+                                        handleSelectUnit(bed, room.unitId)
+                                      }
                                       className="hover-lift flex flex-col items-start rounded-2xl border bg-muted/40 p-2.5 text-start transition-colors hover:bg-secondary/70 focus-visible:ring-2 focus-visible:ring-ring"
                                     >
                                       <span className="text-xs font-semibold">
                                         {bed.name}
                                       </span>
                                       <div className="pt-1.5">
-                                        {renderUnitStateBadge(bed, t)}
+                                        {renderUnitStateBadge(
+                                          bed,
+                                          t,
+                                          outOfOrderLabel(
+                                            holdFor(bed.unitId, room.unitId),
+                                          ),
+                                        )}
                                       </div>
                                     </button>
                                   ))}
@@ -209,7 +280,13 @@ export function RoomsView({
                                     onClick={() => handleSelectUnit(room)}
                                     className="rounded-full focus-visible:ring-2 focus-visible:ring-ring"
                                   >
-                                    {renderUnitStateBadge(room, t)}
+                                    {renderUnitStateBadge(
+                                      room,
+                                      t,
+                                      outOfOrderLabel(
+                                        holdByUnit.get(room.unitId),
+                                      ),
+                                    )}
                                   </button>
                                 </div>
                               )}
@@ -253,16 +330,20 @@ export function RoomsView({
                       <TableCell>{room.floor ?? "—"}</TableCell>
                       <TableCell>{t("unitType.bed")}</TableCell>
                       <TableCell>1</TableCell>
-                      <TableCell>{renderUnitStateBadge(bed, t)}</TableCell>
+                      <TableCell>
+                        {renderUnitStateBadge(
+                          bed,
+                          t,
+                          outOfOrderLabel(holdFor(bed.unitId, room.unitId)),
+                        )}
+                      </TableCell>
                       <TableCell className="text-end">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleSelectUnit(bed)}
+                          onClick={() => handleSelectUnit(bed, room.unitId)}
                         >
-                          {bed.status === "blocked"
-                            ? t("unblockBed")
-                            : t("blockBed")}
+                          {unitActionLabel(bed, t)}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -280,16 +361,20 @@ export function RoomsView({
                       )}
                     </TableCell>
                     <TableCell>{room.capacity}</TableCell>
-                    <TableCell>{renderUnitStateBadge(room, t)}</TableCell>
+                    <TableCell>
+                      {renderUnitStateBadge(
+                        room,
+                        t,
+                        outOfOrderLabel(holdByUnit.get(room.unitId)),
+                      )}
+                    </TableCell>
                     <TableCell className="text-end">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleSelectUnit(room)}
                       >
-                        {room.status === "blocked"
-                          ? t("unblockBed")
-                          : t("blockBed")}
+                        {unitActionLabel(room, t)}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -301,18 +386,43 @@ export function RoomsView({
       )}
 
       <BlockUnitDialog
+        hold={
+          selectedUnit
+            ? (holdFor(selectedUnit.unitId, selectedRoomId) ?? null)
+            : null
+        }
         locale={locale}
+        maintenanceHref={maintenanceHref}
         open={blockDialogOpen}
         onOpenChange={setBlockDialogOpen}
+        reportHref={selectedUnit ? reportHref(selectedUnit.unitId) : null}
         unit={selectedUnit}
       />
     </div>
   );
 }
 
+/**
+ * What pressing a Unit opens: its block, or — out of order — its request.
+ */
+function unitActionLabel(
+  unit: UnitEntry,
+  t: ReturnType<typeof useTranslations>,
+): string {
+  if (unit.status === "blocked") return t("unblockBed");
+  if (unit.state?.kind === "out_of_service") return t("maintenance.outOfOrder");
+  return t("blockBed");
+}
+
+// A badge is one line by default. This one carries a request number and a
+// date, which is wider than a tile, so it wraps inside the tile instead.
+const OUT_OF_ORDER_WRAPS =
+  "h-auto max-w-full shrink whitespace-normal text-start";
+
 function renderUnitStateBadge(
   unit: UnitEntry,
   t: ReturnType<typeof useTranslations>,
+  outOfOrderLabel: string,
 ) {
   const state = unit.state;
   if (!state) return null;
@@ -344,7 +454,12 @@ function renderUnitStateBadge(
       );
     case "out_of_service":
       return (
-        <StatusBadge icon={Ban} tone="neutral" label={t("blockedStatus")} />
+        <StatusBadge
+          className={OUT_OF_ORDER_WRAPS}
+          icon={Wrench}
+          label={outOfOrderLabel}
+          tone="danger"
+        />
       );
     case "free":
     default:

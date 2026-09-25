@@ -33,6 +33,12 @@ test.afterEach(() => {
         set name = '${NAME}', business_date_cutoff = time '04:00'
       where id = '${propertyId}'`,
   );
+  // The inspection setting the last spec changes, back to following the
+  // Organization, as the housekeeping suite expects to find it.
+  psql(
+    `update public.housekeeping_settings set inspect_after_cleaning = null
+      where property_id = '${propertyId}'`,
+  );
 });
 
 test("renames this Property, and the workspace follows", async ({ page }) => {
@@ -87,4 +93,30 @@ test("says why the Organization cannot be renamed from here", async ({
       "Only someone who reaches every Property can rename the Organization.",
     ),
   ).toBeVisible();
+});
+
+test("a_setting_saved_on_configuration_stays_shown", async ({ page }) => {
+  await signIn(page);
+  await page.goto(`/en/configuration?property=${propertyId}`);
+
+  const housekeeping = page.locator("#housekeeping");
+  const control = housekeeping.getByRole("combobox", {
+    name: "For this Property",
+  });
+  await control.click();
+  await page.getByRole("option", { name: "On", exact: true }).click();
+  await expect(housekeeping.getByText("Saved")).toBeVisible();
+
+  // The save has ended and the page has had its refresh. The control is
+  // optimistic, so a save that refreshed nothing would put it back to "Use the
+  // Organization's setting" here — seen, when revalidateHousekeeping did
+  // nothing. Configuration needs no path of its own in that list: an action
+  // that revalidates anything refreshes the page it was called from.
+  await expect(control).toHaveText("On");
+  await page.reload();
+  await expect(
+    page
+      .locator("#housekeeping")
+      .getByRole("combobox", { name: "For this Property" }),
+  ).toHaveText("On");
 });
