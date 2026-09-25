@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
 import { EmptyState, PlannedScreen } from "@ranza/ui";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { screenFor } from "../../../../lib/screens";
-import { entitledProperties } from "../../../../server/viewer";
+import { entitledProperties, requireViewer } from "../../../../server/viewer";
 
 const SEGMENT = "analytics";
 
@@ -25,6 +25,8 @@ export default async function Page({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
+  await requireViewer(locale);
 
   const t = await getTranslations();
   const screen = screenFor(SEGMENT);

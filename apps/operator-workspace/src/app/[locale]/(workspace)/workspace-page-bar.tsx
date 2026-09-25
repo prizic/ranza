@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { AppPageBar, navGroupFor, SectionTabs } from "@ranza/ui";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
-import { useWorkspaceNav } from "../../../lib/nav";
+import { useWithProperty, useWorkspaceNav } from "../../../lib/nav";
 import { pageTitleFor, useWorkspacePageTitles } from "../../../lib/page-titles";
 
 /**
@@ -18,17 +18,21 @@ import { pageTitleFor, useWorkspacePageTitles } from "../../../lib/page-titles";
  */
 export function WorkspacePageBar({
   action,
+  defaultProperty,
   entitled,
   locale,
 }: {
   action?: ReactNode;
+  /** The Property the switcher names when the URL names none. */
+  defaultProperty: string | undefined;
   entitled: readonly string[];
   locale: SupportedLocale;
 }) {
   const pathname = usePathname();
   const titles = useWorkspacePageTitles();
-  const entries = useWorkspaceNav(locale, entitled);
+  const entries = useWorkspaceNav(locale, entitled, defaultProperty);
   const t = useTranslations();
+  const withProperty = useWithProperty(defaultProperty);
   const match = pageTitleFor(pathname, titles);
 
   if (!match) return null;
@@ -41,7 +45,10 @@ export function WorkspacePageBar({
       {...(action === undefined ? {} : { action })}
       breadcrumbLabel={t("breadcrumb")}
       crumbs={[
-        { href: localizeHref(locale, "today"), label: t("workspaceBadge") },
+        {
+          href: withProperty(localizeHref(locale, "today")),
+          label: t("workspaceBadge"),
+        },
         ...(group ? [{ label: group.label }] : []),
       ]}
       display={match.display}

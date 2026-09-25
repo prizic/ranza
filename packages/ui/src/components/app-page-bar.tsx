@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { cn } from "../lib/utils";
 
@@ -121,9 +122,9 @@ function Crumb({ crumb, root }: { crumb: PageCrumb; root: boolean }) {
       "flex min-h-11 items-center decoration-muted-foreground/30 underline-offset-4 hover:text-foreground hover:underline",
   );
   return crumb.href ? (
-    <a className={className} href={crumb.href}>
+    <Link className={className} href={crumb.href}>
       {crumb.label}
-    </a>
+    </Link>
   ) : (
     <span className={className}>{crumb.label}</span>
   );

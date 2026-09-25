@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { BedDouble, Building2, DoorOpen, LogIn, LogOut } from "lucide-react";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { LanguageSwitcher, SplitAuthLayout } from "@ranza/ui";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { currentViewer } from "../../../server/viewer";
 import { SignInForm } from "./sign-in-form";
 
@@ -23,6 +23,7 @@ export default async function SignInPage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
 
   const stay = localizeHref(locale, "stay");
   if (await currentViewer()) redirect(stay);

@@ -1,0 +1,67 @@
+%% Slices decide implementation order and nothing else:
+%%   s1 check-out makes the room dirty, and the board that shows it
+%%   s2 marking rooms clean and inspected, one or many; the check-in warning
+%%   s3 the inspection setting, an Organization default with a Property override
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% UML directions: include points base --> included. extend points extension --> base.
+%% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
+%% State transitions are in states.mmd and are deliberately not repeated here.
+%%
+%% Status belongs to the room, the general case. A bed let on its own makes its
+%% room dirty; a bed with no room above it (ADR 0004) makes itself dirty.
+%% Housekeepers are not expected to use the app: whoever hears "204 is done"
+%% records it, so the permission is on for Owner, Manager, Front Desk and
+%% Housekeeping by default and an Organization may take it from any role.
+%%
+%% Blocked and out of service stay on accommodation_units.status: a different
+%% lifecycle that coexists with this one, so a blocked room can be dirty
+%% (ADR 0029). The setting is edited on the Housekeeping screen itself,
+%% because Configuration is not built and is gated on a capability an
+%% Organization may not hold.
+flowchart TD
+
+  WORKER["Worker<br/>handles stay.checked_out from the outbox"]
+  DESK["Staff Member holding housekeeping.update_status<br/>records what they are told, on the housekeeper's behalf"]
+  READER["Staff Member reaching the Property<br/>without the permission"]
+  ORGADMIN["Staff Member with Organization-wide reach<br/>and permission to configure"]
+  PROPADMIN["Staff Member with reach to one Property<br/>and permission to configure"]
+  CHECKIN["Staff Member checking a Guest in"]
+
+  subgraph S1["slice 1 &mdash; check-out makes the room dirty"]
+    AUTODIRTY(["Mark the room dirty after check-out<br/>unless its status changed since"])
+    BOARD(["Read the housekeeping board<br/>rooms by status, with counts"])
+  end
+
+  subgraph S2["slice 2 &mdash; marking rooms"]
+    MARK(["Mark one room dirty, clean or inspected"])
+    BULK(["Mark several rooms at once"])
+    UNDO(["Mark it back after a mistake"])
+    WARN(["Check in to a room that is not ready<br/>allowed after a warning and one confirmation"])
+  end
+
+  subgraph S3["slice 3 &mdash; the inspection setting"]
+    ORGSET(["Set the Organization default<br/>check rooms after cleaning: on or off"])
+    PROPSET(["Override it for one Property<br/>use default, on, or off"])
+    RESET(["Reset a Property to the default"])
+  end
+
+  subgraph OUT["Not this feature"]
+    STAYOVER(["Daily cleaning of a room still in use &mdash; deferred"])
+    PERBED(["A bed with a status of its own in a shared room &mdash; deferred"])
+    TASKS(["Assigning work to a named housekeeper, evidence, linen, minibar"])
+    MAINT(["Out of order for repair (RANZ-33)"])
+  end
+
+  WORKER --> AUTODIRTY
+  DESK --> MARK
+  DESK --> BULK
+  DESK --> BOARD
+  READER --> BOARD
+  ORGADMIN --> ORGSET
+  PROPADMIN --> PROPSET
+  PROPADMIN --> RESET
+  CHECKIN --> WARN
+
+  BULK -. include .-> MARK
+  UNDO -. extend .-> MARK
+  RESET -. extend .-> PROPSET

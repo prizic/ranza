@@ -37,6 +37,16 @@ import type { StaffDeps } from "./ports";
 /** Every shipped role lives in this scope, which is not an Organization. */
 const SHIPPED_SCOPE = "00000000-0000-0000-0000-000000000000";
 
+/**
+ * Whether a role reference names one the Organization wrote rather than one
+ * Ranza ships. Recorded beside every role key the log keeps, because the key
+ * alone is ambiguous — an authored role's key is a slug of its name, so an
+ * Organization's own "Front desk" is `front_desk` too — and a record is never
+ * rewritten to say which it was once somebody asks.
+ */
+const isAuthored = (roleScopeId: string | undefined): boolean =>
+  (roleScopeId ?? SHIPPED_SCOPE) !== SHIPPED_SCOPE;
+
 /** Postgres refuses a statement no policy admits with this. */
 const INSUFFICIENT_PRIVILEGE = "42501";
 
@@ -214,10 +224,13 @@ export function createStaffModule(deps: StaffDeps) {
           action: "staff.invited",
           subjectType: "membership",
           subjectId: membership.id,
+          // The Properties themselves rather than how many, so the log can
+          // say where somebody was given work, by name.
           context: {
             userId,
             role: input.roleKey,
-            properties: input.propertyIds?.length ?? 0,
+            roleAuthored: isAuthored(input.roleScopeId),
+            propertyIds: input.propertyIds ?? [],
           },
         });
 
@@ -277,7 +290,12 @@ export function createStaffModule(deps: StaffDeps) {
       input.organizationId,
       input.userId,
       "staff.role_changed",
-      { role: input.roleKey },
+      (before) => ({
+        from: before.role,
+        fromAuthored: isAuthored(before.roleScopeId),
+        to: input.roleKey,
+        toAuthored: isAuthored(input.roleScopeId),
+      }),
       (tx) =>
         tx.$executeRawUnsafe(
           `update public.organization_memberships
@@ -308,7 +326,7 @@ export function createStaffModule(deps: StaffDeps) {
       input.organizationId,
       input.userId,
       "staff.property_assigned",
-      { propertyId: input.propertyId },
+      { propertyId: input.propertyId, locationId: input.propertyId },
       (tx) =>
         tx.$executeRawUnsafe(
           `insert into public.property_assignments
@@ -333,7 +351,7 @@ export function createStaffModule(deps: StaffDeps) {
       input.organizationId,
       input.userId,
       "staff.property_unassigned",
-      { propertyId: input.propertyId },
+      { propertyId: input.propertyId, locationId: input.propertyId },
       (tx) =>
         tx.$executeRawUnsafe(
           `update public.property_assignments
@@ -549,24 +567,52 @@ export function createStaffModule(deps: StaffDeps) {
     organizationId: string,
     subjectUserId: string,
     action: string,
-    detail: Record<string, unknown>,
+    detail:
+      | (Record<string, unknown> & { locationId?: string })
+      | ((before: {
+          role: string;
+          roleScopeId: string;
+        }) => Record<string, unknown>),
     run: (tx: Parameters<typeof recordWithin>[0]) => Promise<number>,
   ): Promise<void> {
     try {
       await withOrganizationContext(deps.db, context, async (tx) => {
+        // The membership is the subject, by its own id — the same one
+        // `staff.invited` names — so one person's history is one subject
+        // however many times their reach changes. Read before the statement
+        // so a role change can say what it changed from.
+        const [membership] = await tx.$queryRawUnsafe<
+          { id: string; role: string; roleScopeId: string }[]
+        >(
+          `select id, role, role_scope_id::text as "roleScopeId"
+             from public.organization_memberships
+            where organization_id = $1::uuid and user_id = $2::uuid`,
+          organizationId,
+          subjectUserId,
+        );
+        if (!membership) {
+          throw new StaffRefusedError("nothing to change");
+        }
+
         const changed = await run(tx as never);
         if (changed === 0) {
           throw new StaffRefusedError("nothing to change");
         }
 
+        const { locationId, ...facts } =
+          typeof detail === "function" ? detail(membership) : detail;
         await announce(tx as never, organizationId, subjectUserId, action);
         await recordWithin(tx as never, {
           organizationId,
+          // A Property-level change happened at that Property, and whoever
+          // reaches it may read about it. Everything else here is about the
+          // whole Organization.
+          ...(typeof locationId === "string" ? { locationId } : {}),
           actorId: context.userId,
           action,
           subjectType: "membership",
-          subjectId: subjectUserId,
-          context: detail,
+          subjectId: membership.id,
+          context: { ...facts, userId: subjectUserId },
         });
       });
     } catch (error) {
@@ -715,8 +761,17 @@ export function createStaffModule(deps: StaffDeps) {
       context,
       input.organizationId,
       input.key,
-      "staff.role_changed",
-      { permissions: input.permissions },
+      // Not `staff.role_changed`, which is somebody being given a different
+      // role. This is what a role allows changing, for everybody holding it.
+      "staff.role_permissions_changed",
+      (before) => ({
+        added: input.permissions.filter(
+          (permission) => !before.permissions.includes(permission),
+        ),
+        removed: before.permissions.filter(
+          (permission) => !input.permissions.includes(permission),
+        ),
+      }),
       (tx) =>
         tx.$executeRawUnsafe(
           `update public.staff_roles
@@ -787,14 +842,18 @@ export function createStaffModule(deps: StaffDeps) {
     organizationId: string,
     key: string,
     action: string,
-    detail: Record<string, unknown>,
+    detail:
+      | Record<string, unknown>
+      | ((before: { permissions: string[] }) => Record<string, unknown>),
     run: (tx: Parameters<typeof recordWithin>[0]) => Promise<number>,
   ): Promise<void> {
     try {
       await withOrganizationContext(deps.db, context, async (tx) => {
+        // Read before the statement, so an edit can say what it added and
+        // what it took away rather than only what the role became.
         const subject = only(
-          await tx.$queryRawUnsafe<{ id: string }[]>(
-            `select id from public.staff_roles
+          await tx.$queryRawUnsafe<{ id: string; permissions: string[] }[]>(
+            `select id, permissions from public.staff_roles
               where scope_id = $1::uuid and key = $2`,
             organizationId,
             key,
@@ -821,7 +880,11 @@ export function createStaffModule(deps: StaffDeps) {
           action,
           subjectType: "role",
           subjectId: subject.id,
-          context: { ...detail, key, holders: holders.length },
+          context: {
+            ...(typeof detail === "function" ? detail(subject) : detail),
+            key,
+            holders: holders.length,
+          },
         });
       });
     } catch (error) {

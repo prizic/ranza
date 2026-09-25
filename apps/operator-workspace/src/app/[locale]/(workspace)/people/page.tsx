@@ -1,16 +1,16 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
 import { EmptyState, PageHeader } from "@ranza/ui";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { DefineRoleDialog } from "../../../../features/staff/components/define-role-dialog";
 import { InviteDialog } from "../../../../features/staff/components/invite-dialog";
 import { StaffScreen } from "../../../../features/staff/components/staff-screen";
 import {
-  asShippedRole,
   PERMISSION_CATALOGUE,
+  shippedRoleOf,
 } from "../../../../features/staff/labels";
 import { readRoles, readRoster } from "../../../../server/staff";
-import { entitledProperties } from "../../../../server/viewer";
+import { entitledProperties, requireViewer } from "../../../../server/viewer";
 
 /**
  * Staff and permissions: who works for this Organization, and what each role
@@ -38,6 +38,8 @@ export default async function PeoplePage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
+  await requireViewer(locale);
 
   const t = await getTranslations();
   const properties = await entitledProperties(STAFF_ADMINISTRATION);
@@ -75,10 +77,10 @@ export default async function PeoplePage({
               roles={roles
                 .filter((role) => role.status === "active")
                 .map((role) => {
-                  const shipped = asShippedRole(role.key);
+                  const shipped = shippedRoleOf(role);
                   return {
                     key: role.key,
-                    scopeId: role.organizationId,
+                    organizationId: role.organizationId,
                     name: shipped ? t(`staff.roles.${shipped}`) : role.name,
                   };
                 })}

@@ -13,6 +13,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { latestRecord } from "./audit-record";
 import { createAuditModule } from "../../packages/platform/audit/src";
 import {
   closeEmptyFolioWithin,
@@ -91,8 +92,8 @@ async function reserve(
        (id, organization_id, property_id, accommodation_unit_id,
         guest_id, stay_type, status, starts_on, ends_on)
      select $1::uuid, $2::uuid, $3::uuid, $4::uuid, guest.id, 'guest', 'confirmed',
-            (now() at time zone property.timezone)::date,
-            (now() at time zone property.timezone)::date + 2
+            app.property_today(property.id),
+            app.property_today(property.id) + 2
      from public.properties as property, guest
      where property.id = $3::uuid`,
     id,
@@ -226,6 +227,14 @@ describe("withdrawing a check-in", () => {
     const { stayId } = await reservations.checkIn(MEMBER, wrong);
 
     await reservations.reverseCheckIn(MEMBER, stayId, REASON);
+
+    const withdrawn = await latestRecord(
+      owner,
+      "reservation.check_in_reversed",
+      wrong,
+    );
+    expect(withdrawn?.locationId).toBe(PROPERTY);
+    expect(withdrawn?.reason).toBe(REASON);
 
     // Cancelled, not deleted and not back to `reserved`: a Stay that was in
     // house and is now reserved is indistinguishable from one that never
@@ -592,8 +601,8 @@ describe("closing the Folio of a withdrawn Stay", () => {
              (id, organization_id, property_id, accommodation_unit_id,
               stay_type, status, starts_on, ends_on)
            select $1::uuid, $3::uuid, $2::uuid, $4::uuid, 'guest', 'cancelled',
-                  (now() at time zone property.timezone)::date,
-                  (now() at time zone property.timezone)::date + 2
+                  app.property_today(property.id),
+                  app.property_today(property.id) + 2
              from public.properties as property where property.id = $2::uuid`,
           stayId,
           PROPERTY,

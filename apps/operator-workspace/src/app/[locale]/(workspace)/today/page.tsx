@@ -1,14 +1,16 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
   formatDate,
   formatTime,
   formatWeekday,
   isSupportedLocale,
+  localizeHref,
 } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import {
   entitledProperties,
+  requireViewer,
   TODAY_CAPABILITY,
 } from "../../../../server/viewer";
 import { LocalClock } from "./local-clock";
@@ -34,6 +36,8 @@ export default async function TodayPage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
+  await requireViewer(locale);
 
   const t = await getTranslations();
   const properties = await entitledProperties(TODAY_CAPABILITY);
@@ -48,12 +52,16 @@ export default async function TodayPage({
     );
   }
 
-  // A Property the viewer may not reach is simply absent from this list, so an
-  // unknown or forged ?property= falls back to the first one they can reach.
+  // With no ?property= this is the first Property's day, the one the switcher
+  // names. One this list does not carry — out of reach, stale, forged — goes
+  // back to Today with none, rather than showing the first Property's day
+  // under a switcher that names no Property (HK-S1-24). Out of reach and
+  // unknown are answered alike, so neither is told apart from the other.
   const { property: requested } = await searchParams;
-  const property =
-    properties.find((candidate) => candidate.propertyId === requested) ??
-    fallback;
+  const property = requested
+    ? properties.find((candidate) => candidate.propertyId === requested)
+    : fallback;
+  if (!property) redirect(localizeHref(locale, "today"));
 
   const now = new Date();
 

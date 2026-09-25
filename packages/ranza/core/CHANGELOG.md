@@ -20,6 +20,10 @@ everything lands under Unreleased.
 
 ### Added
 
+- `listEntitledPropertiesByCapability()`: `listEntitledProperties()` for several
+  capabilities in one statement and one transaction, one answer per requested
+  capability in the order asked. The workspace shell used to open a
+  transaction per destination — more at once than the connection pool holds.
 - `listEntitledProperties()`: the Properties a Staff Member may use a
   capability in, answered by one statement so all five gates of blueprint 3.5
   apply to it at once.

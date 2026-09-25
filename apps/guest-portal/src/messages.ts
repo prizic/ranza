@@ -44,10 +44,19 @@ export interface Messages {
   signIn: string;
   signingIn: string;
   signInFailed: string;
+  /** The auth route's rate limit answered 429 — not a wrong password. */
+  signInThrottled: string;
+  /** A 5xx, or no answer at all. */
+  signInUnavailable: string;
   challengeSummary: string;
   code: string;
   verify: string;
   challengeFailed: string;
+  /**
+   * The second-factor challenge is spent — five wrong codes, or it timed out —
+   * and only a new sign-in starts another. Shown back at the password step.
+   */
+  challengeExpired: string;
 
   stayType: Record<OwnStay["stayType"], string>;
   stayStatus: Record<OwnStay["status"], string>;
@@ -88,11 +97,15 @@ export const messages: Record<SupportedLocale, Messages> = {
     signIn: "Oturum aç",
     signingIn: "Açılıyor…",
     signInFailed: "E-posta veya parola hatalı.",
+    signInThrottled: "Çok fazla deneme yapıldı. Biraz sonra tekrar deneyin.",
+    signInUnavailable: "Giriş şu anda yapılamıyor. Biraz sonra tekrar deneyin.",
     challengeSummary:
       "Kimlik doğrulama uygulamanızdaki kodu veya bir yedek kodu girin.",
     code: "Kod",
     verify: "Doğrula",
     challengeFailed: "Kod geçerli değil.",
+    challengeExpired:
+      "Çok fazla kod denendi ya da süre doldu. Yeni bir kod girmek için yeniden oturum açın.",
 
     stayType: { guest: "Misafir", resident: "Sakin" },
     stayStatus: {
@@ -140,11 +153,15 @@ export const messages: Record<SupportedLocale, Messages> = {
     signIn: "Sign in",
     signingIn: "Signing in…",
     signInFailed: "That email and password did not match.",
+    signInThrottled: "Too many attempts. Try again shortly.",
+    signInUnavailable: "Signing in isn't working right now. Try again shortly.",
     challengeSummary:
       "Enter the code from your authenticator app, or one of your backup codes.",
     code: "Code",
     verify: "Verify",
     challengeFailed: "That code is not valid.",
+    challengeExpired:
+      "Too many codes were tried, or too much time passed. Sign in again to enter a new code.",
 
     stayType: { guest: "Guest", resident: "Resident" },
     stayStatus: {
@@ -194,11 +211,15 @@ export const messages: Record<SupportedLocale, Messages> = {
     signIn: "تسجيل الدخول",
     signingIn: "جارٍ تسجيل الدخول…",
     signInFailed: "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+    signInThrottled: "محاولات كثيرة جدًا. حاول مرة أخرى بعد قليل.",
+    signInUnavailable: "تسجيل الدخول لا يعمل الآن. حاول مرة أخرى بعد قليل.",
     challengeSummary:
       "أدخل الرمز من تطبيق المصادقة، أو أحد رموز النسخ الاحتياطي.",
     code: "الرمز",
     verify: "تحقّق",
     challengeFailed: "هذا الرمز غير صالح.",
+    challengeExpired:
+      "جُرّبت رموز كثيرة جدًا أو انتهت المهلة. سجّل الدخول مرة أخرى لإدخال رمز جديد.",
 
     stayType: { guest: "ضيف", resident: "مقيم" },
     stayStatus: {

@@ -13,6 +13,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { latestRecord } from "./audit-record";
 import { createPrismaClient } from "../../packages/db/src";
 import { createOutboxDispatcher } from "../../packages/platform/outbox/src";
 import { subscriptions } from "../../apps/worker/src/outbox/subscriptions";
@@ -524,6 +525,22 @@ describe("changing reach", () => {
       { organizationId: ORG, userId, propertyId: PROPERTY },
     );
 
+    // The membership is the subject — by its own id, as every staff record
+    // names it — and the Property it happened at is the record's location.
+    const [membership] = await owner.$queryRawUnsafe<{ id: string }[]>(
+      `select id from public.organization_memberships
+        where organization_id = $1::uuid and user_id = $2::uuid`,
+      ORG,
+      userId,
+    );
+    const assigned = await latestRecord(
+      owner,
+      "staff.property_assigned",
+      membership!.id,
+    );
+    expect(assigned?.locationId).toBe(PROPERTY);
+    expect(assigned?.context).toMatchObject({ userId, propertyId: PROPERTY });
+
     const [row] = await owner.$queryRawUnsafe<
       { rows: bigint; status: string }[]
     >(
@@ -570,6 +587,23 @@ describe("the last administrator", () => {
       { organizationId: ORG, userId: SECOND_OWNER, roleKey: "front_desk" },
     );
     expect(await roleOf(SECOND_OWNER)).toBe("front_desk/active");
+
+    const [membership] = await owner.$queryRawUnsafe<{ id: string }[]>(
+      `select id from public.organization_memberships
+        where organization_id = $1::uuid and user_id = $2::uuid`,
+      ORG,
+      SECOND_OWNER,
+    );
+    const changed = await latestRecord(
+      owner,
+      "staff.role_changed",
+      membership!.id,
+    );
+    expect(changed?.context).toMatchObject({
+      from: "owner",
+      to: "front_desk",
+      userId: SECOND_OWNER,
+    });
 
     await owner.$executeRawUnsafe(
       `update public.organization_memberships set role = 'owner'
@@ -623,6 +657,86 @@ describe("the last administrator", () => {
       OWNER,
       SECOND_OWNER,
     );
+  });
+});
+
+// SP-S1-34. Defining a role was bounded by what the author holds; assigning one
+// was not, so a role holding only staff.administer was one step from Owner.
+// This is the whole attack, through the module the People screen calls.
+describe("a role handed out is bounded by the hander's own", () => {
+  async function aNarrowAdministrator(): Promise<string> {
+    const { key } = await staff.defineRole(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        name: `Rota keeper ${randomUUID().slice(0, 8)}`,
+        permissions: ["staff.administer"],
+      },
+    );
+    const { membershipId } = await staff.invite(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        email: anAddress(),
+        roleKey: key,
+        roleScopeId: ORG,
+        // Organization-wide, so they reach a Property. The commercial gate asks
+        // about a Property the actor reaches, and somebody who reaches none is
+        // refused by it before the ceiling is ever asked — which is the reason
+        // this suite once passed with the ceiling removed.
+        accessScope: "organization_wide",
+      },
+    );
+    const [row] = await owner.$queryRawUnsafe<{ userId: string }[]>(
+      `select user_id as "userId" from public.organization_memberships
+        where id = $1::uuid`,
+      membershipId,
+    );
+    return row!.userId;
+  }
+
+  it("refuses a holder of staff.administer alone making themselves Owner", async () => {
+    const narrow = await aNarrowAdministrator();
+
+    await expect(
+      staff.changeRole(
+        { userId: narrow },
+        { organizationId: ORG, userId: narrow, roleKey: "owner" },
+      ),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+    await expect(
+      staff.invite(
+        { userId: narrow },
+        { organizationId: ORG, email: anAddress(), roleKey: "owner" },
+      ),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+
+    const [row] = await owner.$queryRawUnsafe<{ role: string }[]>(
+      `select role from public.organization_memberships
+        where organization_id = $1::uuid and user_id = $2::uuid`,
+      ORG,
+      narrow,
+    );
+    expect(row?.role).not.toBe("owner");
+  });
+
+  it("still lets them revoke somebody whose role they could not grant", async () => {
+    const narrow = await aNarrowAdministrator();
+    const { membershipId } = await staff.invite(
+      { userId: OWNER },
+      { organizationId: ORG, email: anAddress(), roleKey: "manager" },
+    );
+    const [manager] = await owner.$queryRawUnsafe<{ userId: string }[]>(
+      `select user_id as "userId" from public.organization_memberships
+        where id = $1::uuid`,
+      membershipId,
+    );
+
+    await staff.revoke(
+      { userId: narrow },
+      { organizationId: ORG, userId: manager!.userId },
+    );
+    expect(await roleOf(manager!.userId)).toBe("manager/revoked");
   });
 });
 
@@ -688,6 +802,78 @@ describe("an Organization's own roles", () => {
     expect(row?.context?.key).toBe(key);
   });
 
+  it("records which role was meant when an authored key is a shipped one's", async () => {
+    // A key is a slug of the name, so an Organization's own "Front desk" is
+    // `front_desk` exactly as the shipped one is. The log keeps role keys and is
+    // never rewritten, so each record says whether its key was the
+    // Organization's own — otherwise it names the wrong role forever.
+    const { key } = await staff.defineRole(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        name: "Front desk",
+        permissions: ["front_desk.check_in"],
+      },
+    );
+    expect(key).toBe("front_desk");
+
+    const shipped = await staff.invite(
+      { userId: OWNER },
+      { organizationId: ORG, email: anAddress(), roleKey: "front_desk" },
+    );
+    expect(
+      (await latestRecord(owner, "staff.invited", shipped.membershipId))
+        ?.context,
+    ).toMatchObject({ role: "front_desk", roleAuthored: false });
+
+    const authored = await staff.invite(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        email: anAddress(),
+        roleKey: key,
+        roleScopeId: ORG,
+      },
+    );
+    expect(
+      (await latestRecord(owner, "staff.invited", authored.membershipId))
+        ?.context,
+    ).toMatchObject({ role: "front_desk", roleAuthored: true });
+
+    const [person] = await owner.$queryRawUnsafe<{ userId: string }[]>(
+      `select user_id as "userId" from public.organization_memberships
+        where id = $1::uuid`,
+      shipped.membershipId,
+    );
+    await staff.changeRole(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        userId: person!.userId,
+        roleKey: key,
+        roleScopeId: ORG,
+      },
+    );
+    expect(
+      (await latestRecord(owner, "staff.role_changed", shipped.membershipId))
+        ?.context,
+    ).toMatchObject({
+      from: "front_desk",
+      fromAuthored: false,
+      to: "front_desk",
+      toAuthored: true,
+    });
+
+    await staff.changeRole(
+      { userId: OWNER },
+      { organizationId: ORG, userId: person!.userId, roleKey: "front_desk" },
+    );
+    expect(
+      (await latestRecord(owner, "staff.role_changed", shipped.membershipId))
+        ?.context,
+    ).toMatchObject({ fromAuthored: true, toAuthored: false });
+  });
+
   it("refuses an author who may not define roles at all", async () => {
     // DESK holds the Front desk role, which carries no staff.define_roles, so
     // the policy refuses before the subset question is reached. The subset
@@ -706,7 +892,7 @@ describe("an Organization's own roles", () => {
   });
 
   it("ends the sessions of everybody holding a role that changes", async () => {
-    const { key } = await staff.defineRole(
+    const { key, roleId } = await staff.defineRole(
       { userId: OWNER },
       {
         organizationId: ORG,
@@ -746,6 +932,19 @@ describe("an Organization's own roles", () => {
     // One per holder. The handler wants a person to sign out, not a role to
     // expand later against a roster that has moved on.
     expect((await countEvents()) - before).toBe(2);
+
+    // Recorded as what the role now allows that it did not, and the reverse —
+    // not as somebody's role changing, which is a different record.
+    const edited = await latestRecord(
+      owner,
+      "staff.role_permissions_changed",
+      roleId,
+    );
+    expect(edited?.context).toMatchObject({
+      added: ["front_desk.check_out"],
+      removed: [],
+      holders: 2,
+    });
   });
 
   it("refuses to retire a role somebody holds, and keeps one nobody does", async () => {

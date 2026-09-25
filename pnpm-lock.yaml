@@ -132,6 +132,9 @@ importers:
       '@ranza/guests':
         specifier: workspace:*
         version: link:../../packages/ranza/guests
+      '@ranza/housekeeping':
+        specifier: workspace:*
+        version: link:../../packages/ranza/housekeeping
       '@ranza/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
@@ -307,6 +310,15 @@ importers:
       '@ranza/db':
         specifier: workspace:*
         version: link:../../db
+
+  packages/ranza/housekeeping:
+    dependencies:
+      '@ranza/db':
+        specifier: workspace:*
+        version: link:../../db
+      '@ranza/platform-audit':
+        specifier: workspace:*
+        version: link:../../platform/audit
 
   packages/ranza/reservations:
     dependencies:

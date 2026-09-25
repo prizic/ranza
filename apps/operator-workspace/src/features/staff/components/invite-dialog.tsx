@@ -18,11 +18,11 @@ import {
   Input,
   Select,
   SelectContent,
-  SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@ranza/ui";
 import { inviteStaffMember, type InviteOutcome } from "../../../server/staff";
+import { RoleOptions, roleOptionValue, type RoleOption } from "./role-options";
 
 /**
  * Inviting somebody.
@@ -46,7 +46,7 @@ export function InviteDialog({
   locale: string;
   organizationId: string;
   properties: readonly { propertyId: string; propertyName: string }[];
-  roles: readonly { key: string; scopeId: string | null; name: string }[];
+  roles: readonly RoleOption[];
 }) {
   const t = useTranslations();
   const [open, setOpen] = useState(false);
@@ -56,12 +56,7 @@ export function InviteDialog({
     { state: "idle" },
   );
 
-  // A role is identified by its scope and its key together — the same pair the
-  // database keys on. Naming only the key would resolve an Organization's own
-  // role to the shipped one of the same name.
-  const optionFor = (role: { key: string; scopeId: string | null }) =>
-    `${role.scopeId ?? ""}:${role.key}`;
-  const defaultRole = roles[0] ? optionFor(roles[0]) : ":front_desk";
+  const defaultRole = roles[0] ? roleOptionValue(roles[0]) : ":front_desk";
 
   return (
     <Dialog onOpenChange={setOpen} open={open}>
@@ -120,11 +115,7 @@ export function InviteDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {roles.map((role) => (
-                    <SelectItem key={optionFor(role)} value={optionFor(role)}>
-                      {role.name}
-                    </SelectItem>
-                  ))}
+                  <RoleOptions roles={roles} />
                 </SelectContent>
               </Select>
             </Field>

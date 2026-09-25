@@ -13,6 +13,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { latestRecord } from "./audit-record";
 import { createAuditModule } from "../../packages/platform/audit/src";
 import { createPrismaClient } from "../../packages/db/src";
 import {
@@ -22,7 +23,10 @@ import {
   FOLIO_CAPABILITY,
 } from "../../packages/ranza/folios/src";
 import {
+  BalanceReasonError,
+  CheckOutError,
   createReservationsModule,
+  FolioChangedError,
   FRONT_DESK_CAPABILITY,
 } from "../../packages/ranza/reservations/src";
 
@@ -212,8 +216,8 @@ async function checkInAt(
        (id, organization_id, property_id, accommodation_unit_id,
         guest_id, stay_type, status, starts_on, ends_on)
      select $1::uuid, $2::uuid, $3::uuid, $4::uuid, guest.id, 'guest', 'confirmed',
-            (now() at time zone property.timezone)::date,
-            (now() at time zone property.timezone)::date + 3
+            app.property_today(property.id),
+            app.property_today(property.id) + 3
      from public.properties as property, guest
      where property.id = $3::uuid`,
     reservationId,
@@ -272,6 +276,7 @@ afterAll(async () => {
 
   await owner.$disconnect();
   await prisma.$disconnect();
+  await rival.$disconnect();
 });
 
 describe("a Folio opens with the Stay", () => {
@@ -388,6 +393,23 @@ describe("the balance is the sum of the lines", () => {
 
     const untouched = detail!.lines.find((line) => line.lineId === lineId);
     expect(untouched?.reversed).toBe(false);
+
+    // What the audit log shows for it: where, and which charge for how much —
+    // the facts a reversal is looked up for (AL-S1-06).
+    const reversal = await latestRecord(owner, "folio.line_reversed", folioId);
+    expect(reversal?.locationId).toBe(PROPERTY);
+    expect(reversal?.reason).toBe("Charged to the wrong room");
+    expect(reversal?.context).toMatchObject({
+      reversedLineId: wrong.lineId,
+      amountMinor: 12550,
+      currency: expect.stringMatching(/^[A-Z]{3}$/),
+      description: "Minibar",
+    });
+    const charge = await latestRecord(owner, "folio.charge_posted", folioId);
+    expect(charge?.locationId).toBe(PROPERTY);
+    expect(charge?.context).toMatchObject({
+      currency: expect.stringMatching(/^[A-Z]{3}$/),
+    });
   });
 
   it("refuses to reverse the same line twice", async () => {
@@ -548,6 +570,10 @@ describe("closing a Folio", () => {
 
     const history = await audit.historyOf(MEMBER, "folio", folioId);
     expect(history.map((entry) => entry.action)).toContain("folio.closed");
+
+    const closed = await latestRecord(owner, "folio.closed", folioId);
+    expect(closed?.locationId).toBe(PROPERTY);
+    expect(closed?.context).toMatchObject({ balanceMinor: 400000 });
   });
 
   it("refuses a second closure rather than reporting success", async () => {
@@ -655,5 +681,238 @@ describe("one Organization's money is not another's", () => {
     expect(listed.every((folio) => folio.currency === "TRY")).toBe(true);
     // Guest names come from the Reservation each Stay was checked in from.
     expect(listed.map((folio) => folio.guestName)).toContain("Ada Lovelace");
+  });
+});
+
+/**
+ * A Unit of this describe's own, so a Guest checked out and back into it on a
+ * later run starts from nothing.
+ */
+async function aBilledUnit(): Promise<string> {
+  const id = randomUUID();
+  await owner.$executeRawUnsafe(
+    `insert into public.accommodation_units
+       (id, property_id, organization_id, name, unit_type, capacity)
+     values ($1::uuid, $2::uuid, $3::uuid, $4, 'room', 2)`,
+    id,
+    PROPERTY,
+    ORG,
+    `FO-${id.slice(0, 6)}`,
+  );
+  return id;
+}
+
+/** What the desk saw: the Folio's line count, the early departure acknowledged. */
+const reviewed = (
+  folioVersion: number | null,
+  balanceReason: string | null = null,
+) => ({
+  folioVersion,
+  earlyDeparture: true,
+  balanceReason,
+});
+
+const rival = createPrismaClient(process.env.DATABASE_URL!);
+const rivalReservations = createReservationsModule({ db: rival });
+const rivalFolios = createFoliosModule({ db: rival });
+
+describe("checking out against the bill", () => {
+  it("closes a settled Folio with the Stay (CO-S1-01)", async () => {
+    const { stayId, folioId } = await checkInAt(
+      PROPERTY,
+      ORG,
+      await aBilledUnit(),
+      "Settled Guest",
+    );
+
+    await expect(
+      reservations.checkOut(MEMBER, stayId, reviewed(0)),
+    ).resolves.toMatchObject({ folioClosed: true });
+
+    const [folio] = await owner.$queryRawUnsafe<{ status: string }[]>(
+      `select status from public.folios where id = $1::uuid`,
+      folioId,
+    );
+    expect(folio?.status).toBe("closed");
+  });
+
+  it("refuses a balance without a reason, and leaves it open with one", async () => {
+    const { stayId, folioId } = await checkInAt(
+      PROPERTY,
+      ORG,
+      await aBilledUnit(),
+      "Owing Guest",
+    );
+    await folios.postCharge(MEMBER, {
+      folioId: folioId!,
+      description: "Minibar",
+      amountMinor: 4500,
+    });
+
+    await expect(
+      reservations.checkOut(MEMBER, stayId, reviewed(1)),
+    ).rejects.toBeInstanceOf(BalanceReasonError);
+
+    await expect(
+      reservations.checkOut(
+        MEMBER,
+        stayId,
+        reviewed(1, "company pays by transfer"),
+      ),
+    ).resolves.toMatchObject({ folioClosed: false });
+
+    const [folio] = await owner.$queryRawUnsafe<{ status: string }[]>(
+      `select status from public.folios where id = $1::uuid`,
+      folioId,
+    );
+    expect(folio?.status).toBe("open");
+
+    const [record] = await audit.historyOf(MEMBER, "stay", stayId);
+    expect(record?.reason).toBe("company pays by transfer");
+    expect(record?.context).toMatchObject({
+      balanceMinor: "4500",
+      folioClosed: false,
+    });
+  });
+
+  it("refuses a bill that changed after it was reviewed (CO-S1-12)", async () => {
+    const { stayId, folioId } = await checkInAt(
+      PROPERTY,
+      ORG,
+      await aBilledUnit(),
+      "Stale Review",
+    );
+    // The desk opened the dialog with nothing on the bill; then a charge.
+    await folios.postCharge(MEMBER, {
+      folioId: folioId!,
+      description: "Late bar tab",
+      amountMinor: 1200,
+    });
+
+    await expect(
+      reservations.checkOut(
+        MEMBER,
+        stayId,
+        reviewed(0, "reviewed with nothing"),
+      ),
+    ).rejects.toBeInstanceOf(FolioChangedError);
+
+    const [stay] = await owner.$queryRawUnsafe<{ status: string }[]>(
+      `select status from public.stays where id = $1::uuid`,
+      stayId,
+    );
+    expect(stay?.status).toBe("in_house");
+  });
+
+  it("refuses a change that nets to zero, because the bill is not the one reviewed (CO-S1-16)", async () => {
+    const { stayId, folioId } = await checkInAt(
+      PROPERTY,
+      ORG,
+      await aBilledUnit(),
+      "Net Zero",
+    );
+    const { lineId } = await folios.postCharge(MEMBER, {
+      folioId: folioId!,
+      description: "Wrong room",
+      amountMinor: 9900,
+    });
+    await folios.reverseLine(MEMBER, lineId, "posted to the wrong room");
+
+    await expect(
+      reservations.checkOut(MEMBER, stayId, reviewed(0)),
+    ).rejects.toBeInstanceOf(FolioChangedError);
+
+    // Reviewed again: balance zero, two lines. It closes.
+    await expect(
+      reservations.checkOut(MEMBER, stayId, reviewed(2)),
+    ).resolves.toMatchObject({ folioClosed: true });
+  });
+
+  it("refuses a review that saw no Folio when there is one", async () => {
+    const { stayId } = await checkInAt(
+      PROPERTY,
+      ORG,
+      await aBilledUnit(),
+      "No Folio Seen",
+    );
+    await expect(
+      reservations.checkOut(MEMBER, stayId, reviewed(null)),
+    ).rejects.toBeInstanceOf(FolioChangedError);
+  });
+
+  it("leaves one departure when two desks confirm at once (CO-S1-13)", async () => {
+    const { stayId } = await checkInAt(
+      PROPERTY,
+      ORG,
+      await aBilledUnit(),
+      "Two Desks",
+    );
+
+    const outcomes = await Promise.allSettled([
+      reservations.checkOut(MEMBER, stayId, reviewed(0)),
+      rivalReservations.checkOut(MEMBER, stayId, reviewed(0)),
+    ]);
+
+    expect(outcomes.filter((o) => o.status === "fulfilled")).toHaveLength(1);
+    const lost = outcomes.find(
+      (o) => o.status === "rejected",
+    ) as PromiseRejectedResult;
+    expect(lost.reason).toBeInstanceOf(CheckOutError);
+  });
+
+  /**
+   * A charge and a check-out on one Folio at the same moment. Either the charge
+   * lands first and the check-out finds a bill it never reviewed, or the
+   * check-out closes the Folio first and the charge is refused because it is
+   * closed. What must never happen is both: a closed Folio with a line on it
+   * nobody saw.
+   */
+  it("never settles a charge that raced the check-out (CO-S1-15)", async () => {
+    // The lock-then-read in checkOut is correct under READ COMMITTED only; a
+    // raised isolation level would pass this race silently, so it is pinned.
+    const [level] = await prisma.$transaction((tx) =>
+      tx.$queryRawUnsafe<{ level: string }[]>(
+        `select current_setting('transaction_isolation') as level`,
+      ),
+    );
+    expect(level?.level).toBe("read committed");
+
+    for (let round = 0; round < 5; round += 1) {
+      const { stayId, folioId } = await checkInAt(
+        PROPERTY,
+        ORG,
+        await aBilledUnit(),
+        `Race ${round}`,
+      );
+
+      const [checkedOut, charged] = await Promise.allSettled([
+        reservations.checkOut(MEMBER, stayId, reviewed(0)),
+        rivalFolios.postCharge(MEMBER, {
+          folioId: folioId!,
+          description: "Race",
+          amountMinor: 700,
+        }),
+      ]);
+
+      expect(
+        checkedOut.status === "fulfilled" && charged.status === "fulfilled",
+      ).toBe(false);
+      if (checkedOut.status === "rejected") {
+        expect(checkedOut.reason).toBeInstanceOf(FolioChangedError);
+      }
+      if (charged.status === "rejected") {
+        expect(charged.reason).toBeInstanceOf(FolioWriteError);
+      }
+
+      const [folio] = await owner.$queryRawUnsafe<
+        { status: string; lines: number }[]
+      >(
+        `select folio.status,
+                (select count(*) from public.folio_lines where folio_id = folio.id)::int as lines
+           from public.folios as folio where folio.id = $1::uuid`,
+        folioId,
+      );
+      expect(folio?.status === "closed" && folio.lines > 0).toBe(false);
+    }
   });
 });

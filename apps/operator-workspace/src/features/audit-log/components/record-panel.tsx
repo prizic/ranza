@@ -1,93 +1,80 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
-import type { AuditRecord } from "@ranza/core";
-import {
-  Fact,
-  FactList,
-  Separator,
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@ranza/ui";
+import type { AuditEntry, AuditNames } from "@ranza/core";
+import { Fact, FactList, Separator } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
-import { isKnownAction, isKnownSubject } from "../actions";
-import { whenLabel } from "./columns";
+import { readAs } from "../actions";
+import { useAuditWords, whenLabel } from "../words";
+import { ContextFacts } from "./context-facts";
 
 /**
  * One record, whole.
  *
- * The list clamps a reason to two lines and shows a subject by its first eight
- * characters. This is where the reason is read in full and the ids are copied
- * from, and where `context` — whatever the acting module thought worth
- * explaining later — is laid out as the facts it is. No actions: this screen
- * writes nothing, and a record cannot be changed by anyone (ADR 0008).
+ * The list clamps a reason to two lines; this is where it is read in full,
+ * with every fact the acting module thought worth explaining later, named the
+ * way a reader would name it. The raw ids stay on the elements for whoever
+ * needs to search a database with them. No actions: this screen writes
+ * nothing, and a record cannot be changed by anyone (ADR 0008).
  */
 export function RecordPanel({
+  entry,
   folioHref,
   locale,
-  record,
-  timeZone,
+  names,
   viewerId,
 }: {
+  entry: AuditEntry;
   /** Route prefix a Folio subject links to with `&folio=` — the one subject
       that already has a screen of its own. */
   folioHref: string;
   locale: SupportedLocale;
-  record: AuditRecord;
-  timeZone: string;
+  names: AuditNames;
   viewerId: string;
 }) {
   const t = useTranslations();
-  const entries = Object.entries(record.context ?? {});
+  const words = useAuditWords(names, viewerId);
+  const subject = words.name(entry.subjectId);
 
   return (
     <section className="mt-6">
       <FactList className="pt-0">
-        <Fact label={t("what")}>
-          {isKnownAction(record.action)
-            ? t(`auditAction.${record.action}`)
-            : record.action}
-        </Fact>
+        <Fact label={t("what")}>{words.action(entry)}</Fact>
         <Fact label={t("subject")}>
-          {isKnownSubject(record.subjectType)
-            ? t(`auditSubject.${record.subjectType}`)
-            : record.subjectType}{" "}
-          {record.subjectType === "folio" ? (
-            <a
-              className="font-mono hover:underline"
-              href={`${folioHref}&folio=${record.subjectId}`}
+          {words.subjectType(entry.subjectType)}{" "}
+          {entry.subjectType === "folio" ? (
+            // Not prefetched: one row is one request, and all it would fetch is
+            // the loading boundary — the row's own data is read on the click.
+            <Link
+              className="hover:underline"
+              href={`${folioHref}&folio=${entry.subjectId}`}
+              prefetch={false}
+              title={entry.subjectId}
             >
-              {record.subjectId}
-            </a>
+              {subject}
+            </Link>
           ) : (
-            <span className="font-mono">{record.subjectId}</span>
+            <span title={entry.subjectId}>{subject}</span>
           )}
         </Fact>
+        <Fact label={t("auditWhere")}>{words.where(entry)}</Fact>
         <Fact label={t("who")}>
-          {record.actorId === viewerId ? (
-            t("you")
-          ) : (
-            <span className="font-mono" title={t("actorUnnamed")}>
-              {record.actorId}
-            </span>
-          )}
+          <span className="break-all" title={entry.actorId}>
+            {words.actor(entry.actorId)}
+          </span>
         </Fact>
         <Fact label={t("when")}>
           <time
             className="tabular-nums"
-            dateTime={record.occurredAt.toISOString()}
+            dateTime={entry.occurredAt.toISOString()}
           >
-            {whenLabel(record.occurredAt, locale, timeZone)}
+            {whenLabel(entry.occurredAt, locale, entry.timeZone)}
           </time>
         </Fact>
         <Fact label={t("why")}>
-          {record.reason ? (
-            <span className="whitespace-pre-wrap">{record.reason}</span>
+          {entry.reason ? (
+            <span className="whitespace-pre-wrap">{entry.reason}</span>
           ) : (
             <span className="text-muted-foreground">{t("noReason")}</span>
           )}
@@ -96,35 +83,12 @@ export function RecordPanel({
 
       <Separator className="my-6" />
 
-      <Table>
-        <TableCaption>{t("context")}</TableCaption>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("contextKey")}</TableHead>
-            <TableHead>{t("contextValue")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {entries.length === 0 ? (
-            <TableRow>
-              <TableCell className="text-muted-foreground" colSpan={2}>
-                {t("noContext")}
-              </TableCell>
-            </TableRow>
-          ) : (
-            entries.map(([key, value]) => (
-              <TableRow key={key}>
-                <TableCell className="font-mono text-step--1">{key}</TableCell>
-                <TableCell className="font-mono text-step--1 break-all">
-                  {typeof value === "object" && value !== null
-                    ? JSON.stringify(value)
-                    : String(value)}
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+      <ContextFacts
+        action={readAs(entry.action, entry.subjectType)}
+        context={entry.context ?? {}}
+        locale={locale}
+        words={words}
+      />
     </section>
   );
 }

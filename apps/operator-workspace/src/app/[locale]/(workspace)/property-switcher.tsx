@@ -26,23 +26,34 @@ import {
  * A client component for one reason — the selection lives in the query string,
  * and a router layout cannot read search parameters. There is nothing to
  * authorize here: the server already decided which Properties may appear.
+ *
+ * With no `?property=` it names the first Property, the one every page opens
+ * on. A `?property=` naming none of these — out of reach, stale, forged —
+ * names no Property at all: the page beneath shows none either, and naming the
+ * viewer's first one would put a Property where the page is working above a
+ * page that says it is not (HK-S1-24).
  */
 export function PropertySwitcher({
+  chooseLabel,
   label,
   organization,
   slots,
 }: {
+  /** Shown in place of a Property's name when the URL names none of these. */
+  chooseLabel: string;
   label: string;
   organization: string;
   slots: readonly { href: string; id: string; name: string }[];
 }) {
-  const selected = useSearchParams().get("property") ?? slots[0]?.id;
-  const active = slots.find((slot) => slot.id === selected) ?? slots[0];
+  const requested = useSearchParams().get("property");
+  const active = requested
+    ? slots.find((slot) => slot.id === requested)
+    : slots[0];
 
-  if (!active) return null;
+  if (slots.length === 0) return null;
 
   // One Property is not a choice. Name it, and offer no menu to open.
-  if (slots.length === 1) {
+  if (active && slots.length === 1) {
     return (
       <p className="flex min-w-0 items-center gap-2 px-2 text-sm font-medium">
         <Building2
@@ -64,7 +75,9 @@ export function PropertySwitcher({
           aria-hidden="true"
           className="size-4 shrink-0 text-muted-foreground"
         />
-        <span className="min-w-0 truncate sm:max-w-[12rem]">{active.name}</span>
+        <span className="min-w-0 truncate sm:max-w-[12rem]">
+          {active ? active.name : chooseLabel}
+        </span>
         <ChevronsUpDown
           aria-hidden="true"
           className="size-4 shrink-0 text-muted-foreground"
@@ -79,16 +92,19 @@ export function PropertySwitcher({
           <span className="truncate text-sm font-medium">{organization}</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {/* A full load rather than a Link, on purpose: ADR 0019 drops the
+            client cache on a Property switch, and a new document drops it by
+            construction. */}
         {slots.map((slot) => (
           <DropdownMenuItem asChild key={slot.id}>
             <a
-              aria-current={slot.id === active.id ? "true" : undefined}
+              aria-current={slot.id === active?.id ? "true" : undefined}
               href={slot.href}
             >
               <Check
                 aria-hidden="true"
                 className={
-                  slot.id === active.id
+                  slot.id === active?.id
                     ? "size-4 shrink-0"
                     : "size-4 shrink-0 invisible"
                 }

@@ -161,7 +161,7 @@ psql(`
     insert into public.properties (organization_id, name)
     select organization.id, wanted.name
     from organization, (values ${values}) as wanted (name)
-    returning id, organization_id, timezone
+    returning id, organization_id, timezone, business_date_cutoff
   ), guest as (
     insert into public.guests (organization_id, full_name, email)
     select organization.id, wanted.name, wanted.email
@@ -201,7 +201,7 @@ psql(`
          (values ('front_desk'), ('guest_experience'), ('housekeeping'),
                  ('food_and_beverage'), ('inventory'), ('finance'),
                  ('people'), ('staff_administration'), ('analytics'),
-                 ('configuration'), ('audit'))
+                 ('configuration'))
            as wanted (capability_key)
   ), unit as (
     insert into public.accommodation_units
@@ -227,8 +227,8 @@ psql(`
     select
       d.organization_id, d.property_id, d.id,
       guest.id, 'guest', 'checked_in',
-      (now() at time zone property.timezone)::date - wanted.arrived,
-      (now() at time zone property.timezone)::date - wanted.leaves
+      app.business_date(now(), property.timezone, property.business_date_cutoff) - wanted.arrived,
+      app.business_date(now(), property.timezone, property.business_date_cutoff) - wanted.leaves
     from departing_units as d
     join property on property.id = d.property_id
     join (values (1, 'Cahit Arf', 4, 0), (2, 'Halide Edib', 9, 2))
@@ -259,6 +259,15 @@ psql(`
     join property on property.id = unit.property_id
     where property.id = (select id from property order by name limit 1)
       and unit.name in ('101', '102', '201')
+  ), not_ready as (
+    -- Room 102 is waiting for cleaning while its Guest arrives today, so the
+    -- Housekeeping board has something to mark and the arrivals list shows
+    -- what checking into a room that is not ready looks like.
+    insert into public.housekeeping_unit_status
+      (accommodation_unit_id, property_id, organization_id, status)
+    select id, property_id, organization_id, 'dirty'
+    from arriving
+    where name = '102'
   )
   insert into public.reservations
     (organization_id, property_id, accommodation_unit_id,
@@ -270,9 +279,9 @@ psql(`
     guest.id,
     wanted.stay_type,
     wanted.status,
-    (now() at time zone property.timezone)::date,
+    app.business_date(now(), property.timezone, property.business_date_cutoff),
     case when wanted.nights = 0 then null
-         else (now() at time zone property.timezone)::date + wanted.nights end
+         else app.business_date(now(), property.timezone, property.business_date_cutoff) + wanted.nights end
   from arriving
   join property on property.id = arriving.property_id
   join (values ${ARRIVALS.map(
@@ -285,6 +294,6 @@ psql(`
 
 console.log(`Seeded ${ORGANIZATION} with ${PROPERTIES.length} Properties.`);
 console.log(
-  `${ARRIVALS.length} Reservations arrive today at the first one, and 2 Stays are due to leave.`,
+  `${ARRIVALS.length} Reservations arrive today at the first one, 2 Stays are due to leave, and room 102 is waiting for cleaning.`,
 );
 console.log(`Sign in at ${APP}/tr/today as ${EMAIL} / ${PASSWORD}`);

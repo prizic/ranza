@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { isNavGroup, navGroupFor, type NavEntry } from "./nav";
+import { hrefPath, isNavGroup, navGroupFor, type NavEntry } from "./nav";
 import { cn } from "../lib/utils";
 
 /**
@@ -37,9 +38,9 @@ export function SectionTabs({
       className="mb-6 flex w-fit max-w-full gap-1 overflow-x-auto rounded-md bg-muted p-1 scrollbar-none md:hidden"
     >
       {group.children.map(({ href, label: child }) => {
-        const active = pathname === href;
+        const active = pathname === hrefPath(href);
         return (
-          <a
+          <Link
             aria-current={active ? "page" : undefined}
             className={cn(
               "flex min-h-9 shrink-0 items-center rounded-sm px-3 text-sm font-medium whitespace-nowrap transition-all",
@@ -51,7 +52,7 @@ export function SectionTabs({
             key={href}
           >
             {child}
-          </a>
+          </Link>
         );
       })}
     </nav>

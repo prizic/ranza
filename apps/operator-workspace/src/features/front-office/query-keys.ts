@@ -32,6 +32,8 @@ export const frontOfficeKeys = {
     ] as const,
   arrivals: (scope: Scope) =>
     [...frontOfficeKeys.all(scope), "arrivals"] as const,
-  departures: (scope: Scope) =>
-    [...frontOfficeKeys.all(scope), "departures"] as const,
+  // The view is part of the key: "due" and "in house" are two lists, and one
+  // must never be answered from the other's rows.
+  departures: (scope: Scope, view: "due" | "in_house") =>
+    [...frontOfficeKeys.all(scope), "departures", view] as const,
 };

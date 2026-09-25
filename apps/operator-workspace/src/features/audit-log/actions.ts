@@ -20,12 +20,15 @@ export const KNOWN_ACTIONS = [
   "reservation.created",
   "reservation.checked_in",
   "reservation.check_in_reversed",
+  "reservation.cancelled",
+  "reservation.no_show",
   "stay.checked_out",
   "folio.charge_posted",
   "folio.line_reversed",
   "folio.closed",
   "staff.invited",
   "staff.role_changed",
+  "staff.role_permissions_changed",
   "staff.property_assigned",
   "staff.property_unassigned",
   "staff.revoked",
@@ -36,6 +39,8 @@ export const KNOWN_ACTIONS = [
   "unit.added",
   "unit.blocked",
   "unit.unblocked",
+  "housekeeping.status_changed",
+  "housekeeping.inspection_set",
 ] as const;
 
 export type KnownAction = (typeof KNOWN_ACTIONS)[number];
@@ -48,6 +53,7 @@ export const KNOWN_SUBJECTS = [
   "role",
   "property",
   "accommodation_unit",
+  "organization",
 ] as const;
 
 export type KnownSubject = (typeof KNOWN_SUBJECTS)[number];
@@ -63,8 +69,31 @@ export const CORRECTIONS: readonly KnownAction[] = [
   "folio.line_reversed",
 ];
 
+/**
+ * What a filter select submits for "no narrowing" — Radix refuses an empty
+ * value. Here and not beside the select, because the route reads it too: a
+ * server component importing a value from a `"use client"` module receives a
+ * client reference rather than the string, and every comparison with it is
+ * silently false.
+ */
+export const ANY = "any";
+
 export function isKnownAction(action: string): action is KnownAction {
   return (KNOWN_ACTIONS as readonly string[]).includes(action);
+}
+
+/**
+ * The action a record should be read as.
+ *
+ * Until 20260916004200 editing what a role allows was written as
+ * `staff.role_changed` on a `role` subject — the same name as giving somebody a
+ * different role. Records are never rewritten, so the old ones keep that name,
+ * and this is where they are read as the permissions change they were.
+ */
+export function readAs(action: string, subjectType: string): string {
+  return action === "staff.role_changed" && subjectType === "role"
+    ? "staff.role_permissions_changed"
+    : action;
 }
 
 export function isKnownSubject(subject: string): subject is KnownSubject {

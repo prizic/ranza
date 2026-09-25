@@ -1,0 +1,35 @@
+%% Every allowed transition is drawn and labelled with the command that causes
+%% it. Anything not drawn is forbidden.
+%%
+%% One lifecycle, held by the room (ADR 0029): a Unit with no parent. A bed
+%% under a room has no status of its own; its room answers for it. Whether a
+%% Unit is blocked or out of service is accommodation_units.status, a
+%% different lifecycle that coexists with this one — a blocked room is still
+%% dirty, and still dirty after it is unblocked.
+%%
+%% "Ready" is not a state. It is read off this one and the inspection setting:
+%% inspected is ready; clean is ready when inspection is off. Changing the
+%% setting therefore moves no room between states, and cannot strand one.
+stateDiagram-v2
+
+  state "Room — housekeeping status" as H {
+    [*] --> Clean : add a Unit (no row yet, read as clean)
+    Clean --> Dirty : check out
+    Inspected --> Dirty : check out
+    Dirty --> Dirty : check out (a second departure)
+    Dirty --> Clean : mark clean
+    Dirty --> Inspected : mark inspected
+    Clean --> Inspected : mark inspected
+    Clean --> Dirty : mark dirty
+    Inspected --> Clean : mark clean
+    Inspected --> Dirty : mark dirty
+    %% Every mark is allowed from every state because a correction is one tap
+    %% with no reason (HK-S2-05). Marking a room it is already in is allowed
+    %% and audited, so a double submit is harmless (HK-S2-06).
+    %% A check out makes the room dirty at once: a room a Guest has left since
+    %% its status last changed reads dirty (app.unit_housekeeping_state), and
+    %% the worker writes the row to match when it delivers the departure
+    %% (HK-S1-22). The worker writes nothing when a person changed the status
+    %% after the departure happened (HK-S1-05): the later word wins.
+    %% No terminal state. A room is never deleted, and no status ends it.
+  }

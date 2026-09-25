@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, PanelLeft, PanelLeftClose } from "lucide-react";
 import {
   groupNavEntries,
+  hrefPath,
   isNavGroup,
   navGroupFor,
   toMobileNav,
@@ -42,8 +44,13 @@ export type SidebarLabels = RailLabels;
 
 function useActiveHref(root: string) {
   const pathname = usePathname();
-  return (href: string) =>
-    pathname === href || (href !== root && pathname.startsWith(`${href}/`));
+  return (href: string) => {
+    const path = hrefPath(href);
+    return (
+      pathname === path ||
+      (path !== hrefPath(root) && pathname.startsWith(`${path}/`))
+    );
+  };
 }
 
 /**
@@ -158,13 +165,13 @@ function AppSidebarInner({
         >
           {collapsed ? (
             <div className="flex w-full flex-col items-center gap-2">
-              <a
+              <Link
                 aria-label={labels.home}
                 className="inline-flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-transform duration-500 hover:scale-105 hover:rotate-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 href={root}
               >
                 {brand}
-              </a>
+              </Link>
               <button
                 aria-label={labels.expand}
                 className="inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground/70 transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
@@ -177,7 +184,7 @@ function AppSidebarInner({
             </div>
           ) : (
             <div className="flex w-full items-center gap-2">
-              <a
+              <Link
                 aria-label={labels.home}
                 className="group flex min-w-0 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:gap-3.5"
                 href={root}
@@ -195,7 +202,7 @@ function AppSidebarInner({
                     </span>
                   ) : null}
                 </div>
-              </a>
+              </Link>
 
               <button
                 aria-label={labels.collapse}
@@ -293,7 +300,7 @@ function ExpandedLeafItem({
   leaf: NavLeaf;
 }) {
   return (
-    <a
+    <Link
       aria-current={active ? "page" : undefined}
       className={cn(
         "hover-lift group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-300 select-none lg:gap-3.5 lg:px-3.5 lg:py-2.5 lg:text-[15px] xl:px-4 xl:py-3 xl:text-base [@media(max-height:800px)]:py-1.5 [@media(min-height:801px)_and_(max-height:960px)]:py-2",
@@ -325,7 +332,7 @@ function ExpandedLeafItem({
           {leaf.badge}
         </span>
       ) : null}
-    </a>
+    </Link>
   );
 }
 
@@ -380,7 +387,7 @@ function ExpandedGroupItem({
           {group.children.map((child) => {
             const childActive = isActive(child.href);
             return (
-              <a
+              <Link
                 aria-current={childActive ? "page" : undefined}
                 className={cn(
                   "hover-lift group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-300 [@media(max-height:800px)]:py-1.5 [@media(min-height:801px)_and_(max-height:960px)]:py-2",
@@ -398,7 +405,7 @@ function ExpandedGroupItem({
                   strokeWidth={childActive ? 2 : 1.5}
                 />
                 <span className="truncate text-start">{child.label}</span>
-              </a>
+              </Link>
             );
           })}
         </div>
@@ -417,7 +424,7 @@ function CollapsedLeafItem({
 }) {
   return (
     <div className="relative group/tile flex justify-center py-0.5">
-      <a
+      <Link
         aria-current={active ? "page" : undefined}
         aria-label={leaf.label}
         className={cn(
@@ -434,7 +441,7 @@ function CollapsedLeafItem({
           className="size-5"
           strokeWidth={active ? 2 : 1.5}
         />
-      </a>
+      </Link>
 
       {/* Floating tooltip on hover/focus */}
       <div
@@ -495,7 +502,7 @@ function CollapsedGroupItem({
             const childActive = isActive(child.href);
             return (
               <DropdownMenuItem asChild key={child.href}>
-                <a
+                <Link
                   className={cn(
                     "flex items-center gap-2 text-xs",
                     childActive
@@ -506,7 +513,7 @@ function CollapsedGroupItem({
                 >
                   <child.icon className="size-4 shrink-0" />
                   <span>{child.label}</span>
-                </a>
+                </Link>
               </DropdownMenuItem>
             );
           })}
@@ -557,7 +564,7 @@ export function AppBottomNav({
               className="flex flex-1 min-w-[4.25rem] justify-center"
               key={href}
             >
-              <a
+              <Link
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "relative flex min-h-13 w-full flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium transition-colors",
@@ -576,7 +583,7 @@ export function AppBottomNav({
                 <span className="max-w-full truncate leading-none">
                   {itemLabel}
                 </span>
-              </a>
+              </Link>
             </li>
           );
         })}

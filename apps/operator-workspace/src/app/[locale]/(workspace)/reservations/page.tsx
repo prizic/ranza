@@ -1,13 +1,14 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { NewReservationDialog } from "../../../../features/front-office/components/new-reservation-dialog";
 import { ReservationsTable } from "../../../../features/front-office/components/reservations-table";
 import {
   bookableUnits,
   entitledProperties,
   FRONT_DESK_CAPABILITY,
+  requireViewer,
   reservations,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
@@ -35,6 +36,8 @@ export default async function ReservationsPage({
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
+  setRequestLocale(locale);
+  await requireViewer(locale);
 
   const t = await getTranslations();
   const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
@@ -70,6 +73,7 @@ export default async function ReservationsPage({
       </div>
       <ReservationsTable
         locale={locale}
+        propertyId={property.propertyId}
         reservations={await reservations(property.propertyId)}
       />
     </>

@@ -17,6 +17,82 @@ const SUBMIT =
 const ERROR =
   "rounded-2xl border border-danger/15 bg-danger-soft p-4 text-center text-sm text-danger";
 
+type Failure = "mismatch" | "throttled" | "expired" | "unavailable";
+
+/**
+ * Better Auth's codes for what was typed not matching — the only answers that
+ * may say so. An allow-list, not the fallback: a 403 from the origin check
+ * would otherwise tell somebody their correct password is wrong.
+ */
+const MISMATCH = new Set([
+  "INVALID_EMAIL_OR_PASSWORD",
+  "INVALID_EMAIL",
+  "INVALID_CODE",
+  "INVALID_BACKUP_CODE",
+]);
+
+/**
+ * The second-factor challenge is spent: five wrong codes end it, and it is
+ * gone once it times out. Only a new sign-in starts another (ADR 0010), so no
+ * code typed here can succeed.
+ */
+const EXPIRED = new Set([
+  "TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE",
+  "INVALID_TWO_FACTOR_COOKIE",
+]);
+
+/** What is said when the answer was not a refusal, at either step. */
+const FAILURE = {
+  throttled: "signInThrottled",
+  expired: "challengeExpired",
+  unavailable: "signInUnavailable",
+} as const;
+
+function codeOf(body: unknown): string | undefined {
+  return typeof body === "object" &&
+    body !== null &&
+    "code" in body &&
+    typeof body.code === "string"
+    ? body.code
+    : undefined;
+}
+
+/**
+ * What went wrong. Anything this does not recognise is signing in not working,
+ * and is logged, because this application has no client error reporter yet
+ * and nothing else would record it.
+ */
+async function failureOf(response: Response | null): Promise<Failure> {
+  if (response === null) return "unavailable";
+  if (response.status === 429) return "throttled";
+  // A body that is not JSON is carried into the log below, not dropped.
+  const body: unknown = await response.json().catch((error: unknown) => error);
+  const code = codeOf(body);
+  if (code && EXPIRED.has(code)) return "expired";
+  if (code && MISMATCH.has(code)) return "mismatch";
+  console.error("sign-in refused unexpectedly", response.status, code ?? body);
+  return "unavailable";
+}
+
+/**
+ * The request, or null when there was no answer at all. Logged, because this
+ * application has no client error reporter yet and the console is the only
+ * place a request that never answered can be seen; the form says it is not
+ * working.
+ */
+async function post(url: string, body: unknown): Promise<Response | null> {
+  try {
+    return await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    console.error("sign-in request failed", url, error);
+    return null;
+  }
+}
+
 /**
  * Posts to the Better Auth route handler, which is what sets the session
  * cookie. Nothing about the credential is handled here beyond passing it on.
@@ -29,15 +105,19 @@ const ERROR =
  * asking someone to classify their own code before typing it is a worse
  * question than reading it afterwards.
  *
- * A failure says only that it did not match, at either step. Distinguishing
+ * A refusal says only that it did not match, at either step. Distinguishing
  * "no such account" from "wrong password" would confirm which addresses are
- * registered.
+ * registered. What is not a refusal says what it is instead: too many attempts
+ * (the auth route's rate limit answers 429), a second-factor challenge that is
+ * spent and needs a new sign-in, or signing in not working at all (anything
+ * else, including no answer). Telling somebody their password is wrong when it
+ * is not sends them to reset it, or to try again and be refused for longer.
  */
 export function SignInForm({ redirectTo }: { redirectTo: string }) {
   const t = useTranslations();
   const router = useRouter();
   const [challenging, setChallenging] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState<Failure | null>(null);
   const [pending, setPending] = useState(false);
 
   function complete() {
@@ -51,20 +131,17 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     setPending(true);
-    setFailed(false);
+    setFailure(null);
 
-    const response = await fetch("/api/auth/sign-in/email", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        email: form.get("email"),
-        password: form.get("password"),
-      }),
+    const response = await post("/api/auth/sign-in/email", {
+      email: form.get("email"),
+      password: form.get("password"),
     });
 
-    if (!response.ok) {
+    if (!response?.ok) {
+      const failed = await failureOf(response);
       setPending(false);
-      setFailed(true);
+      setFailure(failed);
       return;
     }
 
@@ -85,21 +162,21 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
     event.preventDefault();
     const code = String(new FormData(event.currentTarget).get("code") ?? "");
     setPending(true);
-    setFailed(false);
+    setFailure(null);
 
     const endpoint = /^\d{6}$/.test(code.trim())
       ? "/api/auth/two-factor/verify-totp"
       : "/api/auth/two-factor/verify-backup-code";
 
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ code: code.trim() }),
-    });
+    const response = await post(endpoint, { code: code.trim() });
 
-    if (!response.ok) {
+    if (!response?.ok) {
+      const failed = await failureOf(response);
       setPending(false);
-      setFailed(true);
+      // A spent challenge cannot be answered, so back to the password, which
+      // starts a new one.
+      if (failed === "expired") setChallenging(false);
+      setFailure(failed);
       return;
     }
 
@@ -112,14 +189,18 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
         <p className="text-sm font-medium text-sign-in-ink-muted">
           {t("challengeSummary")}
         </p>
-        {failed ? (
-          <FormError className={ERROR}>{t("challengeFailed")}</FormError>
+        {failure ? (
+          <FormError className={ERROR}>
+            {failure === "mismatch"
+              ? t("challengeFailed")
+              : t(FAILURE[failure])}
+          </FormError>
         ) : null}
         <Label className="sr-only" htmlFor="code">
           {t("code")}
         </Label>
         <Input
-          aria-invalid={failed || undefined}
+          aria-invalid={failure === "mismatch" || undefined}
           autoComplete="one-time-code"
           autoFocus
           className={FIELD}
@@ -138,14 +219,16 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
 
   return (
     <form className="grid gap-5" onSubmit={signIn}>
-      {failed ? (
-        <FormError className={ERROR}>{t("signInFailed")}</FormError>
+      {failure ? (
+        <FormError className={ERROR}>
+          {failure === "mismatch" ? t("signInFailed") : t(FAILURE[failure])}
+        </FormError>
       ) : null}
       <Label className="sr-only" htmlFor="email">
         {t("email")}
       </Label>
       <Input
-        aria-invalid={failed || undefined}
+        aria-invalid={failure === "mismatch" || undefined}
         autoComplete="username"
         className={FIELD}
         id="email"
@@ -158,7 +241,7 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
         {t("password")}
       </Label>
       <Input
-        aria-invalid={failed || undefined}
+        aria-invalid={failure === "mismatch" || undefined}
         autoComplete="current-password"
         className={FIELD}
         id="password"

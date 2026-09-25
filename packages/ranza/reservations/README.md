@@ -47,10 +47,20 @@ await reservations.listReservations(userId, propertyId);
 await reservations.listBookableUnits(userId, propertyId);
 await reservations.createReservation(userId, booking);
 await reservations.listArrivals(userId, propertyId);
-await reservations.listDepartures(userId, propertyId);
+await reservations.listDepartures(userId, propertyId, "due" | "in_house");
 await reservations.checkIn(userId, reservationId);
-await reservations.checkOut(userId, stayId);
+await reservations.checkOut(userId, stayId, {
+  folioVersion,
+  earlyDeparture,
+  balanceReason,
+});
 ```
+
+`checkOut` is confirmed against the review of the bill the desk saw: the Folio's
+line count, whether the Guest is leaving early, and — while nothing can take a
+payment — why a balance is left open. It compares all three under the Stay's
+lock and refuses a review that is no longer true
+([ADR 0030](../../../docs/adr/0030-a-check-out-confirms-the-bill-it-reviewed.md)).
 
 `listArrivals` returns the Reservations arriving **on the Property's own day**,
 which is not the reader's: a front desk in İzmir and one in Dubai are working
