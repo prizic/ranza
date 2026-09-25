@@ -196,9 +196,10 @@ export function LiveRoomCalendar({
   return (
     <div className="space-y-5">
       <PageHeader>
-        <h1 className="text-2xl font-bold tracking-tight">
+        {/* h2: the page bar (AppPageBar) already sets this route's one h1. */}
+        <h2 className="text-2xl font-bold tracking-tight">
           {t("title", { property: propertyName })}
-        </h1>
+        </h2>
         <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
       </PageHeader>
 
