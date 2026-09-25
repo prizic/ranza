@@ -13,6 +13,7 @@ export type {
   CapabilityProperties,
   CapabilityRef,
   EntitledProperty,
+  WorkingDay,
 } from "./contracts";
 export type { AuditLocation, AuditNames } from "./audit-log";
 export { MIN_SEARCH_LENGTH } from "./audit-log";

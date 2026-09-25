@@ -46,6 +46,9 @@ import type {
 } from "@ranza/housekeeping";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import { getComposition } from "./composition";
+import { displayName } from "./display-name";
+import type { TodaySummary } from "./today-derive";
+import { readTodaySummary, todayReads } from "./today-summary";
 
 /**
  * The single funnel from a request to tenant data (ADR 0007).
@@ -109,6 +112,12 @@ export interface Viewer {
   userId: string;
   email: string;
   /**
+   * What to call them: the name they signed up with, or the part of their
+   * email before the @ when that is blank or is itself an address. Never the
+   * whole address — a greeting is not where to print one.
+   */
+  name: string;
+  /**
    * Whether this account carries a second factor. An authentication fact, not
    * an authorization one: it says how the session was obtained and never what
    * the Staff Member may reach.
@@ -142,6 +151,7 @@ export const currentViewer = cache(async (): Promise<Viewer | null> => {
   return {
     userId,
     email: session.user.email,
+    name: displayName(session.user.name, session.user.email),
     twoFactorEnabled: session.user.twoFactorEnabled === true,
   };
 });
@@ -395,6 +405,31 @@ export const permittedProperties = cache(
     );
   },
 );
+
+/**
+ * One Property's Today for the viewer, or null when they do not have Today
+ * there — the same answer as for a Property that does not exist.
+ *
+ * A section whose read fails is logged here and marked unavailable; the rest
+ * of the page stands (TD-S1-24).
+ */
+export async function todaySummary(
+  propertyId: string,
+): Promise<TodaySummary | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return readTodaySummary(
+    todayReads(getComposition(), viewer.userId),
+    propertyId,
+    {
+      frontDesk: FRONT_DESK_CAPABILITY,
+      housekeeping: HOUSEKEEPING_CAPABILITY,
+      billing: FOLIO_CAPABILITY,
+    },
+    (section, error) =>
+      console.error("today: a section could not be read", section, error),
+  );
+}
 
 const NO_AUDIT: AuditPage = {
   entries: [],

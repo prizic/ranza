@@ -15,12 +15,14 @@ import {
   type AuditScope,
 } from "./audit-log";
 import {
+  TODAY_CAPABILITY,
   type AuditEntry,
   type AuditFilters,
   type AuditPage,
   type CapabilityProperties,
   type CapabilityRef,
   type EntitledProperty,
+  type WorkingDay,
 } from "./contracts";
 import type { CoreDeps } from "./ports";
 
@@ -209,6 +211,58 @@ export function createCoreModule(deps: CoreDeps) {
   }
 
   /**
+   * One Property's working day, with the viewer's permissions and the
+   * capabilities asked about — or null when the viewer does not have Today
+   * there, which is also the answer for a Property that does not exist.
+   *
+   * One transaction for all of it, so the dashboard's first question costs one
+   * connection however many capabilities it asks about.
+   */
+  async function workingDay(
+    userId: string,
+    propertyId: string,
+    capabilities: readonly CapabilityRef[],
+  ): Promise<WorkingDay | null> {
+    const rows = await withOrganizationContext(
+      deps.db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<WorkingDay[]>`
+        select
+          property.id                                     as "propertyId",
+          property.name                                   as "propertyName",
+          property.organization_id                        as "organizationId",
+          property.timezone                               as "timezone",
+          trim(property.currency)                         as "currency",
+          to_char(app.property_today(property.id), 'YYYY-MM-DD')
+                                                          as "businessDate",
+          to_char((now() at time zone property.timezone)::date, 'YYYY-MM-DD')
+                                                          as "calendarDate",
+          to_char(property.business_date_cutoff, 'HH24:MI') as "cutoff",
+          app.organization_permissions(property.organization_id)
+                                                          as "permissions",
+          array(
+            select app.can_use_capability(
+                     property.id, requested.module_key, requested.capability_key)
+              from unnest(
+                ${capabilities.map((capability) => capability.moduleKey)}::text[],
+                ${capabilities.map((capability) => capability.capabilityKey)}::text[]
+              ) with ordinality as requested(module_key, capability_key, position)
+             order by requested.position
+          )                                               as "capabilities"
+        from public.properties as property
+        where property.id = ${propertyId}::uuid
+          and app.can_use_capability(
+            property.id,
+            ${TODAY_CAPABILITY.moduleKey},
+            ${TODAY_CAPABILITY.capabilityKey}
+          )
+      `,
+    );
+    return rows[0] ?? null;
+  }
+
+  /**
    * One page of the audit log, opened from a Property.
    *
    * The log is the Organization's, narrowed to what the viewer reaches: the
@@ -298,6 +352,7 @@ export function createCoreModule(deps: CoreDeps) {
     listEntitledProperties,
     listEntitledPropertiesByCapability,
     listPermittedProperties,
+    workingDay,
     auditLog,
     auditRecord,
   };
