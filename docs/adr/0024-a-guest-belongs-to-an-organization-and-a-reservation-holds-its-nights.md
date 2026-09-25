@@ -3,6 +3,12 @@
 Status: Accepted
 Date: 2026-09-17
 
+Amended: 2026-09-25 — the double-booking constraint shipped as
+`where (status = 'confirmed')` in the commit that implemented this record
+(949b667), not the `('confirmed', 'checked_in')` sketched under "A Reservation
+holds its nights". A checked-in Reservation's Stay holds its nights instead,
+which ADR 0033 builds on. The sketch is left as written; see RG-S1-12.
+
 ## Context
 
 Until now nothing in Ranza created a Reservation. Every one was written by
