@@ -37,6 +37,11 @@ export type { RowAction } from "./components/data-table/row-actions";
 export { DataTableViewOptions } from "./components/data-table/view-options";
 export { markOverlayClosed, overlayJustClosed } from "./lib/menu-guard";
 export { fieldMatches, toAsciiDigits } from "./lib/search";
+export { DateRangeField } from "./components/date-range-field";
+export type {
+  DateRangeLabels,
+  DateRangePreset,
+} from "./components/date-range-field";
 export { StatusBadge } from "./components/status-badge";
 export type { StatusBadgeProps, StatusTone } from "./components/status-badge";
 export { BrandMark } from "./components/brand-mark";

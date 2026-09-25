@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
+import type { SupportedLocale } from "@ranza/i18n";
 import type { BookableUnit } from "@ranza/reservations";
 import {
   Button,
@@ -14,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DateRangeField,
   Field,
   FormError,
   Input,
@@ -42,10 +44,11 @@ import { unitLabel } from "../unit-label";
  * between this page rendering and somebody pressing the button, which is exactly
  * the race the constraint exists to have no window for.
  *
- * Dates are `<input type="date">`. The browser already knows the reader's
- * calendar, their locale's ordering and how to be operated from a keyboard, and
- * it submits `YYYY-MM-DD` — which is what the module wants and what the database
- * stores. A picker component would be a worse version of all four.
+ * Arrival and departure are one field, because they are one decision: the
+ * calendar shows the nights between them as they are chosen, which two
+ * separate date inputs never could. It still submits `startsOn` and `endsOn` as
+ * `YYYY-MM-DD`, which is what the module wants and what the database stores.
+ * A departure left empty is an open-ended booking, as before.
  */
 
 /**
@@ -60,10 +63,13 @@ const GUEST = { name: 120, email: 254, phone: 40 };
 export function NewReservationDialog({
   locale,
   propertyId,
+  today,
   units,
 }: {
-  locale: string;
+  locale: SupportedLocale;
   propertyId: string;
+  /** The Property's day, `YYYY-MM-DD`, which the calendar marks as today. */
+  today: string;
   units: readonly BookableUnit[];
 }) {
   const t = useTranslations();
@@ -188,26 +194,33 @@ export function NewReservationDialog({
             </Field>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field htmlFor="booking-starts" label={t("arrival")}>
-              <Input id="booking-starts" name="startsOn" required type="date" />
+          <div className="grid gap-1.5">
+            <Field htmlFor="booking-dates" label={t("stayDates")}>
+              <DateRangeField
+                id="booking-dates"
+                labels={{
+                  from: t("arrival"),
+                  to: t("departure"),
+                  emptyFrom: t("bookingAddDate"),
+                  emptyTo: t("bookingOpenEnded"),
+                  pickFrom: t("bookingPickArrival"),
+                  pickTo: t("bookingPickDeparture"),
+                  clear: t("dateRangeClear"),
+                  done: t("dateRangeDone"),
+                  span: (nights) => t("stayNights", { count: nights }),
+                }}
+                locale={locale}
+                // A departure is a later night: a booking cannot end on the
+                // day it starts.
+                minSpan={1}
+                names={{ from: "startsOn", to: "endsOn" }}
+                required
+                today={today}
+              />
             </Field>
-            <div className="grid gap-1.5">
-              <Field htmlFor="booking-ends" label={t("departure")}>
-                <Input
-                  aria-describedby="booking-ends-hint"
-                  id="booking-ends"
-                  name="endsOn"
-                  type="date"
-                />
-              </Field>
-              <p
-                className="text-step--1 text-muted-foreground"
-                id="booking-ends-hint"
-              >
-                {t("departureHint")}
-              </p>
-            </div>
+            <p className="text-step--1 text-muted-foreground">
+              {t("departureHint")}
+            </p>
           </div>
 
           {message ? (
