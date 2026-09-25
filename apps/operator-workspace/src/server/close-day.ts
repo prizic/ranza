@@ -10,7 +10,7 @@ import {
   DayAlreadyClosedError,
 } from "@ranza/business-day";
 import { getComposition } from "./composition";
-import { currentViewer } from "./viewer";
+import { requireViewer } from "./viewer";
 
 /**
  * Closing a business day, from the Close the day screen (ADR 0034).
@@ -44,11 +44,11 @@ export async function closeBusinessDay(
   _previous: CloseDayOutcome,
   form: FormData,
 ): Promise<CloseDayOutcome> {
-  const viewer = await currentViewer();
-  if (!viewer) return "refused";
-
   const locale = String(form.get("locale") ?? "");
   if (!isSupportedLocale(locale)) return "refused";
+  // A session that ended while the dialog stood open goes to sign-in. Answered
+  // as `refused` it read as the day being unclosable, which it is not.
+  const viewer = await requireViewer(locale);
   const propertyId = String(form.get("property") ?? "");
   const businessDate = String(form.get("day") ?? "");
 
