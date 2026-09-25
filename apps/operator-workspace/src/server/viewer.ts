@@ -18,13 +18,21 @@ import type {
 } from "@ranza/core";
 import { FOLIO_CAPABILITY } from "@ranza/folios";
 import type { FolioDetail, FolioSummary } from "@ranza/folios";
-import { FRONT_DESK_CAPABILITY } from "@ranza/reservations";
+import {
+  FRONT_DESK_CAPABILITY,
+  ROOM_CALENDAR_DEFAULT_LENGTH,
+  ROOM_CALENDAR_LENGTHS,
+} from "@ranza/reservations";
 import type {
   Arrival,
   BookableUnit,
   Departure,
   DepartureView,
   ReservationRow,
+  RoomCalendar,
+  RoomCalendarBar,
+  RoomCalendarUnit,
+  RoomCalendarWindow,
 } from "@ranza/reservations";
 import { ROOMS_CAPABILITY } from "@ranza/accommodation";
 import type {
@@ -78,6 +86,8 @@ export {
   HOUSEKEEPING_CAPABILITY,
   MARK_BATCH,
   ROOMS_CAPABILITY,
+  ROOM_CALENDAR_DEFAULT_LENGTH,
+  ROOM_CALENDAR_LENGTHS,
 };
 export type {
   AccommodationUnitStatus,
@@ -97,6 +107,10 @@ export type {
   InspectionSettings,
   NewUnits,
   ReservationRow,
+  RoomCalendar,
+  RoomCalendarBar,
+  RoomCalendarUnit,
+  RoomCalendarWindow,
   UnitCounts,
   UnitEntry,
   UnitMap,
@@ -219,6 +233,29 @@ export async function arrivals(
   const viewer = await currentViewer();
   if (!viewer) return [];
   return getComposition().reservations.listArrivals(viewer.userId, propertyId);
+}
+
+/**
+ * The room calendar for one Property over one window (RANZ-25).
+ *
+ * Same funnel and same non-checking as `arrivals`: a Property the viewer cannot
+ * reach comes back with no Units because the policies and the capability gate
+ * decide that, not a condition here. Null only when nobody is signed in.
+ *
+ * Not `cache`d: it is polled, and a check-in elsewhere must show on the next
+ * read.
+ */
+export async function roomCalendar(
+  propertyId: string,
+  window: RoomCalendarWindow,
+): Promise<RoomCalendar | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().reservations.listRoomCalendar(
+    viewer.userId,
+    propertyId,
+    window,
+  );
 }
 
 /**

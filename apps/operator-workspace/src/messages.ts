@@ -376,6 +376,91 @@ export interface Messages {
   reservedCount: string;
   blockedStatus: string;
 
+  /**
+   * The room calendar (RANZ-25). Grouped, so the screen's copy reads as one
+   * block in each language and `useTranslations("roomCalendar")` scopes it.
+   */
+  roomCalendar: {
+    title: string;
+    subtitle: string;
+    previous: string;
+    next: string;
+    today: string;
+    goTo: string;
+    length: string;
+    lengthOption: string;
+    floorFilter: string;
+    allFloors: string;
+    floorOption: string;
+    noFloor: string;
+    noBuilding: string;
+    search: string;
+    showRequested: string;
+    showDeparted: string;
+    collapseAll: string;
+    expandAll: string;
+    overlapCount: string;
+    bookedWhileBlockedCount: string;
+    legend: string;
+    requested: string;
+    confirmed: string;
+    inHouse: string;
+    overdue: string;
+    departed: string;
+    overlap: string;
+    clashes: string;
+    bookedWhileBlocked: string;
+    blocked: string;
+    outOfService: string;
+    gridLabel: string;
+    roomColumn: string;
+    freeRow: string;
+    freeOn: string;
+    expand: string;
+    collapse: string;
+    bedsTakenLabel: string;
+    barLabel: string;
+    noGuestRecorded: string;
+    noEndDate: string;
+    refreshFailed: string;
+    noRoomsTitle: string;
+    noRoomsDescription: string;
+    goToRooms: string;
+    noMatchTitle: string;
+    noMatchDescription: string;
+    clearFilters: string;
+    filteredNote: string;
+    nothingBooked: string;
+    failedTitle: string;
+    failedDescription: string;
+    retry: string;
+    loading: string;
+    goneTitle: string;
+    goneNote: string;
+    changedNote: string;
+    overlapNote: string;
+    clashNote: string;
+    clashStayNote: string;
+    clashesStay: string;
+    windowFailed: string;
+    blockedNote: string;
+    overdueNote: string;
+    arrives: string;
+    arrived: string;
+    leaves: string;
+    left: string;
+    booked: string;
+    nightsLabel: string;
+    nights: string;
+    stayType: string;
+    guest: string;
+    resident: string;
+    balance: string;
+    folioClosed: string;
+    open: Record<"arrivals" | "departures" | "reservations", string>;
+    /** The short word a bar carries beside a warning's icon, when it fits. */
+    barWord: Record<"overlap" | "bookedWhileBlocked" | "clashes", string>;
+  };
   /** The Housekeeping screen (RANZ-28). */
   housekeeping: {
     subtitle: string;
@@ -999,6 +1084,105 @@ export const messages: Record<SupportedLocale, Messages> = {
     reservedTonight: "Rezervasyonlu",
     reservedCount: "{count, number} rezervasyonlu",
     blockedStatus: "Kapalı",
+    roomCalendar: {
+      title: "{property} oda takvimi",
+      subtitle:
+        "Odalar ve yataklar, tesisin iş günlerine göre. Yalnızca görüntüleme: rezervasyon, yapıldığı yerde değiştirilir.",
+      previous: "Önceki hafta",
+      next: "Sonraki hafta",
+      today: "Bugün",
+      goTo: "Tarihe git",
+      length: "Gösterilen gün",
+      lengthOption: "{days, plural, other {# gün}}",
+      floorFilter: "Kat",
+      allFloors: "Tüm katlar",
+      floorOption: "Kat {floor}",
+      noFloor: "Katsız",
+      noBuilding: "Binasız",
+      search: "Oda veya misafir ara",
+      showRequested: "Talep",
+      showDeparted: "Ayrılan",
+      collapseAll: "Tüm yatakları daralt",
+      expandAll: "Tüm yatakları göster",
+      overlapCount: "{count, plural, other {# çakışma}}",
+      bookedWhileBlockedCount:
+        "{count, plural, other {# kapalı odada rezervasyon}}",
+      legend: "İşaretlerin anlamı",
+      requested: "Talep",
+      confirmed: "Onaylı",
+      inHouse: "Konaklıyor",
+      overdue: "Gecikmiş",
+      departed: "Ayrıldı",
+      overlap: "Çakışma",
+      clashes: "Bir rezervasyonla çakışıyor",
+      bookedWhileBlocked: "Kapalı odada rezervasyon",
+      blocked: "Kapalı",
+      outOfService: "Hizmet dışı",
+      gridLabel: "Gecelere göre odalar ve yataklar",
+      roomColumn: "Oda",
+      freeRow: "Boş",
+      freeOn: "{date}: {of, number} içinden {n, plural, other {# boş}}",
+      expand: "{room} yataklarını göster",
+      collapse: "{room} yataklarını daralt",
+      bedsTakenLabel: "{of, number} yatağın {n, number} tanesi dolu",
+      barLabel: "{guest}, {status}, {from} – {to}",
+      noGuestRecorded: "Kayıtlı misafir yok",
+      noEndDate: "Bitiş tarihi yok",
+      refreshFailed: "Yenilenemedi. Takvim {time} itibarıyla gösteriliyor.",
+      noRoomsTitle: "Henüz oda yok",
+      noRoomsDescription:
+        "Oda ve yatak eklediğinizde burada günlere göre görünür.",
+      goToRooms: "Odalar ve yataklara git",
+      noMatchTitle: "Eşleşen oda yok",
+      noMatchDescription:
+        "Seçilen kat, arama veya filtrelerle eşleşen bir şey yok.",
+      clearFilters: "Filtreleri temizle",
+      filteredNote:
+        "Filtrelendi. Boş ve çakışma sayıları yine tüm odaları kapsar.",
+      nothingBooked: "{from} – {to} arasında rezervasyon yok.",
+      failedTitle: "Oda takvimi gösterilemedi",
+      failedDescription: "Hiçbir şey değiştirilmedi. Birazdan tekrar deneyin.",
+      retry: "Tekrar dene",
+      loading: "Oda takvimi yükleniyor",
+      goneTitle: "Artık takvimde değil",
+      goneNote:
+        "Bu rezervasyon, açtığınızdan beri iptal edildi, çıkış yaptı ya da bu aralığın dışına çıktı.",
+      changedNote: "Bu rezervasyon, açtığınızdan beri değişti.",
+      overlapNote:
+        "Bu odada bu gecelerin bir kısmını başka bir rezervasyon tutuyor. Misafir gelmeden çözün.",
+      clashNote:
+        "Bu talep onaylı bir rezervasyonla çakışıyor; bu haliyle onaylanırsa reddedilir.",
+      clashStayNote:
+        "Bu talep bu gecelerde konaklayan bir misafirle çakışıyor; bu haliyle onaylanırsa reddedilir.",
+      clashesStay: "Konaklayan bir misafirle çakışıyor",
+      windowFailed:
+        "Bu aralık açılamadı. {time} itibarıyla önceki aralık gösteriliyor.",
+      blockedNote:
+        "Bu oda kullanım dışı ({reason}); serbest bırakılana kadar girişi reddedilir.",
+      overdueNote: "Gecikmiş: {date} tarihinde ayrılmaları gerekiyordu.",
+      arrives: "Geliş",
+      arrived: "Geldi",
+      leaves: "Ayrılış",
+      left: "Ayrıldı",
+      booked: "Rezervasyon",
+      nightsLabel: "Gece",
+      nights: "{count, plural, other {# gece}}",
+      stayType: "Tür",
+      guest: "Misafir",
+      resident: "Sakin",
+      balance: "Bakiye",
+      folioClosed: "Folyo kapalı",
+      open: {
+        arrivals: "Girişlerde aç",
+        departures: "Çıkışlarda aç",
+        reservations: "Rezervasyonlarda aç",
+      },
+      barWord: {
+        overlap: "Çakışma",
+        bookedWhileBlocked: "Kapalı",
+        clashes: "Çakışıyor",
+      },
+    },
 
     housekeeping: {
       subtitle: "{property} — temizlik bekleyen odalar",
@@ -1221,6 +1405,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       today: "Bugün",
       "front-office": "Ön büro",
       reservations: "Rezervasyonlar",
+      "room-calendar": "Oda takvimi",
       rooms: "Odalar ve yataklar",
       arrivals: "Girişler",
       departures: "Çıkışlar",
@@ -1630,6 +1815,107 @@ export const messages: Record<SupportedLocale, Messages> = {
     reservedTonight: "Reserved",
     reservedCount: "{count, number} reserved",
     blockedStatus: "Blocked",
+    roomCalendar: {
+      title: "Room calendar at {property}",
+      subtitle:
+        "Rooms and beds against the Property's business days. Read-only: a booking is changed where it was made.",
+      previous: "Previous week",
+      next: "Next week",
+      today: "Today",
+      goTo: "Go to a date",
+      length: "Days shown",
+      lengthOption: "{days, plural, one {# day} other {# days}}",
+      floorFilter: "Floor",
+      allFloors: "All floors",
+      floorOption: "Floor {floor}",
+      noFloor: "No floor",
+      noBuilding: "No building",
+      search: "Search a room or Guest",
+      showRequested: "Requested",
+      showDeparted: "Departed",
+      collapseAll: "Fold all beds",
+      expandAll: "Show all beds",
+      overlapCount: "{count, plural, one {# overlap} other {# overlaps}}",
+      bookedWhileBlockedCount:
+        "{count, plural, one {# booked while blocked} other {# booked while blocked}}",
+      legend: "What the marks mean",
+      requested: "Requested",
+      confirmed: "Confirmed",
+      inHouse: "In house",
+      overdue: "Overdue",
+      departed: "Departed",
+      overlap: "Overlap",
+      clashes: "Clashes with a booking",
+      bookedWhileBlocked: "Booked while blocked",
+      blocked: "Blocked",
+      outOfService: "Out of service",
+      gridLabel: "Rooms and beds by night",
+      roomColumn: "Room",
+      freeRow: "Free",
+      freeOn:
+        "{date}: {n, plural, one {# of {of, number} free} other {# of {of, number} free}}",
+      expand: "Show the beds of {room}",
+      collapse: "Fold the beds of {room}",
+      bedsTakenLabel: "{n, number} of {of, number} beds taken",
+      barLabel: "{guest}, {status}, {from} to {to}",
+      noGuestRecorded: "No Guest recorded",
+      noEndDate: "No end date",
+      refreshFailed:
+        "Couldn't refresh. Showing the calendar as it was at {time}.",
+      noRoomsTitle: "No rooms yet",
+      noRoomsDescription:
+        "Add rooms and beds, and they appear here against the days.",
+      goToRooms: "Go to Rooms & beds",
+      noMatchTitle: "No rooms match",
+      noMatchDescription:
+        "Nothing on this calendar matches the floor, search or filters chosen.",
+      clearFilters: "Clear filters",
+      filteredNote:
+        "Filtered. The free and overlap counts still cover every room.",
+      nothingBooked: "Nothing is booked from {from} to {to}.",
+      failedTitle: "The room calendar could not be shown",
+      failedDescription: "Nothing was changed. Try again in a moment.",
+      retry: "Try again",
+      loading: "Loading the room calendar",
+      goneTitle: "No longer on the calendar",
+      goneNote:
+        "This booking was cancelled, checked out or moved out of this window since you opened it.",
+      changedNote: "This booking has changed since you opened it.",
+      overlapNote:
+        "Another booking holds some of these nights in this room. Resolve it before the Guest arrives.",
+      clashNote:
+        "This request clashes with a confirmed booking; confirming it as it stands would be refused.",
+      clashStayNote:
+        "This request clashes with a Guest in house on these nights; confirming it as it stands would be refused.",
+      clashesStay: "Clashes with a Guest in house",
+      windowFailed:
+        "That window couldn't be opened. Still showing the one before, as it was at {time}.",
+      blockedNote:
+        "This room is out of use ({reason}), so its check-in will be refused until it is released.",
+      overdueNote: "Overdue: they were due to leave on {date}.",
+      arrives: "Arrives",
+      arrived: "Arrived",
+      leaves: "Leaves",
+      left: "Left",
+      booked: "Booked",
+      nightsLabel: "Nights",
+      nights: "{count, plural, one {# night} other {# nights}}",
+      stayType: "Type",
+      guest: "Guest",
+      resident: "Resident",
+      balance: "Balance",
+      folioClosed: "Folio closed",
+      open: {
+        arrivals: "Open in Arrivals",
+        departures: "Open in Departures",
+        reservations: "Open in Reservations",
+      },
+      barWord: {
+        overlap: "Overlap",
+        bookedWhileBlocked: "Blocked",
+        clashes: "Clash",
+      },
+    },
 
     housekeeping: {
       subtitle: "Which rooms need cleaning at {property}",
@@ -1852,6 +2138,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       today: "Today",
       "front-office": "Front Office",
       reservations: "Reservations",
+      "room-calendar": "Room calendar",
       rooms: "Rooms & beds",
       arrivals: "Arrivals",
       departures: "Departures",
@@ -2249,6 +2536,106 @@ export const messages: Record<SupportedLocale, Messages> = {
     reservedCount:
       "{count, plural, zero {لا شيء محجوز} one {سرير واحد محجوز} two {سريران محجوزان} few {# أسرّة محجوزة} many {# سريرًا محجوزًا} other {# سرير محجوز}}",
     blockedStatus: "مغلق",
+    roomCalendar: {
+      title: "تقويم الغرف في {property}",
+      subtitle:
+        "الغرف والأسرّة مقابل أيام عمل المنشأة. للعرض فقط: يُعدَّل الحجز حيث أُنشئ.",
+      previous: "الأسبوع السابق",
+      next: "الأسبوع التالي",
+      today: "اليوم",
+      goTo: "الانتقال إلى تاريخ",
+      length: "الأيام المعروضة",
+      lengthOption:
+        "{days, plural, zero {# يوم} one {يوم واحد} two {يومان} few {# أيام} many {# يومًا} other {# يوم}}",
+      floorFilter: "الطابق",
+      allFloors: "كل الطوابق",
+      floorOption: "الطابق {floor}",
+      noFloor: "بلا طابق",
+      noBuilding: "بلا مبنى",
+      search: "ابحث عن غرفة أو ضيف",
+      showRequested: "مطلوبة",
+      showDeparted: "مغادِرة",
+      collapseAll: "طيّ كل الأسرّة",
+      expandAll: "إظهار كل الأسرّة",
+      overlapCount:
+        "{count, plural, zero {لا تداخلات} one {تداخل واحد} two {تداخلان} few {# تداخلات} many {# تداخلًا} other {# تداخل}}",
+      bookedWhileBlockedCount:
+        "{count, plural, zero {لا حجوزات على غرف مغلقة} one {حجز واحد على غرفة مغلقة} two {حجزان على غرف مغلقة} few {# حجوزات على غرف مغلقة} many {# حجزًا على غرف مغلقة} other {# حجز على غرف مغلقة}}",
+      legend: "معنى العلامات",
+      requested: "مطلوب",
+      confirmed: "مؤكد",
+      inHouse: "مقيم",
+      overdue: "متأخر",
+      departed: "غادر",
+      overlap: "تداخل",
+      clashes: "يتعارض مع حجز",
+      bookedWhileBlocked: "محجوز وهو مغلق",
+      blocked: "مغلق",
+      outOfService: "خارج الخدمة",
+      gridLabel: "الغرف والأسرّة حسب الليلة",
+      roomColumn: "الغرفة",
+      freeRow: "متاح",
+      freeOn:
+        "{date}: {n, plural, zero {لا شيء متاح من {of, number}} one {واحد متاح من {of, number}} two {اثنان متاحان من {of, number}} few {# متاحة من {of, number}} many {# متاحًا من {of, number}} other {# متاح من {of, number}}}",
+      expand: "إظهار أسرّة {room}",
+      collapse: "طيّ أسرّة {room}",
+      bedsTakenLabel: "{n, number} من {of, number} أسرّة مشغولة",
+      barLabel: "{guest}، {status}، من {from} إلى {to}",
+      noGuestRecorded: "لا ضيف مسجّل",
+      noEndDate: "بلا تاريخ انتهاء",
+      refreshFailed: "تعذّر التحديث. يُعرض التقويم كما كان في {time}.",
+      noRoomsTitle: "لا غرف بعد",
+      noRoomsDescription: "أضف الغرف والأسرّة لتظهر هنا مقابل الأيام.",
+      goToRooms: "الانتقال إلى الغرف والأسرّة",
+      noMatchTitle: "لا غرف مطابقة",
+      noMatchDescription:
+        "لا شيء في هذا التقويم يطابق الطابق أو البحث أو المرشحات المختارة.",
+      clearFilters: "مسح المرشحات",
+      filteredNote: "مُرشَّح. أعداد المتاح والتداخل ما زالت تشمل كل الغرف.",
+      nothingBooked: "لا حجوزات من {from} إلى {to}.",
+      failedTitle: "تعذّر عرض تقويم الغرف",
+      failedDescription: "لم يتغير شيء. حاول مرة أخرى بعد قليل.",
+      retry: "حاول مرة أخرى",
+      loading: "جارٍ تحميل تقويم الغرف",
+      goneTitle: "لم يعد في التقويم",
+      goneNote:
+        "أُلغي هذا الحجز أو سُجّلت مغادرته أو خرج من هذه الفترة منذ فتحته.",
+      changedNote: "تغيّر هذا الحجز منذ فتحته.",
+      overlapNote:
+        "حجز آخر يشغل بعض هذه الليالي في هذه الغرفة. عالج ذلك قبل وصول الضيف.",
+      clashNote: "هذا الطلب يتعارض مع حجز مؤكد؛ وتأكيده على حاله سيُرفض.",
+      clashStayNote:
+        "هذا الطلب يتعارض مع ضيف مقيم في هذه الليالي؛ وتأكيده على حاله سيُرفض.",
+      clashesStay: "يتعارض مع ضيف مقيم",
+      windowFailed:
+        "تعذّر فتح هذه الفترة. تُعرض الفترة السابقة كما كانت في {time}.",
+      blockedNote:
+        "هذه الغرفة خارج الاستخدام ({reason})، لذا سيُرفض تسجيل الوصول حتى تُحرَّر.",
+      overdueNote: "متأخر: كان موعد مغادرته {date}.",
+      arrives: "الوصول",
+      arrived: "وصل",
+      leaves: "المغادرة",
+      left: "غادر",
+      booked: "الحجز",
+      nightsLabel: "الليالي",
+      nights:
+        "{count, plural, zero {لا ليالٍ} one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلةً} other {# ليلة}}",
+      stayType: "النوع",
+      guest: "ضيف",
+      resident: "مقيم",
+      balance: "الرصيد",
+      folioClosed: "الفوليو مغلق",
+      open: {
+        arrivals: "فتح في الوصول",
+        departures: "فتح في المغادرة",
+        reservations: "فتح في الحجوزات",
+      },
+      barWord: {
+        overlap: "تداخل",
+        bookedWhileBlocked: "مغلق",
+        clashes: "تعارض",
+      },
+    },
 
     housekeeping: {
       subtitle: "الغرف التي تحتاج إلى تنظيف في {property}",
@@ -2473,6 +2860,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       today: "اليوم",
       "front-office": "المكتب الأمامي",
       reservations: "الحجوزات",
+      "room-calendar": "تقويم الغرف",
       rooms: "الغرف والأسرّة",
       arrivals: "الوصول",
       departures: "المغادرة",
