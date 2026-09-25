@@ -1,4 +1,6 @@
+import Image from "next/image";
 import type { ReactNode } from "react";
+import silk from "../assets/sign-in-silk.webp";
 import { BrandMark } from "./brand-mark";
 
 export interface AuthService {
@@ -23,20 +25,14 @@ export interface SplitAuthLayoutProps {
 }
 
 /**
- * The sign-in gate, composed as the Leaders portal composes its own
- * (leaders-portal/src/components/auth/login-desktop-layout.tsx): an ivory
- * ground with the gold swoosh rising on the end half, the slogan, the service
- * row and the wordmark down the start half, and the form in a floating card over
- * the swoosh.
+ * The sign-in gate, composed as EduBoard composes its login and coloured as
+ * Ranza: one framed white card, the wordmark and the form down its start half,
+ * and on its end half an emerald-silk showcase carrying the slogan, with the
+ * service row on a floating white card.
  *
- * One tree for every width, where Leaders renders a desktop and a mobile copy
- * and hides one: the form holds state and field ids, and two of it would be two
- * forms. Below `lg` the same tree stacks — the card first, then the slogan, the
- * services and the wordmark under it.
- *
- * Leaders' padlock, its "protected by security protocols" line and its
- * logo-figure backdrop are left out: the first two claim something the page
- * does not demonstrate, and the third is another company's mark.
+ * Below `lg` the showcase is dropped and the form fills the card, as EduBoard
+ * does: on a phone the slogan is scrolled past on the way to the only thing
+ * the page is for.
  */
 export function SplitAuthLayout({
   children,
@@ -50,117 +46,123 @@ export function SplitAuthLayout({
   title,
 }: SplitAuthLayoutProps) {
   return (
-    <div className="relative flex min-h-svh flex-col overflow-hidden bg-sign-in-canvas text-sign-in-ink lg:flex-row lg:items-center">
-      {languageSwitcher ? (
-        <div className="absolute start-6 top-4 z-30 lg:start-8 lg:top-6">
-          {languageSwitcher}
-        </div>
-      ) : null}
+    <div className="flex min-h-svh bg-background sm:p-4 lg:h-svh lg:overflow-hidden lg:p-6">
+      <div className="mx-auto flex w-full max-w-[1440px] border-border bg-card shadow-sm sm:rounded-3xl sm:border lg:h-full lg:overflow-hidden">
+        <div className="flex w-full flex-col px-4 py-8 sm:px-12 lg:h-full lg:w-1/2 lg:overflow-y-auto lg:px-16 lg:py-12 xl:px-20">
+          <div className="mb-auto flex flex-wrap items-center justify-between gap-4">
+            <Wordmark badge={productBadge} name={productName} />
+            {languageSwitcher}
+          </div>
 
-      <Swoosh />
-
-      <div className="relative z-10 order-1 flex justify-center px-6 pt-24 lg:order-2 lg:w-[45%] lg:items-center lg:ps-0 lg:pe-10 lg:pt-0 xl:pe-32">
-        <div className="w-full max-w-[420px] rounded-[32px] border border-black/5 bg-sign-in-canvas p-8 shadow-[0_18px_60px_rgba(0,0,0,0.08)] motion-safe:animate-rise lg:max-w-[460px] lg:rounded-[40px] lg:border-0 lg:p-12 lg:shadow-[0_20px_60px_rgba(0,0,0,0.06)]">
-          <div className="mb-8 lg:mb-10">
-            <h1 className="mb-2 text-[28px] font-bold tracking-tight lg:text-[32px]">
+          <div className="my-auto w-full max-w-[440px] py-8 motion-safe:animate-rise">
+            <h1 className="mb-2 text-[26px] leading-[1.1] font-semibold text-foreground sm:mb-3 sm:text-4xl lg:text-[40px] xl:text-[44px]">
               {title}
             </h1>
-            <p className="text-sm font-medium text-sign-in-ink-muted">
+            <p className="mb-6 text-base text-muted-foreground sm:mb-8">
               {subtitle}
             </p>
+            {children}
           </div>
-          {children}
-        </div>
-      </div>
-
-      <div className="relative z-10 order-2 flex flex-col items-center px-8 pt-12 pb-8 text-center lg:order-1 lg:w-[55%] lg:items-start lg:ps-10 lg:pe-4 lg:pt-20 lg:pb-0 lg:text-start 2xl:ps-32">
-        <div className="max-w-2xl lg:mb-16">
-          <p className="mb-3 text-[22px] leading-tight font-black tracking-wide uppercase motion-safe:animate-enter-start lg:mb-6 lg:text-3xl xl:text-[40px] rtl:font-bold">
-            {slogan}
-          </p>
-          <p className="text-[15px] leading-relaxed font-medium text-gold-ink motion-safe:animate-enter-start motion-safe:[animation-delay:150ms] lg:text-xl xl:text-2xl">
-            {subSlogan}
-          </p>
         </div>
 
-        <ul className="mt-8 flex flex-wrap justify-center gap-x-4 gap-y-5 lg:mt-0 lg:mb-24 lg:justify-start lg:gap-4 xl:gap-8 2xl:gap-14">
-          {services.map((service, index) => (
-            <li
-              className="flex w-16 flex-col items-center gap-2 text-center motion-safe:animate-rise lg:w-20 lg:gap-3 xl:w-24 [&_svg]:size-8 lg:[&_svg]:size-[42px]"
-              key={service.label}
-              style={{ animationDelay: `${300 + index * 100}ms` }}
-            >
-              {service.icon}
-              <span className="text-[10px] font-semibold lg:text-xs">
-                {service.label}
-              </span>
-            </li>
-          ))}
-        </ul>
-
-        <Wordmark badge={productBadge} name={productName} />
+        <div className="hidden h-full w-1/2 p-2 lg:block">
+          <Showcase
+            productName={productName}
+            services={services}
+            slogan={slogan}
+            subSlogan={subSlogan}
+          />
+        </div>
       </div>
     </div>
   );
 }
 
-/**
- * The gold swoosh, Leaders' path at Leaders' scale: the full ground from `lg`,
- * the top end corner below it. Two drawings rather than one, because
- * `preserveAspectRatio` — which anchors it differently in each — is an
- * attribute and cannot follow a breakpoint.
- *
- * Mirrored in place for right-to-left. Leaders flips it about its own start
- * edge, which carries it off the screen in Arabic.
- */
-function Swoosh() {
-  const path =
-    "M7362.63 1285.08C7233.24 -89.8154 6385.94 -706.033 5243.79 294.779C4900.84 506.979 4486.91 507.301 4103.82 591.168C2952.02 764.461 3000.37 2206.63 3611.98 2890.21C4863.47 4291.18 7711.41 3289.81 7362.63 1285.08Z";
+/** The mark in its emerald tile, the name beside it, the badge after. */
+function Wordmark({ badge, name }: { badge: string; name: string }) {
   return (
-    <>
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute end-0 top-0 z-[1] h-[45%] w-[70%] overflow-hidden motion-safe:animate-fade-in lg:hidden"
-      >
-        <svg
-          className="absolute end-0 top-0 h-full w-[200%] fill-gold rtl:-scale-x-100"
-          preserveAspectRatio="xMaxYMin slice"
-          viewBox="0 0 6133 3533"
-        >
-          <path d={path} />
-        </svg>
-      </div>
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-[1] hidden motion-safe:animate-fade-in lg:block"
-      >
-        <svg
-          className="absolute inset-0 size-full fill-gold rtl:-scale-x-100"
-          preserveAspectRatio="xMidYMid slice"
-          viewBox="0 0 6133 3533"
-        >
-          <path d={path} />
-        </svg>
-      </div>
-    </>
+    <span className="flex items-center gap-2.5">
+      <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+        <BrandMark className="size-4" />
+      </span>
+      <span className="text-xl font-bold text-foreground">{name}</span>
+      <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold tracking-wider whitespace-nowrap text-secondary-foreground uppercase">
+        {badge}
+      </span>
+    </span>
   );
 }
 
-/** The mark over the name, where Leaders sets its logo. */
-function Wordmark({ badge, name }: { badge: string; name: string }) {
+/**
+ * EduBoard's photographic panel, with Ranza's own texture: emerald silk with
+ * the brand's gold caught in its folds, generated for this panel with its
+ * upper start corner left dark for the slogan. Decorative, so it has no
+ * alternative text, and mirrored for right-to-left with the rest of the page.
+ * A scrim darkens the corner the slogan sits in, as EduBoard darkens its
+ * photograph, so the text never depends on where the gold happens to fall.
+ * The slogan is set as EduBoard sets its own — a light serif italic in cream
+ * over a heavier sans line. Arabic has no italic and Georgia draws none of it,
+ * so right-to-left keeps the sans upright.
+ *
+ * Where EduBoard floats illustrative app chrome in the bottom corner, this
+ * floats the service row: the same composition, carrying screens that exist.
+ * One equal column per service rather than a wrapping row, so a laptop-width
+ * panel never leaves one service alone on a second line; a long name, such as
+ * Turkish "Rezervasyonlar", breaks inside its own column instead.
+ */
+function Showcase({
+  productName,
+  services,
+  slogan,
+  subSlogan,
+}: Pick<
+  SplitAuthLayoutProps,
+  "productName" | "services" | "slogan" | "subSlogan"
+>) {
   return (
-    <div className="mt-10 flex flex-col items-center gap-3 motion-safe:animate-enter-start motion-safe:[animation-delay:300ms] lg:mt-auto lg:items-start lg:pb-12">
-      <span className="flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-md shadow-primary/20 lg:size-16">
-        <BrandMark className="size-7 lg:size-8" />
-      </span>
-      <span className="flex flex-col items-center lg:items-start">
-        <span className="text-3xl leading-none font-bold tracking-tight text-primary lg:text-4xl">
-          {name}
-        </span>
-        <span className="mt-1.5 text-xs font-semibold tracking-wider text-primary/80 uppercase">
-          {badge}
-        </span>
-      </span>
+    <div className="relative isolate flex h-full w-full flex-col overflow-hidden rounded-[32px] bg-surface-strong p-12 shadow-2xl">
+      <Image
+        alt=""
+        className="-z-10 object-cover motion-safe:animate-fade-in rtl:-scale-x-100"
+        fill
+        placeholder="blur"
+        sizes="50vw"
+        src={silk}
+      />
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 -z-10 from-surface-strong/80 via-surface-strong/20 to-transparent bg-linear-to-br rtl:bg-linear-to-bl"
+      />
+
+      <div className="flex items-center gap-2 text-white">
+        <BrandMark className="size-6" />
+        <span className="text-xl font-bold select-none">{productName}</span>
+      </div>
+
+      <div className="mt-16 max-w-md motion-safe:animate-enter-start">
+        <h2 className="font-serif text-4xl leading-[1.05] font-light text-accent-soft italic xl:text-[44px] 2xl:text-[52px] rtl:font-sans rtl:font-semibold rtl:not-italic">
+          {slogan}
+        </h2>
+        <p className="mt-5 text-lg leading-relaxed font-semibold text-white/80 xl:text-xl">
+          {subSlogan}
+        </p>
+      </div>
+
+      {services.length > 0 ? (
+        <ul className="mt-auto grid w-full max-w-xl auto-cols-fr grid-flow-col gap-x-1 gap-y-4 self-end rounded-3xl bg-card px-3 py-5 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.35)] motion-safe:animate-rise motion-safe:[animation-delay:300ms] xl:gap-x-4 xl:p-6">
+          {services.map((service) => (
+            <li
+              className="flex min-w-0 flex-col items-center gap-2 text-center text-primary [&_svg]:size-7 xl:[&_svg]:size-8"
+              key={service.label}
+            >
+              {service.icon}
+              <span className="text-[10px] leading-tight font-semibold break-words hyphens-auto text-foreground xl:text-[11px]">
+                {service.label}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }

@@ -24,7 +24,7 @@ const SERVICES = [
  * Property and no navigation yet, so showing the chrome would be showing an
  * empty version of it.
  *
- * Composed by SplitAuthLayout, after the Leaders portal's sign-in.
+ * Composed by SplitAuthLayout, after EduBoard's login.
  */
 export default async function SignInPage({
   params,

@@ -42,19 +42,6 @@
   --info: #315f83;
   --info-soft: #dfeaf2;
 
-  /* The sign-in screen's own palette, which is Leaders' login: an ivory ground,
-     charcoal type, the brand's gold for the swoosh and never for text, and a
-     near-black call to action. Two greys are darkened from the reference —
-     #8c8b89 to #72716f and the bronze #a48166 to #8a684d — because the
-     originals sit at 3.2:1 and 3.4:1 on the ivory and these clear 4.5:1. */
-  --sign-in-canvas: #fbfaf8;
-  --sign-in-ink: #474747;
-  --sign-in-ink-muted: #72716f;
-  --sign-in-field: #d9d9d9;
-  --sign-in-cta: #1f1e1c;
-  --gold: #e4b763;
-  --gold-ink: #8a684d;
-
   --line: hsl(170 10% 90%);
   --line-strong: hsl(170 10% 80%);
   --focus: hsl(172 65% 20%);
@@ -139,13 +126,7 @@
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
 
-  --color-gold: var(--gold);
-  --color-gold-ink: var(--gold-ink);
-  --color-sign-in-canvas: var(--sign-in-canvas);
-  --color-sign-in-ink: var(--sign-in-ink);
-  --color-sign-in-ink-muted: var(--sign-in-ink-muted);
-  --color-sign-in-field: var(--sign-in-field);
-  --color-sign-in-cta: var(--sign-in-cta);
+  --color-surface-strong: var(--surface-strong);
 
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);

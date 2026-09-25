@@ -41,6 +41,8 @@ export interface Messages {
   welcomeBack: string;
   email: string;
   password: string;
+  showPassword: string;
+  hidePassword: string;
   signIn: string;
   signingIn: string;
   signInFailed: string;
@@ -94,6 +96,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     welcomeBack: "Tekrar hoş geldiniz",
     email: "E-posta",
     password: "Parola",
+    showPassword: "Parolayı göster",
+    hidePassword: "Parolayı gizle",
     signIn: "Oturum aç",
     signingIn: "Açılıyor…",
     signInFailed: "E-posta veya parola hatalı.",
@@ -150,6 +154,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     welcomeBack: "Welcome back",
     email: "Email",
     password: "Password",
+    showPassword: "Show password",
+    hidePassword: "Hide password",
     signIn: "Sign in",
     signingIn: "Signing in…",
     signInFailed: "That email and password did not match.",
@@ -208,6 +214,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     welcomeBack: "مرحبًا بك من جديد",
     email: "البريد الإلكتروني",
     password: "كلمة المرور",
+    showPassword: "إظهار كلمة المرور",
+    hidePassword: "إخفاء كلمة المرور",
     signIn: "تسجيل الدخول",
     signingIn: "جارٍ تسجيل الدخول…",
     signInFailed: "البريد الإلكتروني أو كلمة المرور غير صحيحة.",

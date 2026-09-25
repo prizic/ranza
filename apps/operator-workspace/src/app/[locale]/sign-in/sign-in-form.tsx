@@ -2,20 +2,21 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button, FormError, Input, Label } from "@ranza/ui";
 
 /*
- * Leaders' login fields: tall pills on the ivory card, named by their
- * placeholder, with the label kept for assistive technology. 16px text on a
- * phone, so iOS does not zoom into the field.
+ * EduBoard's login fields, in Ranza's colours: a visible label over a tall,
+ * softly rounded field, and a full-width emerald call to action. 16px text on
+ * a phone, so iOS does not zoom into the field.
  */
+const LABEL = "text-sm font-semibold text-foreground";
 const FIELD =
-  "h-13 rounded-full border-[1.5px] border-sign-in-field bg-transparent px-6 text-base text-sign-in-ink shadow-none placeholder:text-sign-in-ink-muted md:text-[15px] lg:h-14";
-const SUBMIT =
-  "h-13 w-full rounded-full bg-sign-in-cta text-base font-bold tracking-wide text-white shadow-md hover:bg-sign-in-cta/90 lg:h-14";
+  "h-13 rounded-md bg-card px-4 text-base shadow-none md:text-[15px]";
+const SUBMIT = "h-13 w-full rounded-md text-[15px] font-medium";
 const ERROR =
-  "rounded-2xl border border-danger/15 bg-danger-soft p-4 text-center text-sm text-danger";
+  "rounded-lg border border-danger/15 bg-danger-soft p-3 text-sm font-medium text-danger";
 
 type Failure = "mismatch" | "throttled" | "expired" | "unavailable";
 
@@ -119,6 +120,7 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
   const [challenging, setChallenging] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [pending, setPending] = useState(false);
+  const [revealed, setRevealed] = useState(false);
 
   function complete() {
     // Left pending through the redirect: the shell reads the session on the
@@ -132,6 +134,7 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
     const form = new FormData(event.currentTarget);
     setPending(true);
     setFailure(null);
+    setRevealed(false);
 
     const response = await post("/api/auth/sign-in/email", {
       email: form.get("email"),
@@ -186,7 +189,7 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
   if (challenging) {
     return (
       <form className="grid gap-5" onSubmit={verify}>
-        <p className="text-sm font-medium text-sign-in-ink-muted">
+        <p className="text-sm font-medium text-muted-foreground">
           {t("challengeSummary")}
         </p>
         {failure ? (
@@ -196,20 +199,21 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
               : t(FAILURE[failure])}
           </FormError>
         ) : null}
-        <Label className="sr-only" htmlFor="code">
-          {t("code")}
-        </Label>
-        <Input
-          aria-invalid={failure === "mismatch" || undefined}
-          autoComplete="one-time-code"
-          autoFocus
-          className={FIELD}
-          id="code"
-          inputMode="text"
-          name="code"
-          placeholder={t("code")}
-          required
-        />
+        <div className="grid gap-2">
+          <Label className={LABEL} htmlFor="code">
+            {t("code")}
+          </Label>
+          <Input
+            aria-invalid={failure === "mismatch" || undefined}
+            autoComplete="one-time-code"
+            autoFocus
+            className={FIELD}
+            id="code"
+            inputMode="text"
+            name="code"
+            required
+          />
+        </div>
         <Button className={SUBMIT} disabled={pending} type="submit">
           {pending ? t("signingIn") : t("verify")}
         </Button>
@@ -224,32 +228,46 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
           {failure === "mismatch" ? t("signInFailed") : t(FAILURE[failure])}
         </FormError>
       ) : null}
-      <Label className="sr-only" htmlFor="email">
-        {t("email")}
-      </Label>
-      <Input
-        aria-invalid={failure === "mismatch" || undefined}
-        autoComplete="username"
-        className={FIELD}
-        id="email"
-        name="email"
-        placeholder={t("email")}
-        required
-        type="email"
-      />
-      <Label className="sr-only" htmlFor="password">
-        {t("password")}
-      </Label>
-      <Input
-        aria-invalid={failure === "mismatch" || undefined}
-        autoComplete="current-password"
-        className={FIELD}
-        id="password"
-        name="password"
-        placeholder={t("password")}
-        required
-        type="password"
-      />
+      <div className="grid gap-2">
+        <Label className={LABEL} htmlFor="email">
+          {t("email")}
+        </Label>
+        <Input
+          aria-invalid={failure === "mismatch" || undefined}
+          autoComplete="username"
+          className={FIELD}
+          id="email"
+          name="email"
+          required
+          type="email"
+        />
+      </div>
+      <div className="grid gap-2">
+        <Label className={LABEL} htmlFor="password">
+          {t("password")}
+        </Label>
+        <div className="relative">
+          <Input
+            aria-invalid={failure === "mismatch" || undefined}
+            autoComplete="current-password"
+            className={`${FIELD} pe-12`}
+            id="password"
+            name="password"
+            required
+            type={revealed ? "text" : "password"}
+          />
+          <Button
+            aria-label={revealed ? t("hidePassword") : t("showPassword")}
+            className="absolute end-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            onClick={() => setRevealed((shown) => !shown)}
+            size="icon"
+            type="button"
+            variant="ghost"
+          >
+            {revealed ? <EyeOff /> : <Eye />}
+          </Button>
+        </div>
+      </div>
       <Button className={`mt-2 ${SUBMIT}`} disabled={pending} type="submit">
         {pending ? t("signingIn") : t("signIn")}
       </Button>
