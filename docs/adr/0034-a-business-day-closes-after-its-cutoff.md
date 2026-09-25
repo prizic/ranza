@@ -184,8 +184,8 @@ in flight) lands. This guard binds that screen too: it must answer `RZ001`, and
 the refusal is the one change that would rewrite history.
 
 That screen will also be the first thing to lock a Property's row after
-namespace 3 — a check-in holds lock 3 shared from the Stay guard and then reads
-the Property `FOR SHARE`, while a cutoff change holds the row and then waits on
+namespace 3 — a check-in holds lock 3 shared from the Stay guard and will then
+read the Property `FOR SHARE` in the currency check that screen adds, while a cutoff change holds the row and then waits on
 lock 3 exclusive, which Postgres ends in a deadlock (`40P01`). Whatever reads the
 Property row on a Stay's or a Folio's write path must take
 `pg_advisory_xact_lock_shared(3, hashtext(property_id::text))` first, so the
