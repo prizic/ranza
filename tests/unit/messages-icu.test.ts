@@ -100,6 +100,7 @@ describe("every catalogue parses", () => {
             expect(() =>
               translate(path.join("."), {
                 balance: "₺45,00",
+                bed: "x",
                 columns: "x",
                 count: 2,
                 date: "16 Sep",
@@ -111,14 +112,20 @@ describe("every catalogue parses", () => {
                 max: 2,
                 min: 2,
                 n: 2,
+                name: "x",
+                number: 12,
                 of: 9,
                 property: "x",
                 reason: "x",
                 room: "x",
+                state: "x",
                 status: "x",
                 time: "14:00",
                 to: "20 Sep",
+                unit: "x",
                 value: "x",
+                when: "16 Sep",
+                who: "x",
               }),
             ).not.toThrow();
             return;

@@ -298,7 +298,8 @@ export class UnitHasOccupantError extends Error {
 }
 
 /**
- * The Unit is blocked or out of service, so nobody may be put in it.
+ * The Unit is blocked or out of service, or is a bed under a room that is
+ * (ADR 0032), so nobody may be put in it.
  *
  * Raised by `stays_unit_is_in_service` for every role. The desk can act on it —
  * unblock the Unit, or put the Guest elsewhere — which is why it is not the

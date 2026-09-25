@@ -222,7 +222,14 @@ export function createReservationsModule(deps: ReservationsDeps) {
             guest.full_name                         as guest_name,
             unit.name                               as unit_name,
             unit.unit_type,
-            unit.status                             as unit_status,
+            -- A room out of order or blocked covers its beds (ADR 0032,
+            -- MT-S2-06): a bed under it is no more in service than it is.
+            case
+              when room.status in ('out_of_service', 'blocked')
+               and unit.status not in ('out_of_service', 'blocked')
+              then room.status
+              else unit.status
+            end                                     as unit_status,
             room.name                               as room_name,
             stay.id                                 as stay_id,
             folio.id                                as folio_id,
@@ -470,7 +477,8 @@ export function createReservationsModule(deps: ReservationsDeps) {
             "that Accommodation Unit has somebody in it",
           );
         }
-        // Blocked or out of service, refused by stays_unit_is_in_service.
+        // Blocked or out of service, or a bed under a room that is (ADR 0032),
+        // refused by stays_unit_is_in_service.
         if (raised(error, NOT_IN_PREREQUISITE_STATE)) {
           throw new UnitNotInServiceError(
             "that Accommodation Unit is not in service",
@@ -723,7 +731,12 @@ export function createReservationsModule(deps: ReservationsDeps) {
           unit.name                                   as "unitName",
           room.name                                   as "roomName",
           unit.unit_type                              as "unitType",
-          unit.status                                 as "unitStatus",
+          case
+            when room.status in ('out_of_service', 'blocked')
+             and unit.status not in ('out_of_service', 'blocked')
+            then room.status
+            else unit.status
+          end                                         as "unitStatus",
           coalesce(stay.ends_on < today.day, false)   as "overdue",
           coalesce(stay.ends_on > today.day, false)   as "early",
           folio.id                                    as "folioId",
@@ -1010,6 +1023,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
           on room.id = unit.parent_id
         where unit.property_id = ${propertyId}::uuid
           and unit.status not in ('out_of_service', 'blocked')
+          -- A room out of order or blocked covers its beds (ADR 0032,
+          -- MT-S2-06).
+          and (room.status is null
+               or room.status not in ('out_of_service', 'blocked'))
           -- A Unit is sellable when it has no children (ADR 0025): a room with
           -- beds under it is let by the bed, and offering it would be offering
           -- something the sellability trigger then refuses. (No backticks in
@@ -1172,6 +1189,11 @@ export function createReservationsModule(deps: ReservationsDeps) {
         where unit.id = ${booking.accommodationUnitId}::uuid
           and unit.property_id = ${booking.propertyId}::uuid
           and unit.status not in ('out_of_service', 'blocked')
+          and not exists (
+            select 1 from public.accommodation_units as room
+            where room.id = unit.parent_id
+              and room.status in ('out_of_service', 'blocked')
+          )
           -- Let by the bed, so not sellable whole (ADR 0025). Refused here so
           -- the caller gets this module's sentence; the trigger refuses it
           -- again underneath, for every role rather than only this one.
@@ -1472,8 +1494,20 @@ export function createReservationsModule(deps: ReservationsDeps) {
           unit.unit_type                        as "unitType",
           unit.building                         as "building",
           unit.floor                            as "floor",
-          unit.status                           as "status",
-          unit.status_reason                    as "statusReason",
+          -- A room out of order or blocked covers its beds (ADR 0032,
+          -- MT-S2-06), as on Arrivals and in what may be booked.
+          case
+            when room.status in ('out_of_service', 'blocked')
+             and unit.status not in ('out_of_service', 'blocked')
+            then room.status
+            else unit.status
+          end                                   as "status",
+          case
+            when room.status in ('out_of_service', 'blocked')
+             and unit.status not in ('out_of_service', 'blocked')
+            then room.status_reason
+            else unit.status_reason
+          end                                   as "statusReason",
           exists (
             select 1 from public.accommodation_units as child
             where child.parent_id = unit.id
@@ -1482,6 +1516,8 @@ export function createReservationsModule(deps: ReservationsDeps) {
           to_char(win.first_day, 'YYYY-MM-DD')  as "firstDay",
           coalesce(bars.list, '[]'::json)       as "bars"
         from public.accommodation_units as unit
+        left join public.accommodation_units as room
+          on room.id = unit.parent_id
         cross join (
           select day.today, first.day as first_day,
                  first.day + ${days}::int as end_day

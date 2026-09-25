@@ -31,6 +31,10 @@ export const PERMISSION_CATALOGUE = [
   "staff.define_roles",
   "accommodation.configure",
   "housekeeping.update_status",
+  "maintenance.report",
+  "maintenance.manage",
+  "maintenance.take_out_of_order",
+  "maintenance.equipment",
   "audit.read",
 ] as const;
 
@@ -78,6 +82,10 @@ const MESSAGE_KEYS = {
   "staff.define_roles": "defineRoles",
   "accommodation.configure": "configureAccommodation",
   "housekeeping.update_status": "updateHousekeeping",
+  "maintenance.report": "reportMaintenance",
+  "maintenance.manage": "manageMaintenance",
+  "maintenance.take_out_of_order": "takeOutOfOrder",
+  "maintenance.equipment": "manageEquipment",
   "audit.read": "readAudit",
 } as const satisfies Record<PermissionKey, string>;
 

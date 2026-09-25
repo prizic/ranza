@@ -123,8 +123,8 @@ export interface Charge {
  * so a later module may need a different shape.
  */
 export class FolioWriteError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = "FolioWriteError";
   }
 }

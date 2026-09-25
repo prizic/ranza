@@ -19,6 +19,7 @@
     "@ranza/guests": "workspace:*",
     "@ranza/housekeeping": "workspace:*",
     "@ranza/i18n": "workspace:*",
+    "@ranza/maintenance": "workspace:*",
     "@ranza/reservations": "workspace:*",
     "@ranza/staff": "workspace:*",
     "@ranza/ui": "workspace:*",

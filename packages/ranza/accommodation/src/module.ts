@@ -85,6 +85,8 @@ interface UnitRow {
   floor: number | null;
   status: AccommodationUnitStatus;
   statusReason: string | null;
+  /** The status of the room above a bed; null for anything with no parent. */
+  roomStatus: AccommodationUnitStatus | null;
   hasChildren: boolean;
   /** Set when a Stay is in house on this Unit. */
   stayId: string | null;
@@ -109,7 +111,11 @@ function stateOf(row: UnitRow): UnitState {
     // unrepresentable; the fallback is for the type, not for a row.
     return { kind: "blocked", reason: row.statusReason ?? "" };
   }
-  if (row.status === "out_of_service") return { kind: "out_of_service" };
+  // A room out of order covers its beds, whatever each bed's own status
+  // (ADR 0032, MT-S2-06).
+  if (row.status === "out_of_service" || row.roomStatus === "out_of_service") {
+    return { kind: "out_of_service" };
+  }
   if (row.arrivesOn !== null)
     return { kind: "reserved", arrivesOn: row.arrivesOn };
   return { kind: "free" };
@@ -185,6 +191,7 @@ export function createAccommodationModule(deps: AccommodationDeps) {
           unit.floor         as "floor",
           unit.status        as "status",
           unit.status_reason as "statusReason",
+          room.status        as "roomStatus",
           exists (
             select 1 from public.accommodation_units as child
             where child.parent_id = unit.id
@@ -195,6 +202,8 @@ export function createAccommodationModule(deps: AccommodationDeps) {
           to_char(upcoming.starts_on, 'YYYY-MM-DD') as "arrivesOn",
           to_char(today.day, 'YYYY-MM-DD')         as "today"
         from public.accommodation_units as unit
+        left join public.accommodation_units as room
+          on room.id = unit.parent_id
         cross join (
           select app.property_today(${propertyId}::uuid) as day
         ) as today
