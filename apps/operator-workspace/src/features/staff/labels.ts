@@ -32,6 +32,7 @@ export const PERMISSION_CATALOGUE = [
   "accommodation.configure",
   "housekeeping.update_status",
   "audit.read",
+  "configuration.manage",
 ] as const;
 
 export type ShippedRole = (typeof SHIPPED_ROLES)[number];
@@ -79,6 +80,7 @@ const MESSAGE_KEYS = {
   "accommodation.configure": "configureAccommodation",
   "housekeeping.update_status": "updateHousekeeping",
   "audit.read": "readAudit",
+  "configuration.manage": "manageConfiguration",
 } as const satisfies Record<PermissionKey, string>;
 
 export type PermissionMessageKey =

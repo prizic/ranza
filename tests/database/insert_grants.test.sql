@@ -370,11 +370,18 @@ select is_empty(
 -- either. Then app.front_desk_closes_only_a_settled_folio(), which reads a
 -- Folio's lines the front desk cannot see, to refuse closing one with money on
 -- it; nothing written.
+-- Configuration (20260916006000) brought three, none of which writes.
+-- app.property_currency_is_fixed_by_its_first_folio() and
+-- app.property_currency_is_fixed() must see every Folio at a Property whatever
+-- the caller may read, so that narrowing the Folio read policy later cannot
+-- make "none visible" read as "the currency may change". app.folio_currency_is_its_propertys() holds the
+-- Property row while a Folio opens, which a caller without update rights on
+-- properties cannot do; it is gated on the caller's reach.
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  35,
-  'the definer sweep looked at 35 functions; change this number deliberately');
+  38,
+  'the definer sweep looked at 38 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -387,11 +394,12 @@ select is(
   4,
   'four of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a thirty-sixth definer is a red test
+-- Part B: the inventory itself, so a thirty-ninth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
 -- four are housekeeping; five are the audit log's reach; and the last three
--- are the front desk's. The four that write are named in the comments above.
+-- are the front desk's, and three are configuration's. The four that write
+-- are named in the comments above.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -412,8 +420,10 @@ select set_eq(
         'audit_reader_organization_ids','audit_location_is_in_scope',
         'audit_location_names',
         'unit_holds_one_occupancy','stay_and_reservation_agree',
-        'front_desk_closes_only_a_settled_folio'],
-  'and they are exactly the thirty-five the design gives a reason for');
+        'front_desk_closes_only_a_settled_folio',
+        'property_currency_is_fixed_by_its_first_folio',
+        'folio_currency_is_its_propertys','property_currency_is_fixed'],
+  'and they are exactly the thirty-eight the design gives a reason for');
 
 select finish();
 rollback;

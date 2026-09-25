@@ -22,10 +22,12 @@ import {
   type CapabilityRef,
   type EntitledProperty,
 } from "./contracts";
+import { createConfiguration } from "./configuration";
 import type { CoreDeps } from "./ports";
 
 /**
- * Ranza core: Organization, Property, membership and Entitlement reads.
+ * Ranza core: Organization, Property, membership and Entitlement reads, and
+ * the Configuration screen's writes (`./configuration`, ADR 0036).
  *
  * It lives in the Ranza tier rather than the reusable one because Organization
  * and Property are Ranza concepts (ADR 0003). It owns no authorization logic of
@@ -295,6 +297,7 @@ export function createCoreModule(deps: CoreDeps) {
   }
 
   return {
+    ...createConfiguration(deps),
     listEntitledProperties,
     listEntitledPropertiesByCapability,
     listPermittedProperties,

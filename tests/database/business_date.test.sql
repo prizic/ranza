@@ -212,12 +212,16 @@ select is(
   'the new cutoff is what today is read with from now on'
 );
 
-select is(
-  (select count(*) from information_schema.triggers
-    where event_object_schema = 'public' and event_object_table = 'properties'
-      and event_manipulation = 'UPDATE'),
-  0::bigint,
-  'nothing fires when a Property changes: moving a cutoff writes nothing else'
+-- Configuration (20260916006000) brought two update triggers: one stamps the
+-- row, the other refuses a currency change after a Folio. Neither writes to
+-- another table, so moving a cutoff still re-dates nothing — the assertion on
+-- the Reservation above is what says so; this one names what does fire.
+select set_eq(
+  $$select trigger_name::text from information_schema.triggers
+     where event_object_schema = 'public' and event_object_table = 'properties'
+       and event_manipulation = 'UPDATE'$$,
+  array['properties_stamped', 'properties_currency_is_fixed'],
+  'only the stamp and the currency lock fire when a Property changes'
 );
 
 select * from finish();

@@ -35,13 +35,15 @@ export function testProperty(): string {
   // as well, so a check-in opens a Folio: the refusal that matters most on this
   // screen is the one a charge causes, and without a Folio there is nowhere to
   // put one. And staff_administration, because the roster is the other screen
-  // a browser test signs in to look at; housekeeping for the board.
+  // a browser test signs in to look at; housekeeping for the board; and
+  // configuration for the settings screen.
   return aPropertyOfTheTests(TEST_PROPERTY, {
     today: true,
     front_desk: true,
     finance: true,
     staff_administration: true,
     housekeeping: true,
+    configuration: true,
   });
 }
 

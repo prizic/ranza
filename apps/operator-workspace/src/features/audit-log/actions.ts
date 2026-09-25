@@ -41,6 +41,8 @@ export const KNOWN_ACTIONS = [
   "unit.unblocked",
   "housekeeping.status_changed",
   "housekeeping.inspection_set",
+  "property.configured",
+  "organization.configured",
 ] as const;
 
 export type KnownAction = (typeof KNOWN_ACTIONS)[number];

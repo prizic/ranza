@@ -275,7 +275,8 @@ export interface Messages {
       | "defineRoles"
       | "configureAccommodation"
       | "updateHousekeeping"
-      | "readAudit",
+      | "readAudit"
+      | "manageConfiguration",
       string
     >;
     emptyRosterTitle: string;
@@ -375,6 +376,58 @@ export interface Messages {
   reservedTonight: string;
   reservedCount: string;
   blockedStatus: string;
+
+  /** The Configuration screen (ADR 0036). */
+  configuration: {
+    subtitle: string;
+    sections: string;
+    organizationTitle: string;
+    organizationHint: string;
+    organizationName: string;
+    organizationNeedsReach: string;
+    propertyTitle: string;
+    propertyHint: string;
+    propertyName: string;
+    currency: string;
+    currencyFixed: string;
+    searchCurrency: string;
+    noCurrency: string;
+    timeTitle: string;
+    timeHint: string;
+    timezone: string;
+    searchTimezone: string;
+    noTimezone: string;
+    cutoff: string;
+    businessDateNow: string;
+    businessDateAfter: string;
+    businessDateForward: string;
+    businessDateBack: string;
+    housekeepingTitle: string;
+    modulesTitle: string;
+    modulesHint: string;
+    elsewhereTitle: string;
+    elsewhereHint: string;
+    roomsHint: string;
+    peopleHint: string;
+    save: string;
+    discard: string;
+    saving: string;
+    saved: string;
+    unchanged: string;
+    refused: string;
+    stale: string;
+    currencyFixedRefused: string;
+    invalid: string;
+    invalidName: string;
+    invalidTimezone: string;
+    invalidCurrency: string;
+    invalidCutoff: string;
+    readOnly: string;
+    fields: Record<
+      "name" | "timezone" | "currency" | "businessDateCutoff",
+      string
+    >;
+  };
 
   /** The Housekeeping screen (RANZ-28). */
   housekeeping: {
@@ -490,6 +543,8 @@ export interface Messages {
   auditYes: string;
   auditNo: string;
   auditNone: string;
+  /** Read aloud between a setting's old value and its new one. */
+  auditChangedTo: string;
   /**
    * The inspection setting a Property had before it had one of its own: it
    * followed the Organization's. Written by the housekeeping module as
@@ -567,6 +622,8 @@ export interface Messages {
     >;
     unit: Record<"added" | "blocked" | "unblocked", string>;
     housekeeping: Record<"status_changed" | "inspection_set", string>;
+    property: Record<"configured", string>;
+    organization: Record<"configured", string>;
   };
   auditSubject: Record<
     | "reservation"
@@ -887,6 +944,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         configureAccommodation: "Odaları ve yatakları yapılandırma",
         updateHousekeeping: "Oda durumunu güncelleme",
         readAudit: "Denetim kaydını okuma",
+        manageConfiguration: "Ayarları yönetme",
       },
       emptyRosterTitle: "Henüz kimse yok",
       emptyRosterDescription:
@@ -1000,6 +1058,67 @@ export const messages: Record<SupportedLocale, Messages> = {
     reservedCount: "{count, number} rezervasyonlu",
     blockedStatus: "Kapalı",
 
+    configuration: {
+      subtitle: "{property} ve organizasyonu için ayarlar",
+      sections: "Bu sayfada",
+      organizationTitle: "Organizasyon",
+      organizationHint:
+        "Ekibinizin gördüğü ad. Organizasyonunuzun tüm tesisleri için geçerlidir.",
+      organizationName: "Organizasyon adı",
+      organizationNeedsReach:
+        "Organizasyonu yalnızca tüm tesislere erişimi olan biri yeniden adlandırabilir.",
+      propertyTitle: "Tesis",
+      propertyHint: "Bu tesisin adı ve hesap tuttuğu para birimi.",
+      propertyName: "Tesis adı",
+      currency: "Para birimi",
+      currencyFixed:
+        "Bu tesiste ilk folyo açıldığından beri sabit. Her folyo açıldığı para birimini korur.",
+      searchCurrency: "Para birimi ara",
+      noCurrency: "Eşleşen para birimi yok.",
+      timeTitle: "Saat ve iş günü",
+      timeHint:
+        "Tesisin hangi saate göre çalıştığı ve iş gününün ne zaman bittiği. Bitişten önceki gece vardiyası hâlâ önceki günde çalışır.",
+      timezone: "Saat dilimi",
+      searchTimezone: "Saat dilimi ara",
+      noTimezone: "Eşleşen saat dilimi yok.",
+      cutoff: "İş günü şu saatte biter",
+      businessDateNow: "Şu anki iş günü",
+      businessDateAfter: "Kaydettikten sonra",
+      businessDateForward: "Bugün {date} tarihine ilerler.",
+      businessDateBack:
+        "Bugün {date} tarihine geri döner. Kaydettikten sonra girişleri ve çıkışları kontrol edin.",
+      housekeepingTitle: "Kat hizmetleri",
+      modulesTitle: "Bu tesiste açık olanlar",
+      modulesHint: "Ekibinizin bu tesiste kullanabildikleri.",
+      elsewhereTitle: "Kendi ekranlarında yönetilenler",
+      elsewhereHint: "Bu ayarların her birinin tek bir yeri var.",
+      roomsHint: "Oda ve yatak ekleyin, bir birimi gerekçesiyle kapatın.",
+      peopleHint:
+        "Personel davet edin, rollerini ve erişecekleri tesisleri seçin.",
+      save: "Değişiklikleri kaydet",
+      discard: "Vazgeç",
+      saving: "Kaydediliyor…",
+      saved: "Kaydedildi",
+      unchanged: "Kaydedilecek bir değişiklik yok.",
+      refused: "Bu ayarlar değiştirilemedi. Şu an gördüğünüz, geçerli olandır.",
+      stale:
+        "Biri bu ayarları az önce kaydetti. Şimdi onun kaydettiğini görüyorsunuz; gerekiyorsa değişikliğinizi yeniden yapın.",
+      currencyFixedRefused:
+        "Siz düzenlerken bu tesiste bir folyo açıldı; para birimi artık sabit.",
+      invalid: "Değerleri kontrol edip yeniden deneyin.",
+      invalidName: "Ad 2 ile 120 karakter arasında olmalı.",
+      invalidTimezone: "Listeden bir saat dilimi seçin.",
+      invalidCurrency: "Listeden bir para birimi seçin.",
+      invalidCutoff: "03:00 ile 11:45 arasında bir saat seçin.",
+      readOnly:
+        "Bu ayarları görebilirsiniz. Bir sahip ya da yönetici değiştirebilir.",
+      fields: {
+        name: "Ad",
+        timezone: "Saat dilimi",
+        currency: "Para birimi",
+        businessDateCutoff: "İş gününün bitişi",
+      },
+    },
     housekeeping: {
       subtitle: "{property} — temizlik bekleyen odalar",
       unavailableTitle: "Kat hizmetleri bu tesiste açık değil",
@@ -1109,6 +1228,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditYes: "Evet",
     auditNo: "Hayır",
     auditNone: "Yok",
+    auditChangedTo: "yeni değer",
     auditInspectionFollowsOrganization: "Organizasyonun ayarı",
     auditContext: {
       amountMinor: "Tutar",
@@ -1183,6 +1303,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         status_changed: "Oda durumu değiştirildi",
         inspection_set: "Temizlik sonrası kontrol ayarı değiştirildi",
       },
+      property: { configured: "Tesis ayarları değiştirildi" },
+      organization: { configured: "Organizasyon yeniden adlandırıldı" },
     },
     auditSubject: {
       reservation: "Rezervasyon",
@@ -1243,7 +1365,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       inventory: "Stok hareketleri, sayımlar ve satın alma.",
       people: "Personel kayıtları, vardiyalar ve yetkilendirme.",
       analytics: "Doluluk, gelir ve operasyon raporları.",
-      configuration: "Organizasyon, tesis, birim ve yetkilendirme ayarları.",
     },
     planned: "Planlandı",
     handoverLabel: "Bu ekranın devir notu",
@@ -1519,6 +1640,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         configureAccommodation: "Configure rooms & beds",
         updateHousekeeping: "Update room status",
         readAudit: "Reading the audit log",
+        manageConfiguration: "Manage configuration",
       },
       emptyRosterTitle: "Nobody here yet",
       emptyRosterDescription: "This Organization has no Staff Member to show.",
@@ -1631,6 +1753,69 @@ export const messages: Record<SupportedLocale, Messages> = {
     reservedCount: "{count, number} reserved",
     blockedStatus: "Blocked",
 
+    configuration: {
+      subtitle: "Settings for {property} and its Organization",
+      sections: "On this page",
+      organizationTitle: "Organization",
+      organizationHint:
+        "The name your team sees. It applies to every Property in your Organization.",
+      organizationName: "Organization name",
+      organizationNeedsReach:
+        "Only someone who reaches every Property can rename the Organization.",
+      propertyTitle: "Property",
+      propertyHint:
+        "What this Property is called and the currency it trades in.",
+      propertyName: "Property name",
+      currency: "Currency",
+      currencyFixed:
+        "Fixed since the first folio was opened here. Every folio keeps the currency it opened in.",
+      searchCurrency: "Search currencies",
+      noCurrency: "No currency matches.",
+      timeTitle: "Time and the business day",
+      timeHint:
+        "Which clock this Property runs on, and when its working day ends. A night shift before the cutoff is still working the day before.",
+      timezone: "Time zone",
+      searchTimezone: "Search time zones",
+      noTimezone: "No time zone matches.",
+      cutoff: "Business day ends at",
+      businessDateNow: "Business date now",
+      businessDateAfter: "After saving",
+      businessDateForward: "Today moves forward to {date}.",
+      businessDateBack:
+        "Today moves back to {date}. Check arrivals and departures after saving.",
+      housekeepingTitle: "Housekeeping",
+      modulesTitle: "Switched on here",
+      modulesHint: "What your team can use at this Property.",
+      elsewhereTitle: "Managed on their own screens",
+      elsewhereHint: "Each of these settings has one home.",
+      roomsHint: "Add rooms and beds, and block a unit with a reason.",
+      peopleHint:
+        "Invite staff, and choose their roles and the Properties they reach.",
+      save: "Save changes",
+      discard: "Discard",
+      saving: "Saving…",
+      saved: "Saved",
+      unchanged: "Nothing to save — these are already the settings.",
+      refused:
+        "These settings could not be changed. What you see now is what is in effect.",
+      stale:
+        "Someone saved these settings a moment ago. You are now seeing what they saved; make your change again if it is still needed.",
+      currencyFixedRefused:
+        "A folio was opened here while you were editing, so the currency is now fixed.",
+      invalid: "Check the values and try again.",
+      invalidName: "A name is 2 to 120 characters.",
+      invalidTimezone: "Choose a time zone from the list.",
+      invalidCurrency: "Choose a currency from the list.",
+      invalidCutoff: "Choose a time between 03:00 and 11:45.",
+      readOnly:
+        "You can see these settings. An Owner or Manager can change them.",
+      fields: {
+        name: "Name",
+        timezone: "Time zone",
+        currency: "Currency",
+        businessDateCutoff: "Business day ends at",
+      },
+    },
     housekeeping: {
       subtitle: "Which rooms need cleaning at {property}",
       unavailableTitle: "Housekeeping is not on at this Property",
@@ -1740,6 +1925,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditYes: "Yes",
     auditNo: "No",
     auditNone: "None",
+    auditChangedTo: "changed to",
     auditInspectionFollowsOrganization: "The Organization's setting",
     auditContext: {
       amountMinor: "Amount",
@@ -1814,6 +2000,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         status_changed: "Room status changed",
         inspection_set: "Room check after cleaning changed",
       },
+      property: { configured: "Property settings changed" },
+      organization: { configured: "Organization renamed" },
     },
     auditSubject: {
       reservation: "Reservation",
@@ -1873,7 +2061,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       inventory: "Stock movements, counts and procurement.",
       people: "Staff records, shifts and permissions.",
       analytics: "Occupancy, revenue and operational reporting.",
-      configuration: "Organization, Property, Unit and permission settings.",
     },
     planned: "Planned",
     handoverLabel: "This screen's handover note",
@@ -2142,6 +2329,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         configureAccommodation: "تهيئة الغرف والأسرّة",
         updateHousekeeping: "تحديث حالة الغرف",
         readAudit: "قراءة سجل التدقيق",
+        manageConfiguration: "إدارة الإعدادات",
       },
       emptyRosterTitle: "لا أحد هنا بعد",
       emptyRosterDescription: "لا يوجد في هذه المؤسسة موظف لعرضه.",
@@ -2250,6 +2438,64 @@ export const messages: Record<SupportedLocale, Messages> = {
       "{count, plural, zero {لا شيء محجوز} one {سرير واحد محجوز} two {سريران محجوزان} few {# أسرّة محجوزة} many {# سريرًا محجوزًا} other {# سرير محجوز}}",
     blockedStatus: "مغلق",
 
+    configuration: {
+      subtitle: "إعدادات {property} ومؤسستها",
+      sections: "في هذه الصفحة",
+      organizationTitle: "المؤسسة",
+      organizationHint: "الاسم الذي يراه فريقك. ينطبق على جميع منشآت مؤسستك.",
+      organizationName: "اسم المؤسسة",
+      organizationNeedsReach:
+        "لا يستطيع إعادة تسمية المؤسسة إلا من يصل إلى جميع المنشآت.",
+      propertyTitle: "المنشأة",
+      propertyHint: "اسم هذه المنشأة والعملة التي تتعامل بها.",
+      propertyName: "اسم المنشأة",
+      currency: "العملة",
+      currencyFixed:
+        "ثابتة منذ فتح أول فوليو هنا. يحتفظ كل فوليو بالعملة التي فُتح بها.",
+      searchCurrency: "ابحث عن عملة",
+      noCurrency: "لا توجد عملة مطابقة.",
+      timeTitle: "الوقت ويوم العمل",
+      timeHint:
+        "الساعة التي تعمل بها هذه المنشأة، ومتى ينتهي يوم عملها. المناوبة الليلية قبل وقت الانتهاء لا تزال تعمل في اليوم السابق.",
+      timezone: "المنطقة الزمنية",
+      searchTimezone: "ابحث عن منطقة زمنية",
+      noTimezone: "لا توجد منطقة زمنية مطابقة.",
+      cutoff: "ينتهي يوم العمل عند",
+      businessDateNow: "تاريخ العمل الآن",
+      businessDateAfter: "بعد الحفظ",
+      businessDateForward: "يتقدم اليوم إلى {date}.",
+      businessDateBack:
+        "يعود اليوم إلى {date}. راجع الوصول والمغادرة بعد الحفظ.",
+      housekeepingTitle: "التدبير الفندقي",
+      modulesTitle: "المفعّل هنا",
+      modulesHint: "ما يستطيع فريقك استخدامه في هذه المنشأة.",
+      elsewhereTitle: "تُدار في شاشاتها الخاصة",
+      elsewhereHint: "لكل من هذه الإعدادات مكان واحد.",
+      roomsHint: "أضف الغرف والأسرّة، وأوقف وحدة مع ذكر السبب.",
+      peopleHint: "ادعُ الموظفين، واختر أدوارهم والمنشآت التي يصلون إليها.",
+      save: "حفظ التغييرات",
+      discard: "تجاهل",
+      saving: "جارٍ الحفظ…",
+      saved: "تم الحفظ",
+      unchanged: "لا شيء للحفظ — هذه هي الإعدادات الحالية.",
+      refused: "تعذّر تغيير هذه الإعدادات. ما تراه الآن هو المعمول به.",
+      stale:
+        "حفظ أحدهم هذه الإعدادات للتو. أنت ترى الآن ما حفظه؛ أعد تغييرك إن كان لا يزال مطلوبًا.",
+      currencyFixedRefused:
+        "فُتح فوليو هنا أثناء تعديلك، لذا أصبحت العملة ثابتة الآن.",
+      invalid: "تحقّق من القيم وحاول مرة أخرى.",
+      invalidName: "يتكوّن الاسم من 2 إلى 120 حرفًا.",
+      invalidTimezone: "اختر منطقة زمنية من القائمة.",
+      invalidCurrency: "اختر عملة من القائمة.",
+      invalidCutoff: "اختر وقتًا بين 03:00 و11:45.",
+      readOnly: "يمكنك رؤية هذه الإعدادات. يستطيع المالك أو المدير تغييرها.",
+      fields: {
+        name: "الاسم",
+        timezone: "المنطقة الزمنية",
+        currency: "العملة",
+        businessDateCutoff: "نهاية يوم العمل",
+      },
+    },
     housekeeping: {
       subtitle: "الغرف التي تحتاج إلى تنظيف في {property}",
       unavailableTitle: "التدبير الفندقي غير مفعّل في هذه المنشأة",
@@ -2359,6 +2605,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditYes: "نعم",
     auditNo: "لا",
     auditNone: "لا يوجد",
+    auditChangedTo: "تغيّر إلى",
     auditInspectionFollowsOrganization: "إعداد المؤسسة",
     auditContext: {
       amountMinor: "المبلغ",
@@ -2433,6 +2680,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         status_changed: "تم تغيير حالة الغرفة",
         inspection_set: "تم تغيير إعداد الفحص بعد التنظيف",
       },
+      property: { configured: "تم تغيير إعدادات المنشأة" },
+      organization: { configured: "تمت إعادة تسمية المؤسسة" },
     },
     auditSubject: {
       reservation: "حجز",
@@ -2493,7 +2742,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       inventory: "حركات المخزون والجرد والمشتريات.",
       people: "سجلات الموظفين والورديات والصلاحيات.",
       analytics: "تقارير الإشغال والإيرادات والتشغيل.",
-      configuration: "إعدادات المؤسسة والمنشأة والوحدات والصلاحيات.",
     },
     planned: "مخطط له",
     handoverLabel: "ملاحظة التسليم لهذه الشاشة",

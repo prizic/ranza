@@ -4,7 +4,7 @@
  * The screen's vocabulary is a list in the host (`KNOWN_ACTIONS`) and the
  * modules write their actions as string literals; nothing but a test ties the
  * two together, and the first version of the list shipped seven short. So this
- * reads the writers. A module records an action in one of two shapes —
+ * reads the writers, in every source file of every module. A module records an action in one of two shapes —
  * `action: "noun.verb"` in a `recordWithin` entry, or the literal alone on its
  * own line as an argument to a helper that takes the action by position — and
  * both are read here. A third shape would not be seen; the comment in
@@ -32,18 +32,25 @@ function actionsWrittenBy(file: string): string[] {
     });
 }
 
+/**
+ * Every source file of every module, not only `module.ts`: a module may keep a
+ * command in a file of its own (`@ranza/core` keeps Configuration's in
+ * `configuration.ts`), and a scan of one filename would read its writes as
+ * nobody's.
+ */
+function sourcesOf(module: string): string[] {
+  return readdirSync(path.join(ranza, module, "src"), {
+    recursive: true,
+    withFileTypes: true,
+  })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".ts"))
+    .map((entry) => path.join(entry.parentPath, entry.name));
+}
+
 const written = new Set(
   readdirSync(ranza, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
-    .map((entry) => path.join(ranza, entry.name, "src/module.ts"))
-    .filter((file) => {
-      try {
-        readFileSync(file);
-        return true;
-      } catch {
-        return false;
-      }
-    })
+    .flatMap((entry) => sourcesOf(entry.name))
     .flatMap(actionsWrittenBy),
 );
 
