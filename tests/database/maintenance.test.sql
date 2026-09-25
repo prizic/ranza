@@ -41,7 +41,7 @@
 --   the worker function without the returned_at match   MT-S2-19 (forged)
 --   the worker function without the context check       MT-S2-19
 begin;
-select plan(65);
+select plan(68);
 
 insert into public.users (id, email) values
   ('91111111-1111-4111-8111-111111111111', 'mt-manager@example.test'),
@@ -716,11 +716,14 @@ values
    'unit.returned_to_service',
    '{"requestId":"9f222222-2222-4222-8222-222222222222","unitId":"9c333333-3333-4333-8333-333333333333"}',
    now()),
-  -- Forged: the same request, a moment no release happened at.
+  -- Forged: the same request, a moment no release happened at. Later, not
+  -- earlier: ranza_app is granted no insert on occurred_at, so an event anyone
+  -- publishes carries its own transaction's now(), and a return is matched at
+  -- greatest(occurred_at, since) (MT-S2-31).
   ('9e222222-2222-4222-8222-222222222222', '9a111111-1111-4111-8111-111111111111',
    'unit.returned_to_service',
    '{"requestId":"9f222222-2222-4222-8222-222222222222","unitId":"9c333333-3333-4333-8333-333333333333"}',
-   now() - interval '1 hour'),
+   now() + interval '1 hour'),
   ('9e333333-3333-4333-8333-333333333333', '9a222222-2222-4222-8222-222222222222',
    'unit.returned_to_service',
    '{"requestId":"9f222222-2222-4222-8222-222222222222"}', now()),
@@ -785,6 +788,51 @@ select is_empty(
         and table_name like 'maintenance\_%'
         and grantee in ('ranza_worker', 'PUBLIC') $$,
   'MT-S2-19: ranza_worker and PUBLIC hold nothing on the maintenance tables');
+
+-- ---------------------------------------------------------------------------
+-- A return never predates the hold it ends (MT-S2-31)
+-- ---------------------------------------------------------------------------
+-- A hold's since is one transaction's now() and its return another's, and a
+-- clock that steps back between the two made the return look earlier than the
+-- take — which returned_after_taken refused, so returning a room just taken
+-- out failed. This whole suite shares one now(), so the step is forced by
+-- moving the hold's since an hour ahead of it.
+
+set local role ranza_app;
+select app.set_request_context('92222222-2222-4222-8222-222222222222');
+update public.maintenance_unit_holds set returned_at = null
+ where request_id = '9f222222-2222-4222-8222-222222222222';
+
+set local role none;
+update public.maintenance_unit_holds set since = now() + interval '1 hour'
+ where request_id = '9f222222-2222-4222-8222-222222222222';
+
+set local role ranza_app;
+select app.set_request_context('92222222-2222-4222-8222-222222222222');
+select lives_ok(
+  $$ update public.maintenance_unit_holds set returned_at = now()
+      where request_id = '9f222222-2222-4222-8222-222222222222' $$,
+  'MT-S2-31: a return is not refused when the clock stepped back past its hold');
+
+select results_eq(
+  $$ select returned_at = since from public.maintenance_unit_holds
+      where request_id = '9f222222-2222-4222-8222-222222222222' $$,
+  $$ values (true) $$,
+  'MT-S2-31: the return is stamped at its hold''s since, never before it');
+
+set local role none;
+insert into outbox.events (id, organization_id, event_type, payload, occurred_at)
+values ('9e555555-5555-4555-8555-555555555555', '9a111111-1111-4111-8111-111111111111',
+        'unit.returned_to_service',
+        '{"requestId":"9f222222-2222-4222-8222-222222222222","unitId":"9c333333-3333-4333-8333-333333333333"}',
+        now());
+select set_config('app.user_id', '', true);
+set local role ranza_worker;
+select app.set_worker_context('9a111111-1111-4111-8111-111111111111',
+                              'housekeeping.markRoomOnReturnToService');
+select is(app.mark_unit_returned_to_service('9e555555-5555-4555-8555-555555555555'),
+  true, 'MT-S2-31: the worker still finds a return stamped later than its event');
+set local role none;
 
 select finish();
 rollback;
