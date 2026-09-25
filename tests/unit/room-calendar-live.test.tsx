@@ -177,6 +177,29 @@ describe("a window that cannot be opened", () => {
     );
   });
 
+  it("RC-S1-52: the note goes once the calendar on screen is read again", async () => {
+    // Found by the evidence run: the note outlived the outage that caused it
+    // and sat over a calendar the next poll had already read.
+    renderCalendar();
+    fireEvent.click(screen.getByRole("button", { name: "Next week" }));
+    await letTimePass();
+    expect(
+      await screen.findByText(/That window couldn't be opened/),
+    ).toBeInTheDocument();
+
+    vi.mocked(fetch).mockImplementation(async () =>
+      Response.json({ calendar: CALENDAR }),
+    );
+    await letTimePass();
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText(/That window couldn't be opened/),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/Couldn't refresh/)).not.toBeInTheDocument();
+  });
+
   it("RC-S1-53: a failed poll keeps the calendar and names the time it was read", async () => {
     renderCalendar();
     await letTimePass();

@@ -118,7 +118,12 @@ export function LiveRoomCalendar({
   }
   const shown = lastGood.current;
   const calendar = query.data ?? shown?.calendar ?? null;
-  const [windowFailed, setWindowFailed] = useState(false);
+  // When a window last failed to open. The note about it stands only until
+  // the calendar on screen is read again after that, so it never outlives the
+  // outage that caused it (RC-S1-52).
+  const [windowFailedAt, setWindowFailedAt] = useState<number | null>(null);
+  const windowFailed =
+    windowFailedAt !== null && shown !== null && shown.readAt <= windowFailedAt;
 
   function apply(next: RoomCalendarView) {
     setView(next);
@@ -135,7 +140,7 @@ export function LiveRoomCalendar({
     // does, so paging past the years the read takes stops rather than writing
     // a window the grid will not show.
     if (change.from && !isCalendarDay(change.from)) return;
-    setWindowFailed(false);
+    setWindowFailedAt(null);
     apply({ ...view, ...change });
   }
 
@@ -149,7 +154,7 @@ export function LiveRoomCalendar({
     (shown.window.from !== view.from || shown.window.days !== view.days);
   useEffect(() => {
     if (!cannotOpen || shown === null) return;
-    setWindowFailed(true);
+    setWindowFailedAt(Date.now());
     apply({ ...view, ...shown.window });
   });
 
