@@ -217,6 +217,7 @@ export function RoomsView({
                                   {isLetByTheBed &&
                                   room.status === "out_of_service" ? (
                                     <StatusBadge
+                                      className={OUT_OF_ORDER_WRAPS}
                                       icon={Wrench}
                                       label={outOfOrderLabel(
                                         holdByUnit.get(room.unitId),
@@ -413,6 +414,11 @@ function unitActionLabel(
   return t("blockBed");
 }
 
+// A badge is one line by default. This one carries a request number and a
+// date, which is wider than a tile, so it wraps inside the tile instead.
+const OUT_OF_ORDER_WRAPS =
+  "h-auto max-w-full shrink whitespace-normal text-start";
+
 function renderUnitStateBadge(
   unit: UnitEntry,
   t: ReturnType<typeof useTranslations>,
@@ -448,7 +454,12 @@ function renderUnitStateBadge(
       );
     case "out_of_service":
       return (
-        <StatusBadge icon={Wrench} tone="danger" label={outOfOrderLabel} />
+        <StatusBadge
+          className={OUT_OF_ORDER_WRAPS}
+          icon={Wrench}
+          label={outOfOrderLabel}
+          tone="danger"
+        />
       );
     case "free":
     default:
