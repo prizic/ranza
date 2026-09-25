@@ -18,10 +18,17 @@
 --
 -- The worker matched a return to its event by returned_at = occurred_at, both
 -- now() in the releasing transaction. A clamped return is later than its
--- event, so it now matches greatest(occurred_at, since), which is exactly what
--- the stamp wrote, and takes the release's own returned_at as the moment the
--- room came back. A forged event is no easier than before: its occurred_at is
--- its own transaction's now(), which no release shares.
+-- event, so it now matches returned_at = greatest(occurred_at, since). For a
+-- return that was not clamped (since < returned_at) that is the old equality.
+-- For a clamped one (returned_at = since) it matches every return event for
+-- that request whose occurred_at is no later than since: the release's own,
+-- and any other published in a transaction that began before since.
+-- occurred_at is in no insert grant, so an event is never dated before its
+-- own transaction began; it may still begin before since. What such an event
+-- can do is bounded: it applies only that release's recorded returned_as,
+-- worst-of with the room's state, and never over a status set after the
+-- event's own occurred_at — the guard stays on the event's moment, not on the
+-- clamped returned_at, which a clock stepped back has not reached yet.
 --
 -- A new migration, not an edit to 20260916004400: that migration is on a
 -- pushed branch under review, and migrate deploy does not re-run an applied
@@ -143,8 +150,8 @@ begin
     return false;
   end if;
 
-  select coalesce(unit.parent_id, unit.id), unit.property_id, hold.returned_as, hold.returned_at
-    into holder, holder_property, return_status, return_moment
+  select coalesce(unit.parent_id, unit.id), unit.property_id, hold.returned_as
+    into holder, holder_property, return_status
     from public.maintenance_unit_holds as hold
     join public.maintenance_requests as request
       on request.id = hold.request_id

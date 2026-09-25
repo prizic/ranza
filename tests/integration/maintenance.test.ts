@@ -72,6 +72,7 @@ const ELSEWHERE_ROOM = unit(13);
 const JUST_LEFT_ROOM = unit(14);
 const RACED_ROOM = unit(15);
 const RELEASED_UNDER_ROOM = unit(16);
+const STILL_HELD_ROOM = unit(17);
 
 // ranza_app for Staff Members, exactly as the host composes it, and
 // ranza_worker for the dispatcher, exactly as apps/worker does.
@@ -128,6 +129,7 @@ async function seed() {
     [JUST_LEFT_ROOM, "MTI-110", PROPERTY],
     [RACED_ROOM, "MTI-111", PROPERTY],
     [RELEASED_UNDER_ROOM, "MTI-112", PROPERTY],
+    [STILL_HELD_ROOM, "MTI-113", PROPERTY],
     [FAR_ROOM, "MTI-301", FAR_PROPERTY],
     [ELSEWHERE_ROOM, "MTI-201", ELSEWHERE_PROPERTY],
   ];
@@ -745,11 +747,9 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
   });
 
   /**
-   * A reads the request as holding, then waits on the room while B releases
-   * that very hold and commits. A's release then finds nothing to let go of.
-   * Nothing holds the room any longer, so A must not say another request
-   * does — it said so, because "released, and the room is still held" and
-   * "released nothing" were the same answer.
+   * A reads the request as holding, then waits on the room while B returns it
+   * and commits. A's release then finds nothing to let go of, and what it says
+   * is what the holds left say: here none, so nobody else holds the room.
    */
   it("does not say another request holds a room when nothing was left to release (MT-S2-11)", async () => {
     const { requestId } = await report(DESK, RELEASED_UNDER_ROOM, {
@@ -770,6 +770,10 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
           update public.maintenance_unit_holds set returned_at = now()
            where request_id = ${requestId}::uuid
           returning request_id`;
+        await tx.$queryRaw`
+          update public.accommodation_units set status = 'available'
+           where id = ${RELEASED_UNDER_ROOM}::uuid
+          returning id`;
         released.open();
         await b.opened;
       },
@@ -784,6 +788,51 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
       returned: false,
       heldElsewhere: false,
     });
+  });
+
+  /**
+   * The same race with a second request holding the room: B lets the first
+   * go and the room stays out for the second. A finds nothing to release, and
+   * must still say the room is held elsewhere — "released nothing" is not
+   * "nothing holds it".
+   */
+  it("says the room is still held when the hold it would release was let go under it (MT-S2-11)", async () => {
+    const first = await report(DESK, STILL_HELD_ROOM, {
+      outOfOrder: { acknowledged: true },
+    });
+    await report(DESK, STILL_HELD_ROOM, { outOfOrder: { acknowledged: true } });
+
+    const b = gate();
+    const released = gate();
+    const releasing = withOrganizationContext(
+      prisma,
+      { userId: MANAGER },
+      async (tx) => {
+        await tx.$queryRaw`
+          select id from public.accommodation_units
+           where id = ${STILL_HELD_ROOM}::uuid
+             for update`;
+        await tx.$queryRaw`
+          update public.maintenance_unit_holds set returned_at = now()
+           where request_id = ${first.requestId}::uuid
+          returning request_id`;
+        released.open();
+        await b.opened;
+      },
+    );
+    await released.opened;
+    const returning = maintenance.returnToService(DESK, {
+      requestId: first.requestId,
+    });
+    await untilWaiting("query ilike '%for update%'", "the return");
+    b.open();
+    await releasing;
+
+    await expect(returning).resolves.toEqual({
+      returned: false,
+      heldElsewhere: true,
+    });
+    expect(await statusOf(STILL_HELD_ROOM)).toBe("out_of_service");
   });
 
   it("never leaves a cancelled request holding when a cancel and a take meet (MT-S2-16)", async () => {

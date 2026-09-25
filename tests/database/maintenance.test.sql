@@ -41,7 +41,7 @@
 --   the worker function without the returned_at match   MT-S2-19 (forged)
 --   the worker function without the context check       MT-S2-19
 begin;
-select plan(68);
+select plan(71);
 
 insert into public.users (id, email) values
   ('91111111-1111-4111-8111-111111111111', 'mt-manager@example.test'),
@@ -716,10 +716,9 @@ values
    'unit.returned_to_service',
    '{"requestId":"9f222222-2222-4222-8222-222222222222","unitId":"9c333333-3333-4333-8333-333333333333"}',
    now()),
-  -- Forged: the same request, a moment no release happened at. Later, not
-  -- earlier: ranza_app is granted no insert on occurred_at, so an event anyone
-  -- publishes carries its own transaction's now(), and a return is matched at
-  -- greatest(occurred_at, since) (MT-S2-31).
+  -- Forged: the same request, a moment after its release that no release
+  -- shares. An event dated earlier than a release is its own case, below
+  -- (MT-S2-31): a clamped release matches it.
   ('9e222222-2222-4222-8222-222222222222', '9a111111-1111-4111-8111-111111111111',
    'unit.returned_to_service',
    '{"requestId":"9f222222-2222-4222-8222-222222222222","unitId":"9c333333-3333-4333-8333-333333333333"}',
@@ -794,9 +793,9 @@ select is_empty(
 -- ---------------------------------------------------------------------------
 -- A hold's since is one transaction's now() and its return another's, and a
 -- clock that steps back between the two made the return look earlier than the
--- take — which returned_after_taken refused, so returning a room just taken
--- out failed. This whole suite shares one now(), so the step is forced by
--- moving the hold's since an hour ahead of it.
+-- take — which returned_after_taken refused. This whole suite shares one
+-- now(), so the step is forced by moving the hold's since ahead of it, and a
+-- status is written at a chosen moment with the stamping trigger skipped.
 
 set local role ranza_app;
 select app.set_request_context('92222222-2222-4222-8222-222222222222');
@@ -820,7 +819,15 @@ select results_eq(
   $$ values (true) $$,
   'MT-S2-31: the return is stamped at its hold''s since, never before it');
 
+-- The room's status was last set before all of this, so the return's own
+-- event, published at now() and so before the clamped stamp, has something
+-- to write.
 set local role none;
+set local session_replication_role = replica;
+update public.housekeeping_unit_status
+   set status = 'dirty', status_changed_at = now() - interval '2 hours'
+ where accommodation_unit_id = '9c333333-3333-4333-8333-333333333333';
+set local session_replication_role = origin;
 insert into outbox.events (id, organization_id, event_type, payload, occurred_at)
 values ('9e555555-5555-4555-8555-555555555555', '9a111111-1111-4111-8111-111111111111',
         'unit.returned_to_service',
@@ -832,7 +839,58 @@ select app.set_worker_context('9a111111-1111-4111-8111-111111111111',
                               'housekeeping.markRoomOnReturnToService');
 select is(app.mark_unit_returned_to_service('9e555555-5555-4555-8555-555555555555'),
   true, 'MT-S2-31: the worker still finds a return stamped later than its event');
+
+-- Taken out and returned across a step again, this time as dirty; then the
+-- room is marked inspected after the return's event, while the clock has not
+-- yet reached the clamped stamp. "Unless its status changed since" is since
+-- the event: the mark stands, where the release would have made it dirty.
 set local role none;
+update public.maintenance_settings set return_as = 'dirty'
+ where property_id = '9b111111-1111-4111-8111-111111111111';
+set local role ranza_app;
+select app.set_request_context('92222222-2222-4222-8222-222222222222');
+update public.maintenance_unit_holds set returned_at = null
+ where request_id = '9f222222-2222-4222-8222-222222222222';
+set local role none;
+update public.maintenance_unit_holds set since = now() + interval '2 hours'
+ where request_id = '9f222222-2222-4222-8222-222222222222';
+set local role ranza_app;
+select app.set_request_context('92222222-2222-4222-8222-222222222222');
+update public.maintenance_unit_holds set returned_at = now()
+ where request_id = '9f222222-2222-4222-8222-222222222222';
+
+set local role none;
+set local session_replication_role = replica;
+update public.housekeeping_unit_status
+   set status = 'inspected', status_changed_at = now() + interval '30 minutes'
+ where accommodation_unit_id = '9c333333-3333-4333-8333-333333333333';
+set local session_replication_role = origin;
+insert into outbox.events (id, organization_id, event_type, payload, occurred_at)
+values ('9e666666-6666-4666-8666-666666666666', '9a111111-1111-4111-8111-111111111111',
+        'unit.returned_to_service',
+        '{"requestId":"9f222222-2222-4222-8222-222222222222","unitId":"9c333333-3333-4333-8333-333333333333"}',
+        now()),
+       -- Dated before the release, as any event whose transaction began
+       -- before the clamped since is. A clamped release matches it.
+       ('9e777777-7777-4777-8777-777777777777', '9a111111-1111-4111-8111-111111111111',
+        'unit.returned_to_service',
+        '{"requestId":"9f222222-2222-4222-8222-222222222222","unitId":"9c333333-3333-4333-8333-333333333333"}',
+        now() - interval '1 hour');
+select set_config('app.user_id', '', true);
+set local role ranza_worker;
+select app.set_worker_context('9a111111-1111-4111-8111-111111111111',
+                              'housekeeping.markRoomOnReturnToService');
+select is(app.mark_unit_returned_to_service('9e666666-6666-4666-8666-666666666666'),
+  false, 'MT-S2-31: a status set after the return''s event is kept, clamped or not');
+select is(app.mark_unit_returned_to_service('9e777777-7777-4777-8777-777777777777'),
+  false, 'MT-S2-19, MT-S2-31: an event dated before a clamped release writes nothing over a status set after it');
+set local role none;
+
+select is(
+  (select status from public.housekeeping_unit_status
+    where accommodation_unit_id = '9c333333-3333-4333-8333-333333333333'),
+  'inspected',
+  'MT-S2-31: the room is still inspected');
 
 select finish();
 rollback;

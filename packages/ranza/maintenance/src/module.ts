@@ -641,9 +641,9 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
     userId: string,
     request: RequestRow,
     note: string | null,
-  ): Promise<{ released: boolean; returned: boolean }> {
+  ): Promise<Pick<Moved, "returned" | "heldElsewhere">> {
     if (request.unitId === null || !request.holding) {
-      return { released: false, returned: false };
+      return { returned: false, heldElsewhere: false };
     }
 
     // The Unit is visible to anyone at the Property; a lock that finds nothing
@@ -667,10 +667,6 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
       throw refusal(error);
     }
     const [release] = released;
-    // Read as holding before the Unit's lock, and let go by somebody else by
-    // the time it was taken: nothing was released, and nothing holds the room
-    // on this request's account.
-    if (!release) return { released: false, returned: false };
 
     const [left] = await tx.$queryRaw<{ count: number }[]>`
       select count(*)::int as count
@@ -680,8 +676,14 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
        where other.accommodation_unit_id = ${request.unitId}::uuid
          and hold.returned_at is null
     `;
+    const heldElsewhere = (left?.count ?? 0) > 0;
 
-    if ((left?.count ?? 0) > 0) {
+    // Read as holding before the Unit's lock, and let go by somebody else by
+    // the time it was taken: nothing was released here, and the room is held
+    // elsewhere exactly when a hold is left.
+    if (!release) return { returned: false, heldElsewhere };
+
+    if (heldElsewhere) {
       await recordWithin(tx, {
         organizationId: request.organizationId,
         locationId: request.propertyId,
@@ -692,7 +694,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
         ...(note === null ? {} : { reason: note }),
         context: { number: request.number, unitName: unit.name },
       });
-      return { released: true, returned: false };
+      return { returned: false, heldElsewhere: true };
     }
 
     if (!(await returnUnitToServiceWithin(tx, request.unitId))) {
@@ -720,7 +722,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
         returnAs: release.returnedAs,
       },
     });
-    return { released: true, returned: true };
+    return { returned: true, heldElsewhere: false };
   }
 
   /**
@@ -930,17 +932,13 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
           heldElsewhere: false,
         };
       }
-      const { released, returned } = await releaseWithin(
+      const { returned, heldElsewhere } = await releaseWithin(
         tx,
         userId,
         request,
         null,
       );
-      return {
-        returned,
-        stillOutOfOrder: false,
-        heldElsewhere: released && !returned,
-      };
+      return { returned, stillOutOfOrder: false, heldElsewhere };
     });
   }
 
@@ -968,7 +966,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
       if (request.status !== input.from) {
         throw new RequestMovedError(request.status);
       }
-      const { released, returned } = await releaseWithin(
+      const { returned, heldElsewhere } = await releaseWithin(
         tx,
         userId,
         request,
@@ -1003,7 +1001,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
       return {
         returned,
         stillOutOfOrder: false,
-        heldElsewhere: released && !returned,
+        heldElsewhere,
       };
     });
   }
@@ -1142,13 +1140,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
       const request = await requestWithin(tx, input.requestId);
       if (!request.holding) throw new MaintenanceRefusedError();
-      const { released, returned } = await releaseWithin(
-        tx,
-        userId,
-        request,
-        note,
-      );
-      return { returned, heldElsewhere: released && !returned };
+      return releaseWithin(tx, userId, request, note);
     });
   }
 

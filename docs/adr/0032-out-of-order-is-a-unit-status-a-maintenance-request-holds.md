@@ -131,16 +131,21 @@ whose `returned_at` is `greatest(occurred_at, since)` — the release is stamped
 releasing transaction, so the two agree. The clamp is there because `now()` is
 a transaction's start on a clock that steps: a step back between the take and
 the return made the return look earlier than the take, and
-`returned_after_taken` refused it. `occurred_at` is not in `ranza_app`'s insert
-grant (`20260916002150`), so an event carries its own transaction's `now()` and
-cannot be backdated; a forged event matches no release. The one match the
-clamp adds is an event no later than a clamped release's `since` — which only
-an event published before that take could be, and the worst-of merge and the
-`status_changed_at < returned_at` guard make applying that release's own
-recorded status harmless. A stale one, for a
-room another request has since taken out, still matches its release and writes
-a housekeeping status the room's next return overwrites; cleaning and being in
-service coexist (ADR 0029), so that is noise rather than harm.
+`returned_after_taken` refused it. For a return that was not clamped the match
+is the plain equality, and a forged event — `occurred_at` is in no insert
+grant (`20260916002150`), so an event carries its own transaction's `now()` —
+matches no release. For a clamped return (`returned_at = since`) it matches
+every return event for that request dated no later than `since`: the release's
+own, and any other whose transaction began before `since`. What such an event
+can do is bounded, and pgTAP pins it (MT-S2-31): it applies only that
+release's recorded status, worst-of with the room's state, and never over a
+status set after the event's own `occurred_at` — the guard compares with the
+event's moment, not the clamped stamp the clock has not reached yet.
+
+A stale event, for a room another request has since taken out, still matches
+its release and writes a housekeeping status the room's next return
+overwrites; cleaning and being in service coexist (ADR 0029), so that is noise
+rather than harm.
 
 The setting still hands `maintenance.manage` a say over housekeeping status:
 "returns inspected" is exactly that. So a room comes back **no better than it
