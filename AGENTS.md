@@ -321,8 +321,9 @@ to any environment-specific name a test reaches for.
   folder — is [ADR 0013](docs/adr/0013-an-interface-is-shadcn-a-feature-folder-and-a-shared-kit.md).
   Layout references are `docs/design/ui-references.md`; the palette is
   `docs/design/visual-reference.md`, which wins when they disagree. The theme
-  now matches it — teal on a pale canvas — apart from the typeface, which
-  departs for a reason recorded in `globals.css`.
+  matches it, and it is the Leaders portal's — deep emerald and warm cream on a
+  white canvas, set in Geist, with Arabic in IBM Plex Sans Arabic for a reason
+  recorded in `globals.css`.
 - Directional utilities are always logical — `ps`/`pe`, `border-s`,
   `text-start`. That is what makes Arabic mirror by construction.
 - Applications should have no `src/` and should import through `@/`, not

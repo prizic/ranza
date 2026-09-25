@@ -1,9 +1,5 @@
 import { useTranslations } from "next-intl";
-import {
-  localizeHref,
-  supportedLocales,
-  type SupportedLocale,
-} from "@ranza/i18n";
+import { supportedLocales } from "@ranza/i18n";
 import { ALL_SCREENS } from "./screens";
 
 /**
@@ -20,26 +16,24 @@ export interface PageTitle {
   /** Locale-less route prefix, e.g. `/departures`. */
   prefix: string;
   title: string;
-  /** A child page names its parent so the bar can carry the way back. */
-  parent?: { href: string; title: string };
+  /** False when the page opens with display type of its own, so the title is
+      not set large twice. */
+  display: boolean;
 }
 
-export function useWorkspacePageTitles(locale: SupportedLocale): PageTitle[] {
+/** Today's heading is the weekday, set larger than any page title. */
+const OWN_DISPLAY_TYPE = new Set(["today"]);
+
+export function useWorkspacePageTitles(): PageTitle[] {
   const t = useTranslations();
   const nav = useTranslations("navigation");
   return [
     ...ALL_SCREENS.filter((screen) => !screen.children).map((screen) => ({
       prefix: `/${screen.segment}`,
       title: nav.has(screen.segment) ? nav(screen.segment) : screen.segment,
+      display: !OWN_DISPLAY_TYPE.has(screen.segment),
     })),
-    {
-      prefix: "/security",
-      title: t("security"),
-      parent: {
-        href: localizeHref(locale, "today"),
-        title: t("productName"),
-      },
-    },
+    { prefix: "/security", title: t("security"), display: true },
   ];
 }
 

@@ -1,7 +1,8 @@
 import { notFound, redirect } from "next/navigation";
-import { isSupportedLocale, localizeHref, supportedLocales } from "@ranza/i18n";
+import { BedDouble, Building2, DoorOpen, LogIn, LogOut } from "lucide-react";
+import { isSupportedLocale, localizeHref } from "@ranza/i18n";
+import { LanguageSwitcher, SplitAuthLayout } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { BrandMark } from "@ranza/ui";
 import { currentViewer } from "../../../server/viewer";
 import { SignInForm } from "./sign-in-form";
 
@@ -10,6 +11,10 @@ import { SignInForm } from "./sign-in-form";
  * navigation yet, so showing the chrome would be showing an empty version of
  * it. It also sits outside the (portal) group, whose layout requires a viewer
  * and would otherwise redirect here in a loop.
+ *
+ * Composed by SplitAuthLayout, after the Leaders portal's sign-in. Its service
+ * row names what the Stay page shows — the Portal has built nothing else, and
+ * the row is not a place to promise it.
  */
 export default async function SignInPage({
   params,
@@ -24,39 +29,38 @@ export default async function SignInPage({
   if (await currentViewer()) redirect(stay);
 
   const t = await getTranslations();
+  const services = (
+    [
+      [BedDouble, t("stay")],
+      [Building2, t("property")],
+      [DoorOpen, t("unit")],
+      [LogIn, t("arrival")],
+      [LogOut, t("departure")],
+    ] as const
+  ).map(([Icon, label]) => ({
+    icon: <Icon aria-hidden="true" strokeWidth={1.25} />,
+    label,
+  }));
 
   return (
-    <main className="grid min-h-svh place-items-center px-(--page) py-10">
-      <div className="w-full max-w-sm">
-        <p className="flex items-center justify-center gap-2 text-step-1 font-semibold">
-          <BrandMark className="size-6 text-primary" />
-          <span>{t("productName")}</span>
-        </p>
-
-        <div className="mt-6 rounded-xl bg-card p-6 shadow-low">
-          <h1 className="text-step-1 font-semibold">{t("signInTitle")}</h1>
-
-          <SignInForm redirectTo={stay} />
-        </div>
-
-        <nav
-          aria-label={t("languageLabel")}
-          className="mt-6 flex items-center justify-center gap-1 text-step--1"
-        >
-          {supportedLocales.map((supported) => (
-            <a
-              aria-current={supported === locale ? "true" : undefined}
-              className="rounded-sm px-1.5 py-0.5 text-muted-foreground transition-colors hover:text-foreground aria-[current=true]:bg-secondary aria-[current=true]:text-foreground"
-              href={localizeHref(supported, "sign-in")}
-              hrefLang={supported}
-              key={supported}
-              lang={supported}
-            >
-              {supported.toUpperCase()}
-            </a>
-          ))}
-        </nav>
-      </div>
-    </main>
+    <SplitAuthLayout
+      languageSwitcher={
+        <LanguageSwitcher
+          currentLocale={locale}
+          hrefPattern="/{locale}/sign-in"
+          label={t("languageLabel")}
+          variant="pill"
+        />
+      }
+      productBadge={t("portalBadge")}
+      productName={t("productName")}
+      services={services}
+      slogan={t("authSlogan")}
+      subSlogan={t("authSubSlogan")}
+      subtitle={t("signInSummary")}
+      title={t("welcomeBack")}
+    >
+      <SignInForm redirectTo={stay} />
+    </SplitAuthLayout>
   );
 }

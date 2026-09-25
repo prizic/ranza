@@ -44,6 +44,21 @@ export function asShippedRole(key: string): ShippedRole | null {
 }
 
 /**
+ * The shipped role this is, or null for one an Organization wrote.
+ *
+ * By scope, not by key. An authored role's key is a slug of its name, so an
+ * Organization's own "Front desk" is `front_desk` too, and naming it from the
+ * key alone showed it as the shipped one — beside the shipped one, in the
+ * same picker.
+ */
+export function shippedRoleOf(role: {
+  key: string;
+  organizationId: string | null;
+}): ShippedRole | null {
+  return role.organizationId === null ? asShippedRole(role.key) : null;
+}
+
+/**
  * A permission key, as a message key.
  *
  * `front_desk.book` cannot be one: next-intl reads a dot as a namespace

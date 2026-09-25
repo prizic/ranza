@@ -96,8 +96,9 @@ the package root and never reach into `src/`.
 
 ## Tokens
 
-The palette is a teal accent on a pale canvas, white surfaces, and separation
-from a hairline and a low shadow rather than heavy borders — the values in
+The palette is the Leaders portal's: a deep emerald accent and a warm cream
+secondary on a white canvas, floating white panels, and separation from a
+hairline and a long soft shadow rather than heavy borders — the values in
 [`docs/design/visual-reference.md`](../../docs/design/visual-reference.md),
 which is the agreed direction and the authority when the two disagree.
 
@@ -107,12 +108,10 @@ what that vocabulary has no word for: the four status tones, which exist because
 blueprint 18.5 forbids colour alone and a status therefore needs a foreground
 that carries the meaning and a soft fill text stays legible on.
 
-The brief asks for Aptos, and the theme does not use it: it is not licensed for
-the web and would fall through to a system font on every machine that is not
-Windows — three scripts rendered by whatever happened to be installed. IBM Plex
-Sans Arabic carries Latin, Turkish and Arabic in one family with drawn
-diacritics, so Turkish and Arabic are the same voice. That is the one departure
-and the reason is in `globals.css` beside it.
+The type is Geist, as in the Leaders portal the theme is matched to, for
+Turkish and English; Geist draws no Arabic, so an Arabic page leads with IBM
+Plex Sans Arabic. Both applications load the two faces, and the stack that
+orders them is in `globals.css` with its reason beside it.
 
 The type scale is a minor third, per Bringhurst, exposed as `text-step--1`
 through `text-step-3`. It is a scale, not a set of suggestions.

@@ -62,7 +62,7 @@ export default async function FinancePage({
     const back = `${localizeHref(locale, "finance")}?property=${property.propertyId}`;
     return (
       <>
-        <p className="text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           <Link className="hover:underline" href={back}>
             {t("allFolios")}
           </Link>
@@ -76,7 +76,7 @@ export default async function FinancePage({
 
   return (
     <>
-      <p className="text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         {t("foliosAt")} {property.propertyName}
       </p>
       <FoliosTable

@@ -1,14 +1,30 @@
 import { notFound, redirect } from "next/navigation";
-import { isSupportedLocale, localizeHref, supportedLocales } from "@ranza/i18n";
-import { BrandMark } from "@ranza/ui";
+import { isSupportedLocale, localizeHref } from "@ranza/i18n";
+import { LanguageSwitcher, SplitAuthLayout } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { screenFor } from "../../../lib/screens";
 import { currentViewer } from "../../../server/viewer";
 import { SignInForm } from "./sign-in-form";
+
+/**
+ * What the sign-in screen's service row names: screens that are built, with the
+ * icon and the name the rail gives them, so the row cannot promise a
+ * destination the workspace does not have.
+ */
+const SERVICES = [
+  "reservations",
+  "rooms",
+  "arrivals",
+  "departures",
+  "finance",
+] as const;
 
 /**
  * The gate. Deliberately not the workspace shell: there is no Organization, no
  * Property and no navigation yet, so showing the chrome would be showing an
  * empty version of it.
+ *
+ * Composed by SplitAuthLayout, after the Leaders portal's sign-in.
  */
 export default async function SignInPage({
   params,
@@ -23,39 +39,39 @@ export default async function SignInPage({
   if (await currentViewer()) redirect(today);
 
   const t = await getTranslations();
+  const nav = await getTranslations("navigation");
+
+  const services = SERVICES.flatMap((segment) => {
+    const screen = screenFor(segment);
+    return screen?.built
+      ? [
+          {
+            icon: <screen.icon aria-hidden="true" strokeWidth={1.25} />,
+            label: nav(segment),
+          },
+        ]
+      : [];
+  });
 
   return (
-    <main className="grid min-h-svh place-items-center px-(--page) py-10">
-      <div className="w-full max-w-sm">
-        <p className="flex items-center justify-center gap-2 text-step-1 font-semibold">
-          <BrandMark className="size-6 text-primary" />
-          <span>{t("productName")}</span>
-        </p>
-
-        <div className="mt-6 rounded-xl bg-card p-6 shadow-low">
-          <h1 className="text-step-1 font-semibold">{t("signInTitle")}</h1>
-
-          <SignInForm redirectTo={today} />
-        </div>
-
-        <nav
-          aria-label={t("languageLabel")}
-          className="mt-6 flex items-center justify-center gap-1 text-step--1"
-        >
-          {supportedLocales.map((supported) => (
-            <a
-              aria-current={supported === locale ? "true" : undefined}
-              className="rounded-sm px-1.5 py-0.5 text-muted-foreground transition-colors hover:text-foreground aria-[current=true]:bg-secondary aria-[current=true]:text-foreground"
-              href={localizeHref(supported, "sign-in")}
-              hrefLang={supported}
-              key={supported}
-              lang={supported}
-            >
-              {supported.toUpperCase()}
-            </a>
-          ))}
-        </nav>
-      </div>
-    </main>
+    <SplitAuthLayout
+      languageSwitcher={
+        <LanguageSwitcher
+          currentLocale={locale}
+          hrefPattern="/{locale}/sign-in"
+          label={t("languageLabel")}
+          variant="pill"
+        />
+      }
+      productBadge={t("workspaceBadge")}
+      productName={t("productName")}
+      services={services}
+      slogan={t("authSlogan")}
+      subSlogan={t("authSubSlogan")}
+      subtitle={t("signInSummary")}
+      title={t("welcomeBack")}
+    >
+      <SignInForm redirectTo={today} />
+    </SplitAuthLayout>
   );
 }

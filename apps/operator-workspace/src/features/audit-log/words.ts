@@ -59,7 +59,13 @@ export function useAuditWords(names: AuditNames, viewerId: string) {
     entry.propertyName ??
     (entry.locationId ? shortId(entry.locationId) : t("auditOrganizationWide"));
 
-  const role = (key: string) => {
+  /**
+   * A role, by name. `authored` is what the record says the key was — an
+   * Organization's own "Front desk" has the shipped one's key — and records
+   * written before it was kept say nothing, so they read shipped first.
+   */
+  const role = (key: string, authored?: boolean) => {
+    if (authored === true) return names.roles[key] ?? key;
     const shipped = asShippedRole(key);
     return shipped ? t(`staff.roles.${shipped}`) : (names.roles[key] ?? key);
   };

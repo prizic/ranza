@@ -37,6 +37,16 @@ import type { StaffDeps } from "./ports";
 /** Every shipped role lives in this scope, which is not an Organization. */
 const SHIPPED_SCOPE = "00000000-0000-0000-0000-000000000000";
 
+/**
+ * Whether a role reference names one the Organization wrote rather than one
+ * Ranza ships. Recorded beside every role key the log keeps, because the key
+ * alone is ambiguous — an authored role's key is a slug of its name, so an
+ * Organization's own "Front desk" is `front_desk` too — and a record is never
+ * rewritten to say which it was once somebody asks.
+ */
+const isAuthored = (roleScopeId: string | undefined): boolean =>
+  (roleScopeId ?? SHIPPED_SCOPE) !== SHIPPED_SCOPE;
+
 /** Postgres refuses a statement no policy admits with this. */
 const INSUFFICIENT_PRIVILEGE = "42501";
 
@@ -219,6 +229,7 @@ export function createStaffModule(deps: StaffDeps) {
           context: {
             userId,
             role: input.roleKey,
+            roleAuthored: isAuthored(input.roleScopeId),
             propertyIds: input.propertyIds ?? [],
           },
         });
@@ -279,7 +290,12 @@ export function createStaffModule(deps: StaffDeps) {
       input.organizationId,
       input.userId,
       "staff.role_changed",
-      (before) => ({ from: before.role, to: input.roleKey }),
+      (before) => ({
+        from: before.role,
+        fromAuthored: isAuthored(before.roleScopeId),
+        to: input.roleKey,
+        toAuthored: isAuthored(input.roleScopeId),
+      }),
       (tx) =>
         tx.$executeRawUnsafe(
           `update public.organization_memberships
@@ -553,7 +569,10 @@ export function createStaffModule(deps: StaffDeps) {
     action: string,
     detail:
       | (Record<string, unknown> & { locationId?: string })
-      | ((before: { role: string }) => Record<string, unknown>),
+      | ((before: {
+          role: string;
+          roleScopeId: string;
+        }) => Record<string, unknown>),
     run: (tx: Parameters<typeof recordWithin>[0]) => Promise<number>,
   ): Promise<void> {
     try {
@@ -563,9 +582,10 @@ export function createStaffModule(deps: StaffDeps) {
         // however many times their reach changes. Read before the statement
         // so a role change can say what it changed from.
         const [membership] = await tx.$queryRawUnsafe<
-          { id: string; role: string }[]
+          { id: string; role: string; roleScopeId: string }[]
         >(
-          `select id, role from public.organization_memberships
+          `select id, role, role_scope_id::text as "roleScopeId"
+             from public.organization_memberships
             where organization_id = $1::uuid and user_id = $2::uuid`,
           organizationId,
           subjectUserId,

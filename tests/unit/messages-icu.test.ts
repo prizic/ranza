@@ -104,6 +104,7 @@ describe("every catalogue parses", () => {
                 count: 2,
                 date: "16 Sep",
                 days: 14,
+                eta: "14:00",
                 floor: 2,
                 from: "16 Sep",
                 guest: "x",

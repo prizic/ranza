@@ -3,7 +3,95 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Button, Field, FormError, Input } from "@ranza/ui";
+import { Button, FormError, Input, Label } from "@ranza/ui";
+
+/*
+ * Leaders' login fields: tall pills on the ivory card, named by their
+ * placeholder, with the label kept for assistive technology. 16px text on a
+ * phone, so iOS does not zoom into the field.
+ */
+const FIELD =
+  "h-13 rounded-full border-[1.5px] border-sign-in-field bg-transparent px-6 text-base text-sign-in-ink shadow-none placeholder:text-sign-in-ink-muted md:text-[15px] lg:h-14";
+const SUBMIT =
+  "h-13 w-full rounded-full bg-sign-in-cta text-base font-bold tracking-wide text-white shadow-md hover:bg-sign-in-cta/90 lg:h-14";
+const ERROR =
+  "rounded-2xl border border-danger/15 bg-danger-soft p-4 text-center text-sm text-danger";
+
+type Failure = "mismatch" | "throttled" | "expired" | "unavailable";
+
+/**
+ * Better Auth's codes for what was typed not matching — the only answers that
+ * may say so. An allow-list, not the fallback: a 403 from the origin check
+ * would otherwise tell somebody their correct password is wrong.
+ */
+const MISMATCH = new Set([
+  "INVALID_EMAIL_OR_PASSWORD",
+  "INVALID_EMAIL",
+  "INVALID_CODE",
+  "INVALID_BACKUP_CODE",
+]);
+
+/**
+ * The second-factor challenge is spent: five wrong codes end it, and it is
+ * gone once it times out. Only a new sign-in starts another (ADR 0010), so no
+ * code typed here can succeed.
+ */
+const EXPIRED = new Set([
+  "TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE",
+  "INVALID_TWO_FACTOR_COOKIE",
+]);
+
+/** What is said when the answer was not a refusal, at either step. */
+const FAILURE = {
+  throttled: "signInThrottled",
+  expired: "challengeExpired",
+  unavailable: "signInUnavailable",
+} as const;
+
+function codeOf(body: unknown): string | undefined {
+  return typeof body === "object" &&
+    body !== null &&
+    "code" in body &&
+    typeof body.code === "string"
+    ? body.code
+    : undefined;
+}
+
+/**
+ * What went wrong. Anything this does not recognise is signing in not working,
+ * and is logged, because this application has no client error reporter yet
+ * and nothing else would record it.
+ */
+async function failureOf(response: Response | null): Promise<Failure> {
+  if (response === null) return "unavailable";
+  if (response.status === 429) return "throttled";
+  // A body that is not JSON is carried into the log below, not dropped.
+  const body: unknown = await response.json().catch((error: unknown) => error);
+  const code = codeOf(body);
+  if (code && EXPIRED.has(code)) return "expired";
+  if (code && MISMATCH.has(code)) return "mismatch";
+  console.error("sign-in refused unexpectedly", response.status, code ?? body);
+  return "unavailable";
+}
+
+/**
+ * The request, or null when there was no answer at all. Logged, because this
+ * application has no client error reporter yet and the console is the only
+ * place a request that never answered can be seen; the form says it is not
+ * working.
+ */
+async function post(url: string, body: unknown): Promise<Response | null> {
+  try {
+    return await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    console.error("sign-in request failed", url, error);
+    return null;
+  }
+}
 
 /**
  * Posts to the Better Auth route handler, which is what sets the session
@@ -17,15 +105,19 @@ import { Button, Field, FormError, Input } from "@ranza/ui";
  * asking someone to classify their own code before typing it is a worse
  * question than reading it afterwards.
  *
- * A failure says only that it did not match, at either step. Distinguishing
+ * A refusal says only that it did not match, at either step. Distinguishing
  * "no such account" from "wrong password" would confirm which addresses are
- * registered.
+ * registered. What is not a refusal says what it is instead: too many attempts
+ * (the auth route's rate limit answers 429), a second-factor challenge that is
+ * spent and needs a new sign-in, or signing in not working at all (anything
+ * else, including no answer). Telling somebody their password is wrong when it
+ * is not sends them to reset it, or to try again and be refused for longer.
  */
 export function SignInForm({ redirectTo }: { redirectTo: string }) {
   const t = useTranslations();
   const router = useRouter();
   const [challenging, setChallenging] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState<Failure | null>(null);
   const [pending, setPending] = useState(false);
 
   function complete() {
@@ -39,20 +131,17 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     setPending(true);
-    setFailed(false);
+    setFailure(null);
 
-    const response = await fetch("/api/auth/sign-in/email", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        email: form.get("email"),
-        password: form.get("password"),
-      }),
+    const response = await post("/api/auth/sign-in/email", {
+      email: form.get("email"),
+      password: form.get("password"),
     });
 
-    if (!response.ok) {
+    if (!response?.ok) {
+      const failed = await failureOf(response);
       setPending(false);
-      setFailed(true);
+      setFailure(failed);
       return;
     }
 
@@ -73,21 +162,21 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
     event.preventDefault();
     const code = String(new FormData(event.currentTarget).get("code") ?? "");
     setPending(true);
-    setFailed(false);
+    setFailure(null);
 
     const endpoint = /^\d{6}$/.test(code.trim())
       ? "/api/auth/two-factor/verify-totp"
       : "/api/auth/two-factor/verify-backup-code";
 
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ code: code.trim() }),
-    });
+    const response = await post(endpoint, { code: code.trim() });
 
-    if (!response.ok) {
+    if (!response?.ok) {
+      const failed = await failureOf(response);
       setPending(false);
-      setFailed(true);
+      // A spent challenge cannot be answered, so back to the password, which
+      // starts a new one.
+      if (failed === "expired") setChallenging(false);
+      setFailure(failed);
       return;
     }
 
@@ -96,21 +185,32 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
 
   if (challenging) {
     return (
-      <form className="mt-6 grid gap-4" onSubmit={verify}>
-        <p className="text-muted-foreground">{t("challengeSummary")}</p>
-        <Field htmlFor="code" label={t("code")}>
-          <Input
-            aria-invalid={failed || undefined}
-            autoComplete="one-time-code"
-            autoFocus
-            id="code"
-            inputMode="text"
-            name="code"
-            required
-          />
-        </Field>
-        {failed ? <FormError>{t("challengeFailed")}</FormError> : null}
-        <Button disabled={pending} type="submit">
+      <form className="grid gap-5" onSubmit={verify}>
+        <p className="text-sm font-medium text-sign-in-ink-muted">
+          {t("challengeSummary")}
+        </p>
+        {failure ? (
+          <FormError className={ERROR}>
+            {failure === "mismatch"
+              ? t("challengeFailed")
+              : t(FAILURE[failure])}
+          </FormError>
+        ) : null}
+        <Label className="sr-only" htmlFor="code">
+          {t("code")}
+        </Label>
+        <Input
+          aria-invalid={failure === "mismatch" || undefined}
+          autoComplete="one-time-code"
+          autoFocus
+          className={FIELD}
+          id="code"
+          inputMode="text"
+          name="code"
+          placeholder={t("code")}
+          required
+        />
+        <Button className={SUBMIT} disabled={pending} type="submit">
           {pending ? t("signingIn") : t("verify")}
         </Button>
       </form>
@@ -118,30 +218,39 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
   }
 
   return (
-    <form className="mt-6 grid gap-4" onSubmit={signIn}>
-      <p className="text-muted-foreground">{t("signInSummary")}</p>
-      <Field htmlFor="email" label={t("email")}>
-        <Input
-          aria-invalid={failed || undefined}
-          autoComplete="username"
-          id="email"
-          name="email"
-          required
-          type="email"
-        />
-      </Field>
-      <Field htmlFor="password" label={t("password")}>
-        <Input
-          aria-invalid={failed || undefined}
-          autoComplete="current-password"
-          id="password"
-          name="password"
-          required
-          type="password"
-        />
-      </Field>
-      {failed ? <FormError>{t("signInFailed")}</FormError> : null}
-      <Button disabled={pending} type="submit">
+    <form className="grid gap-5" onSubmit={signIn}>
+      {failure ? (
+        <FormError className={ERROR}>
+          {failure === "mismatch" ? t("signInFailed") : t(FAILURE[failure])}
+        </FormError>
+      ) : null}
+      <Label className="sr-only" htmlFor="email">
+        {t("email")}
+      </Label>
+      <Input
+        aria-invalid={failure === "mismatch" || undefined}
+        autoComplete="username"
+        className={FIELD}
+        id="email"
+        name="email"
+        placeholder={t("email")}
+        required
+        type="email"
+      />
+      <Label className="sr-only" htmlFor="password">
+        {t("password")}
+      </Label>
+      <Input
+        aria-invalid={failure === "mismatch" || undefined}
+        autoComplete="current-password"
+        className={FIELD}
+        id="password"
+        name="password"
+        placeholder={t("password")}
+        required
+        type="password"
+      />
+      <Button className={`mt-2 ${SUBMIT}`} disabled={pending} type="submit">
         {pending ? t("signingIn") : t("signIn")}
       </Button>
     </form>
