@@ -23,7 +23,7 @@
 -- goes red. The nights' departed-after branch was silent until the Guest who
 -- checked out this morning was added to the busy Property.
 begin;
-select plan(58);
+select plan(59);
 
 insert into public.users (id, email) values
   ('bd100000-0000-4000-8000-000000000001', 'close-desk@example.test'),
@@ -694,6 +694,27 @@ select throws_ok(
             app.property_today('bd200000-0000-4000-8000-000000000005') + 2)$$,
   'RZ001', null,
   'a Stay cannot begin on a closed day, whoever writes it');
+
+-- A Stay reserved before its day closed, begun after: reserved -> in_house is
+-- the one change that begins a Stay without inserting one. No role may take it
+-- yet, so the owner does; the reserved row is written in replica mode, as if it
+-- had been there before the close.
+set local session_replication_role = replica;
+insert into public.stays
+  (id, organization_id, property_id, accommodation_unit_id, stay_type, status,
+   starts_on, ends_on)
+values ('bd500000-0000-4000-8000-000000000020', 'bd0a0000-0000-4000-8000-00000000000a',
+        'bd200000-0000-4000-8000-000000000005', 'bd300000-0000-4000-8000-000000000016',
+        'guest', 'reserved',
+        app.property_today('bd200000-0000-4000-8000-000000000005') - 1,
+        app.property_today('bd200000-0000-4000-8000-000000000005') + 2);
+set local session_replication_role = origin;
+
+select throws_ok(
+  $$update public.stays set status = 'in_house', updated_at = now()
+     where id = 'bd500000-0000-4000-8000-000000000020'$$,
+  'RZ001', null,
+  'a Stay reserved for a closed day cannot be begun on it');
 
 -- ---------------------------------------------------------------------------
 -- The clock cannot be moved back onto a closed day

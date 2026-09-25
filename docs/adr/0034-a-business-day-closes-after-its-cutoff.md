@@ -173,5 +173,12 @@ a unique source key on a line (PRE-01, PRE-02). A charge dated by the business
 date is what makes a close meaningful to Accounting; until then
 `business_day.closed` is published and nothing consumes it (CD-DEF-04).
 
-Changing a Property's cutoff is still SQL, and now refuses the one change that
-would rewrite history.
+History cannot be imported after the first close. The worker closes the day
+before today within a minute of a Property having the front desk, and from then
+on a Stay dated on a closed day is refused for every role, the owner included.
+Bringing in Stays from a previous system happens before the first close or
+through the revision path reopening will add (CD-DEF-08).
+
+Changing a Property's cutoff is SQL until the Property settings screen (ADR 0036,
+in flight) lands. This guard binds that screen too: it must answer `RZ001`, and
+the refusal is the one change that would rewrite history.

@@ -24,6 +24,8 @@ everything lands under Unreleased.
   before the cutoff and commits after the close (`RZ001`). Added by
   [`@ranza/business-day`](../business-day/README.md) in
   `20260916005000_a_business_day_is_closed`; this module still owns the table.
+  `20260916005200_a_stay_begun_on_a_closed_day_is_refused` adds the one way to
+  begin a Stay the first version missed: a `reserved` Stay moving to `in_house`.
 - `stays_insert_front_desk` and `stays_update_front_desk` now also require an
   `in_house` Stay to have started: `starts_on <= app.property_today(property_id)`.
   A `reserved` Stay is unaffected, because a future booking is what it exists to
