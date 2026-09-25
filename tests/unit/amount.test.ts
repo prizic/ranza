@@ -25,6 +25,10 @@ describe("toMinorUnits", () => {
     expect(toMinorUnits(typed, currency)).toBe(minor);
   });
 
+  it("reads nothing in a currency code that is not one", () => {
+    expect(toMinorUnits("450", "NOT A CODE")).toBeNull();
+  });
+
   it.each([
     ["450.555", "TRY"],
     ["5.5", "JPY"],

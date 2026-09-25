@@ -30,13 +30,16 @@ export function createMoneyCommands(deps: MaintenanceDeps) {
   /**
    * Records what a repair cost and who did it, or clears either (MT-S5-01).
    * Whole minor units of the Property's currency; zero is a repair that cost
-   * nothing (MT-S5-02).
+   * nothing (MT-S5-02). `currency` is the one the amount was read in, and a
+   * cost read in any but the Property's is refused: how many minor units a
+   * typed amount is depends on it, and the browser sent it.
    */
   async function recordCost(
     userId: string,
     input: {
       requestId: string;
       costMinor: number | null;
+      currency: string;
       vendor: string | null;
     },
   ): Promise<void> {
@@ -55,6 +58,20 @@ export function createMoneyCommands(deps: MaintenanceDeps) {
     }
 
     await withOrganizationContext(deps.db, { userId }, async (tx) => {
+      if (costMinor !== null) {
+        const [property] = await tx.$queryRaw<{ currency: string }[]>`
+          select property.currency
+            from public.maintenance_requests as request
+            join public.properties as property
+              on property.id = request.property_id
+           where request.id = ${input.requestId}::uuid
+        `;
+        if (property && property.currency !== input.currency) {
+          throw new MaintenanceInputError(
+            "a cost is read in the Property's currency",
+          );
+        }
+      }
       let changed: {
         organizationId: string;
         propertyId: string;
@@ -157,7 +174,13 @@ export function createMoneyCommands(deps: MaintenanceDeps) {
    */
   async function chargeGuest(
     userId: string,
-    input: { requestId: string; folioId: string; amountMinor: number },
+    input: {
+      requestId: string;
+      folioId: string;
+      amountMinor: number;
+      /** The currency the amount was read in; it must be the Folio's. */
+      currency: string;
+    },
   ): Promise<{ lineId: string }> {
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
       const [request] = await tx.$queryRaw<
@@ -175,6 +198,15 @@ export function createMoneyCommands(deps: MaintenanceDeps) {
          where id = ${input.requestId}::uuid
       `;
       if (!request) throw new MaintenanceRefusedError();
+
+      const [folio] = await tx.$queryRaw<{ currency: string }[]>`
+        select currency from public.folios where id = ${input.folioId}::uuid
+      `;
+      if (folio && folio.currency !== input.currency) {
+        throw new MaintenanceInputError(
+          "a charge is read in its Folio's currency",
+        );
+      }
 
       // The request, in no language in particular.
       const description = `MT-${request.number} · ${request.title}`.slice(

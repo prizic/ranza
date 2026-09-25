@@ -583,12 +583,22 @@ describe("money", { timeout: DATABASE_BUDGET_MS }, () => {
       maintenance.recordCost(MANAGER, {
         requestId,
         costMinor: -1,
+        currency: "TRY",
+        vendor: null,
+      }),
+    ).rejects.toBeInstanceOf(MaintenanceInputError);
+    await expect(
+      maintenance.recordCost(MANAGER, {
+        requestId,
+        costMinor: 450,
+        currency: "JPY",
         vendor: null,
       }),
     ).rejects.toBeInstanceOf(MaintenanceInputError);
     await maintenance.recordCost(MANAGER, {
       requestId,
       costMinor: 45000,
+      currency: "TRY",
       vendor: "Boğaz Teknik",
     });
     const card = (await maintenance.board(MANAGER, PROPERTY)).requests.find(
@@ -656,6 +666,7 @@ describe("money", { timeout: DATABASE_BUDGET_MS }, () => {
         requestId,
         folioId,
         amountMinor: 5000,
+        currency: "TRY",
       }),
     ).rejects.toBeInstanceOf(MaintenanceRefusedError);
     const lines = await owner.$queryRawUnsafe<{ id: string }[]>(
@@ -675,15 +686,34 @@ describe("money", { timeout: DATABASE_BUDGET_MS }, () => {
       priority: "this_week",
     });
 
+    // The currency the amount was read in is the browser's word; a charge is
+    // posted only in its Folio's, so 300 typed as KWD is not 300 TRY scaled.
+    await expect(
+      maintenance.chargeGuest(MANAGER, {
+        requestId,
+        folioId,
+        amountMinor: 300000,
+        currency: "KWD",
+      }),
+    ).rejects.toBeInstanceOf(MaintenanceInputError);
+    expect(
+      await owner.$queryRawUnsafe<{ id: string }[]>(
+        "select id from public.folio_lines where folio_id = $1::uuid and line_type = 'charge'",
+        folioId,
+      ),
+    ).toEqual([]);
+
     const first = await maintenance.chargeGuest(MANAGER, {
       requestId,
       folioId,
       amountMinor: 30000,
+      currency: "TRY",
     });
     await maintenance.chargeGuest(MANAGER, {
       requestId,
       folioId,
       amountMinor: 5000,
+      currency: "TRY",
     });
 
     const detail = await folios.folioDetail(MANAGER, folioId);
@@ -714,7 +744,12 @@ describe("money", { timeout: DATABASE_BUDGET_MS }, () => {
       priority: "can_wait",
     });
     await expect(
-      maintenance.chargeGuest(DESK, { requestId, folioId, amountMinor: 1000 }),
+      maintenance.chargeGuest(DESK, {
+        requestId,
+        folioId,
+        amountMinor: 1000,
+        currency: "TRY",
+      }),
     ).rejects.toBeInstanceOf(MaintenanceRefusedError);
 
     // Closed the way a Folio is closed: through its module, by somebody who
@@ -725,6 +760,7 @@ describe("money", { timeout: DATABASE_BUDGET_MS }, () => {
         requestId,
         folioId,
         amountMinor: 1000,
+        currency: "TRY",
       }),
     ).rejects.toBeInstanceOf(MaintenanceRefusedError);
   });

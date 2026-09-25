@@ -5,13 +5,20 @@
  * 0 for JPY — not an assumed two.
  */
 
-function minorDigits(currency: string): number {
-  return (
-    new Intl.NumberFormat("en", {
-      style: "currency",
-      currency,
-    }).resolvedOptions().maximumFractionDigits ?? 2
-  );
+/** How many minor units a currency has, or null for a code that is not one. */
+function minorDigits(currency: string): number | null {
+  try {
+    return (
+      new Intl.NumberFormat("en", {
+        style: "currency",
+        currency,
+      }).resolvedOptions().maximumFractionDigits ?? 2
+    );
+  } catch (error: unknown) {
+    // A malformed code — a hand-made post, not a Folio's — is not an amount.
+    if (error instanceof RangeError) return null;
+    throw error;
+  }
 }
 
 /**
@@ -29,6 +36,7 @@ function asciiDigits(value: string): string {
 /** `450`, `450.5`, `450,50`, `٤٥٠٫٥` in whole minor units of `currency`, or null. */
 export function toMinorUnits(value: string, currency: string): number | null {
   const digits = minorDigits(currency);
+  if (digits === null) return null;
   const match = /^(\d{1,12})(?:[.,](\d+))?$/.exec(asciiDigits(value.trim()));
   if (!match) return null;
   const [, whole = "0", fraction = ""] = match;
@@ -39,7 +47,9 @@ export function toMinorUnits(value: string, currency: string): number | null {
 
 /** Whole minor units as a person would type them: 45050 TRY is `450.5`. */
 export function toTypedAmount(minor: number, currency: string): string {
+  // Always a currency the database holds, so one that is not is a defect.
   const digits = minorDigits(currency);
+  if (digits === null) throw new RangeError(`${currency} is not a currency`);
   if (digits === 0) return String(minor);
   const padded = String(minor).padStart(digits + 1, "0");
   const fraction = padded.slice(-digits).replace(/0+$/, "");

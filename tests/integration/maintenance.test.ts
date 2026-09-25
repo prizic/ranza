@@ -71,6 +71,7 @@ const FAR_ROOM = unit(12);
 const ELSEWHERE_ROOM = unit(13);
 const JUST_LEFT_ROOM = unit(14);
 const RACED_ROOM = unit(15);
+const RELEASED_UNDER_ROOM = unit(16);
 
 // ranza_app for Staff Members, exactly as the host composes it, and
 // ranza_worker for the dispatcher, exactly as apps/worker does.
@@ -126,6 +127,7 @@ async function seed() {
     [CONFIRMED_ROOM, "MTI-109", PROPERTY],
     [JUST_LEFT_ROOM, "MTI-110", PROPERTY],
     [RACED_ROOM, "MTI-111", PROPERTY],
+    [RELEASED_UNDER_ROOM, "MTI-112", PROPERTY],
     [FAR_ROOM, "MTI-301", FAR_PROPERTY],
     [ELSEWHERE_ROOM, "MTI-201", ELSEWHERE_PROPERTY],
   ];
@@ -671,11 +673,11 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
     });
     await expect(
       maintenance.returnToService(DESK, { requestId: first.requestId }),
-    ).resolves.toEqual({ returned: false });
+    ).resolves.toEqual({ returned: false, heldElsewhere: true });
     expect(await statusOf(TWICE_HELD_ROOM)).toBe("out_of_service");
     await expect(
       maintenance.returnToService(DESK, { requestId: second.requestId }),
-    ).resolves.toEqual({ returned: true });
+    ).resolves.toEqual({ returned: true, heldElsewhere: false });
     expect(await statusOf(TWICE_HELD_ROOM)).toBe("available");
   });
 
@@ -733,10 +735,55 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
     await untilWaiting("query ilike '%for update%'", "the return");
     a.open();
     await taking;
-    await expect(returning).resolves.toEqual({ returned: false });
+    await expect(returning).resolves.toEqual({
+      returned: false,
+      heldElsewhere: true,
+    });
     expect(await statusOf(CONTESTED_ROOM)).toBe("out_of_service");
     expect(await holding(other.requestId)).toBe(true);
     await maintenance.returnToService(DESK, { requestId: other.requestId });
+  });
+
+  /**
+   * A reads the request as holding, then waits on the room while B releases
+   * that very hold and commits. A's release then finds nothing to let go of.
+   * Nothing holds the room any longer, so A must not say another request
+   * does — it said so, because "released, and the room is still held" and
+   * "released nothing" were the same answer.
+   */
+  it("does not say another request holds a room when nothing was left to release (MT-S2-11)", async () => {
+    const { requestId } = await report(DESK, RELEASED_UNDER_ROOM, {
+      outOfOrder: { acknowledged: true },
+    });
+
+    const b = gate();
+    const released = gate();
+    const releasing = withOrganizationContext(
+      prisma,
+      { userId: MANAGER },
+      async (tx) => {
+        await tx.$queryRaw`
+          select id from public.accommodation_units
+           where id = ${RELEASED_UNDER_ROOM}::uuid
+             for update`;
+        await tx.$queryRaw`
+          update public.maintenance_unit_holds set returned_at = now()
+           where request_id = ${requestId}::uuid
+          returning request_id`;
+        released.open();
+        await b.opened;
+      },
+    );
+    await released.opened;
+    const returning = maintenance.returnToService(DESK, { requestId });
+    await untilWaiting("query ilike '%for update%'", "the return");
+    b.open();
+    await releasing;
+
+    await expect(returning).resolves.toEqual({
+      returned: false,
+      heldElsewhere: false,
+    });
   });
 
   it("never leaves a cancelled request holding when a cancel and a take meet (MT-S2-16)", async () => {

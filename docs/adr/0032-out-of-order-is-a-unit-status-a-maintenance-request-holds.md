@@ -3,6 +3,7 @@
 Status: Accepted
 Date: 2026-09-24
 Amended: 2026-09-24 — "its own status" in the no-better rule is the room's state as `app.unit_housekeeping_state` reads it, after #60.
+Amended: 2026-09-25 — a release is stamped `greatest(now(), since)` and the worker matches it at `greatest(occurred_at, since)`, so a clock that steps back cannot refuse a return (`20260916004900`, MT-S2-31).
 
 ## Context
 
@@ -125,8 +126,18 @@ payload naming a status would let one write any status without
 `housekeeping.update_status`. What the room comes back as is stamped on the
 hold by the release trigger, from the Maintenance setting at that moment, in a
 column no grant names; the worker reads it from the hold, and only for a hold
-released at the event's own `occurred_at` — the two are one `now()` in the
-releasing transaction. A forged event matches no release. A stale one, for a
+whose `returned_at` is `greatest(occurred_at, since)` — the release is stamped
+`greatest(now(), since)` and the event's `occurred_at` is `now()`, in the one
+releasing transaction, so the two agree. The clamp is there because `now()` is
+a transaction's start on a clock that steps: a step back between the take and
+the return made the return look earlier than the take, and
+`returned_after_taken` refused it. `occurred_at` is not in `ranza_app`'s insert
+grant (`20260916002150`), so an event carries its own transaction's `now()` and
+cannot be backdated; a forged event matches no release. The one match the
+clamp adds is an event no later than a clamped release's `since` — which only
+an event published before that take could be, and the worst-of merge and the
+`status_changed_at < returned_at` guard make applying that release's own
+recorded status harmless. A stale one, for a
 room another request has since taken out, still matches its release and writes
 a housekeeping status the room's next return overwrites; cleaning and being in
 service coexist (ADR 0029), so that is noise rather than harm.

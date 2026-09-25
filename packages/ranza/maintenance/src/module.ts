@@ -641,8 +641,10 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
     userId: string,
     request: RequestRow,
     note: string | null,
-  ): Promise<{ returned: boolean }> {
-    if (request.unitId === null || !request.holding) return { returned: false };
+  ): Promise<{ released: boolean; returned: boolean }> {
+    if (request.unitId === null || !request.holding) {
+      return { released: false, returned: false };
+    }
 
     // The Unit is visible to anyone at the Property; a lock that finds nothing
     // means the update policies did not admit the caller.
@@ -665,7 +667,10 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
       throw refusal(error);
     }
     const [release] = released;
-    if (!release) return { returned: false };
+    // Read as holding before the Unit's lock, and let go by somebody else by
+    // the time it was taken: nothing was released, and nothing holds the room
+    // on this request's account.
+    if (!release) return { released: false, returned: false };
 
     const [left] = await tx.$queryRaw<{ count: number }[]>`
       select count(*)::int as count
@@ -687,7 +692,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
         ...(note === null ? {} : { reason: note }),
         context: { number: request.number, unitName: unit.name },
       });
-      return { returned: false };
+      return { released: true, returned: false };
     }
 
     if (!(await returnUnitToServiceWithin(tx, request.unitId))) {
@@ -715,7 +720,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
         returnAs: release.returnedAs,
       },
     });
-    return { returned: true };
+    return { released: true, returned: true };
   }
 
   /**
@@ -925,8 +930,17 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
           heldElsewhere: false,
         };
       }
-      const { returned } = await releaseWithin(tx, userId, request, null);
-      return { returned, stillOutOfOrder: false, heldElsewhere: !returned };
+      const { released, returned } = await releaseWithin(
+        tx,
+        userId,
+        request,
+        null,
+      );
+      return {
+        returned,
+        stillOutOfOrder: false,
+        heldElsewhere: released && !returned,
+      };
     });
   }
 
@@ -954,7 +968,12 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
       if (request.status !== input.from) {
         throw new RequestMovedError(request.status);
       }
-      const { returned } = await releaseWithin(tx, userId, request, reason);
+      const { released, returned } = await releaseWithin(
+        tx,
+        userId,
+        request,
+        reason,
+      );
 
       let cancelled: { requestId: string }[];
       try {
@@ -984,7 +1003,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
       return {
         returned,
         stillOutOfOrder: false,
-        heldElsewhere: request.holding && !returned,
+        heldElsewhere: released && !returned,
       };
     });
   }
@@ -1112,7 +1131,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
   async function returnToService(
     userId: string,
     input: { requestId: string; note?: string | null },
-  ): Promise<{ returned: boolean }> {
+  ): Promise<Pick<Moved, "returned" | "heldElsewhere">> {
     const note = input.note?.trim() || null;
     if (note !== null && note.length > RETURN_NOTE.max) {
       throw new MaintenanceInputError(
@@ -1123,7 +1142,13 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
       const request = await requestWithin(tx, input.requestId);
       if (!request.holding) throw new MaintenanceRefusedError();
-      return releaseWithin(tx, userId, request, note);
+      const { released, returned } = await releaseWithin(
+        tx,
+        userId,
+        request,
+        note,
+      );
+      return { returned, heldElsewhere: released && !returned };
     });
   }
 

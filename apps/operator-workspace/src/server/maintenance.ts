@@ -279,11 +279,12 @@ export async function returnRoomToService(
 ): Promise<MaintenanceOutcome> {
   const requestId = text(form, "requestId");
   return run(form, [requestId], async (userId) => {
-    const { returned } = await getComposition().maintenance.returnToService(
-      userId,
-      { requestId, note: optional(form, "note") },
-    );
-    return { returned, heldElsewhere: !returned };
+    const { returned, heldElsewhere } =
+      await getComposition().maintenance.returnToService(userId, {
+        requestId,
+        note: optional(form, "note"),
+      });
+    return { returned, heldElsewhere };
   });
 }
 
@@ -431,14 +432,15 @@ export async function recordRepairCost(
   const requestId = text(form, "requestId");
   return run(form, [requestId], async (userId) => {
     const typed = text(form, "cost").trim();
-    const costMinor =
-      typed === "" ? null : toMinorUnits(typed, text(form, "currency"));
+    const currency = text(form, "currency");
+    const costMinor = typed === "" ? null : toMinorUnits(typed, currency);
     if (typed !== "" && costMinor === null) {
       throw new MaintenanceInputError("a cost is an amount");
     }
     await getComposition().maintenance.recordCost(userId, {
       requestId,
       costMinor,
+      currency,
       vendor: optional(form, "vendor"),
     });
     return {};
@@ -453,10 +455,8 @@ export async function chargeGuestForDamage(
   const requestId = text(form, "requestId");
   const folioId = text(form, "folioId");
   return run(form, [requestId, folioId], async (userId) => {
-    const amountMinor = toMinorUnits(
-      text(form, "amount"),
-      text(form, "currency"),
-    );
+    const currency = text(form, "currency");
+    const amountMinor = toMinorUnits(text(form, "amount"), currency);
     if (amountMinor === null || amountMinor <= 0) {
       throw new MaintenanceInputError("a charge is a positive amount");
     }
@@ -464,6 +464,7 @@ export async function chargeGuestForDamage(
       requestId,
       folioId,
       amountMinor,
+      currency,
     });
     return {};
   });
