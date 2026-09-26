@@ -1,3 +1,4 @@
+import { createDayCloser, type DayCloser } from "@ranza/business-day";
 import { createPrismaClient, type PrismaClient } from "@ranza/db";
 import {
   createOutboxDispatcher,
@@ -93,6 +94,7 @@ export async function assertUnprivileged(db: PrismaClient): Promise<void> {
 export interface Composition {
   db: PrismaClient;
   outbox: OutboxDispatcher;
+  closer: DayCloser;
   disconnect(): Promise<void>;
 }
 
@@ -128,6 +130,7 @@ export async function createComposition(): Promise<Composition> {
   return {
     db,
     outbox: createOutboxDispatcher({ db }),
+    closer: createDayCloser({ db }),
     disconnect: () => db.$disconnect(),
   };
 }

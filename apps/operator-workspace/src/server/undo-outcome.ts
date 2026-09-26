@@ -1,20 +1,30 @@
-import { CheckInReversalError, StayHasChargesError } from "@ranza/reservations";
+import {
+  CheckInDayClosedError,
+  CheckInReversalError,
+  StayHasChargesError,
+} from "@ranza/reservations";
 
 /**
  * What withdrawing a check-in can come back as.
  *
- * `charges` is the one refusal a front desk can act on, and it is separate for
- * that reason alone: everything else a withdrawal can fail on — out of reach,
- * already departed, already withdrawn, never happened, no session — is
- * `refused`, because telling them apart would confirm that a Stay the viewer
- * cannot see is there (ADR 0022).
+ * `charges` and `dayClosed` are the refusals a front desk can act on, and they
+ * are separate for that reason alone: everything else a withdrawal can fail
+ * on — out of reach, already departed, already withdrawn, never happened, no
+ * session — is `refused`, because telling them apart would confirm that a Stay
+ * the viewer cannot see is there (ADR 0022).
  *
  * The two reason outcomes are about the field rather than the Stay. Saying
  * "that cannot be withdrawn" to somebody who typed two characters would send
  * them looking for a problem with the Guest.
  */
 export type ReverseCheckInOutcome =
-  "idle" | "done" | "charges" | "reasonTooShort" | "reasonTooLong" | "refused";
+  | "idle"
+  | "done"
+  | "charges"
+  | "dayClosed"
+  | "reasonTooShort"
+  | "reasonTooLong"
+  | "refused";
 
 /**
  * Which refusal an error is — and `null` when it is not a refusal at all.
@@ -34,10 +44,13 @@ export type ReverseCheckInOutcome =
  * value import reachable from a component would put Prisma in the browser
  * bundle.
  */
-export function undoOutcomeFor(error: unknown): "charges" | "refused" | null {
-  // Order matters: StayHasChargesError extends CheckInReversalError, so the
-  // specific one has to be asked first or it is answered as the general one.
+export function undoOutcomeFor(
+  error: unknown,
+): "charges" | "dayClosed" | "refused" | null {
+  // Order matters: both specific errors extend CheckInReversalError, so they
+  // have to be asked first or they are answered as the general one.
   if (error instanceof StayHasChargesError) return "charges";
+  if (error instanceof CheckInDayClosedError) return "dayClosed";
   if (error instanceof CheckInReversalError) return "refused";
   return null;
 }

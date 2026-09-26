@@ -1,0 +1,70 @@
+%% Slices decide implementation order and nothing else:
+%%   s1 close a day by hand   s2 the worker closes a quiet day   s3 post tonight's room nights
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% UML directions: include points base --> included. extend points extension --> base.
+%% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
+%% The grill's answers were given by the user as delegated decisions, 2026-09-24,
+%% and are listed in docs/adr/0034-a-business-day-closes-after-its-cutoff.md.
+flowchart TD
+
+  SM["Staff Member<br/>front_desk.close_day"]
+  DESK["Staff Member<br/>front_desk.check_in, check_out, cancel"]
+  JOB["Worker job<br/>business_day.close"]
+
+  subgraph S1["slice 1 &mdash; close a day by hand"]
+    VIEW(["See the day to close<br/>and what is left open"])
+    CLOSE(["Close the day"])
+    WITHREASON(["Close with items left open<br/>reason required, items recorded as exceptions"])
+    BACKLOG(["Work through a backlog<br/>oldest day first"])
+    PREPARE(["Prepare tonight's day<br/>before its cutoff, nothing closes"])
+    FOLIOS(["See departed Guests whose Folio is still open<br/>reported, never blocking"])
+  end
+
+  subgraph RESOLVE["Resolving an open item &mdash; existing commands"]
+    NOSHOW(["Mark a no-show"])
+    CANCEL(["Cancel a booking"])
+    CHECKIN(["Check in a late arrival"])
+    CHECKOUT(["Check out a Guest still in house"])
+  end
+
+  subgraph S2["slice 2 &mdash; the worker closes a quiet day"]
+    AUTO(["Close the next due day<br/>only when nothing is open,<br/>tried again every pass after the cutoff"])
+  end
+
+  subgraph S3["slice 3 &mdash; post tonight's room nights"]
+    POST(["Post one room night per Guest in house<br/>Residents excluded"])
+  end
+
+  subgraph OUT["Not this feature"]
+    EXTEND(["Extend a Stay by a night &mdash; amending a booking"])
+    REOPEN(["Reopen or correct a closed day"])
+    ACCT(["Send the day's totals to Accounting"])
+    RATE(["A rate &mdash; RANZ-31"])
+  end
+
+  WITHREASON -- "extend" --> CLOSE
+  BACKLOG -- "extend" --> CLOSE
+  CLOSE -- "include" --> VIEW
+  PREPARE -- "extend" --> VIEW
+  FOLIOS -- "extend" --> VIEW
+
+  SM --> CLOSE
+  SM --> VIEW
+  DESK --> NOSHOW
+  DESK --> CANCEL
+  DESK --> CHECKIN
+  DESK --> CHECKOUT
+  JOB --> AUTO
+  SM -- "generalizes (is a Staff Member)" --> DESK
+
+  VIEW -. "links to" .-> RESOLVE
+  POST -. "depends on" .-> RATE
+  CLOSE -. "gains a precondition from" .-> POST
+  AUTO -. "writes the same record as" .-> CLOSE
+
+  %% DEFERRED, each tracked as a row:
+  %%   extend a Stay by a night          amending a booking     CD-DEF-01
+  %%   reopen a closed day               this feature, later    CD-DEF-02
+  %%   correct a reopened day            this feature, later    CD-DEF-03
+  %%   an Accounting consumer            blueprint 5.10         CD-DEF-04
+  %%   room nights                       RANZ-31                PRE-01, PRE-02

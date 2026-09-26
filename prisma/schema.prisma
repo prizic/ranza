@@ -32,6 +32,7 @@ model User {
   assignments PropertyAssignment[]
   stays       Stay[]
   invitesSent StaffInvitation[]        @relation("StaffInvitationAuthor")
+  closedDays  BusinessDayClose[]
 
   @@map("users")
 }
@@ -98,6 +99,7 @@ model Property {
   reservations Reservation[]
   folios       Folio[]
   housekeepingSettings HousekeepingSetting[]
+  closes       BusinessDayClose[]
   maintenanceRequests  MaintenanceRequest[]
   maintenanceSettings  MaintenanceSetting[]
   maintenanceEquipment MaintenanceEquipment[]
@@ -890,4 +892,35 @@ model AuthVerification {
 
   @@index([identifier], map: "auth_verification_identifier_idx")
   @@map("auth_verification")
+}
+
+/// A business day a Property has closed (ADR 0034). One per Property and
+/// business date, append-only for every role. The closer supplies the day and a
+/// reason; `business_day_close_is_stamped` supplies who closed it and the
+/// snapshot, so a Staff Member's close and the worker's cannot record different
+/// things. Only a finalized day is stored: draft and superseded are derived.
+model BusinessDayClose {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  propertyId     String   @map("property_id") @db.Uuid
+  businessDate   DateTime @map("business_date") @db.Date
+  closedAt       DateTime @default(now()) @map("closed_at") @db.Timestamptz(6)
+  /// The Staff Member, or null when the worker closed it and `closedByJob` says which job.
+  closedBy       String?  @map("closed_by") @db.Uuid
+  closedByJob    String?  @map("closed_by_job")
+  /// Required when anything was left open, and then recorded beside `exceptions`.
+  reason         String?
+  arrived        Int      @default(0)
+  departed       Int      @default(0)
+  nightsOccupied Int      @default(0) @map("nights_occupied")
+  /// Departed Guests whose Folio is still open. Reported, never blocking.
+  foliosLeftOpen Int      @default(0) @map("folios_left_open")
+  /// What was left open: `{kind: "not_arrived", reservationId}` or `{kind: "not_departed", stayId}`.
+  exceptions     Json     @default("[]")
+
+  property Property @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  closer   User?    @relation(fields: [closedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([propertyId, businessDate])
+  @@map("business_day_closes")
 }
