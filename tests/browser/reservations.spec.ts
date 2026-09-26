@@ -91,6 +91,8 @@ test("a front desk takes a booking and finds it on the list", async ({
   await expect(dialog).toBeVisible();
   await expect(unit).toHaveAttribute("aria-invalid", "true");
   await expect(unit).toBeFocused();
+  await expect(unit).toHaveAccessibleDescription("Choose one to continue.");
+  await expect(dialog.getByText("Choose one to continue.")).toBeVisible();
   // The arrow key opens it, as it opened the Select it replaced.
   await page.keyboard.press("ArrowDown");
   await page.getByRole("option", { name: new RegExp(unitName) }).click();

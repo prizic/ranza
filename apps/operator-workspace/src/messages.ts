@@ -973,6 +973,7 @@ export interface PickerMessages {
   noMatches: string;
   clear: string;
   selectedCount: string;
+  required: string;
 }
 
 /** The listing kit's strings. `{n}`, `{of}` and `{columns}` are interpolated. */
@@ -2007,6 +2008,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       noMatches: "Eşleşen seçenek yok.",
       clear: "Seçimi temizle",
       selectedCount: "{n, plural, other {# seçili}}",
+      required: "Devam etmek için birini seçin.",
     },
     table: {
       results: "{n, plural, other {# sonuç}}",
@@ -3074,6 +3076,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       noMatches: "No options match.",
       clear: "Clear selection",
       selectedCount: "{n, plural, other {# selected}}",
+      required: "Choose one to continue.",
     },
     table: {
       results: "{n, plural, one {# result} other {# results}}",
@@ -4129,6 +4132,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       clear: "مسح الاختيار",
       selectedCount:
         "{n, plural, zero {لا شيء محدد} one {واحدة محددة} two {اثنتان محددتان} few {# محددة} many {# محددة} other {# محددة}}",
+      required: "اختر خيارًا للمتابعة.",
     },
     table: {
       results:

@@ -221,6 +221,11 @@ function RolePicker({
       };
     }),
   );
+  // A revoked membership can still hold a role since retired, which the
+  // active roles no longer offer; it is shown by its name, not by its key.
+  const pickerOptions = roleOptions.some((option) => option.value === held)
+    ? roleOptions
+    : [...roleOptions, { value: held, label: member.roleName, disabled: true }];
   const roleLabels = usePickerLabels(t("staff.role"));
 
   function change(next: string): void {
@@ -251,7 +256,7 @@ function RolePicker({
         disabled={pending || member.status === "revoked"}
         labels={roleLabels}
         onValueChange={change}
-        options={roleOptions}
+        options={pickerOptions}
         value={held}
       />
       {outcome === "lastAdministrator" ? (

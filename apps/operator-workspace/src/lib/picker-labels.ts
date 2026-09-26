@@ -10,6 +10,7 @@ export function usePickerLabels(placeholder: string): MultiComboboxLabels {
   return {
     clear: t("clear"),
     noMatches: t("noMatches"),
+    required: t("required"),
     placeholder,
     search: t("search"),
     selected: (n) => t("selectedCount", { n }),

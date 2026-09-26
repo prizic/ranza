@@ -42,6 +42,7 @@ const labels: MultiComboboxLabels = {
   placeholder: "Choose a Unit",
   search: "Search",
   noMatches: "No options match.",
+  required: "Choose one to continue.",
   clear: "Clear selection",
   selected: (n) => `${n} selected`,
 };
@@ -197,6 +198,7 @@ describe("the single picker", () => {
     );
     openPicker("Birim");
     expect(screen.getByRole("listbox", { name: "Ara" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Ara" })).toBeInTheDocument();
     expect(screen.queryByRole("listbox", { name: "Suggestions" })).toBeNull();
   });
 
@@ -212,11 +214,15 @@ describe("the single picker", () => {
     });
     expect(valid).toBe(false);
     expect(trigger).toHaveAttribute("aria-invalid", "true");
+    // The browser's bubble leaves with the focus it was anchored to, so the
+    // refusal is said under the trigger too, and describes it.
+    expect(trigger).toHaveAccessibleDescription("Choose one to continue.");
 
     openPicker();
     fireEvent.click(screen.getByRole("option", { name: /101/ }));
     expect(form.checkValidity()).toBe(true);
     expect(trigger).not.toHaveAttribute("aria-invalid");
+    expect(screen.queryByText("Choose one to continue.")).toBeNull();
   });
 
   it("marks the chosen option checked, not merely the cursor", () => {

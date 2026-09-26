@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { Badge } from "./ui/badge";
 import {
@@ -36,6 +36,8 @@ export interface ComboboxLabels {
   /** The search box's placeholder, and its accessible name. */
   search: string;
   noMatches: string;
+  /** Shown under a required picker the form was refused for. */
+  required: string;
 }
 
 export interface MultiComboboxLabels extends ComboboxLabels {
@@ -244,12 +246,19 @@ function Picker({
   // Set by the browser refusing an empty required submission, and over as soon
   // as something is chosen.
   const [refused, setRefused] = useState(false);
-  const invalid = aria["aria-invalid"] || (refused && submitted.length === 0);
+  const refusedEmpty = refused && submitted.length === 0;
+  const invalid = aria["aria-invalid"] || refusedEmpty;
+  const refusalId = useId();
+  const describedBy =
+    [aria["aria-describedby"], refusedEmpty ? refusalId : undefined]
+      .filter(Boolean)
+      .join(" ") || undefined;
 
   const triggerButton = (
     <PopoverTrigger asChild>
       <button
         {...aria}
+        aria-describedby={describedBy}
         aria-expanded={open}
         aria-invalid={invalid || undefined}
         className={cn(selectTriggerClassName, "w-full min-w-0", className)}
@@ -285,19 +294,28 @@ function Picker({
         // sits under the trigger's bottom edge, the way Radix places its native
         // select, so the browser's message points at the field rather than
         // over its label. When the form is refused, focus moves on to the
-        // trigger, which is marked invalid; the message stays up.
-        <span className="relative grid min-w-0">
-          {triggerButton}
-          <input
-            aria-hidden="true"
-            className="pointer-events-none absolute start-1/2 bottom-0 size-px opacity-0"
-            onChange={keepValue}
-            onFocus={() => trigger?.focus()}
-            onInvalid={() => setRefused(true)}
-            required
-            tabIndex={-1}
-            value={submitted.length > 0 ? "chosen" : ""}
-          />
+        // trigger, and the browser's own bubble goes with the focus it was
+        // anchored to — so the refusal is also said under the trigger, in the
+        // reader's language, and the trigger is described by it.
+        <span className="grid min-w-0 gap-1.5">
+          <span className="relative grid min-w-0">
+            {triggerButton}
+            <input
+              aria-hidden="true"
+              className="pointer-events-none absolute start-1/2 bottom-0 size-px opacity-0"
+              onChange={keepValue}
+              onFocus={() => trigger?.focus()}
+              onInvalid={() => setRefused(true)}
+              required
+              tabIndex={-1}
+              value={submitted.length > 0 ? "chosen" : ""}
+            />
+          </span>
+          {refusedEmpty ? (
+            <span className="text-step--1 text-destructive" id={refusalId}>
+              {labels.required}
+            </span>
+          ) : null}
         </span>
       ) : (
         triggerButton
