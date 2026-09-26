@@ -276,7 +276,8 @@ export function MaintenanceBoard({
                   className="grid content-start gap-2 rounded-xl bg-muted/40 p-2"
                   key={state}
                 >
-                  <h2
+                  {/* h3: under the board's own h2 heading above. */}
+                  <h3
                     className="flex items-center justify-between px-1 pt-1 text-step--1 font-semibold"
                     id={`column-${state}`}
                   >
@@ -287,7 +288,7 @@ export function MaintenanceBoard({
                     <span className="text-muted-foreground tabular-nums">
                       {cards.length}
                     </span>
-                  </h2>
+                  </h3>
                   {cards.length === 0 ? (
                     <p className="px-1 py-6 text-center text-step--1 text-muted-foreground">
                       {t("emptyColumn")}
@@ -314,9 +315,10 @@ export function MaintenanceBoard({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader aside={board.requests.length === 0 ? null : newRequest}>
-        <h1 className="text-step-2 font-semibold tracking-tight">
+        {/* h2: the page bar (AppPageBar) already sets this route's one h1. */}
+        <h2 className="text-step-2 font-semibold tracking-tight">
           {t("heading", { property: propertyName })}
-        </h1>
+        </h2>
       </PageHeader>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

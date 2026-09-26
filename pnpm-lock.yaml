@@ -120,6 +120,9 @@ importers:
       '@ranza/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@ranza/business-day':
+        specifier: workspace:*
+        version: link:../../packages/ranza/business-day
       '@ranza/core':
         specifier: workspace:*
         version: link:../../packages/ranza/core
@@ -199,6 +202,9 @@ importers:
       '@prisma/client':
         specifier: ^7.10.0
         version: 7.10.0(prisma@7.10.0(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(magicast@0.5.5)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.9.3))(typescript@5.9.3)
+      '@ranza/business-day':
+        specifier: workspace:*
+        version: link:../../packages/ranza/business-day
       '@ranza/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -286,6 +292,21 @@ importers:
       '@ranza/platform-audit':
         specifier: workspace:*
         version: link:../../platform/audit
+
+  packages/ranza/business-day:
+    dependencies:
+      '@ranza/db':
+        specifier: workspace:*
+        version: link:../../db
+      '@ranza/platform-audit':
+        specifier: workspace:*
+        version: link:../../platform/audit
+      '@ranza/platform-outbox':
+        specifier: workspace:*
+        version: link:../../platform/outbox
+      '@ranza/reservations':
+        specifier: workspace:*
+        version: link:../reservations
 
   packages/ranza/core:
     dependencies:

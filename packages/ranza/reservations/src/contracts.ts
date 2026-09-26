@@ -362,6 +362,22 @@ export class StayHasChargesError extends CheckInReversalError {
 }
 
 /**
+ * A check-in that cannot be withdrawn because the business day it began on is
+ * closed (ADR 0034): withdrawing it would put an unarrived booking back into a
+ * day that has been finalized.
+ *
+ * Its own type for the reason `StayHasChargesError` has one — the desk can act
+ * on it, by correcting the Stay rather than undoing it — and it reveals nothing
+ * the desk cannot already see: that day's close is on the Close the day screen.
+ */
+export class CheckInDayClosedError extends CheckInReversalError {
+  constructor(message: string) {
+    super(message);
+    this.name = "CheckInDayClosedError";
+  }
+}
+
+/**
  * A check-out that did not happen.
  *
  * One type for every reason, on the same principle as CheckInError: out of

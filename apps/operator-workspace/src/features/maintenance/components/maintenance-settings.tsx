@@ -141,7 +141,9 @@ export function MaintenanceSettingsCard({
   return (
     <Card className="grid gap-5 p-5">
       <div className="grid gap-1">
-        <h2 className="text-step-0 font-semibold">{t("settingsTitle")}</h2>
+        {/* h3: this card is one of the Maintenance board's own tabs, under
+            the board's h2 (one-h1-per-page: patterns.tsx). */}
+        <h3 className="text-step-0 font-semibold">{t("settingsTitle")}</h3>
         <p className="max-w-prose text-step--1 text-muted-foreground">
           {t("settingsHint")}
         </p>
