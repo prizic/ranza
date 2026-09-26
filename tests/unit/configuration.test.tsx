@@ -561,6 +561,36 @@ describe("saving", () => {
     expect(screen.getByRole("combobox", { name: "Time zone" })).toHaveFocus();
   });
 
+  it("a closed day after a cutoff change focuses the cutoff", async () => {
+    previewBusinessDate.mockResolvedValue({
+      current: "2026-09-25",
+      proposed: "2026-09-24",
+    });
+    saveProperty.mockResolvedValue({
+      status: "closedDay",
+      field: "businessDateCutoff",
+    });
+    await show(MANAGER);
+    const cutoff = screen.getByRole("combobox", {
+      name: "Business day ends at",
+    });
+    fireEvent.click(cutoff);
+    fireEvent.click(await screen.findByRole("option", { name: "11:45" }));
+    await waitFor(() => expect(cutoff).toHaveFocus());
+    cutoff.blur();
+    await act(async () => {
+      fireEvent.click(
+        within(card("time")).getByRole("button", { name: "Save changes" }),
+      );
+    });
+    await waitFor(() =>
+      expect(
+        within(card("time")).getByText(/already been closed/),
+      ).toBeVisible(),
+    );
+    expect(cutoff).toHaveFocus();
+  });
+
   it("a_refused_save_keeps_the_input", async () => {
     saveProperty.mockResolvedValue({ status: "invalid", field: "name" });
     await show(MANAGER);
