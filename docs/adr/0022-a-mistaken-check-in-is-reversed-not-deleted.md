@@ -9,6 +9,11 @@ Amended: 2026-09-16 — withdrawing a check-in now closes the Folio it opened,
 and a backfill closes the ones earlier withdrawals left behind.
 Amended: 2026-09-17 — the Operator Workspace offers it, and the arrivals list
 gained a second way onto it so that a late arrival's check-in can be reached.
+Amended: 2026-09-24 — a check-in whose business day has been closed cannot be
+withdrawn either: it would put an unarrived booking back into a finalized day
+([ADR 0034](0034-a-business-day-closes-after-its-cutoff.md)).
+`stays_keep_closed_days` refuses it with `RZ001`, and the desk is told so by
+`CheckInDayClosedError`, apart from the charges refusal.
 
 ## Context
 
