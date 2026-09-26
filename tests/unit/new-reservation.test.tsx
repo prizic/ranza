@@ -36,6 +36,7 @@ function openForm() {
       <NewReservationDialog
         locale="en"
         propertyId="d9000003-0000-4000-8000-000000000001"
+        today="2026-09-25"
         units={[
           { unitId: "u1", unitName: "101", roomName: null, unitType: "room" },
         ]}
@@ -66,20 +67,19 @@ describe("the booking form", () => {
   });
 
   /**
-   * Native date inputs, which is the whole reason there is no picker component
-   * here: the browser already knows the reader's calendar and submits
-   * `YYYY-MM-DD`, which is what the module parses and the database stores.
+   * One field for both dates, submitting what the two date inputs it replaced
+   * did: `startsOn` and `endsOn` as `YYYY-MM-DD`, which is what the module
+   * parses and the database stores. The picking itself is
+   * `date-range-field.test.tsx`'s.
    */
   it("asks for dates the module can read", () => {
     openForm();
 
-    expect(screen.getByLabelText(messages.en.arrival)).toHaveAttribute(
-      "type",
-      "date",
-    );
-    expect(screen.getByLabelText(messages.en.departure)).toHaveAttribute(
-      "type",
-      "date",
-    );
+    const form = screen
+      .getByRole("button", { name: /^Arrival/ })
+      .closest("form")!;
+    const fields = new FormData(form);
+    expect(fields.has("startsOn")).toBe(true);
+    expect(fields.has("endsOn")).toBe(true);
   });
 });

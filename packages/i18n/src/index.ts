@@ -75,6 +75,23 @@ export function formatWeekday(
   }).format(value);
 }
 
+/**
+ * The calendar day it is at a Property, as `YYYY-MM-DD` — the form a date
+ * field submits and a Postgres `date` reads. From the Property's timezone and
+ * not the reader's, which is the wrong day for part of every day elsewhere.
+ */
+export function calendarDay(timeZone: string, at: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone,
+    year: "numeric",
+  }).formatToParts(at);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((candidate) => candidate.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
 /** Wall-clock time at a Property. */
 export function formatTime(
   value: Date | number,

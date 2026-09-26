@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isSupportedLocale, localizeHref } from "@ranza/i18n";
+import { calendarDay, isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { Button, EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ANY } from "../../../../features/audit-log/actions";
@@ -202,6 +202,7 @@ export default async function AuditLogPage({
         actionHref={route}
         properties={organizationProperties}
         propertyId={property.propertyId}
+        today={calendarDay(property.timezone)}
         values={values}
       />
       {searchTooShort ? (

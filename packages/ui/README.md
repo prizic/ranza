@@ -27,6 +27,7 @@ src/
   components/ui/          shadcn components — owned source, edit them freely
   components/data-table/  the listing kit, ported from ryadh/mirhaal
   components/app-rail.tsx the 76px rail and the mobile dock, also ported
+  components/date-range-field.tsx  a From → To pair as one field and one calendar
   components/             app-shell, patterns, kpi-card, status-badge, ...
   lib/utils.ts            cn()
   lib/menu-guard.ts       the overlay-click guard the primitives arm

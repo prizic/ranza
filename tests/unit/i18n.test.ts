@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  calendarDay,
   defaultLocale,
   directionFor,
   formatTime,
@@ -60,5 +61,22 @@ describe("Property-local formatting", () => {
   it("reads the clock at the Property", () => {
     expect(formatTime(lateMondayUtc, "en", "Europe/Istanbul")).toBe("01:30");
     expect(formatTime(lateMondayUtc, "en", "UTC")).toBe("22:30");
+  });
+});
+
+describe("calendarDay", () => {
+  // 22:30 UTC on the 25th is already the 26th in Istanbul and still the 25th
+  // in New York — the case a reader's clock gets wrong.
+  const lateEvening = new Date("2026-09-25T22:30:00Z");
+
+  it("is the day at the Property, not in UTC", () => {
+    expect(calendarDay("Europe/Istanbul", lateEvening)).toBe("2026-09-26");
+    expect(calendarDay("America/New_York", lateEvening)).toBe("2026-09-25");
+  });
+
+  it("pads the month and day, as a date field submits them", () => {
+    expect(calendarDay("UTC", new Date("2026-01-05T12:00:00Z"))).toBe(
+      "2026-01-05",
+    );
   });
 });
