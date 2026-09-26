@@ -24,17 +24,12 @@ export interface BackButtonProps {
 /**
  * Standard back button for inner pages and detail views across Ranza.
  *
- * Provides proper routing:
- * 1. Safely falls back to `href` or `fallbackHref` if the page was opened directly,
- *    refreshed, or if there is no same-origin history.
- * 2. Navigates back in browser history (`router.back()`) when the user arrived
- *    from another page within the same application origin.
- * 3. Bypasses history when navigating between filter states on the same page,
- *    preventing endless filter-undo loops.
- * 4. Respects modifier keys (Cmd/Ctrl/Shift) so middle-clicks or new tabs open
- *    the destination URL cleanly.
- * 5. Uses logical directional styling and `rtl:rotate-180` for bidirectional
- *    support (Arabic RTL mirrors cleanly).
+ * It goes back in history only when the document was loaded from another
+ * page of this origin; otherwise it is a plain link to `href`, so a page opened
+ * directly never sends somebody out of the application. `document.referrer` is
+ * set by the document load and a soft navigation does not change it, so the
+ * signal is coarse: it can only err towards the link, which is always safe.
+ * Modifier keys keep the link's own behaviour, so a new tab opens the target.
  */
 export function BackButton({
   children,
@@ -44,12 +39,7 @@ export function BackButton({
   href,
   label = "Back",
 }: BackButtonProps) {
-  let router: ReturnType<typeof useRouter> | null = null;
-  try {
-    router = useRouter();
-  } catch {
-    router = null;
-  }
+  const router = useRouter();
   const destination = href || fallbackHref || "/";
 
   const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
@@ -76,12 +66,7 @@ export function BackButton({
         }
       }
 
-      if (
-        window.history.length > 1 &&
-        isSameOrigin &&
-        isDifferentPage &&
-        router
-      ) {
+      if (window.history.length > 1 && isSameOrigin && isDifferentPage) {
         e.preventDefault();
         router.back();
       }
