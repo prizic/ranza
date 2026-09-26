@@ -9,7 +9,7 @@
  * Turkish case folding is deliberate too: `toLocaleLowerCase("tr")` maps I to ı
  * and İ to i, so searching "İSTANBUL" finds "istanbul". The invariant lower-case
  * used elsewhere gets that pair wrong in exactly the language this product
- * leads with.
+ * leads with. Dotless ı is then read as i, for the reason on `fold`.
  *
  * There is no phone normalization here. The dashboard this came from folds Saudi
  * numbers to a local form; Ranza has no phone column yet, and inventing a
@@ -27,9 +27,19 @@ export function toAsciiDigits(value: string): string {
   });
 }
 
+/**
+ * Lower-cased the Turkish way, then with dotless ı read as i. Turkish rules
+ * alone make "Istanbul Suites" into "ıstanbul suites", so a Latin brand name
+ * with a plain capital I is missed by anybody who types it with an i; folding
+ * the pair together finds it whichever of the two was typed.
+ */
+function fold(value: string): string {
+  return toAsciiDigits(value).toLocaleLowerCase("tr").replaceAll("ı", "i");
+}
+
 /** True when `query` appears in `value`, ignoring case, script and digit form. */
 export function fieldMatches(value: string, query: string): boolean {
-  const needle = toAsciiDigits(query.trim()).toLocaleLowerCase("tr");
+  const needle = fold(query.trim());
   if (!needle) return true;
-  return toAsciiDigits(value).toLocaleLowerCase("tr").includes(needle);
+  return fold(value).includes(needle);
 }

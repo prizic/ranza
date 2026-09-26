@@ -82,10 +82,21 @@ test("a front desk takes a booking and finds it on the list", async ({
 
   await dialog.getByLabel("Guest", { exact: true }).fill(guestName);
   await dialog.getByLabel("Email").fill(email);
-  // A combobox rather than a native select: shadcn's Select is Radix, so the
-  // option is a listbox row and not an <option>.
-  await dialog.getByLabel("Unit").click();
+  // A combobox rather than a native select: the Unit picker is the kit's
+  // searchable one, so the option is a listbox row and not an <option>.
+  // Submitted with no Unit, the booking stops at the Unit: its required value
+  // is carried by a proxy input, and the refusal lands on the trigger.
+  const unit = dialog.getByLabel("Unit");
+  await dialog.getByRole("button", { name: "Create reservation" }).click();
+  await expect(dialog).toBeVisible();
+  await expect(unit).toHaveAttribute("aria-invalid", "true");
+  await expect(unit).toBeFocused();
+  await expect(unit).toHaveAccessibleDescription("Choose one to continue.");
+  await expect(dialog.getByText("Choose one to continue.")).toBeVisible();
+  // The arrow key opens it, as it opened the Select it replaced.
+  await page.keyboard.press("ArrowDown");
   await page.getByRole("option", { name: new RegExp(unitName) }).click();
+  await expect(unit).not.toHaveAttribute("aria-invalid", "true");
   // Submitted with no arrival, the booking stops and the calendar opens at
   // the arrival: the required start is carried by a proxy input the reader
   // never sees, so this is the only place its message can arrive.

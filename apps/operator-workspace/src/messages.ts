@@ -1015,6 +1015,7 @@ export interface Messages {
   };
 
   table: TableMessages;
+  picker: PickerMessages;
 
   /** Rail and page-bar names, keyed by route segment. */
   navigation: Record<string, string>;
@@ -1024,6 +1025,15 @@ export interface Messages {
   handoverLabel: string;
   notEntitledTitle: string;
   notEntitledDescription: string;
+}
+
+/** The searchable pickers' own strings; each field brings its placeholder. */
+export interface PickerMessages {
+  search: string;
+  noMatches: string;
+  clear: string;
+  selectedCount: string;
+  required: string;
 }
 
 /** The listing kit's strings. `{n}`, `{of}` and `{columns}` are interpolated. */
@@ -2121,6 +2131,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       nights: "Geceler",
       leftOpen: "Açık kalan",
       foliosOpen: "Açık folyolar",
+    },
+    picker: {
+      search: "Ara…",
+      noMatches: "Eşleşen seçenek yok.",
+      clear: "Seçimi temizle",
+      selectedCount: "{n, plural, other {# seçili}}",
+      required: "Devam etmek için birini seçin.",
     },
     table: {
       results: "{n, plural, other {# sonuç}}",
@@ -3253,6 +3270,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       leftOpen: "Left open",
       foliosOpen: "Folios open",
     },
+    picker: {
+      search: "Search…",
+      noMatches: "No options match.",
+      clear: "Clear selection",
+      selectedCount: "{n, plural, other {# selected}}",
+      required: "Choose one to continue.",
+    },
     table: {
       results: "{n, plural, one {# result} other {# results}}",
       capped: "(latest {n, number} of {of, number})",
@@ -4365,6 +4389,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       nights: "الليالي",
       leftOpen: "بقي مفتوحًا",
       foliosOpen: "حسابات مفتوحة",
+    },
+    picker: {
+      search: "بحث…",
+      noMatches: "لا توجد خيارات مطابقة.",
+      clear: "مسح الاختيار",
+      selectedCount:
+        "{n, plural, zero {لا شيء محدد} one {واحدة محددة} two {اثنتان محددتان} few {# محددة} many {# محددة} other {# محددة}}",
+      required: "اختر خيارًا للمتابعة.",
     },
     table: {
       results:

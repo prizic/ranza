@@ -5,16 +5,13 @@ import { Search } from "lucide-react";
 import type { SupportedLocale } from "@ranza/i18n";
 import {
   Button,
+  Combobox,
   DateRangeField,
   type DateRangePreset,
   Field,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
 } from "@ranza/ui";
+import { usePickerLabels } from "../../../lib/picker-labels";
 import { ANY, KNOWN_ACTIONS } from "../actions";
 
 export interface AuditFilterValues {
@@ -62,6 +59,8 @@ export function AuditFilters({
   values: AuditFilterValues;
 }) {
   const t = useTranslations();
+  const actionLabels = usePickerLabels(t("auditAnyAction"));
+  const propertyLabels = usePickerLabels(t("auditEveryProperty"));
   const locale = useLocale() as SupportedLocale;
   const presets: DateRangePreset[] = [
     { label: t("today"), from: today, to: today },
@@ -87,35 +86,35 @@ export function AuditFilters({
       <input name="property" type="hidden" value={propertyId} />
 
       <Field htmlFor="audit-action" label={t("auditActionFilter")}>
-        <Select defaultValue={values.action ?? ANY} name="action">
-          <SelectTrigger className="w-full min-w-0" id="audit-action">
-            <SelectValue className="truncate" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ANY}>{t("auditAnyAction")}</SelectItem>
-            {KNOWN_ACTIONS.map((action) => (
-              <SelectItem key={action} value={action}>
-                {t(`auditAction.${action}`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          defaultValue={values.action ?? ANY}
+          id="audit-action"
+          labels={actionLabels}
+          name="action"
+          options={[
+            { value: ANY, label: t("auditAnyAction") },
+            ...KNOWN_ACTIONS.map((action) => ({
+              value: action,
+              label: t(`auditAction.${action}`),
+            })),
+          ]}
+        />
       </Field>
 
       <Field htmlFor="audit-at" label={t("auditProperty")}>
-        <Select defaultValue={values.at ?? ANY} name="at">
-          <SelectTrigger className="w-full min-w-0" id="audit-at">
-            <SelectValue className="truncate" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ANY}>{t("auditEveryProperty")}</SelectItem>
-            {properties.map((property) => (
-              <SelectItem key={property.id} value={property.id}>
-                {property.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          defaultValue={values.at ?? ANY}
+          id="audit-at"
+          labels={propertyLabels}
+          name="at"
+          options={[
+            { value: ANY, label: t("auditEveryProperty") },
+            ...properties.map((property) => ({
+              value: property.id,
+              label: property.name,
+            })),
+          ]}
+        />
       </Field>
 
       <Field htmlFor="audit-period" label={t("auditPeriod")}>
