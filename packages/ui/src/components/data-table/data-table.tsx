@@ -34,6 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
+import { DataTableFacetedChips } from "./faceted-chips";
 import { DataTableFacetedFilter, type FacetOption } from "./faceted-filter";
 import { DataTablePagination, type PaginationLabels } from "./pagination";
 import { DataTableViewOptions } from "./view-options";
@@ -57,6 +58,7 @@ export interface Facet {
   columnId: string;
   title: string;
   options: readonly FacetOption[];
+  variant?: "dropdown" | "chips";
 }
 
 /**
@@ -262,17 +264,30 @@ export function DataTable<TData, TValue>({
           </div>
         ) : null}
 
-        {facets.map((facet) =>
-          table.getColumn(facet.columnId) ? (
+        {facets.map((facet) => {
+          const column = table.getColumn(facet.columnId);
+          if (!column) return null;
+          const variant = facet.variant ?? "dropdown";
+          if (variant === "chips") {
+            return (
+              <DataTableFacetedChips
+                column={column}
+                key={facet.columnId}
+                options={facet.options}
+                title={facet.title}
+              />
+            );
+          }
+          return (
             <DataTableFacetedFilter
-              column={table.getColumn(facet.columnId)}
+              column={column}
               key={facet.columnId}
               labels={labels.facet}
               options={facet.options}
               title={facet.title}
             />
-          ) : null,
-        )}
+          );
+        })}
 
         {isFiltered ? (
           <Button

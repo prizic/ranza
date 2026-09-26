@@ -2,6 +2,7 @@
 
 Status: Accepted
 Date: 2026-09-16
+Amended: 2026-09-26 — inner pages carry a way up at the leading edge of the page bar; see [ADR 0035](0035-all-inner-pages-have-a-back-button-with-proper-routing.md).
 
 ## Context
 
