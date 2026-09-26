@@ -3,6 +3,7 @@ import {
   Bed,
   BellRing,
   Boxes,
+  CalendarCheck,
   CalendarDays,
   CalendarRange,
   ChefHat,
@@ -136,6 +137,14 @@ export const SCREENS: Screen[] = [
         blueprint: "5.3",
         built: true,
       },
+      {
+        segment: "close-day",
+        capability: "front_desk",
+        module: "front_office",
+        icon: CalendarCheck,
+        blueprint: "6.4",
+        built: true,
+      },
     ],
   },
   {
@@ -222,7 +231,7 @@ export const SCREENS: Screen[] = [
     module: "platform_core",
     icon: Settings,
     blueprint: "5.1",
-    built: false,
+    built: true,
     section: "system",
   },
   {

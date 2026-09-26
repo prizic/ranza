@@ -1,0 +1,42 @@
+%% Four parties: the Operator Workspace, @ranza/business-day, PostgreSQL and
+%% apps/worker. Both paths end in the same insert, stamped by the same trigger,
+%% so a manual close and an automatic one cannot record different things.
+sequenceDiagram
+  autonumber
+  actor SM as Staff Member
+  participant WS as Operator Workspace
+  participant BD as @ranza/business-day
+  participant PG as PostgreSQL
+  participant WK as apps/worker
+
+  rect rgb(240, 248, 246)
+  note over SM,PG: s1, close a day by hand (ranza_app, request context)
+  SM->>WS: open close-day?property=P
+  WS->>BD: getCloseTheDay(user, P)
+  BD->>PG: day to close, backlog, open items, Folios left open, recent closes
+  PG-->>BD: rows the viewer's policies let through
+  BD-->>WS: the checklist
+  SM->>WS: Close D, with a reason when items are open
+  WS->>BD: closeDay(user, P, D, reason)
+  BD->>PG: pg_advisory_xact_lock(3, P)
+  BD->>PG: insert business_day_closes (organization, P, D, reason)
+  PG->>PG: stamped (definer trigger): caller check, D before today, D-1 closed,<br/>counts and open items computed, a reason when any are open
+  PG->>PG: policy: capability front_desk and front_desk.close_day
+  BD->>PG: outbox business_day.closed, audit business_day.closed
+  PG-->>BD: committed, or 23505 already closed, 55000 / 23514 not closable
+  BD-->>WS: closed, or why not
+  end
+
+  rect rgb(246, 244, 240)
+  note over WK,PG: s2, the worker closes a quiet day (ranza_worker)
+  WK->>BD: closeDueDays() every 60 s, one pass at a time
+  BD->>PG: app.properties_due_for_close()
+  PG-->>BD: (organization, P, D) where D is the next due day
+  loop each due Property, its own transaction
+    BD->>PG: app.set_worker_context(organization, business_day.close)
+    BD->>PG: app.close_business_day_automatically(P, D)
+    PG->>PG: lock 3, open items? then insert, same trigger, closed_by_job set
+    PG-->>BD: closed, open_items, already_closed or unavailable
+  end
+  BD-->>WK: report: due, closed, open, failed
+  end

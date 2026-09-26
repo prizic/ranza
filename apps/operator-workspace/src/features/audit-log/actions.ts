@@ -41,6 +41,7 @@ export const KNOWN_ACTIONS = [
   "unit.unblocked",
   "housekeeping.status_changed",
   "housekeeping.inspection_set",
+  "business_day.closed",
   "maintenance_request.reported",
   "maintenance_request.moved",
   "maintenance_request.cancelled",
@@ -57,6 +58,8 @@ export const KNOWN_ACTIONS = [
   "unit.taken_out_of_order",
   "unit.returned_to_service",
   "maintenance_setting.changed",
+  "property.configured",
+  "organization.configured",
 ] as const;
 
 export type KnownAction = (typeof KNOWN_ACTIONS)[number];
@@ -70,6 +73,7 @@ export const KNOWN_SUBJECTS = [
   "property",
   "accommodation_unit",
   "organization",
+  "business_day_close",
   "maintenance_request",
   "maintenance_equipment",
 ] as const;

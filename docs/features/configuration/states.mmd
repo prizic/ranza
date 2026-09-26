@@ -1,0 +1,30 @@
+%% Every allowed transition is drawn and labelled with the command that causes
+%% it. Anything not drawn is forbidden.
+%%
+%% A setting has no lifecycle of its own: it is a value, and every change is
+%% the same command with a new value. What has a state is whether the
+%% currency may still change — a Property's currency is chosen at setup and is
+%% fixed by the first Folio opened in it, because every Folio copies it and a
+%% Folio's lines carry none of their own (ADR 0015).
+%%
+%% Neither lock is reversible here. A Folio is never deleted (blueprint 7.4), so
+%% a Property with one keeps its currency; moving a trading Property to a new
+%% currency is a finance workflow of its own and not this feature.
+stateDiagram-v2
+
+  state "Property — currency" as C {
+    [*] --> Changeable : create the Property
+    Changeable --> Changeable : save the Property's settings
+    Changeable --> Fixed : open the Property's first Folio
+    Fixed --> Fixed : save the Property's settings (currency unchanged)
+  }
+
+  state "Property — name, timezone, cutoff" as P {
+    [*] --> Set : create the Property
+    Set --> Set : save the Property's settings
+  }
+
+  state "Organization — name" as O {
+    [*] --> Named : create the Organization
+    Named --> Named : save the Organization's settings
+  }

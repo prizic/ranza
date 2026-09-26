@@ -385,11 +385,25 @@ select is_empty(
 -- it; nothing written.
 -- Maintenance and the front desk arrived on separate branches; the counts
 -- below are the union of both.
+--
+-- Close the day (20260916005100) brought two, both for the worker alone.
+-- app.properties_due_for_close() is its second cross-Organization read (ADR
+-- 0018 amended) and writes nothing; app.close_business_day_automatically()
+-- writes a close and its event, and checks worker_organization_id() before
+-- anything, which is what keeps the sweep above at zero.
+-- Configuration (20260916006000) brought three more, none of which writes.
+-- app.property_currency_is_fixed_by_its_first_folio() and
+-- app.property_currency_is_fixed() must see every Folio at a Property whatever
+-- the caller may read, so that narrowing the Folio read policy later cannot
+-- make "none visible" read as "the currency may change".
+-- app.folio_currency_is_its_propertys() holds the Property row while a Folio
+-- opens, which a caller without update rights on properties cannot do; it is
+-- gated on the caller's reach.
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  37,
-  'the definer sweep looked at 37 functions; change this number deliberately');
+  42,
+  'the definer sweep looked at 42 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -399,15 +413,15 @@ select is(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef and p.prosrc ~* '(insert|update|delete)\s'),
-  6,
-  'six of them write, which is what makes the assertion above a test');
+  7,
+  'seven of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a thirty-eighth definer is a red test
+-- Part B: the inventory itself, so a forty-third definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
 -- four are housekeeping; two are maintenance; five are the audit log's reach;
--- and the last three are the front desk's. The six that write are named in the
--- comments above.
+-- three are the front desk's; two are the worker's close; and the last three
+-- are configuration's. The seven that write are named in the comments above.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -429,8 +443,11 @@ select set_eq(
         'audit_reader_organization_ids','audit_location_is_in_scope',
         'audit_location_names',
         'unit_holds_one_occupancy','stay_and_reservation_agree',
-        'front_desk_closes_only_a_settled_folio'],
-  'and they are exactly the thirty-seven the design gives a reason for');
+        'front_desk_closes_only_a_settled_folio',
+        'properties_due_for_close','close_business_day_automatically',
+        'property_currency_is_fixed_by_its_first_folio',
+        'folio_currency_is_its_propertys','property_currency_is_fixed'],
+  'and they are exactly the forty-two the design gives a reason for');
 
 select finish();
 rollback;

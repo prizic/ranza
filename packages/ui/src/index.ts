@@ -5,6 +5,7 @@ export { SidebarProvider, useSidebar } from "./components/sidebar-context";
 export type { SidebarContextValue } from "./components/sidebar-context";
 export { AppPageBar } from "./components/app-page-bar";
 export type { PageCrumb } from "./components/app-page-bar";
+export { BackButton } from "./components/back-button";
 export { AccountMenu } from "./components/account-menu";
 export { LanguageSwitcher } from "./components/language-switcher";
 export type { LanguageSwitcherProps } from "./components/language-switcher";
@@ -133,5 +134,18 @@ export {
   SheetTrigger,
 } from "./components/ui/sheet";
 export { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
+export {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "./components/ui/command";
+export {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "./components/ui/popover";
 
 export { cn } from "./lib/utils";

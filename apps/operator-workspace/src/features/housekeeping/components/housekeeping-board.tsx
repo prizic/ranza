@@ -194,6 +194,7 @@ export function HousekeepingBoard({
           {
             columnId: "status",
             title: t("status"),
+            variant: "chips",
             options: MARKS.map((status) => ({
               label: t(status),
               value: status,

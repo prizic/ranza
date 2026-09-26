@@ -17,6 +17,7 @@ export interface Messages {
   mainNavigation: string;
   sections: string;
   breadcrumb: string;
+  back: string;
   collapse: string;
   expand: string;
   workspaceBadge: string;
@@ -111,6 +112,7 @@ export interface Messages {
   reasonTooLong: string;
   undoCheckInRefused: string;
   stayHasCharges: string;
+  checkInDayClosed: string;
   stayType: Record<"guest" | "resident", string>;
   unitType: Record<"room" | "bed" | "apartment" | "suite", string>;
   reservationStatus: Record<
@@ -269,6 +271,7 @@ export interface Messages {
       | "checkIn"
       | "checkOut"
       | "cancel"
+      | "closeDay"
       | "manageFolio"
       | "postCharge"
       | "administerStaff"
@@ -279,7 +282,8 @@ export interface Messages {
       | "manageMaintenance"
       | "takeOutOfOrder"
       | "manageEquipment"
-      | "readAudit",
+      | "readAudit"
+      | "manageConfiguration",
       string
     >;
     emptyRosterTitle: string;
@@ -321,7 +325,6 @@ export interface Messages {
 
   folios: string;
   foliosAt: string;
-  allFolios: string;
   noFoliosTitle: string;
   noFoliosDescription: string;
   folioStatus: Record<"open" | "closed", string>;
@@ -390,6 +393,59 @@ export interface Messages {
   reservedTonight: string;
   reservedCount: string;
   blockedStatus: string;
+
+  /** The Configuration screen (ADR 0036). */
+  configuration: {
+    subtitle: string;
+    sections: string;
+    organizationTitle: string;
+    organizationHint: string;
+    organizationName: string;
+    organizationNeedsReach: string;
+    propertyTitle: string;
+    propertyHint: string;
+    propertyName: string;
+    currency: string;
+    currencyFixed: string;
+    searchCurrency: string;
+    noCurrency: string;
+    timeTitle: string;
+    timeHint: string;
+    timezone: string;
+    searchTimezone: string;
+    noTimezone: string;
+    cutoff: string;
+    businessDateNow: string;
+    businessDateAfter: string;
+    businessDateForward: string;
+    businessDateBack: string;
+    housekeepingTitle: string;
+    modulesTitle: string;
+    modulesHint: string;
+    elsewhereTitle: string;
+    elsewhereHint: string;
+    roomsHint: string;
+    peopleHint: string;
+    save: string;
+    discard: string;
+    saving: string;
+    saved: string;
+    unchanged: string;
+    refused: string;
+    stale: string;
+    currencyFixedRefused: string;
+    closedDay: string;
+    invalid: string;
+    invalidName: string;
+    invalidTimezone: string;
+    invalidCurrency: string;
+    invalidCutoff: string;
+    readOnly: string;
+    fields: Record<
+      "name" | "timezone" | "currency" | "businessDateCutoff",
+      string
+    >;
+  };
 
   /**
    * The room calendar (RANZ-25). Grouped, so the screen's copy reads as one
@@ -709,7 +765,6 @@ export interface Messages {
 
   auditLog: string;
   auditLogFor: string;
-  allRecords: string;
   noAuditTitle: string;
   /**
    * Said to a Staff Member who holds `audit.read` at no Property they reach —
@@ -778,6 +833,8 @@ export interface Messages {
   auditYes: string;
   auditNo: string;
   auditNone: string;
+  /** Read aloud between a setting's old value and its new one. */
+  auditChangedTo: string;
   /**
    * The inspection setting a Property had before it had one of its own: it
    * followed the Organization's. Written by the housekeeping module as
@@ -862,6 +919,9 @@ export interface Messages {
       string
     >;
     housekeeping: Record<"status_changed" | "inspection_set", string>;
+    business_day: Record<"closed", string>;
+    property: Record<"configured", string>;
+    organization: Record<"configured", string>;
     maintenance_request: Record<
       | "reported"
       | "moved"
@@ -889,9 +949,68 @@ export interface Messages {
     | "accommodation_unit"
     | "organization"
     | "maintenance_request"
-    | "maintenance_equipment",
+    | "maintenance_equipment"
+    | "business_day_close",
     string
   >;
+
+  /**
+   * Close the day (ADR 0034). `{date}` is a business date, already formatted;
+   * `{time}` is the Property's cutoff. Nothing here mentions Accounting or says
+   * a close cannot be undone: nothing receives the day's totals yet, and
+   * reopening a day is designed and deferred.
+   */
+  closeDay: {
+    at: string;
+    dueTitle: string;
+    dueDescription: string;
+    waiting: string;
+    waitingBadge: string;
+    preparingTitle: string;
+    preparingDescription: string;
+    automatic: string;
+    notArrivedTitle: string;
+    notArrivedHelp: string;
+    notDepartedTitle: string;
+    notDepartedHelp: string;
+    roomNightsTitle: string;
+    roomNightsHelp: string;
+    foliosTitle: string;
+    foliosHelp: string;
+    nothingOpen: string;
+    stepDone: string;
+    stepOpen: string;
+    notBlocking: string;
+    notAvailable: string;
+    dueOn: string;
+    dueOutOn: string;
+    leftOn: string;
+    openArrivals: string;
+    openDepartures: string;
+    openFolio: string;
+    close: string;
+    closing: string;
+    dialogTitle: string;
+    dialogQuiet: string;
+    dialogOpen: string;
+    final: string;
+    keepOpen: string;
+    reasonHint: string;
+    noPermission: string;
+    alreadyClosed: string;
+    reasonRequired: string;
+    refused: string;
+    recentTitle: string;
+    recentEmpty: string;
+    day: string;
+    closedBy: string;
+    automatically: string;
+    arrived: string;
+    departed: string;
+    nights: string;
+    leftOpen: string;
+    foliosOpen: string;
+  };
 
   table: TableMessages;
 
@@ -941,6 +1060,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     mainNavigation: "Ana gezinme",
     sections: "Bölümler",
     breadcrumb: "Konum",
+    back: "Geri",
     collapse: "Menüyü daralt",
     expand: "Menüyü genişlet",
     workspaceBadge: "Çalışma Alanı",
@@ -1035,6 +1155,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     undoCheckInRefused: "Bu giriş geri alınamıyor.",
     stayHasCharges:
       "Bu konaklamaya tutarlar işlendi; artık gerçekleşmiş sayılır ve giriş geri alınamaz. Tutarları Finans'ta düzeltin.",
+    checkInDayClosed:
+      "Bu girişin yapıldığı iş günü kapatıldı, bu yüzden giriş geri alınamaz. Misafir kalmıyorsa çıkışını Çıkışlar ekranından yapın.",
     stayType: { guest: "Misafir", resident: "Sakin" },
     unitType: {
       room: "Oda",
@@ -1194,6 +1316,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         checkIn: "Giriş yapma",
         checkOut: "Çıkış yapma",
         cancel: "Rezervasyon iptali ve gelmedi kaydı",
+        closeDay: "Günü kapatma",
         manageFolio: "Folyo açma ve kapatma",
         postCharge: "Folyoya ücret işleme",
         administerStaff: "Ekibi yönetme",
@@ -1205,6 +1328,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         takeOutOfOrder: "Odaları hizmet dışı bırakma ve geri alma",
         manageEquipment: "Ekipman kaydını yönetme",
         readAudit: "Denetim kaydını okuma",
+        manageConfiguration: "Ayarları yönetme",
       },
       emptyRosterTitle: "Henüz kimse yok",
       emptyRosterDescription:
@@ -1252,7 +1376,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingRefused: "Bu rezervasyon oluşturulamıyor.",
     folios: "Folyolar",
     foliosAt: "Folyolar —",
-    allFolios: "Tüm folyolar",
     noFoliosTitle: "Henüz folyo yok",
     noFoliosDescription:
       "Bu tesiste açık bir folyo bulunmuyor. Bir misafir giriş yaptığında folyosu açılır.",
@@ -1425,6 +1548,69 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
     },
 
+    configuration: {
+      subtitle: "{property} ve organizasyonu için ayarlar",
+      sections: "Bu sayfada",
+      organizationTitle: "Organizasyon",
+      organizationHint:
+        "Ekibinizin gördüğü ad. Organizasyonunuzun tüm tesisleri için geçerlidir.",
+      organizationName: "Organizasyon adı",
+      organizationNeedsReach:
+        "Organizasyonu yalnızca tüm tesislere erişimi olan biri yeniden adlandırabilir.",
+      propertyTitle: "Tesis",
+      propertyHint: "Bu tesisin adı ve hesap tuttuğu para birimi.",
+      propertyName: "Tesis adı",
+      currency: "Para birimi",
+      currencyFixed:
+        "Bu tesiste ilk folyo açıldığından beri sabit. Her folyo açıldığı para birimini korur.",
+      searchCurrency: "Para birimi ara",
+      noCurrency: "Eşleşen para birimi yok.",
+      timeTitle: "Saat ve iş günü",
+      timeHint:
+        "Tesisin hangi saate göre çalıştığı ve iş gününün ne zaman bittiği. Bitişten önceki gece vardiyası hâlâ önceki günde çalışır.",
+      timezone: "Saat dilimi",
+      searchTimezone: "Saat dilimi ara",
+      noTimezone: "Eşleşen saat dilimi yok.",
+      cutoff: "İş günü şu saatte biter",
+      businessDateNow: "Şu anki iş günü",
+      businessDateAfter: "Kaydettikten sonra",
+      businessDateForward: "Bugün {date} tarihine ilerler.",
+      businessDateBack:
+        "Bugün {date} tarihine geri döner. Kaydettikten sonra girişleri ve çıkışları kontrol edin.",
+      housekeepingTitle: "Kat hizmetleri",
+      modulesTitle: "Bu tesiste açık olanlar",
+      modulesHint: "Ekibinizin bu tesiste kullanabildikleri.",
+      elsewhereTitle: "Kendi ekranlarında yönetilenler",
+      elsewhereHint: "Bu ayarların her birinin tek bir yeri var.",
+      roomsHint: "Oda ve yatak ekleyin, bir birimi gerekçesiyle kapatın.",
+      peopleHint:
+        "Personel davet edin, rollerini ve erişecekleri tesisleri seçin.",
+      save: "Değişiklikleri kaydet",
+      discard: "Vazgeç",
+      saving: "Kaydediliyor…",
+      saved: "Kaydedildi",
+      unchanged: "Kaydedilecek bir değişiklik yok.",
+      refused: "Bu ayarlar değiştirilemedi. Şu an gördüğünüz, geçerli olandır.",
+      stale:
+        "Biri bu ayarları az önce kaydetti. Şimdi onun kaydettiğini görüyorsunuz; gerekiyorsa değişikliğinizi yeniden yapın.",
+      currencyFixedRefused:
+        "Siz düzenlerken bu tesiste bir folyo açıldı; para birimi artık sabit.",
+      closedDay:
+        "Bu değişiklik bugünü zaten kapatılmış bir iş gününe çevirirdi. Başka bir bitiş saati ya da saat dilimi seçin.",
+      invalid: "Değerleri kontrol edip yeniden deneyin.",
+      invalidName: "Ad 2 ile 120 karakter arasında olmalı.",
+      invalidTimezone: "Listeden bir saat dilimi seçin.",
+      invalidCurrency: "Listeden bir para birimi seçin.",
+      invalidCutoff: "03:00 ile 11:45 arasında bir saat seçin.",
+      readOnly:
+        "Bu ayarları görebilirsiniz. Bir sahip ya da yönetici değiştirebilir.",
+      fields: {
+        name: "Ad",
+        timezone: "Saat dilimi",
+        currency: "Para birimi",
+        businessDateCutoff: "İş gününün bitişi",
+      },
+    },
     housekeeping: {
       subtitle: "{property} — temizlik bekleyen odalar",
       unavailableTitle: "Kat hizmetleri bu tesiste açık değil",
@@ -1695,7 +1881,6 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     auditLog: "Denetim kaydı",
     auditLogFor: "Son işlemler:",
-    allRecords: "Tüm kayıtlar",
     noAuditTitle: "Henüz kayıt yok",
     auditNotPermittedTitle: "Denetim kaydını okuyamıyorsunuz",
     auditNotPermittedDescription:
@@ -1753,6 +1938,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditYes: "Evet",
     auditNo: "Hayır",
     auditNone: "Yok",
+    auditChangedTo: "yeni değer",
     auditInspectionFollowsOrganization: "Organizasyonun ayarı",
     auditContext: {
       amountMinor: "Tutar",
@@ -1829,6 +2015,9 @@ export const messages: Record<SupportedLocale, Messages> = {
         status_changed: "Oda durumu değiştirildi",
         inspection_set: "Temizlik sonrası kontrol ayarı değiştirildi",
       },
+      business_day: { closed: "İş günü kapatıldı" },
+      property: { configured: "Tesis ayarları değiştirildi" },
+      organization: { configured: "Organizasyon yeniden adlandırıldı" },
       maintenance_request: {
         reported: "Sorun bildirildi",
         moved: "Talep taşındı",
@@ -1861,6 +2050,73 @@ export const messages: Record<SupportedLocale, Messages> = {
       organization: "Organizasyon",
       maintenance_request: "Bakım talebi",
       maintenance_equipment: "Ekipman",
+      business_day_close: "İş günü",
+    },
+    closeDay: {
+      at: "Günün kapatıldığı tesis:",
+      dueTitle: "{date} kapatılmayı bekliyor",
+      dueDescription:
+        "Gün {time} saatinde bitti. Hâlâ açık olanları çözün ya da bir gerekçeyle kapatın.",
+      waiting:
+        "{n, plural, one {Kapatılmayı bekleyen # gün var.} other {Kapatılmayı bekleyen # gün var; önce en eskisi kapatılır.}}",
+      waitingBadge: "{n, plural, other {# gün bekliyor}}",
+      preparingTitle: "{date} hâlâ açık",
+      preparingDescription:
+        "{time} saatinden sonra kapatılabilir. Aşağıda açık kalan her şey kapatmayı bekletir.",
+      automatic:
+        "Açık hiçbir şey kalmayan bir gün, bitişinden kısa süre sonra kendiliğinden kapanır.",
+      notArrivedTitle: "Giriş yapmamış rezervasyonlar",
+      notArrivedHelp:
+        "Gelmedi olarak işaretleyin, rezervasyonu iptal edin ya da hâlâ geliyorlarsa girişlerini yapın.",
+      notDepartedTitle: "Çıkış günü geçmiş konaklayanlar",
+      notDepartedHelp: "Çıkışlarını Çıkışlar ekranından yapın.",
+      roomNightsTitle: "Oda geceleri",
+      roomNightsHelp:
+        "Odalara fiyat tanımlandığında oda geceleri burada işlenecek. Günü kapatmak hiçbir ücret işlemez.",
+      foliosTitle: "Açık bırakılan folyolar",
+      foliosHelp:
+        "Hesabı açıkken ayrılan misafirler. Kapanışla birlikte kaydedilir; kapatmayı bekletmez.",
+      nothingOpen: "Açık bir şey kalmadı.",
+      stepDone: "Tamam",
+      stepOpen: "{n, plural, other {# açık}}",
+      notBlocking: "Kapatmayı bekletmez",
+      notAvailable: "Henüz yok",
+      dueOn: "Beklenen giriş {date}",
+      dueOutOn: "Beklenen çıkış {date}",
+      leftOn: "Ayrıldı {date}",
+      openArrivals: "Girişleri aç",
+      openDepartures: "Çıkışları aç",
+      openFolio: "Folyoyu aç",
+      close: "{date} gününü kapat",
+      closing: "Kapatılıyor…",
+      dialogTitle: "{date} kapatılsın mı?",
+      dialogQuiet:
+        "Açık bir şey kalmadı. Kapanış, günün girişlerini, çıkışlarını ve dolu geceleri kaydeder.",
+      dialogOpen:
+        "{n, plural, one {# kayıt hâlâ açık. Gerekçenizle birlikte kapanışa kaydedilir.} other {# kayıt hâlâ açık. Gerekçenizle birlikte kapanışa kaydedilir.}}",
+      final:
+        "Kapatılmış bir günü yeniden açmak henüz mümkün değil; kapatmadan önce tarihi kontrol edin.",
+      keepOpen: "Şimdi değil",
+      reasonHint:
+        "Günün neden açık kayıtlarla kapandığını yazın. Kapanışla birlikte saklanır.",
+      noPermission:
+        "Bu günü görebilirsiniz; kapatmak için Günü kapatma yetkisi gerekir.",
+      alreadyClosed:
+        "Bu gün zaten kapatıldı; başka bir masa ya da otomatik kapanış tarafından.",
+      reasonRequired:
+        "Hâlâ açık kayıtlar var, bu yüzden bir gerekçe gerekiyor.",
+      refused:
+        "Bu gün şu anda kapatılamıyor. Bu pencereyi kapattığınızda sayfa kapatılabilecek günü gösterecek.",
+      recentTitle: "Son kapatılan günler",
+      recentEmpty: "Bu tesiste henüz kapatılmış bir gün yok.",
+      day: "Gün",
+      closedBy: "Kapatan",
+      automatically: "Otomatik",
+      arrived: "Girişler",
+      departed: "Çıkışlar",
+      nights: "Geceler",
+      leftOpen: "Açık kalan",
+      foliosOpen: "Açık folyolar",
     },
     table: {
       results: "{n, plural, other {# sonuç}}",
@@ -1893,6 +2149,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       rooms: "Odalar ve yataklar",
       arrivals: "Girişler",
       departures: "Çıkışlar",
+      "close-day": "Günü kapat",
       "guest-experience": "Konuk deneyimi",
       housekeeping: "Kat hizmetleri",
       maintenance: "Bakım",
@@ -1913,7 +2170,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       inventory: "Stok hareketleri, sayımlar ve satın alma.",
       people: "Personel kayıtları, vardiyalar ve yetkilendirme.",
       analytics: "Doluluk, gelir ve operasyon raporları.",
-      configuration: "Organizasyon, tesis, birim ve yetkilendirme ayarları.",
     },
     planned: "Planlandı",
     handoverLabel: "Bu ekranın devir notu",
@@ -1931,6 +2187,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     mainNavigation: "Main navigation",
     sections: "Sections",
     breadcrumb: "Breadcrumb",
+    back: "Back",
     collapse: "Collapse sidebar",
     expand: "Expand sidebar",
     workspaceBadge: "Workspace",
@@ -2024,6 +2281,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     undoCheckInRefused: "That check-in cannot be withdrawn.",
     stayHasCharges:
       "Charges have been posted to this Stay, so it counts as having happened and the check-in can't be undone. Correct the charges in Finance.",
+    checkInDayClosed:
+      "The business day this check-in was made on has been closed, so it can't be withdrawn. If the Guest is not staying, check them out on the departures screen.",
     stayType: { guest: "Guest", resident: "Resident" },
     unitType: {
       room: "Room",
@@ -2183,6 +2442,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         checkIn: "Check somebody in",
         checkOut: "Check somebody out",
         cancel: "Cancel a booking or record a no-show",
+        closeDay: "Close the day",
         manageFolio: "Open and close a Folio",
         postCharge: "Post a charge",
         administerStaff: "Administer staff",
@@ -2194,6 +2454,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         takeOutOfOrder: "Take rooms out of order and back",
         manageEquipment: "Keep the equipment register",
         readAudit: "Reading the audit log",
+        manageConfiguration: "Manage configuration",
       },
       emptyRosterTitle: "Nobody here yet",
       emptyRosterDescription: "This Organization has no Staff Member to show.",
@@ -2240,7 +2501,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingRefused: "That booking cannot be taken.",
     folios: "Folios",
     foliosAt: "Folios at",
-    allFolios: "All folios",
     noFoliosTitle: "No folios yet",
     noFoliosDescription:
       "Nothing has been opened at this Property. A folio opens when a Guest checks in.",
@@ -2415,6 +2675,71 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
     },
 
+    configuration: {
+      subtitle: "Settings for {property} and its Organization",
+      sections: "On this page",
+      organizationTitle: "Organization",
+      organizationHint:
+        "The name your team sees. It applies to every Property in your Organization.",
+      organizationName: "Organization name",
+      organizationNeedsReach:
+        "Only someone who reaches every Property can rename the Organization.",
+      propertyTitle: "Property",
+      propertyHint:
+        "What this Property is called and the currency it trades in.",
+      propertyName: "Property name",
+      currency: "Currency",
+      currencyFixed:
+        "Fixed since the first folio was opened here. Every folio keeps the currency it opened in.",
+      searchCurrency: "Search currencies",
+      noCurrency: "No currency matches.",
+      timeTitle: "Time and the business day",
+      timeHint:
+        "Which clock this Property runs on, and when its working day ends. A night shift before the cutoff is still working the day before.",
+      timezone: "Time zone",
+      searchTimezone: "Search time zones",
+      noTimezone: "No time zone matches.",
+      cutoff: "Business day ends at",
+      businessDateNow: "Business date now",
+      businessDateAfter: "After saving",
+      businessDateForward: "Today moves forward to {date}.",
+      businessDateBack:
+        "Today moves back to {date}. Check arrivals and departures after saving.",
+      housekeepingTitle: "Housekeeping",
+      modulesTitle: "Switched on here",
+      modulesHint: "What your team can use at this Property.",
+      elsewhereTitle: "Managed on their own screens",
+      elsewhereHint: "Each of these settings has one home.",
+      roomsHint: "Add rooms and beds, and block a unit with a reason.",
+      peopleHint:
+        "Invite staff, and choose their roles and the Properties they reach.",
+      save: "Save changes",
+      discard: "Discard",
+      saving: "Saving…",
+      saved: "Saved",
+      unchanged: "Nothing to save — these are already the settings.",
+      refused:
+        "These settings could not be changed. What you see now is what is in effect.",
+      stale:
+        "Someone saved these settings a moment ago. You are now seeing what they saved; make your change again if it is still needed.",
+      currencyFixedRefused:
+        "A folio was opened here while you were editing, so the currency is now fixed.",
+      closedDay:
+        "This would make today a business day that has already been closed. Choose a different end time or time zone.",
+      invalid: "Check the values and try again.",
+      invalidName: "A name is 2 to 120 characters.",
+      invalidTimezone: "Choose a time zone from the list.",
+      invalidCurrency: "Choose a currency from the list.",
+      invalidCutoff: "Choose a time between 03:00 and 11:45.",
+      readOnly:
+        "You can see these settings. An Owner or Manager can change them.",
+      fields: {
+        name: "Name",
+        timezone: "Time zone",
+        currency: "Currency",
+        businessDateCutoff: "Business day ends at",
+      },
+    },
     housekeeping: {
       subtitle: "Which rooms need cleaning at {property}",
       unavailableTitle: "Housekeeping is not on at this Property",
@@ -2686,7 +3011,6 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     auditLog: "Audit log",
     auditLogFor: "Recent actions at",
-    allRecords: "All records",
     noAuditTitle: "Nothing recorded yet",
     auditNotPermittedTitle: "You can't read the audit log",
     auditNotPermittedDescription:
@@ -2744,6 +3068,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditYes: "Yes",
     auditNo: "No",
     auditNone: "None",
+    auditChangedTo: "changed to",
     auditInspectionFollowsOrganization: "The Organization's setting",
     auditContext: {
       amountMinor: "Amount",
@@ -2820,6 +3145,9 @@ export const messages: Record<SupportedLocale, Messages> = {
         status_changed: "Room status changed",
         inspection_set: "Room check after cleaning changed",
       },
+      business_day: { closed: "Business day closed" },
+      property: { configured: "Property settings changed" },
+      organization: { configured: "Organization renamed" },
       maintenance_request: {
         reported: "Problem reported",
         moved: "Request moved",
@@ -2852,6 +3180,72 @@ export const messages: Record<SupportedLocale, Messages> = {
       organization: "Organization",
       maintenance_request: "Maintenance request",
       maintenance_equipment: "Equipment",
+      business_day_close: "Business day",
+    },
+    closeDay: {
+      at: "Closing the day at",
+      dueTitle: "{date} is ready to close",
+      dueDescription:
+        "The day ended at {time}. Clear what is still open, or close it with a reason.",
+      waiting:
+        "{n, plural, one {# day is waiting to be closed.} other {# days are waiting to be closed; the oldest comes first.}}",
+      waitingBadge: "{n, plural, one {# day waiting} other {# days waiting}}",
+      preparingTitle: "{date} is still open",
+      preparingDescription:
+        "It can be closed after {time}. Anything still open below will hold the close up.",
+      automatic:
+        "A day with nothing left open closes by itself shortly after it ends.",
+      notArrivedTitle: "Arrivals not checked in",
+      notArrivedHelp:
+        "Mark a no-show, cancel the booking, or check them in if they are still coming.",
+      notDepartedTitle: "Departures still in house",
+      notDepartedHelp: "Check them out on the departures screen.",
+      roomNightsTitle: "Room nights",
+      roomNightsHelp:
+        "Room nights will be posted here once rooms have rates. Closing a day charges nothing.",
+      foliosTitle: "Folios left open",
+      foliosHelp:
+        "Guests who left with their bill still open. They are recorded with the close and do not hold it up.",
+      nothingOpen: "Nothing left open.",
+      stepDone: "Done",
+      stepOpen: "{n, plural, other {# open}}",
+      notBlocking: "Does not hold up the close",
+      notAvailable: "Not available yet",
+      dueOn: "Due {date}",
+      dueOutOn: "Due out {date}",
+      leftOn: "Left {date}",
+      openArrivals: "Open arrivals",
+      openDepartures: "Open departures",
+      openFolio: "Open Folio",
+      close: "Close {date}",
+      closing: "Closing…",
+      dialogTitle: "Close {date}?",
+      dialogQuiet:
+        "Nothing is left open. The close records the day's arrivals, departures and nights occupied.",
+      dialogOpen:
+        "{n, plural, one {# item is still open. It is recorded with the close, with your reason.} other {# items are still open. They are recorded with the close, with your reason.}}",
+      final:
+        "Reopening a closed day is not available yet, so check the date before you close it.",
+      keepOpen: "Not now",
+      reasonHint:
+        "Say why the day closes with items open. It is kept with the close.",
+      noPermission:
+        "You can see this day, but closing it needs the Close the day permission.",
+      alreadyClosed:
+        "This day has already been closed, by another desk or automatically.",
+      reasonRequired: "Items are still open, so a reason is needed.",
+      refused:
+        "This day cannot be closed right now. Dismiss this and the page will show the day that can be closed.",
+      recentTitle: "Recently closed",
+      recentEmpty: "No day has been closed here yet.",
+      day: "Day",
+      closedBy: "Closed by",
+      automatically: "Automatically",
+      arrived: "Arrivals",
+      departed: "Departures",
+      nights: "Nights",
+      leftOpen: "Left open",
+      foliosOpen: "Folios open",
     },
     table: {
       results: "{n, plural, one {# result} other {# results}}",
@@ -2884,6 +3278,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       rooms: "Rooms & beds",
       arrivals: "Arrivals",
       departures: "Departures",
+      "close-day": "Close the day",
       "guest-experience": "Guest Experience",
       housekeeping: "Housekeeping",
       maintenance: "Maintenance",
@@ -2903,7 +3298,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       inventory: "Stock movements, counts and procurement.",
       people: "Staff records, shifts and permissions.",
       analytics: "Occupancy, revenue and operational reporting.",
-      configuration: "Organization, Property, Unit and permission settings.",
     },
     planned: "Planned",
     handoverLabel: "This screen's handover note",
@@ -2921,6 +3315,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     mainNavigation: "التنقل الرئيسي",
     sections: "الأقسام",
     breadcrumb: "مسار التنقل",
+    back: "رجوع",
     collapse: "طي القائمة",
     expand: "توسيع القائمة",
     workspaceBadge: "مساحة العمل",
@@ -3013,6 +3408,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     undoCheckInRefused: "لا يمكن التراجع عن تسجيل الوصول هذا.",
     stayHasCharges:
       "سُجِّلت مبالغ على هذه الإقامة، لذلك تُعدّ قد حدثت فعلًا ولا يمكن التراجع عن تسجيل الوصول. صحِّح المبالغ من قسم المالية.",
+    checkInDayClosed:
+      "أُغلق يوم العمل الذي سُجِّل فيه هذا الوصول، لذلك لا يمكن التراجع عنه. إن لم يكن الضيف مقيمًا، فسجّل مغادرته من شاشة المغادرة.",
     stayType: { guest: "ضيف", resident: "مقيم" },
     unitType: {
       room: "غرفة",
@@ -3166,6 +3563,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         checkIn: "تسجيل الدخول",
         checkOut: "تسجيل المغادرة",
         cancel: "إلغاء حجز أو تسجيل عدم الحضور",
+        closeDay: "إغلاق اليوم",
         manageFolio: "فتح وإغلاق الحساب",
         postCharge: "تسجيل رسم على الحساب",
         administerStaff: "إدارة الفريق",
@@ -3177,6 +3575,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         takeOutOfOrder: "إخراج الغرف من الخدمة وإعادتها",
         manageEquipment: "إدارة سجل المعدات",
         readAudit: "قراءة سجل التدقيق",
+        manageConfiguration: "إدارة الإعدادات",
       },
       emptyRosterTitle: "لا أحد هنا بعد",
       emptyRosterDescription: "لا يوجد في هذه المؤسسة موظف لعرضه.",
@@ -3220,7 +3619,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingRefused: "لا يمكن إنشاء هذا الحجز.",
     folios: "الحسابات",
     foliosAt: "الحسابات في",
-    allFolios: "كل الحسابات",
     noFoliosTitle: "لا توجد حسابات بعد",
     noFoliosDescription:
       "لم يُفتح أي حساب في هذه المنشأة. يُفتح الحساب عند تسجيل دخول نزيل.",
@@ -3394,6 +3792,66 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
     },
 
+    configuration: {
+      subtitle: "إعدادات {property} ومؤسستها",
+      sections: "في هذه الصفحة",
+      organizationTitle: "المؤسسة",
+      organizationHint: "الاسم الذي يراه فريقك. ينطبق على جميع منشآت مؤسستك.",
+      organizationName: "اسم المؤسسة",
+      organizationNeedsReach:
+        "لا يستطيع إعادة تسمية المؤسسة إلا من يصل إلى جميع المنشآت.",
+      propertyTitle: "المنشأة",
+      propertyHint: "اسم هذه المنشأة والعملة التي تتعامل بها.",
+      propertyName: "اسم المنشأة",
+      currency: "العملة",
+      currencyFixed:
+        "ثابتة منذ فتح أول فوليو هنا. يحتفظ كل فوليو بالعملة التي فُتح بها.",
+      searchCurrency: "ابحث عن عملة",
+      noCurrency: "لا توجد عملة مطابقة.",
+      timeTitle: "الوقت ويوم العمل",
+      timeHint:
+        "الساعة التي تعمل بها هذه المنشأة، ومتى ينتهي يوم عملها. المناوبة الليلية قبل وقت الانتهاء لا تزال تعمل في اليوم السابق.",
+      timezone: "المنطقة الزمنية",
+      searchTimezone: "ابحث عن منطقة زمنية",
+      noTimezone: "لا توجد منطقة زمنية مطابقة.",
+      cutoff: "ينتهي يوم العمل عند",
+      businessDateNow: "تاريخ العمل الآن",
+      businessDateAfter: "بعد الحفظ",
+      businessDateForward: "يتقدم اليوم إلى {date}.",
+      businessDateBack:
+        "يعود اليوم إلى {date}. راجع الوصول والمغادرة بعد الحفظ.",
+      housekeepingTitle: "التدبير الفندقي",
+      modulesTitle: "المفعّل هنا",
+      modulesHint: "ما يستطيع فريقك استخدامه في هذه المنشأة.",
+      elsewhereTitle: "تُدار في شاشاتها الخاصة",
+      elsewhereHint: "لكل من هذه الإعدادات مكان واحد.",
+      roomsHint: "أضف الغرف والأسرّة، وأوقف وحدة مع ذكر السبب.",
+      peopleHint: "ادعُ الموظفين، واختر أدوارهم والمنشآت التي يصلون إليها.",
+      save: "حفظ التغييرات",
+      discard: "تجاهل",
+      saving: "جارٍ الحفظ…",
+      saved: "تم الحفظ",
+      unchanged: "لا شيء للحفظ — هذه هي الإعدادات الحالية.",
+      refused: "تعذّر تغيير هذه الإعدادات. ما تراه الآن هو المعمول به.",
+      stale:
+        "حفظ أحدهم هذه الإعدادات للتو. أنت ترى الآن ما حفظه؛ أعد تغييرك إن كان لا يزال مطلوبًا.",
+      currencyFixedRefused:
+        "فُتح فوليو هنا أثناء تعديلك، لذا أصبحت العملة ثابتة الآن.",
+      closedDay:
+        "سيجعل هذا التغيير اليوم يوم عمل أُغلق بالفعل. اختر وقت انتهاء آخر أو منطقة زمنية أخرى.",
+      invalid: "تحقّق من القيم وحاول مرة أخرى.",
+      invalidName: "يتكوّن الاسم من 2 إلى 120 حرفًا.",
+      invalidTimezone: "اختر منطقة زمنية من القائمة.",
+      invalidCurrency: "اختر عملة من القائمة.",
+      invalidCutoff: "اختر وقتًا بين 03:00 و11:45.",
+      readOnly: "يمكنك رؤية هذه الإعدادات. يستطيع المالك أو المدير تغييرها.",
+      fields: {
+        name: "الاسم",
+        timezone: "المنطقة الزمنية",
+        currency: "العملة",
+        businessDateCutoff: "نهاية يوم العمل",
+      },
+    },
     housekeeping: {
       subtitle: "الغرف التي تحتاج إلى تنظيف في {property}",
       unavailableTitle: "التدبير الفندقي غير مفعّل في هذه المنشأة",
@@ -3661,7 +4119,6 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     auditLog: "سجل التدقيق",
     auditLogFor: "آخر الإجراءات في",
-    allRecords: "كل السجلات",
     noAuditTitle: "لا توجد سجلات بعد",
     auditNotPermittedTitle: "لا يمكنك قراءة سجل التدقيق",
     auditNotPermittedDescription:
@@ -3721,6 +4178,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditYes: "نعم",
     auditNo: "لا",
     auditNone: "لا يوجد",
+    auditChangedTo: "تغيّر إلى",
     auditInspectionFollowsOrganization: "إعداد المؤسسة",
     auditContext: {
       amountMinor: "المبلغ",
@@ -3797,6 +4255,9 @@ export const messages: Record<SupportedLocale, Messages> = {
         status_changed: "تم تغيير حالة الغرفة",
         inspection_set: "تم تغيير إعداد الفحص بعد التنظيف",
       },
+      business_day: { closed: "أُغلق يوم العمل" },
+      property: { configured: "تم تغيير إعدادات المنشأة" },
+      organization: { configured: "تمت إعادة تسمية المؤسسة" },
       maintenance_request: {
         reported: "أُبلغ عن مشكلة",
         moved: "نُقل الطلب",
@@ -3829,6 +4290,73 @@ export const messages: Record<SupportedLocale, Messages> = {
       organization: "المؤسسة",
       maintenance_request: "طلب صيانة",
       maintenance_equipment: "المعدات",
+      business_day_close: "يوم العمل",
+    },
+    closeDay: {
+      at: "إغلاق اليوم في",
+      dueTitle: "{date} جاهز للإغلاق",
+      dueDescription:
+        "انتهى اليوم عند {time}. عالج ما زال مفتوحًا، أو أغلقه مع ذكر السبب.",
+      waiting:
+        "{n, plural, zero {لا أيام تنتظر الإغلاق.} one {يوم واحد ينتظر الإغلاق.} two {يومان ينتظران الإغلاق، ويُغلق الأقدم أولًا.} few {# أيام تنتظر الإغلاق، ويُغلق الأقدم أولًا.} many {# يومًا تنتظر الإغلاق، ويُغلق الأقدم أولًا.} other {# يوم تنتظر الإغلاق، ويُغلق الأقدم أولًا.}}",
+      waitingBadge:
+        "{n, plural, zero {لا أيام تنتظر} one {يوم واحد ينتظر} two {يومان ينتظران} few {# أيام تنتظر} many {# يومًا تنتظر} other {# يوم تنتظر}}",
+      preparingTitle: "{date} ما زال مفتوحًا",
+      preparingDescription:
+        "يمكن إغلاقه بعد {time}. أي شيء ما زال مفتوحًا أدناه سيؤخر الإغلاق.",
+      automatic:
+        "اليوم الذي لم يبقَ فيه شيء مفتوح يُغلق تلقائيًا بعد انتهائه بقليل.",
+      notArrivedTitle: "حجوزات لم يُسجَّل وصولها",
+      notArrivedHelp:
+        "سجّل عدم الحضور، أو ألغِ الحجز، أو سجّل وصولهم إن كانوا ما زالوا قادمين.",
+      notDepartedTitle: "مغادرات ما زالت في المنشأة",
+      notDepartedHelp: "سجّل مغادرتهم من شاشة المغادرة.",
+      roomNightsTitle: "ليالي الغرف",
+      roomNightsHelp:
+        "ستُسجَّل ليالي الغرف هنا عندما تكون للغرف أسعار. إغلاق اليوم لا يفرض أي رسوم.",
+      foliosTitle: "حسابات بقيت مفتوحة",
+      foliosHelp:
+        "ضيوف غادروا وحسابهم ما زال مفتوحًا. يُسجَّلون مع الإغلاق ولا يؤخرونه.",
+      nothingOpen: "لم يبقَ شيء مفتوح.",
+      stepDone: "تم",
+      stepOpen:
+        "{n, plural, zero {لا شيء مفتوح} one {عنصر مفتوح} two {عنصران مفتوحان} few {# عناصر مفتوحة} many {# عنصرًا مفتوحًا} other {# عنصر مفتوح}}",
+      notBlocking: "لا يؤخر الإغلاق",
+      notAvailable: "غير متاح بعد",
+      dueOn: "الوصول المتوقع {date}",
+      dueOutOn: "المغادرة المتوقعة {date}",
+      leftOn: "غادر {date}",
+      openArrivals: "فتح الوصول",
+      openDepartures: "فتح المغادرة",
+      openFolio: "فتح الحساب",
+      close: "إغلاق {date}",
+      closing: "جارٍ الإغلاق…",
+      dialogTitle: "إغلاق {date}؟",
+      dialogQuiet:
+        "لم يبقَ شيء مفتوح. يسجّل الإغلاق حالات الوصول والمغادرة والليالي المشغولة في هذا اليوم.",
+      dialogOpen:
+        "{n, plural, zero {لا شيء مفتوح.} one {ما زال عنصر واحد مفتوحًا. سيُسجَّل مع الإغلاق مع سببك.} two {ما زال عنصران مفتوحين. سيُسجَّلان مع الإغلاق مع سببك.} few {ما زالت # عناصر مفتوحة. ستُسجَّل مع الإغلاق مع سببك.} many {ما زال # عنصرًا مفتوحًا. ستُسجَّل مع الإغلاق مع سببك.} other {ما زال # عنصر مفتوحًا. ستُسجَّل مع الإغلاق مع سببك.}}",
+      final:
+        "إعادة فتح يوم مغلق غير متاحة بعد، لذا تحقّق من التاريخ قبل الإغلاق.",
+      keepOpen: "ليس الآن",
+      reasonHint:
+        "اذكر سبب إغلاق اليوم مع وجود عناصر مفتوحة. يُحفظ مع الإغلاق.",
+      noPermission:
+        "يمكنك رؤية هذا اليوم، لكن إغلاقه يتطلب صلاحية إغلاق اليوم.",
+      alreadyClosed: "أُغلق هذا اليوم بالفعل، من مكتب آخر أو تلقائيًا.",
+      reasonRequired: "ما زالت هناك عناصر مفتوحة، لذلك يلزم ذكر سبب.",
+      refused:
+        "لا يمكن إغلاق هذا اليوم الآن. أغلق هذه النافذة وستعرض الصفحة اليوم الذي يمكن إغلاقه.",
+      recentTitle: "أيام أُغلقت مؤخرًا",
+      recentEmpty: "لم يُغلق أي يوم هنا بعد.",
+      day: "اليوم",
+      closedBy: "أغلقه",
+      automatically: "تلقائيًا",
+      arrived: "الوصول",
+      departed: "المغادرة",
+      nights: "الليالي",
+      leftOpen: "بقي مفتوحًا",
+      foliosOpen: "حسابات مفتوحة",
     },
     table: {
       results:
@@ -3863,6 +4391,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       rooms: "الغرف والأسرّة",
       arrivals: "الوصول",
       departures: "المغادرة",
+      "close-day": "إغلاق اليوم",
       "guest-experience": "تجربة الضيف",
       housekeeping: "خدمة الغرف",
       maintenance: "الصيانة",
@@ -3881,7 +4410,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       inventory: "حركات المخزون والجرد والمشتريات.",
       people: "سجلات الموظفين والورديات والصلاحيات.",
       analytics: "تقارير الإشغال والإيرادات والتشغيل.",
-      configuration: "إعدادات المؤسسة والمنشأة والوحدات والصلاحيات.",
     },
     planned: "مخطط له",
     handoverLabel: "ملاحظة التسليم لهذه الشاشة",

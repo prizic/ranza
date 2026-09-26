@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import { ArrowRight } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -92,6 +93,31 @@ const isRoomStatus = (value: unknown): value is RoomStatus =>
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * A configuration record names what changed and carries each setting as
+ * `{ from, to }` (ADR 0036), so it reads as one row per setting rather than
+ * as the raw objects — and its `currency` is a setting, not the unit of an
+ * amount, which the generic path would hide.
+ */
+const CONFIGURED = new Set(["property.configured", "organization.configured"]);
+const SETTINGS = [
+  "name",
+  "timezone",
+  "currency",
+  "businessDateCutoff",
+] as const;
+type Setting = (typeof SETTINGS)[number];
+const isSetting = (value: unknown): value is Setting =>
+  (SETTINGS as readonly unknown[]).includes(value);
+
+function changeOf(value: unknown): { from: string; to: string } | null {
+  if (typeof value !== "object" || value === null) return null;
+  const { from, to } = value as { from?: unknown; to?: unknown };
+  return typeof from === "string" && typeof to === "string"
+    ? { from, to }
+    : null;
+}
+
 export function ContextFacts({
   action,
   context,
@@ -174,6 +200,11 @@ export function ContextFacts({
     return scalar(value);
   }
 
+  const changed =
+    CONFIGURED.has(action) && Array.isArray(context.changed)
+      ? context.changed.filter(isSetting)
+      : null;
+
   return (
     <Table>
       <TableCaption>{t("context")}</TableCaption>
@@ -184,7 +215,32 @@ export function ContextFacts({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {entries.length === 0 ? (
+        {changed ? (
+          changed.map((setting) => {
+            const change = changeOf(context[setting]);
+            return (
+              <TableRow key={setting}>
+                <TableCell className="text-muted-foreground">
+                  {t(`configuration.fields.${setting}`)}
+                </TableCell>
+                <TableCell className="break-words">
+                  {change ? (
+                    <span className="inline-flex flex-wrap items-center gap-2">
+                      <bdi>{change.from}</bdi>
+                      <ArrowRight
+                        aria-label={t("auditChangedTo")}
+                        className="size-3.5 text-muted-foreground rtl:-scale-x-100"
+                      />
+                      <bdi>{change.to}</bdi>
+                    </span>
+                  ) : (
+                    scalar(context[setting])
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })
+        ) : entries.length === 0 ? (
           <TableRow>
             <TableCell className="text-muted-foreground" colSpan={2}>
               {t("noContext")}

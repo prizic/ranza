@@ -46,6 +46,7 @@ packages/
     reservations/         Reservations, taking a booking, check-in, check-out
     folios/               the Folio: a Stay's financial record, and its lines
     staff/                who works here, what they may do, and where
+    business-day/         closing a Property's business day (the night audit)
   adapters/               Ranza-to-platform mappings
   config, db, i18n, ui, observability
                           cross-cutting infrastructure

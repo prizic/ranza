@@ -1,0 +1,3996 @@
+<title>Housekeeping trial record</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #fbfaf8;
+    --fg: #12211e;
+    --muted: #5b6b67;
+    --line: #dfe5e3;
+    --card: #fff;
+    --pass: #176842;
+    --pass-bg: #dcefe3;
+    --fail: #a33a35;
+    --fail-bg: #f5dfdd;
+    --warn: #8a5a08;
+    --warn-bg: #f7e8c8;
+    --muted-bg: #eef1f0;
+    color-scheme: light;
+  }
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font:
+      15px/1.55 -apple-system,
+      "Segoe UI",
+      Roboto,
+      "Helvetica Neue",
+      Arial,
+      sans-serif;
+  }
+  main {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+  }
+  h1 {
+    font-size: 34px;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin: 0 0 6px;
+  }
+  h2 {
+    font-size: 22px;
+    margin: 48px 0 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  h3 {
+    font-size: 17px;
+    margin: 0;
+  }
+  h4 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 14px 0 6px;
+  }
+  .eyebrow {
+    font:
+      12px/1 ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .verdict {
+    border: 2px solid var(--fail);
+    background: var(--fail-bg);
+    border-radius: 14px;
+    padding: 18px 22px;
+    margin: 22px 0;
+  }
+  .verdict p.big {
+    font-size: 20px;
+    font-weight: 650;
+    margin: 0 0 8px;
+  }
+  .verdict ul {
+    margin: 6px 0 0 18px;
+    padding: 0;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    background: var(--card);
+    font-size: 13.5px;
+  }
+  th,
+  td {
+    text-align: left;
+    vertical-align: top;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  th {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    background: var(--muted-bg);
+  }
+  .scroll {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  .badge {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 650;
+    padding: 2px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .badge.pass {
+    color: var(--pass);
+    background: var(--pass-bg);
+  }
+  .badge.fail {
+    color: var(--fail);
+    background: var(--fail-bg);
+  }
+  .badge.warn {
+    color: var(--warn);
+    background: var(--warn-bg);
+  }
+  .badge.muted {
+    color: var(--muted);
+    background: var(--muted-bg);
+  }
+  .case {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin: 16px 0;
+  }
+  .case.fail {
+    border: 2px solid var(--fail);
+  }
+  .case header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: start;
+  }
+  .cid {
+    font:
+      13px ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      monospace;
+    color: var(--muted);
+    margin-right: 6px;
+  }
+  .rows {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 6px 0 0;
+  }
+  .observed {
+    margin: 0;
+    padding-left: 18px;
+    font:
+      13px/1.5 ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      monospace;
+  }
+  .observed li {
+    margin: 2px 0;
+    word-break: break-word;
+  }
+  .observed li.good {
+    color: var(--pass);
+  }
+  .observed li.bad {
+    color: var(--fail);
+    font-weight: 600;
+  }
+  .note {
+    background: var(--warn-bg);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  figure {
+    margin: 16px 0 0;
+  }
+  figure img {
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    display: block;
+  }
+  figcaption {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  figcaption code {
+    font-size: 12px;
+    word-break: break-all;
+  }
+  code,
+  pre {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  :not(pre) > code {
+    overflow-wrap: anywhere;
+  }
+  pre {
+    background: #10201d;
+    color: #e6efec;
+    padding: 14px;
+    border-radius: 10px;
+    overflow-x: auto;
+    font-size: 12.5px;
+    line-height: 1.45;
+  }
+  dl.env {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 6px 16px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin: 0;
+  }
+  dl.env dt {
+    color: var(--muted);
+    font-size: 13px;
+  }
+  dl.env dd {
+    margin: 0;
+    word-break: break-word;
+  }
+  details {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin: 10px 0;
+  }
+  summary {
+    cursor: pointer;
+    font-weight: 600;
+  }
+  a {
+    color: #0d594f;
+  }
+  @media (max-width: 640px) {
+    dl.env {
+      grid-template-columns: 1fr;
+    }
+    h1 {
+      font-size: 26px;
+    }
+  }
+</style>
+<main>
+  <p class="eyebrow">RANZ-28 · evidence run · 2026-09-24 15:48 UTC</p>
+  <h1>Housekeeping — trial record</h1>
+  <p>
+    What was exercised against a production build of the merged feature, what
+    was seen, and the screenshot of each state. Nothing here is claimed from
+    reading code.
+  </p>
+
+  <section class="verdict" aria-labelledby="verdict">
+    <p class="big" id="verdict">
+      PARTIAL — 3 of 48 housekeeping cases FAIL, 44 PASS, 1 superseded by a
+      re-run.
+    </p>
+    <p>Failures first:</p>
+    <ul>
+      <li>
+        <a href="#case-F-1"><strong>F-1</strong></a> A refused mark keeps the
+        selection (HK-S2-13): a refused mark does not keep the selection: the
+        refusal revalidates the board, which comes back read-only with no
+        checkbox to keep. Every real refusal changes the board; the unit test
+        passes only by mocking one that does not. The row or the behaviour needs
+        a decision.
+      </li>
+      <li>
+        <a href="#case-O-2"><strong>O-2</strong></a> Housekeeping switched off:
+        the board for that Property (HK-S1-15): with housekeeping switched off
+        at Kadıköy Otel, its Housekeeping screen shows Beşiktaş Rezidans’s rooms
+        and mark menus while the header still says Kadıköy Otel — the existing
+        frontDeskProperty fallback. The row says nothing comes back.
+      </li>
+      <li>
+        <a href="#case-W-1"><strong>W-1</strong></a> The not-ready warning fits
+        inside its row (HK-S2-14): at 1440 px the check-in warning is cut off
+        after “it hasn’t been clean”: the cell does not wrap and the text runs
+        186 px past the table’s edge.
+      </li>
+    </ul>
+    <p>
+      Also found, outside housekeeping: <a href="#case-X-1">X-1</a> a
+      rate-limited sign-in reads as a wrong password; and two audit-log display
+      points and one rate-limiter timeout, listed under
+      <a href="#gaps">Failures and gaps</a>.
+    </p>
+    <p>
+      Every approved HK-S1/S2/S3 row has either an observed UI case or suite
+      output from this database; none is left unverified. Rows proven only by
+      the database suites (no screen exists for them) are labelled as such in
+      the matrix.
+    </p>
+  </section>
+
+  <h2>Environment</h2>
+  <dl class="env">
+    <dt>Code</dt>
+    <dd>
+      <code>origin/main</code> at <code>96427b5</code> (contains #56, #57, #58,
+      #59), worktree <code>~/Developer/ranza-evidence-housekeeping</code>,
+      branch <code>evidence/housekeeping</code>, where this record is committed
+      on top of it
+    </dd>
+    <dt>Application</dt>
+    <dd>
+      Operator Workspace production build (<code>next build</code>, Next.js
+      16.3.5), served by the standalone <code>server.js</code> with
+      <code>.next/static</code> beside it, as
+      <code>deploy/Dockerfile</code> does; <code>NODE_ENV=production</code>,
+      <code>http://127.0.0.1:3113</code>
+    </dd>
+    <dt>Worker</dt>
+    <dd>
+      <code>apps/worker</code> built with its own
+      <code>pnpm build</code> (esbuild), run as
+      <code>node dist/main.mjs</code> on <code>ranza_worker</code>; stopped and
+      restarted once on purpose (case C-5)
+    </dd>
+    <dt>Database</dt>
+    <dd>
+      Throwaway container <code>ranza-evidence-hk-pg</code> (image
+      <code>ranza-postgres</code>, pgTAP included) on
+      <code>localhost:54393</code>, all 33 migrations applied by
+      <code>prisma migrate deploy</code>; rebuilt from scratch once before the
+      final run (see run notes). Not the shared 54322, not a hosted database.
+    </dd>
+    <dt>Browser</dt>
+    <dd>
+      Headless Chromium from <code>@playwright/test</code>, launched in the
+      capture process itself, one browser context per account, 1440×900
+    </dd>
+    <dt>Organization</dt>
+    <dd>
+      Kanıt Otelleri (<code>502586e7-4ed9-451b-bb12-f90258d170a0</code>):
+      Kadıköy Otel and Beşiktaş Rezidans with housekeeping; Moda Pansiyon with
+      the front desk only; Üsküdar Konak with housekeeping and no rooms; Büyük
+      Otel with 65 rooms
+    </dd>
+    <dt>Accounts</dt>
+    <dd>
+      owner@, manager@, desk@ (front_desk), finance@, housekeeper@ — all
+      Organization-wide — and kadikoy.manager@ (manager, Kadıköy Otel only); all
+      <code>@evidence.test</code>, created through the app's own sign-up route
+    </dd>
+    <dt>Machine</dt>
+    <dd>
+      One laptop, shared with two other evidence lanes capturing at the same
+      time. No housekeeping request stalled; sign-in was refused twice and
+      retried (run notes).
+    </dd>
+  </dl>
+
+  <h2>What was tested</h2>
+  <p>
+    Every row of <code>docs/features/housekeeping/edge-cases.csv</code>, with
+    the cases that exercised it. <em>PASS (database / module only)</em> means no
+    screen exists for that rule and the evidence is the suite output against
+    this same database, quoted in full further down.
+  </p>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Row</th>
+          <th>Situation</th>
+          <th>Evidence</th>
+          <th>Result</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr id="row-HK-S1-01">
+          <td><code>HK-S1-01</code></td>
+          <td>A check-out makes the room dirty</td>
+          <td>
+            <a href="#case-C-1">C-1</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>3 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 17 - HK-S1-01: a departure marks its
+                  room
+                </li>
+                <li>
+                  housekeeping.test.sql: ok 26 - HK-S1-01..06, 09: the rooms,
+                  the bed with no room, and nothing for bed A or HK-201
+                </li>
+                <li>
+                  integration: ✓ a departure makes the room dirty &gt; marks the
+                  room a Guest left, naming no Staff Member (HK-S1-01) 113ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S1-02">
+          <td><code>HK-S1-02</code></td>
+          <td>A bed's departure</td>
+          <td>
+            <a href="#case-C-2">C-2</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>2 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 19 - HK-S1-02: a departure from a
+                  bed marks something
+                </li>
+                <li>
+                  integration: ✓ a departure makes the room dirty &gt; marks the
+                  room when a Guest leaves a bed in it (HK-S1-02) 74ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S1-03">
+          <td><code>HK-S1-03</code></td>
+          <td>A bed with no room</td>
+          <td>
+            <a href="#case-C-3">C-3</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 20 - HK-S1-03: a departure from a
+                  bed with no room marks something
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S1-04">
+          <td><code>HK-S1-04</code></td>
+          <td>Delivered twice</td>
+          <td>
+            <a href="#case-C-6">C-6</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>2 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 18 - HK-S1-04: the same departure
+                  delivered again changes nothing
+                </li>
+                <li>
+                  integration: ✓ a departure makes the room dirty &gt; changes
+                  nothing when the same departure is delivered again (HK-S1-04)
+                  16ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S1-05">
+          <td><code>HK-S1-05</code></td>
+          <td>Cleaned before the worker got there</td>
+          <td>
+            <a href="#case-C-5">C-5</a> <span class="badge pass">PASS</span>
+            <a href="#case-C-5b">C-5b</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>2 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 22 - HK-S1-05: a departure older
+                  than the last change marks nothing
+                </li>
+                <li>
+                  integration: ✓ a departure makes the room dirty &gt; keeps a
+                  status somebody changed after the Guest left (HK-S1-05) 71ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S1-06">
+          <td><code>HK-S1-06</code></td>
+          <td>Marked before the departure</td>
+          <td>
+            <a href="#case-C-4">C-4</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 23 - HK-S1-06: a departure newer
+                  than the last change marks the room
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S1-07">
+          <td><code>HK-S1-07</code></td>
+          <td>No worker context</td>
+          <td>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 13 - HK-S1-07: without a worker
+                  context the function refuses before reading anything
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS (database / module only)</span></td>
+        </tr>
+        <tr id="row-HK-S1-08">
+          <td><code>HK-S1-08</code></td>
+          <td>Another Organization's event</td>
+          <td>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 14 - HK-S1-08: an event of another
+                  Organization is refused
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS (database / module only)</span></td>
+        </tr>
+        <tr id="row-HK-S1-09">
+          <td><code>HK-S1-09</code></td>
+          <td>Housekeeping is not available</td>
+          <td>
+            <a href="#case-C-7">C-7</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>3 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 21 - HK-S1-09: a departure where
+                  housekeeping is not available marks nothing
+                </li>
+                <li>
+                  housekeeping.test.sql: ok 24 - HK-S1-09: a departure at a
+                  lapsed Subscription marks nothing
+                </li>
+                <li>
+                  integration: ✓ a departure makes the room dirty &gt; marks
+                  nothing where housekeeping is not available (HK-S1-09) 37ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S1-10">
+          <td><code>HK-S1-10</code></td>
+          <td>Not a departure</td>
+          <td>
+            <details>
+              <summary>2 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 15 - HK-S1-10: an event that is not
+                  a departure marks nothing
+                </li>
+                <li>
+                  housekeeping.test.sql: ok 16 - HK-S1-10: a Stay that did not
+                  depart marks nothing
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS (database / module only)</span></td>
+        </tr>
+        <tr id="row-HK-S1-11">
+          <td><code>HK-S1-11</code></td>
+          <td>The worker's reach</td>
+          <td>
+            <details>
+              <summary>4 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 1 - HK-S1-11: ranza_worker holds no
+                  privilege on housekeeping_unit_status
+                </li>
+                <li>
+                  housekeeping.test.sql: ok 2 - HK-S1-11: nor any column of it,
+                  and nothing is granted to PUBLIC
+                </li>
+                <li>
+                  housekeeping.test.sql: ok 3 - HK-S1-11: PUBLIC holds nothing
+                  on the table either
+                </li>
+                <li>
+                  housekeeping.test.sql: ok 25 - HK-S1-11: the worker cannot
+                  read the table it just wrote through the function
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS (database / module only)</span></td>
+        </tr>
+        <tr id="row-HK-S1-12">
+          <td><code>HK-S1-12</code></td>
+          <td>A status on a bed under a room</td>
+          <td>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 7 - HK-S1-12: a bed under a room
+                  cannot hold a status, even for the owner
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS (database / module only)</span></td>
+        </tr>
+        <tr id="row-HK-S1-13">
+          <td><code>HK-S1-13</code></td>
+          <td>The board</td>
+          <td>
+            <a href="#case-L-1">L-1</a> <span class="badge pass">PASS</span>
+            <a href="#case-R-owner">R-owner</a>
+            <span class="badge pass">PASS</span>
+            <a href="#case-R-manager">R-manager</a>
+            <span class="badge pass">PASS</span>
+            <a href="#case-R-desk">R-desk</a>
+            <span class="badge pass">PASS</span>
+            <a href="#case-R-housekeeper">R-housekeeper</a>
+            <span class="badge pass">PASS</span>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  integration: ✓ the board &gt; lists every room once, with its
+                  status, readiness and counts (HK-S1-13) 33ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S1-14">
+          <td><code>HK-S1-14</code></td>
+          <td>A Property out of reach</td>
+          <td>
+            <a href="#case-E-2">E-2</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>2 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 31 - HK-S1-14: another
+                  Organization's rooms are not visible
+                </li>
+                <li>
+                  integration: ✓ the board &gt; is empty at a Property the
+                  reader does not reach (HK-S1-14) 10ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S1-15">
+          <td><code>HK-S1-15</code></td>
+          <td>The capability is off</td>
+          <td>
+            <a href="#case-O-2">O-2</a> <span class="badge fail">FAIL</span>
+            <details>
+              <summary>2 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  integration: ✓ the board &gt; is empty while the Subscription
+                  is lapsed (HK-S1-15) 14ms
+                </li>
+                <li>
+                  integration: ✓ the board &gt; is empty where housekeeping is
+                  not available (HK-S1-15) 8ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge fail">FAIL</span></td>
+        </tr>
+        <tr id="row-HK-S1-16">
+          <td><code>HK-S1-16</code></td>
+          <td>No rooms yet</td>
+          <td>
+            <a href="#case-E-1">E-1</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  unit: ✓ housekeeping-board.test.tsx &gt; the housekeeping
+                  board &gt; says there are no rooms, and claims no restriction
+                  about them (HK-S1-16) 129ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S1-17">
+          <td><code>HK-S1-17</code></td>
+          <td>Every locale</td>
+          <td>
+            <a href="#case-E-3-tr">E-3-tr</a>
+            <span class="badge pass">PASS</span>
+            <a href="#case-E-3-ar">E-3-ar</a>
+            <span class="badge pass">PASS</span>
+            <details>
+              <summary>2 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  unit: ✓ housekeeping-board.test.tsx &gt; the housekeeping
+                  board &gt; names every status in every locale, never by colour
+                  alone (HK-S1-17) 123ms
+                </li>
+                <li>
+                  unit: ✓ housekeeping-board.test.tsx &gt; the housekeeping
+                  board &gt; mirrors for Arabic by construction: no physical
+                  direction utility (HK-S1-17) 1ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S1-18">
+          <td><code>HK-S1-18</code></td>
+          <td>Blocked and dirty</td>
+          <td>
+            <a href="#case-K-1">K-1</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  integration: ✓ a blocked room &gt; keeps its housekeeping
+                  status through a block and an unblock (HK-S1-18) 106ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S1-19">
+          <td><code>HK-S1-19</code></td>
+          <td>Who and when</td>
+          <td>
+            <details>
+              <summary>3 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 8 - HK-S1-19: a write with nobody
+                  acting is stamped with nobody
+                </li>
+                <li>
+                  housekeeping.test.sql: ok 9 - HK-S1-19: who and when are the
+                  database's, whatever the statement said
+                </li>
+                <li>
+                  housekeeping.test.sql: ok 27 - HK-S1-19: a departure's mark
+                  names no Staff Member
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS (database / module only)</span></td>
+        </tr>
+        <tr id="row-HK-S1-20">
+          <td><code>HK-S1-20</code></td>
+          <td>Housekeeping switched off</td>
+          <td>
+            <a href="#case-O-1">O-1</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>2 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 29 - HK-S1-20: a dirty room where
+                  housekeeping is not available reads ready
+                </li>
+                <li>
+                  housekeeping.test.sql: ok 30 - HK-S1-20: and what was stored
+                  is untouched
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S2-01">
+          <td><code>HK-S2-01</code></td>
+          <td>Mark one room</td>
+          <td>
+            <a href="#case-L-1">L-1</a> <span class="badge pass">PASS</span>
+            <a href="#case-L-2">L-2</a> <span class="badge pass">PASS</span>
+            <a href="#case-L-3">L-3</a> <span class="badge pass">PASS</span>
+            <a href="#case-A-1">A-1</a> <span class="badge pass">PASS</span>
+            <a href="#case-A-2">A-2</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>3 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 36 - HK-S2-01: the front desk marks
+                  a dirty room clean
+                </li>
+                <li>
+                  housekeeping.test.sql: ok 37 - HK-S2-01: and the room says who
+                  marked it
+                </li>
+                <li>
+                  integration: ✓ marking rooms &gt; marks one room and records
+                  what it replaced (HK-S2-01) 14ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S2-02">
+          <td><code>HK-S2-02</code></td>
+          <td>Mark several</td>
+          <td>
+            <a href="#case-B-1">B-1</a> <span class="badge pass">PASS</span>
+            <a href="#case-B-2">B-2</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  integration: ✓ marking rooms &gt; marks several rooms at once
+                  (HK-S2-02) 17ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S2-03">
+          <td><code>HK-S2-03</code></td>
+          <td>Two beds of one room</td>
+          <td>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  integration: ✓ marking rooms &gt; folds two beds of one room
+                  into one mark of the room (HK-S2-03) 14ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS (database / module only)</span></td>
+        </tr>
+        <tr id="row-HK-S2-04">
+          <td><code>HK-S2-04</code></td>
+          <td>Without the permission</td>
+          <td>
+            <a href="#case-R-finance">R-finance</a>
+            <span class="badge pass">PASS</span> <a href="#case-F-1">F-1</a>
+            <span class="badge fail">FAIL</span>
+            <details>
+              <summary>4 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 41 - HK-S2-04: a Staff Member
+                  without the permission cannot mark a room
+                </li>
+                <li>
+                  housekeeping.test.sql: ok 42 - HK-S2-04: nor change a room
+                  that has one, by a plain update
+                </li>
+                <li>
+                  housekeeping.test.sql: ok 43 - HK-S2-04: nor by the upsert the
+                  module runs
+                </li>
+                <li>
+                  integration: ✓ marking rooms &gt; refuses a Staff Member
+                  without the permission (HK-S2-04) 12ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S2-05">
+          <td><code>HK-S2-05</code></td>
+          <td>A mistake</td>
+          <td>
+            <a href="#case-L-4">L-4</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  integration: ✓ marking rooms &gt; undoes a mark by marking
+                  back, and repeats one harmlessly (HK-S2-05, HK-S2-06) 31ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S2-06">
+          <td><code>HK-S2-06</code></td>
+          <td>The same mark twice</td>
+          <td>
+            <a href="#case-L-5">L-5</a> <span class="badge pass">PASS</span>
+            <a href="#case-B-3">B-3</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  integration: ✓ marking rooms &gt; undoes a mark by marking
+                  back, and repeats one harmlessly (HK-S2-05, HK-S2-06) 31ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S2-07">
+          <td><code>HK-S2-07</code></td>
+          <td>Another Organization's room</td>
+          <td>
+            <details>
+              <summary>3 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 44 - HK-S2-07: a Property the Staff
+                  Member does not reach cannot be marked
+                </li>
+                <li>
+                  housekeeping.test.sql: ok 45 - HK-S2-07: another
+                  Organization's room cannot be marked
+                </li>
+                <li>
+                  integration: ✓ marking rooms &gt; refuses the whole mark when
+                  one Unit cannot be seen (HK-S2-07) 6ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS (database / module only)</span></td>
+        </tr>
+        <tr id="row-HK-S2-08">
+          <td><code>HK-S2-08</code></td>
+          <td>Housekeeping unavailable</td>
+          <td>
+            <details>
+              <summary>4 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 40 - HK-S2-08: a Property without
+                  housekeeping cannot be marked
+                </li>
+                <li>
+                  housekeeping.test.sql: ok 46 - HK-S2-08: a lapsed Subscription
+                  cannot mark its own rooms
+                </li>
+                <li>
+                  housekeeping.test.sql: ok 47 - HK-S2-08: a room with a row
+                  cannot be changed once housekeeping is off
+                </li>
+                <li>
+                  integration: ✓ marking rooms &gt; refuses a Property without
+                  housekeeping (HK-S2-08) 9ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS (database / module only)</span></td>
+        </tr>
+        <tr id="row-HK-S2-09">
+          <td><code>HK-S2-09</code></td>
+          <td>Forging the stamp</td>
+          <td>
+            <details>
+              <summary>4 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 34 - HK-S2-09: an insert may name
+                  the room and its status and nothing about who or when
+                </li>
+                <li>
+                  housekeeping.test.sql: ok 35 - HK-S2-09: an update may change
+                  the status and nothing else
+                </li>
+                <li>
+                  housekeeping.test.sql: ok 38 - HK-S2-09: naming who changed it
+                  is refused
+                </li>
+                <li>
+                  housekeeping.test.sql: ok 39 - HK-S2-09: naming when it
+                  changed is refused
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS (database / module only)</span></td>
+        </tr>
+        <tr id="row-HK-S2-10">
+          <td><code>HK-S2-10</code></td>
+          <td>Bounds</td>
+          <td>
+            <a href="#case-B-4">B-4</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  integration: ✓ marking rooms &gt; refuses a malformed mark
+                  before touching the database (HK-S2-10) 0ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S2-11">
+          <td><code>HK-S2-11</code></td>
+          <td>The permission ships</td>
+          <td>
+            <a href="#case-R-owner">R-owner</a>
+            <span class="badge pass">PASS</span>
+            <a href="#case-R-manager">R-manager</a>
+            <span class="badge pass">PASS</span>
+            <a href="#case-R-desk">R-desk</a>
+            <span class="badge pass">PASS</span>
+            <a href="#case-R-housekeeper">R-housekeeper</a>
+            <span class="badge pass">PASS</span>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping.test.sql: ok 33 - HK-S2-11: owner, manager, front
+                  desk and housekeeping ship holding it; finance does not
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S2-12">
+          <td><code>HK-S2-12</code></td>
+          <td>Read-only board</td>
+          <td>
+            <a href="#case-R-finance">R-finance</a>
+            <span class="badge pass">PASS</span>
+            <details>
+              <summary>2 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  integration: ✓ the board &gt; says who may not mark, and still
+                  shows them the rooms (HK-S2-12) 28ms
+                </li>
+                <li>
+                  unit: ✓ housekeeping-board.test.tsx &gt; the housekeeping
+                  board &gt; shows a reader without the permission every room
+                  and no control (HK-S2-12) 34ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S2-13">
+          <td><code>HK-S2-13</code></td>
+          <td>A refusal on screen</td>
+          <td>
+            <a href="#case-F-1">F-1</a> <span class="badge fail">FAIL</span>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  unit: ✓ housekeeping-board.test.tsx &gt; the housekeeping
+                  board &gt; keeps the selection when a mark is refused
+                  (HK-S2-13) 108ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge fail">FAIL</span></td>
+        </tr>
+        <tr id="row-HK-S2-14">
+          <td><code>HK-S2-14</code></td>
+          <td>Check-in to a dirty room</td>
+          <td>
+            <a href="#case-I-4">I-4</a> <span class="badge pass">PASS</span>
+            <a href="#case-I-3r">I-3r</a> <span class="badge pass">PASS</span>
+            <a href="#case-W-1">W-1</a> <span class="badge fail">FAIL</span>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  integration: ✓ checking into a room that is not ready &gt;
+                  asks first, and writes nothing until asked (HK-S2-14) 64ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge fail">FAIL</span></td>
+        </tr>
+        <tr id="row-HK-S2-15">
+          <td><code>HK-S2-15</code></td>
+          <td>Check in anyway</td>
+          <td>
+            <a href="#case-I-5">I-5</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  integration: ✓ checking into a room that is not ready &gt;
+                  checks in anyway once told to, records it, and leaves the room
+                  dirty (HK-S2-15) 25ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S2-16">
+          <td><code>HK-S2-16</code></td>
+          <td>Check-in to a ready room</td>
+          <td>
+            <a href="#case-I-2">I-2</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  integration: ✓ checking into a room that is not ready &gt;
+                  asks nothing about a ready room (HK-S2-16) 65ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S2-17">
+          <td><code>HK-S2-17</code></td>
+          <td>Cleaned between the warning and the confirmation</td>
+          <td>
+            <a href="#case-I-6">I-6</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  integration: ✓ checking into a room that is not ready &gt;
+                  does not claim a room was dirty when it was cleaned before the
+                  confirmation (HK-S2-17) 13578ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S2-18">
+          <td><code>HK-S2-18</code></td>
+          <td>Readiness on arrivals</td>
+          <td>
+            <a href="#case-I-1">I-1</a> <span class="badge pass">PASS</span>
+            <a href="#case-S-3">S-3</a> <span class="badge pass">PASS</span>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S3-01">
+          <td><code>HK-S3-01</code></td>
+          <td>Inspection on</td>
+          <td>
+            <a href="#case-S-2">S-2</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>3 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping_inspection.test.sql: ok 7 - HK-S3-01: with
+                  inspection on, a clean room is not ready
+                </li>
+                <li>
+                  housekeeping_inspection.test.sql: ok 8 - HK-S3-01: and an
+                  inspected one is
+                </li>
+                <li>
+                  integration: ✓ checking rooms after cleaning &gt; switching it
+                  on changes what ready means and no room's status (HK-S3-01,
+                  HK-S3-06, HK-S3-08) 122ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S3-02">
+          <td><code>HK-S3-02</code></td>
+          <td>A Property overrides</td>
+          <td>
+            <a href="#case-S-4">S-4</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>2 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping_inspection.test.sql: ok 14 - HK-S3-02: the
+                  override wins over the default
+                </li>
+                <li>
+                  integration: ✓ checking rooms after cleaning &gt; a Property's
+                  own answer wins, and resetting it follows the default again
+                  (HK-S3-02, HK-S3-10) 32ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S3-03">
+          <td><code>HK-S3-03</code></td>
+          <td>Use the default</td>
+          <td>
+            <a href="#case-S-5">S-5</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping_inspection.test.sql: ok 18 - HK-S3-03: and then
+                  the default applies
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S3-04">
+          <td><code>HK-S3-04</code></td>
+          <td>One default per Organization</td>
+          <td>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping_inspection.test.sql: ok 21 - HK-S3-04: one
+                  default per Organization, even for a role no policy binds
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS (database / module only)</span></td>
+        </tr>
+        <tr id="row-HK-S3-05">
+          <td><code>HK-S3-05</code></td>
+          <td>Reach decides which setting</td>
+          <td>
+            <a href="#case-S-6">S-6</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>4 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping_inspection.test.sql: ok 5 - HK-S3-05: creating
+                  the default needs reach to every Property it governs
+                </li>
+                <li>
+                  housekeeping_inspection.test.sql: ok 12 - HK-S3-05: the
+                  default needs reach to every Property it governs
+                </li>
+                <li>
+                  housekeeping_inspection.test.sql: ok 13 - HK-S3-05: and they
+                  may override the Property they reach
+                </li>
+                <li>
+                  housekeeping_inspection.test.sql: ok 15 - HK-S3-05: but not a
+                  Property they do not reach
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S3-06">
+          <td><code>HK-S3-06</code></td>
+          <td>Toggling moves nothing</td>
+          <td>
+            <a href="#case-S-2">S-2</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>2 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping_inspection.test.sql: ok 22 - HK-S3-06: switching
+                  inspection on and overriding it rewrote no status
+                </li>
+                <li>
+                  integration: ✓ checking rooms after cleaning &gt; switching it
+                  on changes what ready means and no room's status (HK-S3-01,
+                  HK-S3-06, HK-S3-08) 122ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S3-07">
+          <td><code>HK-S3-07</code></td>
+          <td>Who may configure</td>
+          <td>
+            <a href="#case-S-7">S-7</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>2 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping_inspection.test.sql: ok 16 - HK-S3-07: changing
+                  it needs accommodation.configure
+                </li>
+                <li>
+                  integration: ✓ checking rooms after cleaning &gt; refuses
+                  somebody without accommodation.configure (HK-S3-07) 7ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S3-08">
+          <td><code>HK-S3-08</code></td>
+          <td>The setting is audited</td>
+          <td>
+            <a href="#case-S-8">S-8</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>2 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  integration: ✓ checking rooms after cleaning &gt; switching it
+                  on changes what ready means and no room's status (HK-S3-01,
+                  HK-S3-06, HK-S3-08) 122ms
+                </li>
+                <li>
+                  integration: ✓ checking rooms after cleaning &gt; changing an
+                  existing default records what it was (HK-S3-08) 25ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S3-09">
+          <td><code>HK-S3-09</code></td>
+          <td>The setting on screen</td>
+          <td>
+            <a href="#case-S-1">S-1</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>2 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  integration: ✓ checking rooms after cleaning &gt; says what
+                  applies and who may change it (HK-S3-09) 15ms
+                </li>
+                <li>
+                  unit: ✓ inspection-settings.test.tsx &gt; the inspection
+                  setting &gt; says what a Property following the default
+                  inherits (HK-S3-09) 126ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S3-10">
+          <td><code>HK-S3-10</code></td>
+          <td>Reset to default</td>
+          <td>
+            <a href="#case-S-5">S-5</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>1 suite assertion</summary>
+              <ul class="observed">
+                <li>
+                  integration: ✓ checking rooms after cleaning &gt; a Property's
+                  own answer wins, and resetting it follows the default again
+                  (HK-S3-02, HK-S3-10) 32ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-S3-11">
+          <td><code>HK-S3-11</code></td>
+          <td>A room never marked, under inspection</td>
+          <td>
+            <a href="#case-S-2">S-2</a> <span class="badge pass">PASS</span>
+            <a href="#case-S-3">S-3</a> <span class="badge pass">PASS</span>
+            <details>
+              <summary>2 suite assertions</summary>
+              <ul class="observed">
+                <li>
+                  housekeeping_inspection.test.sql: ok 9 - HK-S3-11: a room
+                  never marked is clean, and so waits for an inspection too
+                </li>
+                <li>
+                  unit: ✓ housekeeping-board.test.tsx &gt; the housekeeping
+                  board &gt; tells a clean room waiting for inspection from a
+                  clean room that is ready (HK-S3-11) 56ms
+                </li>
+              </ul>
+            </details>
+          </td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr id="row-HK-DEF-01">
+          <td><code>HK-DEF-01</code></td>
+          <td>Daily cleaning of a room still in use</td>
+          <td></td>
+          <td><span class="badge muted">Not tested — deferred</span></td>
+        </tr>
+        <tr id="row-HK-DEF-02">
+          <td><code>HK-DEF-02</code></td>
+          <td>A bed's own status in a shared room</td>
+          <td></td>
+          <td><span class="badge muted">Not tested — deferred</span></td>
+        </tr>
+        <tr id="row-HK-DEF-03">
+          <td><code>HK-DEF-03</code></td>
+          <td>Auditing the worker's mark</td>
+          <td></td>
+          <td><span class="badge muted">Not tested — deferred</span></td>
+        </tr>
+        <tr id="row-HK-DEF-04">
+          <td><code>HK-DEF-04</code></td>
+          <td>Who cleaned it</td>
+          <td></td>
+          <td><span class="badge muted">Not tested — out of scope</span></td>
+        </tr>
+        <tr id="row-HK-DEF-05">
+          <td><code>HK-DEF-05</code></td>
+          <td>Money</td>
+          <td></td>
+          <td><span class="badge muted">Not tested — out of scope</span></td>
+        </tr>
+        <tr id="row-HK-DEF-06">
+          <td><code>HK-DEF-06</code></td>
+          <td>Out of order for repair</td>
+          <td></td>
+          <td><span class="badge muted">Not tested — out of scope</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Results, case by case</h2>
+  <h3 style="margin-top: 32px">Every role on the board</h3>
+  <article class="case pass" id="case-R-owner">
+    <header>
+      <h3><span class="cid">R-owner</span> The board as owner</h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">
+      Edge-case rows: <a href="#row-HK-S1-13">HK-S1-13</a>,
+      <a href="#row-HK-S2-11">HK-S2-11</a>
+    </p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        rooms listed: 9; row checkboxes: 9; row menus: 9; read-only notice
+        shown: false
+      </li>
+      <li class="">
+        stat cards:
+        {&quot;Rooms&quot;:&quot;9&quot;,&quot;Dirty&quot;:&quot;1&quot;,&quot;Clean&quot;:&quot;8&quot;,&quot;Inspected&quot;:&quot;0&quot;,&quot;Ready
+        to let&quot;:&quot;8&quot;}
+      </li>
+      <li class="good">
+        ✓ every room has a checkbox and a mark menu (owner holds
+        housekeeping.update_status)
+      </li>
+      <li class="good">✓ no read-only notice</li>
+      <li class="good">
+        ✓ 9 status holders: 101–107, room 201 (its beds fold in), bed D1 with no
+        room
+      </li>
+    </ul>
+
+    <figure id="shot-R-owner">
+      <img
+        alt="Kadıköy Otel board signed in as owner@evidence.test (owner). Captured after the lifecycle marks on 102 (which is why 102 reads Dirty) and before any check-out (104–106, 201 and D1 still have Guests in house)."
+        loading="lazy"
+        src="shots/R-owner.jpg"
+      />
+      <figcaption>
+        <strong>R-owner</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:26:55 UTC<br />Kadıköy Otel board signed in as
+        owner@evidence.test (owner). Captured after the lifecycle marks on 102
+        (which is why 102 reads Dirty) and before any check-out (104–106, 201
+        and D1 still have Guests in house).
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-R-manager">
+    <header>
+      <h3><span class="cid">R-manager</span> The board as manager</h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">
+      Edge-case rows: <a href="#row-HK-S1-13">HK-S1-13</a>,
+      <a href="#row-HK-S2-11">HK-S2-11</a>
+    </p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        rooms listed: 9; row checkboxes: 9; row menus: 9; read-only notice
+        shown: false
+      </li>
+      <li class="">
+        stat cards:
+        {&quot;Rooms&quot;:&quot;9&quot;,&quot;Dirty&quot;:&quot;1&quot;,&quot;Clean&quot;:&quot;8&quot;,&quot;Inspected&quot;:&quot;0&quot;,&quot;Ready
+        to let&quot;:&quot;8&quot;}
+      </li>
+      <li class="good">
+        ✓ every room has a checkbox and a mark menu (manager holds
+        housekeeping.update_status)
+      </li>
+      <li class="good">✓ no read-only notice</li>
+      <li class="good">
+        ✓ 9 status holders: 101–107, room 201 (its beds fold in), bed D1 with no
+        room
+      </li>
+    </ul>
+
+    <figure id="shot-R-manager">
+      <img
+        alt="Kadıköy Otel board signed in as manager@evidence.test (manager). Captured after the lifecycle marks on 102 (which is why 102 reads Dirty) and before any check-out (104–106, 201 and D1 still have Guests in house)."
+        loading="lazy"
+        src="shots/R-manager.jpg"
+      />
+      <figcaption>
+        <strong>R-manager</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:26:57 UTC<br />Kadıköy Otel board signed in as
+        manager@evidence.test (manager). Captured after the lifecycle marks on
+        102 (which is why 102 reads Dirty) and before any check-out (104–106,
+        201 and D1 still have Guests in house).
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-R-desk">
+    <header>
+      <h3><span class="cid">R-desk</span> The board as desk</h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">
+      Edge-case rows: <a href="#row-HK-S1-13">HK-S1-13</a>,
+      <a href="#row-HK-S2-11">HK-S2-11</a>
+    </p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        rooms listed: 9; row checkboxes: 9; row menus: 9; read-only notice
+        shown: false
+      </li>
+      <li class="">
+        stat cards:
+        {&quot;Rooms&quot;:&quot;9&quot;,&quot;Dirty&quot;:&quot;1&quot;,&quot;Clean&quot;:&quot;8&quot;,&quot;Inspected&quot;:&quot;0&quot;,&quot;Ready
+        to let&quot;:&quot;8&quot;}
+      </li>
+      <li class="good">
+        ✓ every room has a checkbox and a mark menu (desk holds
+        housekeeping.update_status)
+      </li>
+      <li class="good">✓ no read-only notice</li>
+      <li class="good">
+        ✓ 9 status holders: 101–107, room 201 (its beds fold in), bed D1 with no
+        room
+      </li>
+    </ul>
+
+    <figure id="shot-R-desk">
+      <img
+        alt="Kadıköy Otel board signed in as desk@evidence.test (desk). Captured after the lifecycle marks on 102 (which is why 102 reads Dirty) and before any check-out (104–106, 201 and D1 still have Guests in house)."
+        loading="lazy"
+        src="shots/R-desk.jpg"
+      />
+      <figcaption>
+        <strong>R-desk</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:26:58 UTC<br />Kadıköy Otel board signed in as
+        desk@evidence.test (desk). Captured after the lifecycle marks on 102
+        (which is why 102 reads Dirty) and before any check-out (104–106, 201
+        and D1 still have Guests in house).
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-R-housekeeper">
+    <header>
+      <h3><span class="cid">R-housekeeper</span> The board as housekeeper</h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">
+      Edge-case rows: <a href="#row-HK-S1-13">HK-S1-13</a>,
+      <a href="#row-HK-S2-11">HK-S2-11</a>
+    </p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        rooms listed: 9; row checkboxes: 9; row menus: 9; read-only notice
+        shown: false
+      </li>
+      <li class="">
+        stat cards:
+        {&quot;Rooms&quot;:&quot;9&quot;,&quot;Dirty&quot;:&quot;1&quot;,&quot;Clean&quot;:&quot;8&quot;,&quot;Inspected&quot;:&quot;0&quot;,&quot;Ready
+        to let&quot;:&quot;8&quot;}
+      </li>
+      <li class="good">
+        ✓ every room has a checkbox and a mark menu (housekeeper holds
+        housekeeping.update_status)
+      </li>
+      <li class="good">✓ no read-only notice</li>
+      <li class="good">
+        ✓ 9 status holders: 101–107, room 201 (its beds fold in), bed D1 with no
+        room
+      </li>
+    </ul>
+
+    <figure id="shot-R-housekeeper">
+      <img
+        alt="Kadıköy Otel board signed in as housekeeper@evidence.test (housekeeper). Captured after the lifecycle marks on 102 (which is why 102 reads Dirty) and before any check-out (104–106, 201 and D1 still have Guests in house)."
+        loading="lazy"
+        src="shots/R-housekeeper.jpg"
+      />
+      <figcaption>
+        <strong>R-housekeeper</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:27:51 UTC<br />Kadıköy Otel board signed in as
+        housekeeper@evidence.test (housekeeper). Captured after the lifecycle
+        marks on 102 (which is why 102 reads Dirty) and before any check-out
+        (104–106, 201 and D1 still have Guests in house).
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-R-finance">
+    <header>
+      <h3>
+        <span class="cid">R-finance</span> The board as finance (read-only)
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">
+      Edge-case rows: <a href="#row-HK-S2-12">HK-S2-12</a>,
+      <a href="#row-HK-S2-04">HK-S2-04</a>
+    </p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        rooms listed: 9; row checkboxes: 0; row menus: 0; read-only notice
+        shown: true
+      </li>
+      <li class="">
+        stat cards:
+        {&quot;Rooms&quot;:&quot;9&quot;,&quot;Dirty&quot;:&quot;1&quot;,&quot;Clean&quot;:&quot;8&quot;,&quot;Inspected&quot;:&quot;0&quot;,&quot;Ready
+        to let&quot;:&quot;8&quot;}
+      </li>
+      <li class="good">✓ no checkbox and no mark menu on any row</li>
+      <li class="good">✓ the read-only notice explains why</li>
+      <li class="good">
+        ✓ 9 status holders: 101–107, room 201 (its beds fold in), bed D1 with no
+        room
+      </li>
+    </ul>
+
+    <figure id="shot-R-finance">
+      <img
+        alt="Kadıköy Otel board signed in as finance@evidence.test (finance). Captured after the lifecycle marks on 102 (which is why 102 reads Dirty) and before any check-out (104–106, 201 and D1 still have Guests in house)."
+        loading="lazy"
+        src="shots/R-finance.jpg"
+      />
+      <figcaption>
+        <strong>R-finance</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:27:52 UTC<br />Kadıköy Otel board signed in as
+        finance@evidence.test (finance). Captured after the lifecycle marks on
+        102 (which is why 102 reads Dirty) and before any check-out (104–106,
+        201 and D1 still have Guests in house).
+      </figcaption>
+    </figure>
+  </article>
+  <h3 style="margin-top: 32px">One room through its lifecycle</h3>
+  <article class="case pass" id="case-L-1">
+    <header>
+      <h3><span class="cid">L-1</span> Never marked → dirty (row menu)</h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">
+      Edge-case rows: <a href="#row-HK-S2-01">HK-S2-01</a>,
+      <a href="#row-HK-S1-13">HK-S1-13</a>
+    </p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        102 before: | 102 | Ana Bina · Floor 1 | Clean | Vacant | Not recorded
+        yet |
+      </li>
+      <li class="good">✓ a room never marked reads Clean / Not recorded yet</li>
+      <li class="good">✓ &quot;1 room updated&quot; is announced</li>
+      <li class="">
+        102 after: | 102 | Ana Bina · Floor 1 | Dirty | Vacant | Sep 24, 18:25 |
+      </li>
+      <li class="good">✓ 102 is Dirty</li>
+      <li class="good">✓ a change time is now shown</li>
+    </ul>
+
+    <figure id="shot-L-1a">
+      <img
+        alt="Before: room 102 has never been marked, so it reads Clean with no change recorded."
+        loading="lazy"
+        src="shots/L-1a.jpg"
+      />
+      <figcaption>
+        <strong>L-1a</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:25:38 UTC<br />Before: room 102 has never been marked,
+        so it reads Clean with no change recorded.
+      </figcaption>
+    </figure>
+    <figure id="shot-L-1b">
+      <img
+        alt='After: desk@ chose Actions for 102 → Mark dirty. "1 room updated" is announced; 102 reads Dirty with a change time.'
+        loading="lazy"
+        src="shots/L-1b.jpg"
+      />
+      <figcaption>
+        <strong>L-1b</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:25:40 UTC<br />After: desk@ chose Actions for 102 → Mark
+        dirty. &quot;1 room updated&quot; is announced; 102 reads Dirty with a
+        change time.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-L-2">
+    <header>
+      <h3><span class="cid">L-2</span> Dirty → clean</h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S2-01">HK-S2-01</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        102: | 102 | Ana Bina · Floor 1 | Clean | Vacant | Sep 24, 18:25 |
+      </li>
+      <li class="good">✓ 102 is Clean</li>
+    </ul>
+
+    <figure id="shot-L-2">
+      <img
+        alt="desk@ marked 102 clean from its row menu: 102 reads Clean."
+        loading="lazy"
+        src="shots/L-2.jpg"
+      />
+      <figcaption>
+        <strong>L-2</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:25:44 UTC<br />desk@ marked 102 clean from its row menu:
+        102 reads Clean.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-L-3">
+    <header>
+      <h3><span class="cid">L-3</span> Clean → inspected</h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S2-01">HK-S2-01</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        102: | 102 | Ana Bina · Floor 1 | Inspected | Vacant | Sep 24, 18:25 |
+      </li>
+      <li class="good">✓ 102 is Inspected</li>
+      <li class="">
+        stats:
+        {&quot;Rooms&quot;:&quot;9&quot;,&quot;Dirty&quot;:&quot;0&quot;,&quot;Clean&quot;:&quot;8&quot;,&quot;Inspected&quot;:&quot;1&quot;,&quot;Ready
+        to let&quot;:&quot;9&quot;}
+      </li>
+    </ul>
+
+    <figure id="shot-L-3">
+      <img
+        alt="desk@ marked 102 inspected: 102 reads Inspected and the Inspected count is 1."
+        loading="lazy"
+        src="shots/L-3.jpg"
+      />
+      <figcaption>
+        <strong>L-3</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:25:49 UTC<br />desk@ marked 102 inspected: 102 reads
+        Inspected and the Inspected count is 1.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-L-4">
+    <header>
+      <h3>
+        <span class="cid">L-4</span> Marking back after a mistake: inspected →
+        dirty
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S2-05">HK-S2-05</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        102: | 102 | Ana Bina · Floor 1 | Dirty | Vacant | Sep 24, 18:25 |
+      </li>
+      <li class="good">✓ 102 is Dirty again; no reason was asked for</li>
+    </ul>
+
+    <figure id="shot-L-4">
+      <img
+        alt="The correction: desk@ marked 102 dirty again with one tap, no reason asked."
+        loading="lazy"
+        src="shots/L-4.jpg"
+      />
+      <figcaption>
+        <strong>L-4</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:25:51 UTC<br />The correction: desk@ marked 102 dirty
+        again with one tap, no reason asked.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-L-5">
+    <header>
+      <h3>
+        <span class="cid">L-5</span> The row menu offers only the other two
+        statuses
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S2-06">HK-S2-06</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">menu for dirty 102: Mark clean, Mark inspected</li>
+      <li class="good">✓ Mark dirty is not offered for a room already dirty</li>
+    </ul>
+
+    <figure id="shot-L-5">
+      <img
+        alt="Row menu open on 102 (dirty): it offers Mark clean and Mark inspected only."
+        loading="lazy"
+        src="shots/L-5.jpg"
+      />
+      <figcaption>
+        <strong>L-5</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:25:51 UTC<br />Row menu open on 102 (dirty): it offers
+        Mark clean and Mark inspected only.
+      </figcaption>
+    </figure>
+  </article>
+  <h3 style="margin-top: 32px">Several rooms at once</h3>
+  <article class="case pass" id="case-B-1">
+    <header>
+      <h3>
+        <span class="cid">B-1</span> Batch: three rooms marked dirty at once
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S2-02">HK-S2-02</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">bulk bar: 3 selected</li>
+      <li class="good">✓ &quot;3 rooms updated&quot; is announced</li>
+      <li class="good">✓ 301 is Dirty</li>
+      <li class="good">✓ 302 is Dirty</li>
+      <li class="good">✓ 303 is Dirty</li>
+      <li class="good">✓ the selection is cleared once the mark lands</li>
+    </ul>
+
+    <figure id="shot-B-1a">
+      <img
+        alt='Beşiktaş Rezidans, desk@: rooms 301, 302 and 303 ticked. The bulk bar reads "3 selected" with the three marks.'
+        loading="lazy"
+        src="shots/B-1a.jpg"
+      />
+      <figcaption>
+        <strong>B-1a</strong> ·
+        <code
+          >/en/housekeeping?property=ee774813-943c-497c-b91a-38d3ab0b0d8c</code
+        >
+        · 2026-09-24 15:25:53 UTC<br />Beşiktaş Rezidans, desk@: rooms 301, 302
+        and 303 ticked. The bulk bar reads &quot;3 selected&quot; with the three
+        marks.
+      </figcaption>
+    </figure>
+    <figure id="shot-B-1b">
+      <img
+        alt='After Mark dirty: "3 rooms updated", all three read Dirty, and the selection is cleared.'
+        loading="lazy"
+        src="shots/B-1b.jpg"
+      />
+      <figcaption>
+        <strong>B-1b</strong> ·
+        <code
+          >/en/housekeeping?property=ee774813-943c-497c-b91a-38d3ab0b0d8c</code
+        >
+        · 2026-09-24 15:25:56 UTC<br />After Mark dirty: &quot;3 rooms
+        updated&quot;, all three read Dirty, and the selection is cleared.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-B-2">
+    <header>
+      <h3>
+        <span class="cid">B-2</span> Batch: the same three marked inspected
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S2-02">HK-S2-02</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="good">✓ 301 is Inspected</li>
+      <li class="good">✓ 302 is Inspected</li>
+      <li class="good">✓ 303 is Inspected</li>
+    </ul>
+
+    <figure id="shot-B-2">
+      <img
+        alt="Second batch: 301–303 marked inspected together."
+        loading="lazy"
+        src="shots/B-2.jpg"
+      />
+      <figcaption>
+        <strong>B-2</strong> ·
+        <code
+          >/en/housekeeping?property=ee774813-943c-497c-b91a-38d3ab0b0d8c</code
+        >
+        · 2026-09-24 15:25:59 UTC<br />Second batch: 301–303 marked inspected
+        together.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-B-3">
+    <header>
+      <h3><span class="cid">B-3</span> The same mark twice is harmless</h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S2-06">HK-S2-06</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">302: | 302 | — | Inspected | Vacant | Sep 24, 18:26 |</li>
+      <li class="good">✓ 302 stays Inspected; nothing failed</li>
+      <li class="">audit records for 302: 3</li>
+      <li class="good">
+        ✓ each submission is audited: dirty, inspected, inspected again = 3
+        records
+      </li>
+    </ul>
+
+    <figure id="shot-B-3">
+      <img
+        alt='302 (already inspected) ticked and marked inspected again: "1 room updated", no error.'
+        loading="lazy"
+        src="shots/B-3.jpg"
+      />
+      <figcaption>
+        <strong>B-3</strong> ·
+        <code
+          >/en/housekeeping?property=ee774813-943c-497c-b91a-38d3ab0b0d8c</code
+        >
+        · 2026-09-24 15:26:06 UTC<br />302 (already inspected) ticked and marked
+        inspected again: &quot;1 room updated&quot;, no error.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-B-4">
+    <header>
+      <h3><span class="cid">B-4</span> More than sixty rooms cannot be sent</h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S2-10">HK-S2-10</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">bulk bar: 65 selected</li>
+      <li class="good">✓ 65 rooms are selected across two pages</li>
+      <li class="good">✓ the marks are disabled</li>
+      <li class="good">✓ the bar says why</li>
+    </ul>
+
+    <figure id="shot-B-4">
+      <img
+        alt='Büyük Otel (65 rooms): all 50 on page 1 and 15 on page 2 selected. The marks are disabled with "Choose between one and sixty rooms."'
+        loading="lazy"
+        src="shots/B-4.jpg"
+      />
+      <figcaption>
+        <strong>B-4</strong> ·
+        <code
+          >/en/housekeeping?property=ba2e7361-02a8-4cb9-9a84-21d17cb8c27d</code
+        >
+        · 2026-09-24 15:28:07 UTC<br />Büyük Otel (65 rooms): all 50 on page 1
+        and 15 on page 2 selected. The marks are disabled with &quot;Choose
+        between one and sixty rooms.&quot;
+      </figcaption>
+    </figure>
+  </article>
+  <h3 style="margin-top: 32px">
+    A check-out makes the room dirty (the worker)
+  </h3>
+  <article class="case pass" id="case-C-1">
+    <header>
+      <h3><span class="cid">C-1</span> Check-out → worker → room dirty</h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S1-01">HK-S1-01</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        104 before: | 104 | Ana Bina · Floor 1 | Clean | Guest in house | Not
+        recorded yet |
+      </li>
+      <li class="">
+        104 after: | 104 | Ana Bina · Floor 1 | Dirty | Vacant | Sep 24, 18:28 |
+        (dirty 4.285s after the check-out)
+      </li>
+      <li class="good">✓ 104 is Dirty — nobody marked it; the worker did</li>
+      <li class="">status_changed_by in the database: null</li>
+      <li class="good">
+        ✓ the row names no Staff Member: the departure made it dirty
+      </li>
+    </ul>
+
+    <figure id="shot-C-1a">
+      <img
+        alt="Before: 104 is Clean (never marked) with a Guest in house, Cahit Arf."
+        loading="lazy"
+        src="shots/C-1a.jpg"
+      />
+      <figcaption>
+        <strong>C-1a</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:28:37 UTC<br />Before: 104 is Clean (never marked) with
+        a Guest in house, Cahit Arf.
+      </figcaption>
+    </figure>
+    <figure id="shot-C-1b">
+      <img
+        alt="Departures at Kadıköy Otel: Cahit Arf in 104, due out today, with a Check out button."
+        loading="lazy"
+        src="shots/C-1b.jpg"
+      />
+      <figcaption>
+        <strong>C-1b</strong> ·
+        <code
+          >/en/departures?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:28:38 UTC<br />Departures at Kadıköy Otel: Cahit Arf in
+        104, due out today, with a Check out button.
+      </figcaption>
+    </figure>
+    <figure id="shot-C-1c">
+      <img
+        alt="After desk@ pressed Check out: the worker marked 104 Dirty on its own; the Guest is no longer in house."
+        loading="lazy"
+        src="shots/C-1c.jpg"
+      />
+      <figcaption>
+        <strong>C-1c</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:28:46 UTC<br />After desk@ pressed Check out: the worker
+        marked 104 Dirty on its own; the Guest is no longer in house.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-C-2">
+    <header>
+      <h3>
+        <span class="cid">C-2</span> A Guest leaving a bed dirties the room
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S1-02">HK-S1-02</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        201: | 201 2 beds | Ana Bina · Floor 2 | Dirty | Vacant | Sep 24, 18:28
+        |
+      </li>
+      <li class="good">✓ room 201 (2 beds) is Dirty</li>
+      <li class="good">✓ no row for either bed: the room holds the status</li>
+    </ul>
+
+    <figure id="shot-C-2">
+      <img
+        alt="Sabahattin Ali checked out of bed A in room 201: the room, listed with its 2 beds, reads Dirty."
+        loading="lazy"
+        src="shots/C-2.jpg"
+      />
+      <figcaption>
+        <strong>C-2</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:28:56 UTC<br />Sabahattin Ali checked out of bed A in
+        room 201: the room, listed with its 2 beds, reads Dirty.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-C-3">
+    <header>
+      <h3>
+        <span class="cid">C-3</span> A bed with no room holds its own status
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S1-03">HK-S1-03</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">D1: | D1 | Ana Bina | Dirty | Vacant | Sep 24, 18:28 |</li>
+      <li class="good">✓ bed D1 is Dirty</li>
+    </ul>
+
+    <figure id="shot-C-3">
+      <img
+        alt="Orhan Veli checked out of D1, a bed with no room above it: D1 itself reads Dirty."
+        loading="lazy"
+        src="shots/C-3.jpg"
+      />
+      <figcaption>
+        <strong>C-3</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:29:01 UTC<br />Orhan Veli checked out of D1, a bed with
+        no room above it: D1 itself reads Dirty.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-C-4">
+    <header>
+      <h3>
+        <span class="cid">C-4</span> Marked before the departure → overwritten
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S1-06">HK-S1-06</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        106 before check-out: | 106 | Ana Bina · Floor 1 | Inspected | Guest in
+        house | Sep 24, 18:29 |
+      </li>
+      <li class="">
+        106 after check-out: | 106 | Ana Bina · Floor 1 | Dirty | Vacant | Sep
+        24, 18:29 |
+      </li>
+      <li class="good">✓ the departure is newer, so 106 is Dirty</li>
+    </ul>
+
+    <figure id="shot-C-4a">
+      <img
+        alt="106 marked inspected while Nazım Hikmet is still in house."
+        loading="lazy"
+        src="shots/C-4a.jpg"
+      />
+      <figcaption>
+        <strong>C-4a</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:29:03 UTC<br />106 marked inspected while Nazım Hikmet
+        is still in house.
+      </figcaption>
+    </figure>
+    <figure id="shot-C-4b">
+      <img
+        alt="After the check-out: 106 reads Dirty; the earlier inspected mark was overwritten."
+        loading="lazy"
+        src="shots/C-4b.jpg"
+      />
+      <figcaption>
+        <strong>C-4b</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:29:17 UTC<br />After the check-out: 106 reads Dirty; the
+        earlier inspected mark was overwritten.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-C-5">
+    <header>
+      <h3>
+        <span class="cid">C-5</span> Cleaned before the worker got there → kept
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S1-05">HK-S1-05</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        Halide Edib checked out of 105 (a first attempt pressed Check out at the
+        previous run of this case)
+      </li>
+      <li class="">
+        undelivered stay.checked_out events for 105 (worker stopped): 1
+      </li>
+      <li class="good">✓ the departure is waiting in the outbox</li>
+      <li class="">
+        105 after the desk said clean: | 105 | Ana Bina · Floor 1 | Clean |
+        Vacant | Sep 24, 18:30 |
+      </li>
+      <li class="good">✓ the desk's word is recorded, with its time</li>
+    </ul>
+
+    <figure id="shot-C-5a">
+      <img
+        alt="Worker stopped. Halide Edib has checked out of 105 and the event waits undelivered; desk@ ticks 105 and presses Mark clean — the row now carries a change time."
+        loading="lazy"
+        src="shots/C-5a.jpg"
+      />
+      <figcaption>
+        <strong>C-5a</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:30:57 UTC<br />Worker stopped. Halide Edib has checked
+        out of 105 and the event waits undelivered; desk@ ticks 105 and presses
+        Mark clean — the row now carries a change time.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-C-5b">
+    <header>
+      <h3>
+        <span class="cid">C-5b</span> …and after the worker delivers the
+        departure
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S1-05">HK-S1-05</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">event delivered after restarting the worker: true</li>
+      <li class="good">✓ the worker delivered the departure</li>
+      <li class="">
+        105: | 105 | Ana Bina · Floor 1 | Clean | Vacant | Sep 24, 18:30 |
+      </li>
+      <li class="good">✓ 105 is still Clean: the later word wins</li>
+    </ul>
+
+    <figure id="shot-C-5b">
+      <img
+        alt="Worker restarted and the event delivered: 105 still reads Clean — the desk's mark came after the departure and is kept."
+        loading="lazy"
+        src="shots/C-5b.jpg"
+      />
+      <figcaption>
+        <strong>C-5b</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:31:05 UTC<br />Worker restarted and the event delivered:
+        105 still reads Clean — the desk's mark came after the departure and is
+        kept.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-C-6">
+    <header>
+      <h3>
+        <span class="cid">C-6</span> The same departure delivered again changes
+        nothing
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S1-04">HK-S1-04</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        104 before redelivery: dirty 2026-09-24 15:28:40.467047+00
+      </li>
+      <li class="">
+        delivery record removed and the event made claimable again, as after a
+        crash
+      </li>
+      <li class="good">✓ the worker delivered it a second time</li>
+      <li class="">
+        104 after redelivery: dirty 2026-09-24 15:28:40.467047+00
+      </li>
+      <li class="good">✓ status and change time are identical</li>
+    </ul>
+  </article>
+  <article class="case pass" id="case-C-7">
+    <header>
+      <h3>
+        <span class="cid">C-7</span> A departure where housekeeping is not
+        available marks nothing
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S1-09">HK-S1-09</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="good">✓ the departure was delivered (not stuck retrying)</li>
+      <li class="">status rows for 401 at Moda Pansiyon: 0</li>
+      <li class="good">
+        ✓ no status was written: Moda Pansiyon has no housekeeping capability
+      </li>
+    </ul>
+
+    <figure id="shot-C-7">
+      <img
+        alt="Moda Pansiyon (front desk only): Oktay Rifat checked out of 401. The worker delivered the event and wrote no housekeeping status."
+        loading="lazy"
+        src="shots/C-7.jpg"
+      />
+      <figcaption>
+        <strong>C-7</strong> ·
+        <code
+          >/en/departures?property=01f96843-9186-4bee-becd-eb439f5a56d3</code
+        >
+        · 2026-09-24 15:32:12 UTC<br />Moda Pansiyon (front desk only): Oktay
+        Rifat checked out of 401. The worker delivered the event and wrote no
+        housekeeping status.
+      </figcaption>
+    </figure>
+  </article>
+  <h3 style="margin-top: 32px">Checking in to a room that is not ready</h3>
+  <article class="case pass" id="case-I-1">
+    <header>
+      <h3><span class="cid">I-1</span> Arrivals show readiness as a word</h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S2-18">HK-S2-18</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        102 (dirty): SG Sabiha Gökçen Guest, until Sep 26, 2026 RZ-666DBD 102
+        Room Not ready TRY 0.00 Check in
+      </li>
+      <li class="">
+        103 (never marked): CS Cahide Sonku Guest, until Sep 26, 2026 RZ-85A671
+        103 Room Ready TRY 0.00 Check in
+      </li>
+      <li class="good">✓ Sabiha Gökçen's room 102 reads Not ready</li>
+      <li class="good">✓ Cahide Sonku's room 103 reads Ready</li>
+    </ul>
+
+    <figure id="shot-I-1">
+      <img
+        alt="Arrivals at Kadıköy Otel: 102 (dirty) says Not ready; 103, 101 and 107 (never marked) say Ready."
+        loading="lazy"
+        src="shots/I-1.jpg"
+      />
+      <figcaption>
+        <strong>I-1</strong> ·
+        <code>/en/arrivals?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code>
+        · 2026-09-24 15:32:19 UTC<br />Arrivals at Kadıköy Otel: 102 (dirty)
+        says Not ready; 103, 101 and 107 (never marked) say Ready.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-I-2">
+    <header>
+      <h3>
+        <span class="cid">I-2</span> Checking in to a ready room asks nothing
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S2-16">HK-S2-16</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="good">✓ Cahide Sonku checked in with one press, no warning</li>
+    </ul>
+
+    <figure id="shot-I-2">
+      <img
+        alt="desk@ pressed Check in for Cahide Sonku (room 103, ready): checked in, no question asked."
+        loading="lazy"
+        src="shots/I-2.jpg"
+      />
+      <figcaption>
+        <strong>I-2</strong> ·
+        <code>/en/arrivals?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code>
+        · 2026-09-24 15:32:19 UTC<br />desk@ pressed Check in for Cahide Sonku
+        (room 103, ready): checked in, no question asked.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case superseded" id="case-I-3">
+    <header>
+      <h3>
+        <span class="cid">I-3</span> Checking in to a room that is not ready
+        asks first
+      </h3>
+      <span class="badge muted">SUPERSEDED</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S2-14">HK-S2-14</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        row: SG Sabiha Gökçen Guest, until Sep 26, 2026 RZ-666DBD 102 Room Not
+        ready TRY 0.00 This room isn't ready yet — it hasn't been cleaned, or
+        it's waiting for inspection. Not now Check in anyway
+      </li>
+      <li class="good">✓ the warning is shown</li>
+      <li class="bad">
+        ✗ threw: ERROR: column reference &quot;status&quot; is ambiguous
+      </li>
+    </ul>
+    <p class="note">
+      <strong>Note.</strong> The warning was observed, but the capture script's
+      database check raised 'column reference &quot;status&quot; is ambiguous'
+      before it could read the Reservation. The Guest was checked in by I-5
+      afterwards, so the state could not be re-read. The whole case was re-run
+      as I-3r on a fresh arrival.
+    </p>
+  </article>
+  <article class="case pass" id="case-I-4">
+    <header>
+      <h3>
+        <span class="cid">I-4</span> Not now returns the row to its plain button
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S2-14">HK-S2-14</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="good">✓ the plain Check in button is back</li>
+    </ul>
+
+    <figure id="shot-I-4">
+      <img
+        alt="After Not now: the row shows its plain Check in button again."
+        loading="lazy"
+        src="shots/I-4.jpg"
+      />
+      <figcaption>
+        <strong>I-4</strong> ·
+        <code>/en/arrivals?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code>
+        · 2026-09-24 15:32:20 UTC<br />After Not now: the row shows its plain
+        Check in button again.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-I-5">
+    <header>
+      <h3>
+        <span class="cid">I-5</span> Check in anyway: recorded, and the room
+        stays dirty
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S2-15">HK-S2-15</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        reservation.checked_in context: {&quot;stayId&quot;:
+        &quot;6de224bb-ef90-4d61-ac93-f0bb1150052b&quot;, &quot;folioId&quot;:
+        &quot;d869d757-18bc-4562-8d9d-1d592da42cc7&quot;,
+        &quot;roomWasNotReady&quot;: true, &quot;accommodationUnitId&quot;:
+        &quot;979bc703-90fe-427a-aea0-305f218e1717&quot;}
+      </li>
+      <li class="good">✓ the audit record notes the room was not ready</li>
+      <li class="">
+        102 on the board: | 102 | Ana Bina · Floor 1 | Dirty | Guest in house |
+        Sep 24, 18:25 |
+      </li>
+      <li class="good">✓ 102 is still Dirty, now with a Guest in house</li>
+    </ul>
+
+    <figure id="shot-I-5a">
+      <img
+        alt="desk@ pressed Check in, then Check in anyway: Sabiha Gökçen is checked in."
+        loading="lazy"
+        src="shots/I-5a.jpg"
+      />
+      <figcaption>
+        <strong>I-5a</strong> ·
+        <code>/en/arrivals?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code>
+        · 2026-09-24 15:32:20 UTC<br />desk@ pressed Check in, then Check in
+        anyway: Sabiha Gökçen is checked in.
+      </figcaption>
+    </figure>
+    <figure id="shot-I-5b">
+      <img
+        alt="The audit log record for that check-in, opened by owner@: its context carries roomWasNotReady = true."
+        loading="lazy"
+        src="shots/I-5b.jpg"
+      />
+      <figcaption>
+        <strong>I-5b</strong> ·
+        <code
+          >/en/audit-log?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7&amp;record=3219cf87-7e46-457c-9923-9ed542069ed2</code
+        >
+        · 2026-09-24 15:32:22 UTC<br />The audit log record for that check-in,
+        opened by owner@: its context carries roomWasNotReady = true.
+      </figcaption>
+    </figure>
+    <figure id="shot-I-5c">
+      <img
+        alt="The board afterwards: 102 is still Dirty, and now has a Guest in house."
+        loading="lazy"
+        src="shots/I-5c.jpg"
+      />
+      <figcaption>
+        <strong>I-5c</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:32:23 UTC<br />The board afterwards: 102 is still Dirty,
+        and now has a Guest in house.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-I-6">
+    <header>
+      <h3>
+        <span class="cid">I-6</span> Cleaned between the warning and the
+        confirmation
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S2-17">HK-S2-17</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        reservation.checked_in context: {&quot;stayId&quot;:
+        &quot;10c9c7e3-339e-4010-9ebc-a83292e9aaad&quot;, &quot;folioId&quot;:
+        &quot;22da1468-d155-4d48-9832-2eba532b11d1&quot;,
+        &quot;accommodationUnitId&quot;:
+        &quot;3b86a34e-5093-4b1a-a0ff-365f3609f2ae&quot;}
+      </li>
+      <li class="good">
+        ✓ no roomWasNotReady: readiness was read again at check-in
+      </li>
+    </ul>
+
+    <figure id="shot-I-6a">
+      <img
+        alt="101 marked dirty; desk@ pressed Check in for Aziz Sancar and is being asked."
+        loading="lazy"
+        src="shots/I-6a.jpg"
+      />
+      <figcaption>
+        <strong>I-6a</strong> ·
+        <code>/en/arrivals?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code>
+        · 2026-09-24 15:32:35 UTC<br />101 marked dirty; desk@ pressed Check in
+        for Aziz Sancar and is being asked.
+      </figcaption>
+    </figure>
+    <figure id="shot-I-6b">
+      <img
+        alt="Meanwhile, in another session, housekeeper@ marks 101 clean."
+        loading="lazy"
+        src="shots/I-6b.jpg"
+      />
+      <figcaption>
+        <strong>I-6b</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:32:45 UTC<br />Meanwhile, in another session,
+        housekeeper@ marks 101 clean.
+      </figcaption>
+    </figure>
+    <figure id="shot-I-6c">
+      <img
+        alt="desk@ confirms on the stale warning: checked in, and the record does not claim the room was not ready."
+        loading="lazy"
+        src="shots/I-6c.jpg"
+      />
+      <figcaption>
+        <strong>I-6c</strong> ·
+        <code>/en/arrivals?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code>
+        · 2026-09-24 15:32:45 UTC<br />desk@ confirms on the stale warning:
+        checked in, and the record does not claim the room was not ready.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-I-3r">
+    <header>
+      <h3>
+        <span class="cid">I-3r</span> Re-run of I-3 on a fresh arrival: asks
+        first, writes nothing
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S2-14">HK-S2-14</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        108 on the board: | 108 | Ana Bina · Floor 1 | Dirty | Vacant | Sep 24,
+        18:33 |
+      </li>
+      <li class="">
+        row: NM Nezihe Muhiddin Guest, until Sep 26, 2026 RZ-1F9BF8 108 Room Not
+        ready TRY 0.00 This room isn't ready yet — it hasn't been cleaned, or
+        it's waiting for inspection. Not now Check in anyway
+      </li>
+      <li class="good">✓ the warning is shown</li>
+      <li class="">reservation status: confirmed; stays on 108: 0</li>
+      <li class="good">
+        ✓ nothing was written: the Reservation is confirmed and no Stay exists
+      </li>
+    </ul>
+
+    <figure id="shot-I-3r">
+      <img
+        alt="Room 108 marked dirty; desk@ pressed Check in for Nezihe Muhiddin: the row asks, and the database shows the Reservation still confirmed with no Stay."
+        loading="lazy"
+        src="shots/I-3r.jpg"
+      />
+      <figcaption>
+        <strong>I-3r</strong> ·
+        <code>/en/arrivals?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code>
+        · 2026-09-24 15:34:54 UTC<br />Room 108 marked dirty; desk@ pressed
+        Check in for Nezihe Muhiddin: the row asks, and the database shows the
+        Reservation still confirmed with no Stay.
+      </figcaption>
+    </figure>
+  </article>
+  <h3 style="margin-top: 32px">The warning's layout</h3>
+  <article class="case fail" id="case-W-1">
+    <header>
+      <h3>
+        <span class="cid">W-1</span> The not-ready warning fits inside its row
+      </h3>
+      <span class="badge fail">FAIL</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S2-14">HK-S2-14</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        viewport 1440×900; warning white-space: nowrap; the paragraph's box ends
+        at 1359px but its text runs to 1593px; the table's scroll container ends
+        at 1407px (relative w-full overflow-x-auto)
+      </li>
+      <li class="">
+        full text: This room isn't ready yet — it hasn't been cleaned, or it's
+        waiting for inspection.
+      </li>
+      <li class="bad">✗ the whole warning is inside the visible table</li>
+    </ul>
+    <p class="note">
+      <strong>Note.</strong> The warning is readable up to “This room isn’t
+      ready yet — it hasn’t been clean”; the reason is lost. The table cell sets
+      white-space: nowrap, and the copy grew in 5e2f138 from “it’s still marked
+      dirty” to “it hasn’t been cleaned, or it’s waiting for inspection”, which
+      no longer fits beside Not now and Check in anyway. The prompt itself
+      works: I-3r, I-4, I-5.
+    </p>
+    <figure id="shot-W-1">
+      <img
+        alt="Arrivals at 1440 px, desk@ pressed Check in for Nezihe Muhiddin (108, not ready): the warning runs past the table's right edge and is cut off mid-word."
+        loading="lazy"
+        src="shots/W-1.jpg"
+      />
+      <figcaption>
+        <strong>W-1</strong> ·
+        <code>/en/arrivals?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code>
+        · 2026-09-24 15:40:15 UTC<br />Arrivals at 1440 px, desk@ pressed Check
+        in for Nezihe Muhiddin (108, not ready): the warning runs past the
+        table's right edge and is cut off mid-word.
+      </figcaption>
+    </figure>
+  </article>
+  <h3 style="margin-top: 32px">The audit record and its Where column (#59)</h3>
+  <article class="case pass" id="case-A-1">
+    <header>
+      <h3>
+        <span class="cid">A-1</span> A mark's audit record: who, what, and Where
+        (#59)
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S2-01">HK-S2-01</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        newest row: Sep 24, 2026, 18:32 Room status changed Accommodation unit ·
+        101 Kadıköy Otel housekeeper@evidence.test No reason required
+      </li>
+      <li class="good">✓ Where names the Property</li>
+      <li class="">
+        first 102 record: location_id = 2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7
+        (Kadıköy Otel is 2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7)
+      </li>
+      <li class="good">✓ the record is filed at its Property</li>
+    </ul>
+
+    <figure id="shot-A-1a">
+      <img
+        alt="Audit log filtered to room-status changes (owner@): each row has a Where column naming Kadıköy Otel."
+        loading="lazy"
+        src="shots/A-1a.jpg"
+      />
+      <figcaption>
+        <strong>A-1a</strong> ·
+        <code
+          >/en/audit-log?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7&amp;action=housekeeping.status_changed</code
+        >
+        · 2026-09-24 15:32:46 UTC<br />Audit log filtered to room-status changes
+        (owner@): each row has a Where column naming Kadıköy Otel.
+      </figcaption>
+    </figure>
+    <figure id="shot-A-1b">
+      <img
+        alt="The first mark of 102 opened: Where = Kadıköy Otel, Who = Deniz Desk, context status dirty, previousStatus clean."
+        loading="lazy"
+        src="shots/A-1b.jpg"
+      />
+      <figcaption>
+        <strong>A-1b</strong> ·
+        <code
+          >/en/audit-log?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7&amp;record=f37a0d07-e4a9-4423-893c-4b9145370655</code
+        >
+        · 2026-09-24 15:32:47 UTC<br />The first mark of 102 opened: Where =
+        Kadıköy Otel, Who = Deniz Desk, context status dirty, previousStatus
+        clean.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-A-2">
+    <header>
+      <h3>
+        <span class="cid">A-2</span> The one-Property manager sees their
+        Property's marks
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S2-01">HK-S2-01</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">rows: 8; any Beşiktaş: false</li>
+      <li class="good">
+        ✓ Kadıköy marks are visible and Beşiktaş marks are not
+      </li>
+    </ul>
+
+    <figure id="shot-A-2">
+      <img
+        alt="kadikoy.manager@ (reach: Kadıköy Otel only): the marks at Kadıköy are listed; the batch at Beşiktaş is not."
+        loading="lazy"
+        src="shots/A-2.jpg"
+      />
+      <figcaption>
+        <strong>A-2</strong> ·
+        <code
+          >/en/audit-log?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7&amp;action=housekeeping.status_changed</code
+        >
+        · 2026-09-24 15:32:48 UTC<br />kadikoy.manager@ (reach: Kadıköy Otel
+        only): the marks at Kadıköy are listed; the batch at Beşiktaş is not.
+      </figcaption>
+    </figure>
+  </article>
+  <h3 style="margin-top: 32px">Blocked and dirty together</h3>
+  <article class="case pass" id="case-K-1">
+    <header>
+      <h3><span class="cid">K-1</span> Blocking a dirty room keeps it dirty</h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S1-18">HK-S1-18</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        303 while blocked: | 303 | — | Dirty | Out of service | Sep 24, 18:35 |
+      </li>
+      <li class="good">✓ 303 reads Dirty and Out of service together</li>
+      <li class="">
+        303 after unblock: | 303 | — | Dirty | Vacant | Sep 24, 18:35 |
+      </li>
+      <li class="good">✓ unblocked, 303 is still Dirty</li>
+    </ul>
+
+    <figure id="shot-K-1a">
+      <img
+        alt="manager@ marked 303 dirty, then blocked it on Rooms &amp; beds (burst pipe). The board shows Dirty and Out of service together."
+        loading="lazy"
+        src="shots/K-1a.jpg"
+      />
+      <figcaption>
+        <strong>K-1a</strong> ·
+        <code
+          >/en/housekeeping?property=ee774813-943c-497c-b91a-38d3ab0b0d8c</code
+        >
+        · 2026-09-24 15:35:10 UTC<br />manager@ marked 303 dirty, then blocked
+        it on Rooms &amp; beds (burst pipe). The board shows Dirty and Out of
+        service together.
+      </figcaption>
+    </figure>
+    <figure id="shot-K-1b">
+      <img
+        alt="After Unblock bed: 303 is back in service and still Dirty."
+        loading="lazy"
+        src="shots/K-1b.jpg"
+      />
+      <figcaption>
+        <strong>K-1b</strong> ·
+        <code
+          >/en/housekeeping?property=ee774813-943c-497c-b91a-38d3ab0b0d8c</code
+        >
+        · 2026-09-24 15:35:20 UTC<br />After Unblock bed: 303 is back in service
+        and still Dirty.
+      </figcaption>
+    </figure>
+  </article>
+  <h3 style="margin-top: 32px">The inspection setting</h3>
+  <article class="case pass" id="case-S-1">
+    <header>
+      <h3>
+        <span class="cid">S-1</span> The setting shows what the Property
+        inherits
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S3-09">HK-S3-09</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        Organization: Off; this Property: Use the Organization's setting (Off);
+        flow: Dirty → Clean → Ready → to → let
+      </li>
+      <li class="good">
+        ✓ the Property says it follows the Organization, and what that is
+      </li>
+      <li class="good">✓ the flow has no inspection step</li>
+    </ul>
+
+    <figure id="shot-S-1">
+      <img
+        alt='owner@, Kadıköy Otel: "Check rooms after cleaning" — Organization Off; this Property "Use the Organization&apos;s setting (Off)"; flow Dirty → Clean → Ready to let.'
+        loading="lazy"
+        src="shots/S-1.jpg"
+      />
+      <figcaption>
+        <strong>S-1</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:35:21 UTC<br />owner@, Kadıköy Otel: &quot;Check rooms
+        after cleaning&quot; — Organization Off; this Property &quot;Use the
+        Organization's setting (Off)&quot;; flow Dirty → Clean → Ready to let.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-S-2">
+    <header>
+      <h3>
+        <span class="cid">S-2</span> Organization default on: clean and
+        never-marked rooms wait
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">
+      Edge-case rows: <a href="#row-HK-S3-01">HK-S3-01</a>,
+      <a href="#row-HK-S3-11">HK-S3-11</a>, <a href="#row-HK-S3-06">HK-S3-06</a>
+    </p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">flow: Dirty → Clean → Inspected → Ready → to → let</li>
+      <li class="good">✓ the flow now has an Inspected step</li>
+      <li class="">
+        105 (marked clean): | 105 | Ana Bina · Floor 1 | Clean Waiting for
+        inspection | Vacant | Sep 24, 18:30 |
+      </li>
+      <li class="">
+        107 (never marked): | 107 | Ana Bina · Floor 1 | Clean Waiting for
+        inspection | Vacant | Not recorded yet |
+      </li>
+      <li class="good">✓ 105, marked clean, is waiting for inspection</li>
+      <li class="good">
+        ✓ 107, never marked, is clean and waits too (HK-S3-11)
+      </li>
+      <li class="">
+        stats:
+        {&quot;Rooms&quot;:&quot;10&quot;,&quot;Dirty&quot;:&quot;6&quot;,&quot;Clean&quot;:&quot;4&quot;,&quot;Inspected&quot;:&quot;0&quot;,&quot;Ready
+        to let&quot;:&quot;0&quot;}
+      </li>
+      <li class="good">✓ no stored status or change time moved (HK-S3-06)</li>
+    </ul>
+
+    <figure id="shot-S-2">
+      <img
+        alt='owner@ set the Organization default On: "Saved"; the flow gains Inspected; 105 and 107 read Clean + "Waiting for inspection"; Ready to let dropped.'
+        loading="lazy"
+        src="shots/S-2.jpg"
+      />
+      <figcaption>
+        <strong>S-2</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:35:23 UTC<br />owner@ set the Organization default On:
+        &quot;Saved&quot;; the flow gains Inspected; 105 and 107 read Clean +
+        &quot;Waiting for inspection&quot;; Ready to let dropped.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-S-3">
+    <header>
+      <h3>
+        <span class="cid">S-3</span> …and arrivals ask about a never-marked room
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">
+      Edge-case rows: <a href="#row-HK-S3-11">HK-S3-11</a>,
+      <a href="#row-HK-S2-18">HK-S2-18</a>
+    </p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        Behice Boran (room 107, never marked): BB Behice Boran Guest, until Sep
+        26, 2026 RZ-06A473 107 Room Not ready TRY 0.00 Check in
+      </li>
+      <li class="good">✓ 107 reads Not ready under inspection</li>
+    </ul>
+
+    <figure id="shot-S-3">
+      <img
+        alt="Arrivals with inspection on: Behice Boran's room 107, never marked, reads Not ready."
+        loading="lazy"
+        src="shots/S-3.jpg"
+      />
+      <figcaption>
+        <strong>S-3</strong> ·
+        <code>/en/arrivals?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code>
+        · 2026-09-24 15:35:36 UTC<br />Arrivals with inspection on: Behice
+        Boran's room 107, never marked, reads Not ready.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-S-4">
+    <header>
+      <h3>
+        <span class="cid">S-4</span> A Property override wins; the other
+        Property follows the default
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S3-02">HK-S3-02</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        Kadıköy 105: | 105 | Ana Bina · Floor 1 | Clean | Vacant | Sep 24, 18:30
+        |
+      </li>
+      <li class="good">✓ Kadıköy's own Off wins: 105 is ready</li>
+      <li class="">
+        Beşiktaş this Property: Use the Organization's setting (On)
+      </li>
+      <li class="good">✓ Beşiktaş still follows the default (On)</li>
+    </ul>
+
+    <figure id="shot-S-4a">
+      <img
+        alt="manager@ set Kadıköy Otel to Off while the Organization is On: 105 no longer waits."
+        loading="lazy"
+        src="shots/S-4a.jpg"
+      />
+      <figcaption>
+        <strong>S-4a</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:35:37 UTC<br />manager@ set Kadıköy Otel to Off while
+        the Organization is On: 105 no longer waits.
+      </figcaption>
+    </figure>
+    <figure id="shot-S-4b">
+      <img
+        alt="Beşiktaş Rezidans in the same moment: it follows the Organization (On), and its flow has the Inspected step."
+        loading="lazy"
+        src="shots/S-4b.jpg"
+      />
+      <figcaption>
+        <strong>S-4b</strong> ·
+        <code
+          >/en/housekeeping?property=ee774813-943c-497c-b91a-38d3ab0b0d8c</code
+        >
+        · 2026-09-24 15:35:38 UTC<br />Beşiktaş Rezidans in the same moment: it
+        follows the Organization (On), and its flow has the Inspected step.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-S-5">
+    <header>
+      <h3><span class="cid">S-5</span> Reset a Property to the default</h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">
+      Edge-case rows: <a href="#row-HK-S3-10">HK-S3-10</a>,
+      <a href="#row-HK-S3-03">HK-S3-03</a>
+    </p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        this Property: Use the Organization's setting (On); 105: | 105 | Ana
+        Bina · Floor 1 | Clean Waiting for inspection | Vacant | Sep 24, 18:30 |
+      </li>
+      <li class="good">✓ Kadıköy follows the default again and 105 waits</li>
+      <li class="">stored override: null</li>
+      <li class="good">✓ the override was cleared, not deleted</li>
+    </ul>
+
+    <figure id="shot-S-5">
+      <img
+        alt='manager@ reset Kadıköy Otel to "Use the Organization&apos;s setting": it follows On again; 105 waits for inspection.'
+        loading="lazy"
+        src="shots/S-5.jpg"
+      />
+      <figcaption>
+        <strong>S-5</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:35:52 UTC<br />manager@ reset Kadıköy Otel to &quot;Use
+        the Organization's setting&quot;: it follows On again; 105 waits for
+        inspection.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-S-6">
+    <header>
+      <h3>
+        <span class="cid">S-6</span> The default needs reach to every Property
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S3-05">HK-S3-05</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        Organization control disabled: true; Property control disabled: false
+      </li>
+      <li class="good">✓ only the Property control is usable</li>
+      <li class="good">✓ the reason is shown</li>
+    </ul>
+
+    <figure id="shot-S-6">
+      <img
+        alt="kadikoy.manager@ (manager, one Property): the Organization control is disabled with its reason; the Property control is open."
+        loading="lazy"
+        src="shots/S-6.jpg"
+      />
+      <figcaption>
+        <strong>S-6</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:35:53 UTC<br />kadikoy.manager@ (manager, one Property):
+        the Organization control is disabled with its reason; the Property
+        control is open.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-S-7">
+    <header>
+      <h3>
+        <span class="cid">S-7</span> Changing it needs accommodation.configure
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S3-07">HK-S3-07</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">desk: both disabled = true</li>
+      <li class="good">✓ desk cannot change either setting</li>
+      <li class="good">✓ desk is told who can</li>
+      <li class="">finance: both disabled = true</li>
+      <li class="good">✓ finance cannot change either setting</li>
+      <li class="good">✓ finance is told who can</li>
+    </ul>
+
+    <figure id="shot-S-7-desk">
+      <img
+        alt='desk@: both controls disabled, "A manager can change this." under each; the values are still shown.'
+        loading="lazy"
+        src="shots/S-7-desk.jpg"
+      />
+      <figcaption>
+        <strong>S-7-desk</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:35:54 UTC<br />desk@: both controls disabled, &quot;A
+        manager can change this.&quot; under each; the values are still shown.
+      </figcaption>
+    </figure>
+    <figure id="shot-S-7-finance">
+      <img
+        alt='finance@: both controls disabled, "A manager can change this." under each; the values are still shown.'
+        loading="lazy"
+        src="shots/S-7-finance.jpg"
+      />
+      <figcaption>
+        <strong>S-7-finance</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:35:56 UTC<br />finance@: both controls disabled, &quot;A
+        manager can change this.&quot; under each; the values are still shown.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-S-8">
+    <header>
+      <h3>
+        <span class="cid">S-8</span> Every setting change is audited, with Where
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S3-08">HK-S3-08</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        row: Sep 24, 2026, 18:35 Room check after cleaning changed Property ·
+        Kadıköy Otel Kadıköy Otel manager@evidence.test No reason required
+      </li>
+      <li class="">
+        row: Sep 24, 2026, 18:35 Room check after cleaning changed Property ·
+        Kadıköy Otel Kadıköy Otel manager@evidence.test No reason required
+      </li>
+      <li class="">
+        row: Sep 24, 2026, 18:35 Room check after cleaning changed Organization
+        · 502586e7 Whole Organization You No reason required
+      </li>
+      <li class="good">
+        ✓ three records: the default on, Kadıköy off, Kadıköy reset
+      </li>
+      <li class="">
+        subject:location:from→to — organization:none:off→on ;
+        property:2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7:default→off ;
+        property:2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7:off→default
+      </li>
+      <li class="good">
+        ✓ the default is Organization-wide; the overrides are filed at Kadıköy
+      </li>
+    </ul>
+
+    <figure id="shot-S-8">
+      <img
+        alt="Audit log filtered to inspection changes (owner@): the Organization default (Where: Organization-wide) and Kadıköy's override and reset (Where: Kadıköy Otel)."
+        loading="lazy"
+        src="shots/S-8.jpg"
+      />
+      <figcaption>
+        <strong>S-8</strong> ·
+        <code
+          >/en/audit-log?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7&amp;action=housekeeping.inspection_set</code
+        >
+        · 2026-09-24 15:36:00 UTC<br />Audit log filtered to inspection changes
+        (owner@): the Organization default (Where: Organization-wide) and
+        Kadıköy's override and reset (Where: Kadıköy Otel).
+      </figcaption>
+    </figure>
+  </article>
+  <h3 style="margin-top: 32px">A refused mark</h3>
+  <article class="case fail" id="case-F-1">
+    <header>
+      <h3><span class="cid">F-1</span> A refused mark keeps the selection</h3>
+      <span class="badge fail">FAIL</span>
+    </header>
+    <p class="rows">
+      Edge-case rows: <a href="#row-HK-S2-13">HK-S2-13</a>,
+      <a href="#row-HK-S2-04">HK-S2-04</a>
+    </p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        housekeeping.update_status taken from the housekeeping role while the
+        board is open
+      </li>
+      <li class="">
+        301 after the refused mark: 301 | — | Inspected | Vacant | Sep 24,
+        18:25; still ticked: false
+      </li>
+      <li class="bad">
+        ✗ the selection was not kept: the refused mark revalidated the page, and
+        the board came back read-only (the housekeeper no longer holds
+        housekeeping.update_status), so there is no checkbox left to keep
+      </li>
+      <li class="good">✓ nothing was marked: 301 is still Inspected</li>
+      <li class="good">
+        ✓ reloaded, the board is read-only for the housekeeper
+      </li>
+      <li class="">permission restored</li>
+    </ul>
+    <p class="note">
+      <strong>Note.</strong> HK-S2-13 says a refused mark keeps the selection.
+      Every refusal the product can produce (permission taken away, capability
+      off, Subscription lapsed, out of reach) also changes what the revalidated
+      board shows, so the kept selection is not observable in the running
+      product; the unit test for HK-S2-13 passes only because it mocks a refusal
+      with the board unchanged. The message itself ('The board now shows what
+      you can change.') describes what does happen. Either the row or the
+      behaviour needs a decision.
+    </p>
+    <figure id="shot-F-1">
+      <img
+        alt='housekeeper@ ticked 301, then lost housekeeping.update_status and pressed Mark clean: "Those rooms couldn&apos;t be updated. The board now shows what you can change." 301 is unchanged, and the board has re-rendered read-only: the tick is gone with the checkboxes.'
+        loading="lazy"
+        src="shots/F-1.jpg"
+      />
+      <figcaption>
+        <strong>F-1</strong> ·
+        <code
+          >/en/housekeeping?property=ee774813-943c-497c-b91a-38d3ab0b0d8c</code
+        >
+        · 2026-09-24 15:37:17 UTC<br />housekeeper@ ticked 301, then lost
+        housekeeping.update_status and pressed Mark clean: &quot;Those rooms
+        couldn't be updated. The board now shows what you can change.&quot; 301
+        is unchanged, and the board has re-rendered read-only: the tick is gone
+        with the checkboxes.
+      </figcaption>
+    </figure>
+    <figure id="shot-F-1b">
+      <img
+        alt="housekeeper@ reloads: the board is now read-only, matching the permission they hold."
+        loading="lazy"
+        src="shots/F-1b.jpg"
+      />
+      <figcaption>
+        <strong>F-1b</strong> ·
+        <code
+          >/en/housekeeping?property=ee774813-943c-497c-b91a-38d3ab0b0d8c</code
+        >
+        · 2026-09-24 15:37:18 UTC<br />housekeeper@ reloads: the board is now
+        read-only, matching the permission they hold.
+      </figcaption>
+    </figure>
+  </article>
+  <h3 style="margin-top: 32px">Housekeeping switched off</h3>
+  <article class="case pass" id="case-O-1">
+    <header>
+      <h3>
+        <span class="cid">O-1</span> Housekeeping switched off: dirty rooms read
+        ready
+      </h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S1-20">HK-S1-20</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        107 before switching off: BB Behice Boran Guest, until Sep 26, 2026
+        RZ-06A473 107 Room Not ready TRY 0.00 Check in
+      </li>
+      <li class="">
+        housekeeping capability disabled at Kadıköy Otel (no screen exists for
+        this; set in the database)
+      </li>
+      <li class="">
+        107 after: BB Behice Boran Guest, until Sep 26, 2026 RZ-06A473 107 Room
+        Ready TRY 0.00 Check in
+      </li>
+      <li class="good">
+        ✓ 107 reads Ready: nothing there can clear a status any more
+      </li>
+      <li class="good">✓ the stored status is untouched (dirty)</li>
+      <li class="">capability re-enabled</li>
+    </ul>
+
+    <figure id="shot-O-1a">
+      <img
+        alt="107 marked dirty: Behice Boran's arrival reads Not ready."
+        loading="lazy"
+        src="shots/O-1a.jpg"
+      />
+      <figcaption>
+        <strong>O-1a</strong> ·
+        <code>/en/arrivals?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code>
+        · 2026-09-24 15:37:21 UTC<br />107 marked dirty: Behice Boran's arrival
+        reads Not ready.
+      </figcaption>
+    </figure>
+    <figure id="shot-O-1b">
+      <img
+        alt="After switching housekeeping off at Kadıköy Otel: the same arrival reads Ready; the stored status is still dirty."
+        loading="lazy"
+        src="shots/O-1b.jpg"
+      />
+      <figcaption>
+        <strong>O-1b</strong> ·
+        <code>/en/arrivals?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code>
+        · 2026-09-24 15:37:22 UTC<br />After switching housekeeping off at
+        Kadıköy Otel: the same arrival reads Ready; the stored status is still
+        dirty.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case fail" id="case-O-2">
+    <header>
+      <h3>
+        <span class="cid">O-2</span> Housekeeping switched off: the board for
+        that Property
+      </h3>
+      <span class="badge fail">FAIL</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S1-15">HK-S1-15</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        housekeeping capability disabled at Kadıköy Otel; desk@ opened
+        /en/housekeeping?property=&lt;Kadıköy&gt;
+      </li>
+      <li class="good">✓ Kadıköy's board is not shown</li>
+      <li class="bad">
+        ✗ Beşiktaş Rezidans's board is shown in its place — heading &quot;Which
+        rooms need cleaning at Beşiktaş Rezidans&quot;, Beşiktaş's rooms 301–303
+        with their mark menus — while the header's Property switcher still reads
+        &quot;Kadıköy Otel&quot;
+      </li>
+    </ul>
+    <p class="note">
+      <strong>Note.</strong> This is the pre-existing frontDeskProperty fallback
+      (an unentitled ?property= silently becomes the first entitled Property)
+      surfacing on the Housekeeping screen: a desk believing it is at Kadıköy
+      sees, and can mark, Beşiktaş's rooms. HK-S1-15 says nothing comes back.
+    </p>
+    <figure id="shot-O-1c">
+      <img
+        alt="desk@ opens Housekeeping for Kadıköy Otel after housekeeping was switched off there: the page shows Beşiktaş Rezidans's board and mark menus, while the Property switcher top right still says Kadıköy Otel."
+        loading="lazy"
+        src="shots/O-1c.jpg"
+      />
+      <figcaption>
+        <strong>O-1c</strong> ·
+        <code
+          >/en/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:37:23 UTC<br />desk@ opens Housekeeping for Kadıköy Otel
+        after housekeeping was switched off there: the page shows Beşiktaş
+        Rezidans's board and mark menus, while the Property switcher top right
+        still says Kadıköy Otel.
+      </figcaption>
+    </figure>
+  </article>
+  <h3 style="margin-top: 32px">Empty, out of reach, every locale</h3>
+  <article class="case pass" id="case-E-1">
+    <header>
+      <h3><span class="cid">E-1</span> A Property with no rooms</h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S1-16">HK-S1-16</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        page: Which rooms need cleaning at Üsküdar Konak ROOMS 0 DIRTY 0 CLEAN 0
+        INSPECTED 0 READY TO LET 0 Status Columns Which rooms need cleaning at
+        Üsküdar Konak Room Where Status Occupancy Last changed
+      </li>
+      <li class="good">✓ the empty state says there are no rooms</li>
+      <li class="good">✓ no read-only notice over nothing</li>
+    </ul>
+
+    <figure id="shot-E-1">
+      <img
+        alt='owner@ at Üsküdar Konak (housekeeping on, no rooms): "No rooms here yet" with a pointer to Rooms &amp; beds.'
+        loading="lazy"
+        src="shots/E-1.jpg"
+      />
+      <figcaption>
+        <strong>E-1</strong> ·
+        <code
+          >/en/housekeeping?property=a70cd03e-789e-44e2-9cd1-cbb2e8315d88</code
+        >
+        · 2026-09-24 15:38:18 UTC<br />owner@ at Üsküdar Konak (housekeeping on,
+        no rooms): &quot;No rooms here yet&quot; with a pointer to Rooms &amp;
+        beds.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-E-2">
+    <header>
+      <h3><span class="cid">E-2</span> A Property out of reach is not shown</h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S1-14">HK-S1-14</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        heading when asking for Beşiktaş: Which rooms need cleaning at Kadıköy
+        Otel
+      </li>
+      <li class="good">
+        ✓ Beşiktaş's rooms are not shown to a manager who does not reach it
+      </li>
+    </ul>
+
+    <figure id="shot-E-2">
+      <img
+        alt="kadikoy.manager@ opens the board with ?property=Beşiktaş: the page shows Kadıköy Otel's board, never Beşiktaş's."
+        loading="lazy"
+        src="shots/E-2.jpg"
+      />
+      <figcaption>
+        <strong>E-2</strong> ·
+        <code
+          >/en/housekeeping?property=ee774813-943c-497c-b91a-38d3ab0b0d8c</code
+        >
+        · 2026-09-24 15:38:19 UTC<br />kadikoy.manager@ opens the board with
+        ?property=Beşiktaş: the page shows Kadıköy Otel's board, never
+        Beşiktaş's.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-E-3-tr">
+    <header>
+      <h3><span class="cid">E-3-tr</span> The board in Turkish</h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S1-17">HK-S1-17</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        dir=ltr; heading: Kadıköy Otel — temizlik bekleyen odalar
+      </li>
+      <li class="good">✓ document direction is ltr</li>
+    </ul>
+
+    <figure id="shot-E-3-tr">
+      <img
+        alt="The Kadıköy board and inspection card in Turkish, signed in as owner@."
+        loading="lazy"
+        src="shots/E-3-tr.jpg"
+      />
+      <figcaption>
+        <strong>E-3-tr</strong> ·
+        <code
+          >/tr/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:38:20 UTC<br />The Kadıköy board and inspection card in
+        Turkish, signed in as owner@.
+      </figcaption>
+    </figure>
+  </article>
+  <article class="case pass" id="case-E-3-ar">
+    <header>
+      <h3><span class="cid">E-3-ar</span> The board in Arabic</h3>
+      <span class="badge pass">PASS</span>
+    </header>
+    <p class="rows">Edge-case rows: <a href="#row-HK-S1-17">HK-S1-17</a></p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        dir=rtl; heading: الغرف التي تحتاج إلى تنظيف في Kadıköy Otel
+      </li>
+      <li class="good">✓ document direction is rtl</li>
+    </ul>
+
+    <figure id="shot-E-3-ar">
+      <img
+        alt="The Kadıköy board and inspection card in Arabic (right to left), signed in as owner@."
+        loading="lazy"
+        src="shots/E-3-ar.jpg"
+      />
+      <figcaption>
+        <strong>E-3-ar</strong> ·
+        <code
+          >/ar/housekeeping?property=2d6b42ad-c3d0-4d7b-b0b6-329eea9e58f7</code
+        >
+        · 2026-09-24 15:38:22 UTC<br />The Kadıköy board and inspection card in
+        Arabic (right to left), signed in as owner@.
+      </figcaption>
+    </figure>
+  </article>
+  <h3 style="margin-top: 32px">Out of scope, found during the run</h3>
+  <article class="case fail" id="case-X-1">
+    <header>
+      <h3>
+        <span class="cid">X-1</span> Out of scope: a rate-limited sign-in reads
+        as a wrong password
+      </h3>
+      <span class="badge fail">FAIL</span>
+    </header>
+    <p class="rows">Edge-case rows: none — outside housekeeping</p>
+    <h4>What was observed</h4>
+    <ul class="observed">
+      <li class="">
+        eight correct sign-ins in a row from this process: 200, 200, 200, 429,
+        429, 429, 429, 429
+      </li>
+      <li class="">
+        the form's own request answered 429; the page says: &quot;That email and
+        password did not match.&quot;
+      </li>
+      <li class="bad">✗ a rate limit is not reported as a wrong password</li>
+    </ul>
+
+    <figure id="shot-X-1">
+      <img
+        alt="The sign-in form after a run of sign-ins: finance@ with the correct password. The server answered 429 (rate limited); the form says the email and password did not match."
+        loading="lazy"
+        src="shots/X-1.jpg"
+      />
+      <figcaption>
+        <strong>X-1</strong> · <code>/en/sign-in</code> · 2026-09-24 15:40:40
+        UTC<br />The sign-in form after a run of sign-ins: finance@ with the
+        correct password. The server answered 429 (rate limited); the form says
+        the email and password did not match.
+      </figcaption>
+    </figure>
+  </article>
+
+  <h2 id="gaps">Failures and gaps</h2>
+  <h3>In scope</h3>
+  <div class="case fail">
+    <header>
+      <h3><span class="cid">F-1</span> A refused mark keeps the selection</h3>
+      <span class="badge fail">FAIL</span>
+    </header>
+    <p>
+      HK-S2-13 says a refused mark keeps the selection. Every refusal the
+      product can produce (permission taken away, capability off, Subscription
+      lapsed, out of reach) also changes what the revalidated board shows, so
+      the kept selection is not observable in the running product; the unit test
+      for HK-S2-13 passes only because it mocks a refusal with the board
+      unchanged. The message itself ('The board now shows what you can change.')
+      describes what does happen. Either the row or the behaviour needs a
+      decision.
+    </p>
+    <p><a href="#case-F-1">Evidence above</a> · fails HK-S2-13</p>
+  </div>
+  <div class="case fail">
+    <header>
+      <h3>
+        <span class="cid">O-2</span> Housekeeping switched off: the board for
+        that Property
+      </h3>
+      <span class="badge fail">FAIL</span>
+    </header>
+    <p>
+      This is the pre-existing frontDeskProperty fallback (an unentitled
+      ?property= silently becomes the first entitled Property) surfacing on the
+      Housekeeping screen: a desk believing it is at Kadıköy sees, and can mark,
+      Beşiktaş's rooms. HK-S1-15 says nothing comes back.
+    </p>
+    <p><a href="#case-O-2">Evidence above</a> · fails HK-S1-15</p>
+  </div>
+  <div class="case fail">
+    <header>
+      <h3>
+        <span class="cid">W-1</span> The not-ready warning fits inside its row
+      </h3>
+      <span class="badge fail">FAIL</span>
+    </header>
+    <p>
+      The warning is readable up to “This room isn’t ready yet — it hasn’t been
+      clean”; the reason is lost. The table cell sets white-space: nowrap, and
+      the copy grew in 5e2f138 from “it’s still marked dirty” to “it hasn’t been
+      cleaned, or it’s waiting for inspection”, which no longer fits beside Not
+      now and Check in anyway. The prompt itself works: I-3r, I-4, I-5.
+    </p>
+    <p><a href="#case-W-1">Evidence above</a> · fails HK-S2-14</p>
+  </div>
+  <h3>Outside housekeeping, found during the run</h3>
+  <ul>
+    <li>
+      <strong
+        >X-1: a rate-limited sign-in is reported as a wrong password.</strong
+      >
+      Eight correct sign-ins in a row answered 200, 200, 200 then 429; the
+      sign-in form turns the 429 into "That email and password did not match."
+      <a href="#case-X-1">Evidence</a>.
+    </li>
+    <li>
+      <strong>Better Auth's rate limiter timed out once.</strong> Its counter
+      runs in a Prisma transaction with the default 5 s timeout, and one took 11
+      s: <code>P2028</code> from
+      <code>@better-auth/core … incrementOne → consume → onRequest</code>. That
+      is the rate limiter's own transaction, not a tenant one, and no
+      housekeeping request failed. The server log carries no timestamps; its
+      last write was at 15:37:34 UTC, nineteen seconds before the owner's
+      sign-in retry below, so that refusal was most likely this error rather
+      than the limit itself. Everything the production server logged during the
+      run:
+      <pre>
+▲ Next.js 16.3.5
+- Local:         http://127.0.0.1:3113
+- Network:       http://127.0.0.1:3113
+✓ Ready in 0ms
+✓ Running next.config took 10ms
+⨯ Error: The destination stream closed early.
+    at ignore-listed frames {
+  digest: '1026849259'
+}
+⨯ Error [PrismaClientKnownRequestError]: Transaction API error: A commit cannot be executed on an expired transaction. The timeout for this transaction was 5000 ms, however 11115 ms passed since the start of the transaction. Consider increasing the interactive transaction timeout or doing less work in the transaction.
+    at async Object.incrementOne (.next/server/chunks/1y-c_@better-auth_core_dist_03-ln7h._.js:50:54367)
+    at async Object.a [as consume] (.next/server/chunks/[root-of-the-server]__016ox4i._.js:96:4314)
+    at async aV (.next/server/chunks/[root-of-the-server]__016ox4i._.js:96:4896)
+    at async Object.onRequest (.next/server/chunks/[root-of-the-server]__016ox4i._.js:481:3893)
+    at async handler (.next/server/chunks/[root-of-the-server]__016ox4i._.js:481:3355)
+    at async (.next/server/chunks/[root-of-the-server]__016ox4i._.js:93:106612) {
+  code: 'P2028',
+  meta: { operation: 'commit', timeout: 5000, timeTaken: 11115 },
+  clientVersion: '7.10.0'
+}</pre>
+    </li>
+    <li>
+      <strong>Audit log display.</strong> "Who" shows the account's email
+      (desk@evidence.test), as the sidebar does: the name given at sign-up
+      (Deniz Desk) stays in <code>auth_user.name</code>, and Ranza's own
+      <code>users</code> table has no name to show. An Organization-subject
+      record shows its subject as a short id ("Organization · 502586e7") rather
+      than the Organization's name. Visible in <a href="#shot-A-1b">A-1b</a> and
+      <a href="#shot-S-8">S-8</a>.
+    </li>
+  </ul>
+  <h3>Not verified by this run</h3>
+  <ul>
+    <li>The hosted database: this run used a local throwaway database only.</li>
+    <li>
+      Phone widths: every screenshot is 1440×900; the board and the warning were
+      not exercised at 400 px.
+    </li>
+    <li>
+      Deferred and out-of-scope rows (HK-DEF-01 … 06) were not tested, by
+      design.
+    </li>
+  </ul>
+  <h3>Run notes — every retry and re-run</h3>
+  <ul>
+    <li>
+      <strong>First attempt discarded.</strong> The first capture run was taken
+      on an earlier instance of this database. Its board cases counted
+      checkboxes before the table had hydrated, and its lifecycle cases read
+      each row one step late (the previous mark's "1 room updated" was still on
+      screen). Those were script faults, but the runs had written marks and
+      append-only audit records, so the container was deleted, recreated,
+      migrated and re-seeded, and the supporting suites re-run on it, before the
+      run recorded here.
+    </li>
+    <li>
+      <strong>Sign-in retries:</strong> housekeeper, attempt 1, at 2026-09-24
+      15:27:28 UTC, was refused with "That email and password did not match."
+      and succeeded after a 15 s pause; owner, attempt 1, at 2026-09-24 15:37:53
+      UTC, was refused with "That email and password did not match." and
+      succeeded after a 15 s pause. Both were correct passwords: the form shows
+      a rate limit (X-1), and here probably the rate limiter's own timeout, as a
+      wrong password.
+    </li>
+    <li>
+      <strong>R-*</strong> were captured a second time after a sign-in fix;
+      their screenshots therefore show 102 already marked dirty by L-1…L-4.
+    </li>
+    <li>
+      <strong>B-4</strong> first failed on an ambiguous locator in the script
+      ("Next" also matches the column sort buttons); it was moved into its own
+      section and re-run alone.
+    </li>
+    <li>
+      <strong>C-5</strong> first failed because the script asked the row menu
+      for "Mark clean" on a room already reading Clean; the menu rightly never
+      offers a room its own status (L-5). Re-run using the batch bar; the
+      check-out it had already pressed was not repeated.
+    </li>
+    <li>
+      <strong>I-3</strong> is superseded: the warning was observed, but the
+      script's database check raised before reading the Reservation, and I-5
+      then checked that Guest in. The whole case was re-run as
+      <strong>I-3r</strong> on a fresh arrival (room 108 and Nezihe Muhiddin,
+      added to the database mid-run and to
+      <code>fixtures.mjs</code> afterwards). I-3r's first attempt failed on a
+      fixture of mine; its second is the one recorded.
+    </li>
+    <li>
+      <strong>W-1</strong> first recorded PASS because the script measured the
+      paragraph's box, not its text; the screenshot contradicted it. Re-measured
+      from the text's own extent: FAIL.
+    </li>
+    <li>
+      <strong>F-1 and O-2</strong> were scripted with checks that did not decide
+      the row's claim; they are recorded as FAIL from what the screenshots and
+      observations show.
+    </li>
+    <li>
+      <strong>Judged by hand after the run:</strong> each FAIL case's one-line
+      summary, the note on F-1 and W-1, and which rows a failing case fails. F-1
+      fails HK-S2-13 only; the refusal it also exercised (HK-S2-04) was surfaced
+      and wrote nothing, as its own observations show. Also by hand: F-1's
+      status and its ✗ line; I-3 set to SUPERSEDED; the one O-1 case split into
+      O-1 (HK-S1-20) and O-2 (HK-S1-15); and the R-*, F-1 and O-1c captions
+      rewritten to match what their screenshots show. Every other status,
+      observation and caption is what <code>capture.mjs</code> recorded.
+    </li>
+    <li>
+      Apart from the owner's sign-in above, which spent 11 s in the rate
+      limiter, no request stalled for ~15 s and none needed re-running for load.
+    </li>
+  </ul>
+
+  <h2>Supporting suites, against this database</h2>
+  <p>
+    Run on the freshly migrated container before any evidence data existed, with
+    the worker stopped. The three housekeeping pgTAP files were run again
+    directly with <code>psql</code> after the walk, for per-assertion output;
+    each rolls back.
+  </p>
+  <details>
+    <summary>pgTAP, all suites (<code>node scripts/db-test.mjs</code>)</summary>
+    <pre>
+PASS accommodation_units.test.sql (7 assertions)
+PASS audit_location_reach.test.sql (20 assertions)
+PASS folios.test.sql (58 assertions)
+PASS guests_and_reservation_creation.test.sql (34 assertions)
+PASS housekeeping.test.sql (48 assertions)
+PASS housekeeping_inspection.test.sql (22 assertions)
+PASS insert_grants.test.sql (30 assertions)
+PASS organization_property_foundation.test.sql (16 assertions)
+PASS platform_audit.test.sql (10 assertions)
+PASS platform_outbox.test.sql (35 assertions)
+PASS reservations_and_check_in.test.sql (55 assertions)
+PASS resident_access_path.test.sql (27 assertions)
+PASS rooms_and_beds.test.sql (42 assertions)
+PASS staff_and_permissions.test.sql (60 assertions)
+PASS two_factor_credentials.test.sql (6 assertions)
+PASS unit_hierarchy.test.sql (22 assertions)
+All 16 database suites passed.</pre>
+  </details>
+  <details>
+    <summary>
+      pgTAP, per assertion: housekeeping, housekeeping_inspection, insert_grants
+    </summary>
+    <pre>
+housekeeping.test.sql  ok 1 - HK-S1-11: ranza_worker holds no privilege on housekeeping_unit_status
+housekeeping.test.sql  ok 2 - HK-S1-11: nor any column of it, and nothing is granted to PUBLIC
+housekeeping.test.sql  ok 3 - HK-S1-11: PUBLIC holds nothing on the table either
+housekeeping.test.sql  ok 4 - ranza_app holds SELECT and nothing else at the table level
+housekeeping.test.sql  ok 5 - only ranza_worker may call app.mark_unit_dirty_after_check_out
+housekeeping.test.sql  ok 6 - a status outside dirty, clean and inspected is refused
+housekeeping.test.sql  ok 7 - HK-S1-12: a bed under a room cannot hold a status, even for the owner
+housekeeping.test.sql  ok 8 - HK-S1-19: a write with nobody acting is stamped with nobody
+housekeeping.test.sql  ok 9 - HK-S1-19: who and when are the database's, whatever the statement said
+housekeeping.test.sql  ok 10 - a room with no status row is ready: a room is born clean
+housekeeping.test.sql  ok 11 - a bed under a room answers to the room
+housekeeping.test.sql  ok 12 - a bed with no room answers to itself
+housekeeping.test.sql  ok 13 - HK-S1-07: without a worker context the function refuses before reading anything
+housekeeping.test.sql  ok 14 - HK-S1-08: an event of another Organization is refused
+housekeeping.test.sql  ok 15 - HK-S1-10: an event that is not a departure marks nothing
+housekeeping.test.sql  ok 16 - HK-S1-10: a Stay that did not depart marks nothing
+housekeeping.test.sql  ok 17 - HK-S1-01: a departure marks its room
+housekeeping.test.sql  ok 18 - HK-S1-04: the same departure delivered again changes nothing
+housekeeping.test.sql  ok 19 - HK-S1-02: a departure from a bed marks something
+housekeeping.test.sql  ok 20 - HK-S1-03: a departure from a bed with no room marks something
+housekeeping.test.sql  ok 21 - HK-S1-09: a departure where housekeeping is not available marks nothing
+housekeeping.test.sql  ok 22 - HK-S1-05: a departure older than the last change marks nothing
+housekeeping.test.sql  ok 23 - HK-S1-06: a departure newer than the last change marks the room
+housekeeping.test.sql  ok 24 - HK-S1-09: a departure at a lapsed Subscription marks nothing
+housekeeping.test.sql  ok 25 - HK-S1-11: the worker cannot read the table it just wrote through the function
+housekeeping.test.sql  ok 26 - HK-S1-01..06, 09: the rooms, the bed with no room, and nothing for bed A or HK-201
+housekeeping.test.sql  ok 27 - HK-S1-19: a departure's mark names no Staff Member
+housekeeping.test.sql  ok 28 - a bed in a dirty room is not ready, though it holds no row of its own
+housekeeping.test.sql  ok 29 - HK-S1-20: a dirty room where housekeeping is not available reads ready
+housekeeping.test.sql  ok 30 - HK-S1-20: and what was stored is untouched
+housekeeping.test.sql  ok 31 - HK-S1-14: another Organization's rooms are not visible
+housekeeping.test.sql  ok 32 - housekeeping.update_status is in the catalogue, under housekeeping
+housekeeping.test.sql  ok 33 - HK-S2-11: owner, manager, front desk and housekeeping ship holding it; finance does not
+housekeeping.test.sql  ok 34 - HK-S2-09: an insert may name the room and its status and nothing about who or when
+housekeeping.test.sql  ok 35 - HK-S2-09: an update may change the status and nothing else
+housekeeping.test.sql  ok 36 - HK-S2-01: the front desk marks a dirty room clean
+housekeeping.test.sql  ok 37 - HK-S2-01: and the room says who marked it
+housekeeping.test.sql  ok 38 - HK-S2-09: naming who changed it is refused
+housekeeping.test.sql  ok 39 - HK-S2-09: naming when it changed is refused
+housekeeping.test.sql  ok 40 - HK-S2-08: a Property without housekeeping cannot be marked
+housekeeping.test.sql  ok 41 - HK-S2-04: a Staff Member without the permission cannot mark a room
+housekeeping.test.sql  ok 42 - HK-S2-04: nor change a room that has one, by a plain update
+housekeeping.test.sql  ok 43 - HK-S2-04: nor by the upsert the module runs
+housekeeping.test.sql  ok 44 - HK-S2-07: a Property the Staff Member does not reach cannot be marked
+housekeeping.test.sql  ok 45 - HK-S2-07: another Organization's room cannot be marked
+housekeeping.test.sql  ok 46 - HK-S2-08: a lapsed Subscription cannot mark its own rooms
+housekeeping.test.sql  ok 47 - HK-S2-08: a room with a row cannot be changed once housekeeping is off
+housekeeping.test.sql  ok 48 - a status is changed, never removed
+housekeeping_inspection.test.sql  ok 1 - with no setting at all, inspection is off and a clean room is ready
+housekeeping_inspection.test.sql  ok 2 - an Organization default says on or off; only an override may say &quot;use the default&quot;
+housekeeping_inspection.test.sql  ok 3 - an insert names whose setting it is and its value
+housekeeping_inspection.test.sql  ok 4 - an update changes the value and nothing else; the time is stamped
+housekeeping_inspection.test.sql  ok 5 - HK-S3-05: creating the default needs reach to every Property it governs
+housekeeping_inspection.test.sql  ok 6 - a manager reaching every Property sets the Organization default
+housekeeping_inspection.test.sql  ok 7 - HK-S3-01: with inspection on, a clean room is not ready
+housekeeping_inspection.test.sql  ok 8 - HK-S3-01: and an inspected one is
+housekeeping_inspection.test.sql  ok 9 - HK-S3-11: a room never marked is clean, and so waits for an inspection too
+housekeeping_inspection.test.sql  ok 10 - naming when a setting changed is refused
+housekeeping_inspection.test.sql  ok 11 - a setting cannot be moved to another Property or Organization
+housekeeping_inspection.test.sql  ok 12 - HK-S3-05: the default needs reach to every Property it governs
+housekeeping_inspection.test.sql  ok 13 - HK-S3-05: and they may override the Property they reach
+housekeeping_inspection.test.sql  ok 14 - HK-S3-02: the override wins over the default
+housekeeping_inspection.test.sql  ok 15 - HK-S3-05: but not a Property they do not reach
+housekeeping_inspection.test.sql  ok 16 - HK-S3-07: changing it needs accommodation.configure
+housekeeping_inspection.test.sql  ok 17 - an override may be &quot;use the default&quot;
+housekeeping_inspection.test.sql  ok 18 - HK-S3-03: and then the default applies
+housekeeping_inspection.test.sql  ok 19 - a setting is reset, never removed
+housekeeping_inspection.test.sql  ok 20 - another Organization's settings are not visible
+housekeeping_inspection.test.sql  ok 21 - HK-S3-04: one default per Organization, even for a role no policy binds
+housekeeping_inspection.test.sql  ok 22 - HK-S3-06: switching inspection on and overriding it rewrote no status
+insert_grants.test.sql  ok 1 - ranza_app holds no table-level write grant anywhere: a write names its columns
+insert_grants.test.sql  ok 2 - nor does ranza_auth on the two tables ADR 0005 makes ours
+insert_grants.test.sql  ok 3 - and it swept a catalogue with tables in it
+insert_grants.test.sql  ok 4 - stays: the eight columns check-in writes
+insert_grants.test.sql  ok 5 - folio_lines: six for a charge and the seventh for a reversal
+insert_grants.test.sql  ok 6 - folios: the four openFolioWithin names
+insert_grants.test.sql  ok 7 - reservations: the eight createReservation names
+insert_grants.test.sql  ok 8 - outbox.events: the four publish() names, and none of the worker's bookkeeping
+insert_grants.test.sql  ok 9 - guests: the four identifyGuestWithin names
+insert_grants.test.sql  ok 10 - users: the four Prisma's model API actually emits
+insert_grants.test.sql  ok 11 - auth_identities: the four the identity write emits
+insert_grants.test.sql  ok 12 - a Stay cannot be inserted naming a user_id, which would grant a Portal
+insert_grants.test.sql  ok 13 - a folio line cannot be inserted with a posted_at of its own choosing
+insert_grants.test.sql  ok 14 - a Folio cannot be born closed
+insert_grants.test.sql  ok 15 - and cannot state its own status even without the timestamp
+insert_grants.test.sql  ok 16 - an event cannot be published at the moment it is written
+insert_grants.test.sql  ok 17 - nor be born dead, which would mean it is never attempted
+insert_grants.test.sql  ok 18 - nor defer its own delivery by ten years
+insert_grants.test.sql  ok 19 - a Reservation cannot restate when it was taken
+insert_grants.test.sql  ok 20 - a Guest cannot be recorded with an id of the caller's choosing
+insert_grants.test.sql  ok 21 - nor claim to have been on file for a year
+insert_grants.test.sql  ok 22 - nor state when it was last touched, which only the conflict update may move
+insert_grants.test.sql  ok 23 - and taking a booking still records a Guest
+insert_grants.test.sql  ok 24 - a Ranza user cannot be inserted with an id of the caller's choosing
+insert_grants.test.sql  ok 25 - nor an identity, whose id is the row other tables would point at
+insert_grants.test.sql  ok 26 - and sign-up still writes the four columns Prisma emits
+insert_grants.test.sql  ok 27 - every security definer function in app that writes also checks its caller
+insert_grants.test.sql  ok 28 - the definer sweep looked at 32 functions; change this number deliberately
+insert_grants.test.sql  ok 29 - four of them write, which is what makes the assertion above a test
+insert_grants.test.sql  ok 30 - and they are exactly the thirty-two the design gives a reason for</pre>
+  </details>
+  <details>
+    <summary>Integration: tests/integration/housekeeping.test.ts</summary>
+    <pre>
+✓ tests/integration/housekeeping.test.ts &gt; a departure makes the room dirty &gt; marks the room a Guest left, naming no Staff Member (HK-S1-01) 113ms
+✓ tests/integration/housekeeping.test.ts &gt; a departure makes the room dirty &gt; changes nothing when the same departure is delivered again (HK-S1-04) 16ms
+✓ tests/integration/housekeeping.test.ts &gt; a departure makes the room dirty &gt; keeps a status somebody changed after the Guest left (HK-S1-05) 71ms
+✓ tests/integration/housekeeping.test.ts &gt; a departure makes the room dirty &gt; marks the room when a Guest leaves a bed in it (HK-S1-02) 74ms
+✓ tests/integration/housekeeping.test.ts &gt; a departure makes the room dirty &gt; marks nothing where housekeeping is not available (HK-S1-09) 37ms
+✓ tests/integration/housekeeping.test.ts &gt; marking rooms &gt; marks one room and records what it replaced (HK-S2-01) 14ms
+✓ tests/integration/housekeeping.test.ts &gt; marking rooms &gt; marks several rooms at once (HK-S2-02) 17ms
+✓ tests/integration/housekeeping.test.ts &gt; marking rooms &gt; folds two beds of one room into one mark of the room (HK-S2-03) 14ms
+✓ tests/integration/housekeeping.test.ts &gt; marking rooms &gt; undoes a mark by marking back, and repeats one harmlessly (HK-S2-05, HK-S2-06) 31ms
+✓ tests/integration/housekeeping.test.ts &gt; marking rooms &gt; refuses a Staff Member without the permission (HK-S2-04) 12ms
+✓ tests/integration/housekeeping.test.ts &gt; marking rooms &gt; refuses the whole mark when one Unit cannot be seen (HK-S2-07) 6ms
+✓ tests/integration/housekeeping.test.ts &gt; marking rooms &gt; refuses a Property without housekeeping (HK-S2-08) 9ms
+✓ tests/integration/housekeeping.test.ts &gt; marking rooms &gt; refuses a malformed mark before touching the database (HK-S2-10) 0ms
+✓ tests/integration/housekeeping.test.ts &gt; the board &gt; lists every room once, with its status, readiness and counts (HK-S1-13) 33ms
+✓ tests/integration/housekeeping.test.ts &gt; the board &gt; says who may not mark, and still shows them the rooms (HK-S2-12) 28ms
+✓ tests/integration/housekeeping.test.ts &gt; the board &gt; is empty at a Property the reader does not reach (HK-S1-14) 10ms
+✓ tests/integration/housekeeping.test.ts &gt; the board &gt; is empty while the Subscription is lapsed (HK-S1-15) 14ms
+✓ tests/integration/housekeeping.test.ts &gt; the board &gt; is empty where housekeeping is not available (HK-S1-15) 8ms
+✓ tests/integration/housekeeping.test.ts &gt; checking into a room that is not ready &gt; asks first, and writes nothing until asked (HK-S2-14) 64ms
+✓ tests/integration/housekeeping.test.ts &gt; checking into a room that is not ready &gt; checks in anyway once told to, records it, and leaves the room dirty (HK-S2-15) 25ms
+✓ tests/integration/housekeeping.test.ts &gt; checking into a room that is not ready &gt; asks nothing about a ready room (HK-S2-16) 65ms
+✓ tests/integration/housekeeping.test.ts &gt; checking into a room that is not ready &gt; does not claim a room was dirty when it was cleaned before the confirmation (HK-S2-17) 13578ms
+✓ tests/integration/housekeeping.test.ts &gt; a blocked room &gt; keeps its housekeeping status through a block and an unblock (HK-S1-18) 106ms
+✓ tests/integration/housekeeping.test.ts &gt; checking rooms after cleaning &gt; says what applies and who may change it (HK-S3-09) 15ms
+✓ tests/integration/housekeeping.test.ts &gt; checking rooms after cleaning &gt; switching it on changes what ready means and no room's status (HK-S3-01, HK-S3-06, HK-S3-08) 122ms
+✓ tests/integration/housekeeping.test.ts &gt; checking rooms after cleaning &gt; changing an existing default records what it was (HK-S3-08) 25ms
+✓ tests/integration/housekeeping.test.ts &gt; checking rooms after cleaning &gt; a Property's own answer wins, and resetting it follows the default again (HK-S3-02, HK-S3-10) 32ms
+✓ tests/integration/housekeeping.test.ts &gt; checking rooms after cleaning &gt; refuses somebody without accommodation.configure (HK-S3-07) 7ms
+Test Files  1 passed (1)
+Tests  28 passed (28)</pre>
+  </details>
+  <details>
+    <summary>Unit: board, inspection card, server actions</summary>
+    <pre>
+✓ tests/unit/housekeeping-actions.test.ts &gt; the inspection setting's form &gt; a Property's on becomes true 2ms
+✓ tests/unit/housekeeping-actions.test.ts &gt; the inspection setting's form &gt; a Property's off becomes false 0ms
+✓ tests/unit/housekeeping-actions.test.ts &gt; the inspection setting's form &gt; a Property's default becomes null 0ms
+✓ tests/unit/housekeeping-actions.test.ts &gt; the inspection setting's form &gt; an Organization's on and off become the default 0ms
+✓ tests/unit/housekeeping-actions.test.ts &gt; the inspection setting's form &gt; the Organization has no 'use the default' of its own 1ms
+✓ tests/unit/housekeeping-actions.test.ts &gt; the inspection setting's form &gt; an unknown scope or a malformed Property is invalid, not a command 0ms
+✓ tests/unit/housekeeping-actions.test.ts &gt; the mark's form &gt; passes every selected room and the status through 0ms
+✓ tests/unit/housekeeping-actions.test.ts &gt; the mark's form &gt; refuses a malformed room id before it reaches the module 0ms
+✓ tests/unit/inspection-settings.test.tsx &gt; the inspection setting &gt; says what a Property following the default inherits (HK-S3-09) 126ms
+✓ tests/unit/inspection-settings.test.tsx &gt; the inspection setting &gt; shows the inspected step only while inspection applies 42ms
+✓ tests/unit/inspection-settings.test.tsx &gt; the inspection setting &gt; tells a manager of one Property why the default is not theirs 25ms
+✓ tests/unit/inspection-settings.test.tsx &gt; the inspection setting &gt; leaves a reader without the permission both values and no control 28ms
+✓ tests/unit/housekeeping-board.test.tsx &gt; the housekeeping board &gt; says there are no rooms, and claims no restriction about them (HK-S1-16) 129ms
+✓ tests/unit/housekeeping-board.test.tsx &gt; the housekeeping board &gt; names every status in every locale, never by colour alone (HK-S1-17) 123ms
+✓ tests/unit/housekeeping-board.test.tsx &gt; the housekeeping board &gt; mirrors for Arabic by construction: no physical direction utility (HK-S1-17) 1ms
+✓ tests/unit/housekeeping-board.test.tsx &gt; the housekeeping board &gt; tells a clean room waiting for inspection from a clean room that is ready (HK-S3-11) 56ms
+✓ tests/unit/housekeeping-board.test.tsx &gt; the housekeeping board &gt; shows a reader without the permission every room and no control (HK-S2-12) 34ms
+✓ tests/unit/housekeeping-board.test.tsx &gt; the housekeeping board &gt; keeps the selection when a mark is refused (HK-S2-13) 108ms
+Test Files  3 passed (3)
+Tests  18 passed (18)</pre>
+  </details>
+
+  <h2>Repro steps</h2>
+  <ol>
+    <li>
+      <code
+        >git -C ~/Developer/ranza worktree add
+        ~/Developer/ranza-evidence-housekeeping -b evidence/housekeeping
+        96427b5</code
+      >, <code>pnpm install</code>,
+      <code>pnpm --filter @ranza/db generate</code>.
+    </li>
+    <li>
+      <code
+        >docker run -d --name ranza-evidence-hk-pg -e POSTGRES_USER=ranza -e
+        POSTGRES_PASSWORD=ranza -e POSTGRES_DB=ranza -p 54393:5432
+        ranza-postgres:latest</code
+      >;
+      <code
+        >DIRECT_URL="postgresql://ranza:ranza@localhost:54393/ranza?connect_timeout=60"
+        packages/db/node_modules/.bin/prisma migrate deploy --schema
+        prisma/schema.prisma</code
+      >;
+      <code
+        >alter role ranza_app|ranza_auth|ranza_worker with login password
+        '&lt;role&gt;'</code
+      >.
+    </li>
+    <li>
+      <code>.env</code>: <code>DATABASE_URL</code>, <code>DIRECT_URL</code>,
+      <code>WORKER_DATABASE_URL</code>, <code>AUTH_DATABASE_URL</code> as the
+      four roles on 54393; <code>BETTER_AUTH_URL=http://localhost:3113</code>;
+      any local <code>BETTER_AUTH_SECRET</code>.
+    </li>
+    <li>
+      Suites: <code>DIRECT_URL=… node scripts/db-test.mjs</code>;
+      <code
+        >npx vitest run --config vitest.integration.mts
+        tests/integration/housekeeping.test.ts</code
+      >
+      with the worker stopped.
+    </li>
+    <li>
+      Build and serve:
+      <code>(cd apps/operator-workspace &amp;&amp; npx next build)</code>, copy
+      <code>.next/static</code> to
+      <code>.next/standalone/apps/operator-workspace/.next/static</code>, then
+      <code
+        >NODE_ENV=production PORT=3113 HOSTNAME=127.0.0.1 node
+        apps/operator-workspace/.next/standalone/apps/operator-workspace/server.js</code
+      >. Worker:
+      <code
+        >(cd apps/worker &amp;&amp; pnpm build &amp;&amp; node
+        dist/main.mjs)</code
+      >.
+    </li>
+    <li><code>node docs/evidence/housekeeping/fixtures.mjs</code>.</li>
+    <li>
+      <code
+        >node docs/evidence/housekeeping/capture.mjs roles lifecycle batch bound
+        checkout</code
+      >; stop the worker; <code>… capture.mjs raceStop</code>; start the worker;
+      <code
+        >… capture.mjs raceResume redelivery unavailable checkin checkinAgain
+        warningFits audit blocked inspection refusal switchedOff misc
+        signinLimit</code
+      >.
+    </li>
+    <li><code>node docs/evidence/housekeeping/build-report.mjs</code>.</li>
+  </ol>
+</main>
