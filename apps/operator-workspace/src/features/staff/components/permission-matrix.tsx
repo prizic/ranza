@@ -26,18 +26,23 @@ import { asPermission, shippedRoleOf } from "../labels";
  * answers the other one. It is also the only view in which a gap is visible: an
  * empty column says a role can do nothing, and no amount of prose does.
  *
- * Nothing here decides whether a box may be ticked. An author may only grant
- * what their own role holds, and that is the insert and update policies'
- * answer (SP-S3-01) — a check here would be a second, weaker copy of the rule
- * that guards privilege escalation. A refused tick comes back and says so.
+ * Somebody without staff.define_roles reads the grid and edits nothing (#80).
+ * For an author, nothing here decides whether a box may be ticked: they may
+ * only grant what their own role holds, and that is the insert and update
+ * policies' answer (SP-S3-01) — a check here would be a second, weaker copy of
+ * the rule that guards privilege escalation. A refused tick comes back and says
+ * so.
  */
 export function PermissionMatrix({
   locale,
+  mayDefineRoles,
   organizationId,
   permissions,
   roles,
 }: {
   locale: string;
+  /** Without staff.define_roles the grid is read, not edited (#80). */
+  mayDefineRoles: boolean;
   organizationId: string;
   permissions: readonly string[];
   roles: readonly Role[];
@@ -179,23 +184,25 @@ export function PermissionMatrix({
                     {role.organizationId === null ? null : (
                       <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
                         {t("staff.heldByCount", { count: role.heldBy })}
-                        <DataTableRowActions
-                          actions={[
-                            role.status === "active"
-                              ? {
-                                  label: t("staff.retire"),
-                                  icon: Archive,
-                                  onSelect: () => shelve(role),
-                                  destructive: true,
-                                }
-                              : {
-                                  label: t("staff.reinstate"),
-                                  icon: RotateCcw,
-                                  onSelect: () => shelve(role),
-                                },
-                          ]}
-                          label={`${t("staff.actions")}: ${roleName(role)}`}
-                        />
+                        {mayDefineRoles ? (
+                          <DataTableRowActions
+                            actions={[
+                              role.status === "active"
+                                ? {
+                                    label: t("staff.retire"),
+                                    icon: Archive,
+                                    onSelect: () => shelve(role),
+                                    destructive: true,
+                                  }
+                                : {
+                                    label: t("staff.reinstate"),
+                                    icon: RotateCcw,
+                                    onSelect: () => shelve(role),
+                                  },
+                            ]}
+                            label={`${t("staff.actions")}: ${roleName(role)}`}
+                          />
+                        ) : null}
                       </span>
                     )}
                   </span>
@@ -213,8 +220,9 @@ export function PermissionMatrix({
                   // A role Ranza ships arrives in a release and is the fixed
                   // reference every Organization shares (SP-S3-05). Shown, and
                   // not editable — the box says what it may do, which is the
-                  // whole reason it is on the grid.
-                  const fixed = role.organizationId === null;
+                  // whole reason it is on the grid. Every box is fixed for a
+                  // viewer who may not define roles.
+                  const fixed = role.organizationId === null || !mayDefineRoles;
                   const set = held[role.key] ?? role.permissions;
                   return (
                     <TableCell

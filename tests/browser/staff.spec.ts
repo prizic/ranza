@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
 import { psql } from "./local-database";
-import { signIn, testProperty } from "./front-desk";
+import { DESK_EMAIL, OWNER_EMAIL, signIn, testProperty } from "./front-desk";
 
 /**
  * Inviting a colleague, through the screen an Organization actually uses.
@@ -283,4 +283,53 @@ test("an Organization's own Front desk is picked apart from the shipped one", as
       .getByText("That was refused."),
   ).toHaveCount(0);
   await expect.poll(() => roleOf(colleague)).toBe("front_desk@organization");
+});
+
+/**
+ * Who is offered the commands (#80).
+ *
+ * The policies refuse a Front desk Staff Member who presses Invite, so this is
+ * not about security. It is about a screen offering a control the viewer can
+ * only be refused by: somebody who may read the roster and change nothing sees
+ * the roster, no commands, and a line saying who can change it.
+ *
+ * Watched go red first: before the page asked for the permissions, the Front
+ * desk case failed on the Invite button being there.
+ */
+test("a Front desk Staff Member reads the roster and is offered nothing to change it", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+
+  await signIn(page, DESK_EMAIL);
+  await page.goto(`/en/people?property=${propertyId}`);
+
+  await expect(page.getByTestId("staff-row").first()).toBeVisible();
+  await expect(
+    page.getByRole("button", { exact: true, name: "Invite" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { exact: true, name: "Define a role" }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("combobox")).toHaveCount(0);
+  await expect(
+    page.getByText("You can see the team. An Owner or Manager can change it."),
+  ).toBeVisible();
+});
+
+test("an Owner is offered Invite and Define a role", async ({ page }) => {
+  const propertyId = testProperty();
+
+  await signIn(page, OWNER_EMAIL);
+  await page.goto(`/en/people?property=${propertyId}`);
+
+  await expect(
+    page.getByRole("button", { exact: true, name: "Invite" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { exact: true, name: "Define a role" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("You can see the team. An Owner or Manager can change it."),
+  ).toHaveCount(0);
 });
