@@ -5,10 +5,19 @@
 //
 // Read straight from git, so nothing is checked out or copied. A branch whose
 // tip is already in HEAD has nothing to add and is skipped. When several
-// branches carry the same table — stacked branches, a stale copy — the one
-// committed most recently wins, which is the version still being worked on.
+// branches carry the same table — stacked branches, a stale copy, a local
+// branch ahead of what it pushed — they are ranked by when each last changed
+// it, and a lower-ranked branch contributes only rows it did not inherit from
+// history it shares with a higher-ranked one. Its copy of a row the newer
+// branch has since renumbered or deleted is that shared history, not a
+// decision of its own, so it stays out; a row it added itself still shows.
+//
+// A branch has passed none of this tree's checks, so a table in another shape
+// or a word the page has no label for is warned about and left out rather
+// than allowed to stop the page from rendering.
 import { execFileSync } from "node:child_process";
 import { parseCsv } from "./csv.mjs";
+import { ENFORCED_AR, HEADER, hasKind } from "./decisions-vocabulary.mjs";
 
 function git(root, ...args) {
   return execFileSync("git", args, {
@@ -33,7 +42,11 @@ function isMerged(root, ref) {
   }
 }
 
-// Local branches and origin's, newest first, one entry per distinct tip.
+// Local branches and origin's, newest first, one entry per distinct tip. main
+// is left out even when the register is rendered from elsewhere: it is where
+// the unmerged section's decisions are headed, not a branch with its own.
+const DESTINATIONS = new Set(["origin", "main", "origin/main"]);
+
 export function unmergedRefs(root) {
   const seen = new Set();
   return git(
@@ -50,7 +63,7 @@ export function unmergedRefs(root) {
       const [name, commit, date] = line.split("\t");
       return { name, commit, date };
     })
-    .filter((ref) => !ref.name.endsWith("/HEAD") && ref.name !== "origin")
+    .filter((ref) => !ref.name.endsWith("/HEAD") && !DESTINATIONS.has(ref.name))
     .filter((ref) => {
       if (seen.has(ref.commit)) return false;
       seen.add(ref.commit);
@@ -79,13 +92,26 @@ function featureFiles(root, commit) {
   return files;
 }
 
-function rowsOf(csv) {
-  const [header, ...rows] = parseCsv(csv);
+function rowsOf(csv, where) {
+  const [header = [], ...rows] = parseCsv(csv);
+  if (header.join(",") !== HEADER.join(",")) {
+    console.warn(
+      `${where}: header is not "${HEADER.join(",")}", table left out`,
+    );
+    return [];
+  }
   return rows
     .filter((cells) => cells.length === header.length)
-    .map((cells) =>
-      Object.fromEntries(header.map((key, i) => [key, cells[i]])),
-    );
+    .map((cells) => Object.fromEntries(header.map((key, i) => [key, cells[i]])))
+    .filter((row) => {
+      const known = hasKind(row.status) && row.enforced_by in ENFORCED_AR;
+      if (!known) {
+        console.warn(
+          `${where}: ${row.id} has status "${row.status}" and enforced_by "${row.enforced_by}", one outside the vocabulary; row left out`,
+        );
+      }
+      return known;
+    });
 }
 
 // When the time a branch last changed this table is not enough to choose — a
@@ -130,11 +156,14 @@ function notesOf(root, files, ref, readNotes) {
     );
 }
 
-function mergeBase(root, commit) {
+// Exit status 1 is git's "no common ancestor", which unrelated histories
+// legitimately have; any other failure is a real fault and propagates.
+function mergeBase(root, a, b) {
   try {
-    return git(root, "merge-base", "HEAD", commit).trim();
-  } catch {
-    return null;
+    return git(root, "merge-base", a, b).trim();
+  } catch (error) {
+    if (error.status === 1) return null;
+    throw error;
   }
 }
 
@@ -154,15 +183,34 @@ function sameRow(a, b) {
   return Object.keys(a).every((key) => a[key] === b[key]);
 }
 
-function byId(csv) {
-  return new Map(csv === null ? [] : rowsOf(csv).map((row) => [row.id, row]));
+function byId(csv, where) {
+  return new Map(
+    csv === null ? [] : rowsOf(csv, where).map((row) => [row.id, row]),
+  );
+}
+
+// The table as it stood at `commit`, read for comparison rather than display.
+function tableAt(root, commit, slug) {
+  return byId(
+    commit && fileAt(root, commit, tablePath(slug)),
+    `${tablePath(slug)} at ${commit?.slice(0, 7)}`,
+  );
 }
 
 // The branch's own Arabic, when it has any; rows are still matched by hash,
 // so a translation of different English is never shown.
-function arabicAt(root, commit, slug) {
-  const json = fileAt(root, commit, `docs/decisions/ar/${slug}.json`);
-  return json === null ? { title: "", entries: {} } : JSON.parse(json);
+function arabicAt(root, ref, slug) {
+  const file = `docs/decisions/ar/${slug}.json`;
+  const json = fileAt(root, ref.commit, file);
+  if (json === null) return { title: "", entries: {} };
+  try {
+    return JSON.parse(json);
+  } catch (error) {
+    console.warn(
+      `${ref.name}: ${file} is not JSON (${error.message}), shown in English`,
+    );
+    return { title: "", entries: {} };
+  }
 }
 
 // A three-way comparison against where the branch left HEAD's history: a row
@@ -171,10 +219,13 @@ function arabicAt(root, commit, slug) {
 // HEAD has since removed as a new decision, and would never show a row the
 // branch changed.
 function branchDecisions(root, slug, ref, headRows) {
-  const base = mergeBase(root, ref.commit);
-  const baseRows = byId(base && fileAt(root, base, tablePath(slug)));
+  const baseRows = tableAt(root, mergeBase(root, "HEAD", ref.commit), slug);
   const decisions = [];
-  for (const row of byId(fileAt(root, ref.commit, tablePath(slug))).values()) {
+  const own = byId(
+    fileAt(root, ref.commit, tablePath(slug)),
+    `${ref.name}: ${tablePath(slug)}`,
+  );
+  for (const row of own.values()) {
     const before = baseRows.get(row.id);
     const now = headRows.get(row.id);
     if (before && sameRow(before, row)) continue;
@@ -208,11 +259,22 @@ export function readBranchFeatures(root, current, readNotes) {
       (existing?.rows ?? []).map((row) => [row.id, row]),
     );
     const decided = new Map();
-    for (const { ref } of ranked) {
+    ranked.forEach(({ ref }, rank) => {
+      // What this branch shares with each branch ranked above it: a row it
+      // carries unchanged from there is theirs to keep, renumber or delete.
+      const inherited = ranked
+        .slice(0, rank)
+        .map((above) =>
+          tableAt(root, mergeBase(root, above.ref.commit, ref.commit), slug),
+        );
       for (const row of branchDecisions(root, slug, ref, headRows)) {
-        if (!decided.has(row.id)) decided.set(row.id, row);
+        if (decided.has(row.id)) continue;
+        const shared = inherited.some(
+          (rows) => rows.has(row.id) && sameRow(rows.get(row.id), row),
+        );
+        if (!shared) decided.set(row.id, row);
       }
-    }
+    });
     if (decided.size === 0) continue;
     const [owner] = ranked;
     const newFeature = !existing?.hasTable;
@@ -221,7 +283,7 @@ export function readBranchFeatures(root, current, readNotes) {
       newFeature,
       rows: [...decided.values()],
       notes: newFeature ? notesOf(root, owner.files, owner.ref, readNotes) : [],
-      ar: arabicAt(root, owner.ref.commit, slug),
+      ar: arabicAt(root, owner.ref, slug),
     });
   }
   return result.sort((a, b) => a.slug.localeCompare(b.slug));

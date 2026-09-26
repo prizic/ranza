@@ -19,43 +19,9 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { readBranchFeatures } from "./decisions-branches.mjs";
 import { parseCsv } from "./csv.mjs";
+import { ENFORCED_AR, KINDS, STATUS_AR } from "./decisions-vocabulary.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-
-export const KINDS = {
-  decided: { en: "Decided", ar: "تقرّر", statuses: ["approved", "resolved"] },
-  pending: {
-    en: "Awaiting a decision",
-    ar: "بانتظار قرار",
-    statuses: ["open", "proposed"],
-  },
-  gap: {
-    en: "Known gap",
-    ar: "فجوة معروفة",
-    statuses: ["prerequisite_missing", "current_behaviour_differs"],
-  },
-  parked: { en: "Parked", ar: "مُرجأ", statuses: ["deferred", "out_of_scope"] },
-};
-
-const STATUS_AR = {
-  approved: "معتمد",
-  resolved: "محلول",
-  open: "مفتوح",
-  proposed: "مقترح",
-  deferred: "مؤجل",
-  out_of_scope: "خارج النطاق",
-  prerequisite_missing: "متطلب مسبق ناقص",
-  current_behaviour_differs: "السلوك الحالي مختلف",
-};
-
-const ENFORCED_AR = {
-  database_constraint: "قيد في قاعدة البيانات",
-  policy: "سياسة أمان على مستوى الصف",
-  trigger: "مُشغِّل في قاعدة البيانات",
-  database_function: "دالة في قاعدة البيانات",
-  module: "الوحدة البرمجية",
-  ui_only: "الواجهة فقط",
-};
 
 const GROUPS = {
   NB: { en: "Not built", ar: "لم يُبنَ" },
@@ -740,6 +706,17 @@ ${onBranches.map((feature) => renderFeature(feature, adrFiles)).join("\n")}`
 `;
 }
 
+// The branches only add to the page; git failing to list or read them is no
+// reason to lose the part of it this tree can vouch for.
+function branchFeatures(features) {
+  try {
+    return readBranchFeatures(root, features, readNotes);
+  } catch (error) {
+    console.warn(`branches skipped: ${error.message} (use --no-branches)`);
+    return [];
+  }
+}
+
 function main(args) {
   const translationsDir = path.join(root, "docs/decisions/ar");
   const features = readFeatures(
@@ -763,7 +740,7 @@ function main(args) {
 
   const unmerged = args.includes("--no-branches")
     ? []
-    : readBranchFeatures(root, features, readNotes);
+    : branchFeatures(features);
   const output = path.join(root, "docs/decisions.html");
   writeFileSync(
     output,

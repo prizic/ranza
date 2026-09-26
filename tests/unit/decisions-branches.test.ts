@@ -2,24 +2,56 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { readBranchFeatures } from "../../scripts/decisions-branches.mjs";
-import { readNotes } from "../../scripts/decisions-register.mjs";
+import {
+  readNotes,
+  renderRegister,
+} from "../../scripts/decisions-register.mjs";
 
 const HEADER = "id,situation,given,when,then,enforced_by,test_name,status";
 const line = (id: string) => `${id},s,g,w,t,module,a_test,approved`;
 
-let repo: string;
-const git = (...args: string[]) =>
-  execFileSync("git", args, { cwd: repo, stdio: "pipe" });
+// The developer's own git configuration and any GIT_* variable a hook or an
+// editor exported — GIT_DIR above all — must not reach the fixture, or the
+// fixture is built somewhere other than the temporary directory it names.
+const isolated = {
+  ...Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")),
+  ),
+  GIT_CONFIG_GLOBAL: "/dev/null",
+  GIT_CONFIG_NOSYSTEM: "1",
+};
 
-function commit(files: Record<string, string>, message: string) {
-  for (const [file, text] of Object.entries(files)) {
-    mkdirSync(path.dirname(path.join(repo, file)), { recursive: true });
-    writeFileSync(path.join(repo, file), text);
-  }
-  git("add", "-A");
-  git("commit", "-q", "-m", message);
+// A throwaway repository. Commits can be dated, because a table's owner is
+// chosen by when each branch last changed it and commits made in the same
+// second would tie.
+function fixture() {
+  const dir = mkdtempSync(path.join(tmpdir(), "decisions-branches-"));
+  const git = (...args: string[]) =>
+    execFileSync("git", args, { cwd: dir, stdio: "pipe", env: isolated });
+  const commit = (
+    files: Record<string, string>,
+    message: string,
+    date?: string,
+  ) => {
+    for (const [file, text] of Object.entries(files)) {
+      mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+      writeFileSync(path.join(dir, file), text);
+    }
+    git("add", "-A");
+    execFileSync("git", ["commit", "-q", "-m", message], {
+      cwd: dir,
+      stdio: "pipe",
+      env: date
+        ? { ...isolated, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date }
+        : isolated,
+    });
+  };
+  git("init", "-q", "-b", "main");
+  git("config", "user.email", "t@example.com");
+  git("config", "user.name", "t");
+  return { dir, git, commit };
 }
 
 const table = (slug: string, ...ids: string[]) => ({
@@ -28,60 +60,64 @@ const table = (slug: string, ...ids: string[]) => ({
   ),
 });
 
-beforeAll(() => {
-  repo = mkdtempSync(path.join(tmpdir(), "decisions-branches-"));
-  git("init", "-q", "-b", "main");
-  git("config", "user.email", "t@example.com");
-  git("config", "user.name", "t");
-  commit(table("check-out", "CO-S1-01", "CO-S1-99"), "main");
-
-  // A branch left behind while main later removes CO-S1-99: its copy of that
-  // row is main's old one, not a decision the branch made.
-  git("checkout", "-q", "-b", "feat/stale");
-  commit({ "stale.txt": "x" }, "stale work");
-  git("checkout", "-q", "main");
-  commit(table("check-out", "CO-S1-01"), "main drops CO-S1-99");
-
-  git("checkout", "-q", "-b", "feat/merged");
-  commit(table("merged", "MG-S1-01"), "merged");
-  git("checkout", "-q", "main");
-  git("merge", "-q", "--no-ff", "feat/merged", "-m", "merge");
-  // main renumbers the row after the merge, so the stale branch still carries a
-  // row this branch does not — only the ancestry check can leave it out.
-  commit(table("merged", "MG-S1-02"), "renumber");
-
-  git("checkout", "-q", "-b", "feat/maintenance");
-  commit(
-    {
-      ...table("maintenance", "MT-S1-01", "MT-S1-02"),
-      "docs/features/maintenance/use-case.mmd": "%% OPEN: who pays? MT-S1-02\n",
-    },
-    "maintenance",
-  );
-  // A later branch that merged maintenance in carries the same table.
-  git("checkout", "-q", "-b", "feat/date-range");
-  commit({ "other.txt": "x" }, "unrelated");
-
-  git("checkout", "-q", "main");
-  git("checkout", "-q", "-b", "feat/close-the-day");
-  commit(table("check-out", "CO-S1-01", "CO-S5-01"), "adds a row");
-  git("checkout", "-q", "main");
-  git("checkout", "-q", "-b", "feat/reopen");
-  commit(
-    {
-      "docs/features/check-out/edge-cases.csv": [
-        HEADER,
-        "CO-S1-01,s,g,w,t,module,a_test,open",
-      ].join("\n"),
-    },
-    "reopens a row",
-  );
-  git("checkout", "-q", "main");
-});
-
-afterAll(() => rmSync(repo, { recursive: true, force: true }));
+const ids = (found: { rows: { id: string }[] }[]) =>
+  found.flatMap((f) => f.rows.map((row) => row.id));
 
 describe("decisions on unmerged branches", () => {
+  let repo: string;
+
+  beforeAll(() => {
+    const { dir, git, commit } = fixture();
+    repo = dir;
+    commit(table("check-out", "CO-S1-01", "CO-S1-99"), "main");
+
+    // A branch left behind while main later removes CO-S1-99: its copy of that
+    // row is main's old one, not a decision the branch made.
+    git("checkout", "-q", "-b", "feat/stale");
+    commit({ "stale.txt": "x" }, "stale work");
+    git("checkout", "-q", "main");
+    commit(table("check-out", "CO-S1-01"), "main drops CO-S1-99");
+
+    git("checkout", "-q", "-b", "feat/merged");
+    commit(table("merged", "MG-S1-01"), "merged");
+    git("checkout", "-q", "main");
+    git("merge", "-q", "--no-ff", "feat/merged", "-m", "merge");
+    // main renumbers the row after the merge, so the stale branch still carries
+    // a row this branch does not — only the ancestry check can leave it out.
+    commit(table("merged", "MG-S1-02"), "renumber");
+
+    git("checkout", "-q", "-b", "feat/maintenance");
+    commit(
+      {
+        ...table("maintenance", "MT-S1-01", "MT-S1-02"),
+        "docs/features/maintenance/use-case.mmd":
+          "%% OPEN: who pays? MT-S1-02\n",
+      },
+      "maintenance",
+    );
+    // A later branch that merged maintenance in carries the same table.
+    git("checkout", "-q", "-b", "feat/date-range");
+    commit({ "other.txt": "x" }, "unrelated");
+
+    git("checkout", "-q", "main");
+    git("checkout", "-q", "-b", "feat/close-the-day");
+    commit(table("check-out", "CO-S1-01", "CO-S5-01"), "adds a row");
+    git("checkout", "-q", "main");
+    git("checkout", "-q", "-b", "feat/reopen");
+    commit(
+      {
+        "docs/features/check-out/edge-cases.csv": [
+          HEADER,
+          "CO-S1-01,s,g,w,t,module,a_test,open",
+        ].join("\n"),
+      },
+      "reopens a row",
+    );
+    git("checkout", "-q", "main");
+  });
+
+  afterAll(() => rmSync(repo, { recursive: true, force: true }));
+
   const current = [
     {
       slug: "check-out",
@@ -140,12 +176,131 @@ describe("decisions on unmerged branches", () => {
 
   it("does not bring back a row main removed after a branch left it", () => {
     const found = readBranchFeatures(repo, current, readNotes);
-    const ids = found.flatMap((f) => f.rows.map((row) => row.id));
-    expect(ids).not.toContain("CO-S1-99");
+    expect(ids(found)).not.toContain("CO-S1-99");
   });
 
   it("leaves out a branch whose tip is already merged", () => {
     const found = readBranchFeatures(repo, current, readNotes);
     expect(found.map((f) => f.slug)).toEqual(["check-out", "maintenance"]);
+  });
+});
+
+// A newer branch that drops or renumbers a row must win over every older copy
+// of the table it grew from, or the row it removed comes back from them.
+describe("rows a newer branch removed", () => {
+  let repo: string;
+
+  beforeAll(() => {
+    const { dir, git, commit } = fixture();
+    repo = dir;
+    commit({ "README.md": "x" }, "main", "2026-09-01T10:00:00Z");
+
+    git("checkout", "-q", "-b", "feat/maintenance");
+    commit(
+      table("maintenance", "MT-S1-01", "MT-S1-02"),
+      "maintenance",
+      "2026-09-02T10:00:00Z",
+    );
+    git("checkout", "-q", "main");
+    git("checkout", "-q", "-b", "feat/date-range");
+    git("merge", "-q", "--no-ff", "feat/maintenance", "-m", "merge");
+    commit(
+      table("maintenance", "MT-S1-01", "MT-S2-01"),
+      "renumber MT-S1-02",
+      "2026-09-03T10:00:00Z",
+    );
+
+    // origin still has the branch as it was before its last, unpushed commit.
+    git("checkout", "-q", "main");
+    git("checkout", "-q", "-b", "feat/folios");
+    commit(
+      table("folios", "FO-S1-01", "FO-S1-02"),
+      "folios",
+      "2026-09-02T10:00:00Z",
+    );
+    git("update-ref", "refs/remotes/origin/feat/folios", "HEAD");
+    commit(
+      table("folios", "FO-S1-01"),
+      "drop FO-S1-02",
+      "2026-09-03T10:00:00Z",
+    );
+    git("checkout", "-q", "main");
+  });
+
+  afterAll(() => rmSync(repo, { recursive: true, force: true }));
+
+  it("does not bring back a row renumbered by a branch that merged its first copy", () => {
+    const found = readBranchFeatures(repo, [], readNotes);
+    const maintenance = found.find((f) => f.slug === "maintenance");
+    expect(maintenance?.rows.map((row) => row.id)).toEqual([
+      "MT-S1-01",
+      "MT-S2-01",
+    ]);
+    expect(ids(found)).not.toContain("MT-S1-02");
+  });
+
+  it("does not bring back a row a local branch deleted after it was pushed", () => {
+    const found = readBranchFeatures(repo, [], readNotes);
+    const folios = found.find((f) => f.slug === "folios");
+    expect(folios?.rows.map((row) => row.id)).toEqual(["FO-S1-01"]);
+    expect(ids(found)).not.toContain("FO-S1-02");
+  });
+});
+
+describe("a branch with a table this cannot read", () => {
+  let repo: string;
+
+  beforeAll(() => {
+    const { dir, git, commit } = fixture();
+    repo = dir;
+    commit({ "README.md": "x" }, "main");
+
+    git("checkout", "-q", "-b", "feat/bad-header");
+    commit(
+      { "docs/features/bad-header/edge-cases.csv": "id,question\nBH-01,why" },
+      "a table in some other shape",
+    );
+    git("checkout", "-q", "main");
+    git("checkout", "-q", "-b", "feat/bad-words");
+    commit(
+      {
+        "docs/features/bad-words/edge-cases.csv": [
+          HEADER,
+          "BW-S1-01,s,g,w,t,module,a_test,done",
+          "BW-S1-02,s,g,w,t,by_hand,a_test,approved",
+          "BW-S1-03,s,g,w,t,module,a_test,approved",
+        ].join("\n"),
+        "docs/decisions/ar/bad-words.json": "{ not json",
+      },
+      "words outside the vocabulary, and broken Arabic",
+    );
+    git("checkout", "-q", "main");
+  });
+
+  afterAll(() => rmSync(repo, { recursive: true, force: true }));
+
+  it("renders what it can read and warns about the rest", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const found = readBranchFeatures(repo, [], readNotes);
+      expect(found.map((f) => f.slug)).toEqual(["bad-words"]);
+      expect(ids(found)).toEqual(["BW-S1-03"]);
+      expect(found[0].ar).toEqual({ title: "", entries: {} });
+      const html = renderRegister({
+        features: [],
+        adrs: [],
+        adrTranslations: {},
+        unmerged: found,
+        generatedAt: "now",
+      });
+      expect(html).toContain("BW-S1-03");
+      const warnings = warn.mock.calls.map((call) => String(call[0]));
+      expect(warnings.some((w) => w.includes("feat/bad-header"))).toBe(true);
+      expect(warnings.some((w) => w.includes("BW-S1-01"))).toBe(true);
+      expect(warnings.some((w) => w.includes("BW-S1-02"))).toBe(true);
+      expect(warnings.some((w) => w.includes("bad-words.json"))).toBe(true);
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

@@ -115,13 +115,17 @@ exclude using gist (
 ) where (status in ('confirmed', 'checked_in'))
 ```
 
+Amended 2026-09-25: shipped as `confirmed` alone — see the Amended line above.
+
 The same shape as `stays_no_double_booking` and for the same reason: two clerks
 booking one Unit for one set of nights both read "free", and only one of them
 can commit. Availability is a constraint here, never a query, because a query is
 a race with a window.
 
 The status list is the decision inside the decision. `confirmed` and
-`checked_in` are allocations. `requested` is not — it is somebody asking, and
+`checked_in` are allocations (amended 2026-09-25: the constraint shipped with
+`confirmed` alone, because a checked-in Reservation's Stay holds its nights —
+see the Amended line above). `requested` is not — it is somebody asking, and
 refusing a second enquiry would be an availability policy nobody has specified.
 `cancelled` and `no_show` keep their dates and stop holding the Unit, which is
 what makes it re-lettable without deleting history (blueprint 7.4).
