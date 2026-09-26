@@ -100,7 +100,11 @@ function Wordmark({ badge, name }: { badge: string; name: string }) {
  * upper start corner left dark for the slogan. Decorative, so it has no
  * alternative text, and mirrored for right-to-left with the rest of the page.
  * A scrim darkens the corner the slogan sits in, as EduBoard darkens its
- * photograph, so the text never depends on where the gold happens to fall.
+ * photograph, so the text never depends on where the gold happens to fall:
+ * `object-cover` crops a short, wide panel and lifts the gold into the text.
+ * Its dense stop reaches 60% so that at 1280×650 the sub-slogan still clears
+ * 4.5:1 over the brightest pixel beneath it (measured 6.1:1 in Turkish and
+ * Arabic, the longest lines; 2:1 before), and the slogan clears 3:1 (9.3:1).
  * The slogan is set as EduBoard sets its own — a light serif italic in cream
  * over a heavier sans line. Arabic has no italic and Georgia draws none of it,
  * so right-to-left keeps the sans upright.
@@ -129,10 +133,14 @@ function Showcase({
         placeholder="blur"
         sizes="50vw"
         src={silk}
+        // Served as the file it is: a 33 KB webp gains nothing from the
+        // optimizer, and this would be its first use in the standalone
+        // container, which would then have to trace sharp as well.
+        unoptimized
       />
       <div
         aria-hidden="true"
-        className="absolute inset-0 -z-10 from-surface-strong/80 via-surface-strong/20 to-transparent bg-linear-to-br rtl:bg-linear-to-bl"
+        className="absolute inset-0 -z-10 from-surface-strong/95 via-surface-strong/80 via-60% to-transparent bg-linear-to-br rtl:bg-linear-to-bl"
       />
 
       <div aria-hidden="true" className="flex items-center gap-2 text-white">
@@ -144,7 +152,7 @@ function Showcase({
         <p className="font-serif text-4xl leading-[1.05] font-light text-accent-soft italic xl:text-[44px] 2xl:text-[52px] rtl:font-sans rtl:font-semibold rtl:not-italic">
           {slogan}
         </p>
-        <p className="mt-5 text-lg leading-relaxed font-semibold text-white/80 xl:text-xl">
+        <p className="mt-5 text-lg leading-relaxed font-semibold text-white xl:text-xl">
           {subSlogan}
         </p>
       </div>

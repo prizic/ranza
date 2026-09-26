@@ -27,8 +27,8 @@ export interface Messages {
   noPropertyTitle: string;
   noPropertyDescription: string;
   signInSummary: string;
-  /** The sign-in screen's slogan: set in heavy capitals, so written in
-      sentence case and uppercased by the locale's own rules. */
+  /** The sign-in screen's slogan: large and light, in a serif italic — an
+      upright sans in Arabic, which has no italic. Written in sentence case. */
   authSlogan: string;
   authSubSlogan: string;
   welcomeBack: string;
