@@ -132,7 +132,10 @@ test("goes back one level by the header alone (ADR 0035)", async ({ page }) => {
     `/en/today?property=${propertyId}`,
   );
   // Nothing in the page itself leads back up: its links go across, to Rooms
-  // and People, or down, to its own sections.
+  // and People, or down, to its own sections. Asserted once the page has
+  // rendered — a count of none is true of the loading state too, which is how
+  // the first version of this passed with a duplicate link on the page.
+  await expect(page.getByLabel("Property name")).toBeVisible();
   await expect(
     page.locator("main").getByRole("link", { name: /^(Back|All |Today)/ }),
   ).toHaveCount(0);
