@@ -109,11 +109,11 @@ export function SectionNav({
           const current = id === active;
           const Icon = ICONS[id];
           return (
-            <li className="shrink-0 lg:w-full" key={id}>
+            <li className="shrink-0" key={id}>
               <a
                 aria-current={current ? "location" : undefined}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-full border px-3.5 py-1.5 text-step--1 whitespace-nowrap transition-colors lg:w-full lg:rounded-lg lg:border-transparent lg:px-3 lg:py-2 lg:whitespace-normal",
+                  "flex items-center gap-2.5 rounded-full border px-3.5 py-1.5 text-step--1 whitespace-nowrap transition-colors lg:rounded-lg lg:border-transparent lg:px-3 lg:py-2",
                   current
                     ? "border-primary/30 bg-primary/10 font-medium text-primary"
                     : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -125,9 +125,7 @@ export function SectionNav({
                 }}
               >
                 <Icon aria-hidden="true" className="size-4 shrink-0" />
-                <span className="min-w-0 flex-1 text-start leading-snug">
-                  {name}
-                </span>
+                {name}
               </a>
             </li>
           );
