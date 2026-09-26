@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { StatusBadge, type StatusTone } from "@ranza/ui";
-import type { SupportedLocale } from "@ranza/i18n";
+import { formatNumber, type SupportedLocale } from "@ranza/i18n";
 import type {
   AttentionItem,
   AttentionKind,
@@ -162,7 +162,7 @@ export function AttentionQueue({
       >
         {t("attentionTitle")}
         <span className="rounded-full bg-muted px-2 text-xs font-semibold text-muted-foreground tabular-nums">
-          {items.length}
+          {formatNumber(items.length, locale)}
         </span>
       </h2>
       {complete ? null : (

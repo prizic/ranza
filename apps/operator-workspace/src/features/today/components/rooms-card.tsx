@@ -94,7 +94,9 @@ function Breakdown({
               className={cn("size-3 rounded", part.swatch)}
             />
             <dt className="flex-1">{t(part.key)}</dt>
-            <dd className="font-semibold tabular-nums">{part.count}</dd>
+            <dd className="font-semibold tabular-nums">
+              {formatNumber(part.count, locale)}
+            </dd>
           </div>
         ))}
       </dl>
@@ -109,7 +111,7 @@ function Breakdown({
                 <span>
                   {floor.floor === null
                     ? t("noFloor")
-                    : t("floor", { floor: floor.floor })}
+                    : t("floor", { floor: formatNumber(floor.floor, locale) })}
                 </span>
                 <span className="tabular-nums">
                   {t("floorReady", {

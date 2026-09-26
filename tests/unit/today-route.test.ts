@@ -49,4 +49,22 @@ describe("GET today", () => {
     expect(await response.json()).toEqual({ summary: null });
     expect(todaySummary).toHaveBeenCalledWith(PROPERTY);
   });
+
+  it("a failed read is a bodiless 500 and says whose it was", async () => {
+    // Not `{ summary: null }`: the page would read that as Today withdrawn
+    // and clear itself, where a failure should keep the last numbers.
+    currentViewer.mockResolvedValue({ userId: "user-1" });
+    const failure = new Error("connection reset");
+    todaySummary.mockRejectedValue(failure);
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const response = await GET(get(`?property=${PROPERTY}`));
+    expect(response.status).toBe(500);
+    expect(await response.text()).toBe("");
+    expect(logged).toHaveBeenCalledWith("today.read_failed", {
+      propertyId: PROPERTY,
+      userId: "user-1",
+      error: failure,
+    });
+    logged.mockRestore();
+  });
 });
