@@ -95,3 +95,44 @@ test("a session ended while the workspace is open goes to sign in on the next pa
     page.getByRole("heading", { name: messages.en.welcomeBack }),
   ).toBeVisible();
 });
+
+test("inner pages have a back button in the header bar with proper routing", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  await signIn(page);
+  await page.goto(`/en/today?property=${propertyId}`);
+  await settled(page);
+
+  // Today is the workspace root: no back button in header
+  await expect(page.locator('header a[aria-label="Back"]')).toHaveCount(0);
+
+  // Navigate to an inner page (audit log)
+  await page.goto(`/en/audit-log?property=${propertyId}`);
+  await settled(page);
+
+  // Audit log has back button in header
+  const backButton = page.locator('header a[aria-label="Back"]');
+  await expect(backButton).toBeVisible();
+
+  // Clicking back returns to Today preserving the active property
+  await backButton.click();
+  await settled(page);
+  await expect(page).toHaveURL(`/en/today?property=${propertyId}`);
+
+  // It is a link one level up in every language, never history: a detail view
+  // goes to its list, keeping the Property.
+  await page.goto(
+    `/ar/finance?property=${propertyId}&folio=00000000-0000-4000-8000-000000000000`,
+  );
+  await settled(page);
+  await expect(
+    page.locator(`header a[aria-label="${messages.ar.back}"]`),
+  ).toHaveAttribute("href", `/ar/finance?property=${propertyId}`);
+
+  await page.goto(`/tr/rooms?property=${propertyId}`);
+  await settled(page);
+  await expect(
+    page.locator(`header a[aria-label="${messages.tr.back}"]`),
+  ).toHaveAttribute("href", `/tr/today?property=${propertyId}`);
+});

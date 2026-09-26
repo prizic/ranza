@@ -121,7 +121,6 @@ export default async function AuditLogPage({
   }
 
   const route = localizeHref(locale, "audit-log");
-  const listHref = `${route}?property=${property.propertyId}`;
   const folioHref = `${localizeHref(locale, "finance")}?property=${property.propertyId}`;
 
   const recordId = one(search, "record");
@@ -130,10 +129,6 @@ export default async function AuditLogPage({
     return (
       <>
         <p className="text-sm text-muted-foreground">
-          <Link className="hover:underline" href={listHref}>
-            {t("allRecords")}
-          </Link>
-          {" · "}
           {property.organizationName}
         </p>
         {found ? (

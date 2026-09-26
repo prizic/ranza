@@ -89,17 +89,29 @@ export function Fact({
  */
 export function Field({
   children,
+  hint,
   htmlFor,
   label,
 }: {
   children: ReactNode;
+  /** A line under the control. The control names `${htmlFor}-hint` in its
+      `aria-describedby`, so it is read with the field. */
+  hint?: string;
   htmlFor: string;
   label: string;
 }) {
   return (
-    <div className="grid gap-1.5">
+    <div className="grid content-start gap-1.5">
       <Label htmlFor={htmlFor}>{label}</Label>
       {children}
+      {hint ? (
+        <p
+          className="text-step--1 text-muted-foreground"
+          id={`${htmlFor}-hint`}
+        >
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }
