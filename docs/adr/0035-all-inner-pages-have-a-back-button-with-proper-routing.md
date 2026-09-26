@@ -23,7 +23,8 @@ A review of how operators move through the workspace highlighted an omission:
 2. **Sub-views and detail records relied on tiny inline body links.** The audit
    record panel (`?record=...`) and the folio viewer (`?folio=...`) placed a
    small text link (`All records` or `All folios`) in the page body, but the
-   header bar remained static.
+   header bar remained static. The audit one also dropped the list's filters.
+   Those links are removed; the header control replaces them.
 3. **Mobile viewports hid the breadcrumbs entirely.** `AppPageBar` hides the
    breadcrumb trail on small viewports (`max-sm:sr-only` / `hidden sm:flex`),
    leaving the header with no navigation context or way back.
@@ -53,11 +54,10 @@ A review of how operators move through the workspace highlighted an omission:
      Arabic ("رجوع").
    - Logical icon mirroring: an arrow with `rtl:rotate-180` so Arabic displays
      the correct reverse direction by construction.
-   - A plain link, so Command/Control/Shift clicks open the target in a new tab.
 4. **Back goes up one level, deterministically.** It is a link, never
    `history.back()`:
-   - A detail view (`?record=`, `?folio=`) goes to its list, with the Property
-     and any filters kept.
+   - A detail view (`?record=`, `?folio=`) goes to its list, keeping the rest of
+     its query — the Property and any filters.
    - Every other inner page goes to `Today`, with the active Property kept
      (`?property=...`).
    - The browser's own Back button remains the history control. Returning to
@@ -79,5 +79,4 @@ A review of how operators move through the workspace highlighted an omission:
 - Mobile headers gain a visible back button while preserving space for page
   actions.
 - The Operator Workspace's message catalogue carries `back` in all three
-  languages. The Guest Portal has no inner pages yet and gains it with its
-  first one.
+  languages.

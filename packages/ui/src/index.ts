@@ -29,8 +29,6 @@ export type {
 } from "./components/data-table/data-table";
 export { DataTableColumnHeader } from "./components/data-table/column-header";
 export type { ColumnHeaderLabels } from "./components/data-table/column-header";
-export { DataTableFacetedChips } from "./components/data-table/faceted-chips";
-export type { DataTableFacetedChipsProps } from "./components/data-table/faceted-chips";
 export { DataTableFacetedFilter } from "./components/data-table/faceted-filter";
 export type { FacetOption } from "./components/data-table/faceted-filter";
 export { DataTablePagination } from "./components/data-table/pagination";

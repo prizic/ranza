@@ -314,7 +314,6 @@ export interface Messages {
 
   folios: string;
   foliosAt: string;
-  allFolios: string;
   noFoliosTitle: string;
   noFoliosDescription: string;
   folioStatus: Record<"open" | "closed", string>;
@@ -702,7 +701,6 @@ export interface Messages {
 
   auditLog: string;
   auditLogFor: string;
-  allRecords: string;
   noAuditTitle: string;
   /**
    * Said to a Staff Member who holds `audit.read` at no Property they reach —
@@ -1291,7 +1289,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingRefused: "Bu rezervasyon oluşturulamıyor.",
     folios: "Folyolar",
     foliosAt: "Folyolar —",
-    allFolios: "Tüm folyolar",
     noFoliosTitle: "Henüz folyo yok",
     noFoliosDescription:
       "Bu tesiste açık bir folyo bulunmuyor. Bir misafir giriş yaptığında folyosu açılır.",
@@ -1734,7 +1731,6 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     auditLog: "Denetim kaydı",
     auditLogFor: "Son işlemler:",
-    allRecords: "Tüm kayıtlar",
     noAuditTitle: "Henüz kayıt yok",
     auditNotPermittedTitle: "Denetim kaydını okuyamıyorsunuz",
     auditNotPermittedDescription:
@@ -2335,7 +2331,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingRefused: "That booking cannot be taken.",
     folios: "Folios",
     foliosAt: "Folios at",
-    allFolios: "All folios",
     noFoliosTitle: "No folios yet",
     noFoliosDescription:
       "Nothing has been opened at this Property. A folio opens when a Guest checks in.",
@@ -2781,7 +2776,6 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     auditLog: "Audit log",
     auditLogFor: "Recent actions at",
-    allRecords: "All records",
     noAuditTitle: "Nothing recorded yet",
     auditNotPermittedTitle: "You can't read the audit log",
     auditNotPermittedDescription:
@@ -3369,7 +3363,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingRefused: "لا يمكن إنشاء هذا الحجز.",
     folios: "الحسابات",
     foliosAt: "الحسابات في",
-    allFolios: "كل الحسابات",
     noFoliosTitle: "لا توجد حسابات بعد",
     noFoliosDescription:
       "لم يُفتح أي حساب في هذه المنشأة. يُفتح الحساب عند تسجيل دخول نزيل.",
@@ -3810,7 +3803,6 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     auditLog: "سجل التدقيق",
     auditLogFor: "آخر الإجراءات في",
-    allRecords: "كل السجلات",
     noAuditTitle: "لا توجد سجلات بعد",
     auditNotPermittedTitle: "لا يمكنك قراءة سجل التدقيق",
     auditNotPermittedDescription:

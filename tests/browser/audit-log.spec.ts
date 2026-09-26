@@ -66,4 +66,17 @@ test("a submitted search finds a record by its reason, and the defaults narrow n
     .click();
   await expect(page).toHaveURL(/record=/);
   await expect(page.getByText(reason)).toBeVisible();
+
+  // Its way up is the list it was opened from: the filters kept, the record
+  // dropped (ADR 0035).
+  const opened = new URL(page.url());
+  const list = new URLSearchParams(opened.search);
+  list.delete("record");
+  const listHref = `${opened.pathname}?${list.toString()}`;
+  expect(list.get("q")).toBe(reason);
+  const back = page.locator('header a[aria-label="Back"]');
+  await expect(back).toHaveAttribute("href", listHref);
+  await back.click();
+  await expect(page).toHaveURL(listHref);
+  await expect(page.getByText("1 record", { exact: true })).toBeVisible();
 });

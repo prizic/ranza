@@ -12,8 +12,10 @@ import {
   withoutLocale,
 } from "../../../lib/page-titles";
 
+const DETAIL_KEYS = ["record", "folio"] as const;
+
 /**
- * Resolves the page's own title, the trail above it, and back routing from the route.
+ * Resolves the page's own title, the trail above it, and the way up from the route.
  *
  * A client component because it reads the pathname and query parameters, which
  * a router layout cannot. Renders a back button with proper routing on all
@@ -47,19 +49,14 @@ export function WorkspacePageBar({
   const rootHref = withProperty(localizeHref(locale, "today"));
   const route = withoutLocale(pathname);
   const isToday = route === "/today" || route === "/";
-  const hasDetailRecord = searchParams.has("record");
-  const hasDetailFolio = searchParams.has("folio");
-  const isInnerPage = !isToday || hasDetailRecord || hasDetailFolio;
+  // A detail view's way up is its own list, with the rest of the query kept.
+  const detailKey = DETAIL_KEYS.find((key) => searchParams.has(key));
+  const isInnerPage = !isToday || detailKey !== undefined;
 
   let upHref = rootHref;
-  if (hasDetailRecord) {
+  if (detailKey) {
     const listParams = new URLSearchParams(searchParams.toString());
-    listParams.delete("record");
-    const query = listParams.toString();
-    upHref = query ? `${pathname}?${query}` : pathname;
-  } else if (hasDetailFolio) {
-    const listParams = new URLSearchParams(searchParams.toString());
-    listParams.delete("folio");
+    listParams.delete(detailKey);
     const query = listParams.toString();
     upHref = query ? `${pathname}?${query}` : pathname;
   }
