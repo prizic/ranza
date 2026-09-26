@@ -555,7 +555,7 @@ describe("maintenance", () => {
   it("the_manager_sees_open_maintenance_at_a_glance", () => {
     view(manager(), "en");
     const card = screen.getByRole("region", { name: "Maintenance" });
-    expect(within(card).getByText("Rooms out of order")).toBeInTheDocument();
+    expect(within(card).getByText("Out of order")).toBeInTheDocument();
     expect(within(card).getByText("Waiting for parts")).toBeInTheDocument();
     // Every figure, and the card's own link, opens the board at the Property.
     const links = within(card).getAllByRole("link");

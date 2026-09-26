@@ -13,9 +13,11 @@ import { todayHref } from "../links";
 import { SectionUnavailable } from "./section-unavailable";
 
 /**
- * Open maintenance at a glance, for the manager (TD-S4-04). Every figure
+ * Open maintenance at a glance, for the manager (TD-S4-04). Out of order
+ * counts Units, beds included, however many requests hold each; the board it
+ * opens still counts holding requests (MT-S2-32). Every figure
  * opens the maintenance board at the Property; the board has no filter to
- * open at yet (TD-S4-07).
+ * open at yet (TD-DEF-09).
  */
 export function MaintenanceCard({
   locale,

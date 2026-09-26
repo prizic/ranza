@@ -740,6 +740,47 @@ describe("maintenance", () => {
     expect(absorbed).toEqual([
       expect.objectContaining({ kind: "urgent_repair", dueOn: "2026-09-23" }),
     ]);
+
+    const at509 = (read: TodayMaintenance) =>
+      items([...HOUSEKEEPING, ...REPORTS], { units, maintenance: ok(read) })
+        .filter((item) => item.unit?.unitName === "509")
+        .map((item) => [item.kind, item.dueOn]);
+    const boiler = urgent({
+      requestId: "m-9",
+      number: 9,
+      title: "Boiler leaking",
+      unit: { unitId: "u-509", name: "509", roomName: null },
+    });
+
+    // Absorbing another request's late hold, it shows its own date — none —
+    // never the other request's under its own number.
+    expect(
+      at509(
+        maintenance({
+          urgent: [boiler],
+          holds: [
+            held({ expectedBackOn: null }),
+            held({ requestId: "m-4", number: 4, expectedBackOn: "2026-09-24" }),
+          ],
+        }),
+      ),
+    ).toEqual([["urgent_repair", null]]);
+
+    // An urgent request that does not hold the room absorbs nothing: the
+    // request that holds it is still late, and says so.
+    expect(
+      at509(
+        maintenance({
+          urgent: [
+            urgent({ unit: { unitId: "u-509", name: "509", roomName: null } }),
+          ],
+          holds: [held({ expectedBackOn: "2026-09-23" })],
+        }),
+      ),
+    ).toEqual([
+      ["urgent_repair", null],
+      ["overdue_return", "2026-09-23"],
+    ]);
   });
 
   it("out_of_service_from_a_hold_opens_maintenance", () => {

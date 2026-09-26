@@ -570,7 +570,7 @@ function heldUnitOf(unit: { name: string; roomName: string | null }) {
  * Units the unit map shows out of service (TD-S4-03).
  *
  * A room is listed once. An urgent request holding it absorbs its holds and
- * carries the date it was due back, if that has passed; otherwise a hold past
+ * carries its own due-back date, if that has passed; otherwise a hold past
  * its return is the item, the earliest-due one when several hold the room;
  * otherwise the plain out-of-service item names the lowest-numbered request.
  */
@@ -615,7 +615,13 @@ function maintenanceAttention(
       ...base,
       kind: "urgent_repair",
       unit: request.unit ? heldUnitOf(request.unit) : null,
-      dueOn: holds ? (overdueOf(holds)?.expectedBackOn ?? null) : null,
+      // Its own date, not another request's: the room is listed once, but a
+      // date shown under this request's number is this request's.
+      dueOn: holds
+        ? (overdueOf(
+            holds.filter((hold) => hold.requestId === request.requestId),
+          )?.expectedBackOn ?? null)
+        : null,
       request: requestOf(request, request.equipment?.name ?? null),
     });
   }

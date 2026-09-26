@@ -117,7 +117,7 @@ export function AttentionQueue({
 
   function way(item: AttentionItem): { href: string; label: string } {
     // Only a maintenance viewer is sent a request (TD-S4-03); the board opens
-    // at the Property, since it has no request to open at yet (TD-S4-07).
+    // at the Property, since it has no request to open at yet (TD-DEF-09).
     if (item.request) {
       return {
         href: todayHref(locale, "maintenance", propertyId),

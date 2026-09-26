@@ -1221,6 +1221,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
           from public.properties as property
           left join public.maintenance_requests as request
             on request.property_id = property.id
+           and request.status in ('new', 'in_progress', 'waiting_for_parts')
          where property.id = ${propertyId}::uuid
            and app.can_use_capability(
                  property.id,
