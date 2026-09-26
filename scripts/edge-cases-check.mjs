@@ -15,83 +15,21 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseCsv } from "./csv.mjs";
+import { ENFORCED_AR, HEADER, STATUS_AR } from "./decisions-vocabulary.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-const HEADER = [
-  "id",
-  "situation",
-  "given",
-  "when",
-  "then",
-  "enforced_by",
-  "test_name",
-  "status",
-];
-const ENFORCED_BY = new Set([
-  "database_constraint",
-  "policy",
-  "trigger",
-  "module",
-  "ui_only",
-  "database_function",
-]);
-const STATUS = new Set([
-  "open",
-  "approved",
-  "deferred",
-  "out_of_scope",
-  "prerequisite_missing",
-  "current_behaviour_differs",
-  "resolved",
-  "proposed",
-]);
+// The vocabulary is the decision register's too: a word allowed here that the
+// register has no label for would pass this gate and then break that page.
+const ENFORCED_BY = new Set(Object.keys(ENFORCED_AR));
+const STATUS = new Set(Object.keys(STATUS_AR));
+
 // CO-S1-04, AL-DIFF-01, CO-NB-10, IG-01 — or PRE-06, which names what another
 // feature owes this one and so carries no feature prefix.
 const ID = /^(?:[A-Z]+(?:-(?:S\d+|NB|DIFF|DEF))?|PRE)-\d+$/;
 const BLOCKS = /^blocks: /;
 const REQUIRED = ["situation", "given", "when", "then"];
-
-// RFC 4180: a field containing a comma, a quote or a newline is quoted, and a
-// quote inside a quoted field is doubled. Node has no parser for this and the
-// tables use every one of those cases.
-function parseCsv(text) {
-  const rows = [];
-  let row = [];
-  let field = "";
-  let quoted = false;
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    if (quoted) {
-      if (char === '"' && text[i + 1] === '"') {
-        field += '"';
-        i++;
-      } else if (char === '"') {
-        quoted = false;
-      } else {
-        field += char;
-      }
-    } else if (char === '"') {
-      quoted = true;
-    } else if (char === ",") {
-      row.push(field);
-      field = "";
-    } else if (char === "\n" || char === "\r") {
-      if (char === "\r" && text[i + 1] === "\n") i++;
-      row.push(field);
-      rows.push(row);
-      row = [];
-      field = "";
-    } else {
-      field += char;
-    }
-  }
-  if (field !== "" || row.length > 0) {
-    row.push(field);
-    rows.push(row);
-  }
-  return rows;
-}
 
 export function problemsIn(file) {
   const problems = [];

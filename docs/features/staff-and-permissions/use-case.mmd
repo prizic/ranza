@@ -91,17 +91,17 @@ flowchart TD
   %% NOTE: a Staff Member may reach no Property at all. That is a normal state,
   %% not a half-finished one, and the roster shows it as such.
 
-  %% OPEN: how does ending a session cross the credential boundary? ranza_app is
+  %% DECIDED (SP-S4-01): how does ending a session cross the credential boundary? ranza_app is
   %% granted nothing on auth_session by design (ADR 0005). s4, SP-S4-01
-  %% OPEN: does a lapsed Subscription block REVOKING too, or only granting?
+  %% DECIDED (SP-S1-21): does a lapsed Subscription block REVOKING too, or only granting?
   %% Blocking it locks an Organization out of removing a compromised account. s1, SP-S1-21
-  %% OPEN: how long is the undo window, measured against which clock? An
+  %% DECIDED (SP-S1-22): how long is the undo window, measured against which clock? An
   %% Organization has no business date; a Property does (ADR 0021). s1, SP-S1-22
-  %% OPEN: does an invitation expire, and what happens to the live membership
+  %% DECIDED (SP-S1-23): does an invitation expire, and what happens to the live membership
   %% behind it if it does? s1, SP-S1-23
-  %% OPEN: what is the permission catalogue? Every command in the product has to
+  %% DECIDED (SP-S2-01): what is the permission catalogue? Every command in the product has to
   %% appear in it or the gate has nothing to check. s2, SP-S2-01
-  %% OPEN: may an Organization's own role grant a permission its author does not
+  %% DECIDED (SP-S3-01): may an Organization's own role grant a permission its author does not
   %% hold? s3, SP-S3-01
-  %% OPEN: what happens to Staff Members holding an Organization's role when it
+  %% DECIDED (SP-S3-02): what happens to Staff Members holding an Organization's role when it
   %% is retired? s3, SP-S3-02
