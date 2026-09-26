@@ -37,6 +37,14 @@ export type { RowAction } from "./components/data-table/row-actions";
 export { DataTableViewOptions } from "./components/data-table/view-options";
 export { markOverlayClosed, overlayJustClosed } from "./lib/menu-guard";
 export { fieldMatches, toAsciiDigits } from "./lib/search";
+export { Combobox, MultiCombobox } from "./components/combobox";
+export type {
+  ComboboxLabels,
+  ComboboxOption,
+  ComboboxProps,
+  MultiComboboxLabels,
+  MultiComboboxProps,
+} from "./components/combobox";
 export { StatusBadge } from "./components/status-badge";
 export type { StatusBadgeProps, StatusTone } from "./components/status-badge";
 export { BrandMark } from "./components/brand-mark";

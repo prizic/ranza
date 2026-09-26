@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Lock, UserPlus } from "lucide-react";
 import {
   Button,
+  Combobox,
   Dialog,
   DialogClose,
   DialogContent,
@@ -16,13 +17,15 @@ import {
   Field,
   FormError,
   Input,
-  Select,
-  SelectContent,
-  SelectTrigger,
-  SelectValue,
+  MultiCombobox,
 } from "@ranza/ui";
 import { inviteStaffMember, type InviteOutcome } from "../../../server/staff";
-import { RoleOptions, roleOptionValue, type RoleOption } from "./role-options";
+import { usePickerLabels } from "../../../lib/table-labels";
+import {
+  roleOptionValue,
+  useRoleOptions,
+  type RoleOption,
+} from "./role-options";
 
 /**
  * Inviting somebody.
@@ -50,13 +53,15 @@ export function InviteDialog({
 }) {
   const t = useTranslations();
   const [open, setOpen] = useState(false);
-  const [reaching, setReaching] = useState<readonly string[]>([]);
   const [outcome, act, pending] = useActionState<InviteOutcome, FormData>(
     inviteStaffMember,
     { state: "idle" },
   );
 
   const defaultRole = roles[0] ? roleOptionValue(roles[0]) : ":front_desk";
+  const roleOptions = useRoleOptions(roles);
+  const roleLabels = usePickerLabels(t("staff.role"));
+  const propertyLabels = usePickerLabels(t("staff.reachesNothing"));
 
   return (
     <Dialog onOpenChange={setOpen} open={open}>
@@ -89,14 +94,6 @@ export function InviteDialog({
           <form action={act} className="space-y-4">
             <input name="locale" type="hidden" value={locale} />
             <input name="organization" type="hidden" value={organizationId} />
-            {reaching.map((propertyId) => (
-              <input
-                key={propertyId}
-                name="properties"
-                type="hidden"
-                value={propertyId}
-              />
-            ))}
 
             <Field htmlFor="invite-email" label={t("staff.email")}>
               <Input
@@ -110,48 +107,30 @@ export function InviteDialog({
             </Field>
 
             <Field htmlFor="invite-role" label={t("staff.role")}>
-              <Select defaultValue={defaultRole} name="role">
-                <SelectTrigger id="invite-role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <RoleOptions roles={roles} />
-                </SelectContent>
-              </Select>
+              <Combobox
+                defaultValue={defaultRole}
+                id="invite-role"
+                labels={roleLabels}
+                name="role"
+                options={roleOptions}
+              />
             </Field>
 
-            {/* Pills rather than checkboxes, as the mockup has them: a Property
-                is a place somebody works, and a row of them reads as a set. An
-                empty set is allowed and normal — somebody can be on the roster
-                before anybody decides where they work (SP-S1-06). */}
-            <fieldset className="space-y-2">
-              <legend className="text-sm font-medium">
-                {t("staff.properties")}
-              </legend>
-              <div className="flex flex-wrap gap-2">
-                {properties.map((property) => {
-                  const chosen = reaching.includes(property.propertyId);
-                  return (
-                    <Button
-                      aria-pressed={chosen}
-                      key={property.propertyId}
-                      onClick={() =>
-                        setReaching((held) =>
-                          chosen
-                            ? held.filter((id) => id !== property.propertyId)
-                            : [...held, property.propertyId],
-                        )
-                      }
-                      size="sm"
-                      type="button"
-                      variant={chosen ? "default" : "outline"}
-                    >
-                      {property.propertyName}
-                    </Button>
-                  );
-                })}
-              </div>
-            </fieldset>
+            {/* Searchable, because an Organization's Properties are data and
+                a chain outgrows a row of pills. An empty set is allowed and
+                normal — somebody can be on the roster before anybody decides
+                where they work (SP-S1-06) — which the placeholder says. */}
+            <Field htmlFor="invite-properties" label={t("staff.properties")}>
+              <MultiCombobox
+                id="invite-properties"
+                labels={propertyLabels}
+                name="properties"
+                options={properties.map((property) => ({
+                  value: property.propertyId,
+                  label: property.propertyName,
+                }))}
+              />
+            </Field>
 
             {outcome.state === "alreadyAMember" ? (
               <FormError>{t("staff.alreadyAMember")}</FormError>

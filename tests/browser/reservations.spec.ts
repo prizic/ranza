@@ -68,8 +68,8 @@ test("a front desk takes a booking and finds it on the list", async ({
 
   await dialog.getByLabel("Guest", { exact: true }).fill(guestName);
   await dialog.getByLabel("Email").fill(email);
-  // A combobox rather than a native select: shadcn's Select is Radix, so the
-  // option is a listbox row and not an <option>.
+  // A combobox rather than a native select: the Unit picker is the kit's
+  // searchable one, so the option is a listbox row and not an <option>.
   await dialog.getByLabel("Unit").click();
   await page.getByRole("option", { name: new RegExp(unitName) }).click();
   await dialog.getByLabel("Arrival").fill(propertyDay(propertyId, 7));

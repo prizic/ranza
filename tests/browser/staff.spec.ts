@@ -71,6 +71,18 @@ test("an administrator invites a colleague and is given the link to pass on", as
   await expect(dialog).toBeVisible();
 
   await dialog.getByLabel("Email").fill(email);
+
+  // Where they work, through the searchable multi-picker: found by typing,
+  // and only the one picked — its "(housekeeping off)" sibling matches the
+  // same search and must not come along.
+  await dialog.getByLabel("Properties").click();
+  await page.getByPlaceholder("Search…").fill("E2E Test");
+  await page
+    .getByRole("option", { exact: true, name: "E2E Test Property" })
+    .click();
+  await page.keyboard.press("Escape");
+  await expect(dialog.getByLabel("Properties")).toHaveText("E2E Test Property");
+
   await dialog.getByRole("button", { name: "Create the invitation" }).click();
 
   // The dialog stays open on purpose. This is the only moment the token exists
@@ -87,6 +99,8 @@ test("an administrator invites a colleague and is given the link to pass on", as
   // on the link.
   await expect(row).toContainText("Awaiting a password");
   await expect(row).toContainText("Invitation sent");
+  await expect(row).toContainText("E2E Test Property");
+  await expect(row).not.toContainText("housekeeping off");
 });
 
 /**
@@ -257,8 +271,8 @@ test("an Organization's own Front desk is picked apart from the shipped one", as
   const ours = page
     .getByRole("group", { name: "You defined these" })
     .getByRole("option", { exact: true, name: "Front desk" });
-  await expect(ranzas).toHaveAttribute("data-state", "checked");
-  await expect(ours).toHaveAttribute("data-state", "unchecked");
+  await expect(ranzas).toHaveAttribute("aria-checked", "true");
+  await expect(ours).toHaveAttribute("aria-checked", "false");
 
   await ours.click();
   await expect(select).toBeEnabled();

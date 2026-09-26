@@ -581,6 +581,7 @@ export interface Messages {
   >;
 
   table: TableMessages;
+  picker: PickerMessages;
 
   /** Rail and page-bar names, keyed by route segment. */
   navigation: Record<string, string>;
@@ -590,6 +591,14 @@ export interface Messages {
   handoverLabel: string;
   notEntitledTitle: string;
   notEntitledDescription: string;
+}
+
+/** The searchable pickers' own strings; each field brings its placeholder. */
+export interface PickerMessages {
+  search: string;
+  noMatches: string;
+  clear: string;
+  selectedCount: string;
 }
 
 /** The listing kit's strings. `{n}`, `{of}` and `{columns}` are interpolated. */
@@ -1193,6 +1202,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       property: "Tesis",
       accommodation_unit: "Konaklama birimi",
       organization: "Organizasyon",
+    },
+    picker: {
+      search: "Ara…",
+      noMatches: "Eşleşen seçenek yok.",
+      clear: "Seçimi temizle",
+      selectedCount: "{n, plural, other {# seçili}}",
     },
     table: {
       results: "{n, plural, other {# sonuç}}",
@@ -1825,6 +1840,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       accommodation_unit: "Accommodation unit",
       organization: "Organization",
     },
+    picker: {
+      search: "Search…",
+      noMatches: "No options match.",
+      clear: "Clear selection",
+      selectedCount: "{n, plural, other {# selected}}",
+    },
     table: {
       results: "{n, plural, one {# result} other {# results}}",
       capped: "(latest {n, number} of {of, number})",
@@ -2443,6 +2464,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       property: "منشأة",
       accommodation_unit: "وحدة إقامة",
       organization: "المؤسسة",
+    },
+    picker: {
+      search: "بحث…",
+      noMatches: "لا توجد خيارات مطابقة.",
+      clear: "مسح الاختيار",
+      selectedCount:
+        "{n, plural, zero {لا شيء محدد} one {واحدة محددة} two {اثنتان محددتان} few {# محددة} many {# محددة} other {# محددة}}",
     },
     table: {
       results:

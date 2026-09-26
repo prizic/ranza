@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import type { BookableUnit } from "@ranza/reservations";
 import {
   Button,
+  Combobox,
   Dialog,
   DialogClose,
   DialogContent,
@@ -27,6 +28,7 @@ import {
   createReservation,
   type CreateReservationOutcome,
 } from "../../../server/front-office";
+import { usePickerLabels } from "../../../lib/table-labels";
 import { unitLabel } from "../unit-label";
 
 /**
@@ -67,6 +69,7 @@ export function NewReservationDialog({
   units: readonly BookableUnit[];
 }) {
   const t = useTranslations();
+  const unitLabels = usePickerLabels(t("chooseUnit"));
   const [open, setOpen] = useState(false);
   const [outcome, act, pending] = useActionState<
     CreateReservationOutcome,
@@ -159,19 +162,17 @@ export function NewReservationDialog({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field htmlFor="booking-unit" label={t("unit")}>
-              <Select name="unit" required>
-                <SelectTrigger className="w-full" id="booking-unit">
-                  <SelectValue placeholder={t("chooseUnit")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {units.map((unit) => (
-                    <SelectItem key={unit.unitId} value={unit.unitId}>
-                      {unitLabel(unit.roomName, unit.unitName)} ·{" "}
-                      {t(`unitType.${unit.unitType}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                id="booking-unit"
+                labels={unitLabels}
+                name="unit"
+                options={units.map((unit) => ({
+                  value: unit.unitId,
+                  label: unitLabel(unit.roomName, unit.unitName),
+                  description: t(`unitType.${unit.unitType}`),
+                }))}
+                required
+              />
             </Field>
             <Field htmlFor="booking-stay-type" label={t("stayTypeLabel")}>
               <Select defaultValue="guest" name="stayType">

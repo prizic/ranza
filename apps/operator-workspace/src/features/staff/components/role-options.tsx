@@ -1,12 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import {
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectSeparator,
-} from "@ranza/ui";
+import type { ComboboxOption } from "@ranza/ui";
 
 /** A role as a picker offers it, already named in the reader's language. */
 export interface RoleOption {
@@ -33,30 +28,24 @@ export function roleOptionValue(
  * Organization's own "Front desk" from the shipped one when the names match,
  * and with nothing authored there is only one group, so no heading.
  */
-export function RoleOptions({ roles }: { roles: readonly RoleOption[] }) {
+export function useRoleOptions(roles: readonly RoleOption[]): ComboboxOption[] {
   const t = useTranslations();
-  const shipped = roles.filter((role) => role.organizationId === null);
-  const authored = roles.filter((role) => role.organizationId !== null);
+  const authored = roles.some((role) => role.organizationId !== null);
+  const shippedGroup = t("staff.shippedGroup");
+  const authoredGroup = t("staff.authoredGroup");
 
-  const item = (role: RoleOption) => (
-    <SelectItem key={roleOptionValue(role)} value={roleOptionValue(role)}>
-      {role.name}
-    </SelectItem>
-  );
-
-  if (authored.length === 0) return <>{shipped.map(item)}</>;
-
-  return (
-    <>
-      <SelectGroup>
-        <SelectLabel>{t("staff.shippedGroup")}</SelectLabel>
-        {shipped.map(item)}
-      </SelectGroup>
-      <SelectSeparator />
-      <SelectGroup>
-        <SelectLabel>{t("staff.authoredGroup")}</SelectLabel>
-        {authored.map(item)}
-      </SelectGroup>
-    </>
-  );
+  return [...roles]
+    .sort(
+      (a, b) =>
+        Number(a.organizationId !== null) - Number(b.organizationId !== null),
+    )
+    .map((role) => ({
+      value: roleOptionValue(role),
+      label: role.name,
+      ...(authored
+        ? {
+            group: role.organizationId === null ? shippedGroup : authoredGroup,
+          }
+        : {}),
+    }));
 }
