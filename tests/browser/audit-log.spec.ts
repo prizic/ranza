@@ -67,3 +67,40 @@ test("a submitted search finds a record by its reason, and the defaults narrow n
   await expect(page).toHaveURL(/record=/);
   await expect(page.getByText(reason)).toBeVisible();
 });
+
+/**
+ * The period is one field and one calendar. Two things only a browser shows:
+ * pressing elsewhere closes the calendar without pulling focus back to the
+ * dates — which sent the reader's typing nowhere — and a preset reaches the
+ * server as the `from` and `to` the table is filtered by.
+ *
+ * Watched go red before it was believed: with the focus return made
+ * unconditional, the search box is not focused.
+ */
+test("the period closes where the reader pressed, and a preset filters by it", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+
+  await signIn(page);
+  await page.goto(`/en/audit-log?property=${propertyId}`);
+
+  const search = page.getByRole("searchbox", { name: "Search" });
+  await page.getByRole("button", { name: /^From/ }).click();
+  await expect(page.getByText("Choose the first day")).toBeVisible();
+  await search.click();
+  await expect(page.getByText("Choose the first day")).toBeHidden();
+  await expect(search).toBeFocused();
+
+  await page.getByRole("button", { name: /^From/ }).click();
+  await page.getByRole("button", { name: "Last 7 days" }).click();
+  await page.getByRole("button", { name: "Apply" }).click();
+  await expect(page).toHaveURL(/from=\d{4}-\d{2}-\d{2}&to=\d{4}-\d{2}-\d{2}/);
+  // Both ends survive the reload: the field shows what the table applies.
+  await expect(page.getByRole("button", { name: /^From/ })).not.toHaveText(
+    "Earliest",
+  );
+  await expect(page.getByRole("button", { name: /^To/ })).not.toHaveText(
+    "Latest",
+  );
+});

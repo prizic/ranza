@@ -301,6 +301,16 @@ export interface Messages {
   stayTypeLabel: string;
   arrival: string;
   departureHint: string;
+  /** One field for arrival and departure; the halves keep those names. */
+  stayDates: string;
+  bookingAddDate: string;
+  bookingOpenEnded: string;
+  bookingPickArrival: string;
+  bookingPickDeparture: string;
+  /** ICU plural on `count`. */
+  stayNights: string;
+  dateRangeClear: string;
+  dateRangeDone: string;
   chooseUnit: string;
   takeBooking: string;
   takingBooking: string;
@@ -742,6 +752,16 @@ export interface Messages {
   auditEveryProperty: string;
   auditFrom: string;
   auditTo: string;
+  auditPeriod: string;
+  auditFromEmpty: string;
+  auditToEmpty: string;
+  auditPickFrom: string;
+  auditPickTo: string;
+  /** ICU plural on `count`: the days a filter covers, both ends included. */
+  auditSpanDays: string;
+  auditPresetLast7: string;
+  auditPresetLast30: string;
+  auditPresetThisMonth: string;
   auditSearch: string;
   auditSearchHint: string;
   auditSearchTooShort: string;
@@ -1284,6 +1304,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     stayTypeLabel: "Konaklama türü",
     arrival: "Giriş",
     departureHint: "Açık uçlu bir rezervasyon için boş bırakın.",
+    stayDates: "Konaklama tarihleri",
+    bookingAddDate: "Tarih seçin",
+    bookingOpenEnded: "Açık uçlu",
+    bookingPickArrival: "Giriş gününü seçin",
+    bookingPickDeparture: "Çıkış gününü seçin ya da açık bırakın",
+    stayNights: "{count, plural, other {# gece}}",
+    dateRangeClear: "Temizle",
+    dateRangeDone: "Tamam",
     chooseUnit: "Birim seçin",
     takeBooking: "Rezervasyon oluştur",
     takingBooking: "Oluşturuluyor",
@@ -1771,6 +1799,15 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditEveryProperty: "Erişebildiğiniz tüm tesisler",
     auditFrom: "Başlangıç",
     auditTo: "Bitiş",
+    auditPeriod: "Dönem",
+    auditFromEmpty: "En eski",
+    auditToEmpty: "En yeni",
+    auditPickFrom: "İlk günü seçin",
+    auditPickTo: "Son günü seçin",
+    auditSpanDays: "{count, plural, other {# gün}}",
+    auditPresetLast7: "Son 7 gün",
+    auditPresetLast30: "Son 30 gün",
+    auditPresetThisMonth: "Bu ay",
     auditSearch: "Ara",
     auditSearchHint: "Misafir, oda, ekip arkadaşı veya gerekçeden bir kelime",
     auditSearchTooShort: "Aramak için en az iki karakter yazın.",
@@ -2333,6 +2370,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     stayTypeLabel: "Stay type",
     arrival: "Arrival",
     departureHint: "Leave empty for an open-ended Reservation.",
+    stayDates: "Stay dates",
+    bookingAddDate: "Add date",
+    bookingOpenEnded: "Open-ended",
+    bookingPickArrival: "Choose the arrival day",
+    bookingPickDeparture: "Choose the departure, or leave it open",
+    stayNights: "{count, plural, one {# night} other {# nights}}",
+    dateRangeClear: "Clear",
+    dateRangeDone: "Done",
     chooseUnit: "Choose a Unit",
     takeBooking: "Create reservation",
     takingBooking: "Creating",
@@ -2823,6 +2868,15 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditEveryProperty: "Every Property you reach",
     auditFrom: "From",
     auditTo: "To",
+    auditPeriod: "Period",
+    auditFromEmpty: "Earliest",
+    auditToEmpty: "Latest",
+    auditPickFrom: "Choose the first day",
+    auditPickTo: "Choose the last day",
+    auditSpanDays: "{count, plural, one {# day} other {# days}}",
+    auditPresetLast7: "Last 7 days",
+    auditPresetLast30: "Last 30 days",
+    auditPresetThisMonth: "This month",
     auditSearch: "Search",
     auditSearchHint: "Guest, room, colleague or words from a reason",
     auditSearchTooShort: "Type at least two characters to search.",
@@ -3374,6 +3428,15 @@ export const messages: Record<SupportedLocale, Messages> = {
     stayTypeLabel: "نوع الإقامة",
     arrival: "الوصول",
     departureHint: "اتركه فارغًا لحجز مفتوح المدة.",
+    stayDates: "تواريخ الإقامة",
+    bookingAddDate: "أضف تاريخًا",
+    bookingOpenEnded: "مفتوحة المدة",
+    bookingPickArrival: "اختر يوم الوصول",
+    bookingPickDeparture: "اختر يوم المغادرة أو اتركه مفتوحًا",
+    stayNights:
+      "{count, plural, one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلة} other {# ليلة}}",
+    dateRangeClear: "مسح",
+    dateRangeDone: "تم",
     chooseUnit: "اختر وحدة",
     takeBooking: "إنشاء الحجز",
     takingBooking: "جارٍ الإنشاء",
@@ -3857,6 +3920,16 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditEveryProperty: "كل المنشآت التي تصل إليها",
     auditFrom: "من",
     auditTo: "إلى",
+    auditPeriod: "الفترة",
+    auditFromEmpty: "الأقدم",
+    auditToEmpty: "الأحدث",
+    auditPickFrom: "اختر اليوم الأول",
+    auditPickTo: "اختر اليوم الأخير",
+    auditSpanDays:
+      "{count, plural, one {يوم واحد} two {يومان} few {# أيام} many {# يومًا} other {# يوم}}",
+    auditPresetLast7: "آخر 7 أيام",
+    auditPresetLast30: "آخر 30 يومًا",
+    auditPresetThisMonth: "هذا الشهر",
     auditSearch: "بحث",
     auditSearchHint: "ضيف أو غرفة أو زميل أو كلمات من سبب",
     auditSearchTooShort: "اكتب حرفين على الأقل للبحث.",

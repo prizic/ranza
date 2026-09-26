@@ -45,6 +45,11 @@ export type {
   MultiComboboxLabels,
   MultiComboboxProps,
 } from "./components/combobox";
+export { DateRangeField } from "./components/date-range-field";
+export type {
+  DateRangeLabels,
+  DateRangePreset,
+} from "./components/date-range-field";
 export { StatusBadge } from "./components/status-badge";
 export type { StatusBadgeProps, StatusTone } from "./components/status-badge";
 export { BrandMark } from "./components/brand-mark";
