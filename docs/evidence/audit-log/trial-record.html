@@ -1,0 +1,2099 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Trial record — RANZ-45 audit log (#59)</title>
+    <style>
+      :root {
+        --ink: #17201d;
+        --muted: #5d6b66;
+        --line: #dfe5e2;
+        --bg: #f7f8f6;
+        --card: #fff;
+        --pass: #1f6f4a;
+        --fail: #b3261e;
+        --unv: #8a5a00;
+        --accent: #0f5e4b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.55 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Helvetica,
+          Arial,
+          sans-serif;
+      }
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 48px 28px 96px;
+      }
+      h1 {
+        font-size: 34px;
+        line-height: 1.15;
+        margin: 0 0 6px;
+        letter-spacing: -0.01em;
+      }
+      h2 {
+        font-size: 22px;
+        margin: 56px 0 14px;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+      }
+      h3 {
+        font-size: 17px;
+        margin: 34px 0 8px;
+      }
+      .eyebrow {
+        font:
+          600 11px/1 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .verdict {
+        margin: 22px 0 8px;
+        padding: 18px 20px;
+        border: 1px solid var(--line);
+        border-inline-start: 5px solid var(--unv);
+        background: var(--card);
+      }
+      .verdict strong {
+        font-size: 20px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      code {
+        font:
+          13px ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        background: #eef1ef;
+        padding: 1px 4px;
+        border-radius: 3px;
+      }
+      pre {
+        font:
+          12.5px/1.45 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        background: #fff;
+        border: 1px solid var(--line);
+        padding: 14px;
+        overflow: auto;
+        max-height: 520px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        background: var(--card);
+        margin: 10px 0 6px;
+      }
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 7px 9px;
+        text-align: start;
+        vertical-align: top;
+        font-size: 14px;
+      }
+      th {
+        background: #f0f3f1;
+        font-weight: 600;
+      }
+      .badge {
+        display: inline-block;
+        font:
+          700 11px/1 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.06em;
+        padding: 4px 7px;
+        border-radius: 3px;
+        color: #fff;
+      }
+      .pass {
+        background: var(--pass);
+      }
+      .fail {
+        background: var(--fail);
+      }
+      .unverified {
+        background: var(--unv);
+      }
+      .finding {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-inline-start: 5px solid var(--fail);
+        padding: 14px 18px;
+        margin: 14px 0;
+      }
+      .finding.low {
+        border-inline-start-color: #c77700;
+      }
+      .case {
+        background: var(--card);
+        border: 1px solid var(--line);
+        padding: 16px 20px;
+        margin: 18px 0;
+      }
+      .case h3 {
+        margin: 0 0 6px;
+      }
+      .case .body {
+        margin: 10px 0;
+      }
+      figure {
+        margin: 16px 0 0;
+      }
+      figure img {
+        display: block;
+        max-width: 100%;
+        border: 1px solid var(--line);
+      }
+      figure a {
+        display: block;
+        max-height: 760px;
+        overflow: auto;
+      }
+      figcaption {
+        font-size: 13.5px;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      ol li,
+      ul li {
+        margin: 4px 0;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+      @media (max-width: 820px) {
+        .grid2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="eyebrow">
+        Trial record · RANZ-45 audit log hardening · PR #59
+      </div>
+      <h1>
+        The audit log does what ADR 0031 says. The run around it found five
+        defects.
+      </h1>
+      <div class="verdict">
+        <strong>Verdict: PARTIAL.</strong> 28 of 28 audit-log cases passed; 1
+        probe failed (C-29). Five FAILs: F-1 the People screen cannot change any
+        role, F-2 Turkish server copy on /en after in-app navigation (app-wide),
+        F-3 the refusal blames the Subscription, F-4 raw housekeeping facts, F-5
+        a rate-limited sign-in reads as a wrong password. 5 items UNVERIFIED —
+        listed below, not hidden.
+      </div>
+
+      <h2>Failures</h2>
+      <div class="finding">
+        <h3 style="margin-top: 0">
+          F-1 · The People screen cannot change anyone's role
+          <span class="badge fail">FAIL</span>
+        </h3>
+        <p>
+          <b>Severity: high</b> (Staff feature, found while exercising this one;
+          it blocks the UI path to AL-S1-29). Choosing any role in a roster row
+          — an Organization's own (Night auditor) or one Ranza ships (Front
+          desk) — shows “That was refused.” and nothing changes; no
+          <code>staff.role_changed</code> record is written.
+        </p>
+        <p>
+          <b>Cause</b>:
+          <code>apps/operator-workspace/src/server/staff.ts</code>,
+          <code>changeStaffRole</code>, passes the select's value
+          <code>&lt;scope&gt;:&lt;key&gt;</code> (e.g. <code>:front_desk</code>)
+          straight through as <code>roleKey</code>. The same file's
+          <code>roleFrom()</code> splits that pair, and
+          <code>inviteStaffMember</code> uses it;
+          <code>changeStaffRole</code> does not. <b>Fix</b>:
+          <code>...roleFrom(String(form.get("role") ?? ""))</code> in place of
+          <code>roleKey: String(form.get("role") ?? "")</code>. No browser test
+          changes a role, and the integration suite calls the module directly,
+          which is why nothing caught it.
+        </p>
+        <p>
+          <b>Repro</b>: sign in as an Owner → People → any row's Role select →
+          pick another role → “That was refused.”
+        </p>
+        <div class="grid2">
+          <figure>
+            <a href="shots/b-2-frontdesk-role-night-auditor.jpg"
+              ><img
+                src="shots/b-2-frontdesk-role-night-auditor.jpg"
+                alt="Owner, People: Front Desk → Night auditor. “That was refused.”; the role is unchanged in the database."
+                loading="lazy"
+            /></a>
+            <figcaption>
+              <code>b-2-frontdesk-role-night-auditor.jpg</code> — Owner, People:
+              Front Desk → Night auditor. “That was refused.”; the role is
+              unchanged in the database.
+            </figcaption>
+          </figure>
+          <figure>
+            <a href="shots/b-7-manager.kadikoy-role-front-desk.jpg"
+              ><img
+                src="shots/b-7-manager.kadikoy-role-front-desk.jpg"
+                alt="Owner, People: Kadıköy Manager → Front desk (a role Ranza ships). Also refused."
+                loading="lazy"
+            /></a>
+            <figcaption>
+              <code>b-7-manager.kadikoy-role-front-desk.jpg</code> — Owner,
+              People: Kadıköy Manager → Front desk (a role Ranza ships). Also
+              refused.
+            </figcaption>
+          </figure>
+        </div>
+      </div>
+      <div class="finding">
+        <h3 style="margin-top: 0">
+          F-2 · On /en, pages reached by in-app navigation render their server
+          copy in Turkish <span class="badge fail">FAIL</span>
+        </h3>
+        <p>
+          <b>Severity: medium</b>, app-wide, not the audit log's alone. Clicking
+          Audit log in the rail shows “Son işlemler: Deniz Otelleri”; clicking a
+          record shows “Tüm kayıtlar”; People from the rail shows a Turkish
+          subtitle. Reloading the same URL shows English. Client-rendered copy
+          (table headers, filters) stays English, so each page is mixed. Every
+          page calls <code>getTranslations()</code> with no locale, and requests
+          from in-app navigation fall back to the default, Turkish. See C-29.
+        </p>
+        <p>
+          <b>Repro</b>: /en/today → click Audit log in the rail → read the line
+          under the title.
+        </p>
+      </div>
+      <div class="finding low">
+        <h3 style="margin-top: 0">
+          F-3 · The refusal blames the Subscription
+          <span class="badge fail">FAIL</span>
+        </h3>
+        <p>
+          <b>Severity: low</b> (copy). A Staff Member without
+          <code>audit.read</code> is told “This module is not in your
+          Subscription — It appears here once your Organization subscribes…”.
+          Audit is not subscription-gated (ADR 0031); the true reason is a
+          missing permission, and only an administrator can grant it. The page
+          reuses
+          <code>notEntitledTitle</code>/<code>notEntitledDescription</code>. See
+          C-04.
+        </p>
+      </div>
+      <div class="finding low">
+        <h3 style="margin-top: 0">
+          F-4 · A housekeeping record's details are shown raw
+          <span class="badge fail">FAIL</span>
+        </h3>
+        <p>
+          <b>Severity: low</b>. The housekeeping writer's facts appear as
+          <code>status</code> → clean and <code>previousStatus</code> → dirty in
+          every locale.
+          <code>features/audit-log/components/context-facts.tsx</code> has no
+          entries for these keys or values; the writer merged after the log. See
+          C-12.
+        </p>
+      </div>
+      <div class="finding low">
+        <h3 style="margin-top: 0">
+          F-5 · A rate-limited sign-in says the password is wrong
+          <span class="badge fail">FAIL</span>
+        </h3>
+        <p>
+          <b>Severity: low</b>, outside the audit log. Signing in a fourth
+          person within ten seconds returned HTTP 429 (confirmed with curl:
+          <code>{"message":"Too many requests. Please try again later."}</code>)
+          and the sign-in page showed “That email and password did not match.”
+          Observed 3 times in the run log; no screenshot was taken of it.
+        </p>
+      </div>
+      <p class="muted">
+        Cosmetic, not counted: at 1400 px the Property filter reads “Every
+        Property you reac…” and the search placeholder is cut off (visible in
+        every list capture).
+      </p>
+
+      <h2>Not verified in this run</h2>
+      <table class="data">
+        <tr>
+          <th>row / claim</th>
+          <th>what</th>
+          <th>why not</th>
+        </tr>
+        <tr>
+          <td>AL-S1-04</td>
+          <td>
+            A member of two Organizations reads one Organization&#x27;s log
+          </td>
+          <td>
+            No second Organization was set up in this run. Not observed here;
+            the integration test
+            <code
+              >recent_records_are_bounded_to_the_organization_asked_for</code
+            >
+            covers it.
+          </td>
+        </tr>
+        <tr>
+          <td>AL-S1-28 (part)</td>
+          <td>
+            Where a check-out, a booking, a Folio closure, rooms added, and a
+            Property assigned/unassigned record themselves
+          </td>
+          <td>
+            Those writers were not exercised in this run. Observed here:
+            check-in, check-in withdrawn, charge, reversal, room blocked and
+            unblocked, housekeeping mark.
+          </td>
+        </tr>
+        <tr>
+          <td>AL-S1-29 (UI path)</td>
+          <td>
+            Changing someone&#x27;s role from the People screen records from/to
+          </td>
+          <td>
+            Impossible through the screen because of F-1. The record and its
+            rendering were observed with the change made through the module
+            (C-22).
+          </td>
+        </tr>
+        <tr>
+          <td>AL-S1-31 (UI path)</td>
+          <td>A revoked Staff Member</td>
+          <td>
+            Only the database half was exercised (C-27 D5); no revoke was done
+            through the People screen.
+          </td>
+        </tr>
+        <tr>
+          <td>F-2 in Arabic/Turkish</td>
+          <td>Whether in-app navigation from /ar also falls back to Turkish</td>
+          <td>
+            Only /en was probed. /ar was checked by full page loads only (C-26).
+          </td>
+        </tr>
+      </table>
+
+      <h2>Environment</h2>
+      <table class="data">
+        <tr>
+          <th>Commit</th>
+          <td>
+            <code>96427b5</code> — main, “Merge pull request #59 from
+            prizic/feat/audit-log-hardening” (includes the housekeeping
+            locationId fix, Clear filters as a full load, the two-read shell).
+            Worktree <code>~/Developer/ranza-evidence-audit</code>, branch
+            <code>evidence/audit-log</code>.
+          </td>
+        </tr>
+        <tr>
+          <th>App</th>
+          <td>
+            Operator Workspace, production build: <code>next build</code> then
+            <code>next start --port 3114</code> (Next.js 16.3.5). Next warned
+            that <code>next start</code> is not the recommended runner for
+            <code>output: standalone</code>; it served every request in this
+            run.
+          </td>
+        </tr>
+        <tr>
+          <th>Database</th>
+          <td>
+            A throwaway <code>ranza-postgres:latest</code> container (PostgreSQL
+            17.11) on port 54394; all 33 migrations applied;
+            <code>db:seed:dev</code> run against the app. Not the shared 54322,
+            not a hosted database.
+          </td>
+        </tr>
+        <tr>
+          <th>Browser</th>
+          <td>
+            Headless Chromium via <code>@playwright/test</code> 1.63.0, in this
+            process only; 1400×900 viewport; locale en-GB (ar for C-26). No
+            shared-browser MCP was used.
+          </td>
+        </tr>
+        <tr>
+          <th>When</th>
+          <td>
+            2026-09-24, 15:06–15:40 UTC (18:06–18:40 Istanbul, the Properties'
+            clock).
+          </td>
+        </tr>
+        <tr>
+          <th>Accounts</th>
+          <td>
+            <table>
+              <tr>
+                <th>email</th>
+                <th>role</th>
+                <th>reach</th>
+                <th>audit.read</th>
+              </tr>
+              <tr>
+                <td>owner@evidence.test</td>
+                <td>Owner</td>
+                <td>organization_wide</td>
+                <td>yes</td>
+              </tr>
+              <tr>
+                <td>deniz@example.test (seeded)</td>
+                <td>Manager</td>
+                <td>Kadıköy + Beşiktaş</td>
+                <td>yes</td>
+              </tr>
+              <tr>
+                <td>manager.kadikoy@evidence.test</td>
+                <td>Manager</td>
+                <td>Kadıköy</td>
+                <td>yes</td>
+              </tr>
+              <tr>
+                <td>frontdesk@evidence.test</td>
+                <td>Front desk</td>
+                <td>Kadıköy</td>
+                <td>no</td>
+              </tr>
+              <tr>
+                <td>housekeeping@evidence.test</td>
+                <td>Housekeeping</td>
+                <td>Kadıköy</td>
+                <td>no</td>
+              </tr>
+            </table>
+            Created through the app's own <code>/api/auth/sign-up/email</code>;
+            memberships granted in SQL, as <code>db:seed:dev</code> does. Both
+            Properties are on Europe/Istanbul.
+          </td>
+        </tr>
+      </table>
+
+      <h2>Where the records came from</h2>
+      <table class="data">
+        <tr>
+          <th>path</th>
+          <th>records</th>
+        </tr>
+        <tr>
+          <td><b>Through the screens</b> (headless browser)</td>
+          <td>
+            Ada Lovelace checked in; Mimar Sinan checked in and withdrawn with a
+            reason (Arrivals); a 150.00 charge and its reversal (Finance); a
+            room blocked at Beşiktaş (Rooms); room 102 marked clean by
+            Housekeeping (Housekeeping board); role “Night auditor” defined, and
+            <i>Reading the audit log</i> ticked and unticked twice (People).
+          </td>
+        </tr>
+        <tr>
+          <td><b>Through the modules the screens call</b></td>
+          <td>
+            Front Desk moved onto Night auditor and back
+            (<code>@ranza/staff</code>, because of F-1); 26 block/unblock pairs
+            on suite 201 so the log has two pages
+            (<code>@ranza/accommodation</code>); one Beşiktaş unblock during
+            C-14.
+          </td>
+        </tr>
+        <tr>
+          <td><b>Fixtures, as the table owner</b></td>
+          <td>
+            <code>evidence.late_night_fixture</code> at 22:30 UTC on 10 March
+            (C-19, C-23) and <code>evidence.odd_context_fixture</code> with a
+            JSON-string context (C-16). The runtime role cannot choose a
+            record's time (C-27 D2), which is why these needed the owner. Both
+            reasons say “EVIDENCE FIXTURE”.
+          </td>
+        </tr>
+        <tr>
+          <td><b>Database switches</b></td>
+          <td>
+            Subscription cancelled (C-08) and Beşiktaş archived (C-13), each
+            restored in a <code>finally</code>.
+          </td>
+        </tr>
+      </table>
+      <div class="grid2">
+        <figure>
+          <a href="shots/a0-before-empty-log.jpg"
+            ><img
+              src="shots/a0-before-empty-log.jpg"
+              alt="&lt;b&gt;Before&lt;/b&gt;: Owner&#x27;s log after seeding, before any action through the app — “Nothing recorded yet”."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>a0-before-empty-log.jpg</code> — <b>Before</b>: Owner's log
+            after seeding, before any action through the app — “Nothing recorded
+            yet”.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/a1-undo-check-in-dialog.jpg"
+            ><img
+              src="shots/a1-undo-check-in-dialog.jpg"
+              alt="Arrivals: undoing Mimar Sinan&#x27;s check-in, with a reason."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>a1-undo-check-in-dialog.jpg</code> — Arrivals: undoing Mimar
+            Sinan's check-in, with a reason.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/a2-folio-charge-and-reversal.jpg"
+            ><img
+              src="shots/a2-folio-charge-and-reversal.jpg"
+              alt="Finance: Ada Lovelace&#x27;s Folio with the 150.00 minibar charge and its reversal."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>a2-folio-charge-and-reversal.jpg</code> — Finance: Ada
+            Lovelace's Folio with the 150.00 minibar charge and its reversal.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/a3-besiktas-room-blocked.jpg"
+            ><img
+              src="shots/a3-besiktas-room-blocked.jpg"
+              alt="Rooms at Beşiktaş: a room blocked with a reason."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>a3-besiktas-room-blocked.jpg</code> — Rooms at Beşiktaş: a
+            room blocked with a reason.
+          </figcaption>
+        </figure>
+      </div>
+
+      <h2>What was tested</h2>
+      <table class="data">
+        <tr>
+          <th>case</th>
+          <th>claim</th>
+          <th>edge-case rows</th>
+          <th>result</th>
+        </tr>
+        <tr>
+          <td><a href="#C-01">C-01</a></td>
+          <td>Owner (organization-wide, holds audit.read) opens the log</td>
+          <td>AL-S1-02, AL-S1-17</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-02">C-02</a></td>
+          <td>Manager assigned to both Properties opens the log</td>
+          <td>AL-S1-02, AL-S1-16</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-03">C-03</a></td>
+          <td>Manager assigned to Kadıköy only sees only Kadıköy</td>
+          <td>AL-S1-16, AL-DIFF-01</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-04">C-04</a></td>
+          <td>Front Desk has no entry and is refused</td>
+          <td>AL-S1-02</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-05">C-05</a></td>
+          <td>Housekeeping has no entry and is refused</td>
+          <td>AL-S1-02, AL-S1-19</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-06">C-06</a></td>
+          <td>Signed out</td>
+          <td>AL-S1-14</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-07">C-07</a></td>
+          <td>
+            A role the Organization composes with audit.read opens, and closes,
+            the log
+          </td>
+          <td>AL-S1-02, AL-S1-05</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-08">C-08</a></td>
+          <td>A lapsed Subscription does not close the log</td>
+          <td>AL-S1-07</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-09">C-09</a></td>
+          <td>
+            Whole-Organization records are hidden from a one-Property Manager
+          </td>
+          <td>AL-S1-17, AL-S1-27</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-10">C-10</a></td>
+          <td>Asking for another Property&#x27;s log by URL</td>
+          <td>AL-S1-08</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-11">C-11</a></td>
+          <td>A Beşiktaş record link, opened by the Kadıköy-only Manager</td>
+          <td>AL-S1-08, AL-S2-02</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-12">C-12</a></td>
+          <td>A housekeeping mark is filed at its Property</td>
+          <td>AL-S1-28</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-13">C-13</a></td>
+          <td>An archived Property&#x27;s history stays readable and named</td>
+          <td>AL-S1-18</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-14">C-14</a></td>
+          <td>A record written while the page is open</td>
+          <td>AL-S1-13</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-15">C-15</a></td>
+          <td>Keyset paging: newest and older</td>
+          <td>AL-S1-26, AL-DEF-03</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-16">C-16</a></td>
+          <td>Search</td>
+          <td>AL-S1-23, AL-S1-24, AL-S1-30</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-17">C-17</a></td>
+          <td>Filter by action</td>
+          <td>AL-S1-22</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-18">C-18</a></td>
+          <td>Filter by Property</td>
+          <td>AL-S1-22</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-19">C-19</a></td>
+          <td>A day range means the Property&#x27;s calendar</td>
+          <td>AL-S1-11, AL-S1-22</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-20">C-20</a></td>
+          <td>Clear filters resets the form</td>
+          <td>AL-S1-22</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-21">C-21</a></td>
+          <td>A record opened by its row link</td>
+          <td>AL-S1-06, AL-S2-01</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-22">C-22</a></td>
+          <td>A role change says from and to, by name</td>
+          <td>AL-S1-29</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-23">C-23</a></td>
+          <td>An old record by id; an action with no label</td>
+          <td>AL-S1-09, AL-S2-02</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-24">C-24</a></td>
+          <td>A shared record link, opened by a second reader</td>
+          <td>AL-S2-02</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-25">C-25</a></td>
+          <td>Hand-edited URLs</td>
+          <td>AL-S1-25</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-26">C-26</a></td>
+          <td>Arabic, right to left</td>
+          <td>blueprint i18n</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-27">C-27</a></td>
+          <td>Guarantees that live in the database</td>
+          <td>AL-S1-15, AL-S1-19, AL-S1-20, AL-S1-21, AL-S1-31</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-28">C-28</a></td>
+          <td>Nothing outside the server reaches the audit module</td>
+          <td>AL-S1-12</td>
+          <td><span class="badge pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><a href="#C-29">C-29</a></td>
+          <td>Server copy after in-app navigation on /en</td>
+          <td>—</td>
+          <td><span class="badge fail">FAIL</span></td>
+        </tr>
+      </table>
+
+      <h2>Per case</h2>
+      <section class="case" id="C-01">
+        <h3>
+          C-01 · Owner (organization-wide, holds audit.read) opens the log
+          <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-02, AL-S1-17
+        </div>
+        <div class="body">
+          Signed in as <b>owner@evidence.test</b>. The rail lists
+          <b>Audit log</b> (1 link found by role). The log opened with all 8
+          records that existed at that moment, including the whole-Organization
+          <i>Role defined</i> record and the Beşiktaş block.
+        </div>
+        <figure>
+          <a href="shots/c1-owner-rail.jpg"
+            ><img
+              src="shots/c1-owner-rail.jpg"
+              alt="Owner, Today screen. &lt;b&gt;Proves&lt;/b&gt;: Audit log is in the rail for a holder of audit.read."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c1-owner-rail.jpg</code> — Owner, Today screen. <b>Proves</b>:
+            Audit log is in the rail for a holder of audit.read.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/c1-owner-audit-log-direct-url.jpg"
+            ><img
+              src="shots/c1-owner-audit-log-direct-url.jpg"
+              alt="Owner, /en/audit-log opened by URL after the eight UI writes. &lt;b&gt;Proves&lt;/b&gt;: every Property&#x27;s records and the whole-Organization record are listed (8 rows)."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c1-owner-audit-log-direct-url.jpg</code> — Owner,
+            /en/audit-log opened by URL after the eight UI writes.
+            <b>Proves</b>: every Property's records and the whole-Organization
+            record are listed (8 rows).
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-02">
+        <h3>
+          C-02 · Manager assigned to both Properties opens the log
+          <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-02, AL-S1-16
+        </div>
+        <div class="body">
+          Signed in as <b>deniz@example.test</b> (Manager,
+          <code>assigned_properties</code>, Kadıköy + Beşiktaş). 7 rows: every
+          Property record, and <i>not</i> the whole-Organization
+          <i>Role defined</i> record, because this reach is not the whole
+          Organization.
+        </div>
+        <figure>
+          <a href="shots/c1-manager-rail.jpg"
+            ><img
+              src="shots/c1-manager-rail.jpg"
+              alt="Two-Property Manager, Today. &lt;b&gt;Proves&lt;/b&gt;: Audit log is in the rail."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c1-manager-rail.jpg</code> — Two-Property Manager, Today.
+            <b>Proves</b>: Audit log is in the rail.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/c1-manager-audit-log-direct-url.jpg"
+            ><img
+              src="shots/c1-manager-audit-log-direct-url.jpg"
+              alt="Two-Property Manager, audit log. &lt;b&gt;Proves&lt;/b&gt;: 7 rows — Kadıköy and Beşiktaş records, no whole-Organization record."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c1-manager-audit-log-direct-url.jpg</code> — Two-Property
+            Manager, audit log. <b>Proves</b>: 7 rows — Kadıköy and Beşiktaş
+            records, no whole-Organization record.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-03">
+        <h3>
+          C-03 · Manager assigned to Kadıköy only sees only Kadıköy
+          <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-16, AL-DIFF-01
+        </div>
+        <div class="body">
+          Signed in as <b>manager.kadikoy@evidence.test</b>. 6 rows, every one
+          with Where = Deniz Otel Kadıköy. The Beşiktaş block and the Owner's
+          role definition are absent.
+        </div>
+        <figure>
+          <a href="shots/c1-managerKadikoy-rail.jpg"
+            ><img
+              src="shots/c1-managerKadikoy-rail.jpg"
+              alt="Kadıköy-only Manager, Today. &lt;b&gt;Proves&lt;/b&gt;: the rail lists Audit log (Manager ships with audit.read)."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c1-managerKadikoy-rail.jpg</code> — Kadıköy-only Manager,
+            Today. <b>Proves</b>: the rail lists Audit log (Manager ships with
+            audit.read).
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/c1-managerKadikoy-audit-log-direct-url.jpg"
+            ><img
+              src="shots/c1-managerKadikoy-audit-log-direct-url.jpg"
+              alt="Kadıköy-only Manager, audit log. &lt;b&gt;Proves&lt;/b&gt;: 6 rows, all Kadıköy — including the housekeeping mark filed at Kadıköy by housekeeping@evidence.test."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c1-managerKadikoy-audit-log-direct-url.jpg</code> —
+            Kadıköy-only Manager, audit log. <b>Proves</b>: 6 rows, all Kadıköy
+            — including the housekeeping mark filed at Kadıköy by
+            housekeeping@evidence.test.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-04">
+        <h3>
+          C-04 · Front Desk has no entry and is refused
+          <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-02
+        </div>
+        <div class="body">
+          Signed in as <b>frontdesk@evidence.test</b>. The rail has no Audit log
+          link (0 found). Typing /en/audit-log shows a refusal and 0 rows. The
+          refusal's <i>wording</i> is wrong — see F-3.
+        </div>
+        <figure>
+          <a href="shots/c1-frontdesk-rail.jpg"
+            ><img
+              src="shots/c1-frontdesk-rail.jpg"
+              alt="Front Desk, Today. &lt;b&gt;Proves&lt;/b&gt;: no Audit log entry in the rail (SYSTEM section has only Configuration)."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c1-frontdesk-rail.jpg</code> — Front Desk, Today.
+            <b>Proves</b>: no Audit log entry in the rail (SYSTEM section has
+            only Configuration).
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/c1-frontdesk-audit-log-direct-url.jpg"
+            ><img
+              src="shots/c1-frontdesk-audit-log-direct-url.jpg"
+              alt="Front Desk, /en/audit-log typed into the address bar. &lt;b&gt;Proves&lt;/b&gt;: refused, no records. &lt;b&gt;Also shows F-3&lt;/b&gt;: it blames the Subscription."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c1-frontdesk-audit-log-direct-url.jpg</code> — Front Desk,
+            /en/audit-log typed into the address bar. <b>Proves</b>: refused, no
+            records. <b>Also shows F-3</b>: it blames the Subscription.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-05">
+        <h3>
+          C-05 · Housekeeping has no entry and is refused
+          <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-02, AL-S1-19
+        </div>
+        <div class="body">
+          Signed in as <b>housekeeping@evidence.test</b>. No rail entry, direct
+          URL refused — although this person wrote a record minutes earlier
+          (C-12).
+        </div>
+        <figure>
+          <a href="shots/c1-housekeeping-rail.jpg"
+            ><img
+              src="shots/c1-housekeeping-rail.jpg"
+              alt="Housekeeping, Today. &lt;b&gt;Proves&lt;/b&gt;: no Audit log entry."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c1-housekeeping-rail.jpg</code> — Housekeeping, Today.
+            <b>Proves</b>: no Audit log entry.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/c1-housekeeping-audit-log-direct-url.jpg"
+            ><img
+              src="shots/c1-housekeeping-audit-log-direct-url.jpg"
+              alt="Housekeeping, /en/audit-log by URL. &lt;b&gt;Proves&lt;/b&gt;: refused, 0 rows."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c1-housekeeping-audit-log-direct-url.jpg</code> —
+            Housekeeping, /en/audit-log by URL. <b>Proves</b>: refused, 0 rows.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-06">
+        <h3>C-06 · Signed out <span class="badge pass">PASS</span></h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-14
+        </div>
+        <div class="body">
+          A fresh browser context with no session requested /en/audit-log and
+          landed on /en/sign-in.
+        </div>
+        <figure>
+          <a href="shots/c1-signed-out-redirect.jpg"
+            ><img
+              src="shots/c1-signed-out-redirect.jpg"
+              alt="No session, /en/audit-log requested. &lt;b&gt;Proves&lt;/b&gt;: redirected to sign-in; nothing rendered."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c1-signed-out-redirect.jpg</code> — No session, /en/audit-log
+            requested. <b>Proves</b>: redirected to sign-in; nothing rendered.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-07">
+        <h3>
+          C-07 · A role the Organization composes with audit.read opens, and
+          closes, the log <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-02, AL-S1-05
+        </div>
+        <div class="body">
+          The Owner ticked <i>Night auditor: Reading the audit log</i> on the
+          People grid (saved: <code>t</code>). Front Desk, moved onto Night
+          auditor, then saw the rail entry (1 link) and 6 rows, all at Deniz
+          Otel Kadıköy. The Owner unticked it (saved: <code>f</code>) and the
+          same page reloaded to the refusal with 0 rows.
+          <b>Disclosure:</b> moving Front Desk onto the role was done through
+          <code>@ranza/staff</code>'s <code>changeRole</code>, not the People
+          screen, because of F-1.
+        </div>
+        <figure>
+          <a href="shots/b-1-night-auditor-audit-read-on.jpg"
+            ><img
+              src="shots/b-1-night-auditor-audit-read-on.jpg"
+              alt="Owner, People → What each role can do, after ticking Reading the audit log for Night auditor."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>b-1-night-auditor-audit-read-on.jpg</code> — Owner, People →
+            What each role can do, after ticking Reading the audit log for Night
+            auditor.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/b-3-frontdesk-as-night-auditor-reads-log.jpg"
+            ><img
+              src="shots/b-3-frontdesk-as-night-auditor-reads-log.jpg"
+              alt="Front Desk holding Night auditor. &lt;b&gt;Proves&lt;/b&gt;: a composed role opens the log, bounded to the holder&#x27;s Property (6 Kadıköy rows)."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>b-3-frontdesk-as-night-auditor-reads-log.jpg</code> — Front
+            Desk holding Night auditor. <b>Proves</b>: a composed role opens the
+            log, bounded to the holder's Property (6 Kadıköy rows).
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/b-4-night-auditor-audit-read-off.jpg"
+            ><img
+              src="shots/b-4-night-auditor-audit-read-off.jpg"
+              alt="Owner, grid after unticking."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>b-4-night-auditor-audit-read-off.jpg</code> — Owner, grid
+            after unticking.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/b-5-frontdesk-after-audit-read-removed.jpg"
+            ><img
+              src="shots/b-5-frontdesk-after-audit-read-removed.jpg"
+              alt="Front Desk, same URL after the permission was taken away. &lt;b&gt;Proves&lt;/b&gt;: closed again."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>b-5-frontdesk-after-audit-read-removed.jpg</code> — Front
+            Desk, same URL after the permission was taken away. <b>Proves</b>:
+            closed again.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-08">
+        <h3>
+          C-08 · A lapsed Subscription does not close the log
+          <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-07
+        </div>
+        <div class="body">
+          <code>subscriptions.status</code> set to <code>cancelled</code> in the
+          database (no billing screen exists), Owner signed in, log opened with
+          69 records; every other destination left the rail. Restored to
+          <code>active</code> in a <code>finally</code>.
+        </div>
+        <figure>
+          <a href="shots/c2-27-lapsed-subscription-log-still-opens.jpg"
+            ><img
+              src="shots/c2-27-lapsed-subscription-log-still-opens.jpg"
+              alt="Owner with a cancelled Subscription. &lt;b&gt;Proves&lt;/b&gt;: the rail holds only Audit log and it still opens (audit is a baseline right)."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-27-lapsed-subscription-log-still-opens.jpg</code> — Owner
+            with a cancelled Subscription. <b>Proves</b>: the rail holds only
+            Audit log and it still opens (audit is a baseline right).
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-09">
+        <h3>
+          C-09 · Whole-Organization records are hidden from a one-Property
+          Manager <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-17, AL-S1-27
+        </div>
+        <div class="body">
+          The Owner's <i>Role changed</i> filter returned 2 records (C-17). The
+          same URL for the Kadıköy-only Manager: Nothing matches these filters.
+        </div>
+        <figure>
+          <a href="shots/c2-23-kadikoy-manager-no-org-wide-records.jpg"
+            ><img
+              src="shots/c2-23-kadikoy-manager-no-org-wide-records.jpg"
+              alt="Kadıköy-only Manager, action filter = Role changed. &lt;b&gt;Proves&lt;/b&gt;: records with no location are not theirs to read."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-23-kadikoy-manager-no-org-wide-records.jpg</code> —
+            Kadıköy-only Manager, action filter = Role changed. <b>Proves</b>:
+            records with no location are not theirs to read.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-10">
+        <h3>
+          C-10 · Asking for another Property&#x27;s log by URL
+          <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-08
+        </div>
+        <div class="body">
+          The Kadıköy-only Manager requested <code>?property=</code>Beşiktaş.
+          The page fell back to the Property they reach: 60 records, Where =
+          Deniz Otel Kadıköy.
+        </div>
+        <figure>
+          <a href="shots/c2-25-kadikoy-manager-asks-for-besiktas.jpg"
+            ><img
+              src="shots/c2-25-kadikoy-manager-asks-for-besiktas.jpg"
+              alt="Kadıköy-only Manager, ?property=Beşiktaş. &lt;b&gt;Proves&lt;/b&gt;: no Beşiktaş record is shown; the log is Kadıköy&#x27;s."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-25-kadikoy-manager-asks-for-besiktas.jpg</code> —
+            Kadıköy-only Manager, ?property=Beşiktaş. <b>Proves</b>: no Beşiktaş
+            record is shown; the log is Kadıköy's.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-11">
+        <h3>
+          C-11 · A Beşiktaş record link, opened by the Kadıköy-only Manager
+          <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-08, AL-S2-02
+        </div>
+        <div class="body">
+          Opened <code>?record=</code>&lt;the Beşiktaş block's id&gt;: “That
+          record cannot be opened It does not exist, or it is not one you may
+          read.”
+        </div>
+        <figure>
+          <a href="shots/c2-24-kadikoy-manager-besiktas-record-link-refused.jpg"
+            ><img
+              src="shots/c2-24-kadikoy-manager-besiktas-record-link-refused.jpg"
+              alt="Kadıköy-only Manager, record link to a Beşiktaş record. &lt;b&gt;Proves&lt;/b&gt;: one answer for “absent” and “not yours”."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-24-kadikoy-manager-besiktas-record-link-refused.jpg</code>
+            — Kadıköy-only Manager, record link to a Beşiktaş record.
+            <b>Proves</b>: one answer for “absent” and “not yours”.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-12">
+        <h3>
+          C-12 · A housekeeping mark is filed at its Property
+          <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-28
+        </div>
+        <div class="body">
+          Housekeeping marked room 102 clean on the Housekeeping board (a4, a5).
+          The record shows Where = Deniz Otel Kadıköy, Who =
+          housekeeping@evidence.test, and a Kadıköy-only Manager sees it (C-03).
+          The record's details render raw — F-4.
+        </div>
+        <figure>
+          <a href="shots/a4-housekeeping-select-102.jpg"
+            ><img
+              src="shots/a4-housekeeping-select-102.jpg"
+              alt="Housekeeping board, room 102 selected (was dirty)."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>a4-housekeeping-select-102.jpg</code> — Housekeeping board,
+            room 102 selected (was dirty).
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/a5-housekeeping-102-marked-clean.jpg"
+            ><img
+              src="shots/a5-housekeeping-102-marked-clean.jpg"
+              alt="After Mark clean: “1 room updated”, 102 Clean."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>a5-housekeeping-102-marked-clean.jpg</code> — After Mark
+            clean: “1 room updated”, 102 Clean.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/c2-05-search-colleague-housekeeping-mark.jpg"
+            ><img
+              src="shots/c2-05-search-colleague-housekeeping-mark.jpg"
+              alt="Owner, search “housekeeping@”. &lt;b&gt;Proves&lt;/b&gt;: 1 record, Room status changed, Where = Deniz Otel Kadıköy."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-05-search-colleague-housekeeping-mark.jpg</code> — Owner,
+            search “housekeeping@”. <b>Proves</b>: 1 record, Room status
+            changed, Where = Deniz Otel Kadıköy.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/c2-16-record-panel-housekeeping-mark.jpg"
+            ><img
+              src="shots/c2-16-record-panel-housekeeping-mark.jpg"
+              alt="The record opened. &lt;b&gt;Proves&lt;/b&gt; Where/Who; &lt;b&gt;shows F-4&lt;/b&gt;: &lt;code&gt;status&lt;/code&gt;/&lt;code&gt;previousStatus&lt;/code&gt; raw."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-16-record-panel-housekeeping-mark.jpg</code> — The record
+            opened. <b>Proves</b> Where/Who; <b>shows F-4</b>:
+            <code>status</code>/<code>previousStatus</code> raw.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-13">
+        <h3>
+          C-13 · An archived Property&#x27;s history stays readable and named
+          <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-18
+        </div>
+        <div class="body">
+          <code>properties.status</code> of Beşiktaş set to
+          <code>archived</code> (no archive screen exists). Owner searched
+          “Burst”: 2 records, Where = Deniz Rezidans Beşiktaş. Restored in a
+          <code>finally</code>.
+        </div>
+        <figure>
+          <a href="shots/c2-28-archived-property-history-still-named.jpg"
+            ><img
+              src="shots/c2-28-archived-property-history-still-named.jpg"
+              alt="Owner, Beşiktaş archived. &lt;b&gt;Proves&lt;/b&gt;: its records are still listed and still named."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-28-archived-property-history-still-named.jpg</code> —
+            Owner, Beşiktaş archived. <b>Proves</b>: its records are still
+            listed and still named.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-14">
+        <h3>
+          C-14 · A record written while the page is open
+          <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-13
+        </div>
+        <div class="body">
+          Owner's list loaded (68 records). A Beşiktaş room was then unblocked
+          through <code>@ranza/accommodation</code>. The open page still said 68
+          records; after reload 69 records with “Unit unblocked … Beşiktaş” on
+          top.
+        </div>
+        <figure>
+          <a href="shots/c2-19-written-while-open-not-yet-shown.jpg"
+            ><img
+              src="shots/c2-19-written-while-open-not-yet-shown.jpg"
+              alt="Before reload: 68 records. &lt;b&gt;Proves&lt;/b&gt;: nothing on the screen is live."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-19-written-while-open-not-yet-shown.jpg</code> — Before
+            reload: 68 records. <b>Proves</b>: nothing on the screen is live.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/c2-20-written-while-open-after-reload.jpg"
+            ><img
+              src="shots/c2-20-written-while-open-after-reload.jpg"
+              alt="After reload: 69 records, the new one first."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-20-written-while-open-after-reload.jpg</code> — After
+            reload: 69 records, the new one first.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-15">
+        <h3>
+          C-15 · Keyset paging: newest and older
+          <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-26, AL-DEF-03
+        </div>
+        <div class="body">
+          Page 1: 68 records, 50 rows, an <i>Older records</i> link. Page 2: 18
+          rows, <i>Back to the newest</i>, no further link. A separate pass read
+          every record id from both pages after the C-14 write: page 1 = 50,
+          page 2 = 19, distinct = 69, overlap = 0, rows in the database = 69.
+        </div>
+        <figure>
+          <a href="shots/c2-01-owner-page-1.jpg"
+            ><img
+              src="shots/c2-01-owner-page-1.jpg"
+              alt="Owner, page 1 (full page). &lt;b&gt;Proves&lt;/b&gt;: 68 records, 50 shown, Older records offered."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-01-owner-page-1.jpg</code> — Owner, page 1 (full page).
+            <b>Proves</b>: 68 records, 50 shown, Older records offered.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/c2-02-owner-page-2.jpg"
+            ><img
+              src="shots/c2-02-owner-page-2.jpg"
+              alt="After clicking Older records (full page). &lt;b&gt;Proves&lt;/b&gt;: the remaining 18, Back to the newest, and the oldest record (the March fixture) at the bottom."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-02-owner-page-2.jpg</code> — After clicking Older records
+            (full page). <b>Proves</b>: the remaining 18, Back to the newest,
+            and the oldest record (the March fixture) at the bottom.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-16">
+        <h3>C-16 · Search <span class="badge pass">PASS</span></h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-23, AL-S1-24, AL-S1-30
+        </div>
+        <div class="body">
+          Through the form (type, Apply). “minibar” → 2 records (the charge by
+          its description and the reversal); “Ada Lovelace” (a Guest) → 3
+          records; “housekeeping@” (a colleague) → 1 record; “a” → the “type at
+          least two characters” notice and the unfiltered list; “fixture” → 2
+          records, one of which has a context that is not a JSON object, and the
+          search did not fail.
+        </div>
+        <figure>
+          <a href="shots/c2-03-search-minibar.jpg"
+            ><img
+              src="shots/c2-03-search-minibar.jpg"
+              alt="Search “minibar”. &lt;b&gt;Proves&lt;/b&gt;: matches a charge&#x27;s description and a reversal&#x27;s reason."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-03-search-minibar.jpg</code> — Search “minibar”.
+            <b>Proves</b>: matches a charge's description and a reversal's
+            reason.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/c2-04-search-guest-ada.jpg"
+            ><img
+              src="shots/c2-04-search-guest-ada.jpg"
+              alt="Search “Ada Lovelace”. &lt;b&gt;Proves&lt;/b&gt;: a Guest&#x27;s name finds her check-in, charge and reversal."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-04-search-guest-ada.jpg</code> — Search “Ada Lovelace”.
+            <b>Proves</b>: a Guest's name finds her check-in, charge and
+            reversal.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/c2-06-search-too-short.jpg"
+            ><img
+              src="shots/c2-06-search-too-short.jpg"
+              alt="Search “a”. &lt;b&gt;Proves&lt;/b&gt;: refused as too short, and says so."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-06-search-too-short.jpg</code> — Search “a”. <b>Proves</b>:
+            refused as too short, and says so.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/c2-07-search-fixture-odd-context-does-not-break.jpg"
+            ><img
+              src="shots/c2-07-search-fixture-odd-context-does-not-break.jpg"
+              alt="Search “fixture”. &lt;b&gt;Proves&lt;/b&gt;: a non-object context does not break search."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-07-search-fixture-odd-context-does-not-break.jpg</code> —
+            Search “fixture”. <b>Proves</b>: a non-object context does not break
+            search.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-17">
+        <h3>C-17 · Filter by action <span class="badge pass">PASS</span></h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-22
+        </div>
+        <div class="body">
+          Action select → Role changed → Apply: 2 records, both about
+          frontdesk@evidence.test.
+        </div>
+        <figure>
+          <a href="shots/c2-08-filter-action-role-changed.jpg"
+            ><img
+              src="shots/c2-08-filter-action-role-changed.jpg"
+              alt="Owner, Action = Role changed. &lt;b&gt;Proves&lt;/b&gt;: the server narrowed to that action."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-08-filter-action-role-changed.jpg</code> — Owner, Action =
+            Role changed. <b>Proves</b>: the server narrowed to that action.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-18">
+        <h3>C-18 · Filter by Property <span class="badge pass">PASS</span></h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-22
+        </div>
+        <div class="body">
+          Property select → Deniz Rezidans Beşiktaş → Apply: 1 record, Where =
+          Beşiktaş.
+        </div>
+        <figure>
+          <a href="shots/c2-09-filter-property-besiktas.jpg"
+            ><img
+              src="shots/c2-09-filter-property-besiktas.jpg"
+              alt="Owner, Property = Beşiktaş. &lt;b&gt;Proves&lt;/b&gt;: only Beşiktaş&#x27;s record."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-09-filter-property-besiktas.jpg</code> — Owner, Property =
+            Beşiktaş. <b>Proves</b>: only Beşiktaş's record.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-19">
+        <h3>
+          C-19 · A day range means the Property&#x27;s calendar
+          <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-11, AL-S1-22
+        </div>
+        <div class="body">
+          A fixture record stamped <b>22:30 UTC on 10 March</b> — 01:30 on 11
+          March in Istanbul. From = To = 11.03.2026 → 1 record, shown at “Mar
+          11, 2026, 01:30”. From = To = 10.03.2026 → nothing. Read in UTC, both
+          answers would be reversed.
+        </div>
+        <figure>
+          <a href="shots/c2-10-day-2026-03-11-includes-late-night.jpg"
+            ><img
+              src="shots/c2-10-day-2026-03-11-includes-late-night.jpg"
+              alt="Day 11 March. &lt;b&gt;Proves&lt;/b&gt;: the late-night record belongs to the Property&#x27;s 11th, and its time is shown on the Property&#x27;s clock."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-10-day-2026-03-11-includes-late-night.jpg</code> — Day 11
+            March. <b>Proves</b>: the late-night record belongs to the
+            Property's 11th, and its time is shown on the Property's clock.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/c2-11-day-2026-03-10-excludes-late-night.jpg"
+            ><img
+              src="shots/c2-11-day-2026-03-10-excludes-late-night.jpg"
+              alt="Day 10 March. &lt;b&gt;Proves&lt;/b&gt;: not on the 10th."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-11-day-2026-03-10-excludes-late-night.jpg</code> — Day 10
+            March. <b>Proves</b>: not on the 10th.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-20">
+        <h3>
+          C-20 · Clear filters resets the form
+          <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-22
+        </div>
+        <div class="body">
+          Opened with action + search + dates set (1 record, search field
+          “minibar”, from “2026-09-01”). Clicked Clear filters: URL back to
+          <code>?property=</code> only, search “”, from “”, to “”, action “Any
+          action”, 68 records.
+        </div>
+        <figure>
+          <a href="shots/c2-12-clear-filters-before.jpg"
+            ><img
+              src="shots/c2-12-clear-filters-before.jpg"
+              alt="Before: four filters applied, 1 record."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-12-clear-filters-before.jpg</code> — Before: four filters
+            applied, 1 record.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/c2-13-clear-filters-after.jpg"
+            ><img
+              src="shots/c2-13-clear-filters-after.jpg"
+              alt="After Clear filters. &lt;b&gt;Proves&lt;/b&gt;: every field empty, Any action, the full 68."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-13-clear-filters-after.jpg</code> — After Clear filters.
+            <b>Proves</b>: every field empty, Any action, the full 68.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-21">
+        <h3>
+          C-21 · A record opened by its row link
+          <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-06, AL-S2-01
+        </div>
+        <div class="body">
+          Clicked the <i>Line reversed</i> row: What, Subject (Folio · Ada
+          Lovelace · 101), Where, Who, When, the full reason, and the facts in
+          words — Amount <b>TRY 150.00</b>, Description <b>Minibar drinks</b>.
+          The heading above it is Turkish — F-2.
+        </div>
+        <figure>
+          <a href="shots/c2-14-record-panel-line-reversed.jpg"
+            ><img
+              src="shots/c2-14-record-panel-line-reversed.jpg"
+              alt="Owner, reversal record. &lt;b&gt;Proves&lt;/b&gt;: which charge and how much. &lt;b&gt;Shows F-2&lt;/b&gt;: “Tüm kayıtlar” on /en."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-14-record-panel-line-reversed.jpg</code> — Owner, reversal
+            record. <b>Proves</b>: which charge and how much. <b>Shows F-2</b>:
+            “Tüm kayıtlar” on /en.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-22">
+        <h3>
+          C-22 · A role change says from and to, by name
+          <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-29
+        </div>
+        <div class="body">
+          The <i>Role changed</i> record: To = Night auditor, From = Front desk,
+          Staff Member = frontdesk@evidence.test, Where = Whole Organization.
+          <b>Disclosure</b>: the change itself was made through
+          <code>@ranza/staff</code> (F-1); the record and its rendering are the
+          app's.
+        </div>
+        <figure>
+          <a href="shots/c2-15-record-panel-role-changed-from-to.jpg"
+            ><img
+              src="shots/c2-15-record-panel-role-changed-from-to.jpg"
+              alt="Owner, role-change record. &lt;b&gt;Proves&lt;/b&gt;: before and after, named."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-15-record-panel-role-changed-from-to.jpg</code> — Owner,
+            role-change record. <b>Proves</b>: before and after, named.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-23">
+        <h3>
+          C-23 · An old record by id; an action with no label
+          <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-09, AL-S2-02
+        </div>
+        <div class="body">
+          <code>?record=</code>&lt;the March fixture's id&gt; — a record on page
+          2, months old — opened directly. Its action
+          <code>evidence.late_night_fixture</code> has no label and is shown as
+          its own name, not a blank.
+        </div>
+        <figure>
+          <a href="shots/c2-17-record-by-id-march-fixture-unknown-action.jpg"
+            ><img
+              src="shots/c2-17-record-by-id-march-fixture-unknown-action.jpg"
+              alt="Record by id. &lt;b&gt;Proves&lt;/b&gt;: a link survives the list moving on; an unknown action renders raw."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-17-record-by-id-march-fixture-unknown-action.jpg</code> —
+            Record by id. <b>Proves</b>: a link survives the list moving on; an
+            unknown action renders raw.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-24">
+        <h3>
+          C-24 · A shared record link, opened by a second reader
+          <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S2-02
+        </div>
+        <div class="body">
+          The Owner's link to the reversal, opened by the Kadıköy-only Manager
+          in a separate browser context: the same record.
+        </div>
+        <figure>
+          <a href="shots/c2-26-kadikoy-manager-opens-shared-record-link.jpg"
+            ><img
+              src="shots/c2-26-kadikoy-manager-opens-shared-record-link.jpg"
+              alt="Kadıköy-only Manager opens the Owner&#x27;s link. &lt;b&gt;Proves&lt;/b&gt;: a record can be sent to a colleague who may read it."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-26-kadikoy-manager-opens-shared-record-link.jpg</code> —
+            Kadıköy-only Manager opens the Owner's link. <b>Proves</b>: a record
+            can be sent to a colleague who may read it.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-25">
+        <h3>C-25 · Hand-edited URLs <span class="badge pass">PASS</span></h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-25
+        </div>
+        <div class="body">
+          Eight URLs a person could type. None produced an error page; every one
+          answered 200 with the state below.
+          <table class="data">
+            <tr>
+              <th>query</th>
+              <th>HTTP</th>
+              <th>shown</th>
+              <th>capture</th>
+            </tr>
+            <tr>
+              <td>
+                <code
+                  >property=949ea6de-88ee-4d17-970c-7a44ecf31ad7&amp;record=not-a-uuid</code
+                >
+              </td>
+              <td>200</td>
+              <td>That record cannot be opened</td>
+              <td>
+                <a href="shots/c2-18-edited-recordNotUuid.jpg"
+                  >c2-18-edited-recordNotUuid.jpg</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code
+                  >property=949ea6de-88ee-4d17-970c-7a44ecf31ad7&amp;cursor=garbage</code
+                >
+              </td>
+              <td>200</td>
+              <td>68 records</td>
+              <td>
+                <a href="shots/c2-18-edited-cursorGarbage.jpg"
+                  >c2-18-edited-cursorGarbage.jpg</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code
+                  >property=949ea6de-88ee-4d17-970c-7a44ecf31ad7&amp;cursor=9999999999999999999.949ea6de-88ee-4d17-970c-7a44ecf31ad7</code
+                >
+              </td>
+              <td>200</td>
+              <td>68 records</td>
+              <td>
+                <a href="shots/c2-18-edited-cursorHuge.jpg"
+                  >c2-18-edited-cursorHuge.jpg</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code
+                  >property=949ea6de-88ee-4d17-970c-7a44ecf31ad7&amp;from=0000-01-01</code
+                >
+              </td>
+              <td>200</td>
+              <td>68 records</td>
+              <td>
+                <a href="shots/c2-18-edited-yearZero.jpg"
+                  >c2-18-edited-yearZero.jpg</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code
+                  >property=949ea6de-88ee-4d17-970c-7a44ecf31ad7&amp;q=mini%00bar</code
+                >
+              </td>
+              <td>200</td>
+              <td>2 records</td>
+              <td>
+                <a href="shots/c2-18-edited-nulInSearch.jpg"
+                  >c2-18-edited-nulInSearch.jpg</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code
+                  >property=949ea6de-88ee-4d17-970c-7a44ecf31ad7&amp;action=nonsense.action</code
+                >
+              </td>
+              <td>200</td>
+              <td>Nothing matches these filters</td>
+              <td>
+                <a href="shots/c2-18-edited-unknownAction.jpg"
+                  >c2-18-edited-unknownAction.jpg</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code
+                  >property=949ea6de-88ee-4d17-970c-7a44ecf31ad7&amp;at=not-a-uuid</code
+                >
+              </td>
+              <td>200</td>
+              <td>Nothing matches these filters</td>
+              <td>
+                <a href="shots/c2-18-edited-atNotUuid.jpg"
+                  >c2-18-edited-atNotUuid.jpg</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td><code>property=garbage</code></td>
+              <td>200</td>
+              <td>68 records</td>
+              <td>
+                <a href="shots/c2-18-edited-propertyGarbage.jpg"
+                  >c2-18-edited-propertyGarbage.jpg</a
+                >
+              </td>
+            </tr>
+          </table>
+        </div>
+        <figure>
+          <a href="shots/c2-18-edited-recordNotUuid.jpg"
+            ><img
+              src="shots/c2-18-edited-recordNotUuid.jpg"
+              alt="record=not-a-uuid → “That record cannot be opened”."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-18-edited-recordNotUuid.jpg</code> — record=not-a-uuid →
+            “That record cannot be opened”.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/c2-18-edited-cursorHuge.jpg"
+            ><img
+              src="shots/c2-18-edited-cursorHuge.jpg"
+              alt="cursor with a 19-digit number → the first page, not a server error."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-18-edited-cursorHuge.jpg</code> — cursor with a 19-digit
+            number → the first page, not a server error.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/c2-18-edited-yearZero.jpg"
+            ><img
+              src="shots/c2-18-edited-yearZero.jpg"
+              alt="from=0000-01-01 → ignored, the full log."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-18-edited-yearZero.jpg</code> — from=0000-01-01 → ignored,
+            the full log.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-26">
+        <h3>
+          C-26 · Arabic, right to left <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: blueprint i18n
+        </div>
+        <div class="body">
+          /ar/audit-log: <code>&lt;html dir="rtl" lang="ar"&gt;</code>; headers
+          متى · ماذا · أين · من · لماذا; the rail on the right; dates in Arabic.
+          The record: amount “‏150.00 TRY”. Reasons, names and room numbers are
+          data and stay as written.
+        </div>
+        <figure>
+          <a href="shots/c2-21-arabic-list.jpg"
+            ><img
+              src="shots/c2-21-arabic-list.jpg"
+              alt="Owner, /ar/audit-log (full page). &lt;b&gt;Proves&lt;/b&gt;: mirrored layout and Arabic copy."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-21-arabic-list.jpg</code> — Owner, /ar/audit-log (full
+            page). <b>Proves</b>: mirrored layout and Arabic copy.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/c2-22-arabic-record-line-reversed.jpg"
+            ><img
+              src="shots/c2-22-arabic-record-line-reversed.jpg"
+              alt="The reversal in Arabic. &lt;b&gt;Proves&lt;/b&gt;: facts and labels translated."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c2-22-arabic-record-line-reversed.jpg</code> — The reversal in
+            Arabic. <b>Proves</b>: facts and labels translated.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="case" id="C-27">
+        <h3>
+          C-27 · Guarantees that live in the database
+          <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-15, AL-S1-19, AL-S1-20, AL-S1-21, AL-S1-31
+        </div>
+        <div class="body">
+          Run with <code>psql</code> as the runtime role
+          <code>ranza_app</code> under a request context, each in a transaction
+          that was rolled back. D1 update and delete: <i>permission denied</i>.
+          D2 a supplied <code>occurred_at</code>: <i>permission denied</i> (the
+          insert grant has no such column). D3 a location that is not a Property
+          of the Organization: <i>row-level security</i>. D4 Housekeeping reads
+          only the one record they wrote. D5 Housekeeping revoked: 0 records. D6
+          the insert grant is eight columns, without <code>id</code> and
+          <code>occurred_at</code>.
+          <pre>
+== D1 as ranza_app, acting as the Owner: rewrite and delete
+BEGIN
+SET
+ set_request_context 
+---------------------
+ 
+(1 row)
+
+ records_the_owner_reads 
+-------------------------
+                      69
+(1 row)
+
+psql:.evidence-tmp/db-checks.sql:6: ERROR:  permission denied for table records
+ROLLBACK
+BEGIN
+SET
+ set_request_context 
+---------------------
+ 
+(1 row)
+
+psql:.evidence-tmp/db-checks.sql:11: ERROR:  permission denied for table records
+ROLLBACK
+== D2 as ranza_app: a backdated record (occurred_at supplied)
+BEGIN
+SET
+ set_request_context 
+---------------------
+ 
+(1 row)
+
+psql:.evidence-tmp/db-checks.sql:18: ERROR:  permission denied for table records
+ROLLBACK
+== D3 as ranza_app: a record naming a location that is not a Property of this Organization
+BEGIN
+SET
+ set_request_context 
+---------------------
+ 
+(1 row)
+
+psql:.evidence-tmp/db-checks.sql:25: ERROR:  new row violates row-level security policy for table &quot;records&quot;
+ROLLBACK
+== D4 as ranza_app, acting as Housekeeping (no audit.read): what they read
+BEGIN
+SET
+ set_request_context 
+---------------------
+ 
+(1 row)
+
+           action            | has_location 
+-----------------------------+--------------
+ housekeeping.status_changed | t
+(1 row)
+
+ROLLBACK
+== D5 Housekeeping revoked (inside a rolled-back transaction): what they read now
+BEGIN
+UPDATE 1
+SET
+ set_request_context 
+---------------------
+ 
+(1 row)
+
+ records_a_revoked_member_reads 
+--------------------------------
+                              0
+(1 row)
+
+ROLLBACK
+== D6 the read policy text and the runtime role grants
+        policyname        |  cmd   
+--------------------------+--------
+ records_append_own_scope | INSERT
+ records_read_by_reach    | SELECT
+(2 rows)
+
+ privilege_type |                                                  columns                                                   
+----------------+------------------------------------------------------------------------------------------------------------
+ INSERT         | action, actor_id, context, location_id, organization_id, reason, subject_id, subject_type
+ SELECT         | action, actor_id, context, id, location_id, occurred_at, organization_id, reason, subject_id, subject_type
+(2 rows)
+
+</pre>
+        </div>
+      </section>
+      <section class="case" id="C-28">
+        <h3>
+          C-28 · Nothing outside the server reaches the audit module
+          <span class="badge pass">PASS</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">
+          Edge-case rows: AL-S1-12
+        </div>
+        <div class="body">
+          <code>pnpm test:boundaries</code> on this commit:
+          <pre>
+PASS modules take dependencies by injection (97 files scanned)
+PASS a worker framework stays in the worker
+PASS the worker discovers its configuration in one place
+PASS the client cache stays in feature folders and providers
+</pre>
+        </div>
+      </section>
+      <section class="case" id="C-29">
+        <h3>
+          C-29 · Server copy after in-app navigation on /en
+          <span class="badge fail">FAIL</span>
+        </h3>
+        <div class="muted" style="font-size: 13px">Edge-case rows: —</div>
+        <div class="body">
+          Opened from the rail: “Son işlemler: Deniz Otelleri”. Page 2: “Son
+          işlemler: Deniz Otelleri”. A record after a click: “Tüm kayıtlar ·
+          Deniz Otelleri”. The same record after reload: “All records · Deniz
+          Otelleri”. People opened from the rail: “Burada kimler çalışıyor,
+          hangi tesislere erişiyorlar ve her rol ne yapabilir.”. See F-2.
+        </div>
+        <figure>
+          <a href="shots/c3-01-en-log-opened-from-rail.jpg"
+            ><img
+              src="shots/c3-01-en-log-opened-from-rail.jpg"
+              alt="/en, Audit log clicked in the rail. &lt;b&gt;Proves F-2&lt;/b&gt;: “Son işlemler:” on an English page."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c3-01-en-log-opened-from-rail.jpg</code> — /en, Audit log
+            clicked in the rail. <b>Proves F-2</b>: “Son işlemler:” on an
+            English page.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/c3-02-en-record-after-click.jpg"
+            ><img
+              src="shots/c3-02-en-record-after-click.jpg"
+              alt="/en, a record reached by clicking a row: “Tüm kayıtlar”."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c3-02-en-record-after-click.jpg</code> — /en, a record reached
+            by clicking a row: “Tüm kayıtlar”.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/c3-03-en-record-after-reload.jpg"
+            ><img
+              src="shots/c3-03-en-record-after-reload.jpg"
+              alt="The same URL reloaded: “All records”. &lt;b&gt;Proves&lt;/b&gt;: only in-app navigation is affected."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c3-03-en-record-after-reload.jpg</code> — The same URL
+            reloaded: “All records”. <b>Proves</b>: only in-app navigation is
+            affected.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="shots/c3-04-en-people-opened-from-rail.jpg"
+            ><img
+              src="shots/c3-04-en-people-opened-from-rail.jpg"
+              alt="/en, People from the rail: Turkish subtitle. &lt;b&gt;Proves&lt;/b&gt;: not the audit log&#x27;s alone."
+              loading="lazy"
+          /></a>
+          <figcaption>
+            <code>c3-04-en-people-opened-from-rail.jpg</code> — /en, People from
+            the rail: Turkish subtitle. <b>Proves</b>: not the audit log's
+            alone.
+          </figcaption>
+        </figure>
+      </section>
+
+      <h2>Load during the run</h2>
+      <p>
+        Two other lanes were capturing at the same time. 113 navigations; every
+        one completed on its first attempt, so none was re-run. The slowest:
+        29.1 s (owner page 1), 16.8 s (arabic record), 16.3 s (grid off), 14.5 s
+        (clear filters before), 10.4 s (edited recordNotUuid), 9.7 s (edited
+        atNotUuid). The server logged one <code>P2028</code> — Better Auth's
+        rate-limit counter timing out a transaction under load — not on an
+        audit-log request. Sign-in was retried 3 times after the sign-in rate
+        limit (F-5); sign-ins were then spaced 11 s apart. The first pass of the
+        write script stopped at a refused check-in: the seed leaves room 102
+        waiting for cleaning and main refuses to check a Guest into it — correct
+        behaviour; the script was reordered so Housekeeping cleans 102 first.
+      </p>
+
+      <h2>Repro</h2>
+      <ol>
+        <li>
+          <code
+            >git -C ~/Developer/ranza worktree add
+            ~/Developer/ranza-evidence-audit -b evidence/audit-log
+            origin/main</code
+          >; copy <code>.env</code> and point every URL at
+          <code>localhost:54394</code>,
+          <code>BETTER_AUTH_URL=http://localhost:3114</code>.
+        </li>
+        <li>
+          <code
+            >docker run -d --name ranza-evidence-audit-pg -e POSTGRES_USER=ranza
+            -e POSTGRES_PASSWORD=ranza -e POSTGRES_DB=ranza -p 54394:5432
+            ranza-postgres:latest</code
+          >, then <code>scripts/db-setup.mjs</code> with its URL on 54394.
+        </li>
+        <li>
+          <code>pnpm install --frozen-lockfile</code>;
+          <code>pnpm --filter @ranza/operator-workspace build</code>; in
+          <code>apps/operator-workspace</code>:
+          <code>next start --port 3114</code> with <code>.env</code> exported.
+        </li>
+        <li>
+          <code
+            >WORKSPACE_URL=http://localhost:3114 node
+            scripts/db-seed-dev.mjs</code
+          >
+          (URL on 54394); create the four accounts through
+          <code>/api/auth/sign-up/email</code>, no more than three per ten
+          seconds, and grant the memberships in the table above.
+        </li>
+        <li>
+          Sign in as each account and follow the case's steps: the text under
+          each heading says which screen, which control and which value.
+        </li>
+      </ol>
+    </main>
+  </body>
+</html>

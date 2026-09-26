@@ -1,0 +1,319 @@
+{
+  "label": "before",
+  "at": "2026-09-24T17:12:56.716Z",
+  "load": "92.7 / 78.7 / 107.5",
+  "properties": [
+    ["0a7697b5-c1cf-4360-b5d6-f1dedb8dddfe", "Deniz Otel Kadıköy"],
+    ["93bfa081-24b1-4495-bfe2-2eedf825b91a", "Deniz Rezidans Beşiktaş"]
+  ],
+  "cases": {
+    "property": {
+      "chosen": [
+        "93bfa081-24b1-4495-bfe2-2eedf825b91a",
+        "Deniz Rezidans Beşiktaş"
+      ],
+      "steps": [
+        {
+          "step": "start",
+          "url": "/en/today?property=93bfa081-24b1-4495-bfe2-2eedf825b91a",
+          "switcher": "Today Deniz Rezidans Beşiktaş",
+          "shot": "before-property-0-start.png"
+        },
+        {
+          "step": "finance",
+          "firstByteMs": 832,
+          "firstByteKind": "document",
+          "segment": "finance",
+          "href": "/en/finance",
+          "url": "/en/finance",
+          "newDocument": true,
+          "documentRequests": 1,
+          "navigationEntryType": "navigate",
+          "rscRequests": 0,
+          "feedbackMs": 864,
+          "dataMs": 864,
+          "skeletonSeen": false,
+          "wallMs": 1240,
+          "switcher": "Finance Deniz Otel Kadıköy",
+          "mainHead": "Folios at Deniz Otel Kadıköy",
+          "shot": "before-property-1-finance.png"
+        },
+        {
+          "step": "people",
+          "firstByteMs": 16765,
+          "firstByteKind": "document",
+          "segment": "people",
+          "href": "/en/people",
+          "url": "/en/people",
+          "newDocument": true,
+          "documentRequests": 1,
+          "navigationEntryType": "navigate",
+          "rscRequests": 0,
+          "feedbackMs": 16808,
+          "dataMs": 16808,
+          "skeletonSeen": false,
+          "wallMs": 17209,
+          "switcher": "People Deniz Otel Kadıköy",
+          "mainHead": "Who works here, which Properties they reach, and what each role may do.",
+          "shot": "before-property-2-people.png"
+        },
+        {
+          "step": "audit-log",
+          "firstByteMs": 446,
+          "firstByteKind": "document",
+          "segment": "audit-log",
+          "href": "/en/audit-log",
+          "url": "/en/audit-log",
+          "newDocument": true,
+          "documentRequests": 1,
+          "navigationEntryType": "navigate",
+          "rscRequests": 0,
+          "feedbackMs": 484,
+          "dataMs": 486,
+          "skeletonSeen": false,
+          "wallMs": 839,
+          "switcher": "Audit log Deniz Otel Kadıköy",
+          "mainHead": "Recent actions at Deniz Otelleri",
+          "shot": "before-property-3-audit-log.png"
+        }
+      ]
+    },
+    "session": {
+      "deletedRows": "1\nDELETE 1",
+      "finalUrl": "/en/sign-in",
+      "newDocument": true,
+      "documentRequests": ["/en/finance", "/en/sign-in"],
+      "shots": ["before-session-0-open.png", "before-session-1-after-click.png"]
+    },
+    "signedOut": {
+      "requested": "/en/finance",
+      "finalUrl": "/en/sign-in",
+      "shot": "before-signed-out.png"
+    },
+    "auditRows": {
+      "rowLinks": 10,
+      "rowHrefs": [
+        "/en/audit-log?property=0a7697b5-c1cf-4360-b5d6-f1dedb8dddfe&record=524dd6f6-e1c4-4832-8278-1c6f969d00fc",
+        "/en/audit-log?property=0a7697b5-c1cf-4360-b5d6-f1dedb8dddfe&record=0de1cd75-39f5-4431-aa26-cb839837ad19",
+        "/en/audit-log?property=0a7697b5-c1cf-4360-b5d6-f1dedb8dddfe&record=327d0df9-db6e-4ef0-81dd-98cf388e962f"
+      ],
+      "hovered": 10,
+      "prefetchesOfRecords": [],
+      "prefetchesOther": [],
+      "allRscAfterArriving": [],
+      "shot": "before-audit-rows.png"
+    },
+    "locale": [
+      {
+        "locale": "en",
+        "url": "/en/finance",
+        "newDocument": true,
+        "clicked": {
+          "heading": "Folios at Deniz Otel Kadıköy",
+          "lang": "en",
+          "dir": "ltr",
+          "shot": "before-locale-en-1-after-click.png"
+        },
+        "reloaded": {
+          "heading": "Folios at Deniz Otel Kadıköy",
+          "lang": "en",
+          "dir": "ltr",
+          "shot": "before-locale-en-2-after-reload.png"
+        }
+      },
+      {
+        "locale": "ar",
+        "url": "/ar/finance",
+        "newDocument": true,
+        "clicked": {
+          "heading": "الحسابات في Deniz Otel Kadıköy",
+          "lang": "ar",
+          "dir": "rtl",
+          "shot": "before-locale-ar-1-after-click.png"
+        },
+        "reloaded": {
+          "heading": "الحسابات في Deniz Otel Kadıköy",
+          "lang": "ar",
+          "dir": "rtl",
+          "shot": "before-locale-ar-2-after-reload.png"
+        }
+      }
+    ],
+    "filmstrip": {
+      "segment": "people",
+      "click": {
+        "clickAt": 1790270051311.7998,
+        "firstByteMs": 298,
+        "firstByteKind": "document",
+        "segment": "people",
+        "href": "/en/people",
+        "url": "/en/people",
+        "newDocument": true,
+        "documentRequests": 1,
+        "navigationEntryType": "navigate",
+        "rscRequests": 0,
+        "feedbackMs": 332,
+        "dataMs": 365,
+        "skeletonSeen": false,
+        "wallMs": 710
+      },
+      "frames": [
+        {
+          "file": "before-film-normal-0.jpg",
+          "why": "last frame before the click",
+          "msAfterClick": -849
+        },
+        {
+          "file": "before-film-normal-1.jpg",
+          "why": "first frame after the click",
+          "msAfterClick": 24
+        },
+        {
+          "file": "before-film-normal-2.jpg",
+          "why": "frame at +100 ms",
+          "msAfterClick": 105
+        },
+        {
+          "file": "before-film-normal-3.jpg",
+          "why": "frame at +250 ms",
+          "msAfterClick": 332
+        },
+        {
+          "file": "before-film-normal-4.jpg",
+          "why": "first frame after the data painted",
+          "msAfterClick": 380
+        }
+      ],
+      "totalFrames": 13,
+      "sequence": {
+        "dir": "frames-before-film-normal",
+        "all": [
+          "24:38629",
+          "39:38615",
+          "56:38698",
+          "73:38734",
+          "89:38795",
+          "105:38801",
+          "123:38821",
+          "139:38810",
+          "156:38828",
+          "173:38870",
+          "332:111524",
+          "380:115801"
+        ],
+        "saved": ["+00024ms.jpg", "+00332ms.jpg", "+00380ms.jpg"]
+      },
+      "attempts": [
+        {
+          "attempt": 1,
+          "segment": "finance",
+          "dataMs": 9324,
+          "feedbackMs": 9324
+        },
+        {
+          "attempt": 2,
+          "segment": "people",
+          "dataMs": 12024,
+          "feedbackMs": 12024
+        },
+        {
+          "attempt": 3,
+          "segment": "finance",
+          "dataMs": 23468,
+          "feedbackMs": 23464
+        },
+        {
+          "attempt": 4,
+          "segment": "people",
+          "dataMs": 365,
+          "feedbackMs": 332
+        }
+      ]
+    },
+    "slowNetwork": {
+      "addedLatencyMs": 2500,
+      "segment": "people",
+      "click": {
+        "clickAt": 1790270058338.1,
+        "firstByteMs": 7147,
+        "firstByteKind": "document",
+        "segment": "people",
+        "href": "/en/people",
+        "url": "/en/people",
+        "newDocument": true,
+        "documentRequests": 1,
+        "navigationEntryType": "navigate",
+        "rscRequests": 0,
+        "feedbackMs": 7188,
+        "dataMs": 7216,
+        "skeletonSeen": false,
+        "wallMs": 7560
+      },
+      "frames": [
+        {
+          "file": "before-film-slow-0.jpg",
+          "why": "last frame before the click",
+          "msAfterClick": -827
+        },
+        {
+          "file": "before-film-slow-1.jpg",
+          "why": "first frame after the click",
+          "msAfterClick": 24
+        },
+        {
+          "file": "before-film-slow-2.jpg",
+          "why": "frame at +100 ms",
+          "msAfterClick": 107
+        },
+        {
+          "file": "before-film-slow-3.jpg",
+          "why": "frame at +250 ms",
+          "msAfterClick": 7187
+        },
+        {
+          "file": "before-film-slow-4.jpg",
+          "why": "first frame after the data painted",
+          "msAfterClick": 7231
+        }
+      ],
+      "totalFrames": 14,
+      "sequence": {
+        "dir": "frames-before-film-slow",
+        "all": [
+          "24:38629",
+          "41:38615",
+          "57:38687",
+          "74:38741",
+          "90:38795",
+          "107:38801",
+          "124:38821",
+          "140:38810",
+          "156:38828",
+          "174:38829",
+          "190:38870",
+          "7187:111524",
+          "7231:115801"
+        ],
+        "saved": ["+00024ms.jpg", "+07187ms.jpg", "+07231ms.jpg"]
+      }
+    }
+  },
+  "errors": {},
+  "rerun": [
+    {
+      "at": "2026-09-24T17:00:29.708Z",
+      "cases": ["filmstrip", "locale"],
+      "load": "65.0 / 227.0 / 179.3"
+    },
+    {
+      "at": "2026-09-24T17:10:31.833Z",
+      "cases": ["filmstrip"],
+      "load": "62.4 / 77.2 / 113.0"
+    },
+    {
+      "at": "2026-09-24T17:12:56.716Z",
+      "cases": ["filmstrip"],
+      "load": "92.7 / 78.7 / 107.5"
+    }
+  ]
+}

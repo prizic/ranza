@@ -1,0 +1,140 @@
+{
+  "after": {
+    "statements": {
+      "ranza_auth": 379,
+      "ranza_app": 665
+    },
+    "slowOver1s": 27,
+    "slowByUser": {
+      "ranza_app": 8,
+      "ranza_auth": 19
+    },
+    "slowByTarget": {
+      "execute <unnamed>:": 2,
+      "auth_identities": 11,
+      "auth_user": 4,
+      "auth_session": 4,
+      "execute <unnamed>: select app.set_request_context($1::uuid)": 3,
+      "statement: BEGIN": 3
+    },
+    "top": [
+      {
+        "ms": 16207,
+        "at": "15:37:58",
+        "user": "ranza_app",
+        "what": "execute <unnamed>:"
+      },
+      {
+        "ms": 14462,
+        "at": "15:41:54",
+        "user": "ranza_auth",
+        "what": "auth_identities"
+      },
+      {
+        "ms": 11236,
+        "at": "15:42:16",
+        "user": "ranza_auth",
+        "what": "auth_user"
+      },
+      {
+        "ms": 7989,
+        "at": "15:38:17",
+        "user": "ranza_auth",
+        "what": "auth_session"
+      },
+      {
+        "ms": 6968,
+        "at": "15:39:17",
+        "user": "ranza_app",
+        "what": "execute <unnamed>: select app.set_request_context($1::uuid)"
+      },
+      {
+        "ms": 5583,
+        "at": "15:42:57",
+        "user": "ranza_auth",
+        "what": "auth_identities"
+      },
+      {
+        "ms": 5136,
+        "at": "15:43:18",
+        "user": "ranza_auth",
+        "what": "auth_identities"
+      },
+      {
+        "ms": 5023,
+        "at": "15:43:09",
+        "user": "ranza_auth",
+        "what": "auth_identities"
+      }
+    ]
+  },
+  "before": {
+    "statements": {
+      "ranza_auth": 519,
+      "ranza_app": 5103
+    },
+    "slowOver1s": 77,
+    "slowByUser": {
+      "ranza_app": 58,
+      "ranza_auth": 19
+    },
+    "slowByTarget": {
+      "execute <unnamed>: select app.set_request_context($1::uuid)": 31,
+      "execute <unnamed>:": 26,
+      "auth_session": 5,
+      "auth_identities": 13,
+      "?": 1,
+      "statement: COMMIT": 1
+    },
+    "top": [
+      {
+        "ms": 14895,
+        "at": "15:43:50",
+        "user": "ranza_app",
+        "what": "execute <unnamed>: select app.set_request_context($1::uuid)"
+      },
+      {
+        "ms": 14894,
+        "at": "15:43:50",
+        "user": "ranza_app",
+        "what": "execute <unnamed>: select app.set_request_context($1::uuid)"
+      },
+      {
+        "ms": 14409,
+        "at": "15:43:50",
+        "user": "ranza_app",
+        "what": "execute <unnamed>: select app.set_request_context($1::uuid)"
+      },
+      {
+        "ms": 13781,
+        "at": "15:45:40",
+        "user": "ranza_app",
+        "what": "execute <unnamed>:"
+      },
+      {
+        "ms": 13699,
+        "at": "15:41:14",
+        "user": "ranza_app",
+        "what": "execute <unnamed>: select app.set_request_context($1::uuid)"
+      },
+      {
+        "ms": 13691,
+        "at": "15:41:14",
+        "user": "ranza_app",
+        "what": "execute <unnamed>: select app.set_request_context($1::uuid)"
+      },
+      {
+        "ms": 13672,
+        "at": "15:45:40",
+        "user": "ranza_app",
+        "what": "execute <unnamed>:"
+      },
+      {
+        "ms": 13669,
+        "at": "15:41:14",
+        "user": "ranza_app",
+        "what": "execute <unnamed>: select app.set_request_context($1::uuid)"
+      }
+    ]
+  }
+}
