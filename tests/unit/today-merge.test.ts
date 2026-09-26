@@ -83,4 +83,27 @@ describe("mergeSummary", () => {
       mergeSummary(summary({ rooms: ROOMS }), summary({ rooms: fresh })).rooms,
     ).toEqual(fresh);
   });
+
+  it("carries a maintenance card that could not be read stale, once", () => {
+    const card = {
+      status: "ok" as const,
+      data: {
+        open: 3,
+        new: 1,
+        inProgress: 1,
+        waitingForParts: 1,
+        outOfOrder: 2,
+      },
+    };
+    const once = mergeSummary(
+      summary({ maintenance: card }),
+      summary({ maintenance: { status: "unavailable" } }),
+    );
+    expect(once.maintenance).toEqual({ ...card, stale: true });
+    const twice = mergeSummary(
+      once,
+      summary({ maintenance: { status: "unavailable" } }),
+    );
+    expect(twice.maintenance).toEqual({ status: "unavailable" });
+  });
 });

@@ -208,6 +208,40 @@ export interface RoomsMaintenance {
   mayReport: boolean;
 }
 
+/**
+ * What Today shows of maintenance at a Property (TD-S4-01 to TD-S4-04). No
+ * cost, vendor, charge, assignee or Guest: the board carries those, and none
+ * of them may reach the dashboard.
+ */
+export interface TodayMaintenance {
+  /** Requests in each open state; done and cancelled are not counted. */
+  open: { new: number; in_progress: number; waiting_for_parts: number };
+  /** Distinct Units held out of order, however many requests hold each. */
+  outOfOrder: number;
+  /** Open urgent requests, oldest reported first. */
+  urgent: readonly {
+    requestId: string;
+    number: number;
+    title: string;
+    unit: RequestUnit | null;
+    equipment: { equipmentId: string; name: string } | null;
+  }[];
+  /**
+   * Every request holding its Unit out of order, oldest reported first — a
+   * done request still holding one included (MT-S2-15).
+   */
+  holds: readonly {
+    unitId: string;
+    requestId: string;
+    number: number;
+    title: string;
+    status: RequestStatus;
+    unit: RequestUnit;
+    /** `YYYY-MM-DD`, or null when nobody said. */
+    expectedBackOn: string | null;
+  }[];
+}
+
 export interface SettingValues {
   assigneeRequired: boolean;
   returnOnDone: boolean;

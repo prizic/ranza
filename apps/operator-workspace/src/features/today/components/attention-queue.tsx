@@ -32,8 +32,10 @@ const KIND: Record<
 > = {
   not_ready: { icon: AlertTriangle, tone: "danger", label: "notReady" },
   blocked: { icon: BedDouble, tone: "info", label: "blocked" },
+  urgent_repair: { icon: Wrench, tone: "danger", label: "urgentRepair" },
   overdue: { icon: Clock, tone: "warning", label: "overdue" },
   balance: { icon: Wallet, tone: "warning", label: "leavesOwing" },
+  overdue_return: { icon: Clock, tone: "warning", label: "dueBack" },
   out_of_service: { icon: Wrench, tone: "neutral", label: "outOfService" },
 };
 
@@ -89,7 +91,7 @@ export function AttentionQueue({
   const shown = expanded ? items : items.slice(0, ATTENTION_SHOWN);
   const hidden = items.length - shown.length;
 
-  function detail(item: AttentionItem): string {
+  function detail(item: AttentionItem): string | null {
     switch (item.kind) {
       case "not_ready":
         return t("notReadyDetail");
@@ -103,12 +105,25 @@ export function AttentionQueue({
         return t("leavesOwingDetail", {
           balance: money(item.balance ? [item.balance] : [], currency, locale),
         });
+      case "urgent_repair":
+      case "overdue_return":
+        return item.dueOn
+          ? t("dueBackDetail", { date: shortDay(item.dueOn, locale) })
+          : null;
       case "out_of_service":
         return t("outOfServiceDetail");
     }
   }
 
   function way(item: AttentionItem): { href: string; label: string } {
+    // Only a maintenance viewer is sent a request (TD-S4-03); the board opens
+    // at the Property, since it has no request to open at yet (TD-S4-07).
+    if (item.request) {
+      return {
+        href: todayHref(locale, "maintenance", propertyId),
+        label: t("openMaintenance"),
+      };
+    }
     switch (item.kind) {
       case "not_ready":
         // Somebody whose work is the room, not the Guest, is sent to the
@@ -141,6 +156,12 @@ export function AttentionQueue({
               href: todayHref(locale, "departures", propertyId),
               label: t("openDepartures"),
             };
+      case "urgent_repair":
+      case "overdue_return":
+        return {
+          href: todayHref(locale, "maintenance", propertyId),
+          label: t("openMaintenance"),
+        };
       case "out_of_service":
         return roomsBoard
           ? {
@@ -172,9 +193,14 @@ export function AttentionQueue({
         {shown.map((item, index) => {
           const kind = KIND[item.kind];
           const target = way(item);
-          const unit = unitLabel(item.unit.roomName, item.unit.unitName);
+          const subject = item.unit
+            ? unitLabel(item.unit.roomName, item.unit.unitName)
+            : (item.request?.equipmentName ?? null);
+          const said = detail(item);
           return (
-            <li key={`${item.kind}-${unit}-${index}`}>
+            <li
+              key={`${item.kind}-${subject ?? item.request?.number}-${index}`}
+            >
               <Link
                 className="flex h-full flex-col gap-2 rounded-2xl border border-border bg-card p-4 shadow-xs transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 href={target.href}
@@ -186,7 +212,7 @@ export function AttentionQueue({
                   tone={kind.tone}
                 />
                 <span className="font-semibold">
-                  <bdi>{unit}</bdi>
+                  {subject ? <bdi>{subject}</bdi> : null}
                   {item.guestName ? (
                     <>
                       {" · "}
@@ -197,9 +223,16 @@ export function AttentionQueue({
                     ? ` · ${money([item.balance], currency, locale)}`
                     : null}
                 </span>
-                <span className="text-sm text-muted-foreground">
-                  {detail(item)}
-                </span>
+                {item.request ? (
+                  <span className="line-clamp-2 text-sm text-muted-foreground">
+                    {t("requestReference", { number: item.request.number })}
+                    {" · "}
+                    <bdi>{item.request.title}</bdi>
+                  </span>
+                ) : null}
+                {said ? (
+                  <span className="text-sm text-muted-foreground">{said}</span>
+                ) : null}
                 <span className="mt-auto flex items-center gap-1.5 text-sm font-semibold text-primary">
                   {target.label}
                   <ArrowRight
