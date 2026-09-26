@@ -608,7 +608,7 @@ describe("beside close the day", () => {
       const before = await settings(propertyId);
       const OUTSIDER = "cf000001-0000-4000-8000-0000000000ff";
       await owner.$executeRawUnsafe(
-        `insert into public.users (id, email) values ($1, 'cf-outsider@example.test')
+        `insert into public.users (id, email) values ($1, 'configuration-outsider@example.test')
          on conflict (id) do nothing`,
         OUTSIDER,
       );
