@@ -2,9 +2,10 @@
 
 Everything the product does that is not inside a request.
 
-Today that is one thing: draining `outbox.events`. A night audit, retention and
-notification delivery will land here too, and the rules below are what stop that
-turning into a second backend.
+Today that is two things: draining `outbox.events`, and closing each Property's
+business day once its cutoff has passed and nothing is left open (ADR 0034).
+Retention and notification delivery will land here too, and the rules below are
+what stop that turning into a second backend.
 
 ## Running it
 
@@ -48,6 +49,13 @@ src/
   main.ts                 the standalone context, and shutdown hooks
   worker.module.ts        scheduling, and the job modules
   composition.ts          the only file that reads env or opens a connection
+  composition.module.ts   provides the composition once, to every job module
+  tokens.ts               the composition's injection token
+  business-day/
+    business-day.module.ts   wiring
+    business-day.closer.ts   when to close due days: every minute. Not how:
+                             that is @ranza/business-day and two functions
+    tokens.ts                injection token
   outbox/
     outbox.module.ts      wiring — every provider returns something already built
     outbox.dispatcher.ts  when to run. Not how: that is @ranza/platform-outbox

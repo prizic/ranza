@@ -17,6 +17,7 @@ import {
   BALANCE_REASON,
   BalanceReasonError,
   CANCELLATION_REASON,
+  CheckInDayClosedError,
   CheckInError,
   CheckInReversalError,
   CheckOutError,
@@ -45,8 +46,16 @@ import {
   type NewReservation,
   type ReservationEnded,
   type ReservationRow,
+  ROOM_CALENDAR_LEAD_DAYS,
+  type RoomCalendar,
+  type RoomCalendarWindow,
 } from "./contracts";
 import type { ReservationsDeps } from "./ports";
+import {
+  buildRoomCalendar,
+  calendarLength,
+  type CalendarUnitRow,
+} from "./room-calendar";
 
 /**
  * Reservations and Front Office: the first operation in the product.
@@ -87,6 +96,13 @@ const UNIT_OCCUPIED = "55006";
 const NOT_IN_PREREQUISITE_STATE = "55000";
 
 /**
+ * Raised by `stays_keep_closed_days` when a Stay would begin, end or be
+ * withdrawn on a business day that is closed (ADR 0034). Ranza's own class,
+ * because 55000 already means "money has been posted" on the withdrawal path.
+ */
+const BUSINESS_DAY_CLOSED = "RZ001";
+
+/**
  * Whether a failure carries a particular SQLSTATE.
  *
  * Read from the code rather than from a constraint or trigger name, so renaming
@@ -123,6 +139,10 @@ function raised(error: unknown, code: string): boolean {
  */
 function calendarDay(value: string): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  // Four-digit years PostgreSQL and a window after them can both hold: year
+  // 0000 is refused by the date type, and a window opened late in 9999 would
+  // run into a five-digit year.
+  if (value < "1000-01-01" || value > "9998-12-31") return null;
   const parsed = new Date(`${value}T00:00:00Z`);
   if (Number.isNaN(parsed.getTime())) return null;
   return parsed.toISOString().slice(0, 10) === value ? value : null;
@@ -210,7 +230,14 @@ export function createReservationsModule(deps: ReservationsDeps) {
             guest.full_name                         as guest_name,
             unit.name                               as unit_name,
             unit.unit_type,
-            unit.status                             as unit_status,
+            -- A room out of order or blocked covers its beds (ADR 0032,
+            -- MT-S2-06): a bed under it is no more in service than it is.
+            case
+              when room.status in ('out_of_service', 'blocked')
+               and unit.status not in ('out_of_service', 'blocked')
+              then room.status
+              else unit.status
+            end                                     as unit_status,
             room.name                               as room_name,
             stay.id                                 as stay_id,
             folio.id                                as folio_id,
@@ -458,11 +485,18 @@ export function createReservationsModule(deps: ReservationsDeps) {
             "that Accommodation Unit has somebody in it",
           );
         }
-        // Blocked or out of service, refused by stays_unit_is_in_service.
+        // Blocked or out of service, or a bed under a room that is (ADR 0032),
+        // refused by stays_unit_is_in_service.
         if (raised(error, NOT_IN_PREREQUISITE_STATE)) {
           throw new UnitNotInServiceError(
             "that Accommodation Unit is not in service",
           );
+        }
+        // Begun before the cutoff and committing after the day closed: the
+        // Stay would begin on a finalized day. Pressing again is a new
+        // transaction on the new day, which is the whole remedy.
+        if (raised(error, BUSINESS_DAY_CLOSED)) {
+          throw new CheckInError("the business day closed during the check-in");
         }
         throw error;
       }
@@ -593,8 +627,15 @@ export function createReservationsModule(deps: ReservationsDeps) {
       try {
         withdrawn = await withdrawStayWithin(tx, stayId);
       } catch (error: unknown) {
-        // The one refusal a front desk can act on: money exists, so this is a
-        // stay that happened and correcting it is a credit or a refund.
+        // The day it began on is closed: the Stay is history, and the desk
+        // corrects it rather than taking it back.
+        if (raised(error, BUSINESS_DAY_CLOSED)) {
+          throw new CheckInDayClosedError(
+            "the business day that check-in began on is closed",
+          );
+        }
+        // The other refusal a front desk can act on: money exists, so this is
+        // a stay that happened and correcting it is a credit or a refund.
         if (raised(error, NOT_IN_PREREQUISITE_STATE)) {
           throw new StayHasChargesError(
             "that Stay has charges posted against it",
@@ -711,7 +752,12 @@ export function createReservationsModule(deps: ReservationsDeps) {
           unit.name                                   as "unitName",
           room.name                                   as "roomName",
           unit.unit_type                              as "unitType",
-          unit.status                                 as "unitStatus",
+          case
+            when room.status in ('out_of_service', 'blocked')
+             and unit.status not in ('out_of_service', 'blocked')
+            then room.status
+            else unit.status
+          end                                         as "unitStatus",
           coalesce(stay.ends_on < today.day, false)   as "overdue",
           coalesce(stay.ends_on > today.day, false)   as "early",
           folio.id                                    as "folioId",
@@ -890,6 +936,14 @@ export function createReservationsModule(deps: ReservationsDeps) {
       try {
         closed = await closeStayWithin(tx, stayId, review.today);
       } catch (error: unknown) {
+        // Begun before the cutoff and committing after the day closed: the
+        // departure would land on a finalized day. Pressing again is a new
+        // transaction on the new day.
+        if (raised(error, BUSINESS_DAY_CLOSED)) {
+          throw new CheckOutError(
+            "the business day closed during the check-out",
+          );
+        }
         // Checked in house under the lock a moment ago, so reaching this means
         // a policy refused the update: the actor cannot check out here. The
         // same message as every other refusal. Anything else is not a refusal
@@ -998,6 +1052,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
           on room.id = unit.parent_id
         where unit.property_id = ${propertyId}::uuid
           and unit.status not in ('out_of_service', 'blocked')
+          -- A room out of order or blocked covers its beds (ADR 0032,
+          -- MT-S2-06).
+          and (room.status is null
+               or room.status not in ('out_of_service', 'blocked'))
           -- A Unit is sellable when it has no children (ADR 0025): a room with
           -- beds under it is let by the bed, and offering it would be offering
           -- something the sellability trigger then refuses. (No backticks in
@@ -1160,6 +1218,11 @@ export function createReservationsModule(deps: ReservationsDeps) {
         where unit.id = ${booking.accommodationUnitId}::uuid
           and unit.property_id = ${booking.propertyId}::uuid
           and unit.status not in ('out_of_service', 'blocked')
+          and not exists (
+            select 1 from public.accommodation_units as room
+            where room.id = unit.parent_id
+              and room.status in ('out_of_service', 'blocked')
+          )
           -- Let by the bed, so not sellable whole (ADR 0025). Refused here so
           -- the caller gets this module's sentence; the trigger refuses it
           -- again underneath, for every role rather than only this one.
@@ -1409,12 +1472,190 @@ export function createReservationsModule(deps: ReservationsDeps) {
     );
   }
 
+  /**
+   * The room calendar: every Unit at a Property against a window of days, with
+   * each booking and Stay as a bar (RANZ-25).
+   *
+   * One statement, deliberately. The transaction is READ COMMITTED, so reading
+   * the Units and then the bars as two statements could straddle a check-in and
+   * draw its Guest twice or not at all (RC-S1-02) — the reason `listUnits` is
+   * one statement too.
+   *
+   * What it shows and does not hide:
+   * - A checked-in Reservation is drawn once, as its Stay. The Reservation
+   *   predicate is an allow-list of requested and confirmed, so whatever
+   *   status a Reservation moves to after check-in draws nothing of its own.
+   * - The nights a Stay holds are `app.stay_holds`: its plan, through tonight
+   *   once it is overdue because the Guest is still in the Unit (RC-S1-15),
+   *   and without end while open-ended. One leaving today ends today
+   *   (RC-S1-16).
+   * - Overlaps. `unit_holds_one_occupancy` now refuses a booking over a Guest
+   *   in house, so one can no longer be made. It still arises when an in-house
+   *   Guest stays past their date into a night already booked — the day passing
+   *   writes nothing a trigger could refuse — and in rows written before that
+   *   trigger. Both bars come back and the overlap is marked, never filtered.
+   * - Readiness is housekeeping's (`app.unit_housekeeping_state`) and is not
+   *   drawn: a room waiting to be cleaned is still free to book tonight.
+   *
+   * Days are `app.property_today` — the business date (ADR 0021) — and
+   * nothing else is asked what day it is.
+   *
+   * The commercial gates are in the predicate; reach is the policies'. A
+   * Property the caller cannot reach, or one whose Organization lost the
+   * Entitlement, returns no Units rather than a refusal (RC-S1-42, RC-S1-43).
+   */
+  async function listRoomCalendar(
+    userId: string,
+    propertyId: string,
+    window: RoomCalendarWindow,
+  ): Promise<RoomCalendar> {
+    const from = window.from === null ? null : calendarDay(window.from);
+    const days = calendarLength(window.days);
+    const rows = await withOrganizationContext(
+      deps.db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<CalendarUnitRow[]>`
+        select
+          unit.id                               as "unitId",
+          unit.parent_id                        as "parentId",
+          unit.name                             as "name",
+          unit.unit_type                        as "unitType",
+          unit.building                         as "building",
+          unit.floor                            as "floor",
+          -- A room out of order or blocked covers its beds (ADR 0032,
+          -- MT-S2-06), as on Arrivals and in what may be booked.
+          case
+            when room.status in ('out_of_service', 'blocked')
+             and unit.status not in ('out_of_service', 'blocked')
+            then room.status
+            else unit.status
+          end                                   as "status",
+          case
+            when room.status in ('out_of_service', 'blocked')
+             and unit.status not in ('out_of_service', 'blocked')
+            then room.status_reason
+            else unit.status_reason
+          end                                   as "statusReason",
+          exists (
+            select 1 from public.accommodation_units as child
+            where child.parent_id = unit.id
+          )                                     as "hasChildren",
+          to_char(win.today, 'YYYY-MM-DD')      as "today",
+          to_char(win.first_day, 'YYYY-MM-DD')  as "firstDay",
+          coalesce(bars.list, '[]'::json)       as "bars"
+        from public.accommodation_units as unit
+        left join public.accommodation_units as room
+          on room.id = unit.parent_id
+        cross join (
+          select day.today, first.day as first_day,
+                 first.day + ${days}::int as end_day
+          from (
+            select app.property_today(${propertyId}::uuid) as today
+          ) as day
+          cross join lateral (
+            select coalesce(
+              ${from}::date,
+              day.today - ${ROOM_CALENDAR_LEAD_DAYS}::int
+            ) as day
+          ) as first
+        ) as win
+        left join lateral (
+          select json_agg(bar order by bar."startsOn") as list
+          from (
+            select
+              'reservation'                               as kind,
+              reservation.id                              as "reservationId",
+              null::uuid                                  as "stayId",
+              reservation.status::text                    as status,
+              reservation.stay_type::text                 as "stayType",
+              guest.full_name                             as "guestName",
+              to_char(reservation.starts_on, 'YYYY-MM-DD') as "startsOn",
+              to_char(reservation.ends_on, 'YYYY-MM-DD')  as "endsOn",
+              to_char(reservation.ends_on, 'YYYY-MM-DD')  as "heldUntil",
+              false                                       as overdue,
+              null::text                                  as "bookedStartsOn",
+              null::text                                  as "bookedEndsOn",
+              null::int                                   as "balanceMinor",
+              null::text                                  as currency,
+              null::boolean                               as "folioClosed"
+            from public.reservations as reservation
+            join public.guests as guest
+              on guest.id = reservation.guest_id
+            where reservation.accommodation_unit_id = unit.id
+              and reservation.status in ('requested', 'confirmed')
+              and daterange(reservation.starts_on, reservation.ends_on, '[)')
+                  && daterange(win.first_day, win.end_day, '[)')
+            union all
+            select
+              'stay',
+              stay.reservation_id,
+              stay.id,
+              stay.status::text,
+              stay.stay_type::text,
+              guest.full_name,
+              to_char(stay.starts_on, 'YYYY-MM-DD'),
+              to_char(stay.ends_on, 'YYYY-MM-DD'),
+              to_char(upper(held.nights), 'YYYY-MM-DD'),
+              -- Coalesced: with no end date the comparison is null, and a
+              -- Stay with no end date is never overdue.
+              coalesce(stay.status = 'in_house' and stay.ends_on < win.today, false),
+              to_char(reservation.starts_on, 'YYYY-MM-DD'),
+              to_char(reservation.ends_on, 'YYYY-MM-DD'),
+              case when folio.id is null then null else coalesce(
+                (
+                  select sum(line.amount_minor)
+                  from public.folio_lines as line
+                  where line.folio_id = folio.id
+                ),
+                0
+              )::int end,
+              folio.currency::text,
+              folio.status = 'closed'
+            from public.stays as stay
+            -- Left, because a Stay that began without a Reservation has no
+            -- Guest recorded anywhere; it is drawn without a name (RC-S1-22).
+            left join public.reservations as reservation
+              on reservation.id = stay.reservation_id
+            left join public.guests as guest
+              on guest.id = reservation.guest_id
+            left join public.folios as folio
+              on folio.stay_id = stay.id
+            -- The nights a Stay holds are the database's to say, not this
+            -- read's: app.stay_holds is what unit_holds_one_occupancy refuses
+            -- bookings against, so the calendar and the refusal agree.
+            cross join lateral (
+              select app.stay_holds(
+                stay.status, stay.starts_on, stay.ends_on, win.today
+              ) as nights
+            ) as held
+            where stay.accommodation_unit_id = unit.id
+              and stay.status in ('in_house', 'departed')
+              -- The range itself, never one rebuilt from its bounds: a same-day
+              -- check-out is the empty range [d,d), whose upper bound reads as
+              -- null — which rebuilt would be a Stay without end. Empty
+              -- overlaps nothing, so it is not drawn (RC-S1-19).
+              and held.nights && daterange(win.first_day, win.end_day, '[)')
+          ) as bar
+        ) as bars on true
+        where unit.property_id = ${propertyId}::uuid
+          and app.can_use_capability(
+            unit.property_id,
+            ${FRONT_DESK_CAPABILITY.moduleKey},
+            ${FRONT_DESK_CAPABILITY.capabilityKey}
+          )
+      `,
+    );
+    return buildRoomCalendar(rows, { from, days });
+  }
+
   return {
     createReservation,
     listArrivals,
     listBookableUnits,
     listDepartures,
     listReservations,
+    listRoomCalendar,
     checkIn,
     checkOut,
     reverseCheckIn,

@@ -236,10 +236,15 @@ select throws_ok(
   '55000', 'that Accommodation Unit is not in service',
   'a Stay in house cannot begin on a blocked Unit, for every role');
 
--- The same door for out of service, which nothing writes yet and the trigger
--- refuses anyway, so the housekeeping lifecycle inherits the rule.
+-- The same door for out of service, which a maintenance request writes
+-- (ADR 0032). By way of available: a Unit is blocked or taken out of order
+-- from available, never straight from one to the other (MT-S2-08).
 update public.accommodation_units
-   set status = 'out_of_service', status_reason = null
+   set status = 'available', status_reason = null
+ where id = '7c555555-5555-4555-8555-555555555555';
+
+update public.accommodation_units
+   set status = 'out_of_service'
  where id = '7c555555-5555-4555-8555-555555555555';
 
 select throws_ok(

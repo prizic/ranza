@@ -36,4 +36,17 @@ export const frontOfficeKeys = {
   // must never be answered from the other's rows.
   departures: (scope: Scope, view: "due" | "in_house") =>
     [...frontOfficeKeys.all(scope), "departures", view] as const,
+  /**
+   * The window is part of the key: moving a week must not answer from the
+   * week before. A window with no start is the one around today and is keyed
+   * as such, so it follows today when the business date rolls rather than
+   * pinning a date.
+   */
+  roomCalendar: (scope: Scope, window: { from: string | null; days: number }) =>
+    [
+      ...frontOfficeKeys.all(scope),
+      "room-calendar",
+      window.from ?? "around-today",
+      window.days,
+    ] as const,
 };

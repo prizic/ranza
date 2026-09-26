@@ -191,7 +191,7 @@ psql(`
     from organization,
          (values ('front_office'), ('guest_services'), ('housekeeping'),
                  ('food_and_beverage'), ('inventory'), ('billing_folios'),
-                 ('human_resources'), ('analytics'))
+                 ('human_resources'), ('analytics'), ('maintenance'))
            as wanted (module_key)
   ), front_desk as (
     insert into public.property_capabilities
@@ -201,7 +201,7 @@ psql(`
          (values ('front_desk'), ('guest_experience'), ('housekeeping'),
                  ('food_and_beverage'), ('inventory'), ('finance'),
                  ('people'), ('staff_administration'), ('analytics'),
-                 ('configuration'))
+                 ('configuration'), ('maintenance'))
            as wanted (capability_key)
   ), unit as (
     insert into public.accommodation_units

@@ -1,11 +1,12 @@
 import type { OutboxSubscription } from "@ranza/platform-outbox";
 import { roomDirtySubscription } from "./room-dirty";
+import { roomReturnedSubscription } from "./room-returned";
 import { staffReachSubscription } from "./staff-reach";
 
 /**
  * Which consumer wants which event.
  *
- * Two.
+ * Three.
  *
  *   - `staff.reach_changed` ends every session that Staff Member holds — the
  *     handler that makes Staff and permissions mean anything, because without
@@ -14,6 +15,10 @@ import { staffReachSubscription } from "./staff-reach";
  *     housekeeping lifecycle's first command (ADR 0029). It writes a status of
  *     its own table, not `accommodation_units.status`: whether a room needs
  *     cleaning and whether it is in service are two facts that coexist.
+ *   - `unit.returned_to_service` gives a room a maintenance request let go of
+ *     the housekeeping status the Maintenance setting names (ADR 0032). The
+ *     same table and the same shape as a departure, and the same later-word
+ *     rule, so a room cleaned before the worker got there stays clean.
  *
  * `stay.checked_in` is still published and still unconsumed, and the other
  * candidates for `stay.checked_out` are still waiting for workflows that do
@@ -25,9 +30,10 @@ import { staffReachSubscription } from "./staff-reach";
  *   - **Send the confirmation.** Notifications are blueprint 5.12 and there is
  *     no module. A provider, a template and a delivery record are three
  *     decisions, not a handler.
- *   - **Post the nightly room charge.** That is the night audit, which needs a
- *     business date first (ADR 0021) and, before that, something with a rate to
- *     charge. Nothing has a price column anywhere.
+ *   - **Post the nightly room charge.** Closing the day is built (ADR 0034) and
+ *     is a scheduled job, not a handler; posting room nights is its third
+ *     slice, and still needs something with a rate to charge. Nothing has a
+ *     price column anywhere.
  *
  * The machinery landed before any of them on purpose. The lease, the
  * idempotency and the retry schedule are proved by
@@ -39,10 +45,11 @@ import { staffReachSubscription } from "./staff-reach";
  * of its own (ADR 0016); a consumer name that is stable forever, because
  * `outbox.deliveries` is keyed on it; and an explicit grant for anything it
  * touches. The default is nothing at all, which is the friction that makes each
- * one deliberate — both handlers reach their tables through a single function
+ * one deliberate — every handler reaches its table through a single function
  * and no table grant, which is what that friction bought (ADR 0027).
  */
 export const subscriptions: readonly OutboxSubscription[] = [
   staffReachSubscription,
   roomDirtySubscription,
+  roomReturnedSubscription,
 ];
