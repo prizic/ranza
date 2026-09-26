@@ -99,7 +99,6 @@ export function DataTable<TData, TValue>({
   data,
   empty,
   facets = [],
-  facetVariant = "dropdown",
   getRowId,
   initialFilters = [],
   initialHidden = {},
@@ -128,11 +127,6 @@ export function DataTable<TData, TValue>({
   /** Shown when the table has no rows at all, as opposed to no matches. */
   empty?: ReactNode;
   facets?: readonly Facet[];
-  /**
-   * Default presentation for facets in this table: dropdown popover (default)
-   * or multi-select chips in the toolbar. Individual facets can override this.
-   */
-  facetVariant?: "dropdown" | "chips";
   /**
    * A stable id for a row. Selection is keyed by it, so a table whose data is
    * refreshed while rows are ticked keeps the same rows ticked rather than the
@@ -273,7 +267,7 @@ export function DataTable<TData, TValue>({
         {facets.map((facet) => {
           const column = table.getColumn(facet.columnId);
           if (!column) return null;
-          const variant = facet.variant ?? facetVariant;
+          const variant = facet.variant ?? "dropdown";
           if (variant === "chips") {
             return (
               <DataTableFacetedChips

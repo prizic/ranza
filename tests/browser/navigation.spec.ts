@@ -119,4 +119,20 @@ test("inner pages have a back button in the header bar with proper routing", asy
   await backButton.click();
   await settled(page);
   await expect(page).toHaveURL(`/en/today?property=${propertyId}`);
+
+  // It is a link one level up in every language, never history: a detail view
+  // goes to its list, keeping the Property.
+  await page.goto(
+    `/ar/finance?property=${propertyId}&folio=00000000-0000-4000-8000-000000000000`,
+  );
+  await settled(page);
+  await expect(
+    page.locator(`header a[aria-label="${messages.ar.back}"]`),
+  ).toHaveAttribute("href", `/ar/finance?property=${propertyId}`);
+
+  await page.goto(`/tr/rooms?property=${propertyId}`);
+  await settled(page);
+  await expect(
+    page.locator(`header a[aria-label="${messages.tr.back}"]`),
+  ).toHaveAttribute("href", `/tr/today?property=${propertyId}`);
 });

@@ -311,9 +311,6 @@ export interface Messages {
   bookingPeriodInvalid: string;
   bookingGuestInvalid: string;
   bookingRefused: string;
-  noUnitsAvailable: string;
-  departureAfterArrival: string;
-  nightsCount: string;
 
   folios: string;
   foliosAt: string;
@@ -1292,9 +1289,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingGuestInvalid:
       "Misafirin adını, e-postasını ve telefonunu kontrol edin.",
     bookingRefused: "Bu rezervasyon oluşturulamıyor.",
-    noUnitsAvailable: "Bu tesiste rezerve edilebilir birim bulunmuyor.",
-    departureAfterArrival: "Ayrılış tarihi varış tarihinden sonra olmalıdır.",
-    nightsCount: "{count, plural, other {# gece}}",
     folios: "Folyolar",
     foliosAt: "Folyolar —",
     allFolios: "Tüm folyolar",
@@ -2339,10 +2333,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingGuestInvalid:
       "Check the Guest's name, email address and telephone number.",
     bookingRefused: "That booking cannot be taken.",
-    noUnitsAvailable:
-      "No bookable units are currently available at this property.",
-    departureAfterArrival: "Departure must be after arrival.",
-    nightsCount: "{count, plural, one {# night} other {# nights}}",
     folios: "Folios",
     foliosAt: "Folios at",
     allFolios: "All folios",
@@ -3377,10 +3367,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       "هذه التواريخ ليست مدة صالحة. يغطي الحجز ليلة واحدة على الأقل ولا يبدأ قبل اليوم.",
     bookingGuestInvalid: "تحقق من اسم الضيف وبريده الإلكتروني وهاتفه.",
     bookingRefused: "لا يمكن إنشاء هذا الحجز.",
-    noUnitsAvailable: "لا توجد وحدات قابلة للحجز حالياً في هذا العقار.",
-    departureAfterArrival: "يجب أن يكون تاريخ المغادرة بعد تاريخ الوصول.",
-    nightsCount:
-      "{count, plural, zero {لا ليالي} one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلة} other {# ليلة}}",
     folios: "الحسابات",
     foliosAt: "الحسابات في",
     allFolios: "كل الحسابات",

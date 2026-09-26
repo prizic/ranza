@@ -27,11 +27,13 @@ A review of how operators move through the workspace highlighted an omission:
 3. **Mobile viewports hid the breadcrumbs entirely.** `AppPageBar` hides the
    breadcrumb trail on small viewports (`max-sm:sr-only` / `hidden sm:flex`),
    leaving the header with no navigation context or way back.
-4. **Naive `history.back()` breaks on direct entry or query changes.** A bare
-   `router.back()` fails or leaves the application when a page is opened
-   directly from a URL, bookmark, or new tab. Furthermore, if a user changed
-   five filter parameters on the audit log, naive browser back simply undone
-   one filter parameter rather than returning to the referring screen.
+4. **History is the wrong source for a header control.** `history.back()`
+   leaves the application when a page was opened from a bookmark or a new tab,
+   and undoes a filter change rather than leaving the screen. Nor can the
+   application tell where somebody came from: the workspace stays one document
+   across page switches, so `document.referrer` is fixed at the first load, and
+   the full loads that do change it — switching the language or the Property —
+   are exactly the ones "Back" must not undo.
 
 ## Decision
 
@@ -51,23 +53,17 @@ A review of how operators move through the workspace highlighted an omission:
      Arabic ("رجوع").
    - Logical icon mirroring: an arrow with `rtl:rotate-180` so Arabic displays
      the correct reverse direction by construction.
-   - Modifier key preservation: Command/Control/Shift clicks open the target URL
-     cleanly in a new tab.
-4. **Proper routing combines in-app history with explicit fallback.**
-   - When a user navigated from a different page within the application origin,
-     clicking Back navigates back in browser history (`router.back()`),
-     restoring the caller's view and state.
-   - When a page is accessed directly, refreshed, or opened from an external
-     source (no in-app referrer from a different page), clicking Back routes
-     to a deterministic fallback destination.
-   - For top-level inner pages, the fallback destination is `Today`,
-     preserving the active Property query parameter (`?property=...`).
-   - For entity detail views (such as `?record=` or `?folio=`), the fallback
-     destination is the parent list view with any existing filter parameters
-     retained.
-   - History is bypassed when navigating between filter states on the same
-     page, ensuring the header back button exits the screen rather than
-     stepping through single filter queries.
+   - A plain link, so Command/Control/Shift clicks open the target in a new tab.
+4. **Back goes up one level, deterministically.** It is a link, never
+   `history.back()`:
+   - A detail view (`?record=`, `?folio=`) goes to its list, with the Property
+     and any filters kept.
+   - Every other inner page goes to `Today`, with the active Property kept
+     (`?property=...`).
+   - The browser's own Back button remains the history control. Returning to
+     the previous in-app destination would need the workspace to track its own
+     navigation depth; that is a separate decision, not a property of this
+     button.
 5. **`WorkspacePageBar` automates back button resolution.**
    Rather than requiring each feature route to manually instantiate page bar
    navigation, `WorkspacePageBar` inspects the route and query parameters,
@@ -82,5 +78,6 @@ A review of how operators move through the workspace highlighted an omission:
   provide a safe way back to the parent list even when opened in a fresh tab.
 - Mobile headers gain a visible back button while preserving space for page
   actions.
-- Localized message catalogues in both `@ranza/operator-workspace` and
-  `@ranza/guest-portal` include `back` across all three supported languages.
+- The Operator Workspace's message catalogue carries `back` in all three
+  languages. The Guest Portal has no inner pages yet and gains it with its
+  first one.

@@ -51,25 +51,21 @@ export function WorkspacePageBar({
   const hasDetailFolio = searchParams.has("folio");
   const isInnerPage = !isToday || hasDetailRecord || hasDetailFolio;
 
-  let fallbackHref = rootHref;
+  let upHref = rootHref;
   if (hasDetailRecord) {
     const listParams = new URLSearchParams(searchParams.toString());
     listParams.delete("record");
     const query = listParams.toString();
-    fallbackHref = query ? `${pathname}?${query}` : pathname;
+    upHref = query ? `${pathname}?${query}` : pathname;
   } else if (hasDetailFolio) {
     const listParams = new URLSearchParams(searchParams.toString());
     listParams.delete("folio");
     const query = listParams.toString();
-    fallbackHref = query ? `${pathname}?${query}` : pathname;
+    upHref = query ? `${pathname}?${query}` : pathname;
   }
 
   const back = isInnerPage ? (
-    <BackButton
-      fallbackHref={fallbackHref}
-      href={fallbackHref}
-      label={t("back")}
-    />
+    <BackButton href={upHref} label={t("back")} />
   ) : undefined;
 
   return (

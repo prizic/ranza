@@ -109,15 +109,12 @@ export function AddRoomsDialog({
             </Field>
 
             <Field
-              hint={
-                <p className="text-step--1 text-muted-foreground">
-                  {t("firstNumberHint")}
-                </p>
-              }
+              hint={t("firstNumberHint")}
               htmlFor="firstNumber"
               label={t("firstNumber")}
             >
               <Input
+                aria-describedby="firstNumber-hint"
                 id="firstNumber"
                 name="firstNumber"
                 placeholder="101"

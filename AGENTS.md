@@ -337,11 +337,10 @@ to any environment-specific name a test reaches for.
   retrofitted.
 - **All inner pages and detail views carry a back button with proper routing**
   ([ADR 0035](docs/adr/0035-all-inner-pages-have-a-back-button-with-proper-routing.md)).
-  The workspace root (`Today`) has no back button; every other destination or
-  drill-down view renders a back control at the leading edge of `AppPageBar` that
-  returns to the previous in-app destination, safely falls back to the parent route
-  (preserving the active Property query) on direct entry, and mirrors directionally
-  in RTL.
+  The workspace root (`Today`) has none; every other destination or drill-down
+  view renders one at the leading edge of `AppPageBar`. It is a link one level
+  up — a detail view to its list, any other page to `Today` — keeping the active
+  Property, never `history.back()`, and it mirrors in RTL.
 - Do not invent modules, pricing rules, legal policies or integrations that no
   approved specification covers.
 - Prizic Control Plane permissions and Organization staff permissions are
