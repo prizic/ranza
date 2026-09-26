@@ -3,6 +3,10 @@
 Status: Accepted
 Date: 2026-09-16
 
+Amended: 2026-09-24 — a second cross-Organization read, for closing business
+days ([ADR 0034](0034-a-business-day-closes-after-its-cutoff.md)): see "A second
+exception, and it is a function" below.
+
 ## Context
 
 `ranza_app` reaches tenant data by publishing an acting user —
@@ -112,6 +116,27 @@ So it is granted, narrowly, and the narrowing is what makes it acceptable:
 `ranza_app` gets `insert` on `outbox_events` and nothing more: no select, no
 update. A request publishes and cannot read the queue, which means the exception
 above exists in exactly one process.
+
+### A second exception, and it is a function
+
+Closing a Property's business day at its cutoff has the dispatcher's
+chicken-and-egg: the worker must learn which Properties have a day due before it
+can set context for any of them. It is answered the same way — granted,
+narrowly — and the narrowing is again what makes it acceptable:
+
+- One function, `app.properties_due_for_close()`, and no table grant at all.
+  `ranza_worker` holds nothing on `properties` or `business_day_closes`.
+- It returns an Organization id, a Property id and a date. No name, no count,
+  nothing about what is open at the Property.
+- Execute is `ranza_worker`'s alone, revoked from `PUBLIC`, `ranza_app` and
+  `ranza_auth`; the pgTAP suite reads `pg_proc.proacl` and pins the signature, so
+  widening either is a red build rather than a quiet change.
+- Closing a day is then `app.close_business_day_automatically()`, inside
+  `app.set_worker_context()` for that Organization, which refuses a Property
+  outside it — bounded by one Organization like everything else.
+
+A third exception gets its own section and its own argument. "The worker already
+reads across Organizations" is not one.
 
 ## Consequences
 

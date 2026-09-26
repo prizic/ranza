@@ -526,6 +526,42 @@ describe("saving", () => {
     ).toMatchObject({ name: "Deniz Otel Moda", currency: "TRY" });
   });
 
+  it("a_change_that_reopens_a_closed_day_is_refused_as_such (on screen)", async () => {
+    previewBusinessDate.mockResolvedValue({
+      current: "2026-09-25",
+      proposed: "2026-09-26",
+    });
+    saveProperty.mockResolvedValue({
+      status: "closedDay",
+      field: "businessDateCutoff",
+    });
+    await show(MANAGER);
+    fireEvent.click(screen.getByRole("combobox", { name: "Time zone" }));
+    fireEvent.click(await screen.findByText(/Kiritimati · Pacific/));
+    // The picker hands focus back to its trigger as it closes; a person then
+    // moves on to Save, and so does the test, rather than in the same tick.
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Time zone" })).toHaveFocus(),
+    );
+    await act(async () => {
+      fireEvent.click(
+        within(card("time")).getByRole("button", { name: "Save changes" }),
+      );
+    });
+    await waitFor(() =>
+      expect(
+        within(card("time")).getByText(/already been closed/),
+      ).toBeVisible(),
+    );
+    // The choice is kept, and the cutoff is where attention goes.
+    expect(
+      screen.getByRole("combobox", { name: "Time zone" }),
+    ).toHaveTextContent("Kiritimati");
+    expect(
+      screen.getByRole("combobox", { name: "Business day ends at" }),
+    ).toHaveFocus();
+  });
+
   it("a_refused_save_keeps_the_input", async () => {
     saveProperty.mockResolvedValue({ status: "invalid", field: "name" });
     await show(MANAGER);

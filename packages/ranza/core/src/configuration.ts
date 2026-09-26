@@ -3,6 +3,7 @@ import { recordWithin, type AuditClient } from "@ranza/platform-audit";
 import {
   CONFIGURATION_CAPABILITY,
   CONFIGURATION_MANAGE_PERMISSION,
+  ConfigurationClosedDayError,
   ConfigurationCurrencyFixedError,
   ConfigurationInputError,
   ConfigurationRefusedError,
@@ -27,6 +28,8 @@ import type { CoreDeps } from "./ports";
 const INSUFFICIENT_PRIVILEGE = "42501";
 const CHECK_VIOLATION = "23514";
 const OBJECT_NOT_IN_PREREQUISITE_STATE = "55000";
+/** Close the day's own code: a business day is closed (ADR 0034). */
+const BUSINESS_DAY_CLOSED = "RZ001";
 
 /** `properties_*_check` and `organizations_name_check` name the column. */
 const CONSTRAINT_FIELDS: Record<string, PropertySettingsField> = {
@@ -248,6 +251,14 @@ export function createConfiguration(deps: CoreDeps) {
     assertPropertyInput(input);
 
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      // The Property's advisory lock first, as a check-in takes it: the stay
+      // trigger takes it shared and the Folio guard then the row FOR SHARE,
+      // while close the day's trigger on this update takes it exclusive after
+      // the row lock. Taken the other way round the two deadlock (ADR 0036).
+      // Hashed from the canonical text of the id, as the trigger hashes
+      // new.id::text: an id sent in capitals would otherwise take another lock.
+      await tx.$executeRaw`select pg_advisory_xact_lock(3, hashtext(${propertyId}::uuid::text))`;
+
       let changed: PropertyChange[];
       try {
         changed = await tx.$queryRaw<PropertyChange[]>`
@@ -282,6 +293,9 @@ export function createConfiguration(deps: CoreDeps) {
                     previous.cutoff as "fromCutoff"
         `;
       } catch (error: unknown) {
+        if (raised(error, BUSINESS_DAY_CLOSED)) {
+          throw new ConfigurationClosedDayError();
+        }
         if (raised(error, OBJECT_NOT_IN_PREREQUISITE_STATE)) {
           throw new ConfigurationCurrencyFixedError();
         }

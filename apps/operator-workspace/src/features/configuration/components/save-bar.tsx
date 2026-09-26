@@ -102,6 +102,8 @@ function OutcomeMessage({
       return <FormError>{t("stale")}</FormError>;
     case "refused":
       return <FormError>{t("refused")}</FormError>;
+    case "closedDay":
+      return <FormError>{t("closedDay")}</FormError>;
     case "currencyFixed":
       return <FormError>{t("currencyFixedRefused")}</FormError>;
     case "invalid":

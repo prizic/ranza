@@ -138,16 +138,16 @@ select set_eq(
   array['owner', 'manager'],
   'CF-S1-19: Owner and Manager hold configuration.manage, and no other shipped role');
 
--- A tripwire, not a restatement. Close-the-day (RANZ-26) adds a trigger on
--- properties that takes an advisory lock and raises RZ001. Merged beside this
--- feature it needs two changes in @ranza/core — map RZ001 to a refusal, and
--- take that advisory lock first so a save and a check-in lock in one order —
--- or a timezone change crashes the page and a save can deadlock a check-in
--- (ADR 0036, Consequences). A new trigger here is the moment to make them.
+-- A tripwire, not a restatement. Close the day's guard is the third trigger:
+-- it takes the Property's advisory lock and raises RZ001, and configureProperty
+-- maps RZ001 and takes that lock first so a save and a check-in lock in one
+-- order (ADR 0036, Consequences). A fourth trigger is the moment to ask the
+-- same two questions of it.
 select set_eq(
   $$select tgname::text from pg_catalog.pg_trigger
      where tgrelid = 'public.properties'::regclass and not tgisinternal$$,
-  array['properties_stamped', 'properties_currency_is_fixed'],
+  array['properties_stamped', 'properties_currency_is_fixed',
+        'properties_keep_today_after_the_last_close'],
   'a new trigger on properties: read ADR 0036 § Consequences before accepting it');
 
 select updated_at as stamp_before from public.properties

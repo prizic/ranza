@@ -124,6 +124,7 @@ describe("every catalogue parses", () => {
                 to: "20 Sep",
                 unit: "x",
                 value: "x",
+                time: "04:00",
                 when: "16 Sep",
                 who: "x",
               }),

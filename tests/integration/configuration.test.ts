@@ -20,6 +20,7 @@ import {
 } from "../../packages/db/src";
 import {
   CONFIGURATION_CAPABILITY,
+  ConfigurationClosedDayError,
   ConfigurationCurrencyFixedError,
   ConfigurationInputError,
   ConfigurationRefusedError,
@@ -554,6 +555,94 @@ describe("a first Folio and a currency change at once", () => {
         propertyId,
       );
       expect(folios?.n).toBe(0);
+    },
+    DATABASE_BUDGET_MS,
+  );
+});
+
+describe("beside close the day", () => {
+  it(
+    "a_change_that_reopens_a_closed_day_is_refused_as_such",
+    async () => {
+      const { propertyId } = await freshTradingProperty();
+      // Tomorrow closed, as no Property could do yet: any timezone or cutoff a
+      // Property can hold then dates today on or before a closed day. Inserted
+      // with triggers off, which the table owner may do on a local database.
+      await owner.$transaction([
+        owner.$executeRawUnsafe(`set local session_replication_role = replica`),
+        owner.$executeRawUnsafe(
+          `insert into public.business_day_closes
+             (organization_id, property_id, business_date, closed_by_job)
+           values ($1, $2, app.property_today($2::uuid) + 1, 'test.closed_ahead')`,
+          ORG,
+          propertyId,
+        ),
+      ]);
+      const before = await settings(propertyId);
+      await expect(
+        core.configureProperty(MANAGER, propertyId, {
+          name: before.name,
+          timezone: "Asia/Dubai",
+          currency: before.currency,
+          businessDateCutoff: before.businessDateCutoff,
+          version: before.version,
+        }),
+      ).rejects.toBeInstanceOf(ConfigurationClosedDayError);
+      // The name alone is not the clock, and still saves.
+      const renamed = await core.configureProperty(MANAGER, propertyId, {
+        name: "Renamed Beside A Close",
+        timezone: before.timezone,
+        currency: before.currency,
+        businessDateCutoff: before.businessDateCutoff,
+        version: before.version,
+      });
+      expect(renamed.status).toBe("saved");
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "a_save_waits_for_the_propertys_lock_before_its_row",
+    async () => {
+      const { propertyId } = await freshTradingProperty();
+      const before = await settings(propertyId);
+      let held!: () => void;
+      const lockHeld = new Promise<void>((resolve) => (held = resolve));
+
+      // A check-in's order: the Property's advisory lock, shared, held.
+      const checkIn = owner.$transaction(
+        async (tx) => {
+          await tx.$executeRawUnsafe(
+            `select pg_advisory_xact_lock_shared(3, hashtext($1::uuid::text))`,
+            propertyId,
+          );
+          held();
+          await wait(1500);
+        },
+        { timeout: 10_000 },
+      );
+      await lockHeld;
+      // An id in capitals must take the same lock as the trigger's.
+      const save = core.configureProperty(MANAGER, propertyId.toUpperCase(), {
+        name: before.name,
+        timezone: before.timezone,
+        currency: before.currency,
+        businessDateCutoff: "05:00",
+        version: before.version,
+      });
+      await wait(400);
+      // The save is waiting. Had it locked the row first, as an update does
+      // before its triggers, a check-in's Folio guard would now wait on it
+      // while it waits on the check-in: a deadlock.
+      const [probe] = await owner.$queryRawUnsafe<{ free: boolean }[]>(
+        `select true as free from public.properties
+          where id = $1::uuid for update nowait`,
+        propertyId,
+      );
+      expect(probe?.free).toBe(true);
+
+      await checkIn;
+      expect((await save).status).toBe("saved");
     },
     DATABASE_BUDGET_MS,
   );

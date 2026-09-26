@@ -11,6 +11,13 @@ everything lands under Unreleased.
 
 ### Added
 
+- `CheckInDayClosedError`: `reverseCheckIn()` refuses to withdraw a check-in
+  whose business day has been closed
+  ([ADR 0034](../../../docs/adr/0034-a-business-day-closes-after-its-cutoff.md)),
+  told apart from the charges refusal. `checkIn()` and `checkOut()` answer the
+  same database refusal, `RZ001`, with `CheckInError` and `CheckOutError`: it
+  is met only by one that began before the cutoff and commits after the day
+  closed, and pressing again succeeds on the new day.
 - `listRoomCalendar()`: the room calendar's read (RANZ-25). Units against a
   window of days, bookings and Stays as bars, the named gap marked as an
   overlap rather than hidden, and nightly free counts. Read-only; no table and

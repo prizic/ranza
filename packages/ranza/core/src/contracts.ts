@@ -200,6 +200,17 @@ export class ConfigurationStaleError extends Error {
   }
 }
 
+/**
+ * The change would make today a business day that is already closed, which
+ * close the day forbids (ADR 0034, CF-S1-21).
+ */
+export class ConfigurationClosedDayError extends Error {
+  constructor() {
+    super("today would become a business day that is already closed");
+    this.name = "ConfigurationClosedDayError";
+  }
+}
+
 /** The Property has a Folio, so its currency stays (CF-S1-04). */
 export class ConfigurationCurrencyFixedError extends Error {
   constructor() {

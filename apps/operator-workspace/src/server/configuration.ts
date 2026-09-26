@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  ConfigurationClosedDayError,
   ConfigurationCurrencyFixedError,
   ConfigurationInputError,
   ConfigurationRefusedError,
@@ -30,7 +31,8 @@ export interface SettingsOutcome {
     | "invalid"
     | "refused"
     | "stale"
-    | "currencyFixed";
+    | "currencyFixed"
+    | "closedDay";
   /** The field at fault, for a refusal that names one. */
   field?: ConfigurationField | null;
   /** The version the next save names. */
@@ -68,6 +70,9 @@ function text(form: FormData, key: string): string {
 function outcomeOf(error: unknown, locale: string): SettingsOutcome {
   if (is(error, ConfigurationInputError)) {
     return { status: "invalid", field: error.field };
+  }
+  if (is(error, ConfigurationClosedDayError)) {
+    return { status: "closedDay", field: "businessDateCutoff" };
   }
   if (is(error, ConfigurationCurrencyFixedError)) {
     // A Folio was opened since the page was read: the next read shows the

@@ -109,19 +109,26 @@ columns. Every date screen reads the timezone and cutoff through
 the save refreshes the whole workspace.
 
 Changing the timezone or cutoff can move a Property's business date backwards.
-What a closed business day refuses is close-the-day's to decide (RANZ-26, not on
-main yet). On its branch that is a trigger on `properties`, not a policy: on a
-timezone or cutoff change it takes `pg_advisory_xact_lock(3, hashtext(id))` and
-raises `RZ001` when today would become a closed day. Whichever of the two lanes
-reaches main second owes two changes here, in the same merge:
+What a closed business day refuses is close the day's to decide
+([ADR 0034](0034-a-business-day-closes-after-its-cutoff.md)). Its guard on
+`properties` takes the Property's advisory lock and raises `RZ001` when today
+would become a closed day. The two features arrived on separate branches, and
+meeting on `main` they needed three things, all made in the merge that brought
+them together:
 
 - `configureProperty` maps `RZ001` to a refusal of its own, worded on the
-  cutoff field in all three locales, rather than rethrowing it as a crash.
-- `configureProperty` takes that advisory lock as its first statement. Check-in
-  takes the shared advisory lock and then this ADR's `FOR SHARE` on the
-  Property row; a settings save takes the row lock and then the exclusive
-  advisory lock. Opposite orders deadlock, and neither caller handles `40P01`.
-  Taking the advisory lock first puts the save in check-in's order.
+  cutoff field, rather than rethrowing it as a crash (CF-S1-21).
+- `configureProperty` takes that advisory lock as its first statement.
+  Check-in takes it shared and then this ADR's `FOR SHARE` on the Property row;
+  an update locks its row before any trigger runs, so a save that reached the
+  guard's exclusive lock second would hold the row a check-in was waiting for
+  while waiting for the check-in. Taking the lock first puts the save in
+  check-in's order (CF-S1-22). It is hashed from the id's canonical text, as the
+  guard hashes `new.id::text`.
+- The guard hands the new timezone to `app.business_date()` before the row's
+  check constraints run, so an unknown zone raised inside it instead of being
+  refused by `properties_timezone_check`. `20260916006100` has it step aside
+  for a zone Postgres does not know (CF-S1-23).
 
-Neither branch's tests can see either problem, because neither holds the
-other's trigger.
+`tests/database/configuration.test.sql` names every trigger on `properties`,
+so a fourth arriving the same way fails a test rather than a deploy.

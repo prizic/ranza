@@ -5,6 +5,7 @@ export {
   AUDIT_READ_PERMISSION,
   CONFIGURATION_CAPABILITY,
   CONFIGURATION_MANAGE_PERMISSION,
+  ConfigurationClosedDayError,
   ConfigurationCurrencyFixedError,
   ConfigurationInputError,
   ConfigurationRefusedError,

@@ -13,6 +13,7 @@
   "dependencies": {
     "@ranza/accommodation": "workspace:*",
     "@ranza/auth": "workspace:*",
+    "@ranza/business-day": "workspace:*",
     "@ranza/core": "workspace:*",
     "@ranza/db": "workspace:*",
     "@ranza/folios": "workspace:*",

@@ -1,0 +1,20 @@
+{
+  "name": "@ranza/business-day",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ranza/db": "workspace:*",
+    "@ranza/platform-audit": "workspace:*",
+    "@ranza/platform-outbox": "workspace:*",
+    "@ranza/reservations": "workspace:*"
+  }
+}

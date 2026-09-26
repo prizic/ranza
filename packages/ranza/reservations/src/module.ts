@@ -17,6 +17,7 @@ import {
   BALANCE_REASON,
   BalanceReasonError,
   CANCELLATION_REASON,
+  CheckInDayClosedError,
   CheckInError,
   CheckInReversalError,
   CheckOutError,
@@ -93,6 +94,13 @@ const UNIT_OCCUPIED = "55006";
  * posted" or "the room is blocked" is a different answer from "you cannot".
  */
 const NOT_IN_PREREQUISITE_STATE = "55000";
+
+/**
+ * Raised by `stays_keep_closed_days` when a Stay would begin, end or be
+ * withdrawn on a business day that is closed (ADR 0034). Ranza's own class,
+ * because 55000 already means "money has been posted" on the withdrawal path.
+ */
+const BUSINESS_DAY_CLOSED = "RZ001";
 
 /**
  * Whether a failure carries a particular SQLSTATE.
@@ -484,6 +492,12 @@ export function createReservationsModule(deps: ReservationsDeps) {
             "that Accommodation Unit is not in service",
           );
         }
+        // Begun before the cutoff and committing after the day closed: the
+        // Stay would begin on a finalized day. Pressing again is a new
+        // transaction on the new day, which is the whole remedy.
+        if (raised(error, BUSINESS_DAY_CLOSED)) {
+          throw new CheckInError("the business day closed during the check-in");
+        }
         throw error;
       }
 
@@ -613,8 +627,15 @@ export function createReservationsModule(deps: ReservationsDeps) {
       try {
         withdrawn = await withdrawStayWithin(tx, stayId);
       } catch (error: unknown) {
-        // The one refusal a front desk can act on: money exists, so this is a
-        // stay that happened and correcting it is a credit or a refund.
+        // The day it began on is closed: the Stay is history, and the desk
+        // corrects it rather than taking it back.
+        if (raised(error, BUSINESS_DAY_CLOSED)) {
+          throw new CheckInDayClosedError(
+            "the business day that check-in began on is closed",
+          );
+        }
+        // The other refusal a front desk can act on: money exists, so this is
+        // a stay that happened and correcting it is a credit or a refund.
         if (raised(error, NOT_IN_PREREQUISITE_STATE)) {
           throw new StayHasChargesError(
             "that Stay has charges posted against it",
@@ -915,6 +936,14 @@ export function createReservationsModule(deps: ReservationsDeps) {
       try {
         closed = await closeStayWithin(tx, stayId, review.today);
       } catch (error: unknown) {
+        // Begun before the cutoff and committing after the day closed: the
+        // departure would land on a finalized day. Pressing again is a new
+        // transaction on the new day.
+        if (raised(error, BUSINESS_DAY_CLOSED)) {
+          throw new CheckOutError(
+            "the business day closed during the check-out",
+          );
+        }
         // Checked in house under the lock a moment ago, so reaching this means
         // a policy refused the update: the actor cannot check out here. The
         // same message as every other refusal. Anything else is not a refusal
