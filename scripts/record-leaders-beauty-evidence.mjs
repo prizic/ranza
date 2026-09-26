@@ -104,7 +104,9 @@ async function run() {
     waitUntil: "networkidle",
   });
   await page.getByLabel("Email").fill("deniz@example.test");
-  await page.getByLabel("Password").fill("correct-horse-battery-staple");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("correct-horse-battery-staple");
   await page.locator('button[type="submit"]').click();
   await page.waitForFunction(
     () => window.location.pathname.includes("/today"),

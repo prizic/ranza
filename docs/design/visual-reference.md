@@ -99,13 +99,6 @@ for how components are organised.
 --danger-soft: #f5dfdd;
 --info: #315f83;
 --info-soft: #dfeaf2;
---sign-in-canvas: #fbfaf8;
---sign-in-ink: #474747;
---sign-in-ink-muted: #72716f;
---sign-in-field: #d9d9d9;
---sign-in-cta: #1f1e1c;
---gold: #e4b763;
---gold-ink: #8a684d;
 --line: hsl(170 10% 90%);
 --line-strong: hsl(170 10% 80%);
 --focus: hsl(172 65% 20%);
@@ -121,13 +114,15 @@ white on a white canvas, so separation comes from the floating panels' hairline
 and long shadow and from `--line`, not heavy borders. Data tables use
 `font-variant-numeric: tabular-nums`.
 
-The sign-in screen has a palette of its own, which is Leaders' login: an ivory
-ground, charcoal type and a near-black call to action. Its muted grey is
-Leaders' `#8c8b89` darkened to clear 4.5:1 on the ivory. `--gold` fills the
-sign-in swoosh and nothing else — it sits well below even the 3:1 large-text
-floor on the canvas and never carries text.
-Copy set in the brand's bronze uses `--gold-ink`, which is the reference's
-`#a48166` darkened to clear 4.5:1.
+The sign-in screen is the one surface not composed after Leaders. It follows
+EduBoard's login, on the owner's direction of 2026-09-25: one framed white card,
+the form on its start half in the ordinary tokens above, and on its end half a
+dark showcase — here `--surface-strong` under a generated texture of emerald
+silk with gold light in its folds (`packages/ui/src/assets/sign-in-silk.webp`),
+the slogan in a light serif italic set in `--accent-soft`, and the service row
+on a floating white card. The texture is the only raster in the theme; the
+slogan block is kept narrow so its text stays over the dark corner of the
+image rather than the gold.
 
 ### Where Ranza departs from Leaders, and why
 
@@ -135,14 +130,14 @@ Everything not listed here is Leaders' own value or class. A departure without
 an entry is a bug.
 
 - **Contrast.** `--danger` is `#a33a35`, not Leaders' `hsl(0 70% 60%)`, which
-  is below 4.5:1 on white; the sign-in greys above are darkened for the same
-  reason.
+  is below 4.5:1 on white.
 - **Arabic** is set in IBM Plex Sans Arabic, because Geist draws none.
-- **Sign-in** has no padlock and no "protected by security protocols" line —
-  the page does not demonstrate either — and no Leaders logo figure behind it,
-  which is another company's mark. It has no "forgot password" link, because
+- **Sign-in** is composed after EduBoard, not Leaders (see above). It has no
+  padlock and no "protected by security protocols" line — the page does not
+  demonstrate either. It has no "forgot password" link, because
   Ranza has no reset flow and a link to nowhere is worse than none. Its service
-  row names Ranza's built screens.
+  row names the workspace's built screens, and in the Portal what the Stay
+  page shows.
 - **Sidebar.** Ranza has destinations nested under a group (Front Office), and
   Leaders has no pattern for them, so a group opens as an indented list. The
   sidebar also folds to icons, which Leaders' does not, and tightens its rows
