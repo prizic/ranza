@@ -177,7 +177,14 @@ export function PropertySettingsForm({
         timezone: timezoneRef,
         businessDateCutoff: cutoffRef,
       } as const;
-      const field = outcome.field;
+      // A closed day is about the clock as a whole; point at the half that
+      // changed, the time zone when it alone did.
+      const field =
+        outcome.status === "closedDay" &&
+        sent.timezone !== saved.timezone &&
+        sent.businessDateCutoff === saved.businessDateCutoff
+          ? "timezone"
+          : outcome.field;
       if (field && field in fields) {
         fields[field as keyof typeof fields].current?.focus();
       }

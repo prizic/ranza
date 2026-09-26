@@ -255,9 +255,13 @@ export function createConfiguration(deps: CoreDeps) {
       // trigger takes it shared and the Folio guard then the row FOR SHARE,
       // while close the day's trigger on this update takes it exclusive after
       // the row lock. Taken the other way round the two deadlock (ADR 0036).
-      // Hashed from the canonical text of the id, as the trigger hashes
-      // new.id::text: an id sent in capitals would otherwise take another lock.
-      await tx.$executeRaw`select pg_advisory_xact_lock(3, hashtext(${propertyId}::uuid::text))`;
+      // Through the row, as check-in does, so a Property the caller cannot see
+      // locks nothing; its canonical id is the text the guard hashes.
+      await tx.$queryRaw`
+        select pg_advisory_xact_lock(3, hashtext(property.id::text))::text
+          from public.properties as property
+         where property.id = ${propertyId}::uuid
+      `;
 
       let changed: PropertyChange[];
       try {

@@ -602,6 +602,52 @@ describe("beside close the day", () => {
   );
 
   it(
+    "a save for a Property the caller cannot see locks nothing",
+    async () => {
+      const { propertyId } = await freshTradingProperty();
+      const before = await settings(propertyId);
+      const OUTSIDER = "cf000001-0000-4000-8000-0000000000ff";
+      await owner.$executeRawUnsafe(
+        `insert into public.users (id, email) values ($1, 'cf-outsider@example.test')
+         on conflict (id) do nothing`,
+        OUTSIDER,
+      );
+      let held!: () => void;
+      const lockHeld = new Promise<void>((resolve) => (held = resolve));
+      // A check-in at the Property, holding its lock shared for two seconds.
+      const checkIn = owner.$transaction(
+        async (tx) => {
+          await tx.$executeRawUnsafe(
+            `select pg_advisory_xact_lock_shared(3, hashtext($1::uuid::text))`,
+            propertyId,
+          );
+          held();
+          await wait(2000);
+        },
+        { timeout: 10_000 },
+      );
+      await lockHeld;
+
+      // Somebody who cannot see the Property is refused at once. Had the save
+      // taken the Property's lock regardless, it would have waited behind the
+      // check-in — and made every check-in there wait behind it.
+      const started = Date.now();
+      await expect(
+        core.configureProperty(OUTSIDER, propertyId, {
+          name: "Not Theirs",
+          timezone: before.timezone,
+          currency: before.currency,
+          businessDateCutoff: before.businessDateCutoff,
+          version: before.version,
+        }),
+      ).rejects.toBeInstanceOf(ConfigurationRefusedError);
+      expect(Date.now() - started).toBeLessThan(1500);
+      await checkIn;
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
     "a_save_waits_for_the_propertys_lock_before_its_row",
     async () => {
       const { propertyId } = await freshTradingProperty();

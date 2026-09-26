@@ -123,8 +123,9 @@ them together:
   an update locks its row before any trigger runs, so a save that reached the
   guard's exclusive lock second would hold the row a check-in was waiting for
   while waiting for the check-in. Taking the lock first puts the save in
-  check-in's order (CF-S1-22). It is hashed from the id's canonical text, as the
-  guard hashes `new.id::text`.
+  check-in's order (CF-S1-22). It is taken through a read of the Property row,
+  as check-in takes its own, so a Property the caller cannot see locks nothing;
+  and the row's id is the text the guard hashes.
 - The guard hands the new timezone to `app.business_date()` before the row's
   check constraints run, so an unknown zone raised inside it instead of being
   refused by `properties_timezone_check`. `20260916006100` has it step aside

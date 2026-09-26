@@ -553,13 +553,12 @@ describe("saving", () => {
         within(card("time")).getByText(/already been closed/),
       ).toBeVisible(),
     );
-    // The choice is kept, and the cutoff is where attention goes.
+    // The choice is kept.
     expect(
       screen.getByRole("combobox", { name: "Time zone" }),
     ).toHaveTextContent("Kiritimati");
-    expect(
-      screen.getByRole("combobox", { name: "Business day ends at" }),
-    ).toHaveFocus();
+    // Only the time zone changed, so that is where focus goes.
+    expect(screen.getByRole("combobox", { name: "Time zone" })).toHaveFocus();
   });
 
   it("a_refused_save_keeps_the_input", async () => {
