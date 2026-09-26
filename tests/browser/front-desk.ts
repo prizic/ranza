@@ -35,7 +35,8 @@ export function testProperty(): string {
   // as well, so a check-in opens a Folio: the refusal that matters most on this
   // screen is the one a charge causes, and without a Folio there is nowhere to
   // put one. And staff_administration, because the roster is the other screen
-  // a browser test signs in to look at; housekeeping for the board.
+  // a browser test signs in to look at; housekeeping for the board; and
+  // configuration for the settings screen.
   return aPropertyOfTheTests(TEST_PROPERTY, {
     today: true,
     front_desk: true,
@@ -44,6 +45,7 @@ export function testProperty(): string {
     housekeeping: true,
     // Maintenance, for its board and the Rooms hand-over.
     maintenance: true,
+    configuration: true,
   });
 }
 
@@ -194,7 +196,7 @@ function aPropertyOfTheTests(
 export async function signIn(page: Page): Promise<void> {
   await page.goto("/en/sign-in");
   await page.getByLabel("Email").fill(EMAIL);
-  await page.getByLabel("Password").fill(PASSWORD);
+  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/en\/today$/);
 }

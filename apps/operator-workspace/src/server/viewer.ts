@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   AUDIT_READ_PERMISSION,
+  CONFIGURATION_CAPABILITY,
   MIN_SEARCH_LENGTH,
   TODAY_CAPABILITY,
 } from "@ranza/core";
@@ -15,6 +16,7 @@ import type {
   CapabilityProperties,
   CapabilityRef,
   EntitledProperty,
+  PropertySettings,
 } from "@ranza/core";
 import type { CloseTheDay } from "@ranza/business-day";
 import { FOLIO_CAPABILITY } from "@ranza/folios";
@@ -113,6 +115,7 @@ import { getComposition } from "./composition";
 // through which a direct query eventually arrives.
 export {
   AUDIT_READ_PERMISSION,
+  CONFIGURATION_CAPABILITY,
   MIN_SEARCH_LENGTH,
   TODAY_CAPABILITY,
   FRONT_DESK_CAPABILITY,
@@ -170,6 +173,7 @@ export type {
   SettingValues,
   UnitHold,
   NewUnits,
+  PropertySettings,
   ReservationRow,
   RoomCalendar,
   RoomCalendarBar,
@@ -556,6 +560,42 @@ export async function auditRecord(
   const viewer = await currentViewer();
   if (!viewer) return null;
   return getComposition().core.auditRecord(viewer.userId, propertyId, recordId);
+}
+
+/**
+ * One Property's settings for the Configuration screen, and whether the viewer
+ * may change them (ADR 0036). Null for a Property they cannot reach or where
+ * configuration is not available.
+ *
+ * Not `cache`d: saving changes this, and the request that saved re-reads it.
+ */
+export async function propertySettings(
+  propertyId: string,
+): Promise<PropertySettings | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().core.propertySettings(viewer.userId, propertyId);
+}
+
+/**
+ * The timezones a Property may be set to — both Postgres and this runtime know
+ * them. Read once per process: the list is the time zone database, which
+ * changes when Postgres or Node is upgraded, never between two requests, and
+ * reading it costs a scan of every zone on every render.
+ */
+let zones: Promise<readonly string[]> | undefined;
+
+export async function timezoneNames(): Promise<readonly string[]> {
+  const viewer = await currentViewer();
+  if (!viewer) return [];
+  zones ??= getComposition()
+    .core.timezoneNames(viewer.userId)
+    .catch((error: unknown) => {
+      // A failed read is not the answer; the next request asks again.
+      zones = undefined;
+      throw error;
+    });
+  return zones;
 }
 
 /**

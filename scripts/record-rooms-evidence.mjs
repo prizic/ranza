@@ -86,7 +86,7 @@ async function runTrial() {
   await page.goto(`${WORKSPACE_URL}/en/sign-in`);
   await page.waitForLoadState("networkidle");
   await page.getByLabel("Email").fill(EMAIL);
-  await page.getByLabel("Password").fill(PASSWORD);
+  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/en\/today$/, { timeout: 35000 });
 

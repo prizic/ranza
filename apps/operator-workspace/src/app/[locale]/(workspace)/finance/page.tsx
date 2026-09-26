@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
@@ -59,16 +58,9 @@ export default async function FinancePage({
   const selected = search.folio ? await folio(search.folio) : null;
 
   if (selected) {
-    const back = `${localizeHref(locale, "finance")}?property=${property.propertyId}`;
     return (
       <>
-        <p className="text-sm text-muted-foreground">
-          <Link className="hover:underline" href={back}>
-            {t("allFolios")}
-          </Link>
-          {" · "}
-          {property.propertyName}
-        </p>
+        <p className="text-sm text-muted-foreground">{property.propertyName}</p>
         <FolioPanel folio={selected} locale={locale} />
       </>
     );

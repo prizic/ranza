@@ -1,20 +1,25 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { AppPageBar, navGroupFor, SectionTabs } from "@ranza/ui";
+import { AppPageBar, BackButton, navGroupFor, SectionTabs } from "@ranza/ui";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import { useWithProperty, useWorkspaceNav } from "../../../lib/nav";
-import { pageTitleFor, useWorkspacePageTitles } from "../../../lib/page-titles";
+import {
+  pageTitleFor,
+  useWorkspacePageTitles,
+  withoutLocale,
+} from "../../../lib/page-titles";
+
+const DETAIL_KEYS = ["record", "folio"] as const;
 
 /**
- * Resolves the page's own title, and the trail above it, from the route.
+ * Resolves the page's own title, the trail above it, and the way up from the route.
  *
- * A client component because it reads the pathname, which a router layout
- * cannot. A route with no entry renders no bar and therefore no heading — see
- * lib/page-titles for why that is worth knowing about rather than guarding
- * against here.
+ * A client component because it reads the pathname and query parameters, which
+ * a router layout cannot. Renders a back button with proper routing on all
+ * inner pages (any destination other than Today, or detail views like record/folio).
  */
 export function WorkspacePageBar({
   action,
@@ -29,6 +34,7 @@ export function WorkspacePageBar({
   locale: SupportedLocale;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const titles = useWorkspacePageTitles();
   const entries = useWorkspaceNav(locale, entitled, defaultProperty);
   const t = useTranslations();
@@ -40,13 +46,33 @@ export function WorkspacePageBar({
   // A nav group has no page of its own, so it is named without a link.
   const group = navGroupFor(pathname, entries);
 
+  const rootHref = withProperty(localizeHref(locale, "today"));
+  const route = withoutLocale(pathname);
+  const isToday = route === "/today" || route === "/";
+  // A detail view's way up is its own list, with the rest of the query kept.
+  const detailKey = DETAIL_KEYS.find((key) => searchParams.has(key));
+  const isInnerPage = !isToday || detailKey !== undefined;
+
+  let upHref = rootHref;
+  if (detailKey) {
+    const listParams = new URLSearchParams(searchParams.toString());
+    listParams.delete(detailKey);
+    const query = listParams.toString();
+    upHref = query ? `${pathname}?${query}` : pathname;
+  }
+
+  const back = isInnerPage ? (
+    <BackButton href={upHref} label={t("back")} />
+  ) : undefined;
+
   return (
     <AppPageBar
       {...(action === undefined ? {} : { action })}
+      back={back}
       breadcrumbLabel={t("breadcrumb")}
       crumbs={[
         {
-          href: withProperty(localizeHref(locale, "today")),
+          href: rootHref,
           label: t("workspaceBadge"),
         },
         ...(group ? [{ label: group.label }] : []),

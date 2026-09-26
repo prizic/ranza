@@ -12,7 +12,7 @@ import { SignInForm } from "./sign-in-form";
  * it. It also sits outside the (portal) group, whose layout requires a viewer
  * and would otherwise redirect here in a loop.
  *
- * Composed by SplitAuthLayout, after the Leaders portal's sign-in. Its service
+ * Composed by SplitAuthLayout, after EduBoard's login. Its service
  * row names what the Stay page shows — the Portal has built nothing else, and
  * the row is not a place to promise it.
  */

@@ -14,7 +14,26 @@ await core.listEntitledPropertiesByCapability(userId, [a, b, c]); // one answer 
 await core.listPermittedProperties(userId, AUDIT_READ_PERMISSION);
 await core.auditLog(userId, propertyId, filters); // one page, and its names
 await core.auditRecord(userId, propertyId, recordId); // one record, by id
+await core.propertySettings(userId, propertyId); // the Configuration screen's read
+await core.configureProperty(userId, propertyId, {
+  name,
+  timezone,
+  currency,
+  businessDateCutoff,
+  version,
+});
+await core.renameOrganization(userId, propertyId, { name, version });
+await core.businessDatePreview(userId, propertyId, timezone, cutoff);
+await core.timezoneNames(userId);
 ```
+
+The Configuration writes live in `src/configuration.ts`
+([ADR 0036](../../../docs/adr/0036-a-property-is-configured-and-its-currency-is-fixed-by-its-first-folio.md)).
+Nothing there decides who may: the update policies and column grants do. A save
+names the version it was read at, and one that matches no row is re-read to say
+why — refused, stale, or unchanged — because a policy refuses quietly. Each
+refusal is its own error so the screen can word it; a check violation names the
+field when the constraint does.
 
 `auditLog` is the audit log opened from a Property. The audit module knows a
 scope only as an opaque id and may not name a Property (blueprint 9.8), so this
