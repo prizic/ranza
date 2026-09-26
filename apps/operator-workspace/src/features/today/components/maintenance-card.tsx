@@ -14,8 +14,8 @@ import { SectionUnavailable } from "./section-unavailable";
 
 /**
  * Open maintenance at a glance, for the manager (TD-S4-04). Out of order
- * counts Units, beds included, however many requests hold each; the board it
- * opens still counts holding requests (MT-S2-32). Every figure
+ * counts Units, beds included, however many requests hold each, as the board
+ * it opens does (MT-S2-32). Every figure
  * opens the maintenance board at the Property; the board has no filter to
  * open at yet (TD-DEF-09).
  */
@@ -84,10 +84,18 @@ function Figures({
 
   return (
     <>
-      <p className="text-sm text-muted-foreground">{t("openRequests")}</p>
-      <p className="mt-1 text-3xl font-semibold tabular-nums">
-        {formatNumber(data.open, locale)}
-      </p>
+      <Link
+        className="-mx-2 block rounded-lg px-2 py-1 transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        href={href}
+        prefetch={false}
+      >
+        <span className="block text-sm text-muted-foreground">
+          {t("openRequests")}
+        </span>
+        <span className="mt-1 block text-3xl font-semibold tabular-nums">
+          {formatNumber(data.open, locale)}
+        </span>
+      </Link>
       <ul className="mt-4 grid gap-2">
         {rows.map((row) => (
           <Figure

@@ -200,10 +200,13 @@ function countsOf(cards: readonly MaintenanceRequestCard[]): MaintenanceCounts {
     cancelled: 0,
     outOfOrder: 0,
   };
+  // Units, not holds: a room two requests hold is one room out (MT-S2-32).
+  const held = new Set<string>();
   for (const card of cards) {
     counts[card.status] += 1;
-    if (card.hold !== null) counts.outOfOrder += 1;
+    if (card.hold !== null && card.unit !== null) held.add(card.unit.unitId);
   }
+  counts.outOfOrder = held.size;
   return counts;
 }
 

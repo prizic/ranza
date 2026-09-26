@@ -559,10 +559,20 @@ describe("maintenance", () => {
     expect(within(card).getByText("Waiting for parts")).toBeInTheDocument();
     // Every figure, and the card's own link, opens the board at the Property.
     const links = within(card).getAllByRole("link");
-    expect(links).toHaveLength(5);
+    expect(links).toHaveLength(6);
     for (const link of links) {
       expect(link.getAttribute("href")).toMatch(
         new RegExp(`/maintenance\\?property=${PROPERTY}$`),
+      );
+    }
+  });
+
+  it("the_manager_sees_open_maintenance_at_a_glance: its held rooms are not the Rooms card's out of service", () => {
+    // Stacked on one another, the two cards count different things, so they
+    // must never read as the same figure under the same word.
+    for (const locale of ["tr", "en", "ar"] as const) {
+      expect(messages[locale].dashboard.roomsOutOfOrder).not.toBe(
+        messages[locale].dashboard.outOfService,
       );
     }
   });

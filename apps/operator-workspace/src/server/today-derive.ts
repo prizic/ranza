@@ -569,10 +569,13 @@ function heldUnitOf(unit: { name: string; roomName: string | null }) {
  * Maintenance's own items (TD-S4-01, TD-S4-02), and what it says about the
  * Units the unit map shows out of service (TD-S4-03).
  *
- * A room is listed once. An urgent request holding it absorbs its holds and
- * carries its own due-back date, if that has passed; otherwise a hold past
- * its return is the item, the earliest-due one when several hold the room;
- * otherwise the plain out-of-service item names the lowest-numbered request.
+ * An urgent request that holds its room absorbs that room's other hold items
+ * and shows only its own due-back date, or none: while an urgent repair holds
+ * the room it is not coming back anyway. An urgent request about a room it
+ * does not hold is listed next to that room's own hold item. Otherwise a hold
+ * past its return is the room's item, the earliest-due one when several hold
+ * it, and failing that the plain out-of-service item names the
+ * lowest-numbered request.
  */
 function maintenanceAttention(
   maintenance: TodayMaintenance,

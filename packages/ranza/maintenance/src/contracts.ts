@@ -143,6 +143,7 @@ export interface MaintenanceCounts {
   waiting_for_parts: number;
   done: number;
   cancelled: number;
+  /** Units held out of order, each once however many requests hold it. */
   outOfOrder: number;
 }
 
