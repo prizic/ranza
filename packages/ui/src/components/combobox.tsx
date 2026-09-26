@@ -114,7 +114,12 @@ export function Combobox({
       open={open}
       submitted={chosen === "" ? [] : [chosen]}
     >
-      <span className="truncate">{current?.label ?? labels.placeholder}</span>
+      {/* A value no option matches — a shared link to a Property the reader
+          cannot reach — is shown as itself, so the trigger never names a
+          choice the form is not submitting. */}
+      <span className="truncate">
+        {current?.label ?? (chosen === "" ? labels.placeholder : chosen)}
+      </span>
     </Picker>
   );
 }
@@ -252,6 +257,13 @@ function Picker({
         data-size="default"
         disabled={disabled}
         id={id}
+        onKeyDown={(event) => {
+          // The arrow keys open it, as they opened the Select it replaced.
+          if (!open && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+            event.preventDefault();
+            onOpenChange(true);
+          }
+        }}
         ref={setTrigger}
         role="combobox"
         type="button"
@@ -295,15 +307,15 @@ function Picker({
         align="start"
         className="w-(--radix-popover-trigger-width) min-w-64 p-0"
       >
+        {/* cmdk names its list "Suggestions" and labels its input from
+            `label` unless told otherwise; both take the localized word. */}
         <Command
           filter={matches}
+          label={labels.search}
           {...(highlighted ? { defaultValue: highlighted } : {})}
         >
-          <CommandInput
-            aria-label={labels.search}
-            placeholder={labels.search}
-          />
-          <CommandList>
+          <CommandInput placeholder={labels.search} />
+          <CommandList label={labels.search}>
             <CommandEmpty>{labels.noMatches}</CommandEmpty>
             {groupsOf(options).map(([heading, grouped], index) => (
               <div key={heading ?? ""}>

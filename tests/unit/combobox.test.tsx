@@ -171,6 +171,35 @@ describe("the single picker", () => {
     );
   });
 
+  it("shows a value no option matches as itself, not as the placeholder", () => {
+    const form = renderInForm({ defaultValue: "u-gone" });
+    expect(submitted(form, "unit")).toEqual(["u-gone"]);
+    expect(screen.getByRole("combobox", { name: "Unit" })).toHaveTextContent(
+      "u-gone",
+    );
+  });
+
+  it("opens from the arrow keys", () => {
+    renderInForm();
+    fireEvent.keyDown(screen.getByRole("combobox", { name: "Unit" }), {
+      key: "ArrowDown",
+    });
+    expect(screen.getByRole("option", { name: /101/ })).toBeInTheDocument();
+  });
+
+  it("names its list and search in the reader's language", () => {
+    render(
+      <Combobox
+        aria-label="Birim"
+        labels={{ ...labels, search: "Ara" }}
+        options={units}
+      />,
+    );
+    openPicker("Birim");
+    expect(screen.getByRole("listbox", { name: "Ara" })).toBeInTheDocument();
+    expect(screen.queryByRole("listbox", { name: "Suggestions" })).toBeNull();
+  });
+
   it("refuses a submission while required and empty", () => {
     const form = renderInForm({ required: true });
     const trigger = screen.getByRole("combobox", { name: "Unit" });

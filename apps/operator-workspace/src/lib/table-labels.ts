@@ -1,9 +1,5 @@
 import { useTranslations } from "next-intl";
-import type {
-  ColumnHeaderLabels,
-  DataTableLabels,
-  MultiComboboxLabels,
-} from "@ranza/ui";
+import type { ColumnHeaderLabels, DataTableLabels } from "@ranza/ui";
 
 /**
  * The listing kit's strings, built once from the message catalogue.
@@ -72,20 +68,5 @@ export function useSortLabels(): ColumnHeaderLabels {
     clearSort: t("clearFilter"),
     sortAscending: t("next"),
     sortDescending: t("previous"),
-  };
-}
-
-/**
- * A searchable picker's strings, for the field that names its placeholder.
- * The rest are the same on every picker, so they are assembled here.
- */
-export function usePickerLabels(placeholder: string): MultiComboboxLabels {
-  const t = useTranslations("picker");
-  return {
-    clear: t("clear"),
-    noMatches: t("noMatches"),
-    placeholder,
-    search: t("search"),
-    selected: (n) => t("selectedCount", { n }),
   };
 }

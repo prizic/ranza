@@ -30,7 +30,7 @@ import {
   createReservation,
   type CreateReservationOutcome,
 } from "../../../server/front-office";
-import { usePickerLabels } from "../../../lib/table-labels";
+import { usePickerLabels } from "../../../lib/picker-labels";
 import { unitLabel } from "../unit-label";
 
 /**

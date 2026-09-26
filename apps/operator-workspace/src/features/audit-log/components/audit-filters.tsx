@@ -11,7 +11,7 @@ import {
   Field,
   Input,
 } from "@ranza/ui";
-import { usePickerLabels } from "../../../lib/table-labels";
+import { usePickerLabels } from "../../../lib/picker-labels";
 import { ANY, KNOWN_ACTIONS } from "../actions";
 
 export interface AuditFilterValues {

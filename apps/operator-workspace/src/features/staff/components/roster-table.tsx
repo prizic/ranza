@@ -31,7 +31,7 @@ import {
   type StaffOutcome,
 } from "../../../server/staff";
 import { shippedRoleOf } from "../labels";
-import { usePickerLabels } from "../../../lib/table-labels";
+import { usePickerLabels } from "../../../lib/picker-labels";
 import { roleOptionValue, useRoleOptions } from "./role-options";
 
 /** Every role Ranza ships lives in this scope, which is not an Organization. */

@@ -20,7 +20,7 @@ import {
   MultiCombobox,
 } from "@ranza/ui";
 import { inviteStaffMember, type InviteOutcome } from "../../../server/staff";
-import { usePickerLabels } from "../../../lib/table-labels";
+import { usePickerLabels } from "../../../lib/picker-labels";
 import {
   roleOptionValue,
   useRoleOptions,
