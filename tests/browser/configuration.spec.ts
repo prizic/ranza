@@ -120,3 +120,20 @@ test("a_setting_saved_on_configuration_stays_shown", async ({ page }) => {
       .getByRole("combobox", { name: "For this Property" }),
   ).toHaveText("On");
 });
+
+test("goes back one level by the header alone (ADR 0035)", async ({ page }) => {
+  await signIn(page);
+  await page.goto(`/en/configuration?property=${propertyId}`);
+
+  const back = page.getByRole("link", { name: "Back" });
+  await expect(back).toHaveCount(1);
+  await expect(back).toHaveAttribute(
+    "href",
+    `/en/today?property=${propertyId}`,
+  );
+  // Nothing in the page itself leads back up: its links go across, to Rooms
+  // and People, or down, to its own sections.
+  await expect(
+    page.locator("main").getByRole("link", { name: /^(Back|All |Today)/ }),
+  ).toHaveCount(0);
+});
