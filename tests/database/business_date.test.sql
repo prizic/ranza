@@ -219,17 +219,19 @@ select is(
   'the new cutoff is what today is read with from now on'
 );
 
--- One trigger fires, and it only refuses: a cutoff may not move today back onto
--- a day that is closed (ADR 0034). Anything else here would be something
--- re-dating rows when a cutoff moves, which CO-S1-20 forbids, so the guard is
--- named and its body is read for a write rather than the count simply raised.
+-- Three triggers fire, and none writes elsewhere: close the day's guard only
+-- refuses a cutoff that moves today back onto a closed day (ADR 0034), and
+-- configuration's two stamp the row and refuse a currency change after a
+-- Folio (ADR 0036). Anything else here would be something re-dating rows when
+-- a cutoff moves, which CO-S1-20 forbids, so each is named and the guard's
+-- body is read for a write rather than a count simply raised.
 select is(
   (select coalesce(string_agg(trigger_name::text, ',' order by trigger_name), '')
      from information_schema.triggers
     where event_object_schema = 'public' and event_object_table = 'properties'
       and event_manipulation = 'UPDATE'),
-  'properties_keep_today_after_the_last_close',
-  'nothing fires when a Property changes but the guard that keeps today after the last close'
+  'properties_currency_is_fixed,properties_keep_today_after_the_last_close,properties_stamped',
+  'nothing fires when a Property changes but the close guard, the stamp and the currency lock'
 );
 
 select ok(

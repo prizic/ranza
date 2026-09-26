@@ -3,6 +3,10 @@
 Status: Accepted — applied in `20260916003500_a_business_date_has_a_cutoff`
 Date: 2026-09-16
 
+Amended: 2026-09-25 by [ADR 0036](0036-a-property-is-configured-and-its-currency-is-fixed-by-its-first-folio.md).
+The cutoff and the timezone are changed on the Configuration screen now, not in
+SQL; the bounds below are unchanged and still the check constraint's.
+
 Amended: 2026-09-22 — applied, with a different default and a bounded cutoff.
 It is built ahead of the night audit because the front desk needed it first: at
 a midnight rollover, a Guest landing at 00:30 for a one-night booking made for

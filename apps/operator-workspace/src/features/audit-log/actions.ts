@@ -58,6 +58,8 @@ export const KNOWN_ACTIONS = [
   "unit.taken_out_of_order",
   "unit.returned_to_service",
   "maintenance_setting.changed",
+  "property.configured",
+  "organization.configured",
 ] as const;
 
 export type KnownAction = (typeof KNOWN_ACTIONS)[number];

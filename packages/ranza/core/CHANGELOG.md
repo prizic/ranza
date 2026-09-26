@@ -9,6 +9,14 @@ everything lands under Unreleased.
 
 ## Unreleased
 
+### Added
+
+- Configuration: `propertySettings`, `configureProperty`, `renameOrganization`,
+  `businessDatePreview` and `timezoneNames`, with `CONFIGURATION_CAPABILITY`,
+  `CONFIGURATION_MANAGE_PERMISSION` and an error per refusal. A Property's
+  currency is fixed by its first Folio
+  ([ADR 0036](../../../docs/adr/0036-a-property-is-configured-and-its-currency-is-fixed-by-its-first-folio.md)).
+
 ### Changed
 
 - `properties` gained `currency`, ISO 4217, defaulting to `TRY`. It sits beside

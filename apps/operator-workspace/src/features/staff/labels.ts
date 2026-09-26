@@ -37,6 +37,7 @@ export const PERMISSION_CATALOGUE = [
   "maintenance.take_out_of_order",
   "maintenance.equipment",
   "audit.read",
+  "configuration.manage",
 ] as const;
 
 export type ShippedRole = (typeof SHIPPED_ROLES)[number];
@@ -89,6 +90,7 @@ const MESSAGE_KEYS = {
   "maintenance.take_out_of_order": "takeOutOfOrder",
   "maintenance.equipment": "manageEquipment",
   "audit.read": "readAudit",
+  "configuration.manage": "manageConfiguration",
 } as const satisfies Record<PermissionKey, string>;
 
 export type PermissionMessageKey =
