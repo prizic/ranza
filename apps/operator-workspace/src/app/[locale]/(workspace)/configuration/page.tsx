@@ -143,7 +143,7 @@ export default async function ConfigurationPage({
         </h2>
       </PageHeader>
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-10">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-10">
         <SectionNav label={t("configuration.sections")} sections={sections} />
 
         <div className="grid min-w-0 gap-6">
