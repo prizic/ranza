@@ -46,6 +46,9 @@ import { currentViewer } from "./viewer";
  *
  * `notReady` is not a refusal: housekeeping says the room is dirty, nothing was
  * written, and the desk is asked whether to check in anyway (HK-S2-14).
+ *
+ * `notInService` is: the room is blocked or out of order, and the desk returns
+ * it to service or moves the booking first (MT-S2-29).
  */
 export type CheckInOutcome =
   | "idle"
@@ -64,18 +67,21 @@ function isNotReady(error: unknown): error is UnitNotReadyError {
 }
 
 /**
- * Both screens, after either action.
+ * Every front-desk screen, after any of these actions.
  *
  * A check-in moves a Reservation and creates a Stay that may be due to leave
- * today; a check-out ends a Stay and frees a Unit the arrivals list depends on.
- * Working out which of the two is stale is more effort than revalidating both,
- * and gets it wrong the first time somebody adds a column.
+ * today; a check-out ends a Stay and frees a Unit the arrivals list depends on;
+ * any of them, and a no-show or a cancellation, resolves an item Close the day
+ * lists as open. Working out which screen is stale is more effort than
+ * revalidating them all, and gets it wrong the first time somebody adds a
+ * column.
  */
 function revalidateFrontDesk(locale: string): void {
   revalidatePath(`/${locale}/arrivals`);
   revalidatePath(`/${locale}/departures`);
   revalidatePath(`/${locale}/reservations`);
   revalidatePath(`/${locale}/housekeeping`);
+  revalidatePath(`/${locale}/close-day`);
 }
 
 export async function checkInReservation(

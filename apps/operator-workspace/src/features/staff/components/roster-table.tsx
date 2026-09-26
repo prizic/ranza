@@ -13,11 +13,8 @@ import type { Role, StaffMember } from "@ranza/staff";
 import {
   Avatar,
   AvatarFallback,
+  Combobox,
   DataTableRowActions,
-  Select,
-  SelectContent,
-  SelectTrigger,
-  SelectValue,
   StatusBadge,
   Table,
   TableBody,
@@ -34,7 +31,8 @@ import {
   type StaffOutcome,
 } from "../../../server/staff";
 import { shippedRoleOf } from "../labels";
-import { RoleOptions, roleOptionValue } from "./role-options";
+import { usePickerLabels } from "../../../lib/picker-labels";
+import { roleOptionValue, useRoleOptions } from "./role-options";
 
 /** Every role Ranza ships lives in this scope, which is not an Organization. */
 const NIL_SCOPE = "00000000-0000-0000-0000-000000000000";
@@ -53,14 +51,19 @@ const NIL_SCOPE = "00000000-0000-0000-0000-000000000000";
  * Reaching no Property is shown as a state rather than an empty cell, because
  * it is a normal one: a person can be on the roster before anybody has decided
  * where they work (SP-S1-06).
+ *
+ * A viewer without staff.administer reads the roster: the role is a word and
+ * the row has no actions (#80).
  */
 export function RosterTable({
   locale,
+  mayAdminister,
   organizationId,
   roles,
   roster,
 }: {
   locale: string;
+  mayAdminister: boolean;
   organizationId: string;
   roles: readonly Role[];
   roster: readonly StaffMember[];
@@ -76,9 +79,11 @@ export function RosterTable({
             <TableHead scope="col">{t("staff.role")}</TableHead>
             <TableHead scope="col">{t("staff.properties")}</TableHead>
             <TableHead scope="col">{t("staff.status")}</TableHead>
-            <TableHead className="text-end" scope="col">
-              <span className="sr-only">{t("staff.actions")}</span>
-            </TableHead>
+            {mayAdminister ? (
+              <TableHead className="text-end" scope="col">
+                <span className="sr-only">{t("staff.actions")}</span>
+              </TableHead>
+            ) : null}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -107,12 +112,16 @@ export function RosterTable({
                 </span>
               </TableCell>
               <TableCell>
-                <RolePicker
-                  locale={locale}
-                  member={member}
-                  organizationId={organizationId}
-                  roles={roles}
-                />
+                {mayAdminister ? (
+                  <RolePicker
+                    locale={locale}
+                    member={member}
+                    organizationId={organizationId}
+                    roles={roles}
+                  />
+                ) : (
+                  roleNameOf(member, t)
+                )}
               </TableCell>
               <TableCell className="text-muted-foreground">
                 {member.properties.length === 0
@@ -122,13 +131,15 @@ export function RosterTable({
               <TableCell>
                 <StatusBadge {...statusOf(member, t)} />
               </TableCell>
-              <TableCell className="text-end">
-                <MembershipActions
-                  locale={locale}
-                  member={member}
-                  organizationId={organizationId}
-                />
-              </TableCell>
+              {mayAdminister ? (
+                <TableCell className="text-end">
+                  <MembershipActions
+                    locale={locale}
+                    member={member}
+                    organizationId={organizationId}
+                  />
+                </TableCell>
+              ) : null}
             </TableRow>
           ))}
         </TableBody>
@@ -162,6 +173,19 @@ function statusOf(
   return { icon: CircleCheck, label: t("staff.active"), tone: "success" };
 }
 
+/** A member's role as words, in the viewer's language when Ranza ships it. */
+function roleNameOf(
+  member: StaffMember,
+  t: ReturnType<typeof useTranslations>,
+): string {
+  const shipped = shippedRoleOf({
+    key: member.roleId,
+    organizationId:
+      member.roleScopeId === NIL_SCOPE ? null : member.roleScopeId,
+  });
+  return shipped ? t(`staff.roles.${shipped}`) : member.roleName;
+}
+
 /**
  * Initials from an address, because a Staff Member has no name.
  *
@@ -181,12 +205,11 @@ function initials(email: string): string {
 }
 
 /**
- * The role, as a control.
+ * The role, as a control, for a viewer who holds staff.administer.
  *
- * Offered for everybody, including somebody without the authority to change it.
- * Whether this viewer may is the policies' answer, and hiding the control on
- * their behalf would be a second, weaker copy of it — a refusal that says so is
- * more honest than a select that is quietly absent.
+ * Whether this particular change is allowed is still the policies' answer: a
+ * role above the viewer's own, or a member whose role exceeds it, comes back
+ * refused and the picker says so.
  */
 function RolePicker({
   locale,
@@ -213,14 +236,22 @@ function RolePicker({
       }),
   );
 
-  const options = roles.map((role) => {
-    const shipped = shippedRoleOf(role);
-    return {
-      key: role.key,
-      organizationId: role.organizationId,
-      name: shipped ? t(`staff.roles.${shipped}`) : role.name,
-    };
-  });
+  const roleOptions = useRoleOptions(
+    roles.map((role) => {
+      const shipped = shippedRoleOf(role);
+      return {
+        key: role.key,
+        organizationId: role.organizationId,
+        name: shipped ? t(`staff.roles.${shipped}`) : role.name,
+      };
+    }),
+  );
+  // A revoked membership can still hold a role since retired, which the
+  // active roles no longer offer; it is shown by its name, not by its key.
+  const pickerOptions = roleOptions.some((option) => option.value === held)
+    ? roleOptions
+    : [...roleOptions, { value: held, label: member.roleName, disabled: true }];
+  const roleLabels = usePickerLabels(t("staff.role"));
 
   function change(next: string): void {
     const previous = held;
@@ -244,21 +275,15 @@ function RolePicker({
 
   return (
     <span className="flex flex-col gap-1">
-      <Select
+      <Combobox
+        aria-label={`${t("staff.role")}: ${member.email}`}
+        className="min-w-40"
         disabled={pending || member.status === "revoked"}
+        labels={roleLabels}
         onValueChange={change}
+        options={pickerOptions}
         value={held}
-      >
-        <SelectTrigger
-          aria-label={`${t("staff.role")}: ${member.email}`}
-          className="h-9 w-full min-w-40"
-        >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <RoleOptions roles={options} />
-        </SelectContent>
-      </Select>
+      />
       {outcome === "lastAdministrator" ? (
         <span className="text-xs text-destructive">
           {t("staff.lastAdministrator")}

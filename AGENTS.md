@@ -114,6 +114,7 @@ pnpm check            # full gate: format, lint, boundaries, typecheck, tests, b
 pnpm db:test          # pgTAP suites in tests/database
 pnpm test:integration # real database: tenant isolation and the auth flow
 pnpm test:browser     # the workspace in a browser, against the local database
+pnpm decisions        # docs/decisions.html: every feature's questions and settled answers
 ```
 
 `pnpm check` must pass before any commit. It does **not** touch a database, so
@@ -335,6 +336,12 @@ to any environment-specific name a test reaches for.
   of the workflows that need it.
 - Turkish, English and Arabic with RTL are designed **with** a feature, never
   retrofitted.
+- **All inner pages and detail views carry a back button with proper routing**
+  ([ADR 0035](docs/adr/0035-all-inner-pages-have-a-back-button-with-proper-routing.md)).
+  The workspace root (`Today`) has none; every other destination or drill-down
+  view renders one at the leading edge of `AppPageBar`. It is a link one level
+  up — a detail view to its list, any other page to `Today` — keeping the active
+  Property, never `history.back()`, and it mirrors in RTL.
 - Do not invent modules, pricing rules, legal policies or integrations that no
   approved specification covers.
 - Prizic Control Plane permissions and Organization staff permissions are

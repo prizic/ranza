@@ -15,7 +15,7 @@
 -- purpose: it needs two sessions and pgTAP has one. It lives in
 -- tests/integration/staff.test.ts, which can open two connections.
 begin;
-select plan(71);
+select plan(98);
 
 insert into public.users (id, email) values
   ('61111111-1111-4111-8111-111111111111', 'staff-owner-a@example.test'),
@@ -632,15 +632,37 @@ select throws_ok(
 -- ---------------------------------------------------------------------------
 -- Defining a role has a ceiling (SP-S3-01); assigning one had none, so a role
 -- an Owner wrote holding only staff.administer was one step from Owner. This
--- administrator holds staff.administer and Finance's two permissions: enough
--- to hand out Finance, and not Owner, Manager, or a role of the Organization's
--- own holding something they lack. Finance rather than Housekeeping because
--- the section above rewrote Housekeeping's permissions in this transaction.
+-- administrator holds staff.administer and every permission Finance holds:
+-- enough to hand out Finance, and not Owner, Manager, or a role of the
+-- Organization's own holding something they lack. Finance rather than
+-- Housekeeping because the section above rewrote Housekeeping's permissions in
+-- this transaction. The array is Finance's, so a permission added to Finance
+-- (maintenance.report, 20260916004300) is added here too, or the ceiling
+-- correctly refuses the hand-out and the lives_ok below goes red.
 
 set local role none;
+-- How many rows a statement changed, -1 when a policy refused it by raising,
+-- or -2 when a trigger did (55000).
+-- A USING clause refuses by matching nothing and a WITH CHECK refuses by
+-- raising, and a raise here would abort the transaction and silence every
+-- assertion after it. Invoker, so the statement runs as whoever is acting.
+create function pg_temp.rows_changed(statement text) returns integer
+language plpgsql as $$
+declare
+  changed integer;
+begin
+  execute statement;
+  get diagnostics changed = row_count;
+  return changed;
+exception
+  when insufficient_privilege then return -1;
+  when object_not_in_prerequisite_state then return -2;
+end;
+$$;
+
 insert into public.users (id, email) values
   ('67777777-7777-4777-8777-777777777777', 'staff-rota-admin@example.test'),
-  ('68888888-8888-4888-8888-888888888888', 'staff-rota-desk@example.test'),
+  ('68888888-8888-4888-8888-888888888888', 'staff-rota-peer@example.test'),
   ('69999999-9999-4999-8999-999999999999', 'staff-rota-manager@example.test'),
   ('6f111111-1111-4111-8111-111111111111', 'staff-rota-invitee@example.test'),
   ('6f222222-2222-4222-8222-222222222222', 'staff-rota-finance@example.test');
@@ -648,7 +670,8 @@ insert into public.staff_roles
   (scope_id, key, organization_id, name, permissions) values
   ('6a111111-1111-4111-8111-111111111111', 'rota_admin',
    '6a111111-1111-4111-8111-111111111111', 'Rota admin',
-   array['staff.administer', 'finance.manage_folio', 'finance.post_charge']),
+   array['staff.administer', 'finance.manage_folio', 'finance.post_charge',
+         'maintenance.report']),
   ('6a111111-1111-4111-8111-111111111111', 'night_auditor',
    '6a111111-1111-4111-8111-111111111111', 'Night auditor',
    array['audit.read']);
@@ -658,8 +681,8 @@ insert into public.organization_memberships
    '67777777-7777-4777-8777-777777777777', 'rota_admin',
    '6a111111-1111-4111-8111-111111111111', 'organization_wide'),
   ('6a111111-1111-4111-8111-111111111111',
-   '68888888-8888-4888-8888-888888888888', 'front_desk',
-   '00000000-0000-0000-0000-000000000000', 'assigned_properties'),
+   '68888888-8888-4888-8888-888888888888', 'rota_admin',
+   '6a111111-1111-4111-8111-111111111111', 'assigned_properties'),
   ('6a111111-1111-4111-8111-111111111111',
    '69999999-9999-4999-8999-999999999999', 'manager',
    '00000000-0000-0000-0000-000000000000', 'organization_wide');
@@ -712,61 +735,337 @@ select throws_ok(
   '42501', NULL,
   'nor hand out a role of the Organization''s own that holds what they lack');
 
-select lives_ok(
-  $$update public.organization_memberships
+-- Counted rather than lives_ok: since 20260916007000 a row whose current role
+-- exceeds the actor's is not matched, and an update that matched nothing lives.
+select is(
+  pg_temp.rows_changed($$
+    update public.organization_memberships
        set role = 'finance',
            role_scope_id = '00000000-0000-0000-0000-000000000000',
            updated_at = now()
      where organization_id = '6a111111-1111-4111-8111-111111111111'
-       and user_id = '68888888-8888-4888-8888-888888888888'$$,
+       and user_id = '68888888-8888-4888-8888-888888888888'$$),
+  1,
   'but may hand out a shipped role within their own');
 
-select lives_ok(
-  $$update public.organization_memberships
+select is(
+  pg_temp.rows_changed($$
+    update public.organization_memberships
        set role = 'rota_admin',
            role_scope_id = '6a111111-1111-4111-8111-111111111111',
            updated_at = now()
      where organization_id = '6a111111-1111-4111-8111-111111111111'
-       and user_id = '68888888-8888-4888-8888-888888888888'$$,
+       and user_id = '68888888-8888-4888-8888-888888888888'$$),
+  1,
   'and one of the Organization''s own within their own');
 
 -- The ceiling is asked of the role the row is left holding, so a demotion to a
 -- role they may not grant is refused like granting it.
-select throws_ok(
-  $$update public.organization_memberships
-       set role = 'front_desk', updated_at = now()
+select is(
+  pg_temp.rows_changed($$
+    update public.organization_memberships
+       set role = 'front_desk',
+           role_scope_id = '00000000-0000-0000-0000-000000000000',
+           updated_at = now()
      where organization_id = '6a111111-1111-4111-8111-111111111111'
-       and user_id = '69999999-9999-4999-8999-999999999999'$$,
-  '42501', NULL,
+       and user_id = '68888888-8888-4888-8888-888888888888'$$),
+  -1,
   'a demotion to a role they may not grant is refused like granting it');
 
--- SP-S1-21's reasoning: taking reach away never depends on what the actor
--- holds, so the Manager they could not demote they may still revoke.
-select lives_ok(
-  $$update public.organization_memberships
-       set status = 'revoked', revoked_at = now(), updated_at = now()
+-- And a member whose current role exceeds theirs is not theirs to demote at
+-- all: the row is not matched, whatever it would be left holding.
+select is(
+  pg_temp.rows_changed($$
+    update public.organization_memberships
+       set role = 'finance', updated_at = now()
      where organization_id = '6a111111-1111-4111-8111-111111111111'
-       and user_id = '69999999-9999-4999-8999-999999999999'$$,
-  'but revoking somebody whose role they could not grant is never blocked');
+       and user_id = '69999999-9999-4999-8999-999999999999'$$),
+  0,
+  'nor demote a Manager, whose role exceeds their own');
+
+-- SP-S1-34, decided 2026-09-24 (#66): an administrator does not act on a
+-- member whose current role exceeds their own — not to change it, and not to
+-- revoke it. Revoking was left open by 20260916004250 and was a dead end: the
+-- narrow administrator could revoke the only holder of the whole catalogue and
+-- then could not hand it back. A refused row is not matched, so each refusal
+-- is asserted as a count of rows changed rather than as a raise.
+select is(
+  pg_temp.rows_changed($$
+  update public.organization_memberships
+     set status = 'revoked', revoked_at = now(), updated_at = now()
+   where organization_id = '6a111111-1111-4111-8111-111111111111'
+     and user_id = '69999999-9999-4999-8999-999999999999'$$),
+  0,
+  'an administrator cannot revoke a Manager whose role exceeds their own');
 
 select is(
-  (select status from public.organization_memberships
-    where organization_id = '6a111111-1111-4111-8111-111111111111'
-      and user_id = '69999999-9999-4999-8999-999999999999'),
-  'revoked',
-  'and the revoke is written');
+  pg_temp.rows_changed($$
+  update public.organization_memberships
+     set status = 'revoked', revoked_at = now(), updated_at = now()
+   where organization_id = '6a111111-1111-4111-8111-111111111111'
+     and user_id = '61111111-1111-4111-8111-111111111111'$$),
+  0,
+  'nor the Owner');
 
--- And not undone by them: bringing the Manager back hands the Manager role
--- out again. This is the dead end SP-S1-34 leaves open — revoke the only
--- holder of the whole catalogue and nobody can hand it out again — asserted so
--- that whichever way it is decided, the change is seen.
+-- SP-S1-21 still holds for what is within their own: a peer holding the same
+-- role is revoked, and the revoke undone, by the same administrator.
+select is(
+  pg_temp.rows_changed($$
+  update public.organization_memberships
+     set status = 'revoked', revoked_at = now(), updated_at = now()
+   where organization_id = '6a111111-1111-4111-8111-111111111111'
+     and user_id = '68888888-8888-4888-8888-888888888888'$$),
+  1,
+  'but revokes a peer whose role is within their own');
+
+select is(
+  pg_temp.rows_changed($$
+  update public.organization_memberships
+     set status = 'active', revoked_at = null, updated_at = now()
+   where organization_id = '6a111111-1111-4111-8111-111111111111'
+     and user_id = '68888888-8888-4888-8888-888888888888'$$),
+  1,
+  'and may undo that revoke, which hands back nothing above their own');
+
+-- The Owner, whose role holds the whole catalogue, still revokes the Manager.
+select app.set_request_context('61111111-1111-4111-8111-111111111111');
+
+select is(
+  pg_temp.rows_changed($$
+  update public.organization_memberships
+     set status = 'revoked', revoked_at = now(), updated_at = now()
+   where organization_id = '6a111111-1111-4111-8111-111111111111'
+     and user_id = '69999999-9999-4999-8999-999999999999'$$),
+  1,
+  'an Owner still revokes a Manager');
+
+-- And the narrow administrator cannot bring the Manager back: the row they
+-- would be changing holds a role above their own.
+select app.set_request_context('67777777-7777-4777-8777-777777777777');
+
+select is(
+  pg_temp.rows_changed($$
+  update public.organization_memberships
+     set status = 'active', revoked_at = null, updated_at = now()
+   where organization_id = '6a111111-1111-4111-8111-111111111111'
+     and user_id = '69999999-9999-4999-8999-999999999999'$$),
+  0,
+  'nor undo a revoke of somebody whose role exceeds their own');
+
+-- ---------------------------------------------------------------------------
+-- Reach is bounded by the actor's own reach (SP-S1-36)
+-- ---------------------------------------------------------------------------
+-- The reach counterpart of the role ceiling (#67). This administrator holds the
+-- same role as the one above and reaches Property A1 alone; Property A2 is in
+-- the same Organization and outside their reach. Before 20260916007000 they
+-- could assign themselves A2, or make themselves organization-wide.
+
+set local role none;
+insert into public.users (id, email) values
+  ('6f333333-3333-4333-8333-333333333333', 'staff-reach-admin@example.test'),
+  ('6f444444-4444-4444-8444-444444444444', 'staff-reach-invitee@example.test');
+insert into public.properties (id, organization_id, name) values
+  ('6b444444-4444-4444-8444-444444444444',
+   '6a111111-1111-4111-8111-111111111111', 'Staff Property A2');
+insert into public.organization_memberships
+  (organization_id, user_id, role, role_scope_id, access_scope) values
+  ('6a111111-1111-4111-8111-111111111111',
+   '6f333333-3333-4333-8333-333333333333', 'rota_admin',
+   '6a111111-1111-4111-8111-111111111111', 'assigned_properties');
+insert into public.property_assignments
+  (property_id, organization_id, user_id) values
+  ('6b111111-1111-4111-8111-111111111111',
+   '6a111111-1111-4111-8111-111111111111',
+   '6f333333-3333-4333-8333-333333333333');
+set local role ranza_app;
+select app.set_request_context('6f333333-3333-4333-8333-333333333333');
+
+select throws_ok(
+  $$insert into public.property_assignments
+      (property_id, organization_id, user_id) values
+      ('6b444444-4444-4444-8444-444444444444',
+       '6a111111-1111-4111-8111-111111111111',
+       '6f333333-3333-4333-8333-333333333333')$$,
+  '42501', NULL,
+  'an administrator cannot assign themselves a Property they do not reach');
+
+select throws_ok(
+  $$insert into public.property_assignments
+      (property_id, organization_id, user_id) values
+      ('6b444444-4444-4444-8444-444444444444',
+       '6a111111-1111-4111-8111-111111111111',
+       '6f222222-2222-4222-8222-222222222222')$$,
+  '42501', NULL,
+  'nor hand a colleague one');
+
+-- The same insert for a Property they do reach succeeds, so the refusal above
+-- is the Property and not the permission, the Subscription or the colleague.
+select lives_ok(
+  $$insert into public.property_assignments
+      (property_id, organization_id, user_id) values
+      ('6b111111-1111-4111-8111-111111111111',
+       '6a111111-1111-4111-8111-111111111111',
+       '6f222222-2222-4222-8222-222222222222')$$,
+  'but hands out a Property they reach');
+
 select throws_ok(
   $$update public.organization_memberships
-       set status = 'active', revoked_at = null, updated_at = now()
+       set access_scope = 'organization_wide', updated_at = now()
      where organization_id = '6a111111-1111-4111-8111-111111111111'
-       and user_id = '69999999-9999-4999-8999-999999999999'$$,
+       and user_id = '6f333333-3333-4333-8333-333333333333'$$,
   '42501', NULL,
-  'but undoing that revoke hands the role back, and is refused like granting it');
+  'an administrator cannot widen their own reach to the whole Organization');
+
+select throws_ok(
+  $$insert into public.organization_memberships
+      (organization_id, user_id, role, access_scope) values
+      ('6a111111-1111-4111-8111-111111111111',
+       '6f444444-4444-4444-8444-444444444444', 'finance', 'organization_wide')$$,
+  '42501', NULL,
+  'nor invite somebody in organization-wide');
+
+-- An organization-wide administrator may do both, for somebody else.
+select app.set_request_context('67777777-7777-4777-8777-777777777777');
+
+select lives_ok(
+  $$insert into public.property_assignments
+      (property_id, organization_id, user_id) values
+      ('6b444444-4444-4444-8444-444444444444',
+       '6a111111-1111-4111-8111-111111111111',
+       '6f222222-2222-4222-8222-222222222222')$$,
+  'an organization-wide administrator assigns a colleague any Property');
+
+select lives_ok(
+  $$update public.organization_memberships
+       set access_scope = 'organization_wide', updated_at = now()
+     where organization_id = '6a111111-1111-4111-8111-111111111111'
+       and user_id = '6f222222-2222-4222-8222-222222222222'$$,
+  'and makes a colleague organization-wide');
+
+-- An organization-wide colleague is above an administrator of assigned
+-- Properties in reach, as a Manager is above them in role, and is not theirs
+-- to act on: not to narrow, which could leave an organization-wide Owner with
+-- no Property and so out of every gated write; not to revoke; and not to take
+-- a Property from, since every assignment change ends its holder's sessions.
+select app.set_request_context('6f333333-3333-4333-8333-333333333333');
+
+select is(
+  pg_temp.rows_changed($$
+    update public.property_assignments
+       set status = 'revoked', revoked_at = now(), updated_at = now()
+     where property_id = '6b444444-4444-4444-8444-444444444444'
+       and user_id = '6f222222-2222-4222-8222-222222222222'$$),
+  0,
+  'an administrator of assigned Properties does not take a Property from an organization-wide colleague');
+
+select is(
+  pg_temp.rows_changed($$
+    update public.organization_memberships
+       set access_scope = 'assigned_properties', updated_at = now()
+     where organization_id = '6a111111-1111-4111-8111-111111111111'
+       and user_id = '6f222222-2222-4222-8222-222222222222'$$),
+  0,
+  'nor narrow one');
+
+select is(
+  pg_temp.rows_changed($$
+    update public.organization_memberships
+       set status = 'revoked', revoked_at = now(), updated_at = now()
+     where organization_id = '6a111111-1111-4111-8111-111111111111'
+       and user_id = '67777777-7777-4777-8777-777777777777'$$),
+  0,
+  'nor revoke one, even one holding their own role');
+
+-- Nor give one a Property, even one they reach themselves.
+select throws_ok(
+  $$insert into public.property_assignments
+      (property_id, organization_id, user_id) values
+      ('6b111111-1111-4111-8111-111111111111',
+       '6a111111-1111-4111-8111-111111111111',
+       '67777777-7777-4777-8777-777777777777')$$,
+  '42501', NULL,
+  'nor give one a Property, even one they reach');
+
+select app.set_request_context('67777777-7777-4777-8777-777777777777');
+
+select is(
+  pg_temp.rows_changed($$
+    update public.organization_memberships
+       set access_scope = 'assigned_properties', updated_at = now()
+     where organization_id = '6a111111-1111-4111-8111-111111111111'
+       and user_id = '6f222222-2222-4222-8222-222222222222'$$),
+  1,
+  'an organization-wide administrator narrows a colleague');
+
+-- Narrowing is never bounded by the actor's reach: now the colleague reaches
+-- assigned Properties, the administrator who reaches A1 alone takes A2 away.
+select app.set_request_context('6f333333-3333-4333-8333-333333333333');
+
+select is(
+  pg_temp.rows_changed($$
+    update public.property_assignments
+       set status = 'revoked', revoked_at = now(), updated_at = now()
+     where property_id = '6b444444-4444-4444-8444-444444444444'
+       and user_id = '6f222222-2222-4222-8222-222222222222'$$),
+  1,
+  'an administrator takes away a Property they do not reach');
+
+-- And giving that Property back is handing it out again.
+select throws_ok(
+  $$update public.property_assignments
+       set status = 'active', revoked_at = null, updated_at = now()
+     where property_id = '6b444444-4444-4444-8444-444444444444'
+       and user_id = '6f222222-2222-4222-8222-222222222222'$$,
+  '42501', NULL,
+  'but cannot give back a Property they do not reach');
+
+-- A Property assignment is bounded by whose it is (#66): unassigning every
+-- Property a Manager reaches would be a revoke in all but name.
+set local role none;
+insert into public.users (id, email) values
+  ('6f555555-5555-4555-8555-555555555555', 'staff-reach-manager@example.test');
+insert into public.organization_memberships
+  (organization_id, user_id, role, access_scope) values
+  ('6a111111-1111-4111-8111-111111111111',
+   '6f555555-5555-4555-8555-555555555555', 'manager', 'assigned_properties');
+insert into public.property_assignments
+  (property_id, organization_id, user_id) values
+  ('6b111111-1111-4111-8111-111111111111',
+   '6a111111-1111-4111-8111-111111111111',
+   '6f555555-5555-4555-8555-555555555555');
+set local role ranza_app;
+select app.set_request_context('67777777-7777-4777-8777-777777777777');
+
+select is(
+  pg_temp.rows_changed($$
+    update public.property_assignments
+       set status = 'revoked', revoked_at = now(), updated_at = now()
+     where property_id = '6b111111-1111-4111-8111-111111111111'
+       and user_id = '6f555555-5555-4555-8555-555555555555'$$),
+  0,
+  'an administrator does not take a Property from somebody whose role exceeds theirs');
+
+-- Nor hand them one. The administrator is organization-wide and reaches A2, so
+-- the refusal is whose assignment it is and not the Property.
+select throws_ok(
+  $$insert into public.property_assignments
+      (property_id, organization_id, user_id) values
+      ('6b444444-4444-4444-8444-444444444444',
+       '6a111111-1111-4111-8111-111111111111',
+       '6f555555-5555-4555-8555-555555555555')$$,
+  '42501', NULL,
+  'nor give a Property to somebody whose role exceeds theirs');
+
+select app.set_request_context('61111111-1111-4111-8111-111111111111');
+
+select is(
+  pg_temp.rows_changed($$
+    update public.property_assignments
+       set status = 'revoked', revoked_at = now(), updated_at = now()
+     where property_id = '6b111111-1111-4111-8111-111111111111'
+       and user_id = '6f555555-5555-4555-8555-555555555555'$$),
+  1,
+  'but an Owner does');
 
 -- ---------------------------------------------------------------------------
 -- A definer asks the gates itself
@@ -943,6 +1242,128 @@ select is(
   (select (app.accept_staff_invitation('invitation-hash-two')).user_id),
   '66666666-6666-4666-8666-666666666666'::uuid,
   'and with no context at all, which is how sign-up calls it, it still works');
+
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- An author edits only a role within their own (SP-S1-34)
+-- ---------------------------------------------------------------------------
+-- Cutting down a role somebody holds demotes every holder, so it is acting on
+-- them. This author may define roles and holds audit.read beside it: the
+-- Night auditor role is within their own, the Rota admin role is not.
+
+set local role none;
+insert into public.users (id, email) values
+  ('6f888888-8888-4888-8888-888888888888', 'staff-narrow-author@example.test');
+insert into public.staff_roles
+  (scope_id, key, organization_id, name, permissions) values
+  ('6a111111-1111-4111-8111-111111111111', 'role_author',
+   '6a111111-1111-4111-8111-111111111111', 'Role author',
+   array['staff.define_roles', 'audit.read']);
+insert into public.organization_memberships
+  (organization_id, user_id, role, role_scope_id, access_scope) values
+  ('6a111111-1111-4111-8111-111111111111',
+   '6f888888-8888-4888-8888-888888888888', 'role_author',
+   '6a111111-1111-4111-8111-111111111111', 'organization_wide');
+set local role ranza_app;
+select app.set_request_context('6f888888-8888-4888-8888-888888888888');
+
+select is(
+  pg_temp.rows_changed($$
+    update public.staff_roles
+       set permissions = array['finance.post_charge'], updated_at = now()
+     where scope_id = '6a111111-1111-4111-8111-111111111111'
+       and key = 'rota_admin'$$),
+  0,
+  'an author does not cut down a role that exceeds their own');
+
+select is(
+  pg_temp.rows_changed($$
+    update public.staff_roles
+       set name = 'Night auditor (edited)', updated_at = now()
+     where scope_id = '6a111111-1111-4111-8111-111111111111'
+       and key = 'night_auditor'$$),
+  1,
+  'but edits one within their own');
+
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- An Organization keeps an organization-wide administrator (SP-S1-38)
+-- ---------------------------------------------------------------------------
+-- Only an organization-wide actor may grant organization_wide or act on an
+-- organization-wide member (SP-S1-36), so the last of them leaving would leave
+-- nobody who could undo it. Organization B's Owner is its only one; a Manager
+-- of its one Property still holds staff.administer, so the older trigger alone
+-- would have let them go.
+
+set local role none;
+insert into public.users (id, email) values
+  ('6f666666-6666-4666-8666-666666666666', 'staff-b-manager@example.test'),
+  ('6f777777-7777-4777-8777-777777777777', 'staff-b-night-manager@example.test');
+insert into public.organization_memberships
+  (organization_id, user_id, role, access_scope) values
+  ('6a222222-2222-4222-8222-222222222222',
+   '6f666666-6666-4666-8666-666666666666', 'manager', 'assigned_properties');
+insert into public.property_assignments
+  (property_id, organization_id, user_id) values
+  ('6b222222-2222-4222-8222-222222222222',
+   '6a222222-2222-4222-8222-222222222222',
+   '6f666666-6666-4666-8666-666666666666');
+set local role ranza_app;
+select app.set_request_context('64444444-4444-4444-8444-444444444444');
+
+select is(
+  pg_temp.rows_changed($$
+    update public.organization_memberships
+       set access_scope = 'assigned_properties', updated_at = now()
+     where organization_id = '6a222222-2222-4222-8222-222222222222'
+       and user_id = '64444444-4444-4444-8444-444444444444'$$),
+  -2,
+  'the last organization-wide administrator cannot narrow themselves');
+
+select is(
+  pg_temp.rows_changed($$
+    update public.organization_memberships
+       set status = 'revoked', revoked_at = now(), updated_at = now()
+     where organization_id = '6a222222-2222-4222-8222-222222222222'
+       and user_id = '64444444-4444-4444-8444-444444444444'$$),
+  -2,
+  'nor revoke themselves');
+
+-- With a second organization-wide administrator — one holding the
+-- Organization's own Night manager role, staff.administer alone — they may.
+set local role none;
+insert into public.organization_memberships
+  (organization_id, user_id, role, role_scope_id, access_scope) values
+  ('6a222222-2222-4222-8222-222222222222',
+   '6f777777-7777-4777-8777-777777777777', 'night_manager',
+   '6a222222-2222-4222-8222-222222222222', 'organization_wide');
+set local role ranza_app;
+select app.set_request_context('64444444-4444-4444-8444-444444444444');
+
+select is(
+  pg_temp.rows_changed($$
+    update public.organization_memberships
+       set status = 'revoked', revoked_at = now(), updated_at = now()
+     where organization_id = '6a222222-2222-4222-8222-222222222222'
+       and user_id = '64444444-4444-4444-8444-444444444444'$$),
+  1,
+  'but one of two may revoke themselves');
+
+-- Now the Night manager is the last. Editing the role they hold so it no longer
+-- carries staff.administer takes the authority away just as surely, and the
+-- Manager, who still holds staff.administer, is not organization-wide.
+select app.set_request_context('6f666666-6666-4666-8666-666666666666');
+
+select is(
+  pg_temp.rows_changed($$
+    update public.staff_roles
+       set permissions = array['audit.read'], updated_at = now()
+     where scope_id = '6a222222-2222-4222-8222-222222222222'
+       and key = 'night_manager'$$),
+  -2,
+  'nor is the last taken away by editing the role they hold');
 
 reset role;
 

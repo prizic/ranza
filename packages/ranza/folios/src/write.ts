@@ -1,4 +1,6 @@
 import type { TenantClient } from "@ranza/db";
+import { recordWithin, type AuditClient } from "@ranza/platform-audit";
+import { FolioAmountError, FolioWriteError, type Charge } from "./contracts";
 
 /**
  * Opening a Folio, for a caller that owns the transaction.
@@ -114,6 +116,132 @@ export async function closeEmptyFolioWithin(
   `;
 
   return rows[0] ? { folioId: rows[0].id } : null;
+}
+
+/** Matches `folio_lines_description_check`. Said here so the caller learns which field. */
+export const DESCRIPTION_MAX = 200;
+
+/**
+ * Rejects an amount the database would reject anyway.
+ *
+ * Both places on purpose. The check constraint is the boundary that holds when
+ * this code is wrong; this is the one that says which field was wrong before a
+ * constraint violation has to be decoded. It also catches the two things the
+ * constraint cannot see, because by then they are no longer integers: a
+ * fractional amount silently truncated on the way, and one beyond the range a
+ * JavaScript number represents exactly.
+ */
+export function assertPostable(charge: Charge): void {
+  if (!Number.isSafeInteger(charge.amountMinor)) {
+    throw new FolioAmountError(
+      "an amount is a whole number of minor units, within the exact integer range",
+    );
+  }
+  if (charge.amountMinor <= 0) {
+    throw new FolioAmountError(
+      "a charge is positive; to take money off, reverse a line",
+    );
+  }
+  const description = charge.description.trim();
+  if (description.length < 1 || description.length > DESCRIPTION_MAX) {
+    throw new FolioAmountError(
+      `a description must be between 1 and ${DESCRIPTION_MAX} characters`,
+    );
+  }
+}
+
+/**
+ * Posts a charge, and records who posted it, for a caller that owns the
+ * transaction.
+ *
+ * The charge and its audit record share one fate, and a caller that links the
+ * line to something of its own — a maintenance request charging a Guest for
+ * damage — shares it too: a line posted and never linked, or linked to a line
+ * that rolled back, is what a second transaction would eventually produce.
+ *
+ * Nothing here checks whether the actor is allowed to do this. The insert
+ * policy carries all four of blueprint 3.5's gates and `finance.post_charge`,
+ * the trigger refuses a closed Folio, and the check constraints refuse an
+ * amount that is not one — so a refusal arrives as an exception from the
+ * database rather than from a condition this module remembered to write.
+ */
+export async function postChargeWithin(
+  tx: FolioWriteClient & AuditClient,
+  userId: string,
+  charge: Charge,
+): Promise<{ lineId: string; organizationId: string }> {
+  assertPostable(charge);
+
+  // organization_id and property_id are read from the Folio rather than
+  // taken from the caller, so the composite foreign key has something true
+  // to prove rather than something plausible to accept.
+  let posted;
+  try {
+    // The currency comes back with the line, from the Folio that decided it,
+    // so the audit record says what the amount was in rather than leaving a
+    // bare number for somebody to guess the unit of.
+    posted = await tx.$queryRaw<
+      {
+        id: string;
+        organizationId: string;
+        propertyId: string;
+        currency: string;
+      }[]
+    >`
+      with posted as (
+        insert into public.folio_lines
+          (organization_id, property_id, folio_id, line_type, description, amount_minor)
+        select
+          folio.organization_id,
+          folio.property_id,
+          folio.id,
+          'charge',
+          ${charge.description.trim()},
+          ${charge.amountMinor}::bigint
+        from public.folios as folio
+        where folio.id = ${charge.folioId}::uuid
+        returning id, organization_id, property_id, folio_id
+      )
+      select posted.id,
+             posted.organization_id as "organizationId",
+             posted.property_id     as "propertyId",
+             folio.currency::text   as "currency"
+        from posted
+        join public.folios as folio on folio.id = posted.folio_id
+    `;
+  } catch (error: unknown) {
+    // Closed, unentitled, out of reach. One message for all of them: telling
+    // them apart would confirm that a Folio the caller cannot see is there.
+    // The database's own answer travels as the cause, for whoever logs it.
+    throw new FolioWriteError("that charge could not be posted", {
+      cause: error,
+    });
+  }
+
+  const [line] = posted;
+  if (!line) {
+    // The select found no Folio: out of reach, or no such Folio. The insert
+    // wrote nothing rather than raising, which is the quiet half of the same
+    // refusal.
+    throw new FolioWriteError("that charge could not be posted");
+  }
+
+  await recordWithin(tx, {
+    organizationId: line.organizationId,
+    locationId: line.propertyId,
+    actorId: userId,
+    action: "folio.charge_posted",
+    subjectType: "folio",
+    subjectId: charge.folioId,
+    context: {
+      lineId: line.id,
+      amountMinor: charge.amountMinor,
+      currency: line.currency,
+      description: charge.description.trim(),
+    },
+  });
+
+  return { lineId: line.id, organizationId: line.organizationId };
 }
 
 /**

@@ -70,7 +70,7 @@ export function AddRoomsDialog({
             <FormError>{outcome.message ?? t("bookingRefused")}</FormError>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 items-start">
             <Field htmlFor="building" label={t("building")}>
               <Input
                 id="building"
@@ -92,7 +92,7 @@ export function AddRoomsDialog({
             </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 items-start">
             <Field htmlFor="unitType" label={t("stayTypeLabel")}>
               <Select defaultValue="room" name="unitType">
                 <SelectTrigger id="unitType">
@@ -108,23 +108,23 @@ export function AddRoomsDialog({
               </Select>
             </Field>
 
-            <Field htmlFor="firstNumber" label={t("firstNumber")}>
-              <div>
-                <Input
-                  id="firstNumber"
-                  name="firstNumber"
-                  placeholder="101"
-                  required
-                  pattern="^[0-9]{1,8}$"
-                />
-                <p className="text-xs text-muted-foreground pt-1">
-                  {t("firstNumberHint")}
-                </p>
-              </div>
+            <Field
+              hint={t("firstNumberHint")}
+              htmlFor="firstNumber"
+              label={t("firstNumber")}
+            >
+              <Input
+                aria-describedby="firstNumber-hint"
+                id="firstNumber"
+                name="firstNumber"
+                placeholder="101"
+                required
+                pattern="^[0-9]{1,8}$"
+              />
             </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 items-start">
             <Field htmlFor="count" label={t("roomCount")}>
               <Input
                 id="count"

@@ -5,6 +5,7 @@ export { SidebarProvider, useSidebar } from "./components/sidebar-context";
 export type { SidebarContextValue } from "./components/sidebar-context";
 export { AppPageBar } from "./components/app-page-bar";
 export type { PageCrumb } from "./components/app-page-bar";
+export { BackButton } from "./components/back-button";
 export { AccountMenu } from "./components/account-menu";
 export { LanguageSwitcher } from "./components/language-switcher";
 export type { LanguageSwitcherProps } from "./components/language-switcher";
@@ -37,9 +38,23 @@ export type { RowAction } from "./components/data-table/row-actions";
 export { DataTableViewOptions } from "./components/data-table/view-options";
 export { markOverlayClosed, overlayJustClosed } from "./lib/menu-guard";
 export { fieldMatches, toAsciiDigits } from "./lib/search";
+export { Combobox, MultiCombobox } from "./components/combobox";
+export type {
+  ComboboxLabels,
+  ComboboxOption,
+  ComboboxProps,
+  MultiComboboxLabels,
+  MultiComboboxProps,
+} from "./components/combobox";
+export { DateRangeField } from "./components/date-range-field";
+export type {
+  DateRangeLabels,
+  DateRangePreset,
+} from "./components/date-range-field";
 export { StatusBadge } from "./components/status-badge";
 export type { StatusBadgeProps, StatusTone } from "./components/status-badge";
 export { BrandMark } from "./components/brand-mark";
+export { DirectionProvider } from "./components/direction-provider";
 export { EmptyState } from "./components/empty-state";
 export { PlannedScreen } from "./components/planned-screen";
 export type { EmptyStateProps } from "./components/empty-state";
@@ -49,6 +64,7 @@ export {
   Field,
   FormError,
   PageHeader,
+  Stat,
 } from "./components/patterns";
 
 export { Badge } from "./components/ui/badge";
@@ -126,5 +142,18 @@ export {
   SheetTrigger,
 } from "./components/ui/sheet";
 export { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
+export {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "./components/ui/command";
+export {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "./components/ui/popover";
 
 export { cn } from "./lib/utils";

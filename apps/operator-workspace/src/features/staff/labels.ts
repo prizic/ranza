@@ -25,13 +25,19 @@ export const PERMISSION_CATALOGUE = [
   "front_desk.check_in",
   "front_desk.check_out",
   "front_desk.cancel",
+  "front_desk.close_day",
   "finance.manage_folio",
   "finance.post_charge",
   "staff.administer",
   "staff.define_roles",
   "accommodation.configure",
   "housekeeping.update_status",
+  "maintenance.report",
+  "maintenance.manage",
+  "maintenance.take_out_of_order",
+  "maintenance.equipment",
   "audit.read",
+  "configuration.manage",
 ] as const;
 
 export type ShippedRole = (typeof SHIPPED_ROLES)[number];
@@ -72,13 +78,19 @@ const MESSAGE_KEYS = {
   "front_desk.check_in": "checkIn",
   "front_desk.check_out": "checkOut",
   "front_desk.cancel": "cancel",
+  "front_desk.close_day": "closeDay",
   "finance.manage_folio": "manageFolio",
   "finance.post_charge": "postCharge",
   "staff.administer": "administerStaff",
   "staff.define_roles": "defineRoles",
   "accommodation.configure": "configureAccommodation",
   "housekeeping.update_status": "updateHousekeeping",
+  "maintenance.report": "reportMaintenance",
+  "maintenance.manage": "manageMaintenance",
+  "maintenance.take_out_of_order": "takeOutOfOrder",
+  "maintenance.equipment": "manageEquipment",
   "audit.read": "readAudit",
+  "configuration.manage": "manageConfiguration",
 } as const satisfies Record<PermissionKey, string>;
 
 export type PermissionMessageKey =

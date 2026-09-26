@@ -14,7 +14,10 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { latestRecord } from "./audit-record";
-import { createPrismaClient } from "../../packages/db/src";
+import {
+  createPrismaClient,
+  withOrganizationContext,
+} from "../../packages/db/src";
 import { createOutboxDispatcher } from "../../packages/platform/outbox/src";
 import { subscriptions } from "../../apps/worker/src/outbox/subscriptions";
 import {
@@ -664,15 +667,26 @@ describe("the last administrator", () => {
 // was not, so a role holding only staff.administer was one step from Owner.
 // This is the whole attack, through the module the People screen calls.
 describe("a role handed out is bounded by the hander's own", () => {
-  async function aNarrowAdministrator(): Promise<string> {
-    const { key } = await staff.defineRole(
-      { userId: OWNER },
-      {
-        organizationId: ORG,
-        name: `Rota keeper ${randomUUID().slice(0, 8)}`,
-        permissions: ["staff.administer"],
-      },
-    );
+  /**
+   * Somebody holding staff.administer and nothing else, reaching the whole
+   * Organization. Pass a role key to make a second holder of the same role.
+   */
+  async function aNarrowAdministrator(roleKey?: string): Promise<{
+    userId: string;
+    roleKey: string;
+  }> {
+    const key =
+      roleKey ??
+      (
+        await staff.defineRole(
+          { userId: OWNER },
+          {
+            organizationId: ORG,
+            name: `Rota keeper ${randomUUID().slice(0, 8)}`,
+            permissions: ["staff.administer"],
+          },
+        )
+      ).key;
     const { membershipId } = await staff.invite(
       { userId: OWNER },
       {
@@ -687,16 +701,11 @@ describe("a role handed out is bounded by the hander's own", () => {
         accessScope: "organization_wide",
       },
     );
-    const [row] = await owner.$queryRawUnsafe<{ userId: string }[]>(
-      `select user_id as "userId" from public.organization_memberships
-        where id = $1::uuid`,
-      membershipId,
-    );
-    return row!.userId;
+    return { userId: await memberOf(membershipId), roleKey: key };
   }
 
   it("refuses a holder of staff.administer alone making themselves Owner", async () => {
-    const narrow = await aNarrowAdministrator();
+    const { userId: narrow } = await aNarrowAdministrator();
 
     await expect(
       staff.changeRole(
@@ -720,23 +729,304 @@ describe("a role handed out is bounded by the hander's own", () => {
     expect(row?.role).not.toBe("owner");
   });
 
-  it("still lets them revoke somebody whose role they could not grant", async () => {
-    const narrow = await aNarrowAdministrator();
-    const { membershipId } = await staff.invite(
-      { userId: OWNER },
-      { organizationId: ORG, email: anAddress(), roleKey: "manager" },
+  // #66. Revoking was left open, and it was a dead end: revoke the only holder
+  // of the whole catalogue and nobody could hand it out again.
+  it("refuses them revoking somebody whose role exceeds their own, the Owner included", async () => {
+    const { userId: narrow } = await aNarrowAdministrator();
+    const manager = await memberOf(
+      (
+        await staff.invite(
+          { userId: OWNER },
+          { organizationId: ORG, email: anAddress(), roleKey: "manager" },
+        )
+      ).membershipId,
     );
-    const [manager] = await owner.$queryRawUnsafe<{ userId: string }[]>(
-      `select user_id as "userId" from public.organization_memberships
-        where id = $1::uuid`,
-      membershipId,
+
+    await expect(
+      staff.revoke(
+        { userId: narrow },
+        { organizationId: ORG, userId: manager },
+      ),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+    await expect(
+      staff.revoke({ userId: narrow }, { organizationId: ORG, userId: OWNER }),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+
+    expect(await roleOf(manager)).toBe("manager/active");
+    expect(await roleOf(OWNER)).toBe("owner/active");
+  });
+
+  it("still lets them revoke a peer, and an Owner revoke a Manager", async () => {
+    const first = await aNarrowAdministrator();
+    const peer = await aNarrowAdministrator(first.roleKey);
+    const manager = await memberOf(
+      (
+        await staff.invite(
+          { userId: OWNER },
+          { organizationId: ORG, email: anAddress(), roleKey: "manager" },
+        )
+      ).membershipId,
     );
 
     await staff.revoke(
-      { userId: narrow },
-      { organizationId: ORG, userId: manager!.userId },
+      { userId: first.userId },
+      { organizationId: ORG, userId: peer.userId },
     );
-    expect(await roleOf(manager!.userId)).toBe("manager/revoked");
+    await staff.revoke(
+      { userId: OWNER },
+      { organizationId: ORG, userId: manager },
+    );
+
+    expect(await roleOf(peer.userId)).toBe(`${first.roleKey}/revoked`);
+    expect(await roleOf(manager)).toBe("manager/revoked");
+  });
+});
+
+// SP-S1-36 (#67). The reach counterpart of the role ceiling: an administrator
+// hands out, or takes for themselves, only reach they already have.
+describe("reach handed out is bounded by the hander's own", () => {
+  /**
+   * An administrator holding staff.administer and reaching PROPERTY alone.
+   * Colleagues below hold the same role, so the role ceiling never refuses
+   * first and what is asserted is reach alone.
+   */
+  async function anAdministratorOfOneProperty(): Promise<{
+    userId: string;
+    roleKey: string;
+  }> {
+    const { key } = await staff.defineRole(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        name: `Site keeper ${randomUUID().slice(0, 8)}`,
+        permissions: ["staff.administer"],
+      },
+    );
+    const { membershipId } = await staff.invite(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        email: anAddress(),
+        roleKey: key,
+        roleScopeId: ORG,
+        accessScope: "assigned_properties",
+        propertyIds: [PROPERTY],
+      },
+    );
+    return { userId: await memberOf(membershipId), roleKey: key };
+  }
+
+  async function aColleague(roleKey: string): Promise<string> {
+    return memberOf(
+      (
+        await staff.invite(
+          { userId: OWNER },
+          {
+            organizationId: ORG,
+            email: anAddress(),
+            roleKey,
+            roleScopeId: ORG,
+          },
+        )
+      ).membershipId,
+    );
+  }
+
+  async function assignmentOf(userId: string): Promise<string> {
+    const [row] = await owner.$queryRawUnsafe<{ status: string }[]>(
+      `select status from public.property_assignments
+        where user_id = $1::uuid and property_id = $2::uuid`,
+      userId,
+      SECOND_PROPERTY,
+    );
+    return row?.status ?? "absent";
+  }
+
+  async function scopeOf(userId: string): Promise<string> {
+    const [row] = await owner.$queryRawUnsafe<{ scope: string }[]>(
+      `select access_scope as scope from public.organization_memberships
+        where organization_id = $1::uuid and user_id = $2::uuid`,
+      ORG,
+      userId,
+    );
+    return row?.scope ?? "absent";
+  }
+
+  /** The module has no command for scope; this is the statement it would run. */
+  function setScope(actor: string, subject: string, scope: string) {
+    return withOrganizationContext(prisma, { userId: actor }, (tx) =>
+      tx.$executeRawUnsafe(
+        `update public.organization_memberships
+            set access_scope = $3, updated_at = now()
+          where organization_id = $1::uuid and user_id = $2::uuid`,
+        ORG,
+        subject,
+        scope,
+      ),
+    );
+  }
+
+  it("refuses assigning themselves a Property they do not reach", async () => {
+    const { userId: administrator } = await anAdministratorOfOneProperty();
+
+    await expect(
+      staff.assignProperty(
+        { userId: administrator },
+        {
+          organizationId: ORG,
+          userId: administrator,
+          propertyId: SECOND_PROPERTY,
+        },
+      ),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+    expect(await assignmentOf(administrator)).toBe("absent");
+  });
+
+  it("refuses widening their own reach to the whole Organization", async () => {
+    const { userId: administrator, roleKey } =
+      await anAdministratorOfOneProperty();
+
+    await expect(
+      setScope(administrator, administrator, "organization_wide"),
+    ).rejects.toThrow();
+    await expect(
+      staff.invite(
+        { userId: administrator },
+        {
+          organizationId: ORG,
+          email: anAddress(),
+          // Their own role, so the refusal is the scope and not the ceiling.
+          roleKey,
+          roleScopeId: ORG,
+          accessScope: "organization_wide",
+        },
+      ),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+    expect(await scopeOf(administrator)).toBe("assigned_properties");
+  });
+
+  it("lets an Organization-wide administrator do both for somebody else", async () => {
+    const { roleKey } = await anAdministratorOfOneProperty();
+    const colleague = await aColleague(roleKey);
+
+    await staff.assignProperty(
+      { userId: OWNER },
+      { organizationId: ORG, userId: colleague, propertyId: SECOND_PROPERTY },
+    );
+    expect(await setScope(OWNER, colleague, "organization_wide")).toBe(1);
+
+    expect(await assignmentOf(colleague)).toBe("active");
+    expect(await scopeOf(colleague)).toBe("organization_wide");
+  });
+
+  it("never bounds narrowing by the actor's reach", async () => {
+    const { userId: administrator, roleKey } =
+      await anAdministratorOfOneProperty();
+    const colleague = await aColleague(roleKey);
+    await staff.assignProperty(
+      { userId: OWNER },
+      { organizationId: ORG, userId: colleague, propertyId: SECOND_PROPERTY },
+    );
+    const wide = await aColleague(roleKey);
+    await setScope(OWNER, wide, "organization_wide");
+
+    // A Property the administrator does not reach, from a colleague within
+    // their own role; and an organization-wide colleague, by an Owner.
+    await staff.unassignProperty(
+      { userId: administrator },
+      { organizationId: ORG, userId: colleague, propertyId: SECOND_PROPERTY },
+    );
+    expect(await setScope(OWNER, wide, "assigned_properties")).toBe(1);
+
+    expect(await assignmentOf(colleague)).toBe("revoked");
+    expect(await scopeOf(wide)).toBe("assigned_properties");
+  });
+
+  // Nobody acts on a superior in reach: narrowing an organization-wide Owner to
+  // no Property would lock them out of every gated write.
+  it("refuses narrowing or revoking an organization-wide colleague", async () => {
+    const { userId: administrator, roleKey } =
+      await anAdministratorOfOneProperty();
+    const wide = await aColleague(roleKey);
+    await setScope(OWNER, wide, "organization_wide");
+
+    expect(await setScope(administrator, wide, "assigned_properties")).toBe(0);
+    await expect(
+      staff.revoke(
+        { userId: administrator },
+        { organizationId: ORG, userId: wide },
+      ),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+
+    expect(await scopeOf(wide)).toBe("organization_wide");
+    expect(await roleOf(wide)).toBe(`${roleKey}/active`);
+  });
+
+  // #66 through the other table: unassigning every Property a Manager reaches
+  // would be a revoke in all but name.
+  it("refuses taking a Property from somebody whose role exceeds theirs", async () => {
+    const { userId: administrator } = await anAdministratorOfOneProperty();
+    const manager = await memberOf(
+      (
+        await staff.invite(
+          { userId: OWNER },
+          {
+            organizationId: ORG,
+            email: anAddress(),
+            roleKey: "manager",
+            propertyIds: [PROPERTY],
+          },
+        )
+      ).membershipId,
+    );
+
+    await expect(
+      staff.unassignProperty(
+        { userId: administrator },
+        { organizationId: ORG, userId: manager, propertyId: PROPERTY },
+      ),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+
+    const [row] = await owner.$queryRawUnsafe<{ status: string }[]>(
+      `select status from public.property_assignments
+        where user_id = $1::uuid and property_id = $2::uuid`,
+      manager,
+      PROPERTY,
+    );
+    expect(row?.status).toBe("active");
+  });
+
+  it("refuses an undo that would hand back a Property they do not reach, and restores nothing", async () => {
+    const { userId: administrator, roleKey } =
+      await anAdministratorOfOneProperty();
+    const subject = await memberOf(
+      (
+        await staff.invite(
+          { userId: OWNER },
+          {
+            organizationId: ORG,
+            email: anAddress(),
+            roleKey,
+            roleScopeId: ORG,
+            propertyIds: [PROPERTY, SECOND_PROPERTY],
+          },
+        )
+      ).membershipId,
+    );
+
+    await staff.revoke(
+      { userId: administrator },
+      { organizationId: ORG, userId: subject },
+    );
+    await expect(
+      staff.undoRevoke(
+        { userId: administrator },
+        { organizationId: ORG, userId: subject },
+      ),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+
+    expect(await roleOf(subject)).toBe(`${roleKey}/revoked`);
+    expect(await assignmentOf(subject)).toBe("revoked");
   });
 });
 
@@ -1165,6 +1455,16 @@ describe("a reach change ends every session", () => {
     ).rejects.toThrow();
   });
 });
+
+async function memberOf(membershipId: string): Promise<string> {
+  const [row] = await owner.$queryRawUnsafe<{ userId: string }[]>(
+    `select user_id as "userId" from public.organization_memberships
+      where id = $1::uuid`,
+    membershipId,
+  );
+  if (!row) throw new Error(`no membership ${membershipId}`);
+  return row.userId;
+}
 
 async function userIdOf(email: string): Promise<string> {
   const [row] = await owner.$queryRawUnsafe<{ id: string }[]>(

@@ -1,0 +1,48 @@
+{
+  "label": "after",
+  "role": "front_desk",
+  "property": ["43ee392e-763a-4fd5-b8e8-7c0e3c69b98b", "Deniz Otel Kadıköy"],
+  "beforeGrant": {
+    "url": "/en/today",
+    "main": "You are not assigned to a Property yet A manager in your Organization assigns you to a Property, and it appears here."
+  },
+  "rail": [
+    "/en/today?property=43ee392e-763a-4fd5-b8e8-7c0e3c69b98b",
+    "/en/guest-experience?property=43ee392e-763a-4fd5-b8e8-7c0e3c69b98b",
+    "/en/housekeeping?property=43ee392e-763a-4fd5-b8e8-7c0e3c69b98b",
+    "/en/food-and-beverage?property=43ee392e-763a-4fd5-b8e8-7c0e3c69b98b",
+    "/en/inventory?property=43ee392e-763a-4fd5-b8e8-7c0e3c69b98b",
+    "/en/finance?property=43ee392e-763a-4fd5-b8e8-7c0e3c69b98b",
+    "/en/people?property=43ee392e-763a-4fd5-b8e8-7c0e3c69b98b",
+    "/en/analytics?property=43ee392e-763a-4fd5-b8e8-7c0e3c69b98b",
+    "/en/configuration?property=43ee392e-763a-4fd5-b8e8-7c0e3c69b98b"
+  ],
+  "clicks": [
+    {
+      "segment": "finance",
+      "inRail": true,
+      "url": "/en/finance?property=43ee392e-763a-4fd5-b8e8-7c0e3c69b98b",
+      "documentRequests": 0,
+      "sameDocument": true
+    },
+    {
+      "segment": "people",
+      "inRail": true,
+      "url": "/en/people?property=43ee392e-763a-4fd5-b8e8-7c0e3c69b98b",
+      "documentRequests": 0,
+      "sameDocument": true
+    },
+    {
+      "segment": "today",
+      "inRail": true,
+      "url": "/en/today?property=43ee392e-763a-4fd5-b8e8-7c0e3c69b98b",
+      "documentRequests": 0,
+      "sameDocument": true
+    }
+  ],
+  "auditDirect": {
+    "url": "/en/audit-log?property=43ee392e-763a-4fd5-b8e8-7c0e3c69b98b",
+    "main": "This module is not in your Subscription It appears here once your Organization subscribes to it and the Property has it enabled.",
+    "rowLinks": 0
+  }
+}

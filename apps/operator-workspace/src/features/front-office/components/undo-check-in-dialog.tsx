@@ -102,13 +102,15 @@ export function UndoCheckInDialog({
   const message =
     outcome === "charges"
       ? t("stayHasCharges")
-      : outcome === "reasonTooShort"
-        ? t("reasonTooShort", { min: REASON.min })
-        : outcome === "reasonTooLong"
-          ? t("reasonTooLong", { max: REASON.max })
-          : outcome === "refused"
-            ? t("undoCheckInRefused")
-            : null;
+      : outcome === "dayClosed"
+        ? t("checkInDayClosed")
+        : outcome === "reasonTooShort"
+          ? t("reasonTooShort", { min: REASON.min })
+          : outcome === "reasonTooLong"
+            ? t("reasonTooLong", { max: REASON.max })
+            : outcome === "refused"
+              ? t("undoCheckInRefused")
+              : null;
 
   return (
     <Dialog onOpenChange={(open) => !open && setReason("")}>

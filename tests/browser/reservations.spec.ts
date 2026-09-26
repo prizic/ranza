@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import { psql } from "./local-database";
 import { signIn, testProperty } from "./front-desk";
@@ -38,7 +38,7 @@ function aFreeUnit(propertyId: string): string {
 }
 
 /**
- * A date the Property is working towards, as the date input wants it.
+ * A date the Property is working towards, as the calendar names its days.
  *
  * Computed by the database in the Property's timezone. A date built from the
  * runner's clock is the wrong day for half of every day, and the module refuses
@@ -49,6 +49,20 @@ function propertyDay(propertyId: string, days: number): string {
     `select to_char(app.property_today(id) + ${days}, 'YYYY-MM-DD')
      from public.properties where id = '${propertyId}'`,
   );
+}
+
+/**
+ * Presses a day in the open date-range calendar, turning months forward until
+ * it is shown. The day is found by its `data-day`, the ISO date, so the test
+ * does not depend on how English spells a weekday; the outside-day echo of it
+ * in a neighbouring month's grid is skipped.
+ */
+async function pickDay(page: Page, iso: string) {
+  const day = page.locator(`td:not([data-outside]) [data-day="${iso}"]`);
+  for (let turns = 0; turns < 12 && !(await day.isVisible()); turns++) {
+    await page.getByRole("button", { name: /next month/i }).click();
+  }
+  await day.click();
 }
 
 test("a front desk takes a booking and finds it on the list", async ({
@@ -63,17 +77,47 @@ test("a front desk takes a booking and finds it on the list", async ({
   await page.goto(`/en/reservations?property=${propertyId}`);
 
   await page.getByRole("button", { name: "New reservation" }).click();
-  const dialog = page.getByRole("dialog");
+  const dialog = page.getByRole("dialog", { name: "New reservation" });
   await expect(dialog).toBeVisible();
 
   await dialog.getByLabel("Guest", { exact: true }).fill(guestName);
   await dialog.getByLabel("Email").fill(email);
-  // A combobox rather than a native select: shadcn's Select is Radix, so the
-  // option is a listbox row and not an <option>.
-  await dialog.getByLabel("Unit").click();
+  // A combobox rather than a native select: the Unit picker is the kit's
+  // searchable one, so the option is a listbox row and not an <option>.
+  // Submitted with no Unit, the booking stops at the Unit: its required value
+  // is carried by a proxy input, and the refusal lands on the trigger.
+  const unit = dialog.getByLabel("Unit");
+  await dialog.getByRole("button", { name: "Create reservation" }).click();
+  await expect(dialog).toBeVisible();
+  await expect(unit).toHaveAttribute("aria-invalid", "true");
+  await expect(unit).toBeFocused();
+  await expect(unit).toHaveAccessibleDescription("Choose one to continue.");
+  await expect(dialog.getByText("Choose one to continue.")).toBeVisible();
+  // The arrow key opens it, as it opened the Select it replaced.
+  await page.keyboard.press("ArrowDown");
   await page.getByRole("option", { name: new RegExp(unitName) }).click();
-  await dialog.getByLabel("Arrival").fill(propertyDay(propertyId, 7));
-  await dialog.getByLabel("Departure").fill(propertyDay(propertyId, 10));
+  await expect(unit).not.toHaveAttribute("aria-invalid", "true");
+  // Submitted with no arrival, the booking stops and the calendar opens at
+  // the arrival: the required start is carried by a proxy input the reader
+  // never sees, so this is the only place its message can arrive.
+  await dialog.getByRole("button", { name: "Create reservation" }).click();
+  await expect(page.getByText("Choose the arrival day")).toBeVisible();
+  await expect(dialog).toBeVisible();
+
+  await pickDay(page, propertyDay(propertyId, 7));
+  await pickDay(page, propertyDay(propertyId, 10));
+  // The range is complete: the calendar closes and focus is back on the half
+  // just set, so a keyboard reader carries on from where they were.
+  await expect(
+    page.getByText("Choose the departure, or leave it open"),
+  ).toBeHidden();
+  await expect(
+    dialog.getByRole("button", { name: /^Departure/ }),
+  ).toBeFocused();
+  // The second day completes the range and closes the calendar by itself.
+  await expect(
+    dialog.getByRole("button", { name: /^Departure/ }),
+  ).not.toHaveText("Open-ended");
 
   await dialog.getByRole("button", { name: "Create reservation" }).click();
 

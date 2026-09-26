@@ -40,11 +40,13 @@ packages/
     core/                 Organization, Property, membership, Entitlement reads
     accommodation/        Accommodation Units inside a Property
     housekeeping/         whether a room needs cleaning, and marking it
+    maintenance/          problems reported and worked, and rooms out of order
     guests/               the people a Reservation and a Stay are for
     stays/                Stays, and the Resident access path
     reservations/         Reservations, taking a booking, check-in, check-out
     folios/               the Folio: a Stay's financial record, and its lines
     staff/                who works here, what they may do, and where
+    business-day/         closing a Property's business day (the night audit)
   adapters/               Ranza-to-platform mappings
   config, db, i18n, ui, observability
                           cross-cutting infrastructure

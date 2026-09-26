@@ -1,0 +1,218 @@
+{
+  "1": [
+    {
+      "name": "full-load:today",
+      "tenantTx": 3,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 1,
+        "shell: every destination's capability, batched (listEntitledPropertiesByCapability)": 1,
+        "a permission check first: permittedProperties, or the audit read opening with its gate": 1
+      },
+      "authQueries": 3,
+      "appDbMs": 81,
+      "authDbMs": 14688
+    },
+    {
+      "name": "idle-8s:today",
+      "tenantTx": 0,
+      "kinds": {},
+      "authQueries": 0,
+      "appDbMs": 0,
+      "authDbMs": 0
+    },
+    {
+      "name": "click:finance",
+      "tenantTx": 2,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 1,
+        "folios read": 1
+      },
+      "authQueries": 3,
+      "appDbMs": 12,
+      "authDbMs": 2
+    },
+    {
+      "name": "click:people",
+      "tenantTx": 3,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 1,
+        "People screen read (roster or roles)": 2
+      },
+      "authQueries": 3,
+      "appDbMs": 18,
+      "authDbMs": 4
+    },
+    {
+      "name": "click:audit-log",
+      "tenantTx": 2,
+      "kinds": {
+        "a permission check first: permittedProperties, or the audit read opening with its gate": 2
+      },
+      "authQueries": 3,
+      "appDbMs": 67,
+      "authDbMs": 9
+    },
+    {
+      "name": "idle-8s+hover-rows:audit-log",
+      "tenantTx": 0,
+      "kinds": {},
+      "authQueries": 0,
+      "appDbMs": 0,
+      "authDbMs": 0
+    },
+    {
+      "name": "click:today",
+      "tenantTx": 1,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 1
+      },
+      "authQueries": 3,
+      "appDbMs": 4,
+      "authDbMs": 4
+    }
+  ],
+  "2": [
+    {
+      "name": "full-load:today",
+      "tenantTx": 3,
+      "kinds": {
+        "a permission check first: permittedProperties, or the audit read opening with its gate": 1,
+        "shell: every destination's capability, batched (listEntitledPropertiesByCapability)": 1,
+        "one capability's entitled Properties (listEntitledProperties)": 1
+      },
+      "authQueries": 3,
+      "appDbMs": 88,
+      "authDbMs": 6
+    },
+    {
+      "name": "idle-8s:today",
+      "tenantTx": 0,
+      "kinds": {},
+      "authQueries": 0,
+      "appDbMs": 0,
+      "authDbMs": 0
+    },
+    {
+      "name": "click:finance",
+      "tenantTx": 2,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 1,
+        "folios read": 1
+      },
+      "authQueries": 3,
+      "appDbMs": 24,
+      "authDbMs": 6
+    },
+    {
+      "name": "click:people",
+      "tenantTx": 3,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 1,
+        "People screen read (roster or roles)": 2
+      },
+      "authQueries": 3,
+      "appDbMs": 10935,
+      "authDbMs": 162
+    },
+    {
+      "name": "click:audit-log",
+      "tenantTx": 2,
+      "kinds": {
+        "a permission check first: permittedProperties, or the audit read opening with its gate": 2
+      },
+      "authQueries": 3,
+      "appDbMs": 35,
+      "authDbMs": 16
+    },
+    {
+      "name": "idle-8s+hover-rows:audit-log",
+      "tenantTx": 0,
+      "kinds": {},
+      "authQueries": 0,
+      "appDbMs": 0,
+      "authDbMs": 0
+    },
+    {
+      "name": "click:today",
+      "tenantTx": 1,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 1
+      },
+      "authQueries": 3,
+      "appDbMs": 19,
+      "authDbMs": 21
+    }
+  ],
+  "3": [
+    {
+      "name": "full-load:today",
+      "tenantTx": 3,
+      "kinds": {
+        "a permission check first: permittedProperties, or the audit read opening with its gate": 1,
+        "one capability's entitled Properties (listEntitledProperties)": 1,
+        "shell: every destination's capability, batched (listEntitledPropertiesByCapability)": 1
+      },
+      "authQueries": 3,
+      "appDbMs": 82,
+      "authDbMs": 7
+    },
+    {
+      "name": "idle-8s:today",
+      "tenantTx": 0,
+      "kinds": {},
+      "authQueries": 0,
+      "appDbMs": 0,
+      "authDbMs": 0
+    },
+    {
+      "name": "click:finance",
+      "tenantTx": 2,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 1,
+        "folios read": 1
+      },
+      "authQueries": 3,
+      "appDbMs": 10,
+      "authDbMs": 2620
+    },
+    {
+      "name": "click:people",
+      "tenantTx": 3,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 1,
+        "People screen read (roster or roles)": 2
+      },
+      "authQueries": 3,
+      "appDbMs": 5,
+      "authDbMs": 2
+    },
+    {
+      "name": "click:audit-log",
+      "tenantTx": 2,
+      "kinds": {
+        "a permission check first: permittedProperties, or the audit read opening with its gate": 2
+      },
+      "authQueries": 3,
+      "appDbMs": 160,
+      "authDbMs": 5
+    },
+    {
+      "name": "idle-8s+hover-rows:audit-log",
+      "tenantTx": 0,
+      "kinds": {},
+      "authQueries": 0,
+      "appDbMs": 0,
+      "authDbMs": 0
+    },
+    {
+      "name": "click:today",
+      "tenantTx": 1,
+      "kinds": {
+        "one capability's entitled Properties (listEntitledProperties)": 1
+      },
+      "authQueries": 3,
+      "appDbMs": 80,
+      "authDbMs": 87
+    }
+  ]
+}

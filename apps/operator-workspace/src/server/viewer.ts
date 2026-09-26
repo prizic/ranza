@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   AUDIT_READ_PERMISSION,
+  CONFIGURATION_CAPABILITY,
   MIN_SEARCH_LENGTH,
   TODAY_CAPABILITY,
 } from "@ranza/core";
@@ -15,16 +16,26 @@ import type {
   CapabilityProperties,
   CapabilityRef,
   EntitledProperty,
+  PropertySettings,
 } from "@ranza/core";
+import type { CloseTheDay } from "@ranza/business-day";
 import { FOLIO_CAPABILITY } from "@ranza/folios";
 import type { FolioDetail, FolioSummary } from "@ranza/folios";
-import { FRONT_DESK_CAPABILITY } from "@ranza/reservations";
+import {
+  FRONT_DESK_CAPABILITY,
+  ROOM_CALENDAR_DEFAULT_LENGTH,
+  ROOM_CALENDAR_LENGTHS,
+} from "@ranza/reservations";
 import type {
   Arrival,
   BookableUnit,
   Departure,
   DepartureView,
   ReservationRow,
+  RoomCalendar,
+  RoomCalendarBar,
+  RoomCalendarUnit,
+  RoomCalendarWindow,
 } from "@ranza/reservations";
 import { ROOMS_CAPABILITY } from "@ranza/accommodation";
 import type {
@@ -44,6 +55,39 @@ import type {
   HousekeepingStatus,
   InspectionSettings,
 } from "@ranza/housekeeping";
+import {
+  BOARD_STATES,
+  CANCEL_REASON,
+  DETAILS,
+  EQUIPMENT_CATEGORY,
+  EQUIPMENT_LOCATION,
+  EQUIPMENT_NAME,
+  MAINTENANCE_CAPABILITY,
+  PRIORITIES,
+  RETURN_AS,
+  RETURN_NOTE,
+  SERVICE_INTERVAL,
+  TITLE,
+  VENDOR,
+} from "@ranza/maintenance";
+import type {
+  BoardState,
+  ChargeableStay,
+  EquipmentItem,
+  EquipmentRegister,
+  MaintenanceBoard,
+  MaintenanceRequestCard,
+  MaintenanceSettings,
+  OutOfOrderImpact,
+  Priority,
+  ReportOptions,
+  RequestStatus,
+  ReturnAs,
+  RoomsMaintenance,
+  SettingOverrides,
+  SettingValues,
+  UnitHold,
+} from "@ranza/maintenance";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import { getComposition } from "./composition";
 import { displayName } from "./display-name";
@@ -74,6 +118,7 @@ import { readTodaySummary, todayReads } from "./today-summary";
 // through which a direct query eventually arrives.
 export {
   AUDIT_READ_PERMISSION,
+  CONFIGURATION_CAPABILITY,
   MIN_SEARCH_LENGTH,
   TODAY_CAPABILITY,
   FRONT_DESK_CAPABILITY,
@@ -81,6 +126,21 @@ export {
   HOUSEKEEPING_CAPABILITY,
   MARK_BATCH,
   ROOMS_CAPABILITY,
+  BOARD_STATES,
+  CANCEL_REASON,
+  DETAILS,
+  MAINTENANCE_CAPABILITY,
+  PRIORITIES,
+  RETURN_AS,
+  RETURN_NOTE,
+  TITLE,
+  EQUIPMENT_CATEGORY,
+  EQUIPMENT_LOCATION,
+  EQUIPMENT_NAME,
+  SERVICE_INTERVAL,
+  VENDOR,
+  ROOM_CALENDAR_DEFAULT_LENGTH,
+  ROOM_CALENDAR_LENGTHS,
 };
 export type {
   AccommodationUnitStatus,
@@ -91,6 +151,7 @@ export type {
   AuditNames,
   AuditPage,
   BookableUnit,
+  CloseTheDay,
   Departure,
   FolioDetail,
   FolioSummary,
@@ -98,8 +159,29 @@ export type {
   HousekeepingRoom,
   HousekeepingStatus,
   InspectionSettings,
+  BoardState,
+  ChargeableStay,
+  EquipmentItem,
+  EquipmentRegister,
+  MaintenanceBoard,
+  MaintenanceRequestCard,
+  MaintenanceSettings,
+  OutOfOrderImpact,
+  Priority,
+  ReportOptions,
+  RequestStatus,
+  ReturnAs,
+  RoomsMaintenance,
+  SettingOverrides,
+  SettingValues,
+  UnitHold,
   NewUnits,
+  PropertySettings,
   ReservationRow,
+  RoomCalendar,
+  RoomCalendarBar,
+  RoomCalendarUnit,
+  RoomCalendarWindow,
   UnitCounts,
   UnitEntry,
   UnitMap,
@@ -232,6 +314,29 @@ export async function arrivals(
 }
 
 /**
+ * The room calendar for one Property over one window (RANZ-25).
+ *
+ * Same funnel and same non-checking as `arrivals`: a Property the viewer cannot
+ * reach comes back with no Units because the policies and the capability gate
+ * decide that, not a condition here. Null only when nobody is signed in.
+ *
+ * Not `cache`d: it is polled, and a check-in elsewhere must show on the next
+ * read.
+ */
+export async function roomCalendar(
+  propertyId: string,
+  window: RoomCalendarWindow,
+): Promise<RoomCalendar | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().reservations.listRoomCalendar(
+    viewer.userId,
+    propertyId,
+    window,
+  );
+}
+
+/**
  * The Stays in house at one Property: those due to leave today and any already
  * overdue, or with `in_house` everybody — the early leaver and the open-ended
  * Resident a front desk also checks out.
@@ -251,6 +356,23 @@ export async function departures(
     propertyId,
     view,
   );
+}
+
+/**
+ * Close the day at one Property: the day waiting to be closed, what is still
+ * open on it, and the recent closes — or null when the viewer cannot reach the
+ * Property with the front desk, which is the same answer for one that does not
+ * exist.
+ *
+ * Not `cache`d: closing, a no-show and a cancellation all change it, and the
+ * request that made one re-reads.
+ */
+export async function closeTheDay(
+  propertyId: string,
+): Promise<CloseTheDay | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().businessDay.getCloseTheDay(viewer.userId, propertyId);
 }
 
 /**
@@ -473,4 +595,131 @@ export async function auditRecord(
   const viewer = await currentViewer();
   if (!viewer) return null;
   return getComposition().core.auditRecord(viewer.userId, propertyId, recordId);
+}
+
+/**
+ * One Property's settings for the Configuration screen, and whether the viewer
+ * may change them (ADR 0036). Null for a Property they cannot reach or where
+ * configuration is not available.
+ *
+ * Not `cache`d: saving changes this, and the request that saved re-reads it.
+ */
+export async function propertySettings(
+  propertyId: string,
+): Promise<PropertySettings | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().core.propertySettings(viewer.userId, propertyId);
+}
+
+/**
+ * The timezones a Property may be set to — both Postgres and this runtime know
+ * them. Read once per process: the list is the time zone database, which
+ * changes when Postgres or Node is upgraded, never between two requests, and
+ * reading it costs a scan of every zone on every render.
+ */
+let zones: Promise<readonly string[]> | undefined;
+
+export async function timezoneNames(): Promise<readonly string[]> {
+  const viewer = await currentViewer();
+  if (!viewer) return [];
+  zones ??= getComposition()
+    .core.timezoneNames(viewer.userId)
+    .catch((error: unknown) => {
+      // A failed read is not the answer; the next request asks again.
+      zones = undefined;
+      throw error;
+    });
+  return zones;
+}
+
+/**
+ * Every open request at one Property, and the ones done or cancelled in the
+ * last thirty days, with what the viewer may do (MT-S1-10).
+ *
+ * Same funnel and same non-checking as the housekeeping board: a Property the
+ * viewer cannot reach, or one without maintenance, produces an empty board
+ * because the database decides that. Not `cache`d: a request that moves a card
+ * and then reads must see its own move.
+ */
+export async function maintenanceBoard(
+  propertyId: string,
+): Promise<MaintenanceBoard> {
+  const viewer = await currentViewer();
+  if (!viewer) {
+    return {
+      today: new Date().toISOString().slice(0, 10),
+      requests: [],
+      counts: {
+        new: 0,
+        in_progress: 0,
+        waiting_for_parts: 0,
+        done: 0,
+        cancelled: 0,
+        outOfOrder: 0,
+      },
+      mayReport: false,
+      mayManage: false,
+      mayTakeOutOfOrder: false,
+      mayCharge: false,
+    };
+  }
+  return getComposition().maintenance.board(viewer.userId, propertyId);
+}
+
+/** The Units and the assignees the report form offers (MT-S1-18). */
+export async function maintenanceReportOptions(
+  propertyId: string,
+): Promise<ReportOptions> {
+  const viewer = await currentViewer();
+  if (!viewer) return { units: [], assignees: [], equipment: [] };
+  return getComposition().maintenance.reportOptions(viewer.userId, propertyId);
+}
+
+/**
+ * What a Property's Maintenance setting says and inherits, and whether the
+ * viewer may change it. Null where there is nothing to configure.
+ */
+export async function maintenanceSettings(
+  propertyId: string,
+): Promise<MaintenanceSettings | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().maintenance.settings(viewer.userId, propertyId);
+}
+
+/**
+ * What Rooms shows of maintenance: the Units a request holds out of order, and
+ * whether the viewer may report a problem there (MT-S2-28, MT-S1-24). Empty
+ * and false where maintenance is not available: Rooms is the front desk's,
+ * and a Property may have it without maintenance.
+ */
+export async function roomsMaintenance(
+  propertyId: string,
+): Promise<RoomsMaintenance> {
+  const viewer = await currentViewer();
+  if (!viewer) return { holds: [], mayReport: false };
+  return getComposition().maintenance.roomsView(viewer.userId, propertyId);
+}
+
+/**
+ * The equipment register at one Property, each item with its condition and
+ * next service; the service plan is the same read by date (MT-S3-04, MT-S4-01).
+ */
+export async function equipmentRegister(
+  propertyId: string,
+): Promise<EquipmentRegister> {
+  const viewer = await currentViewer();
+  if (!viewer) {
+    return {
+      today: new Date().toISOString().slice(0, 10),
+      items: [],
+      mayManageEquipment: false,
+      mayReport: false,
+    };
+  }
+  return getComposition().maintenance.equipmentRegister(
+    viewer.userId,
+    propertyId,
+  );
 }

@@ -27,8 +27,9 @@ export type AccommodationUnitType = "room" | "bed" | "apartment" | "suite";
  * `blocked` is one of blueprint 18.2's six and the one this module has a
  * command for. `occupied` is allowed and nothing writes it — occupancy is a
  * fact about Stays, and `listUnits` reads it that way (RB-S1-04).
- * `out_of_service` is the housekeeping lifecycle's, which replaces this union
- * with the whole set.
+ * `out_of_service` is out of order: a maintenance request holds it, through
+ * this module's write contract in `write.ts` (ADR 0032). Cleaning is not here
+ * at all; it is `housekeeping_unit_status` (ADR 0029).
  */
 export type AccommodationUnitStatus =
   "available" | "occupied" | "out_of_service" | "blocked";

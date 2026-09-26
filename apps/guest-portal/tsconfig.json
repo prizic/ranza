@@ -6,7 +6,11 @@
     "jsx": "preserve",
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "noEmit": true,
-    "plugins": [{ "name": "next" }]
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
   "include": [
     "next-env.d.ts",

@@ -32,13 +32,13 @@ so these patterns have to fit the same screens as the hotel ones.
 ## Our own products
 
 One internal application sets the visual language, rather than the layouts
-above, and is the source of truth for it. It is not public, so the pattern is
+above, and is the source of truth for it; a second lends the sign-in screen. It is not public, so the pattern is
 described instead of linked.
 
-| Product        | Pattern to study                                                                | What Ranza takes                                                              |
-| -------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Leaders portal | Floating glass sidebar and bar, light titles, card rows, stat cards             | The workspace shell, the palette and Geist, recorded in `visual-reference.md` |
-| Leaders portal | Sign-in: ivory ground, gold swoosh, service row, floating card with pill fields | The sign-in screen of both applications                                       |
+| Product        | Pattern to study                                                                     | What Ranza takes                                                              |
+| -------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| Leaders portal | Floating glass sidebar and bar, light titles, card rows, stat cards                  | The workspace shell, the palette and Geist, recorded in `visual-reference.md` |
+| EduBoard       | Sign-in: framed split card, form beside a dark textured showcase with a serif slogan | The sign-in screen of both applications, in Ranza's colours                   |
 
 ## The direction
 

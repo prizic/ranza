@@ -75,6 +75,23 @@ export function formatWeekday(
   }).format(value);
 }
 
+/**
+ * The calendar day it is at a Property, as `YYYY-MM-DD` — the form a date
+ * field submits and a Postgres `date` reads. From the Property's timezone and
+ * not the reader's, which is the wrong day for part of every day elsewhere.
+ */
+export function calendarDay(timeZone: string, at: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone,
+    year: "numeric",
+  }).formatToParts(at);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((candidate) => candidate.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
 /** Wall-clock time at a Property. */
 export function formatTime(
   value: Date | number,
@@ -130,4 +147,48 @@ export function formatMoney(
   const minorUnits =
     10 ** (format.resolvedOptions().maximumFractionDigits ?? 2);
   return format.format(amountMinor / minorUnits);
+}
+
+/**
+ * A currency's name, `TRY` → "Turkish lira", in the reader's language. Null
+ * when the runtime cannot name the code, so a caller can leave it out rather
+ * than show the code twice.
+ */
+export function formatCurrencyName(
+  code: string,
+  locale: SupportedLocale,
+): string | null {
+  try {
+    return (
+      new Intl.DisplayNames(intlLocales[locale], {
+        type: "currency",
+        fallback: "none",
+      }).of(code) ?? null
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A zone's offset from UTC at an instant, as "GMT+3". Empty when the runtime
+ * does not know the zone: an offset is a hint beside its name, never the name.
+ */
+export function formatTimeZoneOffset(
+  zone: string,
+  locale: SupportedLocale,
+  at: Date | number = Date.now(),
+): string {
+  try {
+    return (
+      new Intl.DateTimeFormat(intlLocales[locale], {
+        timeZone: zone,
+        timeZoneName: "shortOffset",
+      })
+        .formatToParts(at)
+        .find((part) => part.type === "timeZoneName")?.value ?? ""
+    );
+  } catch {
+    return "";
+  }
 }

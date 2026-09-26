@@ -10,7 +10,11 @@ import {
   shippedRoleOf,
 } from "../../../../features/staff/labels";
 import { readRoles, readRoster } from "../../../../server/staff";
-import { entitledProperties, requireViewer } from "../../../../server/viewer";
+import {
+  entitledProperties,
+  permittedProperties,
+  requireViewer,
+} from "../../../../server/viewer";
 
 /**
  * Staff and permissions: who works for this Organization, and what each role
@@ -25,6 +29,13 @@ import { entitledProperties, requireViewer } from "../../../../server/viewer";
  * Which means an Organization with no Property has nobody who can invite. That
  * is a real gap and it is named here rather than papered over: creating the
  * first Property is part of onboarding, which is not built.
+ *
+ * A command is offered only to a viewer holding the permission it needs
+ * (#80): inviting and changing somebody's role or reach ask for
+ * `staff.administer`, defining a role for `staff.define_roles`. A viewer
+ * holding neither reads the roster and is told who can change it; one holding
+ * either is offered what it allows and nothing else. The policies stay the
+ * authority; this only stops offering what they would refuse.
  */
 const STAFF_ADMINISTRATION = {
   moduleKey: "platform_core",
@@ -55,6 +66,12 @@ export default async function PeoplePage({
   }
 
   const organizationId = home.organizationId;
+  const holds = async (permission: string) =>
+    (await permittedProperties(permission)).some(
+      (property) => property.organizationId === organizationId,
+    );
+  const mayAdminister = await holds("staff.administer");
+  const mayDefineRoles = await holds("staff.define_roles");
   // Sequential rather than parallel: both resolve the same session through
   // `currentViewer`, which is cached per request, and issuing them together
   // would only race to be the one that validates it.
@@ -66,25 +83,32 @@ export default async function PeoplePage({
       <PageHeader
         aside={
           <span className="flex flex-wrap gap-2">
-            <DefineRoleDialog locale={locale} organizationId={organizationId} />
-            <InviteDialog
-              locale={locale}
-              organizationId={organizationId}
-              properties={properties.map((property) => ({
-                propertyId: property.propertyId,
-                propertyName: property.propertyName,
-              }))}
-              roles={roles
-                .filter((role) => role.status === "active")
-                .map((role) => {
-                  const shipped = shippedRoleOf(role);
-                  return {
-                    key: role.key,
-                    organizationId: role.organizationId,
-                    name: shipped ? t(`staff.roles.${shipped}`) : role.name,
-                  };
-                })}
-            />
+            {mayDefineRoles ? (
+              <DefineRoleDialog
+                locale={locale}
+                organizationId={organizationId}
+              />
+            ) : null}
+            {mayAdminister ? (
+              <InviteDialog
+                locale={locale}
+                organizationId={organizationId}
+                properties={properties.map((property) => ({
+                  propertyId: property.propertyId,
+                  propertyName: property.propertyName,
+                }))}
+                roles={roles
+                  .filter((role) => role.status === "active")
+                  .map((role) => {
+                    const shipped = shippedRoleOf(role);
+                    return {
+                      key: role.key,
+                      organizationId: role.organizationId,
+                      name: shipped ? t(`staff.roles.${shipped}`) : role.name,
+                    };
+                  })}
+              />
+            ) : null}
           </span>
         }
       >
@@ -94,6 +118,11 @@ export default async function PeoplePage({
         <p className="mt-1 text-sm text-muted-foreground">
           {home.organizationName}
         </p>
+        {mayAdminister || mayDefineRoles ? null : (
+          <p className="mt-3 text-sm text-muted-foreground">
+            {t("staff.readOnly")}
+          </p>
+        )}
       </PageHeader>
 
       {roster.length === 0 ? (
@@ -104,6 +133,8 @@ export default async function PeoplePage({
       ) : (
         <StaffScreen
           locale={locale}
+          mayAdminister={mayAdminister}
+          mayDefineRoles={mayDefineRoles}
           organizationId={organizationId}
           permissions={PERMISSION_CATALOGUE}
           roles={roles}

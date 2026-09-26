@@ -27,6 +27,8 @@ src/
   components/ui/          shadcn components — owned source, edit them freely
   components/data-table/  the listing kit, ported from ryadh/mirhaal
   components/app-rail.tsx the 76px rail and the mobile dock, also ported
+  components/combobox.tsx the searchable single and multi pickers
+  components/date-range-field.tsx  a From → To pair as one field and one calendar
   components/             app-shell, patterns, kpi-card, status-badge, ...
   lib/utils.ts            cn()
   lib/menu-guard.ts       the overlay-click guard the primitives arm
@@ -65,6 +67,20 @@ close, because dismissing an overlay is a pointerdown while it is open and a
 pointerup after it has gone — so the click lands on whatever is underneath,
 which on a listing is a table row. An overlay added later must do the same, or
 closing it will open a row.
+
+## Pickers
+
+`Select` is for a short, fixed enum — on/off, a stay type — where a search box
+is one more thing to look past. When the options are data and the list grows
+with the Organization — Units, Properties, roles it writes, audit actions — use
+`Combobox`, or `MultiCombobox` for several choices. Both take the same
+`options` (`label`, optional `description`, `keywords`, `group`), submit under
+`name` like a native field (the multi one as repeated values, read with
+`FormData.getAll`), honour `required`, and work controlled or not.
+
+Search goes through `fieldMatches`, not cmdk's own filter: cmdk folds case the
+invariant way and matches fuzzily, so it would miss "ISPARTA" from "ısparta",
+find "102" from "12", and match on the option's value, which is an id.
 
 ## Adding a shadcn component
 

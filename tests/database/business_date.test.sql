@@ -10,7 +10,7 @@
 -- the cutoff instead of subtracting it, returning the calendar date, dropping
 -- the cutoff check, widening it to 02:00 — and confirming it went red.
 begin;
-select plan(17);
+select plan(18);
 
 -- ---------------------------------------------------------------------------
 -- The boundary, at a Property that never changes its clocks
@@ -194,7 +194,14 @@ insert into public.reservations
   ('b5111111-1111-4111-8111-111111111111', 'b1111111-1111-4111-8111-111111111111',
    'b2111111-1111-4111-8111-111111111111', 'b3111111-1111-4111-8111-111111111111',
    'b4111111-1111-4111-8111-111111111111', 'guest', 'confirmed',
-   date '2026-10-01', date '2026-10-03');
+   app.property_today('b2111111-1111-4111-8111-111111111111') + 30,
+   app.property_today('b2111111-1111-4111-8111-111111111111') + 32);
+
+-- What it was written with, read before the cutoff moves: moving it can move
+-- today, so the expectation cannot be recomputed afterwards.
+create temporary table written_with as
+  select (starts_on, ends_on)::text as dates from public.reservations
+   where id = 'b5111111-1111-4111-8111-111111111111';
 
 update public.properties set business_date_cutoff = time '06:00'
  where id = 'b2111111-1111-4111-8111-111111111111';
@@ -202,7 +209,7 @@ update public.properties set business_date_cutoff = time '06:00'
 select is(
   (select (starts_on, ends_on)::text from public.reservations
     where id = 'b5111111-1111-4111-8111-111111111111'),
-  '(2026-10-01,2026-10-03)',
+  (select dates from written_with),
   'a Reservation keeps the dates it was written with when the cutoff moves (CO-S1-20)'
 );
 
@@ -212,12 +219,25 @@ select is(
   'the new cutoff is what today is read with from now on'
 );
 
+-- Three triggers fire, and none writes elsewhere: close the day's guard only
+-- refuses a cutoff that moves today back onto a closed day (ADR 0034), and
+-- configuration's two stamp the row and refuse a currency change after a
+-- Folio (ADR 0036). Anything else here would be something re-dating rows when
+-- a cutoff moves, which CO-S1-20 forbids, so each is named and the guard's
+-- body is read for a write rather than a count simply raised.
 select is(
-  (select count(*) from information_schema.triggers
+  (select coalesce(string_agg(trigger_name::text, ',' order by trigger_name), '')
+     from information_schema.triggers
     where event_object_schema = 'public' and event_object_table = 'properties'
       and event_manipulation = 'UPDATE'),
-  0::bigint,
-  'nothing fires when a Property changes: moving a cutoff writes nothing else'
+  'properties_currency_is_fixed,properties_keep_today_after_the_last_close,properties_stamped',
+  'nothing fires when a Property changes but the close guard, the stamp and the currency lock'
+);
+
+select ok(
+  (select prosrc !~* '(insert|update|delete)\s' from pg_proc
+    where proname = 'properties_keep_today_after_the_last_close'),
+  'and the guard writes nothing: moving a cutoff writes nothing else'
 );
 
 select * from finish();

@@ -22,12 +22,18 @@ import { RosterTable } from "./roster-table";
  */
 export function StaffScreen({
   locale,
+  mayAdminister,
+  mayDefineRoles,
   organizationId,
   permissions,
   roles,
   roster,
 }: {
   locale: string;
+  /** Holds staff.administer: may change a role, revoke, or undo a revoke. */
+  mayAdminister: boolean;
+  /** Holds staff.define_roles: may edit, retire or reinstate a role. */
+  mayDefineRoles: boolean;
   organizationId: string;
   permissions: readonly string[];
   roles: readonly Role[];
@@ -57,6 +63,7 @@ export function StaffScreen({
         <TabsContent className="min-w-0" value="people">
           <RosterTable
             locale={locale}
+            mayAdminister={mayAdminister}
             organizationId={organizationId}
             roles={roles.filter((role) => role.status === "active")}
             roster={roster}
@@ -66,6 +73,7 @@ export function StaffScreen({
         <TabsContent className="min-w-0" value="roles">
           <PermissionMatrix
             locale={locale}
+            mayDefineRoles={mayDefineRoles}
             organizationId={organizationId}
             permissions={permissions}
             roles={roles}

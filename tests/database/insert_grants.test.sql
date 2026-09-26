@@ -355,6 +355,19 @@ select is_empty(
 -- app.has_organization_wide_reach(), so a policy can read the caller's
 -- membership, and app.housekeeping_inspection_required(), so readiness never
 -- reads an invisible setting as "off".
+--
+-- Maintenance (20260916004400) brought one, and it writes:
+-- app.mark_unit_returned_to_service() is the whole of what ranza_worker may do
+-- when a room comes back into service, and it names
+-- app.worker_organization_id(). The request, hold and setting triggers are
+-- invokers — they read only what the acting Staff Member already reaches — and
+-- app.unit_is_in_service() was replaced, not added.
+--
+-- The service plan (20260916004600) brought one more, and it writes:
+-- app.maintenance_service_is_recorded() sets an item's last service when its
+-- work order is done, because finishing a work order is maintenance.manage and
+-- the register is maintenance.equipment. It names
+-- app.has_organization_permission() for the first of those before it writes.
 -- The audit log's reach (20260916004200) brought five: the four the
 -- audit.records read policy consults about its caller — which Properties,
 -- which Organizations wholly, which with audit.read, and whether a location
@@ -370,11 +383,27 @@ select is_empty(
 -- either. Then app.front_desk_closes_only_a_settled_folio(), which reads a
 -- Folio's lines the front desk cannot see, to refuse closing one with money on
 -- it; nothing written.
+-- Maintenance and the front desk arrived on separate branches; the counts
+-- below are the union of both.
+--
+-- Close the day (20260916005100) brought two, both for the worker alone.
+-- app.properties_due_for_close() is its second cross-Organization read (ADR
+-- 0018 amended) and writes nothing; app.close_business_day_automatically()
+-- writes a close and its event, and checks worker_organization_id() before
+-- anything, which is what keeps the sweep above at zero.
+-- Configuration (20260916006000) brought three more, none of which writes.
+-- app.property_currency_is_fixed_by_its_first_folio() and
+-- app.property_currency_is_fixed() must see every Folio at a Property whatever
+-- the caller may read, so that narrowing the Folio read policy later cannot
+-- make "none visible" read as "the currency may change".
+-- app.folio_currency_is_its_propertys() holds the Property row while a Folio
+-- opens, which a caller without update rights on properties cannot do; it is
+-- gated on the caller's reach.
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  35,
-  'the definer sweep looked at 35 functions; change this number deliberately');
+  43,
+  'the definer sweep looked at 43 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -384,14 +413,19 @@ select is(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef and p.prosrc ~* '(insert|update|delete)\s'),
-  4,
-  'four of them write, which is what makes the assertion above a test');
+  7,
+  'seven of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a thirty-sixth definer is a red test
+-- Part B: the inventory itself, so a forty-fourth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
--- four are housekeeping; five are the audit log's reach; and the last three
--- are the front desk's. The four that write are named in the comments above.
+-- four are housekeeping; two are maintenance; five are the audit log's reach;
+-- three are the front desk's; two are the worker's close; three are
+-- configuration's; and the last is has_organization_wide_administrator(), which
+-- the staff triggers ask so an Organization keeps somebody organization-wide
+-- who can add staff (SP-S1-38). It reads memberships whatever the caller may
+-- see and is granted to nobody. The seven that write are named in the comments
+-- above.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -408,12 +442,17 @@ select set_eq(
         'unit_can_be_blocked','unit_is_in_service',
         'housekeeping_status_holder_is_a_room','mark_unit_dirty_after_check_out',
         'has_organization_wide_reach','housekeeping_inspection_required',
+        'mark_unit_returned_to_service', 'maintenance_service_is_recorded',
         'audit_reachable_locations','audit_whole_organization_ids',
         'audit_reader_organization_ids','audit_location_is_in_scope',
         'audit_location_names',
         'unit_holds_one_occupancy','stay_and_reservation_agree',
-        'front_desk_closes_only_a_settled_folio'],
-  'and they are exactly the thirty-five the design gives a reason for');
+        'front_desk_closes_only_a_settled_folio',
+        'properties_due_for_close','close_business_day_automatically',
+        'property_currency_is_fixed_by_its_first_folio',
+        'folio_currency_is_its_propertys','property_currency_is_fixed',
+        'has_organization_wide_administrator'],
+  'and they are exactly the forty-three the design gives a reason for');
 
 select finish();
 rollback;

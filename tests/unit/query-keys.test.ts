@@ -83,4 +83,24 @@ describe("a front-office cache key", () => {
       expect(key.slice(0, all.length)).toEqual([...all]);
     }
   });
+
+  it("RC-S1-63: keys the room calendar by viewer, Property and window, apart from every other list", () => {
+    const aroundToday = frontOfficeKeys.roomCalendar(scope, {
+      from: null,
+      days: 14,
+    });
+    expect(aroundToday.slice(0, 5)).toEqual(frontOfficeKeys.all(scope));
+    expect(aroundToday).not.toEqual(
+      frontOfficeKeys.roomCalendar(scope, { from: "2026-09-21", days: 14 }),
+    );
+    expect(aroundToday).not.toEqual(
+      frontOfficeKeys.roomCalendar(scope, { from: null, days: 30 }),
+    );
+    expect(aroundToday).not.toEqual(
+      frontOfficeKeys.roomCalendar(
+        { ...scope, propertyId: "property-2" },
+        { from: null, days: 14 },
+      ),
+    );
+  });
 });

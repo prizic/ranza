@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { isSupportedLocale } from "@ranza/i18n";
+import { calendarDay, isSupportedLocale } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { NewReservationDialog } from "../../../../features/front-office/components/new-reservation-dialog";
@@ -67,6 +67,7 @@ export default async function ReservationsPage({
           <NewReservationDialog
             locale={locale}
             propertyId={property.propertyId}
+            today={calendarDay(property.timezone)}
             units={units}
           />
         ) : null}

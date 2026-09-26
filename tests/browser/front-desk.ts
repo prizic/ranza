@@ -18,6 +18,14 @@ import { psql } from "./local-database";
 export const EMAIL = "deniz@example.test";
 export const PASSWORD = "correct-horse-battery-staple";
 
+/**
+ * Two more people in the seeded Organization, made by `seed.setup.ts`: one
+ * holding the shipped Front desk role, who may read the roster and change
+ * nothing on it, and an Owner. The seeded Staff Member is a Manager.
+ */
+export const DESK_EMAIL = "e2e-front-desk@example.test";
+export const OWNER_EMAIL = "e2e-owner@example.test";
+
 /** Kept away from the demo Property, and named so nobody mistakes it for one. */
 const TEST_PROPERTY = "E2E Test Property";
 
@@ -37,13 +45,17 @@ export function testProperty(): string {
   // as well, so a check-in opens a Folio: the refusal that matters most on this
   // screen is the one a charge causes, and without a Folio there is nowhere to
   // put one. And staff_administration, because the roster is the other screen
-  // a browser test signs in to look at; housekeeping for the board.
+  // a browser test signs in to look at; housekeeping for the board; and
+  // configuration for the settings screen.
   return aPropertyOfTheTests(TEST_PROPERTY, {
     today: true,
     front_desk: true,
     finance: true,
     staff_administration: true,
     housekeeping: true,
+    // Maintenance, for its board and the Rooms hand-over.
+    maintenance: true,
+    configuration: true,
   });
 }
 
@@ -153,6 +165,13 @@ function aPropertyOfTheTests(
          where held.property_id = target.id
            and held.capability_key = wanted.key
        )
+     ), entitlement as (
+       -- A database seeded before maintenance existed has no Entitlement for
+       -- it, and the capability alone would not reveal the screen.
+       insert into public.entitlements (organization_id, module_key, status)
+       select (select id from home), 'maintenance', 'active'
+       where exists (select 1 from home)
+       on conflict (organization_id, module_key) do nothing
      ), assignment as (
        insert into public.property_assignments
          (property_id, organization_id, user_id)
@@ -229,10 +248,10 @@ export function anArrivalToday(propertyId: string): string {
   return guestName;
 }
 
-export async function signIn(page: Page): Promise<void> {
+export async function signIn(page: Page, email = EMAIL): Promise<void> {
   await page.goto("/en/sign-in");
-  await page.getByLabel("Email").fill(EMAIL);
-  await page.getByLabel("Password").fill(PASSWORD);
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/en\/today$/);
 }

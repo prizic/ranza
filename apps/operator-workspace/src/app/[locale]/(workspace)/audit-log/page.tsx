@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isSupportedLocale, localizeHref } from "@ranza/i18n";
+import { calendarDay, isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { Button, EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ANY } from "../../../../features/audit-log/actions";
@@ -121,7 +121,6 @@ export default async function AuditLogPage({
   }
 
   const route = localizeHref(locale, "audit-log");
-  const listHref = `${route}?property=${property.propertyId}`;
   const folioHref = `${localizeHref(locale, "finance")}?property=${property.propertyId}`;
 
   const recordId = one(search, "record");
@@ -130,10 +129,6 @@ export default async function AuditLogPage({
     return (
       <>
         <p className="text-sm text-muted-foreground">
-          <Link className="hover:underline" href={listHref}>
-            {t("allRecords")}
-          </Link>
-          {" · "}
           {property.organizationName}
         </p>
         {found ? (
@@ -207,6 +202,7 @@ export default async function AuditLogPage({
         actionHref={route}
         properties={organizationProperties}
         propertyId={property.propertyId}
+        today={calendarDay(property.timezone)}
         values={values}
       />
       {searchTooShort ? (

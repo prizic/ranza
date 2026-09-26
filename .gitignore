@@ -48,3 +48,7 @@ dev-smoke.log
 
 # Per-machine credentials for hosted environments. Never committed.
 CLAUDE.local.md
+
+# Rendered by `pnpm decisions` from docs/features/*/edge-cases.csv. The tables
+# are the record; a committed copy would be stale between regenerations.
+docs/decisions.html
