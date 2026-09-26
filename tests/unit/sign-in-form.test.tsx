@@ -49,6 +49,8 @@ type Catalogue = Record<
   | "verify"
   | "email"
   | "password"
+  | "showPassword"
+  | "hidePassword"
   | "code",
   string
 >;
@@ -103,6 +105,18 @@ for (const app of apps) {
       );
       return app.messages[locale];
     }
+
+    it("shows the password on request and hides it again", () => {
+      const say = show();
+      const field = screen.getByLabelText(say.password);
+      expect(field).toHaveAttribute("type", "password");
+
+      fireEvent.click(screen.getByRole("button", { name: say.showPassword }));
+      expect(field).toHaveAttribute("type", "text");
+
+      fireEvent.click(screen.getByRole("button", { name: say.hidePassword }));
+      expect(field).toHaveAttribute("type", "password");
+    });
 
     function submit(say: Catalogue) {
       fireEvent.change(screen.getByLabelText(say.email), {
