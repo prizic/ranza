@@ -710,6 +710,49 @@ export function createReservationsModule(deps: ReservationsDeps) {
   }
 
   /**
+   * How many Stays at a Property were checked out on its business date.
+   *
+   * The departures list reads Stays still in house, so it cannot say how many
+   * have gone; the dashboard's "out of due" needs both halves. Dated by the
+   * moment of departure in the Property's own business day (ADR 0021), so a
+   * check-out at 01:00 before the cutoff counts towards the working day it
+   * belongs to.
+   */
+  async function countDepartedToday(
+    userId: string,
+    propertyId: string,
+  ): Promise<number> {
+    const rows = await withOrganizationContext(
+      deps.db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<{ departed: number }[]>`
+        select count(*)::int as "departed"
+        from public.stays as stay
+        join public.properties as property
+          on property.id = stay.property_id
+        where stay.property_id = ${propertyId}::uuid
+          and stay.status = 'departed'
+          and stay.departed_at is not null
+          -- A business day is at most 25 hours of wall clock, so nothing that
+          -- left earlier than this can fall on today; the bound spares the
+          -- function call on every Stay the Property has ever ended.
+          and stay.departed_at > now() - interval '26 hours'
+          and app.business_date(
+                stay.departed_at, property.timezone,
+                property.business_date_cutoff)
+              = app.property_today(property.id)
+          and app.can_use_capability(
+            stay.property_id,
+            ${FRONT_DESK_CAPABILITY.moduleKey},
+            ${FRONT_DESK_CAPABILITY.capabilityKey}
+          )
+      `,
+    );
+    return rows[0]?.departed ?? 0;
+  }
+
+  /**
    * The Stays in house at one Property, as the departures screen lists them.
    *
    * `due` is the day's work: everybody whose planned departure is today, and
@@ -1654,6 +1697,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
     listArrivals,
     listBookableUnits,
     listDepartures,
+    countDepartedToday,
     listReservations,
     listRoomCalendar,
     checkIn,

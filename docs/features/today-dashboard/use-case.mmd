@@ -1,0 +1,50 @@
+%% Slices decide implementation order and nothing else:
+%%   s1 the read-only home, shaped by permissions   s2 act from it
+%%   s3 manager depth: activity, charges today, the Organization's Properties
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% Refusals and empty answers are rows in edge-cases.csv, not use cases.
+%% The visual reference is docs/design/mockups/today.html.
+flowchart TD
+
+  SM["Staff Member<br/>at a Property they reach, with Today"]
+  FD["focus: front desk<br/>holds front_desk.check_in or check_out"]
+  HK["focus: housekeeping<br/>holds housekeeping.update_status, no front desk"]
+  FN["focus: finance<br/>holds finance.*, no front desk"]
+  MG["focus: manager<br/>holds staff.administer or audit.read"]
+  SM --> FD & HK & FN & MG
+
+  subgraph S1["slice 1 &mdash; the read-only home"]
+    DAY(["See the Property's working day<br/>business date, local clock, freshness"])
+    ATT(["See what needs attention<br/>each item opens the record that resolves it"])
+    TILES(["Read four figures for my focus<br/>each opens the filtered list"])
+    MOVE(["See today's movements<br/>arrivals and departures, readiness, balance"])
+    CLEAN(["See which rooms to clean first<br/>arrival today, then leaving today"])
+    OWED(["See who leaves with a balance<br/>and the largest open balances"])
+    ROOMS(["See room readiness by floor"])
+  end
+
+  subgraph S2["slice 2 &mdash; act from it"]
+    CHECKIN(["Check a Guest in from a row<br/>the Arrivals dialog, unchanged"])
+    CHECKOUT(["Check a Guest out from a row<br/>the Departures dialog, unchanged"])
+    MARK(["Mark a room clean or inspected<br/>the board's command, unchanged"])
+  end
+
+  subgraph S3["slice 3 &mdash; manager depth"]
+    FEED(["See recent activity<br/>the audit log's newest records"])
+    CHARGES(["See charges posted today"])
+    ORG(["See every Property I reach<br/>and switch to one"])
+    FORECAST(["See booked occupancy for 14 days"])
+  end
+
+  FD --> DAY & ATT & TILES & MOVE & ROOMS
+  HK --> DAY & ATT & TILES & CLEAN & ROOMS
+  FN --> DAY & ATT & TILES & OWED
+  MG --> DAY & ATT & TILES & MOVE & ROOMS
+  MOVE -. extend .-> CHECKIN & CHECKOUT
+  CLEAN -. extend .-> MARK
+  MG --> FEED & CHARGES & ORG & FORECAST
+
+  %% Deferred, each waiting on its own module: Guest requests, maintenance
+  %% blockers (#61), shift handover and day close (RANZ-26), inventory,
+  %% approvals, integrations, rates and revenue, a customisable layout, and a
+  %% same-day late check-out, which needs a check-out time no Property has yet.
