@@ -35,6 +35,7 @@ export interface PageCrumb {
  */
 export function AppPageBar({
   action,
+  back,
   breadcrumbLabel,
   crumbs = [],
   display = true,
@@ -43,6 +44,8 @@ export function AppPageBar({
 }: {
   /** The page's controls, on the end edge of the bar. */
   action?: ReactNode;
+  /** Back navigation control for inner pages, placed at the leading edge. */
+  back?: ReactNode;
   /** Names the trail's landmark. Localized; required once there are crumbs. */
   breadcrumbLabel?: string | undefined;
   /** The levels above this page, outermost first. Folded away on a phone,
@@ -68,28 +71,31 @@ export function AppPageBar({
 
   return (
     <>
-      <header className="glass-panel mb-6 flex h-16 shrink-0 items-center justify-between gap-4 rounded-2xl ps-4 pe-3 sm:px-6">
-        {crumbs.length > 0 ? (
-          <nav aria-label={breadcrumbLabel} className="min-w-0">
-            <ol className="flex min-w-0 items-center gap-2">
-              {crumbs.map((crumb, index) => (
-                <li
-                  className="hidden min-w-0 items-center gap-2 sm:flex"
-                  key={`${index}-${crumb.label}`}
-                >
-                  <Crumb crumb={crumb} root={index === 0} />
-                  <ChevronRight
-                    aria-hidden="true"
-                    className="size-3 shrink-0 text-muted-foreground/40 rtl:rotate-180"
-                  />
-                </li>
-              ))}
-              <li className="min-w-0">{leaf}</li>
-            </ol>
-          </nav>
-        ) : (
-          <div className="min-w-0">{leaf}</div>
-        )}
+      <header className="glass-panel mb-6 flex h-16 shrink-0 items-center justify-between gap-4 rounded-2xl ps-3 pe-3 sm:ps-4 sm:pe-6">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          {back}
+          {crumbs.length > 0 ? (
+            <nav aria-label={breadcrumbLabel} className="min-w-0">
+              <ol className="flex min-w-0 items-center gap-2">
+                {crumbs.map((crumb, index) => (
+                  <li
+                    className="hidden min-w-0 items-center gap-2 sm:flex"
+                    key={`${index}-${crumb.label}`}
+                  >
+                    <Crumb crumb={crumb} root={index === 0} />
+                    <ChevronRight
+                      aria-hidden="true"
+                      className="size-3 shrink-0 text-muted-foreground/40 rtl:rotate-180"
+                    />
+                  </li>
+                ))}
+                <li className="min-w-0">{leaf}</li>
+              </ol>
+            </nav>
+          ) : (
+            <div className="min-w-0">{leaf}</div>
+          )}
+        </div>
 
         {/* A wrapper of its own: the action is an element serialized from a
             server component, and as one item of a children array React

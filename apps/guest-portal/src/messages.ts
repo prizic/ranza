@@ -18,6 +18,7 @@ export interface Messages {
   skip: string;
   languageLabel: string;
   mainNavigation: string;
+  back: string;
   collapse: string;
   expand: string;
   account: string;
@@ -70,6 +71,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     skip: "İçeriğe geç",
     languageLabel: "Dil",
     mainNavigation: "Ana gezinme",
+    back: "Geri",
     collapse: "Menüyü daralt",
     expand: "Menüyü genişlet",
     account: "Hesap",
@@ -127,6 +129,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     skip: "Skip to content",
     languageLabel: "Language",
     mainNavigation: "Main navigation",
+    back: "Back",
     collapse: "Collapse sidebar",
     expand: "Expand sidebar",
     account: "Account",
@@ -183,6 +186,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     skip: "تخطَّ إلى المحتوى",
     languageLabel: "اللغة",
     mainNavigation: "التنقل الرئيسي",
+    back: "رجوع",
     collapse: "طي القائمة",
     expand: "توسيع القائمة",
     account: "الحساب",

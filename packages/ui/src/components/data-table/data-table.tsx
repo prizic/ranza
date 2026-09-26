@@ -34,6 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
+import { DataTableFacetedChips } from "./faceted-chips";
 import { DataTableFacetedFilter, type FacetOption } from "./faceted-filter";
 import { DataTablePagination, type PaginationLabels } from "./pagination";
 import { DataTableViewOptions } from "./view-options";
@@ -57,6 +58,7 @@ export interface Facet {
   columnId: string;
   title: string;
   options: readonly FacetOption[];
+  variant?: "dropdown" | "chips";
 }
 
 /**
@@ -97,6 +99,7 @@ export function DataTable<TData, TValue>({
   data,
   empty,
   facets = [],
+  facetVariant = "dropdown",
   getRowId,
   initialFilters = [],
   initialHidden = {},
@@ -125,6 +128,11 @@ export function DataTable<TData, TValue>({
   /** Shown when the table has no rows at all, as opposed to no matches. */
   empty?: ReactNode;
   facets?: readonly Facet[];
+  /**
+   * Default presentation for facets in this table: dropdown popover (default)
+   * or multi-select chips in the toolbar. Individual facets can override this.
+   */
+  facetVariant?: "dropdown" | "chips";
   /**
    * A stable id for a row. Selection is keyed by it, so a table whose data is
    * refreshed while rows are ticked keeps the same rows ticked rather than the
@@ -262,17 +270,30 @@ export function DataTable<TData, TValue>({
           </div>
         ) : null}
 
-        {facets.map((facet) =>
-          table.getColumn(facet.columnId) ? (
+        {facets.map((facet) => {
+          const column = table.getColumn(facet.columnId);
+          if (!column) return null;
+          const variant = facet.variant ?? facetVariant;
+          if (variant === "chips") {
+            return (
+              <DataTableFacetedChips
+                column={column}
+                key={facet.columnId}
+                options={facet.options}
+                title={facet.title}
+              />
+            );
+          }
+          return (
             <DataTableFacetedFilter
-              column={table.getColumn(facet.columnId)}
+              column={column}
               key={facet.columnId}
               labels={labels.facet}
               options={facet.options}
               title={facet.title}
             />
-          ) : null,
-        )}
+          );
+        })}
 
         {isFiltered ? (
           <Button

@@ -335,6 +335,13 @@ to any environment-specific name a test reaches for.
   of the workflows that need it.
 - Turkish, English and Arabic with RTL are designed **with** a feature, never
   retrofitted.
+- **All inner pages and detail views carry a back button with proper routing**
+  ([ADR 0035](docs/adr/0035-all-inner-pages-have-a-back-button-with-proper-routing.md)).
+  The workspace root (`Today`) has no back button; every other destination or
+  drill-down view renders a back control at the leading edge of `AppPageBar` that
+  returns to the previous in-app destination, safely falls back to the parent route
+  (preserving the active Property query) on direct entry, and mirrors directionally
+  in RTL.
 - Do not invent modules, pricing rules, legal policies or integrations that no
   approved specification covers.
 - Prizic Control Plane permissions and Organization staff permissions are

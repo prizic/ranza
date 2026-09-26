@@ -89,17 +89,22 @@ export function Fact({
  */
 export function Field({
   children,
+  className,
+  hint,
   htmlFor,
   label,
 }: {
   children: ReactNode;
+  className?: string;
+  hint?: ReactNode;
   htmlFor: string;
   label: string;
 }) {
   return (
-    <div className="grid gap-1.5">
+    <div className={cn("grid content-start gap-1.5", className)}>
       <Label htmlFor={htmlFor}>{label}</Label>
       {children}
+      {hint}
     </div>
   );
 }

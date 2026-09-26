@@ -208,4 +208,69 @@ describe("the housekeeping board", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByRole("row", { name: /101/ })).toHaveTextContent("Dirty");
   });
+
+  it("filters rooms with multi-select status chips", () => {
+    const rooms = [
+      room({
+        unitId: "dd000004-0000-4000-8000-000000000001",
+        name: "101",
+        status: "dirty",
+      }),
+      room({
+        unitId: "dd000004-0000-4000-8000-000000000002",
+        name: "102",
+        status: "clean",
+        ready: true,
+      }),
+      room({
+        unitId: "dd000004-0000-4000-8000-000000000003",
+        name: "103",
+        status: "inspected",
+        ready: true,
+      }),
+    ];
+    show(boardOf(rooms, true));
+
+    expect(screen.getByRole("row", { name: /101/ })).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /102/ })).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /103/ })).toBeInTheDocument();
+
+    const cleanChip = screen.getByRole("button", { name: /^Clean/ });
+    const dirtyChip = screen.getByRole("button", { name: /^Dirty/ });
+    const inspectedChip = screen.getByRole("button", { name: /^Inspected/ });
+
+    expect(cleanChip).toHaveAttribute("aria-pressed", "false");
+    expect(dirtyChip).toHaveAttribute("aria-pressed", "false");
+    expect(inspectedChip).toHaveAttribute("aria-pressed", "false");
+
+    // Click Clean chip -> only clean room (102) is shown
+    fireEvent.click(cleanChip);
+    expect(cleanChip).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("row", { name: /101/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /102/ })).toBeInTheDocument();
+    expect(screen.queryByRole("row", { name: /103/ })).not.toBeInTheDocument();
+
+    // Multi-select: Click Dirty chip as well -> both Clean (102) and Dirty (101) shown
+    fireEvent.click(dirtyChip);
+    expect(cleanChip).toHaveAttribute("aria-pressed", "true");
+    expect(dirtyChip).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("row", { name: /101/ })).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /102/ })).toBeInTheDocument();
+    expect(screen.queryByRole("row", { name: /103/ })).not.toBeInTheDocument();
+
+    // Unclick Clean chip -> only Dirty (101) shown
+    fireEvent.click(cleanChip);
+    expect(cleanChip).toHaveAttribute("aria-pressed", "false");
+    expect(dirtyChip).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("row", { name: /101/ })).toBeInTheDocument();
+    expect(screen.queryByRole("row", { name: /102/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("row", { name: /103/ })).not.toBeInTheDocument();
+
+    // Clear filters button resets all chips
+    fireEvent.click(screen.getByRole("button", { name: /Clear filters/i }));
+    expect(dirtyChip).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("row", { name: /101/ })).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /102/ })).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /103/ })).toBeInTheDocument();
+  });
 });

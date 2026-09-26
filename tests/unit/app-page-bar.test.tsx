@@ -70,4 +70,18 @@ describe("AppPageBar", () => {
     const trail = screen.getByRole("navigation", { name: "Breadcrumb" });
     expect(trail.querySelector("a")?.getAttribute("href")).toBe("/en/today");
   });
+
+  it("renders a leading back button when provided for inner pages", () => {
+    render(
+      <AppPageBar
+        back={<a href="/en/today">Back</a>}
+        breadcrumbLabel="Breadcrumb"
+        crumbs={crumbs}
+        title="Audit log"
+      />,
+    );
+    const back = screen.getByRole("link", { name: "Back" });
+    expect(back).toBeDefined();
+    expect(back.closest("header")).not.toBeNull();
+  });
 });

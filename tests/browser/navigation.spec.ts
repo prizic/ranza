@@ -95,3 +95,28 @@ test("a session ended while the workspace is open goes to sign in on the next pa
     page.getByRole("heading", { name: messages.en.welcomeBack }),
   ).toBeVisible();
 });
+
+test("inner pages have a back button in the header bar with proper routing", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  await signIn(page);
+  await page.goto(`/en/today?property=${propertyId}`);
+  await settled(page);
+
+  // Today is the workspace root: no back button in header
+  await expect(page.locator('header a[aria-label="Back"]')).toHaveCount(0);
+
+  // Navigate to an inner page (audit log)
+  await page.goto(`/en/audit-log?property=${propertyId}`);
+  await settled(page);
+
+  // Audit log has back button in header
+  const backButton = page.locator('header a[aria-label="Back"]');
+  await expect(backButton).toBeVisible();
+
+  // Clicking back returns to Today preserving the active property
+  await backButton.click();
+  await settled(page);
+  await expect(page).toHaveURL(`/en/today?property=${propertyId}`);
+});
