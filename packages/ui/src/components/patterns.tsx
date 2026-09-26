@@ -17,6 +17,11 @@ import { Label } from "./ui/label";
  * The heading itself is the page's own: Today sets a weekday in display type
  * and Security sets a line of running text, and a shared component that tried
  * to size both would end up with a variant per page.
+ *
+ * That heading starts at `h2`. The page bar above it (`AppPageBar`) already
+ * renders the route's one `h1` — as the large title under the bar, or as the
+ * breadcrumb's last crumb when the page opens with display type of its own
+ * (`display={false}`) — so a caller that puts an `h1` in here doubles it.
  */
 export function PageHeader({
   aside,
