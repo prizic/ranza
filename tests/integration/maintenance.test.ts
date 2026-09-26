@@ -693,6 +693,30 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
     expect(await statusOf(TWICE_HELD_ROOM)).toBe("available");
   });
 
+  it("out_of_order_counts_each_unit_once (MT-S2-32)", async () => {
+    const first = await report(DESK, TWICE_HELD_ROOM, {
+      outOfOrder: { acknowledged: true },
+    });
+    const second = await report(DESK, TWICE_HELD_ROOM, {
+      outOfOrder: { acknowledged: true },
+    });
+    try {
+      const board = await maintenance.board(MANAGER, PROPERTY);
+      const held = board.requests.filter((card) => card.hold !== null);
+      // The two diverge only when one room is held twice: make sure it is.
+      expect(
+        held.filter((card) => card.unit?.unitId === TWICE_HELD_ROOM),
+      ).toHaveLength(2);
+      expect(board.counts.outOfOrder).toBe(
+        new Set(held.map((card) => card.unit?.unitId)).size,
+      );
+      expect(board.counts.outOfOrder).toBeLessThan(held.length);
+    } finally {
+      await maintenance.returnToService(DESK, { requestId: first.requestId });
+      await maintenance.returnToService(DESK, { requestId: second.requestId });
+    }
+  });
+
   it("says so when a done request lets go and another still holds the room (MT-S2-11)", async () => {
     const first = await report(DESK, TWICE_HELD_ROOM, {
       outOfOrder: { acknowledged: true },

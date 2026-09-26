@@ -40,6 +40,7 @@ import {
   type RoomsMaintenance,
   type SettingOverrides,
   type SettingValues,
+  type TodayMaintenance,
   type UnitHold,
 } from "./contracts";
 import { createEquipmentCommands, recordServiceWithin } from "./equipment";
@@ -199,10 +200,13 @@ function countsOf(cards: readonly MaintenanceRequestCard[]): MaintenanceCounts {
     cancelled: 0,
     outOfOrder: 0,
   };
+  // Units, not holds: a room two requests hold is one room out (MT-S2-32).
+  const held = new Set<string>();
   for (const card of cards) {
     counts[card.status] += 1;
-    if (card.hold !== null) counts.outOfOrder += 1;
+    if (card.hold !== null && card.unit !== null) held.add(card.unit.unitId);
   }
+  counts.outOfOrder = held.size;
   return counts;
 }
 
@@ -1183,6 +1187,156 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
   }
 
   /**
+   * What Today shows of maintenance (TD-S4-01 to TD-S4-04): open requests by
+   * state, the Units held out of order, the open urgent requests and every
+   * hold. Empty and zero where maintenance is not available.
+   *
+   * The capability is asked here, in the first statement, and nowhere else:
+   * the row policies check reach only, so without it a Property whose
+   * maintenance was switched off would still show its requests. Nothing about
+   * money, vendors or people is selected — Today is read by roles the board
+   * would not show those to.
+   */
+  async function todayView(
+    userId: string,
+    propertyId: string,
+  ): Promise<TodayMaintenance> {
+    return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      const [scope] = await tx.$queryRaw<
+        {
+          new: number;
+          inProgress: number;
+          waitingForParts: number;
+          outOfOrder: number;
+        }[]
+      >`
+        select count(*) filter (where request.status = 'new')::int as new,
+               count(*) filter (where request.status = 'in_progress')::int
+                                                                  as "inProgress",
+               count(*) filter (where request.status = 'waiting_for_parts')::int
+                                                                  as "waitingForParts",
+               (select count(distinct held.accommodation_unit_id)::int
+                  from public.maintenance_unit_holds as hold
+                  join public.maintenance_requests as held
+                    on held.id = hold.request_id
+                 where hold.property_id = property.id
+                   and hold.returned_at is null)                  as "outOfOrder"
+          from public.properties as property
+          left join public.maintenance_requests as request
+            on request.property_id = property.id
+           and request.status in ('new', 'in_progress', 'waiting_for_parts')
+         where property.id = ${propertyId}::uuid
+           and app.can_use_capability(
+                 property.id,
+                 ${MAINTENANCE_CAPABILITY.moduleKey},
+                 ${MAINTENANCE_CAPABILITY.capabilityKey})
+         group by property.id
+      `;
+      if (!scope) {
+        return {
+          open: { new: 0, in_progress: 0, waiting_for_parts: 0 },
+          outOfOrder: 0,
+          urgent: [],
+          holds: [],
+        };
+      }
+
+      const rows = await tx.$queryRaw<
+        {
+          requestId: string;
+          number: number;
+          title: string;
+          status: RequestStatus;
+          priority: Priority;
+          unitId: string | null;
+          unitName: string | null;
+          roomName: string | null;
+          equipmentId: string | null;
+          equipmentName: string | null;
+          holding: boolean;
+          expectedBackOn: string | null;
+        }[]
+      >`
+        select request.id          as "requestId",
+               request.number,
+               request.title,
+               request.status,
+               request.priority,
+               unit.id             as "unitId",
+               unit.name           as "unitName",
+               room.name           as "roomName",
+               equipment.id        as "equipmentId",
+               equipment.name      as "equipmentName",
+               hold.request_id is not null as holding,
+               to_char(hold.expected_back_on, 'YYYY-MM-DD') as "expectedBackOn"
+          from public.maintenance_requests as request
+          left join public.accommodation_units as unit
+            on unit.id = request.accommodation_unit_id
+          left join public.accommodation_units as room
+            on room.id = unit.parent_id
+          left join public.maintenance_equipment as equipment
+            on equipment.id = request.equipment_id
+          left join public.maintenance_unit_holds as hold
+            on hold.request_id = request.id
+           and hold.returned_at is null
+         where request.property_id = ${propertyId}::uuid
+           and ((request.priority = 'urgent'
+                 and request.status not in ('done', 'cancelled'))
+                or hold.request_id is not null)
+         order by request.reported_at, request.number
+      `;
+
+      const unitOf = (row: (typeof rows)[number]) =>
+        row.unitId === null || row.unitName === null
+          ? null
+          : { unitId: row.unitId, name: row.unitName, roomName: row.roomName };
+      const urgent = rows
+        .filter(
+          (row) =>
+            row.priority === "urgent" &&
+            row.status !== "done" &&
+            row.status !== "cancelled",
+        )
+        .map((row) => ({
+          requestId: row.requestId,
+          number: row.number,
+          title: row.title,
+          unit: unitOf(row),
+          equipment:
+            row.equipmentId === null || row.equipmentName === null
+              ? null
+              : { equipmentId: row.equipmentId, name: row.equipmentName },
+        }));
+      const holds = rows.flatMap((row) => {
+        const unit = unitOf(row);
+        if (!row.holding || unit === null) return [];
+        return [
+          {
+            unitId: unit.unitId,
+            requestId: row.requestId,
+            number: row.number,
+            title: row.title,
+            status: row.status,
+            unit,
+            expectedBackOn: row.expectedBackOn,
+          },
+        ];
+      });
+
+      return {
+        open: {
+          new: scope.new,
+          in_progress: scope.inProgress,
+          waiting_for_parts: scope.waitingForParts,
+        },
+        outOfOrder: scope.outOfOrder,
+        urgent,
+        holds,
+      };
+    });
+  }
+
+  /**
    * What a Property's Maintenance setting says and inherits, and whether the
    * reader may change it. Null where there is nothing to configure.
    */
@@ -1401,6 +1555,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
     takeOutOfOrder,
     returnToService,
     roomsView,
+    todayView,
     settings,
     setPropertySettings,
     setOrganizationSettings,

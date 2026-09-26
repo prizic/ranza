@@ -547,6 +547,7 @@ export async function todaySummary(
       frontDesk: FRONT_DESK_CAPABILITY,
       housekeeping: HOUSEKEEPING_CAPABILITY,
       billing: FOLIO_CAPABILITY,
+      maintenance: MAINTENANCE_CAPABILITY,
     },
     (section, error) =>
       console.error("today.section_failed", {
