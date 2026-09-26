@@ -1,0 +1,49 @@
+{
+  "label": "before",
+  "role": "front_desk",
+  "property": ["0a7697b5-c1cf-4360-b5d6-f1dedb8dddfe", "Deniz Otel Kadıköy"],
+  "beforeGrant": {
+    "url": "/en/today",
+    "main": "You are not assigned to a Property yet A manager in your Organization assigns you to a Property, and it appears here."
+  },
+  "rail": [
+    "/en/today",
+    "/en/guest-experience",
+    "/en/housekeeping",
+    "/en/food-and-beverage",
+    "/en/inventory",
+    "/en/finance",
+    "/en/people",
+    "/en/analytics",
+    "/en/configuration",
+    "/en/audit-log"
+  ],
+  "clicks": [
+    {
+      "segment": "finance",
+      "inRail": true,
+      "url": "/en/finance",
+      "documentRequests": 1,
+      "sameDocument": false
+    },
+    {
+      "segment": "people",
+      "inRail": true,
+      "url": "/en/people",
+      "documentRequests": 1,
+      "sameDocument": false
+    },
+    {
+      "segment": "today",
+      "inRail": true,
+      "url": "/en/today",
+      "documentRequests": 1,
+      "sameDocument": false
+    }
+  ],
+  "auditDirect": {
+    "url": "/en/audit-log?property=0a7697b5-c1cf-4360-b5d6-f1dedb8dddfe",
+    "main": "Recent actions at Deniz Otelleri What Columns Audit log When What Who Why Sep 24, 2026, 18:20 Staff Member invited Membership df7c3583 c7bda1b3 No reason required Sep 24, 2026, 18:20 Staff Member invi",
+    "rowLinks": 10
+  }
+}

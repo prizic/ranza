@@ -1,0 +1,63 @@
+%% Slices decide implementation order and nothing else:
+%%   s1 a Property's own settings: name, currency, timezone, business-day cutoff
+%%   s2 the Organization's own settings: its name
+%%   s3 the page: one place for every setting that exists, read-only for readers
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% UML directions: include points base --> included. extend points extension --> base.
+%% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
+%%
+%% Only facts that already exist as columns are edited here. Blueprint 13 forbids
+%% building a table ahead of the workflow that needs it, so Feature Configuration
+%% at department or outlet scope is not in this feature (CF-DEF-*).
+%%
+%% Rooms and beds, and staff and roles, have their own screens and their own
+%% permissions. Configuration links to them rather than repeating them, so a
+%% setting has one home.
+flowchart TD
+
+  ORGADMIN["Staff Member holding configuration.manage<br/>with Organization-wide reach"]
+  PROPADMIN["Staff Member holding configuration.manage<br/>with reach to one Property"]
+  READER["Staff Member reaching the Property<br/>without the permission"]
+
+  subgraph S1["slice 1 &mdash; the Property's settings"]
+    PNAME(["Rename the Property"])
+    PCUR(["Set the Property's currency<br/>until its first Folio is opened"])
+    PTZ(["Set the Property's timezone"])
+    PCUT(["Set when its business day ends<br/>between 03:00 and 12:00"])
+    PREVIEW(["See the business date the change would make<br/>before saving"])
+  end
+
+  subgraph S2["slice 2 &mdash; the Organization's settings"]
+    ONAME(["Rename the Organization"])
+  end
+
+  subgraph S3["slice 3 &mdash; one page"]
+    READ(["Read every setting that applies here"])
+    INSPECT(["Set whether rooms are inspected after cleaning<br/>the Housekeeping setting, shown here too"])
+    MODULES(["See what is switched on at this Property"])
+    ROOMS(["Go to Rooms to add rooms and beds"])
+    PEOPLE(["Go to People for staff and roles"])
+  end
+
+  subgraph OUT["Not this feature"]
+    LOCALE(["The Organization's default language &mdash; deferred: nothing reads it yet"])
+    TOGGLE(["Switch a capability on or off at a Property &mdash; deferred"])
+    SCOPED(["Values at department or outlet scope &mdash; deferred"])
+    NEWPROP(["Add or retire a Property &mdash; deferred"])
+  end
+
+  ORGADMIN --> ONAME
+  ORGADMIN --> PNAME
+  PROPADMIN --> PNAME
+  PROPADMIN --> PCUR
+  PROPADMIN --> PTZ
+  PROPADMIN --> PCUT
+  PTZ -. include .-> PREVIEW
+  PCUT -. include .-> PREVIEW
+  READER --> READ
+  PROPADMIN --> READ
+  PROPADMIN --> INSPECT
+  PROPADMIN --> MODULES
+  READ -. include .-> MODULES
+  ROOMS -. extend .-> READ
+  PEOPLE -. extend .-> READ

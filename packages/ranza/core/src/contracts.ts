@@ -95,3 +95,126 @@ export interface CapabilityProperties {
   capability: CapabilityRef;
   properties: EntitledProperty[];
 }
+
+/**
+ * Configuration (blueprint 5.1): Platform Core's own screen. Every Organization
+ * holds Platform Core, so this capability is the switch a Property turns it on
+ * with, not something an Organization buys separately (ADR 0036).
+ */
+export const CONFIGURATION_CAPABILITY: CapabilityRef = {
+  moduleKey: PLATFORM_CORE_MODULE,
+  capabilityKey: "configuration",
+};
+
+/**
+ * Changing a Property's settings or the Organization's name. The shipped Owner
+ * and Manager roles hold it; reach decides which rows (ADR 0036).
+ */
+export const CONFIGURATION_MANAGE_PERMISSION = "configuration.manage";
+
+/** The settings a form may change, and the only names a refusal points at. */
+export type ConfigurationField =
+  "name" | "timezone" | "currency" | "businessDateCutoff" | "organizationName";
+
+/**
+ * A Property's settings as the screen shows them, with the versions a save
+ * names to prove it was made against what is there now.
+ *
+ * A version is the row's stamp as ISO text to the microsecond. Never a `Date`:
+ * a JavaScript date keeps milliseconds, so a version that went through one
+ * would never match again and every save would read as stale.
+ */
+export interface PropertySettings {
+  propertyId: string;
+  name: string;
+  timezone: string;
+  currency: string;
+  /** `HH:MM`, local to the Property. */
+  businessDateCutoff: string;
+  version: string;
+  /** The business date at this Property now, `YYYY-MM-DD`. */
+  businessDate: string;
+  /** A Folio has been opened here, so the currency is fixed (CF-S1-04). */
+  currencyFixed: boolean;
+  mayConfigure: boolean;
+  organization: {
+    organizationId: string;
+    name: string;
+    version: string;
+    /** The permission and reach to every Property (CF-S2-02). */
+    mayRename: boolean;
+  };
+}
+
+export interface PropertySettingsInput {
+  name: string;
+  timezone: string;
+  currency: string;
+  businessDateCutoff: string;
+  version: string;
+}
+
+export interface OrganizationNameInput {
+  name: string;
+  version: string;
+}
+
+/** `unchanged` when the save named what was already there: nothing recorded. */
+export interface SettingsSaved {
+  status: "saved" | "unchanged";
+  version: string;
+}
+
+/** The business date now, and the one a changed timezone or cutoff would make. */
+export interface BusinessDatePreview {
+  current: string;
+  /** Null for a timezone Postgres does not know. */
+  proposed: string | null;
+}
+
+/** A value the settings cannot hold; `field` is null when the database said so without naming one. */
+export class ConfigurationInputError extends Error {
+  constructor(readonly field: ConfigurationField | null) {
+    super(field ? `invalid ${field}` : "invalid settings");
+    this.name = "ConfigurationInputError";
+  }
+}
+
+/**
+ * Nothing was changed. One refusal for every reason — out of reach, another
+ * Organization, no permission, a lapsed Subscription — so a refusal cannot be
+ * told from a Property that does not exist.
+ */
+export class ConfigurationRefusedError extends Error {
+  constructor() {
+    super("those settings cannot be changed");
+    this.name = "ConfigurationRefusedError";
+  }
+}
+
+/** Somebody saved since the form was read; `current` is what is there now (CF-S1-16). */
+export class ConfigurationStaleError extends Error {
+  constructor(readonly current: PropertySettings) {
+    super("the settings changed since they were read");
+    this.name = "ConfigurationStaleError";
+  }
+}
+
+/**
+ * The change would make today a business day that is already closed, which
+ * close the day forbids (ADR 0034, CF-S1-21).
+ */
+export class ConfigurationClosedDayError extends Error {
+  constructor() {
+    super("today would become a business day that is already closed");
+    this.name = "ConfigurationClosedDayError";
+  }
+}
+
+/** The Property has a Folio, so its currency stays (CF-S1-04). */
+export class ConfigurationCurrencyFixedError extends Error {
+  constructor() {
+    super("the currency is fixed by the first Folio");
+    this.name = "ConfigurationCurrencyFixedError";
+  }
+}

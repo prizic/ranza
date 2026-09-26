@@ -231,7 +231,7 @@ export const SCREENS: Screen[] = [
     module: "platform_core",
     icon: Settings,
     blueprint: "5.1",
-    built: false,
+    built: true,
     section: "system",
   },
   {
