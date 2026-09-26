@@ -6,15 +6,16 @@
 // Read straight from git, so nothing is checked out or copied. A branch whose
 // tip is already in HEAD has nothing to add and is skipped. When several
 // branches carry the same table — stacked branches, a stale copy, a local
-// branch ahead of what it pushed — they are ranked by when each last changed
-// it, and a lower-ranked branch contributes only rows it did not inherit from
-// history it shares with a higher-ranked one. Its copy of a row the newer
-// branch has since renumbered or deleted is that shared history, not a
-// decision of its own, so it stays out; a row it added itself still shows.
+// branch ahead of what it pushed — a branch's copy of a row is dropped when it
+// is only what it shares with another branch, which has since changed or
+// deleted that row. Whichever of the two ranks higher, the one that moved the
+// row on is the one that decided something; the other is carrying history.
+// What survives is ranked by when each branch last changed the table, and the
+// higher-ranked version of a row wins.
 //
-// A branch has passed none of this tree's checks, so a table in another shape
-// or a word the page has no label for is warned about and left out rather
-// than allowed to stop the page from rendering.
+// A branch has passed none of this tree's checks, so a table in another shape,
+// a row of the wrong width or a word the page has no label for is warned
+// about and left out rather than allowed to stop the page from rendering.
 import { execFileSync } from "node:child_process";
 import { parseCsv } from "./csv.mjs";
 import { ENFORCED_AR, HEADER, hasKind } from "./decisions-vocabulary.mjs";
@@ -92,16 +93,26 @@ function featureFiles(root, commit) {
   return files;
 }
 
+// null when the table cannot be read at all, which is different from a table
+// that has no rows: an empty table is a branch deleting them.
 function rowsOf(csv, where) {
   const [header = [], ...rows] = parseCsv(csv);
   if (header.join(",") !== HEADER.join(",")) {
     console.warn(
       `${where}: header is not "${HEADER.join(",")}", table left out`,
     );
-    return [];
+    return null;
   }
   return rows
-    .filter((cells) => cells.length === header.length)
+    .filter((cells) => {
+      const fits = cells.length === header.length;
+      if (!fits) {
+        console.warn(
+          `${where}: ${cells[0]} has ${cells.length} fields, not ${header.length}; row left out`,
+        );
+      }
+      return fits;
+    })
     .map((cells) => Object.fromEntries(header.map((key, i) => [key, cells[i]])))
     .filter((row) => {
       const known = hasKind(row.status) && row.enforced_by in ENFORCED_AR;
@@ -184,17 +195,32 @@ function sameRow(a, b) {
 }
 
 function byId(csv, where) {
-  return new Map(
-    csv === null ? [] : rowsOf(csv, where).map((row) => [row.id, row]),
-  );
+  if (csv === null) return new Map();
+  const rows = rowsOf(csv, where);
+  return rows && new Map(rows.map((row) => [row.id, row]));
 }
 
-// The table as it stood at `commit`, read for comparison rather than display.
-function tableAt(root, commit, slug) {
-  return byId(
-    commit && fileAt(root, commit, tablePath(slug)),
-    `${tablePath(slug)} at ${commit?.slice(0, 7)}`,
-  );
+// One feature's table at any commit, read once however many comparisons ask
+// for it, so a malformed table is warned about once. `where` names it in that
+// warning; a branch's own table is read first, so the warning names the branch.
+function tableReader(root, slug) {
+  const read = new Map();
+  return (commit, where = `${tablePath(slug)} at ${commit?.slice(0, 7)}`) => {
+    if (commit === null) return new Map();
+    if (!read.has(commit)) {
+      read.set(commit, byId(fileAt(root, commit, tablePath(slug)), where));
+    }
+    return read.get(commit);
+  };
+}
+
+// `row` is the copy `base` handed a branch, and `theirs` — the other branch's
+// table — has since changed or deleted it.
+function movedOnFrom(row, base, theirs) {
+  const was = base?.get(row.id);
+  if (!was || !sameRow(was, row)) return false;
+  const now = theirs.get(row.id);
+  return !now || !sameRow(now, was);
 }
 
 // The branch's own Arabic, when it has any; rows are still matched by hash,
@@ -218,15 +244,10 @@ function arabicAt(root, ref, slug) {
 // then. Comparing with HEAD alone would show a stale branch's copy of a row
 // HEAD has since removed as a new decision, and would never show a row the
 // branch changed.
-function branchDecisions(root, slug, ref, headRows) {
-  const baseRows = tableAt(root, mergeBase(root, "HEAD", ref.commit), slug);
+function branchDecisions(ref, own, baseRows, headRows) {
   const decisions = [];
-  const own = byId(
-    fileAt(root, ref.commit, tablePath(slug)),
-    `${ref.name}: ${tablePath(slug)}`,
-  );
-  for (const row of own.values()) {
-    const before = baseRows.get(row.id);
+  for (const row of own?.values() ?? []) {
+    const before = baseRows?.get(row.id);
     const now = headRows.get(row.id);
     if (before && sameRow(before, row)) continue;
     if (now && sameRow(now, row)) continue;
@@ -258,21 +279,37 @@ export function readBranchFeatures(root, current, readNotes) {
     const headRows = new Map(
       (existing?.rows ?? []).map((row) => [row.id, row]),
     );
+    const tableAt = tableReader(root, slug);
+    const tables = ranked.map(({ ref }) =>
+      tableAt(ref.commit, `${ref.name}: ${tablePath(slug)}`),
+    );
     const decided = new Map();
     ranked.forEach(({ ref }, rank) => {
-      // What this branch shares with each branch ranked above it: a row it
-      // carries unchanged from there is theirs to keep, renumber or delete.
-      const inherited = ranked
-        .slice(0, rank)
-        .map((above) =>
-          tableAt(root, mergeBase(root, above.ref.commit, ref.commit), slug),
-        );
-      for (const row of branchDecisions(root, slug, ref, headRows)) {
+      // Against every other branch, higher or lower ranked: the shared history
+      // with each, and what that branch has done to it since. A branch whose
+      // table cannot be read has done nothing this can see.
+      const others = ranked.flatMap((other, i) =>
+        i === rank || tables[i] === null
+          ? []
+          : [
+              {
+                base: tableAt(mergeBase(root, other.ref.commit, ref.commit)),
+                theirs: tables[i],
+              },
+            ],
+      );
+      const baseRows = tableAt(mergeBase(root, "HEAD", ref.commit));
+      for (const row of branchDecisions(
+        ref,
+        tables[rank],
+        baseRows,
+        headRows,
+      )) {
         if (decided.has(row.id)) continue;
-        const shared = inherited.some(
-          (rows) => rows.has(row.id) && sameRow(rows.get(row.id), row),
+        const carried = others.some(({ base, theirs }) =>
+          movedOnFrom(row, base, theirs),
         );
-        if (!shared) decided.set(row.id, row);
+        if (!carried) decided.set(row.id, row);
       }
     });
     if (decided.size === 0) continue;

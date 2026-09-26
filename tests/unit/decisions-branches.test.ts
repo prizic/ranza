@@ -23,6 +23,21 @@ const isolated = {
   GIT_CONFIG_NOSYSTEM: "1",
 };
 
+// The code under test runs git with process.env, so the same variables are
+// taken out of it for as long as these suites run and put back afterwards.
+const removed = new Map<string, string | undefined>();
+beforeAll(() => {
+  for (const key of Object.keys(process.env).filter((k) =>
+    k.startsWith("GIT_"),
+  )) {
+    removed.set(key, process.env[key]);
+    delete process.env[key];
+  }
+});
+afterAll(() => {
+  for (const [key, value] of removed) process.env[key] = value;
+});
+
 // A throwaway repository. Commits can be dated, because a table's owner is
 // chosen by when each branch last changed it and commits made in the same
 // second would tie.
@@ -224,6 +239,47 @@ describe("rows a newer branch removed", () => {
       "drop FO-S1-02",
       "2026-09-03T10:00:00Z",
     );
+
+    // feat/housekeeping is merged into feat/rooms, then keeps working after
+    // it: it deletes HK-S1-01 and approves HK-S1-02. feat/rooms edits only
+    // HK-S1-03 and so ranks first, still carrying the other two as they were
+    // when it merged them.
+    const housekeeping = (...rows: string[]) => ({
+      "docs/features/housekeeping/edge-cases.csv": [HEADER, ...rows].join("\n"),
+    });
+    git("checkout", "-q", "main");
+    git("checkout", "-q", "-b", "feat/housekeeping");
+    commit(
+      housekeeping(
+        "HK-S1-01,s,g,w,t,module,a_test,approved",
+        "HK-S1-02,s,g,w,t,module,a_test,open",
+        "HK-S1-03,s,g,w,t,module,a_test,approved",
+      ),
+      "housekeeping",
+      "2026-09-02T10:00:00Z",
+    );
+    git("checkout", "-q", "main");
+    git("checkout", "-q", "-b", "feat/rooms");
+    git("merge", "-q", "--no-ff", "feat/housekeeping", "-m", "merge");
+    git("checkout", "-q", "feat/housekeeping");
+    commit(
+      housekeeping(
+        "HK-S1-02,s,g,w,t,module,a_test,approved",
+        "HK-S1-03,s,g,w,t,module,a_test,approved",
+      ),
+      "drop HK-S1-01, approve HK-S1-02",
+      "2026-09-03T10:00:00Z",
+    );
+    git("checkout", "-q", "feat/rooms");
+    commit(
+      housekeeping(
+        "HK-S1-01,s,g,w,t,module,a_test,approved",
+        "HK-S1-02,s,g,w,t,module,a_test,open",
+        "HK-S1-03,s,g,w,t,module,a_test,proposed",
+      ),
+      "propose HK-S1-03 again",
+      "2026-09-04T10:00:00Z",
+    );
     git("checkout", "-q", "main");
   });
 
@@ -237,6 +293,17 @@ describe("rows a newer branch removed", () => {
       "MT-S2-01",
     ]);
     expect(ids(found)).not.toContain("MT-S1-02");
+  });
+
+  it("keeps a delete or a change made after another branch merged the row", () => {
+    const found = readBranchFeatures(repo, [], readNotes);
+    const rows = found.find((f) => f.slug === "housekeeping")?.rows ?? [];
+    expect(
+      rows.map((row) => [row.id, row.status, row.ref.name]).sort(),
+    ).toEqual([
+      ["HK-S1-02", "approved", "feat/housekeeping"],
+      ["HK-S1-03", "proposed", "feat/rooms"],
+    ]);
   });
 
   it("does not bring back a row a local branch deleted after it was pushed", () => {
@@ -269,6 +336,7 @@ describe("a branch with a table this cannot read", () => {
           "BW-S1-01,s,g,w,t,module,a_test,done",
           "BW-S1-02,s,g,w,t,by_hand,a_test,approved",
           "BW-S1-03,s,g,w,t,module,a_test,approved",
+          "BW-S1-04,s,g,w,t,module,approved",
         ].join("\n"),
         "docs/decisions/ar/bad-words.json": "{ not json",
       },
@@ -298,6 +366,9 @@ describe("a branch with a table this cannot read", () => {
       expect(warnings.some((w) => w.includes("feat/bad-header"))).toBe(true);
       expect(warnings.some((w) => w.includes("BW-S1-01"))).toBe(true);
       expect(warnings.some((w) => w.includes("BW-S1-02"))).toBe(true);
+      expect(
+        warnings.some((w) => w.includes("BW-S1-04 has 7 fields, not 8")),
+      ).toBe(true);
       expect(warnings.some((w) => w.includes("bad-words.json"))).toBe(true);
     } finally {
       warn.mockRestore();

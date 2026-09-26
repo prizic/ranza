@@ -1,8 +1,9 @@
 // The words an edge-case table may use, as the decision register reads them.
 // Shared by the register and the branch reader so that a row read off a branch
 // is held to the same vocabulary the page renders — a word the page has no
-// label for is a row it cannot draw. edge-cases-check.mjs is the gate that
-// keeps the tables on this tree inside it; a branch has passed no such gate.
+// label for is a row it cannot draw. edge-cases-check.mjs builds its gate from
+// these same words, so the tables on this tree cannot drift outside them; a
+// branch has passed no such gate, which is why the branch reader checks again.
 export const HEADER = [
   "id",
   "situation",

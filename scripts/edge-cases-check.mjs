@@ -16,37 +16,15 @@ import { readdirSync, readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseCsv } from "./csv.mjs";
+import { ENFORCED_AR, HEADER, STATUS_AR } from "./decisions-vocabulary.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-const HEADER = [
-  "id",
-  "situation",
-  "given",
-  "when",
-  "then",
-  "enforced_by",
-  "test_name",
-  "status",
-];
-const ENFORCED_BY = new Set([
-  "database_constraint",
-  "policy",
-  "trigger",
-  "module",
-  "ui_only",
-  "database_function",
-]);
-const STATUS = new Set([
-  "open",
-  "approved",
-  "deferred",
-  "out_of_scope",
-  "prerequisite_missing",
-  "current_behaviour_differs",
-  "resolved",
-  "proposed",
-]);
+// The vocabulary is the decision register's too: a word allowed here that the
+// register has no label for would pass this gate and then break that page.
+const ENFORCED_BY = new Set(Object.keys(ENFORCED_AR));
+const STATUS = new Set(Object.keys(STATUS_AR));
+
 // CO-S1-04, AL-DIFF-01, CO-NB-10, IG-01 — or PRE-06, which names what another
 // feature owes this one and so carries no feature prefix.
 const ID = /^(?:[A-Z]+(?:-(?:S\d+|NB|DIFF|DEF))?|PRE)-\d+$/;
