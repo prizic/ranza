@@ -92,7 +92,7 @@ export function CleanFirstCard({
                   >
                     <span className="min-w-24 flex-1">
                       <span className="block font-semibold tabular-nums">
-                        {row.name}
+                        <bdi>{row.name}</bdi>
                       </span>
                       <span className="block text-xs text-muted-foreground">
                         {row.floor === null

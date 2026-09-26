@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { SupportedLocale } from "@ranza/i18n";
+import { formatNumber, type SupportedLocale } from "@ranza/i18n";
 import { cn } from "@ranza/ui";
 import type { RoomsCard as Rooms, Section } from "../../../server/today-derive";
 import { todayHref } from "../links";
@@ -49,13 +49,19 @@ export function RoomsCard({
       {rooms.status === "unavailable" ? (
         <SectionUnavailable onRetry={onRetry} />
       ) : (
-        <Breakdown rooms={rooms.data} />
+        <Breakdown locale={locale} rooms={rooms.data} />
       )}
     </section>
   );
 }
 
-function Breakdown({ rooms }: { rooms: Rooms }) {
+function Breakdown({
+  locale,
+  rooms,
+}: {
+  locale: SupportedLocale;
+  rooms: Rooms;
+}) {
   const t = useTranslations("dashboard");
   const parts = [
     { key: "ready", count: rooms.ready, swatch: "bg-success" },
@@ -106,7 +112,10 @@ function Breakdown({ rooms }: { rooms: Rooms }) {
                     : t("floor", { floor: floor.floor })}
                 </span>
                 <span className="tabular-nums">
-                  {t("floorReady", { count: floor.ready, of: floor.total })}
+                  {t("floorReady", {
+                    count: formatNumber(floor.ready, locale),
+                    of: formatNumber(floor.total, locale),
+                  })}
                 </span>
               </div>
               <div

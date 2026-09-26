@@ -186,7 +186,13 @@ export function AttentionQueue({
                   tone={kind.tone}
                 />
                 <span className="font-semibold">
-                  {item.guestName ? `${unit} · ${item.guestName}` : unit}
+                  <bdi>{unit}</bdi>
+                  {item.guestName ? (
+                    <>
+                      {" · "}
+                      <bdi>{item.guestName}</bdi>
+                    </>
+                  ) : null}
                   {item.kind === "overdue" && item.balance
                     ? ` · ${money([item.balance], currency, locale)}`
                     : null}

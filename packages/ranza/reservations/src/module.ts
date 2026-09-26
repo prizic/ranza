@@ -734,6 +734,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
         where stay.property_id = ${propertyId}::uuid
           and stay.status = 'departed'
           and stay.departed_at is not null
+          -- A business day is at most 25 hours of wall clock, so nothing that
+          -- left earlier than this can fall on today; the bound spares the
+          -- function call on every Stay the Property has ever ended.
+          and stay.departed_at > now() - interval '26 hours'
           and app.business_date(
                 stay.departed_at, property.timezone,
                 property.business_date_cutoff)

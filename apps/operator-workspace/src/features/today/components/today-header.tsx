@@ -6,17 +6,16 @@ import { useTranslations } from "next-intl";
 import type { SupportedLocale } from "@ranza/i18n";
 import { cn } from "@ranza/ui";
 import type { TodaySummary } from "../../../server/today-derive";
-import { dayHeading, shortDay } from "../format";
+import { cutoffTime, dayHeading, shortDay } from "../format";
 import { todayHref } from "../links";
 import { LocalClock } from "./local-clock";
 
-export type Greeting = "morning" | "afternoon" | "evening" | "night";
+export type Greeting = "morning" | "afternoon" | "evening";
 
 const GREETING = {
   morning: "greetingMorning",
   afternoon: "greetingAfternoon",
   evening: "greetingEvening",
-  night: "greetingNight",
 } as const;
 
 /**
@@ -59,14 +58,14 @@ export function TodayHeader({
           <span className="font-thin text-muted-foreground">
             {t(GREETING[greeting])}
           </span>{" "}
-          <span className="font-medium">{name}</span>
+          <bdi className="font-medium">{name}</bdi>
         </h2>
         {afterMidnight ? (
           <p className="flex items-center gap-1.5 text-sm text-warning">
             <Moon aria-hidden="true" className="size-4" />
             {t("workingDayStill", {
               date: shortDay(day.calendarDate, locale),
-              time: day.cutoff,
+              time: cutoffTime(day.cutoff, locale),
             })}
           </p>
         ) : null}

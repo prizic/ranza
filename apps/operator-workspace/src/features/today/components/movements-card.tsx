@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { EmptyState, StatusBadge, cn } from "@ranza/ui";
-import type { SupportedLocale } from "@ranza/i18n";
+import { formatNumber, type SupportedLocale } from "@ranza/i18n";
 import type {
   ArrivalRow,
   ArrivalsCard,
@@ -82,7 +82,9 @@ export function MovementsCard({
               active={tab === "arrivals"}
               onClick={() => setTab("arrivals")}
             >
-              {t("tabArrivals", { count: toCome ?? "–" })}
+              {t("tabArrivals", {
+                count: toCome === null ? "–" : formatNumber(toCome, locale),
+              })}
             </TabButton>
           ) : null}
           {departures ? (
@@ -90,7 +92,10 @@ export function MovementsCard({
               active={tab === "departures"}
               onClick={() => setTab("departures")}
             >
-              {t("tabDepartures", { count: stillHere ?? "–" })}
+              {t("tabDepartures", {
+                count:
+                  stillHere === null ? "–" : formatNumber(stillHere, locale),
+              })}
             </TabButton>
           ) : null}
         </div>
@@ -196,14 +201,14 @@ function ArrivalRows({
               <Link className={ROW} href={href} prefetch={false}>
                 <span className="min-w-40 flex-1">
                   <span className="block font-semibold">
-                    {row.guestName ?? row.reference}
+                    <bdi>{row.guestName ?? row.reference}</bdi>
                   </span>
                   <span className="block font-mono text-xs text-muted-foreground">
-                    {row.reference} · {stay(row.stayType)}
+                    <bdi>{row.reference}</bdi> · {stay(row.stayType)}
                   </span>
                 </span>
                 <span className="w-20 tabular-nums">
-                  {unitLabel(row.unit.roomName, row.unit.unitName)}
+                  <bdi>{unitLabel(row.unit.roomName, row.unit.unitName)}</bdi>
                 </span>
                 <span className="w-44">
                   <ArrivalBadge row={row} />
@@ -286,15 +291,17 @@ function DepartureRows({
           <li key={row.stayId}>
             <Link className={ROW} href={href} prefetch={false}>
               <span className="min-w-40 flex-1">
-                <span className="block font-semibold">{row.guestName}</span>
+                <span className="block font-semibold">
+                  <bdi>{row.guestName}</bdi>
+                </span>
                 {row.reference ? (
                   <span className="block font-mono text-xs text-muted-foreground">
-                    {row.reference}
+                    <bdi>{row.reference}</bdi>
                   </span>
                 ) : null}
               </span>
               <span className="w-20 tabular-nums">
-                {unitLabel(row.unit.roomName, row.unit.unitName)}
+                <bdi>{unitLabel(row.unit.roomName, row.unit.unitName)}</bdi>
               </span>
               <span className="w-44">
                 {row.overdue && row.endsOn ? (

@@ -43,6 +43,15 @@ export function clockAt(
   return formatTime(instant, locale, timeZone);
 }
 
+/**
+ * A Property's cutoff, stored as `HH:MM`, written the way every other time on
+ * the page is. Formatted in UTC because it is a time of day, not an instant.
+ */
+export function cutoffTime(hhmm: string, locale: SupportedLocale): string {
+  const [hour = 0, minute = 0] = hhmm.split(":").map(Number);
+  return formatTime(Date.UTC(2000, 0, 1, hour, minute), locale, "UTC");
+}
+
 export function percent(
   part: number,
   whole: number,

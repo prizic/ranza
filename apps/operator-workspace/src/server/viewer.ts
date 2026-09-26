@@ -549,7 +549,12 @@ export async function todaySummary(
       billing: FOLIO_CAPABILITY,
     },
     (section, error) =>
-      console.error("today: a section could not be read", section, error),
+      console.error("today.section_failed", {
+        section,
+        propertyId,
+        userId: viewer.userId,
+        error,
+      }),
   );
 }
 

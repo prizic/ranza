@@ -482,6 +482,40 @@ describe("staying current", () => {
   });
 });
 
+describe("right to left", () => {
+  it("names, rooms and references are isolated runs, never one joined string", () => {
+    const { container } = view(frontDesk(), "ar");
+    const runs = [...container.querySelectorAll("bdi")].map(
+      (bdi) => bdi.textContent,
+    );
+    // The attention item for the overdue Guest: room and name apart, so an
+    // Arabic line cannot reorder "311 · Jonas Weber" into something else.
+    expect(runs).toContain("311");
+    expect(runs).toContain("Jonas Weber");
+    expect(runs).not.toContain("311 · Jonas Weber");
+    expect(runs).toContain("Selin");
+  });
+});
+
+describe("the finance card", () => {
+  it("says so when no open Folio is owed anything, rather than an empty list", () => {
+    view({
+      day: DAY,
+      focus: "finance",
+      mayBook: false,
+      money: {
+        status: "ok",
+        data: { openFolios: 0, openBalance: [], largest: [] },
+      },
+      attention: { items: [], complete: true },
+    });
+    expect(screen.getByText("Açık bakiye yok.")).toBeInTheDocument();
+    expect(
+      document.querySelector('[aria-labelledby="today-largest"] ul'),
+    ).toBeNull();
+  });
+});
+
 describe("every locale", () => {
   it.each([
     ["tr", "Dikkat gerekiyor", "₺1.840,00", "25 Eylül 2026"],

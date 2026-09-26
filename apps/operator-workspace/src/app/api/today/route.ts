@@ -24,5 +24,16 @@ export async function GET(request: Request): Promise<Response> {
   const property = new URL(request.url).searchParams.get("property") ?? "";
   if (!UUID.test(property)) return Response.json({ summary: null });
 
-  return Response.json({ summary: await todaySummary(property) });
+  try {
+    return Response.json({ summary: await todaySummary(property) });
+  } catch (error: unknown) {
+    // The working day is read before any section, so its failure is the
+    // route's, not a card's; a bodiless 500 lets the page keep what it has.
+    console.error("today.read_failed", {
+      propertyId: property,
+      userId: viewer.userId,
+      error,
+    });
+    return new Response(null, { status: 500 });
+  }
 }

@@ -74,16 +74,18 @@ export function MoneyLists({
                   >
                     <span className="min-w-40 flex-1">
                       <span className="block font-semibold">
-                        {row.guestName}
+                        <bdi>{row.guestName}</bdi>
                       </span>
                       {row.reference ? (
                         <span className="block font-mono text-xs text-muted-foreground">
-                          {row.reference}
+                          <bdi>{row.reference}</bdi>
                         </span>
                       ) : null}
                     </span>
                     <span className="w-20 tabular-nums">
-                      {unitLabel(row.unit.roomName, row.unit.unitName)}
+                      <bdi>
+                        {unitLabel(row.unit.roomName, row.unit.unitName)}
+                      </bdi>
                     </span>
                     <span className="w-32">
                       {row.overdue && row.endsOn ? (
@@ -116,27 +118,36 @@ export function MoneyLists({
         <h2 className="mb-4 text-base font-semibold" id="today-largest">
           {t("largestBalances")}
         </h2>
-        <ul className="grid gap-1">
-          {data.largest.map((row) => (
-            <li key={row.folioId}>
-              <Link
-                className="flex items-center gap-3 rounded-2xl px-2 py-2.5 text-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                href={folio(row.folioId)}
-                prefetch={false}
-              >
-                <span className="flex-1">
-                  <span className="block font-medium">{row.guestName}</span>
-                  <span className="block text-xs text-muted-foreground tabular-nums">
-                    {row.unitName}
+        {data.largest.length === 0 ? (
+          <p className="flex items-center gap-2.5 rounded-2xl bg-success-soft px-5 py-4 font-medium text-success">
+            <CheckCircle2 aria-hidden="true" className="size-4" />
+            {t("noBalances")}
+          </p>
+        ) : (
+          <ul className="grid gap-1">
+            {data.largest.map((row) => (
+              <li key={row.folioId}>
+                <Link
+                  className="flex items-center gap-3 rounded-2xl px-2 py-2.5 text-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  href={folio(row.folioId)}
+                  prefetch={false}
+                >
+                  <span className="flex-1">
+                    <span className="block font-medium">
+                      <bdi>{row.guestName}</bdi>
+                    </span>
+                    <span className="block text-xs text-muted-foreground tabular-nums">
+                      <bdi>{row.unitName}</bdi>
+                    </span>
                   </span>
-                </span>
-                <span className="font-semibold tabular-nums">
-                  {money([row.balance], currency, locale)}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+                  <span className="font-semibold tabular-nums">
+                    {money([row.balance], currency, locale)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
         <AllLink href={todayHref(locale, "finance", propertyId)}>
           {t("allFolios")}
         </AllLink>

@@ -535,14 +535,12 @@ export interface Messages {
     /** The short word a bar carries beside a warning's icon, when it fits. */
     barWord: Record<"overlap" | "bookedWhileBlocked" | "clashes", string>;
   };
-  /** The Housekeeping screen (RANZ-28). */
   /** The Today dashboard (docs/features/today-dashboard). */
   dashboard: {
     /** Greeting before noon, followed by the name. */
     greetingMorning: string;
     greetingAfternoon: string;
     greetingEvening: string;
-    greetingNight: string;
     /** When the figures were read, {time}. */
     updated: string;
     /** A refresh failed; the figures are from {time}. */
@@ -595,12 +593,6 @@ export interface Messages {
     movements: string;
     tabArrivals: string;
     tabDepartures: string;
-    guest: string;
-    unit: string;
-    unitStatus: string;
-    stay: string;
-    balance: string;
-    leaves: string;
     stateReady: string;
     stateNotReady: string;
     stateBlocked: string;
@@ -633,6 +625,8 @@ export interface Messages {
     owing: string;
     largestBalances: string;
     allFolios: string;
+    /** The largest-balances list when no open Folio is owed anything. */
+    noBalances: string;
     noOwingTitle: string;
     noOwingDescription: string;
     sectionUnavailable: string;
@@ -640,6 +634,7 @@ export interface Messages {
     retry: string;
     nothingForRole: string;
   };
+  /** The Housekeeping screen (RANZ-28). */
   housekeeping: {
     subtitle: string;
     /** No Property the viewer may use housekeeping at, or not the one named. */
@@ -1673,7 +1668,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       greetingMorning: "Günaydın,",
       greetingAfternoon: "İyi günler,",
       greetingEvening: "İyi akşamlar,",
-      greetingNight: "İyi geceler,",
       updated: "Güncellendi {time}",
       stale: "Yenilenemedi · {time} verisi",
       workingDayStill: "Saat {date}; tesis {time} itibarıyla yeni güne geçer.",
@@ -1724,12 +1718,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       movements: "Bugünkü hareket",
       tabArrivals: "Gelişler · {count}",
       tabDepartures: "Çıkışlar · {count}",
-      guest: "Misafir",
-      unit: "Birim",
-      unitStatus: "Oda durumu",
-      stay: "Kalış",
-      balance: "Bakiye",
-      leaves: "Ayrılış",
       stateReady: "Hazır",
       stateNotReady: "Hazır değil",
       stateBlocked: "Giriş yapılamaz",
@@ -1763,6 +1751,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       owing: "Bakiyesiyle ayrılanlar",
       largestBalances: "En yüksek açık bakiyeler",
       allFolios: "Tüm folyolar",
+      noBalances: "Açık bakiye yok.",
       noOwingTitle: "Bakiyeyle ayrılan yok",
       noOwingDescription:
         "Bugün ya da daha önce ayrılması gerekenlerin bakiyesi kapalı.",
@@ -2914,7 +2903,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       greetingMorning: "Good morning,",
       greetingAfternoon: "Good afternoon,",
       greetingEvening: "Good evening,",
-      greetingNight: "Good night,",
       updated: "Updated {time}",
       stale: "Couldn't refresh · showing {time}",
       workingDayStill:
@@ -2967,12 +2955,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       movements: "Today's movements",
       tabArrivals: "Arrivals · {count}",
       tabDepartures: "Departures · {count}",
-      guest: "Guest",
-      unit: "Unit",
-      unitStatus: "Room status",
-      stay: "Stay",
-      balance: "Balance",
-      leaves: "Leaves",
       stateReady: "Ready",
       stateNotReady: "Not ready",
       stateBlocked: "Can't check in",
@@ -3008,6 +2990,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       owing: "Leaving with a balance",
       largestBalances: "Largest open balances",
       allFolios: "All Folios",
+      noBalances: "No open balances.",
       noOwingTitle: "Nobody leaves with a balance",
       noOwingDescription:
         "Everyone due to leave today or before has a closed balance.",
@@ -4149,7 +4132,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       greetingMorning: "صباح الخير،",
       greetingAfternoon: "طاب يومك،",
       greetingEvening: "مساء الخير،",
-      greetingNight: "تصبح على خير،",
       updated: "حُدِّث {time}",
       stale: "تعذّر التحديث · بيانات {time}",
       workingDayStill:
@@ -4205,12 +4187,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       movements: "حركة اليوم",
       tabArrivals: "الوصول · {count}",
       tabDepartures: "المغادرة · {count}",
-      guest: "الضيف",
-      unit: "الوحدة",
-      unitStatus: "حالة الغرفة",
-      stay: "الإقامة",
-      balance: "الرصيد",
-      leaves: "المغادرة",
       stateReady: "جاهزة",
       stateNotReady: "غير جاهزة",
       stateBlocked: "لا يمكن تسجيل الدخول",
@@ -4219,9 +4195,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       openEnded: "مفتوحة المدة",
       leavesToday: "اليوم",
       allArrivals:
-        "{count, plural, one {افتح الوصول} other {كل حالات الوصول ({count})}}",
+        "{count, plural, one {افتح الوصول} other {كل حالات الوصول (#)}}",
       allDepartures:
-        "{count, plural, one {افتح المغادرة} other {كل حالات المغادرة ({count})}}",
+        "{count, plural, one {افتح المغادرة} other {كل حالات المغادرة (#)}}",
       noArrivalsTitle: "لا أحد يصل اليوم",
       noArrivalsDescription: "الحجوزات القادمة والجديدة في شاشة الحجوزات.",
       noDeparturesTitle: "لا أحد يغادر اليوم",
@@ -4247,6 +4223,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       owing: "يغادرون برصيد",
       largestBalances: "أعلى الأرصدة المفتوحة",
       allFolios: "كل الفواتير",
+      noBalances: "لا توجد أرصدة مفتوحة.",
       noOwingTitle: "لا أحد يغادر برصيد",
       noOwingDescription: "كل من يغادر اليوم أو قبله رصيده مغلق.",
       sectionUnavailable: "تعذّرت قراءة هذا القسم",
