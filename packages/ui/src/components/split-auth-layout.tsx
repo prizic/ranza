@@ -1,3 +1,6 @@
+// The texture is imported as a module; its declaration comes with it rather
+// than from an application's generated next-env.d.ts, which CI does not have.
+/// <reference path="../assets/images.d.ts" />
 import Image from "next/image";
 import type { ReactNode } from "react";
 import silk from "../assets/sign-in-silk.webp";
