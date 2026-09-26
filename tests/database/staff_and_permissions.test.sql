@@ -632,10 +632,13 @@ select throws_ok(
 -- ---------------------------------------------------------------------------
 -- Defining a role has a ceiling (SP-S3-01); assigning one had none, so a role
 -- an Owner wrote holding only staff.administer was one step from Owner. This
--- administrator holds staff.administer and Finance's two permissions: enough
--- to hand out Finance, and not Owner, Manager, or a role of the Organization's
--- own holding something they lack. Finance rather than Housekeeping because
--- the section above rewrote Housekeeping's permissions in this transaction.
+-- administrator holds staff.administer and every permission Finance holds:
+-- enough to hand out Finance, and not Owner, Manager, or a role of the
+-- Organization's own holding something they lack. Finance rather than
+-- Housekeeping because the section above rewrote Housekeeping's permissions in
+-- this transaction. The array is Finance's, so a permission added to Finance
+-- (maintenance.report, 20260916004300) is added here too, or the ceiling
+-- correctly refuses the hand-out and the lives_ok below goes red.
 
 set local role none;
 insert into public.users (id, email) values
@@ -648,7 +651,8 @@ insert into public.staff_roles
   (scope_id, key, organization_id, name, permissions) values
   ('6a111111-1111-4111-8111-111111111111', 'rota_admin',
    '6a111111-1111-4111-8111-111111111111', 'Rota admin',
-   array['staff.administer', 'finance.manage_folio', 'finance.post_charge']),
+   array['staff.administer', 'finance.manage_folio', 'finance.post_charge',
+         'maintenance.report']),
   ('6a111111-1111-4111-8111-111111111111', 'night_auditor',
    '6a111111-1111-4111-8111-111111111111', 'Night auditor',
    array['audit.read']);

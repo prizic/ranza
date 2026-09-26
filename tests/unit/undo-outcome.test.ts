@@ -14,6 +14,7 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  CheckInDayClosedError,
   CheckInReversalError,
   StayHasChargesError,
 } from "../../packages/ranza/reservations/src";
@@ -23,6 +24,12 @@ describe("the refusals this screen knows", () => {
   it("answers charges for the one a front desk can act on", () => {
     expect(undoOutcomeFor(new StayHasChargesError("has charges"))).toBe(
       "charges",
+    );
+  });
+
+  it("answers dayClosed when the business day the check-in began on is closed", () => {
+    expect(undoOutcomeFor(new CheckInDayClosedError("day closed"))).toBe(
+      "dayClosed",
     );
   });
 

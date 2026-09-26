@@ -48,6 +48,7 @@ export type {
 export { StatusBadge } from "./components/status-badge";
 export type { StatusBadgeProps, StatusTone } from "./components/status-badge";
 export { BrandMark } from "./components/brand-mark";
+export { DirectionProvider } from "./components/direction-provider";
 export { EmptyState } from "./components/empty-state";
 export { PlannedScreen } from "./components/planned-screen";
 export type { EmptyStateProps } from "./components/empty-state";
@@ -57,6 +58,7 @@ export {
   Field,
   FormError,
   PageHeader,
+  Stat,
 } from "./components/patterns";
 
 export { Badge } from "./components/ui/badge";

@@ -2,6 +2,12 @@ export { createAccommodationModule } from "./module";
 export type { AccommodationModule } from "./module";
 export type { AccommodationDeps } from "./ports";
 export {
+  lockUnitWithin,
+  returnUnitToServiceWithin,
+  takeUnitOutOfServiceWithin,
+} from "./write";
+export type { LockedUnit, UnitWriteClient } from "./write";
+export {
   BEDS_PER_ROOM,
   BLOCK_REASON,
   BUILDING_NAME,

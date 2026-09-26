@@ -18,6 +18,8 @@ export type {
 export {
   closeEmptyFolioWithin,
   closeSettledFolioWithin,
+  DESCRIPTION_MAX,
   openFolioWithin,
+  postChargeWithin,
 } from "./write";
 export type { FolioWriteClient } from "./write";
