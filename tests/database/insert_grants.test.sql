@@ -402,8 +402,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  42,
-  'the definer sweep looked at 42 functions; change this number deliberately');
+  43,
+  'the definer sweep looked at 43 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -416,12 +416,16 @@ select is(
   7,
   'seven of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a forty-third definer is a red test
+-- Part B: the inventory itself, so a forty-fourth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
 -- four are housekeeping; two are maintenance; five are the audit log's reach;
--- three are the front desk's; two are the worker's close; and the last three
--- are configuration's. The seven that write are named in the comments above.
+-- three are the front desk's; two are the worker's close; three are
+-- configuration's; and the last is has_organization_wide_administrator(), which
+-- the staff triggers ask so an Organization keeps somebody organization-wide
+-- who can add staff (SP-S1-38). It reads memberships whatever the caller may
+-- see and is granted to nobody. The seven that write are named in the comments
+-- above.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -446,8 +450,9 @@ select set_eq(
         'front_desk_closes_only_a_settled_folio',
         'properties_due_for_close','close_business_day_automatically',
         'property_currency_is_fixed_by_its_first_folio',
-        'folio_currency_is_its_propertys','property_currency_is_fixed'],
-  'and they are exactly the forty-two the design gives a reason for');
+        'folio_currency_is_its_propertys','property_currency_is_fixed',
+        'has_organization_wide_administrator'],
+  'and they are exactly the forty-three the design gives a reason for');
 
 select finish();
 rollback;

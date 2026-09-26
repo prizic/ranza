@@ -50,11 +50,15 @@ function member(overrides: Partial<StaffMember>): StaffMember {
   };
 }
 
-function renderRoster(roster: StaffMember[]) {
+function renderRoster(
+  roster: StaffMember[],
+  { mayAdminister = true, locale = "en" as "en" | "tr" } = {},
+) {
   render(
-    <NextIntlClientProvider locale="en" messages={messages.en}>
+    <NextIntlClientProvider locale={locale} messages={messages[locale]}>
       <RosterTable
-        locale="en"
+        locale={locale}
+        mayAdminister={mayAdminister}
         organizationId={ORGANIZATION}
         roles={[nightAuditor]}
         roster={roster}
@@ -86,5 +90,36 @@ describe("the roster's role picker", () => {
         name: `${messages.en.staff.role}: former@example.test`,
       }),
     ).toHaveTextContent("Night auditor");
+  });
+});
+
+// #80. Somebody without staff.administer reads the roster: no picker and no
+// row actions, and the role as words in their own language.
+describe("the roster for a viewer who may not administer staff", () => {
+  it("offers neither a role picker nor row actions", () => {
+    renderRoster([member({})], { mayAdminister: false });
+    expect(screen.queryByRole("combobox")).toBeNull();
+    expect(
+      screen.queryByRole("button", {
+        name: `${messages.en.staff.actions}: former@example.test`,
+      }),
+    ).toBeNull();
+    expect(screen.getByTestId("staff-row")).toHaveTextContent("Night auditor");
+  });
+
+  it("names a role Ranza ships in the viewer's language", () => {
+    renderRoster(
+      [
+        member({
+          roleId: "front_desk",
+          roleScopeId: "00000000-0000-0000-0000-000000000000",
+          roleName: "Front desk",
+        }),
+      ],
+      { mayAdminister: false, locale: "tr" },
+    );
+    expect(screen.getByTestId("staff-row")).toHaveTextContent(
+      messages.tr.staff.roles.front_desk,
+    );
   });
 });

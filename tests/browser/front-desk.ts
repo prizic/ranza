@@ -16,6 +16,14 @@ import { psql } from "./local-database";
 export const EMAIL = "deniz@example.test";
 export const PASSWORD = "correct-horse-battery-staple";
 
+/**
+ * Two more people in the seeded Organization, made by `seed.setup.ts`: one
+ * holding the shipped Front desk role, who may read the roster and change
+ * nothing on it, and an Owner. The seeded Staff Member is a Manager.
+ */
+export const DESK_EMAIL = "e2e-front-desk@example.test";
+export const OWNER_EMAIL = "e2e-owner@example.test";
+
 /** Kept away from the demo Property, and named so nobody mistakes it for one. */
 const TEST_PROPERTY = "E2E Test Property";
 
@@ -193,9 +201,9 @@ function aPropertyOfTheTests(
   return propertyId;
 }
 
-export async function signIn(page: Page): Promise<void> {
+export async function signIn(page: Page, email = EMAIL): Promise<void> {
   await page.goto("/en/sign-in");
-  await page.getByLabel("Email").fill(EMAIL);
+  await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/en\/today$/);

@@ -216,6 +216,7 @@ export interface Messages {
   staff: {
     rosterOf: string;
     screenSummary: string;
+    readOnly: string;
     peopleTab: string;
     rolesTab: string;
     person: string;
@@ -1272,6 +1273,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       rosterOf: "Ekip —",
       screenSummary:
         "Burada kimler çalışıyor, hangi tesislere erişiyorlar ve her rol ne yapabilir.",
+      readOnly:
+        "Ekibi görebilirsiniz. Bir sahip ya da yönetici değiştirebilir.",
       peopleTab: "Kişiler",
       rolesTab: "Her rol ne yapabilir",
       person: "Kişi",
@@ -2407,6 +2410,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       rosterOf: "The team at",
       screenSummary:
         "Who works here, which Properties they reach, and what each role may do.",
+      readOnly: "You can see the team. An Owner or Manager can change it.",
       peopleTab: "People",
       rolesTab: "What each role can do",
       person: "Person",
@@ -3539,6 +3543,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     staff: {
       rosterOf: "فريق",
       screenSummary: "من يعمل هنا، وأي المنشآت يصلها، وما الذي يستطيعه كل دور.",
+      readOnly: "يمكنك رؤية الفريق. يستطيع المالك أو المدير تغييره.",
       peopleTab: "الأشخاص",
       rolesTab: "ما يستطيعه كل دور",
       person: "الشخص",

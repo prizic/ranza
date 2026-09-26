@@ -19,6 +19,22 @@ resulting row because that is what a command hands out, not because the old row
 is invisible, as "When money may say no" below implies.
 `20260916004250_assigning_a_role_is_bounded_like_defining_one`.
 
+Amended: 2026-09-26 — nobody acts on a superior, in role or in reach. The
+product owner decided on 2026-09-24 that the ceiling is asked of the row being
+replaced too (#66): an administrator does not change, revoke, undo the revoke
+of, or take a Property from a member whose current role exceeds their own.
+Decision 3 now means money only — a revoke is never refused by the commercial
+gates, and is refused when it acts on a superior. Reach is bounded the same way
+(#67): a Property is handed out only by somebody who reaches it,
+organization_wide only by somebody who holds it, and an administrator of
+assigned Properties does not change or revoke an organization-wide member.
+Taking a Property away from somebody the actor may act on is never bounded by
+reach. An author edits only a role within their own, since cutting down a held
+role demotes its holders. And an Organization with an organization-wide
+administrator keeps one, as it keeps somebody who can add staff at all
+(SP-S1-34, SP-S1-36, SP-S1-38).
+`20260916007000_an_administrator_acts_only_within_their_own`.
+
 ## Context
 
 Staff and permissions is the first feature whose subject is authorization
