@@ -157,8 +157,7 @@
   --font-sans: var(--font-stack);
 }
 
-/* The sign-in screen's entrance, once, on arrival: the reveal Leaders plays
-   with GSAP, as keyframes. Removed with every other motion when a reader asks
+/* The sign-in screen's entrance, once, on arrival, as keyframes. Removed with every other motion when a reader asks
    for less (see the base layer). */
 @theme {
   --animate-fade-in: fade-in 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;

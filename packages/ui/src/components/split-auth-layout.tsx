@@ -1,3 +1,4 @@
+/// <reference types="next/image-types/global" />
 import Image from "next/image";
 import type { ReactNode } from "react";
 import silk from "../assets/sign-in-silk.webp";
@@ -134,15 +135,15 @@ function Showcase({
         className="absolute inset-0 -z-10 from-surface-strong/80 via-surface-strong/20 to-transparent bg-linear-to-br rtl:bg-linear-to-bl"
       />
 
-      <div className="flex items-center gap-2 text-white">
+      <div aria-hidden="true" className="flex items-center gap-2 text-white">
         <BrandMark className="size-6" />
         <span className="text-xl font-bold select-none">{productName}</span>
       </div>
 
       <div className="mt-16 max-w-md motion-safe:animate-enter-start">
-        <h2 className="font-serif text-4xl leading-[1.05] font-light text-accent-soft italic xl:text-[44px] 2xl:text-[52px] rtl:font-sans rtl:font-semibold rtl:not-italic">
+        <p className="font-serif text-4xl leading-[1.05] font-light text-accent-soft italic xl:text-[44px] 2xl:text-[52px] rtl:font-sans rtl:font-semibold rtl:not-italic">
           {slogan}
-        </h2>
+        </p>
         <p className="mt-5 text-lg leading-relaxed font-semibold text-white/80 xl:text-xl">
           {subSlogan}
         </p>
