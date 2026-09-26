@@ -1,0 +1,133 @@
+{
+  "label": "after",
+  "run": "1",
+  "at": "2026-09-24T15:48:19.641Z",
+  "load": "10.7 / 14.6 / 24.1",
+  "phases": [
+    {
+      "name": "full-load:today",
+      "documentRequests": 1,
+      "rscNavigations": [],
+      "rscPrefetches": [
+        "/en/guest-experience?_rsc=vCRCrRfRRskHjRst",
+        "/en/housekeeping?_rsc=vCRCrRfRRskHjRst",
+        "/en/food-and-beverage?_rsc=vCRCrRfRRskHjRst",
+        "/en/inventory?_rsc=vCRCrRfRRskHjRst",
+        "/en/finance?_rsc=vCRCrRfRRskHjRst",
+        "/en/people?_rsc=vCRCrRfRRskHjRst",
+        "/en/analytics?_rsc=vCRCrRfRRskHjRst",
+        "/en/configuration?_rsc=vCRCrRfRRskHjRst",
+        "/en/audit-log?_rsc=vCRCrRfRRskHjRst",
+        "/en/today?_rsc=JD8GU6pUJXEIGgs8",
+        "/en/guest-experience?_rsc=JD8GU6pUJXEIGgs8",
+        "/en/housekeeping?_rsc=JD8GU6pUJXEIGgs8",
+        "/en/food-and-beverage?_rsc=JD8GU6pUJXEIGgs8",
+        "/en/inventory?_rsc=JD8GU6pUJXEIGgs8",
+        "/en/finance?_rsc=JD8GU6pUJXEIGgs8",
+        "/en/people?_rsc=JD8GU6pUJXEIGgs8",
+        "/en/analytics?_rsc=JD8GU6pUJXEIGgs8",
+        "/en/configuration?_rsc=JD8GU6pUJXEIGgs8",
+        "/en/audit-log?_rsc=JD8GU6pUJXEIGgs8"
+      ]
+    },
+    {
+      "name": "idle-8s:today",
+      "documentRequests": 0,
+      "rscNavigations": [],
+      "rscPrefetches": []
+    },
+    {
+      "name": "click:finance",
+      "detail": {
+        "firstByteMs": 26,
+        "firstByteKind": "rsc",
+        "segment": "finance",
+        "href": "/en/finance",
+        "url": "/en/finance",
+        "newDocument": false,
+        "documentRequests": 0,
+        "navigationEntryType": "navigate",
+        "rscRequests": 1,
+        "feedbackMs": 45,
+        "dataMs": 362,
+        "skeletonSeen": true,
+        "wallMs": 710
+      },
+      "documentRequests": 0,
+      "rscNavigations": ["/en/finance?_rsc=AFzxguAzOOjqC0q5"],
+      "rscPrefetches": []
+    },
+    {
+      "name": "click:people",
+      "detail": {
+        "firstByteMs": 15,
+        "firstByteKind": "rsc",
+        "segment": "people",
+        "href": "/en/people",
+        "url": "/en/people",
+        "newDocument": false,
+        "documentRequests": 0,
+        "navigationEntryType": "navigate",
+        "rscRequests": 1,
+        "feedbackMs": 48,
+        "dataMs": 355,
+        "skeletonSeen": true,
+        "wallMs": 697
+      },
+      "documentRequests": 0,
+      "rscNavigations": ["/en/people?_rsc=KNiWP4bZqNTwstQa"],
+      "rscPrefetches": []
+    },
+    {
+      "name": "click:audit-log",
+      "detail": {
+        "firstByteMs": 14,
+        "firstByteKind": "rsc",
+        "segment": "audit-log",
+        "href": "/en/audit-log",
+        "url": "/en/audit-log",
+        "newDocument": false,
+        "documentRequests": 0,
+        "navigationEntryType": "navigate",
+        "rscRequests": 1,
+        "feedbackMs": 47,
+        "dataMs": 346,
+        "skeletonSeen": true,
+        "wallMs": 675
+      },
+      "documentRequests": 0,
+      "rscNavigations": ["/en/audit-log?_rsc=CFzRfDAVgUB2D8P-"],
+      "rscPrefetches": []
+    },
+    {
+      "name": "idle-8s+hover-rows:audit-log",
+      "detail": {
+        "rowLinks": 25
+      },
+      "documentRequests": 0,
+      "rscNavigations": [],
+      "rscPrefetches": []
+    },
+    {
+      "name": "click:today",
+      "detail": {
+        "firstByteMs": 16,
+        "firstByteKind": "rsc",
+        "segment": "today",
+        "href": "/en/today",
+        "url": "/en/today",
+        "newDocument": false,
+        "documentRequests": 0,
+        "navigationEntryType": "navigate",
+        "rscRequests": 1,
+        "feedbackMs": 48,
+        "dataMs": 348,
+        "skeletonSeen": true,
+        "wallMs": 674
+      },
+      "documentRequests": 0,
+      "rscNavigations": ["/en/today?_rsc=QPhfy8EDQwEuJrMo"],
+      "rscPrefetches": []
+    }
+  ]
+}

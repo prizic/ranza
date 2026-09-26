@@ -1,0 +1,113 @@
+{
+  "label": "before",
+  "run": "1",
+  "at": "2026-09-24T15:49:47.371Z",
+  "load": "10.3 / 13.5 / 22.7",
+  "phases": [
+    {
+      "name": "full-load:today",
+      "documentRequests": 1,
+      "rscNavigations": [],
+      "rscPrefetches": []
+    },
+    {
+      "name": "idle-8s:today",
+      "documentRequests": 0,
+      "rscNavigations": [],
+      "rscPrefetches": []
+    },
+    {
+      "name": "click:finance",
+      "detail": {
+        "firstByteMs": 290,
+        "firstByteKind": "document",
+        "segment": "finance",
+        "href": "/en/finance",
+        "url": "/en/finance",
+        "newDocument": true,
+        "documentRequests": 1,
+        "navigationEntryType": "navigate",
+        "rscRequests": 0,
+        "feedbackMs": 316,
+        "dataMs": 319,
+        "skeletonSeen": false,
+        "wallMs": 681
+      },
+      "documentRequests": 1,
+      "rscNavigations": [],
+      "rscPrefetches": []
+    },
+    {
+      "name": "click:people",
+      "detail": {
+        "firstByteMs": 109,
+        "firstByteKind": "document",
+        "segment": "people",
+        "href": "/en/people",
+        "url": "/en/people",
+        "newDocument": true,
+        "documentRequests": 1,
+        "navigationEntryType": "navigate",
+        "rscRequests": 0,
+        "feedbackMs": 144,
+        "dataMs": 144,
+        "skeletonSeen": false,
+        "wallMs": 494
+      },
+      "documentRequests": 1,
+      "rscNavigations": [],
+      "rscPrefetches": []
+    },
+    {
+      "name": "click:audit-log",
+      "detail": {
+        "firstByteMs": 146,
+        "firstByteKind": "document",
+        "segment": "audit-log",
+        "href": "/en/audit-log",
+        "url": "/en/audit-log",
+        "newDocument": true,
+        "documentRequests": 1,
+        "navigationEntryType": "navigate",
+        "rscRequests": 0,
+        "feedbackMs": 172,
+        "dataMs": 176,
+        "skeletonSeen": false,
+        "wallMs": 500
+      },
+      "documentRequests": 1,
+      "rscNavigations": [],
+      "rscPrefetches": []
+    },
+    {
+      "name": "idle-8s+hover-rows:audit-log",
+      "detail": {
+        "rowLinks": 10
+      },
+      "documentRequests": 0,
+      "rscNavigations": [],
+      "rscPrefetches": []
+    },
+    {
+      "name": "click:today",
+      "detail": {
+        "firstByteMs": 359,
+        "firstByteKind": "document",
+        "segment": "today",
+        "href": "/en/today",
+        "url": "/en/today",
+        "newDocument": true,
+        "documentRequests": 1,
+        "navigationEntryType": "navigate",
+        "rscRequests": 0,
+        "feedbackMs": 384,
+        "dataMs": 384,
+        "skeletonSeen": false,
+        "wallMs": 706
+      },
+      "documentRequests": 1,
+      "rscNavigations": [],
+      "rscPrefetches": []
+    }
+  ]
+}
