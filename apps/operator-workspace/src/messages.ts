@@ -240,6 +240,7 @@ export interface Messages {
     properties: string;
     status: string;
     actions: string;
+    aboveYou: string;
     active: string;
     awaitingPassword: string;
     revoked: string;
@@ -1303,6 +1304,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       properties: "Tesisler",
       status: "Durum",
       actions: "İşlemler",
+      aboveYou: "Rolü ya da erişimi sizinkinden geniş.",
       active: "Aktif",
       awaitingPassword: "Parola bekleniyor",
       revoked: "Kaldırıldı",
@@ -2438,6 +2440,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       properties: "Properties",
       status: "Status",
       actions: "Actions",
+      aboveYou: "Their role or reach is above yours.",
       active: "Active",
       awaitingPassword: "Awaiting a password",
       revoked: "Revoked",
@@ -3571,6 +3574,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       properties: "المنشآت",
       status: "الحالة",
       actions: "الإجراءات",
+      aboveYou: "دور هذا الشخص أو نطاق وصوله أوسع من صلاحياتك.",
       active: "نشط",
       awaitingPassword: "بانتظار كلمة المرور",
       revoked: "مُلغى",

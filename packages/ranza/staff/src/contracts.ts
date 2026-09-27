@@ -56,6 +56,13 @@ export interface StaffMember {
    */
   roleScopeId: string;
   roleName: string;
+  /**
+   * What the role they hold may do, and how far they reach. Together these are
+   * what decides whether somebody may act on them (SP-S1-34, SP-S1-36): a
+   * screen reads them to stop offering what the policies would refuse.
+   */
+  rolePermissions: readonly string[];
+  accessScope: "organization_wide" | "assigned_properties";
   status: MembershipStatus;
   /**
    * The state of their invitation, or null when there never was one.

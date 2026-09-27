@@ -5,6 +5,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { DefineRoleDialog } from "../../../../features/staff/components/define-role-dialog";
 import { InviteDialog } from "../../../../features/staff/components/invite-dialog";
 import { StaffScreen } from "../../../../features/staff/components/staff-screen";
+import { rolesWithinViewer } from "../../../../features/staff/acts-on";
 import {
   PERMISSION_CATALOGUE,
   shippedRoleOf,
@@ -34,8 +35,9 @@ import {
  * (#80): inviting and changing somebody's role or reach ask for
  * `staff.administer`, defining a role for `staff.define_roles`. A viewer
  * holding neither reads the roster and is told who can change it; one holding
- * either is offered what it allows and nothing else. The policies stay the
- * authority; this only stops offering what they would refuse.
+ * either is offered what it allows and nothing else — and only the roles, and
+ * the members, within their own role and reach (SP-S1-35). The policies stay
+ * the authority; this only stops offering what they would refuse.
  */
 const STAFF_ADMINISTRATION = {
   moduleKey: "platform_core",
@@ -50,7 +52,7 @@ export default async function PeoplePage({
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
   setRequestLocale(locale);
-  await requireViewer(locale);
+  const viewer = await requireViewer(locale);
 
   const t = await getTranslations();
   const properties = await entitledProperties(STAFF_ADMINISTRATION);
@@ -77,6 +79,13 @@ export default async function PeoplePage({
   // would only race to be the one that validates it.
   const roster = await readRoster(organizationId);
   const roles = await readRoles(organizationId);
+  // An invitation is bounded like a change (SP-S1-34): only a role within the
+  // viewer's own. With none to offer, the dialog could only be refused.
+  const invitableRoles = rolesWithinViewer(
+    roles.filter((role) => role.status === "active"),
+    roster,
+    viewer.userId,
+  );
 
   return (
     <>
@@ -89,7 +98,7 @@ export default async function PeoplePage({
                 organizationId={organizationId}
               />
             ) : null}
-            {mayAdminister ? (
+            {mayAdminister && invitableRoles.length > 0 ? (
               <InviteDialog
                 locale={locale}
                 organizationId={organizationId}
@@ -97,16 +106,14 @@ export default async function PeoplePage({
                   propertyId: property.propertyId,
                   propertyName: property.propertyName,
                 }))}
-                roles={roles
-                  .filter((role) => role.status === "active")
-                  .map((role) => {
-                    const shipped = shippedRoleOf(role);
-                    return {
-                      key: role.key,
-                      organizationId: role.organizationId,
-                      name: shipped ? t(`staff.roles.${shipped}`) : role.name,
-                    };
-                  })}
+                roles={invitableRoles.map((role) => {
+                  const shipped = shippedRoleOf(role);
+                  return {
+                    key: role.key,
+                    organizationId: role.organizationId,
+                    name: shipped ? t(`staff.roles.${shipped}`) : role.name,
+                  };
+                })}
               />
             ) : null}
           </span>
@@ -139,6 +146,7 @@ export default async function PeoplePage({
           permissions={PERMISSION_CATALOGUE}
           roles={roles}
           roster={roster}
+          viewerUserId={viewer.userId}
         />
       )}
     </>
