@@ -132,9 +132,11 @@ export function RosterTable({
                   )}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {member.properties.length === 0
-                    ? t("staff.reachesNothing")
-                    : member.properties.map((p) => p.propertyName).join(", ")}
+                  {member.accessScope === "organization_wide"
+                    ? t("staff.reachesEverywhere")
+                    : member.properties.length === 0
+                      ? t("staff.reachesNothing")
+                      : member.properties.map((p) => p.propertyName).join(", ")}
                 </TableCell>
                 <TableCell>
                   <StatusBadge {...statusOf(member, t)} />

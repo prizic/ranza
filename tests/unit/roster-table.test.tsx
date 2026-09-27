@@ -183,6 +183,28 @@ describe("the roster, for a row whose member is above the viewer", () => {
     ).toBeVisible();
   });
 
+  it("says an organization-wide member reaches every Property, whatever is assigned", () => {
+    renderRoster([
+      member({
+        membershipId: "m-owner",
+        email: "owner@example.test",
+        accessScope: "organization_wide",
+        properties: [{ propertyId: "p-1", propertyName: "Hotel A" }],
+      }),
+      member({
+        membershipId: "m-peer",
+        email: "peer@example.test",
+        properties: [{ propertyId: "p-1", propertyName: "Hotel A" }],
+      }),
+    ]);
+    const rows = screen.getAllByTestId("staff-row");
+    const owner = rows.find((row) => row.textContent?.includes("owner@"));
+    const peer = rows.find((row) => row.textContent?.includes("peer@"));
+    expect(owner).toHaveTextContent(messages.en.staff.reachesEverywhere);
+    expect(owner).not.toHaveTextContent("Hotel A");
+    expect(peer).toHaveTextContent("Hotel A");
+  });
+
   it("offers no undo on a revoked member above the viewer", () => {
     renderRoster(
       [

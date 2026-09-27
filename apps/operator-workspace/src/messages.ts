@@ -247,6 +247,8 @@ export interface Messages {
     revoke: string;
     undoRevoke: string;
     reachesNothing: string;
+    /** An organization-wide member reaches every Property, whatever is assigned. */
+    reachesEverywhere: string;
     alreadyAMember: string;
     refused: string;
     lastAdministrator: string;
@@ -1311,6 +1313,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       revoke: "Kaldır",
       undoRevoke: "Geri al",
       reachesNothing: "Henüz bir tesis atanmadı",
+      reachesEverywhere: "Tüm tesisler",
       alreadyAMember: "Bu kişinin bu organizasyonda zaten bir üyeliği var.",
       refused: "Bu işlem reddedildi.",
       lastAdministrator:
@@ -2447,6 +2450,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       revoke: "Revoke",
       undoRevoke: "Undo",
       reachesNothing: "No Property yet",
+      reachesEverywhere: "Every Property",
       alreadyAMember:
         "That person already has a membership in this Organization.",
       refused: "That was refused.",
@@ -3581,6 +3585,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       revoke: "إلغاء العضوية",
       undoRevoke: "تراجع",
       reachesNothing: "لا منشأة بعد",
+      reachesEverywhere: "كل المنشآت",
       alreadyAMember: "لهذا الشخص عضوية في هذه المؤسسة بالفعل.",
       refused: "رُفض هذا الإجراء.",
       lastAdministrator: "يجب أن يبقى في المؤسسة من يستطيع إدارة الفريق.",
