@@ -402,8 +402,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  46,
-  'the definer sweep looked at 46 functions; change this number deliberately');
+  48,
+  'the definer sweep looked at 48 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -413,10 +413,10 @@ select is(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef and p.prosrc ~* '(insert|update|delete)\s'),
-  9,
-  'nine of them write, which is what makes the assertion above a test');
+  10,
+  'ten of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a forty-seventh definer is a red test
+-- Part B: the inventory itself, so a forty-ninth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
 -- four are housekeeping; two are maintenance; five are the audit log's reach;
@@ -433,7 +433,15 @@ select is(
 -- close's and the check-out's act rather than finance.post_charge's, so they
 -- are definers; both write, and both check their caller — close_day or the
 -- worker in its Organization, and check_out — which is what makes nine
--- writers. The other seven are named in the comments above.
+-- writers. Amending a booking (ADR 0039) brought two more.
+-- amend_reservation() is the command: the update policy on reservations is
+-- keyed on the new status, so the dates and Unit are changed by a definer that
+-- asks can_use_capability and has_organization_permission for front_desk.amend
+-- before anything else, rather than by a grant every check-in holder would
+-- share. It writes, and is the tenth writer.
+-- reservation_is_priced_for_its_new_kind() re-stamps a booking moved to another
+-- kind of Unit, a definer for the insert stamp's reason, and writes only NEW.
+-- The other seven are named in the comments above.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -461,8 +469,9 @@ select set_eq(
         'folio_currency_is_its_propertys','property_currency_is_fixed',
         'has_organization_wide_administrator',
         'reservation_is_priced_when_taken',
-        'post_room_nights', 'post_room_nights_for_departure'],
-  'and they are exactly the forty-six the design gives a reason for');
+        'post_room_nights', 'post_room_nights_for_departure',
+        'amend_reservation', 'reservation_is_priced_for_its_new_kind'],
+  'and they are exactly the forty-eight the design gives a reason for');
 
 select finish();
 rollback;

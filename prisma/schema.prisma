@@ -27,13 +27,14 @@ model User {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  identities  AuthIdentity[]
-  memberships OrganizationMembership[]
-  assignments PropertyAssignment[]
-  stays       Stay[]
-  invitesSent StaffInvitation[]        @relation("StaffInvitationAuthor")
-  closedDays  BusinessDayClose[]
-  ratesSet    PropertyRate[]
+  identities     AuthIdentity[]
+  memberships    OrganizationMembership[]
+  assignments    PropertyAssignment[]
+  stays          Stay[]
+  invitesSent    StaffInvitation[]        @relation("StaffInvitationAuthor")
+  closedDays     BusinessDayClose[]
+  ratesSet       PropertyRate[]
+  bookingChanges ReservationChange[]
 
   @@map("users")
 }
@@ -62,12 +63,12 @@ model Organization {
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  properties   Property[]
-  memberships  OrganizationMembership[]
-  subscription Subscription?
-  entitlements Entitlement[]
-  guests       Guest[]
-  staffRoles   StaffRole[]
+  properties           Property[]
+  memberships          OrganizationMembership[]
+  subscription         Subscription?
+  entitlements         Entitlement[]
+  guests               Guest[]
+  staffRoles           StaffRole[]
   housekeepingSettings HousekeepingSetting[]
   maintenanceSettings  MaintenanceSetting[]
 
@@ -75,36 +76,37 @@ model Organization {
 }
 
 model Property {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String   @map("organization_id") @db.Uuid
-  name           String
-  status         String   @default("active")
-  timezone       String   @default("Europe/Istanbul")
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId     String   @map("organization_id") @db.Uuid
+  name               String
+  status             String   @default("active")
+  timezone           String   @default("Europe/Istanbul")
   /// The currency this Property trades in, ISO 4217. Alongside `timezone` and
   /// for the same reason: an Organization may hold Properties in more than one
   /// country, so neither fact can live one level up. A Folio copies it at the
   /// moment it opens.
-  currency       String   @default("TRY") @db.Char(3)
+  currency           String   @default("TRY") @db.Char(3)
   /// The local time at which this Property's working day ends (ADR 0021). A
   /// night shift at 02:00 is still working the day before; `app.property_today()`
   /// is the only place the two are combined.
   businessDateCutoff DateTime @default(dbgenerated("'04:00:00'::time without time zone")) @map("business_date_cutoff") @db.Time(6)
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  assignments  PropertyAssignment[]
-  capabilities PropertyCapability[]
-  units        AccommodationUnit[]
-  stays        Stay[]
-  reservations Reservation[]
-  folios       Folio[]
+  organization         Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  assignments          PropertyAssignment[]
+  capabilities         PropertyCapability[]
+  units                AccommodationUnit[]
+  stays                Stay[]
+  reservations         Reservation[]
+  folios               Folio[]
   housekeepingSettings HousekeepingSetting[]
-  closes       BusinessDayClose[]
+  closes               BusinessDayClose[]
   maintenanceRequests  MaintenanceRequest[]
   maintenanceSettings  MaintenanceSetting[]
   maintenanceEquipment MaintenanceEquipment[]
-  rates        PropertyRate[]
+  rates                PropertyRate[]
+  bookingChanges       ReservationChange[]
 
   @@unique([id, organizationId])
   @@index([organizationId], map: "properties_organization_idx")
@@ -148,14 +150,16 @@ model AccommodationUnit {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  property     Property            @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  parent       AccommodationUnit?  @relation("UnitNesting", fields: [parentId, propertyId, organizationId, parentUnitType], references: [id, propertyId, organizationId, unitType], onDelete: Restrict, onUpdate: NoAction)
-  children     AccommodationUnit[] @relation("UnitNesting")
+  property     Property                 @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  parent       AccommodationUnit?       @relation("UnitNesting", fields: [parentId, propertyId, organizationId, parentUnitType], references: [id, propertyId, organizationId, unitType], onDelete: Restrict, onUpdate: NoAction)
+  children     AccommodationUnit[]      @relation("UnitNesting")
   stays        Stay[]
   reservations Reservation[]
   housekeeping HousekeepingUnitStatus[]
   maintenance  MaintenanceRequest[]
   equipment    MaintenanceEquipment[]
+  changesFrom  ReservationChange[]      @relation("ChangeFromUnit")
+  changesTo    ReservationChange[]      @relation("ChangeToUnit")
 
   /// A room's name is unique in its Property; a bed's is unique in its room.
   /// Two partial indexes rather than one over `(property_id, parent_id, name)`,
@@ -259,19 +263,19 @@ model MaintenanceRequest {
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
 
-  property  Property                     @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  unit      AccommodationUnit?           @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  equipment MaintenanceEquipment?        @relation(fields: [equipmentId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  property  Property                   @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  unit      AccommodationUnit?         @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  equipment MaintenanceEquipment?      @relation(fields: [equipmentId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
   hold      MaintenanceUnitHold?
   charges   MaintenanceRequestCharge[]
 
   @@unique([propertyId, number])
   @@unique([id, propertyId, organizationId])
+  /// One open work order per item (MT-S4-03).
+  @@unique([equipmentId], map: "maintenance_requests_one_open_work_order", where: raw("((kind = 'service'::text) AND (status <> ALL (ARRAY['done'::text, 'cancelled'::text])))"))
   @@index([propertyId, status])
   @@index([accommodationUnitId])
   @@index([equipmentId])
-  /// One open work order per item (MT-S4-03).
-  @@unique([equipmentId], map: "maintenance_requests_one_open_work_order", where: raw("((kind = 'service'::text) AND (status <> ALL (ARRAY['done'::text, 'cancelled'::text])))"))
   @@map("maintenance_requests")
 }
 
@@ -624,13 +628,14 @@ model Reservation {
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  property Property          @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  unit     AccommodationUnit @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  guest    Guest             @relation(fields: [guestId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  property Property            @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  unit     AccommodationUnit   @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  guest    Guest               @relation(fields: [guestId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
   /// Several, of which at most one is not cancelled. A withdrawn check-in keeps
   /// its `reservation_id` so the mistake stays visible (ADR 0022), and the
   /// partial unique on `stays` is what stops a second live one.
   stays    Stay[]
+  changes  ReservationChange[]
 
   @@unique([id, propertyId, organizationId])
   @@unique([reference], map: "reservations_reference_key")
@@ -669,11 +674,12 @@ model Stay {
   /// was marked before or after it. Null on every Stay that has not departed.
   departedAt          DateTime? @map("departed_at") @db.Timestamptz(6)
 
-  property    Property          @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  unit        AccommodationUnit @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  user        User?             @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  reservation Reservation?      @relation(fields: [reservationId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  property    Property            @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  unit        AccommodationUnit   @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  user        User?               @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  reservation Reservation?        @relation(fields: [reservationId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
   folio       Folio?
+  changes     ReservationChange[]
 
   // The composite foreign key above forces property and organization to be the
   // Reservation's own, so uniqueness across the three is uniqueness on
@@ -765,9 +771,9 @@ model Folio {
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  property Property    @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  stay     Stay        @relation(fields: [stayId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  lines    FolioLine[]
+  property           Property                   @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  stay               Stay                       @relation(fields: [stayId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  lines              FolioLine[]
   maintenanceCharges MaintenanceRequestCharge[]
 
   @@unique([id, propertyId, organizationId])
@@ -788,21 +794,21 @@ model Folio {
 /// and a trigger each say so independently, because the audit module has
 /// already been wrong about exactly this once.
 model FolioLine {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String   @map("organization_id") @db.Uuid
-  propertyId     String   @map("property_id") @db.Uuid
-  folioId        String   @map("folio_id") @db.Uuid
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  propertyId     String    @map("property_id") @db.Uuid
+  folioId        String    @map("folio_id") @db.Uuid
   /// `charge` or `reversal`. Nothing else: payments, credits, deposits and
   /// refunds are blueprint 5.9 workflows this slice does not build, and a value
   /// invented for one of them would be inventing the workflow.
-  lineType       String   @map("line_type")
+  lineType       String    @map("line_type")
   description    String
   /// Integer minor units, signed. Never a float, and never scaled by a
   /// fraction — the unit is whatever the Folio's currency calls its hundredth.
-  amountMinor    BigInt   @map("amount_minor")
+  amountMinor    BigInt    @map("amount_minor")
   /// The line this one reverses, null on an original charge.
-  reversesLineId String?  @map("reverses_line_id") @db.Uuid
-  postedAt       DateTime @default(now()) @map("posted_at") @db.Timestamptz(6)
+  reversesLineId String?   @map("reverses_line_id") @db.Uuid
+  postedAt       DateTime  @default(now()) @map("posted_at") @db.Timestamptz(6)
   /// What posted this line when it was not a person: `room_night`, a night a
   /// Guest spent in house (ADR 0038). Null on everything else. Written only by
   /// the posting functions; no grant names it.
@@ -811,10 +817,10 @@ model FolioLine {
   /// `source` is.
   businessDate   DateTime? @map("business_date") @db.Date
 
-  folio    Folio      @relation(fields: [folioId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  reverses FolioLine? @relation("FolioLineReversal", fields: [reversesLineId, folioId], references: [id, folioId], onDelete: Restrict, onUpdate: NoAction)
+  folio             Folio                     @relation(fields: [folioId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  reverses          FolioLine?                @relation("FolioLineReversal", fields: [reversesLineId, folioId], references: [id, folioId], onDelete: Restrict, onUpdate: NoAction)
   maintenanceCharge MaintenanceRequestCharge?
-  reversal FolioLine? @relation("FolioLineReversal")
+  reversal          FolioLine?                @relation("FolioLineReversal")
 
   /// What the reversal's composite foreign key resolves against, so a reversal
   /// cannot reference a line on a different Folio.
@@ -948,36 +954,78 @@ model AuthVerification {
 /// snapshot, so a Staff Member's close and the worker's cannot record different
 /// things. Only a finalized day is stored: draft and superseded are derived.
 model BusinessDayClose {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String   @map("organization_id") @db.Uuid
-  propertyId     String   @map("property_id") @db.Uuid
-  businessDate   DateTime @map("business_date") @db.Date
-  closedAt       DateTime @default(now()) @map("closed_at") @db.Timestamptz(6)
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId      String   @map("organization_id") @db.Uuid
+  propertyId          String   @map("property_id") @db.Uuid
+  businessDate        DateTime @map("business_date") @db.Date
+  closedAt            DateTime @default(now()) @map("closed_at") @db.Timestamptz(6)
   /// The Staff Member, or null when the worker closed it and `closedByJob` says which job.
-  closedBy       String?  @map("closed_by") @db.Uuid
-  closedByJob    String?  @map("closed_by_job")
+  closedBy            String?  @map("closed_by") @db.Uuid
+  closedByJob         String?  @map("closed_by_job")
   /// Required when anything was left open, and then recorded beside `exceptions`.
-  reason         String?
-  arrived        Int      @default(0)
-  departed       Int      @default(0)
-  nightsOccupied Int      @default(0) @map("nights_occupied")
+  reason              String?
+  arrived             Int      @default(0)
+  departed            Int      @default(0)
+  nightsOccupied      Int      @default(0) @map("nights_occupied")
   /// Departed Guests whose Folio is still open. Reported, never blocking.
-  foliosLeftOpen Int      @default(0) @map("folios_left_open")
+  foliosLeftOpen      Int      @default(0) @map("folios_left_open")
   /// What was left open: `{kind: "not_arrived", reservationId}` or `{kind: "not_departed", stayId}`.
-  exceptions     Json     @default("[]")
+  exceptions          Json     @default("[]")
   /// Every room night dated this business date, whoever posted it (ADR 0038).
-  roomNightsPosted    Int     @default(0) @map("room_nights_posted")
-  roomRevenueMinor    BigInt  @default(0) @map("room_revenue_minor")
+  roomNightsPosted    Int      @default(0) @map("room_nights_posted")
+  roomRevenueMinor    BigInt   @default(0) @map("room_revenue_minor")
   /// The currency of `roomRevenueMinor`; null when nothing was posted.
-  roomRevenueCurrency String? @map("room_revenue_currency") @db.Char(3)
+  roomRevenueCurrency String?  @map("room_revenue_currency") @db.Char(3)
   /// Guest nights of this date that could not be charged, never blocking.
-  roomNightsUnposted  Int     @default(0) @map("room_nights_unposted")
+  roomNightsUnposted  Int      @default(0) @map("room_nights_unposted")
   /// Which, and why: `{stayId, reason}`.
-  unposted            Json    @default("[]")
+  unposted            Json     @default("[]")
 
   property Property @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
   closer   User?    @relation(fields: [closedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@unique([propertyId, businessDate])
   @@map("business_day_closes")
+}
+
+/// One change to a booking or a Stay's dates or Unit (ADR 0039): what it was,
+/// what it became, on which business day, who and why. Append-only for every
+/// role. Written only by the amend commands, which take who, when and the
+/// business date from the database rather than from their caller.
+model ReservationChange {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId   String    @map("organization_id") @db.Uuid
+  propertyId       String    @map("property_id") @db.Uuid
+  reservationId    String    @map("reservation_id") @db.Uuid
+  /// The Stay a departure change or a move was made to; null for a booking not yet arrived.
+  stayId           String?   @map("stay_id") @db.Uuid
+  /// `amended`, `departure_changed` or `moved`.
+  kind             String
+  businessDate     DateTime  @map("business_date") @db.Date
+  fromStartsOn     DateTime  @map("from_starts_on") @db.Date
+  toStartsOn       DateTime  @map("to_starts_on") @db.Date
+  fromEndsOn       DateTime? @map("from_ends_on") @db.Date
+  toEndsOn         DateTime? @map("to_ends_on") @db.Date
+  fromUnitId       String    @map("from_unit_id") @db.Uuid
+  toUnitId         String    @map("to_unit_id") @db.Uuid
+  fromRateMinor    BigInt?   @map("from_rate_minor")
+  fromRateCurrency String?   @map("from_rate_currency") @db.Char(3)
+  toRateMinor      BigInt?   @map("to_rate_minor")
+  toRateCurrency   String?   @map("to_rate_currency") @db.Char(3)
+  /// Why a Guest was moved: `fault`, `upgrade`, `guest_request` or `other`. Only on a move.
+  reasonKind       String?   @map("reason_kind")
+  note             String?
+  changedBy        String    @map("changed_by") @db.Uuid
+  changedAt        DateTime  @default(now()) @map("changed_at") @db.Timestamptz(6)
+
+  property    Property          @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  reservation Reservation       @relation(fields: [reservationId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  stay        Stay?             @relation(fields: [stayId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  fromUnit    AccommodationUnit @relation("ChangeFromUnit", fields: [fromUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  toUnit      AccommodationUnit @relation("ChangeToUnit", fields: [toUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  changer     User              @relation(fields: [changedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([reservationId], map: "reservation_changes_reservation_idx")
+  @@index([fromUnitId, changedAt], map: "reservation_changes_from_unit_idx")
+  @@map("reservation_changes")
 }

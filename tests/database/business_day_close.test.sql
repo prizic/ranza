@@ -537,12 +537,17 @@ select lives_ok(
      where id = 'bd500000-0000-4000-8000-000000000013'$$,
   'and a departure today is recorded as ever');
 
+-- A departed Stay is not re-dated at all since 20260916009000: its dates and
+-- Unit are refused for every role before this trigger is asked (AB-S1-13). The
+-- closed-day branch for a departed Stay therefore cannot be reached, and these
+-- two assert the rule that binds; the one above still reaches RZ001, because a
+-- Stay being checked out is in house when the update begins.
 select throws_ok(
   $$update public.stays
        set ends_on = app.property_today('bd200000-0000-4000-8000-000000000005') - 1,
            updated_at = now()
      where id = 'bd500000-0000-4000-8000-000000000013'$$,
-  'RZ001', null,
+  '23514', 'a finished stays keeps its dates and Unit',
   'a departure cannot be re-dated onto a closed day');
 
 select throws_ok(
@@ -550,7 +555,7 @@ select throws_ok(
        set ends_on = app.property_today('bd200000-0000-4000-8000-000000000005'),
            updated_at = now()
      where id = 'bd500000-0000-4000-8000-000000000014'$$,
-  'RZ001', null,
+  '23514', 'a finished stays keeps its dates and Unit',
   'nor off one: the day that counted it is closed');
 
 select lives_ok(

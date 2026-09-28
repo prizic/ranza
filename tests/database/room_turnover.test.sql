@@ -128,11 +128,10 @@ select is(
 -- A departure keeps its moment (HK-S1-23)
 -- ---------------------------------------------------------------------------
 
--- Everything a later update could move: the dates, updated_at, and the
--- column itself.
+-- Everything a later update could move: updated_at and the column itself.
+-- Not the dates, which a departed Stay keeps for every role (AB-S1-13).
 update public.stays
-   set ends_on = ends_on + 1,
-       updated_at = now() + interval '10 minutes',
+   set updated_at = now() + interval '10 minutes',
        departed_at = now() + interval '10 minutes'
  where id = 'e0f11112-1111-4111-8111-111111111111';
 
