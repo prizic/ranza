@@ -85,6 +85,9 @@ lock, shared, before the Stay's. Namespace 4 is the price list's own.
   at the desk and it ends with the payments slice, not with a shortcut here.
 - Bookings taken before this was deployed stay unpriced. Nothing is backfilled:
   a price nobody quoted is not one somebody agreed.
+- The close's room total is what was charged, gross: a room night reversed
+  before the close is still counted, and one reversed after it could not be. A
+  net figure is a revenue report's, and belongs to one (RT-S3-18).
 - A Property without billing lists every Guest night as not charged, every
   day. That is the truth, grouped by reason on the close screen.
 - A price per Unit, a price typed at the desk, seasons, taxes and discounts are

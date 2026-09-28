@@ -269,6 +269,52 @@ describe("the price list", () => {
   );
 
   it(
+    "a_save_that_a_currency_change_overtakes_is_stale",
+    async () => {
+      // A currency change takes the Property's lock and a price save takes the
+      // list's, so one can commit between the save's read and its write. That
+      // window is forced here: a trigger of the test's own changes the
+      // currency inside the save, just before the price is stamped.
+      const { propertyId } = await pricedProperty();
+      const read = await rates.getPriceList(MANAGER, propertyId);
+      await owner.$executeRawUnsafe(`
+        create function public.test_currency_changes_mid_save()
+        returns trigger language plpgsql as $$
+        begin
+          update public.properties set currency = 'JPY' where id = new.property_id;
+          return new;
+        end $$`);
+      await owner.$executeRawUnsafe(`
+        create trigger a_test_currency_changes_mid_save
+          before insert or update on public.property_rates
+          for each row execute function public.test_currency_changes_mid_save()`);
+      try {
+        await expect(
+          rates.setPrices(MANAGER, propertyId, {
+            version: read!.version,
+            prices: [{ unitType: "room", amountMinor: 175000 }],
+          }),
+        ).rejects.toBeInstanceOf(RatesStaleError);
+      } finally {
+        await owner.$executeRawUnsafe(
+          "drop trigger a_test_currency_changes_mid_save on public.property_rates",
+        );
+        await owner.$executeRawUnsafe(
+          "drop function public.test_currency_changes_mid_save()",
+        );
+      }
+      // Rolled back whole: the price and the currency are as they were.
+      const after = await rates.getPriceList(MANAGER, propertyId);
+      expect(after?.currency).toBe("TRY");
+      expect(after?.entries[0]).toMatchObject({
+        amountMinor: 150000,
+        currency: "TRY",
+      });
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
     "the_front_desk_reads_and_is_refused",
     async () => {
       const read = await list(DESK);

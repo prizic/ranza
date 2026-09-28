@@ -301,6 +301,14 @@ export function createRatesModule(deps: RatesDeps) {
 
       const saved = await readPriceList(tx, propertyId);
       if (!saved) throw new RatesRefusedError();
+      // The form converted what was typed into minor units of the currency it
+      // was read in, and a currency change takes the Property's lock, not this
+      // list's: if one committed while this saved, the trigger has stamped the
+      // new currency onto amounts meant in the old one. Refused as stale, which
+      // rolls the writes back, so the form is read again in the new currency.
+      if (saved.currency !== current.currency) {
+        throw new RatesStaleError(publicList(saved));
+      }
 
       await recordWithin(tx, {
         organizationId: current.organizationId,
