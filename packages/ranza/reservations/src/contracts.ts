@@ -308,6 +308,18 @@ export class UnitUnavailableError extends Error {
  * by checking somebody out or finding them another room (ADR 0033). Like its
  * neighbour it reveals nothing the caller did not already name.
  */
+/**
+ * The price list changed while the booking was being taken: the database would
+ * stamp a price the desk did not quote. Nothing was written, and the dialog is
+ * read again with the price that stands now (RT-S2-12).
+ */
+export class PriceChangedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PriceChangedError";
+  }
+}
+
 export class UnitHasOccupantError extends Error {
   constructor(message: string) {
     super(message);
@@ -521,6 +533,15 @@ export interface NewReservation {
   startsOn: string;
   /** Null for an open-ended Reservation, which is normal for a Resident. */
   endsOn: string | null;
+  /**
+   * The price the desk quoted: what the dialog showed for a night, in minor
+   * units of `quotedCurrency`, or both null when it said the booking would be
+   * unpriced (ADR 0038). The database stamps the booking from the price list,
+   * and a stamp that is not this quote refuses the booking (`PriceChangedError`)
+   * rather than charging a Guest a price nobody told them.
+   */
+  quotedRateMinor: number | null;
+  quotedCurrency: string | null;
 }
 
 /** What a completed booking produced. */

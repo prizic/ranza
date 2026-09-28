@@ -15,6 +15,8 @@ import {
   ReservationPeriodError,
   ReservationReasonError,
   REVERSAL_REASON,
+  PriceChangedError,
+  ReservationRefusedError,
   UnitHasOccupantError,
   UnitNotInServiceError,
   UnitNotReadyError,
@@ -298,6 +300,7 @@ export type CreateReservationOutcome =
   | "occupied"
   | "invalidPeriod"
   | "invalidGuest"
+  | "priceChanged"
   | "refused";
 
 /** Only the two the database will accept; anything else is not a stay type. */
@@ -344,6 +347,20 @@ export async function createReservation(
   if (!propertyId || !accommodationUnitId || !type) return "refused";
   if (guestName.length === 0) return "invalidGuest";
 
+  // What the dialog quoted, both empty for "no price" (ADR 0038). A form this
+  // screen did not send — no quote at all, or a malformed one — is refused.
+  const quotedRate = String(form.get("quotedRateMinor") ?? "");
+  const quotedCurrency = String(form.get("quotedCurrency") ?? "");
+  if (!form.has("quotedRateMinor") || !form.has("quotedCurrency")) {
+    return "refused";
+  }
+  if (
+    !(quotedRate === "" && quotedCurrency === "") &&
+    !(/^\d{1,15}$/.test(quotedRate) && /^[A-Z]{3}$/.test(quotedCurrency))
+  ) {
+    return "refused";
+  }
+
   try {
     await getComposition().reservations.createReservation(viewer.userId, {
       propertyId,
@@ -354,12 +371,22 @@ export async function createReservation(
       stayType: type,
       startsOn,
       endsOn: optional(form, "endsOn"),
+      quotedRateMinor: quotedRate === "" ? null : Number(quotedRate),
+      quotedCurrency: quotedCurrency === "" ? null : quotedCurrency,
     });
   } catch (error) {
     if (error instanceof UnitUnavailableError) return "unavailable";
     if (error instanceof UnitHasOccupantError) return "occupied";
     if (error instanceof ReservationPeriodError) return "invalidPeriod";
     if (error instanceof GuestDetailsError) return "invalidGuest";
+    // The dialog is read again with the price that stands now.
+    if (error instanceof PriceChangedError) {
+      revalidateFrontDesk(locale);
+      return "priceChanged";
+    }
+    // Out of reach, unentitled, out of service: the module's own answer, not
+    // an incident (RG-S3-09).
+    if (error instanceof ReservationRefusedError) return "refused";
 
     // Every refusal this slice raises is named above, so anything left is a
     // lost connection, a schema that moved, or a defect here. Reported as

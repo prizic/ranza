@@ -430,6 +430,11 @@ export function CloseDayView({
             </TableBody>
           </Table>
         )}
+        {day.recent.length > 0 ? (
+          <p className="text-step--1 text-muted-foreground">
+            {t("closeDay.nightsHint")}
+          </p>
+        ) : null}
       </section>
     </div>
   );

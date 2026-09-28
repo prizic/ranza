@@ -858,6 +858,8 @@ describe("nights, overlaps and blocks", () => {
         guestEmail: null,
         guestPhone: null,
         stayType: "guest",
+        quotedRateMinor: null,
+        quotedCurrency: null,
         startsOn: await day(2),
         endsOn: await day(5),
       }),

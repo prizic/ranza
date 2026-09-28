@@ -42,7 +42,10 @@ currency, overwriting anything supplied, and a second trigger refuses any later
 change. No grant names either column. The price a Guest was quoted is the price
 they are charged, whatever the list says later; re-pricing belongs to amending a
 booking. An unset or stale price books the Guest unpriced rather than refusing:
-the front desk is never blocked by a price list somebody has not filled in.
+the front desk is never blocked by a price list somebody has not filled in. The desk's quote travels
+with the booking, and a stamp that is not it — the price changed, was cleared
+or went stale while the dialog was open — refuses the booking, so the price a
+Guest was quoted is the price they are charged.
 
 **A priced booking fixes the currency** (ADR 0036 amended). A booking that is
 requested, confirmed or checked in with a price fixes the Property's currency as

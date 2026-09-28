@@ -155,13 +155,18 @@ describe("the quote (ADR 0038)", () => {
     ).toBeVisible();
   });
 
-  it("the quote is a quote: nothing about a price is submitted", () => {
+  it("the quote travels back so a changed price refuses the booking (RT-S2-12)", () => {
     openForm();
+    const form = () =>
+      new FormData(
+        screen.getByRole("button", { name: /^Arrival/ }).closest("form")!,
+      );
     chooseUnit(/101/);
-    const form = screen
-      .getByRole("button", { name: /^Arrival/ })
-      .closest("form")!;
-    const sent = [...new FormData(form).keys()];
-    expect(sent.some((key) => /price|rate|amount/i.test(key))).toBe(false);
+    expect(form().get("quotedRateMinor")).toBe("150000");
+    expect(form().get("quotedCurrency")).toBe("TRY");
+    // An unpriced kind is quoted as no price at all.
+    chooseUnit(/102/);
+    expect(form().get("quotedRateMinor")).toBe("");
+    expect(form().get("quotedCurrency")).toBe("");
   });
 });

@@ -972,6 +972,8 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
           guestEmail: null,
           guestPhone: null,
           stayType: "guest",
+          quotedRateMinor: null,
+          quotedCurrency: null,
           startsOn: today!.day,
           endsOn: null,
         }),

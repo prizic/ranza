@@ -1003,6 +1003,8 @@ describe("one guest in one Unit", () => {
         guestEmail: null,
         guestPhone: null,
         stayType: "guest",
+        quotedRateMinor: null,
+        quotedCurrency: null,
         startsOn: await propertyDay(1),
         endsOn: await propertyDay(2),
       }),
@@ -1094,6 +1096,8 @@ describe("one guest in one Unit", () => {
           guestEmail: null,
           guestPhone: null,
           stayType: "guest",
+          quotedRateMinor: null,
+          quotedCurrency: null,
           startsOn: await propertyDay(1),
           endsOn: await propertyDay(2),
         }),
@@ -1183,6 +1187,8 @@ describe("taking a booking", () => {
       guestEmail: "Nezihe@Example.Test",
       guestPhone: "+90 212 000 00 00",
       stayType: "guest",
+      quotedRateMinor: null,
+      quotedCurrency: null,
       startsOn: await propertyDay(30),
       endsOn: await propertyDay(33),
     });
@@ -1230,6 +1236,8 @@ describe("taking a booking", () => {
       guestEmail: "nezihe@example.test",
       guestPhone: null,
       stayType: "resident",
+      quotedRateMinor: null,
+      quotedCurrency: null,
       startsOn: await propertyDay(30),
       endsOn: null,
     });
@@ -1257,6 +1265,8 @@ describe("taking a booking", () => {
         guestEmail: null,
         guestPhone: null,
         stayType: "guest",
+        quotedRateMinor: null,
+        quotedCurrency: null,
         startsOn: await propertyDay(40),
         endsOn: await propertyDay(42),
       }),
@@ -1280,6 +1290,8 @@ describe("taking a booking", () => {
       guestEmail: null,
       guestPhone: null,
       stayType: "guest" as const,
+      quotedRateMinor: null,
+      quotedCurrency: null,
     };
 
     // No night in it. An empty daterange overlaps nothing, so this would hold
@@ -1334,6 +1346,8 @@ describe("two people booking at once", () => {
       guestEmail: null,
       guestPhone: null,
       stayType: "guest" as const,
+      quotedRateMinor: null,
+      quotedCurrency: null,
       startsOn: await propertyDay(14),
       endsOn: await propertyDay(18),
     };
@@ -1772,6 +1786,8 @@ describe("ending a booking that will not become a Stay", () => {
         guestEmail: null,
         guestPhone: null,
         stayType: "guest",
+        quotedRateMinor: null,
+        quotedCurrency: null,
         startsOn: await propertyDay(2),
         endsOn: await propertyDay(4),
       }),

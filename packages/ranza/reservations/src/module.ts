@@ -30,6 +30,7 @@ import {
   ReservationRefusedError,
   REVERSAL_REASON,
   StayHasChargesError,
+  PriceChangedError,
   UnitHasOccupantError,
   UnitNotInServiceError,
   UnitNotReadyError,
@@ -1469,6 +1470,19 @@ export function createReservationsModule(deps: ReservationsDeps) {
             row.nightlyRateMinor === null ? null : Number(row.nightlyRateMinor),
           rateCurrency: row.rateCurrency,
         };
+        // The price the Guest was quoted is the price they are charged: a
+        // stamp that is not the quote — changed, cleared or gone stale while
+        // the dialog was open — refuses the booking, and the throw rolls the
+        // Guest and the Reservation back with it (RT-S2-12), as a check-out
+        // that would charge nights it did not show is refused (RT-S3-07).
+        if (
+          price.nightlyRateMinor !== booking.quotedRateMinor ||
+          price.rateCurrency !== booking.quotedCurrency
+        ) {
+          throw new PriceChangedError(
+            "the price changed while the booking was taken",
+          );
+        }
       } catch (error: unknown) {
         // The exclusion constraint refused: those nights are already allocated
         // on that Unit. The one refusal a front desk can act on — every other

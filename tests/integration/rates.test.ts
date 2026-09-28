@@ -19,9 +19,11 @@ import {
 } from "../../packages/ranza/rates/src";
 import {
   FolioChangedError,
+  PriceChangedError,
   createReservationsModule,
 } from "../../packages/ranza/reservations/src";
 import { createBusinessDayModule } from "../../packages/ranza/business-day/src";
+import { PERMISSION_CATALOGUE } from "../../apps/operator-workspace/src/features/staff/labels";
 import { latestRecord } from "./audit-record";
 
 const ORG = "a7000002-0000-4000-8000-000000000001";
@@ -122,6 +124,22 @@ afterAll(async () => {
   await rival.$disconnect();
   await worker.$disconnect();
   await owner.$disconnect();
+});
+
+describe("the permission the price list needs", () => {
+  it(
+    "the_workspace_catalogue_names_every_permission_the_database_has",
+    async () => {
+      // The People screen offers, and the audit log names, only what this list
+      // holds; a permission the database has and the list lacks — rates.manage
+      // was one — cannot be put in a role from the screen (RT-S1-08).
+      const rows = await owner.$queryRawUnsafe<{ key: string }[]>(
+        "select key from public.staff_permissions order by key",
+      );
+      expect([...PERMISSION_CATALOGUE].sort()).toEqual(rows.map((r) => r.key));
+    },
+    DATABASE_BUDGET_MS,
+  );
 });
 
 describe("the price list", () => {
@@ -430,11 +448,16 @@ function plusDays(day: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
+/** A Guest booking of the room, quoted at the price the dialog would show. */
 function booking(
   propertyId: string,
   unitId: string,
   from: string,
   nights: number,
+  quoted: { rate: number | null; currency: string | null } = {
+    rate: 150000,
+    currency: "TRY",
+  },
 ) {
   return {
     propertyId,
@@ -445,6 +468,8 @@ function booking(
     stayType: "guest" as const,
     startsOn: from,
     endsOn: plusDays(from, nights),
+    quotedRateMinor: quoted.rate,
+    quotedCurrency: quoted.currency,
   };
 }
 
@@ -519,19 +544,58 @@ describe("a booking carries its price (slice 2)", () => {
         },
         { timeout: 20_000 },
       );
-      const taken = await bookingTaken!;
+      // The room's price is in TRY, which is now stale, so the stamp prices
+      // nothing — and the desk quoted 1,500.00 TRY, so the booking is refused
+      // rather than taken at a price nobody told the Guest. Without the lock
+      // the stamp would read TRY from its own snapshot, match the quote, and
+      // commit a TRY price at a Property that trades in EUR.
+      await expect(bookingTaken!).rejects.toBeInstanceOf(PriceChangedError);
       const [property] = await owner.$queryRawUnsafe<{ currency: string }[]>(
         `select trim(currency) as currency from public.properties where id = $1`,
         propertyId,
       );
       expect(property?.currency).toBe("EUR");
-      // The room's price is in TRY, which is now stale: unpriced, never a TRY
-      // price in a EUR Property.
-      expect(
-        taken.rateCurrency === null ||
-          taken.rateCurrency === property?.currency,
-      ).toBe(true);
-      expect(taken.nightlyRateMinor).toBeNull();
+      const [held] = await owner.$queryRawUnsafe<{ count: number }[]>(
+        `select count(*)::int as count from public.reservations where property_id = $1`,
+        propertyId,
+      );
+      expect(held?.count).toBe(0);
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "a_booking_quoted_at_a_price_that_changed_is_refused",
+    async () => {
+      const { propertyId, roomId } = await pricedProperty();
+      const day = await today(propertyId);
+      // The dialog was read at 1,500.00; a manager then changes the price.
+      const read = await rates.getPriceList(MANAGER, propertyId);
+      await rates.setPrices(MANAGER, propertyId, {
+        version: read!.version,
+        prices: [{ unitType: "room", amountMinor: 175000 }],
+      });
+      await expect(
+        reservations.createReservation(
+          MANAGER,
+          booking(propertyId, roomId, plusDays(day, 1), 2),
+        ),
+      ).rejects.toBeInstanceOf(PriceChangedError);
+      const [held] = await owner.$queryRawUnsafe<{ count: number }[]>(
+        `select count(*)::int as count from public.reservations where property_id = $1`,
+        propertyId,
+      );
+      expect(held?.count).toBe(0);
+
+      // Quoted at the price that stands, it is taken at it.
+      const taken = await reservations.createReservation(
+        MANAGER,
+        booking(propertyId, roomId, plusDays(day, 1), 2, {
+          rate: 175000,
+          currency: "TRY",
+        }),
+      );
+      expect(taken.nightlyRateMinor).toBe(175000);
     },
     DATABASE_BUDGET_MS,
   );

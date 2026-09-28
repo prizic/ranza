@@ -569,6 +569,8 @@ describe("what is open", () => {
         guestEmail: null,
         guestPhone: null,
         stayType: "guest",
+        quotedRateMinor: null,
+        quotedCurrency: null,
         startsOn: yesterday,
         endsOn: await day(property, 1),
       }),

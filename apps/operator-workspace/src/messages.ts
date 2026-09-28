@@ -296,7 +296,8 @@ export interface Messages {
       | "takeOutOfOrder"
       | "manageEquipment"
       | "readAudit"
-      | "manageConfiguration",
+      | "manageConfiguration"
+      | "manageRates",
       string
     >;
     emptyRosterTitle: string;
@@ -347,6 +348,8 @@ export interface Messages {
   bookingPeriodInvalid: string;
   bookingGuestInvalid: string;
   bookingRefused: string;
+  /** The price list changed while the booking dialog was open (RT-S2-12). */
+  bookingPriceChanged: string;
 
   folios: string;
   foliosAt: string;
@@ -1159,6 +1162,8 @@ export interface Messages {
     roomNightsColumn: string;
     /** ICU plural on `n`: the Guest nights a close could not charge. */
     roomNightsNotCharged: string;
+    /** Why Nights and Room nights differ in the recent closes. */
+    nightsHint: string;
     dueOn: string;
     dueOutOn: string;
     leftOn: string;
@@ -1528,6 +1533,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         manageEquipment: "Ekipman kaydını yönetme",
         readAudit: "Denetim kaydını okuma",
         manageConfiguration: "Ayarları yönetme",
+        manageRates: "Gecelik fiyatları belirleme",
       },
       emptyRosterTitle: "Henüz kimse yok",
       emptyRosterDescription:
@@ -1580,6 +1586,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Bu tarihler geçerli bir dönem değil. Rezervasyon en az bir gece sürer ve bugünden önce başlayamaz.",
     bookingGuestInvalid:
       "Misafirin adını, e-postasını ve telefonunu kontrol edin.",
+    bookingPriceChanged:
+      "Bu birimin fiyatı siz rezervasyon yaparken değişti. Yeni fiyatı kontrol edip rezervasyonu yeniden alın.",
     bookingRefused: "Bu rezervasyon oluşturulamıyor.",
     folios: "Folyolar",
     foliosAt: "Folyolar —",
@@ -2431,6 +2439,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       roomNightsColumn: "Oda geceleri",
       roomNightsNotCharged:
         "{n, plural, one {# gece ücretlendirilmedi} other {# gece ücretlendirilmedi}}",
+      nightsHint:
+        "Geceler, Sakinler dahil konaklayan herkesi sayar. Oda geceleri yalnızca misafirlerindir; Sakinler aylık faturalandırılır.",
       dueOn: "Beklenen giriş {date}",
       dueOutOn: "Beklenen çıkış {date}",
       leftOn: "Ayrıldı {date}",
@@ -2823,6 +2833,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         manageEquipment: "Keep the equipment register",
         readAudit: "Reading the audit log",
         manageConfiguration: "Manage configuration",
+        manageRates: "Set nightly rates",
       },
       emptyRosterTitle: "Nobody here yet",
       emptyRosterDescription: "This Organization has no Staff Member to show.",
@@ -2876,6 +2887,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Those dates are not a period a Reservation can have. It covers at least one night and cannot start before today.",
     bookingGuestInvalid:
       "Check the Guest's name, email address and telephone number.",
+    bookingPriceChanged:
+      "The price for this Unit changed while you were booking. Check the new price and take the booking again.",
     bookingRefused: "That booking cannot be taken.",
     folios: "Folios",
     foliosAt: "Folios at",
@@ -3736,6 +3749,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       roomNightsColumn: "Room nights",
       roomNightsNotCharged:
         "{n, plural, one {# not charged} other {# not charged}}",
+      nightsHint:
+        "Nights counts every Stay in house, Residents included. Room nights are Guests' only: Residents are billed by the month.",
       dueOn: "Due {date}",
       dueOutOn: "Due out {date}",
       leftOn: "Left {date}",
@@ -4118,6 +4133,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         manageEquipment: "إدارة سجل المعدات",
         readAudit: "قراءة سجل التدقيق",
         manageConfiguration: "إدارة الإعدادات",
+        manageRates: "تحديد أسعار الليلة",
       },
       emptyRosterTitle: "لا أحد هنا بعد",
       emptyRosterDescription: "لا يوجد في هذه المؤسسة موظف لعرضه.",
@@ -4167,6 +4183,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingPeriodInvalid:
       "هذه التواريخ ليست مدة صالحة. يغطي الحجز ليلة واحدة على الأقل ولا يبدأ قبل اليوم.",
     bookingGuestInvalid: "تحقق من اسم الضيف وبريده الإلكتروني وهاتفه.",
+    bookingPriceChanged:
+      "تغيّر سعر هذه الوحدة أثناء الحجز. راجع السعر الجديد ثم أعد أخذ الحجز.",
     bookingRefused: "لا يمكن إنشاء هذا الحجز.",
     folios: "الحسابات",
     foliosAt: "الحسابات في",
@@ -5022,6 +5040,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       roomNightsColumn: "ليالي الغرف",
       roomNightsNotCharged:
         "{n, plural, zero {لا شيء} one {ليلة واحدة لم تُحتسب} two {ليلتان لم تُحتسبا} few {# ليالٍ لم تُحتسب} many {# ليلة لم تُحتسب} other {# ليلة لم تُحتسب}}",
+      nightsHint:
+        "تحسب الليالي كل إقامة في المنشأة، بما فيها المقيمون. أما ليالي الغرف فللضيوف وحدهم: يُحاسَب المقيمون شهريًا.",
       dueOn: "الوصول المتوقع {date}",
       dueOutOn: "المغادرة المتوقعة {date}",
       leftOn: "غادر {date}",

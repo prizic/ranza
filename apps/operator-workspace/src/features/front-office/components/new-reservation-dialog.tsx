@@ -158,9 +158,11 @@ export function NewReservationDialog({
           ? t("bookingPeriodInvalid")
           : outcome === "invalidGuest"
             ? t("bookingGuestInvalid")
-            : outcome === "refused"
-              ? t("bookingRefused")
-              : null;
+            : outcome === "priceChanged"
+              ? t("bookingPriceChanged")
+              : outcome === "refused"
+                ? t("bookingRefused")
+                : null;
 
   return (
     <Dialog onOpenChange={openChanged} open={open}>
@@ -180,6 +182,27 @@ export function NewReservationDialog({
 
           <input name="property" type="hidden" value={propertyId} />
           <input name="locale" type="hidden" value={locale} />
+          {/* The quote travels back, so a price that changed while this was
+              open refuses the booking rather than charging a price nobody
+              was told (RT-S2-12). Empty for a Resident or an unpriced kind. */}
+          <input
+            name="quotedRateMinor"
+            type="hidden"
+            value={
+              stayType === "guest" && chosen?.nightlyRateMinor != null
+                ? chosen.nightlyRateMinor
+                : ""
+            }
+          />
+          <input
+            name="quotedCurrency"
+            type="hidden"
+            value={
+              stayType === "guest" && chosen?.nightlyRateMinor != null
+                ? (chosen.rateCurrency ?? "")
+                : ""
+            }
+          />
 
           <Field htmlFor="booking-guest" label={t("guest")}>
             <Input
