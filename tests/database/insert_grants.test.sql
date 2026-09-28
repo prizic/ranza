@@ -402,8 +402,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  43,
-  'the definer sweep looked at 43 functions; change this number deliberately');
+  44,
+  'the definer sweep looked at 44 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -416,7 +416,7 @@ select is(
   7,
   'seven of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a forty-fourth definer is a red test
+-- Part B: the inventory itself, so a forty-fifth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
 -- four are housekeeping; two are maintenance; five are the audit log's reach;
@@ -424,8 +424,11 @@ select is(
 -- configuration's; and the last is has_organization_wide_administrator(), which
 -- the staff triggers ask so an Organization keeps somebody organization-wide
 -- who can add staff (SP-S1-38). It reads memberships whatever the caller may
--- see and is granted to nobody. The seven that write are named in the comments
--- above.
+-- see and is granted to nobody. After it, reservation_is_priced_when_taken()
+-- stamps a Guest booking with its price (ADR 0038): a definer only so it may
+-- hold the Property row FOR SHARE against a currency change, reach-gated like
+-- folio_currency_is_its_propertys(), and it writes nothing but NEW. The seven
+-- that write are named in the comments above.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -451,8 +454,9 @@ select set_eq(
         'properties_due_for_close','close_business_day_automatically',
         'property_currency_is_fixed_by_its_first_folio',
         'folio_currency_is_its_propertys','property_currency_is_fixed',
-        'has_organization_wide_administrator'],
-  'and they are exactly the forty-three the design gives a reason for');
+        'has_organization_wide_administrator',
+        'reservation_is_priced_when_taken'],
+  'and they are exactly the forty-four the design gives a reason for');
 
 select finish();
 rollback;

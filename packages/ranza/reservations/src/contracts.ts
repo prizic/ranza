@@ -433,6 +433,14 @@ export interface BookableUnit {
   /** The room a bed is in; null for a room. */
   roomName: string | null;
   unitType: AccommodationUnitType;
+  /**
+   * What a night here costs on the price list now, for the dialog to quote:
+   * minor units of `rateCurrency`, or null when this kind is unpriced or its
+   * price is stale (ADR 0038). A quote, not the price — the database stamps
+   * the booking when it is taken, and that is the one the Guest is charged.
+   */
+  nightlyRateMinor: number | null;
+  rateCurrency: string | null;
 }
 
 /**
@@ -460,6 +468,12 @@ export interface ReservationRow {
   /** The room a bed is in; null for a room. */
   roomName: string | null;
   unitType: AccommodationUnitType;
+  /**
+   * What a night of this booking costs, as stamped when it was taken, in minor
+   * units of `rateCurrency`; null when it was taken unpriced (ADR 0038).
+   */
+  nightlyRateMinor: number | null;
+  rateCurrency: string | null;
   /** Whether the viewer may cancel it, and whether it is still cancellable. */
   mayCancel: boolean;
   /** Whether the viewer may mark it a no-show: confirmed, and its first night has come. */
@@ -497,6 +511,9 @@ export interface CreatedReservation {
   guestId: string;
   /** False when the details named somebody the Organization already had. */
   guestCreated: boolean;
+  /** The price the database stamped it with; null when it was taken unpriced. */
+  nightlyRateMinor: number | null;
+  rateCurrency: string | null;
 }
 
 /**

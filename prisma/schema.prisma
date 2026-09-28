@@ -615,6 +615,12 @@ model Reservation {
   /// never confused aloud. Written by a trigger from a sequence, never by the
   /// application, so no two Reservations share one.
   reference           String
+  /// What a night of this booking costs, in minor units of `rateCurrency`
+  /// (ADR 0038). Stamped by the database from the price list when the booking
+  /// is taken and never changed after; null for an unpriced booking, and
+  /// always for a Resident, who is billed by the month.
+  nightlyRateMinor    BigInt?   @map("nightly_rate_minor")
+  rateCurrency        String?   @map("rate_currency") @db.Char(3)
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 

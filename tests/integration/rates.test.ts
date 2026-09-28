@@ -17,6 +17,7 @@ import {
   RatesStaleError,
   createRatesModule,
 } from "../../packages/ranza/rates/src";
+import { createReservationsModule } from "../../packages/ranza/reservations/src";
 import { latestRecord } from "./audit-record";
 
 const ORG = "a7000002-0000-4000-8000-000000000001";
@@ -25,6 +26,7 @@ const DESK = "a7000001-0000-4000-8000-000000000002";
 
 const prisma = createPrismaClient(process.env.DATABASE_URL!);
 const rates = createRatesModule({ db: prisma });
+const reservations = createReservationsModule({ db: prisma });
 const owner = createPrismaClient(process.env.DIRECT_URL!);
 
 const DATABASE_BUDGET_MS = 60_000;
@@ -68,7 +70,7 @@ async function seed() {
   );
   await owner.$executeRawUnsafe(
     `insert into public.entitlements (organization_id, module_key)
-     values ($1, 'platform_core') on conflict do nothing`,
+     values ($1, 'platform_core'), ($1, 'front_office') on conflict do nothing`,
     ORG,
   );
   await owner.$executeRawUnsafe(
@@ -314,6 +316,182 @@ describe("the price list", () => {
         (r) => r.status === "rejected" && r.reason instanceof RatesStaleError,
       );
       expect([saved.length, stale.length]).toEqual([1, 1]);
+    },
+    DATABASE_BUDGET_MS,
+  );
+});
+
+/** A Property of its own, trading in TRY, with one room priced at 1,500.00. */
+async function pricedProperty(): Promise<{
+  propertyId: string;
+  roomId: string;
+}> {
+  const propertyId = randomUUID();
+  const roomId = randomUUID();
+  await owner.$executeRawUnsafe(
+    `insert into public.properties (id, organization_id, name, currency)
+     values ($1, $2, 'Priced Booking Property', 'TRY')`,
+    propertyId,
+    ORG,
+  );
+  await owner.$executeRawUnsafe(
+    `insert into public.property_capabilities
+       (property_id, organization_id, capability_key, enabled)
+     values ($1, $2, 'configuration', true), ($1, $2, 'front_desk', true)`,
+    propertyId,
+    ORG,
+  );
+  await owner.$executeRawUnsafe(
+    `insert into public.accommodation_units
+       (id, property_id, organization_id, name, unit_type, capacity)
+     values ($1, $2, $3, 'P-101', 'room', 2)`,
+    roomId,
+    propertyId,
+    ORG,
+  );
+  const read = await rates.getPriceList(MANAGER, propertyId);
+  await rates.setPrices(MANAGER, propertyId, {
+    version: read!.version,
+    prices: [{ unitType: "room", amountMinor: 150000 }],
+  });
+  return { propertyId, roomId };
+}
+
+async function today(propertyId: string): Promise<string> {
+  const [row] = await owner.$queryRawUnsafe<{ day: string }[]>(
+    `select app.property_today($1)::text as day`,
+    propertyId,
+  );
+  return row!.day;
+}
+
+function plusDays(day: string, days: number): string {
+  const date = new Date(`${day}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function booking(
+  propertyId: string,
+  unitId: string,
+  from: string,
+  nights: number,
+) {
+  return {
+    propertyId,
+    accommodationUnitId: unitId,
+    guestName: "Priced Guest",
+    guestEmail: null,
+    guestPhone: null,
+    stayType: "guest" as const,
+    startsOn: from,
+    endsOn: plusDays(from, nights),
+  };
+}
+
+describe("a booking carries its price (slice 2)", () => {
+  it(
+    "a_guest_booking_is_stamped_and_keeps_its_price",
+    async () => {
+      const { propertyId, roomId } = await pricedProperty();
+      const day = await today(propertyId);
+
+      const units = await reservations.listBookableUnits(MANAGER, propertyId);
+      expect(units[0]).toMatchObject({
+        nightlyRateMinor: 150000,
+        rateCurrency: "TRY",
+      });
+
+      const taken = await reservations.createReservation(
+        MANAGER,
+        booking(propertyId, roomId, plusDays(day, 1), 2),
+      );
+      expect(taken).toMatchObject({
+        nightlyRateMinor: 150000,
+        rateCurrency: "TRY",
+      });
+
+      const read = await rates.getPriceList(MANAGER, propertyId);
+      await rates.setPrices(MANAGER, propertyId, {
+        version: read!.version,
+        prices: [{ unitType: "room", amountMinor: 175000 }],
+      });
+
+      const [row] = (
+        await reservations.listReservations(MANAGER, propertyId)
+      ).filter((r) => r.reservationId === taken.reservationId);
+      expect(row).toMatchObject({
+        nightlyRateMinor: 150000,
+        rateCurrency: "TRY",
+      });
+      // The next booking is quoted and stamped at the new price.
+      expect(
+        (await reservations.listBookableUnits(MANAGER, propertyId))[0]
+          ?.nightlyRateMinor,
+      ).toBe(175000);
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "a_booking_and_a_currency_change_serialise",
+    async () => {
+      const { propertyId, roomId } = await pricedProperty();
+      const day = await today(propertyId);
+
+      // The currency change holds the Property row; the booking, which takes it
+      // FOR SHARE, must wait and then read the new currency. Without the lock it
+      // would read TRY from its own snapshot and commit a TRY price at a
+      // Property that trades in EUR.
+      let bookingTaken:
+        ReturnType<typeof reservations.createReservation> | undefined;
+      await owner.$transaction(
+        async (tx) => {
+          await tx.$executeRawUnsafe(
+            `update public.properties set currency = 'EUR' where id = $1`,
+            propertyId,
+          );
+          bookingTaken = reservations.createReservation(
+            MANAGER,
+            booking(propertyId, roomId, plusDays(day, 1), 1),
+          );
+          // Long enough for the booking to reach the lock and wait on it.
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        },
+        { timeout: 20_000 },
+      );
+      const taken = await bookingTaken!;
+      const [property] = await owner.$queryRawUnsafe<{ currency: string }[]>(
+        `select trim(currency) as currency from public.properties where id = $1`,
+        propertyId,
+      );
+      expect(property?.currency).toBe("EUR");
+      // The room's price is in TRY, which is now stale: unpriced, never a TRY
+      // price in a EUR Property.
+      expect(
+        taken.rateCurrency === null ||
+          taken.rateCurrency === property?.currency,
+      ).toBe(true);
+      expect(taken.nightlyRateMinor).toBeNull();
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "a_priced_booking_fixes_the_currency",
+    async () => {
+      const { propertyId, roomId } = await pricedProperty();
+      const day = await today(propertyId);
+      await reservations.createReservation(
+        MANAGER,
+        booking(propertyId, roomId, plusDays(day, 3), 1),
+      );
+      await expect(
+        owner.$executeRawUnsafe(
+          `update public.properties set currency = 'EUR' where id = $1`,
+          propertyId,
+        ),
+      ).rejects.toThrow(/fixed once a Folio is opened or a priced booking/);
     },
     DATABASE_BUDGET_MS,
   );

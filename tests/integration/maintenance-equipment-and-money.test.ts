@@ -27,16 +27,19 @@ import {
 } from "../../packages/ranza/maintenance/src";
 import { createReservationsModule } from "../../packages/ranza/reservations/src";
 
-const ORG = "de000002-0000-4000-8000-000000000001";
-const PROPERTY = "de000003-0000-4000-8000-000000000001";
-const NO_BILLING = "de000003-0000-4000-8000-000000000002";
-const MANAGER = "de000001-0000-4000-8000-000000000001";
-const DESK = "de000001-0000-4000-8000-000000000002";
+// Ids of its own: today.test.ts seeds the de000000 Organization and leaves an
+// assignment and settings in it, which this suite's clean-up of that
+// Organization's Properties was refused by when the two shared it.
+const ORG = "e9000002-0000-4000-8000-000000000001";
+const PROPERTY = "e9000003-0000-4000-8000-000000000001";
+const NO_BILLING = "e9000003-0000-4000-8000-000000000002";
+const MANAGER = "e9000001-0000-4000-8000-000000000001";
+const DESK = "e9000001-0000-4000-8000-000000000002";
 /** Works the board and does not keep the register: a role of the Organization's own. */
-const TECHNICIAN = "de000001-0000-4000-8000-000000000003";
+const TECHNICIAN = "e9000001-0000-4000-8000-000000000003";
 
 const unit = (n: number) =>
-  `de000004-0000-4000-8000-${n.toString(16).padStart(12, "0")}`;
+  `e9000004-0000-4000-8000-${n.toString(16).padStart(12, "0")}`;
 const ROOM = unit(1);
 const SHARED_ROOM = unit(2);
 const SHARED_BED = unit(3);

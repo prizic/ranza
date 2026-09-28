@@ -1080,19 +1080,34 @@ export function createReservationsModule(deps: ReservationsDeps) {
     userId: string,
     propertyId: string,
   ): Promise<BookableUnit[]> {
-    return withOrganizationContext(
+    const rows = await withOrganizationContext(
       deps.db,
       { userId },
       (tx) =>
-        tx.$queryRaw<BookableUnit[]>`
+        tx.$queryRaw<
+          (Omit<BookableUnit, "nightlyRateMinor"> & {
+            nightlyRateMinor: string | null;
+          })[]
+        >`
         select
-          unit.id        as "unitId",
-          unit.name      as "unitName",
-          room.name      as "roomName",
-          unit.unit_type as "unitType"
+          unit.id                     as "unitId",
+          unit.name                   as "unitName",
+          room.name                   as "roomName",
+          unit.unit_type              as "unitType",
+          -- The price the stamp would read now: this kind's, and only while it
+          -- is stated in the Property's currency (ADR 0038).
+          rate.amount_minor::text     as "nightlyRateMinor",
+          trim(rate.currency)         as "rateCurrency"
         from public.accommodation_units as unit
+        join public.properties as property
+          on property.id = unit.property_id
         left join public.accommodation_units as room
           on room.id = unit.parent_id
+        left join public.property_rates as rate
+          on rate.property_id = unit.property_id
+         and rate.unit_type = unit.unit_type
+         and rate.amount_minor is not null
+         and rate.currency = property.currency
         where unit.property_id = ${propertyId}::uuid
           and unit.status not in ('out_of_service', 'blocked')
           -- A room out of order or blocked covers its beds (ADR 0032,
@@ -1115,6 +1130,11 @@ export function createReservationsModule(deps: ReservationsDeps) {
         order by coalesce(room.name, unit.name), unit.name
       `,
     );
+    return rows.map((row) => ({
+      ...row,
+      nightlyRateMinor:
+        row.nightlyRateMinor === null ? null : Number(row.nightlyRateMinor),
+    }));
   }
 
   /**
@@ -1139,11 +1159,15 @@ export function createReservationsModule(deps: ReservationsDeps) {
     userId: string,
     propertyId: string,
   ): Promise<ReservationRow[]> {
-    return withOrganizationContext(
+    const rows = await withOrganizationContext(
       deps.db,
       { userId },
       (tx) =>
-        tx.$queryRaw<ReservationRow[]>`
+        tx.$queryRaw<
+          (Omit<ReservationRow, "nightlyRateMinor"> & {
+            nightlyRateMinor: string | null;
+          })[]
+        >`
         select
           reservation.id                                as "reservationId",
           reservation.reference                         as "reference",
@@ -1158,6 +1182,8 @@ export function createReservationsModule(deps: ReservationsDeps) {
           unit.name                                     as "unitName",
           room.name                                     as "roomName",
           unit.unit_type                                as "unitType",
+          reservation.nightly_rate_minor::text          as "nightlyRateMinor",
+          trim(reservation.rate_currency)               as "rateCurrency",
           reservation.status in ('requested', 'confirmed')
             and app.has_organization_permission(
                   reservation.organization_id, 'front_desk.cancel')
@@ -1192,6 +1218,11 @@ export function createReservationsModule(deps: ReservationsDeps) {
         order by reservation.starts_on, unit.name
       `,
     );
+    return rows.map((row) => ({
+      ...row,
+      nightlyRateMinor:
+        row.nightlyRateMinor === null ? null : Number(row.nightlyRateMinor),
+    }));
   }
 
   /**
@@ -1304,8 +1335,18 @@ export function createReservationsModule(deps: ReservationsDeps) {
       });
 
       let reservationId: string;
+      let price: {
+        nightlyRateMinor: number | null;
+        rateCurrency: string | null;
+      };
       try {
-        const inserted = await tx.$queryRaw<{ id: string }[]>`
+        const inserted = await tx.$queryRaw<
+          {
+            id: string;
+            nightlyRateMinor: string | null;
+            rateCurrency: string | null;
+          }[]
+        >`
           insert into public.reservations
             (organization_id, property_id, accommodation_unit_id,
              guest_id, stay_type, status, starts_on, ends_on)
@@ -1319,7 +1360,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
             ${startsOn}::date,
             ${endsOn}::date
           )
-          returning id
+          returning id,
+                    nightly_rate_minor::text as "nightlyRateMinor",
+                    trim(rate_currency)      as "rateCurrency"
         `;
         const [row] = inserted;
         if (!row) {
@@ -1328,6 +1371,13 @@ export function createReservationsModule(deps: ReservationsDeps) {
           throw new ReservationRefusedError("that booking cannot be taken");
         }
         reservationId = row.id;
+        // Stamped by the database from the price list (ADR 0038); nothing
+        // here chose it, and nothing could.
+        price = {
+          nightlyRateMinor:
+            row.nightlyRateMinor === null ? null : Number(row.nightlyRateMinor),
+          rateCurrency: row.rateCurrency,
+        };
       } catch (error: unknown) {
         // The exclusion constraint refused: those nights are already allocated
         // on that Unit. The one refusal a front desk can act on — every other
@@ -1378,6 +1428,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
           accommodationUnitId: booking.accommodationUnitId,
           startsOn,
           endsOn,
+          // What the Guest was quoted, as the booking now holds it.
+          amountMinor: price.nightlyRateMinor,
+          currency: price.rateCurrency,
         },
       });
 
@@ -1385,6 +1438,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
         reservationId,
         guestId: guest.guestId,
         guestCreated: guest.created,
+        ...price,
       };
     });
   }

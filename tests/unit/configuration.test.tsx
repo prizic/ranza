@@ -259,11 +259,13 @@ describe("who may change what", () => {
     expect(screen.getByLabelText("Property name")).toBeEnabled();
   });
 
-  it("shows the currency fixed, with the reason, once a folio exists", async () => {
+  it("shows the currency fixed, with the reason, once a folio or a priced booking exists", async () => {
     await show({ ...MANAGER, currencyFixed: true });
     expect(screen.getByRole("combobox", { name: "Currency" })).toBeDisabled();
     expect(
-      screen.getByText(/Fixed since the first folio was opened here/),
+      screen.getByText(
+        /Fixed since a folio was opened or a priced booking was taken here/,
+      ),
     ).toBeVisible();
   });
 });

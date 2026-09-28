@@ -641,6 +641,38 @@ export function useReservationColumns(
       ),
     },
     {
+      // The price each booking was taken at (ADR 0038), not today's list: a
+      // price changed since does not change what these Guests are charged.
+      accessorKey: "nightlyRateMinor",
+      meta: { title: t("priceColumn") },
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          labels={sort}
+          title={t("priceColumn")}
+        />
+      ),
+      cell: ({ row }) =>
+        row.original.nightlyRateMinor === null ||
+        row.original.rateCurrency === null ? (
+          <span className="text-step--1 text-muted-foreground">
+            {t("bookedUnpriced")}
+          </span>
+        ) : (
+          <span className="whitespace-nowrap text-step--1 tabular-nums">
+            <bdi>
+              {t("bookedPerNight", {
+                price: formatMoney(
+                  row.original.nightlyRateMinor,
+                  row.original.rateCurrency,
+                  locale,
+                ),
+              })}
+            </bdi>
+          </span>
+        ),
+    },
+    {
       accessorKey: "status",
       meta: { title: t("status") },
       header: ({ column }) => (

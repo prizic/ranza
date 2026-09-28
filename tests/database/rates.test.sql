@@ -23,8 +23,16 @@
 --                                                      nor cleared)
 --   delete granted to ranza_app                        RT-S1-13 (never deleted)
 --   read policy open to every row                      RT-S1-11
+--   the stamp keeps a supplied price                   RT-S2-06 (overwritten)
+--   the stamp ignores the Property's currency          RT-S2-04
+--   the price-keeping trigger dropped                  RT-S2-06 (every role)
+--   the currency lock counting Folios only             RT-S2-07
+--   the currency lock counting cancelled bookings      RT-S2-07 (cancelled)
+--   the Resident constraint dropped                    RT-S2-05 (without
+--     the stamp). Dropped alone at first it turned nothing red: the stamp
+--     never prices a Resident, so the constraint only binds without it.
 begin;
-select plan(25);
+select plan(39);
 
 insert into public.users (id, email) values
   ('e1111111-1111-4111-8111-111111111111', 'rt-manager@example.test'),
@@ -283,6 +291,226 @@ select throws_ok(
   $$ delete from public.property_rates
       where property_id = 'eb111111-1111-4111-8111-111111111111' $$,
   '42501', null, 'RT-S1-13: and never deleted, even by whoever may set it');
+
+-- ---------------------------------------------------------------------------
+-- Slice 2: a booking carries its price
+-- ---------------------------------------------------------------------------
+
+-- The first Property now trades in EUR with a room price of 50.00 EUR and the
+-- bed price cleared. The second trades in TRY; it is priced here as the owner.
+set local role none;
+insert into public.entitlements (organization_id, module_key) values
+  ('ea111111-1111-4111-8111-111111111111', 'front_office');
+insert into public.property_capabilities
+  (property_id, organization_id, capability_key, enabled) values
+  ('eb111111-1111-4111-8111-111111111111',
+   'ea111111-1111-4111-8111-111111111111', 'front_desk', true),
+  ('eb222222-2222-4222-8222-222222222222',
+   'ea111111-1111-4111-8111-111111111111', 'front_desk', true);
+insert into public.accommodation_units
+  (id, property_id, organization_id, name, unit_type, capacity) values
+  ('ec111111-1111-4111-8111-111111111111', 'eb111111-1111-4111-8111-111111111111',
+   'ea111111-1111-4111-8111-111111111111', 'RT-101', 'room', 2),
+  ('ec222222-2222-4222-8222-222222222222', 'eb111111-1111-4111-8111-111111111111',
+   'ea111111-1111-4111-8111-111111111111', 'RT-B1', 'bed', 1),
+  ('ec333333-3333-4333-8333-333333333333', 'eb111111-1111-4111-8111-111111111111',
+   'ea111111-1111-4111-8111-111111111111', 'RT-102', 'room', 2),
+  ('ec444444-4444-4444-8444-444444444444', 'eb222222-2222-4222-8222-222222222222',
+   'ea111111-1111-4111-8111-111111111111', 'RT-201', 'room', 2);
+insert into public.guests (id, organization_id, full_name) values
+  ('ed111111-1111-4111-8111-111111111111',
+   'ea111111-1111-4111-8111-111111111111', 'Priced Guest');
+insert into public.property_rates
+  (organization_id, property_id, unit_type, amount_minor)
+values ('ea111111-1111-4111-8111-111111111111',
+        'eb222222-2222-4222-8222-222222222222', 'room', 7000);
+
+select app.property_today('eb111111-1111-4111-8111-111111111111') as today \gset
+
+set local role ranza_app;
+select app.set_request_context('e1111111-1111-4111-8111-111111111111');
+
+select results_eq(
+  format($$ with booked as (
+       insert into public.reservations
+         (organization_id, property_id, accommodation_unit_id, guest_id,
+          stay_type, status, starts_on, ends_on)
+       values ('ea111111-1111-4111-8111-111111111111',
+               'eb111111-1111-4111-8111-111111111111',
+               'ec111111-1111-4111-8111-111111111111',
+               'ed111111-1111-4111-8111-111111111111',
+               'guest', 'confirmed', %L::date + 1, %L::date + 3)
+       returning nightly_rate_minor, rate_currency::text)
+     select * from booked $$, :'today', :'today'),
+  $$ values (5000::bigint, 'EUR') $$,
+  'RT-S2-01: a Guest booking is stamped with the price of its Unit''s kind');
+
+select results_eq(
+  format($$ with booked as (
+       insert into public.reservations
+         (organization_id, property_id, accommodation_unit_id, guest_id,
+          stay_type, status, starts_on, ends_on)
+       values ('ea111111-1111-4111-8111-111111111111',
+               'eb111111-1111-4111-8111-111111111111',
+               'ec222222-2222-4222-8222-222222222222',
+               'ed111111-1111-4111-8111-111111111111',
+               'guest', 'confirmed', %L::date + 1, %L::date + 3)
+       returning nightly_rate_minor)
+     select count(*)::int from booked where nightly_rate_minor is null $$,
+     :'today', :'today'),
+  $$ values (1) $$,
+  'RT-S2-03: a kind with no price is booked unpriced, not refused');
+
+select results_eq(
+  format($$ with booked as (
+       insert into public.reservations
+         (organization_id, property_id, accommodation_unit_id, guest_id,
+          stay_type, status, starts_on, ends_on)
+       values ('ea111111-1111-4111-8111-111111111111',
+               'eb111111-1111-4111-8111-111111111111',
+               'ec333333-3333-4333-8333-333333333333',
+               'ed111111-1111-4111-8111-111111111111',
+               'resident', 'confirmed', %L::date + 1, null)
+       returning nightly_rate_minor)
+     select count(*)::int from booked where nightly_rate_minor is null $$,
+     :'today'),
+  $$ values (1) $$,
+  'RT-S2-05: a Resident is never priced by the night');
+
+select throws_ok(
+  format($$ insert into public.reservations
+       (organization_id, property_id, accommodation_unit_id, guest_id,
+        stay_type, status, starts_on, ends_on, nightly_rate_minor, rate_currency)
+     values ('ea111111-1111-4111-8111-111111111111',
+             'eb111111-1111-4111-8111-111111111111',
+             'ec333333-3333-4333-8333-333333333333',
+             'ed111111-1111-4111-8111-111111111111',
+             'guest', 'confirmed', %L::date + 20, %L::date + 21, 1, 'EUR') $$,
+     :'today', :'today'),
+  '42501', null, 'RT-S2-06: a caller cannot name a booking''s price');
+
+select throws_ok(
+  $$ update public.reservations set nightly_rate_minor = 1
+      where accommodation_unit_id = 'ec111111-1111-4111-8111-111111111111' $$,
+  '42501', null, 'RT-S2-06: nor change it');
+
+-- The price list moves; the booking does not.
+update public.property_rates set amount_minor = 9900
+ where property_id = 'eb111111-1111-4111-8111-111111111111'
+   and unit_type = 'room';
+
+select is(
+  (select nightly_rate_minor from public.reservations
+    where accommodation_unit_id = 'ec111111-1111-4111-8111-111111111111'),
+  5000::bigint, 'RT-S2-02: a booking keeps the price it was taken at');
+
+select ok(
+  app.property_currency_is_fixed('eb111111-1111-4111-8111-111111111111'),
+  'RT-S2-07: the screen is told a priced booking fixes the currency');
+
+set local role none;
+
+select throws_ok(
+  $$ update public.reservations set nightly_rate_minor = 1
+      where accommodation_unit_id = 'ec111111-1111-4111-8111-111111111111' $$,
+  '23514', null,
+  'RT-S2-06: and a role that bypasses every policy cannot change it either');
+
+select results_eq(
+  format($$ with booked as (
+       insert into public.reservations
+         (organization_id, property_id, accommodation_unit_id, guest_id,
+          stay_type, status, starts_on, ends_on, nightly_rate_minor, rate_currency)
+       values ('ea111111-1111-4111-8111-111111111111',
+               'eb111111-1111-4111-8111-111111111111',
+               'ec111111-1111-4111-8111-111111111111',
+               'ed111111-1111-4111-8111-111111111111',
+               'guest', 'confirmed', %L::date + 30, %L::date + 31, 1, 'EUR')
+       returning nightly_rate_minor)
+     select * from booked $$,
+     :'today', :'today'),
+  $$ values (9900::bigint) $$,
+  'RT-S2-06: whatever such a role supplies is overwritten by the price list, not kept');
+
+select throws_ok(
+  $$ update public.properties set currency = 'USD'
+      where id = 'eb111111-1111-4111-8111-111111111111' $$,
+  '55000', null, 'RT-S2-07: a priced booking fixes the currency, for every role');
+
+-- The stamp never prices a Resident, so the constraint below it is unreachable
+-- while the stamp stands: breaking only the constraint turned nothing red. The
+-- two diverge when the stamp is gone, which is what this asserts — with the
+-- stamp off inside this rolled-back transaction, the constraint still refuses.
+-- Deferred checks on reservations are fired first: ALTER TABLE refuses a table
+-- with trigger events still pending.
+set constraints all immediate;
+alter table public.reservations disable trigger reservations_priced_when_taken;
+select throws_ok(
+  format($$ insert into public.reservations
+       (organization_id, property_id, accommodation_unit_id, guest_id,
+        stay_type, status, starts_on, ends_on, nightly_rate_minor, rate_currency)
+     values ('ea111111-1111-4111-8111-111111111111',
+             'eb111111-1111-4111-8111-111111111111',
+             'ec111111-1111-4111-8111-111111111111',
+             'ed111111-1111-4111-8111-111111111111',
+             'resident', 'confirmed', %L::date + 40, null, 5000, 'EUR') $$,
+     :'today'),
+  '23514', null,
+  'RT-S2-05: a Resident priced by the night is refused even without the stamp');
+alter table public.reservations enable trigger reservations_priced_when_taken;
+
+-- The second Property: a priced booking fixes its currency until it is
+-- cancelled; then a currency change makes its price stale, and the next
+-- booking is unpriced.
+set local role ranza_app;
+select app.set_request_context('e1111111-1111-4111-8111-111111111111');
+
+select results_eq(
+  format($$ with booked as (
+       insert into public.reservations
+         (organization_id, property_id, accommodation_unit_id, guest_id,
+          stay_type, status, starts_on, ends_on)
+       values ('ea111111-1111-4111-8111-111111111111',
+               'eb222222-2222-4222-8222-222222222222',
+               'ec444444-4444-4444-8444-444444444444',
+               'ed111111-1111-4111-8111-111111111111',
+               'guest', 'confirmed', %L::date + 1, %L::date + 2)
+       returning nightly_rate_minor, rate_currency::text)
+     select * from booked $$, :'today', :'today'),
+  $$ values (7000::bigint, 'TRY') $$,
+  'RT-S2-01: priced in the second Property''s own currency');
+
+set local role none;
+update public.reservations set status = 'cancelled'
+ where accommodation_unit_id = 'ec444444-4444-4444-8444-444444444444';
+
+select lives_ok(
+  $$ update public.properties set currency = 'USD'
+      where id = 'eb222222-2222-4222-8222-222222222222' $$,
+  'RT-S2-07: a cancelled booking promises nothing, and fixes nothing');
+
+set local role ranza_app;
+select app.set_request_context('e1111111-1111-4111-8111-111111111111');
+
+select results_eq(
+  format($$ with booked as (
+       insert into public.reservations
+         (organization_id, property_id, accommodation_unit_id, guest_id,
+          stay_type, status, starts_on, ends_on)
+       values ('ea111111-1111-4111-8111-111111111111',
+               'eb222222-2222-4222-8222-222222222222',
+               'ec444444-4444-4444-8444-444444444444',
+               'ed111111-1111-4111-8111-111111111111',
+               'guest', 'confirmed', %L::date + 5, %L::date + 6)
+       returning nightly_rate_minor)
+     select count(*)::int from booked where nightly_rate_minor is null $$,
+     :'today', :'today'),
+  $$ values (1) $$,
+  'RT-S2-04: a price left in an old currency prices no booking');
+
+set local role none;
+update public.subscriptions set status = 'active'
+ where organization_id = 'ea111111-1111-4111-8111-111111111111';
 
 -- ---------------------------------------------------------------------------
 -- A lapsed Subscription

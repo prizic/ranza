@@ -309,6 +309,18 @@ export interface Messages {
   stayTypeLabel: string;
   arrival: string;
   departureHint: string;
+  /** `{price}`: one night of the chosen Unit's kind, formatted (ADR 0038). */
+  quotePerNight: string;
+  /** ICU plural on `count` nights; `{total}` formatted. */
+  quoteStay: string;
+  /** `{type}`: the kind of Unit that has no price. */
+  quoteUnpriced: string;
+  quoteResident: string;
+  /** A booking's own price per night on the list; `{price}` formatted. */
+  bookedPerNight: string;
+  bookedUnpriced: string;
+  /** The reservations list's price column. */
+  priceColumn: string;
   /** One field for arrival and departure; the halves keep those names. */
   stayDates: string;
   bookingAddDate: string;
@@ -1508,6 +1520,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     stayTypeLabel: "Konaklama türü",
     arrival: "Giriş",
     departureHint: "Açık uçlu bir rezervasyon için boş bırakın.",
+    quotePerNight: "Gecelik {price}",
+    quoteStay: "{count, plural, one {# gece} other {# gece}}: toplam {total}",
+    quoteUnpriced:
+      "Bu tesiste {type} için fiyat belirlenmemiş; rezervasyon fiyatsız alınır ve geceleri ücretlendirilmez.",
+    quoteResident: "Bir Sakin gecelik değil, aylık faturalandırılır.",
+    bookedPerNight: "{price} / gece",
+    bookedUnpriced: "Fiyat yok",
+    priceColumn: "Fiyat",
     stayDates: "Konaklama tarihleri",
     bookingAddDate: "Tarih seçin",
     bookingOpenEnded: "Açık uçlu",
@@ -1841,7 +1861,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       propertyName: "Tesis adı",
       currency: "Para birimi",
       currencyFixed:
-        "Bu tesiste ilk folyo açıldığından beri sabit. Her folyo açıldığı para birimini korur.",
+        "Bu tesiste bir folyo açıldığından ya da fiyatlı bir rezervasyon alındığından beri sabit. Her folyo ve rezervasyon kendi para birimini korur.",
       searchCurrency: "Para birimi ara",
       noCurrency: "Eşleşen para birimi yok.",
       timeTitle: "Saat ve iş günü",
@@ -1873,7 +1893,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       stale:
         "Biri bu ayarları az önce kaydetti. Şimdi onun kaydettiğini görüyorsunuz; gerekiyorsa değişikliğinizi yeniden yapın.",
       currencyFixedRefused:
-        "Siz düzenlerken bu tesiste bir folyo açıldı; para birimi artık sabit.",
+        "Siz düzenlerken bu tesiste bir folyo açıldı ya da fiyatlı bir rezervasyon alındı; para birimi artık sabit.",
       closedDay:
         "Bu değişiklik bugünü zaten kapatılmış bir iş gününe çevirirdi. Başka bir bitiş saati ya da saat dilimi seçin.",
       invalid: "Değerleri kontrol edip yeniden deneyin.",
@@ -2771,6 +2791,16 @@ export const messages: Record<SupportedLocale, Messages> = {
     stayTypeLabel: "Stay type",
     arrival: "Arrival",
     departureHint: "Leave empty for an open-ended Reservation.",
+    quotePerNight: "{price} a night",
+    quoteStay:
+      "{count, plural, one {# night} other {# nights}}: {total} in total",
+    quoteUnpriced:
+      "No price is set for {type} here, so this booking is taken without one and its nights are not charged.",
+    quoteResident:
+      "A Resident is billed by the month, not priced by the night.",
+    bookedPerNight: "{price} / night",
+    bookedUnpriced: "No price",
+    priceColumn: "Price",
     stayDates: "Stay dates",
     bookingAddDate: "Add date",
     bookingOpenEnded: "Open-ended",
@@ -3111,7 +3141,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       propertyName: "Property name",
       currency: "Currency",
       currencyFixed:
-        "Fixed since the first folio was opened here. Every folio keeps the currency it opened in.",
+        "Fixed since a folio was opened or a priced booking was taken here. Every folio and booking keeps the currency it was made in.",
       searchCurrency: "Search currencies",
       noCurrency: "No currency matches.",
       timeTitle: "Time and the business day",
@@ -3144,7 +3174,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       stale:
         "Someone saved these settings a moment ago. You are now seeing what they saved; make your change again if it is still needed.",
       currencyFixedRefused:
-        "A folio was opened here while you were editing, so the currency is now fixed.",
+        "A folio was opened or a priced booking was taken here while you were editing, so the currency is now fixed.",
       closedDay:
         "This would make today a business day that has already been closed. Choose a different end time or time zone.",
       invalid: "Check the values and try again.",
@@ -4032,6 +4062,15 @@ export const messages: Record<SupportedLocale, Messages> = {
     stayTypeLabel: "نوع الإقامة",
     arrival: "الوصول",
     departureHint: "اتركه فارغًا لحجز مفتوح المدة.",
+    quotePerNight: "{price} لليلة",
+    quoteStay:
+      "{count, plural, zero {# ليلة} one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلة} other {# ليلة}}: الإجمالي {total}",
+    quoteUnpriced:
+      "لم يُحدَّد سعر لـ{type} هنا، لذا يُؤخذ هذا الحجز بلا سعر ولا تُحتسب لياليه.",
+    quoteResident: "يُحاسَب المقيم شهريًا، لا بسعر الليلة.",
+    bookedPerNight: "{price} / ليلة",
+    bookedUnpriced: "بلا سعر",
+    priceColumn: "السعر",
     stayDates: "تواريخ الإقامة",
     bookingAddDate: "أضف تاريخًا",
     bookingOpenEnded: "مفتوحة المدة",
@@ -4369,7 +4408,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       propertyName: "اسم المنشأة",
       currency: "العملة",
       currencyFixed:
-        "ثابتة منذ فتح أول فوليو هنا. يحتفظ كل فوليو بالعملة التي فُتح بها.",
+        "ثابتة منذ فتح فوليو أو أخذ حجز مسعَّر هنا. يحتفظ كل فوليو وكل حجز بالعملة التي أُنشئ بها.",
       searchCurrency: "ابحث عن عملة",
       noCurrency: "لا توجد عملة مطابقة.",
       timeTitle: "الوقت ويوم العمل",
@@ -4400,7 +4439,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       stale:
         "حفظ أحدهم هذه الإعدادات للتو. أنت ترى الآن ما حفظه؛ أعد تغييرك إن كان لا يزال مطلوبًا.",
       currencyFixedRefused:
-        "فُتح فوليو هنا أثناء تعديلك، لذا أصبحت العملة ثابتة الآن.",
+        "فُتح فوليو أو أُخذ حجز مسعَّر هنا أثناء تعديلك، لذا أصبحت العملة ثابتة الآن.",
       closedDay:
         "سيجعل هذا التغيير اليوم يوم عمل أُغلق بالفعل. اختر وقت انتهاء آخر أو منطقة زمنية أخرى.",
       invalid: "تحقّق من القيم وحاول مرة أخرى.",
