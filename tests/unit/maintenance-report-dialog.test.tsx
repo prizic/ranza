@@ -79,6 +79,8 @@ describe("reporting a problem about a room somebody is booked into", () => {
         inHouse: [],
         reservations: [
           {
+            reservationId: "d9000003-0000-4000-8000-0000000000b1",
+            mayAmend: true,
             unitName: "101",
             guestName: "Ada Lovelace",
             startsOn: "2026-09-24",
@@ -101,6 +103,14 @@ describe("reporting a problem about a room somebody is booked into", () => {
     expect(
       screen.getByRole("checkbox", { name: text.outOfOrderSwitch }),
     ).toBeChecked();
+
+    // an_affected_booking_opens_in_change_booking (AB-S1-17): in a new tab,
+    // so the report being written here is not lost by following it.
+    const change = screen.getByRole("link", { name: text.impactChangeBooking });
+    expect(change).toHaveAttribute("target", "_blank");
+    expect(change.getAttribute("href")).toBe(
+      "/en/reservations?property=d9000003-0000-4000-8000-000000000001&change=d9000003-0000-4000-8000-0000000000b1",
+    );
     expect(screen.getByLabelText(text.whatIsWrong)).toHaveValue(
       "Broken window latch",
     );

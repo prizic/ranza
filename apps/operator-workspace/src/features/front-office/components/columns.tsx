@@ -341,6 +341,19 @@ export function useArrivalColumns(
                       // first night, so a confirmed one may be marked a no-show.
                       mayMarkNoShow:
                         arrival.mayCancel && arrival.status === "confirmed",
+                      // An early or late arrival is moved here: to today, or
+                      // to the nights the Guest now wants (AB-S1-09).
+                      change: arrival.mayAmend
+                        ? {
+                            reservationId: arrival.reservationId,
+                            reference: arrival.reference,
+                            guestName: arrival.guestName,
+                            unitLabel: label,
+                            unitId: arrival.unitId,
+                            startsOn: arrival.startsOn,
+                            endsOn: arrival.endsOn,
+                          }
+                        : undefined,
                     }
               }
               folioId={arrival.folioId}
@@ -696,7 +709,7 @@ export function useReservationColumns(
       enableHiding: false,
       header: () => <span className="sr-only">{t("action")}</span>,
       cell: ({ row }) =>
-        row.original.mayCancel ? (
+        row.original.mayCancel || row.original.mayAmend ? (
           <div className="flex justify-end">
             <FrontDeskRowMenu
               key={row.original.reservationId}
@@ -707,11 +720,25 @@ export function useReservationColumns(
                   row.original.roomName,
                   row.original.unitName,
                 ),
-                mayCancel: true,
+                mayCancel: row.original.mayCancel,
                 // Here as well as on arrivals: a booking whose nights all
                 // passed unarrived is only on this list, and it is marked a
                 // no-show the morning after.
                 mayMarkNoShow: row.original.mayMarkNoShow,
+                change: row.original.mayAmend
+                  ? {
+                      reservationId: row.original.reservationId,
+                      reference: row.original.reference,
+                      guestName: row.original.guestName,
+                      unitLabel: unitLabel(
+                        row.original.roomName,
+                        row.original.unitName,
+                      ),
+                      unitId: row.original.unitId,
+                      startsOn: row.original.startsOn,
+                      endsOn: row.original.endsOn,
+                    }
+                  : undefined,
               }}
               folioId={null}
               guestName={row.original.guestName}

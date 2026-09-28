@@ -302,7 +302,13 @@ export function ReportDialog({
             </div>
           ) : null}
 
-          {impact ? <ImpactNotice impact={impact} locale={locale} /> : null}
+          {impact ? (
+            <ImpactNotice
+              impact={impact}
+              locale={locale}
+              propertyId={propertyId}
+            />
+          ) : null}
           <OutcomeMessage
             outcome={outcome.status === "impact" ? { status: "idle" } : outcome}
           />

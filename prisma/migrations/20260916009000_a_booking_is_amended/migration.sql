@@ -131,7 +131,7 @@ end;
 $$;
 
 create trigger reservation_changes_append_only
-  before update or delete on public.reservation_changes
+  before update or delete or truncate on public.reservation_changes
   for each statement
   execute function app.reservation_change_is_kept();
 

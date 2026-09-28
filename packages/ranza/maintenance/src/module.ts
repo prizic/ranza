@@ -424,7 +424,8 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
    * Who taking a Unit out of order affects: a Guest in house in it or in a bed
    * under it, and every confirmed Reservation holding one of its nights from
    * today on (MT-S2-09, MT-S2-10). Read, never changed: nothing is cancelled or
-   * moved, and moving a booking is not built (MT-DEF-07).
+   * moved here. Each booking carries its id, so the desk can open it in Change
+   * booking and move it (MT-DEF-07, resolved by AB-S1-17).
    */
   async function impactOf(
     tx: WriteClient,
@@ -448,7 +449,10 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
     const reservations = await tx.$queryRaw<
       OutOfOrderImpact["reservations"][number][]
     >`
-      select unit.name as "unitName",
+      select reservation.id as "reservationId",
+             app.has_organization_permission(
+               reservation.organization_id, 'front_desk.amend') as "mayAmend",
+             unit.name as "unitName",
              guest.full_name as "guestName",
              to_char(reservation.starts_on, 'YYYY-MM-DD') as "startsOn",
              to_char(reservation.ends_on, 'YYYY-MM-DD') as "endsOn"

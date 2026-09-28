@@ -107,6 +107,12 @@ every command, and each must keep naming its caller check for IG-12's sweep. A
 gate forgotten in a definer is a hole rather than a refusal, which is why each
 clause is broken in turn in the suite and seen red.
 
+A later command that confirms a `requested` booking must take the Unit's lock
+(namespace 2) before it locks the booking's row. `app.unit_holds_one_occupancy`
+takes that lock only when a row moves into `confirmed`, which is after the row
+lock, and `app.amend_reservation()` takes them the other way round; the two
+would deadlock. Nothing confirms a requested booking today.
+
 Refusal codes gain `RZ003`, changed since it was read. A price that moved while
 the dialog was open stays `PriceChangedError` in the module, as when a booking
 is taken.

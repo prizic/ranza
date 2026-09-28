@@ -23,7 +23,7 @@
 -- goals/2026-09-28-amend-booking/progress.md was applied, the altered object
 -- printed first, and the named assertion seen red.
 begin;
-select plan(44);
+select plan(45);
 
 insert into public.users (id, email) values
   ('ab010000-0000-4000-8000-000000000001', 'ab-desk@example.test'),
@@ -244,7 +244,7 @@ select lives_ok(
 select results_eq(
   $$select starts_on, status from public.reservations where id = 'ab0e0000-0000-4000-8000-000000000006'$$,
   $$values (app.property_today('ab0b0000-0000-4000-8000-000000000001'), 'confirmed')$$,
-  'AB-S1-09, AB-S1-11: which is how an early or late arrival is checked in now');
+  'AB-S1-11: which is how a late arrival is checked in now; AB-S1-09 is in the integration suite');
 
 select results_eq(
   $$select current_unit_id, current_rate_minor, current_rate_currency
@@ -373,6 +373,11 @@ select throws_ok(
   $$delete from public.reservation_changes where reservation_id = 'ab0e0000-0000-4000-8000-000000000001'$$,
   '42501', 'reservation_changes is append-only',
   'AB-S1-24: nor deleted');
+
+select throws_ok(
+  $$truncate public.reservation_changes$$,
+  '42501', 'reservation_changes is append-only',
+  'AB-S1-24: nor emptied');
 
 select throws_ok(
   $$update public.reservations set starts_on = starts_on + 1 where id = 'ab0e0000-0000-4000-8000-000000000004'$$,

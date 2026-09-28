@@ -1,0 +1,159 @@
+import { randomUUID } from "node:crypto";
+
+import { expect, test, type Page } from "@playwright/test";
+
+import { psql } from "./local-database";
+import { signIn, testProperty } from "./front-desk";
+
+/**
+ * Changing a booking through the screen (ADR 0039, amend-booking slice 1).
+ *
+ * The pgTAP suite proves the command and the integration suite the races and
+ * the preview's agreement with saving. This proves what only a browser sees:
+ * Change booking is on the booking's own row, it previews the nights and the
+ * Units before anything is saved, a save lands on the list, and a link from a
+ * maintenance warning opens the same dialog — in Arabic laid out from the
+ * right.
+ *
+ * Each test brings its own rooms and an unpriced booking on them, so nothing
+ * here fixes the tests' Property's currency, and a change cannot collide with
+ * another run's.
+ */
+
+let propertyId = "";
+
+test.beforeAll(() => {
+  propertyId = testProperty();
+});
+
+/** Two rooms and an unpriced booking on the first, ten days out. */
+function aBooking(): {
+  guestName: string;
+  first: string;
+  second: string;
+  reservationId: string;
+} {
+  const tag = randomUUID().slice(0, 8);
+  const guestName = `Change ${tag}`;
+  const first = `E2E-AB-${tag}-1`;
+  const second = `E2E-AB-${tag}-2`;
+  const reservationId = psql(
+    `with target as (
+       select id, organization_id from public.properties where id = '${propertyId}'
+     ), unit as (
+       insert into public.accommodation_units
+         (property_id, organization_id, name, unit_type, capacity)
+       select id, organization_id, name, 'room', 2
+         from target, (values ('${first}'), ('${second}')) as n(name)
+       returning id, name, property_id, organization_id
+     ), guest as (
+       insert into public.guests (organization_id, full_name)
+       select organization_id, '${guestName}' from target
+       returning id
+     )
+     insert into public.reservations
+       (organization_id, property_id, accommodation_unit_id,
+        guest_id, stay_type, status, starts_on, ends_on)
+     select unit.organization_id, unit.property_id, unit.id,
+            guest.id, 'guest', 'confirmed',
+            app.property_today(unit.property_id) + 10,
+            app.property_today(unit.property_id) + 12
+       from unit, guest
+      where unit.name = '${first}'
+     returning id`,
+  );
+  return { guestName, first, second, reservationId };
+}
+
+function propertyDay(days: number): string {
+  return psql(
+    `select to_char(app.property_today(id) + ${days}, 'YYYY-MM-DD')
+     from public.properties where id = '${propertyId}'`,
+  );
+}
+
+async function pickDay(page: Page, iso: string) {
+  const day = page.locator(`td:not([data-outside]) [data-day="${iso}"]`);
+  for (let turns = 0; turns < 12 && !(await day.isVisible()); turns++) {
+    await page.getByRole("button", { name: /next month/i }).click();
+  }
+  await day.click();
+}
+
+test("change_actions_are_where_the_desk_works: a booking moves to other nights and another room", async ({
+  page,
+}) => {
+  const booking = aBooking();
+  await signIn(page);
+  await page.goto(`/en/reservations?property=${propertyId}`);
+
+  await page.getByPlaceholder(/search/i).fill(booking.guestName);
+  await page
+    // The name is isolated for bidi, so it is matched around the marks.
+    .getByRole("button", {
+      name: new RegExp(`More actions for .?${booking.guestName}`),
+    })
+    .click();
+  await page.getByRole("menuitem", { name: "Change booking" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Change booking" });
+  // As it stands, there is nothing to save yet.
+  await expect(
+    dialog.getByText(
+      "The dates and the Unit are the same: there is nothing to change.",
+    ),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Save change" }),
+  ).toBeDisabled();
+
+  await dialog.getByLabel("Unit").click();
+  await page
+    .getByRole("option", { name: new RegExp(`${booking.second}.*Free`) })
+    .click();
+  await dialog.getByRole("button", { name: /^Arrival/ }).click();
+  await pickDay(page, propertyDay(11));
+  await pickDay(page, propertyDay(13));
+  // The calendar's own Done: Escape would close the dialog under it as well.
+  const done = page.getByRole("button", { name: "Done" });
+  if (await done.isVisible()) await done.click();
+  await expect(
+    dialog.getByText("Room has no price: the booking will be unpriced."),
+  ).toBeVisible();
+  await dialog.getByLabel("Note (optional)").fill("The Guest asked");
+  await dialog.getByRole("button", { name: "Save change" }).click();
+
+  await expect(dialog).toBeHidden();
+  const row = page.getByRole("row", { name: new RegExp(booking.guestName) });
+  await expect(row.getByText(booking.second)).toBeVisible();
+
+  expect(
+    psql(
+      `select kind || ' ' || to_starts_on || ' ' || coalesce(note, '')
+         from public.reservation_changes
+        where reservation_id = '${booking.reservationId}'`,
+    ),
+  ).toBe(`amended ${propertyDay(11)} The Guest asked`);
+});
+
+test("an_affected_booking_opens_in_change_booking, laid out from the right in Arabic", async ({
+  page,
+}) => {
+  const booking = aBooking();
+  await signIn(page);
+  await page.goto(
+    `/ar/reservations?property=${propertyId}&change=${booking.reservationId}`,
+  );
+
+  const dialog = page.getByRole("dialog", { name: "تعديل الحجز" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveCSS("direction", "rtl");
+  await expect(
+    dialog.getByText("التواريخ والوحدة كما هي: لا يوجد ما يُعدَّل."),
+  ).toBeVisible();
+
+  // Closing it drops the link, so a refresh does not open it again.
+  await dialog.getByRole("button", { name: "إبقاؤه كما كان" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page).not.toHaveURL(/change=/);
+});

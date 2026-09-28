@@ -46,6 +46,8 @@ const reservations = createReservationsModule({ db }); // the ranza_app client
 await reservations.listReservations(userId, propertyId);
 await reservations.listBookableUnits(userId, propertyId);
 await reservations.createReservation(userId, booking);
+await reservations.previewChange(userId, reservationId, startsOn, endsOn);
+await reservations.amendBooking(userId, change);
 await reservations.listArrivals(userId, propertyId);
 await reservations.listDepartures(userId, propertyId, "due" | "in_house");
 await reservations.checkIn(userId, reservationId);
@@ -148,19 +150,24 @@ it belongs to neither. `ReservationPeriodError` says the dates are not a period
 a Reservation can have: ending before it starts, covering no night, or starting
 before the Property's own today.
 
+Changing a booking adds two. `BookingChangeError` is the one-type refusal for a
+booking that is not the caller's to change, and `BookingChangedError`, a kind of
+it, says somebody else changed the booking after the dialog read it.
+
 ## What is deliberately not here
 
 Blueprint 5.3 also lists group reservations, quotations, deposits, availability
-search, extensions, room moves and no-show handling. None of them are in this
-module. Nothing cancels or amends a Reservation either, which is why the booking
-list has no row actions. `no_show` exists as a status value because the lifecycle needs the value
-to exist, not because anything here sets it.
+search, extensions and room moves. Group reservations, quotations, deposits and
+availability search are not in this module.
 
-Room moves are the one worth naming: they are refused by a column-level grant
-rather than by this module declining to attempt them, so a future command that
-tries becomes a database error instead of a silent room move
-([ADR 0012](../../../docs/adr/0012-a-write-is-bounded-by-a-policy-not-a-check.md)).
-There is still no DELETE anywhere.
+A booking that has not arrived is changed — its nights, its Unit — only through
+`app.amend_reservation()`, a command that checks its caller
+([ADR 0039](../../../docs/adr/0039-a-booking-is-amended-through-commands-that-check-their-caller.md)).
+`ranza_app` still holds no grant on the dates or the Unit, so nothing else can
+move a booking or a Stay: an attempt is a database error rather than a silent
+room move ([ADR 0012](../../../docs/adr/0012-a-write-is-bounded-by-a-policy-not-a-check.md)).
+Every change is an append-only revision in `reservation_changes`. There is
+still no DELETE anywhere.
 
 ## Rules
 

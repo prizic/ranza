@@ -23,13 +23,16 @@ import type { PriceList } from "@ranza/rates";
 import { FOLIO_CAPABILITY } from "@ranza/folios";
 import type { FolioDetail, FolioSummary } from "@ranza/folios";
 import {
+  BookingChangeError,
   FRONT_DESK_CAPABILITY,
+  ReservationPeriodError,
   ROOM_CALENDAR_DEFAULT_LENGTH,
   ROOM_CALENDAR_LENGTHS,
 } from "@ranza/reservations";
 import type {
   Arrival,
   BookableUnit,
+  ChangePreview,
   Departure,
   DepartureView,
   ReservationRow,
@@ -152,6 +155,7 @@ export type {
   AuditNames,
   AuditPage,
   BookableUnit,
+  ChangePreview,
   CloseTheDay,
   Departure,
   FolioDetail,
@@ -336,6 +340,43 @@ export async function roomCalendar(
     propertyId,
     window,
   );
+}
+
+/**
+ * What changing a booking to these nights would do, for the Change booking
+ * dialog (blueprint 18.6, AB-S1-07).
+ *
+ * `refused` is every reason the booking is not the viewer's to change — out of
+ * reach, arrived, finished, never existed — as one answer, like every refusal
+ * on the front desk. `invalidPeriod` is the dates the viewer typed. Anything
+ * else is thrown, for the route to log.
+ */
+export type BookingChangePreview =
+  | { kind: "preview"; preview: ChangePreview }
+  | { kind: "refused" }
+  | { kind: "invalidPeriod" };
+
+export async function bookingChangePreview(
+  reservationId: string,
+  startsOn: string,
+  endsOn: string | null,
+): Promise<BookingChangePreview> {
+  const viewer = await currentViewer();
+  if (!viewer) return { kind: "refused" };
+  try {
+    const preview = await getComposition().reservations.previewChange(
+      viewer.userId,
+      reservationId,
+      startsOn,
+      endsOn,
+    );
+    return { kind: "preview", preview };
+  } catch (error: unknown) {
+    if (error instanceof ReservationPeriodError)
+      return { kind: "invalidPeriod" };
+    if (error instanceof BookingChangeError) return { kind: "refused" };
+    throw error;
+  }
 }
 
 /**

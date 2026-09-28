@@ -6,7 +6,10 @@ import { GuestDetailsError } from "@ranza/guests";
 import {
   BALANCE_REASON,
   BalanceReasonError,
+  BookingChangedError,
+  BookingChangeError,
   CANCELLATION_REASON,
+  ChangeNoteError,
   CheckInError,
   CheckOutError,
   EarlyDepartureError,
@@ -458,6 +461,107 @@ export async function cancelBooking(
       reason,
     ),
   );
+}
+
+/**
+ * What saving a changed booking shows afterwards (amend-booking slice 1).
+ *
+ * `unavailable`, `occupied` and `notInService` are the Unit's answers the desk
+ * can act on by choosing another; `changed` and `priceChanged` re-read the
+ * dialog; `refused` is every reason the booking is not the viewer's to change.
+ */
+export type ChangeBookingOutcome =
+  | "idle"
+  | "done"
+  | "unavailable"
+  | "occupied"
+  | "notInService"
+  | "invalidPeriod"
+  | "invalidNote"
+  | "priceChanged"
+  | "changed"
+  | "refused";
+
+/**
+ * Changing a booking that has not arrived: its nights, its Unit, or both.
+ *
+ * The same funnel as every write here, and the same absence of a check: the
+ * command asks for the gates and `front_desk.amend` itself (ADR 0039). What
+ * this does is read the form, including the version and quote the dialog was
+ * shown, which travel back so that a booking somebody else just changed, or a
+ * price that moved, refuses the save rather than being overwritten.
+ */
+export async function changeBooking(
+  _previous: ChangeBookingOutcome,
+  form: FormData,
+): Promise<ChangeBookingOutcome> {
+  const viewer = await currentViewer();
+  if (!viewer) return "refused";
+
+  const locale = String(form.get("locale") ?? "");
+  if (!isSupportedLocale(locale)) return "refused";
+
+  const reservationId = String(form.get("reservation") ?? "");
+  const accommodationUnitId = String(form.get("unit") ?? "");
+  const version = Number(form.get("version"));
+  const quotedRate = String(form.get("quotedRateMinor") ?? "");
+  const quotedCurrency = String(form.get("quotedCurrency") ?? "");
+  if (
+    !reservationId ||
+    !accommodationUnitId ||
+    !Number.isInteger(version) ||
+    version < 0 ||
+    !form.has("quotedRateMinor") ||
+    !form.has("quotedCurrency")
+  ) {
+    return "refused";
+  }
+  if (
+    !(quotedRate === "" && quotedCurrency === "") &&
+    !(/^\d{1,15}$/.test(quotedRate) && /^[A-Z]{3}$/.test(quotedCurrency))
+  ) {
+    return "refused";
+  }
+  const note = String(form.get("note") ?? "").trim();
+  // Characters, not UTF-16 units, as the module and the audit record count.
+  const noteLength = [...note].length;
+  if (noteLength > 0 && (noteLength < 3 || noteLength > 500)) {
+    return "invalidNote";
+  }
+
+  try {
+    await getComposition().reservations.amendBooking(viewer.userId, {
+      reservationId,
+      startsOn: String(form.get("startsOn") ?? ""),
+      endsOn: optional(form, "endsOn"),
+      accommodationUnitId,
+      version,
+      quotedRateMinor: quotedRate === "" ? null : Number(quotedRate),
+      quotedCurrency: quotedCurrency === "" ? null : quotedCurrency,
+      note: note.length === 0 ? null : note,
+    });
+  } catch (error) {
+    if (error instanceof UnitUnavailableError) return "unavailable";
+    if (error instanceof UnitHasOccupantError) return "occupied";
+    if (error instanceof UnitNotInServiceError) return "notInService";
+    if (error instanceof ReservationPeriodError) return "invalidPeriod";
+    if (error instanceof PriceChangedError) return "priceChanged";
+    if (error instanceof ChangeNoteError) return "invalidNote";
+    if (error instanceof BookingChangedError) {
+      revalidateFrontDesk(locale);
+      return "changed";
+    }
+    if (error instanceof BookingChangeError) return "refused";
+    console.error(
+      "changeBooking failed unexpectedly",
+      { reservationId },
+      error,
+    );
+    return "refused";
+  }
+
+  revalidateFrontDesk(locale);
+  return "done";
 }
 
 /** Recording that somebody booked for tonight or earlier never came. */

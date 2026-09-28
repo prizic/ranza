@@ -284,6 +284,7 @@ export interface Messages {
       | "checkIn"
       | "checkOut"
       | "cancel"
+      | "amend"
       | "closeDay"
       | "manageFolio"
       | "postCharge"
@@ -350,6 +351,35 @@ export interface Messages {
   bookingRefused: string;
   /** The price list changed while the booking dialog was open (RT-S2-12). */
   bookingPriceChanged: string;
+
+  /** Changing a booking that has not arrived (amend-booking slice 1). */
+  changeBooking: string;
+  changeBookingSummary: string;
+  changeBookingChecking: string;
+  changeBookingLoadFailed: string;
+  changeBookingUnitFree: string;
+  /** A Unit another booking holds over those nights, with that booking's reference. */
+  changeBookingUnitBooked: string;
+  changeBookingUnitOccupied: string;
+  /** The booking's own Unit, out of order or let by the bed since it was taken. */
+  changeBookingUnitNotTaking: string;
+  changeBookingCurrentNotTaking: string;
+  changeBookingBlockedBooked: string;
+  changeBookingBlockedOccupied: string;
+  changeBookingBeforeToday: string;
+  changeBookingPriceKept: string;
+  /** Another kind of Unit: the old price and the new, per night. */
+  changeBookingPriceChanges: string;
+  changeBookingPriceNone: string;
+  changeBookingNote: string;
+  changeBookingNoteHint: string;
+  saveChange: string;
+  keepAsItWas: string;
+  changeBookingChanged: string;
+  changeBookingNotInService: string;
+  changeBookingNoteInvalid: string;
+  changeBookingNothing: string;
+  changeBookingRefused: string;
 
   folios: string;
   foliosAt: string;
@@ -827,6 +857,8 @@ export interface Messages {
     impactInHouse: string;
     impactInHouseOpen: string;
     impactBooking: string;
+    /** Opens the booking in Change booking, in a new tab (AB-S1-17). */
+    impactChangeBooking: string;
     aGuest: string;
     impactHint: string;
     confirmOutOfOrder: string;
@@ -1055,7 +1087,12 @@ export interface Messages {
    */
   auditAction: {
     reservation: Record<
-      "created" | "checked_in" | "check_in_reversed" | "cancelled" | "no_show",
+      | "created"
+      | "checked_in"
+      | "check_in_reversed"
+      | "cancelled"
+      | "no_show"
+      | "amended",
       string
     >;
     stay: Record<"checked_out", string>;
@@ -1520,6 +1557,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         checkIn: "Giriş yapma",
         checkOut: "Çıkış yapma",
         cancel: "Rezervasyon iptali ve gelmedi kaydı",
+        amend: "Rezervasyon ve konaklama değiştirme, oda taşıma",
         closeDay: "Günü kapatma",
         manageFolio: "Folyo açma ve kapatma",
         postCharge: "Folyoya ücret işleme",
@@ -1589,6 +1627,37 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingPriceChanged:
       "Bu birimin fiyatı siz rezervasyon yaparken değişti. Yeni fiyatı kontrol edip rezervasyonu yeniden alın.",
     bookingRefused: "Bu rezervasyon oluşturulamıyor.",
+    changeBooking: "Rezervasyonu değiştir",
+    changeBookingSummary:
+      "Başka gecelere veya başka bir birime taşıyın. Birim başka türdense fiyatı değişir; aksi hâlde alındığı fiyat kalır.",
+    changeBookingChecking: "O geceler kontrol ediliyor…",
+    changeBookingLoadFailed:
+      "O geceler kontrol edilemedi. Tarihleri yeniden seçin.",
+    changeBookingUnitFree: "Boş",
+    changeBookingUnitBooked: "Dolu · {reference}",
+    changeBookingUnitOccupied: "Konaklayan var",
+    changeBookingUnitNotTaking: "Şu anda rezervasyon almıyor",
+    changeBookingCurrentNotTaking:
+      "Bu birim hizmet dışı ya da yatak yatak kiralanıyor. Rezervasyonun tarihleri burada değişebilir; başka bir birime de taşınabilir.",
+    changeBookingBlockedBooked:
+      "O gecelerin bir kısmı {reference} rezervasyonuna ait. İki rezervasyonun yerini değiştirmek için önce birini boş bir birime taşıyın.",
+    changeBookingBlockedOccupied:
+      "Bu birimde o gecelerin bir kısmında konaklayan biri var.",
+    changeBookingBeforeToday: "Giriş bugün veya daha sonra olmalı.",
+    changeBookingPriceKept: "Gecelik {price}, rezervasyondaki gibi",
+    changeBookingPriceChanges: "Gecelik {from} → {to}",
+    changeBookingPriceNone:
+      "{type} için fiyat yok: rezervasyon fiyatsız kalır.",
+    changeBookingNote: "Not (isteğe bağlı)",
+    changeBookingNoteHint: "Değişiklik geçmişinde ve denetim kaydında görünür.",
+    saveChange: "Değişikliği kaydet",
+    keepAsItWas: "Olduğu gibi bırak",
+    changeBookingChanged:
+      "Bu rezervasyon az önce başka biri tarafından değiştirildi. Şimdiki hâli gösteriliyor.",
+    changeBookingNotInService: "Bu birim şu anda bu rezervasyonu alamaz.",
+    changeBookingNoteInvalid: "Not 3 ile 500 karakter arasında olmalı.",
+    changeBookingNothing: "Tarihler ve birim aynı; değiştirilecek bir şey yok.",
+    changeBookingRefused: "Bu rezervasyon değiştirilemiyor.",
     folios: "Folyolar",
     foliosAt: "Folyolar —",
     noFoliosTitle: "Henüz folyo yok",
@@ -2096,6 +2165,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       impactInHouse: "{guest}, {date} tarihine kadar {unit} biriminde kalıyor.",
       impactInHouseOpen: "{guest}, {unit} biriminde kalıyor.",
       impactBooking: "{guest}, {from} tarihinden itibaren {unit} için rezerve.",
+      impactChangeBooking: "Rezervasyonu değiştir",
       aGuest: "Bir konuk",
       impactHint:
         "Hiçbir şey iptal edilmez ya da taşınmaz. Ön büronun onları taşıması gerekecek.",
@@ -2328,6 +2398,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         check_in_reversed: "Giriş geri alındı",
         cancelled: "Rezervasyon iptal edildi",
         no_show: "Gelmedi olarak işaretlendi",
+        amended: "Rezervasyon değiştirildi",
       },
       stay: { checked_out: "Çıkış yapıldı" },
       folio: {
@@ -2820,6 +2891,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         checkIn: "Check somebody in",
         checkOut: "Check somebody out",
         cancel: "Cancel a booking or record a no-show",
+        amend: "Change bookings and stays, and move Guests",
         closeDay: "Close the day",
         manageFolio: "Open and close a Folio",
         postCharge: "Post a charge",
@@ -2890,6 +2962,38 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingPriceChanged:
       "The price for this Unit changed while you were booking. Check the new price and take the booking again.",
     bookingRefused: "That booking cannot be taken.",
+    changeBooking: "Change booking",
+    changeBookingSummary:
+      "Move it to other nights or another Unit. Its price is kept unless the Unit is of another kind.",
+    changeBookingChecking: "Checking those nights…",
+    changeBookingLoadFailed:
+      "Those nights could not be checked. Choose the dates again.",
+    changeBookingUnitFree: "Free",
+    changeBookingUnitBooked: "Booked · {reference}",
+    changeBookingUnitOccupied: "Somebody is staying",
+    changeBookingUnitNotTaking: "Not taking bookings now",
+    changeBookingCurrentNotTaking:
+      "This Unit is out of service or let by the bed. The booking's dates can still change here, or it can move to another Unit.",
+    changeBookingBlockedBooked:
+      "Booking {reference} holds some of those nights. To swap two bookings, move one of them to a free Unit first.",
+    changeBookingBlockedOccupied:
+      "Somebody is staying in that Unit for some of those nights.",
+    changeBookingBeforeToday: "The arrival must be today or later.",
+    changeBookingPriceKept: "{price} a night, as booked",
+    changeBookingPriceChanges: "{from} → {to} a night",
+    changeBookingPriceNone:
+      "{type} has no price: the booking will be unpriced.",
+    changeBookingNote: "Note (optional)",
+    changeBookingNoteHint: "Kept on the booking's history and the audit log.",
+    saveChange: "Save change",
+    keepAsItWas: "Keep as it was",
+    changeBookingChanged:
+      "Somebody changed this booking a moment ago. It is shown as it now stands.",
+    changeBookingNotInService: "That Unit cannot take this booking now.",
+    changeBookingNoteInvalid: "A note is between 3 and 500 characters.",
+    changeBookingNothing:
+      "The dates and the Unit are the same: there is nothing to change.",
+    changeBookingRefused: "This booking cannot be changed.",
     folios: "Folios",
     foliosAt: "Folios at",
     noFoliosTitle: "No folios yet",
@@ -3405,6 +3509,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       impactInHouse: "{guest} is staying in {unit} until {date}.",
       impactInHouseOpen: "{guest} is staying in {unit}.",
       impactBooking: "{guest} is booked into {unit} from {from}.",
+      impactChangeBooking: "Change booking",
       aGuest: "A Guest",
       impactHint:
         "Nothing will be cancelled or moved. The front desk will need to move them.",
@@ -3638,6 +3743,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         check_in_reversed: "Check-in withdrawn",
         cancelled: "Booking cancelled",
         no_show: "Marked as a no-show",
+        amended: "Booking changed",
       },
       stay: { checked_out: "Checked out" },
       folio: {
@@ -4120,6 +4226,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         checkIn: "تسجيل الدخول",
         checkOut: "تسجيل المغادرة",
         cancel: "إلغاء حجز أو تسجيل عدم الحضور",
+        amend: "تعديل الحجوزات والإقامات ونقل النزلاء",
         closeDay: "إغلاق اليوم",
         manageFolio: "فتح وإغلاق الحساب",
         postCharge: "تسجيل رسم على الحساب",
@@ -4186,6 +4293,35 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingPriceChanged:
       "تغيّر سعر هذه الوحدة أثناء الحجز. راجع السعر الجديد ثم أعد أخذ الحجز.",
     bookingRefused: "لا يمكن إنشاء هذا الحجز.",
+    changeBooking: "تعديل الحجز",
+    changeBookingSummary:
+      "انقله إلى ليالٍ أخرى أو إلى وحدة أخرى. يبقى سعره كما هو ما لم تكن الوحدة من نوع آخر.",
+    changeBookingChecking: "جارٍ التحقق من تلك الليالي…",
+    changeBookingLoadFailed:
+      "تعذّر التحقق من تلك الليالي. اختر التواريخ مرة أخرى.",
+    changeBookingUnitFree: "متاحة",
+    changeBookingUnitBooked: "محجوزة · {reference}",
+    changeBookingUnitOccupied: "يقيم فيها نزيل",
+    changeBookingUnitNotTaking: "لا تستقبل حجوزات حاليًا",
+    changeBookingCurrentNotTaking:
+      "هذه الوحدة خارج الخدمة أو تُؤجَّر بالسرير. يمكن تغيير تواريخ الحجز هنا، أو نقله إلى وحدة أخرى.",
+    changeBookingBlockedBooked:
+      "الحجز {reference} يشغل بعض تلك الليالي. لتبديل حجزين، انقل أحدهما إلى وحدة متاحة أولًا.",
+    changeBookingBlockedOccupied:
+      "هناك نزيل يقيم في هذه الوحدة خلال بعض تلك الليالي.",
+    changeBookingBeforeToday: "يجب أن يكون الوصول اليوم أو بعده.",
+    changeBookingPriceKept: "{price} لليلة، كما في الحجز",
+    changeBookingPriceChanges: "{from} ← {to} لليلة",
+    changeBookingPriceNone: "لا يوجد سعر لـ{type}: سيبقى الحجز بلا سعر.",
+    changeBookingNote: "ملاحظة (اختيارية)",
+    changeBookingNoteHint: "تُحفظ في سجل تعديلات الحجز وسجل التدقيق.",
+    saveChange: "حفظ التعديل",
+    keepAsItWas: "إبقاؤه كما كان",
+    changeBookingChanged: "عدّل أحدهم هذا الحجز قبل لحظات. يظهر الآن كما هو.",
+    changeBookingNotInService: "لا يمكن لهذه الوحدة استقبال هذا الحجز الآن.",
+    changeBookingNoteInvalid: "يجب أن تتراوح الملاحظة بين 3 و500 حرف.",
+    changeBookingNothing: "التواريخ والوحدة كما هي: لا يوجد ما يُعدَّل.",
+    changeBookingRefused: "لا يمكن تعديل هذا الحجز.",
     folios: "الحسابات",
     foliosAt: "الحسابات في",
     noFoliosTitle: "لا توجد حسابات بعد",
@@ -4694,6 +4830,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       impactInHouse: "{guest} يقيم في {unit} حتى {date}.",
       impactInHouseOpen: "{guest} يقيم في {unit}.",
       impactBooking: "{guest} محجوز في {unit} ابتداءً من {from}.",
+      impactChangeBooking: "تعديل الحجز",
       aGuest: "ضيف",
       impactHint: "لن يُلغى أو يُنقل أي شيء. سيحتاج المكتب الأمامي إلى نقلهم.",
       confirmOutOfOrder: "إخراجها من الخدمة على أي حال",
@@ -4927,6 +5064,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         check_in_reversed: "تم سحب تسجيل الوصول",
         cancelled: "أُلغي الحجز",
         no_show: "سُجِّل عدم الحضور",
+        amended: "عُدِّل الحجز",
       },
       stay: { checked_out: "تم تسجيل المغادرة" },
       folio: {

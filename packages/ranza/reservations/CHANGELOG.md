@@ -11,6 +11,13 @@ everything lands under Unreleased.
 
 ### Added
 
+- `previewChange()` and `amendBooking()`: changing a booking that has not
+  arrived — its nights, its Unit, or both — through `app.amend_reservation()`
+  ([ADR 0039](../../../docs/adr/0039-a-booking-is-amended-through-commands-that-check-their-caller.md)).
+  The preview says which Units are free for the nights asked and what a night
+  would cost; saving compares the price with the quote (`PriceChangedError`)
+  and a stale version is `BookingChangedError`. Only another kind of Unit
+  changes the price. `mayAmend` on the booking list and arrivals says who may.
 - `CheckInDayClosedError`: `reverseCheckIn()` refuses to withdraw a check-in
   whose business day has been closed
   ([ADR 0034](../../../docs/adr/0034-a-business-day-closes-after-its-cutoff.md)),

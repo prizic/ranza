@@ -403,6 +403,7 @@ export function MaintenanceBoard({
           onOpenChange={(isOpen) => {
             if (!isOpen) setSelectedId(null);
           }}
+          propertyId={propertyId}
           request={selected}
           timeZone={timeZone}
           today={board.today}
