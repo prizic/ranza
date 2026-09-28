@@ -19,6 +19,7 @@ import type {
   PropertySettings,
 } from "@ranza/core";
 import type { CloseTheDay } from "@ranza/business-day";
+import type { PriceList } from "@ranza/rates";
 import { FOLIO_CAPABILITY } from "@ranza/folios";
 import type { FolioDetail, FolioSummary } from "@ranza/folios";
 import {
@@ -176,6 +177,7 @@ export type {
   SettingValues,
   UnitHold,
   NewUnits,
+  PriceList,
   PropertySettings,
   ReservationRow,
   RoomCalendar,
@@ -686,6 +688,16 @@ export async function maintenanceReportOptions(
  * What a Property's Maintenance setting says and inherits, and whether the
  * viewer may change it. Null where there is nothing to configure.
  */
+/**
+ * The Property's price list for the Configuration screen's Rates section
+ * (ADR 0038). Null where configuration is not available to the viewer.
+ */
+export async function priceList(propertyId: string): Promise<PriceList | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().rates.getPriceList(viewer.userId, propertyId);
+}
+
 export async function maintenanceSettings(
   propertyId: string,
 ): Promise<MaintenanceSettings | null> {

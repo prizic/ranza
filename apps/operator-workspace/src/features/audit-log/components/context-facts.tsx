@@ -110,6 +110,52 @@ type Setting = (typeof SETTINGS)[number];
 const isSetting = (value: unknown): value is Setting =>
   (SETTINGS as readonly unknown[]).includes(value);
 
+/**
+ * A price list save carries `changes`: each kind of Unit with its price before
+ * and after, either side null when there was none (ADR 0038). It reads as one
+ * row per kind, "₺1.500,00 → ₺1.750,00", rather than as the objects.
+ */
+const PRICED_KINDS = ["room", "bed", "apartment", "suite"] as const;
+type PricedKind = (typeof PRICED_KINDS)[number];
+interface Price {
+  amountMinor: number;
+  currency: string;
+}
+interface PriceChange {
+  unitType: PricedKind;
+  from: Price | null;
+  to: Price | null;
+}
+
+function priceOf(value: unknown): Price | null | undefined {
+  if (value === null) return null;
+  if (typeof value !== "object") return undefined;
+  const { amountMinor, currency } = value as Partial<Price>;
+  return typeof amountMinor === "number" && typeof currency === "string"
+    ? { amountMinor, currency }
+    : undefined;
+}
+
+function priceChangesOf(value: unknown): PriceChange[] | null {
+  if (!Array.isArray(value)) return null;
+  const changes: PriceChange[] = [];
+  for (const item of value as unknown[]) {
+    if (typeof item !== "object" || item === null) return null;
+    const { unitType, from, to } = item as Record<string, unknown>;
+    const before = priceOf(from);
+    const after = priceOf(to);
+    if (
+      !(PRICED_KINDS as readonly unknown[]).includes(unitType) ||
+      before === undefined ||
+      after === undefined
+    ) {
+      return null;
+    }
+    changes.push({ unitType: unitType as PricedKind, from: before, to: after });
+  }
+  return changes;
+}
+
 function changeOf(value: unknown): { from: string; to: string } | null {
   if (typeof value !== "object" || value === null) return null;
   const { from, to } = value as { from?: unknown; to?: unknown };
@@ -204,6 +250,12 @@ export function ContextFacts({
     CONFIGURED.has(action) && Array.isArray(context.changed)
       ? context.changed.filter(isSetting)
       : null;
+  const priced =
+    action === "price_list.changed" ? priceChangesOf(context.changes) : null;
+  const price = (value: Price | null) =>
+    value === null
+      ? t("rates.noPrice")
+      : formatMoney(value.amountMinor, value.currency, locale);
 
   return (
     <Table>
@@ -215,7 +267,25 @@ export function ContextFacts({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {changed ? (
+        {priced ? (
+          priced.map((change) => (
+            <TableRow key={change.unitType}>
+              <TableCell className="text-muted-foreground">
+                {t(`unitType.${change.unitType}`)}
+              </TableCell>
+              <TableCell className="break-words">
+                <span className="inline-flex flex-wrap items-center gap-2">
+                  <bdi>{price(change.from)}</bdi>
+                  <ArrowRight
+                    aria-label={t("auditChangedTo")}
+                    className="size-3.5 text-muted-foreground rtl:-scale-x-100"
+                  />
+                  <bdi>{price(change.to)}</bdi>
+                </span>
+              </TableCell>
+            </TableRow>
+          ))
+        ) : changed ? (
           changed.map((setting) => {
             const change = changeOf(context[setting]);
             return (

@@ -454,6 +454,27 @@ export interface Messages {
   };
 
   /**
+   * The Rates section of the Configuration screen (ADR 0038): a nightly price
+   * per kind of Unit.
+   */
+  rates: {
+    title: string;
+    hint: string;
+    perNight: string;
+    /** ICU plural on `count`: the Units of one kind a booking can be placed on. */
+    units: string;
+    noPrice: string;
+    unpricedHint: string;
+    /** `{currency}` the price was set in, `{property}` what the Property trades in now. */
+    stale: string;
+    /** `{currency}`: what a price is typed in. */
+    invalid: string;
+    readOnly: string;
+    /** `{type}`: the kind of Unit, for the field's accessible name. */
+    priceFor: string;
+  };
+
+  /**
    * The room calendar (RANZ-25). Grouped, so the screen's copy reads as one
    * block in each language and `useTranslations("roomCalendar")` scopes it.
    */
@@ -1038,6 +1059,7 @@ export interface Messages {
     business_day: Record<"closed", string>;
     property: Record<"configured", string>;
     organization: Record<"configured", string>;
+    price_list: Record<"changed", string>;
     maintenance_request: Record<
       | "reported"
       | "moved"
@@ -1789,6 +1811,22 @@ export const messages: Record<SupportedLocale, Messages> = {
       nothingForRole:
         "Bu tesiste rolünüz için burada gösterilecek bir şey henüz yok.",
     },
+    rates: {
+      title: "Gecelik fiyatlar",
+      hint: "Bir gecenin, konaklanan birimin türüne göre fiyatı. Bir rezervasyon, alındığı andaki fiyatı korur.",
+      perNight: "gecelik",
+      units:
+        "{count, plural, =0 {Bu tesiste henüz yok} one {# birim} other {# birim}}",
+      noPrice: "Fiyat yok",
+      unpricedHint:
+        "Bu türdeki rezervasyonlar fiyatsız alınır ve geceleri ücretlendirilmez.",
+      stale:
+        "{currency} olarak girildi. Tesis artık {property} kullanıyor; bu fiyat yeniden kaydedilene kadar hiçbir rezervasyona uygulanmaz.",
+      invalid: "Bu, {currency} cinsinden geçerli bir fiyat değil.",
+      readOnly:
+        "Fiyatları fiyat belirleme yetkisi olanlar değiştirir. Siz burada görebilirsiniz.",
+      priceFor: "{type} için gecelik fiyat",
+    },
     configuration: {
       subtitle: "{property} ve organizasyonu için ayarlar",
       sections: "Bu sayfada",
@@ -2259,6 +2297,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       business_day: { closed: "İş günü kapatıldı" },
       property: { configured: "Tesis ayarları değiştirildi" },
       organization: { configured: "Organizasyon yeniden adlandırıldı" },
+      price_list: { changed: "Gecelik fiyatlar değiştirildi" },
       maintenance_request: {
         reported: "Sorun bildirildi",
         moved: "Talep taşındı",
@@ -3041,6 +3080,22 @@ export const messages: Record<SupportedLocale, Messages> = {
       nothingForRole:
         "There is nothing here for your role at this Property yet.",
     },
+    rates: {
+      title: "Nightly rates",
+      hint: "What a night costs, by the kind of Unit it is spent in. A booking keeps the price it was taken at.",
+      perNight: "per night",
+      units:
+        "{count, plural, =0 {None at this Property yet} one {# Unit} other {# Units}}",
+      noPrice: "No price",
+      unpricedHint:
+        "Bookings of this kind are taken without a price, and their nights are not charged.",
+      stale:
+        "Set in {currency}. This Property now trades in {property}, so this price applies to no booking until it is saved again.",
+      invalid: "That is not a price in {currency}.",
+      readOnly:
+        "Prices are changed by whoever may set rates. You can see them here.",
+      priceFor: "Price per night for {type}",
+    },
     configuration: {
       subtitle: "Settings for {property} and its Organization",
       sections: "On this page",
@@ -3514,6 +3569,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       business_day: { closed: "Business day closed" },
       property: { configured: "Property settings changed" },
       organization: { configured: "Organization renamed" },
+      price_list: { changed: "Nightly rates changed" },
       maintenance_request: {
         reported: "Problem reported",
         moved: "Request moved",
@@ -4285,6 +4341,21 @@ export const messages: Record<SupportedLocale, Messages> = {
       retry: "أعد المحاولة",
       nothingForRole: "لا يوجد هنا شيء لدورك في هذا المرفق بعد.",
     },
+    rates: {
+      title: "أسعار الليلة",
+      hint: "سعر الليلة حسب نوع الوحدة التي تُقضى فيها. يحتفظ الحجز بالسعر الذي أُخذ به.",
+      perNight: "لليلة",
+      units:
+        "{count, plural, =0 {لا يوجد بعد في هذه المنشأة} one {وحدة واحدة} two {وحدتان} few {# وحدات} many {# وحدة} other {# وحدة}}",
+      noPrice: "بلا سعر",
+      unpricedHint: "تُؤخذ حجوزات هذا النوع بلا سعر، ولا تُحتسب لياليها.",
+      stale:
+        "حُدِّد بعملة {currency}. تتعامل هذه المنشأة الآن بعملة {property}، لذا لا يُطبَّق هذا السعر على أي حجز حتى يُحفظ من جديد.",
+      invalid: "هذا ليس سعرًا صالحًا بعملة {currency}.",
+      readOnly:
+        "يغيّر الأسعارَ من يملك صلاحية تحديدها. يمكنك الاطلاع عليها هنا.",
+      priceFor: "سعر الليلة لـ{type}",
+    },
     configuration: {
       subtitle: "إعدادات {property} ومؤسستها",
       sections: "في هذه الصفحة",
@@ -4751,6 +4822,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       business_day: { closed: "أُغلق يوم العمل" },
       property: { configured: "تم تغيير إعدادات المنشأة" },
       organization: { configured: "تمت إعادة تسمية المؤسسة" },
+      price_list: { changed: "تم تغيير أسعار الليلة" },
       maintenance_request: {
         reported: "أُبلغ عن مشكلة",
         moved: "نُقل الطلب",

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  Banknote,
   Building2,
   CalendarClock,
   ExternalLink,
@@ -20,6 +21,7 @@ const ICONS = {
   organization: Landmark,
   property: Building2,
   time: CalendarClock,
+  rates: Banknote,
   housekeeping: Sparkles,
   maintenance: Wrench,
   modules: ToggleRight,

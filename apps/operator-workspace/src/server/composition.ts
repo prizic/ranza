@@ -7,6 +7,7 @@ import { createPrismaClient } from "@ranza/db";
 import { createFoliosModule } from "@ranza/folios";
 import { createHousekeepingModule } from "@ranza/housekeeping";
 import { createMaintenanceModule } from "@ranza/maintenance";
+import { createRatesModule } from "@ranza/rates";
 import { createReservationsModule } from "@ranza/reservations";
 import { createStaffModule } from "@ranza/staff";
 
@@ -82,6 +83,7 @@ function compose() {
     housekeeping: createHousekeepingModule({ db: tenantDb }),
     businessDay: createBusinessDayModule({ db: tenantDb }),
     maintenance: createMaintenanceModule({ db: tenantDb }),
+    rates: createRatesModule({ db: tenantDb }),
   };
 }
 

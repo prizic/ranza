@@ -340,6 +340,40 @@ describe("what a record's facts say", () => {
     });
   }
 
+  it("a price list change reads one row per kind, before and after", () => {
+    open(
+      entry({
+        action: "price_list.changed",
+        subjectType: "property",
+        context: {
+          changes: [
+            {
+              unitType: "room",
+              from: { amountMinor: 150000, currency: "TRY" },
+              to: { amountMinor: 175000, currency: "TRY" },
+            },
+            {
+              unitType: "bed",
+              from: null,
+              to: { amountMinor: 45000, currency: "TRY" },
+            },
+            {
+              unitType: "suite",
+              from: { amountMinor: 400000, currency: "TRY" },
+              to: null,
+            },
+          ],
+        },
+      }),
+    );
+    const facts = screen.getByRole("table");
+    expect(within(facts).getByText("Room")).toBeInTheDocument();
+    expect(within(facts).getByText(/1,500\.00/)).toBeInTheDocument();
+    expect(within(facts).getByText(/1,750\.00/)).toBeInTheDocument();
+    expect(within(facts).getAllByText("No price")).toHaveLength(2);
+    expect(within(facts).queryByText("changes")).not.toBeInTheDocument();
+  });
+
   it("a status change without a previous status names that rather than None", () => {
     open(
       entry({

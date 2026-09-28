@@ -33,6 +33,7 @@ model User {
   stays       Stay[]
   invitesSent StaffInvitation[]        @relation("StaffInvitationAuthor")
   closedDays  BusinessDayClose[]
+  ratesSet    PropertyRate[]
 
   @@map("users")
 }
@@ -103,6 +104,7 @@ model Property {
   maintenanceRequests  MaintenanceRequest[]
   maintenanceSettings  MaintenanceSetting[]
   maintenanceEquipment MaintenanceEquipment[]
+  rates        PropertyRate[]
 
   @@unique([id, organizationId])
   @@index([organizationId], map: "properties_organization_idx")
@@ -379,6 +381,36 @@ model MaintenanceSetting {
   @@unique([organizationId], map: "maintenance_settings_organization_default_key", where: raw("property_id IS NULL"))
   @@unique([propertyId], map: "maintenance_settings_property_override_key", where: raw("property_id IS NOT NULL"))
   @@map("maintenance_settings")
+}
+
+/// What a night costs at a Property, by the kind of Unit it is spent in (ADR
+/// 0038). One row per Property and unit type; a type with no row, or with no
+/// amount, is unpriced.
+///
+/// `currency` and the stamps are the database's: a trigger copies the currency
+/// from the Property on every write, so a price can only ever be stated in
+/// what the Property trades in. A row whose currency the Property has since
+/// left is stale and prices nothing until it is set again.
+model PropertyRate {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  propertyId     String   @map("property_id") @db.Uuid
+  unitType       String   @map("unit_type")
+  /// Integer minor units of `currency`, per night (ADR 0015). Null once the
+  /// price is cleared: a row is never deleted, and a kind with no amount is
+  /// unpriced exactly as a kind with no row is.
+  amountMinor    BigInt?  @map("amount_minor")
+  currency       String   @db.Char(3)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  /// Who set the amount last. Null only for a row written outside a request.
+  updatedBy      String?  @map("updated_by") @db.Uuid
+
+  property Property @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  updater  User?    @relation(fields: [updatedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([propertyId, unitType])
+  @@map("property_rates")
 }
 
 /// A named set of permissions (blueprint 7.2). A role is not a label: what a

@@ -144,6 +144,9 @@ importers:
       '@ranza/maintenance':
         specifier: workspace:*
         version: link:../../packages/ranza/maintenance
+      '@ranza/rates':
+        specifier: workspace:*
+        version: link:../../packages/ranza/rates
       '@ranza/reservations':
         specifier: workspace:*
         version: link:../../packages/ranza/reservations
@@ -361,6 +364,15 @@ importers:
       '@ranza/platform-outbox':
         specifier: workspace:*
         version: link:../../platform/outbox
+
+  packages/ranza/rates:
+    dependencies:
+      '@ranza/db':
+        specifier: workspace:*
+        version: link:../../db
+      '@ranza/platform-audit':
+        specifier: workspace:*
+        version: link:../../platform/audit
 
   packages/ranza/reservations:
     dependencies:

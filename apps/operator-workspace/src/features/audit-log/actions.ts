@@ -60,6 +60,7 @@ export const KNOWN_ACTIONS = [
   "maintenance_setting.changed",
   "property.configured",
   "organization.configured",
+  "price_list.changed",
 ] as const;
 
 export type KnownAction = (typeof KNOWN_ACTIONS)[number];

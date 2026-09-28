@@ -1,0 +1,51 @@
+%% Five parties take part in a room night: the Operator Workspace,
+%% @ranza/rates, @ranza/reservations, @ranza/business-day and PostgreSQL, with
+%% apps/worker closing quiet days. Both closes and a check-out end in the same
+%% database function, so a room night cannot be charged two different ways.
+sequenceDiagram
+  autonumber
+  actor SM as Staff Member
+  participant WS as Operator Workspace
+  participant RT as @ranza/rates
+  participant RS as @ranza/reservations
+  participant BD as @ranza/business-day
+  participant PG as PostgreSQL
+  participant WK as apps/worker
+
+  rect rgb(240, 248, 246)
+  note over SM,PG: s1, the price list (ranza_app, request context)
+  SM->>WS: Configuration, Rates
+  WS->>RT: getPriceList(user, P)
+  RT->>PG: property_rates, the Property's currency, Units per type
+  PG-->>RT: rows the viewer's policies let through
+  SM->>WS: save prices
+  WS->>RT: setPrices(user, P, prices, version)
+  RT->>PG: upsert / delete property_rates, audit rate.*
+  PG->>PG: policy: capability configuration and rates.manage<br/>trigger: currency is the Property's, stamped by the database
+  PG-->>RT: saved, or refused / stale
+  end
+
+  rect rgb(246, 244, 240)
+  note over SM,PG: s2, a priced booking
+  SM->>WS: New reservation
+  WS->>RS: createReservation(user, booking)
+  RS->>PG: insert reservations (no price column granted)
+  PG->>PG: trigger: stamp nightly_rate_minor and rate_currency<br/>from the Unit's type, Guests only
+  PG-->>RS: the booking, with its price or none
+  end
+
+  rect rgb(240, 244, 250)
+  note over SM,WK: s3, room nights
+  SM->>WS: Close D
+  WS->>BD: closeDay(user, P, D)
+  BD->>PG: insert business_day_closes
+  PG->>PG: stamp: lock 3, checks, then app.post_room_nights(P, D)<br/>one keyed charge per Guest Stay in house the night of D
+  WK->>BD: closeDueDays()
+  BD->>PG: app.close_business_day_automatically(P, D), the same insert and stamp
+  SM->>WS: Check out
+  WS->>RS: listDepartures: bill plus nights not yet charged
+  WS->>RS: checkOut(user, stay, reviewed)
+  RS->>PG: lock 3 shared, lock 1, compare the review
+  RS->>PG: app.post_room_nights_for_stay(stay, today)
+  RS->>PG: end the Stay, close a settled Folio
+  end
