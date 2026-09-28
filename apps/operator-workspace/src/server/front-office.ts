@@ -159,6 +159,16 @@ function folioVersion(
 }
 
 /**
+ * A count or an amount of minor units the review carried, as a whole number;
+ * undefined when the form is not one this screen sent — a stale dialog from
+ * before nights were charged at check-out sends neither, and is refused.
+ */
+function wholeNumber(value: FormDataEntryValue | null): number | undefined {
+  const text = String(value ?? "");
+  return /^\d{1,15}$/.test(text) ? Number(text) : undefined;
+}
+
+/**
  * Checking a Guest out, from the review of their bill (CO-S1-12).
  *
  * The same funnel and the same absence of an application check as every other
@@ -179,6 +189,12 @@ export async function checkOutStay(
 
   const version = folioVersion(form.get("folioVersion"));
   if (version === undefined) return "refused";
+  // The nights the review said check-out would charge (ADR 0038).
+  const pendingNights = wholeNumber(form.get("pendingNights"));
+  const pendingMinor = wholeNumber(form.get("pendingMinor"));
+  if (pendingNights === undefined || pendingMinor === undefined) {
+    return "refused";
+  }
 
   const reason = String(form.get("balanceReason") ?? "").trim();
   if (reason.length > 0 && reason.length < BALANCE_REASON.min) {
@@ -189,6 +205,8 @@ export async function checkOutStay(
   try {
     await getComposition().reservations.checkOut(viewer.userId, stayId, {
       folioVersion: version,
+      pendingNights,
+      pendingMinor,
       earlyDeparture: form.get("earlyDeparture") === "yes",
       balanceReason: reason.length > 0 ? reason : null,
     });

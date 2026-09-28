@@ -17,7 +17,11 @@ import {
   RatesStaleError,
   createRatesModule,
 } from "../../packages/ranza/rates/src";
-import { createReservationsModule } from "../../packages/ranza/reservations/src";
+import {
+  FolioChangedError,
+  createReservationsModule,
+} from "../../packages/ranza/reservations/src";
+import { createBusinessDayModule } from "../../packages/ranza/business-day/src";
 import { latestRecord } from "./audit-record";
 
 const ORG = "a7000002-0000-4000-8000-000000000001";
@@ -27,6 +31,11 @@ const DESK = "a7000001-0000-4000-8000-000000000002";
 const prisma = createPrismaClient(process.env.DATABASE_URL!);
 const rates = createRatesModule({ db: prisma });
 const reservations = createReservationsModule({ db: prisma });
+const businessDay = createBusinessDayModule({ db: prisma });
+// A second Staff connection, for the race: one client would serialise the two.
+const rival = createPrismaClient(process.env.DATABASE_URL!);
+const rivalReservations = createReservationsModule({ db: rival });
+const worker = createPrismaClient(process.env.WORKER_DATABASE_URL!);
 const owner = createPrismaClient(process.env.DIRECT_URL!);
 
 const DATABASE_BUDGET_MS = 60_000;
@@ -70,7 +79,8 @@ async function seed() {
   );
   await owner.$executeRawUnsafe(
     `insert into public.entitlements (organization_id, module_key)
-     values ($1, 'platform_core'), ($1, 'front_office') on conflict do nothing`,
+     values ($1, 'platform_core'), ($1, 'front_office'), ($1, 'billing_folios')
+     on conflict do nothing`,
     ORG,
   );
   await owner.$executeRawUnsafe(
@@ -109,6 +119,8 @@ beforeAll(seed, DATABASE_BUDGET_MS);
 
 afterAll(async () => {
   await prisma.$disconnect();
+  await rival.$disconnect();
+  await worker.$disconnect();
   await owner.$disconnect();
 });
 
@@ -337,7 +349,8 @@ async function pricedProperty(): Promise<{
   await owner.$executeRawUnsafe(
     `insert into public.property_capabilities
        (property_id, organization_id, capability_key, enabled)
-     values ($1, $2, 'configuration', true), ($1, $2, 'front_desk', true)`,
+     values ($1, $2, 'configuration', true), ($1, $2, 'front_desk', true),
+            ($1, $2, 'finance', true)`,
     propertyId,
     ORG,
   );
@@ -492,6 +505,304 @@ describe("a booking carries its price (slice 2)", () => {
           propertyId,
         ),
       ).rejects.toThrow(/fixed once a Folio is opened or a priced booking/);
+    },
+    DATABASE_BUDGET_MS,
+  );
+});
+
+/**
+ * A Guest in house since two nights ago on a booking priced at 1,500.00, with
+ * an open Folio, and no day closed yet at their Property. Written as the owner
+ * with the manager's request context set, so the booking is stamped as the
+ * front desk's would be: a booking cannot be taken in the past, and a Guest
+ * who has already slept here is what this needs.
+ */
+async function guestInHouseSinceTwoNightsAgo(): Promise<{
+  propertyId: string;
+  stayId: string;
+  today: string;
+}> {
+  const { propertyId, roomId } = await pricedProperty();
+  const day = await today(propertyId);
+  const stayId = randomUUID();
+  await owner.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(
+      `select app.set_request_context($1::uuid)`,
+      MANAGER,
+    );
+    const [booking] = await tx.$queryRawUnsafe<{ id: string }[]>(
+      `with guest as (
+         insert into public.guests (organization_id, full_name)
+         values ($1, 'Night Guest') returning id)
+       insert into public.reservations
+         (organization_id, property_id, accommodation_unit_id, guest_id,
+          stay_type, status, starts_on, ends_on)
+       select $1, $2, $3, guest.id, 'guest', 'checked_in',
+              $4::date - 2, $4::date + 1
+         from guest
+       returning id`,
+      ORG,
+      propertyId,
+      roomId,
+      day,
+    );
+    await tx.$executeRawUnsafe(
+      `insert into public.stays
+         (id, organization_id, property_id, accommodation_unit_id,
+          reservation_id, stay_type, status, starts_on, ends_on)
+       values ($1, $2, $3, $4, $5, 'guest', 'in_house', $6::date - 2,
+               $6::date + 1)`,
+      stayId,
+      ORG,
+      propertyId,
+      roomId,
+      booking!.id,
+      day,
+    );
+    await tx.$executeRawUnsafe(
+      `insert into public.folios (organization_id, property_id, stay_id, currency)
+       values ($1, $2, $3, 'TRY')`,
+      ORG,
+      propertyId,
+      stayId,
+    );
+  });
+  return { propertyId, stayId, today: day };
+}
+
+async function roomNights(stayId: string) {
+  return owner.$queryRawUnsafe<{ day: string; amount: string }[]>(
+    `select to_char(line.business_date, 'YYYY-MM-DD') as day,
+            line.amount_minor::text as amount
+       from public.folio_lines as line
+       join public.folios as folio on folio.id = line.folio_id
+      where folio.stay_id = $1 and line.source = 'room_night'
+      order by line.business_date`,
+    stayId,
+  );
+}
+
+describe("a night is charged once (slice 3)", () => {
+  it(
+    "check_out_charges_the_nights_not_yet_charged",
+    async () => {
+      const {
+        propertyId,
+        stayId,
+        today: day,
+      } = await guestInHouseSinceTwoNightsAgo();
+
+      const [departure] = (
+        await reservations.listDepartures(MANAGER, propertyId, "in_house")
+      ).filter((d) => d.stayId === stayId);
+      expect(departure).toMatchObject({
+        pendingNights: 2,
+        pendingMinor: 300000,
+        nightlyRateMinor: 150000,
+        balanceMinor: 0,
+      });
+
+      // Nothing can take a payment yet, so the balance is left with a reason.
+      await expect(
+        reservations.checkOut(MANAGER, stayId, {
+          folioVersion: departure!.folioVersion,
+          pendingNights: 2,
+          pendingMinor: 300000,
+          earlyDeparture: true,
+          balanceReason: null,
+        }),
+      ).rejects.toMatchObject({ name: "BalanceReasonError" });
+      expect(await roomNights(stayId)).toEqual([]);
+
+      await reservations.checkOut(MANAGER, stayId, {
+        folioVersion: departure!.folioVersion,
+        pendingNights: 2,
+        pendingMinor: 300000,
+        earlyDeparture: true,
+        balanceReason: "Pays at the travel agency",
+      });
+      expect(await roomNights(stayId)).toEqual([
+        { day: plusDays(day, -2), amount: "150000" },
+        { day: plusDays(day, -1), amount: "150000" },
+      ]);
+      const record = await latestRecord(owner, "stay.checked_out", stayId);
+      expect(record?.context).toMatchObject({
+        nightsCharged: 2,
+        balanceMinor: "300000",
+      });
+
+      // The close of yesterday then charges nothing again, and counts it.
+      const closed = await businessDay.closeDay(
+        MANAGER,
+        propertyId,
+        plusDays(day, -1),
+        null,
+      );
+      expect(closed).toMatchObject({
+        roomNightsCharged: 1,
+        roomNightsNotCharged: 0,
+      });
+      expect(await roomNights(stayId)).toHaveLength(2);
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "check_out_refuses_nights_it_did_not_show",
+    async () => {
+      const { propertyId, stayId } = await guestInHouseSinceTwoNightsAgo();
+      const [departure] = (
+        await reservations.listDepartures(MANAGER, propertyId, "in_house")
+      ).filter((d) => d.stayId === stayId);
+      await expect(
+        reservations.checkOut(MANAGER, stayId, {
+          folioVersion: departure!.folioVersion,
+          pendingNights: 1,
+          pendingMinor: 150000,
+          earlyDeparture: true,
+          balanceReason: "Pays later",
+        }),
+      ).rejects.toBeInstanceOf(FolioChangedError);
+      expect(await roomNights(stayId)).toEqual([]);
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "the_close_posts_one_room_night_per_guest, and the screen said so first",
+    async () => {
+      const {
+        propertyId,
+        stayId,
+        today: day,
+      } = await guestInHouseSinceTwoNightsAgo();
+      const screen = await businessDay.getCloseTheDay(MANAGER, propertyId);
+      expect(screen?.nightsToCharge).toEqual({
+        nights: 1,
+        amountMinor: 150000,
+        currency: "TRY",
+      });
+      expect(screen?.nightsNotCharged).toEqual([]);
+
+      await businessDay.closeDay(MANAGER, propertyId, plusDays(day, -1), null);
+      expect(await roomNights(stayId)).toEqual([
+        { day: plusDays(day, -1), amount: "150000" },
+      ]);
+      const after = await businessDay.getCloseTheDay(MANAGER, propertyId);
+      expect(after?.recent[0]).toMatchObject({
+        roomNightsCharged: 1,
+        roomRevenueMinor: 150000,
+        roomRevenueCurrency: "TRY",
+        roomNightsNotCharged: 0,
+      });
+      const record = await latestRecord(
+        owner,
+        "business_day.closed",
+        after!.recent[0]!.closeId,
+      );
+      expect(record?.context).toMatchObject({
+        roomNightsCharged: 1,
+        amountMinor: 150000,
+        currency: "TRY",
+      });
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "the worker's close charges the night as a Staff Member's does",
+    async () => {
+      const {
+        propertyId,
+        stayId,
+        today: day,
+      } = await guestInHouseSinceTwoNightsAgo();
+      const outcome = await worker.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(
+          "select app.set_worker_context($1::uuid, 'business_day.close')",
+          ORG,
+        );
+        const [row] = await tx.$queryRawUnsafe<{ outcome: string }[]>(
+          `select app.close_business_day_automatically($1::uuid, $2::date) as outcome`,
+          propertyId,
+          plusDays(day, -1),
+        );
+        return row?.outcome;
+      });
+      expect(outcome).toBe("closed");
+      expect(await roomNights(stayId)).toEqual([
+        { day: plusDays(day, -1), amount: "150000" },
+      ]);
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "a_close_and_a_check_out_do_not_deadlock",
+    async () => {
+      const {
+        propertyId,
+        stayId,
+        today: day,
+      } = await guestInHouseSinceTwoNightsAgo();
+      const [departure] = (
+        await reservations.listDepartures(MANAGER, propertyId, "in_house")
+      ).filter((d) => d.stayId === stayId);
+
+      // Arranged so the old order deadlocks: a holder keeps the Property's
+      // day; the close queues behind it; then the check-out starts. Taking the
+      // Stay first, it would hold the Stay while waiting on the day behind the
+      // close, and the close — once it has the day — would wait on the Stay.
+      const wait = (ms: number) =>
+        new Promise((resolve) => setTimeout(resolve, ms));
+      let close: Promise<unknown> | undefined;
+      let checkOut: Promise<unknown> | undefined;
+      await owner.$transaction(
+        async (tx) => {
+          await tx.$queryRawUnsafe(
+            "select pg_advisory_xact_lock(3, hashtext($1::text))::text",
+            propertyId,
+          );
+          close = businessDay.closeDay(
+            MANAGER,
+            propertyId,
+            plusDays(day, -1),
+            null,
+          );
+          await wait(500);
+          checkOut = rivalReservations.checkOut(MANAGER, stayId, {
+            folioVersion: departure!.folioVersion,
+            pendingNights: 2,
+            pendingMinor: 300000,
+            earlyDeparture: true,
+            balanceReason: "Pays later",
+          });
+          await wait(1000);
+        },
+        { timeout: 20_000 },
+      );
+      const [closed, checkedOut] = await Promise.allSettled([
+        close!,
+        checkOut!,
+      ]);
+
+      // Neither was chosen as a deadlock victim.
+      for (const settled of [closed, checkedOut]) {
+        if (settled.status === "rejected") {
+          expect(String(settled.reason)).not.toMatch(/40P01|deadlock/i);
+        }
+      }
+      expect(closed.status).toBe("fulfilled");
+      // The close got the day first and charged last night, so the check-out
+      // was shown a bill that changed, and is refused rather than charging it
+      // again.
+      expect(checkedOut.status).toBe("rejected");
+      expect((checkedOut as PromiseRejectedResult).reason).toBeInstanceOf(
+        FolioChangedError,
+      );
+      expect(await roomNights(stayId)).toEqual([
+        { day: plusDays(day, -1), amount: "150000" },
+      ]);
     },
     DATABASE_BUDGET_MS,
   );

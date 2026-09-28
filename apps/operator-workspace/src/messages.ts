@@ -170,6 +170,13 @@ export interface Messages {
   checkOutEarlyRequired: string;
   checkOutBalanceReason: string;
   checkOutBalanceHint: string;
+  /** The check-out review's row for nights no close has charged (ADR 0038). */
+  checkOutNightsToCharge: string;
+  /** ICU plural on `count` nights; `{amount}` formatted. */
+  checkOutPendingNights: string;
+  checkOutUnpriced: string;
+  /** The balance label once check-out's own nights are in it. */
+  balanceAfterCheckOut: string;
   checkOutBalanceReasonRequired: string;
   checkOutFolioChanged: string;
   departuresViews: string;
@@ -361,6 +368,8 @@ export interface Messages {
   reverse: string;
   reversing: string;
   reversed: string;
+  /** A room night on a Folio (ADR 0038); `{date}` the night it is for. */
+  roomNightLine: string;
   reverseReason: string;
   reverseRefused: string;
   closeFolio: string;
@@ -1131,7 +1140,23 @@ export interface Messages {
     stepDone: string;
     stepOpen: string;
     notBlocking: string;
-    notAvailable: string;
+    /** While no day waits: today's nights are charged when today closes. */
+    roomNightsTodayHelp: string;
+    /** ICU plural on `n`: the nights the waiting close will charge. */
+    roomNightsToCharge: string;
+    roomNightsAllCharged: string;
+    /** Why a Guest's night will not be charged (ADR 0038). */
+    notChargedReason: Record<
+      | "unpriced"
+      | "no_folio"
+      | "folio_closed"
+      | "currency"
+      | "billing_unavailable",
+      string
+    >;
+    roomNightsColumn: string;
+    /** ICU plural on `n`: the Guest nights a close could not charge. */
+    roomNightsNotCharged: string;
     dueOn: string;
     dueOutOn: string;
     leftOn: string;
@@ -1381,6 +1406,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Misafir planlanan çıkış tarihinden ({date}) önce ayrılıyor.",
     checkOutEarlyRequired: "Misafirin erken ayrıldığını onaylayın.",
     checkOutBalanceReason: "Bakiye neden açık kalıyor",
+    checkOutNightsToCharge: "Ücretlendirilecek geceler",
+    checkOutPendingNights:
+      "{count, plural, one {# gece} other {# gece}}, {amount}: çıkışta ücretlendirilir",
+    checkOutUnpriced:
+      "Bu rezervasyon fiyatsız alındı; geceleri ücretlendirilmez.",
+    balanceAfterCheckOut: "Çıkıştan sonraki bakiye",
     checkOutBalanceHint:
       "Henüz ödeme alınamıyor. Hesap {balance} bakiyesiyle açık kalır ve gerekçeniz kaydedilir.",
     checkOutBalanceReasonRequired:
@@ -1570,6 +1601,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     reverse: "Ters kaydet",
     reversing: "Kaydediliyor…",
     reversed: "ters kaydedildi",
+    roomNightLine: "Oda gecesi · {date}",
     reverseReason: "Gerekçe",
     reverseRefused: "Bu satır ters kaydedilemedi.",
     closeFolio: "Folyoyu kapat",
@@ -2372,7 +2404,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       notDepartedHelp: "Çıkışlarını Çıkışlar ekranından yapın.",
       roomNightsTitle: "Oda geceleri",
       roomNightsHelp:
-        "Odalara fiyat tanımlandığında oda geceleri burada işlenecek. Günü kapatmak hiçbir ücret işlemez.",
+        "Günü kapatmak, o gece konaklayan her misafire rezervasyonunun alındığı fiyatla bir gece ücreti işler. Ücretlendirilemeyen geceler burada listelenir ve kapatmayı bekletmez.",
       foliosTitle: "Açık bırakılan folyolar",
       foliosHelp:
         "Hesabı açıkken ayrılan misafirler. Kapanışla birlikte kaydedilir; kapatmayı bekletmez.",
@@ -2380,7 +2412,21 @@ export const messages: Record<SupportedLocale, Messages> = {
       stepDone: "Tamam",
       stepOpen: "{n, plural, other {# açık}}",
       notBlocking: "Kapatmayı bekletmez",
-      notAvailable: "Henüz yok",
+      roomNightsTodayHelp:
+        "Bu gecenin ücretleri bugün kapandığında işlenir. Çıkış yapan misafirin henüz işlenmemiş geceleri çıkışta işlenir.",
+      roomNightsToCharge:
+        "{n, plural, =0 {Ücretlendirilecek gece yok} one {# gece ücretlendirilecek} other {# gece ücretlendirilecek}}",
+      roomNightsAllCharged: "Her misafir gecesi ücretlendirilecek.",
+      notChargedReason: {
+        unpriced: "Rezervasyonda fiyat yok",
+        no_folio: "Folyo yok",
+        folio_closed: "Folyo kapalı",
+        currency: "Başka bir para biriminde fiyatlanmış",
+        billing_unavailable: "Burada faturalama kullanılamıyor",
+      },
+      roomNightsColumn: "Oda geceleri",
+      roomNightsNotCharged:
+        "{n, plural, one {# gece ücretlendirilmedi} other {# gece ücretlendirilmedi}}",
       dueOn: "Beklenen giriş {date}",
       dueOutOn: "Beklenen çıkış {date}",
       leftOn: "Ayrıldı {date}",
@@ -2655,6 +2701,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       "The Guest is leaving before their planned departure on {date}.",
     checkOutEarlyRequired: "Confirm that the Guest is leaving early.",
     checkOutBalanceReason: "Why the balance stays open",
+    checkOutNightsToCharge: "Nights to charge",
+    checkOutPendingNights:
+      "{count, plural, one {# night} other {# nights}}, {amount}: charged at check-out",
+    checkOutUnpriced:
+      "This booking was taken without a price, so its nights are not charged.",
+    balanceAfterCheckOut: "Balance after check-out",
     checkOutBalanceHint:
       "Payments cannot be taken yet. The Folio stays open with {balance} on it, and your reason is recorded.",
     checkOutBalanceReasonRequired:
@@ -2843,6 +2895,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     reverse: "Reverse",
     reversing: "Reversing…",
     reversed: "reversed",
+    roomNightLine: "Room night · {date}",
     reverseReason: "Reason",
     reverseRefused: "That line could not be reversed.",
     closeFolio: "Close folio",
@@ -3654,7 +3707,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       notDepartedHelp: "Check them out on the departures screen.",
       roomNightsTitle: "Room nights",
       roomNightsHelp:
-        "Room nights will be posted here once rooms have rates. Closing a day charges nothing.",
+        "Closing the day charges every Guest in house that night at the price their booking was taken at. A night that cannot be charged is listed here and never holds the close up.",
       foliosTitle: "Folios left open",
       foliosHelp:
         "Guests who left with their bill still open. They are recorded with the close and do not hold it up.",
@@ -3662,7 +3715,21 @@ export const messages: Record<SupportedLocale, Messages> = {
       stepDone: "Done",
       stepOpen: "{n, plural, other {# open}}",
       notBlocking: "Does not hold up the close",
-      notAvailable: "Not available yet",
+      roomNightsTodayHelp:
+        "Tonight is charged when today closes. A departing Guest's nights that no close has reached are charged at check-out.",
+      roomNightsToCharge:
+        "{n, plural, =0 {No nights to charge} one {# night to charge} other {# nights to charge}}",
+      roomNightsAllCharged: "Every Guest night will be charged.",
+      notChargedReason: {
+        unpriced: "No price on the booking",
+        no_folio: "No Folio",
+        folio_closed: "Folio closed",
+        currency: "Priced in another currency",
+        billing_unavailable: "Billing is not available here",
+      },
+      roomNightsColumn: "Room nights",
+      roomNightsNotCharged:
+        "{n, plural, one {# not charged} other {# not charged}}",
       dueOn: "Due {date}",
       dueOutOn: "Due out {date}",
       leftOn: "Left {date}",
@@ -3932,6 +3999,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutEarlyAcknowledge: "يغادر الضيف قبل موعد مغادرته المخطط في {date}.",
     checkOutEarlyRequired: "أكّد أن الضيف يغادر مبكرًا.",
     checkOutBalanceReason: "سبب إبقاء الرصيد مفتوحًا",
+    checkOutNightsToCharge: "الليالي المستحقة",
+    checkOutPendingNights:
+      "{count, plural, zero {# ليلة} one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلة} other {# ليلة}}، {amount}: تُحتسب عند المغادرة",
+    checkOutUnpriced: "أُخذ هذا الحجز بلا سعر، لذا لا تُحتسب لياليه.",
+    balanceAfterCheckOut: "الرصيد بعد المغادرة",
     checkOutBalanceHint:
       "لا يمكن تحصيل الدفعات بعد. يبقى الحساب مفتوحًا برصيد {balance}، ويُسجَّل السبب الذي تكتبه.",
     checkOutBalanceReasonRequired: "على الحساب رصيد. اكتب سبب إبقائه مفتوحًا.",
@@ -4112,6 +4184,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     reverse: "عكس القيد",
     reversing: "جارٍ العكس…",
     reversed: "معكوس",
+    roomNightLine: "ليلة إقامة · {date}",
     reverseReason: "السبب",
     reverseRefused: "تعذّر عكس هذا البند.",
     closeFolio: "إغلاق الحساب",
@@ -4917,7 +4990,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       notDepartedHelp: "سجّل مغادرتهم من شاشة المغادرة.",
       roomNightsTitle: "ليالي الغرف",
       roomNightsHelp:
-        "ستُسجَّل ليالي الغرف هنا عندما تكون للغرف أسعار. إغلاق اليوم لا يفرض أي رسوم.",
+        "يُحتسب عند إغلاق اليوم لكل ضيف أقام تلك الليلة ليلةٌ بالسعر الذي أُخذ به حجزه. الليالي التي لا يمكن احتسابها تُدرج هنا ولا تؤخر الإغلاق.",
       foliosTitle: "حسابات بقيت مفتوحة",
       foliosHelp:
         "ضيوف غادروا وحسابهم ما زال مفتوحًا. يُسجَّلون مع الإغلاق ولا يؤخرونه.",
@@ -4926,7 +4999,21 @@ export const messages: Record<SupportedLocale, Messages> = {
       stepOpen:
         "{n, plural, zero {لا شيء مفتوح} one {عنصر مفتوح} two {عنصران مفتوحان} few {# عناصر مفتوحة} many {# عنصرًا مفتوحًا} other {# عنصر مفتوح}}",
       notBlocking: "لا يؤخر الإغلاق",
-      notAvailable: "غير متاح بعد",
+      roomNightsTodayHelp:
+        "تُحتسب ليلة اليوم عند إغلاقه. أما ليالي الضيف المغادر التي لم يصلها إغلاق بعد فتُحتسب عند مغادرته.",
+      roomNightsToCharge:
+        "{n, plural, =0 {لا ليالي للاحتساب} one {ليلة واحدة للاحتساب} two {ليلتان للاحتساب} few {# ليالٍ للاحتساب} many {# ليلة للاحتساب} other {# ليلة للاحتساب}}",
+      roomNightsAllCharged: "ستُحتسب كل ليالي الضيوف.",
+      notChargedReason: {
+        unpriced: "لا سعر على الحجز",
+        no_folio: "لا يوجد حساب",
+        folio_closed: "الحساب مغلق",
+        currency: "مسعَّر بعملة أخرى",
+        billing_unavailable: "الفوترة غير متاحة هنا",
+      },
+      roomNightsColumn: "ليالي الغرف",
+      roomNightsNotCharged:
+        "{n, plural, zero {لا شيء} one {ليلة واحدة لم تُحتسب} two {ليلتان لم تُحتسبا} few {# ليالٍ لم تُحتسب} many {# ليلة لم تُحتسب} other {# ليلة لم تُحتسب}}",
       dueOn: "الوصول المتوقع {date}",
       dueOutOn: "المغادرة المتوقعة {date}",
       leftOn: "غادر {date}",

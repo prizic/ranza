@@ -39,7 +39,7 @@ flowchart TD
     EXTEND(["Extend a Stay by a night &mdash; amending a booking"])
     REOPEN(["Reopen or correct a closed day"])
     ACCT(["Send the day's totals to Accounting"])
-    RATE(["A rate &mdash; RANZ-31"])
+    RATE(["A rate &mdash; built by docs/features/rates, ADR 0038"])
   end
 
   WITHREASON -- "extend" --> CLOSE
@@ -67,4 +67,4 @@ flowchart TD
   %%   reopen a closed day               this feature, later    CD-DEF-02
   %%   correct a reopened day            this feature, later    CD-DEF-03
   %%   an Accounting consumer            blueprint 5.10         CD-DEF-04
-  %%   room nights                       RANZ-31                PRE-01, PRE-02
+  %%   room nights                       docs/features/rates    built (ADR 0038)

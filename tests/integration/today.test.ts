@@ -297,6 +297,8 @@ beforeAll(async () => {
   const { stayId } = await modules.reservations.checkIn(DESK, bare);
   await modules.reservations.checkOut(DESK, stayId, {
     folioVersion: null,
+    pendingNights: 0,
+    pendingMinor: 0,
     earlyDeparture: true,
     balanceReason: null,
   });
@@ -635,6 +637,8 @@ describe("the edges", () => {
       );
       await modules.reservations.checkOut(DESK, stayId, {
         folioVersion: null,
+        pendingNights: 0,
+        pendingMinor: 0,
         earlyDeparture: true,
         balanceReason: null,
       });

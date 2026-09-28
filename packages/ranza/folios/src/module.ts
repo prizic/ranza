@@ -63,6 +63,7 @@ interface LineRow {
   reversesLineId: string | null;
   reversed: boolean;
   postedAt: Date;
+  roomNightOf: string | null;
 }
 
 function toSummary(row: SummaryRow): FolioSummary {
@@ -192,7 +193,10 @@ export function createFoliosModule(deps: FoliosDeps) {
             select 1 from public.folio_lines as cancelling
             where cancelling.reverses_line_id = line.id
           )                     as "reversed",
-          line.posted_at        as "postedAt"
+          line.posted_at        as "postedAt",
+          case when line.source = 'room_night'
+               then to_char(line.business_date, 'YYYY-MM-DD')
+          end                   as "roomNightOf"
         from public.folio_lines as line
         where line.folio_id = ${folioId}::uuid
         order by line.posted_at desc, line.id

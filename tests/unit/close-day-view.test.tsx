@@ -62,6 +62,8 @@ const DUE: CloseTheDay = {
   notArrived: [],
   notDeparted: [],
   foliosLeftOpen: [],
+  nightsToCharge: { nights: 3, amountMinor: 450000, currency: "TRY" },
+  nightsNotCharged: [],
   mayClose: true,
   recent: [],
 };
@@ -96,13 +98,90 @@ describe("who is offered the close", () => {
   });
 });
 
-describe("room nights", () => {
-  it("room nights are named as not yet posted, and never hold up the close", () => {
+describe("room nights (ADR 0038)", () => {
+  it("the_close_screen_says_what_the_close_will_charge", () => {
     show(DUE);
-    expect(screen.getByText(/posted here once rooms have rates/)).toBeTruthy();
-    expect(screen.getByText("Not available yet")).toBeTruthy();
+    expect(
+      screen.getByText(/charges every Guest in house that night/),
+    ).toBeTruthy();
+    expect(screen.getByText(/^3 nights to charge · .*4,500\.00$/)).toBeTruthy();
+    expect(screen.getByText("Every Guest night will be charged.")).toBeTruthy();
     expect(screen.getByRole("button", { name: /^Close / })).toBeTruthy();
   });
+
+  it("the_close_screen_lists_nights_it_will_not_charge", () => {
+    show({
+      ...DUE,
+      nightsNotCharged: [
+        {
+          stayId: "d9000005-0000-4000-8000-000000000030",
+          guestName: "Kerem Yılmaz",
+          unitName: "104",
+          roomName: null,
+          reason: "unpriced",
+        },
+      ],
+    });
+    expect(screen.getByText("Kerem Yılmaz")).toBeTruthy();
+    expect(screen.getByText(/No price on the booking/)).toBeTruthy();
+    // Listed, and still offered: a night that cannot be charged never blocks.
+    expect(screen.getByRole("button", { name: /^Close / })).toBeTruthy();
+  });
+
+  it("the amount is for those who may see money", () => {
+    show({
+      ...DUE,
+      nightsToCharge: { nights: 3, amountMinor: null, currency: "TRY" },
+    });
+    expect(screen.getByText("3 nights to charge")).toBeTruthy();
+    expect(screen.queryByText(/4,500/)).toBeNull();
+  });
+
+  it("while no day waits, tonight is charged when today closes", () => {
+    show({
+      ...DUE,
+      dayToClose: null,
+      waiting: 0,
+      checklistDay: "2026-09-24",
+      nightsToCharge: null,
+    });
+    expect(
+      screen.getByText(/Tonight is charged when today closes/),
+    ).toBeTruthy();
+    expect(screen.queryByText(/to charge/)).toBeNull();
+  });
+
+  for (const locale of supportedLocales) {
+    it(`every reason a night is not charged reads in ${locale}`, () => {
+      const reasons = [
+        "unpriced",
+        "no_folio",
+        "folio_closed",
+        "currency",
+        "billing_unavailable",
+      ] as const;
+      show(
+        {
+          ...DUE,
+          nightsNotCharged: reasons.map((reason, n) => ({
+            stayId: `d9000005-0000-4000-8000-00000000004${n}`,
+            guestName: `Guest ${n}`,
+            unitName: `10${n}`,
+            roomName: null,
+            reason,
+          })),
+        },
+        locale,
+      );
+      for (const reason of reasons) {
+        expect(
+          screen.getByText(
+            new RegExp(messages[locale].closeDay.notChargedReason[reason]),
+          ),
+        ).toBeTruthy();
+      }
+    });
+  }
 });
 
 describe("a day still being worked", () => {
@@ -230,15 +309,26 @@ describe("what the day shows", () => {
           foliosLeftOpen: 2,
           leftOpen: 1,
           reason: "Guest arriving late",
+          roomNightsCharged: 29,
+          roomRevenueMinor: 4350000,
+          roomRevenueCurrency: "TRY",
+          roomNightsNotCharged: 2,
         },
       ],
     });
     const row = screen.getByText("Automatically").closest("tr");
-    expect(
-      Array.from(row?.querySelectorAll("td") ?? []).map(
-        (cell) => cell.textContent,
-      ),
-    ).toEqual(["Sep 22, 2026", "Automatically", "4", "7", "31", "1", "2"]);
+    const cells = Array.from(row?.querySelectorAll("td") ?? []).map(
+      (cell) => cell.textContent,
+    );
+    expect(cells.slice(0, 5)).toEqual([
+      "Sep 22, 2026",
+      "Automatically",
+      "4",
+      "7",
+      "31",
+    ]);
+    expect(cells[5]).toMatch(/^29 · .*43,500\.002 not charged$/);
+    expect(cells.slice(6)).toEqual(["1", "2"]);
   });
 
   it("folios left open are listed with their balance", () => {

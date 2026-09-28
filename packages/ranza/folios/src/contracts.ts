@@ -73,6 +73,12 @@ export interface FolioLine {
   /** Whether a later line has already cancelled this one. */
   reversed: boolean;
   postedAt: Date;
+  /**
+   * The business date a room night is for, `YYYY-MM-DD` (ADR 0038); null on
+   * every other line. A screen names such a line in the reader's language
+   * rather than by the description the database wrote.
+   */
+  roomNightOf: string | null;
 }
 
 /**

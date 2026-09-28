@@ -288,6 +288,8 @@ const reservationId = () => randomUUID();
  */
 const ACKNOWLEDGED = {
   folioVersion: null,
+  pendingNights: 0,
+  pendingMinor: 0,
   earlyDeparture: true,
   balanceReason: null,
 } as const;

@@ -402,8 +402,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  44,
-  'the definer sweep looked at 44 functions; change this number deliberately');
+  46,
+  'the definer sweep looked at 46 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -413,10 +413,10 @@ select is(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef and p.prosrc ~* '(insert|update|delete)\s'),
-  7,
-  'seven of them write, which is what makes the assertion above a test');
+  9,
+  'nine of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a forty-fifth definer is a red test
+-- Part B: the inventory itself, so a forty-seventh definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
 -- four are housekeeping; two are maintenance; five are the audit log's reach;
@@ -427,8 +427,13 @@ select is(
 -- see and is granted to nobody. After it, reservation_is_priced_when_taken()
 -- stamps a Guest booking with its price (ADR 0038): a definer only so it may
 -- hold the Property row FOR SHARE against a currency change, reach-gated like
--- folio_currency_is_its_propertys(), and it writes nothing but NEW. The seven
--- that write are named in the comments above.
+-- folio_currency_is_its_propertys(), and it writes nothing but NEW. The last
+-- two post room nights (ADR 0038): post_room_nights() for the close and
+-- post_room_nights_for_departure() for check-out. Posting a night is the
+-- close's and the check-out's act rather than finance.post_charge's, so they
+-- are definers; both write, and both check their caller — close_day or the
+-- worker in its Organization, and check_out — which is what makes nine
+-- writers. The other seven are named in the comments above.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -455,8 +460,9 @@ select set_eq(
         'property_currency_is_fixed_by_its_first_folio',
         'folio_currency_is_its_propertys','property_currency_is_fixed',
         'has_organization_wide_administrator',
-        'reservation_is_priced_when_taken'],
-  'and they are exactly the forty-four the design gives a reason for');
+        'reservation_is_priced_when_taken',
+        'post_room_nights', 'post_room_nights_for_departure'],
+  'and they are exactly the forty-six the design gives a reason for');
 
 select finish();
 rollback;

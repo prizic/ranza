@@ -335,6 +335,8 @@ async function post(
 /** What the desk saw when it confirmed a check-out: no Folio, leaving early allowed. */
 const LEAVING = {
   folioVersion: null,
+  pendingNights: 0,
+  pendingMinor: 0,
   earlyDeparture: true,
   balanceReason: null,
 } as const;

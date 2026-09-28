@@ -12,6 +12,8 @@ import {
   type ClosedDay,
   type CloseTheDay,
   type FolioLeftOpen,
+  type NightNotCharged,
+  type NightsToCharge,
   type OpenArrival,
   type OpenDeparture,
 } from "./contracts";
@@ -32,6 +34,23 @@ const UNIQUE_VIOLATION = "23505";
 
 /** Items are open and no reason was given: `..._exceptions_need_a_reason`. */
 const CHECK_VIOLATION = "23514";
+
+/**
+ * The one check violation that means "a reason is needed". Any other would be
+ * a defect, and is not reported as the desk's to fix.
+ */
+const REASON_CONSTRAINT = "business_day_closes_exceptions_need_a_reason";
+
+/** Whether the failure names `constraint`, wherever the driver put it. */
+function names(error: unknown, constraint: string): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    JSON.stringify(error, Object.getOwnPropertyNames(error)).includes(
+      constraint,
+    )
+  );
+}
 
 /** The day has not ended, or waits for the day before it. */
 const NOT_IN_PREREQUISITE_STATE = "55000";
@@ -94,6 +113,8 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
           waiting: number;
           mayClose: boolean;
           mayCancel: boolean;
+          mayReadMoney: boolean;
+          currency: string;
         }[]
       >`
         select to_char(today.day, 'YYYY-MM-DD')                   as "today",
@@ -103,7 +124,12 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
                app.has_organization_permission(
                  property.organization_id, 'front_desk.close_day') as "mayClose",
                app.has_organization_permission(
-                 property.organization_id, 'front_desk.cancel')    as "mayCancel"
+                 property.organization_id, 'front_desk.cancel')    as "mayCancel",
+               -- Money on this screen follows the Today screen's rule: a
+               -- day's room revenue is for whoever manages Folios.
+               app.has_organization_permission(
+                 property.organization_id, 'finance.manage_folio') as "mayReadMoney",
+               trim(property.currency)                            as "currency"
         from public.properties as property
         cross join lateral (
           select app.property_today(property.id) as day
@@ -206,7 +232,59 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
         order by stay.ends_on, coalesce(room.name, unit.name), unit.name
       `;
 
-      const recent = await tx.$queryRaw<ClosedDay[]>`
+      // What the close of the waiting day will charge, from the same function
+      // it posts through, so the preview and the close cannot disagree about a
+      // night. Nothing while no day waits: today's nights are charged only
+      // once today has ended.
+      let nightsToCharge: NightsToCharge | null = null;
+      let nightsNotCharged: NightNotCharged[] = [];
+      if (head.dayToClose) {
+        const [charge] = await tx.$queryRaw<
+          { nights: number; amountMinor: string }[]
+        >`
+          select count(*)::int                              as "nights",
+                 coalesce(sum(due.amount_minor), 0)::text   as "amountMinor"
+            from app.room_nights_due(${propertyId}::uuid,
+                                     ${head.dayToClose}::date,
+                                     ${head.dayToClose}::date) as due
+           where due.reason is null or due.reason = 'already_posted'
+        `;
+        nightsToCharge = {
+          nights: charge?.nights ?? 0,
+          amountMinor: head.mayReadMoney
+            ? Number(charge?.amountMinor ?? 0)
+            : null,
+          currency: head.currency,
+        };
+        nightsNotCharged = await tx.$queryRaw<NightNotCharged[]>`
+          select due.stay_id                           as "stayId",
+                 guest.full_name                       as "guestName",
+                 unit.name                             as "unitName",
+                 room.name                             as "roomName",
+                 due.reason                            as "reason"
+            from app.room_nights_due(${propertyId}::uuid,
+                                     ${head.dayToClose}::date,
+                                     ${head.dayToClose}::date) as due
+            join public.stays as stay on stay.id = due.stay_id
+            join public.accommodation_units as unit
+              on unit.id = stay.accommodation_unit_id
+            left join public.accommodation_units as room
+              on room.id = unit.parent_id
+            left join public.reservations as reservation
+              on reservation.id = stay.reservation_id
+            left join public.guests as guest
+              on guest.id = reservation.guest_id
+           where due.reason is not null
+             and due.reason <> 'already_posted'
+           order by due.reason, coalesce(room.name, unit.name), unit.name
+        `;
+      }
+
+      const recent = await tx.$queryRaw<
+        (Omit<ClosedDay, "roomRevenueMinor"> & {
+          roomRevenueMinor: string;
+        })[]
+      >`
         select close.id                                    as "closeId",
                to_char(close.business_date, 'YYYY-MM-DD')  as "businessDate",
                close.closed_at                             as "closedAt",
@@ -217,7 +295,11 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
                close.nights_occupied                       as "nightsOccupied",
                close.folios_left_open                      as "foliosLeftOpen",
                jsonb_array_length(close.exceptions)        as "leftOpen",
-               close.reason                                as "reason"
+               close.reason                                as "reason",
+               close.room_nights_posted                    as "roomNightsCharged",
+               close.room_revenue_minor::text              as "roomRevenueMinor",
+               trim(close.room_revenue_currency)           as "roomRevenueCurrency",
+               close.room_nights_unposted                  as "roomNightsNotCharged"
         from public.business_day_closes as close
         left join public.users as account on account.id = close.closed_by
         where close.property_id = ${propertyId}::uuid
@@ -242,8 +324,15 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
           ...row,
           balanceMinor: Number(row.balanceMinor),
         })),
+        nightsToCharge,
+        nightsNotCharged,
         mayClose: head.mayClose,
-        recent,
+        recent: recent.map((row) => ({
+          ...row,
+          roomRevenueMinor: head.mayReadMoney
+            ? Number(row.roomRevenueMinor)
+            : null,
+        })),
       };
     });
   }
@@ -284,19 +373,28 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
     }
 
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
-      let closed: { closeId: string; organizationId: string }[];
+      let closed: {
+        closeId: string;
+        organizationId: string;
+        roomNightsCharged: number;
+        roomRevenueMinor: string;
+        roomRevenueCurrency: string | null;
+        roomNightsNotCharged: number;
+      }[];
       try {
-        closed = await tx.$queryRaw<
-          { closeId: string; organizationId: string }[]
-        >`
+        closed = await tx.$queryRaw`
           insert into public.business_day_closes
             (organization_id, property_id, business_date, reason)
           select property.organization_id, property.id, ${day}::date,
                  ${explanation}
           from public.properties as property
           where property.id = ${propertyId}::uuid
-          returning id              as "closeId",
-                    organization_id as "organizationId"
+          returning id                          as "closeId",
+                    organization_id             as "organizationId",
+                    room_nights_posted          as "roomNightsCharged",
+                    room_revenue_minor::text    as "roomRevenueMinor",
+                    trim(room_revenue_currency) as "roomRevenueCurrency",
+                    room_nights_unposted        as "roomNightsNotCharged"
         `;
       } catch (error: unknown) {
         if (raised(error, UNIQUE_VIOLATION)) {
@@ -304,7 +402,7 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
             "that business day is already closed",
           );
         }
-        if (raised(error, CHECK_VIOLATION)) {
+        if (raised(error, CHECK_VIOLATION) && names(error, REASON_CONSTRAINT)) {
           throw new CloseReasonRequiredError(
             "items are left open, so closing needs a reason",
           );
@@ -341,10 +439,24 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
         subjectType: "business_day_close",
         subjectId: row.closeId,
         ...(explanation !== null ? { reason: explanation } : {}),
-        context: { propertyId, businessDate: day },
+        context: {
+          propertyId,
+          businessDate: day,
+          // What the day charged (ADR 0038): every room night dated it, and
+          // the Guest nights it could not charge.
+          roomNightsCharged: row.roomNightsCharged,
+          amountMinor: Number(row.roomRevenueMinor),
+          currency: row.roomRevenueCurrency,
+          roomNightsNotCharged: row.roomNightsNotCharged,
+        },
       });
 
-      return { closeId: row.closeId, businessDate: day };
+      return {
+        closeId: row.closeId,
+        businessDate: day,
+        roomNightsCharged: row.roomNightsCharged,
+        roomNightsNotCharged: row.roomNightsNotCharged,
+      };
     });
   }
 

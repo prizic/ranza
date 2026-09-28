@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
+  BedDouble,
   CalendarCheck,
   CheckCircle2,
   CircleAlert,
@@ -41,10 +42,11 @@ import { FrontDeskRowMenu } from "./row-menu";
  * Close the day (blueprint 6.4, ADR 0034): the day waiting to be closed, what
  * still holds it up, and the recent closes.
  *
- * The steps are the mockup's, less the two it promises and nothing can keep.
- * Room nights are named and never block, because nothing has a rate; and
+ * The steps are the mockup's, less the one it promises and nothing can keep:
  * there is no "extend by a night" beside a Guest past their departure, because
- * no command changes a Stay's dates (CD-DEF-01). What is offered for an open
+ * no command changes a Stay's dates (CD-DEF-01). Room nights are charged by the
+ * close itself (ADR 0038); what it will charge, and the Guests whose nights it
+ * will not, are shown before it, and never block it. What is offered for an open
  * item is what resolves it today: a no-show or a cancellation here, and the
  * arrivals and departures screens for checking somebody in or out, which
  * already decide whether they can and say why not.
@@ -215,15 +217,64 @@ export function CloseDayView({
       <Card>
         <CardHeader>
           <CardTitle>{t("closeDay.roomNightsTitle")}</CardTitle>
-          <CardDescription>{t("closeDay.roomNightsHelp")}</CardDescription>
-          <CardAction>
-            <StatusBadge
-              icon={Info}
-              label={t("closeDay.notAvailable")}
-              tone="neutral"
-            />
-          </CardAction>
+          <CardDescription>
+            {day.nightsToCharge
+              ? t("closeDay.roomNightsHelp")
+              : t("closeDay.roomNightsTodayHelp")}
+          </CardDescription>
+          {day.nightsToCharge ? (
+            <CardAction>
+              <StatusBadge
+                icon={BedDouble}
+                label={[
+                  t("closeDay.roomNightsToCharge", {
+                    n: day.nightsToCharge.nights,
+                  }),
+                  ...(day.nightsToCharge.amountMinor !== null &&
+                  day.nightsToCharge.nights > 0
+                    ? [
+                        formatMoney(
+                          day.nightsToCharge.amountMinor,
+                          day.nightsToCharge.currency,
+                          locale,
+                        ),
+                      ]
+                    : []),
+                ].join(" · ")}
+                tone="info"
+              />
+            </CardAction>
+          ) : null}
         </CardHeader>
+        {day.nightsToCharge ? (
+          <CardContent>
+            {day.nightsNotCharged.length === 0 ? (
+              <p className="text-muted-foreground">
+                {t("closeDay.roomNightsAllCharged")}
+              </p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {day.nightsNotCharged.map((row) => (
+                  <li
+                    className="flex flex-wrap items-center justify-between gap-3 py-3"
+                    key={row.stayId}
+                  >
+                    <StayLine
+                      detail={t(`closeDay.notChargedReason.${row.reason}`)}
+                      guestName={row.guestName}
+                      unit={unitLabel(row.roomName, row.unitName)}
+                    />
+                    <StatusBadge
+                      icon={Info}
+                      label={t("closeDay.notBlocking")}
+                      tone="neutral"
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        ) : null}
       </Card>
 
       {day.foliosLeftOpen.length > 0 ? (
@@ -294,6 +345,9 @@ export function CloseDayView({
                   {t("closeDay.nights")}
                 </TableHead>
                 <TableHead className="text-end">
+                  {t("closeDay.roomNightsColumn")}
+                </TableHead>
+                <TableHead className="text-end">
                   {t("closeDay.leftOpen")}
                 </TableHead>
                 <TableHead className="text-end">
@@ -326,6 +380,29 @@ export function CloseDayView({
                   </TableCell>
                   <TableCell className="text-end tabular-nums">
                     {close.nightsOccupied}
+                  </TableCell>
+                  <TableCell className="text-end tabular-nums">
+                    <span className="block">
+                      {close.roomNightsCharged}
+                      {close.roomRevenueMinor !== null &&
+                      close.roomRevenueCurrency ? (
+                        <span className="text-muted-foreground">
+                          {" · "}
+                          {formatMoney(
+                            close.roomRevenueMinor,
+                            close.roomRevenueCurrency,
+                            locale,
+                          )}
+                        </span>
+                      ) : null}
+                    </span>
+                    {close.roomNightsNotCharged > 0 ? (
+                      <span className="block text-step--1 text-warning">
+                        {t("closeDay.roomNightsNotCharged", {
+                          n: close.roomNightsNotCharged,
+                        })}
+                      </span>
+                    ) : null}
                   </TableCell>
                   <TableCell className="text-end tabular-nums">
                     {close.leftOpen}

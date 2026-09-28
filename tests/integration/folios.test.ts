@@ -766,12 +766,17 @@ async function aBilledUnit(): Promise<string> {
   return id;
 }
 
-/** What the desk saw: the Folio's line count, the early departure acknowledged. */
+/**
+ * What the desk saw: the Folio's line count, no nights left to charge — these
+ * bookings are unpriced (ADR 0038) — and the early departure acknowledged.
+ */
 const reviewed = (
   folioVersion: number | null,
   balanceReason: string | null = null,
 ) => ({
   folioVersion,
+  pendingNights: 0,
+  pendingMinor: 0,
   earlyDeparture: true,
   balanceReason,
 });

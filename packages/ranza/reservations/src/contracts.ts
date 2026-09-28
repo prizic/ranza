@@ -202,6 +202,16 @@ export interface Departure {
   balanceMinor: number;
   currency: string;
   /**
+   * Nights already slept that no close has charged yet, and what they come to
+   * (ADR 0038): the check-out charges them, so the bill the desk reviews is
+   * `balanceMinor + pendingMinor`. Zero for an unpriced booking, whose nights
+   * are not charged, and for a Stay with no Folio.
+   */
+  pendingNights: number;
+  pendingMinor: number;
+  /** The booking's own price per night; null when it was taken unpriced. */
+  nightlyRateMinor: number | null;
+  /**
    * Whether the viewer holds front_desk.check_out. Presentation: the policy
    * decides whether pressing the button does anything.
    */
@@ -224,6 +234,14 @@ export interface CheckOutConfirmation {
    * balance where it was (CO-S1-16).
    */
   folioVersion: number | null;
+  /**
+   * The nights still to charge, and their amount, as the review showed them
+   * (ADR 0030 as amended by ADR 0038). What the check-out then charges must be
+   * exactly this, or the bill changed and the desk looks again: a close may
+   * have charged a night in between, or the business date rolled over.
+   */
+  pendingNights: number;
+  pendingMinor: number;
   /** The desk acknowledged the Guest is leaving before their planned last night. */
   earlyDeparture: boolean;
   /**

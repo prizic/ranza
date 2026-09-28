@@ -4,8 +4,8 @@ The **core domain** — what makes Ranza specifically a hospitality product. The
 modules may use hospitality vocabulary freely.
 
 Built: `core/`, `accommodation/`, `housekeeping/`, `stays/`, `reservations/`,
-`business-day/`.
-Planned: `guest-services/`, `folios/`, `food-and-beverage/`.
+`business-day/`, `folios/`, `rates/`, `guests/`, `maintenance/`, `staff/`.
+Planned: `guest-services/`, `food-and-beverage/`.
 
 `core/` owns Organization, Property, identity, roles and assignments,
 Entitlements and Feature Configuration. It lives here rather than in `platform/`

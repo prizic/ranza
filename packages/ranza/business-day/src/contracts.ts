@@ -3,8 +3,9 @@
  *
  * A business day is the day a Property is working, which rolls at its cutoff
  * by the clock (ADR 0021). Closing one finalizes a day the clock has already
- * ended: it never moves `app.property_today()`, and it never posts anything —
- * room nights wait on a rate (docs/features/close-the-day, PRE-01).
+ * ended: it never moves `app.property_today()`. It charges the day's room
+ * nights as it closes (ADR 0038): one charge per Guest in house that night
+ * whose booking has a price, and a list of the nights it could not charge.
  */
 
 /**
@@ -66,6 +67,27 @@ export interface FolioLeftOpen {
   currency: string;
 }
 
+/** Why a Guest night is not charged: `app.room_nights_due()`'s reasons. */
+export type NightNotChargedReason =
+  "unpriced" | "no_folio" | "folio_closed" | "currency" | "billing_unavailable";
+
+/** A Guest in house the night being closed whose night will not be charged. */
+export interface NightNotCharged {
+  stayId: string;
+  guestName: string | null;
+  unitName: string;
+  roomName: string | null;
+  reason: NightNotChargedReason;
+}
+
+/** What closing the waiting day will charge, before it is closed. */
+export interface NightsToCharge {
+  nights: number;
+  /** Null for a viewer who may not see money (finance.manage_folio). */
+  amountMinor: number | null;
+  currency: string;
+}
+
 /** A day that has been closed, as the screen lists it. */
 export interface ClosedDay {
   closeId: string;
@@ -79,6 +101,13 @@ export interface ClosedDay {
   nightsOccupied: number;
   foliosLeftOpen: number;
   leftOpen: number;
+  /** Every room night dated this day, whoever charged it (ADR 0038). */
+  roomNightsCharged: number;
+  /** What they came to; null for a viewer who may not see money. */
+  roomRevenueMinor: number | null;
+  roomRevenueCurrency: string | null;
+  /** Guest nights of this day that could not be charged. */
+  roomNightsNotCharged: number;
   reason: string | null;
 }
 
@@ -102,6 +131,13 @@ export interface CloseTheDay {
   notArrived: OpenArrival[];
   notDeparted: OpenDeparture[];
   foliosLeftOpen: FolioLeftOpen[];
+  /**
+   * For the day waiting to close, and null while nothing waits — today's
+   * nights are not charged until today has ended: what the close will charge,
+   * and the Guests whose nights it will not, with why. Never blocking.
+   */
+  nightsToCharge: NightsToCharge | null;
+  nightsNotCharged: NightNotCharged[];
   /** The viewer holds `front_desk.close_day`. The policy still decides. */
   mayClose: boolean;
   recent: ClosedDay[];
@@ -110,6 +146,9 @@ export interface CloseTheDay {
 export interface BusinessDayClosed {
   closeId: string;
   businessDate: string;
+  /** Room nights dated the day, and the Guest nights that could not be charged. */
+  roomNightsCharged: number;
+  roomNightsNotCharged: number;
 }
 
 /**

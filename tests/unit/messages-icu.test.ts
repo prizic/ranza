@@ -99,6 +99,7 @@ describe("every catalogue parses", () => {
             // formatted by nothing else until a screen renders it.
             expect(() =>
               translate(path.join("."), {
+                amount: "₺3.000,00",
                 balance: "₺45,00",
                 bed: "x",
                 columns: "x",

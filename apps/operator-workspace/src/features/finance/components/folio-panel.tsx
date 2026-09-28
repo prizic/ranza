@@ -192,6 +192,28 @@ export function FolioPanel({
   const t = useTranslations();
   const open = folio.status === "open";
 
+  // A room night reads in the reader's language, for the night it is for,
+  // rather than as the description the database wrote (ADR 0038) — and so
+  // does its correction, which copies that description.
+  const nights = new Map(
+    folio.lines.flatMap((line) =>
+      line.roomNightOf ? [[line.lineId, line.roomNightOf] as const] : [],
+    ),
+  );
+  const described = (line: FolioDetail["lines"][number]): string => {
+    const night =
+      line.roomNightOf ??
+      (line.reversesLineId ? nights.get(line.reversesLineId) : undefined);
+    return night
+      ? t("roomNightLine", {
+          date: formatDate(new Date(`${night}T00:00:00Z`), locale, {
+            month: "short",
+            timeZone: "UTC",
+          }),
+        })
+      : line.description;
+  };
+
   return (
     <section className="mt-6">
       <FactList className="pt-0">
@@ -237,7 +259,7 @@ export function FolioPanel({
                         : undefined
                     }
                   >
-                    {line.description}
+                    {described(line)}
                   </span>
                   {/* The word as well as the strike-through, because a line
                       through text is the only carrier otherwise and it is
