@@ -157,3 +157,67 @@ test("an_affected_booking_opens_in_change_booking, laid out from the right in Ar
   await expect(dialog).toBeHidden();
   await expect(page).not.toHaveURL(/change=/);
 });
+
+test("an_in_house_guest_is_extended_from_departures", async ({ page }) => {
+  const tag = randomUUID().slice(0, 8);
+  const guestName = `Extend ${tag}`;
+  psql(
+    `with target as (
+       select id, organization_id from public.properties where id = '${propertyId}'
+     ), unit as (
+       insert into public.accommodation_units
+         (property_id, organization_id, name, unit_type, capacity)
+       select id, organization_id, 'E2E-EX-${tag}', 'room', 2 from target
+       returning id, property_id, organization_id
+     ), guest as (
+       insert into public.guests (organization_id, full_name)
+       select organization_id, '${guestName}' from target
+       returning id
+     )
+     insert into public.reservations
+       (organization_id, property_id, accommodation_unit_id,
+        guest_id, stay_type, status, starts_on, ends_on)
+     select unit.organization_id, unit.property_id, unit.id,
+            guest.id, 'guest', 'confirmed',
+            app.property_today(unit.property_id),
+            app.property_today(unit.property_id) + 2
+       from unit, guest`,
+  );
+  await signIn(page);
+
+  await page.goto(`/en/arrivals?property=${propertyId}`);
+  await page.getByRole("searchbox").fill(guestName);
+  const arrival = page.getByRole("row").filter({ hasText: guestName });
+  await arrival.getByRole("button", { name: "Check in" }).click();
+  await expect(arrival.getByText("Checked in")).toBeVisible();
+
+  await page.goto(`/en/departures?property=${propertyId}&view=in_house`);
+  await page.getByRole("searchbox").fill(guestName);
+  await page
+    .getByRole("button", {
+      name: new RegExp(`More actions for .?${guestName}`),
+    })
+    .click();
+  await page.getByRole("menuitem", { name: "Change departure" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Change departure" });
+  await expect(
+    dialog.getByText("That is already the departure."),
+  ).toBeVisible();
+  await dialog.getByRole("button", { name: /^Departure/ }).click();
+  await pickDay(page, propertyDay(4));
+  await expect(dialog.getByText(/^2 more nights/)).toBeVisible();
+  await dialog.getByRole("button", { name: "Save departure" }).click();
+  await expect(dialog).toBeHidden();
+
+  expect(
+    psql(
+      `select stay.ends_on = app.property_today(stay.property_id) + 4
+              and reservation.ends_on = stay.ends_on
+         from public.stays as stay
+         join public.reservations as reservation on reservation.id = stay.reservation_id
+         join public.guests as guest on guest.id = reservation.guest_id
+        where guest.full_name = '${guestName}' and stay.status = 'in_house'`,
+    ),
+  ).toBe("t");
+});

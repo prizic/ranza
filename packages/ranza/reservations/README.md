@@ -48,6 +48,8 @@ await reservations.listBookableUnits(userId, propertyId);
 await reservations.createReservation(userId, booking);
 await reservations.previewChange(userId, reservationId, startsOn, endsOn);
 await reservations.amendBooking(userId, change);
+await reservations.previewDeparture(userId, stayId, endsOn);
+await reservations.changeDeparture(userId, departureChange);
 await reservations.listArrivals(userId, propertyId);
 await reservations.listDepartures(userId, propertyId, "due" | "in_house");
 await reservations.checkIn(userId, reservationId);
@@ -161,11 +163,14 @@ search, extensions and room moves. Group reservations, quotations, deposits and
 availability search are not in this module.
 
 A booking that has not arrived is changed — its nights, its Unit — only through
-`app.amend_reservation()`, a command that checks its caller
+`app.amend_reservation()`, and an in-house Guest's planned departure only
+through `app.change_departure()`: commands that check their caller
 ([ADR 0039](../../../docs/adr/0039-a-booking-is-amended-through-commands-that-check-their-caller.md)).
-`ranza_app` still holds no grant on the dates or the Unit, so nothing else can
-move a booking or a Stay: an attempt is a database error rather than a silent
-room move ([ADR 0012](../../../docs/adr/0012-a-write-is-bounded-by-a-policy-not-a-check.md)).
+`ranza_app` holds no grant on a booking's dates or Unit, nor on a Stay's Unit.
+It does hold `stays.ends_on`, which check-out writes, but the update policy
+refuses every row still in house, so a departure cannot be re-dated that way;
+a room move is a database error rather than a silent side effect
+([ADR 0012](../../../docs/adr/0012-a-write-is-bounded-by-a-policy-not-a-check.md)).
 Every change is an append-only revision in `reservation_changes`. There is
 still no DELETE anywhere.
 

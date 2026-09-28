@@ -587,3 +587,298 @@ describe("two desks at once", () => {
     DATABASE_BUDGET_MS * 2,
   );
 });
+
+/** A Guest checked in today on a room of the test's own, for two nights. */
+async function inHouse(name: string, nights = 2) {
+  const [room] = await owner.$queryRawUnsafe<{ id: string }[]>(
+    `insert into public.accommodation_units
+       (property_id, organization_id, name, unit_type, capacity)
+     values ($1, $2, $3, 'room', 2) returning id`,
+    property,
+    ORG,
+    name,
+  );
+  unit[name] = room!.id;
+  const reservationId = await book(name, 0, nights);
+  const { stayId } = await reservations.checkIn(DESK, reservationId);
+  return { reservationId, stayId };
+}
+
+const DEPARTED_ACKNOWLEDGED = {
+  folioVersion: null,
+  pendingNights: 0,
+  pendingMinor: 0,
+  earlyDeparture: true,
+  balanceReason: null,
+} as const;
+
+describe("changing an in-house Guest's departure", () => {
+  it(
+    "a_stay_is_extended_at_its_own_price",
+    async () => {
+      const { stayId, reservationId } = await inHouse("D-1");
+      // Rooms cost more now than when the booking was taken.
+      await owner.$executeRawUnsafe(
+        `update public.property_rates set amount_minor = 175000
+          where property_id = $1 and unit_type = 'room'`,
+        property,
+      );
+      try {
+        const preview = await reservations.previewDeparture(
+          DESK,
+          stayId,
+          plusDays(today, 4),
+        );
+        expect(preview).toMatchObject({
+          blocker: null,
+          nightlyRateMinor: 150000,
+          version: 0,
+        });
+        await reservations.changeDeparture(DESK, {
+          stayId,
+          endsOn: plusDays(today, 4),
+          version: preview.version,
+          note: null,
+        });
+
+        // Every night of the longer Stay is due at the booking's own price.
+        const nights = await owner.$queryRawUnsafe<{ amount: string }[]>(
+          `select amount_minor::text as amount
+             from app.room_nights_due($1::uuid, $2::date, $3::date, $4::uuid)`,
+          property,
+          today,
+          plusDays(today, 3),
+          stayId,
+        );
+        expect(nights.map((n) => n.amount)).toEqual([
+          "150000",
+          "150000",
+          "150000",
+          "150000",
+        ]);
+        expect((await booking(reservationId)).endsOn).toBe(plusDays(today, 4));
+
+        const record = await latestRecord(
+          owner,
+          "stay.departure_changed",
+          stayId,
+        );
+        expect(record?.context).toMatchObject({
+          reservationId,
+          fromEndsOn: plusDays(today, 2),
+          toEndsOn: plusDays(today, 4),
+        });
+      } finally {
+        await owner.$executeRawUnsafe(
+          `update public.property_rates set amount_minor = 150000
+            where property_id = $1 and unit_type = 'room'`,
+          property,
+        );
+      }
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "an_extension_into_a_booked_night_is_refused",
+    async () => {
+      const { stayId } = await inHouse("D-2");
+      const next = await book("D-2", 3, 5);
+      const nextReference = (await booking(next)).reference;
+
+      const preview = await reservations.previewDeparture(
+        DESK,
+        stayId,
+        plusDays(today, 4),
+      );
+      expect(preview).toMatchObject({
+        blocker: "booked",
+        conflictReference: nextReference,
+      });
+      // The save agrees with the preview.
+      await expect(
+        reservations.changeDeparture(DESK, {
+          stayId,
+          endsOn: plusDays(today, 4),
+          version: preview.version,
+          note: null,
+        }),
+      ).rejects.toBeInstanceOf(UnitHasOccupantError);
+      // Up to the night the other booking starts is free.
+      const free = await reservations.previewDeparture(
+        DESK,
+        stayId,
+        plusDays(today, 3),
+      );
+      expect(free.blocker).toBeNull();
+      await expect(
+        reservations.changeDeparture(DESK, {
+          stayId,
+          endsOn: plusDays(today, 3),
+          version: free.version,
+          note: null,
+        }),
+      ).resolves.toMatchObject({ stayId });
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "a_residents_end_is_not_taken_away_over_a_later_booking",
+    async () => {
+      // A Resident in house until ten days out, and a Guest booked into the
+      // same room from twenty. Taking the Resident's end away would promise
+      // the room to both (AB-S2-02, AB-S2-06): the preview says so, and the
+      // save agrees.
+      const [room] = await owner.$queryRawUnsafe<{ id: string }[]>(
+        `insert into public.accommodation_units
+           (property_id, organization_id, name, unit_type, capacity)
+         values ($1, $2, 'D-R', 'room', 2) returning id`,
+        property,
+        ORG,
+      );
+      unit["D-R"] = room!.id;
+      const resident = await reservations.createReservation(DESK, {
+        propertyId: property,
+        accommodationUnitId: room!.id,
+        guestName: "Amend Resident",
+        guestEmail: null,
+        guestPhone: null,
+        stayType: "resident",
+        startsOn: today,
+        endsOn: plusDays(today, 10),
+        quotedRateMinor: null,
+        quotedCurrency: null,
+      });
+      const { stayId } = await reservations.checkIn(
+        DESK,
+        resident.reservationId,
+      );
+      const later = await book("D-R", 20, 22);
+      const laterReference = (await booking(later)).reference;
+
+      const preview = await reservations.previewDeparture(DESK, stayId, null);
+      expect(preview).toMatchObject({
+        stayType: "resident",
+        blocker: "booked",
+        conflictReference: laterReference,
+      });
+      await expect(
+        reservations.changeDeparture(DESK, {
+          stayId,
+          endsOn: null,
+          version: preview.version,
+          note: null,
+        }),
+      ).rejects.toBeInstanceOf(UnitHasOccupantError);
+
+      // Up to the night the booking starts is still the Resident's to take.
+      await expect(
+        reservations.changeDeparture(DESK, {
+          stayId,
+          endsOn: plusDays(today, 20),
+          version: preview.version,
+          note: null,
+        }),
+      ).resolves.toMatchObject({ stayId });
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "a_departure_is_never_moved_to_today_or_before",
+    async () => {
+      const { stayId } = await inHouse("D-3");
+      for (const endsOn of [today, plusDays(today, -1)]) {
+        await expect(
+          reservations.changeDeparture(DESK, {
+            stayId,
+            endsOn,
+            version: 0,
+            note: null,
+          }),
+        ).rejects.toBeInstanceOf(ReservationPeriodError);
+      }
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "two_departure_changes_do_not_both_land",
+    async () => {
+      const { stayId } = await inHouse("D-4");
+      const results = await Promise.allSettled([
+        reservations.changeDeparture(DESK, {
+          stayId,
+          endsOn: plusDays(today, 3),
+          version: 0,
+          note: null,
+        }),
+        rivalReservations.changeDeparture(DESK, {
+          stayId,
+          endsOn: plusDays(today, 5),
+          version: 0,
+          note: null,
+        }),
+      ]);
+      expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+      const [refused] = results.filter(
+        (r): r is PromiseRejectedResult => r.status === "rejected",
+      );
+      expect(refused?.reason).toBeInstanceOf(BookingChangedError);
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "a_departure_change_and_a_check_out_do_not_deadlock",
+    async () => {
+      // The same locks in the same order: whichever goes first, the other
+      // waits, and a change that finds the Guest gone is refused, not lost.
+      for (let round = 0; round < 4; round++) {
+        const { stayId } = await inHouse(`D-5-${round}`);
+        const [changed, checkedOut] = await Promise.allSettled([
+          reservations.changeDeparture(DESK, {
+            stayId,
+            endsOn: plusDays(today, 4),
+            version: 0,
+            note: null,
+          }),
+          rivalReservations.checkOut(DESK, stayId, DEPARTED_ACKNOWLEDGED),
+        ]);
+        for (const settled of [changed, checkedOut]) {
+          if (settled.status === "rejected") {
+            expect(String(settled.reason)).not.toMatch(/40P01|deadlock/i);
+          }
+        }
+        expect(checkedOut.status).toBe("fulfilled");
+        if (changed.status === "rejected") {
+          expect(changed.reason).toBeInstanceOf(BookingChangeError);
+        }
+      }
+    },
+    DATABASE_BUDGET_MS * 2,
+  );
+
+  it(
+    "without_front_desk_amend_no_departure_changes",
+    async () => {
+      const { stayId } = await inHouse("D-6");
+      const rows = await reservations.listDepartures(
+        CHECK_IN_ONLY,
+        property,
+        "in_house",
+      );
+      expect(rows.find((r) => r.stayId === stayId)?.mayAmend).toBe(false);
+      await expect(
+        reservations.changeDeparture(CHECK_IN_ONLY, {
+          stayId,
+          endsOn: plusDays(today, 3),
+          version: 0,
+          note: null,
+        }),
+      ).rejects.toBeInstanceOf(BookingChangeError);
+    },
+    DATABASE_BUDGET_MS,
+  );
+});

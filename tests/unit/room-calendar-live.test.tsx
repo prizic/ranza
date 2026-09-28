@@ -37,6 +37,12 @@ vi.mock(
   }),
 );
 
+// The drawer offers Change departure, whose server action this screen only
+// calls; reaching it would drag in the composition root.
+vi.mock("../../apps/operator-workspace/src/server/front-office", () => ({
+  changeDeparture: vi.fn(),
+}));
+
 // The application's own providers, so the retry policy and the hydration a
 // page uses are the ones under test rather than a test's own.
 const { QueryProvider } =
@@ -67,6 +73,7 @@ const CALENDAR: RoomCalendar = {
   })),
   overlaps: 0,
   bookedWhileBlocked: 0,
+  mayAmend: false,
   units: [
     {
       unitId: "dc000004-0000-4000-8000-000000000001",

@@ -533,8 +533,24 @@ export function useDepartureColumns(
           <FrontDeskRowMenu
             folioId={row.original.folioId}
             guestName={row.original.guestName || t("noGuestRecorded")}
+            key={row.original.stayId}
             locale={locale}
             propertyId={propertyId}
+            stay={
+              row.original.mayAmend
+                ? {
+                    stayId: row.original.stayId,
+                    reference: row.original.reference,
+                    guestName: row.original.guestName || t("noGuestRecorded"),
+                    unitLabel: unitLabel(
+                      row.original.roomName,
+                      row.original.unitName,
+                    ),
+                    startsOn: row.original.startsOn,
+                    endsOn: row.original.endsOn,
+                  }
+                : undefined
+            }
           />
         </div>
       ),
@@ -546,9 +562,8 @@ export function useDepartureColumns(
  * The booking list.
  *
  * Every booking still ahead of the Property or under way, whatever became of
- * it. The one action here is cancelling a booking that has not arrived;
- * amending one and assigning a different Unit are blueprint 5.3 and not built,
- * so they are not offered.
+ * it. A booking that has not arrived can be changed — its nights, its Unit —
+ * or cancelled, from the row's menu (ADR 0039).
  *
  * The Guest's email is under their name because it is the only visible evidence
  * that a returning Guest was recognized rather than duplicated. Two rows showing

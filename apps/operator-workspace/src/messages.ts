@@ -381,6 +381,25 @@ export interface Messages {
   changeBookingNothing: string;
   changeBookingRefused: string;
 
+  /** Changing an in-house Guest's departure (amend-booking slice 2). */
+  changeDeparture: string;
+  changeDepartureSummary: string;
+  /** Extra nights, charged at the booking's own price as each one closes. */
+  changeDepartureLonger: string;
+  changeDepartureLongerUnpriced: string;
+  /** A Resident's extra nights: billed by the month, never by the night (RT-S3-05). */
+  changeDepartureLongerResident: string;
+  changeDepartureShorter: string;
+  changeDepartureOpen: string;
+  /** A Guest's departure cleared: only a Resident's Stay may be open-ended. */
+  changeDepartureNeedsEnd: string;
+  changeDepartureBlocked: string;
+  changeDepartureNothing: string;
+  changeDepartureRefused: string;
+  saveDeparture: string;
+  /** Beside a Guest past their departure on Close the day (AB-S2-05). */
+  extendStay: string;
+
   folios: string;
   foliosAt: string;
   noFoliosTitle: string;
@@ -1095,7 +1114,7 @@ export interface Messages {
       | "amended",
       string
     >;
-    stay: Record<"checked_out", string>;
+    stay: Record<"checked_out" | "departure_changed", string>;
     folio: Record<"charge_posted" | "line_reversed" | "closed", string>;
     staff: Record<
       | "invited"
@@ -1658,6 +1677,25 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeBookingNoteInvalid: "Not 3 ile 500 karakter arasında olmalı.",
     changeBookingNothing: "Tarihler ve birim aynı; değiştirilecek bir şey yok.",
     changeBookingRefused: "Bu rezervasyon değiştirilemiyor.",
+    changeDeparture: "Çıkışı değiştir",
+    changeDepartureSummary:
+      "Konaklamayı uzatın ya da kısaltın. Misafirin ek geceleri rezervasyonun kendi fiyatından ücretlendirilir; bugün ayrılmak bir çıkıştır.",
+    changeDepartureLonger:
+      "{count, plural, other {# gece daha}}, gecelik {price} üzerinden",
+    changeDepartureLongerUnpriced:
+      "{count, plural, other {# gece daha}}; rezervasyon fiyatsız alındığı için ücretlendirilmez",
+    changeDepartureLongerResident:
+      "{count, plural, other {# gece daha}}; sakin aylık faturalandırılır",
+    changeDepartureShorter: "{count, plural, other {# gece daha az}}",
+    changeDepartureOpen: "Çıkış tarihi yok: konaklama açık uçlu kalır.",
+    changeDepartureNeedsEnd:
+      "Misafirin konaklamasının bir çıkış tarihi olmalı; yalnızca sakinin konaklaması açık uçlu olabilir.",
+    changeDepartureBlocked:
+      "O gecelerin bir kısmı {reference} rezervasyonuna ait. Önce misafiri ya da o rezervasyonu taşıyın.",
+    changeDepartureNothing: "Çıkış zaten bu gün.",
+    changeDepartureRefused: "Bu konaklama değiştirilemiyor.",
+    saveDeparture: "Çıkışı kaydet",
+    extendStay: "Uzat",
     folios: "Folyolar",
     foliosAt: "Folyolar —",
     noFoliosTitle: "Henüz folyo yok",
@@ -2400,7 +2438,10 @@ export const messages: Record<SupportedLocale, Messages> = {
         no_show: "Gelmedi olarak işaretlendi",
         amended: "Rezervasyon değiştirildi",
       },
-      stay: { checked_out: "Çıkış yapıldı" },
+      stay: {
+        checked_out: "Çıkış yapıldı",
+        departure_changed: "Çıkış tarihi değiştirildi",
+      },
       folio: {
         charge_posted: "Ücret işlendi",
         line_reversed: "Satır ters kaydedildi",
@@ -2994,6 +3035,26 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeBookingNothing:
       "The dates and the Unit are the same: there is nothing to change.",
     changeBookingRefused: "This booking cannot be changed.",
+    changeDeparture: "Change departure",
+    changeDepartureSummary:
+      "Extend or shorten the stay. A Guest's extra nights are charged at the booking's own price; leaving today is a check-out.",
+    changeDepartureLonger:
+      "{count, plural, one {# more night} other {# more nights}} at {price} each",
+    changeDepartureLongerUnpriced:
+      "{count, plural, one {# more night} other {# more nights}}, not charged: the booking was taken without a price",
+    changeDepartureLongerResident:
+      "{count, plural, one {# more night} other {# more nights}}; a Resident is billed by the month",
+    changeDepartureShorter:
+      "{count, plural, one {# night fewer} other {# nights fewer}}",
+    changeDepartureOpen: "No departure: the stay stays open-ended.",
+    changeDepartureNeedsEnd:
+      "A Guest's stay needs a departure; only a Resident's may be open-ended.",
+    changeDepartureBlocked:
+      "Booking {reference} holds some of those nights. Move the Guest or that booking first.",
+    changeDepartureNothing: "That is already the departure.",
+    changeDepartureRefused: "This stay cannot be changed.",
+    saveDeparture: "Save departure",
+    extendStay: "Extend",
     folios: "Folios",
     foliosAt: "Folios at",
     noFoliosTitle: "No folios yet",
@@ -3745,7 +3806,10 @@ export const messages: Record<SupportedLocale, Messages> = {
         no_show: "Marked as a no-show",
         amended: "Booking changed",
       },
-      stay: { checked_out: "Checked out" },
+      stay: {
+        checked_out: "Checked out",
+        departure_changed: "Departure changed",
+      },
       folio: {
         charge_posted: "Charge posted",
         line_reversed: "Line reversed",
@@ -4322,6 +4386,26 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeBookingNoteInvalid: "يجب أن تتراوح الملاحظة بين 3 و500 حرف.",
     changeBookingNothing: "التواريخ والوحدة كما هي: لا يوجد ما يُعدَّل.",
     changeBookingRefused: "لا يمكن تعديل هذا الحجز.",
+    changeDeparture: "تغيير موعد المغادرة",
+    changeDepartureSummary:
+      "مدّد الإقامة أو قصّرها. تُحتسب ليالي الضيف الإضافية بسعر الحجز نفسه؛ والمغادرة اليوم تسجيل مغادرة.",
+    changeDepartureLonger:
+      "{count, plural, one {ليلة إضافية واحدة} two {ليلتان إضافيتان} few {# ليالٍ إضافية} many {# ليلة إضافية} other {# ليلة إضافية}} بسعر {price} لكل ليلة",
+    changeDepartureLongerUnpriced:
+      "{count, plural, one {ليلة إضافية واحدة} two {ليلتان إضافيتان} few {# ليالٍ إضافية} many {# ليلة إضافية} other {# ليلة إضافية}} دون رسوم: أُخذ الحجز بلا سعر",
+    changeDepartureLongerResident:
+      "{count, plural, one {ليلة إضافية واحدة} two {ليلتان إضافيتان} few {# ليالٍ إضافية} many {# ليلة إضافية} other {# ليلة إضافية}}؛ يُفوتَر المقيم شهريًا",
+    changeDepartureShorter:
+      "{count, plural, one {ليلة واحدة أقل} two {ليلتان أقل} few {# ليالٍ أقل} many {# ليلة أقل} other {# ليلة أقل}}",
+    changeDepartureOpen: "لا موعد مغادرة: تبقى الإقامة مفتوحة.",
+    changeDepartureNeedsEnd:
+      "تحتاج إقامة الضيف إلى موعد مغادرة؛ الإقامة المفتوحة للمقيم وحده.",
+    changeDepartureBlocked:
+      "الحجز {reference} يشغل بعض تلك الليالي. انقل النزيل أو ذلك الحجز أولًا.",
+    changeDepartureNothing: "هذا هو موعد المغادرة بالفعل.",
+    changeDepartureRefused: "لا يمكن تعديل هذه الإقامة.",
+    saveDeparture: "حفظ موعد المغادرة",
+    extendStay: "تمديد",
     folios: "الحسابات",
     foliosAt: "الحسابات في",
     noFoliosTitle: "لا توجد حسابات بعد",
@@ -5066,7 +5150,10 @@ export const messages: Record<SupportedLocale, Messages> = {
         no_show: "سُجِّل عدم الحضور",
         amended: "عُدِّل الحجز",
       },
-      stay: { checked_out: "تم تسجيل المغادرة" },
+      stay: {
+        checked_out: "تم تسجيل المغادرة",
+        departure_changed: "تغيّر موعد المغادرة",
+      },
       folio: {
         charge_posted: "تم إدراج رسم",
         line_reversed: "تم عكس بند",

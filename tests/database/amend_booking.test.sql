@@ -20,7 +20,7 @@
 --
 -- Rows in docs/features/amend-booking/edge-cases.csv are named beside the
 -- assertion that proves them. Each break listed in
--- goals/2026-09-28-amend-booking/progress.md was applied, the altered object
+-- docs/evidence/amend-booking/README.md was applied, the altered object
 -- printed first, and the named assertion seen red.
 begin;
 select plan(45);

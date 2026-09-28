@@ -98,15 +98,25 @@ function daysBetween(start: Date, end: Date): number {
  * calendar at the start; when it is not, either end may be left open, so a
  * filter can say "up to the 1st" as the two inputs it replaced could.
  *
+ * `lockFrom` shows the start and never lets it change: a Guest already in
+ * house changes when they leave, not when they came. Only the end is picked,
+ * the band still runs from the start, and clearing clears the end alone.
+ * `presets` and `required` are ignored with it: a preset sets both ends, and
+ * a required start is one there is nothing to choose.
+ * `earliestTo` greys out every end before it — a departure is tomorrow or
+ * later — so a day the server would refuse is not offered.
+ *
  * `today` is the Property's own day as `YYYY-MM-DD`. It marks today on the
  * calendar and decides when a year is worth printing; the reader's clock is
  * the wrong day for part of every day at a Property in another timezone.
  */
 export function DateRangeField({
   defaultValue,
+  earliestTo,
   id,
   labels,
   locale,
+  lockFrom = false,
   minSpan = 0,
   names,
   onChange,
@@ -115,10 +125,14 @@ export function DateRangeField({
   today,
 }: {
   defaultValue?: { from?: string | undefined; to?: string | undefined };
+  /** The first end that may be chosen, as `YYYY-MM-DD`. */
+  earliestTo?: string | undefined;
   /** The start half's id, which the field's `<label>` points at. */
   id: string;
   labels: DateRangeLabels;
   locale: SupportedLocale;
+  /** Shows the start without letting it change; only the end is picked. */
+  lockFrom?: boolean;
   minSpan?: number;
   names: { from: string; to: string };
   /**
@@ -137,7 +151,7 @@ export function DateRangeField({
     return from || to ? { from, to } : undefined;
   });
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Edge>("from");
+  const [editing, setEditing] = useState<Edge>(lockFrom ? "to" : "from");
 
   function setRange(next: DateRange | undefined) {
     setStoredRange(next);
@@ -164,6 +178,7 @@ export function DateRangeField({
   const from = range?.from;
   const to = range?.to;
   const todayDate = fromIso(today) ?? new Date();
+  const earliestEnd = fromIso(earliestTo);
 
   const describe = (date: Date | undefined) => {
     if (!date) return undefined;
@@ -178,11 +193,19 @@ export function DateRangeField({
   function openAt(edge: Edge) {
     // Where a start is required, asking for the end before there is one is
     // asking for the start.
-    setEditing(edge === "to" && !from && required ? "from" : edge);
+    setEditing(
+      lockFrom ? "to" : edge === "to" && !from && required ? "from" : edge,
+    );
     setOpen(true);
   }
 
   function pick(day: Date) {
+    if (lockFrom) {
+      if (!from || daysBetween(from, day) < minSpan) return;
+      setRange({ from, to: day });
+      setOpen(false);
+      return;
+    }
     const endsRange =
       editing === "to" &&
       (from ? daysBetween(from, day) >= minSpan : !required);
@@ -214,27 +237,35 @@ export function DateRangeField({
       ? labels.span(daysBetween(from, shown.to))
       : null;
 
-  const half = (edge: Edge, value: Date | undefined, empty: string) => (
-    <button
-      aria-expanded={open && editing === edge}
-      aria-haspopup="dialog"
-      aria-label={`${labels[edge]}: ${value ? isolate(describe(value) ?? "") : empty}`}
-      className={cn(
-        "flex h-full min-w-0 flex-1 items-center rounded-xl px-2 text-start outline-none transition-colors hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-primary/20",
-        open &&
-          editing === edge &&
-          "bg-primary/10 text-primary hover:bg-primary/10",
-      )}
-      id={edge === "from" ? id : `${id}-to`}
-      onClick={() => openAt(edge)}
-      ref={halves[edge]}
-      type="button"
-    >
-      <span className={cn("truncate", !value && "text-muted-foreground")}>
-        {describe(value) ?? empty}
+  const half = (edge: Edge, value: Date | undefined, empty: string) =>
+    lockFrom && edge === "from" ? (
+      <span className="flex h-full min-w-0 flex-1 items-center px-2 text-muted-foreground">
+        <span className="sr-only">{labels.from}: </span>
+        <span className="truncate">{describe(value) ?? empty}</span>
       </span>
-    </button>
-  );
+    ) : (
+      <button
+        aria-expanded={open && editing === edge}
+        aria-haspopup="dialog"
+        aria-label={`${labels[edge]}: ${value ? isolate(describe(value) ?? "") : empty}`}
+        className={cn(
+          "flex h-full min-w-0 flex-1 items-center rounded-xl px-2 text-start outline-none transition-colors hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-primary/20",
+          open &&
+            editing === edge &&
+            "bg-primary/10 text-primary hover:bg-primary/10",
+        )}
+        // With the start locked the end is the one control, so the field's
+        // label names it.
+        id={edge === "from" || lockFrom ? id : `${id}-to`}
+        onClick={() => openAt(edge)}
+        ref={halves[edge]}
+        type="button"
+      >
+        <span className={cn("truncate", !value && "text-muted-foreground")}>
+          {describe(value) ?? empty}
+        </span>
+      </button>
+    );
 
   return (
     <Popover onOpenChange={setOpen} open={open}>
@@ -274,7 +305,7 @@ export function DateRangeField({
 
       <input name={names.from} type="hidden" value={from ? toIso(from) : ""} />
       <input name={names.to} type="hidden" value={to ? toIso(to) : ""} />
-      {required ? (
+      {required && !lockFrom ? (
         // Hidden inputs are never validated, so a required start is carried by
         // one out of sight and out of the tab order. Its bubble would point at
         // nothing, so a blocked submit opens the calendar at the start instead
@@ -324,7 +355,7 @@ export function DateRangeField({
         onOpenAutoFocus={(event) => event.preventDefault()}
       >
         <div className="flex flex-col md:flex-row">
-          {presets?.length ? (
+          {presets?.length && !lockFrom ? (
             <div className="flex gap-1 overflow-x-auto border-b border-border/50 p-3 md:w-36 md:flex-col md:overflow-visible md:border-e md:border-b-0">
               {presets.map((preset) => {
                 const active =
@@ -362,8 +393,13 @@ export function DateRangeField({
             <Calendar
               autoFocus
               className="p-4"
-              defaultMonth={from ?? to ?? todayDate}
+              defaultMonth={(lockFrom ? to : from) ?? to ?? todayDate}
               dir={directionFor(locale)}
+              disabled={
+                earliestEnd && editing === "to"
+                  ? { before: earliestEnd }
+                  : undefined
+              }
               locale={calendarLocales[locale]}
               mode="range"
               numberOfMonths={wide ? 2 : 1}
@@ -390,8 +426,12 @@ export function DateRangeField({
                 "up to the 1st" with no start at all. */}
             <button
               className="rounded-md px-2 py-0.5 text-[10px] font-bold text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-40"
-              disabled={!from && !to}
+              disabled={lockFrom ? !to : !from && !to}
               onClick={() => {
+                if (lockFrom) {
+                  setRange({ from, to: undefined });
+                  return;
+                }
                 setRange(undefined);
                 setEditing("from");
               }}

@@ -1,0 +1,104 @@
+[
+  {
+    "label": "amend without front_desk.amend",
+    "fn": "app.amend_reservation(uuid,date,date,uuid,integer,text)",
+    "old": "or not app.has_organization_permission(target_organization, 'front_desk.amend')",
+    "new": "/*sabotage*/"
+  },
+  {
+    "label": "amend by reach alone, no commercial gates",
+    "fn": "app.amend_reservation(uuid,date,date,uuid,integer,text)",
+    "old": "or not app.can_use_capability(target_property, 'front_office', 'front_desk')",
+    "new": "or not target_property in (select app.accessible_property_ids()) /*sabotage*/"
+  },
+  {
+    "label": "no version check",
+    "fn": "app.amend_reservation(uuid,date,date,uuid,integer,text)",
+    "old": "or revisions is distinct from expected_version then",
+    "new": "/*sabotage*/ then"
+  },
+  {
+    "label": "checked-in bookings allowed",
+    "fn": "app.amend_reservation(uuid,date,date,uuid,integer,text)",
+    "old": "if booking.status not in ('requested', 'confirmed') then",
+    "new": "if booking.status not in ('requested', 'confirmed', 'checked_in', 'cancelled') /*sabotage*/ then"
+  },
+  {
+    "label": "no today check",
+    "fn": "app.amend_reservation(uuid,date,date,uuid,integer,text)",
+    "old": "if new_starts_on < today then",
+    "new": "if false /*sabotage*/ then"
+  },
+  {
+    "label": "Guest open end allowed",
+    "fn": "app.amend_reservation(uuid,date,date,uuid,integer,text)",
+    "old": "if new_ends_on is null and booking.stay_type = 'guest' then",
+    "new": "if false /*sabotage*/ then"
+  },
+  {
+    "label": "no-op change allowed",
+    "fn": "app.amend_reservation(uuid,date,date,uuid,integer,text)",
+    "old": "and new_unit = booking.accommodation_unit_id then",
+    "new": "and false /*sabotage*/ then"
+  },
+  {
+    "label": "another Property's Unit not checked",
+    "fn": "app.amend_reservation(uuid,date,date,uuid,integer,text)",
+    "old": "       and unit.property_id = booking.property_id\n       for share;",
+    "new": "       /*sabotage*/\n       for share;"
+  },
+  {
+    "label": "no in-service check",
+    "fn": "app.amend_reservation(uuid,date,date,uuid,integer,text)",
+    "old": "if unit_status in ('blocked', 'out_of_service')",
+    "new": "if false /*sabotage*/ and unit_status in ('blocked', 'out_of_service')"
+  },
+  {
+    "label": "re-price trigger dropped",
+    "sql": "drop trigger reservations_priced_for_a_new_kind on public.reservations;",
+    "undo": "create trigger reservations_priced_for_a_new_kind before update of accommodation_unit_id on public.reservations for each row execute function app.reservation_is_priced_for_its_new_kind();",
+    "print": "select count(*) from pg_trigger where tgname='reservations_priced_for_a_new_kind'"
+  },
+  {
+    "label": "re-price on every Unit change",
+    "fn": "app.reservation_is_priced_for_its_new_kind()",
+    "old": "if new_kind is not distinct from old_kind then",
+    "new": "if false /*sabotage*/ then"
+  },
+  {
+    "label": "re-price out of reach unprices silently",
+    "fn": "app.reservation_is_priced_for_its_new_kind()",
+    "old": "    raise exception 'that Property is not reachable'\n      using errcode = '42501';",
+    "new": "    new.nightly_rate_minor := null; new.rate_currency := null; return new; /*sabotage*/"
+  },
+  {
+    "label": "append-only trigger dropped",
+    "sql": "drop trigger reservation_changes_append_only on public.reservation_changes;",
+    "undo": "create trigger reservation_changes_append_only before update or delete on public.reservation_changes for each statement execute function app.reservation_change_is_kept();",
+    "print": "select count(*) from pg_trigger where tgname='reservation_changes_append_only'"
+  },
+  {
+    "label": "finished-row trigger dropped on both",
+    "sql": "drop trigger reservations_finished_keep_their_dates on public.reservations; drop trigger stays_finished_keep_their_dates on public.stays;",
+    "undo": "create trigger reservations_finished_keep_their_dates before update of starts_on, ends_on, accommodation_unit_id on public.reservations for each row execute function app.a_finished_row_keeps_its_dates(); create trigger stays_finished_keep_their_dates before update of starts_on, ends_on, accommodation_unit_id on public.stays for each row execute function app.a_finished_row_keeps_its_dates();",
+    "print": "select count(*) from pg_trigger where tgname like '%finished_keep%'"
+  },
+  {
+    "label": "dates granted to ranza_app",
+    "sql": "grant update (starts_on, accommodation_unit_id) on public.reservations to ranza_app;",
+    "undo": "revoke update (starts_on, accommodation_unit_id) on public.reservations from ranza_app;",
+    "print": "select string_agg(column_name, ',') from information_schema.column_privileges where table_name='reservations' and grantee='ranza_app' and privilege_type='UPDATE'"
+  },
+  {
+    "label": "revisions readable by everyone",
+    "sql": "alter policy reservation_changes_read_accessible_property on public.reservation_changes using (true);",
+    "undo": "alter policy reservation_changes_read_accessible_property on public.reservation_changes using (property_id in (select app.accessible_property_ids()));",
+    "print": "select qual from pg_policies where policyname='reservation_changes_read_accessible_property'"
+  },
+  {
+    "label": "insert granted to ranza_app",
+    "sql": "grant insert on public.reservation_changes to ranza_app;",
+    "undo": "revoke insert on public.reservation_changes from ranza_app;",
+    "print": "select string_agg(privilege_type, ',') from information_schema.table_privileges where table_name='reservation_changes' and grantee='ranza_app'"
+  }
+]

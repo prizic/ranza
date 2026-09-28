@@ -76,6 +76,7 @@ function calendar(units: RoomCalendarUnit[]): RoomCalendar {
     overlaps: 0,
     bookedWhileBlocked: 0,
     units,
+    mayAmend: false,
   };
 }
 

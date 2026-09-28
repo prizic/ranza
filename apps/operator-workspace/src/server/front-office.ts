@@ -564,6 +564,75 @@ export async function changeBooking(
   return "done";
 }
 
+/**
+ * What saving a changed departure shows afterwards (amend-booking slice 2).
+ * `occupied` is a booking holding a night the extension would add; the rest
+ * mean what they mean for a changed booking.
+ */
+export type ChangeDepartureOutcome =
+  | "idle"
+  | "done"
+  | "occupied"
+  | "invalidPeriod"
+  | "invalidNote"
+  | "changed"
+  | "refused";
+
+/**
+ * Extending or shortening an in-house Guest's Stay, or giving an open-ended
+ * one an end. The command checks the caller and the dates (ADR 0039); this
+ * reads the form, with the version the dialog was shown.
+ */
+export async function changeDeparture(
+  _previous: ChangeDepartureOutcome,
+  form: FormData,
+): Promise<ChangeDepartureOutcome> {
+  const viewer = await currentViewer();
+  if (!viewer) return "refused";
+
+  const locale = String(form.get("locale") ?? "");
+  if (!isSupportedLocale(locale)) return "refused";
+
+  const stayId = String(form.get("stay") ?? "");
+  const version = Number(form.get("version"));
+  if (
+    !stayId ||
+    !form.has("version") ||
+    !Number.isInteger(version) ||
+    version < 0
+  ) {
+    return "refused";
+  }
+  const note = String(form.get("note") ?? "").trim();
+  const noteLength = [...note].length;
+  if (noteLength > 0 && (noteLength < 3 || noteLength > 500)) {
+    return "invalidNote";
+  }
+
+  try {
+    await getComposition().reservations.changeDeparture(viewer.userId, {
+      stayId,
+      endsOn: optional(form, "endsOn"),
+      version,
+      note: note.length === 0 ? null : note,
+    });
+  } catch (error) {
+    if (error instanceof UnitHasOccupantError) return "occupied";
+    if (error instanceof ReservationPeriodError) return "invalidPeriod";
+    if (error instanceof ChangeNoteError) return "invalidNote";
+    if (error instanceof BookingChangedError) {
+      revalidateFrontDesk(locale);
+      return "changed";
+    }
+    if (error instanceof BookingChangeError) return "refused";
+    console.error("changeDeparture failed unexpectedly", { stayId }, error);
+    return "refused";
+  }
+
+  revalidateFrontDesk(locale);
+  return "done";
+}
+
 /** Recording that somebody booked for tonight or earlier never came. */
 export async function markNoShow(
   _previous: EndBookingOutcome,

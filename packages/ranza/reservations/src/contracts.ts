@@ -218,6 +218,11 @@ export interface Departure {
    * decides whether pressing the button does anything.
    */
   mayCheckOut: boolean;
+  /**
+   * Whether the viewer may change the planned departure: a Stay on a booking,
+   * and `front_desk.amend` (AB-S2-05, AB-S1-27).
+   */
+  mayAmend: boolean;
 }
 
 /**
@@ -722,6 +727,49 @@ export interface ChangePreview {
   options: ChangeOption[];
 }
 
+/**
+ * What a front desk supplies to change an in-house Guest's planned departure
+ * (amend-booking slice 2). Tomorrow or later: leaving today is a check-out.
+ */
+export interface DepartureChange {
+  stayId: string;
+  /** Calendar date as `YYYY-MM-DD`; null only for a Resident. */
+  endsOn: string | null;
+  /** How many changes the booking had when the dialog read it (AB-S1-19). */
+  version: number;
+  note: string | null;
+}
+
+/**
+ * What changing a departure would do, read before saving: whether another
+ * booking holds a night it would add (AB-S2-02), and what a night costs.
+ */
+export interface DeparturePreview {
+  stayId: string;
+  reference: string;
+  stayType: ReservationStayType;
+  /** The day they arrived, `YYYY-MM-DD`. */
+  startsOn: string;
+  /** The planned departure now; null for an open-ended Stay. */
+  endsOn: string | null;
+  unitId: string;
+  /** The booking's own price, which extra nights are charged at (AB-S2-01). */
+  nightlyRateMinor: number | null;
+  rateCurrency: string | null;
+  /** The Property's today; the earliest departure is the day after. */
+  today: string;
+  version: number;
+  /** `booked` when a confirmed booking holds a night the change would add. */
+  blocker: ChangeBlocker | null;
+  conflictReference: string | null;
+}
+
+/** What a saved departure change produced. */
+export interface ChangedDeparture {
+  stayId: string;
+  changeId: string;
+}
+
 /** What a saved change produced. */
 export interface AmendedBooking {
   reservationId: string;
@@ -886,4 +934,6 @@ export interface RoomCalendar {
   overlaps: number;
   bookedWhileBlocked: number;
   units: RoomCalendarUnit[];
+  /** Whether the viewer may change a Guest's departure from the drawer. */
+  mayAmend: boolean;
 }

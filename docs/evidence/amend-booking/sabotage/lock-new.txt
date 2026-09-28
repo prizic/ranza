@@ -1,0 +1,5 @@
+  /*sabotage*/ perform pg_catalog.pg_advisory_xact_lock(2, pg_catalog.hashtext(first_unit::text));
+  perform pg_catalog.pg_sleep(0.3);
+  if new_unit <> first_unit then
+    perform pg_catalog.pg_advisory_xact_lock(2, pg_catalog.hashtext(new_unit::text));
+  end if;

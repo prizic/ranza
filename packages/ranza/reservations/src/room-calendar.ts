@@ -272,7 +272,7 @@ function compareUnits(a: CalendarUnitRow, b: CalendarUnitRow): number {
 export function buildRoomCalendar(
   rows: readonly CalendarUnitRow[],
   requested: { from: string | null; days: number | null },
-): RoomCalendar {
+): Omit<RoomCalendar, "mayAmend"> {
   const days = calendarLength(requested.days);
   const today = rows[0]?.today ?? new Date().toISOString().slice(0, 10);
   const from = rows[0]?.firstDay ?? requested.from ?? defaultFirstDay(today);

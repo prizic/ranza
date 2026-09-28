@@ -11,6 +11,14 @@ everything lands under Unreleased.
 
 ### Added
 
+- `previewDeparture()` and `changeDeparture()`: an in-house Guest's planned
+  departure is extended, shortened, or given an end or has it taken away (a
+  Resident's only), through `app.change_departure()`, with the booking's end
+  moved with it. Extra nights are charged at the booking's own price as each
+  closes; a booking holding a night the extension would add refuses it
+  (`UnitHasOccupantError`). Publishes `stay.departure_changed` (ids only) and
+  records the audit action of the same name. `mayAmend` on departures and on
+  the room calendar says who may.
 - `previewChange()` and `amendBooking()`: changing a booking that has not
   arrived — its nights, its Unit, or both — through `app.amend_reservation()`
   ([ADR 0039](../../../docs/adr/0039-a-booking-is-amended-through-commands-that-check-their-caller.md)).

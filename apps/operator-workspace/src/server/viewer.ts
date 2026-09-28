@@ -34,6 +34,7 @@ import type {
   BookableUnit,
   ChangePreview,
   Departure,
+  DeparturePreview,
   DepartureView,
   ReservationRow,
   RoomCalendar,
@@ -157,6 +158,7 @@ export type {
   BookableUnit,
   ChangePreview,
   CloseTheDay,
+  DeparturePreview,
   Departure,
   FolioDetail,
   FolioSummary,
@@ -368,6 +370,37 @@ export async function bookingChangePreview(
       viewer.userId,
       reservationId,
       startsOn,
+      endsOn,
+    );
+    return { kind: "preview", preview };
+  } catch (error: unknown) {
+    if (error instanceof ReservationPeriodError)
+      return { kind: "invalidPeriod" };
+    if (error instanceof BookingChangeError) return { kind: "refused" };
+    throw error;
+  }
+}
+
+/**
+ * What changing an in-house Guest's departure would do, for the Change
+ * departure dialog (amend-booking slice 2). The same three answers as
+ * `bookingChangePreview`, for the same reasons.
+ */
+export type DepartureChangePreview =
+  | { kind: "preview"; preview: DeparturePreview }
+  | { kind: "refused" }
+  | { kind: "invalidPeriod" };
+
+export async function departureChangePreview(
+  stayId: string,
+  endsOn: string | null,
+): Promise<DepartureChangePreview> {
+  const viewer = await currentViewer();
+  if (!viewer) return { kind: "refused" };
+  try {
+    const preview = await getComposition().reservations.previewDeparture(
+      viewer.userId,
+      stayId,
       endsOn,
     );
     return { kind: "preview", preview };

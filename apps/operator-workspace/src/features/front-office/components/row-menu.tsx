@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import {
   BedDouble,
   CalendarClock,
+  CalendarRange,
   CalendarX,
   MoreHorizontal,
   Receipt,
@@ -24,6 +25,10 @@ import {
   ChangeBookingDialog,
   type ChangeableBooking,
 } from "./change-booking-dialog";
+import {
+  ChangeDepartureDialog,
+  type ChangeableStay,
+} from "./change-departure-dialog";
 import { EndBookingDialog, type EndBookingKind } from "./end-booking-dialog";
 
 /**
@@ -60,8 +65,11 @@ export function FrontDeskRowMenu({
   guestName,
   locale,
   propertyId,
+  stay,
 }: {
   booking?: EndableBooking | undefined;
+  /** An in-house Guest whose departure the viewer may change (AB-S2-05). */
+  stay?: ChangeableStay | undefined;
   folioId: string | null;
   guestName: string;
   locale: SupportedLocale;
@@ -70,6 +78,7 @@ export function FrontDeskRowMenu({
   const t = useTranslations();
   const [ending, setEnding] = useState<EndBookingKind | null>(null);
   const [changing, setChanging] = useState(false);
+  const [changingDeparture, setChangingDeparture] = useState(false);
   const bookingActions =
     booking && (booking.mayCancel || booking.mayMarkNoShow || booking.change);
 
@@ -106,7 +115,13 @@ export function FrontDeskRowMenu({
               <span>{t("showOnRoomMap")}</span>
             </Link>
           </DropdownMenuItem>
-          {bookingActions ? <DropdownMenuSeparator /> : null}
+          {bookingActions || stay ? <DropdownMenuSeparator /> : null}
+          {stay ? (
+            <DropdownMenuItem onSelect={() => setChangingDeparture(true)}>
+              <CalendarRange className="size-4" />
+              <span>{t("changeDeparture")}</span>
+            </DropdownMenuItem>
+          ) : null}
           {booking?.change ? (
             <DropdownMenuItem onSelect={() => setChanging(true)}>
               <CalendarClock className="size-4" />
@@ -142,6 +157,14 @@ export function FrontDeskRowMenu({
           reference={booking.reference}
           reservationId={booking.reservationId}
           unitLabel={booking.unitLabel}
+        />
+      ) : null}
+      {stay && changingDeparture ? (
+        <ChangeDepartureDialog
+          locale={locale}
+          onOpenChange={setChangingDeparture}
+          open
+          stay={stay}
         />
       ) : null}
       {booking?.change && changing ? (

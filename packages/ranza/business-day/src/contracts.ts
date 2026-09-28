@@ -50,9 +50,16 @@ export interface OpenDeparture {
   stayId: string;
   reference: string | null;
   guestName: string | null;
+  /** The day they arrived, for extending the Stay from the checklist. */
+  startsOn: string;
   endsOn: string;
   unitName: string;
   roomName: string | null;
+  /**
+   * Whether the viewer may extend them from here (AB-S2-05): a Stay on a
+   * booking, and `front_desk.amend`.
+   */
+  mayAmend: boolean;
 }
 
 /** A departed Guest whose Folio is still open. Reported, never blocking. */
