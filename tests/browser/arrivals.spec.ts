@@ -1,9 +1,7 @@
-import { randomUUID } from "node:crypto";
-
 import { expect, test } from "@playwright/test";
 
 import { psql } from "./local-database";
-import { signIn, testProperty } from "./front-desk";
+import { anArrivalToday, signIn, testProperty } from "./front-desk";
 
 /**
  * Checking a Guest in, through the screen a front desk actually uses.
@@ -17,51 +15,6 @@ import { signIn, testProperty } from "./front-desk";
  * other than "Check in", this fails at the click rather than passing on a
  * selector that matches nothing.
  */
-
-/**
- * A Reservation of this run's own, on a Unit of its own.
- *
- * Checking somebody in is not a repeatable act: the second run would find the
- * first run's Guest already in house, and an exclusion constraint refuses a
- * second current Stay on their Unit. Nothing here can be cleaned up afterwards
- * either — a Stay is operational history and is never deleted — so each run
- * brings rows it does not have to take back, the way the integration suites do.
- */
-function anArrivalToday(propertyId: string): string {
-  const tag = randomUUID().slice(0, 8);
-  const guestName = `Test Arrival ${tag}`;
-
-  psql(
-    `with target as (
-       select id, organization_id, timezone
-       from public.properties where id = '${propertyId}'
-     ), unit as (
-       insert into public.accommodation_units
-         (property_id, organization_id, name, unit_type, capacity)
-       select id, organization_id, 'E2E-${tag}', 'room', 2 from target
-       returning id, property_id, organization_id
-     ), guest as (
-       -- This run's own Guest, like its own Unit and for the same reason: a
-       -- Guest is never deleted either, and a fixed one would collect a
-       -- Reservation per run.
-       insert into public.guests (organization_id, full_name)
-       select organization_id, '${guestName}' from target
-       returning id
-     )
-     insert into public.reservations
-       (organization_id, property_id, accommodation_unit_id,
-        guest_id, stay_type, status, starts_on, ends_on)
-     select unit.organization_id, unit.property_id, unit.id,
-            guest.id, 'guest', 'confirmed',
-            -- The Property's own day, which is what the arrivals list compares
-            -- against. The runner's date is somebody else's.
-            app.property_today(target.id),
-            app.property_today(target.id) + 2
-     from unit, target, guest`,
-  );
-
-  return guestName;
-}
 
 test("a confirmed arrival is checked in from the arrivals screen", async ({
   page,

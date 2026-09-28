@@ -90,6 +90,32 @@ export interface EntitledProperty {
   organizationName: string;
 }
 
+/**
+ * A Property's working day, and what the viewer may do and use there — what
+ * the Today dashboard is shaped by.
+ *
+ * Permissions are the viewer's own in the Property's Organization, so a role
+ * the Organization composed shapes the page exactly as a shipped one does.
+ * `capabilities` answers the requested capabilities in the order asked.
+ */
+export interface WorkingDay {
+  propertyId: string;
+  propertyName: string;
+  organizationId: string;
+  timezone: string;
+  /** ISO 4217, the currency every Folio at the Property is kept in. */
+  currency: string;
+  /** The business date (ADR 0021), `YYYY-MM-DD`. */
+  businessDate: string;
+  /** The Property's own calendar date, which runs ahead of the business date
+      between midnight and the cutoff. */
+  calendarDate: string;
+  /** The business date cutoff, `HH:MM`. */
+  cutoff: string;
+  permissions: readonly string[];
+  capabilities: readonly boolean[];
+}
+
 /** Every Property one capability may be used in — an answer from `listEntitledPropertiesByCapability`. */
 export interface CapabilityProperties {
   capability: CapabilityRef;
