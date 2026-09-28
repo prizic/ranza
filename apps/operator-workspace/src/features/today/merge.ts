@@ -23,6 +23,7 @@ export function hasStale(summary: TodaySummary): boolean {
     summary.occupancy,
     summary.rooms,
     summary.money,
+    summary.maintenance,
   ].some((section) => section?.status === "ok" && section.stale === true);
 }
 
@@ -43,13 +44,22 @@ export function mergeSummary(
   ) {
     return next;
   }
-  const { arrivals, departures, occupancy, rooms, money, ...rest } = next;
+  const {
+    arrivals,
+    departures,
+    occupancy,
+    rooms,
+    money,
+    maintenance,
+    ...rest
+  } = next;
   const cards = {
     arrivals: carry(previous.arrivals, arrivals),
     departures: carry(previous.departures, departures),
     occupancy: carry(previous.occupancy, occupancy),
     rooms: carry(previous.rooms, rooms),
     money: carry(previous.money, money),
+    maintenance: carry(previous.maintenance, maintenance),
   };
   return {
     ...rest,
@@ -58,5 +68,6 @@ export function mergeSummary(
     ...(cards.occupancy ? { occupancy: cards.occupancy } : {}),
     ...(cards.rooms ? { rooms: cards.rooms } : {}),
     ...(cards.money ? { money: cards.money } : {}),
+    ...(cards.maintenance ? { maintenance: cards.maintenance } : {}),
   };
 }

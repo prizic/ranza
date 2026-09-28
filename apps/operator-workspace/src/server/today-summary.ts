@@ -4,6 +4,7 @@ import type {
   HousekeepingBoard,
   HousekeepingModule,
 } from "@ranza/housekeeping";
+import type { MaintenanceModule, TodayMaintenance } from "@ranza/maintenance";
 import type {
   Arrival,
   Departure,
@@ -37,6 +38,7 @@ export interface TodayReads {
   units: (propertyId: string) => Promise<UnitMap>;
   board: (propertyId: string) => Promise<HousekeepingBoard>;
   folios: (propertyId: string) => Promise<readonly FolioSummary[]>;
+  maintenance: (propertyId: string) => Promise<TodayMaintenance>;
 }
 
 export interface TodayModules {
@@ -45,6 +47,7 @@ export interface TodayModules {
   accommodation: AccommodationModule;
   housekeeping: HousekeepingModule;
   folios: FoliosModule;
+  maintenance: MaintenanceModule;
 }
 
 export function todayReads(modules: TodayModules, userId: string): TodayReads {
@@ -60,6 +63,8 @@ export function todayReads(modules: TodayModules, userId: string): TodayReads {
     units: (propertyId) => modules.accommodation.listUnits(userId, propertyId),
     board: (propertyId) => modules.housekeeping.board(userId, propertyId),
     folios: (propertyId) => modules.folios.listFolios(userId, propertyId),
+    maintenance: (propertyId) =>
+      modules.maintenance.todayView(userId, propertyId),
   };
 }
 
@@ -95,6 +100,7 @@ export async function readTodaySummary(
     frontDesk: CapabilityRef;
     housekeeping: CapabilityRef;
     billing: CapabilityRef;
+    maintenance: CapabilityRef;
   },
   report: Report,
 ): Promise<TodaySummary | null> {
@@ -102,6 +108,7 @@ export async function readTodaySummary(
     capabilities.frontDesk,
     capabilities.housekeeping,
     capabilities.billing,
+    capabilities.maintenance,
   ]);
   if (!day) return null;
 
@@ -109,6 +116,7 @@ export async function readTodaySummary(
     frontDesk: day.capabilities[0] === true,
     housekeeping: day.capabilities[1] === true,
     billing: day.capabilities[2] === true,
+    maintenance: day.capabilities[3] === true,
   };
   const needs = needsFor(grantsFor(day.permissions), has);
   const input: TodayInput = { day, capabilities: has };
@@ -139,6 +147,13 @@ export async function readTodaySummary(
   }
   if (needs.rooms) {
     input.board = await attempt("rooms", () => reads.board(propertyId), report);
+  }
+  if (needs.maintenance) {
+    input.maintenance = await attempt(
+      "maintenance",
+      () => reads.maintenance(propertyId),
+      report,
+    );
   }
   if (needs.folios) {
     input.folios = await attempt(

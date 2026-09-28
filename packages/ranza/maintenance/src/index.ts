@@ -55,5 +55,6 @@ export type {
   SettingOverrides,
   SettingValues,
   StaffName,
+  TodayMaintenance,
   UnitHold,
 } from "./contracts";

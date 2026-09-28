@@ -20,6 +20,7 @@ import { hasStale, mergeSummary } from "../merge";
 import { todayKeys, type TodayScope } from "../query-keys";
 import { AttentionQueue } from "./attention-queue";
 import { CleanFirstCard } from "./clean-first-card";
+import { MaintenanceCard } from "./maintenance-card";
 import { MoneyLists } from "./money-cards";
 import { MovementsCard } from "./movements-card";
 import { RoomsCard } from "./rooms-card";
@@ -104,6 +105,7 @@ export function TodayDashboard({
     summary.occupancy,
     summary.rooms,
     summary.money,
+    summary.maintenance,
   ].every((section) => section === undefined);
   const day = summary.day;
   const propertyId = day.propertyId;
@@ -485,13 +487,25 @@ function MainRow({
   return (
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
       {primary}
-      {summary.rooms ? (
-        <RoomsCard
-          locale={locale}
-          onRetry={onRetry}
-          propertyId={propertyId}
-          rooms={summary.rooms}
-        />
+      {summary.rooms || summary.maintenance ? (
+        <div className="flex flex-col gap-4">
+          {summary.rooms ? (
+            <RoomsCard
+              locale={locale}
+              onRetry={onRetry}
+              propertyId={propertyId}
+              rooms={summary.rooms}
+            />
+          ) : null}
+          {summary.maintenance ? (
+            <MaintenanceCard
+              locale={locale}
+              maintenance={summary.maintenance}
+              onRetry={onRetry}
+              propertyId={propertyId}
+            />
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

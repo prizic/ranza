@@ -1,5 +1,5 @@
 /**
- * Today, derived (docs/features/today-dashboard/edge-cases.csv, slice 1).
+ * Today, derived (docs/features/today-dashboard/edge-cases.csv, slices 1 and 4).
  *
  * Pure functions over the rows the modules already return, so each row of the
  * table is one input and one answer. What the database decides — who reaches
@@ -10,6 +10,7 @@
  *   the manager focus never chosen            TD-S1-01, TD-S1-02
  *   a failed read allowed to throw            TD-S1-24
  *   the reads run side by side                "one after another"
+ *   maintenance items without the permission  TD-S4-01, TD-S4-03
  */
 import { describe, expect, it, vi } from "vitest";
 import type { WorkingDay } from "../../packages/ranza/core/src";
@@ -24,6 +25,7 @@ import type {
   UnitEntry,
   UnitMap,
 } from "../../packages/ranza/accommodation/src";
+import type { TodayMaintenance } from "../../packages/ranza/maintenance/src";
 import {
   cleanFirst,
   deriveToday,
@@ -56,7 +58,16 @@ const MANAGER = [
   "audit.read",
 ];
 
-const ALL = { frontDesk: true, housekeeping: true, billing: true };
+/** Every shipped role reports a problem (MT-S1-28); a manager works the board. */
+const REPORTS = ["maintenance.report"];
+const MANAGES = ["maintenance.report", "maintenance.manage"];
+
+const ALL = {
+  frontDesk: true,
+  housekeeping: true,
+  billing: true,
+  maintenance: true,
+};
 
 function day(
   permissions: string[],
@@ -187,6 +198,50 @@ function map(units: UnitEntry[] = [unit({})]): UnitMap {
 
 const ok = <T>(value: T) => ({ ok: true as const, value });
 
+type Urgent = TodayMaintenance["urgent"][number];
+type Held = TodayMaintenance["holds"][number];
+
+function maintenance(
+  overrides: Partial<TodayMaintenance> = {},
+): TodayMaintenance {
+  return {
+    open: { new: 0, in_progress: 0, waiting_for_parts: 0 },
+    outOfOrder: 0,
+    urgent: [],
+    holds: [],
+    ...overrides,
+  };
+}
+
+function urgent(overrides: Partial<Urgent>): Urgent {
+  return {
+    requestId: "m-1",
+    number: 1,
+    title: "Water through the ceiling",
+    unit: { unitId: "u-101", name: "101", roomName: null },
+    equipment: null,
+    ...overrides,
+  };
+}
+
+function held(overrides: Partial<Held>): Held {
+  return {
+    unitId: "u-509",
+    requestId: "m-9",
+    number: 9,
+    title: "Boiler leaking",
+    status: "in_progress",
+    unit: { unitId: "u-509", name: "509", roomName: null },
+    expectedBackOn: null,
+    ...overrides,
+  };
+}
+
+const OUT = {
+  status: "out_of_service",
+  state: { kind: "out_of_service" },
+} as const;
+
 function input(
   permissions: string[],
   overrides: Partial<TodayInput> = {},
@@ -254,11 +309,17 @@ describe("what a viewer is sent", () => {
       frontDesk: true,
       housekeeping: false,
       billing: true,
+      maintenance: false,
     });
     expect(withoutHousekeeping.rooms).toBe(false);
     const summary = deriveToday(
       input(MANAGER, {
-        capabilities: { frontDesk: true, housekeeping: false, billing: true },
+        capabilities: {
+          frontDesk: true,
+          housekeeping: false,
+          billing: true,
+          maintenance: false,
+        },
         board: undefined,
       }),
     );
@@ -268,7 +329,12 @@ describe("what a viewer is sent", () => {
 
     const noBilling = deriveToday(
       input(FRONT_DESK, {
-        capabilities: { frontDesk: true, housekeeping: true, billing: false },
+        capabilities: {
+          frontDesk: true,
+          housekeeping: true,
+          billing: false,
+          maintenance: false,
+        },
       }),
     );
     expect(JSON.stringify(noBilling)).not.toContain("184000");
@@ -277,7 +343,12 @@ describe("what a viewer is sent", () => {
   it("finance where there is no front desk shows Folios, not departures at zero", () => {
     const summary = deriveToday(
       input(FINANCE, {
-        capabilities: { frontDesk: false, housekeeping: false, billing: true },
+        capabilities: {
+          frontDesk: false,
+          housekeeping: false,
+          billing: true,
+          maintenance: false,
+        },
         arrivals: undefined,
         departures: undefined,
         departedToday: undefined,
@@ -496,7 +567,12 @@ describe("needs attention", () => {
     // The front desk sees them without housekeeping switched on.
     expect(
       kinds(["front_desk.check_in"], {
-        capabilities: { frontDesk: true, housekeeping: false, billing: false },
+        capabilities: {
+          frontDesk: true,
+          housekeeping: false,
+          billing: false,
+          maintenance: false,
+        },
         board: undefined,
         units: ok(broken),
       }),
@@ -527,6 +603,316 @@ describe("needs attention", () => {
         ),
       }),
     ).toEqual(["not_ready", "blocked", "overdue", "balance", "out_of_service"]);
+  });
+});
+
+describe("maintenance", () => {
+  const items = (permissions: string[], overrides: Partial<TodayInput>) =>
+    deriveToday(input(permissions, overrides)).attention.items;
+
+  it("an_open_urgent_request_needs_attention", () => {
+    const read = ok(
+      maintenance({
+        urgent: [
+          urgent({}),
+          urgent({
+            requestId: "m-2",
+            number: 2,
+            title: "No heating",
+            unit: { unitId: "u-402-b", name: "B", roomName: "402" },
+          }),
+          urgent({
+            requestId: "m-3",
+            number: 3,
+            title: "Lift stuck",
+            unit: null,
+            equipment: { equipmentId: "e-1", name: "Lift 1" },
+          }),
+        ],
+      }),
+    );
+    const repairs = items([...HOUSEKEEPING, ...REPORTS], {
+      maintenance: read,
+    }).filter((item) => item.kind === "urgent_repair");
+    // In the order the read gave them: oldest reported first.
+    expect(repairs).toEqual([
+      expect.objectContaining({
+        unit: { unitName: "101", roomName: null },
+        request: {
+          number: 1,
+          title: "Water through the ceiling",
+          equipmentName: null,
+        },
+      }),
+      expect.objectContaining({
+        unit: { unitName: "B", roomName: "402" },
+        request: expect.objectContaining({ number: 2 }),
+      }),
+      // Equipment in no room: the item names the equipment instead.
+      expect.objectContaining({
+        unit: null,
+        request: { number: 3, title: "Lift stuck", equipmentName: "Lift 1" },
+      }),
+    ]);
+    // Without a maintenance permission there is nothing, even handed the read.
+    expect(
+      items(HOUSEKEEPING, { maintenance: read }).map((item) => item.kind),
+    ).not.toContain("urgent_repair");
+    // Ranked after the arrivals, before the departures.
+    expect(
+      items([...FRONT_DESK, ...REPORTS], {
+        arrivals: ok([arrival({ unitIsReady: false })]),
+        departures: ok([departure({ overdue: true, balanceMinor: 0 })]),
+        maintenance: ok(maintenance({ urgent: [urgent({})] })),
+      }).map((item) => item.kind),
+    ).toEqual(["not_ready", "urgent_repair", "overdue"]);
+  });
+
+  it("a_hold_past_its_return_needs_attention_once", () => {
+    const units = ok(
+      map([
+        unit({ unitId: "u-509", name: "509", ...OUT }),
+        unit({
+          unitId: "u-402",
+          name: "402",
+          state: null,
+          beds: [
+            unit({ unitId: "u-402-a", name: "A", unitType: "bed", ...OUT }),
+          ],
+        }),
+        unit({ unitId: "u-510", name: "510", ...OUT }),
+      ]),
+    );
+    const read = ok(
+      maintenance({
+        holds: [
+          // Two requests hold 509; the earlier-due one is the item.
+          held({ number: 9, expectedBackOn: "2026-09-23" }),
+          held({ requestId: "m-4", number: 4, expectedBackOn: "2026-09-24" }),
+          held({
+            unitId: "u-402-a",
+            requestId: "m-5",
+            number: 5,
+            unit: { unitId: "u-402-a", name: "A", roomName: "402" },
+            expectedBackOn: "2026-09-20",
+          }),
+          // Due back on the business date itself is not yet late.
+          held({
+            unitId: "u-510",
+            requestId: "m-6",
+            number: 6,
+            unit: { unitId: "u-510", name: "510", roomName: null },
+            expectedBackOn: "2026-09-25",
+          }),
+        ],
+      }),
+    );
+    const listed = items([...HOUSEKEEPING, ...REPORTS], {
+      units,
+      maintenance: read,
+    });
+    expect(
+      listed.map((item) => [item.kind, item.unit?.unitName, item.dueOn]),
+    ).toEqual([
+      ["overdue_return", "509", "2026-09-23"],
+      ["overdue_return", "A", "2026-09-20"],
+      ["out_of_service", "510", null],
+    ]);
+    expect(listed[0]?.request?.number).toBe(9);
+
+    // An urgent request holding the room absorbs its hold, carrying the date.
+    const absorbed = items([...HOUSEKEEPING, ...REPORTS], {
+      units,
+      maintenance: ok(
+        maintenance({
+          urgent: [
+            urgent({
+              requestId: "m-9",
+              number: 9,
+              title: "Boiler leaking",
+              unit: { unitId: "u-509", name: "509", roomName: null },
+            }),
+          ],
+          holds: [held({ expectedBackOn: "2026-09-23" })],
+        }),
+      ),
+    }).filter((item) => item.unit?.unitName === "509");
+    expect(absorbed).toEqual([
+      expect.objectContaining({ kind: "urgent_repair", dueOn: "2026-09-23" }),
+    ]);
+
+    const at509 = (read: TodayMaintenance) =>
+      items([...HOUSEKEEPING, ...REPORTS], { units, maintenance: ok(read) })
+        .filter((item) => item.unit?.unitName === "509")
+        .map((item) => [item.kind, item.dueOn]);
+    const boiler = urgent({
+      requestId: "m-9",
+      number: 9,
+      title: "Boiler leaking",
+      unit: { unitId: "u-509", name: "509", roomName: null },
+    });
+
+    // Absorbing another request's late hold, it shows its own date — none —
+    // never the other request's under its own number.
+    expect(
+      at509(
+        maintenance({
+          urgent: [boiler],
+          holds: [
+            held({ expectedBackOn: null }),
+            held({ requestId: "m-4", number: 4, expectedBackOn: "2026-09-24" }),
+          ],
+        }),
+      ),
+    ).toEqual([["urgent_repair", null]]);
+
+    // An urgent request that does not hold the room absorbs nothing: the
+    // request that holds it is still late, and says so.
+    expect(
+      at509(
+        maintenance({
+          urgent: [
+            urgent({ unit: { unitId: "u-509", name: "509", roomName: null } }),
+          ],
+          holds: [held({ expectedBackOn: "2026-09-23" })],
+        }),
+      ),
+    ).toEqual([
+      ["urgent_repair", null],
+      ["overdue_return", "2026-09-23"],
+    ]);
+  });
+
+  it("out_of_service_from_a_hold_opens_maintenance", () => {
+    const units = ok(
+      map([
+        unit({ unitId: "u-509", name: "509", ...OUT }),
+        unit({ unitId: "u-511", name: "511", ...OUT }),
+        unit({ unitId: "u-512", name: "512", ...OUT }),
+      ]),
+    );
+    const read = ok(
+      maintenance({
+        holds: [
+          held({ requestId: "m-12", number: 12, title: "Tiles" }),
+          held({ requestId: "m-7", number: 7, title: "Window" }),
+          // Done, and still holding its room until somebody returns it.
+          held({
+            unitId: "u-512",
+            requestId: "m-8",
+            number: 8,
+            title: "Paint drying",
+            status: "done",
+            unit: { unitId: "u-512", name: "512", roomName: null },
+          }),
+        ],
+      }),
+    );
+    const outOfService = (permissions: string[]) =>
+      items(permissions, { units, maintenance: read }).filter(
+        (item) => item.kind === "out_of_service",
+      );
+    // Named for the lowest-numbered request holding the room.
+    expect(
+      outOfService([...HOUSEKEEPING, ...REPORTS]).map((item) => [
+        item.unit?.unitName,
+        item.request?.number ?? null,
+      ]),
+    ).toEqual([
+      ["509", 7],
+      ["511", null],
+      ["512", 8],
+    ]);
+    // Without a maintenance permission TD-S1-17 is as it was.
+    for (const item of outOfService(HOUSEKEEPING)) {
+      expect(item).not.toHaveProperty("request");
+    }
+  });
+
+  it("the_manager_sees_open_maintenance_at_a_glance", () => {
+    const read = ok(
+      maintenance({
+        open: { new: 2, in_progress: 3, waiting_for_parts: 1 },
+        outOfOrder: 4,
+        urgent: [urgent({})],
+      }),
+    );
+    const summary = deriveToday(
+      input([...MANAGER, ...MANAGES], { maintenance: read }),
+    );
+    expect(summary.maintenance).toEqual({
+      status: "ok",
+      data: {
+        open: 6,
+        new: 2,
+        inProgress: 3,
+        waitingForParts: 1,
+        outOfOrder: 4,
+      },
+    });
+    for (const permissions of [FRONT_DESK, HOUSEKEEPING, FINANCE]) {
+      const other = deriveToday(
+        input([...permissions, ...REPORTS], { maintenance: read }),
+      );
+      expect("maintenance" in other).toBe(false);
+    }
+    // Nothing about money, vendors or charges reaches the page.
+    expect(JSON.stringify(summary)).not.toMatch(/costMinor|vendor|charges/);
+  });
+
+  it("no_maintenance_capability_shows_no_maintenance", () => {
+    const grants = grantsFor([...MANAGER, ...MANAGES]);
+    expect(needsFor(grants, { ...ALL, maintenance: false }).maintenance).toBe(
+      false,
+    );
+    expect(needsFor(grants, ALL).maintenance).toBe(true);
+    // Taking a room out of order alone is not reading maintenance, and a role
+    // that leads nowhere reads nothing (TD-DEF-08).
+    expect(
+      needsFor(
+        grantsFor([...HOUSEKEEPING, "maintenance.take_out_of_order"]),
+        ALL,
+      ).maintenance,
+    ).toBe(false);
+    expect(needsFor(grantsFor(MANAGES), ALL).maintenance).toBe(false);
+    // Not read: TD-S1-17 is unchanged and there is no card.
+    const summary = deriveToday(
+      input([...MANAGER, ...MANAGES], {
+        capabilities: { ...ALL, maintenance: false },
+        units: ok(map([unit({ ...OUT })])),
+      }),
+    );
+    expect("maintenance" in summary).toBe(false);
+    expect(
+      summary.attention.items.filter((item) => item.kind === "out_of_service"),
+    ).toEqual([
+      {
+        kind: "out_of_service",
+        unit: { unitName: "101", roomName: null },
+        guestName: null,
+        reference: null,
+        blocker: null,
+        dueOn: null,
+      },
+    ]);
+  });
+
+  it("a_failed_maintenance_read_leaves_the_rest", () => {
+    const summary = deriveToday(
+      input([...MANAGER, ...MANAGES], {
+        units: ok(map([unit({ ...OUT })])),
+        maintenance: { ok: false },
+      }),
+    );
+    expect(summary.maintenance).toEqual({ status: "unavailable" });
+    expect(summary.attention.complete).toBe(false);
+    expect(summary.arrivals?.status).toBe("ok");
+    // The out-of-service item falls back to the plain one.
+    const plain = summary.attention.items.find(
+      (item) => item.kind === "out_of_service",
+    );
+    expect(plain).toBeDefined();
+    expect(plain).not.toHaveProperty("request");
   });
 });
 
@@ -605,6 +991,7 @@ describe("reading it", () => {
       units: vi.fn(async () => map()),
       board: vi.fn(async () => board([room({})])),
       folios: vi.fn(async () => [] as FolioSummary[]),
+      maintenance: vi.fn(async () => maintenance()),
       ...overrides,
     };
   }
@@ -612,6 +999,7 @@ describe("reading it", () => {
     frontDesk: { moduleKey: "front_office", capabilityKey: "front_desk" },
     housekeeping: { moduleKey: "housekeeping", capabilityKey: "housekeeping" },
     billing: { moduleKey: "billing_folios", capabilityKey: "finance" },
+    maintenance: { moduleKey: "maintenance", capabilityKey: "maintenance" },
   };
 
   it("one_section_failing_leaves_the_others_standing", async () => {
@@ -715,6 +1103,35 @@ describe("reading it", () => {
     // Housekeeping needs arrivals and departures for its queue and the unit
     // map for what is out of service — never Folios or how many have gone.
     expect(order).toEqual(["day", "arrivals", "departures", "units", "board"]);
+
+    // A manager at a Property with maintenance reads it last of all.
+    order.length = 0;
+    const manager = reads({
+      workingDay: track(
+        "day",
+        day([...MANAGER, ...MANAGES], {
+          capabilities: [true, true, true, true],
+        }),
+      ),
+      arrivals: track("arrivals", [arrival({})]),
+      departures: track("departures", [departure({})]),
+      departedToday: track("departed", 0),
+      units: track("units", map()),
+      board: track("board", board([room({})])),
+      folios: track("folios", []),
+      maintenance: track("maintenance", maintenance()),
+    });
+    await readTodaySummary(manager, "p", CAPS, vi.fn());
+    expect(most).toBe(1);
+    expect(order).toEqual([
+      "day",
+      "arrivals",
+      "departures",
+      "departed",
+      "units",
+      "board",
+      "maintenance",
+    ]);
   });
 });
 

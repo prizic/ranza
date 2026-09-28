@@ -1,6 +1,7 @@
 import type { WorkingDay } from "@ranza/core";
 import type { FolioSummary } from "@ranza/folios";
 import type { HousekeepingBoard } from "@ranza/housekeeping";
+import type { TodayMaintenance } from "@ranza/maintenance";
 import type {
   Arrival,
   CheckInBlocker,
@@ -149,20 +150,49 @@ export interface MoneyCard {
   leaving?: LeavingOwing;
 }
 
+export interface MaintenanceCard {
+  /** New, in progress and waiting for parts together. */
+  open: number;
+  new: number;
+  inProgress: number;
+  waitingForParts: number;
+  /** Rooms and beds held out of order, each counted once. */
+  outOfOrder: number;
+}
+
 export type AttentionKind =
-  "not_ready" | "blocked" | "overdue" | "balance" | "out_of_service";
+  | "not_ready"
+  | "blocked"
+  | "urgent_repair"
+  | "overdue"
+  | "balance"
+  | "overdue_return"
+  | "out_of_service";
+
+/** The maintenance request an item concerns: only for a maintenance viewer. */
+export interface AttentionRequest {
+  number: number;
+  title: string;
+  /** What an urgent request is about when it names no room. */
+  equipmentName: string | null;
+}
 
 export interface AttentionItem {
   kind: AttentionKind;
-  unit: UnitLabel;
+  /** Null only for an urgent repair to equipment that is in no room. */
+  unit: UnitLabel | null;
   guestName: string | null;
   /** The reservation or Stay the item opens at, when there is one. */
   reference: string | null;
   blocker: CheckInBlocker | null;
-  /** When the Guest was due to leave, for an overdue departure. */
+  /**
+   * When the Guest was due to leave, for an overdue departure; when the room
+   * was due back, for a hold past its return.
+   */
   dueOn: string | null;
   balance?: Money;
   folioId?: string;
+  request?: AttentionRequest;
 }
 
 export interface TodaySummary {
@@ -185,6 +215,7 @@ export interface TodaySummary {
   occupancy?: Section<OccupancyCard>;
   rooms?: Section<RoomsCard>;
   money?: Section<MoneyCard>;
+  maintenance?: Section<MaintenanceCard>;
   attention: {
     items: readonly AttentionItem[];
     /** False when a section it draws on could not be read. */
@@ -200,6 +231,11 @@ export interface Grants {
   manager: boolean;
   /** finance.manage_folio: the only grant that lets a balance through. */
   money: boolean;
+  /**
+   * maintenance.report or maintenance.manage. Taking a room out of order
+   * alone is not reading maintenance.
+   */
+  maintenance: boolean;
 }
 
 export function grantsFor(permissions: readonly string[]): Grants {
@@ -210,6 +246,7 @@ export function grantsFor(permissions: readonly string[]): Grants {
     finance: has("finance.manage_folio") || has("finance.post_charge"),
     manager: has("staff.administer") || has("audit.read"),
     money: has("finance.manage_folio"),
+    maintenance: has("maintenance.report") || has("maintenance.manage"),
   };
 }
 
@@ -241,12 +278,14 @@ export interface Needs {
   units: boolean;
   rooms: boolean;
   folios: boolean;
+  maintenance: boolean;
 }
 
 export interface Capabilities {
   frontDesk: boolean;
   housekeeping: boolean;
   billing: boolean;
+  maintenance: boolean;
 }
 
 export function needsFor(grants: Grants, capabilities: Capabilities): Needs {
@@ -262,6 +301,10 @@ export function needsFor(grants: Grants, capabilities: Capabilities): Needs {
     units: capabilities.frontDesk && (desk || focus === "housekeeping"),
     rooms: capabilities.housekeeping && (desk || focus === "housekeeping"),
     folios: focus === "finance" && money,
+    // A role holding only maintenance permissions leads nowhere (TD-DEF-08),
+    // so nothing is read for it.
+    maintenance:
+      capabilities.maintenance && grants.maintenance && focus !== "none",
   };
 }
 
@@ -277,6 +320,7 @@ export interface TodayInput {
   units?: Read<UnitMap>;
   board?: Read<HousekeepingBoard>;
   folios?: Read<readonly FolioSummary[]>;
+  maintenance?: Read<TodayMaintenance>;
 }
 
 /** Rows the clean-first queue and the movements list show, at most. */
@@ -501,10 +545,114 @@ export function moneyFrom(
 const ATTENTION_ORDER: Record<AttentionKind, number> = {
   not_ready: 0,
   blocked: 1,
-  overdue: 2,
-  balance: 3,
-  out_of_service: 4,
+  urgent_repair: 2,
+  overdue: 3,
+  balance: 4,
+  overdue_return: 5,
+  out_of_service: 6,
 };
+
+type Hold = TodayMaintenance["holds"][number];
+
+function requestOf(
+  row: { number: number; title: string },
+  equipmentName: string | null,
+): AttentionRequest {
+  return { number: row.number, title: row.title, equipmentName };
+}
+
+function heldUnitOf(unit: { name: string; roomName: string | null }) {
+  return { unitName: unit.name, roomName: unit.roomName };
+}
+
+/**
+ * Maintenance's own items (TD-S4-01, TD-S4-02), and what it says about the
+ * Units the unit map shows out of service (TD-S4-03).
+ *
+ * An urgent request that holds its room absorbs that room's other hold items
+ * and shows only its own due-back date, or none: while an urgent repair holds
+ * the room it is not coming back anyway. An urgent request about a room it
+ * does not hold is listed next to that room's own hold item. Otherwise a hold
+ * past its return is the room's item, the earliest-due one when several hold
+ * it, and failing that the plain out-of-service item names the
+ * lowest-numbered request.
+ */
+function maintenanceAttention(
+  maintenance: TodayMaintenance,
+  businessDate: string,
+) {
+  const holdsByUnit = new Map<string, Hold[]>();
+  for (const hold of maintenance.holds) {
+    holdsByUnit.set(hold.unitId, [
+      ...(holdsByUnit.get(hold.unitId) ?? []),
+      hold,
+    ]);
+  }
+  const overdueOf = (holds: readonly Hold[]) =>
+    holds
+      .filter(
+        (hold): hold is Hold & { expectedBackOn: string } =>
+          hold.expectedBackOn !== null && hold.expectedBackOn < businessDate,
+      )
+      .sort(
+        (a, b) =>
+          a.expectedBackOn.localeCompare(b.expectedBackOn) ||
+          a.number - b.number,
+      )[0] ?? null;
+
+  const items: AttentionItem[] = [];
+  const listed = new Set<string>();
+  const base = { guestName: null, reference: null, blocker: null };
+
+  for (const request of maintenance.urgent) {
+    const roomHolds = request.unit
+      ? holdsByUnit.get(request.unit.unitId)
+      : undefined;
+    const holds = roomHolds?.some(
+      (hold) => hold.requestId === request.requestId,
+    )
+      ? roomHolds
+      : undefined;
+    if (request.unit && holds) listed.add(request.unit.unitId);
+    items.push({
+      ...base,
+      kind: "urgent_repair",
+      unit: request.unit ? heldUnitOf(request.unit) : null,
+      // Its own date, not another request's: the room is listed once, but a
+      // date shown under this request's number is this request's.
+      dueOn: holds
+        ? (overdueOf(
+            holds.filter((hold) => hold.requestId === request.requestId),
+          )?.expectedBackOn ?? null)
+        : null,
+      request: requestOf(request, request.equipment?.name ?? null),
+    });
+  }
+
+  for (const [unitId, holds] of holdsByUnit) {
+    if (listed.has(unitId)) continue;
+    const overdue = overdueOf(holds);
+    if (!overdue) continue;
+    listed.add(unitId);
+    items.push({
+      ...base,
+      kind: "overdue_return",
+      unit: heldUnitOf(overdue.unit),
+      dueOn: overdue.expectedBackOn,
+      request: requestOf(overdue, null),
+    });
+  }
+
+  /** The request a plain out-of-service item names, or null. */
+  const namedFor = (unitId: string): AttentionRequest | null => {
+    const holds = holdsByUnit.get(unitId);
+    if (!holds) return null;
+    const lowest = [...holds].sort((a, b) => a.number - b.number)[0];
+    return lowest ? requestOf(lowest, null) : null;
+  };
+
+  return { items, listed, namedFor };
+}
 
 /**
  * What needs somebody, across everything the viewer's permissions touch
@@ -517,6 +665,8 @@ export function attentionFrom(
   arrivals: readonly Arrival[],
   departures: readonly Departure[],
   units: UnitMap | null,
+  maintenance: TodayMaintenance | null,
+  businessDate: string,
 ): AttentionItem[] {
   const items: AttentionItem[] = [];
   const desk = grants.frontDesk || grants.manager;
@@ -583,24 +733,35 @@ export function attentionFrom(
     }
   }
 
+  // Read only for a viewer holding a maintenance permission (needsFor), and
+  // checked again here so a read handed in by mistake still names nothing.
+  const repairs =
+    grants.maintenance && maintenance
+      ? maintenanceAttention(maintenance, businessDate)
+      : null;
+  if (repairs) items.push(...repairs.items);
+
   // A room or a single bed, and only out of service: a blocked unit is a
   // decision somebody made, with its reason on the Rooms screen, not a fault.
+  // One maintenance already listed is not listed again (TD-S4-02).
+  const outOfService = (unitId: string, unit: UnitLabel) => {
+    if (repairs?.listed.has(unitId)) return;
+    const request = repairs?.namedFor(unitId) ?? null;
+    items.push({
+      ...base,
+      kind: "out_of_service",
+      unit,
+      ...(request ? { request } : {}),
+    });
+  };
   if (rooms && units) {
     for (const unit of units.units) {
       if (unit.status === "out_of_service") {
-        items.push({
-          ...base,
-          kind: "out_of_service",
-          unit: { unitName: unit.name, roomName: null },
-        });
+        outOfService(unit.unitId, { unitName: unit.name, roomName: null });
       }
       for (const bed of unit.beds) {
         if (bed.status !== "out_of_service") continue;
-        items.push({
-          ...base,
-          kind: "out_of_service",
-          unit: { unitName: bed.name, roomName: unit.name },
-        });
+        outOfService(bed.unitId, { unitName: bed.name, roomName: unit.name });
       }
     }
   }
@@ -648,10 +809,23 @@ export function deriveToday(input: TodayInput): TodaySummary {
       input.day.permissions.includes("front_desk.book") &&
       input.capabilities.frontDesk,
     attention: {
-      items: attentionFrom(grants, money, arrivals, departures, units),
+      items: attentionFrom(
+        grants,
+        money,
+        arrivals,
+        departures,
+        units,
+        valueOf<TodayMaintenance | null>(input.maintenance, null),
+        input.day.businessDate,
+      ),
       // Only the reads attention is built from; how many have already gone
       // is not one of them.
-      complete: ![input.arrivals, input.departures, input.units].some(failed),
+      complete: ![
+        input.arrivals,
+        input.departures,
+        input.units,
+        input.maintenance,
+      ].some(failed),
     },
   };
 
@@ -723,6 +897,18 @@ export function deriveToday(input: TodayInput): TodaySummary {
               valueOf(input.folios, []),
             ),
           };
+  }
+
+  if (focus === "manager") {
+    const maintenance = section(input.maintenance, (value) => ({
+      open:
+        value.open.new + value.open.in_progress + value.open.waiting_for_parts,
+      new: value.open.new,
+      inProgress: value.open.in_progress,
+      waitingForParts: value.open.waiting_for_parts,
+      outOfOrder: value.outOfOrder,
+    }));
+    if (maintenance) summary.maintenance = maintenance;
   }
 
   return summary;

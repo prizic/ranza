@@ -537,3 +537,97 @@ describe("every locale", () => {
     },
   );
 });
+
+describe("maintenance", () => {
+  const MAINTENANCE = {
+    status: "ok" as const,
+    data: {
+      open: 6,
+      new: 2,
+      inProgress: 3,
+      waitingForParts: 1,
+      outOfOrder: 4,
+    },
+  };
+  const manager = (overrides: Partial<TodaySummary> = {}) =>
+    frontDesk({ focus: "manager", maintenance: MAINTENANCE, ...overrides });
+
+  it("the_manager_sees_open_maintenance_at_a_glance", () => {
+    view(manager(), "en");
+    const card = screen.getByRole("region", { name: "Maintenance" });
+    expect(within(card).getByText("Out of order")).toBeInTheDocument();
+    expect(within(card).getByText("Waiting for parts")).toBeInTheDocument();
+    // Every figure, and the card's own link, opens the board at the Property.
+    const links = within(card).getAllByRole("link");
+    expect(links).toHaveLength(6);
+    for (const link of links) {
+      expect(link.getAttribute("href")).toMatch(
+        new RegExp(`/maintenance\\?property=${PROPERTY}$`),
+      );
+    }
+  });
+
+  it("the_manager_sees_open_maintenance_at_a_glance: its held rooms are not the Rooms card's out of service", () => {
+    // Stacked on one another, the two cards count different things, so they
+    // must never read as the same figure under the same word.
+    for (const locale of ["tr", "en", "ar"] as const) {
+      expect(messages[locale].dashboard.roomsOutOfOrder).not.toBe(
+        messages[locale].dashboard.outOfService,
+      );
+    }
+  });
+
+  it("an_open_urgent_request_needs_attention: its title is an isolated run", () => {
+    const { container } = view(
+      manager({
+        attention: {
+          items: [
+            item({
+              kind: "urgent_repair",
+              guestName: null,
+              reference: null,
+              request: {
+                number: 12,
+                title: "تسرّب في السقف",
+                equipmentName: null,
+              },
+            }),
+            item({
+              kind: "urgent_repair",
+              unit: null,
+              guestName: null,
+              reference: null,
+              request: { number: 13, title: "Stuck", equipmentName: "Lift 1" },
+            }),
+          ],
+          complete: true,
+        },
+      }),
+      "ar",
+    );
+    const runs = [...container.querySelectorAll("bdi")].map(
+      (bdi) => bdi.textContent,
+    );
+    expect(runs).toContain("تسرّب في السقف");
+    expect(runs).toContain("Lift 1");
+    const section = screen.getByRole("region", { name: /يحتاج إلى انتباه/ });
+    for (const link of within(section).getAllByRole("link")) {
+      expect(link).toHaveAttribute(
+        "href",
+        `/ar/maintenance?property=${PROPERTY}`,
+      );
+    }
+  });
+
+  it("a_failed_maintenance_read_leaves_the_rest: the card offers a retry", () => {
+    view(manager({ maintenance: { status: "unavailable" } }), "en");
+    const card = screen.getByRole("region", { name: "Maintenance" });
+    expect(within(card).getByText(/could not be read/i)).toBeInTheDocument();
+    fireEvent.click(within(card).getByRole("button", { name: /Try again/ }));
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/today?property=${PROPERTY}`,
+      expect.anything(),
+    );
+    expect(screen.getByText("Checked in")).toBeInTheDocument();
+  });
+});

@@ -1,6 +1,7 @@
 %% Slices decide implementation order and nothing else:
 %%   s1 the read-only home, shaped by permissions   s2 act from it
 %%   s3 manager depth: activity, charges today, the Organization's Properties
+%%   s4 maintenance: urgent repairs, rooms past their return, open requests
 %% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
 %% Refusals and empty answers are rows in edge-cases.csv, not use cases.
 %% The visual reference is docs/design/mockups/today.html.
@@ -36,6 +37,11 @@ flowchart TD
     FORECAST(["See booked occupancy for 14 days"])
   end
 
+  subgraph S4["slice 4 &mdash; maintenance, with maintenance.report or .manage"]
+    REPAIR(["See urgent repairs and rooms past their return<br/>each opens the maintenance board"])
+    OPEN(["See open requests and rooms out of order"])
+  end
+
   FD --> DAY & ATT & TILES & MOVE & ROOMS
   HK --> DAY & ATT & TILES & CLEAN & ROOMS
   FN --> DAY & ATT & TILES & OWED
@@ -43,8 +49,10 @@ flowchart TD
   MOVE -. extend .-> CHECKIN & CHECKOUT
   CLEAN -. extend .-> MARK
   MG --> FEED & CHARGES & ORG & FORECAST
+  FD & HK & FN & MG --> REPAIR
+  MG --> OPEN
 
-  %% Deferred, each waiting on its own module: Guest requests, maintenance
-  %% blockers (#61), shift handover and day close (RANZ-26), inventory,
+  %% Deferred, each waiting on its own module: Guest requests, a maintenance
+  %% focus for a role holding nothing else, shift handover and day close (RANZ-26), inventory,
   %% approvals, integrations, rates and revenue, a customisable layout, and a
   %% same-day late check-out, which needs a check-out time no Property has yet.

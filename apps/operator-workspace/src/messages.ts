@@ -570,6 +570,17 @@ export interface Messages {
     openFolio: string;
     openBoard: string;
     openRooms: string;
+    urgentRepair: string;
+    dueBack: string;
+    dueBackDetail: string;
+    requestReference: string;
+    openMaintenance: string;
+    maintenanceTitle: string;
+    openRequests: string;
+    statusNew: string;
+    statusInProgress: string;
+    statusWaitingForParts: string;
+    roomsOutOfOrder: string;
     arrivals: string;
     checkedIn: string;
     departures: string;
@@ -1694,6 +1705,17 @@ export const messages: Record<SupportedLocale, Messages> = {
       openFolio: "Folyoyu aç",
       openBoard: "Panoyu aç",
       openRooms: "Odaları aç",
+      urgentRepair: "Acil onarım",
+      dueBack: "Dönüşü gecikti",
+      dueBackDetail: "{date} tarihinde dönmesi gerekiyordu.",
+      requestReference: "MT-{number}",
+      openMaintenance: "Bakımı aç",
+      maintenanceTitle: "Bakım",
+      openRequests: "Açık talepler",
+      statusNew: "Yeni",
+      statusInProgress: "Sürüyor",
+      statusWaitingForParts: "Parça bekleniyor",
+      roomsOutOfOrder: "Bakımda",
       arrivals: "Gelişler",
       checkedIn: "Giriş yapıldı",
       departures: "Çıkışlar",
@@ -2931,6 +2953,17 @@ export const messages: Record<SupportedLocale, Messages> = {
       openFolio: "Open Folio",
       openBoard: "Open the board",
       openRooms: "Open rooms",
+      urgentRepair: "Urgent repair",
+      dueBack: "Overdue return",
+      dueBackDetail: "Was due back on {date}.",
+      requestReference: "MT-{number}",
+      openMaintenance: "Open maintenance",
+      maintenanceTitle: "Maintenance",
+      openRequests: "Open requests",
+      statusNew: "New",
+      statusInProgress: "In progress",
+      statusWaitingForParts: "Waiting for parts",
+      roomsOutOfOrder: "Out of order",
       arrivals: "Arrivals",
       checkedIn: "Checked in",
       departures: "Departures",
@@ -4161,6 +4194,17 @@ export const messages: Record<SupportedLocale, Messages> = {
       openFolio: "افتح الفاتورة",
       openBoard: "افتح اللوحة",
       openRooms: "افتح الغرف",
+      urgentRepair: "إصلاح عاجل",
+      dueBack: "تأخّرت العودة",
+      dueBackDetail: "كان موعد العودة {date}.",
+      requestReference: "MT-{number}",
+      openMaintenance: "افتح الصيانة",
+      maintenanceTitle: "الصيانة",
+      openRequests: "الطلبات المفتوحة",
+      statusNew: "جديد",
+      statusInProgress: "قيد التنفيذ",
+      statusWaitingForParts: "بانتظار قطع الغيار",
+      roomsOutOfOrder: "قيد الصيانة",
       arrivals: "الوصول",
       checkedIn: "تم تسجيل الدخول",
       departures: "المغادرة",

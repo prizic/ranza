@@ -11,6 +11,9 @@
  *   workingDay answering every permission          TD-S1-01, TD-S1-03, TD-S1-29
  *   permissions read from the viewer's other Organization         TD-S1-29
  *   workingDay's Today gate removed      TD-S1-05 (reached without Today)
+ *   todayView's maintenance capability gate removed      TD-S4-05 (the
+ *     direct todayView read after the capability is switched off)
+ *   rooms out of order counted per hold, not per Unit      TD-S4-04
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -19,6 +22,10 @@ import { createCoreModule } from "../../packages/ranza/core/src";
 import { createAccommodationModule } from "../../packages/ranza/accommodation/src";
 import { createFoliosModule } from "../../packages/ranza/folios/src";
 import { createHousekeepingModule } from "../../packages/ranza/housekeeping/src";
+import {
+  createMaintenanceModule,
+  MAINTENANCE_CAPABILITY,
+} from "../../packages/ranza/maintenance/src";
 import { createReservationsModule } from "../../packages/ranza/reservations/src";
 import {
   readTodaySummary,
@@ -58,12 +65,14 @@ const modules = {
   accommodation: createAccommodationModule({ db: prisma }),
   housekeeping: createHousekeepingModule({ db: prisma }),
   folios: createFoliosModule({ db: prisma }),
+  maintenance: createMaintenanceModule({ db: prisma }),
 };
 
 const CAPABILITIES = {
   frontDesk: { moduleKey: "front_office", capabilityKey: "front_desk" },
   housekeeping: { moduleKey: "housekeeping", capabilityKey: "housekeeping" },
   billing: { moduleKey: "billing_folios", capabilityKey: "finance" },
+  maintenance: MAINTENANCE_CAPABILITY,
 };
 
 const failures: unknown[] = [];
@@ -660,6 +669,321 @@ describe("the edges", () => {
           unit: { unitName: "B", roomName: "TD-M1" },
         }),
       );
+    },
+    DATABASE_BUDGET_MS,
+  );
+});
+
+/**
+ * Maintenance on Today (TD-S4-01 to TD-S4-06), seeded through the module's own
+ * commands: the database stamps who reported and who took a room out, and
+ * refuses a request with nobody acting.
+ */
+describe("maintenance", () => {
+  const MAINT = randomUUID();
+  const URGENT_ROOM = randomUUID();
+  const HELD_ROOM = randomUUID();
+  const LATE_ROOM = randomUUID();
+  const DONE_ROOM = randomUUID();
+  const DORM = randomUUID();
+  const DORM_BED = randomUUID();
+  const suffix = MAINT.slice(0, 8);
+  const name = (room: string) => `${room}-${suffix}`;
+  const units = {
+    urgent: name("MU"),
+    held: name("MH"),
+    late: name("ML"),
+    done: name("MD"),
+    dorm: name("MR"),
+  };
+
+  const kinds = (summary: Awaited<ReturnType<typeof todayFor>>) =>
+    (summary?.attention.items ?? []).map((item) => item.kind);
+  const itemFor = (
+    summary: Awaited<ReturnType<typeof todayFor>>,
+    unitName: string,
+  ) =>
+    (summary?.attention.items ?? []).filter(
+      (item) => item.unit?.unitName === unitName,
+    );
+
+  beforeAll(async () => {
+    await owner.$executeRawUnsafe(
+      `insert into public.entitlements (organization_id, module_key, status)
+       values ($1, 'maintenance', 'active')
+       on conflict (organization_id, module_key) do nothing`,
+      ORG,
+    );
+    await owner.$executeRawUnsafe(
+      `insert into public.properties (id, organization_id, name, timezone)
+       values ($1::uuid, $2::uuid, 'Today Maintenance ' || left($1::text, 8),
+               'Pacific/Pago_Pago')`,
+      MAINT,
+      ORG,
+    );
+    await owner.$executeRawUnsafe(
+      `insert into public.property_capabilities
+         (property_id, organization_id, capability_key, enabled)
+       select $1::uuid, $2::uuid, capability_key, true
+         from unnest(array['today', 'front_desk', 'housekeeping',
+                           'maintenance']) as capability_key`,
+      MAINT,
+      ORG,
+    );
+    await owner.$executeRawUnsafe(
+      `insert into public.accommodation_units
+         (id, property_id, organization_id, name, unit_type, capacity, floor) values
+         ($1, $6, $7, $8, 'room', 2, 1),
+         ($2, $6, $7, $9, 'room', 2, 1),
+         ($3, $6, $7, $10, 'room', 2, 1),
+         ($4, $6, $7, $11, 'room', 2, 1),
+         ($5, $6, $7, $12, 'room', 4, 1)`,
+      URGENT_ROOM,
+      HELD_ROOM,
+      LATE_ROOM,
+      DONE_ROOM,
+      DORM,
+      MAINT,
+      ORG,
+      units.urgent,
+      units.held,
+      units.late,
+      units.done,
+      units.dorm,
+    );
+    await owner.$executeRawUnsafe(
+      `insert into public.accommodation_units
+         (id, property_id, organization_id, parent_id, parent_unit_type,
+          name, unit_type, capacity)
+       values ($1, $2, $3, $4, 'room', 'A', 'bed', 1)`,
+      DORM_BED,
+      MAINT,
+      ORG,
+      DORM,
+    );
+
+    const [today] = await owner.$queryRawUnsafe<{ day: string }[]>(
+      "select to_char(app.property_today($1::uuid), 'YYYY-MM-DD') as day",
+      MAINT,
+    );
+    const report = (
+      unitId: string,
+      title: string,
+      priority: "urgent" | "this_week",
+      expectedBackOn?: string | null,
+    ) =>
+      modules.maintenance.report(MANAGER, {
+        propertyId: MAINT,
+        unitId,
+        title,
+        priority,
+        outOfOrder:
+          expectedBackOn === undefined
+            ? null
+            : { acknowledged: true, expectedBackOn },
+      });
+
+    // Urgent and open: one item. Urgent and cancelled, urgent and done: none.
+    await report(URGENT_ROOM, "Water through the ceiling", "urgent");
+    const twice = await report(URGENT_ROOM, "Water again", "urgent");
+    await modules.maintenance.cancel(MANAGER, {
+      requestId: twice.requestId,
+      from: "new",
+      reason: "Reported twice",
+    });
+    const fixed = await report(URGENT_ROOM, "Dripping tap", "urgent");
+    await modules.maintenance.move(MANAGER, {
+      requestId: fixed.requestId,
+      from: "new",
+      to: "done",
+    });
+    // Out of order with no date, out of order until today, one bed out.
+    await report(HELD_ROOM, "Broken window", "this_week", null);
+    // A second request holding the same room: counted once, named once.
+    await report(HELD_ROOM, "Window frame rotten", "this_week", null);
+    await report(LATE_ROOM, "New carpet", "this_week", today!.day);
+    await report(DORM_BED, "Bed frame cracked", "this_week", null);
+    // Done, and still holding its room: nobody returns it on done here.
+    await modules.maintenance.setPropertySettings(MANAGER, MAINT, {
+      assigneeRequired: null,
+      returnOnDone: false,
+      returnAs: null,
+    });
+    const painted = await report(DONE_ROOM, "Paint drying", "this_week", null);
+    await modules.maintenance.move(MANAGER, {
+      requestId: painted.requestId,
+      from: "new",
+      to: "done",
+    });
+
+    // The Property moves a day or two ahead, so today's return date passes:
+    // Pago Pago to Kiritimati, as maintenance.test.ts does.
+    await owner.$executeRawUnsafe(
+      "update public.properties set timezone = 'Pacific/Kiritimati' where id = $1::uuid",
+      MAINT,
+    );
+  }, DATABASE_BUDGET_MS * 2);
+
+  it(
+    "the_manager_sees_open_maintenance_at_a_glance",
+    async () => {
+      const summary = await todayFor(MANAGER, MAINT);
+      expect(summary?.maintenance).toEqual({
+        status: "ok",
+        // The open urgent request, the window twice, the carpet and the bed;
+        // the cancelled, the done and the painted room are not open.
+        data: {
+          open: 5,
+          new: 5,
+          inProgress: 0,
+          waitingForParts: 0,
+          // Window (held twice), carpet, bed and the painted room: distinct
+          // Units held, not holds.
+          outOfOrder: 4,
+        },
+      });
+      expect(JSON.stringify(summary)).not.toMatch(/costMinor|vendor|charges/);
+      expect(failures).toEqual([]);
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "an_open_urgent_request_needs_attention",
+    async () => {
+      const summary = await todayFor(MANAGER, MAINT);
+      expect(
+        summary?.attention.items.filter(
+          (item) => item.kind === "urgent_repair",
+        ),
+      ).toEqual([
+        expect.objectContaining({
+          unit: { unitName: units.urgent, roomName: null },
+          request: expect.objectContaining({
+            title: "Water through the ceiling",
+          }),
+        }),
+      ]);
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "a_hold_past_its_return_needs_attention_once",
+    async () => {
+      const summary = await todayFor(MANAGER, MAINT);
+      const late = itemFor(summary, units.late);
+      expect(late).toHaveLength(1);
+      expect(late[0]).toMatchObject({
+        kind: "overdue_return",
+        request: { title: "New carpet" },
+      });
+      expect(late[0]?.dueOn! < summary!.day.businessDate).toBe(true);
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "out_of_service_from_a_hold_opens_maintenance",
+    async () => {
+      for (const viewer of [MANAGER, HOUSEKEEPER]) {
+        const summary = await todayFor(viewer, MAINT);
+        for (const [unitName, title] of [
+          [units.held, "Broken window"],
+          ["A", "Bed frame cracked"],
+          [units.done, "Paint drying"],
+        ] as const) {
+          expect(itemFor(summary, unitName)).toEqual([
+            expect.objectContaining({
+              kind: "out_of_service",
+              request: expect.objectContaining({ title }),
+            }),
+          ]);
+        }
+        expect(
+          kinds(summary).filter((kind) => kind === "urgent_repair"),
+        ).toHaveLength(1);
+        expect(kinds(summary)).toContain("overdue_return");
+      }
+      const housekeeper = await todayFor(HOUSEKEEPER, MAINT);
+      expect(housekeeper && "maintenance" in housekeeper).toBe(false);
+
+      // Finance reads no unit map: only maintenance's own items reach it.
+      const finance = await todayFor(FINANCE, MAINT);
+      expect(new Set(kinds(finance))).toEqual(
+        new Set(["urgent_repair", "overdue_return"]),
+      );
+      expect(finance && "maintenance" in finance).toBe(false);
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "no_maintenance_capability_shows_no_maintenance: a Property without it",
+    async () => {
+      const summary = await todayFor(MANAGER, PROPERTY);
+      expect(summary && "maintenance" in summary).toBe(false);
+      expect(kinds(summary)).not.toContain("urgent_repair");
+      expect(kinds(summary)).not.toContain("overdue_return");
+      for (const item of summary?.attention.items ?? []) {
+        expect(item).not.toHaveProperty("request");
+      }
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "a_failed_maintenance_read_leaves_the_rest",
+    async () => {
+      const report: unknown[] = [];
+      const summary = await readTodaySummary(
+        {
+          ...todayReads(modules, MANAGER),
+          maintenance: () => Promise.reject(new Error("down")),
+        },
+        MAINT,
+        CAPABILITIES,
+        (section) => report.push(section),
+      );
+      expect(report).toEqual(["maintenance"]);
+      expect(summary?.maintenance).toEqual({ status: "unavailable" });
+      expect(summary?.attention.complete).toBe(false);
+      expect(summary?.arrivals?.status).toBe("ok");
+      const held = itemFor(summary, units.held);
+      expect(held).toEqual([
+        expect.objectContaining({ kind: "out_of_service" }),
+      ]);
+      expect(held[0]).not.toHaveProperty("request");
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "no_maintenance_capability_shows_no_maintenance: switched off where it was on",
+    async () => {
+      await owner.$executeRawUnsafe(
+        `update public.property_capabilities set enabled = false
+          where property_id = $1::uuid and capability_key = 'maintenance'`,
+        MAINT,
+      );
+      // The requests are still there and the policies still let the manager
+      // reach them; only the read's own gate says maintenance is off.
+      expect(await modules.maintenance.todayView(MANAGER, MAINT)).toEqual({
+        open: { new: 0, in_progress: 0, waiting_for_parts: 0 },
+        outOfOrder: 0,
+        urgent: [],
+        holds: [],
+      });
+      const summary = await todayFor(MANAGER, MAINT);
+      expect(summary && "maintenance" in summary).toBe(false);
+      expect(kinds(summary)).not.toContain("urgent_repair");
+      expect(kinds(summary)).not.toContain("overdue_return");
+      // The rooms are still out of service, and say so plainly.
+      const held = itemFor(summary, units.held);
+      expect(held).toEqual([
+        expect.objectContaining({ kind: "out_of_service" }),
+      ]);
+      expect(held[0]).not.toHaveProperty("request");
     },
     DATABASE_BUDGET_MS,
   );
