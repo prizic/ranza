@@ -80,8 +80,8 @@ lock, shared, before the Stay's. Namespace 4 is the price list's own.
 
 - Close the day slice 3 is built, and its PRE-01 and PRE-02 are resolved.
 - Until payments exist (check-out PRE-01), every priced check-out leaves a
-  balance, so it is left open with a reason, as ADR 0030 already allows. The
-  dialog says payments are recorded outside Ranza for now. That is a real cost
+  balance, so it is left open with a reason, as ADR 0030 already allows, and
+  the dialog says payments cannot be taken yet. That is a real cost
   at the desk and it ends with the payments slice, not with a shortcut here.
 - Bookings taken before this was deployed stay unpriced. Nothing is backfilled:
   a price nobody quoted is not one somebody agreed.
