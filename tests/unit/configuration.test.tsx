@@ -768,13 +768,14 @@ describe("nightly rates", () => {
     expect(rates.getByText("12 Units")).toBeVisible();
     expect(rates.getByText("1 Unit")).toBeVisible();
     expect(rates.getByText("None at this Property yet")).toBeVisible();
-    // Unpriced says what that means for a booking (RT-S1-13).
+    // Unpriced says what that means for a booking (RT-S1-13) — where the
+    // Property has Units of that kind, and not for a kind it has none of.
     expect(rates.getByLabelText("Price per night for Bed")).toHaveValue("");
     expect(
       rates.getAllByText(
         "Bookings of this kind are taken without a price, and their nights are not charged.",
       ),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
     expect(screen.getByRole("link", { name: "Nightly rates" })).toBeVisible();
   });
 

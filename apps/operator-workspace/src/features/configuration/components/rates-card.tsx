@@ -179,7 +179,10 @@ export function RatesCard({
                     <div id={`${id}-note`}>
                       {refused ? (
                         <FormError>{t("invalid", { currency })}</FormError>
-                      ) : shown(entry.unitType).trim() === "" ? (
+                      ) : shown(entry.unitType).trim() === "" &&
+                        entry.sellableUnits > 0 ? (
+                        // Only where it changes something: a kind the
+                        // Property has none of cannot be booked unpriced.
                         <p className="text-step--2 text-muted-foreground">
                           {t("unpricedHint")}
                         </p>

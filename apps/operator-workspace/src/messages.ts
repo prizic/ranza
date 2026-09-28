@@ -170,7 +170,7 @@ export interface Messages {
   checkOutEarlyRequired: string;
   checkOutBalanceReason: string;
   checkOutBalanceHint: string;
-  /** The check-out review's row for nights no close has charged (ADR 0038). */
+  /** The check-out review's label for nights no close has charged (ADR 0038). */
   checkOutNightsToCharge: string;
   /** ICU plural on `count` nights; `{amount}` formatted. */
   checkOutPendingNights: string;
@@ -1406,9 +1406,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Misafir planlanan çıkış tarihinden ({date}) önce ayrılıyor.",
     checkOutEarlyRequired: "Misafirin erken ayrıldığını onaylayın.",
     checkOutBalanceReason: "Bakiye neden açık kalıyor",
-    checkOutNightsToCharge: "Ücretlendirilecek geceler",
+    checkOutNightsToCharge: "Çıkışta ücretlendirilecek",
     checkOutPendingNights:
-      "{count, plural, one {# gece} other {# gece}}, {amount}: çıkışta ücretlendirilir",
+      "{count, plural, one {# gece} other {# gece}} · {amount}",
     checkOutUnpriced:
       "Bu rezervasyon fiyatsız alındı; geceleri ücretlendirilmez.",
     balanceAfterCheckOut: "Çıkıştan sonraki bakiye",
@@ -2437,7 +2437,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       closing: "Kapatılıyor…",
       dialogTitle: "{date} kapatılsın mı?",
       dialogQuiet:
-        "Açık bir şey kalmadı. Kapanış, günün girişlerini, çıkışlarını ve dolu geceleri kaydeder.",
+        "Açık bir şey kalmadı. Kapanış, günün girişlerini, çıkışlarını ve dolu gecelerini kaydeder, rezervasyonu fiyatlı her misafirin gecesini ücretlendirir.",
       dialogOpen:
         "{n, plural, one {# kayıt hâlâ açık. Gerekçenizle birlikte kapanışa kaydedilir.} other {# kayıt hâlâ açık. Gerekçenizle birlikte kapanışa kaydedilir.}}",
       final:
@@ -2701,9 +2701,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       "The Guest is leaving before their planned departure on {date}.",
     checkOutEarlyRequired: "Confirm that the Guest is leaving early.",
     checkOutBalanceReason: "Why the balance stays open",
-    checkOutNightsToCharge: "Nights to charge",
+    checkOutNightsToCharge: "Charged at check-out",
     checkOutPendingNights:
-      "{count, plural, one {# night} other {# nights}}, {amount}: charged at check-out",
+      "{count, plural, one {# night} other {# nights}} · {amount}",
     checkOutUnpriced:
       "This booking was taken without a price, so its nights are not charged.",
     balanceAfterCheckOut: "Balance after check-out",
@@ -3740,7 +3740,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       closing: "Closing…",
       dialogTitle: "Close {date}?",
       dialogQuiet:
-        "Nothing is left open. The close records the day's arrivals, departures and nights occupied.",
+        "Nothing is left open. The close records the day's arrivals, departures and nights occupied, and charges the night of every Guest whose booking has a price.",
       dialogOpen:
         "{n, plural, one {# item is still open. It is recorded with the close, with your reason.} other {# items are still open. They are recorded with the close, with your reason.}}",
       final:
@@ -3999,9 +3999,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutEarlyAcknowledge: "يغادر الضيف قبل موعد مغادرته المخطط في {date}.",
     checkOutEarlyRequired: "أكّد أن الضيف يغادر مبكرًا.",
     checkOutBalanceReason: "سبب إبقاء الرصيد مفتوحًا",
-    checkOutNightsToCharge: "الليالي المستحقة",
+    checkOutNightsToCharge: "يُحتسب عند المغادرة",
     checkOutPendingNights:
-      "{count, plural, zero {# ليلة} one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلة} other {# ليلة}}، {amount}: تُحتسب عند المغادرة",
+      "{count, plural, zero {# ليلة} one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلة} other {# ليلة}} · {amount}",
     checkOutUnpriced: "أُخذ هذا الحجز بلا سعر، لذا لا تُحتسب لياليه.",
     balanceAfterCheckOut: "الرصيد بعد المغادرة",
     checkOutBalanceHint:
@@ -5024,7 +5024,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       closing: "جارٍ الإغلاق…",
       dialogTitle: "إغلاق {date}؟",
       dialogQuiet:
-        "لم يبقَ شيء مفتوح. يسجّل الإغلاق حالات الوصول والمغادرة والليالي المشغولة في هذا اليوم.",
+        "لم يبقَ شيء مفتوح. يسجّل الإغلاق حالات الوصول والمغادرة والليالي المشغولة في هذا اليوم، ويحتسب ليلة كل ضيف لحجزه سعر.",
       dialogOpen:
         "{n, plural, zero {لا شيء مفتوح.} one {ما زال عنصر واحد مفتوحًا. سيُسجَّل مع الإغلاق مع سببك.} two {ما زال عنصران مفتوحين. سيُسجَّلان مع الإغلاق مع سببك.} few {ما زالت # عناصر مفتوحة. ستُسجَّل مع الإغلاق مع سببك.} many {ما زال # عنصرًا مفتوحًا. ستُسجَّل مع الإغلاق مع سببك.} other {ما زال # عنصر مفتوحًا. ستُسجَّل مع الإغلاق مع سببك.}}",
       final:

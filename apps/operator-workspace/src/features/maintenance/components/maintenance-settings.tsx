@@ -156,7 +156,10 @@ export function MaintenanceSettingsCard({
           value: word(question, inherited),
         });
         return (
-          <fieldset className="grid gap-3 border-t pt-4" key={question}>
+          // min-w-0: a fieldset is as wide as its content by default, and a
+          // chosen value such as "Use the Organization's (When its request is
+          // done)" then pushes the whole page sideways on a phone.
+          <fieldset className="grid min-w-0 gap-3 border-t pt-4" key={question}>
             <legend className="text-step--1 font-medium">
               {labels[question]}
             </legend>
@@ -170,7 +173,10 @@ export function MaintenanceSettingsCard({
                   onValueChange={(value) => saveOrganization(question, value)}
                   value={encode(inherited)}
                 >
-                  <SelectTrigger id={`${question}-organization`}>
+                  <SelectTrigger
+                    className="w-full"
+                    id={`${question}-organization`}
+                  >
                     <SelectValue>{word(question, inherited)}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -191,7 +197,7 @@ export function MaintenanceSettingsCard({
                   onValueChange={(value) => saveProperty(question, value)}
                   value={encode(own)}
                 >
-                  <SelectTrigger id={`${question}-property`}>
+                  <SelectTrigger className="w-full" id={`${question}-property`}>
                     <SelectValue>
                       {own === null ? inheritLabel : word(question, own)}
                     </SelectValue>

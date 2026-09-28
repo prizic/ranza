@@ -253,25 +253,40 @@ export function CloseDayView({
                 {t("closeDay.roomNightsAllCharged")}
               </p>
             ) : (
-              <ul className="divide-y divide-border">
-                {day.nightsNotCharged.map((row) => (
-                  <li
-                    className="flex flex-wrap items-center justify-between gap-3 py-3"
-                    key={row.stayId}
-                  >
-                    <StayLine
-                      detail={t(`closeDay.notChargedReason.${row.reason}`)}
-                      guestName={row.guestName}
-                      unit={unitLabel(row.roomName, row.unitName)}
-                    />
-                    <StatusBadge
-                      icon={Info}
-                      label={t("closeDay.notBlocking")}
-                      tone="neutral"
-                    />
-                  </li>
+              // Grouped by why: a Property that has not priced a kind of
+              // room lists every such Guest every day, and one heading with
+              // a count says that better than the reason on every row.
+              <div className="grid gap-5">
+                {byReason(day.nightsNotCharged).map(([reason, rows]) => (
+                  <section className="grid gap-1" key={reason}>
+                    <h3 className="text-step--1 font-medium">
+                      {t(`closeDay.notChargedReason.${reason}`)}
+                      <span className="text-muted-foreground tabular-nums">
+                        {" · "}
+                        {rows.length}
+                      </span>
+                    </h3>
+                    <ul className="divide-y divide-border">
+                      {rows.map((row) => (
+                        <li className="py-2" key={row.stayId}>
+                          <bdi className="tabular-nums">
+                            {row.guestName ??
+                              unitLabel(row.roomName, row.unitName)}
+                          </bdi>
+                          {row.guestName ? (
+                            <span className="text-step--1 text-muted-foreground">
+                              {" · "}
+                              <bdi className="tabular-nums">
+                                {unitLabel(row.roomName, row.unitName)}
+                              </bdi>
+                            </span>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
                 ))}
-              </ul>
+              </div>
             )}
           </CardContent>
         ) : null}
@@ -492,6 +507,23 @@ function Step({
       </CardContent>
     </Card>
   );
+}
+
+/** The nights not charged, in groups of one reason each, in the order given. */
+function byReason(
+  rows: CloseTheDay["nightsNotCharged"],
+): [
+  CloseTheDay["nightsNotCharged"][number]["reason"],
+  CloseTheDay["nightsNotCharged"],
+][] {
+  const groups = new Map<
+    CloseTheDay["nightsNotCharged"][number]["reason"],
+    CloseTheDay["nightsNotCharged"]
+  >();
+  for (const row of rows) {
+    groups.set(row.reason, [...(groups.get(row.reason) ?? []), row]);
+  }
+  return [...groups];
 }
 
 /**

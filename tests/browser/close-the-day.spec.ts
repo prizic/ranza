@@ -151,8 +151,9 @@ test("a day with items open asks for a reason, and what it promises is built", a
   await page.keyboard.press("Escape");
   await expect(page.getByText("Folios left open")).toBeVisible();
   await expect(page.getByText("Does not hold up the close")).toBeVisible();
+  // Room nights are charged by the close and never hold it up (ADR 0038).
   await expect(
-    page.getByText(/posted here once rooms have rates/),
+    page.getByText(/charges every Guest in house that night/),
   ).toBeVisible();
 
   // Nothing the product cannot do.

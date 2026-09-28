@@ -85,35 +85,39 @@ setup("the browser tests have Properties of their own", () => {
  * good; the memberships are written only when missing, so a second run changes
  * nothing.
  */
-setup("a Front desk colleague and an Owner exist", async ({ request }) => {
-  const propertyId = testProperty();
-  const people = [
-    { email: DESK_EMAIL, role: "front_desk", scope: "assigned_properties" },
-    { email: OWNER_EMAIL, role: "owner", scope: "organization_wide" },
-  ];
+setup(
+  "a Front desk colleague and an Owner exist",
+  async ({ request, baseURL }) => {
+    const propertyId = testProperty();
+    const people = [
+      { email: DESK_EMAIL, role: "front_desk", scope: "assigned_properties" },
+      { email: OWNER_EMAIL, role: "owner", scope: "organization_wide" },
+    ];
 
-  for (const person of people) {
-    const headers = { origin: "http://localhost:3000" };
-    const signedUp = await request.post("/api/auth/sign-up/email", {
-      headers,
-      data: { email: person.email, password: PASSWORD, name: person.role },
-    });
-    if (!signedUp.ok()) {
-      const signedIn = await request.post("/api/auth/sign-in/email", {
+    for (const person of people) {
+      // The server's own origin, which Better Auth checks: the configured one,
+      // so a run against a workspace on another port signs people up too.
+      const headers = { origin: new URL("/", baseURL).origin };
+      const signedUp = await request.post("/api/auth/sign-up/email", {
         headers,
-        data: { email: person.email, password: PASSWORD },
+        data: { email: person.email, password: PASSWORD, name: person.role },
       });
-      expect(
-        signedIn.ok(),
-        `could not sign up or sign in ${person.email}: ${signedIn.status()}`,
-      ).toBe(true);
-    }
-    // One authenticated request is what maps the provider subject onto a
-    // Ranza user; until then there is nobody to give a membership to.
-    await request.get("/en/today");
+      if (!signedUp.ok()) {
+        const signedIn = await request.post("/api/auth/sign-in/email", {
+          headers,
+          data: { email: person.email, password: PASSWORD },
+        });
+        expect(
+          signedIn.ok(),
+          `could not sign up or sign in ${person.email}: ${signedIn.status()}`,
+        ).toBe(true);
+      }
+      // One authenticated request is what maps the provider subject onto a
+      // Ranza user; until then there is nobody to give a membership to.
+      await request.get("/en/today");
 
-    psql(
-      `with person as (
+      psql(
+        `with person as (
          select id from public.users where lower(email) = lower('${person.email}')
        ), home as (
          select organization_id as id from public.properties
@@ -130,13 +134,14 @@ setup("a Front desk colleague and an Owner exist", async ({ request }) => {
        select '${propertyId}', home.id, person.id
        from home, person
        on conflict (property_id, user_id) do nothing`,
-    );
-    expect(
-      psql(
-        `select count(*) from public.users
+      );
+      expect(
+        psql(
+          `select count(*) from public.users
           where lower(email) = lower('${person.email}')`,
-      ),
-      `the workspace did not create a Ranza user for ${person.email}`,
-    ).toBe("1");
-  }
-});
+        ),
+        `the workspace did not create a Ranza user for ${person.email}`,
+      ).toBe("1");
+    }
+  },
+);
