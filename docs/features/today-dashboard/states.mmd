@@ -1,0 +1,32 @@
+%% Anything not drawn here is forbidden.
+%% The dashboard reads; it owns no record and moves none. What has states is
+%% the page's own copy of the day, per card: every card is fetched with the
+%% page and refreshed on its own, so one failure never blanks the others.
+%% The Stays, Reservations, rooms and Folios it summarises move only through
+%% their own features' commands (check-in, check-out, mark, post, reverse).
+stateDiagram-v2
+  direction LR
+
+  state "a card's copy of the day" as Card {
+    state "loading" as c_loading
+    state "current" as c_current
+    state "stale" as c_stale
+    state "failed" as c_failed
+
+    [*] --> c_loading : open Today / server prefetch
+    c_loading --> c_current : the summary answers
+    c_loading --> c_failed : the summary refuses or never answers
+    c_current --> c_current : refresh every 60 s, on focus, after my own action
+    c_current --> c_stale : a refresh fails
+    c_stale --> c_current : a later refresh answers
+    c_failed --> c_loading : retry
+    c_failed --> c_current : a later refresh answers
+    c_current --> [*] : leave the page
+    c_stale --> [*] : leave the page
+    c_failed --> [*] : leave the page
+  }
+
+  note right of c_stale
+    Keeps the last numbers and says their time.
+    A stale card is never shown as current.
+  end note

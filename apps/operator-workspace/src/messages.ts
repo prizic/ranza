@@ -535,6 +535,105 @@ export interface Messages {
     /** The short word a bar carries beside a warning's icon, when it fits. */
     barWord: Record<"overlap" | "bookedWhileBlocked" | "clashes", string>;
   };
+  /** The Today dashboard (docs/features/today-dashboard). */
+  dashboard: {
+    /** Greeting before noon, followed by the name. */
+    greetingMorning: string;
+    greetingAfternoon: string;
+    greetingEvening: string;
+    /** When the figures were read, {time}. */
+    updated: string;
+    /** A refresh failed; the figures are from {time}. */
+    stale: string;
+    /** Between midnight and the cutoff: the clock is on {date}, the Property still works the day shown. */
+    workingDayStill: string;
+    newBooking: string;
+    attentionTitle: string;
+    nothingNeedsAttention: string;
+    attentionIncomplete: string;
+    attentionMore: string;
+    notReady: string;
+    notReadyDetail: string;
+    blocked: string;
+    blockerNotConfirmed: string;
+    blockerUnitBlocked: string;
+    blockerUnitOutOfService: string;
+    blockerUnitOccupied: string;
+    overdue: string;
+    overdueDetail: string;
+    leavesOwing: string;
+    leavesOwingDetail: string;
+    outOfService: string;
+    outOfServiceDetail: string;
+    openArrivals: string;
+    openDepartures: string;
+    openFolio: string;
+    openBoard: string;
+    openRooms: string;
+    arrivals: string;
+    checkedIn: string;
+    departures: string;
+    checkedOut: string;
+    overdueCount: string;
+    occupancy: string;
+    inHouseOf: string;
+    expectedTonight: string;
+    noUnits: string;
+    roomsReadyForArrivals: string;
+    roomsNotReadyYet: string;
+    toClean: string;
+    awaitingInspection: string;
+    readyRooms: string;
+    arrivalsWaiting: string;
+    owedOnDepartures: string;
+    guests: string;
+    openFolios: string;
+    openBalance: string;
+    overdueOwing: string;
+    movements: string;
+    tabArrivals: string;
+    tabDepartures: string;
+    stateReady: string;
+    stateNotReady: string;
+    stateBlocked: string;
+    nights: string;
+    openEnded: string;
+    leavesToday: string;
+    allArrivals: string;
+    allDepartures: string;
+    noArrivalsTitle: string;
+    noArrivalsDescription: string;
+    noDeparturesTitle: string;
+    noDeparturesDescription: string;
+    openReservations: string;
+    cleanFirst: string;
+    roomCount: string;
+    priorityArrival: string;
+    priorityInspect: string;
+    priorityLeaving: string;
+    priorityQueue: string;
+    floor: string;
+    noFloor: string;
+    nothingToClean: string;
+    wholeBoard: string;
+    rooms: string;
+    ready: string;
+    awaiting: string;
+    dirty: string;
+    roomsByFloor: string;
+    floorReady: string;
+    owing: string;
+    largestBalances: string;
+    allFolios: string;
+    /** The largest-balances list when no open Folio is owed anything. */
+    noBalances: string;
+    noOwingTitle: string;
+    noOwingDescription: string;
+    sectionUnavailable: string;
+    sectionUnavailableDescription: string;
+    retry: string;
+    nothingForRole: string;
+  };
   /** The Housekeeping screen (RANZ-28). */
   housekeeping: {
     subtitle: string;
@@ -1565,6 +1664,104 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
     },
 
+    dashboard: {
+      greetingMorning: "Günaydın,",
+      greetingAfternoon: "İyi günler,",
+      greetingEvening: "İyi akşamlar,",
+      updated: "Güncellendi {time}",
+      stale: "Yenilenemedi · {time} verisi",
+      workingDayStill: "Saat {date}; tesis {time} itibarıyla yeni güne geçer.",
+      newBooking: "Yeni rezervasyon",
+      attentionTitle: "Dikkat gerekiyor",
+      nothingNeedsAttention: "Dikkat gerektiren bir şey yok.",
+      attentionIncomplete: "Bazı bölümler okunamadı; bu liste eksik olabilir.",
+      attentionMore: "{count, plural, one {# tane daha} other {# tane daha}}",
+      notReady: "Oda hazır değil",
+      notReadyDetail: "Bugün geliş var; oda henüz hazır değil.",
+      blocked: "Giriş yapılamaz",
+      blockerNotConfirmed: "Rezervasyon henüz onaylanmadı.",
+      blockerUnitBlocked: "Birim satışa kapalı.",
+      blockerUnitOutOfService: "Birim hizmet dışı.",
+      blockerUnitOccupied: "Birimde hâlâ bir konuk var.",
+      overdue: "Gecikmiş çıkış",
+      overdueDetail: "{date} tarihinde ayrılacaktı.",
+      leavesOwing: "Bakiyeyle ayrılıyor",
+      leavesOwingDetail: "Bugün ayrılıyor · bakiye {balance}",
+      outOfService: "Hizmet dışı",
+      outOfServiceDetail: "Satışa kapalı.",
+      openArrivals: "Gelişleri aç",
+      openDepartures: "Çıkışları aç",
+      openFolio: "Folyoyu aç",
+      openBoard: "Panoyu aç",
+      openRooms: "Odaları aç",
+      arrivals: "Gelişler",
+      checkedIn: "Giriş yapıldı",
+      departures: "Çıkışlar",
+      checkedOut: "Çıkış yapıldı",
+      overdueCount: "{count, plural, one {# gecikmiş} other {# gecikmiş}}",
+      occupancy: "Doluluk",
+      inHouseOf: "Konaklayan · {count} / {of}",
+      expectedTonight: "Bu gece beklenen {value}",
+      noUnits: "Kiralanacak birim yok",
+      roomsReadyForArrivals: "Bekleyen gelişe hazır oda",
+      roomsNotReadyYet:
+        "{count, plural, one {# oda henüz hazır değil} other {# oda henüz hazır değil}}",
+      toClean: "Temizlenecek",
+      awaitingInspection: "Kontrol bekliyor",
+      readyRooms: "Hazır oda",
+      arrivalsWaiting: "Oda bekleyen geliş",
+      owedOnDepartures: "Bugün ayrılanlarda bakiye",
+      guests: "{count, plural, one {# misafir} other {# misafir}}",
+      openFolios: "Açık folyo",
+      openBalance: "Açık folyolarda bakiye",
+      overdueOwing: "Gecikmiş, bakiyeli",
+      movements: "Bugünkü hareket",
+      tabArrivals: "Gelişler · {count}",
+      tabDepartures: "Çıkışlar · {count}",
+      stateReady: "Hazır",
+      stateNotReady: "Hazır değil",
+      stateBlocked: "Giriş yapılamaz",
+      nights: "{count, plural, one {# gece} other {# gece}}",
+      openEnded: "Açık uçlu",
+      leavesToday: "Bugün",
+      allArrivals: "{count, plural, one {Gelişi aç} other {# gelişin tümü}}",
+      allDepartures: "{count, plural, one {Çıkışı aç} other {# çıkışın tümü}}",
+      noArrivalsTitle: "Bugün kimse gelmiyor",
+      noArrivalsDescription:
+        "Gelecek rezervasyonlar ve yenileri Rezervasyonlar ekranında.",
+      noDeparturesTitle: "Bugün kimse ayrılmıyor",
+      noDeparturesDescription: "Konaklayanların tümü Çıkışlar ekranında.",
+      openReservations: "Rezervasyonları aç",
+      cleanFirst: "Önce bunları temizleyin",
+      roomCount: "{count, plural, one {# oda} other {# oda}}",
+      priorityArrival: "Bugün geliş",
+      priorityInspect: "Geliş · kontrol",
+      priorityLeaving: "Bugün boşalıyor",
+      priorityQueue: "Sırada",
+      floor: "{floor}. kat",
+      noFloor: "Katsız",
+      nothingToClean: "Temizlenecek oda yok.",
+      wholeBoard: "Panonun tümü",
+      rooms: "Odalar",
+      ready: "Hazır",
+      awaiting: "Temiz, kontrol bekliyor",
+      dirty: "Kirli",
+      roomsByFloor: "Katlara göre hazır odalar",
+      floorReady: "{count} / {of}",
+      owing: "Bakiyesiyle ayrılanlar",
+      largestBalances: "En yüksek açık bakiyeler",
+      allFolios: "Tüm folyolar",
+      noBalances: "Açık bakiye yok.",
+      noOwingTitle: "Bakiyeyle ayrılan yok",
+      noOwingDescription:
+        "Bugün ya da daha önce ayrılması gerekenlerin bakiyesi kapalı.",
+      sectionUnavailable: "Bu bölüm okunamadı",
+      sectionUnavailableDescription:
+        "Diğer bölümler güncel. Yeniden deneyin ya da ekranı açın.",
+      retry: "Yeniden dene",
+      nothingForRole:
+        "Bu tesiste rolünüz için burada gösterilecek bir şey henüz yok.",
+    },
     configuration: {
       subtitle: "{property} ve organizasyonu için ayarlar",
       sections: "Bu sayfada",
@@ -2702,6 +2899,108 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
     },
 
+    dashboard: {
+      greetingMorning: "Good morning,",
+      greetingAfternoon: "Good afternoon,",
+      greetingEvening: "Good evening,",
+      updated: "Updated {time}",
+      stale: "Couldn't refresh · showing {time}",
+      workingDayStill:
+        "It is {date} on the clock; the Property moves to the new day at {time}.",
+      newBooking: "New booking",
+      attentionTitle: "Needs attention",
+      nothingNeedsAttention: "Nothing needs attention.",
+      attentionIncomplete:
+        "Some sections could not be read; this list may be incomplete.",
+      attentionMore: "{count, plural, one {# more} other {# more}}",
+      notReady: "Room not ready",
+      notReadyDetail: "Arriving today; the room is not ready yet.",
+      blocked: "Can't check in",
+      blockerNotConfirmed: "The booking is not confirmed yet.",
+      blockerUnitBlocked: "The unit is blocked.",
+      blockerUnitOutOfService: "The unit is out of service.",
+      blockerUnitOccupied: "Someone is still in the unit.",
+      overdue: "Overdue departure",
+      overdueDetail: "Was due to leave on {date}.",
+      leavesOwing: "Leaving with a balance",
+      leavesOwingDetail: "Leaves today · balance {balance}",
+      outOfService: "Out of service",
+      outOfServiceDetail: "Not for sale.",
+      openArrivals: "Open arrivals",
+      openDepartures: "Open departures",
+      openFolio: "Open Folio",
+      openBoard: "Open the board",
+      openRooms: "Open rooms",
+      arrivals: "Arrivals",
+      checkedIn: "Checked in",
+      departures: "Departures",
+      checkedOut: "Checked out",
+      overdueCount: "{count, plural, one {# overdue} other {# overdue}}",
+      occupancy: "Occupancy",
+      inHouseOf: "In house · {count} / {of}",
+      expectedTonight: "Expected tonight {value}",
+      noUnits: "No units to let",
+      roomsReadyForArrivals: "Rooms ready for waiting arrivals",
+      roomsNotReadyYet:
+        "{count, plural, one {# room not ready yet} other {# rooms not ready yet}}",
+      toClean: "To clean",
+      awaitingInspection: "Awaiting inspection",
+      readyRooms: "Ready rooms",
+      arrivalsWaiting: "Arrivals waiting on a room",
+      owedOnDepartures: "Balance on today's departures",
+      guests: "{count, plural, one {# Guest} other {# Guests}}",
+      openFolios: "Open Folios",
+      openBalance: "Balance across open Folios",
+      overdueOwing: "Overdue with a balance",
+      movements: "Today's movements",
+      tabArrivals: "Arrivals · {count}",
+      tabDepartures: "Departures · {count}",
+      stateReady: "Ready",
+      stateNotReady: "Not ready",
+      stateBlocked: "Can't check in",
+      nights: "{count, plural, one {# night} other {# nights}}",
+      openEnded: "Open-ended",
+      leavesToday: "Today",
+      allArrivals:
+        "{count, plural, one {Open arrivals} other {All # arrivals}}",
+      allDepartures:
+        "{count, plural, one {Open departures} other {All # departures}}",
+      noArrivalsTitle: "Nobody arrives today",
+      noArrivalsDescription:
+        "Upcoming and new bookings are on the Reservations screen.",
+      noDeparturesTitle: "Nobody leaves today",
+      noDeparturesDescription: "Everyone in house is on the Departures screen.",
+      openReservations: "Open Reservations",
+      cleanFirst: "Clean these first",
+      roomCount: "{count, plural, one {# room} other {# rooms}}",
+      priorityArrival: "Arrival today",
+      priorityInspect: "Arrival · inspect",
+      priorityLeaving: "Leaving today",
+      priorityQueue: "Queued",
+      floor: "Floor {floor}",
+      noFloor: "No floor",
+      nothingToClean: "No room needs cleaning.",
+      wholeBoard: "The whole board",
+      rooms: "Rooms",
+      ready: "Ready",
+      awaiting: "Clean, awaiting inspection",
+      dirty: "Dirty",
+      roomsByFloor: "Ready rooms by floor",
+      floorReady: "{count} / {of}",
+      owing: "Leaving with a balance",
+      largestBalances: "Largest open balances",
+      allFolios: "All Folios",
+      noBalances: "No open balances.",
+      noOwingTitle: "Nobody leaves with a balance",
+      noOwingDescription:
+        "Everyone due to leave today or before has a closed balance.",
+      sectionUnavailable: "This section could not be read",
+      sectionUnavailableDescription:
+        "The rest is current. Try again, or open the screen.",
+      retry: "Try again",
+      nothingForRole:
+        "There is nothing here for your role at this Property yet.",
+    },
     configuration: {
       subtitle: "Settings for {property} and its Organization",
       sections: "On this page",
@@ -3829,6 +4128,110 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
     },
 
+    dashboard: {
+      greetingMorning: "صباح الخير،",
+      greetingAfternoon: "طاب يومك،",
+      greetingEvening: "مساء الخير،",
+      updated: "حُدِّث {time}",
+      stale: "تعذّر التحديث · بيانات {time}",
+      workingDayStill:
+        "التاريخ على الساعة {date}؛ ينتقل المرفق إلى اليوم الجديد في {time}.",
+      newBooking: "حجز جديد",
+      attentionTitle: "يحتاج إلى انتباه",
+      nothingNeedsAttention: "لا شيء يحتاج إلى انتباه.",
+      attentionIncomplete:
+        "تعذّرت قراءة بعض الأقسام؛ قد تكون هذه القائمة ناقصة.",
+      attentionMore:
+        "{count, plural, zero {# أخرى} one {واحدة أخرى} two {اثنتان أخريان} few {# أخرى} many {# أخرى} other {# أخرى}}",
+      notReady: "الغرفة غير جاهزة",
+      notReadyDetail: "وصول اليوم؛ الغرفة ليست جاهزة بعد.",
+      blocked: "لا يمكن تسجيل الدخول",
+      blockerNotConfirmed: "الحجز غير مؤكد بعد.",
+      blockerUnitBlocked: "الوحدة محجوبة.",
+      blockerUnitOutOfService: "الوحدة خارج الخدمة.",
+      blockerUnitOccupied: "ما زال أحدهم في الوحدة.",
+      overdue: "مغادرة متأخرة",
+      overdueDetail: "كان موعد مغادرته {date}.",
+      leavesOwing: "يغادر برصيد",
+      leavesOwingDetail: "يغادر اليوم · الرصيد {balance}",
+      outOfService: "خارج الخدمة",
+      outOfServiceDetail: "غير معروضة للبيع.",
+      openArrivals: "افتح الوصول",
+      openDepartures: "افتح المغادرة",
+      openFolio: "افتح الفاتورة",
+      openBoard: "افتح اللوحة",
+      openRooms: "افتح الغرف",
+      arrivals: "الوصول",
+      checkedIn: "تم تسجيل الدخول",
+      departures: "المغادرة",
+      checkedOut: "تم تسجيل الخروج",
+      overdueCount:
+        "{count, plural, zero {لا متأخر} one {متأخر واحد} two {متأخران} few {# متأخرين} many {# متأخرًا} other {# متأخر}}",
+      occupancy: "الإشغال",
+      inHouseOf: "المقيمون · {count} / {of}",
+      expectedTonight: "المتوقع الليلة {value}",
+      noUnits: "لا وحدات للتأجير",
+      roomsReadyForArrivals: "غرف جاهزة للقادمين",
+      roomsNotReadyYet:
+        "{count, plural, zero {كل الغرف جاهزة} one {غرفة واحدة غير جاهزة} two {غرفتان غير جاهزتين} few {# غرف غير جاهزة} many {# غرفة غير جاهزة} other {# غرفة غير جاهزة}}",
+      toClean: "للتنظيف",
+      awaitingInspection: "بانتظار الفحص",
+      readyRooms: "غرف جاهزة",
+      arrivalsWaiting: "قادمون بانتظار غرفة",
+      owedOnDepartures: "رصيد مغادري اليوم",
+      guests:
+        "{count, plural, zero {لا ضيوف} one {ضيف واحد} two {ضيفان} few {# ضيوف} many {# ضيفًا} other {# ضيف}}",
+      openFolios: "فواتير مفتوحة",
+      openBalance: "الرصيد في الفواتير المفتوحة",
+      overdueOwing: "متأخرون برصيد",
+      movements: "حركة اليوم",
+      tabArrivals: "الوصول · {count}",
+      tabDepartures: "المغادرة · {count}",
+      stateReady: "جاهزة",
+      stateNotReady: "غير جاهزة",
+      stateBlocked: "لا يمكن تسجيل الدخول",
+      nights:
+        "{count, plural, zero {لا ليالٍ} one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلة} other {# ليلة}}",
+      openEnded: "مفتوحة المدة",
+      leavesToday: "اليوم",
+      allArrivals:
+        "{count, plural, one {افتح الوصول} other {كل حالات الوصول (#)}}",
+      allDepartures:
+        "{count, plural, one {افتح المغادرة} other {كل حالات المغادرة (#)}}",
+      noArrivalsTitle: "لا أحد يصل اليوم",
+      noArrivalsDescription: "الحجوزات القادمة والجديدة في شاشة الحجوزات.",
+      noDeparturesTitle: "لا أحد يغادر اليوم",
+      noDeparturesDescription: "جميع المقيمين في شاشة المغادرة.",
+      openReservations: "افتح الحجوزات",
+      cleanFirst: "نظّف هذه أولًا",
+      roomCount:
+        "{count, plural, zero {لا غرف} one {غرفة واحدة} two {غرفتان} few {# غرف} many {# غرفة} other {# غرفة}}",
+      priorityArrival: "وصول اليوم",
+      priorityInspect: "وصول · فحص",
+      priorityLeaving: "تُخلى اليوم",
+      priorityQueue: "في الدور",
+      floor: "الطابق {floor}",
+      noFloor: "بلا طابق",
+      nothingToClean: "لا غرفة تحتاج إلى تنظيف.",
+      wholeBoard: "اللوحة كاملة",
+      rooms: "الغرف",
+      ready: "جاهزة",
+      awaiting: "نظيفة، بانتظار الفحص",
+      dirty: "متسخة",
+      roomsByFloor: "الغرف الجاهزة حسب الطابق",
+      floorReady: "{count} / {of}",
+      owing: "يغادرون برصيد",
+      largestBalances: "أعلى الأرصدة المفتوحة",
+      allFolios: "كل الفواتير",
+      noBalances: "لا توجد أرصدة مفتوحة.",
+      noOwingTitle: "لا أحد يغادر برصيد",
+      noOwingDescription: "كل من يغادر اليوم أو قبله رصيده مغلق.",
+      sectionUnavailable: "تعذّرت قراءة هذا القسم",
+      sectionUnavailableDescription:
+        "باقي الأقسام محدّثة. أعد المحاولة أو افتح الشاشة.",
+      retry: "أعد المحاولة",
+      nothingForRole: "لا يوجد هنا شيء لدورك في هذا المرفق بعد.",
+    },
     configuration: {
       subtitle: "إعدادات {property} ومؤسستها",
       sections: "في هذه الصفحة",

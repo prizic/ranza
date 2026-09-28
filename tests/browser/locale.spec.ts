@@ -34,9 +34,13 @@ const DESTINATIONS: readonly {
   { segment: "finance", copy: (catalogue) => catalogue.foliosAt },
   { segment: "people", copy: (catalogue) => catalogue.staff.screenSummary },
   { segment: "audit-log", copy: (catalogue) => catalogue.auditLogFor },
-  // Not `property`: the test Property is named "E2E Test Property", so the
-  // English label would be found in Turkish and Arabic pages as data.
-  { segment: "today", copy: (catalogue) => catalogue.organization },
+  // The dashboard's own heading. Its copy is rendered by a client component,
+  // so this proves the language a person sees; that the page itself sets its
+  // locale is proved statically by pages-set-their-locale.test.ts.
+  {
+    segment: "today",
+    copy: (catalogue) => catalogue.dashboard.attentionTitle,
+  },
 ];
 
 async function markDocument(page: Page): Promise<void> {
