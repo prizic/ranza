@@ -26,6 +26,7 @@ import {
   type ChangeBookingOutcome,
 } from "../../../server/front-office";
 import { usePickerLabels } from "../../../lib/picker-labels";
+import { submitWithoutReset } from "../../../lib/submit-without-reset";
 import { unitLabel } from "../unit-label";
 
 /**
@@ -318,7 +319,7 @@ export function ChangeBookingDialog({
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
-        <form action={act} className="grid gap-4">
+        <form className="grid gap-4" onSubmit={submitWithoutReset(act)}>
           <DialogHeader>
             <DialogTitle>{t("changeBooking")}</DialogTitle>
             <DialogDescription>{t("changeBookingSummary")}</DialogDescription>

@@ -40,6 +40,10 @@ export interface RawCalendarBar {
   balanceMinor: number | null;
   currency: string | null;
   folioClosed: boolean | null;
+  /** A Stay's stretch the Guest is in now; null on a booking. */
+  current: boolean | null;
+  /** The Stay's own first night, whichever room it began in; null on a booking. */
+  arrivedOn: string | null;
 }
 
 /** One Unit exactly as the statement returns it. */
@@ -133,6 +137,8 @@ function barOf(raw: RawCalendarBar): RoomCalendarBar {
       kind: "stay",
       stayId: raw.stayId ?? "",
       reservationId: raw.reservationId,
+      current: raw.current !== false,
+      arrivedOn: raw.arrivedOn ?? raw.startsOn,
       status: raw.status === "departed" ? "departed" : "in_house",
       holds: true,
       bookedStartsOn: raw.bookedStartsOn,

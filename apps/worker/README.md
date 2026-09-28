@@ -59,14 +59,14 @@ src/
   outbox/
     outbox.module.ts      wiring — every provider returns something already built
     outbox.dispatcher.ts  when to run. Not how: that is @ranza/platform-outbox
-    subscriptions.ts      event type to handler. Empty, deliberately
+    subscriptions.ts      event type to handler, one database function each
     tokens.ts             injection tokens
 ```
 
-`subscriptions.ts` being empty is the point of the first landing. The lease, the
-idempotency and the retry schedule are worth proving on their own; a handler in
-the same change would be the thing everyone read, and the machinery underneath
-it would be taken on trust.
+`subscriptions.ts` landed empty on purpose: the lease, the idempotency and the
+retry schedule were proved on their own before any handler, so the machinery
+underneath was never taken on trust. The handlers since are each one event
+mapped onto one database function — its comment lists them.
 
 ## Adding a job
 

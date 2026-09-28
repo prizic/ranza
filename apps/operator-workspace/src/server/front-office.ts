@@ -10,6 +10,8 @@ import {
   BookingChangeError,
   CANCELLATION_REASON,
   ChangeNoteError,
+  MOVE_REASONS,
+  type MoveReason,
   CheckInError,
   CheckOutError,
   EarlyDepartureError,
@@ -626,6 +628,93 @@ export async function changeDeparture(
     }
     if (error instanceof BookingChangeError) return "refused";
     console.error("changeDeparture failed unexpectedly", { stayId }, error);
+    return "refused";
+  }
+
+  revalidateFrontDesk(locale);
+  return "done";
+}
+
+/**
+ * What saving a move shows afterwards (amend-booking slice 3). `notReady`,
+ * `occupied`, `unavailable` and `notInService` are the room's answers, which
+ * the desk acts on by choosing another; `changed` reads the dialog again.
+ */
+export type MoveGuestOutcome =
+  | "idle"
+  | "done"
+  | "notReady"
+  | "occupied"
+  | "unavailable"
+  | "notInService"
+  | "invalidNote"
+  | "changed"
+  | "refused";
+
+function moveReason(value: FormDataEntryValue | null): MoveReason | null {
+  return (MOVE_REASONS as readonly string[]).includes(String(value))
+    ? (String(value) as MoveReason)
+    : null;
+}
+
+/**
+ * Moving an in-house Guest to another Unit. The command checks the caller, the
+ * room and readiness (ADR 0039); this reads the form, with the version the
+ * dialog was shown.
+ */
+export async function moveGuest(
+  _previous: MoveGuestOutcome,
+  form: FormData,
+): Promise<MoveGuestOutcome> {
+  const viewer = await currentViewer();
+  if (!viewer) return "refused";
+
+  const locale = String(form.get("locale") ?? "");
+  if (!isSupportedLocale(locale)) return "refused";
+
+  const stayId = String(form.get("stay") ?? "");
+  const accommodationUnitId = String(form.get("unit") ?? "");
+  const reason = moveReason(form.get("reason"));
+  const version = Number(form.get("version"));
+  if (
+    !stayId ||
+    !accommodationUnitId ||
+    !reason ||
+    !form.has("version") ||
+    !Number.isInteger(version) ||
+    version < 0
+  ) {
+    return "refused";
+  }
+  const note = String(form.get("note") ?? "").trim();
+  const noteLength = [...note].length;
+  if (
+    (reason === "other" && noteLength === 0) ||
+    (noteLength > 0 && (noteLength < 3 || noteLength > 500))
+  ) {
+    return "invalidNote";
+  }
+
+  try {
+    await getComposition().reservations.moveGuest(viewer.userId, {
+      stayId,
+      accommodationUnitId,
+      reason,
+      note: noteLength === 0 ? null : note,
+      version,
+    });
+  } catch (error) {
+    if (isNotReady(error)) return "notReady";
+    if (error instanceof UnitHasOccupantError) return "occupied";
+    if (error instanceof UnitUnavailableError) return "unavailable";
+    if (error instanceof UnitNotInServiceError) return "notInService";
+    if (error instanceof ChangeNoteError) return "invalidNote";
+    if (error instanceof BookingChangedError) {
+      revalidateFrontDesk(locale);
+      return "changed";
+    }
+    if (error instanceof BookingChangeError) return "refused";
+    console.error("moveGuest failed unexpectedly", { stayId }, error);
     return "refused";
   }
 

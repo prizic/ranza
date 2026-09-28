@@ -11,6 +11,12 @@ everything lands under Unreleased.
 
 ### Added
 
+- `previewMove()` and `moveGuest()`: an in-house Guest moves to another Unit
+  from tonight through `app.move_stay()`, keeping the Stay, its Folio and its
+  price; the room must be ready (`UnitNotReadyError`). Publishes `stay.moved`
+  (ids only), which the worker turns into the room left being marked dirty,
+  and records the audit action of the same name. The room calendar draws a
+  moved Stay once per room it was in.
 - `previewDeparture()` and `changeDeparture()`: an in-house Guest's planned
   departure is extended, shortened, or given an end or has it taken away (a
   Resident's only), through `app.change_departure()`, with the booking's end

@@ -25,6 +25,7 @@ import {
 } from "@ranza/ui";
 import type { RoomCalendarBar } from "../../../server/viewer";
 import { ChangeDepartureDialog } from "../../front-office/components/change-departure-dialog";
+import { MoveGuestDialog } from "../../front-office/components/move-guest-dialog";
 import { daysBetween, type PlacedEntry } from "../layout";
 import { BAR_ICON, barLook, type BarLook } from "./bar-style";
 
@@ -179,6 +180,7 @@ function DrawerBody({
   const t = useTranslations("roomCalendar");
   const common = useTranslations();
   const [changingDeparture, setChangingDeparture] = useState(false);
+  const [moving, setMoving] = useState(false);
   const departureChangeable =
     mayAmend &&
     bar.kind === "stay" &&
@@ -187,8 +189,12 @@ function DrawerBody({
   const look = barLook(bar);
   const place = room ? `${room.name} · ${unit.name}` : unit.name;
   const target = onward(bar, today);
+  // A Guest moved into this room arrived before this bar begins: the Stay's
+  // own first night is the arrival, and its nights are counted from it.
+  const arrivedOn = bar.kind === "stay" ? bar.arrivedOn : bar.startsOn;
+  const moved = bar.kind === "stay" && bar.arrivedOn !== bar.startsOn;
   const nights =
-    bar.endsOn === null ? null : daysBetween(bar.startsOn, bar.endsOn);
+    bar.endsOn === null ? null : daysBetween(arrivedOn, bar.endsOn);
 
   return (
     <>
@@ -226,8 +232,11 @@ function DrawerBody({
 
         <FactList className="grid-cols-2 gap-5 pt-2">
           <Fact label={bar.kind === "stay" ? t("arrived") : t("arrives")}>
-            {date(bar.startsOn, locale)}
+            {date(arrivedOn, locale)}
           </Fact>
+          {moved ? (
+            <Fact label={t("inRoomSince")}>{date(bar.startsOn, locale)}</Fact>
+          ) : null}
           <Fact
             label={
               bar.kind === "stay" && bar.status === "departed"
@@ -239,7 +248,7 @@ function DrawerBody({
           </Fact>
           {bar.kind === "stay" &&
           bar.bookedStartsOn &&
-          (bar.bookedStartsOn !== bar.startsOn ||
+          (bar.bookedStartsOn !== bar.arrivedOn ||
             bar.bookedEndsOn !== bar.endsOn) ? (
             <Fact label={t("booked")}>
               {`${date(bar.bookedStartsOn, locale)} – ${
@@ -283,6 +292,27 @@ function DrawerBody({
             >
               {common("changeDeparture")}
             </Button>
+            <Button
+              className="w-full"
+              onClick={() => setMoving(true)}
+              type="button"
+              variant="outline"
+            >
+              {common("moveGuest")}
+            </Button>
+            {moving ? (
+              <MoveGuestDialog
+                locale={locale}
+                onDone={onChanged}
+                onOpenChange={setMoving}
+                open
+                stay={{
+                  stayId: bar.stayId,
+                  guestName: bar.guestName ?? t("noGuestRecorded"),
+                  unitLabel: place,
+                }}
+              />
+            ) : null}
             {changingDeparture ? (
               <ChangeDepartureDialog
                 locale={locale}
@@ -294,7 +324,7 @@ function DrawerBody({
                   reference: null,
                   guestName: bar.guestName ?? t("noGuestRecorded"),
                   unitLabel: place,
-                  startsOn: bar.startsOn,
+                  startsOn: bar.arrivedOn,
                   endsOn: bar.endsOn,
                 }}
               />

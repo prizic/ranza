@@ -8,6 +8,7 @@ import {
   CalendarClock,
   CalendarRange,
   CalendarX,
+  DoorOpen,
   MoreHorizontal,
   Receipt,
   UserX,
@@ -30,6 +31,7 @@ import {
   type ChangeableStay,
 } from "./change-departure-dialog";
 import { EndBookingDialog, type EndBookingKind } from "./end-booking-dialog";
+import { MoveGuestDialog } from "./move-guest-dialog";
 
 /**
  * A booking the row may end, and whether each way of ending it is offered.
@@ -79,6 +81,7 @@ export function FrontDeskRowMenu({
   const [ending, setEnding] = useState<EndBookingKind | null>(null);
   const [changing, setChanging] = useState(false);
   const [changingDeparture, setChangingDeparture] = useState(false);
+  const [moving, setMoving] = useState(false);
   const bookingActions =
     booking && (booking.mayCancel || booking.mayMarkNoShow || booking.change);
 
@@ -120,6 +123,12 @@ export function FrontDeskRowMenu({
             <DropdownMenuItem onSelect={() => setChangingDeparture(true)}>
               <CalendarRange className="size-4" />
               <span>{t("changeDeparture")}</span>
+            </DropdownMenuItem>
+          ) : null}
+          {stay ? (
+            <DropdownMenuItem onSelect={() => setMoving(true)}>
+              <DoorOpen className="size-4" />
+              <span>{t("moveGuest")}</span>
             </DropdownMenuItem>
           ) : null}
           {booking?.change ? (
@@ -165,6 +174,18 @@ export function FrontDeskRowMenu({
           onOpenChange={setChangingDeparture}
           open
           stay={stay}
+        />
+      ) : null}
+      {stay && moving ? (
+        <MoveGuestDialog
+          locale={locale}
+          onOpenChange={setMoving}
+          open
+          stay={{
+            stayId: stay.stayId,
+            guestName: stay.guestName,
+            unitLabel: stay.unitLabel,
+          }}
         />
       ) : null}
       {booking?.change && changing ? (

@@ -32,6 +32,8 @@ function bar(overrides: Partial<RawCalendarBar>): RawCalendarBar {
     balanceMinor: null,
     currency: null,
     folioClosed: null,
+    current: null,
+    arrivedOn: null,
     ...overrides,
   };
 }

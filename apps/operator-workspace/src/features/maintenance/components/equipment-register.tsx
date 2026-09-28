@@ -43,7 +43,8 @@ import {
 } from "../../../server/maintenance";
 import { ConditionBadge, formatDay } from "./look";
 import { OutcomeMessage } from "./outcome-message";
-import { submitWithoutReset, useCommand } from "./use-command";
+import { submitWithoutReset } from "../../../lib/submit-without-reset";
+import { useCommand } from "./use-command";
 
 export interface EquipmentLimits {
   name: number;

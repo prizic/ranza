@@ -2,7 +2,12 @@
 
 Date: 2026-09-28
 
-Status: Accepted — slice 1 applied in `20260916009000_a_booking_is_amended`
+Status: Accepted — applied in `20260916009000_a_booking_is_amended`,
+`20260916009100_a_stay_changes_its_departure` and
+`20260916009200_a_guest_moves_room`
+
+Amends [ADR 0029](0029-housekeeping-status-is-a-room-s-own-row.md): a room a
+Guest was moved out of reads dirty, as one a Guest left does.
 
 Builds on [ADR 0012](0012-a-write-is-bounded-by-a-policy-not-a-check.md),
 [ADR 0033](0033-an-in-house-stay-holds-its-unit-until-it-is-checked-out.md) and
@@ -100,6 +105,40 @@ a departed Stay's `ends_on`. The closed-day trigger's branch for a departed Stay
 is therefore no longer reachable, and its assertions now name the rule that
 binds.
 
+### A departure moves with its booking
+
+`app.change_departure()` changes an in-house Stay's planned end and its
+booking's in one transaction, tomorrow or later: leaving today is a check-out,
+which reviews the bill. A night in house is due whatever the planned end says
+(`app.room_nights_due`), so extra nights are charged at the booking's own price
+as each closes, and nothing already charged moves. A night another booking
+holds is refused by `app.unit_holds_one_occupancy`, not by the command.
+
+### A move keeps the Stay and changes the room from tonight
+
+`app.move_stay()` changes the Unit of the Stay and its booking. The Folio and
+the price go with the Guest; a move to another kind of Unit is usually the
+hotel's decision, and an upgrade the Guest pays for is a Folio charge. What may
+take the Guest is what decides it at check-in — in service, let whole, nobody
+booked or in house — plus readiness, which the command asks (`RZ002`), as
+check-in asks it in the module.
+
+The nights already slept stay where they were slept. The revision is the
+record of that: `app.stay_unit_segments()` cuts a Stay into one stretch per
+Unit, and the room calendar draws each stretch on its own row.
+
+The room left must read dirty before the worker runs, or a second move or a
+check-in lands in an uncleaned room. `app.unit_housekeeping_state()` counts a
+move out as it counts a departure (ADR 0029 amended), and `stay.moved` has the
+worker mark it on the board. The worker reads which room was left from the
+revision the event names, never from the event's payload, which `ranza_app`
+may write. A move between two beds of one room leaves no room to clean.
+
+Two Guests swapping rooms at once would deadlock if their Unit locks were taken
+in the order each met them; the hashed order is what prevents it, seen by
+sabotage. Each is then refused, because the other Guest is still there: a swap
+takes a third room.
+
 ## Consequences
 
 The definer inventory in `tests/database/insert_grants.test.sql` grows with
@@ -112,6 +151,14 @@ A later command that confirms a `requested` booking must take the Unit's lock
 takes that lock only when a row moves into `confirmed`, which is after the row
 lock, and `app.amend_reservation()` takes them the other way round; the two
 would deadlock. Nothing confirms a requested booking today.
+
+`stays.accommodation_unit_id` changes meaning. It was the Unit a Stay used;
+after a move it is only the Unit the Guest is in now. Every reader that asks
+which Units a Stay used must read the `moved` revisions too: the room
+calendar, readiness, the worker, a damage charge (MT-S5-07) and the audit
+search all do, and the next one to ask must. A check-in whose Guest has been
+moved is not withdrawn (`RZ004`): it would put the booking back on a room the
+Guest never arrived in.
 
 Refusal codes gain `RZ003`, changed since it was read. A price that moved while
 the dialog was open stays `PriceChangedError` in the module, as when a booking

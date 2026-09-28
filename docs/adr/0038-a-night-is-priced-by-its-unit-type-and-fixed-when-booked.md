@@ -6,6 +6,11 @@ Status: Accepted — applied in `20260916008000_a_night_has_a_price`,
 `20260916008100_a_booking_is_priced_when_it_is_taken` and
 `20260916008200_a_night_is_charged_once`
 
+Amended: 2026-09-29 — re-pricing, which this left to amending a booking, is
+built: only a booking still to come moved to another kind of Unit takes that
+kind's price; dates alone never re-price, and a Guest moved in house keeps
+theirs ([ADR 0039](0039-a-booking-is-amended-through-commands-that-check-their-caller.md)).
+
 Amends [ADR 0030](0030-a-check-out-confirms-the-bill-it-reviewed.md),
 [ADR 0034](0034-a-business-day-closes-after-its-cutoff.md) and
 [ADR 0036](0036-a-property-is-configured-and-its-currency-is-fixed-by-its-first-folio.md).

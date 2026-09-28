@@ -31,7 +31,7 @@ import {
 import { ImpactNotice } from "./impact-notice";
 import { PRIORITY_LOOK } from "./look";
 import { OutcomeMessage } from "./outcome-message";
-import { submitWithoutReset } from "./use-command";
+import { submitWithoutReset } from "../../../lib/submit-without-reset";
 
 const PRIORITIES: readonly Priority[] = ["urgent", "this_week", "can_wait"];
 

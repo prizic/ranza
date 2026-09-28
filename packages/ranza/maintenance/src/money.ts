@@ -144,12 +144,42 @@ export function createMoneyCommands(deps: MaintenanceDeps) {
                to_char(stay.ends_on, 'YYYY-MM-DD')  as "endsOn",
                folio.currency
           from public.maintenance_requests as request
-          join public.accommodation_units as unit
-            on unit.id = request.accommodation_unit_id
-            or unit.parent_id = request.accommodation_unit_id
           join public.stays as stay
-            on stay.accommodation_unit_id = unit.id
+            on stay.id in (
+                 -- The Stays that used the room or a bed under it: in it now,
+                 -- or moved out of it — not the Property's whole history.
+                 select used.id from public.stays as used
+                   join public.accommodation_units as place
+                     on place.id = used.accommodation_unit_id
+                  where place.id = request.accommodation_unit_id
+                     or place.parent_id = request.accommodation_unit_id
+                 union
+                 select change.stay_id from public.reservation_changes as change
+                   join public.accommodation_units as place
+                     on place.id = change.from_unit_id
+                  where change.kind = 'moved'
+                    and (place.id = request.accommodation_unit_id
+                         or place.parent_id = request.accommodation_unit_id)
+               )
            and stay.status in ('in_house', 'departed')
+          -- The room or bed under it the Stay used: the one it is in, or one
+          -- it was moved out of (ADR 0039) — a move is often when damage is
+          -- found. One row per Stay, naming the Unit it is in when it is.
+          join lateral (
+            select used.name
+              from public.accommodation_units as used
+             where (used.id = request.accommodation_unit_id
+                    or used.parent_id = request.accommodation_unit_id)
+               and (used.id = stay.accommodation_unit_id
+                    or used.id in (
+                      select change.from_unit_id
+                        from public.reservation_changes as change
+                       where change.stay_id = stay.id
+                         and change.kind = 'moved'
+                    ))
+             order by used.id = stay.accommodation_unit_id desc
+             limit 1
+          ) as unit on true
           join public.folios as folio
             on folio.stay_id = stay.id
            and folio.status = 'open'

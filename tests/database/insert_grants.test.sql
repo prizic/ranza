@@ -402,8 +402,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  49,
-  'the definer sweep looked at 49 functions; change this number deliberately');
+  51,
+  'the definer sweep looked at 51 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -413,10 +413,10 @@ select is(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef and p.prosrc ~* '(insert|update|delete)\s'),
-  11,
-  'eleven of them write, which is what makes the assertion above a test');
+  13,
+  'thirteen of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a fiftieth definer is a red test
+-- Part B: the inventory itself, so a fifty-second definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
 -- four are housekeeping; two are maintenance; five are the audit log's reach;
@@ -443,6 +443,11 @@ select is(
 -- kind of Unit, a definer for the insert stamp's reason, and writes only NEW.
 -- change_departure() is slice 2's command, an in-house Stay's planned end and
 -- its booking's, checked like amend_reservation(); the eleventh writer.
+-- Slice 3 brought two more writers. move_stay() is its command, checked the
+-- same way. mark_unit_dirty_after_move() is the worker's half, as
+-- mark_unit_dirty_after_check_out() is: it names worker_organization_id()
+-- first, and reads which room was left from the revision, never from the
+-- event's payload.
 -- The other seven are named in the comments above.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -473,8 +478,8 @@ select set_eq(
         'reservation_is_priced_when_taken',
         'post_room_nights', 'post_room_nights_for_departure',
         'amend_reservation', 'reservation_is_priced_for_its_new_kind',
-        'change_departure'],
-  'and they are exactly the forty-nine the design gives a reason for');
+        'change_departure', 'move_stay', 'mark_unit_dirty_after_move'],
+  'and they are exactly the fifty-one the design gives a reason for');
 
 select finish();
 rollback;

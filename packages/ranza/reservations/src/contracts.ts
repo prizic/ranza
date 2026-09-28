@@ -415,6 +415,18 @@ export class CheckInDayClosedError extends CheckInReversalError {
 }
 
 /**
+ * A check-in that cannot be withdrawn because the Guest has since been moved
+ * (AB-S3-11): undoing it would put the booking back on a room the Guest never
+ * arrived in. The desk corrects the Stay instead — moves or checks them out.
+ */
+export class StayMovedError extends CheckInReversalError {
+  constructor() {
+    super("that Guest has been moved since they arrived");
+    this.name = "StayMovedError";
+  }
+}
+
+/**
  * A check-out that did not happen.
  *
  * One type for every reason, on the same principle as CheckInError: out of
@@ -764,6 +776,68 @@ export interface DeparturePreview {
   conflictReference: string | null;
 }
 
+/** Why a Guest is moved: the reason is required (AB-S3-02). */
+export const MOVE_REASONS = [
+  "fault",
+  "upgrade",
+  "guest_request",
+  "other",
+] as const;
+export type MoveReason = (typeof MOVE_REASONS)[number];
+
+/** What a front desk supplies to move an in-house Guest (amend-booking slice 3). */
+export interface GuestMove {
+  stayId: string;
+  accommodationUnitId: string;
+  reason: MoveReason;
+  /** Required when `reason` is `other`, and the audit record's reason with it. */
+  note: string | null;
+  /** How many changes the booking had when the dialog read it (AB-S3-09). */
+  version: number;
+}
+
+/** One Unit an in-house Guest could move to, read for the rest of their Stay. */
+export interface MoveOption {
+  unitId: string;
+  unitName: string;
+  /** The room a bed is in; null for a room. */
+  roomName: string | null;
+  unitType: AccommodationUnitType;
+  sameKind: boolean;
+  /**
+   * `booked` when a confirmed booking holds a night of the Stay there, and
+   * `occupied` when somebody is in it; null when free (AB-S3-04).
+   */
+  blocker: ChangeBlocker | null;
+  conflictReference: string | null;
+  /** Housekeeping's answer; a room that is not ready is refused (AB-S3-03). */
+  ready: boolean;
+}
+
+/**
+ * What moving an in-house Guest would do. The price never changes on a move
+ * (AB-S3-05); it is here so the dialog can say so.
+ */
+export interface MovePreview {
+  stayId: string;
+  reference: string;
+  unitId: string;
+  unitType: AccommodationUnitType;
+  startsOn: string;
+  endsOn: string | null;
+  nightlyRateMinor: number | null;
+  rateCurrency: string | null;
+  version: number;
+  /** Free and ready Units of the Guest's kind first, then the rest. */
+  options: MoveOption[];
+}
+
+/** What a saved move produced. */
+export interface MovedGuest {
+  stayId: string;
+  changeId: string;
+}
+
 /** What a saved departure change produced. */
 export interface ChangedDeparture {
   stayId: string;
@@ -887,6 +961,16 @@ export interface RoomCalendarStayBar extends RoomCalendarBarBase {
   kind: "stay";
   stayId: string;
   reservationId: string | null;
+  /**
+   * The stretch the Guest is in now. False on a stretch in a room they were
+   * moved out of, which is drawn as history (AB-S3-06).
+   */
+  current: boolean;
+  /**
+   * The Stay's own first night. The same as `startsOn` for a Stay never moved;
+   * for the stretch after a move, `startsOn` is the move and this the arrival.
+   */
+  arrivedOn: string;
   status: "in_house" | "departed";
   bookedStartsOn: string | null;
   bookedEndsOn: string | null;

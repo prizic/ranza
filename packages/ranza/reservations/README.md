@@ -50,6 +50,8 @@ await reservations.previewChange(userId, reservationId, startsOn, endsOn);
 await reservations.amendBooking(userId, change);
 await reservations.previewDeparture(userId, stayId, endsOn);
 await reservations.changeDeparture(userId, departureChange);
+await reservations.previewMove(userId, stayId);
+await reservations.moveGuest(userId, guestMove);
 await reservations.listArrivals(userId, propertyId);
 await reservations.listDepartures(userId, propertyId, "due" | "in_house");
 await reservations.checkIn(userId, reservationId);
@@ -163,8 +165,9 @@ search, extensions and room moves. Group reservations, quotations, deposits and
 availability search are not in this module.
 
 A booking that has not arrived is changed — its nights, its Unit — only through
-`app.amend_reservation()`, and an in-house Guest's planned departure only
-through `app.change_departure()`: commands that check their caller
+`app.amend_reservation()`, an in-house Guest's planned departure only through
+`app.change_departure()`, and their room only through `app.move_stay()`:
+commands that check their caller
 ([ADR 0039](../../../docs/adr/0039-a-booking-is-amended-through-commands-that-check-their-caller.md)).
 `ranza_app` holds no grant on a booking's dates or Unit, nor on a Stay's Unit.
 It does hold `stays.ends_on`, which check-out writes, but the update policy

@@ -36,6 +36,7 @@ import type {
   Departure,
   DeparturePreview,
   DepartureView,
+  MovePreview,
   ReservationRow,
   RoomCalendar,
   RoomCalendarBar,
@@ -161,6 +162,7 @@ export type {
   DeparturePreview,
   Departure,
   FolioDetail,
+  MovePreview,
   FolioSummary,
   HousekeepingBoard,
   HousekeepingRoom,
@@ -407,6 +409,30 @@ export async function departureChangePreview(
   } catch (error: unknown) {
     if (error instanceof ReservationPeriodError)
       return { kind: "invalidPeriod" };
+    if (error instanceof BookingChangeError) return { kind: "refused" };
+    throw error;
+  }
+}
+
+/**
+ * Where an in-house Guest could be moved, for the Move Guest dialog
+ * (amend-booking slice 3).
+ */
+export type GuestMovePreview =
+  { kind: "preview"; preview: MovePreview } | { kind: "refused" };
+
+export async function guestMovePreview(
+  stayId: string,
+): Promise<GuestMovePreview> {
+  const viewer = await currentViewer();
+  if (!viewer) return { kind: "refused" };
+  try {
+    const preview = await getComposition().reservations.previewMove(
+      viewer.userId,
+      stayId,
+    );
+    return { kind: "preview", preview };
+  } catch (error: unknown) {
     if (error instanceof BookingChangeError) return { kind: "refused" };
     throw error;
   }

@@ -47,9 +47,13 @@ export function daysBetween(from: string, to: string): number {
 
 /** The key a bar keeps while its status changes — what the drawer follows. */
 export function barKey(bar: RoomCalendarBar): string {
-  return bar.kind === "stay"
+  // A moved Stay is one bar per room it was in (AB-S3-06). The stretch the
+  // Guest is in keeps the Stay's own key, so a drawer open on it follows the
+  // Guest to their new room; a stretch they left is keyed by its first night.
+  if (bar.kind === "reservation") return `reservation:${bar.reservationId}`;
+  return bar.current
     ? `stay:${bar.stayId}`
-    : `reservation:${bar.reservationId}`;
+    : `stay:${bar.stayId}:${bar.startsOn}`;
 }
 
 /**
@@ -277,7 +281,9 @@ export function barsByKey(calendar: RoomCalendar): Map<string, PlacedEntry> {
   ) => {
     const entry = { bar, unit, room };
     found.set(barKey(bar), entry);
-    if (bar.kind === "stay" && bar.reservationId) {
+    // Only the stretch the Guest is in: a stretch in a room they left is
+    // history, and must not be what an arriving Guest's drawer finds.
+    if (bar.kind === "stay" && bar.reservationId && bar.current) {
       bookedAs.set(`reservation:${bar.reservationId}`, entry);
     }
   };

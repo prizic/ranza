@@ -24,6 +24,7 @@ import {
   changeDeparture,
   type ChangeDepartureOutcome,
 } from "../../../server/front-office";
+import { submitWithoutReset } from "../../../lib/submit-without-reset";
 
 /**
  * Extending or shortening an in-house Guest's Stay, or giving an open-ended
@@ -251,7 +252,7 @@ export function ChangeDepartureDialog({
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
-        <form action={act} className="grid gap-4">
+        <form className="grid gap-4" onSubmit={submitWithoutReset(act)}>
           <DialogHeader>
             <DialogTitle>{t("changeDeparture")}</DialogTitle>
             <DialogDescription>{t("changeDepartureSummary")}</DialogDescription>

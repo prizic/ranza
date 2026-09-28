@@ -1026,6 +1026,7 @@ model ReservationChange {
   changer     User              @relation(fields: [changedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([reservationId], map: "reservation_changes_reservation_idx")
+  @@index([stayId], map: "reservation_changes_stay_idx")
   @@index([fromUnitId, changedAt], map: "reservation_changes_from_unit_idx")
   @@map("reservation_changes")
 }

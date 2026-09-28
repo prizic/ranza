@@ -25,6 +25,7 @@ export const KNOWN_ACTIONS = [
   "reservation.amended",
   "stay.checked_out",
   "stay.departure_changed",
+  "stay.moved",
   "folio.charge_posted",
   "folio.line_reversed",
   "folio.closed",

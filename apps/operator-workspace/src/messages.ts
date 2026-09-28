@@ -115,6 +115,8 @@ export interface Messages {
   undoCheckInRefused: string;
   stayHasCharges: string;
   checkInDayClosed: string;
+  /** The Guest has been moved since check-in, so it is corrected, not withdrawn. */
+  checkInMoved: string;
   stayType: Record<"guest" | "resident", string>;
   unitType: Record<"room" | "bed" | "apartment" | "suite", string>;
   reservationStatus: Record<
@@ -400,6 +402,19 @@ export interface Messages {
   /** Beside a Guest past their departure on Close the day (AB-S2-05). */
   extendStay: string;
 
+  /** Moving an in-house Guest (amend-booking slice 3). */
+  moveGuest: string;
+  moveGuestSummary: string;
+  moveGuestReason: string;
+  moveReason: Record<"fault" | "upgrade" | "guest_request" | "other", string>;
+  moveGuestUnitNotReady: string;
+  /** The price a move keeps (AB-S3-05). */
+  moveGuestPriceKept: string;
+  moveGuestUnpriced: string;
+  moveGuestNoteRequired: string;
+  moveGuestNotReady: string;
+  moveGuestRefused: string;
+
   folios: string;
   foliosAt: string;
   noFoliosTitle: string;
@@ -620,6 +635,8 @@ export interface Messages {
     overdueNote: string;
     arrives: string;
     arrived: string;
+    /** The first night in this room, for a Guest moved into it (AB-S3-06). */
+    inRoomSince: string;
     leaves: string;
     left: string;
     booked: string;
@@ -1114,7 +1131,7 @@ export interface Messages {
       | "amended",
       string
     >;
-    stay: Record<"checked_out" | "departure_changed", string>;
+    stay: Record<"checked_out" | "departure_changed" | "moved", string>;
     folio: Record<"charge_posted" | "line_reversed" | "closed", string>;
     staff: Record<
       | "invited"
@@ -1407,6 +1424,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Bu konaklamaya tutarlar işlendi; artık gerçekleşmiş sayılır ve giriş geri alınamaz. Tutarları Finans'ta düzeltin.",
     checkInDayClosed:
       "Bu girişin yapıldığı iş günü kapatıldı, bu yüzden giriş geri alınamaz. Misafir kalmıyorsa çıkışını Çıkışlar ekranından yapın.",
+    checkInMoved:
+      "Misafir girişten sonra başka bir odaya taşındı, bu yüzden giriş geri alınamaz. Kalmıyorsa çıkışını Çıkışlar ekranından yapın.",
     stayType: { guest: "Misafir", resident: "Sakin" },
     unitType: {
       room: "Oda",
@@ -1696,6 +1715,24 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeDepartureRefused: "Bu konaklama değiştirilemiyor.",
     saveDeparture: "Çıkışı kaydet",
     extendStay: "Uzat",
+    moveGuest: "Misafiri taşı",
+    moveGuestSummary:
+      "Bu geceden itibaren başka bir birime taşıyın. Konaklama, folyosu ve fiyatı onunla gider; ayrılan oda temizliğe işaretlenir.",
+    moveGuestReason: "Neden",
+    moveReason: {
+      fault: "Odada arıza var",
+      upgrade: "Oda yükseltmesi",
+      guest_request: "Misafir istedi",
+      other: "Başka bir neden",
+    },
+    moveGuestUnitNotReady: "Hazır değil",
+    moveGuestPriceKept:
+      "Gecelik {price}, rezervasyondaki gibi: taşımak fiyatı değiştirmez",
+    moveGuestUnpriced: "Rezervasyonun fiyatı yok; taşımak bunu değiştirmez.",
+    moveGuestNoteRequired: "Başka bir neden için notta açıklayın.",
+    moveGuestNotReady:
+      "O birim henüz hazır değil. Başka birini seçin ya da önce temizletin.",
+    moveGuestRefused: "Bu misafir taşınamıyor.",
     folios: "Folyolar",
     foliosAt: "Folyolar —",
     noFoliosTitle: "Henüz folyo yok",
@@ -1851,6 +1888,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       overdueNote: "Gecikmiş: {date} tarihinde ayrılmaları gerekiyordu.",
       arrives: "Geliş",
       arrived: "Geldi",
+      inRoomSince: "Bu odada şu tarihten beri",
       leaves: "Ayrılış",
       left: "Ayrıldı",
       booked: "Rezervasyon",
@@ -2441,6 +2479,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       stay: {
         checked_out: "Çıkış yapıldı",
         departure_changed: "Çıkış tarihi değiştirildi",
+        moved: "Misafir taşındı",
       },
       folio: {
         charge_posted: "Ücret işlendi",
@@ -2764,6 +2803,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Charges have been posted to this Stay, so it counts as having happened and the check-in can't be undone. Correct the charges in Finance.",
     checkInDayClosed:
       "The business day this check-in was made on has been closed, so it can't be withdrawn. If the Guest is not staying, check them out on the departures screen.",
+    checkInMoved:
+      "The Guest has been moved to another room since they checked in, so it can't be withdrawn. If they are not staying, check them out on the departures screen.",
     stayType: { guest: "Guest", resident: "Resident" },
     unitType: {
       room: "Room",
@@ -3055,6 +3096,24 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeDepartureRefused: "This stay cannot be changed.",
     saveDeparture: "Save departure",
     extendStay: "Extend",
+    moveGuest: "Move Guest",
+    moveGuestSummary:
+      "Move them to another Unit from tonight. The stay, its folio and its price go with them; the room left is marked for cleaning.",
+    moveGuestReason: "Reason",
+    moveReason: {
+      fault: "The room has a fault",
+      upgrade: "An upgrade",
+      guest_request: "The Guest asked",
+      other: "Another reason",
+    },
+    moveGuestUnitNotReady: "Not ready",
+    moveGuestPriceKept:
+      "{price} a night, as booked: a move does not change the price",
+    moveGuestUnpriced: "The booking has no price; a move does not change that.",
+    moveGuestNoteRequired: "For another reason, say why in the note.",
+    moveGuestNotReady:
+      "That Unit is not ready yet. Choose another, or have it cleaned first.",
+    moveGuestRefused: "This Guest cannot be moved.",
     folios: "Folios",
     foliosAt: "Folios at",
     noFoliosTitle: "No folios yet",
@@ -3212,6 +3271,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       overdueNote: "Overdue: they were due to leave on {date}.",
       arrives: "Arrives",
       arrived: "Arrived",
+      inRoomSince: "In this room since",
       leaves: "Leaves",
       left: "Left",
       booked: "Booked",
@@ -3809,6 +3869,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       stay: {
         checked_out: "Checked out",
         departure_changed: "Departure changed",
+        moved: "Guest moved",
       },
       folio: {
         charge_posted: "Charge posted",
@@ -4129,6 +4190,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       "سُجِّلت مبالغ على هذه الإقامة، لذلك تُعدّ قد حدثت فعلًا ولا يمكن التراجع عن تسجيل الوصول. صحِّح المبالغ من قسم المالية.",
     checkInDayClosed:
       "أُغلق يوم العمل الذي سُجِّل فيه هذا الوصول، لذلك لا يمكن التراجع عنه. إن لم يكن الضيف مقيمًا، فسجّل مغادرته من شاشة المغادرة.",
+    checkInMoved:
+      "نُقل الضيف إلى غرفة أخرى بعد تسجيل وصوله، لذلك لا يمكن التراجع عنه. إن لم يكن مقيمًا، فسجّل مغادرته من شاشة المغادرة.",
     stayType: { guest: "ضيف", resident: "مقيم" },
     unitType: {
       room: "غرفة",
@@ -4406,6 +4469,22 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeDepartureRefused: "لا يمكن تعديل هذه الإقامة.",
     saveDeparture: "حفظ موعد المغادرة",
     extendStay: "تمديد",
+    moveGuest: "نقل النزيل",
+    moveGuestSummary:
+      "انقله إلى وحدة أخرى بدءًا من الليلة. تنتقل معه الإقامة وحسابها وسعرها؛ وتُعلَّم الغرفة التي غادرها للتنظيف.",
+    moveGuestReason: "السبب",
+    moveReason: {
+      fault: "في الغرفة عطل",
+      upgrade: "ترقية",
+      guest_request: "طلب النزيل",
+      other: "سبب آخر",
+    },
+    moveGuestUnitNotReady: "غير جاهزة",
+    moveGuestPriceKept: "{price} لليلة، كما في الحجز: النقل لا يغيّر السعر",
+    moveGuestUnpriced: "الحجز بلا سعر؛ والنقل لا يغيّر ذلك.",
+    moveGuestNoteRequired: "لسبب آخر، اذكره في الملاحظة.",
+    moveGuestNotReady: "هذه الوحدة ليست جاهزة بعد. اختر غيرها أو نظّفها أولًا.",
+    moveGuestRefused: "لا يمكن نقل هذا النزيل.",
     folios: "الحسابات",
     foliosAt: "الحسابات في",
     noFoliosTitle: "لا توجد حسابات بعد",
@@ -4561,6 +4640,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       overdueNote: "متأخر: كان موعد مغادرته {date}.",
       arrives: "الوصول",
       arrived: "وصل",
+      inRoomSince: "في هذه الغرفة منذ",
       leaves: "المغادرة",
       left: "غادر",
       booked: "الحجز",
@@ -5153,6 +5233,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       stay: {
         checked_out: "تم تسجيل المغادرة",
         departure_changed: "تغيّر موعد المغادرة",
+        moved: "نُقل النزيل",
       },
       folio: {
         charge_posted: "تم إدراج رسم",

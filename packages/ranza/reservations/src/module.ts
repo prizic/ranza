@@ -21,7 +21,9 @@ import {
   CANCELLATION_REASON,
   CHANGE_NOTE,
   ChangeNoteError,
+  MOVE_REASONS,
   CheckInDayClosedError,
+  StayMovedError,
   CheckInError,
   CheckInReversalError,
   CheckOutError,
@@ -48,6 +50,10 @@ import {
   type ChangePreview,
   type DepartureChange,
   type DeparturePreview,
+  type GuestMove,
+  type MovedGuest,
+  type MoveOption,
+  type MovePreview,
   type CheckedIn,
   type CheckedOut,
   type CheckInReversed,
@@ -133,6 +139,12 @@ const CHECK_VIOLATION = "23514";
  * it: another revision landed, or its Unit moved (ADR 0039).
  */
 const CHANGED_SINCE_READ = "RZ003";
+
+/** Raised by `app.move_stay` for a room housekeeping has not made ready (AB-S3-03). */
+const UNIT_NOT_READY = "RZ002";
+
+/** Raised by `stay_may_be_withdrawn` for a Stay whose Guest has been moved. */
+const STAY_MOVED = "RZ004";
 
 /**
  * Whether a failure carries a particular SQLSTATE.
@@ -679,6 +691,8 @@ export function createReservationsModule(deps: ReservationsDeps) {
             "the business day that check-in began on is closed",
           );
         }
+        // stay_may_be_withdrawn: the Guest has been moved since (AB-S3-11).
+        if (raised(error, STAY_MOVED)) throw new StayMovedError();
         // The other refusal a front desk can act on: money exists, so this is
         // a stay that happened and correcting it is a credit or a refund.
         if (raised(error, NOT_IN_PREREQUISITE_STATE)) {
@@ -2137,6 +2151,249 @@ export function createReservationsModule(deps: ReservationsDeps) {
   }
 
   /**
+   * Where an in-house Guest could be moved (amend-booking slice 3): every Unit
+   * of the Property that takes a Stay, with what would refuse the move there.
+   *
+   * Each blocker mirrors a refusal: `booked` is `app.unit_holds_one_occupancy`,
+   * which compares the Stay's whole plan — `app.stay_holds` from its first
+   * night — with the confirmed bookings on the new Unit; `occupied` is
+   * `stays_no_double_booking`, somebody else in house there. `ready` is
+   * `app.unit_is_ready`, which the command asks too. Out-of-service Units and
+   * rooms let by the bed are absent, as from every other picker.
+   */
+  async function previewMove(
+    userId: string,
+    stayId: string,
+  ): Promise<MovePreview> {
+    return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      const [stay] = await tx.$queryRaw<
+        (Omit<MovePreview, "nightlyRateMinor" | "options"> & {
+          nightlyRateMinor: string | null;
+          propertyId: string;
+        })[]
+      >`
+        select
+          stay.id                                        as "stayId",
+          reservation.reference                          as "reference",
+          stay.accommodation_unit_id                     as "unitId",
+          unit.unit_type                                 as "unitType",
+          to_char(stay.starts_on, 'YYYY-MM-DD')          as "startsOn",
+          to_char(stay.ends_on, 'YYYY-MM-DD')            as "endsOn",
+          reservation.nightly_rate_minor::text           as "nightlyRateMinor",
+          trim(reservation.rate_currency)                as "rateCurrency",
+          stay.property_id                               as "propertyId",
+          (select count(*)::int from public.reservation_changes as change
+            where change.reservation_id = reservation.id) as "version"
+        from public.stays as stay
+        join public.reservations as reservation
+          on reservation.id = stay.reservation_id
+        join public.accommodation_units as unit
+          on unit.id = stay.accommodation_unit_id
+        where stay.id = ${stayId}::uuid
+          and stay.status = 'in_house'
+          and app.can_use_capability(
+            stay.property_id,
+            ${FRONT_DESK_CAPABILITY.moduleKey},
+            ${FRONT_DESK_CAPABILITY.capabilityKey}
+          )
+      `;
+      if (!stay) throw new BookingChangeError("that Stay cannot be changed");
+
+      const options = await tx.$queryRaw<MoveOption[]>`
+        with moving as (
+          select stay.id, stay.reservation_id,
+                 app.stay_holds(stay.status, stay.starts_on, stay.ends_on,
+                                app.property_today(stay.property_id)) as nights
+            from public.stays as stay
+           where stay.id = ${stayId}::uuid
+        )
+        select
+          unit.id                                  as "unitId",
+          unit.name                                as "unitName",
+          room.name                                as "roomName",
+          unit.unit_type                           as "unitType",
+          unit.unit_type = ${stay.unitType}        as "sameKind",
+          case
+            when occupant.id is not null        then 'occupied'
+            when conflict.reference is not null then 'booked'
+          end                                      as "blocker",
+          conflict.reference                       as "conflictReference",
+          app.unit_is_ready(unit.id)               as "ready"
+        from public.accommodation_units as unit
+        cross join moving
+        left join public.accommodation_units as room
+          on room.id = unit.parent_id
+        left join lateral (
+          select other.reference
+            from public.reservations as other
+           where other.accommodation_unit_id = unit.id
+             and other.status = 'confirmed'
+             and other.id is distinct from moving.reservation_id
+             and daterange(other.starts_on, other.ends_on, '[)') && moving.nights
+           order by other.starts_on
+           limit 1
+        ) as conflict on true
+        left join lateral (
+          select other.id
+            from public.stays as other
+           where other.accommodation_unit_id = unit.id
+             and other.status = 'in_house'
+             and other.id <> moving.id
+           limit 1
+        ) as occupant on true
+        where unit.property_id = ${stay.propertyId}::uuid
+          and unit.id <> ${stay.unitId}::uuid
+          and unit.status not in ('out_of_service', 'blocked')
+          and (room.status is null
+               or room.status not in ('out_of_service', 'blocked'))
+          and not exists (
+            select 1 from public.accommodation_units as child
+            where child.parent_id = unit.id
+          )
+        order by
+          occupant.id is null and conflict.reference is null
+            and app.unit_is_ready(unit.id) desc,
+          unit.unit_type = ${stay.unitType} desc,
+          coalesce(room.name, unit.name), unit.name
+      `;
+
+      return {
+        stayId: stay.stayId,
+        reference: stay.reference,
+        unitId: stay.unitId,
+        unitType: stay.unitType,
+        startsOn: stay.startsOn,
+        endsOn: stay.endsOn,
+        nightlyRateMinor:
+          stay.nightlyRateMinor === null ? null : Number(stay.nightlyRateMinor),
+        rateCurrency: stay.rateCurrency,
+        version: stay.version,
+        options,
+      };
+    });
+  }
+
+  /**
+   * Moves an in-house Guest to another Unit (ADR 0039, amend-booking slice 3).
+   *
+   * One call to `app.move_stay()`, which checks the caller, takes both Units'
+   * locks in hashed order, refuses a stale version and a room not ready, and
+   * writes the revision; the Stay, its Folio and its price go with the Guest.
+   * `stay.moved` names the revision, and the worker reads which room was left
+   * from it to mark the room dirty (AB-S3-08).
+   */
+  async function moveGuest(
+    userId: string,
+    move: GuestMove,
+  ): Promise<MovedGuest> {
+    if (!(MOVE_REASONS as readonly string[]).includes(move.reason)) {
+      throw new BookingChangeError("a move says why");
+    }
+    const note = move.note?.trim() || null;
+    const noteLength = note === null ? 0 : [...note].length;
+    if (
+      (move.reason === "other" && note === null) ||
+      (note !== null &&
+        (noteLength < CHANGE_NOTE.min || noteLength > CHANGE_NOTE.max))
+    ) {
+      throw new ChangeNoteError(
+        `a note is between ${CHANGE_NOTE.min} and ${CHANGE_NOTE.max} characters, and "other" needs one`,
+      );
+    }
+
+    return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      let moved: {
+        changeId: string;
+        organizationId: string;
+        propertyId: string;
+        reservationId: string;
+        fromUnitId: string;
+        toUnitId: string;
+      };
+      try {
+        const [row] = await tx.$queryRaw<(typeof moved)[]>`
+          select change_id              as "changeId",
+                 change_organization_id as "organizationId",
+                 change_property_id     as "propertyId",
+                 change_reservation_id  as "reservationId",
+                 previous_unit_id       as "fromUnitId",
+                 current_unit_id        as "toUnitId"
+            from app.move_stay(
+              ${move.stayId}::uuid,
+              ${move.accommodationUnitId}::uuid,
+              ${move.reason},
+              ${note},
+              ${move.version}::int
+            )
+        `;
+        if (!row) throw new BookingChangeError("that Stay cannot be changed");
+        moved = row;
+      } catch (error: unknown) {
+        if (raised(error, CHANGED_SINCE_READ)) throw new BookingChangedError();
+        if (raised(error, UNIT_NOT_READY)) throw new UnitNotReadyError();
+        if (raised(error, UNIT_OCCUPIED)) {
+          throw new UnitUnavailableError(
+            "that Accommodation Unit is promised to another booking over those nights",
+          );
+        }
+        // stays_no_double_booking, or the one-in-house index: somebody else
+        // is staying there.
+        if (
+          raised(error, EXCLUSION_VIOLATION) ||
+          raised(error, UNIQUE_VIOLATION)
+        ) {
+          throw new UnitHasOccupantError(
+            "that Accommodation Unit has somebody staying in it",
+          );
+        }
+        if (raised(error, NOT_IN_PREREQUISITE_STATE)) {
+          throw new UnitNotInServiceError(
+            "that Accommodation Unit cannot take this Guest",
+          );
+        }
+        if (
+          raised(error, INSUFFICIENT_PRIVILEGE) ||
+          raised(error, CHECK_VIOLATION)
+        ) {
+          throw new BookingChangeError("that Guest cannot be moved there");
+        }
+        throw error;
+      }
+
+      // Ids only; the worker reads the revision, never a room from here.
+      await publishWithin(tx, {
+        organizationId: moved.organizationId,
+        eventType: "stay.moved",
+        payload: {
+          stayId: move.stayId,
+          reservationId: moved.reservationId,
+          changeId: moved.changeId,
+          propertyId: moved.propertyId,
+        },
+      });
+
+      await recordWithin(tx, {
+        organizationId: moved.organizationId,
+        locationId: moved.propertyId,
+        actorId: userId,
+        action: "stay.moved",
+        subjectType: "stay",
+        subjectId: move.stayId,
+        reason: note === null ? move.reason : `${move.reason}: ${note}`,
+        context: {
+          changeId: moved.changeId,
+          reservationId: moved.reservationId,
+          fromUnitId: moved.fromUnitId,
+          toUnitId: moved.toUnitId,
+          reasonKind: move.reason,
+        },
+      });
+
+      return { stayId: move.stayId, changeId: moved.changeId };
+    });
+  }
+
+  /**
    * Ends a booking that will never become a Stay: cancelled, with a reason, or
    * a no-show once its first night has come.
    *
@@ -2370,7 +2627,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
               null::text                                  as "bookedEndsOn",
               null::int                                   as "balanceMinor",
               null::text                                  as currency,
-              null::boolean                               as "folioClosed"
+              null::boolean                               as "folioClosed",
+              null::boolean                               as current,
+              null::text                                  as "arrivedOn"
             from public.reservations as reservation
             join public.guests as guest
               on guest.id = reservation.guest_id
@@ -2379,22 +2638,27 @@ export function createReservationsModule(deps: ReservationsDeps) {
               and daterange(reservation.starts_on, reservation.ends_on, '[)')
                   && daterange(win.first_day, win.end_day, '[)')
             union all
+            -- One bar per stretch of a Stay in this Unit (AB-S3-06): a Guest
+            -- moved from here has their nights before the move drawn here,
+            -- ended as a departure is, and the rest on the Unit they are in.
+            -- A Stay never moved is one stretch, drawn exactly as before.
             select
               'stay',
               stay.reservation_id,
               stay.id,
-              stay.status::text,
+              (case when seg.is_last then stay.status else 'departed' end)::text,
               stay.stay_type::text,
               guest.full_name,
-              to_char(stay.starts_on, 'YYYY-MM-DD'),
-              to_char(stay.ends_on, 'YYYY-MM-DD'),
+              to_char(seg.starts_on, 'YYYY-MM-DD'),
+              to_char(seg.ends_on, 'YYYY-MM-DD'),
               to_char(upper(held.nights), 'YYYY-MM-DD'),
               -- Coalesced: with no end date the comparison is null, and a
               -- Stay with no end date is never overdue.
-              coalesce(stay.status = 'in_house' and stay.ends_on < win.today, false),
-              to_char(reservation.starts_on, 'YYYY-MM-DD'),
-              to_char(reservation.ends_on, 'YYYY-MM-DD'),
-              case when folio.id is null then null else coalesce(
+              coalesce(seg.is_last and stay.status = 'in_house'
+                       and stay.ends_on < win.today, false),
+              case when seg.is_last then to_char(reservation.starts_on, 'YYYY-MM-DD') end,
+              case when seg.is_last then to_char(reservation.ends_on, 'YYYY-MM-DD') end,
+              case when folio.id is null or not seg.is_last then null else coalesce(
                 (
                   select sum(line.amount_minor)
                   from public.folio_lines as line
@@ -2402,9 +2666,12 @@ export function createReservationsModule(deps: ReservationsDeps) {
                 ),
                 0
               )::int end,
-              folio.currency::text,
-              folio.status = 'closed'
+              case when seg.is_last then folio.currency::text end,
+              case when seg.is_last then folio.status = 'closed' end,
+              seg.is_last,
+              to_char(stay.starts_on, 'YYYY-MM-DD')
             from public.stays as stay
+            cross join lateral app.stay_unit_segments(stay.id) as seg
             -- Left, because a Stay that began without a Reservation has no
             -- Guest recorded anywhere; it is drawn without a name (RC-S1-22).
             left join public.reservations as reservation
@@ -2418,10 +2685,34 @@ export function createReservationsModule(deps: ReservationsDeps) {
             -- bookings against, so the calendar and the refusal agree.
             cross join lateral (
               select app.stay_holds(
-                stay.status, stay.starts_on, stay.ends_on, win.today
+                case when seg.is_last then stay.status else 'departed' end,
+                seg.starts_on, seg.ends_on, win.today
               ) as nights
             ) as held
-            where stay.accommodation_unit_id = unit.id
+            -- The Stays ever in this Unit: those in it now, and those moved
+            -- out of it, each found by its own index rather than one OR that
+            -- can use neither. Then only those whose nights can reach the
+            -- window, before any is cut into stretches: a departed Stay's
+            -- stretches all lie inside its own dates.
+            where stay.id in (
+                    -- Split by status so each half matches a partial index on
+                    -- stays; with no status the Unit alone matches none.
+                    select current.id from public.stays as current
+                     where current.accommodation_unit_id = unit.id
+                       and current.status = 'in_house'
+                    union all
+                    select departed.id from public.stays as departed
+                     where departed.accommodation_unit_id = unit.id
+                       and departed.status = 'departed'
+                       and departed.ends_on > win.first_day
+                    union
+                    select change.stay_id from public.reservation_changes as change
+                     where change.kind = 'moved'
+                       and change.from_unit_id = unit.id
+                  )
+              and stay.starts_on < win.end_day
+              and (stay.status = 'in_house' or stay.ends_on > win.first_day)
+              and seg.accommodation_unit_id = unit.id
               and stay.status in ('in_house', 'departed')
               -- The range itself, never one rebuilt from its bounds: a same-day
               -- check-out is the empty range [d,d), whose upper bound reads as
@@ -2463,8 +2754,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
     listDepartures,
     countDepartedToday,
     listReservations,
+    moveGuest,
     previewChange,
     previewDeparture,
+    previewMove,
     listRoomCalendar,
     checkIn,
     checkOut,
