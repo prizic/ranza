@@ -57,7 +57,8 @@ The next few slices, in the order decided by what each one unblocks:
    built; changing a booking's dates or Unit is not, so a booking on a blocked
    Unit is cancelled and taken again rather than moved. It decides what an
    amended booking is charged, which the rates feature leaves to it
-   (RT-DEF-03).
+   (RT-DEF-03). Designed, not built: [`features/amend-booking`](features/amend-booking),
+   waiting on the owner's answers.
 2. **Recording a payment.** Nothing takes one yet, so every priced check-out
    leaves its balance open with a reason (check-out PRE-01, RT-S3-16).
 

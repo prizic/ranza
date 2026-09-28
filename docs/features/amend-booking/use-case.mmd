@@ -1,0 +1,79 @@
+%% Slices decide implementation order and nothing else:
+%%   s1 change a booking that has not arrived: its dates, its Unit, or both
+%%   s2 change an in-house Guest's planned departure: extend, shorten, or set an end
+%%   s3 move an in-house Guest to another Unit
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% UML directions: include points base --> included. extend points extension --> base.
+%% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
+%%
+%% Blueprint 5.3 gives extensions and room moves to Reservations and Front
+%% Office; 18.6 asks for a conflict preview before dates or a Unit change. Every
+%% recommendation below is the author's, marked proposed in edge-cases.csv, and
+%% waits for the owner (docs/handover/amend-booking-decisions-2026-09-28.html).
+%%
+%% What this settles elsewhere: CI-DEF-01 (an early arrival is an arrival moved
+%% to today), CD-DEF-01 (Extend beside a Guest past departure), MT-DEF-07
+%% (moving a booking off a room out of order), RG-DEF-01 and RG-DEF-02, and
+%% RT-DEF-03 (what a changed booking costs).
+flowchart TD
+
+  DESK["Staff Member holding front_desk.amend<br/>with reach to the Property"]
+  READER["Staff Member reaching the Property<br/>without front_desk.amend"]
+
+  subgraph S1["slice 1 &mdash; change a booking that has not arrived"]
+    DATES(["Change its arrival, departure, or both"])
+    UNIT(["Put it on another Unit"])
+    PREVIEW(["See, before saving, whether the new nights<br/>and Unit are free, and what holds them if not"])
+    FREE(["Choose from the Units of the same kind<br/>free for those nights, listed first"])
+    PRICE1(["See what it will cost: the booked price,<br/>or today's price for a new kind of Unit"])
+    EARLY(["Bring an arrival forward to today,<br/>so the Guest can be checked in now"])
+  end
+
+  subgraph S2["slice 2 &mdash; an in-house Guest's planned departure"]
+    EXTEND(["Extend: they stay more nights"])
+    SHORTEN(["Shorten: they leave earlier than planned,<br/>but not today &mdash; today is a check-out"])
+    SETEND(["Give an open-ended Stay an end, or take it away"])
+    PRICE2(["Extra nights at the price the booking was taken at"])
+  end
+
+  subgraph S3["slice 3 &mdash; move an in-house Guest"]
+    MOVE(["Move them to another Unit, with a reason"])
+    READY(["The new Unit must be in service and ready"])
+    DIRTY(["The Unit they left becomes dirty"])
+    KEEP(["The Stay, its Folio and its price go with them"])
+  end
+
+  HISTORY(["Every change is a revision on the record:<br/>what it was, what it became, who and why"])
+
+  subgraph OUT["Not this feature"]
+    DRAG(["Drag a bar on the room calendar &mdash; deferred, RC-DEF-05"])
+    SPLIT(["Split a Stay across two Units, or a group &mdash; deferred"])
+    PROP(["Move a booking to another Property &mdash; deferred"])
+    GUEST(["Change who the Guest is &mdash; Guest 360, blueprint 18.7"])
+    UPGRADE(["Charge for an upgrade &mdash; a Folio charge, built"])
+  end
+
+  DESK --> DATES
+  DESK --> UNIT
+  DESK --> EXTEND
+  DESK --> SHORTEN
+  DESK --> SETEND
+  DESK --> MOVE
+  READER --> PREVIEW
+  DATES -. include .-> PREVIEW
+  UNIT -. include .-> PREVIEW
+  UNIT -. include .-> FREE
+  DATES -. include .-> PRICE1
+  UNIT -. include .-> PRICE1
+  EARLY -. extend .-> DATES
+  EXTEND -. include .-> PRICE2
+  EXTEND -. include .-> PREVIEW
+  MOVE -. include .-> READY
+  MOVE -. include .-> DIRTY
+  MOVE -. include .-> KEEP
+  MOVE -. include .-> PREVIEW
+  DATES -. include .-> HISTORY
+  UNIT -. include .-> HISTORY
+  EXTEND -. include .-> HISTORY
+  SHORTEN -. include .-> HISTORY
+  MOVE -. include .-> HISTORY

@@ -1,0 +1,45 @@
+%% Four parties and the worker: the Operator Workspace, @ranza/reservations,
+%% PostgreSQL, and apps/worker for the room a moved Guest leaves. The locks are
+%% the global order of ADR 0038 — Unit, then the Property's day, then the Stay —
+%% and a change that touches two Units takes both Unit locks in hashed order, so
+%% two moves between the same rooms cannot deadlock.
+%% OPEN (recommended in the decisions page): whether a move to another kind of
+%% Unit keeps the booked price (recommended) or is re-priced like a booking.
+sequenceDiagram
+  autonumber
+  actor SM as Staff Member
+  participant WS as Operator Workspace
+  participant RS as @ranza/reservations
+  participant PG as PostgreSQL
+  participant WK as apps/worker
+
+  rect rgb(240, 248, 246)
+  note over SM,PG: s1, change a booking that has not arrived
+  SM->>WS: Change booking: new dates and/or Unit
+  WS->>RS: previewChange(user, reservation, dates, Unit)
+  RS->>PG: what holds those nights on that Unit, the price it would carry
+  PG-->>RS: free, or the booking / Guest in house that holds them; the price
+  RS-->>WS: preview (never a promise: the constraint decides on save)
+  SM->>WS: Save, as previewed
+  WS->>RS: amendBooking(user, reservation, change, previewed price)
+  RS->>PG: lock 2 on old and new Unit (hashed order), lock 3 shared
+  RS->>PG: update reservation dates / Unit (granted to amend only)
+  PG->>PG: no-double-booking, one-occupancy, closed-day and sellability checks;<br/>price kept, or re-stamped for a new kind — compared with the preview
+  RS->>PG: append reservation_changes; audit reservation.amended
+  PG-->>RS: committed, or which rule refused it
+  end
+
+  rect rgb(246, 244, 240)
+  note over SM,PG: s2 and s3, an in-house Guest
+  SM->>WS: Extend / shorten, or Move with a reason
+  WS->>RS: changeDeparture(user, stay, departs, preview) or moveGuest(user, stay, Unit, reason)
+  RS->>PG: lock 2 (Units), lock 3 shared, lock 1 (Stay)
+  RS->>PG: update stay ends_on or Unit, and its Reservation's, in one transaction
+  PG->>PG: one-occupancy (ADR 0033), the new Unit in service and ready (a move),<br/>no night already spent is re-dated or re-roomed
+  RS->>PG: append reservation_changes; outbox stay.moved; audit stay.*
+  end
+
+  rect rgb(240, 244, 250)
+  note over WK,PG: the room a moved Guest left
+  WK->>PG: stay.moved -> mark the old Unit dirty (as stay.checked_out does)
+  end
