@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Card, Tabs, TabsContent, TabsList, TabsTrigger } from "@ranza/ui";
 import type { Role, StaffMember } from "@ranza/staff";
+import { membersAboveViewer, rolesWithinViewer } from "../acts-on";
 import { PermissionMatrix } from "./permission-matrix";
 import { RosterTable } from "./roster-table";
 
@@ -28,6 +29,7 @@ export function StaffScreen({
   permissions,
   roles,
   roster,
+  viewerUserId,
 }: {
   locale: string;
   /** Holds staff.administer: may change a role, revoke, or undo a revoke. */
@@ -38,6 +40,7 @@ export function StaffScreen({
   permissions: readonly string[];
   roles: readonly Role[];
   roster: readonly StaffMember[];
+  viewerUserId: string;
 }) {
   const t = useTranslations();
   const [tab, setTab] = useState("people");
@@ -64,8 +67,13 @@ export function StaffScreen({
           <RosterTable
             locale={locale}
             mayAdminister={mayAdminister}
+            membersAboveViewer={membersAboveViewer(roster, viewerUserId)}
             organizationId={organizationId}
-            roles={roles.filter((role) => role.status === "active")}
+            roles={rolesWithinViewer(
+              roles.filter((role) => role.status === "active"),
+              roster,
+              viewerUserId,
+            )}
             roster={roster}
           />
         </TabsContent>

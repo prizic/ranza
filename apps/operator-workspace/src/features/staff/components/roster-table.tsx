@@ -53,22 +53,28 @@ const NIL_SCOPE = "00000000-0000-0000-0000-000000000000";
  * where they work (SP-S1-06).
  *
  * A viewer without staff.administer reads the roster: the role is a word and
- * the row has no actions (#80).
+ * the row has no actions (#80). One who holds it reads the same on a row whose
+ * member is above them in role or reach, and the row says why (SP-S1-35).
  */
 export function RosterTable({
   locale,
   mayAdminister,
+  membersAboveViewer,
   organizationId,
   roles,
   roster,
 }: {
   locale: string;
   mayAdminister: boolean;
+  /** Membership ids the policies would refuse the viewer acting on. */
+  membersAboveViewer: readonly string[];
   organizationId: string;
+  /** Only the roles the viewer may hand out (SP-S1-34). */
   roles: readonly Role[];
   roster: readonly StaffMember[];
 }) {
   const t = useTranslations();
+  const above = new Set(membersAboveViewer);
 
   return (
     <div className="overflow-x-auto">
@@ -87,61 +93,72 @@ export function RosterTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {roster.map((member) => (
-            <TableRow data-testid="staff-row" key={member.membershipId}>
-              <TableCell>
-                <span className="flex items-center gap-3">
-                  <Avatar className="size-8">
-                    <AvatarFallback className="text-xs">
-                      {initials(member.email)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="flex flex-col">
-                    <span className="font-medium">{member.email}</span>
-                    {/* Awaiting a password only when a link is actually
+          {roster.map((member) => {
+            const actsOn = mayAdminister && !above.has(member.membershipId);
+            return (
+              <TableRow data-testid="staff-row" key={member.membershipId}>
+                <TableCell>
+                  <span className="flex items-center gap-3">
+                    <Avatar className="size-8">
+                      <AvatarFallback className="text-xs">
+                        {initials(member.email)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="flex flex-col">
+                      <span className="font-medium">{member.email}</span>
+                      {/* Awaiting a password only when a link is actually
                         outstanding. Whoever created the Organization arrived
                         through sign-up and has no invitation at all, so reading
                         `acceptedAt` here told them they were waiting on a
                         password they had already set. */}
-                    {member.invitation === "pending" ? (
-                      <span className="text-xs text-muted-foreground">
-                        {t("staff.invitationSent")}
-                      </span>
-                    ) : null}
+                      {member.invitation === "pending" ? (
+                        <span className="text-xs text-muted-foreground">
+                          {t("staff.invitationSent")}
+                        </span>
+                      ) : null}
+                    </span>
                   </span>
-                </span>
-              </TableCell>
-              <TableCell>
-                {mayAdminister ? (
-                  <RolePicker
-                    locale={locale}
-                    member={member}
-                    organizationId={organizationId}
-                    roles={roles}
-                  />
-                ) : (
-                  roleNameOf(member, t)
-                )}
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                {member.properties.length === 0
-                  ? t("staff.reachesNothing")
-                  : member.properties.map((p) => p.propertyName).join(", ")}
-              </TableCell>
-              <TableCell>
-                <StatusBadge {...statusOf(member, t)} />
-              </TableCell>
-              {mayAdminister ? (
-                <TableCell className="text-end">
-                  <MembershipActions
-                    locale={locale}
-                    member={member}
-                    organizationId={organizationId}
-                  />
                 </TableCell>
-              ) : null}
-            </TableRow>
-          ))}
+                <TableCell>
+                  {actsOn ? (
+                    <RolePicker
+                      locale={locale}
+                      member={member}
+                      organizationId={organizationId}
+                      roles={roles}
+                    />
+                  ) : (
+                    roleNameOf(member, t)
+                  )}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {member.accessScope === "organization_wide"
+                    ? t("staff.reachesEverywhere")
+                    : member.properties.length === 0
+                      ? t("staff.reachesNothing")
+                      : member.properties.map((p) => p.propertyName).join(", ")}
+                </TableCell>
+                <TableCell>
+                  <StatusBadge {...statusOf(member, t)} />
+                </TableCell>
+                {mayAdminister ? (
+                  <TableCell className="text-end">
+                    {actsOn ? (
+                      <MembershipActions
+                        locale={locale}
+                        member={member}
+                        organizationId={organizationId}
+                      />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        {t("staff.aboveYou")}
+                      </span>
+                    )}
+                  </TableCell>
+                ) : null}
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>
@@ -207,9 +224,10 @@ function initials(email: string): string {
 /**
  * The role, as a control, for a viewer who holds staff.administer.
  *
- * Whether this particular change is allowed is still the policies' answer: a
- * role above the viewer's own, or a member whose role exceeds it, comes back
- * refused and the picker says so.
+ * It offers only the roles the viewer may hand out and is drawn only for a
+ * member within their role and reach (SP-S1-35), but whether a change is
+ * allowed is still the policies' answer: one that comes back refused — the
+ * roster was stale, or a commercial gate closed — the picker says so.
  */
 function RolePicker({
   locale,

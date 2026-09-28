@@ -491,6 +491,8 @@ export function createStaffModule(deps: StaffDeps) {
           role_id: string;
           role_scope_id: string;
           role_name: string;
+          role_permissions: string[];
+          access_scope: string;
           status: string;
           accepted_at: Date | null;
           invitation: string | null;
@@ -503,6 +505,8 @@ export function createStaffModule(deps: StaffDeps) {
                 membership.role          as role_id,
                 membership.role_scope_id as role_scope_id,
                 role.name                as role_name,
+                role.permissions         as role_permissions,
+                membership.access_scope  as access_scope,
                 membership.status        as status,
                 membership.accepted_at   as accepted_at,
                 (
@@ -546,6 +550,11 @@ export function createStaffModule(deps: StaffDeps) {
         roleId: row.role_id,
         roleScopeId: row.role_scope_id,
         roleName: row.role_name,
+        rolePermissions: row.role_permissions,
+        accessScope:
+          row.access_scope === "organization_wide"
+            ? "organization_wide"
+            : "assigned_properties",
         status: row.status === "revoked" ? "revoked" : "active",
         invitation: (row.invitation as StaffMember["invitation"]) ?? null,
         acceptedAt: row.accepted_at ? row.accepted_at.toISOString() : null,

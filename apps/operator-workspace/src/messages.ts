@@ -240,12 +240,15 @@ export interface Messages {
     properties: string;
     status: string;
     actions: string;
+    aboveYou: string;
     active: string;
     awaitingPassword: string;
     revoked: string;
     revoke: string;
     undoRevoke: string;
     reachesNothing: string;
+    /** An organization-wide member reaches every Property, whatever is assigned. */
+    reachesEverywhere: string;
     alreadyAMember: string;
     refused: string;
     lastAdministrator: string;
@@ -1413,12 +1416,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       properties: "Tesisler",
       status: "Durum",
       actions: "İşlemler",
+      aboveYou: "Rolü ya da erişimi sizinkinden geniş.",
       active: "Aktif",
       awaitingPassword: "Parola bekleniyor",
       revoked: "Kaldırıldı",
       revoke: "Kaldır",
       undoRevoke: "Geri al",
       reachesNothing: "Henüz bir tesis atanmadı",
+      reachesEverywhere: "Tüm tesisler",
       alreadyAMember: "Bu kişinin bu organizasyonda zaten bir üyeliği var.",
       refused: "Bu işlem reddedildi.",
       lastAdministrator:
@@ -2657,12 +2662,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       properties: "Properties",
       status: "Status",
       actions: "Actions",
+      aboveYou: "Their role or reach is above yours.",
       active: "Active",
       awaitingPassword: "Awaiting a password",
       revoked: "Revoked",
       revoke: "Revoke",
       undoRevoke: "Undo",
       reachesNothing: "No Property yet",
+      reachesEverywhere: "Every Property",
       alreadyAMember:
         "That person already has a membership in this Organization.",
       refused: "That was refused.",
@@ -3903,12 +3910,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       properties: "المنشآت",
       status: "الحالة",
       actions: "الإجراءات",
+      aboveYou: "دور هذا الشخص أو نطاق وصوله أوسع من صلاحياتك.",
       active: "نشط",
       awaitingPassword: "بانتظار كلمة المرور",
       revoked: "مُلغى",
       revoke: "إلغاء العضوية",
       undoRevoke: "تراجع",
       reachesNothing: "لا منشأة بعد",
+      reachesEverywhere: "كل المنشآت",
       alreadyAMember: "لهذا الشخص عضوية في هذه المؤسسة بالفعل.",
       refused: "رُفض هذا الإجراء.",
       lastAdministrator: "يجب أن يبقى في المؤسسة من يستطيع إدارة الفريق.",

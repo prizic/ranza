@@ -1063,6 +1063,32 @@ describe("the roster", () => {
     const member = roster.find((row) => row.email === email);
     expect(member?.properties).toEqual([]);
   });
+
+  // What the screen reads to stop offering what the policies would refuse
+  // (SP-S1-35): each member's role as permissions, and their reach.
+  it("carries each member's role permissions and reach", async () => {
+    const email = anAddress();
+    await staff.invite(
+      { userId: OWNER },
+      { organizationId: ORG, email, roleKey: "front_desk" },
+    );
+    const [frontDesk] = await owner.$queryRawUnsafe<
+      { permissions: string[] }[]
+    >(
+      `select permissions from public.staff_roles
+        where scope_id = '00000000-0000-0000-0000-000000000000'
+          and key = 'front_desk'`,
+    );
+
+    const roster = await staff.readRoster({ userId: OWNER }, ORG);
+    const invited = roster.find((row) => row.email === email);
+    expect(invited?.rolePermissions).toEqual(frontDesk?.permissions);
+    expect(invited?.rolePermissions.length).toBeGreaterThan(0);
+    expect(invited?.accessScope).toBe("assigned_properties");
+    expect(roster.find((row) => row.userId === OWNER)?.accessScope).toBe(
+      "organization_wide",
+    );
+  });
 });
 
 describe("an Organization's own roles", () => {

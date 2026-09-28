@@ -333,3 +333,39 @@ test("an Owner is offered Invite and Define a role", async ({ page }) => {
     page.getByText("You can see the team. An Owner or Manager can change it."),
   ).toHaveCount(0);
 });
+
+/**
+ * A row whose member is above the viewer offers nothing (SP-S1-35).
+ *
+ * The seeded Manager holds every permission the Owner does and reaches
+ * assigned Properties; the Owner reaches the whole Organization. The policies
+ * refuse the Manager acting on the Owner's row, so it shows the role and no
+ * control — while a Front desk colleague within the Manager's own keeps both.
+ *
+ * Watched go red first: with the screen passing no members above the viewer,
+ * the Owner's row carried an enabled role picker, as it did on staging.
+ */
+test("a Manager is offered nothing on the organization-wide Owner's row, and keeps a peer's controls", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const colleague = aColleague(propertyId);
+
+  await signIn(page);
+  await page.goto(`/en/people?property=${propertyId}`);
+
+  const owner = page.getByRole("row").filter({ hasText: OWNER_EMAIL });
+  await expect(owner).toBeVisible();
+  await expect(owner.getByRole("combobox")).toHaveCount(0);
+  await expect(owner.getByRole("button")).toHaveCount(0);
+  await expect(owner).toContainText("Owner");
+  await expect(owner).toContainText("Their role or reach is above yours.");
+
+  const peer = page.getByRole("row").filter({ hasText: colleague });
+  await expect(
+    peer.getByRole("combobox", { name: `Role: ${colleague}` }),
+  ).toBeEnabled();
+  await expect(
+    peer.getByRole("button", { name: `Actions: ${colleague}` }),
+  ).toBeVisible();
+});
