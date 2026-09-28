@@ -53,6 +53,7 @@ interface SummaryRow {
   unitName: string;
   balanceMinor: string;
   lineCount: number;
+  stayInHouse: boolean;
 }
 
 interface LineRow {
@@ -108,7 +109,8 @@ function folioQuery(predicate: string, order = ""): string {
       coalesce(guest.full_name, '')         as "guestName",
       unit.name                             as "unitName",
       coalesce(sum(line.amount_minor), 0)::text as "balanceMinor",
-      count(line.id)::int                   as "lineCount"
+      count(line.id)::int                   as "lineCount",
+      stay.status = 'in_house'              as "stayInHouse"
     from public.folios as folio
     join public.stays as stay
       on stay.id = folio.stay_id

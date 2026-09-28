@@ -168,8 +168,14 @@ select 'fa111111-1111-4111-8111-111111111111',
   from generate_series(1, 8) as n
  where n not in (3, 4);
 
+-- A Folio closed under a Guest in house is refused since
+-- 20260916008300 (FO-S5-01), for every role; one closed before it is the case
+-- `folio_closed` still names. It is written here the only way it can be now:
+-- with triggers suspended for this one statement, as data from before.
+set local session_replication_role = replica;
 update public.folios set status = 'closed', closed_at = now()
  where stay_id = 'ff000006-0000-4000-8000-000000000001';
+set local session_replication_role = origin;
 
 -- ---------------------------------------------------------------------------
 -- What a night is

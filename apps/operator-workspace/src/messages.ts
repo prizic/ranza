@@ -376,6 +376,8 @@ export interface Messages {
   closing: string;
   closeRefused: string;
   folioClosedNote: string;
+  /** Why an open Folio offers no Close while its Guest is in house (FO-S5-01). */
+  folioInHouseNote: string;
 
   rooms: string;
   roomsAt: string;
@@ -1607,6 +1609,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     closeFolio: "Folyoyu kapat",
     closing: "Kapatılıyor…",
     closeRefused: "Bu folyo kapatılamadı.",
+    folioInHouseNote:
+      "Misafir hâlâ konaklıyor, bu yüzden folyo açık kalır: kalan geceleri buraya ücretlendirilir. Çıkıştan sonra kapatılabilir.",
     folioClosedNote:
       "Bu folyo kapalı. Satırlar olduğu gibi kalır; kapalı bir folyoya yeni satır işlenemez.",
 
@@ -2901,6 +2905,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     closeFolio: "Close folio",
     closing: "Closing…",
     closeRefused: "That folio could not be closed.",
+    folioInHouseNote:
+      "The Guest is still in house, so the Folio stays open: their remaining nights are charged to it. It can be closed after check-out.",
     folioClosedNote:
       "This folio is closed. Its lines stay exactly as they are, and nothing further can be posted to it.",
 
@@ -4190,6 +4196,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     closeFolio: "إغلاق الحساب",
     closing: "جارٍ الإغلاق…",
     closeRefused: "تعذّر إغلاق هذا الحساب.",
+    folioInHouseNote:
+      "الضيف ما زال في المنشأة، لذا يبقى الحساب مفتوحًا: تُحتسب عليه لياليه المتبقية. يمكن إغلاقه بعد المغادرة.",
     folioClosedNote:
       "هذا الحساب مغلق. تبقى بنوده كما هي، ولا يمكن قيد أي شيء جديد عليه.",
 

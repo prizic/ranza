@@ -34,6 +34,7 @@ const FOLIO: FolioDetail = {
   unitName: "101",
   balanceMinor: 25000,
   lineCount: 4,
+  stayInHouse: true,
   lines: [
     {
       lineId: "d9000007-0000-4000-8000-000000000013",
@@ -104,4 +105,26 @@ describe("a room night on a Folio", () => {
       expect(screen.getAllByText(new RegExp(`^${word} · `))).toHaveLength(3);
     });
   }
+});
+
+describe("closing a Folio (FO-S5-01)", () => {
+  it("a Folio whose Guest is in house offers no close, and says why", () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <FolioPanel folio={FOLIO} locale="en" />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.queryByRole("button", { name: "Close folio" })).toBeNull();
+    expect(screen.getByText(/The Guest is still in house/)).toBeTruthy();
+  });
+
+  it("after check-out it can be closed", () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <FolioPanel folio={{ ...FOLIO, stayInHouse: false }} locale="en" />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByRole("button", { name: "Close folio" })).toBeTruthy();
+    expect(screen.queryByText(/The Guest is still in house/)).toBeNull();
+  });
 });

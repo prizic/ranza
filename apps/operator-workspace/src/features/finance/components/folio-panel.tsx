@@ -302,7 +302,15 @@ export function FolioPanel({
             locale={locale}
           />
           <Separator className="my-6" />
-          <CloseAction folioId={folio.folioId} locale={locale} />
+          {folio.stayInHouse ? (
+            // Not a disabled button: nothing the reader can do here closes
+            // it, and the reason is the useful part (FO-S5-01).
+            <p className="text-step--1 text-muted-foreground">
+              {t("folioInHouseNote")}
+            </p>
+          ) : (
+            <CloseAction folioId={folio.folioId} locale={locale} />
+          )}
         </>
       ) : (
         // A closed Folio offers nothing. Reopening is a blueprint 5.9 workflow

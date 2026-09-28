@@ -229,6 +229,30 @@ async function itemNamed(equipmentId: string) {
   return register.items.find((entry) => entry.equipmentId === equipmentId);
 }
 
+/**
+ * The Guest leaves — Stay departed, booking checked out, in one transaction so
+ * the two agree at commit. A Folio stays open while its Guest is in house
+ * (FO-S5-01, ADR 0038), so a test that closes one sends its Guest home first.
+ */
+async function hasLeft(folioId: string): Promise<void> {
+  await owner.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(
+      `update public.reservations set status = 'checked_out'
+        where id = (select stay.reservation_id from public.stays as stay
+                      join public.folios as folio on folio.stay_id = stay.id
+                     where folio.id = $1::uuid)
+          and status = 'checked_in'`,
+      folioId,
+    );
+    await tx.$executeRawUnsafe(
+      `update public.stays set status = 'departed',
+              ends_on = app.property_today(property_id)
+        where id = (select stay_id from public.folios where id = $1::uuid)`,
+      folioId,
+    );
+  });
+}
+
 beforeAll(async () => {
   const [clock] = await owner.$queryRawUnsafe<{ now: Date; today: string }[]>(
     `select now() as now,
@@ -756,7 +780,8 @@ describe("money", { timeout: DATABASE_BUDGET_MS }, () => {
     ).rejects.toBeInstanceOf(MaintenanceRefusedError);
 
     // Closed the way a Folio is closed: through its module, by somebody who
-    // may manage Folios.
+    // may manage Folios, once its Guest has left.
+    await hasLeft(folioId);
     await folios.closeFolio(MANAGER, folioId);
     await expect(
       maintenance.chargeGuest(MANAGER, {

@@ -240,6 +240,30 @@ async function folioAt(unitId: string, guestName: string): Promise<string> {
   return folioId!;
 }
 
+/**
+ * The Guest leaves — Stay departed, booking checked out, in one transaction so
+ * the two agree at commit. A Folio stays open while its Guest is in house
+ * (FO-S5-01, ADR 0038), so a test that closes one sends its Guest home first.
+ */
+async function hasLeft(folioId: string): Promise<void> {
+  await owner.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(
+      `update public.reservations set status = 'checked_out'
+        where id = (select stay.reservation_id from public.stays as stay
+                      join public.folios as folio on folio.stay_id = stay.id
+                     where folio.id = $1::uuid)
+          and status = 'checked_in'`,
+      folioId,
+    );
+    await tx.$executeRawUnsafe(
+      `update public.stays set status = 'departed',
+              ends_on = app.property_today(property_id)
+        where id = (select stay_id from public.folios where id = $1::uuid)`,
+      folioId,
+    );
+  });
+}
+
 beforeAll(async () => {
   await seed();
 });
@@ -556,6 +580,7 @@ describe("closing a Folio", () => {
       amountMinor: 400000,
     });
 
+    await hasLeft(folioId);
     await folios.closeFolio(MEMBER, folioId);
 
     const detail = await folios.folioDetail(MEMBER, folioId);
@@ -582,6 +607,7 @@ describe("closing a Folio", () => {
 
   it("refuses a second closure rather than reporting success", async () => {
     const folioId = await folioAt(UNITS[8]!, "Aziz Sancar");
+    await hasLeft(folioId);
     await folios.closeFolio(MEMBER, folioId);
 
     await expect(folios.closeFolio(MEMBER, folioId)).rejects.toBeInstanceOf(
@@ -605,6 +631,7 @@ describe("closing a Folio", () => {
       await aBilledUnit(),
       "Sabahattin Ali",
     );
+    await hasLeft(folioId!);
     let releaseCharge!: () => void;
     const chargeHeld = new Promise<void>((resolve) => {
       releaseCharge = resolve;

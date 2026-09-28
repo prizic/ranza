@@ -103,6 +103,11 @@ export interface FolioSummary {
   unitName: string;
   balanceMinor: number;
   lineCount: number;
+  /**
+   * The Guest is still in house, so the Folio cannot be closed by anybody: its
+   * nights are still being charged to it (FO-S5-01, ADR 0038).
+   */
+  stayInHouse: boolean;
 }
 
 /** One Folio and everything posted to it, newest first. */
