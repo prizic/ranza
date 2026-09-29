@@ -87,6 +87,9 @@ select ok(
 -- Any privilege at all, table- or column-level, on any relation outside
 -- public.users, public.auth_identities and Better Auth's own auth_* tables is a
 -- read of Organization data from the connection that holds password hashes.
+-- A grant to PUBLIC is one to ranza_auth too, so it is swept in Ranza's own
+-- schemas as well — relations an extension owns aside: pgTAP's views grant
+-- SELECT to PUBLIC, and they are not Ranza's to hold to this.
 select is_empty(
   $$select n.nspname || '.' || c.relname || ' ' || a.privilege_type
       from pg_class as c
@@ -94,7 +97,12 @@ select is_empty(
       cross join lateral aclexplode(c.relacl) as a
      where n.nspname not in ('pg_catalog', 'information_schema')
        and n.nspname !~ '^pg_'
-       and a.grantee = 'ranza_auth'::regrole
+       and (a.grantee = 'ranza_auth'::regrole
+            or (a.grantee = 0 and n.nspname in ('public', 'outbox', 'audit')
+                and not exists (
+                  select 1 from pg_depend as d
+                   where d.classid = 'pg_class'::regclass
+                     and d.objid = c.oid and d.deptype = 'e')))
        and not (n.nspname = 'public'
                 and (c.relname in ('users', 'auth_identities') or c.relname like 'auth\_%'))
     union all
@@ -105,10 +113,15 @@ select is_empty(
       cross join lateral aclexplode(att.attacl) as a
      where n.nspname not in ('pg_catalog', 'information_schema')
        and n.nspname !~ '^pg_'
-       and a.grantee = 'ranza_auth'::regrole
+       and (a.grantee = 'ranza_auth'::regrole
+            or (a.grantee = 0 and n.nspname in ('public', 'outbox', 'audit')
+                and not exists (
+                  select 1 from pg_depend as d
+                   where d.classid = 'pg_class'::regclass
+                     and d.objid = c.oid and d.deptype = 'e')))
        and not (n.nspname = 'public'
                 and (c.relname in ('users', 'auth_identities') or c.relname like 'auth\_%'))$$,
-  'ranza_auth holds no privilege on any relation but users, auth_identities and Better Auth''s tables');
+  'ranza_auth holds no privilege on any relation but users, auth_identities and Better Auth''s tables, nor does PUBLIC');
 
 -- Proof the grantee filter matches something: sign-in works because ranza_auth
 -- does hold privileges, on exactly the tables the sweep excludes.

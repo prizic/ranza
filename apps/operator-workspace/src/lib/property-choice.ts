@@ -70,6 +70,20 @@ export function workingProperty<
   );
 }
 
+/**
+ * The Organization the shell names: that of the Property `?property=` names,
+ * when it is one the viewer can switch to, and otherwise `fallback` — the
+ * working Property's. A Staff Member of two Organizations who is working in
+ * the second one's Property must not see the first one's name above it.
+ */
+export function organizationFor(
+  requested: string | null | undefined,
+  organizations: Readonly<Record<string, string>>,
+  fallback: string | undefined,
+): string | undefined {
+  return (requested ? organizations[requested] : undefined) ?? fallback;
+}
+
 /** A Property the switcher offers, and the destinations open to the viewer there. */
 export interface SwitchableProperty {
   propertyId: string;

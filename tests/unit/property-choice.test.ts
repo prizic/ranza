@@ -8,6 +8,7 @@
 import { describe, expect, it } from "vitest";
 import {
   chooseProperty,
+  organizationFor,
   switchableProperties,
   switchTarget,
   workingProperty,
@@ -134,5 +135,24 @@ describe("workingProperty", () => {
 
   it("names nothing for a viewer who can use nothing", () => {
     expect(workingProperty([], [], "m")).toBeUndefined();
+  });
+});
+
+describe("organizationFor", () => {
+  const organizations = { k: "Deniz Otelleri", m: "Ada Otelleri" };
+
+  it("names the Organization of the Property the URL names", () => {
+    expect(organizationFor("m", organizations, "Deniz Otelleri")).toBe(
+      "Ada Otelleri",
+    );
+  });
+
+  it("names the working Property's when the URL names none, or one it does not list", () => {
+    expect(organizationFor(null, organizations, "Deniz Otelleri")).toBe(
+      "Deniz Otelleri",
+    );
+    expect(organizationFor("gone", organizations, "Deniz Otelleri")).toBe(
+      "Deniz Otelleri",
+    );
   });
 });

@@ -225,6 +225,12 @@ export default async function WorkspaceLayout({
           }}
           locale={locale}
           {...(first ? { organization: first.organizationName } : {})}
+          organizations={Object.fromEntries(
+            switchable.map((property) => [
+              property.propertyId,
+              property.organizationName,
+            ]),
+          )}
           root={root}
         />
       }

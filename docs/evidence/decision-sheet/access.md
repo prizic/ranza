@@ -220,3 +220,15 @@ second `test:integration` run the worker's closer closed days at them and the
 other suites' clean-up failed on the closes (23503) — on `decisions/sheet` too,
 before this lane. With its own ids and a clean-up of its Organization, the full
 suite is green twice in a row on one database.
+
+## The grill's two questions
+
+| question                                                                  | sabotage                                        | printed                                                     | red                                                                                                                                                     |
+| ------------------------------------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| the ranza_auth sweep ignored PUBLIC                                       | `grant select on public.reservations to public` | `relacl: {ranza=arwdDxtm/ranza,ranza_app=r/ranza,=r/ranza}` | 4 `ranza_auth holds no privilege on any relation but users, auth_identities and Better Auth's tables, nor does PUBLIC`                                  |
+| the rail named the default Property's Organization whatever the URL named | `organizationFor` returns its fallback          | `84: return fallback;`                                      | `workspace-rail.test.tsx`: `is the one whose Property the URL names`; `property-choice.test.ts`: `names the Organization of the Property the URL names` |
+
+Widening the ranza_auth sweep to PUBLIC first went red unsabotaged on pgTAP's
+own `tap_funky` and `pg_all_foreign_keys` views, which the extension grants to
+PUBLIC; relations an extension owns (`pg_depend` deptype `e`) are excluded. The
+two earlier ranza_auth sabotages still go red on 4.
