@@ -185,3 +185,12 @@ The last one is the reason `workingProperty` exists. Resolved against the union,
 a Staff Member who last chose a Property where Today is off would sign in to a
 bare Today showing another Property's day under a switcher naming the remembered
 one — HK-S1-24 on the landing page.
+
+## OA-S2-15 — where a second factor is set up
+
+`tests/unit/security-placement.test.ts`, 3 tests, all green unsabotaged.
+
+| sabotage                                                  | printed                                                  | red                                         |
+| --------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------- |
+| the account menu's item links to Today instead            | `144: href={localizeHref(locale, "today")}`              | `security is reached from the account menu` |
+| a rail destination named `security` is added to `SCREENS` | `82: { segment: "security", capability: "security", … }` | `and is not a rail destination`             |
