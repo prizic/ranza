@@ -18,6 +18,7 @@ const PAID = "b111ab1e-0000-4000-8000-000000000002";
 const OWNER = "b111ab1e-0000-4000-8000-000000000011";
 const MANAGER = "b111ab1e-0000-4000-8000-000000000012";
 const STRANGER = "b111ab1e-0000-4000-8000-000000000013";
+const AUTHORED_OWNER = "b111ab1e-0000-4000-8000-000000000014";
 
 const prisma = createPrismaClient(process.env.DATABASE_URL!);
 const core = createCoreModule({ db: prisma });
@@ -37,11 +38,13 @@ beforeAll(async () => {
     `insert into public.users (id, email) values
        ($1,'billing-owner@example.test'),
        ($2,'billing-manager@example.test'),
-       ($3,'billing-stranger@example.test')
+       ($3,'billing-stranger@example.test'),
+       ($4,'billing-authored-owner@example.test')
      on conflict (id) do nothing`,
     OWNER,
     MANAGER,
     STRANGER,
+    AUTHORED_OWNER,
   );
   await owner.$executeRawUnsafe(
     `insert into public.organizations (id, name, status) values
@@ -62,6 +65,23 @@ beforeAll(async () => {
     PAID,
     OWNER,
     MANAGER,
+  );
+  // A role the Organization authored and called Owner: its key is `owner` too,
+  // but in the Organization's own scope rather than the shipped one.
+  await owner.$executeRawUnsafe(
+    `insert into public.staff_roles
+       (scope_id, key, organization_id, name, permissions)
+     values ($1::uuid, 'owner', $1::uuid, 'Owner', array[]::text[])
+     on conflict do nothing`,
+    OVERDUE,
+  );
+  await owner.$executeRawUnsafe(
+    `insert into public.organization_memberships
+       (organization_id, user_id, role, role_scope_id, access_scope)
+     values ($1, $2, 'owner', $1::uuid, 'organization_wide')
+     on conflict do nothing`,
+    OVERDUE,
+    AUTHORED_OWNER,
   );
 });
 
@@ -84,6 +104,12 @@ describe("the billing notice", () => {
     await subscription(OVERDUE, "past_due");
 
     expect(await core.billingNotices(MANAGER)).toEqual([]);
+  });
+
+  it("is not shown to a role the Organization authored and called Owner", async () => {
+    await subscription(OVERDUE, "past_due");
+
+    expect(await core.billingNotices(AUTHORED_OWNER)).toEqual([]);
   });
 
   it("is not shown to somebody outside it", async () => {

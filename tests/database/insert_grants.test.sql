@@ -18,7 +18,7 @@
 -- `grant insert (every, column) on t` are byte-identical in it. That is how
 -- this defect survived six migrations and every audit run against the schema.
 begin;
-select plan(37);
+select plan(39);
 
 -- ---------------------------------------------------------------------------
 -- The shape of every write grant (IG-01)
@@ -38,16 +38,19 @@ select plan(37);
 -- named ranza_app only, which left the worker's table-level insert on
 -- outbox.deliveries in place until 20260916009720.
 select is_empty(
-  $$select a.grantee::regrole || ' ' || n.nspname || '.' || c.relname || ' ' || a.privilege_type
+  $$select a.grantee::regrole::text || ' ' || n.nspname || '.' || c.relname || ' ' || a.privilege_type
       from pg_class as c
       join pg_namespace as n on n.oid = c.relnamespace
       cross join lateral aclexplode(c.relacl) as a
      where c.relkind in ('r', 'p', 'v', 'm', 'f')
        and n.nspname not in ('pg_catalog', 'information_schema')
        and n.nspname !~ '^pg_'
-       and a.grantee in ('ranza_app'::regrole, 'ranza_worker'::regrole)
+       and (a.grantee in ('ranza_app'::regrole, 'ranza_worker'::regrole)
+            -- PUBLIC is every role, ranza_app among them. Ranza's own schemas
+            -- only: a managed database's extensions are not ours to hold to it.
+            or (a.grantee = 0 and n.nspname in ('public', 'outbox', 'audit')))
        and a.privilege_type in ('INSERT', 'UPDATE', 'DELETE')$$,
-  'ranza_app and ranza_worker hold no table-level write grant in any schema: a write names its columns');
+  'ranza_app holds no table-level write grant in any schema, nor does ranza_worker or PUBLIC: a write names its columns');
 
 -- ranza_auth is the credential role and the same rule reaches the two tables
 -- that are ours rather than Better Auth's. auth_* is deliberately excluded and
@@ -420,8 +423,13 @@ select is_empty(
      where n.nspname not in ('pg_catalog', 'information_schema')
        and n.nspname !~ '^pg_'
        and (n.nspname = 'app' or p.prosrc ~ 'capability_is_available')
-       and p.prosrc ~ '''[^''\n]*--'$$,
-  'no function body holds "--" inside a string, so stripping comments hides no code');
+       and (p.prosrc ~ '''[^''\n]*--'
+            -- A block comment is not stripped, so none may exist; nor a
+            -- dollar-quoted string nested in a body, which the quote test
+            -- above cannot see into.
+            or p.prosrc ~ '/\*'
+            or p.prosrc ~ '\$[A-Za-z_]*\$')$$,
+  'no function body holds "--" inside a string, a block comment, or a nested dollar quote, so stripping comments hides no code');
 
 select is_empty(
   $$select p.proname::text
@@ -617,6 +625,29 @@ select set_eq(
         'app.properties_due_for_close', 'app.close_business_day_automatically',
         'app.room_nights_due'],
   'app.capability_is_available() is called by exactly the functions that mean gates 1-3');
+
+-- A policy is where app.can_use_capability() is consulted, so a policy is the
+-- likeliest place for the three-gate one to be called by mistake; a view is
+-- the other place a query can hide. Both hold deparsed text, with no comments.
+select is_empty(
+  $$select 'policy ' || schemaname || '.' || tablename || ' ' || policyname
+      from pg_policies
+     where coalesce(qual, '') || ' ' || coalesce(with_check, '')
+           ~ 'capability_is_available\s*\('
+    union all
+    select 'view ' || schemaname || '.' || viewname
+      from pg_views
+     where schemaname not in ('pg_catalog', 'information_schema')
+       and definition ~ 'capability_is_available\s*\('$$,
+  'and no policy or view calls it');
+
+-- Proof the policy sweep reads text that names gates: dozens of policies ask
+-- app.can_use_capability(), in the same deparsed form.
+select ok(
+  (select count(*) from pg_policies
+    where coalesce(qual, '') || ' ' || coalesce(with_check, '')
+          ~ 'can_use_capability\s*\(') > 0,
+  'and the policy sweep would see a gate named in a policy');
 
 select finish();
 rollback;

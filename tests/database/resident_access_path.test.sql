@@ -97,7 +97,9 @@ insert into public.stays
    'a1111111-1111-4111-8111-111111111111',
    'c4444444-4444-4444-8444-444444444444',
    null,
-   'guest', 'in_house', current_date - 1, current_date + 3);
+   'guest', 'in_house',
+   app.property_today('a1111111-1111-4111-8111-111111111111') - 1,
+   app.property_today('a1111111-1111-4111-8111-111111111111') + 3);
 
 set local role ranza_app;
 
