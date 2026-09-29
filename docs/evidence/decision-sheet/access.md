@@ -165,3 +165,23 @@ enrolment included, which says nothing about the second application; the one
 above is the one that isolates it. The row is true by construction — both hosts
 call the same module over the same tables — so a sabotage can only remove the
 challenge from one of them.
+
+## OA-S3-05, OA-S3-07 — the remembered Property and what the switcher lists
+
+`tests/unit/property-choice.test.ts` (16), `tests/unit/front-desk-property.test.ts`
+(9) and `tests/unit/property-switcher.test.tsx` (12), all green unsabotaged.
+These are interface rows; the parent's browser run (G4) exercises the shell.
+
+| sabotage                                                               | printed                                                         | red                                                                                                                                                                        |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `chooseProperty` ignores the remembered Property                       | `44: properties.find(() => false) ??`                           | `opens on the Property remembered on this device when the URL names none` (resolver and pure)                                                                              |
+| the remembered Property wins over `?property=`                         | `40: if (requested && !remembered) {`                           | `lets ?property= win over the remembered one`; `lets ?property= win over the remembered choice`; `shows nothing for a ?property= it does not list, whatever is remembered` |
+| switching always leaves the page                                       | `105: if (false && current) return current;`                    | `keeps the page being viewed when it is open at the chosen Property` (pure and switcher)                                                                                   |
+| the switcher does not write the cookie                                 | `127: onClick={() => void rememberProperty}`                    | `remembers the choice on this device`                                                                                                                                      |
+| the switcher lists only the first destination's (Today's) Properties   | `75: for (const destination of destinations.slice(0, 1)) {`     | `lists the union of every destination's Properties, each once, with what is open there`                                                                                    |
+| the shell's default resolves against the union, not Today's list first | `67: return chooseProperty(switchable, undefined, remembered);` | `names Today's first, as a bare Today does, when Today is off at the remembered one`                                                                                       |
+
+The last one is the reason `workingProperty` exists. Resolved against the union,
+a Staff Member who last chose a Property where Today is off would sign in to a
+bare Today showing another Property's day under a switcher naming the remembered
+one — HK-S1-24 on the landing page.

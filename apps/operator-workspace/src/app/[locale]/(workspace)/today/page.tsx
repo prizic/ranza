@@ -11,6 +11,7 @@ import {
 import { TodayDashboard } from "../../../../features/today/components/today-dashboard";
 import type { Greeting } from "../../../../features/today/components/today-header";
 import { todayKeys } from "../../../../features/today/query-keys";
+import { frontDeskProperty } from "../../../../server/front-desk";
 import { Hydrated, requestQueryClient } from "../../../providers/hydrate";
 
 /** The greeting for an hour of the Property's own day. */
@@ -48,7 +49,6 @@ export default async function TodayPage({
 
   const t = await getTranslations();
   const properties = await entitledProperties(TODAY_CAPABILITY);
-  const [fallback] = properties;
 
   const noProperty = (
     <EmptyState
@@ -56,16 +56,14 @@ export default async function TodayPage({
       title={t("noPropertyTitle")}
     />
   );
-  if (!fallback) return noProperty;
+  if (properties.length === 0) return noProperty;
 
-  // With no ?property= this is the first Property's day, the one the switcher
-  // names. One this list does not carry — out of reach, stale, forged — goes
-  // back to Today with none, rather than showing the first Property's day
-  // under a switcher that names no Property (HK-S1-24, TD-S1-08).
-  const { property: requested } = await searchParams;
-  const property = requested
-    ? properties.find((candidate) => candidate.propertyId === requested)
-    : fallback;
+  // With no ?property= this is the day of the Property remembered on this
+  // device, or the first. One this list does not carry — out of reach, stale,
+  // forged — goes back to Today with none, rather than showing another
+  // Property's day under a switcher that names no Property (HK-S1-24,
+  // TD-S1-08). The same resolver as every other page (OA-S3-05).
+  const property = await frontDeskProperty(properties, await searchParams);
   if (!property) redirect(localizeHref(locale, "today"));
 
   const summary = await todaySummary(property.propertyId);

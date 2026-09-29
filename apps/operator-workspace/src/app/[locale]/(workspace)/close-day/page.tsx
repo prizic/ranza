@@ -34,7 +34,7 @@ export default async function CloseDayPage({
   const t = await getTranslations();
   await requireViewer(locale);
   const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
-  const property = frontDeskProperty(properties, await searchParams);
+  const property = await frontDeskProperty(properties, await searchParams);
   const day = property ? await closeTheDay(property.propertyId) : null;
 
   if (!property || !day) {

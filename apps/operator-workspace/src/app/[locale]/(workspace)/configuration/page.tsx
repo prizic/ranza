@@ -72,7 +72,7 @@ export default async function ConfigurationPage({
 
   const t = await getTranslations();
   const properties = await entitledProperties(CONFIGURATION_CAPABILITY);
-  const property = frontDeskProperty(properties, await searchParams);
+  const property = await frontDeskProperty(properties, await searchParams);
   const settings = property
     ? await propertySettings(property.propertyId)
     : null;

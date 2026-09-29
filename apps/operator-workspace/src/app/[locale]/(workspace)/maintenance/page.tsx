@@ -48,7 +48,7 @@ export default async function MaintenancePage({
   const t = await getTranslations();
   const query = await searchParams;
   const properties = await entitledProperties(MAINTENANCE_CAPABILITY);
-  const property = frontDeskProperty(properties, query);
+  const property = await frontDeskProperty(properties, query);
 
   if (!property) {
     return (

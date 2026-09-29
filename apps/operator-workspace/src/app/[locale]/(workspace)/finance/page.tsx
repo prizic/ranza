@@ -43,7 +43,7 @@ export default async function FinancePage({
   const t = await getTranslations();
   const search = await searchParams;
   const properties = await entitledProperties(FOLIO_CAPABILITY);
-  const property = frontDeskProperty(properties, search);
+  const property = await frontDeskProperty(properties, search);
 
   if (!property) {
     return (

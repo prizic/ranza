@@ -49,7 +49,7 @@ export default async function RoomCalendarPage({
   const viewer = await requireViewer(locale);
   const search = await searchParams;
   const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
-  const property = frontDeskProperty(
+  const property = await frontDeskProperty(
     properties,
     typeof search.property === "string" ? { property: search.property } : {},
   );

@@ -36,7 +36,7 @@ export default async function HousekeepingPage({
 
   const t = await getTranslations();
   const properties = await entitledProperties(HOUSEKEEPING_CAPABILITY);
-  const property = frontDeskProperty(properties, await searchParams);
+  const property = await frontDeskProperty(properties, await searchParams);
 
   if (!property) {
     return (

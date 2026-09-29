@@ -45,7 +45,7 @@ export default async function ArrivalsPage({
   const t = await getTranslations();
   const viewer = await requireViewer(locale);
   const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
-  const property = frontDeskProperty(properties, await searchParams);
+  const property = await frontDeskProperty(properties, await searchParams);
 
   if (!property) {
     return (

@@ -8,12 +8,23 @@
  * another Property's rooms under the first one's name. Found by the RANZ-28
  * evidence run, 2026-09-24.
  */
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EntitledProperty } from "../../packages/ranza/core/src";
 
 // The helper refuses to be bundled for a browser, which is the point of it
 // being server code; a unit test is neither, and the guard has nothing to say.
 vi.mock("../../apps/operator-workspace/node_modules/server-only", () => ({}));
+
+// The Property remembered on this device (OA-S3-05), as the request carries it.
+let remembered: string | undefined;
+vi.mock("../../apps/operator-workspace/node_modules/next/headers", () => ({
+  cookies: async () => ({
+    get: (name: string) =>
+      name === "ranza_property" && remembered !== undefined
+        ? { name, value: remembered }
+        : undefined,
+  }),
+}));
 
 const { frontDeskProperty } =
   await import("../../apps/operator-workspace/src/server/front-desk");
@@ -35,35 +46,62 @@ const besiktas = property("aa000000-0000-4000-8000-000000000012", "Beşiktaş");
 const moda = "aa000000-0000-4000-8000-000000000013";
 
 describe("frontDeskProperty", () => {
-  it("opens on the first Property the viewer may use here when none is named", () => {
-    expect(frontDeskProperty([kadikoy, besiktas], {})).toBe(kadikoy);
+  beforeEach(() => {
+    remembered = undefined;
   });
 
-  it("treats an empty ?property= as none named", () => {
-    expect(frontDeskProperty([kadikoy, besiktas], { property: "" })).toBe(
+  it("opens on the first Property the viewer may use here when none is named", async () => {
+    expect(await frontDeskProperty([kadikoy, besiktas], {})).toBe(kadikoy);
+  });
+
+  it("treats an empty ?property= as none named", async () => {
+    expect(await frontDeskProperty([kadikoy, besiktas], { property: "" })).toBe(
       kadikoy,
     );
   });
 
-  it("shows the Property the URL names when the viewer may use it here", () => {
+  it("shows the Property the URL names when the viewer may use it here", async () => {
     expect(
-      frontDeskProperty([kadikoy, besiktas], { property: besiktas.propertyId }),
+      await frontDeskProperty([kadikoy, besiktas], {
+        property: besiktas.propertyId,
+      }),
     ).toBe(besiktas);
   });
 
-  it("shows nothing, not another Property, for one where this screen is switched off", () => {
+  it("shows nothing, not another Property, for one where this screen is switched off", async () => {
     expect(
-      frontDeskProperty([kadikoy, besiktas], { property: moda }),
+      await frontDeskProperty([kadikoy, besiktas], { property: moda }),
     ).toBeUndefined();
   });
 
-  it("answers an unknown or forged id exactly as it answers a switched-off one", () => {
+  it("answers an unknown or forged id exactly as it answers a switched-off one", async () => {
     expect(
-      frontDeskProperty([kadikoy, besiktas], { property: "not-a-property" }),
+      await frontDeskProperty([kadikoy, besiktas], {
+        property: "not-a-property",
+      }),
     ).toBeUndefined();
   });
 
-  it("shows nothing when the viewer may use this screen nowhere", () => {
-    expect(frontDeskProperty([], {})).toBeUndefined();
+  it("opens on the Property remembered on this device when the URL names none", async () => {
+    remembered = besiktas.propertyId;
+    expect(await frontDeskProperty([kadikoy, besiktas], {})).toBe(besiktas);
+  });
+
+  it("lets ?property= win over the remembered one", async () => {
+    remembered = besiktas.propertyId;
+    expect(
+      await frontDeskProperty([kadikoy, besiktas], {
+        property: kadikoy.propertyId,
+      }),
+    ).toBe(kadikoy);
+  });
+
+  it("passes over a remembered Property this screen does not list", async () => {
+    remembered = moda;
+    expect(await frontDeskProperty([kadikoy, besiktas], {})).toBe(kadikoy);
+  });
+
+  it("shows nothing when the viewer may use this screen nowhere", async () => {
+    expect(await frontDeskProperty([], {})).toBeUndefined();
   });
 });

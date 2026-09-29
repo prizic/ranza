@@ -1,5 +1,12 @@
 import "server-only";
+import { cookies } from "next/headers";
 import type { EntitledProperty } from "@ranza/core";
+import { chooseProperty, PROPERTY_COOKIE } from "../lib/property-choice";
+
+/** The Property remembered on this device, unchecked (OA-S3-05). */
+export async function rememberedProperty(): Promise<string | undefined> {
+  return (await cookies()).get(PROPERTY_COOKIE)?.value;
+}
 
 /**
  * Which Property a front desk screen is showing.
@@ -9,19 +16,18 @@ import type { EntitledProperty } from "@ranza/core";
  * switcher disagrees with the list beneath it.
  *
  * `properties` holds only the Properties where the viewer may use this screen's
- * capability. With no `?property=`, the screen opens on the first of them. A
- * `?property=` that names none of them — switched off there, out of reach,
- * unknown or forged — shows nothing rather than another Property: the page
- * bar's switcher reads the same parameter and would name the Property the URL
- * asked for above another one's rooms (HK-S1-24). All of those look alike, so
- * what a viewer cannot see stays indistinguishable from what does not exist.
+ * capability. A `?property=` wins, and one naming none of them shows nothing
+ * (HK-S1-24). With none named, the Property remembered on this device if it is
+ * among them, and otherwise the first (`chooseProperty`). What a viewer cannot
+ * see stays indistinguishable from what does not exist.
  */
-export function frontDeskProperty(
+export async function frontDeskProperty(
   properties: readonly EntitledProperty[],
-  search: { property?: string },
-): EntitledProperty | undefined {
-  if (!search.property) return properties[0];
-  return properties.find(
-    (candidate) => candidate.propertyId === search.property,
+  search: { property?: string | undefined },
+): Promise<EntitledProperty | undefined> {
+  return chooseProperty(
+    properties,
+    search.property,
+    await rememberedProperty(),
   );
 }

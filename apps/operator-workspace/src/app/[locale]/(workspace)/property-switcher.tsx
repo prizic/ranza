@@ -1,7 +1,8 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Building2, Check, ChevronsUpDown } from "lucide-react";
+import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@ranza/ui";
+import { rememberProperty, switchTarget } from "../../../lib/property-choice";
 
 /**
  * The Property switcher, in the page bar.
@@ -27,28 +29,50 @@ import {
  * and a router layout cannot read search parameters. There is nothing to
  * authorize here: the server already decided which Properties may appear.
  *
- * With no `?property=` it names the first Property, the one every page opens
- * on. A `?property=` naming none of these — out of reach, stale, forged —
- * names no Property at all: the page beneath shows none either, and naming the
- * viewer's first one would put a Property where the page is working above a
- * page that says it is not (HK-S1-24).
+ * With no `?property=` it names `defaultId` — the Property remembered on this
+ * device, or the first — which the server resolved as the page did. A
+ * `?property=` naming none of these — out of reach, stale, forged — names no
+ * Property at all: the page beneath shows none either, and naming another
+ * would put a Property where the page is working above a page that says it is
+ * not (HK-S1-24).
+ *
+ * It lists every Property the viewer can use at least one destination in
+ * (OA-S3-07), and choosing one keeps the page being viewed when it is open
+ * there, and otherwise opens Today, or the first destination open there. The
+ * choice is remembered on this device (OA-S3-05).
  */
 export function PropertySwitcher({
   chooseLabel,
+  defaultId,
   label,
-  organization,
+  locale,
   slots,
 }: {
   /** Shown in place of a Property's name when the URL names none of these. */
   chooseLabel: string;
+  defaultId: string;
   label: string;
-  organization: string;
-  slots: readonly { href: string; id: string; name: string }[];
+  locale: SupportedLocale;
+  slots: readonly {
+    id: string;
+    name: string;
+    organization: string;
+    /** Route segments open to the viewer there, in rail order. */
+    segments: readonly string[];
+  }[];
 }) {
   const requested = useSearchParams().get("property");
+  const current = usePathname().split("/")[2];
   const active = requested
     ? slots.find((slot) => slot.id === requested)
-    : slots[0];
+    : (slots.find((slot) => slot.id === defaultId) ?? slots[0]);
+  // The Organization of the Property being worked in: a Staff Member of two
+  // Organizations has Properties of both here.
+  const organization = (active ?? slots[0])?.organization ?? "";
+  const hrefFor = (slot: (typeof slots)[number]) => {
+    const target = switchTarget(current, slot.segments) ?? "today";
+    return `${localizeHref(locale, target)}?property=${encodeURIComponent(slot.id)}`;
+  };
 
   if (slots.length === 0) return null;
 
@@ -99,7 +123,8 @@ export function PropertySwitcher({
           <DropdownMenuItem asChild key={slot.id}>
             <a
               aria-current={slot.id === active?.id ? "true" : undefined}
-              href={slot.href}
+              href={hrefFor(slot)}
+              onClick={() => rememberProperty(slot.id)}
             >
               <Check
                 aria-hidden="true"

@@ -65,7 +65,7 @@ export default async function AuditLogPage({
   const viewer = await requireViewer(locale);
   const properties = await permittedProperties(AUDIT_READ_PERMISSION);
   const opened = one(search, "property");
-  const property = frontDeskProperty(
+  const property = await frontDeskProperty(
     properties,
     opened === undefined ? {} : { property: opened },
   );

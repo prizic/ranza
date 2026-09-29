@@ -6,6 +6,11 @@ import { AccountMenu, AppShell, BrandMark, DropdownMenuItem } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ALL_SCREENS } from "../../../lib/screens";
 import {
+  switchableProperties,
+  workingProperty,
+} from "../../../lib/property-choice";
+import { rememberedProperty } from "../../../server/front-desk";
+import {
   billingNotices,
   entitledPropertiesByCapability,
   permittedProperties,
@@ -96,15 +101,38 @@ export default async function WorkspaceLayout({
       .map((answer) => answer.key),
   ];
 
-  const properties =
+  // The switcher lists every Property the viewer can use at least one
+  // destination in, not only Today's (OA-S3-07): a Staff Member who reaches
+  // Housekeeping at a Property where Today is off could otherwise never choose
+  // it. Each carries the destinations open there, so choosing it can keep the
+  // page being viewed.
+  const switchable = switchableProperties(
+    ALL_SCREENS.filter((screen) => !screen.children).map((screen) => ({
+      segment: screen.segment,
+      properties: screen.permission
+        ? (byPermission.find((answer) => answer.key === screen.capability)
+            ?.reachable ?? [])
+        : (byCapability.find(
+            (answer) =>
+              answer.capability.moduleKey === screen.module &&
+              answer.capability.capabilityKey === screen.capability,
+          )?.properties ?? []),
+    })),
+  );
+  const todayProperties =
     byCapability.find(
       (answer) =>
         answer.capability.moduleKey === TODAY_CAPABILITY.moduleKey &&
         answer.capability.capabilityKey === TODAY_CAPABILITY.capabilityKey,
     )?.properties ?? [];
 
+  const first = workingProperty(
+    todayProperties,
+    switchable,
+    await rememberedProperty(),
+  );
+
   const root = localizeHref(locale, "today");
-  const [first] = properties;
 
   const accountItems = (
     <DropdownMenuItem asChild>
@@ -140,12 +168,14 @@ export default async function WorkspaceLayout({
                 {first ? (
                   <PropertySwitcher
                     chooseLabel={t("chooseProperty")}
+                    defaultId={first.propertyId}
                     label={t("propertySwitcher")}
-                    organization={first.organizationName}
-                    slots={properties.map((property) => ({
-                      href: `${root}?property=${property.propertyId}`,
+                    locale={locale}
+                    slots={switchable.map((property) => ({
                       id: property.propertyId,
                       name: property.propertyName,
+                      organization: property.organizationName,
+                      segments: property.segments,
                     }))}
                   />
                 ) : null}
