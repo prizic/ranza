@@ -2,7 +2,7 @@
 
 Date: 2026-09-29
 
-Status: Accepted — applied in
+Status: Proposed — applied in
 `20260916009600_reversing_a_charge_is_its_own_permission`
 
 Builds on [ADR 0015](0015-money-is-an-integer-a-balance-is-a-sum-and-a-correction-is-a-line.md),

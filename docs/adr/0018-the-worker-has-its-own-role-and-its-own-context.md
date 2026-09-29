@@ -7,7 +7,7 @@ Amended: 2026-09-24 — a second cross-Organization read, for closing business
 days ([ADR 0034](0034-a-business-day-closes-after-its-cutoff.md)): see "A second
 exception, and it is a function" below.
 
-Amended: 2026-09-29 — the Workspace and the Portal make the worker's role check
+Proposed amendment: 2026-09-29 — the Workspace and the Portal make the worker's role check
 too. `assertUnprivileged` moved to `@ranza/db` (it takes a client and a label and
 reads no environment), and each request host's `src/instrumentation.ts` runs it
 on both runtime connections, `DATABASE_URL` and `AUTH_DATABASE_URL`, before the

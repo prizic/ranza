@@ -3,6 +3,13 @@
 Status: Accepted
 Date: 2026-09-16
 
+Proposed amendment: 2026-09-29 — the Property a Staff Member last chose is
+remembered in a cookie on the device for a year, across sign-out and a change
+of user (OA-S3-05, `apps/operator-workspace/src/lib/property-choice.ts`). It
+holds only a Property id, and every request checks it against what the viewer
+reaches, so it widens nothing; but it is tenant data that survives the tab,
+which this ADR says it should not.
+
 ## Context
 
 Every screen so far is a Server Component that reads through `src/server/`
