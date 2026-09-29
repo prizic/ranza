@@ -93,6 +93,8 @@ export interface Messages {
   ready: string;
   notReady: string;
   checkInRefused: string;
+  /** A booking whose first business date has not come (CI-S1-07). */
+  checkInTooEarly: string;
 
   /**
    * Withdrawing a check-in that should not have happened (ADR 0022).
@@ -321,6 +323,11 @@ export interface Messages {
   stayTypeLabel: string;
   arrival: string;
   departureHint: string;
+  /** Shown instead of `departureHint` while the stay type is Guest (RG-S1-11). */
+  departureRequiredHint: string;
+  /** Why New reservation is disabled when no Unit can be sold (RG-S3-04). */
+  noBookableUnit: string;
+  openRooms: string;
   /** `{price}`: one night of the chosen Unit's kind, formatted (ADR 0038). */
   quotePerNight: string;
   /** ICU plural on `count` nights; `{total}` formatted. */
@@ -1409,6 +1416,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     ready: "Hazır",
     notReady: "Hazır değil",
     checkInRefused: "Bu rezervasyon için giriş yapılamıyor.",
+    checkInTooEarly:
+      "Bu rezervasyon henüz başlamadı — ilk gecesi daha sonraki bir iş gününde. Misafirin girişini o gün yapın ya da rezervasyonu bugünden başlayacak şekilde değiştirin.",
     undoCheckIn: "Girişi geri al",
     undoingCheckIn: "Geri alınıyor",
     undoCheckInFor: "{guest} için girişi geri al",
@@ -1639,6 +1648,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     stayTypeLabel: "Konaklama türü",
     arrival: "Giriş",
     departureHint: "Açık uçlu bir rezervasyon için boş bırakın.",
+    departureRequiredHint:
+      "Misafir rezervasyonunun bir ayrılış tarihi olmalı. Yalnızca bir Sakinin rezervasyonu açık uçlu bırakılabilir.",
+    noBookableUnit:
+      "Burada rezerve edilebilecek birim yok — tüm birimler bloke, hizmet dışı ya da yatak bazında kiralanıyor.",
+    openRooms: "Odalar ve yataklara git",
     quotePerNight: "Gecelik {price}",
     quoteStay: "{count, plural, one {# gece} other {# gece}}: toplam {total}",
     quoteUnpriced:
@@ -2791,6 +2805,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     ready: "Ready",
     notReady: "Not ready",
     checkInRefused: "That Reservation cannot be checked in.",
+    checkInTooEarly:
+      "This booking hasn't started yet — its first night is a later business day. Check the Guest in on that day, or change the booking to start today.",
     undoCheckIn: "Undo check-in",
     undoingCheckIn: "Undoing",
     undoCheckInFor: "Undo check-in for {guest}",
@@ -3019,6 +3035,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     stayTypeLabel: "Stay type",
     arrival: "Arrival",
     departureHint: "Leave empty for an open-ended Reservation.",
+    departureRequiredHint:
+      "A Guest booking needs a departure date. Only a Resident's may be left open-ended.",
+    noBookableUnit:
+      "No Unit can be booked here — every Unit is blocked, out of service, or let by the bed.",
+    openRooms: "Go to Rooms & beds",
     quotePerNight: "{price} a night",
     quoteStay:
       "{count, plural, one {# night} other {# nights}}: {total} in total",
@@ -4181,6 +4202,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     ready: "جاهزة",
     notReady: "غير جاهزة",
     checkInRefused: "لا يمكن تسجيل الوصول لهذا الحجز.",
+    checkInTooEarly:
+      "لم يبدأ هذا الحجز بعد — ليلته الأولى في يوم عمل لاحق. سجّل وصول الضيف في ذلك اليوم، أو غيّر الحجز ليبدأ اليوم.",
     undoCheckIn: "التراجع عن تسجيل الوصول",
     undoingCheckIn: "جارٍ التراجع",
     undoCheckInFor: "التراجع عن تسجيل الوصول لـ {guest}",
@@ -4400,6 +4423,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     stayTypeLabel: "نوع الإقامة",
     arrival: "الوصول",
     departureHint: "اتركه فارغًا لحجز مفتوح المدة.",
+    departureRequiredHint:
+      "يحتاج حجز الضيف إلى تاريخ مغادرة. يمكن ترك حجز المقيم وحده مفتوح المدة.",
+    noBookableUnit:
+      "لا توجد وحدة يمكن حجزها هنا — كل الوحدات محجوبة أو خارج الخدمة أو تُؤجَّر بالسرير.",
+    openRooms: "انتقل إلى الغرف والأسرّة",
     quotePerNight: "{price} لليلة",
     quoteStay:
       "{count, plural, zero {# ليلة} one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلة} other {# ليلة}}: الإجمالي {total}",

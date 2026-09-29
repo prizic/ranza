@@ -32,6 +32,8 @@ import { createPrismaClient } from "../../packages/db/src";
 const ORG = "d7000002-0000-4000-8000-000000000001";
 const PROPERTY = "d7000003-0000-4000-8000-000000000001";
 const MEMBER = "d7000001-0000-4000-8000-000000000001";
+/** The shipped Front desk role: front_desk permissions, none of finance. */
+const DESK = "d7000001-0000-4000-8000-000000000002";
 /**
  * A fresh Unit per run — and a fresh name with it, because `(property_id,
  * name)` is unique — for the same reason `reservationId()` exists in
@@ -119,9 +121,11 @@ async function statuses(reservation: string, stay: string) {
 
 beforeAll(async () => {
   await owner.$executeRawUnsafe(
-    `insert into public.users (id, email) values ($1,'reversal@example.test')
+    `insert into public.users (id, email) values
+       ($1,'reversal@example.test'), ($2,'reversal-desk@example.test')
      on conflict (id) do nothing`,
     MEMBER,
+    DESK,
   );
   await owner.$executeRawUnsafe(
     `insert into public.organizations (id, name, status) values ($1,'Reversal Organization','active')
@@ -192,10 +196,13 @@ beforeAll(async () => {
   );
   await owner.$executeRawUnsafe(
     `insert into public.organization_memberships
-       (organization_id, user_id, role, access_scope) values ($1,$2,'owner','organization_wide')
+       (organization_id, user_id, role, access_scope) values
+       ($1,$2,'owner','organization_wide'),
+       ($1,$3,'front_desk','organization_wide')
      on conflict (organization_id, user_id) do nothing`,
     ORG,
     MEMBER,
+    DESK,
   );
 });
 
@@ -643,5 +650,107 @@ describe("closing the Folio of a withdrawn Stay", () => {
     // than as the rollback failing to be a rollback.
     expect(closed).toBeNull();
     expect(statusAfter).toBe("open");
+  });
+});
+
+/** A Unit of this run's own, at `propertyId`. */
+async function aUnit(propertyId = PROPERTY): Promise<string> {
+  const id = randomUUID();
+  await owner.$executeRawUnsafe(
+    `insert into public.accommodation_units
+       (id, property_id, organization_id, name, unit_type, capacity)
+     values ($1::uuid, $2::uuid, $3::uuid, $4, 'room', 2)`,
+    id,
+    propertyId,
+    ORG,
+    unitName(id),
+  );
+  return id;
+}
+
+describe("charges the withdrawer cannot see (CI-S2-04)", () => {
+  /**
+   * The shipped Front desk role holds front_desk and nothing of finance. The
+   * refusal comes from `stays_withdrawal_is_free_of_charges`, which runs as its
+   * owner (pinned in reservations_and_check_in.test.sql), so it does not depend
+   * on this Staff Member being able to read the Folio's lines.
+   */
+  it("refuses a Front desk withdrawal of a Stay whose Folio carries a line", async () => {
+    const arrival = reservationId();
+    await reserve(arrival, await aUnit(), "Charged Behind The Desk");
+    const { stayId, folioId } = await reservations.checkIn(MEMBER, arrival);
+    await folios.postCharge(MEMBER, {
+      amountMinor: 4_000,
+      description: "Laundry",
+      folioId: folioId!,
+    });
+
+    await expect(
+      reservations.reverseCheckIn(DESK, stayId, REASON),
+    ).rejects.toBeInstanceOf(StayHasChargesError);
+    expect(await statuses(arrival, stayId)).toEqual({
+      reservation: "checked_in",
+      stay: "in_house",
+    });
+  });
+});
+
+describe("a withdrawal on a later business date (CI-S2-14)", () => {
+  /**
+   * The Stay began yesterday and yesterday is still open: nothing bounds the
+   * command by date, only by a closed day (CD-S1-12) and by money (CI-S2-03).
+   * A Property of this run's own, so no earlier run's close of yesterday can
+   * answer for it.
+   */
+  it("withdraws a check-in from a business day that is still open, with nothing posted", async () => {
+    const property = randomUUID();
+    await owner.$executeRawUnsafe(
+      `insert into public.properties (id, organization_id, name, timezone)
+       values ($1::uuid, $2::uuid, $3, 'Europe/Istanbul')`,
+      property,
+      ORG,
+      `Reversal Later ${property.slice(0, 8)}`,
+    );
+    await owner.$executeRawUnsafe(
+      `insert into public.property_capabilities
+         (property_id, organization_id, capability_key, enabled) values
+         ($1::uuid, $2::uuid, 'front_desk', true)`,
+      property,
+      ORG,
+    );
+    const unit = await aUnit(property);
+    const arrival = reservationId();
+    const [stay] = await owner.$queryRawUnsafe<{ id: string }[]>(
+      `with guest as (
+         insert into public.guests (organization_id, full_name)
+         values ($2::uuid, 'Arrived Yesterday') returning id
+       ), booked as (
+         insert into public.reservations
+           (id, organization_id, property_id, accommodation_unit_id, guest_id,
+            stay_type, status, starts_on, ends_on)
+         select $1::uuid, $2::uuid, $3::uuid, $4::uuid, guest.id, 'guest',
+                'checked_in', app.property_today($3::uuid) - 1,
+                app.property_today($3::uuid) + 2
+           from guest
+         returning id, starts_on, ends_on
+       )
+       insert into public.stays
+         (organization_id, property_id, accommodation_unit_id, reservation_id,
+          stay_type, status, starts_on, ends_on)
+       select $2::uuid, $3::uuid, $4::uuid, booked.id, 'guest', 'in_house',
+              booked.starts_on, booked.ends_on
+         from booked
+       returning id`,
+      arrival,
+      ORG,
+      property,
+      unit,
+    );
+
+    await reservations.reverseCheckIn(MEMBER, stay!.id, REASON);
+    expect(await statuses(arrival, stay!.id)).toEqual({
+      reservation: "confirmed",
+      stay: "cancelled",
+    });
   });
 });

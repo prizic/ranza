@@ -180,8 +180,9 @@ beforeAll(async () => {
   await owner.$executeRawUnsafe(
     `insert into public.reservations
        (id, organization_id, property_id, accommodation_unit_id, guest_id,
-        stay_type, status, starts_on)
-     values ($1,$2,$3,$4,$5,'guest','confirmed', current_date + 400)
+        stay_type, status, starts_on, ends_on)
+     values ($1,$2,$3,$4,$5,'guest','confirmed',
+             current_date + 400, current_date + 403)
      on conflict (id) do nothing`,
     RESERVATION,
     ORG,
