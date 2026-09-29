@@ -383,6 +383,13 @@ describe("changing a booking", () => {
       expect(kinds.findIndex(([free]) => !free)).toBeGreaterThan(
         kinds.findLastIndex(([free, same]) => free && same),
       );
+      // And of the free, its own kind before any other (AB-S1-08). The suite
+      // and the bed are free, so there is another kind to come after.
+      const firstFreeOther = kinds.findIndex(([free, same]) => free && !same);
+      expect(firstFreeOther).toBeGreaterThan(-1);
+      expect(firstFreeOther).toBeGreaterThan(
+        kinds.findLastIndex(([free, same]) => free && same),
+      );
 
       // And saving does what the preview said, for every kind of answer.
       const save = (unitName: string, rate: number | null) =>
@@ -1018,6 +1025,16 @@ describe("moving an in-house Guest", () => {
       const target = preview.options.find((o) => o.unitId === room["M-2"]);
       expect(target).toMatchObject({ blocker: null, ready: true });
       expect(preview.options.map((o) => o.unitId)).not.toContain(room["M-1"]);
+      // A room before the free suite, though both are free and ready.
+      const kinds = preview.options.map((o) => [
+        o.blocker === null && o.ready,
+        o.sameKind,
+      ]);
+      const firstFreeOther = kinds.findIndex(([free, same]) => free && !same);
+      expect(firstFreeOther).toBeGreaterThan(-1);
+      expect(firstFreeOther).toBeGreaterThan(
+        kinds.findLastIndex(([free, same]) => free && same),
+      );
 
       const moved = await reservations.moveGuest(DESK, {
         stayId,
