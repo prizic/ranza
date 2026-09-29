@@ -35,6 +35,14 @@ file as modified before the suite ran.
 | RB-S1-09 | the Reserved tile shows `data.counts.free`                                                           | tile body                                                                                 | VT: counts reserved tonight apart from free                                                         |
 | RB-S1-09 | the out of order note on the Beds tile suppressed                                                    | tile note                                                                                 | VT: counts reserved tonight apart from free, and out of order apart from both                       |
 
+Off-by-one breaks on the bounds themselves (the pass-through assertions for
+1 and 60 rooms and for a 26-bed room):
+
+| Row      | What was broken                           | Red                                       |
+| -------- | ----------------------------------------- | ----------------------------------------- |
+| RB-S2-08 | `capacity > max` became `capacity >= max` | UT: a room holds at most twenty six beds  |
+| RB-S2-09 | `count > max` became `count >= max`       | UT: an add is between one and sixty rooms |
+
 ## Database breaks (run as the owner on the lane database, then restored)
 
 ### RB-S2-06 and RB-S2-11: the partial unique index
@@ -132,3 +140,18 @@ after the first commits; without it the second side does not wait.
 - `a stay with no reservation shows in house with no name` (RB-S1-04) is red under
   the same `stateOf` break as the occupancy test; it documents behaviour the row
   now states and would fail if the module ever started guessing a name.
+
+## Recorded as structural, not seen red
+
+- RB-S1-05, "a Reservation checked in is neither reserved nor free": a checked
+  in Reservation always has a Stay in house on its Unit (the database refuses one
+  without: `Reservation ... is checked_in but its Stays are 0 in house`, and a
+  move updates both rows), so the Unit reads in house before the `confirmed`
+  filter is consulted. Widening that filter to `checked_in` cannot change any
+  reachable map. The row says so instead of claiming a test.
+- RB-S2-01, "all in one transaction": the rooms go in by one `insert ... unnest`
+  statement, so a refused name writes none of them (tested, red under the index
+  drop above). The beds and the audit record follow in the same
+  `withOrganizationContext` (`addUnits`), which is structural: no failure can be
+  injected after the first statement without contriving one. The row now claims
+  only the first.

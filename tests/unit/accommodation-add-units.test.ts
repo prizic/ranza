@@ -76,6 +76,14 @@ describe("adding rooms is refused by its shape, before any statement runs", () =
     expect(await refusal({ ...room, letByTheBed: true, capacity: 27 })).toBe(
       "a room holds at most twenty-six beds",
     );
+    // Twenty-six is a full dormitory, and goes through to the (stub) database.
+    await expect(
+      accommodation.addUnits(SOME_USER, {
+        ...room,
+        letByTheBed: true,
+        capacity: 26,
+      }),
+    ).rejects.toThrow(/the database was reached/);
   });
 
   it("only a room is let by the bed (RB-S2-12)", async () => {
