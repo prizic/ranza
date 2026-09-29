@@ -10,6 +10,7 @@ import {
   OWNER_EMAIL,
   PASSWORD,
   propertyWithHousekeepingOff,
+  propertyWithTodayOff,
   testProperty,
 } from "./front-desk";
 
@@ -71,6 +72,7 @@ setup("the browser tests have Properties of their own", () => {
       where property_id = '${testProperty()}'`,
   );
   propertyWithHousekeepingOff();
+  propertyWithTodayOff();
   aPropertyTheViewerDoesNotReach();
 });
 

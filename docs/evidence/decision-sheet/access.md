@@ -260,3 +260,13 @@ rail on the URL it ends at, with the default the layout computes.
 The last row is the loop guard: a redirect fires only when `property` is absent
 or empty and always writes a non-empty one, and a URL naming a Property — listed
 or not — is never redirected.
+
+The review of this change found that three browser assertions expected a bare
+`/en/today` — the shared `signIn` helper's among them — which Today now never
+stays at when the viewer has a Today Property. They assert the named URL
+instead, TD-S1-08's wording says so, and `housekeeping.spec.ts` gains scenario A
+end to end (a `ranza_property` cookie on a Property with Housekeeping and not
+Today; bare `/en/housekeeping` must end at `?property=` that Property, with the
+switcher and the rail's Housekeeping link naming it). **Not run in the lane:**
+the browser suite's seed calls `pnpm db:seed:dev`, which is hard-wired to the
+shared database on 54322; the parent's G4 runs them.
