@@ -54,9 +54,11 @@ So anybody else, and any agent working for them:
   close it.
 
 "Proceed with the recommendations" approves nothing unless the owner said it.
-The owner approves on the pull request; the commit that then flips a status
-links to where they did. [`.github/CODEOWNERS`](.github/CODEOWNERS) requests
-their review on every change to `docs/features/`, `docs/adr/` and
+The owner approves on the pull request — a review, or a comment on a pull
+request they opened themselves, which GitHub will not let them review — and the
+commit that then flips a status links to where they did.
+[`.github/CODEOWNERS`](.github/CODEOWNERS) requests their review on every pull
+request somebody else opens that touches `docs/features/`, `docs/adr/` or
 `prisma/migrations/`.
 
 ## Vocabulary — the most common mistake
@@ -247,15 +249,15 @@ reminder; do not rely on remembering.
 What it cannot judge is whether a paragraph is still _true_. When a change makes
 one of these false, fix it in the same commit:
 
-| When you                              | Update                                            |
-| ------------------------------------- | ------------------------------------------------- |
-| add or rename a package script        | every doc that shows it (the check finds them)    |
-| add an application or module          | its README, and the layout block in `README.md`   |
-| change how the database is reached    | `docs/runbooks/supabase-setup.md`, `.env.example` |
-| make a decision the code now assumes  | a new ADR — not a comment                         |
-| reverse or amend a decision           | the existing ADR, with an `Amended:` line         |
-| finish or start a milestone           | `docs/roadmap.md` — the status table, not prose   |
-| change what a phase bullet's state is | `docs/roadmap.md`, in the same commit             |
+| When you                              | Update                                                                               |
+| ------------------------------------- | ------------------------------------------------------------------------------------ |
+| add or rename a package script        | every doc that shows it (the check finds them)                                       |
+| add an application or module          | its README, and the layout block in `README.md`                                      |
+| change how the database is reached    | `docs/runbooks/supabase-setup.md`, `.env.example`                                    |
+| make a decision the code now assumes  | a new ADR — not a comment                                                            |
+| reverse or amend a decision           | the existing ADR: a `Proposed amendment:` line, `Amended:` once the owner accepts it |
+| finish or start a milestone           | `docs/roadmap.md` — the status table, not prose                                      |
+| change what a phase bullet's state is | `docs/roadmap.md`, in the same commit                                                |
 
 ## Testing security claims
 
