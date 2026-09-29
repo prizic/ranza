@@ -3,7 +3,7 @@
 Status: Accepted
 Date: 2026-09-23
 
-Amended: 2026-09-28 by [ADR 0038](0038-a-night-is-priced-by-its-unit-type-and-fixed-when-booked.md) — the review also carries the nights no close has charged, and their amount; the check-out charges them under the Stay's lock and is refused, as a changed bill, when what it charged is not what the desk was shown. It takes the Property's business day, shared, before the Stay's lock.
+Proposed amendment: 2026-09-28 by [ADR 0038](0038-a-night-is-priced-by-its-unit-type-and-fixed-when-booked.md) — the review also carries the nights no close has charged, and their amount; the check-out charges them under the Stay's lock and is refused, as a changed bill, when what it charged is not what the desk was shown. It takes the Property's business day, shared, before the Stay's lock.
 
 ## Context
 
