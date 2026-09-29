@@ -36,9 +36,12 @@ import {
 } from "../../packages/ranza/reservations/src";
 import { latestRecord } from "./audit-record";
 
-const ORG = "dc000002-0000-4000-8000-000000000001";
-const OWNER = "dc000001-0000-4000-8000-000000000001";
-const FINANCE = "dc000001-0000-4000-8000-000000000002";
+// Ids of this suite's own. They once were housekeeping's and room-calendar's,
+// and the Properties this suite leaves were then closed by the worker's closer
+// on the next run, which blocked those suites' clean-up of the Organization.
+const ORG = "dc00000a-0000-4000-8000-000000000001";
+const OWNER = "dc00000b-0000-4000-8000-000000000001";
+const FINANCE = "dc00000b-0000-4000-8000-000000000002";
 const SHIPPED_ROLE_SCOPE = "00000000-0000-0000-0000-000000000000";
 
 // The tenant path exactly as the host composes it: ranza_app, not an owner,
@@ -61,7 +64,7 @@ const BUDGET_MS = 60_000;
 async function seedOrganization() {
   await owner.$executeRawUnsafe(
     `insert into public.users (id, email) values
-       ($1, 'rooms-owner@example.test'), ($2, 'rooms-finance@example.test')
+       ($1, 'rooms-map-owner@example.test'), ($2, 'rooms-map-finance@example.test')
      on conflict (id) do nothing`,
     OWNER,
     FINANCE,
@@ -208,13 +211,48 @@ function stateKind(map: UnitMap, name: string, roomName?: string): string {
   return entryNamed(map, name, roomName).state?.kind ?? "none";
 }
 
-beforeAll(seedOrganization, BUDGET_MS);
+/**
+ * Everything a run wrote under the Organization, removed so the next run — and
+ * the worker's closer in business-day-closer.test.ts, which closes days at any
+ * Property it finds — meets none of it. One transaction with triggers off,
+ * because closes and folio lines are append-only by trigger and every foreign
+ * key here is ON DELETE RESTRICT. The Organization, its membership and its
+ * Subscription stay for the seed to reuse; audit records stay, which is the
+ * point of them.
+ */
+async function removeWhatARunLeft() {
+  const tables = await owner.$queryRawUnsafe<{ name: string }[]>(
+    `select format('%I.%I', c.table_schema, c.table_name) as name
+       from information_schema.columns as c
+       join information_schema.tables as t using (table_schema, table_name)
+      where c.column_name = 'organization_id'
+        and t.table_type = 'BASE TABLE'
+        and c.table_schema in ('public', 'outbox')
+        and c.table_name not in
+          ('organization_memberships', 'subscriptions', 'entitlements')`,
+  );
+  await owner.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe("set local session_replication_role = replica");
+    for (const { name } of tables) {
+      await tx.$executeRawUnsafe(
+        `delete from ${name} where organization_id = $1::uuid`,
+        ORG,
+      );
+    }
+  });
+}
+
+beforeAll(async () => {
+  await removeWhatARunLeft();
+  await seedOrganization();
+}, BUDGET_MS);
 
 afterAll(async () => {
   await owner.$executeRawUnsafe(
     `update public.subscriptions set status = 'active' where organization_id = $1`,
     ORG,
   );
+  await removeWhatARunLeft();
   await owner.$disconnect();
   await prisma.$disconnect();
   await rival.$disconnect();
