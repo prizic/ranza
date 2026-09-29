@@ -1618,6 +1618,15 @@ export function createReservationsModule(deps: ReservationsDeps) {
             "that Accommodation Unit has somebody staying over those nights",
           );
         }
+        // Begun before the cutoff and committing after the day closed:
+        // `reservations_want_an_open_day` refuses a booking that would start
+        // on a finalized day (RG-S1-08). The dates are the thing to fix, and
+        // pressing again measures them against the new business date.
+        if (raised(error, BUSINESS_DAY_CLOSED)) {
+          throw new ReservationPeriodError(
+            "the business day closed while the booking was taken",
+          );
+        }
         throw error;
       }
 

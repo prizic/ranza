@@ -248,6 +248,14 @@ afterAll(async () => {
   // Children first: every foreign key here is ON DELETE RESTRICT. Audit
   // records stay, which is the point of them.
   const orgs = `('${ORG}','${OTHER_ORG}')`;
+  // A close is append-only by trigger, and the one this suite writes was
+  // written with triggers off; it goes the same way, before its Property.
+  await owner.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe("set local session_replication_role = replica");
+    await tx.$executeRawUnsafe(
+      `delete from public.business_day_closes where organization_id in ${orgs}`,
+    );
+  });
   for (const statement of [
     `delete from public.stays where organization_id in ${orgs}`,
     `delete from public.reservations where organization_id in ${orgs}`,
@@ -438,6 +446,65 @@ describe("the Property's business date, not its calendar date", () => {
         SMALL_HOURS,
       );
     }
+  });
+});
+
+describe("a booking that meets a closed day (RG-S1-08)", () => {
+  /**
+   * The race the trigger closes: the module measured the booking against a
+   * business date that a close then finalized before the insert. Reproduced
+   * by closing today itself — which no command allows, so the fixture writes
+   * it with triggers off — and taking a booking for today.
+   */
+  it("is refused as a date to fix, and writes nothing", async () => {
+    const property = randomUUID();
+    await owner.$executeRawUnsafe(
+      `insert into public.properties (id, organization_id, name, timezone)
+       values ($1::uuid, $2::uuid, $3, 'Europe/Istanbul')`,
+      property,
+      ORG,
+      `Booking Closed ${property.slice(0, 8)}`,
+    );
+    await owner.$executeRawUnsafe(
+      `insert into public.property_capabilities
+         (property_id, organization_id, capability_key, enabled)
+       values ($1::uuid, $2::uuid, 'front_desk', true)`,
+      property,
+      ORG,
+    );
+    await owner.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(
+        "set local session_replication_role = replica",
+      );
+      await tx.$executeRawUnsafe(
+        `insert into public.business_day_closes
+           (organization_id, property_id, business_date, closed_by_job)
+         values ($1::uuid, $2::uuid, app.property_today($2::uuid), 'test.fixture')`,
+        ORG,
+        property,
+      );
+    });
+    const unit = await aUnit(property);
+
+    await expect(
+      reservations.createReservation(
+        MANAGER,
+        booking(unit, await day(property, 0), await day(property, 1), {
+          propertyId: property,
+          guestName: "Too Late Tonight",
+        }),
+      ),
+    ).rejects.toThrow(
+      new ReservationPeriodError(
+        "the business day closed while the booking was taken",
+      ),
+    );
+    const [written] = await owner.$queryRawUnsafe<{ count: number }[]>(
+      `select count(*)::int as count from public.reservations
+        where accommodation_unit_id = $1::uuid`,
+      unit,
+    );
+    expect(written?.count).toBe(0);
   });
 });
 

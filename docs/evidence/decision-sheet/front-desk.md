@@ -1137,3 +1137,39 @@ Result:
 × RG-S1-10: the booking form is given the business date, and an outsider nothing 134ms
 Tests  1 failed | 21 skipped (22)
 ```
+
+### RG-S1-08 module: a closed-day refusal at booking is not mapped (review finding 1)
+
+In `packages/ranza/reservations/src/module.ts`, deleted from `createReservation`'s catch:
+
+```
+        if (raised(error, BUSINESS_DAY_CLOSED)) {
+          throw new ReservationPeriodError(
+            "the business day closed while the booking was taken",
+          );
+        }
+```
+
+Printed as a diff against the file as it stood; restored byte for byte after the run.
+
+Result:
+
+```
+× is refused as a date to fix, and writes nothing
+Tests  1 failed | 22 skipped (23)
+```
+
+### RG-S1-08 database: the booking trigger is dropped (closed-day race test)
+
+```
+-- sabotage sql: drop trigger reservations_want_an_open_day on public.reservations
+-- altered object: <no reservations_want_an_open_day>
+-- restored object: reservations_want_an_open_day
+```
+
+Result:
+
+```
+× is refused as a date to fix, and writes nothing
+Tests  1 failed | 22 skipped (23)
+```

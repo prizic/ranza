@@ -639,7 +639,9 @@ select ok(
   (select bool_and(t.tgname > 'reservations_unit_holds_one_occupancy')
      from pg_trigger as t
     where t.tgrelid = 'public.reservations'::regclass
-      and t.tgfoid = 'app.reservations_keep_closed_days'::regproc)
+      and t.tgfoid in (select oid from pg_proc
+                        where proname = 'reservations_keep_closed_days'
+                          and pronamespace = 'app'::regnamespace))
   and exists (select 1 from pg_trigger
                where tgrelid = 'public.reservations'::regclass
                  and tgname = 'reservations_unit_holds_one_occupancy'),
