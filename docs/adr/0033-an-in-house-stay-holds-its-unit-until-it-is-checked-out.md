@@ -3,7 +3,7 @@
 Status: Accepted
 Date: 2026-09-23
 
-Amended: 2026-09-29 — the commands that change a booking's or a Stay's Unit
+Proposed amendment: 2026-09-29 — the commands that change a booking's or a Stay's Unit
 take the Unit lock for every Unit they touch, in hashed order, before this
 rule's own
 ([ADR 0039](0039-a-booking-is-amended-through-commands-that-check-their-caller.md)).
