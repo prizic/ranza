@@ -554,6 +554,9 @@ select is(
 -- first, and reads which room was left from the revision, never from the
 -- event's payload.
 -- The other seven are named in the comments above.
+-- The decision sheet (20260916009500-009720) brought none. Its closed-day
+-- triggers, app.reservations_keep_closed_days() among them, are invokers, and
+-- the three access migrations replaced two definers and changed a grant.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
