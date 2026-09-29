@@ -4,7 +4,7 @@ Date: 2026-09-25
 
 Status: Accepted — applied in `20260916006000_a_property_is_configured`
 
-Amended: 2026-09-28 by [ADR 0038](0038-a-night-is-priced-by-its-unit-type-and-fixed-when-booked.md) — a priced booking that is requested, confirmed or checked in fixes the currency as a Folio does, because it is money promised in that currency. `20260916008100_a_booking_is_priced_when_it_is_taken` replaces both `app.property_currency_is_fixed_by_its_first_folio()` and `app.property_currency_is_fixed()`, and the booking's stamp holds the Property row `FOR SHARE` so the two serialise.
+Proposed amendment: 2026-09-28 by [ADR 0038](0038-a-night-is-priced-by-its-unit-type-and-fixed-when-booked.md) — a priced booking that is requested, confirmed or checked in fixes the currency as a Folio does, because it is money promised in that currency. `20260916008100_a_booking_is_priced_when_it_is_taken` replaces both `app.property_currency_is_fixed_by_its_first_folio()` and `app.property_currency_is_fixed()`, and the booking's stamp holds the Property row `FOR SHARE` so the two serialise.
 
 Amends [ADR 0021](0021-a-business-date-is-the-day-a-property-is-working.md),
 which said a cutoff was changed in SQL until a settings screen existed.

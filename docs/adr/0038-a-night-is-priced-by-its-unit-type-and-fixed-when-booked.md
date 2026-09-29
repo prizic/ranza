@@ -2,7 +2,7 @@
 
 Date: 2026-09-28
 
-Status: Accepted — applied in `20260916008000_a_night_has_a_price`,
+Status: Proposed — applied in `20260916008000_a_night_has_a_price`,
 `20260916008100_a_booking_is_priced_when_it_is_taken` and
 `20260916008200_a_night_is_charged_once`
 

@@ -37,8 +37,14 @@
 --   the totals missing a check-out's night             RT-S3-03 (both)
 --   the dating trigger dropped                         RT-S3-09 (both)
 --   the room-night key dropped                         RT-S3-02 (catalogue)
+--   room_nights_due owing a reversed night             RT-S3-11
+--   the close's total net of reversals                 RT-S3-18 (have 20000)
+--
+-- RT-S3-11 once reversed a night nobody had posted, so nothing was reversed
+-- and it asked about another Stay's night; the fixture assertions beside each
+-- reversal now prove the reversal exists before anything reads it.
 begin;
-select plan(27);
+select plan(29);
 
 insert into public.users (id, email) values
   ('f1111111-1111-4111-8111-111111111111', 'rn-manager@example.test'),
@@ -268,6 +274,32 @@ select throws_ok(
 -- The close charges the night
 -- ---------------------------------------------------------------------------
 
+-- J's night of T-1, posted by the check-out above, is reversed before the
+-- close, so the close's total below is what was charged, gross (RT-S3-18).
+set local role none;
+insert into public.folio_lines
+  (organization_id, property_id, folio_id, line_type, description,
+   amount_minor, reverses_line_id)
+select line.organization_id, line.property_id, line.folio_id, 'reversal',
+       'Correction', -line.amount_minor, line.id
+  from public.folio_lines as line
+  join public.folios as folio on folio.id = line.folio_id
+ where folio.stay_id = 'ff000007-0000-4000-8000-000000000001'
+   and line.source = 'room_night'
+   and line.business_date = :'t'::date - 1;
+
+select is(
+  (select count(*)::int from public.folio_lines as reversal
+     join public.folio_lines as line on line.id = reversal.reverses_line_id
+     join public.folios as folio on folio.id = line.folio_id
+    where folio.stay_id = 'ff000007-0000-4000-8000-000000000001'
+      and line.business_date = :'t'::date - 1),
+  1,
+  'fixture: J''s night of T-1 is reversed before the close');
+
+set local role ranza_app;
+select app.set_request_context('f2222222-2222-4222-8222-222222222222');
+
 select lives_ok(
   format($$ insert into public.business_day_closes
        (organization_id, property_id, business_date)
@@ -298,7 +330,7 @@ select results_eq(
              where property_id = 'fb111111-1111-4111-8111-111111111111'
                and business_date = %L::date - 1 $$, :'t'),
   $$ values (3, 30000::bigint, 'TRY', 3) $$,
-  'RT-S3-03: the close records every room night dated its day, whoever posted it');
+  'RT-S3-03, RT-S3-18: the close records every room night dated its day, whoever posted it, reversed or not');
 
 select set_eq(
   format($$ select item ->> 'stayId' || ':' || (item ->> 'reason')
@@ -428,9 +460,18 @@ select line.organization_id, line.property_id, line.folio_id, 'reversal',
        'Correction', -line.amount_minor, line.id
   from public.folio_lines as line
   join public.folios as folio on folio.id = line.folio_id
- where folio.stay_id = 'ff000005-0000-4000-8000-000000000001'
+ where folio.stay_id = 'ff000001-0000-4000-8000-000000000001'
    and line.source = 'room_night'
-   and line.business_date = :'t'::date - 2;
+   and line.business_date = :'t'::date - 1;
+
+select is(
+  (select count(*)::int from public.folio_lines as reversal
+     join public.folio_lines as line on line.id = reversal.reverses_line_id
+     join public.folios as folio on folio.id = line.folio_id
+    where folio.stay_id = 'ff000001-0000-4000-8000-000000000001'
+      and line.business_date = :'t'::date - 1),
+  1,
+  'fixture: A''s night of T-1, posted by the close, is reversed');
 
 select is(
   (select reason from app.room_nights_due(
