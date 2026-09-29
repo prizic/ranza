@@ -15,7 +15,7 @@
 -- it went red. A test that cannot fail is worse than no test, because it is
 -- mistaken for evidence.
 begin;
-select plan(47);
+select plan(49);
 
 insert into public.users (id, email) values
   ('41111111-1111-4111-8111-111111111111', 'guest-staff-a@example.test'),
@@ -515,6 +515,38 @@ select throws_ok(
   '23514', NULL,
   'a Guest booking without a departure is refused');
 
+-- A booking finished before the rule existed is excused: it holds no Unit, is
+-- charged nothing more, and app.a_finished_row_keeps_its_dates() forbids
+-- giving it a departure now, so a database holding one could never take the
+-- constraint. Written as the connecting role, since the desk takes every
+-- booking confirmed and only history arrives already finished.
+set local role none;
+select lives_ok(
+  $$insert into public.reservations
+      (organization_id, property_id, accommodation_unit_id,
+       guest_id, stay_type, status, starts_on, ends_on)
+    values ('4a111111-1111-4111-8111-111111111111',
+            '4c444444-4444-4444-8444-444444444444',
+            '4d555555-5555-4555-8555-555555555555',
+            '4e111111-1111-4111-8111-111111111111', 'guest', 'cancelled',
+            app.property_today('4c444444-4444-4444-8444-444444444444') + 40,
+            null)$$,
+  'RG-S1-11: a Guest booking already finished without a departure is excused');
+select throws_ok(
+  $$insert into public.reservations
+      (organization_id, property_id, accommodation_unit_id,
+       guest_id, stay_type, status, starts_on, ends_on)
+    values ('4a111111-1111-4111-8111-111111111111',
+            '4c444444-4444-4444-8444-444444444444',
+            '4d555555-5555-4555-8555-555555555555',
+            '4e111111-1111-4111-8111-111111111111', 'guest', 'requested',
+            app.property_today('4c444444-4444-4444-8444-444444444444') + 40,
+            null)$$,
+  '23514', NULL,
+  'RG-S1-11: but one still live is refused, whoever writes it');
+set local role ranza_app;
+select app.set_request_context('41111111-1111-4111-8111-111111111111');
+
 select lives_ok(
   $$insert into public.reservations
       (organization_id, property_id, accommodation_unit_id,
@@ -622,8 +654,8 @@ select is(
   (select pg_get_constraintdef(oid) from pg_constraint
     where conrelid = 'public.reservations'::regclass
       and conname = 'reservations_guest_has_a_departure'),
-  'CHECK (((stay_type = ''resident''::text) OR (ends_on IS NOT NULL)))',
-  'the departure constraint excuses the Resident and nobody else');
+  'CHECK (((stay_type = ''resident''::text) OR (ends_on IS NOT NULL) OR (status = ANY (ARRAY[''checked_out''::text, ''cancelled''::text, ''no_show''::text]))))',
+  'the departure constraint excuses the Resident, and a booking already finished');
 
 select is(
   (select p.prosecdef from pg_trigger as t join pg_proc as p on p.oid = t.tgfoid

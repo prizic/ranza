@@ -28,11 +28,13 @@
 --   the price-keeping trigger dropped                  RT-S2-06 (every role)
 --   the currency lock counting Folios only             RT-S2-07
 --   the currency lock counting cancelled bookings      RT-S2-07 (cancelled)
+--   a backfill when a price is set                     RT-S2-11 (a bed booking
+--                                                      taken unpriced is priced)
 --   the Resident constraint dropped                    RT-S2-05 (without
 --     the stamp). Dropped alone at first it turned nothing red: the stamp
 --     never prices a Resident, so the constraint only binds without it.
 begin;
-select plan(39);
+select plan(41);
 
 insert into public.users (id, email) values
   ('e1111111-1111-4111-8111-111111111111', 'rt-manager@example.test'),
@@ -403,6 +405,25 @@ select is(
   (select nightly_rate_minor from public.reservations
     where accommodation_unit_id = 'ec111111-1111-4111-8111-111111111111'),
   5000::bigint, 'RT-S2-02: a booking keeps the price it was taken at');
+
+-- The bed booking above was taken while beds had no price. Pricing beds now
+-- is the deploy this row is about, in miniature: the price exists from here on,
+-- and what was taken before it was quoted is not reached back into.
+select results_eq(
+  $$ with priced as (
+       update public.property_rates set amount_minor = 3000
+        where property_id = 'eb111111-1111-4111-8111-111111111111'
+          and unit_type = 'bed'
+       returning amount_minor)
+     select amount_minor from priced $$,
+  $$ values (3000::bigint) $$,
+  'RT-S2-11: beds are priced after a bed was booked');
+
+select results_eq(
+  $$ select nightly_rate_minor, rate_currency::text from public.reservations
+      where accommodation_unit_id = 'ec222222-2222-4222-8222-222222222222' $$,
+  $$ values (null::bigint, null::text) $$,
+  'RT-S2-11: a booking taken before its kind had a price stays unpriced; nothing is backfilled');
 
 select ok(
   app.property_currency_is_fixed('eb111111-1111-4111-8111-111111111111'),
