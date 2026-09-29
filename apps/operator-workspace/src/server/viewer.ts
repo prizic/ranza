@@ -808,10 +808,6 @@ export async function maintenanceReportOptions(
 }
 
 /**
- * What a Property's Maintenance setting says and inherits, and whether the
- * viewer may change it. Null where there is nothing to configure.
- */
-/**
  * The Property's price list for the Configuration screen's Rates section
  * (ADR 0038). Null where configuration is not available to the viewer.
  */
@@ -821,6 +817,10 @@ export async function priceList(propertyId: string): Promise<PriceList | null> {
   return getComposition().rates.getPriceList(viewer.userId, propertyId);
 }
 
+/**
+ * What a Property's Maintenance setting says and inherits, and whether the
+ * viewer may change it. Null where there is nothing to configure.
+ */
 export async function maintenanceSettings(
   propertyId: string,
 ): Promise<MaintenanceSettings | null> {

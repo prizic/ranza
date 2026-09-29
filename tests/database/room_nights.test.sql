@@ -43,6 +43,7 @@
 --   that, the key dropped and ON CONFLICT removed      RT-S3-11 (close, check
 --                                                      out, both lines checks)
 --   room_nights_due without the billing check          RT-S3-17 (listed, no line)
+--   the close's total net of reversals                 RT-S3-18 (have 20000)
 begin;
 select plan(32);
 
@@ -399,7 +400,7 @@ select results_eq(
              where property_id = 'fb111111-1111-4111-8111-111111111111'
                and business_date = %L::date - 1 $$, :'t'),
   $$ values (3, 30000::bigint, 'TRY', 3) $$,
-  'RT-S3-03: the close records every room night dated its day, whoever posted it');
+  'RT-S3-03, RT-S3-18: the close records every room night dated its day, whoever posted it, and J''s reversed night in its total');
 
 select set_eq(
   format($$ select item ->> 'stayId' || ':' || (item ->> 'reason')

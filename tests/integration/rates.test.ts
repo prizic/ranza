@@ -292,20 +292,26 @@ describe("the price list", () => {
       // A currency change takes the Property's lock and a price save takes the
       // list's, so one can commit between the save's read and its write. That
       // window is forced here: a trigger of the test's own changes the
-      // currency inside the save, just before the price is stamped.
+      // currency inside the save, just before the price is stamped. DDL
+      // commits, so the trigger fires for this test's Property alone — a run
+      // killed before the finally leaves it inert for every other one.
       const { propertyId } = await pricedProperty();
       const read = await rates.getPriceList(MANAGER, propertyId);
       await owner.$executeRawUnsafe(`
-        create function public.test_currency_changes_mid_save()
+        create or replace function public.test_currency_changes_mid_save()
         returns trigger language plpgsql as $$
         begin
           update public.properties set currency = 'JPY' where id = new.property_id;
           return new;
         end $$`);
       await owner.$executeRawUnsafe(`
+        drop trigger if exists a_test_currency_changes_mid_save
+          on public.property_rates`);
+      await owner.$executeRawUnsafe(`
         create trigger a_test_currency_changes_mid_save
           before insert or update on public.property_rates
-          for each row execute function public.test_currency_changes_mid_save()`);
+          for each row when (new.property_id = '${propertyId}'::uuid)
+          execute function public.test_currency_changes_mid_save()`);
       try {
         await expect(
           rates.setPrices(MANAGER, propertyId, {

@@ -2,12 +2,16 @@
 
 Date: 2026-09-28
 
-Status: Accepted — applied in `20260916009000_a_booking_is_amended`,
+Status: Proposed — applied in `20260916009000_a_booking_is_amended`,
 `20260916009100_a_stay_changes_its_departure` and
 `20260916009200_a_guest_moves_room`
 
 Amends [ADR 0029](0029-housekeeping-status-is-a-room-s-own-row.md): a room a
-Guest was moved out of reads dirty, as one a Guest left does.
+Guest was moved out of reads dirty, as one a Guest left does;
+[ADR 0033](0033-an-in-house-stay-holds-its-unit-until-it-is-checked-out.md):
+the commands that change a Unit take every Unit lock they touch, in hashed
+order; and [ADR 0038](0038-a-night-is-priced-by-its-unit-type-and-fixed-when-booked.md):
+a booking still to come moved to another kind of Unit takes that kind's price.
 
 Builds on [ADR 0012](0012-a-write-is-bounded-by-a-policy-not-a-check.md),
 [ADR 0033](0033-an-in-house-stay-holds-its-unit-until-it-is-checked-out.md) and
