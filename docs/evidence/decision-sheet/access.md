@@ -58,3 +58,14 @@ Same suite.
 | sabotage                                                                       | printed                                                                      | red                                                                           |
 | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | gate 1 asks about any of the caller's Organizations rather than the Property's | `subscription.organization_id in (select app.accessible_organization_ids())` | 34 `when B's Subscription lapses, B's Property drops out of capability reads` |
+
+## SP-S1-33 — an expired invitation is no answer to a stranger
+
+Suite: `tests/database/staff_and_permissions.test.sql`, 100 assertions, all
+green unsabotaged. Both new assertions ask through `pg_temp.acceptance_answer()`,
+which returns `'no row'`, `'a row'` or the SQLSTATE raised — a refusing guard
+fails one assertion rather than aborting the suite.
+
+| sabotage                                                                    | printed                                                    | red                                                           |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------- |
+| `app.accept_staff_invitation()` recreated exactly as 20260916002800 left it | `guard: invitation.status = 'pending';` (no expiry clause) | 92 `and so does an expired invitation, rather than a refusal` |
