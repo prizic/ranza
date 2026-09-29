@@ -10,6 +10,7 @@ import {
   type FolioSummary,
 } from "./contracts";
 import type { FoliosDeps } from "./ports";
+import { CLOSURE_REFUSED, raisedOneOf, REVERSAL_REFUSED } from "./refusals";
 import { assertPostable, DESCRIPTION_MAX, postChargeWithin } from "./write";
 
 /**
@@ -46,6 +47,7 @@ const REASON_MIN = 3;
 /** Rows come back as text so a bigint never becomes a float on the way. */
 interface SummaryRow {
   folioId: string;
+  propertyId: string;
   stayId: string;
   status: "open" | "closed";
   currency: string;
@@ -67,18 +69,37 @@ interface LineRow {
   roomNightOf: string | null;
 }
 
+type Nullable<T> = { [K in keyof T]: T[K] | null };
+
 function toSummary(row: SummaryRow): FolioSummary {
   // char(3) is blank-padded, and the amounts arrive as text so a bigint never
-  // becomes a float on the way. Everything else is already the contract.
+  // becomes a float on the way. Named rather than spread, because a detail row
+  // carries a line's columns beside these.
   return {
-    ...row,
+    folioId: row.folioId,
+    propertyId: row.propertyId,
+    stayId: row.stayId,
+    status: row.status,
     currency: row.currency.trim(),
+    guestName: row.guestName,
+    unitName: row.unitName,
     balanceMinor: Number(row.balanceMinor),
+    lineCount: row.lineCount,
+    stayInHouse: row.stayInHouse,
   };
 }
 
 function toLine(row: LineRow): FolioLine {
-  return { ...row, amountMinor: Number(row.amountMinor) };
+  return {
+    lineId: row.lineId,
+    lineType: row.lineType,
+    description: row.description,
+    amountMinor: Number(row.amountMinor),
+    reversesLineId: row.reversesLineId,
+    reversed: row.reversed,
+    postedAt: row.postedAt,
+    roomNightOf: row.roomNightOf,
+  };
 }
 
 /**
@@ -103,6 +124,7 @@ function folioQuery(predicate: string, order = ""): string {
   return `
     select
       folio.id                              as "folioId",
+      folio.property_id                     as "propertyId",
       stay.id                               as "stayId",
       folio.status                          as "status",
       folio.currency                        as "currency",
@@ -147,7 +169,9 @@ export function createFoliosModule(deps: FoliosDeps) {
       tx.$queryRawUnsafe<SummaryRow[]>(
         folioQuery(
           "folio.property_id = $1::uuid",
-          "order by folio.status, unit.name",
+          // Not `order by folio.status`: status is text, and 'closed' sorts
+          // before 'open', which listed the finished Folios first (FO-S9-02).
+          `order by folio.status = 'open' desc, unit.name, folio.id`,
         ),
         propertyId,
         FOLIO_CAPABILITY.moduleKey,
@@ -160,11 +184,13 @@ export function createFoliosModule(deps: FoliosDeps) {
   /**
    * One Folio and everything posted to it.
    *
-   * Two statements in one transaction, so the balance and the lines it is the
-   * sum of are read at the same instant. Separately, a charge posted between
-   * them would produce a screen whose total does not match its own rows —
-   * which is exactly the drift a stored total was avoided to prevent, arriving
-   * by a different route.
+   * One statement, so the balance and the lines it is the sum of come from one
+   * snapshot. Two statements — even in one transaction, at READ COMMITTED —
+   * each take their own, so a charge committing between them printed a total
+   * that did not match its own rows (FO-S3-02): the drift a stored total was
+   * avoided to prevent, arriving by a different route. The summary is the same
+   * `folioQuery` the list uses; each line is left-joined to it, and a Folio with
+   * no lines comes back as one row whose line columns are null.
    *
    * Null for a Folio the viewer cannot reach and for one that does not exist,
    * which are the same answer on purpose.
@@ -173,39 +199,39 @@ export function createFoliosModule(deps: FoliosDeps) {
     userId: string,
     folioId: string,
   ): Promise<FolioDetail | null> {
-    return withOrganizationContext(deps.db, { userId }, async (tx) => {
-      const rows = await tx.$queryRawUnsafe<SummaryRow[]>(
-        folioQuery("folio.id = $1::uuid"),
+    const rows = await withOrganizationContext(deps.db, { userId }, (tx) =>
+      tx.$queryRawUnsafe<(SummaryRow & Nullable<LineRow>)[]>(
+        `select summary.*,
+                line.id                 as "lineId",
+                line.line_type          as "lineType",
+                line.description        as "description",
+                line.amount_minor::text as "amountMinor",
+                line.reverses_line_id   as "reversesLineId",
+                exists (
+                  select 1 from public.folio_lines as cancelling
+                  where cancelling.reverses_line_id = line.id
+                )                       as "reversed",
+                line.posted_at          as "postedAt",
+                case when line.source = 'room_night'
+                     then to_char(line.business_date, 'YYYY-MM-DD')
+                end                     as "roomNightOf"
+           from (${folioQuery("folio.id = $1::uuid")}) as summary
+           left join public.folio_lines as line
+             on line.folio_id = summary."folioId"
+          order by line.posted_at desc nulls last, line.id`,
         folioId,
         FOLIO_CAPABILITY.moduleKey,
         FOLIO_CAPABILITY.capabilityKey,
-      );
+      ),
+    );
 
-      const [summary] = rows;
-      if (!summary) return null;
+    const [first] = rows;
+    if (!first) return null;
 
-      const lines = await tx.$queryRaw<LineRow[]>`
-        select
-          line.id               as "lineId",
-          line.line_type        as "lineType",
-          line.description      as "description",
-          line.amount_minor::text as "amountMinor",
-          line.reverses_line_id as "reversesLineId",
-          exists (
-            select 1 from public.folio_lines as cancelling
-            where cancelling.reverses_line_id = line.id
-          )                     as "reversed",
-          line.posted_at        as "postedAt",
-          case when line.source = 'room_night'
-               then to_char(line.business_date, 'YYYY-MM-DD')
-          end                   as "roomNightOf"
-        from public.folio_lines as line
-        where line.folio_id = ${folioId}::uuid
-        order by line.posted_at desc, line.id
-      `;
-
-      return { ...toSummary(summary), lines: lines.map(toLine) };
-    });
+    const lines = rows.flatMap((row) =>
+      row.lineId === null ? [] : [toLine(row as LineRow)],
+    );
+    return { ...toSummary(first), lines };
   }
 
   /**
@@ -313,9 +339,13 @@ export function createFoliosModule(deps: FoliosDeps) {
               on original.id = reversed.reverses_line_id
             join public.folios as folio on folio.id = reversed.folio_id
         `;
-      } catch {
-        // Already reversed, the Folio is closed, or out of reach.
-        throw new FolioWriteError("that line could not be reversed");
+      } catch (error: unknown) {
+        // Already reversed, the Folio is closed, or no permission to reverse.
+        // Anything else is a defect and travels on as itself (FO-S9-04).
+        if (!raisedOneOf(error, REVERSAL_REFUSED)) throw error;
+        throw new FolioWriteError("that line could not be reversed", {
+          cause: error,
+        });
       }
 
       const [line] = reversed;
@@ -362,19 +392,29 @@ export function createFoliosModule(deps: FoliosDeps) {
     folioId: string,
   ): Promise<{ folioId: string }> {
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
-      const closed = await tx.$queryRaw<
-        { organizationId: string; propertyId: string; currency: string }[]
-      >`
-        update public.folios
-           set status = 'closed',
-               closed_at = now(),
-               updated_at = now()
-         where id = ${folioId}::uuid
-           and status = 'open'
-        returning organization_id as "organizationId",
-                  property_id     as "propertyId",
-                  currency::text  as "currency"
-      `;
+      let closed;
+      try {
+        closed = await tx.$queryRaw<
+          { organizationId: string; propertyId: string; currency: string }[]
+        >`
+          update public.folios
+             set status = 'closed',
+                 closed_at = now(),
+                 updated_at = now()
+           where id = ${folioId}::uuid
+             and status = 'open'
+          returning organization_id as "organizationId",
+                    property_id     as "propertyId",
+                    currency::text  as "currency"
+        `;
+      } catch (error: unknown) {
+        // The Guest is still in house, or the front desk's settled-only rule.
+        // Anything else is a defect and travels on as itself (FO-S9-04).
+        if (!raisedOneOf(error, CLOSURE_REFUSED)) throw error;
+        throw new FolioWriteError("that Folio could not be closed", {
+          cause: error,
+        });
+      }
 
       const [folio] = closed;
       if (!folio) {

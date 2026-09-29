@@ -290,6 +290,7 @@ export interface Messages {
       | "closeDay"
       | "manageFolio"
       | "postCharge"
+      | "reverseCharge"
       | "administerStaff"
       | "defineRoles"
       | "configureAccommodation"
@@ -1601,6 +1602,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         closeDay: "Günü kapatma",
         manageFolio: "Folyo açma ve kapatma",
         postCharge: "Folyoya ücret işleme",
+        reverseCharge: "Folyodaki ücreti ters kaydetme",
         administerStaff: "Ekibi yönetme",
         defineRoles: "Rol tanımlama",
         configureAccommodation: "Odaları ve yatakları yapılandırma",
@@ -2981,6 +2983,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         closeDay: "Close the day",
         manageFolio: "Open and close a Folio",
         postCharge: "Post a charge",
+        reverseCharge: "Reverse a charge",
         administerStaff: "Administer staff",
         defineRoles: "Define roles",
         configureAccommodation: "Configure rooms & beds",
@@ -4363,6 +4366,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         closeDay: "إغلاق اليوم",
         manageFolio: "فتح وإغلاق الحساب",
         postCharge: "تسجيل رسم على الحساب",
+        reverseCharge: "عكس رسم مسجَّل على الحساب",
         administerStaff: "إدارة الفريق",
         defineRoles: "تعريف الأدوار",
         configureAccommodation: "تهيئة الغرف والأسرّة",

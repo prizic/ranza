@@ -38,7 +38,10 @@ import {
  * one.
  *
  * Nothing here decides whether the viewer may do anything. The row-level
- * policies do, and this only reports what came back.
+ * policies do, and this only reports what came back. `mayReverse` only hides
+ * an action the policy would refuse — reversing asks its own permission
+ * (ADR 0041), so somebody who may post a charge is not offered a button that
+ * could only fail.
  */
 
 function outcomeMessage(
@@ -185,9 +188,12 @@ function CloseAction({ folioId, locale }: { folioId: string; locale: string }) {
 export function FolioPanel({
   folio,
   locale,
+  mayReverse,
 }: {
   folio: FolioDetail;
   locale: SupportedLocale;
+  /** The viewer holds finance.reverse_charge at this Folio's Property. */
+  mayReverse: boolean;
 }) {
   const t = useTranslations();
   const open = folio.status === "open";
@@ -284,7 +290,10 @@ export function FolioPanel({
                   {formatMoney(line.amountMinor, folio.currency, locale)}
                 </TableCell>
                 <TableCell>
-                  {open && line.lineType === "charge" && !line.reversed ? (
+                  {mayReverse &&
+                  open &&
+                  line.lineType === "charge" &&
+                  !line.reversed ? (
                     <ReverseAction lineId={line.lineId} locale={locale} />
                   ) : null}
                 </TableCell>
