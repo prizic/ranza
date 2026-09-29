@@ -487,7 +487,6 @@ export interface Messages {
   freeTonight: string;
   inHouseTonight: string;
   reservedTonight: string;
-  reservedCount: string;
   statReserved: string;
   nextArrivalOn: string;
   outOfOrderBeds: string;
@@ -1811,7 +1810,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     freeTonight: "Boş",
     inHouseTonight: "Konaklamada",
     reservedTonight: "Rezervasyonlu",
-    reservedCount: "{count, number} rezervasyonlu",
     statReserved: "Bu gece rezervasyonlu",
     nextArrivalOn: "Sonraki varış {date}",
     outOfOrderBeds: "{count, number} hizmet dışı",
@@ -3195,7 +3193,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     freeTonight: "Free",
     inHouseTonight: "In house",
     reservedTonight: "Reserved",
-    reservedCount: "{count, number} reserved",
     statReserved: "Reserved tonight",
     nextArrivalOn: "Next arrival {date}",
     outOfOrderBeds: "{count, number} out of order",
@@ -4568,8 +4565,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     freeTonight: "فارغ",
     inHouseTonight: "في الإقامة",
     reservedTonight: "محجوز",
-    reservedCount:
-      "{count, plural, zero {لا شيء محجوز} one {سرير واحد محجوز} two {سريران محجوزان} few {# أسرّة محجوزة} many {# سريرًا محجوزًا} other {# سرير محجوز}}",
     statReserved: "محجوز الليلة",
     nextArrivalOn: "الوصول التالي {date}",
     outOfOrderBeds: "{count, number} خارج الخدمة",
