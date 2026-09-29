@@ -105,11 +105,18 @@ test("a front desk takes a booking and finds it on the list", async ({
   await expect(dialog).toBeVisible();
 
   await pickDay(page, propertyDay(propertyId, 7));
+  // A Guest booking needs a departure (RG-S1-11): left without one, the
+  // submit stops the same way and the calendar reopens at the departure.
+  await page.keyboard.press("Escape");
+  await expect(page.getByText("Choose the departure day")).toBeHidden();
+  await dialog.getByRole("button", { name: "Create reservation" }).click();
+  await expect(page.getByText("Choose the departure day")).toBeVisible();
+  await expect(dialog).toBeVisible();
   await pickDay(page, propertyDay(propertyId, 10));
   // The range is complete: the calendar closes and focus is back on the half
   // just set, so a keyboard reader carries on from where they were.
   await expect(
-    page.getByText("Choose the departure, or leave it open"),
+    page.getByText("Choose the departure day"),
   ).toBeHidden();
   await expect(
     dialog.getByRole("button", { name: /^Departure/ }),

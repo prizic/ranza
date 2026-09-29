@@ -205,21 +205,40 @@ describe("a departure (RG-S1-11, RG-S3-11)", () => {
   it("a_guest_booking_is_not_taken_without_a_departure", () => {
     openForm();
     expect(screen.getByText(messages.en.departureRequiredHint)).toBeVisible();
-    expect(takeBooking()).toBeDisabled();
-
+    chooseUnit(/101/);
+    fireEvent.change(screen.getByLabelText(messages.en.guest), {
+      target: { value: "Nezihe Muhiddin" },
+    });
     chooseDates("2026-10-01");
-    expect(takeBooking()).toBeDisabled();
 
-    fireEvent.click(day("2026-10-03"));
-    expect(takeBooking()).toBeEnabled();
+    // Asked for the way every other missing field is asked for: the submit
+    // is stopped and the calendar opens at the departure, with the Guest's
+    // prompt rather than an offer to leave it open.
+    takeBooking().closest("form")!.requestSubmit();
+    expect(createReservation).not.toHaveBeenCalled();
+    expect(
+      screen.getByText(messages.en.bookingPickDepartureRequired),
+    ).toBeVisible();
+    expect(screen.queryByText(messages.en.bookingPickDeparture)).toBeNull();
   });
 
-  it("a_residents_booking_may_be_left_open_ended", () => {
+  it("a_residents_booking_may_be_left_open_ended", async () => {
+    createReservation.mockResolvedValue("done");
     openForm();
+    chooseUnit(/101/);
     chooseStayType(messages.en.stayType.resident);
     expect(screen.getByText(messages.en.departureHint)).toBeVisible();
     expect(screen.queryByText(messages.en.departureRequiredHint)).toBeNull();
-    expect(takeBooking()).toBeEnabled();
+    fireEvent.change(screen.getByLabelText(messages.en.guest), {
+      target: { value: "Nezihe Muhiddin" },
+    });
+    chooseDates("2026-10-01");
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
+    });
+
+    takeBooking().closest("form")!.requestSubmit();
+    await vi.waitFor(() => expect(createReservation).toHaveBeenCalled());
   });
 
   /**

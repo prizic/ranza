@@ -52,8 +52,9 @@ import { unitLabel } from "../unit-label";
  * separate date inputs never could. It still submits `startsOn` and `endsOn` as
  * `YYYY-MM-DD`, which is what the module wants and what the database stores.
  * A departure left empty is an open-ended booking, which only a Resident may
- * have (RG-S1-11): for a Guest the form asks for one and will not submit
- * without it, and the module and a check constraint refuse it again.
+ * have (RG-S1-11): for a Guest a submit without one opens the calendar at the
+ * departure, as a missing arrival opens it at the arrival, and the module and
+ * a check constraint refuse it again.
  *
  * Submitted by hand rather than through `action` (`submitWithoutReset`): every
  * refusal keeps this dialog open, and React's reset would put the stay type
@@ -307,7 +308,9 @@ export function NewReservationDialog({
                     ? t("bookingAddDate")
                     : t("bookingOpenEnded"),
                   pickFrom: t("bookingPickArrival"),
-                  pickTo: t("bookingPickDeparture"),
+                  pickTo: departureRequired
+                    ? t("bookingPickDepartureRequired")
+                    : t("bookingPickDeparture"),
                   clear: t("dateRangeClear"),
                   done: t("dateRangeDone"),
                   span: (nights) => t("stayNights", { count: nights }),
@@ -319,13 +322,11 @@ export function NewReservationDialog({
                 names={{ from: "startsOn", to: "endsOn" }}
                 onChange={setDates}
                 required
+                requiredTo={departureRequired}
                 today={today}
               />
             </Field>
-            <p
-              className="text-step--1 text-muted-foreground"
-              id="booking-dates-hint"
-            >
+            <p className="text-step--1 text-muted-foreground">
               {departureRequired
                 ? t("departureRequiredHint")
                 : t("departureHint")}
@@ -357,15 +358,7 @@ export function NewReservationDialog({
                 {t("discardBooking")}
               </Button>
             </DialogClose>
-            <Button
-              aria-describedby={
-                departureRequired && !dates.to
-                  ? "booking-dates-hint"
-                  : undefined
-              }
-              disabled={pending || (departureRequired && !dates.to)}
-              type="submit"
-            >
+            <Button disabled={pending} type="submit">
               {pending ? t("takingBooking") : t("takeBooking")}
             </Button>
           </DialogFooter>

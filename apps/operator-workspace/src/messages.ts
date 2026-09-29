@@ -351,6 +351,7 @@ export interface Messages {
   bookingOpenEnded: string;
   bookingPickArrival: string;
   bookingPickDeparture: string;
+  bookingPickDepartureRequired: string;
   /** ICU plural on `count`. */
   stayNights: string;
   dateRangeClear: string;
@@ -1676,6 +1677,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingOpenEnded: "Açık uçlu",
     bookingPickArrival: "Giriş gününü seçin",
     bookingPickDeparture: "Çıkış gününü seçin ya da açık bırakın",
+    bookingPickDepartureRequired: "Çıkış gününü seçin",
     stayNights: "{count, plural, other {# gece}}",
     dateRangeClear: "Temizle",
     dateRangeDone: "Tamam",
@@ -3070,6 +3072,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingOpenEnded: "Open-ended",
     bookingPickArrival: "Choose the arrival day",
     bookingPickDeparture: "Choose the departure, or leave it open",
+    bookingPickDepartureRequired: "Choose the departure day",
     stayNights: "{count, plural, one {# night} other {# nights}}",
     dateRangeClear: "Clear",
     dateRangeDone: "Done",
@@ -4462,6 +4465,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingOpenEnded: "مفتوحة المدة",
     bookingPickArrival: "اختر يوم الوصول",
     bookingPickDeparture: "اختر يوم المغادرة أو اتركه مفتوحًا",
+    bookingPickDepartureRequired: "اختر يوم المغادرة",
     stayNights:
       "{count, plural, one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلة} other {# ليلة}}",
     dateRangeClear: "مسح",
