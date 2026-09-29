@@ -38,6 +38,15 @@ Runner: pgTAP suites directly through `psql -f`; vitest with
   constraint's raw 23514, and the test goes red on the error type. The
   constraint's own red is in the pgTAP section.
 
+- **A sabotage that left a row behind.** With the charges trigger dropped
+  (CI-S2-04), the test's withdrawal succeeded, and the reversal suite's
+  persistent Organization kept a cancelled Stay whose open Folio carries a
+  line. The ghost-Folio backfill assertion in `folios.test.sql` then refused
+  that database, correctly. Only the lane database held it. The Stay and its
+  Reservation were put back to `in_house` / `checked_in`, which is what the
+  real trigger would have left, and `folios.test.sql` and the full `db:test`
+  passed again. A fresh database built for G2 never held it.
+
 ## Record
 
 ### RG-S1-11 drop the departure constraint
