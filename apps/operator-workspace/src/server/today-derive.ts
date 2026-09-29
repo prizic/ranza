@@ -243,7 +243,10 @@ export function grantsFor(permissions: readonly string[]): Grants {
   return {
     frontDesk: has("front_desk.check_in") || has("front_desk.check_out"),
     housekeeping: has("housekeeping.update_status"),
-    finance: has("finance.manage_folio") || has("finance.post_charge"),
+    finance:
+      has("finance.manage_folio") ||
+      has("finance.post_charge") ||
+      has("finance.reverse_charge"),
     manager: has("staff.administer") || has("audit.read"),
     money: has("finance.manage_folio"),
     maintenance: has("maintenance.report") || has("maintenance.manage"),

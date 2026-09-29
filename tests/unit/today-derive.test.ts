@@ -264,6 +264,9 @@ describe("focus", () => {
     expect(focusFor(grantsFor(["front_desk.check_out"]))).toBe("front_desk");
     expect(focusFor(grantsFor(HOUSEKEEPING))).toBe("housekeeping");
     expect(focusFor(grantsFor(FINANCE))).toBe("finance");
+    // A role that may only reverse a charge works on Folios all the same
+    // (FO-S4-10, ADR 0041).
+    expect(focusFor(grantsFor(["finance.reverse_charge"]))).toBe("finance");
     expect(focusFor(grantsFor(MANAGER))).toBe("manager");
     expect(focusFor(grantsFor([]))).toBe("none");
   });
