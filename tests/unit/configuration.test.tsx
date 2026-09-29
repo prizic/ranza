@@ -55,6 +55,11 @@ let maintenanceShown: MaintenanceSettings | null = null;
 let pricesShown: PriceList | null = null;
 
 vi.mock("../../apps/operator-workspace/node_modules/server-only", () => ({}));
+// Nothing remembered on this device (OA-S3-05): the page resolves its
+// Property from the URL and its own list, as it did before there was a cookie.
+vi.mock("../../apps/operator-workspace/node_modules/next/headers", () => ({
+  cookies: async () => ({ get: () => undefined }),
+}));
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("notFound");

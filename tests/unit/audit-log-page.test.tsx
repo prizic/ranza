@@ -29,6 +29,11 @@ let locale: SupportedLocale = "en";
 // Resolved from the application's own node_modules, which is where the page's
 // server helpers import it from; the bare name resolves nowhere from here.
 vi.mock("../../apps/operator-workspace/node_modules/server-only", () => ({}));
+// Nothing remembered on this device (OA-S3-05): the page resolves its
+// Property from the URL and its own list, as it did before there was a cookie.
+vi.mock("../../apps/operator-workspace/node_modules/next/headers", () => ({
+  cookies: async () => ({ get: () => undefined }),
+}));
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("notFound");
