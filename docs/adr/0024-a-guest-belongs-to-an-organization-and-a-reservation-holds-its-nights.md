@@ -15,6 +15,10 @@ row with no `ends_on` for every writer, and `createReservation` refuses it
 first with `ReservationPeriodError` (RG-S1-11, migration 20260916009500).
 Since ADR 0038 an open-ended priced Guest booking would hold its Unit and be
 charged a room night every night until somebody noticed.
+A booking already finished — checked out, cancelled or a no-show — is excused:
+it holds no Unit, and the finished-row trigger forbids giving it a departure
+afterwards, so a database holding one from before the rule could otherwise
+never apply it. Every booking is taken confirmed, so the rule binds each new one.
 
 Amended: 2026-09-29 — a booking is not taken on a closed business day. The
 module refuses a start before the Property's today; the database refuses,

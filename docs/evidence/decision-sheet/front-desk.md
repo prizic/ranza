@@ -67,6 +67,27 @@ not ok 35 - a Guest booking without a departure is refused
 not ok 45 - the departure constraint excuses the Resident and nobody else
 ```
 
+### RG-S1-11 the finished-booking exemption (parent, after the integration grill)
+
+The integration grill found that a checked-out open-ended Guest booking could
+never be given a departure (the finished-row trigger), so the strict constraint
+would block every deploy of a database holding one. The constraint now excuses
+`checked_out`, `cancelled` and `no_show`, the states that trigger calls
+finished. Both directions were broken on the integration database:
+
+```
+-- sabotage A (strict again):
+CHECK (((stay_type = 'resident'::text) OR (ends_on IS NOT NULL)))
+not ok 36 - RG-S1-11: a Guest booking already finished without a departure is excused
+not ok 47 - the departure constraint excuses the Resident, and a booking already finished
+-- sabotage B (a live status excused too):
+CHECK (((stay_type = 'resident'::text) OR (ends_on IS NOT NULL) OR (status = ANY (ARRAY['checked_out'::text, 'cancelled'::text, 'no_show'::text, 'requested'::text]))))
+not ok 37 - RG-S1-11: but one still live is refused, whoever writes it
+not ok 47 - the departure constraint excuses the Resident, and a booking already finished
+-- restored:
+CHECK (((stay_type = 'resident'::text) OR (ends_on IS NOT NULL) OR (status = ANY (ARRAY['checked_out'::text, 'cancelled'::text, 'no_show'::text]))))
+```
+
 ### RG-S1-08 drop the closed-day trigger on bookings
 
 ```
