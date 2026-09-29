@@ -92,8 +92,10 @@ interface UnitRow {
   stayId: string | null;
   guestName: string | null;
   endsOn: string | null;
-  /** The earliest confirmed Reservation still to come. */
-  arrivesOn: string | null;
+  /** Start of a confirmed Reservation that covers tonight. */
+  tonightStartsOn: string | null;
+  /** The earliest confirmed Reservation starting after tonight. */
+  nextArrivalOn: string | null;
   today: string;
 }
 
@@ -116,9 +118,10 @@ function stateOf(row: UnitRow): UnitState {
   if (row.status === "out_of_service" || row.roomStatus === "out_of_service") {
     return { kind: "out_of_service" };
   }
-  if (row.arrivesOn !== null)
-    return { kind: "reserved", arrivesOn: row.arrivesOn };
-  return { kind: "free" };
+  if (row.tonightStartsOn !== null) {
+    return { kind: "reserved", arrivesOn: row.tonightStartsOn };
+  }
+  return { kind: "free", nextArrivalOn: row.nextArrivalOn };
 }
 
 function entryOf(row: UnitRow, beds: readonly UnitEntry[]): UnitEntry {
@@ -199,7 +202,8 @@ export function createAccommodationModule(deps: AccommodationDeps) {
           occupant.stay_id                         as "stayId",
           occupant.guest_name                      as "guestName",
           to_char(occupant.ends_on, 'YYYY-MM-DD')  as "endsOn",
-          to_char(upcoming.starts_on, 'YYYY-MM-DD') as "arrivesOn",
+          to_char(tonight.starts_on, 'YYYY-MM-DD') as "tonightStartsOn",
+          to_char(later.starts_on, 'YYYY-MM-DD')   as "nextArrivalOn",
           to_char(today.day, 'YYYY-MM-DD')         as "today"
         from public.accommodation_units as unit
         left join public.accommodation_units as room
@@ -224,10 +228,20 @@ export function createAccommodationModule(deps: AccommodationDeps) {
           from public.reservations as reservation
           where reservation.accommodation_unit_id = unit.id
             and reservation.status = 'confirmed'
+            and reservation.starts_on <= today.day
             and (reservation.ends_on is null or reservation.ends_on > today.day)
           order by reservation.starts_on
           limit 1
-        ) as upcoming on true
+        ) as tonight on true
+        left join lateral (
+          select reservation.starts_on
+          from public.reservations as reservation
+          where reservation.accommodation_unit_id = unit.id
+            and reservation.status = 'confirmed'
+            and reservation.starts_on > today.day
+          order by reservation.starts_on
+          limit 1
+        ) as later on true
         where unit.property_id = ${propertyId}::uuid
           and app.can_use_capability(
             unit.property_id,
@@ -271,10 +285,8 @@ export function createAccommodationModule(deps: AccommodationDeps) {
       if (state.kind === "in_house") counts.inHouse += 1;
       else if (state.kind === "blocked") counts.blocked += 1;
       else if (state.kind === "out_of_service") counts.outOfService += 1;
-      else {
-        counts.free += 1;
-        if (state.kind === "reserved") counts.reserved += 1;
-      }
+      else if (state.kind === "reserved") counts.reserved += 1;
+      else counts.free += 1;
     }
 
     // No rows is either a Property with no Units or one the caller cannot
