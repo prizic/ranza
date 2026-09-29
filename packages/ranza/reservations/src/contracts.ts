@@ -289,6 +289,26 @@ export class CheckInError extends Error {
 }
 
 /**
+ * A check-in pressed before the booking's first business date (CI-S1-07).
+ *
+ * At 02:00 before the cutoff the night still belongs to yesterday's date, so a
+ * booking from the new calendar day is an early arrival. A subclass, so every
+ * caller that treats a `CheckInError` as the module's own refusal still does;
+ * its own type so the desk is told the date the booking starts and can either
+ * wait or book the Guest from today.
+ *
+ * Raised only for a Reservation the caller can read and could check in once
+ * its day came. Anything else stays the generic `CheckInError`, so this never
+ * says that a Reservation out of reach exists.
+ */
+export class CheckInTooEarlyError extends CheckInError {
+  constructor(readonly startsOn: string) {
+    super(`that Reservation starts on ${startsOn}`);
+    this.name = "CheckInTooEarlyError";
+  }
+}
+
+/**
  * The Unit is already held over these nights.
  *
  * Not a subclass of `CheckInError` any more, because it is now the answer to

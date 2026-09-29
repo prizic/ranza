@@ -25,6 +25,7 @@ import {
   CheckInDayClosedError,
   StayMovedError,
   CheckInError,
+  CheckInTooEarlyError,
   CheckInReversalError,
   CheckOutError,
   EarlyDepartureError,
@@ -483,18 +484,31 @@ export function createReservationsModule(deps: ReservationsDeps) {
 
       const [reservation] = moved;
       if (!reservation) {
+        // One early arrival is told apart (CI-S1-07): before the cutoff the
+        // night is still yesterday's, so a booking from the new calendar day
+        // starts on the next business date. Read under the caller's own
+        // policies and gates, so it is answered only for a Reservation they
+        // could check in once its day came — everything else is the one
+        // refusal below.
+        const [early] = await tx.$queryRaw<{ startsOn: string }[]>`
+          select to_char(starts_on, 'YYYY-MM-DD') as "startsOn"
+          from public.reservations
+          where id = ${reservationId}::uuid
+            and status = 'confirmed'
+            and starts_on > app.property_today(property_id)
+            and app.can_use_capability(
+              property_id,
+              ${FRONT_DESK_CAPABILITY.moduleKey},
+              ${FRONT_DESK_CAPABILITY.capabilityKey}
+            )
+            and app.has_organization_permission(
+              organization_id, 'front_desk.check_in')
+        `;
+        if (early) throw new CheckInTooEarlyError(early.startsOn);
         // Out of reach, already checked in, cancelled, or never existed. One
         // message for all four: telling them apart would confirm that a
         // Reservation the caller cannot see is there.
         throw new CheckInError("that Reservation cannot be checked in");
-      }
-
-      // A room that is not ready is the desk's call, not a refusal: asked
-      // once, and allowed after they say so (HK-S2-14, HK-S2-15). Thrown
-      // before anything else is written, so the answer they give is to a
-      // check-in that has not half happened.
-      if (!reservation.unitIsReady && !options.readinessAcknowledged) {
-        throw new UnitNotReadyError();
       }
 
       // Every value comes from the row the update returned, never from the
@@ -546,6 +560,18 @@ export function createReservationsModule(deps: ReservationsDeps) {
           throw new CheckInError("the business day closed during the check-in");
         }
         throw error;
+      }
+
+      // A room that is not ready is the desk's call, not a refusal: asked
+      // once, and allowed after they say so (HK-S2-14, HK-S2-15). Asked only
+      // once the Stay has been accepted, so every refusal nobody can override
+      // — somebody in the room, the room out of service, the day closed — is
+      // said first rather than after "check in anyway" (CI-S1-19). Thrown
+      // before the Folio, the event and the record, and the throw rolls the
+      // Stay and the Reservation back with it: the answer the desk gives is
+      // to a check-in that has not half happened.
+      if (!reservation.unitIsReady && !options.readinessAcknowledged) {
+        throw new UnitNotReadyError();
       }
 
       // The Folio the Stay will accrue against — blueprint 6.1 step 5, where
@@ -1410,6 +1436,16 @@ export function createReservationsModule(deps: ReservationsDeps) {
     if (endsOn !== null && endsOn <= startsOn) {
       throw new ReservationPeriodError(
         "a Reservation covers at least one night",
+      );
+    }
+    // An open-ended booking is the Resident's case (RG-S1-11): a short-term
+    // Guest always has a planned departure, and an open-ended priced one would
+    // hold the Unit and be charged a night every night until somebody noticed
+    // (ADR 0038). `reservations_guest_has_a_departure` refuses the same row for
+    // every writer; this is what names the field.
+    if (endsOn === null && booking.stayType === "guest") {
+      throw new ReservationPeriodError(
+        "a Guest booking needs a departure date",
       );
     }
 

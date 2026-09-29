@@ -93,6 +93,8 @@ export interface Messages {
   ready: string;
   notReady: string;
   checkInRefused: string;
+  /** A booking whose first business date has not come (CI-S1-07). */
+  checkInTooEarly: string;
 
   /**
    * Withdrawing a check-in that should not have happened (ADR 0022).
@@ -1406,6 +1408,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     ready: "Hazır",
     notReady: "Hazır değil",
     checkInRefused: "Bu rezervasyon için giriş yapılamıyor.",
+    checkInTooEarly:
+      "Bu rezervasyon henüz başlamadı — ilk gecesi daha sonraki bir iş gününde. Misafirin girişini o gün yapın ya da rezervasyonu bugünden başlayacak şekilde değiştirin.",
     undoCheckIn: "Girişi geri al",
     undoingCheckIn: "Geri alınıyor",
     undoCheckInFor: "{guest} için girişi geri al",
@@ -2785,6 +2789,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     ready: "Ready",
     notReady: "Not ready",
     checkInRefused: "That Reservation cannot be checked in.",
+    checkInTooEarly:
+      "This booking hasn't started yet — its first night is a later business day. Check the Guest in on that day, or change the booking to start today.",
     undoCheckIn: "Undo check-in",
     undoingCheckIn: "Undoing",
     undoCheckInFor: "Undo check-in for {guest}",
@@ -4172,6 +4178,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     ready: "جاهزة",
     notReady: "غير جاهزة",
     checkInRefused: "لا يمكن تسجيل الوصول لهذا الحجز.",
+    checkInTooEarly:
+      "لم يبدأ هذا الحجز بعد — ليلته الأولى في يوم عمل لاحق. سجّل وصول الضيف في ذلك اليوم، أو غيّر الحجز ليبدأ اليوم.",
     undoCheckIn: "التراجع عن تسجيل الوصول",
     undoingCheckIn: "جارٍ التراجع",
     undoCheckInFor: "التراجع عن تسجيل الوصول لـ {guest}",
