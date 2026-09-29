@@ -69,3 +69,27 @@ fails one assertion rather than aborting the suite.
 | sabotage                                                                    | printed                                                    | red                                                           |
 | --------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------- |
 | `app.accept_staff_invitation()` recreated exactly as 20260916002800 left it | `guard: invitation.status = 'pending';` (no expiry clause) | 92 `and so does an expired invitation, rather than a refusal` |
+
+## IG-07, OA-S1-07, IG-12, IG-14 — the catalogue sweeps
+
+Suite: `tests/database/insert_grants.test.sql`, 37 assertions, all green
+unsabotaged. `platform_outbox.test.sql` (35) and the outbox and housekeeping
+integration suites (40) stay green with the worker's delivery grant narrowed.
+
+| row      | sabotage                                                                                             | printed                                                                                                       | red                                                                                                                                                                                  |
+| -------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| IG-07    | the worker's table-level insert restored: `grant insert on outbox.deliveries to ranza_worker`        | `relacl: {ranza=arwdDxtm/ranza,ranza_worker=ar/ranza}`                                                        | 1 `ranza_app and ranza_worker hold no table-level write grant in any schema`; 14 `outbox.deliveries: the three the dispatcher names`; 31 `and cannot say when the delivery happened` |
+| IG-07    | a table-level write in the schema the old sweep missed: `grant insert on audit.records to ranza_app` | `relacl: {ranza=arwdDxtm/ranza,ranza_app=ar/ranza}`                                                           | 1 (the old `public`/`outbox` sweep reads this grant as nothing)                                                                                                                      |
+| OA-S1-07 | `grant select on public.reservations to ranza_auth`                                                  | `relacl: {ranza=arwdDxtm/ranza,ranza_app=r/ranza,ranza_auth=r/ranza}`                                         | 4 `ranza_auth holds no privilege on any relation but users, auth_identities and Better Auth's tables`                                                                                |
+| OA-S1-07 | column-level: `grant select (name) on public.properties to ranza_auth`                               | `attacl: {ranza_app=w/ranza,ranza_auth=r/ranza}`                                                              | 4                                                                                                                                                                                    |
+| IG-14    | a stray caller, `app.stray_capability_probe(uuid)`                                                   | `select app.capability_is_available(target, 'front_office', 'front_desk');`                                   | 37 `app.capability_is_available() is called by exactly the functions that mean gates 1-3`                                                                                            |
+| IG-14    | a function that only mentions it in a comment, `app.comment_only_probe()`                            | `-- deliberately not app.capability_is_available(x, y, z): a comment, not a call / select true;`              | none — correctly: a comment is not a caller                                                                                                                                          |
+| IG-12    | a definer that writes and whose only "check" is a comment, `app.unchecked_writer_probe(uuid)`        | `-- asks app.current_user_id() about nothing … / update public.properties set name = name where id = target;` | 33 `every security definer function in app that writes also checks its caller` (and 34-36, the pinned inventory, as they should)                                                     |
+| IG-12    | a body holding `--` inside a string, `app.literal_probe()`                                           | `select 'a -- b';`                                                                                            | 32 `no function body holds "--" inside a string, so stripping comments hides no code`                                                                                                |
+
+The IG-12 sabotage is the reason comments are stripped. Before this change,
+`current_user_id` in a comment satisfied Part A, and nine definers carry
+comments today — two of which match the write pattern (`identify_staff_user`'s
+"the membership INSERT would apply", `amend_reservation`'s "UPDATE OF"). With
+comments stripped the writer count is unchanged, so no existing definer was
+passing on a comment.
