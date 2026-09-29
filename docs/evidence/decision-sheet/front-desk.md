@@ -1173,3 +1173,27 @@ Result:
 × is refused as a date to fix, and writes nothing
 Tests  1 failed | 22 skipped (23)
 ```
+
+### RG-S1-10 module: bookingDay forgets the commercial gates (grill Q2)
+
+The outsider half of the test was held by the Property's read policy and the
+capability clause at once, so deleting the clause alone could not go red. An
+assertion was added where they diverge: the Property readable, its front desk
+off. In `packages/ranza/reservations/src/module.ts`, deleted from `bookingDay`:
+
+```
+          and app.can_use_capability(
+            property.id,
+            ${FRONT_DESK_CAPABILITY.moduleKey},
+            ${FRONT_DESK_CAPABILITY.capabilityKey}
+          )
+```
+
+Printed as a diff against the file as it stood; restored byte for byte after the run.
+
+Result:
+
+```
+× RG-S1-10: the booking form is given the business date, and an outsider nothing
+Tests  1 failed | 22 skipped (23)
+```

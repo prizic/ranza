@@ -356,6 +356,23 @@ describe("the Property's business date, not its calendar date", () => {
     expect(given).toBe(await day(SMALL_HOURS, 0));
     expect(given).not.toBe(local?.day);
     expect(await reservations.bookingDay(OUTSIDER, SMALL_HOURS)).toBeNull();
+
+    // Readable, but the front desk is off: the policies still show the
+    // Property, so only the capability gate answers null here.
+    await owner.$executeRawUnsafe(
+      `update public.property_capabilities set enabled = false
+        where property_id = $1::uuid and capability_key = 'front_desk'`,
+      SMALL_HOURS,
+    );
+    try {
+      expect(await reservations.bookingDay(MANAGER, SMALL_HOURS)).toBeNull();
+    } finally {
+      await owner.$executeRawUnsafe(
+        `update public.property_capabilities set enabled = true
+          where property_id = $1::uuid and capability_key = 'front_desk'`,
+        SMALL_HOURS,
+      );
+    }
   });
 
   it("CI-S1-06: checks in a booking for the business date in the small hours", async () => {
