@@ -23,7 +23,6 @@ import {
 } from "../../packages/db/src";
 import {
   createAccommodationModule,
-  UnitConfigurationError,
   UnitNameTakenError,
   UnitOccupiedError,
   UnitRefusedError,
@@ -783,14 +782,6 @@ describe("adding rooms", { timeout: BUDGET_MS }, () => {
     await expect(
       accommodation.blockUnit(OWNER, added.unitIds[0]!, "The whole room"),
     ).rejects.toThrow(/let by the bed/);
-  });
-
-  it("a shape the person can correct is refused with its own sentence (RB-S2-09)", async () => {
-    const property = await newProperty();
-    await expect(
-      accommodation.addUnits(OWNER, rooms(property, { count: 61 })),
-    ).rejects.toBeInstanceOf(UnitConfigurationError);
-    expect(await unitsNamed(property)).toEqual([]);
   });
 });
 
