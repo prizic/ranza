@@ -115,9 +115,7 @@ test("a front desk takes a booking and finds it on the list", async ({
   await pickDay(page, propertyDay(propertyId, 10));
   // The range is complete: the calendar closes and focus is back on the half
   // just set, so a keyboard reader carries on from where they were.
-  await expect(
-    page.getByText("Choose the departure day"),
-  ).toBeHidden();
+  await expect(page.getByText("Choose the departure day")).toBeHidden();
   await expect(
     dialog.getByRole("button", { name: /^Departure/ }),
   ).toBeFocused();
