@@ -33,6 +33,13 @@ export const FOLIO_CAPABILITY: CapabilityRef = {
 };
 
 /**
+ * What a reversal line asks beside the gates, where a charge asks
+ * `finance.post_charge` (ADR 0041). Named here so a screen offering the action
+ * asks the same key the insert policy does.
+ */
+export const REVERSE_CHARGE_PERMISSION = "finance.reverse_charge";
+
+/**
  * Open or closed, and nothing else yet.
  *
  * Blueprint 5.9 also names folio closure rules — a balance that must be
@@ -90,6 +97,8 @@ export interface FolioLine {
  */
 export interface FolioSummary {
   folioId: string;
+  /** The Property it is at — what a screen asks a permission about. */
+  propertyId: string;
   stayId: string;
   status: FolioStatus;
   /** ISO 4217, copied from the Property when the Folio opened. */

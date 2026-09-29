@@ -1,6 +1,7 @@
 import type { TenantClient } from "@ranza/db";
 import { recordWithin, type AuditClient } from "@ranza/platform-audit";
 import { FolioAmountError, FolioWriteError, type Charge } from "./contracts";
+import { POSTING_REFUSED, raisedOneOf } from "./refusals";
 
 /**
  * Opening a Folio, for a caller that owns the transaction.
@@ -213,6 +214,8 @@ export async function postChargeWithin(
     // Closed, unentitled, out of reach. One message for all of them: telling
     // them apart would confirm that a Folio the caller cannot see is there.
     // The database's own answer travels as the cause, for whoever logs it.
+    // Anything that is not a refusal is a defect and travels on as itself.
+    if (!raisedOneOf(error, POSTING_REFUSED)) throw error;
     throw new FolioWriteError("that charge could not be posted", {
       cause: error,
     });

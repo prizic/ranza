@@ -20,7 +20,7 @@ import type {
 } from "@ranza/core";
 import type { CloseTheDay } from "@ranza/business-day";
 import type { PriceList } from "@ranza/rates";
-import { FOLIO_CAPABILITY } from "@ranza/folios";
+import { FOLIO_CAPABILITY, REVERSE_CHARGE_PERMISSION } from "@ranza/folios";
 import type { FolioDetail, FolioSummary } from "@ranza/folios";
 import {
   BookingChangeError,
@@ -129,6 +129,7 @@ export {
   TODAY_CAPABILITY,
   FRONT_DESK_CAPABILITY,
   FOLIO_CAPABILITY,
+  REVERSE_CHARGE_PERMISSION,
   HOUSEKEEPING_CAPABILITY,
   MARK_BATCH,
   ROOMS_CAPABILITY,

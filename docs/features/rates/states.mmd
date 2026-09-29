@@ -38,7 +38,7 @@ stateDiagram-v2
     n_owed --> n_posted : closeDay or closeDueDays (worker) / s3
     n_owed --> n_posted : checkOut, a night before today / s3
     n_owed --> n_unposted : closeDay or closeDueDays, unpriced, no Folio or a Folio closed / s3
-    n_posted --> n_reversed : a reversal line (finance.post_charge) / folios, built
+    n_posted --> n_reversed : a reversal line (finance.reverse_charge, ADR 0041) / folios, built
     n_reversed --> [*]
     n_posted --> [*]
     n_unposted --> [*]

@@ -60,9 +60,10 @@ lines the reader cannot see and print it above the ones they can. Aggregating
 in the reading statement makes the total and the rows underneath it the same
 query's answer.
 
-`folioDetail` runs its two statements in one transaction for the same reason: a
-charge posted between them would produce a screen whose total does not match
-its own rows.
+`folioDetail` reads the summary and the lines in one statement for the same
+reason. Two statements in one transaction are not enough at READ COMMITTED,
+where each takes its own snapshot: a charge committed between them printed a
+total that did not match its own rows (FO-S3-02).
 
 ### A posted line cannot be changed
 
@@ -87,6 +88,14 @@ the Folio is closed, the line is already reversed, none of it exists. One type
 on purpose: told apart, the first would confirm that a Folio the caller cannot
 see is there. `FolioAmountError` extends it and is the exception, because an
 amount the caller got wrong is the one failure they can act on.
+
+Only the database's refusals become a `FolioWriteError` — the SQLSTATEs listed
+in `src/refusals.ts`. A lost connection or any other error travels on as
+itself, so the caller logs it rather than showing it as one more refusal
+(FO-S9-04).
+
+Reversing a charge asks `finance.reverse_charge`, not `finance.post_charge`
+([ADR 0041](../../../docs/adr/0041-reversing-a-charge-is-its-own-permission.md)).
 
 ## What is deliberately not here
 

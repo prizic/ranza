@@ -6,6 +6,7 @@ export {
   FOLIO_CAPABILITY,
   FolioAmountError,
   FolioWriteError,
+  REVERSE_CHARGE_PERMISSION,
 } from "./contracts";
 export type {
   Charge,

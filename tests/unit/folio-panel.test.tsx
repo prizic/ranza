@@ -27,6 +27,7 @@ afterEach(cleanup);
 
 const FOLIO: FolioDetail = {
   folioId: "d9000007-0000-4000-8000-000000000001",
+  propertyId: "d9000007-0000-4000-8000-000000000003",
   stayId: "d9000007-0000-4000-8000-000000000002",
   status: "open",
   currency: "TRY",
@@ -83,7 +84,7 @@ describe("a room night on a Folio", () => {
   it("a_room_night_reads_as_the_night_it_is_for", () => {
     render(
       <NextIntlClientProvider locale="en" messages={messages.en}>
-        <FolioPanel folio={FOLIO} locale="en" />
+        <FolioPanel folio={FOLIO} locale="en" mayReverse />
       </NextIntlClientProvider>,
     );
     expect(screen.getByText("Room night · Sep 24, 2026")).toBeTruthy();
@@ -98,7 +99,7 @@ describe("a room night on a Folio", () => {
     it(`a_room_night_reads_in_every_locale: ${locale}`, () => {
       render(
         <NextIntlClientProvider locale={locale} messages={messages[locale]}>
-          <FolioPanel folio={FOLIO} locale={locale} />
+          <FolioPanel folio={FOLIO} locale={locale} mayReverse />
         </NextIntlClientProvider>,
       );
       const word = messages[locale].roomNightLine.split(" · ")[0]!;
@@ -111,7 +112,7 @@ describe("closing a Folio (FO-S5-01)", () => {
   it("a Folio whose Guest is in house offers no close, and says why", () => {
     render(
       <NextIntlClientProvider locale="en" messages={messages.en}>
-        <FolioPanel folio={FOLIO} locale="en" />
+        <FolioPanel folio={FOLIO} locale="en" mayReverse />
       </NextIntlClientProvider>,
     );
     expect(screen.queryByRole("button", { name: "Close folio" })).toBeNull();
@@ -121,10 +122,83 @@ describe("closing a Folio (FO-S5-01)", () => {
   it("after check-out it can be closed", () => {
     render(
       <NextIntlClientProvider locale="en" messages={messages.en}>
-        <FolioPanel folio={{ ...FOLIO, stayInHouse: false }} locale="en" />
+        <FolioPanel
+          folio={{ ...FOLIO, stayInHouse: false }}
+          locale="en"
+          mayReverse
+        />
       </NextIntlClientProvider>,
     );
     expect(screen.getByRole("button", { name: "Close folio" })).toBeTruthy();
     expect(screen.queryByText(/The Guest is still in house/)).toBeNull();
+  });
+});
+
+function panel(
+  folio: FolioDetail,
+  { locale = "en", mayReverse = true } = {} as {
+    locale?: (typeof supportedLocales)[number];
+    mayReverse?: boolean;
+  },
+) {
+  return render(
+    <NextIntlClientProvider locale={locale} messages={messages[locale]}>
+      <div dir={locale === "ar" ? "rtl" : "ltr"}>
+        <FolioPanel folio={folio} locale={locale} mayReverse={mayReverse} />
+      </div>
+    </NextIntlClientProvider>,
+  );
+}
+
+describe("what one Folio offers (FO-S9-03)", () => {
+  it("offers reverse only on a charge nothing has cancelled", () => {
+    panel(FOLIO);
+    // Minibar and the 24th's night. Not the reversal, not the night it cancels.
+    expect(screen.getAllByRole("button", { name: "Reverse" })).toHaveLength(2);
+    // The cancelled charge says so in words, not only by its strike-through.
+    expect(screen.getByText("reversed")).toBeTruthy();
+  });
+
+  it("offers no reverse to somebody without finance.reverse_charge (ADR 0041)", () => {
+    panel(FOLIO, { mayReverse: false });
+    expect(screen.queryByRole("button", { name: "Reverse" })).toBeNull();
+    // Posting is a different permission, and still offered.
+    expect(screen.getByRole("button", { name: "Post" })).toBeTruthy();
+  });
+
+  it("offers nothing on a closed Folio, and says so rather than a disabled reopen", () => {
+    panel({ ...FOLIO, status: "closed", stayInHouse: false });
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.getByText(messages.en.folioClosedNote)).toBeTruthy();
+  });
+});
+
+describe("money and direction at display (FO-S9-06)", () => {
+  it("mirrors through logical utilities only", () => {
+    const { container } = panel(FOLIO, { locale: "ar" });
+    const classes = [...container.querySelectorAll("[class]")].flatMap(
+      (element) => element.getAttribute("class")!.split(/\s+/),
+    );
+    // A physical side does not mirror; `text-end`, `ms-`, `pe-` do.
+    expect(
+      classes.filter((name) =>
+        /^(?:text-(?:left|right)|[mp][lr]-|(?:left|right)-|border-[lr](?:-|$)|rounded-[lr](?:-|$))/.test(
+          name,
+        ),
+      ),
+    ).toEqual([]);
+    expect(container.querySelectorAll("td.text-end.tabular-nums")).toHaveLength(
+      FOLIO.lines.length,
+    );
+  });
+
+  it("shows posting times on the 24-hour clock", () => {
+    const { container } = panel(FOLIO);
+    const times = [...container.querySelectorAll("time")].map(
+      (time) => time.textContent ?? "",
+    );
+    expect(times).toHaveLength(FOLIO.lines.length);
+    expect(times.join(" ")).not.toMatch(/AM|PM/);
   });
 });

@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { FolioAmountError } from "@ranza/folios";
+import { FolioAmountError, FolioWriteError } from "@ranza/folios";
 import { isSupportedLocale } from "@ranza/i18n";
+import { toMinorUnits } from "../lib/amount";
 import { getComposition } from "./composition";
 import { currentViewer } from "./viewer";
 
@@ -14,9 +15,9 @@ import { currentViewer } from "./viewer";
  * whether the viewer may do it — the row-level policies answer that, and an
  * application check in front of them would be the weaker of the two.
  *
- * Nothing here parses money either. The form sends what was typed and the
- * module decides whether it is an amount, because a second parser in front of
- * the first is a second set of rules to keep in step.
+ * An amount is parsed by `lib/amount`, the one rule every money field in the
+ * Workspace uses — Arabic-Indic digits included — rather than a copy of it
+ * that drifts (FO-S2-05).
  */
 
 /**
@@ -30,33 +31,26 @@ import { currentViewer } from "./viewer";
 export type FinanceOutcome = "idle" | "done" | "invalid" | "refused";
 
 /**
- * Minor units from what somebody typed into a text field.
- *
- * Deliberately strict rather than forgiving: `parseFloat` accepts "12abc" and
- * rounds "0.005" somewhere nobody chose, and both produce a charge that is
- * quietly not the one intended. A comma is accepted as the decimal separator
- * because Turkish and Arabic keyboards produce one, and there is no thousands
- * grouping to disambiguate it from within a single field.
- *
- * The exponent comes from the currency, not from a constant — JPY has no minor
- * unit and KWD has three, and a hardcoded 100 silently multiplies both wrong.
+ * An id the Finance form rendered. Anything else is a hand-made post, refused
+ * here rather than reaching `::uuid` and being logged as an incident.
  */
-function toMinorUnits(typed: string, currency: string): number | null {
-  const normalized = typed.trim().replace(",", ".");
-  if (!/^\d+(\.\d+)?$/.test(normalized)) return null;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-  const digits =
-    new Intl.NumberFormat("en", {
-      currency,
-      style: "currency",
-    }).resolvedOptions().maximumFractionDigits ?? 2;
-
-  const [major, minor = ""] = normalized.split(".");
-  if (minor.length > digits) return null;
-
-  const scaled = `${major}${minor.padEnd(digits, "0")}`;
-  const amount = Number(scaled);
-  return Number.isSafeInteger(amount) ? amount : null;
+/**
+ * What a failed write says. A refusal the module raised is the answer, not an
+ * incident. Anything else — a lost connection, a schema that moved — is shown
+ * the same way and recorded, as the front desk's commands do (FO-S9-04).
+ */
+function failed(
+  command: string,
+  subject: Record<string, string>,
+  error: unknown,
+): FinanceOutcome {
+  if (error instanceof FolioAmountError) return "invalid";
+  if (!(error instanceof FolioWriteError)) {
+    console.error(`${command} failed unexpectedly`, subject, error);
+  }
+  return "refused";
 }
 
 export async function postCharge(
@@ -70,10 +64,12 @@ export async function postCharge(
   if (!isSupportedLocale(locale)) return "refused";
 
   const folioId = String(form.get("folio") ?? "");
+  if (!UUID.test(folioId)) return "refused";
   const description = String(form.get("description") ?? "");
-  // The currency comes from the Folio the server rendered, not from the form's
-  // own idea of one: it decides how many digits "12.5" means, and a caller
-  // that could name it could change what was charged.
+  // The currency is read from the form, which carries the Folio's as a hidden
+  // input. It decides how many digits "12.5" means, so a caller that names
+  // another rescales what is charged — the known gap FO-DIFF-01, not a
+  // guarantee this code makes.
   const currency = String(form.get("currency") ?? "");
   const amountMinor = toMinorUnits(String(form.get("amount") ?? ""), currency);
   if (amountMinor === null) return "invalid";
@@ -85,7 +81,7 @@ export async function postCharge(
       folioId,
     });
   } catch (error) {
-    return error instanceof FolioAmountError ? "invalid" : "refused";
+    return failed("postCharge", { folioId }, error);
   }
 
   revalidatePath(`/${locale}/finance`);
@@ -102,14 +98,16 @@ export async function reverseLine(
   const locale = String(form.get("locale") ?? "");
   if (!isSupportedLocale(locale)) return "refused";
 
+  const lineId = String(form.get("line") ?? "");
+  if (!UUID.test(lineId)) return "refused";
   try {
     await getComposition().folios.reverseLine(
       viewer.userId,
-      String(form.get("line") ?? ""),
+      lineId,
       String(form.get("reason") ?? ""),
     );
   } catch (error) {
-    return error instanceof FolioAmountError ? "invalid" : "refused";
+    return failed("reverseLine", { lineId }, error);
   }
 
   revalidatePath(`/${locale}/finance`);
@@ -126,13 +124,12 @@ export async function closeFolio(
   const locale = String(form.get("locale") ?? "");
   if (!isSupportedLocale(locale)) return "refused";
 
+  const folioId = String(form.get("folio") ?? "");
+  if (!UUID.test(folioId)) return "refused";
   try {
-    await getComposition().folios.closeFolio(
-      viewer.userId,
-      String(form.get("folio") ?? ""),
-    );
-  } catch {
-    return "refused";
+    await getComposition().folios.closeFolio(viewer.userId, folioId);
+  } catch (error) {
+    return failed("closeFolio", { folioId }, error);
   }
 
   revalidatePath(`/${locale}/finance`);
