@@ -540,69 +540,71 @@ describe(
   "the map is gone when the front desk is not available",
   { timeout: BUDGET_MS },
   () => {
-    it("rooms are absent when the capability is off (RB-S1-03)", async () => {
+    /** A Property with one Unit, and what the map says while `lapse` is in force. */
+    async function mapWhile(
+      lapse: (propertyId: string) => Promise<void>,
+      restore: (propertyId: string) => Promise<void>,
+    ) {
       const property = await newProperty();
       await newUnit(property, "OFF-1");
-      const before = await accommodation.listUnits(OWNER, property);
-      expect(before.units).toHaveLength(1);
-
-      const empty = async () => {
-        const map = await accommodation.listUnits(OWNER, property);
-        expect(map.units).toEqual([]);
-        expect(map.counts.sellable).toBe(0);
-      };
-
-      // The Property's own switch.
-      await owner.$executeRawUnsafe(
-        `update public.property_capabilities set enabled = false
-        where property_id = $1::uuid and capability_key = 'front_desk'`,
-        property,
-      );
-      await empty();
-      await owner.$executeRawUnsafe(
-        `update public.property_capabilities set enabled = true
-        where property_id = $1::uuid and capability_key = 'front_desk'`,
-        property,
-      );
       expect(
         (await accommodation.listUnits(OWNER, property)).units,
       ).toHaveLength(1);
-
-      // The Organization's Subscription. Suspended, not past due: a past due
-      // Organization is in a grace period and still has its map.
       try {
-        await owner.$executeRawUnsafe(
-          `update public.subscriptions set status = 'suspended'
-          where organization_id = $1`,
-          ORG,
-        );
-        await empty();
+        await lapse(property);
+        return await accommodation.listUnits(OWNER, property);
       } finally {
-        await owner.$executeRawUnsafe(
-          `update public.subscriptions set status = 'active'
-          where organization_id = $1`,
-          ORG,
-        );
+        await restore(property);
       }
+    }
 
-      // The Entitlement.
-      try {
-        await owner.$executeRawUnsafe(
-          `update public.entitlements set status = 'revoked'
-          where organization_id = $1 and module_key = 'front_office'`,
-          ORG,
-        );
-        await empty();
-      } finally {
-        await owner.$executeRawUnsafe(
-          `update public.entitlements set status = 'active'
-          where organization_id = $1 and module_key = 'front_office'`,
-          ORG,
-        );
-      }
-      expect(
-        (await accommodation.listUnits(OWNER, property)).units,
-      ).toHaveLength(1);
+    const setSubscription = (status: string) => async () => {
+      await owner.$executeRawUnsafe(
+        `update public.subscriptions set status = $2 where organization_id = $1`,
+        ORG,
+        status,
+      );
+    };
+
+    const setEntitlement = (status: string) => async () => {
+      await owner.$executeRawUnsafe(
+        `update public.entitlements set status = $2
+        where organization_id = $1 and module_key = 'front_office'`,
+        ORG,
+        status,
+      );
+    };
+
+    const emptyMap = (map: UnitMap) => {
+      expect(map.units).toEqual([]);
+      expect(map.counts.sellable).toBe(0);
+    };
+
+    it("rooms are absent when the capability is off (RB-S1-03)", async () => {
+      const setCapability =
+        (enabled: boolean) => async (propertyId: string) => {
+          await owner.$executeRawUnsafe(
+            `update public.property_capabilities set enabled = $2
+          where property_id = $1::uuid and capability_key = 'front_desk'`,
+            propertyId,
+            enabled,
+          );
+        };
+      emptyMap(await mapWhile(setCapability(false), setCapability(true)));
+    });
+
+    it("rooms are absent when the subscription has lapsed (RB-S1-03)", async () => {
+      // Suspended, not past due: a past due Organization is in a grace period
+      // and still has its map.
+      emptyMap(
+        await mapWhile(setSubscription("suspended"), setSubscription("active")),
+      );
+    });
+
+    it("rooms are absent when the entitlement is revoked (RB-S1-03)", async () => {
+      emptyMap(
+        await mapWhile(setEntitlement("revoked"), setEntitlement("active")),
+      );
     });
   },
 );
