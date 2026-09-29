@@ -133,3 +133,35 @@ connection…` (the Portal's the same) and exited 1; with `AUTH_DATABASE_URL`
   set to the owner through `127.0.0.1` each printed `… AUTH_DATABASE_URL connects
 as a role that is a superuser, has BYPASSRLS, owns tenant tables…` and exited
   1; with the lane's own URLs each answered `/en/sign-in` with 200.
+
+## OA-S2-02 — two first sign-ins of one subject at once
+
+`tests/integration/auth-flow.test.ts`, 8 tests. The new one races eight pairs
+of `linkRanzaUser` calls at once, each pair on a fresh subject; one pair raced
+alone and in sequence never reproduced it.
+
+- **Before the fix** the race was red: the loser surfaced as
+  `PrismaClientKnownRequestError` `P2002`, from Postgres 23505 on
+  `users_email_lower_idx`, thrown out of `tx.user.create`. The re-check inside
+  the transaction had read no identity, as the check before it had.
+- **After** it is green three runs in a row on the same database.
+
+| sabotage (packages/auth/src/module.ts) | printed                                                     | red                                                                 |
+| -------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------- |
+| the catch rethrows every error         | `110: if (isUniqueViolation(error) \|\| true) throw error;` | `gives two concurrent first sign-ins of one subject one Ranza user` |
+
+## OA-S2-14 — one enrolment, both applications
+
+`tests/integration/two-factor.test.ts`, 14 tests. Enrolment goes through one
+`createAuthModule` instance, as the Workspace composes it, and the new test
+signs in through a second over its own client, as the Portal does.
+
+| sabotage (packages/auth/src/module.ts)                          | printed                                                      | red                                                                                 |
+| --------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| only the first module composed carries the second-factor plugin | `44: plugins: instancesComposed++ === 0 ? [` … `57: ] : [],` | `challenges in the Portal too: one enrolment, both applications` — and nothing else |
+
+A blunter sabotage, no plugin in any instance, turned ten of the fourteen red,
+enrolment included, which says nothing about the second application; the one
+above is the one that isolates it. The row is true by construction — both hosts
+call the same module over the same tables — so a sabotage can only remove the
+challenge from one of them.

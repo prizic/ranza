@@ -88,27 +88,45 @@ export function createAuthModule(deps: AuthDeps) {
     const existing = await resolveRanzaUserId(input.subject, issuer);
     if (existing) return existing;
 
-    return deps.db.$transaction(async (tx) => {
-      // Re-checked inside the transaction: two concurrent sign-ins for one
-      // subject must not create two Ranza users.
-      const raced = await tx.authIdentity.findUnique({
-        where: { issuer_subject: { issuer, subject: input.subject } },
-        select: { userId: true },
+    try {
+      return await deps.db.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: { email: input.email },
+          select: { id: true },
+        });
+        await tx.authIdentity.create({
+          data: { userId: user.id, issuer, subject: input.subject },
+        });
+        return user.id;
       });
-      if (raced) return raced.userId;
-
-      const user = await tx.user.create({
-        data: { email: input.email },
-        select: { id: true },
-      });
-      await tx.authIdentity.create({
-        data: { userId: user.id, issuer, subject: input.subject },
-      });
-      return user.id;
-    });
+    } catch (error) {
+      // Two first sign-ins of one subject both found no identity above, and
+      // under READ COMMITTED nothing inside a transaction would have stopped
+      // them. The unique indexes do: users on lower(email), auth_identities on
+      // (issuer, subject). The loser's insert waits for the winner and then
+      // fails, which aborts its transaction — so the winner is read here, in a
+      // new one, rather than inside the one that cannot run another statement
+      // (OA-S2-02).
+      if (!isUniqueViolation(error)) throw error;
+      const winner = await resolveRanzaUserId(input.subject, issuer);
+      // No winner means the email belongs to a different person's Ranza user,
+      // which is not a race and not this function's to resolve.
+      if (!winner) throw error;
+      return winner;
+    }
   }
 
   return { auth, resolveRanzaUserId, linkRanzaUser };
+}
+
+/** A unique violation as Prisma reports one: P2002, raised from Postgres' 23505. */
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "P2002"
+  );
 }
 
 export type AuthModule = ReturnType<typeof createAuthModule>;
