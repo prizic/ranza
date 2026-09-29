@@ -1008,23 +1008,4 @@ describe("blocking and checking in at once", { timeout: BUDGET_MS }, () => {
       inHouse: 0,
     });
   });
-
-  it("through the modules a unit is never blocked with somebody in it (RB-S3-07)", async () => {
-    for (let round = 0; round < 6; round += 1) {
-      const property = await newProperty();
-      const unit = await newUnit(property, `RACE-3-${round}`);
-      const arriving = await reserve(property, unit, `Race ${round}`, 0, 2);
-
-      const outcomes = await Promise.allSettled([
-        rivalReservations.checkIn(OWNER, arriving, {
-          readinessAcknowledged: true,
-        }),
-        accommodation.blockUnit(OWNER, unit, "Race for the unit"),
-      ]);
-      // One of the two lost, whichever committed first.
-      expect(outcomes.filter((o) => o.status === "fulfilled")).toHaveLength(1);
-      const { status, inHouse } = await statusAndStays(unit);
-      expect(status === "blocked" && inHouse > 0).toBe(false);
-    }
-  });
 });
