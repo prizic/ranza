@@ -17,6 +17,7 @@ export type {
   AuditEntry,
   AuditFilters,
   AuditPage,
+  BillingNotice,
   BusinessDatePreview,
   CapabilityProperties,
   ConfigurationField,

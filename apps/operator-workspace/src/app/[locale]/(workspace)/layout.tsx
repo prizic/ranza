@@ -6,12 +6,14 @@ import { AccountMenu, AppShell, BrandMark, DropdownMenuItem } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ALL_SCREENS } from "../../../lib/screens";
 import {
+  billingNotices,
   entitledPropertiesByCapability,
   permittedProperties,
   requireViewer,
   TODAY_CAPABILITY,
 } from "../../../server/viewer";
 import { QueryProvider } from "../../providers/query-provider";
+import { BillingNotice } from "./billing-notice";
 import { PropertyLink } from "./property-link";
 import { PropertySwitcher } from "./property-switcher";
 import { WorkspaceLanguageSwitcher } from "./workspace-language-switcher";
@@ -73,7 +75,7 @@ export default async function WorkspaceLayout({
       ? [{ key: screen.capability, permission: screen.permission }]
       : [],
   );
-  const [byCapability, byPermission] = await Promise.all([
+  const [byCapability, byPermission, overdue] = await Promise.all([
     entitledPropertiesByCapability(capabilities),
     Promise.all(
       permitted.map(async (screen) => ({
@@ -81,6 +83,7 @@ export default async function WorkspaceLayout({
         reachable: await permittedProperties(screen.permission),
       })),
     ),
+    billingNotices(),
   ]);
 
   // Plain strings, so the tree can be built on the client where its icons live.
@@ -201,6 +204,11 @@ export default async function WorkspaceLayout({
           carry no tenant cache at all. Scoped to the viewer: a different Staff
           Member on the same browser drops everything held for the last one
           (ADR 0019). */}
+      <BillingNotice
+        description={t("billingNotice.description")}
+        notices={overdue}
+        title={(organization) => t("billingNotice.title", { organization })}
+      />
       <QueryProvider scope={viewer.userId}>{children}</QueryProvider>
     </AppShell>
   );

@@ -13,6 +13,7 @@ import type {
   AuditFilters,
   AuditNames,
   AuditPage,
+  BillingNotice,
   CapabilityProperties,
   CapabilityRef,
   EntitledProperty,
@@ -641,6 +642,16 @@ export const permittedProperties = cache(
     );
   },
 );
+
+/**
+ * The Organizations whose Subscription is past due, for an Owner (ADR 0040).
+ * Asked once per full load by the shell.
+ */
+export async function billingNotices(): Promise<readonly BillingNotice[]> {
+  const viewer = await currentViewer();
+  if (!viewer) return [];
+  return getComposition().core.billingNotices(viewer.userId);
+}
 
 /**
  * One Property's Today for the viewer, or null when they do not have Today

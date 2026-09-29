@@ -107,7 +107,7 @@ insert into public.organizations (id, name, status) values
   ('bd0c0000-0000-4000-8000-00000000000c', 'Close Lapsed', 'active'),
   ('bd0d0000-0000-4000-8000-00000000000d', 'Close Unbought', 'active');
 insert into public.subscriptions (organization_id, status) values
-  ('bd0c0000-0000-4000-8000-00000000000c', 'past_due'),
+  ('bd0c0000-0000-4000-8000-00000000000c', 'suspended'),
   ('bd0d0000-0000-4000-8000-00000000000d', 'active');
 insert into public.entitlements (organization_id, module_key) values
   ('bd0c0000-0000-4000-8000-00000000000c', 'front_office'),

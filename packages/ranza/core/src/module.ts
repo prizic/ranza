@@ -19,6 +19,7 @@ import {
   type AuditEntry,
   type AuditFilters,
   type AuditPage,
+  type BillingNotice,
   type CapabilityProperties,
   type CapabilityRef,
   type EntitledProperty,
@@ -213,6 +214,40 @@ export function createCoreModule(deps: CoreDeps) {
   }
 
   /**
+   * Every Organization the viewer is an Owner of whose Subscription is in its
+   * grace period (`past_due`, ADR 0040) — what the Workspace's billing notice
+   * names. Empty for everybody else, which is most of the time.
+   *
+   * Owner means an active membership naming the shipped `owner` role: billing
+   * is the Organization's, and a manager or a front desk can do nothing about
+   * a card. Row-level security decides what is read — the viewer's own
+   * memberships, and the Subscriptions of Organizations they belong to — so
+   * nothing here widens reach.
+   */
+  async function billingNotices(userId: string): Promise<BillingNotice[]> {
+    return withOrganizationContext(
+      deps.db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<BillingNotice[]>`
+        select
+          organization.id   as "organizationId",
+          organization.name as "organizationName"
+        from public.organization_memberships as membership
+        join public.organizations as organization
+          on organization.id = membership.organization_id
+        join public.subscriptions as subscription
+          on subscription.organization_id = membership.organization_id
+        where membership.user_id = app.current_user_id()
+          and membership.status = 'active'
+          and membership.role = 'owner'
+          and subscription.status = 'past_due'
+        order by organization.name
+      `,
+    );
+  }
+
+  /**
    * One Property's working day, with the viewer's permissions and the
    * capabilities asked about — or null when the viewer does not have Today
    * there, which is also the answer for a Property that does not exist.
@@ -355,6 +390,7 @@ export function createCoreModule(deps: CoreDeps) {
     listEntitledProperties,
     listEntitledPropertiesByCapability,
     listPermittedProperties,
+    billingNotices,
     workingDay,
     auditLog,
     auditRecord,

@@ -593,7 +593,7 @@ describe("the board", { timeout: DATABASE_BUDGET_MS }, () => {
 
   it("is empty while the Subscription is lapsed (HK-S1-15)", async () => {
     await owner.$executeRawUnsafe(
-      `update public.subscriptions set status = 'past_due' where organization_id = $1::uuid`,
+      `update public.subscriptions set status = 'suspended' where organization_id = $1::uuid`,
       ORG,
     );
     try {

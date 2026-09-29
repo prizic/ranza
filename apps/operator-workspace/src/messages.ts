@@ -14,6 +14,11 @@ export interface Messages {
   propertySwitcher: string;
   /** The switcher's label when the URL names a Property it does not list. */
   chooseProperty: string;
+  /** Shown to an Owner while a Subscription is past due (ADR 0040). */
+  billingNotice: {
+    title: string;
+    description: string;
+  };
   mainNavigation: string;
   sections: string;
   breadcrumb: string;
@@ -1332,6 +1337,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     today: "Bugün",
     propertySwitcher: "Tesisler",
     chooseProperty: "Tesis seçin",
+    billingNotice: {
+      title: "{organization} için ödeme gecikti",
+      description:
+        "Çalışma alanı şimdilik her şeyiyle çalışmaya devam ediyor. Ödeme yapılmazsa abonelik askıya alınır ve ekibiniz erişimini kaybeder.",
+    },
     mainNavigation: "Ana gezinme",
     sections: "Bölümler",
     breadcrumb: "Konum",
@@ -2722,6 +2732,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     today: "Today",
     propertySwitcher: "Properties",
     chooseProperty: "Choose a Property",
+    billingNotice: {
+      title: "Payment for {organization} is overdue",
+      description:
+        "Everything in the Workspace keeps working for now. If the payment is not settled, the Subscription is suspended and your team loses access.",
+    },
     mainNavigation: "Main navigation",
     sections: "Sections",
     breadcrumb: "Breadcrumb",
@@ -4120,6 +4135,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     today: "اليوم",
     propertySwitcher: "المنشآت",
     chooseProperty: "اختر منشأة",
+    billingNotice: {
+      title: "تأخّر سداد اشتراك {organization}",
+      description:
+        "تستمر مساحة العمل في العمل بالكامل في الوقت الحالي. إذا لم تتم تسوية الدفعة، يُعلَّق الاشتراك ويفقد فريقك إمكانية الوصول.",
+    },
     mainNavigation: "التنقل الرئيسي",
     sections: "الأقسام",
     breadcrumb: "مسار التنقل",
