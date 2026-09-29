@@ -41,6 +41,10 @@ apply once the diagrams exist, not before.
 Each step ends at a stop: show the file, wait for the user's explicit approval, do not
 begin the next step. An unanswered question is never filled in to keep moving.
 
+"The user" who approves is the owner named in `AGENTS.md` ("Who approves"), not
+whoever is running this skill. Run by anybody else, every answer and every row is
+`proposed`, and the stops wait for the owner's review on the pull request.
+
 ### a. Grill
 
 Call the Skill tool with `grilling`. Three rules override it:
@@ -119,7 +123,7 @@ id,situation,given,when,then,enforced_by,test_name,status
 - `test_name` is the name of the test that will be written first in step f. A row does
   not change status when that test lands: the test existing, and having been watched
   fail, is the evidence, and a count of `open` rows is the readiness count.
-- `status` is `open` until the user approves that row, then `approved`. The others,
+- `status` is `open` until the owner approves that row, then `approved`. The others,
   and the only others: `proposed` (written and waiting for the user's review, as
   opposed to `open`, which is a question), `deferred` (not now, with the reason in
   `then`),

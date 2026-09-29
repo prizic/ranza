@@ -35,6 +35,30 @@ a genuine conflict, **stop and surface it** rather than picking a side quietly.
 ADR 0003 exists because the blueprint contradicts itself about who owns
 `Property`; that is the expected way to resolve such a conflict.
 
+## Who approves
+
+"Approved" and "Accepted" mean one person said yes: **Seif
+(@seifelesllamseif)**, the product owner. Not whoever is running the session,
+not the author of the branch, and not an agent. Where a skill says "the user
+approves", read "the owner approves" — to an agent the user is whoever is
+typing, and that reading is how three stacked PRs (#86–#88) came to mark rows
+`approved` and ADRs `Accepted` on their own author's go-ahead.
+
+So anybody else, and any agent working for them:
+
+- writes a row, an answer or a deferral as `proposed`, never `approved`;
+- writes a new ADR as `Status: Proposed`, and a change to an accepted one as a
+  `Proposed amendment:` line, never `Amended:`;
+- marks a `prerequisite_missing` or `current_behaviour_differs` row `resolved`
+  only once the gap is closed on `main` — not because a proposed design would
+  close it.
+
+"Proceed with the recommendations" approves nothing unless the owner said it.
+The owner approves on the pull request; the commit that then flips a status
+links to where they did. [`.github/CODEOWNERS`](.github/CODEOWNERS) requests
+their review on every change to `docs/features/`, `docs/adr/` and
+`prisma/migrations/`.
+
 ## Vocabulary — the most common mistake
 
 This repository was previously a student-dormitory pilot. That vocabulary is
