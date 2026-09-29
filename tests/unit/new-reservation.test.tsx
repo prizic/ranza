@@ -127,6 +127,21 @@ describe("the booking form", () => {
     expect(fields.has("startsOn")).toBe(true);
     expect(fields.has("endsOn")).toBe(true);
   });
+
+  it("the_booking_calendar_does_not_offer_days_before_today", () => {
+    openForm();
+    fireEvent.click(screen.getByRole("button", { name: /^Arrival/ }));
+
+    expect(day("2026-09-24")).toBeDisabled();
+    expect(day("2026-09-25")).toBeEnabled();
+
+    // A click on a past day does nothing: the arrival stays empty.
+    fireEvent.click(day("2026-09-24"));
+    const form = screen
+      .getByRole("button", { name: /^Arrival/ })
+      .closest("form")!;
+    expect(new FormData(form).get("startsOn")).toBe("");
+  });
 });
 
 /** A day in the month it belongs to, not its echo in a neighbouring grid. */

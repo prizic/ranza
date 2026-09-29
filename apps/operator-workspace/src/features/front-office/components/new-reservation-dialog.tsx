@@ -299,6 +299,7 @@ export function NewReservationDialog({
           <div className="grid gap-1.5">
             <Field htmlFor="booking-dates" label={t("stayDates")}>
               <DateRangeField
+                earliestFrom={today}
                 id="booking-dates"
                 labels={{
                   from: t("arrival"),

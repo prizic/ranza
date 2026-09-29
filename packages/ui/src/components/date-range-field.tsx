@@ -107,7 +107,9 @@ function daysBetween(start: Date, end: Date): number {
  * `presets` and `required` are ignored with it: a preset sets both ends, and
  * a required start is one there is nothing to choose.
  * `earliestTo` greys out every end before it — a departure is tomorrow or
- * later — so a day the server would refuse is not offered.
+ * later — so a day the server would refuse is not offered. `earliestFrom` does
+ * the same for the start, so a booking cannot be begun on a night that has
+ * already passed.
  *
  * `today` is the Property's own day as `YYYY-MM-DD`. It marks today on the
  * calendar and decides when a year is worth printing; the reader's clock is
@@ -115,6 +117,7 @@ function daysBetween(start: Date, end: Date): number {
  */
 export function DateRangeField({
   defaultValue,
+  earliestFrom,
   earliestTo,
   id,
   labels,
@@ -129,6 +132,8 @@ export function DateRangeField({
   today,
 }: {
   defaultValue?: { from?: string | undefined; to?: string | undefined };
+  /** The first start that may be chosen, as `YYYY-MM-DD`. */
+  earliestFrom?: string | undefined;
   /** The first end that may be chosen, as `YYYY-MM-DD`. */
   earliestTo?: string | undefined;
   /** The start half's id, which the field's `<label>` points at. */
@@ -186,6 +191,7 @@ export function DateRangeField({
   const to = range?.to;
   const todayDate = fromIso(today) ?? new Date();
   const earliestEnd = fromIso(earliestTo);
+  const earliestStart = fromIso(earliestFrom);
 
   const describe = (date: Date | undefined) => {
     if (!date) return undefined;
@@ -207,6 +213,7 @@ export function DateRangeField({
   }
 
   function pick(day: Date) {
+    if (editing === "from" && earliestStart && day < earliestStart) return;
     if (lockFrom) {
       if (!from || daysBetween(from, day) < minSpan) return;
       setRange({ from, to: day });
@@ -427,9 +434,9 @@ export function DateRangeField({
               defaultMonth={(lockFrom ? to : from) ?? to ?? todayDate}
               dir={directionFor(locale)}
               disabled={
-                earliestEnd && editing === "to"
-                  ? { before: earliestEnd }
-                  : undefined
+                editing === "to"
+                  ? earliestEnd && { before: earliestEnd }
+                  : earliestStart && { before: earliestStart }
               }
               locale={calendarLocales[locale]}
               mode="range"

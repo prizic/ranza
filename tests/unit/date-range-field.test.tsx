@@ -220,6 +220,25 @@ describe("DateRangeField", () => {
     expect(form.checkValidity()).toBe(false);
   });
 
+  it("earliestFrom greys out starts before it and leaves the end alone", () => {
+    const submitted = renderField({ earliestFrom: "2026-10-05" });
+
+    fireEvent.click(half(/^Arrival/));
+    expect(day("2026-10-04")).toBeDisabled();
+    expect(day("2026-10-05")).toBeEnabled();
+    fireEvent.click(day("2026-10-04"));
+    expect(submitted()).toEqual({ startsOn: "", endsOn: "" });
+
+    fireEvent.click(day("2026-10-06"));
+    // Choosing the end is unaffected by the earliest start.
+    expect(day("2026-10-07")).toBeEnabled();
+    fireEvent.click(day("2026-10-08"));
+    expect(submitted()).toEqual({
+      startsOn: "2026-10-06",
+      endsOn: "2026-10-08",
+    });
+  });
+
   it("with the start locked, picks only the end, and never before the earliest allowed", () => {
     const submitted = renderField({
       defaultValue: { from: "2026-10-05", to: "2026-10-08" },
