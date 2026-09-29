@@ -499,6 +499,17 @@ export async function reservations(
 }
 
 /**
+ * The Property's business date for the booking form (RG-S1-10), or null where
+ * the viewer cannot book. Not `cache`d, like the other front-desk reads: the
+ * cutoff can pass between two requests.
+ */
+export async function bookingDay(propertyId: string): Promise<string | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().reservations.bookingDay(viewer.userId, propertyId);
+}
+
+/**
  * The Units a booking may be placed on.
  *
  * Every Unit in service, not the free ones. Availability over particular nights

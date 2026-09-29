@@ -11,6 +11,11 @@ everything lands under Unreleased.
 
 ### Added
 
+- `bookingDay()`: the Property's business date for the booking form, null
+  where the viewer cannot book (RG-S1-10).
+- `CheckInTooEarlyError`, a `CheckInError` carrying the booking's start date,
+  for a check-in pressed before its first business date by somebody who could
+  check it in on that day (CI-S1-07).
 - `previewMove()` and `moveGuest()`: an in-house Guest moves to another Unit
   from tonight through `app.move_stay()`, keeping the Stay, its Folio and its
   price; the room must be ready (`UnitNotReadyError`). Publishes `stay.moved`
@@ -61,6 +66,11 @@ everything lands under Unreleased.
 
 ### Changed
 
+- `createReservation()` refuses a Guest booking with no departure
+  (`ReservationPeriodError`); only a Resident's may be open-ended (RG-S1-11).
+  The database refuses it too, and refuses a booking on a closed business day.
+- `checkIn()` asks about a room that is not ready only after the Stay is
+  accepted, so an occupied or out-of-service room is refused first (CI-S1-19).
 - `checkOut()` takes a `CheckOutConfirmation`: the Folio's line count the desk
   reviewed, an early-departure acknowledgement, and a reason when a balance is
   left open. It ends the Reservation with the Stay (`checked_out`) and closes a

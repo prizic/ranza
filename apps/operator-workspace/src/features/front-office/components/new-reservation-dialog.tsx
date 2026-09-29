@@ -31,6 +31,7 @@ import {
   type CreateReservationOutcome,
 } from "../../../server/front-office";
 import { usePickerLabels } from "../../../lib/picker-labels";
+import { submitWithoutReset } from "../../../lib/submit-without-reset";
 import { unitLabel } from "../unit-label";
 
 /**
@@ -50,7 +51,14 @@ import { unitLabel } from "../unit-label";
  * calendar shows the nights between them as they are chosen, which two
  * separate date inputs never could. It still submits `startsOn` and `endsOn` as
  * `YYYY-MM-DD`, which is what the module wants and what the database stores.
- * A departure left empty is an open-ended booking, as before.
+ * A departure left empty is an open-ended booking, which only a Resident may
+ * have (RG-S1-11): for a Guest the form asks for one and will not submit
+ * without it, and the module and a check constraint refuse it again.
+ *
+ * Submitted by hand rather than through `action` (`submitWithoutReset`): every
+ * refusal keeps this dialog open, and React's reset would put the stay type
+ * back to Guest while the quote and the departure rule still followed the
+ * choice the desk made.
  *
  * Once a Unit is chosen the form quotes it (ADR 0038): the price of a night of
  * its kind, and for the nights chosen the total. A quote, not the price — the
@@ -84,7 +92,11 @@ export function NewReservationDialog({
 }: {
   locale: SupportedLocale;
   propertyId: string;
-  /** The Property's day, `YYYY-MM-DD`, which the calendar marks as today. */
+  /**
+   * The Property's business date, `YYYY-MM-DD`, which the calendar marks as
+   * today — not its calendar date, which runs ahead of it between midnight and
+   * the cutoff (RG-S1-10).
+   */
   today: string;
   units: readonly BookableUnit[];
 }) {
@@ -120,6 +132,8 @@ export function NewReservationDialog({
   }
 
   const chosen = units.find((unit) => unit.unitId === unitId);
+  // Only a Resident's booking may be open-ended (RG-S1-11).
+  const departureRequired = stayType === "guest";
   const quote = !chosen
     ? null
     : stayType === "resident"
@@ -174,7 +188,7 @@ export function NewReservationDialog({
       </DialogTrigger>
 
       <DialogContent>
-        <form action={act} className="grid gap-4">
+        <form className="grid gap-4" onSubmit={submitWithoutReset(act)}>
           <DialogHeader>
             <DialogTitle>{t("newReservation")}</DialogTitle>
             <DialogDescription>{t("newReservationSummary")}</DialogDescription>
@@ -289,7 +303,9 @@ export function NewReservationDialog({
                   from: t("arrival"),
                   to: t("departure"),
                   emptyFrom: t("bookingAddDate"),
-                  emptyTo: t("bookingOpenEnded"),
+                  emptyTo: departureRequired
+                    ? t("bookingAddDate")
+                    : t("bookingOpenEnded"),
                   pickFrom: t("bookingPickArrival"),
                   pickTo: t("bookingPickDeparture"),
                   clear: t("dateRangeClear"),
@@ -306,8 +322,13 @@ export function NewReservationDialog({
                 today={today}
               />
             </Field>
-            <p className="text-step--1 text-muted-foreground">
-              {t("departureHint")}
+            <p
+              className="text-step--1 text-muted-foreground"
+              id="booking-dates-hint"
+            >
+              {departureRequired
+                ? t("departureRequiredHint")
+                : t("departureHint")}
             </p>
           </div>
 
@@ -336,7 +357,15 @@ export function NewReservationDialog({
                 {t("discardBooking")}
               </Button>
             </DialogClose>
-            <Button disabled={pending} type="submit">
+            <Button
+              aria-describedby={
+                departureRequired && !dates.to
+                  ? "booking-dates-hint"
+                  : undefined
+              }
+              disabled={pending || (departureRequired && !dates.to)}
+              type="submit"
+            >
               {pending ? t("takingBooking") : t("takeBooking")}
             </Button>
           </DialogFooter>

@@ -338,6 +338,18 @@ describe("the Property's business date, not its calendar date", () => {
     );
   });
 
+  it("RG-S1-10: the booking form is given the business date, and an outsider nothing", async () => {
+    const [local] = await owner.$queryRawUnsafe<{ day: string }[]>(
+      `select to_char((now() at time zone timezone)::date, 'YYYY-MM-DD') as day
+         from public.properties where id = $1::uuid`,
+      SMALL_HOURS,
+    );
+    const given = await reservations.bookingDay(MANAGER, SMALL_HOURS);
+    expect(given).toBe(await day(SMALL_HOURS, 0));
+    expect(given).not.toBe(local?.day);
+    expect(await reservations.bookingDay(OUTSIDER, SMALL_HOURS)).toBeNull();
+  });
+
   it("CI-S1-06: checks in a booking for the business date in the small hours", async () => {
     const unit = await aUnit(SMALL_HOURS);
     const today = await day(SMALL_HOURS, 0);

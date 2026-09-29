@@ -45,6 +45,7 @@ a policy is ever consulted.
 const reservations = createReservationsModule({ db }); // the ranza_app client
 await reservations.listReservations(userId, propertyId);
 await reservations.listBookableUnits(userId, propertyId);
+await reservations.bookingDay(userId, propertyId);
 await reservations.createReservation(userId, booking);
 await reservations.previewChange(userId, reservationId, startsOn, endsOn);
 await reservations.amendBooking(userId, change);
@@ -89,6 +90,15 @@ inside it, because a Guest recorded for a booking that was refused is a profile
 nobody asked for. Everything written comes from the row the Unit query returned,
 never from the caller — the Organization above all.
 
+A Guest booking has a departure; only a Resident's may be open-ended, and one
+without is refused with `ReservationPeriodError` before anything is written
+(RG-S1-11). The database says the same for every writer:
+`reservations_guest_has_a_departure`, and `reservations_want_an_open_day`, which
+refuses a Reservation inserted on a closed business day (RZ001). The module's
+own rule is stricter and refuses any start before the Property's today.
+`bookingDay` is that today — the business date, not the calendar date — which
+the booking form marks as the first night it may offer (RG-S1-10).
+
 It writes `confirmed`, not `requested`: a front desk taking a booking is
 allocating the Unit, and only a confirmed Reservation holds its nights under
 `reservations_no_double_booking`. `requested` is what a booking engine or a
@@ -101,6 +111,21 @@ appears on the arrivals list, so without it creating one has no observable
 effect. `listBookableUnits` returns every Unit in service rather than every free
 Unit — whether particular nights are free is the constraint's answer, and a list
 filtered here would be stale before anybody pressed the button.
+
+**A walk-in** — somebody at the desk with no booking — is booked from today
+and then checked in, the same two commands as any other arrival (CI-S1-08). The
+booking is priced like any other (ADR 0038) and the Stay begins on the business
+date. Nothing creates a Stay without a Reservation; a one-press walk-in can be
+built on these two when a workflow asks for it.
+
+`checkIn` refuses a booking whose first business date has not come with
+`CheckInTooEarlyError`, which carries the date — before the cutoff that is a
+booking from the new calendar day (CI-S1-07). It says so only for a Reservation
+the caller could check in on that day; everything else is the one
+`CheckInError`, so a refusal never confirms that a Reservation out of reach
+exists. A room that is not ready is asked about only after every refusal nobody
+can override — somebody in the room, the room out of service, the day closed —
+so "check in anyway" is never followed by one of them (CI-S1-19).
 
 `checkIn` does three things in one transaction — creates the Stay, moves the
 Reservation to `checked_in`, and writes an audit record naming the actor

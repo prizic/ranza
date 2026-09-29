@@ -1239,6 +1239,40 @@ export function createReservationsModule(deps: ReservationsDeps) {
    * Empty for a Property the viewer cannot reach and for one whose Organization
    * lost the Entitlement, which are deliberately the same answer.
    */
+  /**
+   * The Property's business date, `YYYY-MM-DD`: the first night a booking may
+   * start on, which the booking form marks as today (RG-S1-10).
+   *
+   * Not the calendar date in the Property's timezone. Between midnight and the
+   * cutoff the night still belongs to yesterday's date (ADR 0021), and a form
+   * that marked the calendar date would offer the wrong first night.
+   *
+   * Null for a Property the viewer cannot book at — out of reach, unentitled,
+   * or with the front desk off — like every read here, so it says nothing
+   * about a Property they cannot see.
+   */
+  async function bookingDay(
+    userId: string,
+    propertyId: string,
+  ): Promise<string | null> {
+    const [row] = await withOrganizationContext(
+      deps.db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<{ day: string }[]>`
+        select to_char(app.property_today(property.id), 'YYYY-MM-DD') as day
+        from public.properties as property
+        where property.id = ${propertyId}::uuid
+          and app.can_use_capability(
+            property.id,
+            ${FRONT_DESK_CAPABILITY.moduleKey},
+            ${FRONT_DESK_CAPABILITY.capabilityKey}
+          )
+      `,
+    );
+    return row?.day ?? null;
+  }
+
   async function listBookableUnits(
     userId: string,
     propertyId: string,
@@ -2786,6 +2820,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
     changeDeparture,
     createReservation,
     listArrivals,
+    bookingDay,
     listBookableUnits,
     listDepartures,
     countDepartedToday,
