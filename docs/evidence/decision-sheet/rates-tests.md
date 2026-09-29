@@ -34,3 +34,33 @@ Broken in `apps/operator-workspace/src/features/front-office/components/check-ou
 ## What is not asserted
 
 The "Folio stays open with the balance" half of RT-S3-16 is the module's behaviour (`checkOutStay` refusing a balance without a reason, and leaving the Folio open). It is not exercised by these unit tests, which mock the server action. The dialog's `required` attribute is the only thing these tests show blocking a submission. The server-side wall (a balance without a reason is refused, and left open with one) lives in `packages/ranza/reservations/src/module.ts:1006` and is asserted by `tests/integration/folios.test.ts:863`, which was not re-run for this change.
+
+## RT-S3-11 — a reversed room night is not posted again
+
+The assertion that named this row, "a posted night stays posted, reversed or not", asked about A's night of T-1, which nothing had reversed, and its fixture reversed G's night of T-2, which had never been posted (`INSERT 0 0`). It proved nothing about a reversal.
+
+Tests, all in `tests/database/room_nights.test.sql`. Finance now reverses two of J's nights that were posted by check-out, T-3 and T-1, with the statement `reverseLine` in `packages/ranza/folios/src/module.ts` runs (a `reversal` line naming the charge, for minus its amount), as `ranza_app` under the Finance Staff Member's request context (`INSERT 0 2`). Then:
+
+- "RT-S3-11: a reversed night is still posted": `room_nights_due` answers `already_posted` for the reversed night of T-3.
+- "RT-S3-11: the close does not post a reversed night again, and the night and its reversal, which carries no date or mark, both remain": after the close of T-1, J's lines are exactly three room-night charges (T-3, T-2, T-1) and two reversals with no `source` and no `business_date`, each naming the night it cancels.
+- "RT-S3-11: nor does check-out post a reversed night again": a second check-out for J posts `(0, 0)`.
+- "RT-S3-11: after check-out J still has each night once, and both reversals": the same five lines.
+
+The close can reach a reversed night only as one check-out posted before it: closes run contiguously from the day before the first one, so a closed day is never closed again (RT-S3-09 covers the refusal), and a night on a day before the first close is only ever check-out's. The plan went from 27 to 32, RT-S3-17's three included.
+
+Broken inside one transaction around the suite (`begin; <break>; \i room_nights.test.sql`), which the suite's own `rollback` undoes:
+
+- `room_nights_due` stops counting a reversed night as posted. Printed altered clause: `when exists (select 1 from public.folio_lines as line where … and line.business_date = night.day::date and not exists (select 1 from public.folio_lines as reversal where reversal.reverses_line_id = line.id)) then 'already_posted'`. RED: only `not ok 6 - RT-S3-11: a reversed night is still posted`. The posting assertions stayed green, and that is a finding: `folio_lines_room_night_key` is a unique index on the original charge's row, which a reversal leaves in place. So `on conflict … do nothing` refuses the second posting on its own. The two walls are independent, and each one alone keeps the night from being posted again.
+- That break, plus `folio_lines_room_night_key` dropped and the `on conflict` clause removed from `app.post_room_nights` and `app.post_room_nights_for_departure`. Printed: the same clause, `room_night_key_indexes = 0`, and `position('on conflict' …) = 0|0` for the two functions. RED: 6, 13 and 15 (collateral, the close's own lines and totals), 18, `not ok 14` (the close, `have: (charge,room_night,-1,,10000)` a second time), `not ok 28` (check-out `have: (1,10000)`), `not ok 29`, plus RT-S3-02's catalogue and 23505 assertions.
+- The key and the `on conflict` clauses removed, with `room_nights_due` intact. RED: RT-S3-02's 2 and 21, and 29. The red on 29 is collateral, not a second posting. RT-S3-02's "nor twice … whoever writes it" insert succeeded with no key, and it put a second T-2 charge on J. The RT-S3-11 posting assertions 14 and 28 stayed green, because `already_posted` holds.
+
+Afterwards the database was confirmed unchanged: the index is present, `room_nights_due` holds no `reverses_line_id`, and `on conflict` is present in `post_room_nights`. The suite ran green.
+
+## RT-S3-17 — where billing is not available, the close lists the night and writes nothing
+
+Before this change the test only asked `room_nights_due` for a reason. It never ran a close, and never looked at the Folio. Test, `tests/database/room_nights.test.sql`: a second Property of the same Organization, "Night Unbilled Property", with `front_desk` on and `finance` off. Its Stay L is a priced Guest in house from the day before that Property's own today, with an open Folio. A fixture assertion shows L's booking is priced at 10000, so that only billing stands between it and a charge (`unpriced` is asked before `billing_unavailable`). The manager closes the day before its today through `business_day_closes`, so the stamp posts through `app.post_room_nights`. Then:
+
+- "RT-S3-17: where billing is not available, a night is listed and not charged": the close row reads `(0, 1, [{"stayId": L, "reason": "billing_unavailable"}])`.
+- "RT-S3-17: and the close writes no line on that Guest's Folio": the count of lines on L's Folio is 0.
+
+Broken the same way: the `when not app.capability_is_available(stay.property_id, 'billing_folios', 'finance') then 'billing_unavailable'` branch removed from `room_nights_due`. Printed: `billing_check_pos = 0`. RED: `not ok 31` (`have: (1,0,[])`) and `not ok 32` (`have: 1`), and nothing else. Afterwards the function holds the check again.

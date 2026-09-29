@@ -69,3 +69,13 @@ filter is recorded as subsumed by it.
 | FO-S9-04 / FO-S4-09 | folio-refusals.test.ts  | `reverseLine`'s catch made bare again (`void error`)     | "reverseLine: a lost connection travels on as itself", "…a code it does not mean" |
 | FO-S9-04            | folio-refusals.test.ts  | `postChargeWithin` wraps every error again               | "postCharge: a lost connection…", "…a code it does not mean"                      |
 | FO-S9-04            | folio-refusals.test.ts  | `closeFolio` translates nothing (`throw error`)          | "closeFolio: 55000 is a refusal…"                                                 |
+
+## Unit — FO-S9-01, the Finance page where finance is not on
+
+`tests/unit/finance-page.test.tsx` renders `finance/page.tsx` with `server/viewer` mocked and the real `frontDeskProperty`. Nothing is remembered on the device, and the folio components are stubbed. Tests:
+
+- "FO-S9-01: says finance is not on when the viewer may use it at no Property": `entitledProperties` is empty.
+- "FO-S9-01: answers a forged ?property= exactly as a switched-off one": a forged id and an id missing from the list (switched off) both show `noFinanceTitle` and `noFinanceDescription`. They render identical HTML, and neither reaches `folios` or `folio`, even with a `?folio=`.
+- An inverse test: the Property in the list shows the folios table and no empty state.
+
+Sabotage: the empty state in `finance/page.tsx` was replaced with `return null;` (printed diff). RED: both FO-S9-01 tests failed, with `Unable to find an element with the text: Finance is not open at this Property`. The inverse test stayed green. With the file restored from a copy, 3/3 passed. The HTML-equality half has no independent sabotage. Both ids take the same `!property` branch, because `chooseProperty` answers undefined for any id missing from the list. So they can differ only if the page consults something other than that list. `front-desk-property.test.ts` covers that function.

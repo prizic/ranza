@@ -922,6 +922,33 @@ describe("a blocked unit and the booking form", { timeout: BUDGET_MS }, () => {
       reservations.createReservation(OWNER, await booking(property, bed)),
     ).rejects.toBeInstanceOf(ReservationRefusedError);
   });
+
+  it("an unblocked bed is back on the booking form, with no reason on it (RB-S3-08)", async () => {
+    const property = await newProperty();
+    const dorm = await newUnit(property, "UB-1");
+    const bed = await newUnit(property, "A", { parentId: dorm });
+    await accommodation.blockUnit(OWNER, bed, "Mattress being replaced");
+    const offered = async () =>
+      (await reservations.listBookableUnits(OWNER, property)).map(
+        (unit) => unit.unitId,
+      );
+    // Seen gone first, so its return below is the unblock's doing.
+    expect(await offered()).not.toContain(bed);
+
+    await accommodation.unblockUnit(OWNER, bed);
+
+    expect(await offered()).toEqual([bed]);
+    expect(
+      await owner.$queryRawUnsafe<{ status: string; reason: string | null }[]>(
+        `select status, status_reason as reason
+           from public.accommodation_units where id = $1::uuid`,
+        bed,
+      ),
+    ).toEqual([{ status: "available", reason: null }]);
+    await expect(
+      reservations.createReservation(OWNER, await booking(property, bed)),
+    ).resolves.toBeDefined();
+  });
 });
 
 describe("blocking and checking in at once", { timeout: BUDGET_MS }, () => {

@@ -155,3 +155,12 @@ after the first commits; without it the second side does not wait.
   `withOrganizationContext` (`addUnits`), which is structural: no failure can be
   injected after the first statement without contriving one. The row now claims
   only the first.
+
+## RB-S3-08: an unblocked bed is back on the booking form
+
+`tests/integration/rooms.test.ts`, "an unblocked bed is back on the booking form, with no reason on it (RB-S3-08)". A bed under a room is blocked, and seen missing from `listBookableUnits`. It is unblocked through `accommodation.unblockUnit`, and then it is the only Unit offered. Its row reads `{ status: "available", reason: null }`, and a booking on it is taken.
+
+- Broken in `packages/ranza/accommodation/src/module.ts`, `unblockUnit`'s update. Printed diff: `set status = 'available', status_reason = null` became `set status = status, status_reason = status_reason`, so the Unit stays blocked. RED: `expected [] to deeply equal [ Array(1) ]` at the `listBookableUnits` assertion.
+- Tried first: `status = status` with `status_reason = null`, then `status = 'available'` with `status_reason = status_reason`. Both raised `23514 accommodation_units_blocked_has_a_reason` inside `unblockUnit`, before any assertion ran. The check reads `CHECK (((status = 'blocked') = (status_reason IS NOT NULL)))`, so the database already forbids a bed that is available and still has a reason. The "no reason on it" assertion is therefore the second wall behind that constraint. No code path can make it go red on its own.
+
+The file was restored from a copy, `git diff` was clean, and the suite ran 23/23 green.
