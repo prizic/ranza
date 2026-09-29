@@ -349,15 +349,21 @@ select is(
 
 -- A day already closed, with an item written onto it since by somebody who
 -- could, is answered as closed: the stamp says 23505 before the reason
--- constraint can say anything.
+-- constraint can say anything. A booking cannot be inserted onto a closed day
+-- (reservations_want_an_open_day), so it is taken on today and its start moved
+-- back, which only a role that bypasses the booking commands can do.
 set local role none;
 insert into public.reservations
-  (organization_id, property_id, accommodation_unit_id, guest_id, stay_type,
+  (id, organization_id, property_id, accommodation_unit_id, guest_id, stay_type,
    status, starts_on, ends_on)
-select 'be0a0000-0000-4000-8000-00000000000a', 'be200000-0000-4000-8000-000000000002',
+select 'be600000-0000-4000-8000-000000000009',
+       'be0a0000-0000-4000-8000-00000000000a', 'be200000-0000-4000-8000-000000000002',
        'be300000-0000-4000-8000-000000000001', 'be400000-0000-4000-8000-000000000001',
-       'guest', 'confirmed', today - 1, today + 3
+       'guest', 'confirmed', today, today + 3
 from (select app.property_today('be200000-0000-4000-8000-000000000002') as today) as t;
+update public.reservations
+   set starts_on = app.property_today(property_id) - 1
+ where id = 'be600000-0000-4000-8000-000000000009';
 set local role ranza_worker;
 select app.set_worker_context('be0a0000-0000-4000-8000-00000000000a', 'business_day.close');
 select is(

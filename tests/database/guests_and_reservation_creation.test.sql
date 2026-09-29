@@ -15,7 +15,7 @@
 -- it went red. A test that cannot fail is worse than no test, because it is
 -- mistaken for evidence.
 begin;
-select plan(34);
+select plan(47);
 
 insert into public.users (id, email) values
   ('41111111-1111-4111-8111-111111111111', 'guest-staff-a@example.test'),
@@ -461,6 +461,189 @@ select is(
   1,
   'a Property without a front desk still reads the Organization''s Guests');
 reset role;
+
+-- ---------------------------------------------------------------------------
+-- What a booking is, for every writer (decision sheet 2026-09-29)
+-- ---------------------------------------------------------------------------
+
+-- A Property of its own, with a front desk, so nothing above changes and the
+-- closed day below is this section's alone. Organization A's other Properties
+-- had their front desk switched off by the gate 3 assertion.
+insert into public.properties (id, organization_id, name) values
+  ('4c444444-4444-4444-8444-444444444444',
+   '4a111111-1111-4111-8111-111111111111', 'Guest Property A3');
+
+insert into public.accommodation_units
+  (id, property_id, organization_id, name, unit_type, capacity) values
+  ('4d555555-5555-4555-8555-555555555555',
+   '4c444444-4444-4444-8444-444444444444',
+   '4a111111-1111-4111-8111-111111111111', 'GA3-101', 'room', 2),
+  ('4d666666-6666-4666-8666-666666666666',
+   '4c444444-4444-4444-8444-444444444444',
+   '4a111111-1111-4111-8111-111111111111', 'GA3-102', 'room', 2);
+
+insert into public.property_capabilities
+  (property_id, organization_id, capability_key, enabled) values
+  ('4c444444-4444-4444-8444-444444444444',
+   '4a111111-1111-4111-8111-111111111111', 'front_desk', true);
+
+-- A shipped role without front_desk.book, Organization-wide, so every gate is
+-- open for them and only the permission is missing.
+insert into public.users (id, email) values
+  ('45555555-5555-4555-8555-555555555555', 'guest-staff-finance@example.test');
+insert into public.organization_memberships
+  (organization_id, user_id, role, access_scope) values
+  ('4a111111-1111-4111-8111-111111111111',
+   '45555555-5555-4555-8555-555555555555', 'finance', 'organization_wide');
+
+set local role ranza_app;
+select app.set_request_context('41111111-1111-4111-8111-111111111111');
+
+-- RG-S1-11. An open-ended booking is the Resident's case; a short-term Guest
+-- always has a planned departure, or a priced one holds its Unit and is charged
+-- a room night every night until somebody notices (ADR 0038).
+select throws_ok(
+  $$insert into public.reservations
+      (organization_id, property_id, accommodation_unit_id,
+       guest_id, stay_type, status, starts_on, ends_on)
+    values ('4a111111-1111-4111-8111-111111111111',
+            '4c444444-4444-4444-8444-444444444444',
+            '4d555555-5555-4555-8555-555555555555',
+            '4e111111-1111-4111-8111-111111111111', 'guest', 'confirmed',
+            app.property_today('4c444444-4444-4444-8444-444444444444') + 30,
+            null)$$,
+  '23514', NULL,
+  'a Guest booking without a departure is refused');
+
+select lives_ok(
+  $$insert into public.reservations
+      (organization_id, property_id, accommodation_unit_id,
+       guest_id, stay_type, status, starts_on, ends_on)
+    values ('4a111111-1111-4111-8111-111111111111',
+            '4c444444-4444-4444-8444-444444444444',
+            '4d666666-6666-4666-8666-666666666666',
+            '4e222222-2222-4222-8222-222222222222', 'resident', 'confirmed',
+            app.property_today('4c444444-4444-4444-8444-444444444444') + 30,
+            null)$$,
+  'a Resident booking may leave its departure open');
+
+-- RG-S1-40. Two stay types and no third; the server action refuses anything
+-- else before the module, and this refuses it for every writer.
+select throws_ok(
+  $$insert into public.reservations
+      (organization_id, property_id, accommodation_unit_id,
+       guest_id, stay_type, status, starts_on, ends_on)
+    values ('4a111111-1111-4111-8111-111111111111',
+            '4c444444-4444-4444-8444-444444444444',
+            '4d555555-5555-4555-8555-555555555555',
+            '4e111111-1111-4111-8111-111111111111', 'student', 'confirmed',
+            app.property_today('4c444444-4444-4444-8444-444444444444') + 30,
+            app.property_today('4c444444-4444-4444-8444-444444444444') + 32)$$,
+  '23514', NULL,
+  'a stay type other than guest or resident is refused');
+
+-- RG-S1-19. The index is (organization_id, email): Organization B already has
+-- this address, and Organization A records its own person at it.
+select lives_ok(
+  $$insert into public.guests (organization_id, full_name, email)
+    values ('4a111111-1111-4111-8111-111111111111',
+            'Grace H', 'grace@example.test')$$,
+  'an address Organization B holds is recorded again in Organization A');
+
+-- RG-S1-33. Every gate is open for this Staff Member — a Property of theirs has
+-- a front desk — and the Guest is refused because booking is not their job.
+select app.set_request_context('45555555-5555-4555-8555-555555555555');
+select throws_ok(
+  $$insert into public.guests (organization_id, full_name)
+    values ('4a111111-1111-4111-8111-111111111111', 'Not Their Job')$$,
+  '42501', NULL,
+  'a role without front_desk.book records no Guest, with every gate open');
+
+-- RG-S1-08. Yesterday is closed at A3. A booking dated on it would be a row the
+-- day's counts never saw, whoever writes it.
+select app.set_request_context('41111111-1111-4111-8111-111111111111');
+select lives_ok(
+  $$insert into public.business_day_closes
+      (organization_id, property_id, business_date)
+    values ('4a111111-1111-4111-8111-111111111111',
+            '4c444444-4444-4444-8444-444444444444',
+            app.property_today('4c444444-4444-4444-8444-444444444444') - 1)$$,
+  'A3 closes yesterday');
+
+select throws_ok(
+  $$insert into public.reservations
+      (organization_id, property_id, accommodation_unit_id,
+       guest_id, stay_type, status, starts_on, ends_on)
+    values ('4a111111-1111-4111-8111-111111111111',
+            '4c444444-4444-4444-8444-444444444444',
+            '4d555555-5555-4555-8555-555555555555',
+            '4e111111-1111-4111-8111-111111111111', 'guest', 'confirmed',
+            app.property_today('4c444444-4444-4444-8444-444444444444') - 1,
+            app.property_today('4c444444-4444-4444-8444-444444444444') + 1)$$,
+  'RZ001', NULL,
+  'a booking cannot be taken on a closed business day');
+
+select lives_ok(
+  $$insert into public.reservations
+      (organization_id, property_id, accommodation_unit_id,
+       guest_id, stay_type, status, starts_on, ends_on)
+    values ('4a111111-1111-4111-8111-111111111111',
+            '4c444444-4444-4444-8444-444444444444',
+            '4d555555-5555-4555-8555-555555555555',
+            '4e111111-1111-4111-8111-111111111111', 'guest', 'confirmed',
+            app.property_today('4c444444-4444-4444-8444-444444444444'),
+            app.property_today('4c444444-4444-4444-8444-444444444444') + 1)$$,
+  'a booking on the first open day is taken');
+reset role;
+
+-- Not the ranza_app's rule alone: the migration role is refused too, because a
+-- seed or a future channel is exactly the writer the module never sees.
+select throws_ok(
+  $$insert into public.reservations
+      (organization_id, property_id, accommodation_unit_id,
+       guest_id, stay_type, status, starts_on, ends_on)
+    values ('4a111111-1111-4111-8111-111111111111',
+            '4c444444-4444-4444-8444-444444444444',
+            '4d666666-6666-4666-8666-666666666666',
+            '4e111111-1111-4111-8111-111111111111', 'guest', 'confirmed',
+            app.property_today('4c444444-4444-4444-8444-444444444444') - 3,
+            app.property_today('4c444444-4444-4444-8444-444444444444') - 2)$$,
+  'RZ001', NULL,
+  'and a writer that bypasses policies is refused a closed day too');
+
+select is(
+  (select count(*)::int from public.guests where email = 'grace@example.test'),
+  2,
+  'one address is two Guests in two Organizations');
+
+-- Read from the catalogue, so a missing object is a failing row rather than an
+-- error that takes the rest of the suite with it.
+select is(
+  (select pg_get_constraintdef(oid) from pg_constraint
+    where conrelid = 'public.reservations'::regclass
+      and conname = 'reservations_guest_has_a_departure'),
+  'CHECK (((stay_type = ''resident''::text) OR (ends_on IS NOT NULL)))',
+  'the departure constraint excuses the Resident and nobody else');
+
+select is(
+  (select p.prosecdef from pg_trigger as t join pg_proc as p on p.oid = t.tgfoid
+    where t.tgrelid = 'public.reservations'::regclass
+      and t.tgname = 'reservations_want_an_open_day'),
+  false,
+  'the closed-day trigger on bookings is security invoker');
+
+-- Same-event triggers fire in name order. The occupancy trigger takes the
+-- Unit's lock (2) and this one the Property's day (3); ADR 0038's order is Unit
+-- first, and a name that sorted earlier would invert it for every booking.
+select ok(
+  (select bool_and(t.tgname > 'reservations_unit_holds_one_occupancy')
+     from pg_trigger as t
+    where t.tgrelid = 'public.reservations'::regclass
+      and t.tgfoid = 'app.reservations_keep_closed_days'::regproc)
+  and exists (select 1 from pg_trigger
+               where tgrelid = 'public.reservations'::regclass
+                 and tgname = 'reservations_unit_holds_one_occupancy'),
+  'the closed-day trigger fires after the Unit''s lock is taken');
 
 select * from finish();
 rollback;
