@@ -63,6 +63,12 @@ describe("adding rooms is refused by its shape, before any statement runs", () =
     expect(await refusal({ ...room, count: 2.5 })).toBe(
       "one to sixty rooms in one go",
     );
+    // The bounds themselves are allowed through, to the (stub) database.
+    for (const count of [1, 60]) {
+      await expect(
+        accommodation.addUnits(SOME_USER, { ...room, count }),
+      ).rejects.toThrow(/the database was reached/);
+    }
   });
 
   it("a room holds at most twenty six beds (RB-S2-08)", async () => {

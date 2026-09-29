@@ -186,7 +186,7 @@ function unit(overrides: Partial<UnitEntry>): UnitEntry {
     building: null,
     floor: 1,
     status: "available",
-    state: { kind: "free" },
+    state: { kind: "free", nextArrivalOn: null },
     beds: [],
     ...overrides,
   };
