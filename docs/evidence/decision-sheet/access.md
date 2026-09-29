@@ -93,3 +93,15 @@ comments today — two of which match the write pattern (`identify_staff_user`'s
 "the membership INSERT would apply", `amend_reservation`'s "UPDATE OF"). With
 comments stripped the writer count is unchanged, so no existing definer was
 passing on a comment.
+
+## OA-S4-06 — a Stay nobody has signed in to
+
+Suite: `tests/database/resident_access_path.test.sql`, 31 assertions, all green
+unsabotaged. The manager sees the null-user Stay and its Unit — the control that
+proves the fixture exists and is readable by somebody.
+
+| sabotage                                        | printed                                                                                                                                  | red                                                                                                                      |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| the Resident policy matches null to null        | `stays_read_own: (NOT (user_id IS DISTINCT FROM app.current_user_id()))`                                                                 | 1 `without request context no Stay is visible`; 21 `a request with no acting user reads no Stay that has no user`        |
+| the Resident Unit helper matches null to null   | `stay.user_id is not distinct from app.current_user_id()`                                                                                | 2 `without request context no Accommodation Unit is visible`; 22 `nor that Stay's Accommodation Unit`                    |
+| both admit a null-user Stay to anyone signed in | `((user_id = app.current_user_id()) OR ((user_id IS NULL) AND (app.current_user_id() IS NOT NULL)))`, and the same `where` in the helper | 14 `a Stay nobody has signed in to is not a signed-in Resident's`; 15 `nor is its Accommodation Unit` (and 3, 7, 23, 25) |

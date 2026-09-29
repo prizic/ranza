@@ -8,7 +8,7 @@
 -- The Staff direction over the same tables is covered by
 -- accommodation_units.test.sql and organization_property_foundation.test.sql.
 begin;
-select plan(27);
+select plan(31);
 
 insert into public.users (id, email) values
   ('d1111111-1111-4111-8111-111111111111', 'resident-one@example.test'),
@@ -35,6 +35,9 @@ insert into public.accommodation_units
   ('c2222222-2222-4222-8222-222222222222',
    'a1111111-1111-4111-8111-111111111111',
    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'A1-102', 'bed', 1),
+  ('c4444444-4444-4444-8444-444444444444',
+   'a1111111-1111-4111-8111-111111111111',
+   'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'A1-103', 'room', 2),
   ('c3333333-3333-4333-8333-333333333333',
    'b1111111-1111-4111-8111-111111111111',
    'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'B1-201', 'suite', 4);
@@ -85,7 +88,16 @@ insert into public.stays
    'a1111111-1111-4111-8111-111111111111',
    'c1111111-1111-4111-8111-111111111111',
    'd4444444-4444-4444-8444-444444444444',
-   'guest', 'departed', date '2026-08-01', date '2026-08-04');
+   'guest', 'departed', date '2026-08-01', date '2026-08-04'),
+  -- A Stay nobody has signed in to, as most Stays the front desk creates are
+  -- (OA-S4-06). It has no Portal: a null user_id never equals an acting user,
+  -- and a request with no acting user matches nothing.
+  ('f5555555-5555-4555-8555-555555555555',
+   'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   'a1111111-1111-4111-8111-111111111111',
+   'c4444444-4444-4444-8444-444444444444',
+   null,
+   'guest', 'in_house', current_date - 1, current_date + 3);
 
 set local role ranza_app;
 
@@ -125,6 +137,14 @@ select is_empty('select id from public.subscriptions',
 select is_empty('select id from public.property_capabilities',
   'a Resident cannot read property_capabilities');
 
+select is_empty(
+  $$select id from public.stays
+    where id = 'f5555555-5555-4555-8555-555555555555'$$,
+  'a Stay nobody has signed in to is not a signed-in Resident''s');
+select is_empty(
+  $$select id from public.accommodation_units
+    where id = 'c4444444-4444-4444-8444-444444444444'$$,
+  'nor is its Accommodation Unit');
 select ok(app.resident_can_use_capability(
     'a1111111-1111-4111-8111-111111111111',
     'front_office', 'portal_stay_overview'),
@@ -145,6 +165,18 @@ select ok(not app.can_use_capability(
     'a1111111-1111-4111-8111-111111111111',
     'front_office', 'portal_stay_overview'),
   'the Staff gate stays shut for a Resident: a Stay is not a membership');
+
+-- No acting user at all: the null on both sides of user_id = current_user_id()
+-- must deny, not match. Fails closed twice, and this is the second time.
+select set_config('app.user_id', '', true);
+select is_empty(
+  $$select id from public.stays
+    where id = 'f5555555-5555-4555-8555-555555555555'$$,
+  'a request with no acting user reads no Stay that has no user');
+select is_empty(
+  $$select id from public.accommodation_units
+    where id = 'c4444444-4444-4444-8444-444444444444'$$,
+  'nor that Stay''s Accommodation Unit');
 
 select app.set_request_context('d4444444-4444-4444-8444-444444444444');
 
@@ -167,11 +199,12 @@ select set_eq(
   'select id::text from public.stays order by id',
   array['f1111111-1111-4111-8111-111111111111',
         'f2222222-2222-4222-8222-222222222222',
-        'f4444444-4444-4444-8444-444444444444'],
-  'a Staff Member sees every Stay in a Property they reach');
+        'f4444444-4444-4444-8444-444444444444',
+        'f5555555-5555-4555-8555-555555555555'],
+  'a Staff Member sees every Stay in a Property they reach, one with no user included');
 select set_eq(
   'select name from public.accommodation_units',
-  array['A1-101', 'A1-102'],
+  array['A1-101', 'A1-102', 'A1-103'],
   'a Staff Member sees every Accommodation Unit in a Property they reach');
 select ok(not app.resident_can_use_capability(
     'a1111111-1111-4111-8111-111111111111',
