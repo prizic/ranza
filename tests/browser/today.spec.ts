@@ -154,8 +154,12 @@ test("a Property named in the URL that Today does not reach goes back to Today o
   await page.goto(`/en/today?property=${unreached}`);
   // Back to Today, which then names the Property it opens on (OA-S3-01) —
   // one the viewer reaches, never the one the URL asked for.
+  // The address it was given already matches that shape, and the redirect
+  // lands after the first paint, so wait on the id itself changing.
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get("property"))
+    .not.toBe(unreached);
   await expect(page).toHaveURL(/\/en\/today\?property=[0-9a-f-]+$/);
-  expect(new URL(page.url()).searchParams.get("property")).not.toBe(unreached);
   await expect(
     page.getByRole("heading", { name: /Needs attention/ }),
   ).toBeAttached();
