@@ -1228,18 +1228,6 @@ export function createReservationsModule(deps: ReservationsDeps) {
   }
 
   /**
-   * Every Unit in the Property a booking may be placed on.
-   *
-   * In service, not free. Whether a Unit is free over particular nights is
-   * `reservations_no_double_booking`'s answer and nobody else's — computing it
-   * here would produce a list that was true when the page rendered and false by
-   * the time somebody pressed the button, and would be a second opinion about
-   * availability for the first time in this repository.
-   *
-   * Empty for a Property the viewer cannot reach and for one whose Organization
-   * lost the Entitlement, which are deliberately the same answer.
-   */
-  /**
    * The Property's business date, `YYYY-MM-DD`: the first night a booking may
    * start on, which the booking form marks as today (RG-S1-10).
    *
@@ -1273,6 +1261,18 @@ export function createReservationsModule(deps: ReservationsDeps) {
     return row?.day ?? null;
   }
 
+  /**
+   * Every Unit in the Property a booking may be placed on.
+   *
+   * In service, not free. Whether a Unit is free over particular nights is
+   * `reservations_no_double_booking`'s answer and nobody else's — computing it
+   * here would produce a list that was true when the page rendered and false by
+   * the time somebody pressed the button, and would be a second opinion about
+   * availability for the first time in this repository.
+   *
+   * Empty for a Property the viewer cannot reach and for one whose Organization
+   * lost the Entitlement, which are deliberately the same answer.
+   */
   async function listBookableUnits(
     userId: string,
     propertyId: string,
