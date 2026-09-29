@@ -297,11 +297,14 @@ test("a bare URL names one Property: the page writes the remembered one into its
   const remembered = propertyWithTodayOff();
 
   await signIn(page);
-  await page
-    .context()
-    .addCookies([
-      { name: "ranza_property", value: remembered, url: page.url() },
-    ]);
+  await page.context().addCookies([
+    // Path=/, as the switcher writes it.
+    {
+      name: "ranza_property",
+      value: remembered,
+      url: new URL("/", page.url()).href,
+    },
+  ]);
   await page.goto("/en/housekeeping");
 
   await expect(page).toHaveURL(
