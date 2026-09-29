@@ -35,6 +35,17 @@ there rather than here, they are what actually runs.
 `docker inspect ranza-workspace --format '{{.Config.Image}}'` says which
 commit is live; images are tagged with it.
 
+### Before `20260916009500_a_guest_booking_has_a_departure`
+
+Staging holds a Guest booking with no departure, R96J74P, still in house, and
+that migration's constraint refuses to be added over it. If it fails,
+`migrate deploy` stops there and records a failed migration that has to be
+cleared with `prisma migrate resolve --rolled-back` before anything after it
+runs. So: deploy the amend-booking work first (it brings Change departure),
+give R96J74P a departure — or check it out — and confirm no confirmed or
+in-house Guest booking is left without one. Only then deploy past `009500`.
+See [the decision-sheet evidence](../evidence/decision-sheet/README.md).
+
 ## First-time setup
 
 Done once, already. Recorded so the environment can be rebuilt elsewhere.

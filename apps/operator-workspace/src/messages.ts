@@ -1341,7 +1341,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     billingNotice: {
       title: "{organization} için ödeme gecikti",
       description:
-        "Çalışma alanı şimdilik her şeyiyle çalışmaya devam ediyor. Ödeme yapılmazsa abonelik askıya alınır ve ekibiniz erişimini kaybeder.",
+        "Çalışma alanı şimdilik her şeyiyle çalışmaya devam ediyor. Lütfen ödemeyi tamamlayın.",
     },
     mainNavigation: "Ana gezinme",
     sections: "Bölümler",
@@ -2737,7 +2737,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     billingNotice: {
       title: "Payment for {organization} is overdue",
       description:
-        "Everything in the Workspace keeps working for now. If the payment is not settled, the Subscription is suspended and your team loses access.",
+        "Everything in the Workspace keeps working for now. Please settle the payment.",
     },
     mainNavigation: "Main navigation",
     sections: "Sections",
@@ -4141,7 +4141,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     billingNotice: {
       title: "تأخّر سداد اشتراك {organization}",
       description:
-        "تستمر مساحة العمل في العمل بالكامل في الوقت الحالي. إذا لم تتم تسوية الدفعة، يُعلَّق الاشتراك ويفقد فريقك إمكانية الوصول.",
+        "تستمر مساحة العمل في العمل بالكامل في الوقت الحالي. يُرجى تسوية الدفعة.",
     },
     mainNavigation: "التنقل الرئيسي",
     sections: "الأقسام",
