@@ -488,6 +488,9 @@ export interface Messages {
   inHouseTonight: string;
   reservedTonight: string;
   reservedCount: string;
+  statReserved: string;
+  nextArrivalOn: string;
+  outOfOrderBeds: string;
   blockedStatus: string;
 
   /** The Configuration screen (ADR 0036). */
@@ -1809,6 +1812,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     inHouseTonight: "Konaklamada",
     reservedTonight: "Rezervasyonlu",
     reservedCount: "{count, number} rezervasyonlu",
+    statReserved: "Bu gece rezervasyonlu",
+    nextArrivalOn: "Sonraki varış {date}",
+    outOfOrderBeds: "{count, number} hizmet dışı",
     blockedStatus: "Kapalı",
     roomCalendar: {
       title: "{property} oda takvimi",
@@ -3190,6 +3196,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     inHouseTonight: "In house",
     reservedTonight: "Reserved",
     reservedCount: "{count, number} reserved",
+    statReserved: "Reserved tonight",
+    nextArrivalOn: "Next arrival {date}",
+    outOfOrderBeds: "{count, number} out of order",
     blockedStatus: "Blocked",
     roomCalendar: {
       title: "Room calendar at {property}",
@@ -4561,6 +4570,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     reservedTonight: "محجوز",
     reservedCount:
       "{count, plural, zero {لا شيء محجوز} one {سرير واحد محجوز} two {سريران محجوزان} few {# أسرّة محجوزة} many {# سريرًا محجوزًا} other {# سرير محجوز}}",
+    statReserved: "محجوز الليلة",
+    nextArrivalOn: "الوصول التالي {date}",
+    outOfOrderBeds: "{count, number} خارج الخدمة",
     blockedStatus: "مغلق",
     roomCalendar: {
       title: "تقويم الغرف في {property}",

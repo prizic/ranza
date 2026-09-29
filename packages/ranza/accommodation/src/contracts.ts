@@ -81,14 +81,18 @@ export const ROOM_NUMBER = { min: 1, max: 8 } as const;
 /**
  * What one sellable Unit is doing tonight, in order of precedence: somebody in
  * it wins over everything, then the two states a Staff Member set, then a
- * booking on the way, then nothing.
+ * confirmed booking that covers tonight, then nothing (RB-S1-05).
+ *
+ * `reserved` is about tonight only: a booking that starts later leaves the Unit
+ * `free`, with that arrival's day carried as information, so a busy hotel's map
+ * does not read wholly reserved while every room is empty tonight.
  */
 export type UnitState =
   | { kind: "in_house"; guestName: string; endsOn: string | null }
   | { kind: "blocked"; reason: string }
   | { kind: "out_of_service" }
   | { kind: "reserved"; arrivesOn: string }
-  | { kind: "free" };
+  | { kind: "free"; nextArrivalOn: string | null };
 
 /** A Unit as the Rooms screen shows it. */
 export interface UnitEntry {
@@ -111,9 +115,11 @@ export interface UnitEntry {
 /**
  * The counts above the map (RB-S1-09).
  *
- * `rooms` is the top-level Units; `sellable` the leaves. `inHouse`, `free`,
- * `blocked` and `outOfService` partition the leaves; `reserved` is the part of
- * `free` with a booking on the way, counted so the map can say so.
+ * `rooms` is the top-level Units; `sellable` the leaves. `inHouse`, `reserved`,
+ * `free` and `blocked` partition the leaves that are in service, and
+ * `outOfService` is counted apart: `sellable` is the five added together. A
+ * `free` Unit may still have an arrival later on; that is information on the
+ * Unit, not a count.
  */
 export interface UnitCounts {
   rooms: number;
