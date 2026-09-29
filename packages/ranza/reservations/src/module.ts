@@ -1371,6 +1371,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
           guest.id                                      as "guestId",
           guest.full_name                               as "guestName",
           guest.email                                   as "guestEmail",
+          guest.phone                                   as "guestPhone",
           reservation.stay_type                         as "stayType",
           reservation.status                            as "status",
           to_char(reservation.starts_on, 'YYYY-MM-DD')  as "startsOn",
@@ -1393,7 +1394,26 @@ export function createReservationsModule(deps: ReservationsDeps) {
           reservation.status in ('requested', 'confirmed')
             and app.has_organization_permission(
                   reservation.organization_id, 'front_desk.amend')
-                                                        as "mayAmend"
+                                                        as "mayAmend",
+          -- checkIn's own predicate: a confirmed booking whose nights have all
+          -- passed is listed (so it can be marked a no-show) but is refused.
+          reservation.status = 'confirmed'
+            and reservation.starts_on <= today.day
+            and (reservation.ends_on is null
+                 or reservation.ends_on > today.day)
+            and app.has_organization_permission(
+                  reservation.organization_id, 'front_desk.check_in')
+                                                        as "mayCheckIn",
+          stay.status = 'in_house'
+            and app.has_organization_permission(
+                  reservation.organization_id, 'front_desk.amend')
+                                                        as "mayChangeStay",
+          case when stay.status = 'in_house' then stay.id end
+                                                        as "stayId",
+          case when stay.status = 'in_house'
+               then to_char(stay.starts_on, 'YYYY-MM-DD') end
+                                                        as "stayStartsOn",
+          folio.id                                      as "folioId"
         from public.reservations as reservation
         join public.guests as guest
           on guest.id = reservation.guest_id
@@ -1401,6 +1421,13 @@ export function createReservationsModule(deps: ReservationsDeps) {
           on unit.id = reservation.accommodation_unit_id
         left join public.accommodation_units as room
           on room.id = unit.parent_id
+        left join public.stays as stay
+          on stay.reservation_id = reservation.id
+         and stay.status in ('in_house', 'departed')
+        left join public.folios as folio
+          on folio.stay_id = stay.id
+         and folio.status = 'open'
+         and stay.status = 'in_house'
         cross join (
           select app.property_today(${propertyId}::uuid) as day
         ) as today

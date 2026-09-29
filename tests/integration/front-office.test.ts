@@ -1971,3 +1971,84 @@ describe("a booking nobody came for", () => {
     expect(after).toBeUndefined();
   });
 });
+
+describe("the Reservations list and check-in agree on who may be checked in", () => {
+  const ids = {
+    today: reservationId(),
+    tomorrow: reservationId(),
+    expired: reservationId(),
+    late: reservationId(),
+  };
+
+  beforeAll(async () => {
+    const units = await Promise.all([aUnit(), aUnit(), aUnit(), aUnit()]);
+    await reserve(ids.today, PROPERTY, ORG, units[0]!, "List today");
+    await reserve(ids.tomorrow, PROPERTY, ORG, units[1]!, "List tomorrow", {
+      from: 1,
+      to: 3,
+    });
+    await reserve(ids.expired, PROPERTY, ORG, units[2]!, "List expired", {
+      from: -3,
+      to: -1,
+    });
+    await reserve(ids.late, PROPERTY, ORG, units[3]!, "List late", {
+      from: -1,
+      to: 2,
+    });
+  });
+
+  const listed = async (id: string) =>
+    (await reservations.listReservations(MEMBER, PROPERTY)).find(
+      (row) => row.reservationId === id,
+    );
+
+  it("a_confirmed_booking_can_be_checked_in_from_the_reservations_list: offers Check in exactly where check-in succeeds", async () => {
+    expect(await listed(ids.today)).toMatchObject({ mayCheckIn: true });
+    expect(await listed(ids.late)).toMatchObject({ mayCheckIn: true });
+    expect(await listed(ids.tomorrow)).toMatchObject({ mayCheckIn: false });
+    // Still listed, so it can be marked a no-show, and still refused by
+    // check-in: offering the button here would end in a certain refusal.
+    expect(await listed(ids.expired)).toMatchObject({ mayCheckIn: false });
+
+    await expect(
+      reservations.checkIn(MEMBER, ids.tomorrow),
+    ).rejects.toBeInstanceOf(Error);
+    await expect(
+      reservations.checkIn(MEMBER, ids.expired),
+    ).rejects.toBeInstanceOf(Error);
+    await expect(
+      reservations.checkIn(MEMBER, ids.today),
+    ).resolves.toMatchObject({ stayId: expect.any(String) });
+    await expect(reservations.checkIn(MEMBER, ids.late)).resolves.toMatchObject(
+      { stayId: expect.any(String) },
+    );
+  });
+
+  it("a_checked_in_row_offers_the_folio_and_stay_changes: carries the Stay, its own arrival, and no longer offers Check in", async () => {
+    const today = await propertyDay(0);
+    const yesterday = await propertyDay(-1);
+
+    const onTime = await listed(ids.today);
+    expect(onTime).toMatchObject({
+      status: "checked_in",
+      mayCheckIn: false,
+      mayChangeStay: true,
+      stayId: expect.any(String),
+      stayStartsOn: today,
+    });
+
+    // A late arrival: the booking says yesterday, the Stay says today, and
+    // Change departure must show the Stay's own arrival.
+    expect(await listed(ids.late)).toMatchObject({
+      startsOn: yesterday,
+      stayStartsOn: today,
+    });
+  });
+
+  it("a_checked_in_row_offers_the_folio_and_stay_changes: a booking is one row however many Stays it has had", async () => {
+    const rows = (await reservations.listReservations(MEMBER, PROPERTY)).filter(
+      (row) => [ids.today, ids.late].includes(row.reservationId),
+    );
+    expect(rows).toHaveLength(2);
+  });
+});

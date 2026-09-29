@@ -37,6 +37,7 @@ const BASE: ReservationRow = {
   guestId: "g1",
   guestName: "Ada Lovelace",
   guestEmail: null,
+  guestPhone: null,
   stayType: "guest",
   status: "confirmed",
   startsOn: "2030-01-10",
@@ -50,6 +51,11 @@ const BASE: ReservationRow = {
   mayCancel: false,
   mayMarkNoShow: false,
   mayAmend: false,
+  mayCheckIn: false,
+  mayChangeStay: false,
+  stayId: null,
+  stayStartsOn: null,
+  folioId: null,
 };
 
 function show(rows: ReservationRow[]) {

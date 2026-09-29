@@ -723,45 +723,71 @@ export function useReservationColumns(
       meta: { title: t("action") },
       enableHiding: false,
       header: () => <span className="sr-only">{t("action")}</span>,
-      cell: ({ row }) =>
-        row.original.mayCancel || row.original.mayAmend ? (
-          <div className="flex justify-end">
-            <FrontDeskRowMenu
-              key={row.original.reservationId}
-              booking={{
-                reservationId: row.original.reservationId,
-                reference: row.original.reference,
-                unitLabel: unitLabel(
-                  row.original.roomName,
-                  row.original.unitName,
-                ),
-                mayCancel: row.original.mayCancel,
-                // Here as well as on arrivals: a booking whose nights all
-                // passed unarrived is only on this list, and it is marked a
-                // no-show the morning after.
-                mayMarkNoShow: row.original.mayMarkNoShow,
-                change: row.original.mayAmend
-                  ? {
-                      reservationId: row.original.reservationId,
-                      reference: row.original.reference,
-                      guestName: row.original.guestName,
-                      unitLabel: unitLabel(
-                        row.original.roomName,
-                        row.original.unitName,
-                      ),
-                      unitId: row.original.unitId,
-                      startsOn: row.original.startsOn,
-                      endsOn: row.original.endsOn,
-                    }
-                  : undefined,
-              }}
-              folioId={null}
-              guestName={row.original.guestName}
-              locale={locale}
-              propertyId={propertyId}
-            />
+      cell: ({ row }) => {
+        const booking = row.original;
+        const label = unitLabel(booking.roomName, booking.unitName);
+        const inHouse = booking.stayId !== null;
+        const menu =
+          booking.mayCancel || booking.mayAmend || booking.mayChangeStay;
+        return (
+          <div className="flex items-center justify-end gap-1">
+            {booking.mayCheckIn ? (
+              <CheckInAction
+                locale={locale}
+                reservationId={booking.reservationId}
+              />
+            ) : null}
+            {menu || booking.folioId ? (
+              <FrontDeskRowMenu
+                key={booking.reservationId}
+                booking={
+                  inHouse
+                    ? undefined
+                    : {
+                        reservationId: booking.reservationId,
+                        reference: booking.reference,
+                        unitLabel: label,
+                        mayCancel: booking.mayCancel,
+                        // Here as well as on arrivals: a booking whose nights
+                        // all passed unarrived is only on this list, and it is
+                        // marked a no-show the morning after.
+                        mayMarkNoShow: booking.mayMarkNoShow,
+                        change: booking.mayAmend
+                          ? {
+                              reservationId: booking.reservationId,
+                              reference: booking.reference,
+                              guestName: booking.guestName,
+                              unitLabel: label,
+                              unitId: booking.unitId,
+                              startsOn: booking.startsOn,
+                              endsOn: booking.endsOn,
+                            }
+                          : undefined,
+                      }
+                }
+                folioId={booking.folioId}
+                guestName={booking.guestName}
+                locale={locale}
+                propertyId={propertyId}
+                stay={
+                  booking.stayId &&
+                  booking.stayStartsOn &&
+                  booking.mayChangeStay
+                    ? {
+                        stayId: booking.stayId,
+                        reference: booking.reference,
+                        guestName: booking.guestName,
+                        unitLabel: label,
+                        startsOn: booking.stayStartsOn,
+                        endsOn: booking.endsOn,
+                      }
+                    : undefined
+                }
+              />
+            ) : null}
           </div>
-        ) : null,
+        );
+      },
     },
   ];
 }

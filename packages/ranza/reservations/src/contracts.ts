@@ -526,6 +526,7 @@ export interface ReservationRow {
   guestId: string;
   guestName: string;
   guestEmail: string | null;
+  guestPhone: string | null;
   stayType: ReservationStayType;
   status: ReservationStatus;
   /** Calendar date as `YYYY-MM-DD`; no instant, so no timezone to get wrong. */
@@ -552,6 +553,20 @@ export interface ReservationRow {
    * they hold `front_desk.amend` (AB-S1-14, AB-S1-22).
    */
   mayAmend: boolean;
+  /**
+   * Whether the viewer holds `front_desk.check_in` and the booking is
+   * confirmed, first night come and not all passed. Presentation, like `mayCancel`: the
+   * check-in decides again and refuses an occupied or out-of-service Unit.
+   */
+  mayCheckIn: boolean;
+  /** Whether the viewer may change an in-house Stay's departure or move it (AB-S2-05). */
+  mayChangeStay: boolean;
+  /** The in-house Stay this booking became; null before check-in and after. */
+  stayId: string | null;
+  /** That Stay's own arrival, which a late arrival makes differ from the booking's. */
+  stayStartsOn: string | null;
+  /** That Stay's open Folio; null before check-in or without billing. */
+  folioId: string | null;
 }
 
 /**
