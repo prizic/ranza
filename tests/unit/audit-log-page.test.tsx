@@ -163,7 +163,7 @@ describe("the audit log page", () => {
       locations: {},
       roles: {},
     });
-    await show("en");
+    await show("en", { property: KADIKOY.propertyId });
 
     expect(screen.getByText(messages.en.noAuditTitle)).toBeInTheDocument();
     expect(

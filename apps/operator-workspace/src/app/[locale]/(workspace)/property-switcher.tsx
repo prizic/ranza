@@ -29,8 +29,10 @@ import { rememberProperty, switchTarget } from "../../../lib/property-choice";
  * and a router layout cannot read search parameters. There is nothing to
  * authorize here: the server already decided which Properties may appear.
  *
- * With no `?property=` it names `defaultId` — the Property remembered on this
- * device, or the first — which the server resolved as the page did. A
+ * A page that shows a Property writes it into the URL before it renders
+ * (`frontDeskProperty`), so this and the page read the same `?property=`. With
+ * none — a page that shows no Property, such as Security — it names
+ * `defaultId`, the layout's working Property. A
  * `?property=` naming none of these — out of reach, stale, forged — names no
  * Property at all: the page beneath shows none either, and naming another
  * would put a Property where the page is working above a page that says it is

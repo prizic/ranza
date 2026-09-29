@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { isolate, isSupportedLocale } from "@ranza/i18n";
+import { isolate, isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState, PageHeader } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { InspectionSettings } from "../../../../features/housekeeping/components/inspection-settings";
@@ -72,7 +72,11 @@ export default async function ConfigurationPage({
 
   const t = await getTranslations();
   const properties = await entitledProperties(CONFIGURATION_CAPABILITY);
-  const property = await frontDeskProperty(properties, await searchParams);
+  const property = await frontDeskProperty(
+    properties,
+    await searchParams,
+    localizeHref(locale, "configuration"),
+  );
   const settings = property
     ? await propertySettings(property.propertyId)
     : null;

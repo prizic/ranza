@@ -47,14 +47,14 @@ export function chooseProperty<T extends { propertyId: string }>(
 }
 
 /**
- * The Property a page with no `?property=` is working in — what the switcher
- * names and every rail link carries.
+ * The Property the shell names when the URL names none — which, once every
+ * page that shows a Property has written its own into the URL, means a page
+ * that shows none (Security, an unbuilt destination). What the switcher names
+ * there and what the rail's links carry onward.
  *
- * Resolved against Today's Properties first, exactly as a bare Today resolves
- * it, because Today is where signing in lands and the two must name the same
- * Property (HK-S1-24): a remembered Property where Today is off is passed over
- * there. Against every switchable Property only for a viewer with Today
- * nowhere.
+ * Resolved against Today's Properties first, as Today resolves it, so the
+ * links lead back to the day the viewer would land on; against every
+ * switchable Property only for a viewer with Today nowhere.
  */
 export function workingProperty<
   T extends { propertyId: string },

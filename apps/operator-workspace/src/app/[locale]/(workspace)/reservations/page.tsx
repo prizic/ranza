@@ -48,7 +48,11 @@ export default async function ReservationsPage({
   const t = await getTranslations();
   const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
   const search = await searchParams;
-  const property = await frontDeskProperty(properties, search);
+  const property = await frontDeskProperty(
+    properties,
+    search,
+    localizeHref(locale, "reservations"),
+  );
 
   if (!property) {
     return (

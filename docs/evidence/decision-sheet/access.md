@@ -232,3 +232,31 @@ Widening the ranza_auth sweep to PUBLIC first went red unsabotaged on pgTAP's
 own `tap_funky` and `pg_all_foreign_keys` views, which the extension grants to
 PUBLIC; relations an extension owns (`pg_depend` deptype `e`) are excluded. The
 two earlier ranza_auth sabotages still go red on 4.
+
+## Integration grill Q1 — a bare URL names one Property (OA-S3-01, OA-S3-02, OA-S3-05)
+
+A page resolved the remembered Property against its own capability's list;
+the shell resolved its default against Today's. On a URL with no `?property=`
+the two could differ. Now the page writes its choice into its URL
+(`frontDeskProperty` redirects to itself with `?property=`, every other
+parameter kept), and the switcher and the rail read the URL.
+
+`tests/unit/bare-url-names-one-property.test.tsx` opens `/tr/housekeeping` bare
+the way the page does, follows its redirect, and renders the switcher and the
+rail on the URL it ends at, with the default the layout computes.
+
+| run                                                              | printed                                                      | result                                                                                                                                                                                     |
+| ---------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| the resolver as on `decisions/sheet` (answers a bare URL itself) | `28: return chooseProperty( 31: await rememberedProperty(),` | scenario A red: `expected 'Kadıköy' to contain 'Moda'` — the page shows Moda (B) under a switcher naming Kadıköy (A); scenario B red: `expected 'Moda' to contain 'Kadıköy'` — the reverse |
+| after the change                                                 | —                                                            | both green; page, switcher, rail links and the rail's Organization all name B in A and A in B                                                                                              |
+
+`tests/unit/front-desk-property.test.ts`, 11 tests:
+
+| sabotage (apps/operator-workspace/src/server/front-desk.ts)       | printed                                                                             | red                                                                                                        |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| the redirect keeps no other parameter                             | `66: if (key !== "__keep_nothing__") continue;`                                     | `keeps every other parameter, repeated ones included`                                                      |
+| an explicit `?property=` the page does not list is redirected too | `43: if (requested && properties.some((p) => p.propertyId === requested)) return …` | `shows nothing, not another Property, for one where this screen is switched off`; the never-redirects test |
+
+The last row is the loop guard: a redirect fires only when `property` is absent
+or empty and always writes a non-empty one, and a URL naming a Property — listed
+or not — is never redirected.

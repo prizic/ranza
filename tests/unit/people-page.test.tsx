@@ -83,9 +83,12 @@ describe("the People page", () => {
     expect(readRoster).not.toHaveBeenCalledWith(ORG_A);
   });
 
-  it("reads the first Property's Organization when the URL names none", async () => {
-    await open({});
-    expect(readRoster).toHaveBeenCalledWith(ORG_A);
+  it("names the first Property in the URL when it names none, and reads nothing yet", async () => {
+    // Next's own redirect: it throws, and its digest carries where to.
+    await expect(open({})).rejects.toMatchObject({
+      digest: expect.stringContaining(`/en/people?property=${PROPERTY_A}`),
+    });
+    expect(readRoster).not.toHaveBeenCalled();
   });
 
   it("reads no roster for a Property it does not list", async () => {

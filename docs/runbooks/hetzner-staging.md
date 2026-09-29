@@ -148,14 +148,29 @@ two scripts that overwrite role passwords and seed demo data.
 ssh root@178.105.194.50
 cd /opt/apps/ranza/src/deploy
 docker compose --env-file /opt/apps/ranza/.env ps
-docker logs ranza-workspace --tail 50
-docker logs ranza-worker --tail 50      # exits non-zero if it refused its role
+docker logs ranza-workspace --tail 50   # exits non-zero if it refused its role
+docker logs ranza-portal --tail 50      # so does the Portal
+docker logs ranza-worker --tail 50      # and the worker
 docker logs ranza-migrate               # the last migration run
 ```
 
 A worker that is not running has almost certainly refused its connection: its
 role was privileged, or its URL was one of the other two. The message names
 which ([`apps/worker/src/composition.ts`](../../apps/worker/src/composition.ts)).
+
+The Workspace and the Portal make the same check before they take a request
+([ADR 0018](../adr/0018-the-worker-has-its-own-role-and-its-own-context.md),
+amended; `src/instrumentation.ts` in each). A `ranza-workspace` or
+`ranza-portal` container that restarts over and over is almost always that
+check: its log's last line begins "The Workspace will not start." or "The
+Portal will not start." and names the variable — `DATABASE_URL` or
+`AUTH_DATABASE_URL` — and the fault: set to `DIRECT_URL`, or connecting as a
+role that is a superuser, has `BYPASSRLS`, or owns tables (or is a member of
+the role that does). Fix the role or the URL in `/opt/apps/ranza/.env`, not
+the check. A database that cannot be reached at start ends the process the
+same way, with the connection error after "will not start."; with
+`restart: unless-stopped` the container then keeps retrying until the
+database answers.
 
 Traefik's dashboard on the host, `http://178.105.194.50:8080`, lists the
 routers; a hostname that is not there is a label problem, not an application

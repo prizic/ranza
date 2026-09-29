@@ -93,7 +93,8 @@ const { default: ReservationsPage } =
 async function show() {
   const page = await ReservationsPage({
     params: Promise.resolve({ locale: "en" }),
-    searchParams: Promise.resolve({}),
+    // Named, as every page's URL is once it has opened (OA-S3-02).
+    searchParams: Promise.resolve({ property: PROPERTY.propertyId }),
   });
   render(
     <NextIntlClientProvider locale="en" messages={messages.en}>

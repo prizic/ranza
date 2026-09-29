@@ -59,11 +59,16 @@ export default async function TodayPage({
   if (properties.length === 0) return noProperty;
 
   // With no ?property= this is the day of the Property remembered on this
-  // device, or the first. One this list does not carry — out of reach, stale,
-  // forged — goes back to Today with none, rather than showing another
+  // device, or the first, written into the URL so the switcher and the rail
+  // name it too (OA-S3-02). One this list does not carry — out of reach,
+  // stale, forged — goes back to Today with none, rather than showing another
   // Property's day under a switcher that names no Property (HK-S1-24,
   // TD-S1-08). The same resolver as every other page (OA-S3-05).
-  const property = await frontDeskProperty(properties, await searchParams);
+  const property = await frontDeskProperty(
+    properties,
+    await searchParams,
+    localizeHref(locale, "today"),
+  );
   if (!property) redirect(localizeHref(locale, "today"));
 
   const summary = await todaySummary(property.propertyId);

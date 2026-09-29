@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
-import { isSupportedLocale } from "@ranza/i18n";
+import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { LiveRoomCalendar } from "../../../../features/room-calendar/components/live-room-calendar";
@@ -51,7 +51,8 @@ export default async function RoomCalendarPage({
   const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
   const property = await frontDeskProperty(
     properties,
-    typeof search.property === "string" ? { property: search.property } : {},
+    search,
+    localizeHref(locale, "room-calendar"),
   );
 
   if (!property) {

@@ -37,11 +37,11 @@ import { SCREENS } from "./screens";
  * Property, and it does so with a full load, because ADR 0019 drops the client
  * cache on a Property switch.
  *
- * A page reached with no `?property=` — Today, straight after signing in — is
- * working in the Property the switcher names by default (the remembered one,
- * or the first; OA-S3-05), so a link from it names that one too. Left bare, the
- * next screen resolved the Property against its own capability's list, which
- * need not give the one the switcher still showed (HK-S1-24).
+ * A page that shows a Property writes it into its own URL before rendering
+ * (`frontDeskProperty`, OA-S3-02), so a link from it carries that one. On a page
+ * that shows none — Security, an unbuilt destination — links carry the
+ * Property the switcher names by default, so the next page does not choose
+ * another one on its own (HK-S1-24).
  */
 export function useWithProperty(
   defaultProperty: string | undefined,

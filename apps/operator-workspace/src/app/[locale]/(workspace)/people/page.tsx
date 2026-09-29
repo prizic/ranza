@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { isSupportedLocale } from "@ranza/i18n";
+import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState, PageHeader } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { DefineRoleDialog } from "../../../../features/staff/components/define-role-dialog";
@@ -62,7 +62,11 @@ export default async function PeoplePage({
 
   const t = await getTranslations();
   const properties = await entitledProperties(STAFF_ADMINISTRATION);
-  const home = await frontDeskProperty(properties, await searchParams);
+  const home = await frontDeskProperty(
+    properties,
+    await searchParams,
+    localizeHref(locale, "people"),
+  );
 
   if (!home) {
     return (

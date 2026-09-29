@@ -164,7 +164,9 @@ async function pageFor(
   pricesFor.mockResolvedValue(pricesShown);
   const page = await ConfigurationPage({
     params: Promise.resolve({ locale: as }),
-    searchParams: Promise.resolve({}),
+    // Named, as every page's URL is once it has opened (OA-S3-02); a bare URL
+    // redirects, which front-desk-property.test.ts asserts.
+    searchParams: Promise.resolve({ property: PROPERTY }),
   });
   return (
     <NextIntlClientProvider locale={as} messages={messages[as]}>
