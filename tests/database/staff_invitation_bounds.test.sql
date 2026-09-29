@@ -13,10 +13,21 @@
 -- Every refusal below was watched go red by restoring the policies
 -- 20260916002200 wrote, which asked for staff.administer alone, and every clause
 -- of the new ones was removed on its own and seen to turn its assertion red.
+--
+-- The last four were added with 20260916008510 and watched fail the same way,
+-- each break printed from pg_policies before the run: dropping both of 008510's
+-- clauses (USING status = 'pending', WITH CHECK status = 'withdrawn') let a
+-- reopen, an expiry and an accepted-rewrite through, and all four of those
+-- assertions went red with have 1; restoring 008500's update policy turns the
+-- two reopen ones red only because it refused by raising (-1), not by matching
+-- nothing (0);
+-- dropping has_organization_permission from the insert turned the
+-- staff.administer one red; dropping can_use_capability_in_organization turned
+-- the lapsed-Subscription one red.
 
 begin;
 
-select plan(18);
+select plan(22);
 
 -- How many rows a statement changed, or -1 when a policy refused it by raising.
 -- A USING clause refuses by matching nothing, a WITH CHECK by raising, and a
@@ -311,14 +322,15 @@ select is(
   'an administrator withdraws the invitation of somebody at a Property they do not reach');
 
 -- Putting it back would revive a token only its author holds, so no update
--- leaves an invitation pending; re-inviting writes a fresh one.
+-- reaches an invitation that is not pending (20260916008510); re-inviting
+-- writes a fresh one.
 select is(
   pg_temp.rows_changed($$
     update public.staff_invitations
        set status = 'pending', updated_at = now()
      where user_id = '84444444-4444-4444-8444-444444444444'
        and status = 'withdrawn'$$),
-  -1,
+  0,
   'an administrator does not reopen a withdrawn invitation');
 
 -- ---------------------------------------------------------------------------
@@ -374,7 +386,7 @@ select is(
        set status = 'pending', updated_at = now()
      where user_id = '84333333-3333-4333-8333-333333333333'
        and status = 'withdrawn'$$),
-  -1,
+  0,
   'nor does an administrator whose role and reach are wider');
 
 -- An organization-wide author reaches every Property by definition, including
@@ -387,6 +399,64 @@ select lives_ok(
             'pending', now() + interval '7 days',
             '81111111-1111-4111-8111-111111111111')$$,
   'an organization-wide administrator invites somebody assigned to an archived Property');
+
+-- Withdrawing is the only change an update makes (20260916008510). Accepting
+-- and expiring are the definer functions' to write, and an answered invitation
+-- is history.
+select is(
+  pg_temp.rows_changed($$
+    update public.staff_invitations
+       set status = 'expired', updated_at = now()
+     where token_hash = 'owner-for-a-manager'$$),
+  -1,
+  'an administrator does not mark a live invitation expired');
+
+reset role;
+update public.staff_invitations
+   set status = 'accepted', accepted_at = now()
+ where token_hash = 'chosen-within';
+set local role ranza_app;
+
+select is(
+  pg_temp.rows_changed($$
+    update public.staff_invitations
+       set status = 'withdrawn', accepted_at = null, updated_at = now()
+     where token_hash = 'chosen-within'$$),
+  0,
+  'nor rewrites an accepted invitation as withdrawn');
+
+-- The gates beside the bounds. The Night auditor inviting a fellow Night
+-- auditor at their own Property is inside every bound, so only the permission
+-- can refuse it.
+select app.set_request_context('83444444-4444-4444-8444-444444444444');
+
+select throws_ok(
+  $$insert into public.staff_invitations
+      (organization_id, user_id, token_hash, status, expires_at, invited_by)
+    values ('8a111111-1111-4111-8111-111111111111',
+            '84444444-4444-4444-8444-444444444444', 'chosen-without-permission',
+            'pending', now() + interval '7 days',
+            '83444444-4444-4444-8444-444444444444')$$,
+  '42501', NULL,
+  'a member without staff.administer cannot write an invitation, even within their role and reach');
+
+-- The Owner writing the same invitation would succeed; a lapsed Subscription
+-- is the only difference.
+reset role;
+update public.subscriptions set status = 'suspended'
+ where organization_id = '8a111111-1111-4111-8111-111111111111';
+set local role ranza_app;
+select app.set_request_context('81111111-1111-4111-8111-111111111111');
+
+select throws_ok(
+  $$insert into public.staff_invitations
+      (organization_id, user_id, token_hash, status, expires_at, invited_by)
+    values ('8a111111-1111-4111-8111-111111111111',
+            '84444444-4444-4444-8444-444444444444', 'owner-while-lapsed',
+            'pending', now() + interval '7 days',
+            '81111111-1111-4111-8111-111111111111')$$,
+  '42501', NULL,
+  'nobody writes an invitation while the Subscription has lapsed');
 
 reset role;
 
