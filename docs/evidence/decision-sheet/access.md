@@ -105,3 +105,31 @@ proves the fixture exists and is readable by somebody.
 | the Resident policy matches null to null        | `stays_read_own: (NOT (user_id IS DISTINCT FROM app.current_user_id()))`                                                                 | 1 `without request context no Stay is visible`; 21 `a request with no acting user reads no Stay that has no user`        |
 | the Resident Unit helper matches null to null   | `stay.user_id is not distinct from app.current_user_id()`                                                                                | 2 `without request context no Accommodation Unit is visible`; 22 `nor that Stay's Accommodation Unit`                    |
 | both admit a null-user Stay to anyone signed in | `((user_id = app.current_user_id()) OR ((user_id IS NULL) AND (app.current_user_id() IS NOT NULL)))`, and the same `where` in the helper | 14 `a Stay nobody has signed in to is not a signed-in Resident's`; 15 `nor is its Accommodation Unit` (and 3, 7, 23, 25) |
+
+## OA-S1-05 — the request hosts refuse a privileged connection
+
+`tests/integration/request-host-startup.test.ts` (12, six per host) and
+`tests/integration/worker-startup.test.ts` (6), all green unsabotaged. The owner
+"whatever its URL" is the owner reached through `127.0.0.1` instead of
+`localhost`: the equality refusal cannot see it.
+
+| sabotage                                                 | printed                                   | red                                                                                                                                                                                                                                                                                                                     |
+| -------------------------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| the Workspace's `verifyConnections` skips the role check | `73: void assertUnprivileged;`            | Workspace: `refuses a tenant connection whose role owns the tables, whatever its URL`; `and a credential connection whose role does`; `stops the process with the refusal, rather than serving on`                                                                                                                      |
+| the Portal's, the same                                   | `72: void assertUnprivileged;`            | the same three, for the Portal                                                                                                                                                                                                                                                                                          |
+| the Workspace refuses no URL by name                     | `52: if (false as boolean) {`             | `refuses DATABASE_URL set to the migration connection, by name`; `refuses AUTH_DATABASE_URL set to the migration connection, by name`                                                                                                                                                                                   |
+| `@ranza/db`'s `assertUnprivileged` blind to ownership    | `61- false` in place of `role.ownsTables` | both hosts: `refuses a tenant connection whose role owns the tables…`; `and a credential connection whose role does`. The worker's own two tests stay green under this one, because the local owner is also a superuser and the worker's assertion matches `/row-level/` only; the host tests name the ownership fault. |
+
+Seen outside the tests too, against the lane database with production builds:
+
+- `next build` of each app with `DATABASE_URL`, `AUTH_DATABASE_URL`,
+  `DIRECT_URL` and `WORKER_DATABASE_URL` unset, and no app-level `.env`: both
+  succeed, and each emits `.next/server/instrumentation.js` — Next resolves
+  `src/instrumentation.ts` for both apps.
+- `next start` and the standalone `server.js` of the Workspace, and the
+  standalone `server.js` of the Portal: with `DATABASE_URL=$DIRECT_URL` each
+  printed `The Workspace will not start. DATABASE_URL must not be the migration
+connection…` (the Portal's the same) and exited 1; with `AUTH_DATABASE_URL`
+  set to the owner through `127.0.0.1` each printed `… AUTH_DATABASE_URL connects
+as a role that is a superuser, has BYPASSRLS, owns tenant tables…` and exited
+  1; with the lane's own URLs each answered `/en/sign-in` with 200.

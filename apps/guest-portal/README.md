@@ -44,7 +44,9 @@ interface — the database tests are where those four cases are told apart.
 
 ```text
 src/
+  instrumentation.ts      runs once per server: refuses a privileged connection
   server/composition.ts   the one place that reads the environment (ADR 0006)
+  server/startup.ts       the refusal instrumentation.ts runs, and the exit
   server/viewer.ts        session -> Ranza user -> request context (ADR 0007)
   app/[locale]/           every route is locale-prefixed
     (portal)/stay/        the Stay
@@ -88,4 +90,7 @@ pnpm dev
 
 Serves on port 3001, so it can run beside `operator-workspace` on 3000.
 `DATABASE_URL`, `AUTH_DATABASE_URL` and `BETTER_AUTH_SECRET` must be set — see
-[`.env.example`](../../.env.example).
+[`.env.example`](../../.env.example). Before it serves, `src/instrumentation.ts`
+asks the database what both connections connect as and exits when either is a
+superuser, bypasses row-level security or owns a table ([ADR 0018](../../docs/adr/0018-the-worker-has-its-own-role-and-its-own-context.md),
+amended).

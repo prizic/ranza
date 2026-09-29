@@ -11,7 +11,10 @@ pnpm db:seed:dev    # in another terminal: a demo Organization and an account
 
 It needs `DATABASE_URL`, `AUTH_DATABASE_URL` and `BETTER_AUTH_SECRET` — see
 [`.env.example`](../../.env.example). Building needs none of them: the
-composition root is built on first request, not at import.
+composition root is built on first request, not at import. Serving does: before
+the server takes a request, `src/instrumentation.ts` asks the database what both
+connections connect as and exits when either is a superuser, bypasses row-level
+security or owns a table ([ADR 0018](../../docs/adr/0018-the-worker-has-its-own-role-and-its-own-context.md), amended).
 
 ## There is no sign-up, and there will not be one
 
@@ -34,8 +37,10 @@ src/
       (workspace)/           the authenticated shell: navigation, Property switcher
         today/
     api/auth/[...all]/       Better Auth owns every route beneath this path
+  instrumentation.ts          runs once per server: refuses a privileged connection
   server/
     composition.ts           the composition root — three clients, three roles
+    startup.ts               the refusal instrumentation.ts runs, and the exit
     viewer.ts                the only path from a request to tenant data
   messages.ts                tr, en and ar copy, ICU where a count appears
   i18n/request.ts            what next-intl reads per request
