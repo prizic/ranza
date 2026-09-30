@@ -32,7 +32,7 @@ export default async function ReservationsPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ property?: string }>;
+  searchParams: Promise<{ property?: string; change?: string }>;
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
@@ -41,7 +41,8 @@ export default async function ReservationsPage({
 
   const t = await getTranslations();
   const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
-  const property = frontDeskProperty(properties, await searchParams);
+  const search = await searchParams;
+  const property = frontDeskProperty(properties, search);
 
   if (!property) {
     return (
@@ -73,6 +74,7 @@ export default async function ReservationsPage({
         ) : null}
       </div>
       <ReservationsTable
+        changing={search.change ?? null}
         locale={locale}
         propertyId={property.propertyId}
         reservations={await reservations(property.propertyId)}

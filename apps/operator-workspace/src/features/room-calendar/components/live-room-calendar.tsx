@@ -299,6 +299,8 @@ export function LiveRoomCalendar({
         changed={opened !== null && selected?.status !== opened.bar.status}
         entry={opened}
         locale={locale}
+        mayAmend={calendar.mayAmend}
+        onChanged={() => void query.refetch()}
         onClose={() => setDrawerOpen(false)}
         open={drawerOpen}
         propertyId={scope.propertyId}

@@ -3,20 +3,27 @@
 import { useTranslations } from "next-intl";
 import { TriangleAlert } from "lucide-react";
 import type { OutOfOrderImpact } from "@ranza/maintenance";
-import { isolate, type SupportedLocale } from "@ranza/i18n";
+import { isolate, localizeHref, type SupportedLocale } from "@ranza/i18n";
 import { formatDay } from "./look";
 
 /**
  * Who taking a room out of order affects, said before anything is written
  * (MT-S2-09, MT-S2-10): each Guest in it, and each booking on its coming
  * nights. Nothing is cancelled or moved; the desk decides.
+ *
+ * Each booking opens in Change booking (AB-S1-17), in a new tab: the notice
+ * sits inside a form that is not finished yet, and following a link in place
+ * would throw that form away.
  */
 export function ImpactNotice({
   impact,
   locale,
+  propertyId,
 }: {
   impact: OutOfOrderImpact;
   locale: SupportedLocale;
+  /** The Property the room is in, which the booking links name. */
+  propertyId: string;
 }) {
   const t = useTranslations("maintenance");
   const guest = (name: string | null) => isolate(name ?? t("aGuest"));
@@ -53,7 +60,17 @@ export function ImpactNotice({
               guest: guest(booking.guestName),
               unit: isolate(booking.unitName),
               from: formatDay(booking.startsOn, locale),
-            })}
+            })}{" "}
+            {booking.mayAmend ? (
+              <a
+                className="font-medium underline underline-offset-2"
+                href={`${localizeHref(locale, "reservations")}?${new URLSearchParams({ property: propertyId, change: booking.reservationId })}`}
+                rel="noopener"
+                target="_blank"
+              >
+                {t("impactChangeBooking")}
+              </a>
+            ) : null}
           </li>
         ))}
       </ul>

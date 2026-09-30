@@ -1,0 +1,140 @@
+[
+  {
+    "label": "move without front_desk.amend",
+    "fn": "app.move_stay(uuid,uuid,text,text,integer)",
+    "old": "or not app.has_organization_permission(target_organization, 'front_desk.amend')",
+    "new": "/*sabotage*/"
+  },
+  {
+    "label": "move by reach alone",
+    "fn": "app.move_stay(uuid,uuid,text,text,integer)",
+    "old": "or not app.can_use_capability(target_property, 'front_office', 'front_desk')",
+    "new": "or not target_property in (select app.accessible_property_ids()) /*sabotage*/"
+  },
+  {
+    "label": "move without a version check",
+    "fn": "app.move_stay(uuid,uuid,text,text,integer)",
+    "old": "or revisions is distinct from expected_version then",
+    "new": "/*sabotage*/ then"
+  },
+  {
+    "label": "a departed Stay moved",
+    "fn": "app.move_stay(uuid,uuid,text,text,integer)",
+    "old": "if stay.status <> 'in_house' or stay.reservation_id is null then",
+    "new": "if stay.reservation_id is null /*sabotage*/ then"
+  },
+  {
+    "label": "no readiness check",
+    "fn": "app.move_stay(uuid,uuid,text,text,integer)",
+    "old": "if not app.unit_is_ready(new_unit) then",
+    "new": "if false /*sabotage*/ then"
+  },
+  {
+    "label": "another Property's Unit not refused",
+    "fn": "app.move_stay(uuid,uuid,text,text,integer)",
+    "old": "     and unit.property_id = stay.property_id;",
+    "new": "     /*sabotage*/;"
+  },
+  {
+    "label": "a move to the same room allowed",
+    "fn": "app.move_stay(uuid,uuid,text,text,integer)",
+    "old": "if new_unit = stay.accommodation_unit_id then",
+    "new": "if false /*sabotage*/ then"
+  },
+  {
+    "label": "the booking not moved with the Stay",
+    "fn": "app.move_stay(uuid,uuid,text,text,integer)",
+    "old": "     set accommodation_unit_id = new_unit,\n         updated_at = now()\n   where reservation.id = booking.id;",
+    "new": "     set updated_at = now() /*sabotage*/\n   where reservation.id = booking.id;"
+  },
+  {
+    "label": "readiness ignores moves",
+    "fn": "app.unit_housekeeping_state(uuid)",
+    "old": "      where change.kind = 'moved'",
+    "new": "      where false /*sabotage*/ and change.kind = 'moved'"
+  },
+  {
+    "label": "readiness counts a move between beds",
+    "fn": "app.unit_housekeeping_state(uuid)",
+    "old": "        and app.unit_status_holder(change.to_unit_id) <> holder.id",
+    "new": "        /*sabotage*/"
+  },
+  {
+    "label": "worker trusts the payload's room",
+    "fn": "app.mark_unit_dirty_after_move(uuid)",
+    "old": "  if not found or left_holder = entered_holder then\n    return false;\n  end if;",
+    "new": "  /*sabotage*/ select app.unit_status_holder((event.payload ->> 'fromUnitId')::uuid), property.id\n    into left_holder, holder_property\n    from outbox.events as event\n    join public.accommodation_units as unit on unit.id = (event.payload ->> 'fromUnitId')::uuid\n    join public.properties as property on property.id = unit.property_id\n   where event.id = target_event_id and event.payload ? 'fromUnitId';\n  if left_holder is null then\n    return false;\n  end if;\n  moved_at := coalesce(moved_at, now());"
+  },
+  {
+    "label": "worker marks a move between beds",
+    "fn": "app.mark_unit_dirty_after_move(uuid)",
+    "old": "  if not found or left_holder = entered_holder then",
+    "new": "  if not found /*sabotage*/ then"
+  },
+  {
+    "label": "worker without the later-word guard",
+    "fn": "app.mark_unit_dirty_after_move(uuid)",
+    "old": "   where public.housekeeping_unit_status.status_changed_at < moved_at;",
+    "new": "   /*sabotage*/;"
+  },
+  {
+    "label": "stretches ignore where the last move went",
+    "fn": "app.stay_unit_segments(uuid)",
+    "old": "           coalesce((select max(move.day) from moves as move), stay.starts_on),",
+    "new": "           stay.starts_on /*sabotage*/,"
+  },
+  {
+    "label": "a checked-in booking re-priced on a move",
+    "fn": "app.reservation_is_priced_for_its_new_kind()",
+    "old": "     or new.status not in ('requested', 'confirmed')",
+    "new": "     or new.status not in ('requested', 'confirmed', 'checked_in') /*sabotage*/"
+  },
+  {
+    "label": "readiness counts moves of any day",
+    "fn": "app.unit_housekeeping_state(uuid)",
+    "old": "        and change.business_date >= app.property_today(holder.property_id) - 1",
+    "new": "        /*sabotage*/"
+  },
+  {
+    "label": "readiness ignores a clean mark after the move",
+    "fn": "app.unit_housekeeping_state(uuid)",
+    "old": "        and change.changed_at\n            > coalesce(state.status_changed_at, '-infinity'::timestamptz)\n   ) as moved",
+    "new": "        /*sabotage*/\n   ) as moved"
+  },
+  {
+    "label": "a moved Stay may be withdrawn",
+    "fn": "public.stay_may_be_withdrawn()",
+    "old": "        and change.kind = 'moved'\n    ) then",
+    "new": "        and false /*sabotage*/\n    ) then"
+  },
+  {
+    "label": "a damage charge reads only the Stay's current room",
+    "fn": "app.maintenance_charge_is_for_the_room()",
+    "old": "        or unit.id in (",
+    "new": "        or false /*sabotage*/ and unit.id in ("
+  },
+  {
+    "label": "readiness counts only moves out of the room itself, not its beds",
+    "fn": "app.unit_housekeeping_state(uuid)",
+    "old": "        and (unit.id = holder.id or unit.parent_id = holder.id)\n        and app.unit_status_holder(change.to_unit_id) <> holder.id",
+    "new": "        and unit.id = holder.id /*sabotage*/\n        and app.unit_status_holder(change.to_unit_id) <> holder.id"
+  },
+  {
+    "label": "worker marks the bed left, not its room",
+    "fn": "app.mark_unit_dirty_after_move(uuid)",
+    "old": "  select app.unit_status_holder(change.from_unit_id),",
+    "new": "  select change.from_unit_id /*sabotage*/,"
+  },
+  {
+    "label": "move with no caller check at all",
+    "fn": "app.move_stay(uuid,uuid,text,text,integer)",
+    "old": "  if not found\n     or not app.can_use_capability(target_property, 'front_office', 'front_desk')\n     or not app.has_organization_permission(target_organization, 'front_desk.amend') then",
+    "new": "  if not found /*sabotage*/ then"
+  },
+  {
+    "label": "a move refused when the Guest arrived on a closed day",
+    "sql": "create function app.sabotage_move_dated() returns trigger language plpgsql as $f$ begin if exists (select 1 from public.business_day_closes c where c.property_id = new.property_id and c.business_date >= old.starts_on) then raise exception 'closed' using errcode = 'RZ001'; end if; return new; end $f$; create trigger stays_sabotage_move_dated before update of accommodation_unit_id on public.stays for each row execute function app.sabotage_move_dated();",
+    "undo": "drop trigger stays_sabotage_move_dated on public.stays; drop function app.sabotage_move_dated();",
+    "print": "select count(*) from pg_trigger where tgname='stays_sabotage_move_dated'"
+  }
+]

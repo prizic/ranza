@@ -124,13 +124,23 @@ export async function searchIds(
          select id from public.reservations
           where organization_id = $1::uuid
             and (guest_id in (select id from guest)
-                 or accommodation_unit_id in (select id from unit))
+                 or accommodation_unit_id in (select id from unit)
+                 -- A booking moved off the Unit, before or after its Guest
+                 -- arrived, was in it too (ADR 0039).
+                 or id in (select change.reservation_id
+                             from public.reservation_changes as change
+                            where change.from_unit_id in (select id from unit)))
           limit $3),
        stay as (
          select id from public.stays
           where organization_id = $1::uuid
             and (reservation_id in (select id from reservation)
-                 or accommodation_unit_id in (select id from unit))
+                 or accommodation_unit_id in (select id from unit)
+                 -- A Guest moved out of the Unit stayed in it too (ADR 0039).
+                 or id in (select change.stay_id
+                             from public.reservation_changes as change
+                            where change.kind = 'moved'
+                              and change.from_unit_id in (select id from unit)))
           limit $3)
      select 'actor' as kind, id from person
      union all select 'subject', id from person

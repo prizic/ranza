@@ -1,0 +1,7 @@
+  for unit_key in
+    select distinct pg_catalog.hashtext(unit_id::text)
+      from unnest(array[first_unit, new_unit]) as unit_id
+     order by 1
+  loop
+    perform pg_catalog.pg_advisory_xact_lock(2, unit_key);
+  end loop;

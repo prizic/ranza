@@ -140,6 +140,8 @@ export interface Arrival {
    */
   mayCheckIn: boolean;
   mayCancel: boolean;
+  /** Whether it may be moved to other nights or another Unit (AB-S1-27). */
+  mayAmend: boolean;
 }
 
 /** What a completed check-in produced. */
@@ -216,6 +218,11 @@ export interface Departure {
    * decides whether pressing the button does anything.
    */
   mayCheckOut: boolean;
+  /**
+   * Whether the viewer may change the planned departure: a Stay on a booking,
+   * and `front_desk.amend` (AB-S2-05, AB-S1-27).
+   */
+  mayAmend: boolean;
 }
 
 /**
@@ -299,6 +306,18 @@ export class UnitUnavailableError extends Error {
 }
 
 /**
+ * The price list changed while the booking was being taken or changed: the
+ * database would stamp a price the desk did not quote. Nothing was written, and
+ * the dialog is read again with the price that stands now (RT-S2-12, AB-S1-03).
+ */
+export class PriceChangedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PriceChangedError";
+  }
+}
+
+/**
  * Somebody is in the Unit, or is promised it, over nights this would take.
  *
  * Distinct from `UnitUnavailableError`, which is two bookings wanting the same
@@ -308,18 +327,6 @@ export class UnitUnavailableError extends Error {
  * by checking somebody out or finding them another room (ADR 0033). Like its
  * neighbour it reveals nothing the caller did not already name.
  */
-/**
- * The price list changed while the booking was being taken: the database would
- * stamp a price the desk did not quote. Nothing was written, and the dialog is
- * read again with the price that stands now (RT-S2-12).
- */
-export class PriceChangedError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "PriceChangedError";
-  }
-}
-
 export class UnitHasOccupantError extends Error {
   constructor(message: string) {
     super(message);
@@ -404,6 +411,18 @@ export class CheckInDayClosedError extends CheckInReversalError {
   constructor(message: string) {
     super(message);
     this.name = "CheckInDayClosedError";
+  }
+}
+
+/**
+ * A check-in that cannot be withdrawn because the Guest has since been moved
+ * (AB-S3-11): undoing it would put the booking back on a room the Guest never
+ * arrived in. The desk corrects the Stay instead — moves or checks them out.
+ */
+export class StayMovedError extends CheckInReversalError {
+  constructor() {
+    super("that Guest has been moved since they arrived");
+    this.name = "StayMovedError";
   }
 }
 
@@ -508,6 +527,11 @@ export interface ReservationRow {
   mayCancel: boolean;
   /** Whether the viewer may mark it a no-show: confirmed, and its first night has come. */
   mayMarkNoShow: boolean;
+  /**
+   * Whether the viewer may change its dates or Unit: it has not arrived, and
+   * they hold `front_desk.amend` (AB-S1-14, AB-S1-22).
+   */
+  mayAmend: boolean;
 }
 
 /**
@@ -622,6 +646,245 @@ export interface ReservationEnded {
 }
 
 /**
+ * The bounds on a change's note: at most `reservation_changes`' own 500, and at
+ * least the audit record's reason, which is where the note is also kept.
+ */
+export const CHANGE_NOTE = { min: 3, max: 500 } as const;
+
+/**
+ * What a front desk supplies to change a booking that has not arrived
+ * (ADR 0039). The dates and Unit are the whole of what may change; the Guest,
+ * the stay type and the Organization are the booking's and not the caller's.
+ */
+export interface BookingChange {
+  reservationId: string;
+  /** Calendar date as `YYYY-MM-DD`, today or later. */
+  startsOn: string;
+  /** Null only for a Resident, whose booking may be open-ended. */
+  endsOn: string | null;
+  accommodationUnitId: string;
+  /**
+   * How many changes the booking had when the dialog read it. A change saved
+   * against a number that no longer stands is refused as `BookingChangedError`
+   * rather than overwriting what somebody else just did (AB-S1-19).
+   */
+  version: number;
+  /**
+   * What the dialog said a night would cost after the change, in minor units of
+   * `quotedCurrency`, or both null for unpriced. Only another kind of Unit
+   * changes the price; a stamp that is not this quote refuses the change
+   * (`PriceChangedError`, AB-S1-03).
+   */
+  quotedRateMinor: number | null;
+  quotedCurrency: string | null;
+  note: string | null;
+}
+
+/** Why a Unit cannot take the booking over the nights asked for. */
+export type ChangeBlocker =
+  /** Another confirmed booking holds some of those nights; see `conflictReference`. */
+  | "booked"
+  /** Somebody in house is staying over some of those nights (ADR 0033). */
+  | "occupied";
+
+/** One Unit the booking could move to, as read for the nights asked for. */
+export interface ChangeOption {
+  unitId: string;
+  unitName: string;
+  /** The room a bed is in; null for a room. */
+  roomName: string | null;
+  unitType: AccommodationUnitType;
+  /** Of the booking's own kind, so its price would not change. */
+  sameKind: boolean;
+  /** The Unit the booking holds now. */
+  current: boolean;
+  /**
+   * In service and let whole, so a booking may be moved onto it. Only the
+   * current Unit is ever listed without it: a booking whose room went out of
+   * order, or was split into beds, can still change its dates there.
+   */
+  takesBookings: boolean;
+  /** Null when the Unit is free for those nights. */
+  blocker: ChangeBlocker | null;
+  /** The booking in the way, when `blocker` is `booked`. */
+  conflictReference: string | null;
+  /**
+   * What a night would cost on this Unit: the booking's own price for its own
+   * kind, today's price for another kind, null when unpriced.
+   */
+  nightlyRateMinor: number | null;
+  rateCurrency: string | null;
+}
+
+/**
+ * What changing a booking would do, read before saving (blueprint 18.6). A
+ * preview, never a promise: the constraints still decide on save (AB-S1-07).
+ * Out-of-service Units and rooms let by the bed are not offered (AB-S1-08),
+ * except the booking's own, which is listed so its dates can still change.
+ */
+export interface ChangePreview {
+  reservationId: string;
+  reference: string;
+  stayType: ReservationStayType;
+  startsOn: string;
+  endsOn: string | null;
+  unitId: string;
+  nightlyRateMinor: number | null;
+  rateCurrency: string | null;
+  /** The Property's today, the earliest a booking may arrive. */
+  today: string;
+  /** To be sent back with the change. */
+  version: number;
+  /** Free Units of the booking's kind first, then the others, then the taken. */
+  options: ChangeOption[];
+}
+
+/**
+ * What a front desk supplies to change an in-house Guest's planned departure
+ * (amend-booking slice 2). Tomorrow or later: leaving today is a check-out.
+ */
+export interface DepartureChange {
+  stayId: string;
+  /** Calendar date as `YYYY-MM-DD`; null only for a Resident. */
+  endsOn: string | null;
+  /** How many changes the booking had when the dialog read it (AB-S1-19). */
+  version: number;
+  note: string | null;
+}
+
+/**
+ * What changing a departure would do, read before saving: whether another
+ * booking holds a night it would add (AB-S2-02), and what a night costs.
+ */
+export interface DeparturePreview {
+  stayId: string;
+  reference: string;
+  stayType: ReservationStayType;
+  /** The day they arrived, `YYYY-MM-DD`. */
+  startsOn: string;
+  /** The planned departure now; null for an open-ended Stay. */
+  endsOn: string | null;
+  unitId: string;
+  /** The booking's own price, which extra nights are charged at (AB-S2-01). */
+  nightlyRateMinor: number | null;
+  rateCurrency: string | null;
+  /** The Property's today; the earliest departure is the day after. */
+  today: string;
+  version: number;
+  /** `booked` when a confirmed booking holds a night the change would add. */
+  blocker: ChangeBlocker | null;
+  conflictReference: string | null;
+}
+
+/** Why a Guest is moved: the reason is required (AB-S3-02). */
+export const MOVE_REASONS = [
+  "fault",
+  "upgrade",
+  "guest_request",
+  "other",
+] as const;
+export type MoveReason = (typeof MOVE_REASONS)[number];
+
+/** What a front desk supplies to move an in-house Guest (amend-booking slice 3). */
+export interface GuestMove {
+  stayId: string;
+  accommodationUnitId: string;
+  reason: MoveReason;
+  /** Required when `reason` is `other`, and the audit record's reason with it. */
+  note: string | null;
+  /** How many changes the booking had when the dialog read it (AB-S3-09). */
+  version: number;
+}
+
+/** One Unit an in-house Guest could move to, read for the rest of their Stay. */
+export interface MoveOption {
+  unitId: string;
+  unitName: string;
+  /** The room a bed is in; null for a room. */
+  roomName: string | null;
+  unitType: AccommodationUnitType;
+  sameKind: boolean;
+  /**
+   * `booked` when a confirmed booking holds a night of the Stay there, and
+   * `occupied` when somebody is in it; null when free (AB-S3-04).
+   */
+  blocker: ChangeBlocker | null;
+  conflictReference: string | null;
+  /** Housekeeping's answer; a room that is not ready is refused (AB-S3-03). */
+  ready: boolean;
+}
+
+/**
+ * What moving an in-house Guest would do. The price never changes on a move
+ * (AB-S3-05); it is here so the dialog can say so.
+ */
+export interface MovePreview {
+  stayId: string;
+  reference: string;
+  unitId: string;
+  unitType: AccommodationUnitType;
+  startsOn: string;
+  endsOn: string | null;
+  nightlyRateMinor: number | null;
+  rateCurrency: string | null;
+  version: number;
+  /** Free and ready Units of the Guest's kind first, then the rest. */
+  options: MoveOption[];
+}
+
+/** What a saved move produced. */
+export interface MovedGuest {
+  stayId: string;
+  changeId: string;
+}
+
+/** What a saved departure change produced. */
+export interface ChangedDeparture {
+  stayId: string;
+  changeId: string;
+}
+
+/** What a saved change produced. */
+export interface AmendedBooking {
+  reservationId: string;
+  changeId: string;
+  nightlyRateMinor: number | null;
+  rateCurrency: string | null;
+}
+
+/**
+ * A booking that cannot be changed by this caller: another Organization's, out
+ * of reach, without `front_desk.amend`, already arrived or finished, or never
+ * existed. One type, like `ReservationEndError`, so none of those is confirmed
+ * to a caller who could not see it.
+ */
+export class BookingChangeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BookingChangeError";
+  }
+}
+
+/** A change's note outside `CHANGE_NOTE`, which the person typing can fix. */
+export class ChangeNoteError extends BookingChangeError {
+  constructor(message: string) {
+    super(message);
+    this.name = "ChangeNoteError";
+  }
+}
+
+/**
+ * The booking changed after the dialog read it (AB-S1-19). Nothing was written;
+ * the desk is shown the booking as it now stands.
+ */
+export class BookingChangedError extends BookingChangeError {
+  constructor() {
+    super("that booking changed since it was read");
+    this.name = "BookingChangedError";
+  }
+}
+
+/**
  * How many days the room calendar may show. An allow-list rather than a bound,
  * so the read is never asked for a range nobody designed a screen for
  * (RC-S1-06); a longer view is one more entry here (RC-DEF-08).
@@ -698,6 +961,16 @@ export interface RoomCalendarStayBar extends RoomCalendarBarBase {
   kind: "stay";
   stayId: string;
   reservationId: string | null;
+  /**
+   * The stretch the Guest is in now. False on a stretch in a room they were
+   * moved out of, which is drawn as history (AB-S3-06).
+   */
+  current: boolean;
+  /**
+   * The Stay's own first night. The same as `startsOn` for a Stay never moved;
+   * for the stretch after a move, `startsOn` is the move and this the arrival.
+   */
+  arrivedOn: string;
   status: "in_house" | "departed";
   bookedStartsOn: string | null;
   bookedEndsOn: string | null;
@@ -745,4 +1018,6 @@ export interface RoomCalendar {
   overlaps: number;
   bookedWhileBlocked: number;
   units: RoomCalendarUnit[];
+  /** Whether the viewer may change a Guest's departure from the drawer. */
+  mayAmend: boolean;
 }

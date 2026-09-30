@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
@@ -35,6 +35,10 @@ import {
 } from "@ranza/ui";
 import type { CloseTheDay } from "../../../server/viewer";
 import { unitLabel } from "../unit-label";
+import {
+  ChangeDepartureDialog,
+  type ChangeableStay,
+} from "./change-departure-dialog";
 import { CloseDayDialog } from "./close-day-dialog";
 import { FrontDeskRowMenu } from "./row-menu";
 
@@ -42,14 +46,14 @@ import { FrontDeskRowMenu } from "./row-menu";
  * Close the day (blueprint 6.4, ADR 0034): the day waiting to be closed, what
  * still holds it up, and the recent closes.
  *
- * The steps are the mockup's, less the one it promises and nothing can keep:
- * there is no "extend by a night" beside a Guest past their departure, because
- * no command changes a Stay's dates (CD-DEF-01). Room nights are charged by the
+ * The steps are the mockup's. Beside a Guest due out or past their departure
+ * is Extend, which opens Change departure for a viewer who may change it
+ * (`mayAmend`, AB-S2-05 — CD-DEF-01 resolved). Room nights are charged by the
  * close itself (ADR 0038); what it will charge, and the Guests whose nights it
- * will not, are shown before it, and never block it. What is offered for an open
- * item is what resolves it today: a no-show or a cancellation here, and the
- * arrivals and departures screens for checking somebody in or out, which
- * already decide whether they can and say why not.
+ * will not, are shown before it, and never block it. What is offered for an
+ * open item is what resolves it today: a no-show, a cancellation or an
+ * extension here, and the arrivals and departures screens for checking
+ * somebody in or out, which already decide whether they can and say why not.
  *
  * Presentational. Whether the day may be closed, and by this viewer, is the
  * database's answer when the dialog asks; `mayClose` only decides whether the
@@ -204,11 +208,26 @@ export function CloseDayView({
                 guestName={row.guestName}
                 unit={unitLabel(row.roomName, row.unitName)}
               />
-              <Button asChild size="sm" variant="outline">
-                <Link href={departuresHref}>
-                  {t("closeDay.openDepartures")}
-                </Link>
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                {row.mayAmend ? (
+                  <ExtendStay
+                    locale={locale}
+                    stay={{
+                      stayId: row.stayId,
+                      reference: row.reference,
+                      guestName: row.guestName ?? t("noGuestRecorded"),
+                      unitLabel: unitLabel(row.roomName, row.unitName),
+                      startsOn: row.startsOn,
+                      endsOn: row.endsOn,
+                    }}
+                  />
+                ) : null}
+                <Button asChild size="sm" variant="outline">
+                  <Link href={departuresHref}>
+                    {t("closeDay.openDepartures")}
+                  </Link>
+                </Button>
+              </div>
             </li>
           ))}
         </ul>
@@ -548,4 +567,35 @@ function shortDay(iso: string, locale: SupportedLocale): string {
     month: "short",
     timeZone: "UTC",
   });
+}
+
+/**
+ * Extend, beside a Guest past their departure, so the day can close with them
+ * no longer overdue (AB-S2-05). The dialog is Change departure's, mounted
+ * only while open so nothing it read carries over to the next row.
+ */
+function ExtendStay({
+  locale,
+  stay,
+}: {
+  locale: SupportedLocale;
+  stay: ChangeableStay;
+}) {
+  const t = useTranslations();
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button onClick={() => setOpen(true)} size="sm" type="button">
+        {t("extendStay")}
+      </Button>
+      {open ? (
+        <ChangeDepartureDialog
+          locale={locale}
+          onOpenChange={setOpen}
+          open
+          stay={stay}
+        />
+      ) : null}
+    </>
+  );
 }

@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Amending bookings: decisions</title>
+    <style>
+      :root {
+        --bg: #fbfaf6;
+        --ink: #10231d;
+        --muted: #5b6b64;
+        --line: #e4e0d6;
+        --card: #fff;
+        --accent: #0f5b45;
+        --soft: #e3f1ea;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --bg: #0f1513;
+          --ink: #e8efe9;
+          --muted: #9aa9a2;
+          --line: #26312d;
+          --card: #151d1a;
+          --accent: #6fd0ad;
+          --soft: #18302a;
+        }
+      }
+      :root[data-theme="dark"] {
+        --bg: #0f1513;
+        --ink: #e8efe9;
+        --muted: #9aa9a2;
+        --line: #26312d;
+        --card: #151d1a;
+        --accent: #6fd0ad;
+        --soft: #18302a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.55 ui-sans-serif,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 40px 16px 80px;
+      }
+      .eyebrow {
+        font:
+          600 11px/1 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      h1 {
+        font-size: clamp(30px, 4.2vw, 46px);
+        line-height: 1.08;
+        letter-spacing: -0.02em;
+        margin: 10px 0 14px;
+        font-weight: 650;
+      }
+      .lede {
+        max-width: 68ch;
+        color: var(--muted);
+        font-size: 17px;
+      }
+      .how {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 16px 18px;
+        margin: 24px 0 8px;
+      }
+      .how p {
+        margin: 0.35em 0;
+      }
+      ol.decisions {
+        list-style: none;
+        padding: 0;
+        margin: 28px 0 0;
+        display: grid;
+        gap: 14px;
+      }
+      .decision {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px 20px;
+      }
+      .decision h2 {
+        font-size: 18px;
+        margin: 0 0 10px;
+        font-weight: 620;
+        display: flex;
+        gap: 12px;
+        align-items: baseline;
+      }
+      .num {
+        font:
+          600 12px ui-monospace,
+          Menlo,
+          monospace;
+        color: var(--muted);
+        min-width: 2.2em;
+      }
+      .rec {
+        background: var(--soft);
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin: 0 0 10px;
+      }
+      .rec b,
+      .alt b,
+      .why b {
+        display: block;
+        font:
+          600 11px/1.3 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 3px;
+      }
+      .alt,
+      .why {
+        margin: 8px 0 0;
+      }
+      .rows {
+        margin-top: 10px;
+        font:
+          12.5px ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        color: var(--muted);
+      }
+      code {
+        font:
+          13px ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="eyebrow">Ranza · design · 28 September 2026</div>
+      <h1>Amending a booking and moving a Guest</h1>
+      <p class="lede">
+        The roadmap's next item, designed and not built. Fourteen decisions
+        settle it; each has the answer I recommend, the alternative, and why.
+        The full design is <code>docs/features/amend-booking/</code> — three
+        diagrams and fifty edge-case rows, every one <code>proposed</code> until
+        you answer.
+      </p>
+      <div class="how">
+        <p>
+          <strong>How to answer.</strong> "Approve all" makes every row in the
+          table <code>approved</code> and lets building start. To change a
+          decision, name its number and the answer you want; the rows it touches
+          are listed under it.
+        </p>
+        <p>
+          It builds on rates (draft PR #86): what a changed booking costs is
+          decisions 2–5.
+        </p>
+      </div>
+      <ol class="decisions">
+        <li class="decision">
+          <h2><span class="num">01</span>What does this feature cover?</h2>
+          <div class="rec">
+            <b>Recommended</b>Three slices, in order: change a booking that has
+            not arrived (dates, Unit, or both); change an in-house Guest's
+            planned departure (extend or shorten); move an in-house Guest to
+            another Unit.
+          </div>
+          <div class="alt">
+            <b>Alternative</b>Also drag-and-drop on the room calendar now.
+          </div>
+          <div class="why">
+            <b>Why</b>The commands and their refusals are the hard part;
+            dragging only calls them. Blueprint 18.6 allows drag only when every
+            rule permits the move, which is exactly what these commands decide.
+          </div>
+          <div class="rows">AB-S1-01, AB-S2-01, AB-S3-01, AB-DEF-01</div>
+        </li>
+        <li class="decision">
+          <h2>
+            <span class="num">02</span>Does changing a booking's dates change
+            its price?
+          </h2>
+          <div class="rec">
+            <b>Recommended</b>No. The price agreed with the Guest travels with
+            the booking.
+          </div>
+          <div class="alt">
+            <b>Alternative</b>Re-quote at today's price list on every change.
+          </div>
+          <div class="why">
+            <b>Why</b>A Guest who moves their stay by a day expects the price
+            they were given; re-pricing would punish a date change with a
+            surprise. It also matches ADR 0038: the price is fixed when booked.
+          </div>
+          <div class="rows">AB-S1-04</div>
+        </li>
+        <li class="decision">
+          <h2>
+            <span class="num">03</span>Moving a booking to a different kind of
+            Unit (room → suite)?
+          </h2>
+          <div class="rec">
+            <b>Recommended</b>It takes today's price for the new kind, shown old
+            → new before saving, and the price guard refuses the save if the
+            price moved while the dialog was open.
+          </div>
+          <div class="alt"><b>Alternative</b>Keep the booked price.</div>
+          <div class="why">
+            <b>Why</b>A different kind of Unit is a different product; keeping a
+            room price for a suite would be an unplanned upgrade on every such
+            change. Showing it before saving keeps the desk honest with the
+            Guest.
+          </div>
+          <div class="rows">AB-S1-03</div>
+        </li>
+        <li class="decision">
+          <h2>
+            <span class="num">04</span>Moving an in-house Guest to a different
+            kind of Unit?
+          </h2>
+          <div class="rec">
+            <b>Recommended</b>Keep the booked price. An upgrade the Guest pays
+            for is posted as a Folio charge, which already works.
+          </div>
+          <div class="alt">
+            <b>Alternative</b>Re-price the remaining nights like a booking
+            change.
+          </div>
+          <div class="why">
+            <b>Why</b>A mid-stay move is usually the hotel's decision — a fault,
+            an upgrade offered — and silently raising the Guest's price would be
+            wrong far more often than right.
+          </div>
+          <div class="rows">AB-S3-05, AB-DEF-05</div>
+        </li>
+        <li class="decision">
+          <h2>
+            <span class="num">05</span>Extra nights when a stay is extended?
+          </h2>
+          <div class="rec">
+            <b>Recommended</b>At the booking's own price, charged as each night
+            closes.
+          </div>
+          <div class="alt">
+            <b>Alternative</b>At today's price for the kind.
+          </div>
+          <div class="why">
+            <b>Why</b>Same reasoning as (2): the Guest agreed a nightly price;
+            an extension is more of the same stay.
+          </div>
+          <div class="rows">AB-S2-01</div>
+        </li>
+        <li class="decision">
+          <h2><span class="num">06</span>How is history kept?</h2>
+          <div class="rec">
+            <b>Recommended</b>Every change appends a revision row
+            (reservation_changes): what the dates, Unit and price were and
+            became, the business date, the reason, and who. Never updated or
+            deleted, shown on the booking's history and the audit log.
+          </div>
+          <div class="alt"><b>Alternative</b>The audit log alone.</div>
+          <div class="why">
+            <b>Why</b>Blueprint 7.4 asks for revision records, and a booking's
+            own history (Guest 360, the timeline) should be readable without the
+            audit screen's permission.
+          </div>
+          <div class="rows">AB-S1-24</div>
+        </li>
+        <li class="decision">
+          <h2><span class="num">07</span>Who may change bookings and stays?</h2>
+          <div class="rec">
+            <b>Recommended</b>One new permission, front_desk.amend, on Owner,
+            Manager and Front Desk.
+          </div>
+          <div class="alt">
+            <b>Alternative</b>Separate permissions for amending and for room
+            moves.
+          </div>
+          <div class="why">
+            <b>Why</b>The same people do all three at a desk. Splitting is cheap
+            later if an Organization asks; one permission keeps the People
+            screen simple now.
+          </div>
+          <div class="rows">AB-S1-21</div>
+        </li>
+        <li class="decision">
+          <h2><span class="num">08</span>Does a room move need a reason?</h2>
+          <div class="rec">
+            <b>Recommended</b>Yes: the room has a fault, an upgrade, the Guest
+            asked, or other with a note. A booking change and an extension take
+            an optional note.
+          </div>
+          <div class="alt"><b>Alternative</b>Never ask.</div>
+          <div class="why">
+            <b>Why</b>Moves are where disputes and maintenance patterns show up;
+            a reason costs a click and makes the history useful.
+          </div>
+          <div class="rows">AB-S3-02</div>
+        </li>
+        <li class="decision">
+          <h2>
+            <span class="num">09</span>What happens to rooms and the Folio on a
+            move?
+          </h2>
+          <div class="rec">
+            <b>Recommended</b>One Stay, one Folio, the same price; the Unit
+            changes from now. The new room must be in service and ready (as a
+            check-in); the room left becomes dirty through the worker (as a
+            check-out).
+          </div>
+          <div class="alt">
+            <b>Alternative</b>End the Stay and open a new one in the new room.
+          </div>
+          <div class="why">
+            <b>Why</b>A new Stay would split the bill into two Folios and break
+            the room-night history for one visit. Changing the Unit on the same
+            Stay keeps the Guest's visit whole.
+          </div>
+          <div class="rows">AB-S3-01, AB-S3-03, AB-S3-08</div>
+        </li>
+        <li class="decision">
+          <h2>
+            <span class="num">10</span>Can a readiness check be overridden for
+            an urgent move?
+          </h2>
+          <div class="rec">
+            <b>Recommended</b>Not in this slice: a move waits for a ready room,
+            as a check-in does.
+          </div>
+          <div class="alt">
+            <b>Alternative</b>A manager override with a reason.
+          </div>
+          <div class="why">
+            <b>Why</b>Keeps one rule for 'is this room ready for somebody'. An
+            override is easy to add once there is a manager-review flow.
+          </div>
+          <div class="rows">AB-S3-03, AB-DEF-04</div>
+        </li>
+        <li class="decision">
+          <h2><span class="num">11</span>Shortening a stay to today?</h2>
+          <div class="rec">
+            <b>Recommended</b>Not an amendment — leaving today is a check-out,
+            which already asks about early departure and reviews the bill. A
+            shortened departure is tomorrow or later.
+          </div>
+          <div class="alt">
+            <b>Alternative</b>Allow it and leave the check-out for later.
+          </div>
+          <div class="why">
+            <b>Why</b>One path for leaving; no stay that ends today without
+            being checked out.
+          </div>
+          <div class="rows">AB-S2-03, AB-S2-04</div>
+        </li>
+        <li class="decision">
+          <h2>
+            <span class="num">12</span>What about bookings whose arrival has
+            passed, and early arrivals?
+          </h2>
+          <div class="rec">
+            <b>Recommended</b>A passed arrival can move to today or later only;
+            an early arrival moves to today and is then checked in normally.
+          </div>
+          <div class="alt"><b>Alternative</b>Allow any dates.</div>
+          <div class="why">
+            <b>Why</b>Keeps closed days closed (RZ001) and makes 'the Guest is
+            here a day early' a two-click flow.
+          </div>
+          <div class="rows">AB-S1-09, AB-S1-11</div>
+        </li>
+        <li class="decision">
+          <h2><span class="num">13</span>Where do the actions appear?</h2>
+          <div class="rec">
+            <b>Recommended</b>Reservations: Change booking. Arrivals: Change for
+            early or late arrivals. Departures and the room calendar's drawer:
+            Extend, Shorten, Move. Close the day: Extend beside a Guest past
+            departure. A maintenance warning links each affected booking to
+            Change.
+          </div>
+          <div class="alt">
+            <b>Alternative</b>One central 'edit booking' page only.
+          </div>
+          <div class="why">
+            <b>Why</b>The desk changes things from where the problem shows up;
+            the same dialog opens everywhere.
+          </div>
+          <div class="rows">AB-S1-27, AB-S2-05, AB-S1-17</div>
+        </li>
+        <li class="decision">
+          <h2><span class="num">14</span>Not now?</h2>
+          <div class="rec">
+            <b>Recommended</b>Dragging on the calendar, split stays and group
+            bookings, moving to another Property, changing who the Guest is,
+            per-Guest price overrides.
+          </div>
+          <div class="alt"><b>Alternative</b>—</div>
+          <div class="why">
+            <b>Why</b>Each is its own decision; none is needed to amend, extend
+            or move.
+          </div>
+          <div class="rows">AB-DEF-01 … AB-DEF-05</div>
+        </li>
+      </ol>
+    </main>
+  </body>
+</html>

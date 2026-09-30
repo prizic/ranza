@@ -76,6 +76,7 @@ function calendar(units: RoomCalendarUnit[]): RoomCalendar {
     overlaps: 0,
     bookedWhileBlocked: 0,
     units,
+    mayAmend: false,
   };
 }
 
@@ -382,11 +383,70 @@ describe("the drawer's bar across a refresh", () => {
       reservationId,
       status: "in_house",
       startsOn: "2026-09-24",
+      current: true,
+      arrivedOn: "2026-09-24",
     } as Partial<RoomCalendarBar> & Pick<RoomCalendarBar, "startsOn">);
     const after = barsByKey(calendar([unit({ bars: [stayed] })]));
     expect(after.get(`reservation:${reservationId}`)?.bar).toMatchObject({
       kind: "stay",
       status: "in_house",
+    });
+  });
+
+  it("AB-S3-06: follows a moved Guest to their new room, not to the room they left", () => {
+    const stayId = crypto.randomUUID();
+    const reservationId = crypto.randomUUID();
+    const before = barsByKey(
+      calendar([
+        unit({
+          bars: [
+            bar({
+              kind: "stay",
+              stayId,
+              reservationId,
+              status: "in_house",
+              startsOn: "2026-09-22",
+              current: true,
+              arrivedOn: "2026-09-22",
+            } as Partial<RoomCalendarBar> & Pick<RoomCalendarBar, "startsOn">),
+          ],
+        }),
+      ]),
+    );
+    expect(before.has(`stay:${stayId}`)).toBe(true);
+
+    // Moved today: two bars, the room left drawn as history.
+    const left = bar({
+      kind: "stay",
+      stayId,
+      reservationId,
+      status: "departed",
+      startsOn: "2026-09-22",
+      endsOn: "2026-09-24",
+      current: false,
+      arrivedOn: "2026-09-22",
+    } as Partial<RoomCalendarBar> & Pick<RoomCalendarBar, "startsOn">);
+    const now = bar({
+      kind: "stay",
+      stayId,
+      reservationId,
+      status: "in_house",
+      startsOn: "2026-09-24",
+      current: true,
+      arrivedOn: "2026-09-22",
+    } as Partial<RoomCalendarBar> & Pick<RoomCalendarBar, "startsOn">);
+    const after = barsByKey(
+      calendar([unit({ bars: [now] }), unit({ bars: [left] })]),
+    );
+    expect(after.get(`stay:${stayId}`)?.bar).toMatchObject({
+      status: "in_house",
+      startsOn: "2026-09-24",
+    });
+    expect(after.get(`reservation:${reservationId}`)?.bar).toMatchObject({
+      status: "in_house",
+    });
+    expect(after.get(`stay:${stayId}:2026-09-22`)?.bar).toMatchObject({
+      status: "departed",
     });
   });
 });

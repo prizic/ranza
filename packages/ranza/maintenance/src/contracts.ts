@@ -187,6 +187,10 @@ export interface OutOfOrderImpact {
     endsOn: string | null;
   }[];
   reservations: readonly {
+    /** So the notice can open the booking in Change booking (AB-S1-17). */
+    reservationId: string;
+    /** Whether the viewer may change it, so the link is offered to nobody else. */
+    mayAmend: boolean;
     unitName: string;
     guestName: string | null;
     startsOn: string;

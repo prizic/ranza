@@ -1,0 +1,74 @@
+[
+  {
+    "label": "change_departure without front_desk.amend",
+    "fn": "app.change_departure(uuid,date,integer,text)",
+    "old": "or not app.has_organization_permission(target_organization, 'front_desk.amend')",
+    "new": "/*sabotage*/"
+  },
+  {
+    "label": "by reach alone",
+    "fn": "app.change_departure(uuid,date,integer,text)",
+    "old": "or not app.can_use_capability(target_property, 'front_office', 'front_desk')",
+    "new": "or not target_property in (select app.accessible_property_ids()) /*sabotage*/"
+  },
+  {
+    "label": "no version check",
+    "fn": "app.change_departure(uuid,date,integer,text)",
+    "old": "or revisions is distinct from expected_version then",
+    "new": "/*sabotage*/ then"
+  },
+  {
+    "label": "a departed Stay allowed",
+    "fn": "app.change_departure(uuid,date,integer,text)",
+    "old": "if stay.status <> 'in_house' or stay.reservation_id is null then",
+    "new": "if stay.reservation_id is null /*sabotage*/ then"
+  },
+  {
+    "label": "no tomorrow-or-later check",
+    "fn": "app.change_departure(uuid,date,integer,text)",
+    "old": "if new_ends_on is not null and new_ends_on <= today then",
+    "new": "if false /*sabotage*/ then"
+  },
+  {
+    "label": "Guest open end allowed",
+    "fn": "app.change_departure(uuid,date,integer,text)",
+    "old": "if new_ends_on is null and stay.stay_type = 'guest' then",
+    "new": "if false /*sabotage*/ then"
+  },
+  {
+    "label": "no-op allowed",
+    "fn": "app.change_departure(uuid,date,integer,text)",
+    "old": "if new_ends_on is not distinct from stay.ends_on then",
+    "new": "if false /*sabotage*/ then"
+  },
+  {
+    "label": "booking not moved with the Stay",
+    "fn": "app.change_departure(uuid,date,integer,text)",
+    "old": "     set ends_on = new_ends_on,\n         updated_at = now()\n   where reservation.id = booking.id;",
+    "new": "     set updated_at = now() /*sabotage*/\n   where reservation.id = booking.id;"
+  },
+  {
+    "label": "the Stay's start re-dated too",
+    "fn": "app.change_departure(uuid,date,integer,text)",
+    "old": "     set ends_on = new_ends_on,\n         updated_at = now()\n   where current.id = target_stay;",
+    "new": "     set ends_on = new_ends_on, starts_on = starts_on + 1 /*sabotage*/,\n         updated_at = now()\n   where current.id = target_stay;"
+  },
+  {
+    "label": "occupancy trigger dropped on stays",
+    "sql": "drop trigger stays_unit_holds_one_occupancy on public.stays;",
+    "undo": "create trigger stays_unit_holds_one_occupancy before insert or update on public.stays for each row execute function app.unit_holds_one_occupancy();",
+    "print": "select count(*) from pg_trigger where tgname='stays_unit_holds_one_occupancy'"
+  },
+  {
+    "label": "the closed-day trigger dates an in-house Stay's end",
+    "fn": "app.stays_keep_closed_days()",
+    "old": "    if old.status = 'departed' and new.status = 'departed'",
+    "new": "    if old.status in ('departed', 'in_house') /*sabotage*/ and new.status = old.status"
+  },
+  {
+    "label": "the check-out grant may re-date an in-house Stay",
+    "sql": "alter policy stays_update_front_desk on public.stays with check (app.can_use_capability(property_id, 'front_office', 'front_desk') AND CASE status WHEN 'departed' THEN app.has_organization_permission(organization_id, 'front_desk.check_out') WHEN 'cancelled' THEN app.has_organization_permission(organization_id, 'front_desk.check_in') WHEN 'in_house' THEN app.has_organization_permission(organization_id, 'front_desk.check_in') ELSE false END);",
+    "undo": "alter policy stays_update_front_desk on public.stays with check (app.can_use_capability(property_id, 'front_office', 'front_desk') AND CASE status WHEN 'departed' THEN app.has_organization_permission(organization_id, 'front_desk.check_out') WHEN 'cancelled' THEN app.has_organization_permission(organization_id, 'front_desk.check_in') ELSE false END);",
+    "print": "select pg_get_expr(polwithcheck, polrelid) from pg_policy where polname='stays_update_front_desk'"
+  }
+]

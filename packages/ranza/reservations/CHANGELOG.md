@@ -11,6 +11,27 @@ everything lands under Unreleased.
 
 ### Added
 
+- `previewMove()` and `moveGuest()`: an in-house Guest moves to another Unit
+  from tonight through `app.move_stay()`, keeping the Stay, its Folio and its
+  price; the room must be ready (`UnitNotReadyError`). Publishes `stay.moved`
+  (ids only), which the worker turns into the room left being marked dirty,
+  and records the audit action of the same name. The room calendar draws a
+  moved Stay once per room it was in.
+- `previewDeparture()` and `changeDeparture()`: an in-house Guest's planned
+  departure is extended, shortened, or given an end or has it taken away (a
+  Resident's only), through `app.change_departure()`, with the booking's end
+  moved with it. Extra nights are charged at the booking's own price as each
+  closes; a booking holding a night the extension would add refuses it
+  (`UnitHasOccupantError`). Publishes `stay.departure_changed` (ids only) and
+  records the audit action of the same name. `mayAmend` on departures and on
+  the room calendar says who may.
+- `previewChange()` and `amendBooking()`: changing a booking that has not
+  arrived — its nights, its Unit, or both — through `app.amend_reservation()`
+  ([ADR 0039](../../../docs/adr/0039-a-booking-is-amended-through-commands-that-check-their-caller.md)).
+  The preview says which Units are free for the nights asked and what a night
+  would cost; saving compares the price with the quote (`PriceChangedError`)
+  and a stale version is `BookingChangedError`. Only another kind of Unit
+  changes the price. `mayAmend` on the booking list and arrivals says who may.
 - `CheckInDayClosedError`: `reverseCheckIn()` refuses to withdraw a check-in
   whose business day has been closed
   ([ADR 0034](../../../docs/adr/0034-a-business-day-closes-after-its-cutoff.md)),

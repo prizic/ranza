@@ -40,6 +40,10 @@ export interface RawCalendarBar {
   balanceMinor: number | null;
   currency: string | null;
   folioClosed: boolean | null;
+  /** A Stay's stretch the Guest is in now; null on a booking. */
+  current: boolean | null;
+  /** The Stay's own first night, whichever room it began in; null on a booking. */
+  arrivedOn: string | null;
 }
 
 /** One Unit exactly as the statement returns it. */
@@ -133,6 +137,8 @@ function barOf(raw: RawCalendarBar): RoomCalendarBar {
       kind: "stay",
       stayId: raw.stayId ?? "",
       reservationId: raw.reservationId,
+      current: raw.current !== false,
+      arrivedOn: raw.arrivedOn ?? raw.startsOn,
       status: raw.status === "departed" ? "departed" : "in_house",
       holds: true,
       bookedStartsOn: raw.bookedStartsOn,
@@ -272,7 +278,7 @@ function compareUnits(a: CalendarUnitRow, b: CalendarUnitRow): number {
 export function buildRoomCalendar(
   rows: readonly CalendarUnitRow[],
   requested: { from: string | null; days: number | null },
-): RoomCalendar {
+): Omit<RoomCalendar, "mayAmend"> {
   const days = calendarLength(requested.days);
   const today = rows[0]?.today ?? new Date().toISOString().slice(0, 10);
   const from = rows[0]?.firstDay ?? requested.from ?? defaultFirstDay(today);

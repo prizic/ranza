@@ -219,4 +219,32 @@ describe("DateRangeField", () => {
 
     expect(form.checkValidity()).toBe(false);
   });
+
+  it("with the start locked, picks only the end, and never before the earliest allowed", () => {
+    const submitted = renderField({
+      defaultValue: { from: "2026-10-05", to: "2026-10-08" },
+      earliestTo: "2026-10-07",
+      lockFrom: true,
+    });
+
+    // The arrival is shown, not pressable.
+    expect(
+      screen.queryByRole("button", { name: /^Arrival/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/Arrival:/)).toBeInTheDocument();
+
+    fireEvent.click(half(/^Departure/));
+    // A departure before the earliest allowed is not offered.
+    expect(day("2026-10-06")).toBeDisabled();
+    fireEvent.click(day("2026-10-10"));
+    expect(submitted()).toEqual({
+      startsOn: "2026-10-05",
+      endsOn: "2026-10-10",
+    });
+
+    // Clearing takes the end away and keeps the start: an open-ended Stay.
+    fireEvent.click(half(/^Departure/));
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(submitted()).toEqual({ startsOn: "2026-10-05", endsOn: "" });
+  });
 });

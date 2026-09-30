@@ -186,9 +186,13 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
         select stay.id                              as "stayId",
                reservation.reference                as "reference",
                guest.full_name                      as "guestName",
+               to_char(stay.starts_on, 'YYYY-MM-DD') as "startsOn",
                to_char(stay.ends_on, 'YYYY-MM-DD')  as "endsOn",
                unit.name                            as "unitName",
-               room.name                            as "roomName"
+               room.name                            as "roomName",
+               stay.reservation_id is not null
+                 and app.has_organization_permission(
+                       stay.organization_id, 'front_desk.amend') as "mayAmend"
         from public.stays as stay
         join public.accommodation_units as unit
           on unit.id = stay.accommodation_unit_id

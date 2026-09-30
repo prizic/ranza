@@ -32,6 +32,8 @@ vi.mock("../../apps/operator-workspace/src/server/close-day", () => ({
 }));
 vi.mock("../../apps/operator-workspace/src/server/front-office", () => ({
   cancelBooking: vi.fn(),
+  changeBooking: vi.fn(),
+  changeDeparture: vi.fn(),
   markNoShow: vi.fn(),
 }));
 // Next lives in the workspace's own node_modules, so it is mocked by that path:
@@ -245,9 +247,11 @@ const DEPARTURE = {
   stayId: "d9000005-0000-4000-8000-000000000011",
   reference: null,
   guestName: null,
+  startsOn: "2026-09-20",
   endsOn: "2026-09-23",
   unitName: "103",
   roomName: null,
+  mayAmend: false,
 };
 
 /**
@@ -363,6 +367,23 @@ describe("open items offer the commands that resolve them", () => {
         .getByRole("link", { name: "Open departures" })
         .getAttribute("href"),
     ).toBe(`/en/departures?property=${DUE.propertyId}`);
+  });
+
+  it("an_overdue_guest_is_extended_from_the_checklist, by someone who may", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ kind: "refused" }))),
+    );
+    show({ ...DUE, notDeparted: [DEPARTURE] });
+    expect(screen.queryByRole("button", { name: "Extend" })).toBeNull();
+    cleanup();
+
+    show({ ...DUE, notDeparted: [{ ...DEPARTURE, mayAmend: true }] });
+    fireEvent.click(screen.getByRole("button", { name: "Extend" }));
+    expect(
+      await screen.findByRole("dialog", { name: "Change departure" }),
+    ).toBeTruthy();
+    vi.unstubAllGlobals();
   });
 
   it("does not link a booking that can no longer be checked in", () => {

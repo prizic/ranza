@@ -31,7 +31,7 @@ import {
 import { ImpactNotice } from "./impact-notice";
 import { PRIORITY_LOOK } from "./look";
 import { OutcomeMessage } from "./outcome-message";
-import { submitWithoutReset } from "./use-command";
+import { submitWithoutReset } from "../../../lib/submit-without-reset";
 
 const PRIORITIES: readonly Priority[] = ["urgent", "this_week", "can_wait"];
 
@@ -302,7 +302,13 @@ export function ReportDialog({
             </div>
           ) : null}
 
-          {impact ? <ImpactNotice impact={impact} locale={locale} /> : null}
+          {impact ? (
+            <ImpactNotice
+              impact={impact}
+              locale={locale}
+              propertyId={propertyId}
+            />
+          ) : null}
           <OutcomeMessage
             outcome={outcome.status === "impact" ? { status: "idle" } : outcome}
           />

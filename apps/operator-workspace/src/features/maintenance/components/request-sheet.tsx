@@ -82,6 +82,7 @@ export function RequestSheet({
   mayCharge,
   limits,
   onOpenChange,
+  propertyId,
 }: {
   request: MaintenanceRequestCard | null;
   locale: SupportedLocale;
@@ -92,6 +93,8 @@ export function RequestSheet({
   mayTakeOutOfOrder: boolean;
   mayCharge: boolean;
   limits: { cancelReason: number; note: number; vendor: number };
+  /** The Property the board is for, which links out of the sheet name. */
+  propertyId: string;
   onOpenChange: (open: boolean) => void;
 }) {
   const t = useTranslations("maintenance");
@@ -375,7 +378,11 @@ export function RequestSheet({
                     />
                   </Field>
                   {impact ? (
-                    <ImpactNotice impact={impact} locale={locale} />
+                    <ImpactNotice
+                      impact={impact}
+                      locale={locale}
+                      propertyId={propertyId}
+                    />
                   ) : null}
                   <div className="flex flex-wrap gap-2">
                     <Button

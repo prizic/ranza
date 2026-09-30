@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
   BedDouble,
+  CalendarClock,
+  CalendarRange,
   CalendarX,
+  DoorOpen,
   MoreHorizontal,
   Receipt,
   UserX,
@@ -19,7 +22,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@ranza/ui";
+import {
+  ChangeBookingDialog,
+  type ChangeableBooking,
+} from "./change-booking-dialog";
+import {
+  ChangeDepartureDialog,
+  type ChangeableStay,
+} from "./change-departure-dialog";
 import { EndBookingDialog, type EndBookingKind } from "./end-booking-dialog";
+import { MoveGuestDialog } from "./move-guest-dialog";
 
 /**
  * A booking the row may end, and whether each way of ending it is offered.
@@ -34,6 +46,8 @@ export interface EndableBooking {
   unitLabel: string;
   mayCancel: boolean;
   mayMarkNoShow: boolean;
+  /** Present when the viewer may change its nights or Unit (AB-S1-27). */
+  change?: ChangeableBooking | undefined;
 }
 
 /**
@@ -53,8 +67,11 @@ export function FrontDeskRowMenu({
   guestName,
   locale,
   propertyId,
+  stay,
 }: {
   booking?: EndableBooking | undefined;
+  /** An in-house Guest whose departure the viewer may change (AB-S2-05). */
+  stay?: ChangeableStay | undefined;
   folioId: string | null;
   guestName: string;
   locale: SupportedLocale;
@@ -62,7 +79,11 @@ export function FrontDeskRowMenu({
 }) {
   const t = useTranslations();
   const [ending, setEnding] = useState<EndBookingKind | null>(null);
-  const endings = booking && (booking.mayCancel || booking.mayMarkNoShow);
+  const [changing, setChanging] = useState(false);
+  const [changingDeparture, setChangingDeparture] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const bookingActions =
+    booking && (booking.mayCancel || booking.mayMarkNoShow || booking.change);
 
   return (
     <>
@@ -97,7 +118,25 @@ export function FrontDeskRowMenu({
               <span>{t("showOnRoomMap")}</span>
             </Link>
           </DropdownMenuItem>
-          {endings ? <DropdownMenuSeparator /> : null}
+          {bookingActions || stay ? <DropdownMenuSeparator /> : null}
+          {stay ? (
+            <DropdownMenuItem onSelect={() => setChangingDeparture(true)}>
+              <CalendarRange className="size-4" />
+              <span>{t("changeDeparture")}</span>
+            </DropdownMenuItem>
+          ) : null}
+          {stay ? (
+            <DropdownMenuItem onSelect={() => setMoving(true)}>
+              <DoorOpen className="size-4" />
+              <span>{t("moveGuest")}</span>
+            </DropdownMenuItem>
+          ) : null}
+          {booking?.change ? (
+            <DropdownMenuItem onSelect={() => setChanging(true)}>
+              <CalendarClock className="size-4" />
+              <span>{t("changeBooking")}</span>
+            </DropdownMenuItem>
+          ) : null}
           {booking?.mayMarkNoShow ? (
             <DropdownMenuItem onSelect={() => setEnding("no_show")}>
               <UserX className="size-4" />
@@ -127,6 +166,34 @@ export function FrontDeskRowMenu({
           reference={booking.reference}
           reservationId={booking.reservationId}
           unitLabel={booking.unitLabel}
+        />
+      ) : null}
+      {stay && changingDeparture ? (
+        <ChangeDepartureDialog
+          locale={locale}
+          onOpenChange={setChangingDeparture}
+          open
+          stay={stay}
+        />
+      ) : null}
+      {stay && moving ? (
+        <MoveGuestDialog
+          locale={locale}
+          onOpenChange={setMoving}
+          open
+          stay={{
+            stayId: stay.stayId,
+            guestName: stay.guestName,
+            unitLabel: stay.unitLabel,
+          }}
+        />
+      ) : null}
+      {booking?.change && changing ? (
+        <ChangeBookingDialog
+          booking={booking.change}
+          locale={locale}
+          onOpenChange={setChanging}
+          open
         />
       ) : null}
     </>

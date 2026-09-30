@@ -2,12 +2,13 @@ import {
   CheckInDayClosedError,
   CheckInReversalError,
   StayHasChargesError,
+  StayMovedError,
 } from "@ranza/reservations";
 
 /**
  * What withdrawing a check-in can come back as.
  *
- * `charges` and `dayClosed` are the refusals a front desk can act on, and they
+ * `charges`, `dayClosed` and `moved` are the refusals a front desk can act on, and they
  * are separate for that reason alone: everything else a withdrawal can fail
  * on — out of reach, already departed, already withdrawn, never happened, no
  * session — is `refused`, because telling them apart would confirm that a Stay
@@ -22,6 +23,7 @@ export type ReverseCheckInOutcome =
   | "done"
   | "charges"
   | "dayClosed"
+  | "moved"
   | "reasonTooShort"
   | "reasonTooLong"
   | "refused";
@@ -46,11 +48,12 @@ export type ReverseCheckInOutcome =
  */
 export function undoOutcomeFor(
   error: unknown,
-): "charges" | "dayClosed" | "refused" | null {
+): "charges" | "dayClosed" | "moved" | "refused" | null {
   // Order matters: both specific errors extend CheckInReversalError, so they
   // have to be asked first or they are answered as the general one.
   if (error instanceof StayHasChargesError) return "charges";
   if (error instanceof CheckInDayClosedError) return "dayClosed";
+  if (error instanceof StayMovedError) return "moved";
   if (error instanceof CheckInReversalError) return "refused";
   return null;
 }

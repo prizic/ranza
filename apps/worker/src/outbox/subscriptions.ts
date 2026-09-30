@@ -1,12 +1,13 @@
 import type { OutboxSubscription } from "@ranza/platform-outbox";
 import { roomDirtySubscription } from "./room-dirty";
+import { roomMovedSubscription } from "./room-moved";
 import { roomReturnedSubscription } from "./room-returned";
 import { staffReachSubscription } from "./staff-reach";
 
 /**
  * Which consumer wants which event.
  *
- * Three.
+ * Four.
  *
  *   - `staff.reach_changed` ends every session that Staff Member holds — the
  *     handler that makes Staff and permissions mean anything, because without
@@ -15,6 +16,9 @@ import { staffReachSubscription } from "./staff-reach";
  *     housekeeping lifecycle's first command (ADR 0029). It writes a status of
  *     its own table, not `accommodation_units.status`: whether a room needs
  *     cleaning and whether it is in service are two facts that coexist.
+ *   - `stay.moved` makes the room a Guest was moved out of dirty, as a
+ *     departure does (ADR 0039). It reads which room from the revision the
+ *     event names, never from the payload.
  *   - `unit.returned_to_service` gives a room a maintenance request let go of
  *     the housekeeping status the Maintenance setting names (ADR 0032). The
  *     same table and the same shape as a departure, and the same later-word
@@ -30,10 +34,8 @@ import { staffReachSubscription } from "./staff-reach";
  *   - **Send the confirmation.** Notifications are blueprint 5.12 and there is
  *     no module. A provider, a template and a delivery record are three
  *     decisions, not a handler.
- *   - **Post the nightly room charge.** Closing the day is built (ADR 0034) and
- *     is a scheduled job, not a handler; posting room nights is its third
- *     slice, and still needs something with a rate to charge. Nothing has a
- *     price column anywhere.
+ *   - **Post the nightly room charge.** Not a handler: the close of the day
+ *     posts each night, and check-out the nights no close reached (ADR 0038).
  *
  * The machinery landed before any of them on purpose. The lease, the
  * idempotency and the retry schedule are proved by
@@ -51,5 +53,6 @@ import { staffReachSubscription } from "./staff-reach";
 export const subscriptions: readonly OutboxSubscription[] = [
   staffReachSubscription,
   roomDirtySubscription,
+  roomMovedSubscription,
   roomReturnedSubscription,
 ];

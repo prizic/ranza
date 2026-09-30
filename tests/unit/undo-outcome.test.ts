@@ -17,6 +17,7 @@ import {
   CheckInDayClosedError,
   CheckInReversalError,
   StayHasChargesError,
+  StayMovedError,
 } from "../../packages/ranza/reservations/src";
 import { undoOutcomeFor } from "../../apps/operator-workspace/src/server/undo-outcome";
 
@@ -31,6 +32,10 @@ describe("the refusals this screen knows", () => {
     expect(undoOutcomeFor(new CheckInDayClosedError("day closed"))).toBe(
       "dayClosed",
     );
+  });
+
+  it("answers moved when the Guest has been moved since check-in (AB-S3-11)", () => {
+    expect(undoOutcomeFor(new StayMovedError())).toBe("moved");
   });
 
   it("answers refused for every other withdrawal that did not happen", () => {

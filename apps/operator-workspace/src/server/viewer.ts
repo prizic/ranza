@@ -23,15 +23,20 @@ import type { PriceList } from "@ranza/rates";
 import { FOLIO_CAPABILITY } from "@ranza/folios";
 import type { FolioDetail, FolioSummary } from "@ranza/folios";
 import {
+  BookingChangeError,
   FRONT_DESK_CAPABILITY,
+  ReservationPeriodError,
   ROOM_CALENDAR_DEFAULT_LENGTH,
   ROOM_CALENDAR_LENGTHS,
 } from "@ranza/reservations";
 import type {
   Arrival,
   BookableUnit,
+  ChangePreview,
   Departure,
+  DeparturePreview,
   DepartureView,
+  MovePreview,
   ReservationRow,
   RoomCalendar,
   RoomCalendarBar,
@@ -152,9 +157,12 @@ export type {
   AuditNames,
   AuditPage,
   BookableUnit,
+  ChangePreview,
   CloseTheDay,
+  DeparturePreview,
   Departure,
   FolioDetail,
+  MovePreview,
   FolioSummary,
   HousekeepingBoard,
   HousekeepingRoom,
@@ -336,6 +344,98 @@ export async function roomCalendar(
     propertyId,
     window,
   );
+}
+
+/**
+ * What changing a booking to these nights would do, for the Change booking
+ * dialog (blueprint 18.6, AB-S1-07).
+ *
+ * `refused` is every reason the booking is not the viewer's to change — out of
+ * reach, arrived, finished, never existed — as one answer, like every refusal
+ * on the front desk. `invalidPeriod` is the dates the viewer typed. Anything
+ * else is thrown, for the route to log.
+ */
+export type BookingChangePreview =
+  | { kind: "preview"; preview: ChangePreview }
+  | { kind: "refused" }
+  | { kind: "invalidPeriod" };
+
+export async function bookingChangePreview(
+  reservationId: string,
+  startsOn: string,
+  endsOn: string | null,
+): Promise<BookingChangePreview> {
+  const viewer = await currentViewer();
+  if (!viewer) return { kind: "refused" };
+  try {
+    const preview = await getComposition().reservations.previewChange(
+      viewer.userId,
+      reservationId,
+      startsOn,
+      endsOn,
+    );
+    return { kind: "preview", preview };
+  } catch (error: unknown) {
+    if (error instanceof ReservationPeriodError)
+      return { kind: "invalidPeriod" };
+    if (error instanceof BookingChangeError) return { kind: "refused" };
+    throw error;
+  }
+}
+
+/**
+ * What changing an in-house Guest's departure would do, for the Change
+ * departure dialog (amend-booking slice 2). The same three answers as
+ * `bookingChangePreview`, for the same reasons.
+ */
+export type DepartureChangePreview =
+  | { kind: "preview"; preview: DeparturePreview }
+  | { kind: "refused" }
+  | { kind: "invalidPeriod" };
+
+export async function departureChangePreview(
+  stayId: string,
+  endsOn: string | null,
+): Promise<DepartureChangePreview> {
+  const viewer = await currentViewer();
+  if (!viewer) return { kind: "refused" };
+  try {
+    const preview = await getComposition().reservations.previewDeparture(
+      viewer.userId,
+      stayId,
+      endsOn,
+    );
+    return { kind: "preview", preview };
+  } catch (error: unknown) {
+    if (error instanceof ReservationPeriodError)
+      return { kind: "invalidPeriod" };
+    if (error instanceof BookingChangeError) return { kind: "refused" };
+    throw error;
+  }
+}
+
+/**
+ * Where an in-house Guest could be moved, for the Move Guest dialog
+ * (amend-booking slice 3).
+ */
+export type GuestMovePreview =
+  { kind: "preview"; preview: MovePreview } | { kind: "refused" };
+
+export async function guestMovePreview(
+  stayId: string,
+): Promise<GuestMovePreview> {
+  const viewer = await currentViewer();
+  if (!viewer) return { kind: "refused" };
+  try {
+    const preview = await getComposition().reservations.previewMove(
+      viewer.userId,
+      stayId,
+    );
+    return { kind: "preview", preview };
+  } catch (error: unknown) {
+    if (error instanceof BookingChangeError) return { kind: "refused" };
+    throw error;
+  }
 }
 
 /**
