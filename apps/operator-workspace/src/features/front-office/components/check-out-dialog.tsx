@@ -51,6 +51,11 @@ import { unitLabel } from "../unit-label";
  * settled by somebody who never saw it; the screen then says the bill changed
  * and the list, which polls, already shows the new one.
  *
+ * So do the nights the check-out itself will charge (ADR 0038): nights already
+ * slept that no close has reached. The review shows them and the balance they
+ * make, and the module refuses to charge anything else — a close that charged
+ * one first, or a business date that rolled over, is a changed bill.
+ *
  * `REASON` restates `BALANCE_REASON` for the reason `undo-check-in-dialog.tsx`
  * gives: a value import from the module's entry point pulls Prisma into the
  * browser bundle.
@@ -82,13 +87,16 @@ export function CheckOutDialog({
   const [reason, setReason] = useState("");
 
   const name = departure.guestName || t("noGuestRecorded");
-  const owes = departure.balanceMinor !== 0;
+  // What the Folio will hold once check-out has charged its nights: the bill
+  // the desk is deciding about.
+  const due = departure.balanceMinor + departure.pendingMinor;
+  const owes = due !== 0;
   const room = unitLabel(departure.roomName, departure.unitName);
-  const balance = formatMoney(
-    departure.balanceMinor,
-    departure.currency,
-    locale,
-  );
+  const balance = formatMoney(due, departure.currency, locale);
+  const unpriced =
+    departure.stayType === "guest" &&
+    departure.nightlyRateMinor === null &&
+    departure.folioId !== null;
 
   const message =
     outcome === "folioChanged"
@@ -149,7 +157,27 @@ export function CheckOutDialog({
                 t("openEnded")
               )}
             </Fact>
-            <Fact label={t("balance")}>
+            {departure.pendingNights > 0 ? (
+              <Fact label={t("checkOutNightsToCharge")}>
+                <span className="tabular-nums">
+                  {t("checkOutPendingNights", {
+                    count: departure.pendingNights,
+                    amount: formatMoney(
+                      departure.pendingMinor,
+                      departure.currency,
+                      locale,
+                    ),
+                  })}
+                </span>
+              </Fact>
+            ) : null}
+            <Fact
+              label={
+                departure.pendingNights > 0
+                  ? t("balanceAfterCheckOut")
+                  : t("balance")
+              }
+            >
               {departure.folioId ? (
                 <span
                   className={
@@ -163,6 +191,12 @@ export function CheckOutDialog({
               )}
             </Fact>
           </FactList>
+
+          {unpriced ? (
+            <p className="text-step--1 text-muted-foreground">
+              {t("checkOutUnpriced")}
+            </p>
+          ) : null}
 
           {departure.folioId ? (
             <Link
@@ -180,6 +214,16 @@ export function CheckOutDialog({
             name="folioVersion"
             type="hidden"
             value={departure.folioVersion ?? ""}
+          />
+          <input
+            name="pendingNights"
+            type="hidden"
+            value={departure.pendingNights}
+          />
+          <input
+            name="pendingMinor"
+            type="hidden"
+            value={departure.pendingMinor}
           />
 
           {departure.early && departure.endsOn ? (

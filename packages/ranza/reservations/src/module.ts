@@ -30,6 +30,7 @@ import {
   ReservationRefusedError,
   REVERSAL_REASON,
   StayHasChargesError,
+  PriceChangedError,
   UnitHasOccupantError,
   UnitNotInServiceError,
   UnitNotReadyError,
@@ -101,6 +102,12 @@ const NOT_IN_PREREQUISITE_STATE = "55000";
  * because 55000 already means "money has been posted" on the withdrawal path.
  */
 const BUSINESS_DAY_CLOSED = "RZ001";
+
+/**
+ * A caller the database will not let do this: raised by the room-night
+ * posting at check-out for a Staff Member who may not check this Guest out.
+ */
+const INSUFFICIENT_PRIVILEGE = "42501";
 
 /**
  * Whether a failure carries a particular SQLSTATE.
@@ -623,6 +630,16 @@ export function createReservationsModule(deps: ReservationsDeps) {
         where id = ${stayId}::uuid
       `;
 
+      // Then the business day, shared, before anything takes the Stay's lock:
+      // the global order is Unit, day, Stay (ADR 0038). The withdrawal's own
+      // triggers happen to take them in that order today only because of how
+      // their names sort; this makes it the code's decision.
+      await tx.$queryRaw`
+        select pg_advisory_xact_lock_shared(3, hashtext(property_id::text))::text
+        from public.stays
+        where id = ${stayId}::uuid
+      `;
+
       let withdrawn;
       try {
         withdrawn = await withdrawStayWithin(tx, stayId);
@@ -781,7 +798,14 @@ export function createReservationsModule(deps: ReservationsDeps) {
       { userId },
       (tx) =>
         tx.$queryRaw<
-          (Omit<Departure, "balanceMinor"> & { balanceMinor: string })[]
+          (Omit<
+            Departure,
+            "balanceMinor" | "pendingMinor" | "nightlyRateMinor"
+          > & {
+            balanceMinor: string;
+            pendingMinor: string;
+            nightlyRateMinor: string | null;
+          })[]
         >`
         select
           stay.id                                     as "stayId",
@@ -816,6 +840,13 @@ export function createReservationsModule(deps: ReservationsDeps) {
             0
           )::text                                     as "balanceMinor",
           trim(coalesce(folio.currency, property.currency)) as "currency",
+          -- What a check-out today would charge (ADR 0038): the nights before
+          -- today that can be charged and that no close has reached. The same
+          -- function the check-out posts through, so the review and the
+          -- posting cannot disagree about what a night is.
+          pending.nights                              as "pendingNights",
+          pending.amount::text                        as "pendingMinor",
+          reservation.nightly_rate_minor::text        as "nightlyRateMinor",
           app.has_organization_permission(
             stay.organization_id, 'front_desk.check_out') as "mayCheckOut"
         from public.stays as stay
@@ -837,6 +868,17 @@ export function createReservationsModule(deps: ReservationsDeps) {
         cross join (
           select app.property_today(${propertyId}::uuid) as day
         ) as today
+        cross join lateral (
+          select count(*)::int                           as nights,
+                 coalesce(sum(due.amount_minor), 0)      as amount
+            from app.room_nights_due(stay.property_id, stay.starts_on,
+                                     today.day - 1, stay.id) as due
+           where due.reason is null
+             and not exists (
+               select 1 from public.business_day_closes as close
+                where close.property_id = stay.property_id
+                  and close.business_date = due.business_date)
+        ) as pending
         where stay.property_id = ${propertyId}::uuid
           and stay.status = 'in_house'
           and (${view} = 'in_house'
@@ -853,6 +895,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
     return rows.map((row) => ({
       ...row,
       balanceMinor: Number(row.balanceMinor),
+      pendingMinor: Number(row.pendingMinor),
+      nightlyRateMinor:
+        row.nightlyRateMinor === null ? null : Number(row.nightlyRateMinor),
     }));
   }
 
@@ -898,6 +943,17 @@ export function createReservationsModule(deps: ReservationsDeps) {
     }
 
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      // The Property's business day, shared, before the Stay (ADR 0038). The
+      // close of a day holds it exclusive and then takes each Stay's lock to
+      // charge its night; this used to take the Stay's lock first and the
+      // day's second, inside the Stay's update, and the two deadlocked. Taken
+      // through the Stay, so a Stay the viewer cannot read locks nothing.
+      await tx.$queryRaw`
+        select pg_advisory_xact_lock_shared(3, hashtext(property_id::text))::text
+        from public.stays
+        where id = ${stayId}::uuid
+      `;
+
       // The Stay's lock, in a statement of its own. `folio_line_is_postable`
       // takes the same lock, so no line can be added between the read below
       // and the commit. Its own statement because the read must start after
@@ -956,6 +1012,40 @@ export function createReservationsModule(deps: ReservationsDeps) {
       const reviewedVersion = review.folioId ? review.folioLines : null;
       if (reviewedVersion !== confirmation.folioVersion) {
         throw new FolioChangedError("the bill changed since it was reviewed");
+      }
+
+      // The nights no close has charged, charged now (ADR 0038, RT-S3-06).
+      // What was charged must be what the desk was shown: a close that got
+      // there first, or a business date that rolled over, is a changed bill.
+      let charged;
+      try {
+        [charged] = await tx.$queryRaw<{ posted: number; amount: string }[]>`
+          select posted, amount::text
+            from app.post_room_nights_for_departure(${stayId}::uuid)
+        `;
+      } catch (error: unknown) {
+        // Checked in house under the lock a moment ago, so this is the caller:
+        // they may not check this Guest out. The same message as every other
+        // refusal.
+        if (raised(error, INSUFFICIENT_PRIVILEGE)) {
+          throw new CheckOutError("that Stay cannot be checked out");
+        }
+        throw error;
+      }
+      if (
+        !charged ||
+        charged.posted !== confirmation.pendingNights ||
+        charged.amount !== String(confirmation.pendingMinor)
+      ) {
+        throw new FolioChangedError("the bill changed since it was reviewed");
+      }
+      if (charged.posted > 0) {
+        const [after] = await tx.$queryRaw<{ balanceMinor: string }[]>`
+          select coalesce(sum(line.amount_minor), 0)::text as "balanceMinor"
+            from public.folio_lines as line
+           where line.folio_id = ${review.folioId}::uuid
+        `;
+        review.balanceMinor = after?.balanceMinor ?? review.balanceMinor;
       }
 
       // ISO dates compare as strings; nothing here becomes a Date.
@@ -1057,6 +1147,8 @@ export function createReservationsModule(deps: ReservationsDeps) {
           folioClosed: folio !== null,
           plannedEndsOn: review.plannedEndsOn,
           earlyDeparture: early,
+          // The nights this check-out charged, which no close had reached.
+          nightsCharged: charged.posted,
         },
       });
 
@@ -1080,19 +1172,34 @@ export function createReservationsModule(deps: ReservationsDeps) {
     userId: string,
     propertyId: string,
   ): Promise<BookableUnit[]> {
-    return withOrganizationContext(
+    const rows = await withOrganizationContext(
       deps.db,
       { userId },
       (tx) =>
-        tx.$queryRaw<BookableUnit[]>`
+        tx.$queryRaw<
+          (Omit<BookableUnit, "nightlyRateMinor"> & {
+            nightlyRateMinor: string | null;
+          })[]
+        >`
         select
-          unit.id        as "unitId",
-          unit.name      as "unitName",
-          room.name      as "roomName",
-          unit.unit_type as "unitType"
+          unit.id                     as "unitId",
+          unit.name                   as "unitName",
+          room.name                   as "roomName",
+          unit.unit_type              as "unitType",
+          -- The price the stamp would read now: this kind's, and only while it
+          -- is stated in the Property's currency (ADR 0038).
+          rate.amount_minor::text     as "nightlyRateMinor",
+          trim(rate.currency)         as "rateCurrency"
         from public.accommodation_units as unit
+        join public.properties as property
+          on property.id = unit.property_id
         left join public.accommodation_units as room
           on room.id = unit.parent_id
+        left join public.property_rates as rate
+          on rate.property_id = unit.property_id
+         and rate.unit_type = unit.unit_type
+         and rate.amount_minor is not null
+         and rate.currency = property.currency
         where unit.property_id = ${propertyId}::uuid
           and unit.status not in ('out_of_service', 'blocked')
           -- A room out of order or blocked covers its beds (ADR 0032,
@@ -1115,6 +1222,11 @@ export function createReservationsModule(deps: ReservationsDeps) {
         order by coalesce(room.name, unit.name), unit.name
       `,
     );
+    return rows.map((row) => ({
+      ...row,
+      nightlyRateMinor:
+        row.nightlyRateMinor === null ? null : Number(row.nightlyRateMinor),
+    }));
   }
 
   /**
@@ -1139,11 +1251,15 @@ export function createReservationsModule(deps: ReservationsDeps) {
     userId: string,
     propertyId: string,
   ): Promise<ReservationRow[]> {
-    return withOrganizationContext(
+    const rows = await withOrganizationContext(
       deps.db,
       { userId },
       (tx) =>
-        tx.$queryRaw<ReservationRow[]>`
+        tx.$queryRaw<
+          (Omit<ReservationRow, "nightlyRateMinor"> & {
+            nightlyRateMinor: string | null;
+          })[]
+        >`
         select
           reservation.id                                as "reservationId",
           reservation.reference                         as "reference",
@@ -1158,6 +1274,8 @@ export function createReservationsModule(deps: ReservationsDeps) {
           unit.name                                     as "unitName",
           room.name                                     as "roomName",
           unit.unit_type                                as "unitType",
+          reservation.nightly_rate_minor::text          as "nightlyRateMinor",
+          trim(reservation.rate_currency)               as "rateCurrency",
           reservation.status in ('requested', 'confirmed')
             and app.has_organization_permission(
                   reservation.organization_id, 'front_desk.cancel')
@@ -1192,6 +1310,11 @@ export function createReservationsModule(deps: ReservationsDeps) {
         order by reservation.starts_on, unit.name
       `,
     );
+    return rows.map((row) => ({
+      ...row,
+      nightlyRateMinor:
+        row.nightlyRateMinor === null ? null : Number(row.nightlyRateMinor),
+    }));
   }
 
   /**
@@ -1304,8 +1427,18 @@ export function createReservationsModule(deps: ReservationsDeps) {
       });
 
       let reservationId: string;
+      let price: {
+        nightlyRateMinor: number | null;
+        rateCurrency: string | null;
+      };
       try {
-        const inserted = await tx.$queryRaw<{ id: string }[]>`
+        const inserted = await tx.$queryRaw<
+          {
+            id: string;
+            nightlyRateMinor: string | null;
+            rateCurrency: string | null;
+          }[]
+        >`
           insert into public.reservations
             (organization_id, property_id, accommodation_unit_id,
              guest_id, stay_type, status, starts_on, ends_on)
@@ -1319,7 +1452,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
             ${startsOn}::date,
             ${endsOn}::date
           )
-          returning id
+          returning id,
+                    nightly_rate_minor::text as "nightlyRateMinor",
+                    trim(rate_currency)      as "rateCurrency"
         `;
         const [row] = inserted;
         if (!row) {
@@ -1328,6 +1463,26 @@ export function createReservationsModule(deps: ReservationsDeps) {
           throw new ReservationRefusedError("that booking cannot be taken");
         }
         reservationId = row.id;
+        // Stamped by the database from the price list (ADR 0038); nothing
+        // here chose it, and nothing could.
+        price = {
+          nightlyRateMinor:
+            row.nightlyRateMinor === null ? null : Number(row.nightlyRateMinor),
+          rateCurrency: row.rateCurrency,
+        };
+        // The price the Guest was quoted is the price they are charged: a
+        // stamp that is not the quote — changed, cleared or gone stale while
+        // the dialog was open — refuses the booking, and the throw rolls the
+        // Guest and the Reservation back with it (RT-S2-12), as a check-out
+        // that would charge nights it did not show is refused (RT-S3-07).
+        if (
+          price.nightlyRateMinor !== booking.quotedRateMinor ||
+          price.rateCurrency !== booking.quotedCurrency
+        ) {
+          throw new PriceChangedError(
+            "the price changed while the booking was taken",
+          );
+        }
       } catch (error: unknown) {
         // The exclusion constraint refused: those nights are already allocated
         // on that Unit. The one refusal a front desk can act on — every other
@@ -1378,6 +1533,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
           accommodationUnitId: booking.accommodationUnitId,
           startsOn,
           endsOn,
+          // What the Guest was quoted, as the booking now holds it.
+          amountMinor: price.nightlyRateMinor,
+          currency: price.rateCurrency,
         },
       });
 
@@ -1385,6 +1543,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
         reservationId,
         guestId: guest.guestId,
         guestCreated: guest.created,
+        ...price,
       };
     });
   }

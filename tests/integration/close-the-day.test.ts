@@ -569,13 +569,17 @@ describe("what is open", () => {
         guestEmail: null,
         guestPhone: null,
         stayType: "guest",
+        quotedRateMinor: null,
+        quotedCurrency: null,
         startsOn: yesterday,
         endsOn: await day(property, 1),
       }),
     ).rejects.toBeInstanceOf(ReservationPeriodError);
   });
 
-  it("a close posts nothing to any Folio", async () => {
+  // An unpriced Stay: its Folio receives nothing. A priced one's night is
+  // charged, which tests/integration/rates.test.ts asserts (ADR 0038).
+  it("a close posts nothing but a priced night", async () => {
     const property = await aProperty();
     const stay = await aStay(property, await aUnit(property), -2, 2);
     await owner.$executeRawUnsafe(
@@ -625,7 +629,15 @@ describe("recorded and published", () => {
       locationId: property,
       subjectId: closeId,
       reason: "Booking kept for tomorrow",
-      context: { propertyId: property, businessDate: yesterday },
+      // Nothing was in house, so the day charged no room night (ADR 0038).
+      context: {
+        propertyId: property,
+        businessDate: yesterday,
+        roomNightsCharged: 0,
+        amountMinor: 0,
+        currency: null,
+        roomNightsNotCharged: 0,
+      },
     });
     const [actor] = await owner.$queryRawUnsafe<{ actorId: string }[]>(
       `select actor_id as "actorId" from audit.records
@@ -689,6 +701,8 @@ describe("a command in flight when its day closes", () => {
 
     const refused = reservations.checkOut(DESK, stay, {
       folioVersion: null,
+      pendingNights: 0,
+      pendingMinor: 0,
       earlyDeparture: false,
       balanceReason: null,
     });

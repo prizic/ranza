@@ -33,6 +33,7 @@ import {
 import type { PropertySettings } from "../../packages/ranza/core/src";
 import type { InspectionSettings } from "../../packages/ranza/housekeeping/src";
 import type { MaintenanceSettings } from "../../packages/ranza/maintenance/src";
+import type { PriceList } from "../../packages/ranza/rates/src";
 import {
   isolate,
   supportedLocales,
@@ -44,11 +45,14 @@ import { screenFor } from "../../apps/operator-workspace/src/lib/screens";
 const settingsFor = vi.fn<() => Promise<PropertySettings | null>>();
 const inspectionFor = vi.fn<() => Promise<InspectionSettings | null>>();
 const maintenanceFor = vi.fn<() => Promise<MaintenanceSettings | null>>();
+const pricesFor = vi.fn<() => Promise<PriceList | null>>();
+const savePrices = vi.fn();
 const saveProperty = vi.fn();
 const renameOrganization = vi.fn();
 const previewBusinessDate = vi.fn();
 let locale: SupportedLocale = "en";
 let maintenanceShown: MaintenanceSettings | null = null;
+let pricesShown: PriceList | null = null;
 
 vi.mock("../../apps/operator-workspace/node_modules/server-only", () => ({}));
 vi.mock("next/navigation", () => ({
@@ -96,6 +100,7 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
   propertySettings: () => settingsFor(),
   housekeepingInspection: () => inspectionFor(),
   maintenanceSettings: () => maintenanceFor(),
+  priceList: () => pricesFor(),
   timezoneNames: async () => ["Europe/Istanbul", "Pacific/Kiritimati", "UTC"],
 }));
 vi.mock("../../apps/operator-workspace/src/server/configuration", () => ({
@@ -108,6 +113,9 @@ vi.mock("../../apps/operator-workspace/src/server/housekeeping", () => ({
 }));
 vi.mock("../../apps/operator-workspace/src/server/maintenance", () => ({
   saveMaintenanceSettings: vi.fn(),
+}));
+vi.mock("../../apps/operator-workspace/src/server/rates", () => ({
+  savePrices,
 }));
 
 const { default: ConfigurationPage } =
@@ -148,6 +156,7 @@ async function pageFor(
   settingsFor.mockResolvedValue(settings);
   inspectionFor.mockResolvedValue(inspection);
   maintenanceFor.mockResolvedValue(maintenanceShown);
+  pricesFor.mockResolvedValue(pricesShown);
   const page = await ConfigurationPage({
     params: Promise.resolve({ locale: as }),
     searchParams: Promise.resolve({}),
@@ -206,6 +215,8 @@ beforeEach(() => {
   renameOrganization.mockReset();
   previewBusinessDate.mockReset();
   scrolled.mockReset();
+  savePrices.mockReset();
+  pricesShown = null;
 });
 afterEach(cleanup);
 
@@ -248,11 +259,13 @@ describe("who may change what", () => {
     expect(screen.getByLabelText("Property name")).toBeEnabled();
   });
 
-  it("shows the currency fixed, with the reason, once a folio exists", async () => {
+  it("shows the currency fixed, with the reason, once a folio or a priced booking exists", async () => {
     await show({ ...MANAGER, currencyFixed: true });
     expect(screen.getByRole("combobox", { name: "Currency" })).toBeDisabled();
     expect(
-      screen.getByText(/Fixed since the first folio was opened here/),
+      screen.getByText(
+        /Fixed since a folio was opened or a priced booking was taken here/,
+      ),
     ).toBeVisible();
   });
 });
@@ -704,5 +717,151 @@ describe("finding a section", () => {
 
   it("configuration_is_built_in_the_rail", () => {
     expect(screenFor("configuration")?.built).toBe(true);
+  });
+});
+
+const PRICES: PriceList = {
+  propertyId: PROPERTY,
+  currency: "TRY",
+  version: "0123456789abcdef0123456789abcdef",
+  mayManage: true,
+  entries: [
+    {
+      unitType: "room",
+      amountMinor: 150000,
+      currency: "TRY",
+      stale: false,
+      sellableUnits: 12,
+    },
+    {
+      unitType: "bed",
+      amountMinor: null,
+      currency: null,
+      stale: false,
+      sellableUnits: 1,
+    },
+    {
+      unitType: "apartment",
+      amountMinor: 900000,
+      currency: "EUR",
+      stale: true,
+      sellableUnits: 2,
+    },
+    {
+      unitType: "suite",
+      amountMinor: null,
+      currency: null,
+      stale: false,
+      sellableUnits: 0,
+    },
+  ],
+};
+
+describe("nightly rates", () => {
+  it("rates_section_lists_every_kind_with_its_price_and_units", async () => {
+    pricesShown = PRICES;
+    await show(MANAGER);
+    const rates = within(card("rates"));
+    expect(rates.getByLabelText("Price per night for Room")).toHaveValue(
+      "1500",
+    );
+    expect(rates.getByText("12 Units")).toBeVisible();
+    expect(rates.getByText("1 Unit")).toBeVisible();
+    expect(rates.getByText("None at this Property yet")).toBeVisible();
+    // Unpriced says what that means for a booking (RT-S1-13) — where the
+    // Property has Units of that kind, and not for a kind it has none of.
+    expect(rates.getByLabelText("Price per night for Bed")).toHaveValue("");
+    expect(
+      rates.getAllByText(
+        "Bookings of this kind are taken without a price, and their nights are not charged.",
+      ),
+    ).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "Nightly rates" })).toBeVisible();
+  });
+
+  it("a_stale_price_says_it_prices_nothing_until_saved_again", async () => {
+    pricesShown = PRICES;
+    await show(MANAGER);
+    expect(
+      within(card("rates")).getByText(
+        /Set in EUR\. This Property now trades in TRY/,
+      ),
+    ).toBeVisible();
+  });
+
+  it("a_reader_sees_prices_and_changes_none", async () => {
+    pricesShown = { ...PRICES, mayManage: false };
+    await show(MANAGER);
+    const rates = within(card("rates"));
+    expect(rates.queryByRole("textbox")).toBeNull();
+    expect(rates.queryByRole("button", { name: "Save changes" })).toBeNull();
+    expect(rates.getByText(/1,500\.00/)).toBeVisible();
+    expect(
+      rates.getByText(
+        "Prices are changed by whoever may set rates. You can see them here.",
+      ),
+    ).toBeVisible();
+  });
+
+  it("sends_minor_units_for_the_types_touched_and_blank_clears", async () => {
+    savePrices.mockResolvedValue({ status: "saved", version: PRICES.version });
+    pricesShown = PRICES;
+    await show(MANAGER);
+    const rates = within(card("rates"));
+    fireEvent.change(rates.getByLabelText("Price per night for Room"), {
+      target: { value: "1750,5" },
+    });
+    fireEvent.change(rates.getByLabelText("Price per night for Bed"), {
+      target: { value: "٤٥٠" },
+    });
+    await act(async () => {
+      fireEvent.click(rates.getByRole("button", { name: "Save changes" }));
+    });
+    const form = savePrices.mock.calls[0]?.[1] as FormData;
+    expect(form.get("room")).toBe("175050");
+    expect(form.get("bed")).toBe("45000");
+    // Untouched types are not sent, so a stale price is not restated by a
+    // save about another type.
+    expect(form.has("apartment")).toBe(false);
+    expect(form.get("version")).toBe(PRICES.version);
+
+    savePrices.mockClear();
+    fireEvent.change(rates.getByLabelText("Price per night for Room"), {
+      target: { value: "" },
+    });
+    await act(async () => {
+      fireEvent.click(rates.getByRole("button", { name: "Save changes" }));
+    });
+    expect((savePrices.mock.calls[0]?.[1] as FormData).get("room")).toBe("");
+  });
+
+  it("an_unreadable_price_is_refused_at_the_field_and_kept", async () => {
+    pricesShown = PRICES;
+    await show(MANAGER);
+    const rates = within(card("rates"));
+    const room = rates.getByLabelText("Price per night for Room");
+    fireEvent.change(room, { target: { value: "12.345" } });
+    await act(async () => {
+      fireEvent.click(rates.getByRole("button", { name: "Save changes" }));
+    });
+    expect(savePrices).not.toHaveBeenCalled();
+    expect(rates.getByText("That is not a price in TRY.")).toBeVisible();
+    expect(room).toHaveValue("12.345");
+    expect(room).toHaveAttribute("aria-invalid", "true");
+    expect(room).toHaveFocus();
+  });
+
+  it("no_rates_section_without_the_configuration_gate", async () => {
+    await show(MANAGER);
+    expect(document.getElementById("rates")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Nightly rates" })).toBeNull();
+  });
+
+  it.each(supportedLocales)("the rates section reads in %s", async (as) => {
+    pricesShown = PRICES;
+    await show(MANAGER, { as });
+    const title = messages[as].rates.title;
+    expect(within(card("rates")).getByText(title)).toBeVisible();
+    expect(within(card("rates")).getAllByRole("textbox")).toHaveLength(4);
   });
 });

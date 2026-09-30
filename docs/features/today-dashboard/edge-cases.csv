@@ -43,7 +43,7 @@ TD-DEF-01,Guest and Resident requests,blueprint 18.4 lists unresolved requests,T
 TD-DEF-02,Maintenance blockers,blueprint 18.4 lists maintenance blockers,Today is opened,superseded by TD-S4-01 to TD-S4-06,module,,deferred
 TD-DEF-03,Shift handover and day close,blueprint 18.4 lists shift handover notes,Today is opened,deferred: no handover notes exist; closing the day (#72) closes a business date and records no notes,module,,deferred
 TD-DEF-04,"Inventory, approvals, integrations",blueprint 18.4 lists them,Today is opened,deferred: none of the modules exists,module,,deferred
-TD-DEF-05,Revenue,a revenue snapshot,Today is opened,"deferred: no rates exist, so revenue would be invented; S3's charges posted today is the honest figure until then",module,,deferred
+TD-DEF-05,Revenue,a revenue snapshot,Today is opened,"deferred: room nights are now charged at the close (ADR 0038), so revenue is no longer invented; a revenue tile is its own slice, and S3's charges posted today stays the honest figure until it is designed",module,,proposed
 TD-DEF-06,A customisable layout,blueprint 20.7 item 10,Today is opened,deferred: positions are fixed per focus for muscle memory until saved views exist,ui_only,,deferred
 TD-DEF-07,Same-day late check-out,a Guest still in house after the Property's check-out time,Today is opened,deferred: no Property has a check-out time; overdue means an earlier day until one does,module,,deferred
 TD-DEF-08,Maintenance only,"a role holding only maintenance permissions and none of front desk, housekeeping, finance or manager",Today is opened,"deferred: such a role leads nowhere (TD-S1-30), so nothing of maintenance is read for it; a maintenance focus is designed when a shipped role needs one",module,,deferred

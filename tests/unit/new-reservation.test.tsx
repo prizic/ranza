@@ -14,7 +14,7 @@
  */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { GUEST_DETAILS } from "../../packages/ranza/guests/src";
 import { messages } from "../../apps/operator-workspace/src/messages";
 
@@ -30,6 +30,22 @@ const { NewReservationDialog } =
 
 afterEach(cleanup);
 
+beforeAll(() => {
+  // jsdom has none of these; the Unit picker and the calendar reach for them.
+  class Observer {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  vi.stubGlobal("ResizeObserver", Observer);
+  vi.stubGlobal("matchMedia", () => ({
+    matches: true,
+    addEventListener() {},
+    removeEventListener() {},
+  }));
+  Element.prototype.scrollIntoView = () => {};
+});
+
 function openForm() {
   render(
     <NextIntlClientProvider locale="en" messages={messages.en}>
@@ -38,7 +54,22 @@ function openForm() {
         propertyId="d9000003-0000-4000-8000-000000000001"
         today="2026-09-25"
         units={[
-          { unitId: "u1", unitName: "101", roomName: null, unitType: "room" },
+          {
+            unitId: "u1",
+            unitName: "101",
+            roomName: null,
+            unitType: "room",
+            nightlyRateMinor: 150000,
+            rateCurrency: "TRY",
+          },
+          {
+            unitId: "u2",
+            unitName: "A",
+            roomName: "102",
+            unitType: "bed",
+            nightlyRateMinor: null,
+            rateCurrency: null,
+          },
         ]}
       />
     </NextIntlClientProvider>,
@@ -81,5 +112,61 @@ describe("the booking form", () => {
     const fields = new FormData(form);
     expect(fields.has("startsOn")).toBe(true);
     expect(fields.has("endsOn")).toBe(true);
+  });
+});
+
+/** A day in the month it belongs to, not its echo in a neighbouring grid. */
+function day(iso: string) {
+  const button = document.querySelector<HTMLButtonElement>(
+    `td:not([data-outside]) [data-day="${iso}"]`,
+  );
+  if (!button) throw new Error(`${iso} is not on the calendar`);
+  return button;
+}
+
+function chooseUnit(name: RegExp) {
+  fireEvent.click(screen.getByRole("combobox", { name: messages.en.unit }));
+  fireEvent.click(screen.getByRole("option", { name }));
+}
+
+describe("the quote (ADR 0038)", () => {
+  it("the_booking_dialog_quotes_the_price_and_total", () => {
+    openForm();
+    expect(screen.queryByText(/a night/)).toBeNull();
+
+    chooseUnit(/101/);
+    expect(screen.getByText(/1,500\.00 a night$/)).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Arrival/ }));
+    fireEvent.click(day("2026-10-01"));
+    fireEvent.click(day("2026-10-04"));
+    expect(
+      screen.getByText(/1,500\.00 a night · 3 nights: .*4,500\.00 in total$/),
+    ).toBeVisible();
+  });
+
+  it("an unpriced kind says its nights will not be charged, before it is taken", () => {
+    openForm();
+    chooseUnit(/102/);
+    expect(
+      screen.getByText(
+        "No price is set for Bed here, so this booking is taken without one and its nights are not charged.",
+      ),
+    ).toBeVisible();
+  });
+
+  it("the quote travels back so a changed price refuses the booking (RT-S2-12)", () => {
+    openForm();
+    const form = () =>
+      new FormData(
+        screen.getByRole("button", { name: /^Arrival/ }).closest("form")!,
+      );
+    chooseUnit(/101/);
+    expect(form().get("quotedRateMinor")).toBe("150000");
+    expect(form().get("quotedCurrency")).toBe("TRY");
+    // An unpriced kind is quoted as no price at all.
+    chooseUnit(/102/);
+    expect(form().get("quotedRateMinor")).toBe("");
+    expect(form().get("quotedCurrency")).toBe("");
   });
 });

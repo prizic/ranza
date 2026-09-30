@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
-import type { SupportedLocale } from "@ranza/i18n";
+import { formatMoney, type SupportedLocale } from "@ranza/i18n";
 import type { BookableUnit } from "@ranza/reservations";
 import {
   Button,
@@ -51,6 +51,12 @@ import { unitLabel } from "../unit-label";
  * separate date inputs never could. It still submits `startsOn` and `endsOn` as
  * `YYYY-MM-DD`, which is what the module wants and what the database stores.
  * A departure left empty is an open-ended booking, as before.
+ *
+ * Once a Unit is chosen the form quotes it (ADR 0038): the price of a night of
+ * its kind, and for the nights chosen the total. A quote, not the price — the
+ * database stamps the booking from the price list when it is taken — so it is
+ * shown and never submitted. An unpriced kind and a Resident each say what that
+ * means before the booking is taken, rather than after.
  */
 
 /**
@@ -61,6 +67,14 @@ import { unitLabel } from "../unit-label";
  * have bought.
  */
 const GUEST = { name: 120, email: 254, phone: 40 };
+
+/** Nights between two `YYYY-MM-DD` dates, counted in UTC so no clock shifts them. */
+function nightsBetween(from: string, to: string): number {
+  return Math.round(
+    (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) /
+      86_400_000,
+  );
+}
 
 export function NewReservationDialog({
   locale,
@@ -77,6 +91,9 @@ export function NewReservationDialog({
   const t = useTranslations();
   const unitLabels = usePickerLabels(t("chooseUnit"));
   const [open, setOpen] = useState(false);
+  const [unitId, setUnitId] = useState("");
+  const [stayType, setStayType] = useState("guest");
+  const [dates, setDates] = useState<{ from?: string; to?: string }>({});
   const [outcome, act, pending] = useActionState<
     CreateReservationOutcome,
     FormData
@@ -91,6 +108,47 @@ export function NewReservationDialog({
     if (outcome === "done") setOpen(false);
   }, [outcome]);
 
+  // Every field is uncontrolled and the next open is a fresh form, so what the
+  // quote follows starts again with it.
+  function openChanged(next: boolean) {
+    setOpen(next);
+    if (!next) {
+      setUnitId("");
+      setStayType("guest");
+      setDates({});
+    }
+  }
+
+  const chosen = units.find((unit) => unit.unitId === unitId);
+  const quote = !chosen
+    ? null
+    : stayType === "resident"
+      ? t("quoteResident")
+      : chosen.nightlyRateMinor === null || chosen.rateCurrency === null
+        ? t("quoteUnpriced", { type: t(`unitType.${chosen.unitType}`) })
+        : [
+            t("quotePerNight", {
+              price: formatMoney(
+                chosen.nightlyRateMinor,
+                chosen.rateCurrency,
+                locale,
+              ),
+            }),
+            ...(dates.from && dates.to
+              ? [
+                  t("quoteStay", {
+                    count: nightsBetween(dates.from, dates.to),
+                    total: formatMoney(
+                      chosen.nightlyRateMinor *
+                        nightsBetween(dates.from, dates.to),
+                      chosen.rateCurrency,
+                      locale,
+                    ),
+                  }),
+                ]
+              : []),
+          ].join(" · ");
+
   const message =
     outcome === "unavailable"
       ? t("bookingUnavailable")
@@ -100,12 +158,14 @@ export function NewReservationDialog({
           ? t("bookingPeriodInvalid")
           : outcome === "invalidGuest"
             ? t("bookingGuestInvalid")
-            : outcome === "refused"
-              ? t("bookingRefused")
-              : null;
+            : outcome === "priceChanged"
+              ? t("bookingPriceChanged")
+              : outcome === "refused"
+                ? t("bookingRefused")
+                : null;
 
   return (
-    <Dialog onOpenChange={setOpen} open={open}>
+    <Dialog onOpenChange={openChanged} open={open}>
       <DialogTrigger asChild>
         <Button size="sm">
           <Plus aria-hidden="true" />
@@ -122,6 +182,27 @@ export function NewReservationDialog({
 
           <input name="property" type="hidden" value={propertyId} />
           <input name="locale" type="hidden" value={locale} />
+          {/* The quote travels back, so a price that changed while this was
+              open refuses the booking rather than charging a price nobody
+              was told (RT-S2-12). Empty for a Resident or an unpriced kind. */}
+          <input
+            name="quotedRateMinor"
+            type="hidden"
+            value={
+              stayType === "guest" && chosen?.nightlyRateMinor != null
+                ? chosen.nightlyRateMinor
+                : ""
+            }
+          />
+          <input
+            name="quotedCurrency"
+            type="hidden"
+            value={
+              stayType === "guest" && chosen?.nightlyRateMinor != null
+                ? (chosen.rateCurrency ?? "")
+                : ""
+            }
+          />
 
           <Field htmlFor="booking-guest" label={t("guest")}>
             <Input
@@ -172,6 +253,7 @@ export function NewReservationDialog({
                 id="booking-unit"
                 labels={unitLabels}
                 name="unit"
+                onValueChange={setUnitId}
                 options={units.map((unit) => ({
                   value: unit.unitId,
                   label: unitLabel(unit.roomName, unit.unitName),
@@ -181,7 +263,11 @@ export function NewReservationDialog({
               />
             </Field>
             <Field htmlFor="booking-stay-type" label={t("stayTypeLabel")}>
-              <Select defaultValue="guest" name="stayType">
+              <Select
+                defaultValue="guest"
+                name="stayType"
+                onValueChange={setStayType}
+              >
                 <SelectTrigger className="w-full" id="booking-stay-type">
                   <SelectValue />
                 </SelectTrigger>
@@ -215,6 +301,7 @@ export function NewReservationDialog({
                 // day it starts.
                 minSpan={1}
                 names={{ from: "startsOn", to: "endsOn" }}
+                onChange={setDates}
                 required
                 today={today}
               />
@@ -223,6 +310,17 @@ export function NewReservationDialog({
               {t("departureHint")}
             </p>
           </div>
+
+          {quote ? (
+            // Polite: it changes as the Unit, the kind of stay and the dates
+            // do, and each change is detail rather than an interruption.
+            <p
+              aria-live="polite"
+              className="rounded-lg border bg-muted/40 px-3 py-2 text-step--1"
+            >
+              <bdi>{quote}</bdi>
+            </p>
+          ) : null}
 
           {message ? (
             // Polite rather than assertive: the dialog is still open and the

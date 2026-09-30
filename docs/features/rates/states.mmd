@@ -1,0 +1,57 @@
+%% Anything not drawn here is forbidden.
+%% Every transition carries its command and its slice.
+%% Three lifecycles: a price on the list, the price a booking carries, and one
+%% night of one Guest Stay.
+%% A booking's price has no transitions after it is stamped: nothing re-prices a
+%% booking in this feature (RT-DEF-03). A night is derived until it is posted;
+%% only the line is stored, append-only, and a correction is a reversal.
+stateDiagram-v2
+  direction LR
+
+  state "Price list entry" as price {
+    state "unset" as p_unset
+    state "priced" as p_priced
+    state "stale (its currency is not the Property's)" as p_stale
+    [*] --> p_unset
+    p_unset --> p_priced : setPrices / s1
+    p_priced --> p_priced : setPrices / s1, a new amount
+    p_priced --> p_unset : setPrices with no amount / s1
+    p_priced --> p_stale : the Property's currency is changed / derived, no command
+    p_stale --> p_priced : setPrices / s1, in the new currency
+    p_stale --> p_unset : setPrices with no amount / s1
+  }
+
+  state "A booking's price" as booking {
+    state "priced" as b_priced
+    state "unpriced" as b_unpriced
+    [*] --> b_priced : createReservation, Guest, its type priced / s2
+    [*] --> b_unpriced : createReservation, Guest, its type unset or stale / s2
+    [*] --> b_unpriced : createReservation, Resident / s2
+  }
+
+  state "One night of a Guest Stay" as night {
+    state "owed (in house that night, not posted)" as n_owed
+    state "posted" as n_posted
+    state "unposted (cannot be charged)" as n_unposted
+    state "reversed" as n_reversed
+    [*] --> n_owed : the Guest is in house the night of D / derived
+    n_owed --> n_posted : closeDay or closeDueDays (worker) / s3
+    n_owed --> n_posted : checkOut, a night before today / s3
+    n_owed --> n_unposted : closeDay or closeDueDays, unpriced, no Folio or a Folio closed / s3
+    n_posted --> n_reversed : a reversal line (finance.post_charge) / folios, built
+    n_reversed --> [*]
+    n_posted --> [*]
+    n_unposted --> [*]
+  }
+
+  note right of n_owed
+    A night belongs to the business date it starts on.
+    In house that night: begun on D or before, and
+    in house now or departed after D, as the close counts it.
+  end note
+
+  note right of n_posted
+    One charge per Folio and business date, keyed,
+    so a retried or racing posting posts nothing.
+    Never posted again once reversed.
+  end note

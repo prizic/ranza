@@ -15,6 +15,8 @@ import {
   ReservationPeriodError,
   ReservationReasonError,
   REVERSAL_REASON,
+  PriceChangedError,
+  ReservationRefusedError,
   UnitHasOccupantError,
   UnitNotInServiceError,
   UnitNotReadyError,
@@ -159,6 +161,16 @@ function folioVersion(
 }
 
 /**
+ * A count or an amount of minor units the review carried, as a whole number;
+ * undefined when the form is not one this screen sent — a stale dialog from
+ * before nights were charged at check-out sends neither, and is refused.
+ */
+function wholeNumber(value: FormDataEntryValue | null): number | undefined {
+  const text = String(value ?? "");
+  return /^\d{1,15}$/.test(text) ? Number(text) : undefined;
+}
+
+/**
  * Checking a Guest out, from the review of their bill (CO-S1-12).
  *
  * The same funnel and the same absence of an application check as every other
@@ -179,6 +191,12 @@ export async function checkOutStay(
 
   const version = folioVersion(form.get("folioVersion"));
   if (version === undefined) return "refused";
+  // The nights the review said check-out would charge (ADR 0038).
+  const pendingNights = wholeNumber(form.get("pendingNights"));
+  const pendingMinor = wholeNumber(form.get("pendingMinor"));
+  if (pendingNights === undefined || pendingMinor === undefined) {
+    return "refused";
+  }
 
   const reason = String(form.get("balanceReason") ?? "").trim();
   if (reason.length > 0 && reason.length < BALANCE_REASON.min) {
@@ -189,6 +207,8 @@ export async function checkOutStay(
   try {
     await getComposition().reservations.checkOut(viewer.userId, stayId, {
       folioVersion: version,
+      pendingNights,
+      pendingMinor,
       earlyDeparture: form.get("earlyDeparture") === "yes",
       balanceReason: reason.length > 0 ? reason : null,
     });
@@ -280,6 +300,7 @@ export type CreateReservationOutcome =
   | "occupied"
   | "invalidPeriod"
   | "invalidGuest"
+  | "priceChanged"
   | "refused";
 
 /** Only the two the database will accept; anything else is not a stay type. */
@@ -326,6 +347,20 @@ export async function createReservation(
   if (!propertyId || !accommodationUnitId || !type) return "refused";
   if (guestName.length === 0) return "invalidGuest";
 
+  // What the dialog quoted, both empty for "no price" (ADR 0038). A form this
+  // screen did not send — no quote at all, or a malformed one — is refused.
+  const quotedRate = String(form.get("quotedRateMinor") ?? "");
+  const quotedCurrency = String(form.get("quotedCurrency") ?? "");
+  if (!form.has("quotedRateMinor") || !form.has("quotedCurrency")) {
+    return "refused";
+  }
+  if (
+    !(quotedRate === "" && quotedCurrency === "") &&
+    !(/^\d{1,15}$/.test(quotedRate) && /^[A-Z]{3}$/.test(quotedCurrency))
+  ) {
+    return "refused";
+  }
+
   try {
     await getComposition().reservations.createReservation(viewer.userId, {
       propertyId,
@@ -336,12 +371,22 @@ export async function createReservation(
       stayType: type,
       startsOn,
       endsOn: optional(form, "endsOn"),
+      quotedRateMinor: quotedRate === "" ? null : Number(quotedRate),
+      quotedCurrency: quotedCurrency === "" ? null : quotedCurrency,
     });
   } catch (error) {
     if (error instanceof UnitUnavailableError) return "unavailable";
     if (error instanceof UnitHasOccupantError) return "occupied";
     if (error instanceof ReservationPeriodError) return "invalidPeriod";
     if (error instanceof GuestDetailsError) return "invalidGuest";
+    // The dialog is read again with the price that stands now.
+    if (error instanceof PriceChangedError) {
+      revalidateFrontDesk(locale);
+      return "priceChanged";
+    }
+    // Out of reach, unentitled, out of service: the module's own answer, not
+    // an incident (RG-S3-09).
+    if (error instanceof ReservationRefusedError) return "refused";
 
     // Every refusal this slice raises is named above, so anything left is a
     // lost connection, a schema that moved, or a defect here. Reported as

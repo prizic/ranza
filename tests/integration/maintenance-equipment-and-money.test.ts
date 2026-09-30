@@ -27,16 +27,19 @@ import {
 } from "../../packages/ranza/maintenance/src";
 import { createReservationsModule } from "../../packages/ranza/reservations/src";
 
-const ORG = "de000002-0000-4000-8000-000000000001";
-const PROPERTY = "de000003-0000-4000-8000-000000000001";
-const NO_BILLING = "de000003-0000-4000-8000-000000000002";
-const MANAGER = "de000001-0000-4000-8000-000000000001";
-const DESK = "de000001-0000-4000-8000-000000000002";
+// Ids of its own: today.test.ts seeds the de000000 Organization and leaves an
+// assignment and settings in it, which this suite's clean-up of that
+// Organization's Properties was refused by when the two shared it.
+const ORG = "e9000002-0000-4000-8000-000000000001";
+const PROPERTY = "e9000003-0000-4000-8000-000000000001";
+const NO_BILLING = "e9000003-0000-4000-8000-000000000002";
+const MANAGER = "e9000001-0000-4000-8000-000000000001";
+const DESK = "e9000001-0000-4000-8000-000000000002";
 /** Works the board and does not keep the register: a role of the Organization's own. */
-const TECHNICIAN = "de000001-0000-4000-8000-000000000003";
+const TECHNICIAN = "e9000001-0000-4000-8000-000000000003";
 
 const unit = (n: number) =>
-  `de000004-0000-4000-8000-${n.toString(16).padStart(12, "0")}`;
+  `e9000004-0000-4000-8000-${n.toString(16).padStart(12, "0")}`;
 const ROOM = unit(1);
 const SHARED_ROOM = unit(2);
 const SHARED_BED = unit(3);
@@ -224,6 +227,30 @@ function item(
 async function itemNamed(equipmentId: string) {
   const register = await maintenance.equipmentRegister(MANAGER, PROPERTY);
   return register.items.find((entry) => entry.equipmentId === equipmentId);
+}
+
+/**
+ * The Guest leaves — Stay departed, booking checked out, in one transaction so
+ * the two agree at commit. A Folio stays open while its Guest is in house
+ * (FO-S5-01, ADR 0038), so a test that closes one sends its Guest home first.
+ */
+async function hasLeft(folioId: string): Promise<void> {
+  await owner.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(
+      `update public.reservations set status = 'checked_out'
+        where id = (select stay.reservation_id from public.stays as stay
+                      join public.folios as folio on folio.stay_id = stay.id
+                     where folio.id = $1::uuid)
+          and status = 'checked_in'`,
+      folioId,
+    );
+    await tx.$executeRawUnsafe(
+      `update public.stays set status = 'departed',
+              ends_on = app.property_today(property_id)
+        where id = (select stay_id from public.folios where id = $1::uuid)`,
+      folioId,
+    );
+  });
 }
 
 beforeAll(async () => {
@@ -753,7 +780,8 @@ describe("money", { timeout: DATABASE_BUDGET_MS }, () => {
     ).rejects.toBeInstanceOf(MaintenanceRefusedError);
 
     // Closed the way a Folio is closed: through its module, by somebody who
-    // may manage Folios.
+    // may manage Folios, once its Guest has left.
+    await hasLeft(folioId);
     await folios.closeFolio(MANAGER, folioId);
     await expect(
       maintenance.chargeGuest(MANAGER, {

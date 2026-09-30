@@ -33,6 +33,7 @@ model User {
   stays       Stay[]
   invitesSent StaffInvitation[]        @relation("StaffInvitationAuthor")
   closedDays  BusinessDayClose[]
+  ratesSet    PropertyRate[]
 
   @@map("users")
 }
@@ -103,6 +104,7 @@ model Property {
   maintenanceRequests  MaintenanceRequest[]
   maintenanceSettings  MaintenanceSetting[]
   maintenanceEquipment MaintenanceEquipment[]
+  rates        PropertyRate[]
 
   @@unique([id, organizationId])
   @@index([organizationId], map: "properties_organization_idx")
@@ -381,6 +383,36 @@ model MaintenanceSetting {
   @@map("maintenance_settings")
 }
 
+/// What a night costs at a Property, by the kind of Unit it is spent in (ADR
+/// 0038). One row per Property and unit type; a type with no row, or with no
+/// amount, is unpriced.
+///
+/// `currency` and the stamps are the database's: a trigger copies the currency
+/// from the Property on every write, so a price can only ever be stated in
+/// what the Property trades in. A row whose currency the Property has since
+/// left is stale and prices nothing until it is set again.
+model PropertyRate {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  propertyId     String   @map("property_id") @db.Uuid
+  unitType       String   @map("unit_type")
+  /// Integer minor units of `currency`, per night (ADR 0015). Null once the
+  /// price is cleared: a row is never deleted, and a kind with no amount is
+  /// unpriced exactly as a kind with no row is.
+  amountMinor    BigInt?  @map("amount_minor")
+  currency       String   @db.Char(3)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  /// Who set the amount last. Null only for a row written outside a request.
+  updatedBy      String?  @map("updated_by") @db.Uuid
+
+  property Property @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  updater  User?    @relation(fields: [updatedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([propertyId, unitType])
+  @@map("property_rates")
+}
+
 /// A named set of permissions (blueprint 7.2). A role is not a label: what a
 /// Staff Member may do is the set, and a new set is a new role with a name of
 /// its own.
@@ -583,6 +615,12 @@ model Reservation {
   /// never confused aloud. Written by a trigger from a sequence, never by the
   /// application, so no two Reservations share one.
   reference           String
+  /// What a night of this booking costs, in minor units of `rateCurrency`
+  /// (ADR 0038). Stamped by the database from the price list when the booking
+  /// is taken and never changed after; null for an unpriced booking, and
+  /// always for a Resident, who is billed by the month.
+  nightlyRateMinor    BigInt?   @map("nightly_rate_minor")
+  rateCurrency        String?   @map("rate_currency") @db.Char(3)
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -765,6 +803,13 @@ model FolioLine {
   /// The line this one reverses, null on an original charge.
   reversesLineId String?  @map("reverses_line_id") @db.Uuid
   postedAt       DateTime @default(now()) @map("posted_at") @db.Timestamptz(6)
+  /// What posted this line when it was not a person: `room_night`, a night a
+  /// Guest spent in house (ADR 0038). Null on everything else. Written only by
+  /// the posting functions; no grant names it.
+  source         String?
+  /// The business date a `room_night` is for (ADR 0021); null exactly when
+  /// `source` is.
+  businessDate   DateTime? @map("business_date") @db.Date
 
   folio    Folio      @relation(fields: [folioId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
   reverses FolioLine? @relation("FolioLineReversal", fields: [reversesLineId, folioId], references: [id, folioId], onDelete: Restrict, onUpdate: NoAction)
@@ -778,6 +823,9 @@ model FolioLine {
   /// the reversed line's own, so uniqueness across the pair is uniqueness on
   /// reverses_line_id alone.
   @@unique([reversesLineId, folioId])
+  /// A night is charged once: one room night per Folio and business date,
+  /// whoever posts it — the close, a retried close or a check-out (ADR 0038).
+  @@unique([folioId, businessDate], map: "folio_lines_room_night_key", where: raw("source = 'room_night'::text"))
   @@index([folioId, postedAt], map: "folio_lines_folio_idx")
   @@map("folio_lines")
 }
@@ -917,6 +965,15 @@ model BusinessDayClose {
   foliosLeftOpen Int      @default(0) @map("folios_left_open")
   /// What was left open: `{kind: "not_arrived", reservationId}` or `{kind: "not_departed", stayId}`.
   exceptions     Json     @default("[]")
+  /// Every room night dated this business date, whoever posted it (ADR 0038).
+  roomNightsPosted    Int     @default(0) @map("room_nights_posted")
+  roomRevenueMinor    BigInt  @default(0) @map("room_revenue_minor")
+  /// The currency of `roomRevenueMinor`; null when nothing was posted.
+  roomRevenueCurrency String? @map("room_revenue_currency") @db.Char(3)
+  /// Guest nights of this date that could not be charged, never blocking.
+  roomNightsUnposted  Int     @default(0) @map("room_nights_unposted")
+  /// Which, and why: `{stayId, reason}`.
+  unposted            Json    @default("[]")
 
   property Property @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
   closer   User?    @relation(fields: [closedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)

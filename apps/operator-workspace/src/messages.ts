@@ -170,6 +170,13 @@ export interface Messages {
   checkOutEarlyRequired: string;
   checkOutBalanceReason: string;
   checkOutBalanceHint: string;
+  /** The check-out review's label for nights no close has charged (ADR 0038). */
+  checkOutNightsToCharge: string;
+  /** ICU plural on `count` nights; `{amount}` formatted. */
+  checkOutPendingNights: string;
+  checkOutUnpriced: string;
+  /** The balance label once check-out's own nights are in it. */
+  balanceAfterCheckOut: string;
   checkOutBalanceReasonRequired: string;
   checkOutFolioChanged: string;
   departuresViews: string;
@@ -289,7 +296,8 @@ export interface Messages {
       | "takeOutOfOrder"
       | "manageEquipment"
       | "readAudit"
-      | "manageConfiguration",
+      | "manageConfiguration"
+      | "manageRates",
       string
     >;
     emptyRosterTitle: string;
@@ -309,6 +317,18 @@ export interface Messages {
   stayTypeLabel: string;
   arrival: string;
   departureHint: string;
+  /** `{price}`: one night of the chosen Unit's kind, formatted (ADR 0038). */
+  quotePerNight: string;
+  /** ICU plural on `count` nights; `{total}` formatted. */
+  quoteStay: string;
+  /** `{type}`: the kind of Unit that has no price. */
+  quoteUnpriced: string;
+  quoteResident: string;
+  /** A booking's own price per night on the list; `{price}` formatted. */
+  bookedPerNight: string;
+  bookedUnpriced: string;
+  /** The reservations list's price column. */
+  priceColumn: string;
   /** One field for arrival and departure; the halves keep those names. */
   stayDates: string;
   bookingAddDate: string;
@@ -328,6 +348,8 @@ export interface Messages {
   bookingPeriodInvalid: string;
   bookingGuestInvalid: string;
   bookingRefused: string;
+  /** The price list changed while the booking dialog was open (RT-S2-12). */
+  bookingPriceChanged: string;
 
   folios: string;
   foliosAt: string;
@@ -349,12 +371,16 @@ export interface Messages {
   reverse: string;
   reversing: string;
   reversed: string;
+  /** A room night on a Folio (ADR 0038); `{date}` the night it is for. */
+  roomNightLine: string;
   reverseReason: string;
   reverseRefused: string;
   closeFolio: string;
   closing: string;
   closeRefused: string;
   folioClosedNote: string;
+  /** Why an open Folio offers no Close while its Guest is in house (FO-S5-01). */
+  folioInHouseNote: string;
 
   rooms: string;
   roomsAt: string;
@@ -451,6 +477,27 @@ export interface Messages {
       "name" | "timezone" | "currency" | "businessDateCutoff",
       string
     >;
+  };
+
+  /**
+   * The Rates section of the Configuration screen (ADR 0038): a nightly price
+   * per kind of Unit.
+   */
+  rates: {
+    title: string;
+    hint: string;
+    perNight: string;
+    /** ICU plural on `count`: the Units of one kind a booking can be placed on. */
+    units: string;
+    noPrice: string;
+    unpricedHint: string;
+    /** `{currency}` the price was set in, `{property}` what the Property trades in now. */
+    stale: string;
+    /** `{currency}`: what a price is typed in. */
+    invalid: string;
+    readOnly: string;
+    /** `{type}`: the kind of Unit, for the field's accessible name. */
+    priceFor: string;
   };
 
   /**
@@ -1038,6 +1085,7 @@ export interface Messages {
     business_day: Record<"closed", string>;
     property: Record<"configured", string>;
     organization: Record<"configured", string>;
+    price_list: Record<"changed", string>;
     maintenance_request: Record<
       | "reported"
       | "moved"
@@ -1097,7 +1145,25 @@ export interface Messages {
     stepDone: string;
     stepOpen: string;
     notBlocking: string;
-    notAvailable: string;
+    /** While no day waits: today's nights are charged when today closes. */
+    roomNightsTodayHelp: string;
+    /** ICU plural on `n`: the nights the waiting close will charge. */
+    roomNightsToCharge: string;
+    roomNightsAllCharged: string;
+    /** Why a Guest's night will not be charged (ADR 0038). */
+    notChargedReason: Record<
+      | "unpriced"
+      | "no_folio"
+      | "folio_closed"
+      | "currency"
+      | "billing_unavailable",
+      string
+    >;
+    roomNightsColumn: string;
+    /** ICU plural on `n`: the Guest nights a close could not charge. */
+    roomNightsNotCharged: string;
+    /** Why Nights and Room nights differ in the recent closes. */
+    nightsHint: string;
     dueOn: string;
     dueOutOn: string;
     leftOn: string;
@@ -1347,6 +1413,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Misafir planlanan çıkış tarihinden ({date}) önce ayrılıyor.",
     checkOutEarlyRequired: "Misafirin erken ayrıldığını onaylayın.",
     checkOutBalanceReason: "Bakiye neden açık kalıyor",
+    checkOutNightsToCharge: "Çıkışta ücretlendirilecek",
+    checkOutPendingNights:
+      "{count, plural, one {# gece} other {# gece}} · {amount}",
+    checkOutUnpriced:
+      "Bu rezervasyon fiyatsız alındı; geceleri ücretlendirilmez.",
+    balanceAfterCheckOut: "Çıkıştan sonraki bakiye",
     checkOutBalanceHint:
       "Henüz ödeme alınamıyor. Hesap {balance} bakiyesiyle açık kalır ve gerekçeniz kaydedilir.",
     checkOutBalanceReasonRequired:
@@ -1461,6 +1533,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         manageEquipment: "Ekipman kaydını yönetme",
         readAudit: "Denetim kaydını okuma",
         manageConfiguration: "Ayarları yönetme",
+        manageRates: "Gecelik fiyatları belirleme",
       },
       emptyRosterTitle: "Henüz kimse yok",
       emptyRosterDescription:
@@ -1486,6 +1559,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     stayTypeLabel: "Konaklama türü",
     arrival: "Giriş",
     departureHint: "Açık uçlu bir rezervasyon için boş bırakın.",
+    quotePerNight: "Gecelik {price}",
+    quoteStay: "{count, plural, one {# gece} other {# gece}}: toplam {total}",
+    quoteUnpriced:
+      "Bu tesiste {type} için fiyat belirlenmemiş; rezervasyon fiyatsız alınır ve geceleri ücretlendirilmez.",
+    quoteResident: "Bir Sakin gecelik değil, aylık faturalandırılır.",
+    bookedPerNight: "{price} / gece",
+    bookedUnpriced: "Fiyat yok",
+    priceColumn: "Fiyat",
     stayDates: "Konaklama tarihleri",
     bookingAddDate: "Tarih seçin",
     bookingOpenEnded: "Açık uçlu",
@@ -1505,6 +1586,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Bu tarihler geçerli bir dönem değil. Rezervasyon en az bir gece sürer ve bugünden önce başlayamaz.",
     bookingGuestInvalid:
       "Misafirin adını, e-postasını ve telefonunu kontrol edin.",
+    bookingPriceChanged:
+      "Bu birimin fiyatı siz rezervasyon yaparken değişti. Yeni fiyatı kontrol edip rezervasyonu yeniden alın.",
     bookingRefused: "Bu rezervasyon oluşturulamıyor.",
     folios: "Folyolar",
     foliosAt: "Folyolar —",
@@ -1528,11 +1611,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     reverse: "Ters kaydet",
     reversing: "Kaydediliyor…",
     reversed: "ters kaydedildi",
+    roomNightLine: "Oda gecesi · {date}",
     reverseReason: "Gerekçe",
     reverseRefused: "Bu satır ters kaydedilemedi.",
     closeFolio: "Folyoyu kapat",
     closing: "Kapatılıyor…",
     closeRefused: "Bu folyo kapatılamadı.",
+    folioInHouseNote:
+      "Misafir hâlâ konaklıyor, bu yüzden folyo açık kalır: kalan geceleri buraya ücretlendirilir. Çıkıştan sonra kapatılabilir.",
     folioClosedNote:
       "Bu folyo kapalı. Satırlar olduğu gibi kalır; kapalı bir folyoya yeni satır işlenemez.",
 
@@ -1789,6 +1875,22 @@ export const messages: Record<SupportedLocale, Messages> = {
       nothingForRole:
         "Bu tesiste rolünüz için burada gösterilecek bir şey henüz yok.",
     },
+    rates: {
+      title: "Gecelik fiyatlar",
+      hint: "Bir gecenin, konaklanan birimin türüne göre fiyatı. Bir rezervasyon, alındığı andaki fiyatı korur.",
+      perNight: "gecelik",
+      units:
+        "{count, plural, =0 {Bu tesiste henüz yok} one {# birim} other {# birim}}",
+      noPrice: "Fiyat yok",
+      unpricedHint:
+        "Bu türdeki rezervasyonlar fiyatsız alınır ve geceleri ücretlendirilmez.",
+      stale:
+        "{currency} olarak girildi. Tesis artık {property} kullanıyor; bu fiyat yeniden kaydedilene kadar hiçbir rezervasyona uygulanmaz.",
+      invalid: "Bu, {currency} cinsinden geçerli bir fiyat değil.",
+      readOnly:
+        "Fiyatları fiyat belirleme yetkisi olanlar değiştirir. Siz burada görebilirsiniz.",
+      priceFor: "{type} için gecelik fiyat",
+    },
     configuration: {
       subtitle: "{property} ve organizasyonu için ayarlar",
       sections: "Bu sayfada",
@@ -1803,7 +1905,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       propertyName: "Tesis adı",
       currency: "Para birimi",
       currencyFixed:
-        "Bu tesiste ilk folyo açıldığından beri sabit. Her folyo açıldığı para birimini korur.",
+        "Bu tesiste bir folyo açıldığından ya da fiyatlı bir rezervasyon alındığından beri sabit. Her folyo ve rezervasyon kendi para birimini korur.",
       searchCurrency: "Para birimi ara",
       noCurrency: "Eşleşen para birimi yok.",
       timeTitle: "Saat ve iş günü",
@@ -1835,7 +1937,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       stale:
         "Biri bu ayarları az önce kaydetti. Şimdi onun kaydettiğini görüyorsunuz; gerekiyorsa değişikliğinizi yeniden yapın.",
       currencyFixedRefused:
-        "Siz düzenlerken bu tesiste bir folyo açıldı; para birimi artık sabit.",
+        "Siz düzenlerken bu tesiste bir folyo açıldı ya da fiyatlı bir rezervasyon alındı; para birimi artık sabit.",
       closedDay:
         "Bu değişiklik bugünü zaten kapatılmış bir iş gününe çevirirdi. Başka bir bitiş saati ya da saat dilimi seçin.",
       invalid: "Değerleri kontrol edip yeniden deneyin.",
@@ -2259,6 +2361,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       business_day: { closed: "İş günü kapatıldı" },
       property: { configured: "Tesis ayarları değiştirildi" },
       organization: { configured: "Organizasyon yeniden adlandırıldı" },
+      price_list: { changed: "Gecelik fiyatlar değiştirildi" },
       maintenance_request: {
         reported: "Sorun bildirildi",
         moved: "Talep taşındı",
@@ -2313,7 +2416,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       notDepartedHelp: "Çıkışlarını Çıkışlar ekranından yapın.",
       roomNightsTitle: "Oda geceleri",
       roomNightsHelp:
-        "Odalara fiyat tanımlandığında oda geceleri burada işlenecek. Günü kapatmak hiçbir ücret işlemez.",
+        "Günü kapatmak, o gece konaklayan her misafire rezervasyonunun alındığı fiyatla bir gece ücreti işler. Ücretlendirilemeyen geceler burada listelenir ve kapatmayı bekletmez.",
       foliosTitle: "Açık bırakılan folyolar",
       foliosHelp:
         "Hesabı açıkken ayrılan misafirler. Kapanışla birlikte kaydedilir; kapatmayı bekletmez.",
@@ -2321,7 +2424,23 @@ export const messages: Record<SupportedLocale, Messages> = {
       stepDone: "Tamam",
       stepOpen: "{n, plural, other {# açık}}",
       notBlocking: "Kapatmayı bekletmez",
-      notAvailable: "Henüz yok",
+      roomNightsTodayHelp:
+        "Bu gecenin ücretleri bugün kapandığında işlenir. Çıkış yapan misafirin henüz işlenmemiş geceleri çıkışta işlenir.",
+      roomNightsToCharge:
+        "{n, plural, =0 {Ücretlendirilecek gece yok} one {# gece ücretlendirilecek} other {# gece ücretlendirilecek}}",
+      roomNightsAllCharged: "Her misafir gecesi ücretlendirilecek.",
+      notChargedReason: {
+        unpriced: "Rezervasyonda fiyat yok",
+        no_folio: "Folyo yok",
+        folio_closed: "Folyo kapalı",
+        currency: "Başka bir para biriminde fiyatlanmış",
+        billing_unavailable: "Burada faturalama kullanılamıyor",
+      },
+      roomNightsColumn: "Oda geceleri",
+      roomNightsNotCharged:
+        "{n, plural, one {# gece ücretlendirilmedi} other {# gece ücretlendirilmedi}}",
+      nightsHint:
+        "Geceler, Sakinler dahil konaklayan herkesi sayar. Oda geceleri yalnızca misafirlerindir; Sakinler aylık faturalandırılır.",
       dueOn: "Beklenen giriş {date}",
       dueOutOn: "Beklenen çıkış {date}",
       leftOn: "Ayrıldı {date}",
@@ -2332,7 +2451,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       closing: "Kapatılıyor…",
       dialogTitle: "{date} kapatılsın mı?",
       dialogQuiet:
-        "Açık bir şey kalmadı. Kapanış, günün girişlerini, çıkışlarını ve dolu geceleri kaydeder.",
+        "Açık bir şey kalmadı. Kapanış, günün girişlerini, çıkışlarını ve dolu gecelerini kaydeder, rezervasyonu fiyatlı her misafirin gecesini ücretlendirir.",
       dialogOpen:
         "{n, plural, one {# kayıt hâlâ açık. Gerekçenizle birlikte kapanışa kaydedilir.} other {# kayıt hâlâ açık. Gerekçenizle birlikte kapanışa kaydedilir.}}",
       final:
@@ -2596,6 +2715,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       "The Guest is leaving before their planned departure on {date}.",
     checkOutEarlyRequired: "Confirm that the Guest is leaving early.",
     checkOutBalanceReason: "Why the balance stays open",
+    checkOutNightsToCharge: "Charged at check-out",
+    checkOutPendingNights:
+      "{count, plural, one {# night} other {# nights}} · {amount}",
+    checkOutUnpriced:
+      "This booking was taken without a price, so its nights are not charged.",
+    balanceAfterCheckOut: "Balance after check-out",
     checkOutBalanceHint:
       "Payments cannot be taken yet. The Folio stays open with {balance} on it, and your reason is recorded.",
     checkOutBalanceReasonRequired:
@@ -2708,6 +2833,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         manageEquipment: "Keep the equipment register",
         readAudit: "Reading the audit log",
         manageConfiguration: "Manage configuration",
+        manageRates: "Set nightly rates",
       },
       emptyRosterTitle: "Nobody here yet",
       emptyRosterDescription: "This Organization has no Staff Member to show.",
@@ -2732,6 +2858,16 @@ export const messages: Record<SupportedLocale, Messages> = {
     stayTypeLabel: "Stay type",
     arrival: "Arrival",
     departureHint: "Leave empty for an open-ended Reservation.",
+    quotePerNight: "{price} a night",
+    quoteStay:
+      "{count, plural, one {# night} other {# nights}}: {total} in total",
+    quoteUnpriced:
+      "No price is set for {type} here, so this booking is taken without one and its nights are not charged.",
+    quoteResident:
+      "A Resident is billed by the month, not priced by the night.",
+    bookedPerNight: "{price} / night",
+    bookedUnpriced: "No price",
+    priceColumn: "Price",
     stayDates: "Stay dates",
     bookingAddDate: "Add date",
     bookingOpenEnded: "Open-ended",
@@ -2751,6 +2887,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Those dates are not a period a Reservation can have. It covers at least one night and cannot start before today.",
     bookingGuestInvalid:
       "Check the Guest's name, email address and telephone number.",
+    bookingPriceChanged:
+      "The price for this Unit changed while you were booking. Check the new price and take the booking again.",
     bookingRefused: "That booking cannot be taken.",
     folios: "Folios",
     foliosAt: "Folios at",
@@ -2774,11 +2912,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     reverse: "Reverse",
     reversing: "Reversing…",
     reversed: "reversed",
+    roomNightLine: "Room night · {date}",
     reverseReason: "Reason",
     reverseRefused: "That line could not be reversed.",
     closeFolio: "Close folio",
     closing: "Closing…",
     closeRefused: "That folio could not be closed.",
+    folioInHouseNote:
+      "The Guest is still in house, so the Folio stays open: their remaining nights are charged to it. It can be closed after check-out.",
     folioClosedNote:
       "This folio is closed. Its lines stay exactly as they are, and nothing further can be posted to it.",
 
@@ -3041,6 +3182,22 @@ export const messages: Record<SupportedLocale, Messages> = {
       nothingForRole:
         "There is nothing here for your role at this Property yet.",
     },
+    rates: {
+      title: "Nightly rates",
+      hint: "What a night costs, by the kind of Unit it is spent in. A booking keeps the price it was taken at.",
+      perNight: "per night",
+      units:
+        "{count, plural, =0 {None at this Property yet} one {# Unit} other {# Units}}",
+      noPrice: "No price",
+      unpricedHint:
+        "Bookings of this kind are taken without a price, and their nights are not charged.",
+      stale:
+        "Set in {currency}. This Property now trades in {property}, so this price applies to no booking until it is saved again.",
+      invalid: "That is not a price in {currency}.",
+      readOnly:
+        "Prices are changed by whoever may set rates. You can see them here.",
+      priceFor: "Price per night for {type}",
+    },
     configuration: {
       subtitle: "Settings for {property} and its Organization",
       sections: "On this page",
@@ -3056,7 +3213,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       propertyName: "Property name",
       currency: "Currency",
       currencyFixed:
-        "Fixed since the first folio was opened here. Every folio keeps the currency it opened in.",
+        "Fixed since a folio was opened or a priced booking was taken here. Every folio and booking keeps the currency it was made in.",
       searchCurrency: "Search currencies",
       noCurrency: "No currency matches.",
       timeTitle: "Time and the business day",
@@ -3089,7 +3246,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       stale:
         "Someone saved these settings a moment ago. You are now seeing what they saved; make your change again if it is still needed.",
       currencyFixedRefused:
-        "A folio was opened here while you were editing, so the currency is now fixed.",
+        "A folio was opened or a priced booking was taken here while you were editing, so the currency is now fixed.",
       closedDay:
         "This would make today a business day that has already been closed. Choose a different end time or time zone.",
       invalid: "Check the values and try again.",
@@ -3514,6 +3671,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       business_day: { closed: "Business day closed" },
       property: { configured: "Property settings changed" },
       organization: { configured: "Organization renamed" },
+      price_list: { changed: "Nightly rates changed" },
       maintenance_request: {
         reported: "Problem reported",
         moved: "Request moved",
@@ -3568,7 +3726,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       notDepartedHelp: "Check them out on the departures screen.",
       roomNightsTitle: "Room nights",
       roomNightsHelp:
-        "Room nights will be posted here once rooms have rates. Closing a day charges nothing.",
+        "Closing the day charges every Guest in house that night at the price their booking was taken at. A night that cannot be charged is listed here and never holds the close up.",
       foliosTitle: "Folios left open",
       foliosHelp:
         "Guests who left with their bill still open. They are recorded with the close and do not hold it up.",
@@ -3576,7 +3734,23 @@ export const messages: Record<SupportedLocale, Messages> = {
       stepDone: "Done",
       stepOpen: "{n, plural, other {# open}}",
       notBlocking: "Does not hold up the close",
-      notAvailable: "Not available yet",
+      roomNightsTodayHelp:
+        "Tonight is charged when today closes. A departing Guest's nights that no close has reached are charged at check-out.",
+      roomNightsToCharge:
+        "{n, plural, =0 {No nights to charge} one {# night to charge} other {# nights to charge}}",
+      roomNightsAllCharged: "Every Guest night will be charged.",
+      notChargedReason: {
+        unpriced: "No price on the booking",
+        no_folio: "No Folio",
+        folio_closed: "Folio closed",
+        currency: "Priced in another currency",
+        billing_unavailable: "Billing is not available here",
+      },
+      roomNightsColumn: "Room nights",
+      roomNightsNotCharged:
+        "{n, plural, one {# not charged} other {# not charged}}",
+      nightsHint:
+        "Nights counts every Stay in house, Residents included. Room nights are Guests' only: Residents are billed by the month.",
       dueOn: "Due {date}",
       dueOutOn: "Due out {date}",
       leftOn: "Left {date}",
@@ -3587,7 +3761,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       closing: "Closing…",
       dialogTitle: "Close {date}?",
       dialogQuiet:
-        "Nothing is left open. The close records the day's arrivals, departures and nights occupied.",
+        "Nothing is left open. The close records the day's arrivals, departures and nights occupied, and charges the night of every Guest whose booking has a price.",
       dialogOpen:
         "{n, plural, one {# item is still open. It is recorded with the close, with your reason.} other {# items are still open. They are recorded with the close, with your reason.}}",
       final:
@@ -3846,6 +4020,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutEarlyAcknowledge: "يغادر الضيف قبل موعد مغادرته المخطط في {date}.",
     checkOutEarlyRequired: "أكّد أن الضيف يغادر مبكرًا.",
     checkOutBalanceReason: "سبب إبقاء الرصيد مفتوحًا",
+    checkOutNightsToCharge: "يُحتسب عند المغادرة",
+    checkOutPendingNights:
+      "{count, plural, zero {# ليلة} one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلة} other {# ليلة}} · {amount}",
+    checkOutUnpriced: "أُخذ هذا الحجز بلا سعر، لذا لا تُحتسب لياليه.",
+    balanceAfterCheckOut: "الرصيد بعد المغادرة",
     checkOutBalanceHint:
       "لا يمكن تحصيل الدفعات بعد. يبقى الحساب مفتوحًا برصيد {balance}، ويُسجَّل السبب الذي تكتبه.",
     checkOutBalanceReasonRequired: "على الحساب رصيد. اكتب سبب إبقائه مفتوحًا.",
@@ -3954,6 +4133,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         manageEquipment: "إدارة سجل المعدات",
         readAudit: "قراءة سجل التدقيق",
         manageConfiguration: "إدارة الإعدادات",
+        manageRates: "تحديد أسعار الليلة",
       },
       emptyRosterTitle: "لا أحد هنا بعد",
       emptyRosterDescription: "لا يوجد في هذه المؤسسة موظف لعرضه.",
@@ -3976,6 +4156,15 @@ export const messages: Record<SupportedLocale, Messages> = {
     stayTypeLabel: "نوع الإقامة",
     arrival: "الوصول",
     departureHint: "اتركه فارغًا لحجز مفتوح المدة.",
+    quotePerNight: "{price} لليلة",
+    quoteStay:
+      "{count, plural, zero {# ليلة} one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلة} other {# ليلة}}: الإجمالي {total}",
+    quoteUnpriced:
+      "لم يُحدَّد سعر لـ{type} هنا، لذا يُؤخذ هذا الحجز بلا سعر ولا تُحتسب لياليه.",
+    quoteResident: "يُحاسَب المقيم شهريًا، لا بسعر الليلة.",
+    bookedPerNight: "{price} / ليلة",
+    bookedUnpriced: "بلا سعر",
+    priceColumn: "السعر",
     stayDates: "تواريخ الإقامة",
     bookingAddDate: "أضف تاريخًا",
     bookingOpenEnded: "مفتوحة المدة",
@@ -3994,6 +4183,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingPeriodInvalid:
       "هذه التواريخ ليست مدة صالحة. يغطي الحجز ليلة واحدة على الأقل ولا يبدأ قبل اليوم.",
     bookingGuestInvalid: "تحقق من اسم الضيف وبريده الإلكتروني وهاتفه.",
+    bookingPriceChanged:
+      "تغيّر سعر هذه الوحدة أثناء الحجز. راجع السعر الجديد ثم أعد أخذ الحجز.",
     bookingRefused: "لا يمكن إنشاء هذا الحجز.",
     folios: "الحسابات",
     foliosAt: "الحسابات في",
@@ -4017,11 +4208,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     reverse: "عكس القيد",
     reversing: "جارٍ العكس…",
     reversed: "معكوس",
+    roomNightLine: "ليلة إقامة · {date}",
     reverseReason: "السبب",
     reverseRefused: "تعذّر عكس هذا البند.",
     closeFolio: "إغلاق الحساب",
     closing: "جارٍ الإغلاق…",
     closeRefused: "تعذّر إغلاق هذا الحساب.",
+    folioInHouseNote:
+      "الضيف ما زال في المنشأة، لذا يبقى الحساب مفتوحًا: تُحتسب عليه لياليه المتبقية. يمكن إغلاقه بعد المغادرة.",
     folioClosedNote:
       "هذا الحساب مغلق. تبقى بنوده كما هي، ولا يمكن قيد أي شيء جديد عليه.",
 
@@ -4285,6 +4479,21 @@ export const messages: Record<SupportedLocale, Messages> = {
       retry: "أعد المحاولة",
       nothingForRole: "لا يوجد هنا شيء لدورك في هذا المرفق بعد.",
     },
+    rates: {
+      title: "أسعار الليلة",
+      hint: "سعر الليلة حسب نوع الوحدة التي تُقضى فيها. يحتفظ الحجز بالسعر الذي أُخذ به.",
+      perNight: "لليلة",
+      units:
+        "{count, plural, =0 {لا يوجد بعد في هذه المنشأة} one {وحدة واحدة} two {وحدتان} few {# وحدات} many {# وحدة} other {# وحدة}}",
+      noPrice: "بلا سعر",
+      unpricedHint: "تُؤخذ حجوزات هذا النوع بلا سعر، ولا تُحتسب لياليها.",
+      stale:
+        "حُدِّد بعملة {currency}. تتعامل هذه المنشأة الآن بعملة {property}، لذا لا يُطبَّق هذا السعر على أي حجز حتى يُحفظ من جديد.",
+      invalid: "هذا ليس سعرًا صالحًا بعملة {currency}.",
+      readOnly:
+        "يغيّر الأسعارَ من يملك صلاحية تحديدها. يمكنك الاطلاع عليها هنا.",
+      priceFor: "سعر الليلة لـ{type}",
+    },
     configuration: {
       subtitle: "إعدادات {property} ومؤسستها",
       sections: "في هذه الصفحة",
@@ -4298,7 +4507,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       propertyName: "اسم المنشأة",
       currency: "العملة",
       currencyFixed:
-        "ثابتة منذ فتح أول فوليو هنا. يحتفظ كل فوليو بالعملة التي فُتح بها.",
+        "ثابتة منذ فتح فوليو أو أخذ حجز مسعَّر هنا. يحتفظ كل فوليو وكل حجز بالعملة التي أُنشئ بها.",
       searchCurrency: "ابحث عن عملة",
       noCurrency: "لا توجد عملة مطابقة.",
       timeTitle: "الوقت ويوم العمل",
@@ -4329,7 +4538,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       stale:
         "حفظ أحدهم هذه الإعدادات للتو. أنت ترى الآن ما حفظه؛ أعد تغييرك إن كان لا يزال مطلوبًا.",
       currencyFixedRefused:
-        "فُتح فوليو هنا أثناء تعديلك، لذا أصبحت العملة ثابتة الآن.",
+        "فُتح فوليو أو أُخذ حجز مسعَّر هنا أثناء تعديلك، لذا أصبحت العملة ثابتة الآن.",
       closedDay:
         "سيجعل هذا التغيير اليوم يوم عمل أُغلق بالفعل. اختر وقت انتهاء آخر أو منطقة زمنية أخرى.",
       invalid: "تحقّق من القيم وحاول مرة أخرى.",
@@ -4751,6 +4960,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       business_day: { closed: "أُغلق يوم العمل" },
       property: { configured: "تم تغيير إعدادات المنشأة" },
       organization: { configured: "تمت إعادة تسمية المؤسسة" },
+      price_list: { changed: "تم تغيير أسعار الليلة" },
       maintenance_request: {
         reported: "أُبلغ عن مشكلة",
         moved: "نُقل الطلب",
@@ -4806,7 +5016,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       notDepartedHelp: "سجّل مغادرتهم من شاشة المغادرة.",
       roomNightsTitle: "ليالي الغرف",
       roomNightsHelp:
-        "ستُسجَّل ليالي الغرف هنا عندما تكون للغرف أسعار. إغلاق اليوم لا يفرض أي رسوم.",
+        "يُحتسب عند إغلاق اليوم لكل ضيف أقام تلك الليلة ليلةٌ بالسعر الذي أُخذ به حجزه. الليالي التي لا يمكن احتسابها تُدرج هنا ولا تؤخر الإغلاق.",
       foliosTitle: "حسابات بقيت مفتوحة",
       foliosHelp:
         "ضيوف غادروا وحسابهم ما زال مفتوحًا. يُسجَّلون مع الإغلاق ولا يؤخرونه.",
@@ -4815,7 +5025,23 @@ export const messages: Record<SupportedLocale, Messages> = {
       stepOpen:
         "{n, plural, zero {لا شيء مفتوح} one {عنصر مفتوح} two {عنصران مفتوحان} few {# عناصر مفتوحة} many {# عنصرًا مفتوحًا} other {# عنصر مفتوح}}",
       notBlocking: "لا يؤخر الإغلاق",
-      notAvailable: "غير متاح بعد",
+      roomNightsTodayHelp:
+        "تُحتسب ليلة اليوم عند إغلاقه. أما ليالي الضيف المغادر التي لم يصلها إغلاق بعد فتُحتسب عند مغادرته.",
+      roomNightsToCharge:
+        "{n, plural, =0 {لا ليالي للاحتساب} one {ليلة واحدة للاحتساب} two {ليلتان للاحتساب} few {# ليالٍ للاحتساب} many {# ليلة للاحتساب} other {# ليلة للاحتساب}}",
+      roomNightsAllCharged: "ستُحتسب كل ليالي الضيوف.",
+      notChargedReason: {
+        unpriced: "لا سعر على الحجز",
+        no_folio: "لا يوجد حساب",
+        folio_closed: "الحساب مغلق",
+        currency: "مسعَّر بعملة أخرى",
+        billing_unavailable: "الفوترة غير متاحة هنا",
+      },
+      roomNightsColumn: "ليالي الغرف",
+      roomNightsNotCharged:
+        "{n, plural, zero {لا شيء} one {ليلة واحدة لم تُحتسب} two {ليلتان لم تُحتسبا} few {# ليالٍ لم تُحتسب} many {# ليلة لم تُحتسب} other {# ليلة لم تُحتسب}}",
+      nightsHint:
+        "تحسب الليالي كل إقامة في المنشأة، بما فيها المقيمون. أما ليالي الغرف فللضيوف وحدهم: يُحاسَب المقيمون شهريًا.",
       dueOn: "الوصول المتوقع {date}",
       dueOutOn: "المغادرة المتوقعة {date}",
       leftOn: "غادر {date}",
@@ -4826,7 +5052,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       closing: "جارٍ الإغلاق…",
       dialogTitle: "إغلاق {date}؟",
       dialogQuiet:
-        "لم يبقَ شيء مفتوح. يسجّل الإغلاق حالات الوصول والمغادرة والليالي المشغولة في هذا اليوم.",
+        "لم يبقَ شيء مفتوح. يسجّل الإغلاق حالات الوصول والمغادرة والليالي المشغولة في هذا اليوم، ويحتسب ليلة كل ضيف لحجزه سعر.",
       dialogOpen:
         "{n, plural, zero {لا شيء مفتوح.} one {ما زال عنصر واحد مفتوحًا. سيُسجَّل مع الإغلاق مع سببك.} two {ما زال عنصران مفتوحين. سيُسجَّلان مع الإغلاق مع سببك.} few {ما زالت # عناصر مفتوحة. ستُسجَّل مع الإغلاق مع سببك.} many {ما زال # عنصرًا مفتوحًا. ستُسجَّل مع الإغلاق مع سببك.} other {ما زال # عنصر مفتوحًا. ستُسجَّل مع الإغلاق مع سببك.}}",
       final:

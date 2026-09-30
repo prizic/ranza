@@ -160,7 +160,7 @@ export interface PropertySettings {
   version: string;
   /** The business date at this Property now, `YYYY-MM-DD`. */
   businessDate: string;
-  /** A Folio has been opened here, so the currency is fixed (CF-S1-04). */
+  /** A Folio has been opened here, or a priced booking is still to come or in house, so the currency is fixed (CF-S1-04, RT-S2-07). */
   currencyFixed: boolean;
   mayConfigure: boolean;
   organization: {
@@ -237,10 +237,13 @@ export class ConfigurationClosedDayError extends Error {
   }
 }
 
-/** The Property has a Folio, so its currency stays (CF-S1-04). */
+/**
+ * The Property has a Folio, or a priced booking still to come or in house, so
+ * its currency stays (CF-S1-04, RT-S2-07).
+ */
 export class ConfigurationCurrencyFixedError extends Error {
   constructor() {
-    super("the currency is fixed by the first Folio");
+    super("the currency is fixed by a Folio or a priced booking");
     this.name = "ConfigurationCurrencyFixedError";
   }
 }

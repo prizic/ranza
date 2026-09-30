@@ -21,6 +21,7 @@ export {
   ROOM_CALENDAR_LEAD_DAYS,
   ROOM_CALENDAR_LENGTHS,
   StayHasChargesError,
+  PriceChangedError,
   UnitHasOccupantError,
   UnitNotInServiceError,
   UnitNotReadyError,

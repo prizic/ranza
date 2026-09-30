@@ -48,5 +48,10 @@ there first, `CloseReasonRequiredError` when items are open and no reason was
 given, and `BusinessDayCloseError` for everything else — out of reach, not
 permitted, not ended, out of order — which are one answer on purpose.
 
-Closing posts nothing. Room nights need a rate (RANZ-31) and are designed as
-slice 3, blocked on PRE-01 and PRE-02 in the feature's edge cases.
+Closing charges the day's room nights, inside the close's own insert
+([ADR 0038](../../../docs/adr/0038-a-night-is-priced-by-its-unit-type-and-fixed-when-booked.md)):
+the stamp calls `app.post_room_nights()`, which charges every Guest in house
+that night whose booking has a price and whose Folio is open, once, and the
+close records every room night dated the day and the Guest nights it could not
+charge, which never block it. `getCloseTheDay` previews both for the day
+waiting to close, the amount only for a viewer holding `finance.manage_folio`.

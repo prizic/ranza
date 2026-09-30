@@ -109,6 +109,7 @@ export function DateRangeField({
   locale,
   minSpan = 0,
   names,
+  onChange,
   presets,
   required = false,
   today,
@@ -120,17 +121,31 @@ export function DateRangeField({
   locale: SupportedLocale;
   minSpan?: number;
   names: { from: string; to: string };
+  /**
+   * Told each chosen range as `YYYY-MM-DD`, for a form that says something
+   * about the dates before it is sent — a price for the nights chosen. The
+   * field stays uncontrolled: what submits is still its hidden inputs.
+   */
+  onChange?: (range: { from?: string; to?: string }) => void;
   presets?: readonly DateRangePreset[];
   required?: boolean;
   today?: string | undefined;
 }) {
-  const [range, setRange] = useState<DateRange | undefined>(() => {
+  const [range, setStoredRange] = useState<DateRange | undefined>(() => {
     const from = fromIso(defaultValue?.from);
     const to = fromIso(defaultValue?.to);
     return from || to ? { from, to } : undefined;
   });
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Edge>("from");
+
+  function setRange(next: DateRange | undefined) {
+    setStoredRange(next);
+    onChange?.({
+      ...(next?.from ? { from: toIso(next.from) } : {}),
+      ...(next?.to ? { to: toIso(next.to) } : {}),
+    });
+  }
   const [hovered, setHovered] = useState<Date>();
   const anchor = useRef<HTMLDivElement>(null);
   // Set when the calendar closed because somebody pressed or focused something

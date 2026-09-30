@@ -335,6 +335,8 @@ async function post(
 /** What the desk saw when it confirmed a check-out: no Folio, leaving early allowed. */
 const LEAVING = {
   folioVersion: null,
+  pendingNights: 0,
+  pendingMinor: 0,
   earlyDeparture: true,
   balanceReason: null,
 } as const;
@@ -856,6 +858,8 @@ describe("nights, overlaps and blocks", () => {
         guestEmail: null,
         guestPhone: null,
         stayType: "guest",
+        quotedRateMinor: null,
+        quotedCurrency: null,
         startsOn: await day(2),
         endsOn: await day(5),
       }),

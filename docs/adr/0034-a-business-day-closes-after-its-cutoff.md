@@ -3,6 +3,8 @@
 Status: Accepted
 Date: 2026-09-24
 
+Amended: 2026-09-28 by [ADR 0038](0038-a-night-is-priced-by-its-unit-type-and-fixed-when-booked.md) — a close now charges the day's room nights inside its own insert, before it counts, and records their total and the nights it could not charge; the third step of the night audit that the Context below says was not built is built by `20260916008200_a_night_is_charged_once`.
+
 ## Context
 
 A Property's business date rolls at its cutoff, by the clock

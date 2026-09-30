@@ -14,7 +14,7 @@
 -- app.accessible_property_ids(), removing the open-Folio clause — and
 -- confirming it went red.
 begin;
-select plan(58);
+select plan(59);
 
 insert into public.users (id, email) values
   ('41111111-1111-4111-8111-111111111111', 'finance-a@example.test'),
@@ -441,6 +441,21 @@ select throws_ok(
 -- ---------------------------------------------------------------------------
 -- Closing, and the column grant that bounds it
 -- ---------------------------------------------------------------------------
+
+-- Not while the Guest is in house, by anybody (FO-S5-01, ADR 0038): every
+-- night still to come is charged to this Folio, and nothing reopens one.
+select throws_ok(
+  $$update public.folios set status = 'closed', closed_at = now(), updated_at = now()
+    where id = '4e111111-1111-4111-8111-111111111111'$$,
+  '55000', NULL,
+  'a Folio stays open while its Guest is in house');
+
+-- The Guest leaves, so what follows is about closing a Folio at all.
+set local role none;
+update public.stays set status = 'departed', ends_on = starts_on + 1
+ where id = '4f111111-1111-4111-8111-111111111111';
+set local role ranza_app;
+select app.set_request_context('41111111-1111-4111-8111-111111111111');
 
 select throws_ok(
   $$update public.folios set status = 'closed'

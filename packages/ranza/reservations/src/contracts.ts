@@ -202,6 +202,16 @@ export interface Departure {
   balanceMinor: number;
   currency: string;
   /**
+   * Nights already slept that no close has charged yet, and what they come to
+   * (ADR 0038): the check-out charges them, so the bill the desk reviews is
+   * `balanceMinor + pendingMinor`. Zero for an unpriced booking, whose nights
+   * are not charged, and for a Stay with no Folio.
+   */
+  pendingNights: number;
+  pendingMinor: number;
+  /** The booking's own price per night; null when it was taken unpriced. */
+  nightlyRateMinor: number | null;
+  /**
    * Whether the viewer holds front_desk.check_out. Presentation: the policy
    * decides whether pressing the button does anything.
    */
@@ -224,6 +234,14 @@ export interface CheckOutConfirmation {
    * balance where it was (CO-S1-16).
    */
   folioVersion: number | null;
+  /**
+   * The nights still to charge, and their amount, as the review showed them
+   * (ADR 0030 as amended by ADR 0038). What the check-out then charges must be
+   * exactly this, or the bill changed and the desk looks again: a close may
+   * have charged a night in between, or the business date rolled over.
+   */
+  pendingNights: number;
+  pendingMinor: number;
   /** The desk acknowledged the Guest is leaving before their planned last night. */
   earlyDeparture: boolean;
   /**
@@ -290,6 +308,18 @@ export class UnitUnavailableError extends Error {
  * by checking somebody out or finding them another room (ADR 0033). Like its
  * neighbour it reveals nothing the caller did not already name.
  */
+/**
+ * The price list changed while the booking was being taken: the database would
+ * stamp a price the desk did not quote. Nothing was written, and the dialog is
+ * read again with the price that stands now (RT-S2-12).
+ */
+export class PriceChangedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PriceChangedError";
+  }
+}
+
 export class UnitHasOccupantError extends Error {
   constructor(message: string) {
     super(message);
@@ -433,6 +463,14 @@ export interface BookableUnit {
   /** The room a bed is in; null for a room. */
   roomName: string | null;
   unitType: AccommodationUnitType;
+  /**
+   * What a night here costs on the price list now, for the dialog to quote:
+   * minor units of `rateCurrency`, or null when this kind is unpriced or its
+   * price is stale (ADR 0038). A quote, not the price — the database stamps
+   * the booking when it is taken, and that is the one the Guest is charged.
+   */
+  nightlyRateMinor: number | null;
+  rateCurrency: string | null;
 }
 
 /**
@@ -460,6 +498,12 @@ export interface ReservationRow {
   /** The room a bed is in; null for a room. */
   roomName: string | null;
   unitType: AccommodationUnitType;
+  /**
+   * What a night of this booking costs, as stamped when it was taken, in minor
+   * units of `rateCurrency`; null when it was taken unpriced (ADR 0038).
+   */
+  nightlyRateMinor: number | null;
+  rateCurrency: string | null;
   /** Whether the viewer may cancel it, and whether it is still cancellable. */
   mayCancel: boolean;
   /** Whether the viewer may mark it a no-show: confirmed, and its first night has come. */
@@ -489,6 +533,15 @@ export interface NewReservation {
   startsOn: string;
   /** Null for an open-ended Reservation, which is normal for a Resident. */
   endsOn: string | null;
+  /**
+   * The price the desk quoted: what the dialog showed for a night, in minor
+   * units of `quotedCurrency`, or both null when it said the booking would be
+   * unpriced (ADR 0038). The database stamps the booking from the price list,
+   * and a stamp that is not this quote refuses the booking (`PriceChangedError`)
+   * rather than charging a Guest a price nobody told them.
+   */
+  quotedRateMinor: number | null;
+  quotedCurrency: string | null;
 }
 
 /** What a completed booking produced. */
@@ -497,6 +550,9 @@ export interface CreatedReservation {
   guestId: string;
   /** False when the details named somebody the Organization already had. */
   guestCreated: boolean;
+  /** The price the database stamped it with; null when it was taken unpriced. */
+  nightlyRateMinor: number | null;
+  rateCurrency: string | null;
 }
 
 /**

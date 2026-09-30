@@ -8,8 +8,10 @@
  *
  * Restated rather than imported: nothing outside `src/server/` may import a
  * Ranza module (ADR 0007). `public.staff_permissions` is the real list and a
- * role composed from a key that is not in it is refused by a trigger, so these
- * going stale is a loud failure rather than a quiet one.
+ * role composed from a key that is not in it is refused by a trigger. A key
+ * missing here is quieter — the People screen could not offer it and the audit
+ * log would print it raw — so tests/integration/rates.test.ts compares this
+ * list with the table.
  */
 
 const SHIPPED_ROLES = [
@@ -38,6 +40,7 @@ export const PERMISSION_CATALOGUE = [
   "maintenance.equipment",
   "audit.read",
   "configuration.manage",
+  "rates.manage",
 ] as const;
 
 export type ShippedRole = (typeof SHIPPED_ROLES)[number];
@@ -91,6 +94,7 @@ const MESSAGE_KEYS = {
   "maintenance.equipment": "manageEquipment",
   "audit.read": "readAudit",
   "configuration.manage": "manageConfiguration",
+  "rates.manage": "manageRates",
 } as const satisfies Record<PermissionKey, string>;
 
 export type PermissionMessageKey =

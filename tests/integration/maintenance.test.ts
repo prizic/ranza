@@ -296,6 +296,8 @@ async function settle(values: {
  */
 const REVIEWED = {
   folioVersion: null,
+  pendingNights: 0,
+  pendingMinor: 0,
   earlyDeparture: true,
   balanceReason: null,
 } as const;
@@ -970,6 +972,8 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
           guestEmail: null,
           guestPhone: null,
           stayType: "guest",
+          quotedRateMinor: null,
+          quotedCurrency: null,
           startsOn: today!.day,
           endsOn: null,
         }),

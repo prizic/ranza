@@ -73,6 +73,12 @@ export interface FolioLine {
   /** Whether a later line has already cancelled this one. */
   reversed: boolean;
   postedAt: Date;
+  /**
+   * The business date a room night is for, `YYYY-MM-DD` (ADR 0038); null on
+   * every other line. A screen names such a line in the reader's language
+   * rather than by the description the database wrote.
+   */
+  roomNightOf: string | null;
 }
 
 /**
@@ -97,6 +103,11 @@ export interface FolioSummary {
   unitName: string;
   balanceMinor: number;
   lineCount: number;
+  /**
+   * The Guest is still in house, so the Folio cannot be closed by anybody: its
+   * nights are still being charged to it (FO-S5-01, ADR 0038).
+   */
+  stayInHouse: boolean;
 }
 
 /** One Folio and everything posted to it, newest first. */

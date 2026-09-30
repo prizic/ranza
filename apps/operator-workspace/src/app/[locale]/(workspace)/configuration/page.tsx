@@ -11,6 +11,7 @@ import {
   type SwitchedOn,
 } from "../../../../features/configuration/components/overview-cards";
 import { PropertySettingsForm } from "../../../../features/configuration/components/property-settings-form";
+import { RatesCard } from "../../../../features/configuration/components/rates-card";
 import {
   SectionNav,
   type Section,
@@ -23,6 +24,7 @@ import {
   entitledPropertiesByCapability,
   housekeepingInspection,
   maintenanceSettings,
+  priceList,
   propertySettings,
   requireViewer,
   timezoneNames,
@@ -32,7 +34,8 @@ import {
  * Configuration (blueprint 5.1, ADR 0036): every setting that applies at this
  * Property, in one place.
  *
- * The Property's own settings and the Organization's name are edited here.
+ * The Property's own settings, its nightly prices (ADR 0038) and the
+ * Organization's name are edited here.
  * Inspection after cleaning is Housekeeping's setting, and how maintenance
  * works is Maintenance's; each is shown by the same component and saved by the
  * same command as on its own screen, so the two can never disagree (CF-S3-06,
@@ -83,17 +86,19 @@ export default async function ConfigurationPage({
     );
   }
 
-  const [inspection, maintenance, timezones, capabilities] = await Promise.all([
-    housekeepingInspection(property.propertyId),
-    maintenanceSettings(property.propertyId),
-    timezoneNames(),
-    entitledPropertiesByCapability(
-      GATED_SCREENS.map((screen) => ({
-        moduleKey: screen.module,
-        capabilityKey: screen.capability,
-      })),
-    ),
-  ]);
+  const [inspection, maintenance, prices, timezones, capabilities] =
+    await Promise.all([
+      housekeepingInspection(property.propertyId),
+      maintenanceSettings(property.propertyId),
+      priceList(property.propertyId),
+      timezoneNames(),
+      entitledPropertiesByCapability(
+        GATED_SCREENS.map((screen) => ({
+          moduleKey: screen.module,
+          capabilityKey: screen.capability,
+        })),
+      ),
+    ]);
 
   const switchedOn: SwitchedOn[] = GATED_SCREENS.filter((_, index) =>
     capabilities[index]?.properties.some(
@@ -115,6 +120,7 @@ export default async function ConfigurationPage({
     { id: "organization", label: t("configuration.organizationTitle") },
     { id: "property", label: t("configuration.propertyTitle") },
     { id: "time", label: t("configuration.timeTitle") },
+    ...(prices ? [{ id: "rates" as const, label: t("rates.title") }] : []),
     ...(inspection
       ? [
           {
@@ -143,7 +149,7 @@ export default async function ConfigurationPage({
         </h2>
       </PageHeader>
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-10">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-10">
         <SectionNav label={t("configuration.sections")} sections={sections} />
 
         <div className="grid min-w-0 gap-6">
@@ -160,6 +166,13 @@ export default async function ConfigurationPage({
             settings={settings}
             timezones={timezones}
           />
+          {prices ? (
+            <RatesCard
+              key={`rates-${prices.propertyId}`}
+              locale={locale}
+              priceList={prices}
+            />
+          ) : null}
           {inspection ? (
             <section className="scroll-mt-24" id="housekeeping">
               <InspectionSettings

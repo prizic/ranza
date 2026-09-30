@@ -53,6 +53,7 @@ interface SummaryRow {
   unitName: string;
   balanceMinor: string;
   lineCount: number;
+  stayInHouse: boolean;
 }
 
 interface LineRow {
@@ -63,6 +64,7 @@ interface LineRow {
   reversesLineId: string | null;
   reversed: boolean;
   postedAt: Date;
+  roomNightOf: string | null;
 }
 
 function toSummary(row: SummaryRow): FolioSummary {
@@ -107,7 +109,8 @@ function folioQuery(predicate: string, order = ""): string {
       coalesce(guest.full_name, '')         as "guestName",
       unit.name                             as "unitName",
       coalesce(sum(line.amount_minor), 0)::text as "balanceMinor",
-      count(line.id)::int                   as "lineCount"
+      count(line.id)::int                   as "lineCount",
+      stay.status = 'in_house'              as "stayInHouse"
     from public.folios as folio
     join public.stays as stay
       on stay.id = folio.stay_id
@@ -192,7 +195,10 @@ export function createFoliosModule(deps: FoliosDeps) {
             select 1 from public.folio_lines as cancelling
             where cancelling.reverses_line_id = line.id
           )                     as "reversed",
-          line.posted_at        as "postedAt"
+          line.posted_at        as "postedAt",
+          case when line.source = 'room_night'
+               then to_char(line.business_date, 'YYYY-MM-DD')
+          end                   as "roomNightOf"
         from public.folio_lines as line
         where line.folio_id = ${folioId}::uuid
         order by line.posted_at desc, line.id

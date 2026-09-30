@@ -1,0 +1,73 @@
+%% Slices decide implementation order and nothing else:
+%%   s1 the price list: a nightly price per unit type at a Property
+%%   s2 a Guest booking carries the price it was taken at
+%%   s3 every night a Guest spends in house is charged once
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% UML directions: include points base --> included. extend points extension --> base.
+%% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
+%%
+%% The smallest price blueprint 15.10 lets this feature decide. Rate plans,
+%% seasons, restrictions and packages are Distribution and Revenue (blueprint
+%% 5.16); discounts and taxes are Billing (5.9). None of them is drawn here
+%% (RT-DEF-*). A Resident is billed by the month, which nothing builds yet, so a
+%% Resident booking is never priced by the night.
+flowchart TD
+
+  PRICER["Staff Member holding rates.manage<br/>with reach to the Property"]
+  DESK["Staff Member at the front desk"]
+  CLOSER["Staff Member holding front_desk.close_day"]
+  WORKER["apps/worker<br/>business_day.close"]
+  READER["Staff Member reaching the Property<br/>without rates.manage"]
+
+  subgraph S1["slice 1 &mdash; the price list"]
+    SETPRICE(["Set a nightly price for rooms, beds,<br/>apartments or suites"])
+    CLEARPRICE(["Clear a price, so that type is not priced"])
+    SEEPRICE(["See the price list"])
+    STALE(["See a price left in a currency<br/>the Property no longer trades in"])
+  end
+
+  subgraph S2["slice 2 &mdash; a priced booking"]
+    BOOK(["Take a Guest booking"])
+    STAMP(["The database stamps it with<br/>the price of its Unit's type"])
+    QUOTE(["See the price per night and the total<br/>before taking it"])
+    UNPRICED(["Take it unpriced when that type has no price"])
+    RESIDENT(["Take a Resident booking, never priced by the night"])
+    LOCK(["The Property's currency is fixed<br/>by its first priced booking"])
+  end
+
+  subgraph S3["slice 3 &mdash; room nights"]
+    CLOSE(["Close a business day"])
+    POST(["Post a room night for every Guest<br/>in house that night, once"])
+    UNPOSTED(["See the nights the close could not charge,<br/>and why"])
+    CHECKOUT(["Check a Guest out"])
+    PENDING(["See the nights not yet charged<br/>before confirming, and charge them"])
+    FOLIO(["Read a room night on the Folio<br/>in the reader's language"])
+  end
+
+  subgraph OUT["Not this feature"]
+    PLANS(["Rate plans, seasons, weekday or occupancy prices &mdash; deferred, blueprint 5.16"])
+    OVERRIDE(["A price for one Unit, or typed at the desk &mdash; deferred"])
+    REPRICE(["Re-pricing a booking when it is amended &mdash; deferred to amending a booking"])
+    RENT(["A Resident's monthly rent &mdash; deferred"])
+    TAX(["Taxes, discounts, early-departure fees &mdash; deferred, blueprint 5.9"])
+  end
+
+  PRICER --> SETPRICE
+  PRICER --> CLEARPRICE
+  PRICER --> SEEPRICE
+  READER --> SEEPRICE
+  STALE -. extend .-> SEEPRICE
+  DESK --> BOOK
+  BOOK -. include .-> STAMP
+  QUOTE -. extend .-> BOOK
+  UNPRICED -. extend .-> BOOK
+  RESIDENT -. extend .-> BOOK
+  STAMP -. include .-> LOCK
+  CLOSER --> CLOSE
+  WORKER --> CLOSE
+  CLOSE -. include .-> POST
+  UNPOSTED -. extend .-> CLOSE
+  DESK --> CHECKOUT
+  CHECKOUT -. include .-> PENDING
+  PENDING -. include .-> POST
+  DESK --> FOLIO
