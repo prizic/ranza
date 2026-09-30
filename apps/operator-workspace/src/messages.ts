@@ -361,6 +361,10 @@ export interface Messages {
   takingBooking: string;
   discardBooking: string;
   bookingUnavailable: string;
+  unitBookedThoseNights: string;
+  unitOccupiedThoseNights: string;
+  chosenUnitTakenThoseNights: string;
+  bookingAvailabilityUnknown: string;
   bookingOverOccupant: string;
   bookingPeriodInvalid: string;
   bookingGuestInvalid: string;
@@ -1686,6 +1690,12 @@ export const messages: Record<SupportedLocale, Messages> = {
     takingBooking: "Oluşturuluyor",
     discardBooking: "Vazgeç",
     bookingUnavailable: "Bu birim o geceler için zaten dolu.",
+    unitBookedThoseNights: "Bu geceler dolu",
+    unitOccupiedThoseNights: "Bu gecelerde konaklayan var",
+    chosenUnitTakenThoseNights:
+      "Bu birim seçtiğiniz geceler için dolu. Başka bir birim ya da başka tarihler seçin.",
+    bookingAvailabilityUnknown:
+      "Bu geceler için hangi birimlerin boş olduğu kontrol edilemedi. Yine de seçebilirsiniz; çakışma varsa kayıt reddedilir.",
     bookingOverOccupant:
       "Bu birimde o gecelerin bazısında konaklayan biri var.",
     bookingPeriodInvalid:
@@ -3081,6 +3091,12 @@ export const messages: Record<SupportedLocale, Messages> = {
     takingBooking: "Creating",
     discardBooking: "Cancel",
     bookingUnavailable: "That Unit is already booked for those nights.",
+    unitBookedThoseNights: "Booked for these nights",
+    unitOccupiedThoseNights: "Someone is staying then",
+    chosenUnitTakenThoseNights:
+      "This Unit is taken for the nights you chose. Pick another Unit or other dates.",
+    bookingAvailabilityUnknown:
+      "Could not check which Units are free for these nights. You can still choose one; saving will refuse a clash.",
     bookingOverOccupant:
       "Somebody is staying in that Unit for some of those nights.",
     bookingPeriodInvalid:
@@ -4475,6 +4491,12 @@ export const messages: Record<SupportedLocale, Messages> = {
     takingBooking: "جارٍ الإنشاء",
     discardBooking: "إلغاء",
     bookingUnavailable: "هذه الوحدة محجوزة بالفعل لتلك الليالي.",
+    unitBookedThoseNights: "محجوزة لهذه الليالي",
+    unitOccupiedThoseNights: "يوجد نزيل مقيم في هذه الليالي",
+    chosenUnitTakenThoseNights:
+      "هذه الوحدة غير متاحة لليالي التي اخترتها. اختر وحدة أخرى أو تواريخ أخرى.",
+    bookingAvailabilityUnknown:
+      "تعذر التحقق من الوحدات المتاحة لهذه الليالي. يمكنك الاختيار، وسيُرفض الحفظ عند وجود تعارض.",
     bookingOverOccupant: "هناك نزيل يقيم في هذه الوحدة خلال بعض تلك الليالي.",
     bookingPeriodInvalid:
       "هذه التواريخ ليست مدة صالحة. يغطي الحجز ليلة واحدة على الأقل ولا يبدأ قبل اليوم.",

@@ -61,6 +61,7 @@ export type {
   NewReservation,
   ReservationEnded,
   ReservationRow,
+  UnitAvailability,
   ReservationStatus,
   ReservationStayType,
   RoomCalendar,

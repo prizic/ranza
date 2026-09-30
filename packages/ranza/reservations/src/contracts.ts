@@ -491,10 +491,10 @@ export class BalanceReasonError extends CheckOutError {
 /**
  * A Unit a booking can be placed on.
  *
- * Every Unit in the Property that is in service, not only the free ones. Whether
- * these nights are free is `reservations_no_double_booking`'s answer, and asking
- * it here would be a second, weaker copy that goes stale between the page
- * rendering and somebody pressing the button.
+ * Every Unit in the Property that is in service, not only the free ones. Which
+ * of them are taken over particular nights is `listUnavailableUnits`, a read
+ * the dialog makes as the dates are chosen and uses to mark, never to hide. The
+ * answer is still `reservations_no_double_booking`'s, at the moment of saving.
  */
 export interface BookableUnit {
   unitId: string;
@@ -510,6 +510,12 @@ export interface BookableUnit {
    */
   nightlyRateMinor: number | null;
   rateCurrency: string | null;
+}
+
+/** A Unit that cannot take a booking over the nights asked about, and why. */
+export interface UnitAvailability {
+  unitId: string;
+  blocker: ChangeBlocker;
 }
 
 /**

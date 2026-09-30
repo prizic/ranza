@@ -20,6 +20,14 @@ it holds no Unit, and the finished-row trigger forbids giving it a departure
 afterwards, so a database holding one from before the rule could otherwise
 never apply it. Every booking is taken confirmed, so the rule binds each new one.
 
+Amended: 2026-09-30 — "availability is a constraint, never a query" still
+holds for what decides, and no longer for what is shown. The New reservation
+dialog asks `listUnavailableUnits` as the dates are chosen and _marks_ the Units
+that are taken, the way Change booking's preview already does (ADR 0039). It
+never removes a Unit and never decides: a booking landing between that read and
+the press is refused by `reservations_no_double_booking`, and the dialog reads
+again when it is (RG-S4-06, RG-S4-07).
+
 Amended: 2026-09-29 — a booking is not taken on a closed business day. The
 module refuses a start before the Property's today; the database refuses,
 for every writer, a Reservation inserted with a start on or before a closed

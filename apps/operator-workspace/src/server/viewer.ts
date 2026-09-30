@@ -43,6 +43,7 @@ import type {
   RoomCalendarBar,
   RoomCalendarUnit,
   RoomCalendarWindow,
+  UnitAvailability,
 } from "@ranza/reservations";
 import { ROOMS_CAPABILITY } from "@ranza/accommodation";
 import type {
@@ -386,6 +387,42 @@ export async function bookingChangePreview(
 }
 
 /**
+ * Which Units are taken over the nights a booking is being made for, for the
+ * New reservation dialog to mark (RG-S4-06).
+ *
+ * `invalidPeriod` is the dates the viewer typed and `refused` is no viewer;
+ * anything else is thrown, for the route to log and the dialog to treat as "could
+ * not check", which leaves every Unit choosable.
+ */
+export type BookingAvailability =
+  | { kind: "ready"; unavailable: readonly UnitAvailability[] }
+  | { kind: "refused" }
+  | { kind: "invalidPeriod" };
+
+export async function bookingAvailability(
+  propertyId: string,
+  startsOn: string,
+  endsOn: string | null,
+): Promise<BookingAvailability> {
+  const viewer = await currentViewer();
+  if (!viewer) return { kind: "refused" };
+  try {
+    const unavailable =
+      await getComposition().reservations.listUnavailableUnits(
+        viewer.userId,
+        propertyId,
+        startsOn,
+        endsOn,
+      );
+    return { kind: "ready", unavailable };
+  } catch (error: unknown) {
+    if (error instanceof ReservationPeriodError)
+      return { kind: "invalidPeriod" };
+    throw error;
+  }
+}
+
+/**
  * What changing an in-house Guest's departure would do, for the Change
  * departure dialog (amend-booking slice 2). The same three answers as
  * `bookingChangePreview`, for the same reasons.
@@ -514,9 +551,10 @@ export async function bookingDay(propertyId: string): Promise<string | null> {
 /**
  * The Units a booking may be placed on.
  *
- * Every Unit in service, not the free ones. Availability over particular nights
- * is an exclusion constraint's answer, and a list filtered here would be true
- * when the page rendered and stale by the time somebody pressed the button.
+ * Every Unit in service, not the free ones. Which are taken over particular
+ * nights is `bookingAvailability`, read as the dates are chosen and used to
+ * mark, so a list filtered here cannot go stale under somebody pressing the
+ * button. The exclusion constraint still decides at saving.
  */
 export async function bookableUnits(
   propertyId: string,

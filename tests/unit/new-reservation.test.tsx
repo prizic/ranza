@@ -20,7 +20,15 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { DirectionProvider } from "../../packages/ui/src";
 import { directionFor } from "../../packages/i18n/src";
 import { GUEST_DETAILS } from "../../packages/ranza/guests/src";
@@ -38,6 +46,21 @@ const { NewReservationDialog } =
   await import("../../apps/operator-workspace/src/features/front-office/components/new-reservation-dialog");
 
 afterEach(cleanup);
+
+// The dialog asks which Units are taken each time the dates change. Nothing
+// is taken unless a test says so; without this every date pick would reach
+// for Node's fetch with a relative URL.
+const availability = vi.fn();
+beforeEach(() => {
+  availability.mockReset();
+  availability.mockResolvedValue({ kind: "ready", unavailable: [] });
+  vi.stubGlobal("fetch", (url: string) =>
+    availability(url).then((body: unknown) => ({
+      ok: true,
+      json: async () => body,
+    })),
+  );
+});
 
 beforeAll(() => {
   // jsdom has none of these; the Unit picker and the calendar reach for them.
@@ -331,5 +354,103 @@ describe("the booking form in Arabic (RG-S3-12)", () => {
         .getByRole("combobox", { name: messages.ar.stayTypeLabel })
         .getAttribute("dir"),
     ).toBe("rtl");
+  });
+});
+
+describe("which Units are taken for the nights chosen (RG-S4-06, RG-S4-07)", () => {
+  function chooseNights() {
+    fireEvent.click(screen.getByRole("button", { name: /^Arrival/ }));
+    fireEvent.click(day("2026-10-05"));
+    fireEvent.click(day("2026-10-07"));
+  }
+
+  it("a_unit_booked_for_the_chosen_nights_is_marked_in_the_picker", async () => {
+    availability.mockResolvedValue({
+      kind: "ready",
+      unavailable: [{ unitId: "u1", blocker: "booked" }],
+    });
+    openForm();
+    chooseNights();
+
+    await waitFor(() =>
+      expect(availability).toHaveBeenCalledWith(
+        expect.stringContaining("from=2026-10-05"),
+      ),
+    );
+    expect(availability).toHaveBeenCalledWith(
+      expect.stringContaining("to=2026-10-07"),
+    );
+
+    fireEvent.click(screen.getByRole("combobox", { name: messages.en.unit }));
+    const taken = await screen.findByRole("option", { name: /101/ });
+    await waitFor(() => expect(taken).toHaveAttribute("aria-disabled", "true"));
+    expect(taken).toHaveTextContent(messages.en.unitBookedThoseNights);
+    // Marked, never hidden: the other Unit is still there and choosable.
+    expect(screen.getByRole("option", { name: /102/ })).not.toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
+  it("a_unit_booked_for_the_chosen_nights_is_marked_in_the_picker: a Unit already chosen says so when the nights make it taken", async () => {
+    availability.mockResolvedValue({
+      kind: "ready",
+      unavailable: [{ unitId: "u1", blocker: "occupied" }],
+    });
+    openForm();
+    chooseUnit(/101/);
+    chooseNights();
+
+    expect(
+      await screen.findByText(messages.en.chosenUnitTakenThoseNights),
+    ).toBeVisible();
+  });
+
+  it("a_failed_availability_read_leaves_every_unit_choosable", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubGlobal("fetch", () => Promise.reject(new Error("offline")));
+    openForm();
+    chooseNights();
+
+    expect(
+      await screen.findByText(messages.en.bookingAvailabilityUnknown),
+    ).toBeVisible();
+    // Reported, not swallowed.
+    expect(logged).toHaveBeenCalledWith(
+      "booking_availability.read_failed",
+      expect.anything(),
+    );
+
+    fireEvent.click(screen.getByRole("combobox", { name: messages.en.unit }));
+    for (const name of [/101/, /102/]) {
+      expect(screen.getByRole("option", { name })).not.toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+    }
+    logged.mockRestore();
+  });
+
+  it("asks nothing for a Guest until there is a departure, and asks for a Resident once there is an arrival", async () => {
+    openForm();
+    fireEvent.click(screen.getByRole("button", { name: /^Arrival/ }));
+    fireEvent.click(day("2026-10-05"));
+    expect(availability).not.toHaveBeenCalled();
+
+    // A Resident's booking may be open-ended, so an arrival is enough.
+    fireEvent.click(
+      screen.getByRole("combobox", { name: messages.en.stayTypeLabel }),
+    );
+    fireEvent.click(
+      screen.getByRole("option", { name: messages.en.stayType.resident }),
+    );
+    await waitFor(() =>
+      expect(availability).toHaveBeenCalledWith(
+        expect.stringContaining("from=2026-10-05"),
+      ),
+    );
+    expect(availability).toHaveBeenCalledWith(
+      expect.not.stringContaining("to="),
+    );
   });
 });
