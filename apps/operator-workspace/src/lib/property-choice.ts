@@ -5,13 +5,26 @@
  */
 
 /**
- * The Property last chosen on this device. A cookie rather than a row: a
- * front-desk terminal belongs to a Property, not to whoever signs in at it, and
- * nothing needs to be migrated for a hint. It is only ever a hint — every
- * request checks it against what the viewer reaches, so a forged or stale one
- * falls back rather than widening anything.
+ * The Property last chosen on this device, for one person's session. A cookie
+ * rather than a row: nothing needs to be migrated for a hint. It is only ever a
+ * hint — every request checks it against what the viewer reaches, so a forged
+ * or stale one falls back rather than widening anything — and signing in or out
+ * clears it (`forgetsTheChoice`), so a shared terminal does not hand one
+ * person's Property to the next (OA-S3-05, ADR 0019).
  */
 export const PROPERTY_COOKIE = "ranza_property";
+
+/** The Set-Cookie that clears {@link PROPERTY_COOKIE}. */
+export const FORGET_PROPERTY = `${PROPERTY_COOKIE}=; Path=/; SameSite=Lax; Max-Age=0`;
+
+/**
+ * Whether an authentication request ends the last person's choice: every
+ * sign-in, and sign-out. Clearing at sign-in covers a session that expired
+ * without anybody signing out.
+ */
+export function forgetsTheChoice(pathname: string): boolean {
+  return pathname.endsWith("/sign-out") || pathname.includes("/sign-in/");
+}
 
 const A_YEAR = 60 * 60 * 24 * 365;
 

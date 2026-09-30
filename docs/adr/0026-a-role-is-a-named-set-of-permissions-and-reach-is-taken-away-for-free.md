@@ -35,7 +35,7 @@ administrator keeps one, as it keeps somebody who can add staff at all
 (SP-S1-34, SP-S1-36, SP-S1-38).
 `20260916007000_an_administrator_acts_only_within_their_own`.
 
-Proposed amendment: 2026-09-28 — an invitation is bounded, when it is written, like the
+Amended: 2026-09-28 — an invitation is bounded, when it is written, like the
 membership it is for. It carries no role or reach of its own, so an
 administrator writes or withdraws one only for a member they may act on: a role
 within their own, and organization-wide only if they are. Writing one also
