@@ -4,7 +4,14 @@ import { useCallback, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ReservationRow } from "@ranza/reservations";
-import { DataTable, EmptyState, Tabs, TabsList, TabsTrigger } from "@ranza/ui";
+import {
+  DataTable,
+  EmptyState,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  toAsciiDigits,
+} from "@ranza/ui";
 import { formatNumber, type SupportedLocale } from "@ranza/i18n";
 import { useTableLabels } from "../../../lib/table-labels";
 import { ChangeBookingDialog } from "./change-booking-dialog";
@@ -78,7 +85,10 @@ export function ReservationsTable({
         .filter((row) => (today ? inTab(row, tab, today) : true))
         .map((row) => ({
           ...row,
-          guestPhoneDigits: (row.guestPhone ?? "").replace(/\D/g, ""),
+          guestPhoneDigits: toAsciiDigits(row.guestPhone ?? "").replace(
+            /\D/g,
+            "",
+          ),
         })),
     [reservations, tab, today],
   );

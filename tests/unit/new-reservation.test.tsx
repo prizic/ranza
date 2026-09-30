@@ -406,6 +406,37 @@ describe("which Units are taken for the nights chosen (RG-S4-06, RG-S4-07)", () 
     ).toBeVisible();
   });
 
+  it("a_unit_booked_for_the_chosen_nights_is_marked_in_the_picker: marks for earlier dates are cleared while the next read is out", async () => {
+    availability.mockResolvedValueOnce({
+      kind: "ready",
+      unavailable: [{ unitId: "u1", blocker: "booked" }],
+    });
+    // The second read never answers: nothing may stay greyed in the meantime.
+    availability.mockReturnValueOnce(new Promise(() => {}));
+    openForm();
+    chooseNights();
+    fireEvent.click(screen.getByRole("combobox", { name: messages.en.unit }));
+    await waitFor(() =>
+      expect(screen.getByRole("option", { name: /101/ })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      ),
+    );
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
+    });
+
+    // New dates, new read (which hangs): 101 is no longer marked.
+    fireEvent.click(screen.getByRole("button", { name: /^Departure/ }));
+    fireEvent.click(day("2026-10-09"));
+    await waitFor(() => expect(availability).toHaveBeenCalledTimes(2));
+    fireEvent.click(screen.getByRole("combobox", { name: messages.en.unit }));
+    expect(screen.getByRole("option", { name: /101/ })).not.toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
   it("a_failed_availability_read_leaves_every_unit_choosable", async () => {
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal("fetch", () => Promise.reject(new Error("offline")));

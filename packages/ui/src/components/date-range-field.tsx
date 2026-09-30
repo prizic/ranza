@@ -80,6 +80,11 @@ function daysBetween(start: Date, end: Date): number {
   return Math.round((utc(end) - utc(start)) / 86_400_000);
 }
 
+/** The later of two optional days, or whichever exists. */
+function latestOf(a: Date | undefined, b: Date | undefined) {
+  return a && b ? (a > b ? a : b) : (a ?? b);
+}
+
 /**
  * Two dates chosen as one thing, the way a flight search asks for them: a
  * single field split into its two ends, and one calendar that picks both.
@@ -192,6 +197,13 @@ export function DateRangeField({
   const todayDate = fromIso(today) ?? new Date();
   const earliestEnd = fromIso(earliestTo);
   const earliestStart = fromIso(earliestFrom);
+  // While the end is chosen, a day before the earliest start is no use as an end
+  // and would restart the range, so it is greyed out as well as the days before
+  // the earliest end.
+  const earliestPick = latestOf(
+    editing === "to" ? earliestEnd : undefined,
+    earliestStart,
+  );
 
   const describe = (date: Date | undefined) => {
     if (!date) return undefined;
@@ -213,7 +225,6 @@ export function DateRangeField({
   }
 
   function pick(day: Date) {
-    if (editing === "from" && earliestStart && day < earliestStart) return;
     if (lockFrom) {
       if (!from || daysBetween(from, day) < minSpan) return;
       setRange({ from, to: day });
@@ -229,6 +240,9 @@ export function DateRangeField({
       setOpen(false);
       return;
     }
+    // Whatever is left would begin a new range, from either half: a day before
+    // the earliest start never can, including while the end is being chosen.
+    if (earliestStart && day < earliestStart) return;
     const keepEnd = to && daysBetween(day, to) >= minSpan;
     setRange({ from: day, to: keepEnd ? to : undefined });
     setEditing("to");
@@ -433,11 +447,7 @@ export function DateRangeField({
               className="p-4"
               defaultMonth={(lockFrom ? to : from) ?? to ?? todayDate}
               dir={directionFor(locale)}
-              disabled={
-                editing === "to"
-                  ? earliestEnd && { before: earliestEnd }
-                  : earliestStart && { before: earliestStart }
-              }
+              disabled={earliestPick && { before: earliestPick }}
               locale={calendarLocales[locale]}
               mode="range"
               numberOfMonths={wide ? 2 : 1}

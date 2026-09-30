@@ -41,11 +41,13 @@ import { unitLabel } from "../unit-label";
  * it is the answer: a booking for a fortnight's time appears in that list the
  * moment this closes, which is the only way anybody can tell it worked.
  *
- * Presentational. Nothing here asks whether the viewer may book this Unit, nor
- * whether those nights are free — the first is the policies' answer and the
- * second is `reservations_no_double_booking`'s. A check here would go stale
- * between this page rendering and somebody pressing the button, which is exactly
- * the race the constraint exists to have no window for.
+ * Nothing here decides whether the viewer may book this Unit, nor whether those
+ * nights are free — the first is the policies' answer and the second is
+ * `reservations_no_double_booking`'s. What it does is ask, as the dates are
+ * chosen, which Units are taken and mark them so they cannot be picked. That
+ * answer can go stale before the button is pressed, so the constraint still
+ * decides at saving, a refusal reads the marks again, and a read that fails
+ * marks nothing rather than blocking the booking.
  *
  * Arrival and departure are one field, because they are one decision: the
  * calendar shows the nights between them as they are chosen, which two
@@ -168,11 +170,11 @@ export function NewReservationDialog({
   const asking =
     dates.from !== undefined && (Boolean(dates.to) || stayType === "resident");
   useEffect(() => {
-    if (!open || !dates.from || !asking) {
-      setTaken(new Map());
-      setAvailabilityUnknown(false);
-      return;
-    }
+    // Marks that answer earlier dates are no use while the next read is out: a
+    // Unit free for these nights must not stay greyed for the last ones.
+    setTaken(new Map());
+    setAvailabilityUnknown(false);
+    if (!open || !dates.from || !asking) return;
     const controller = new AbortController();
     fetchAvailability(propertyId, dates.from, dates.to, controller.signal)
       .then((answer) => {

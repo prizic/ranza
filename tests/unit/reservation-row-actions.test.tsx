@@ -115,7 +115,7 @@ describe("a Reservations row's actions", () => {
   });
 
   it("a_checked_in_row_offers_the_folio_and_stay_changes: menu carries Open folio, Change departure and Move Guest", () => {
-    const row = show(IN_HOUSE);
+    const row = show({ ...IN_HOUSE, mayCancel: true, mayAmend: true });
     expect(
       within(row).queryByRole("button", { name: messages.en.checkIn }),
     ).toBeNull();
@@ -124,8 +124,10 @@ describe("a Reservations row's actions", () => {
     expect(items).toContain(messages.en.openFolio);
     expect(items).toContain(messages.en.changeDeparture);
     expect(items).toContain(messages.en.moveGuest);
-    // A booking's own endings do not apply once the Guest is in house.
+    // A booking's own endings do not apply once the Guest is in house, even for
+    // a row that says the viewer may cancel and amend.
     expect(items).not.toContain(messages.en.cancelBooking);
+    expect(items).not.toContain(messages.en.changeBooking);
   });
 
   it("open_folio_is_only_offered_when_the_row_has_an_open_folio: no Folio, no Open folio", () => {

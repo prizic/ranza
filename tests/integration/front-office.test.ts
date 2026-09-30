@@ -1978,10 +1978,20 @@ describe("the Reservations list and check-in agree on who may be checked in", ()
     tomorrow: reservationId(),
     expired: reservationId(),
     late: reservationId(),
+    fresh: reservationId(),
+    again: reservationId(),
   };
+  const HOUSEKEEPER = randomUUID();
 
   beforeAll(async () => {
-    const units = await Promise.all([aUnit(), aUnit(), aUnit(), aUnit()]);
+    const units = await Promise.all([
+      aUnit(),
+      aUnit(),
+      aUnit(),
+      aUnit(),
+      aUnit(),
+      aUnit(),
+    ]);
     await reserve(ids.today, PROPERTY, ORG, units[0]!, "List today");
     await reserve(ids.tomorrow, PROPERTY, ORG, units[1]!, "List tomorrow", {
       from: 1,
@@ -1995,6 +2005,22 @@ describe("the Reservations list and check-in agree on who may be checked in", ()
       from: -1,
       to: 2,
     });
+    await reserve(ids.fresh, PROPERTY, ORG, units[4]!, "List fresh");
+    await reserve(ids.again, PROPERTY, ORG, units[5]!, "List again");
+    // A Staff Member who reaches the Property and may see the list, but whose
+    // role grants neither check-in nor changing a Stay.
+    await owner.$executeRawUnsafe(
+      `insert into public.users (id, email) values ($1::uuid, $2)`,
+      HOUSEKEEPER,
+      `list-housekeeper-${HOUSEKEEPER.slice(0, 8)}@example.test`,
+    );
+    await owner.$executeRawUnsafe(
+      `insert into public.organization_memberships
+         (organization_id, user_id, role, access_scope)
+       values ($1::uuid, $2::uuid, 'housekeeping', 'organization_wide')`,
+      ORG,
+      HOUSEKEEPER,
+    );
   });
 
   const listed = async (id: string) =>
@@ -2050,6 +2076,42 @@ describe("the Reservations list and check-in agree on who may be checked in", ()
       (row) => [ids.today, ids.late].includes(row.reservationId),
     );
     expect(rows).toHaveLength(2);
+  });
+
+  it("check_in_is_only_offered_on_a_confirmed_booking_that_has_arrived_to_a_viewer_who_may: a role without the permissions is offered neither", async () => {
+    const seen = async (viewer: string, id: string) =>
+      (await reservations.listReservations(viewer, PROPERTY)).find(
+        (row) => row.reservationId === id,
+      );
+
+    // The same arriving booking: the manager may check it in, the housekeeper
+    // sees it and may not.
+    expect(await seen(MEMBER, ids.fresh)).toMatchObject({ mayCheckIn: true });
+    expect(await seen(HOUSEKEEPER, ids.fresh)).toMatchObject({
+      status: "confirmed",
+      mayCheckIn: false,
+    });
+    // And a Guest already in house: the same, for changing the Stay.
+    expect(await seen(MEMBER, ids.today)).toMatchObject({
+      mayChangeStay: true,
+    });
+    expect(await seen(HOUSEKEEPER, ids.today)).toMatchObject({
+      status: "checked_in",
+      mayChangeStay: false,
+    });
+  });
+
+  it("a_checked_in_row_offers_the_folio_and_stay_changes: a withdrawn check-in and a second one is still one row, on the new Stay", async () => {
+    const { stayId: first } = await reservations.checkIn(MEMBER, ids.again);
+    await reservations.reverseCheckIn(MEMBER, first, "wrong Guest");
+    const { stayId: second } = await reservations.checkIn(MEMBER, ids.again);
+
+    const rows = (await reservations.listReservations(MEMBER, PROPERTY)).filter(
+      (row) => row.reservationId === ids.again,
+    );
+    expect(second).not.toBe(first);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ stayId: second, status: "checked_in" });
   });
 });
 

@@ -239,6 +239,17 @@ describe("DateRangeField", () => {
     });
   });
 
+  it("earliestFrom holds while the end is being chosen: a day before it cannot become the arrival", () => {
+    const submitted = renderField({ earliestFrom: "2026-10-05" });
+
+    fireEvent.click(half(/^Arrival/));
+    fireEvent.click(day("2026-10-06"));
+    // Now choosing the departure; a past day is neither offered nor taken.
+    expect(day("2026-10-04")).toBeDisabled();
+    fireEvent.click(day("2026-10-04"));
+    expect(submitted()).toEqual({ startsOn: "2026-10-06", endsOn: "" });
+  });
+
   it("with the start locked, picks only the end, and never before the earliest allowed", () => {
     const submitted = renderField({
       defaultValue: { from: "2026-10-05", to: "2026-10-08" },

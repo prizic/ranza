@@ -223,6 +223,12 @@ describe("searching the Reservations list", () => {
     expect(listed()).toEqual([]);
   });
 
+  it("search_matches_a_guests_phone_and_email: a telephone stored in Arabic-Indic digits is found by ordinary ones", () => {
+    show([{ ...ARRIVING, guestPhone: "+٩٠ ٥٣٢ ١٢٣ ٤٥ ٦٧" }, IN_HOUSE]);
+    search("5321234567");
+    expect(listed()).toEqual(["RZ-ARRIVING"]);
+  });
+
   it("search_matches_a_guests_phone_and_email: the row shows the phone beside the email", () => {
     show(ROWS);
     const row = screen.getByText("RZ-ARRIVING").closest("tr")!;
