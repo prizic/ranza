@@ -23,7 +23,7 @@ dirty. The moment of a departure is `stays.departed_at`, which the database
 stamps as a Stay departs and never moves after, rather than `stays.updated_at`,
 which any later write to a departed Stay would move.
 
-Proposed amendment: 2026-09-29 — a room a Guest was moved out of is dirty too, derived
+Amended: 2026-09-29 — a room a Guest was moved out of is dirty too, derived
 from the move's revision the way a departure is derived from the Stay, and
 marked on the board by the worker from `stay.moved`
 ([ADR 0039](0039-a-booking-is-amended-through-commands-that-check-their-caller.md)).

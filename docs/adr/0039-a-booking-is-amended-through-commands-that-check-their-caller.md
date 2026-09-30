@@ -2,9 +2,10 @@
 
 Date: 2026-09-28
 
-Status: Proposed — applied in `20260916009000_a_booking_is_amended`,
-`20260916009100_a_stay_changes_its_departure` and
-`20260916009200_a_guest_moves_room`
+Status: Accepted — applied in `20260916009000_a_booking_is_amended`,
+`20260916009100_a_stay_changes_its_departure`,
+`20260916009200_a_guest_moves_room` and
+`20260916009300_a_lower_price_is_a_pricing_decision`
 
 Amends [ADR 0029](0029-housekeeping-status-is-a-room-s-own-row.md): a room a
 Guest was moved out of reads dirty, as one a Guest left does;
@@ -99,6 +100,12 @@ unpriced when that kind has none. Dates alone never re-price, and a Guest in
 house keeps their price when moved. It holds the Property row `FOR SHARE`, as
 the insert stamp does, and refuses rather than unprices when the Property is
 out of reach, since on an update that would erase a price the Guest agreed.
+
+A change that leaves the booking unpriced or cheaper than it was needs
+`rates.manage` as well: taking a price away or lowering it is pricing authority
+(ADR 0038), not the front desk's, and without it the change is refused (`42501`,
+AB-S1-28). The owner decided this on accepting the ADR, after the security
+review found `front_desk.amend` alone could make a booking charge nothing.
 
 ### A finished booking or Stay keeps its dates
 
