@@ -35,6 +35,22 @@ administrator keeps one, as it keeps somebody who can add staff at all
 (SP-S1-34, SP-S1-36, SP-S1-38).
 `20260916007000_an_administrator_acts_only_within_their_own`.
 
+Proposed amendment: 2026-09-28 — an invitation is bounded, when it is written, like the
+membership it is for. It carries no role or reach of its own, so an
+administrator writes or withdraws one only for a member they may act on: a role
+within their own, and organization-wide only if they are. Writing one also
+needs an active membership and an author who reaches every Property the member
+does, because a password for somebody elsewhere is reach the author was not
+given; and the author it names is whoever writes it. Withdrawing is narrowing,
+and not bounded by Properties, as revoking is not. No update leaves an
+invitation pending, whoever makes it: reopening a withdrawn one would revive a
+token only its author holds, and re-inviting writes a fresh one (SP-S1-39). A
+member widened after their invitation was written is not yet answered
+(SP-S1-41). An update only ever withdraws a pending invitation; an
+answered one is history.
+`20260916008500_an_invitation_is_bounded_by_its_authors_role_and_reach`,
+`20260916008510_withdrawing_is_the_only_change_to_an_invitation`.
+
 ## Context
 
 Staff and permissions is the first feature whose subject is authorization
