@@ -81,6 +81,16 @@ export interface AuditPage extends AuditNames {
   nextCursor: string | null;
 }
 
+/**
+ * An Organization whose Subscription is in its grace period (`past_due`,
+ * ADR 0040), shown to one of its Owners. Everything keeps working while it
+ * lasts; the Control Plane ends it by suspending the Subscription.
+ */
+export interface BillingNotice {
+  organizationId: string;
+  organizationName: string;
+}
+
 /** A Property the acting Staff Member may use a capability in. */
 export interface EntitledProperty {
   propertyId: string;

@@ -58,7 +58,7 @@ export function DefineRoleDialog({
           {t("staff.defineRole")}
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("staff.defineRoleTitle")}</DialogTitle>
           <DialogDescription>

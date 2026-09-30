@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { isSupportedLocale } from "@ranza/i18n";
+import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { MaintenanceBoard } from "../../../../features/maintenance/components/maintenance-board";
@@ -48,7 +48,11 @@ export default async function MaintenancePage({
   const t = await getTranslations();
   const query = await searchParams;
   const properties = await entitledProperties(MAINTENANCE_CAPABILITY);
-  const property = frontDeskProperty(properties, query);
+  const property = await frontDeskProperty(
+    properties,
+    query,
+    localizeHref(locale, "maintenance"),
+  );
 
   if (!property) {
     return (

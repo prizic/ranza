@@ -13,6 +13,7 @@ export {
   CheckInDayClosedError,
   StayMovedError,
   CheckInError,
+  CheckInTooEarlyError,
   CheckInReversalError,
   CheckOutError,
   EarlyDepartureError,

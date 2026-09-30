@@ -960,8 +960,11 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
       outOfOrder: { acknowledged: true },
     });
     try {
-      const [today] = await owner.$queryRawUnsafe<{ day: string }[]>(
-        "select to_char(app.property_today($1::uuid), 'YYYY-MM-DD') as day",
+      const [today] = await owner.$queryRawUnsafe<
+        { day: string; next: string }[]
+      >(
+        `select to_char(app.property_today($1::uuid), 'YYYY-MM-DD') as day,
+                to_char(app.property_today($1::uuid) + 1, 'YYYY-MM-DD') as next`,
         PROPERTY,
       );
       await expect(
@@ -975,7 +978,7 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
           quotedRateMinor: null,
           quotedCurrency: null,
           startsOn: today!.day,
-          endsOn: null,
+          endsOn: today!.next,
         }),
       ).rejects.toBeInstanceOf(ReservationRefusedError);
 

@@ -6,6 +6,7 @@ import { psql } from "./local-database";
 import {
   aPropertyTheViewerDoesNotReach,
   propertyWithHousekeepingOff,
+  propertyWithTodayOff,
   signIn,
   testProperty,
 } from "./front-desk";
@@ -280,8 +281,39 @@ test("a Property the viewer does not reach shows the empty state under a switche
   // state, so it goes back to the day the switcher names instead of showing
   // the first Property's under a switcher naming none.
   await page.goto(`/en/today?property=${unreached}`);
-  await expect(page).toHaveURL(/\/en\/today$/);
+  await expect(page).toHaveURL(/\/en\/today\?property=[0-9a-f-]+$/);
   await expect(
     page.getByRole("button", { name: "Properties" }),
   ).not.toContainText("Choose a Property");
+});
+
+// OA-S3-02, scenario A. The Property remembered on this device has
+// Housekeeping and not Today, so the shell's default never names it on its
+// own; a bare Housekeeping URL once showed its board under another Property's
+// name in the switcher, with rail links carrying the other one.
+test("a bare URL names one Property: the page writes the remembered one into its URL", async ({
+  page,
+}) => {
+  const remembered = propertyWithTodayOff();
+
+  await signIn(page);
+  await page.context().addCookies([
+    // Path=/, as the switcher writes it.
+    {
+      name: "ranza_property",
+      value: remembered,
+      url: new URL("/", page.url()).href,
+    },
+  ]);
+  await page.goto("/en/housekeeping");
+
+  await expect(page).toHaveURL(
+    new RegExp(`/en/housekeeping\\?property=${remembered}$`),
+  );
+  await expect(page.getByRole("button", { name: "Properties" })).toContainText(
+    "(Today off)",
+  );
+  await expect(
+    page.locator("aside").getByRole("link", { name: "Housekeeping" }),
+  ).toHaveAttribute("href", new RegExp(`property=${remembered}`));
 });

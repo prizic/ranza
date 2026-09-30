@@ -94,7 +94,7 @@ values ('8b444444-4444-4444-8444-444444444444',
 insert into public.subscriptions (organization_id, status) values
   ('8a111111-1111-4111-8111-111111111111', 'active'),
   ('8a222222-2222-4222-8222-222222222222', 'active'),
-  ('8a333333-3333-4333-8333-333333333333', 'past_due');
+  ('8a333333-3333-4333-8333-333333333333', 'suspended');
 
 insert into public.entitlements (organization_id, module_key) values
   ('8a111111-1111-4111-8111-111111111111', 'housekeeping'),

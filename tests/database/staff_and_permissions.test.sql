@@ -15,7 +15,7 @@
 -- purpose: it needs two sessions and pgTAP has one. It lives in
 -- tests/integration/staff.test.ts, which can open two connections.
 begin;
-select plan(98);
+select plan(100);
 
 insert into public.users (id, email) values
   ('61111111-1111-4111-8111-111111111111', 'staff-owner-a@example.test'),
@@ -59,7 +59,7 @@ insert into public.organization_memberships
 insert into public.subscriptions (organization_id, status) values
   ('6a111111-1111-4111-8111-111111111111', 'active'),
   ('6a222222-2222-4222-8222-222222222222', 'active'),
-  ('6a333333-3333-4333-8333-333333333333', 'past_due');
+  ('6a333333-3333-4333-8333-333333333333', 'suspended');
 
 insert into public.entitlements (organization_id, module_key) values
   ('6a111111-1111-4111-8111-111111111111', 'front_office'),
@@ -637,8 +637,9 @@ select throws_ok(
 -- Organization's own holding something they lack. Finance rather than
 -- Housekeeping because the section above rewrote Housekeeping's permissions in
 -- this transaction. The array is Finance's, so a permission added to Finance
--- (maintenance.report, 20260916004300) is added here too, or the ceiling
--- correctly refuses the hand-out and the lives_ok below goes red.
+-- (maintenance.report, 20260916004300; finance.reverse_charge,
+-- 20260916009600) is added here too, or the ceiling correctly refuses the
+-- hand-out and the lives_ok below goes red.
 
 set local role none;
 -- How many rows a statement changed, -1 when a policy refused it by raising,
@@ -671,7 +672,7 @@ insert into public.staff_roles
   ('6a111111-1111-4111-8111-111111111111', 'rota_admin',
    '6a111111-1111-4111-8111-111111111111', 'Rota admin',
    array['staff.administer', 'finance.manage_folio', 'finance.post_charge',
-         'maintenance.report']),
+         'maintenance.report', 'finance.reverse_charge']),
   ('6a111111-1111-4111-8111-111111111111', 'night_auditor',
    '6a111111-1111-4111-8111-111111111111', 'Night auditor',
    array['audit.read']);
@@ -1176,7 +1177,26 @@ values
    '6a111111-1111-4111-8111-111111111111',
    '66666666-6666-4666-8666-666666666666',
    'invitation-hash-two', 'pending', now() + interval '7 days',
+   '61111111-1111-4111-8111-111111111111'),
+  -- Still pending, but its seven days are over: nothing has run since to mark
+  -- it expired, which is the state a stranger could find it in.
+  ('6d333333-3333-4333-8333-333333333333',
+   '6a111111-1111-4111-8111-111111111111',
+   '62222222-2222-4222-8222-222222222222',
+   'invitation-hash-expired', 'pending', now() - interval '1 day',
    '61111111-1111-4111-8111-111111111111');
+
+-- What app.accept_staff_invitation() answers the caller: 'no row', 'a row', or
+-- the SQLSTATE it raised. A value rather than an exception, so a guard that
+-- starts refusing makes one assertion fail instead of aborting the suite.
+create function pg_temp.acceptance_answer(token text) returns text
+language plpgsql as $$
+begin
+  return case when exists (select 1 from app.accept_staff_invitation(token))
+              then 'a row' else 'no row' end;
+exception when others then
+  return sqlstate;
+end $$;
 
 -- app.end_sessions_for() is granted to ranza_worker alone, and that narrow
 -- grant was the whole boundary. The check it can actually make is the worker
@@ -1226,6 +1246,18 @@ select throws_ok(
   $$select * from app.accept_staff_invitation('invitation-hash-one')$$,
   '42501', NULL,
   'a signed-in caller cannot accept an invitation that is not theirs');
+
+-- An expired token is no answer either (SP-S1-33). The guard asks what the
+-- acceptance asks — pending AND unexpired — so a stranger presenting one gets
+-- the empty result a token that never existed gets, rather than a refusal that
+-- says a live-looking invitation is there.
+select is(
+  pg_temp.acceptance_answer('invitation-hash-never-issued'), 'no row',
+  'a token that never existed answers a signed-in stranger with no row');
+
+select is(
+  pg_temp.acceptance_answer('invitation-hash-expired'), 'no row',
+  'and so does an expired invitation, rather than a refusal');
 
 select app.set_request_context('63333333-3333-4333-8333-333333333333');
 

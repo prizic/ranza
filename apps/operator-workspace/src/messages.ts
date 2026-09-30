@@ -14,6 +14,11 @@ export interface Messages {
   propertySwitcher: string;
   /** The switcher's label when the URL names a Property it does not list. */
   chooseProperty: string;
+  /** Shown to an Owner while a Subscription is past due (ADR 0040). */
+  billingNotice: {
+    title: string;
+    description: string;
+  };
   mainNavigation: string;
   sections: string;
   breadcrumb: string;
@@ -93,6 +98,8 @@ export interface Messages {
   ready: string;
   notReady: string;
   checkInRefused: string;
+  /** A booking whose first business date has not come (CI-S1-07). */
+  checkInTooEarly: string;
 
   /**
    * Withdrawing a check-in that should not have happened (ADR 0022).
@@ -290,6 +297,7 @@ export interface Messages {
       | "closeDay"
       | "manageFolio"
       | "postCharge"
+      | "reverseCharge"
       | "administerStaff"
       | "defineRoles"
       | "configureAccommodation"
@@ -320,6 +328,11 @@ export interface Messages {
   stayTypeLabel: string;
   arrival: string;
   departureHint: string;
+  /** Shown instead of `departureHint` while the stay type is Guest (RG-S1-11). */
+  departureRequiredHint: string;
+  /** Why New reservation is disabled when no Unit can be sold (RG-S3-04). */
+  noBookableUnit: string;
+  openRooms: string;
   /** `{price}`: one night of the chosen Unit's kind, formatted (ADR 0038). */
   quotePerNight: string;
   /** ICU plural on `count` nights; `{total}` formatted. */
@@ -338,6 +351,7 @@ export interface Messages {
   bookingOpenEnded: string;
   bookingPickArrival: string;
   bookingPickDeparture: string;
+  bookingPickDepartureRequired: string;
   /** ICU plural on `count`. */
   stayNights: string;
   dateRangeClear: string;
@@ -487,7 +501,9 @@ export interface Messages {
   freeTonight: string;
   inHouseTonight: string;
   reservedTonight: string;
-  reservedCount: string;
+  statReserved: string;
+  nextArrivalOn: string;
+  outOfOrderBeds: string;
   blockedStatus: string;
 
   /** The Configuration screen (ADR 0036). */
@@ -1322,6 +1338,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     today: "Bugün",
     propertySwitcher: "Tesisler",
     chooseProperty: "Tesis seçin",
+    billingNotice: {
+      title: "{organization} için ödeme gecikti",
+      description:
+        "Çalışma alanı şimdilik her şeyiyle çalışmaya devam ediyor. Lütfen ödemeyi tamamlayın.",
+    },
     mainNavigation: "Ana gezinme",
     sections: "Bölümler",
     breadcrumb: "Konum",
@@ -1406,6 +1427,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     ready: "Hazır",
     notReady: "Hazır değil",
     checkInRefused: "Bu rezervasyon için giriş yapılamıyor.",
+    checkInTooEarly:
+      "Bu rezervasyon henüz başlamadı — ilk gecesi daha sonraki bir iş gününde. Misafirin girişini o gün yapın ya da rezervasyonu bugünden başlayacak şekilde değiştirin.",
     undoCheckIn: "Girişi geri al",
     undoingCheckIn: "Geri alınıyor",
     undoCheckInFor: "{guest} için girişi geri al",
@@ -1599,6 +1622,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         closeDay: "Günü kapatma",
         manageFolio: "Folyo açma ve kapatma",
         postCharge: "Folyoya ücret işleme",
+        reverseCharge: "Folyodaki ücreti ters kaydetme",
         administerStaff: "Ekibi yönetme",
         defineRoles: "Rol tanımlama",
         configureAccommodation: "Odaları ve yatakları yapılandırma",
@@ -1635,6 +1659,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     stayTypeLabel: "Konaklama türü",
     arrival: "Giriş",
     departureHint: "Açık uçlu bir rezervasyon için boş bırakın.",
+    departureRequiredHint:
+      "Misafir rezervasyonunun bir ayrılış tarihi olmalı. Yalnızca bir Sakinin rezervasyonu açık uçlu bırakılabilir.",
+    noBookableUnit:
+      "Burada rezerve edilebilecek birim yok — tüm birimler bloke, hizmet dışı ya da yatak bazında kiralanıyor.",
+    openRooms: "Odalar ve yataklara git",
     quotePerNight: "Gecelik {price}",
     quoteStay: "{count, plural, one {# gece} other {# gece}}: toplam {total}",
     quoteUnpriced:
@@ -1648,6 +1677,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingOpenEnded: "Açık uçlu",
     bookingPickArrival: "Giriş gününü seçin",
     bookingPickDeparture: "Çıkış gününü seçin ya da açık bırakın",
+    bookingPickDepartureRequired: "Çıkış gününü seçin",
     stayNights: "{count, plural, other {# gece}}",
     dateRangeClear: "Temizle",
     dateRangeDone: "Tamam",
@@ -1808,7 +1838,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     freeTonight: "Boş",
     inHouseTonight: "Konaklamada",
     reservedTonight: "Rezervasyonlu",
-    reservedCount: "{count, number} rezervasyonlu",
+    statReserved: "Bu gece rezervasyonlu",
+    nextArrivalOn: "Sonraki varış {date}",
+    outOfOrderBeds: "{count, number} hizmet dışı",
     blockedStatus: "Kapalı",
     roomCalendar: {
       title: "{property} oda takvimi",
@@ -2702,6 +2734,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     today: "Today",
     propertySwitcher: "Properties",
     chooseProperty: "Choose a Property",
+    billingNotice: {
+      title: "Payment for {organization} is overdue",
+      description:
+        "Everything in the Workspace keeps working for now. Please settle the payment.",
+    },
     mainNavigation: "Main navigation",
     sections: "Sections",
     breadcrumb: "Breadcrumb",
@@ -2785,6 +2822,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     ready: "Ready",
     notReady: "Not ready",
     checkInRefused: "That Reservation cannot be checked in.",
+    checkInTooEarly:
+      "This booking hasn't started yet — its first night is a later business day. Check the Guest in on that day, or change the booking to start today.",
     undoCheckIn: "Undo check-in",
     undoingCheckIn: "Undoing",
     undoCheckInFor: "Undo check-in for {guest}",
@@ -2977,6 +3016,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         closeDay: "Close the day",
         manageFolio: "Open and close a Folio",
         postCharge: "Post a charge",
+        reverseCharge: "Reverse a charge",
         administerStaff: "Administer staff",
         defineRoles: "Define roles",
         configureAccommodation: "Configure rooms & beds",
@@ -3012,6 +3052,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     stayTypeLabel: "Stay type",
     arrival: "Arrival",
     departureHint: "Leave empty for an open-ended Reservation.",
+    departureRequiredHint:
+      "A Guest booking needs a departure date. Only a Resident's may be left open-ended.",
+    noBookableUnit:
+      "No Unit can be booked here — every Unit is blocked, out of service, or let by the bed.",
+    openRooms: "Go to Rooms & beds",
     quotePerNight: "{price} a night",
     quoteStay:
       "{count, plural, one {# night} other {# nights}}: {total} in total",
@@ -3027,6 +3072,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingOpenEnded: "Open-ended",
     bookingPickArrival: "Choose the arrival day",
     bookingPickDeparture: "Choose the departure, or leave it open",
+    bookingPickDepartureRequired: "Choose the departure day",
     stayNights: "{count, plural, one {# night} other {# nights}}",
     dateRangeClear: "Clear",
     dateRangeDone: "Done",
@@ -3189,7 +3235,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     freeTonight: "Free",
     inHouseTonight: "In house",
     reservedTonight: "Reserved",
-    reservedCount: "{count, number} reserved",
+    statReserved: "Reserved tonight",
+    nextArrivalOn: "Next arrival {date}",
+    outOfOrderBeds: "{count, number} out of order",
     blockedStatus: "Blocked",
     roomCalendar: {
       title: "Room calendar at {property}",
@@ -4090,6 +4138,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     today: "اليوم",
     propertySwitcher: "المنشآت",
     chooseProperty: "اختر منشأة",
+    billingNotice: {
+      title: "تأخّر سداد اشتراك {organization}",
+      description:
+        "تستمر مساحة العمل في العمل بالكامل في الوقت الحالي. يُرجى تسوية الدفعة.",
+    },
     mainNavigation: "التنقل الرئيسي",
     sections: "الأقسام",
     breadcrumb: "مسار التنقل",
@@ -4172,6 +4225,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     ready: "جاهزة",
     notReady: "غير جاهزة",
     checkInRefused: "لا يمكن تسجيل الوصول لهذا الحجز.",
+    checkInTooEarly:
+      "لم يبدأ هذا الحجز بعد — ليلته الأولى في يوم عمل لاحق. سجّل وصول الضيف في ذلك اليوم، أو غيّر الحجز ليبدأ اليوم.",
     undoCheckIn: "التراجع عن تسجيل الوصول",
     undoingCheckIn: "جارٍ التراجع",
     undoCheckInFor: "التراجع عن تسجيل الوصول لـ {guest}",
@@ -4357,6 +4412,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         closeDay: "إغلاق اليوم",
         manageFolio: "فتح وإغلاق الحساب",
         postCharge: "تسجيل رسم على الحساب",
+        reverseCharge: "عكس رسم مسجَّل على الحساب",
         administerStaff: "إدارة الفريق",
         defineRoles: "تعريف الأدوار",
         configureAccommodation: "تهيئة الغرف والأسرّة",
@@ -4390,6 +4446,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     stayTypeLabel: "نوع الإقامة",
     arrival: "الوصول",
     departureHint: "اتركه فارغًا لحجز مفتوح المدة.",
+    departureRequiredHint:
+      "يحتاج حجز الضيف إلى تاريخ مغادرة. يمكن ترك حجز المقيم وحده مفتوح المدة.",
+    noBookableUnit:
+      "لا توجد وحدة يمكن حجزها هنا — كل الوحدات محجوبة أو خارج الخدمة أو تُؤجَّر بالسرير.",
+    openRooms: "انتقل إلى الغرف والأسرّة",
     quotePerNight: "{price} لليلة",
     quoteStay:
       "{count, plural, zero {# ليلة} one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلة} other {# ليلة}}: الإجمالي {total}",
@@ -4404,6 +4465,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingOpenEnded: "مفتوحة المدة",
     bookingPickArrival: "اختر يوم الوصول",
     bookingPickDeparture: "اختر يوم المغادرة أو اتركه مفتوحًا",
+    bookingPickDepartureRequired: "اختر يوم المغادرة",
     stayNights:
       "{count, plural, one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلة} other {# ليلة}}",
     dateRangeClear: "مسح",
@@ -4559,8 +4621,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     freeTonight: "فارغ",
     inHouseTonight: "في الإقامة",
     reservedTonight: "محجوز",
-    reservedCount:
-      "{count, plural, zero {لا شيء محجوز} one {سرير واحد محجوز} two {سريران محجوزان} few {# أسرّة محجوزة} many {# سريرًا محجوزًا} other {# سرير محجوز}}",
+    statReserved: "محجوز الليلة",
+    nextArrivalOn: "الوصول التالي {date}",
+    outOfOrderBeds: "{count, number} خارج الخدمة",
     blockedStatus: "مغلق",
     roomCalendar: {
       title: "تقويم الغرف في {property}",

@@ -1,6 +1,6 @@
 import "server-only";
 import { createAuthModule } from "@ranza/auth";
-import { createPrismaClient } from "@ranza/db";
+import { assertUnprivileged, createPrismaClient } from "@ranza/db";
 import { createStaysModule } from "@ranza/stays";
 
 /**
@@ -37,20 +37,48 @@ function required(name: string): string {
   return value;
 }
 
-function compose() {
-  const tenantUrl = required("DATABASE_URL");
-
-  // A privileged runtime connection is the failure this repository has already
-  // seen once: policies stay correct and stop applying. Owners and BYPASSRLS
-  // roles cannot be detected from a URL, but the migration role can.
-  if (tenantUrl === process.env.DIRECT_URL) {
+/**
+ * A runtime connection's URL, refused by name when it is the migration one.
+ *
+ * A privileged runtime connection is the failure this repository has already
+ * seen once: policies stay correct and stop applying. Owners and BYPASSRLS
+ * roles cannot be detected from a URL — `verifyConnections` asks the database
+ * about those — but the migration role can, and "you pasted the wrong URL" is a
+ * more useful refusal than "your role owns tables".
+ */
+function runtimeUrl(name: "DATABASE_URL" | "AUTH_DATABASE_URL"): string {
+  const url = required(name);
+  if (url === process.env.DIRECT_URL) {
     throw new Error(
-      "DATABASE_URL must not be the migration connection: its role owns the tables, so row-level security would not apply",
+      `${name} must not be the migration connection: its role owns the tables, so row-level security would not apply`,
     );
   }
+  return url;
+}
 
-  const tenantDb = createPrismaClient(tenantUrl);
-  const authDb = createPrismaClient(required("AUTH_DATABASE_URL"));
+/**
+ * Asks the database what both runtime connections actually connect as, and
+ * refuses a superuser, a BYPASSRLS role, or one that owns a table — the check
+ * the worker makes (ADR 0018, amended; OA-S1-05). `src/instrumentation.ts`
+ * runs it once, before the server takes its first request.
+ *
+ * Its own short-lived clients rather than the composition's, so that asking
+ * does not hand a raw client to anything that could reach past the modules.
+ */
+export async function verifyConnections(): Promise<void> {
+  for (const name of ["DATABASE_URL", "AUTH_DATABASE_URL"] as const) {
+    const db = createPrismaClient(runtimeUrl(name));
+    try {
+      await assertUnprivileged(db, name);
+    } finally {
+      await db.$disconnect();
+    }
+  }
+}
+
+function compose() {
+  const tenantDb = createPrismaClient(runtimeUrl("DATABASE_URL"));
+  const authDb = createPrismaClient(runtimeUrl("AUTH_DATABASE_URL"));
 
   const { auth, linkRanzaUser } = createAuthModule({
     db: authDb,

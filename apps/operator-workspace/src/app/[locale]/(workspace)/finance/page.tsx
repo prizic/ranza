@@ -9,7 +9,9 @@ import {
   folio,
   FOLIO_CAPABILITY,
   folios,
+  permittedProperties,
   requireViewer,
+  REVERSE_CHARGE_PERMISSION,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
 
@@ -41,7 +43,11 @@ export default async function FinancePage({
   const t = await getTranslations();
   const search = await searchParams;
   const properties = await entitledProperties(FOLIO_CAPABILITY);
-  const property = frontDeskProperty(properties, search);
+  const property = await frontDeskProperty(
+    properties,
+    search,
+    localizeHref(locale, "finance"),
+  );
 
   if (!property) {
     return (
@@ -58,10 +64,14 @@ export default async function FinancePage({
   const selected = search.folio ? await folio(search.folio) : null;
 
   if (selected) {
+    // Asked about the Folio's own Property, as the insert policy asks it.
+    const mayReverse = (
+      await permittedProperties(REVERSE_CHARGE_PERMISSION)
+    ).some((reachable) => reachable.propertyId === selected.propertyId);
     return (
       <>
         <p className="text-sm text-muted-foreground">{property.propertyName}</p>
-        <FolioPanel folio={selected} locale={locale} />
+        <FolioPanel folio={selected} locale={locale} mayReverse={mayReverse} />
       </>
     );
   }

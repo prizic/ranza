@@ -89,6 +89,19 @@ export function RoomsView({
     return `${mt("outOfOrder")} · ${mt("reference", { number: hold.number })}${back}`;
   };
 
+  // A free Unit says when its next arrival is, beside the word free (RB-S1-05).
+  const nextArrivalLabel = (day: string) =>
+    t("nextArrivalOn", {
+      date: isSupportedLocale(locale)
+        ? formatDate(new Date(`${day}T12:00:00Z`), locale, {
+            timeZone: "UTC",
+            year: undefined,
+          })
+        : day,
+    });
+  const stateBadge = (unit: UnitEntry, outOfOrder: string) =>
+    renderUnitStateBadge(unit, t, outOfOrder, nextArrivalLabel);
+
   function handleSelectUnit(unit: UnitEntry, roomId: string | null = null) {
     setSelectedUnit(unit);
     setSelectedRoomId(roomId);
@@ -145,26 +158,29 @@ export function RoomsView({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
         <StatTile icon={DoorOpen} label={t("statRooms")} tone="neutral">
           {data.counts.rooms}
         </StatTile>
-        <StatTile icon={Bed} label={t("statBeds")} tone="neutral">
+        <StatTile
+          icon={Bed}
+          label={t("statBeds")}
+          note={
+            data.counts.outOfService > 0
+              ? t("outOfOrderBeds", { count: data.counts.outOfService })
+              : undefined
+          }
+          tone="neutral"
+        >
           {data.counts.sellable}
         </StatTile>
         <StatTile icon={Users} label={t("statOccupied")} tone="info">
           {data.counts.inHouse}
         </StatTile>
-        <StatTile
-          icon={CheckCircle2}
-          label={t("statEmpty")}
-          note={
-            data.counts.reserved > 0
-              ? t("reservedCount", { count: data.counts.reserved })
-              : undefined
-          }
-          tone="success"
-        >
+        <StatTile icon={CalendarDays} label={t("statReserved")} tone="warning">
+          {data.counts.reserved}
+        </StatTile>
+        <StatTile icon={CheckCircle2} label={t("statEmpty")} tone="success">
           {data.counts.free}
         </StatTile>
         <StatTile icon={Ban} label={t("statBlocked")} tone="danger">
@@ -262,9 +278,8 @@ export function RoomsView({
                                         {bed.name}
                                       </span>
                                       <div className="pt-1.5">
-                                        {renderUnitStateBadge(
+                                        {stateBadge(
                                           bed,
-                                          t,
                                           outOfOrderLabel(
                                             holdFor(bed.unitId, room.unitId),
                                           ),
@@ -280,9 +295,8 @@ export function RoomsView({
                                     onClick={() => handleSelectUnit(room)}
                                     className="rounded-full focus-visible:ring-2 focus-visible:ring-ring"
                                   >
-                                    {renderUnitStateBadge(
+                                    {stateBadge(
                                       room,
-                                      t,
                                       outOfOrderLabel(
                                         holdByUnit.get(room.unitId),
                                       ),
@@ -331,9 +345,8 @@ export function RoomsView({
                       <TableCell>{t("unitType.bed")}</TableCell>
                       <TableCell>1</TableCell>
                       <TableCell>
-                        {renderUnitStateBadge(
+                        {stateBadge(
                           bed,
-                          t,
                           outOfOrderLabel(holdFor(bed.unitId, room.unitId)),
                         )}
                       </TableCell>
@@ -362,9 +375,8 @@ export function RoomsView({
                     </TableCell>
                     <TableCell>{room.capacity}</TableCell>
                     <TableCell>
-                      {renderUnitStateBadge(
+                      {stateBadge(
                         room,
-                        t,
                         outOfOrderLabel(holdByUnit.get(room.unitId)),
                       )}
                     </TableCell>
@@ -414,8 +426,8 @@ function unitActionLabel(
   return t("blockBed");
 }
 
-// A badge is one line by default. This one carries a request number and a
-// date, which is wider than a tile, so it wraps inside the tile instead.
+// A badge is one line by default. These carry a request number or an arrival
+// and a date, which is wider than a tile, so they wrap inside the tile instead.
 const OUT_OF_ORDER_WRAPS =
   "h-auto max-w-full shrink whitespace-normal text-start";
 
@@ -423,6 +435,7 @@ function renderUnitStateBadge(
   unit: UnitEntry,
   t: ReturnType<typeof useTranslations>,
   outOfOrderLabel: string,
+  nextArrivalLabel: (day: string) => string,
 ) {
   const state = unit.state;
   if (!state) return null;
@@ -465,9 +478,14 @@ function renderUnitStateBadge(
     default:
       return (
         <StatusBadge
+          className={OUT_OF_ORDER_WRAPS}
           icon={CheckCircle2}
           tone="success"
-          label={t("freeTonight")}
+          label={
+            state.kind === "free" && state.nextArrivalOn
+              ? `${t("freeTonight")} · ${nextArrivalLabel(state.nextArrivalOn)}`
+              : t("freeTonight")
+          }
         />
       );
   }
@@ -476,6 +494,7 @@ function renderUnitStateBadge(
 const TILE_TONE = {
   neutral: "bg-muted text-muted-foreground",
   info: "bg-info-soft text-info",
+  warning: "bg-warning-soft text-warning",
   success: "bg-success-soft text-success",
   danger: "bg-danger-soft text-danger",
 } as const;

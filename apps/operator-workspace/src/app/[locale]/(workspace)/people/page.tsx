@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { isSupportedLocale } from "@ranza/i18n";
+import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState, PageHeader } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { DefineRoleDialog } from "../../../../features/staff/components/define-role-dialog";
@@ -10,6 +10,7 @@ import {
   PERMISSION_CATALOGUE,
   shippedRoleOf,
 } from "../../../../features/staff/labels";
+import { frontDeskProperty } from "../../../../server/front-desk";
 import { readRoles, readRoster } from "../../../../server/staff";
 import {
   entitledProperties,
@@ -21,11 +22,14 @@ import {
  * Staff and permissions: who works for this Organization, and what each role
  * may do.
  *
- * The Organization comes from the viewer's own reach rather than from the URL.
- * A Property is how reach is expressed everywhere else in the product, and
- * staff administration is the one command that is about the Organization
- * instead — so the gate is still asked about a Property, and the answer is used
- * to find the Organization that Property belongs to.
+ * The Organization is the one the Property being worked in belongs to. A
+ * Property is how reach is expressed everywhere else in the product, and staff
+ * administration is the one command that is about the Organization instead —
+ * so the gate is still asked about a Property, chosen as every page chooses it
+ * (`?property=`, then the one remembered on this device, then the first), and
+ * the answer is used to find its Organization. A Staff Member of two
+ * Organizations sees the roster of the one the switcher names, never the
+ * other's under its name (OA-S3-07).
  *
  * Which means an Organization with no Property has nobody who can invite. That
  * is a real gap and it is named here rather than papered over: creating the
@@ -46,8 +50,10 @@ const STAFF_ADMINISTRATION = {
 
 export default async function PeoplePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ property?: string }>;
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
@@ -56,7 +62,11 @@ export default async function PeoplePage({
 
   const t = await getTranslations();
   const properties = await entitledProperties(STAFF_ADMINISTRATION);
-  const home = properties[0];
+  const home = await frontDeskProperty(
+    properties,
+    await searchParams,
+    localizeHref(locale, "people"),
+  );
 
   if (!home) {
     return (
@@ -102,10 +112,14 @@ export default async function PeoplePage({
               <InviteDialog
                 locale={locale}
                 organizationId={organizationId}
-                properties={properties.map((property) => ({
-                  propertyId: property.propertyId,
-                  propertyName: property.propertyName,
-                }))}
+                properties={properties
+                  .filter(
+                    (property) => property.organizationId === organizationId,
+                  )
+                  .map((property) => ({
+                    propertyId: property.propertyId,
+                    propertyName: property.propertyName,
+                  }))}
                 roles={invitableRoles.map((role) => {
                   const shipped = shippedRoleOf(role);
                   return {

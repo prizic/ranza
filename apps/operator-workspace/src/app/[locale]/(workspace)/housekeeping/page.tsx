@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { isSupportedLocale } from "@ranza/i18n";
+import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { HousekeepingBoard } from "../../../../features/housekeeping/components/housekeeping-board";
@@ -36,7 +36,11 @@ export default async function HousekeepingPage({
 
   const t = await getTranslations();
   const properties = await entitledProperties(HOUSEKEEPING_CAPABILITY);
-  const property = frontDeskProperty(properties, await searchParams);
+  const property = await frontDeskProperty(
+    properties,
+    await searchParams,
+    localizeHref(locale, "housekeeping"),
+  );
 
   if (!property) {
     return (

@@ -145,14 +145,21 @@ test("Today in Arabic reads right to left, in Arabic", async ({ page }) => {
   await expect(page.locator("main")).not.toContainText("Needs attention");
 });
 
-test("a Property named in the URL that Today does not reach goes back to Today with none", async ({
+test("a Property named in the URL that Today does not reach goes back to Today on the Property it opens on", async ({
   page,
 }) => {
   testProperty();
   const unreached = aPropertyTheViewerDoesNotReach();
   await signIn(page);
   await page.goto(`/en/today?property=${unreached}`);
-  await expect(page).toHaveURL(/\/en\/today$/);
+  // Back to Today, which then names the Property it opens on (OA-S3-01) —
+  // one the viewer reaches, never the one the URL asked for.
+  // The address it was given already matches that shape, and the redirect
+  // lands after the first paint, so wait on the id itself changing.
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get("property"))
+    .not.toBe(unreached);
+  await expect(page).toHaveURL(/\/en\/today\?property=[0-9a-f-]+$/);
   await expect(
     page.getByRole("heading", { name: /Needs attention/ }),
   ).toBeAttached();

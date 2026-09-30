@@ -32,15 +32,16 @@ import { SCREENS } from "./screens";
  * Carries the Property being worked in onto a link to another page.
  *
  * The selection lives in the query string, so a bare link drops it and the next
- * page falls back to the first Property the viewer reaches — a Property switch
- * nobody asked for. Only the switcher changes the Property, and it does so with
- * a full load, because ADR 0019 drops the client cache on a Property switch.
+ * page falls back to the Property remembered on this device, or the first it
+ * lists — a Property switch nobody asked for. Only the switcher changes the
+ * Property, and it does so with a full load, because ADR 0019 drops the client
+ * cache on a Property switch.
  *
- * A page reached with no `?property=` — Today, straight after signing in — is
- * working in the Property the switcher names by default, so a link from it
- * names that one too. Left bare, the next screen opened on the first Property
- * with its own capability, which need not be the one the switcher still showed
- * (HK-S1-24).
+ * A page that shows a Property writes it into its own URL before rendering
+ * (`frontDeskProperty`, OA-S3-02), so a link from it carries that one. On a page
+ * that shows none — Security, an unbuilt destination — links carry the
+ * Property the switcher names by default, so the next page does not choose
+ * another one on its own (HK-S1-24).
  */
 export function useWithProperty(
   defaultProperty: string | undefined,

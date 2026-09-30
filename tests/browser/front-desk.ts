@@ -74,6 +74,19 @@ export function propertyWithHousekeepingOff(): string {
 }
 
 /**
+ * A third Property of the tests' own, with Housekeeping on and Today off: one
+ * a page lists and the shell's default never names on its own, which is what
+ * let a bare URL show it under another Property's name (OA-S3-02).
+ */
+export function propertyWithTodayOff(): string {
+  return aPropertyOfTheTests(`${TEST_PROPERTY} (Today off)`, {
+    today: false,
+    front_desk: true,
+    housekeeping: true,
+  });
+}
+
+/**
  * A Property in an Organization the seeded Staff Member does not belong to,
  * with housekeeping on: a real id the viewer cannot reach, which a stale link,
  * or somebody else's, puts in `?property=`.
@@ -253,5 +266,7 @@ export async function signIn(page: Page, email = EMAIL): Promise<void> {
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/en\/today$/);
+  // Today writes the Property it opens on into its URL (OA-S3-01); a viewer
+  // with Today nowhere stays on a bare one.
+  await expect(page).toHaveURL(/\/en\/today(\?property=[0-9a-f-]+)?$/);
 }

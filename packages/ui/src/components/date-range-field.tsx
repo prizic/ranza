@@ -97,6 +97,9 @@ function daysBetween(start: Date, end: Date): number {
  * range. When `required` is set a missing start stops the submit and opens the
  * calendar at the start; when it is not, either end may be left open, so a
  * filter can say "up to the 1st" as the two inputs it replaced could.
+ * `requiredTo` does the same for the end: a missing end stops the submit and
+ * opens the calendar at the end, so a form that needs both says so the way it
+ * says every other missing field, rather than by a Save that will not press.
  *
  * `lockFrom` shows the start and never lets it change: a Guest already in
  * house changes when they leave, not when they came. Only the end is picked,
@@ -122,6 +125,7 @@ export function DateRangeField({
   onChange,
   presets,
   required = false,
+  requiredTo = false,
   today,
 }: {
   defaultValue?: { from?: string | undefined; to?: string | undefined };
@@ -143,6 +147,8 @@ export function DateRangeField({
   onChange?: (range: { from?: string; to?: string }) => void;
   presets?: readonly DateRangePreset[];
   required?: boolean;
+  /** A missing end stops the submit, as `required` does for the start. */
+  requiredTo?: boolean;
   today?: string | undefined;
 }) {
   const [range, setStoredRange] = useState<DateRange | undefined>(() => {
@@ -169,6 +175,7 @@ export function DateRangeField({
     from: useRef<HTMLButtonElement>(null),
     to: useRef<HTMLButtonElement>(null),
   };
+  const requiredFrom = useRef<HTMLInputElement>(null);
   const wide = useSyncExternalStore(
     subscribeToWidth,
     () => window.matchMedia(WIDE).matches,
@@ -322,9 +329,33 @@ export function DateRangeField({
             halves.from.current?.focus();
             openAt("from");
           }}
+          ref={requiredFrom}
           required
           tabIndex={-1}
           value={from ? toIso(from) : ""}
+        />
+      ) : null}
+      {requiredTo ? (
+        // The end's twin of the proxy above, after it in the form, so a form
+        // missing both asks for the start first. Then this one stays quiet as
+        // well: the browser focuses the first invalid control nobody claimed,
+        // and focusing this one would close the calendar the start just opened.
+        <input
+          aria-hidden="true"
+          className="sr-only"
+          onChange={() => undefined}
+          onInvalid={(event) => {
+            const input = event.currentTarget;
+            const first = input.form?.querySelector(":invalid");
+            if (first === requiredFrom.current) event.preventDefault();
+            if (first !== input) return;
+            event.preventDefault();
+            halves.to.current?.focus();
+            openAt("to");
+          }}
+          required
+          tabIndex={-1}
+          value={to ? toIso(to) : ""}
         />
       ) : null}
 

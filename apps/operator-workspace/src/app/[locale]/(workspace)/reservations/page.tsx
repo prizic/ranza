@@ -1,17 +1,23 @@
 import { notFound } from "next/navigation";
-import { calendarDay, isSupportedLocale } from "@ranza/i18n";
+import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { NewReservationDialog } from "../../../../features/front-office/components/new-reservation-dialog";
+import { NoBookableUnit } from "../../../../features/front-office/components/no-bookable-unit";
 import { ReservationsTable } from "../../../../features/front-office/components/reservations-table";
 import {
   bookableUnits,
+  bookingDay,
   entitledProperties,
   FRONT_DESK_CAPABILITY,
+  permittedProperties,
   requireViewer,
   reservations,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
+
+/** Adding, blocking and splitting rooms (accommodation_units' write policies). */
+const MANAGES_ROOMS = "accommodation.configure";
 
 /**
  * Reservations: what is booked at this Property from today onwards, and the one
@@ -42,7 +48,11 @@ export default async function ReservationsPage({
   const t = await getTranslations();
   const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
   const search = await searchParams;
-  const property = frontDeskProperty(properties, search);
+  const property = await frontDeskProperty(
+    properties,
+    search,
+    localizeHref(locale, "reservations"),
+  );
 
   if (!property) {
     return (
@@ -54,6 +64,16 @@ export default async function ReservationsPage({
   }
 
   const units = await bookableUnits(property.propertyId);
+  // The business date, not the calendar date in the Property's timezone: the
+  // two differ between midnight and the cutoff (RG-S1-10, ADR 0021).
+  const today = units.length > 0 ? await bookingDay(property.propertyId) : null;
+  const roomsHref =
+    units.length === 0 &&
+    (await permittedProperties(MANAGES_ROOMS)).some(
+      (permitted) => permitted.propertyId === property.propertyId,
+    )
+      ? `${localizeHref(locale, "rooms")}?property=${property.propertyId}`
+      : null;
 
   return (
     <>
@@ -63,12 +83,18 @@ export default async function ReservationsPage({
         </p>
         {/* Offered whenever the Property has a Unit in service. Whether this
             viewer may book one is the policies' answer, and hiding the button
-            on their behalf would be a second, weaker copy of it. */}
-        {units.length > 0 ? (
+            on their behalf would be a second, weaker copy of it. With none to
+            sell it is shown disabled and says why (RG-S3-04). The two reads
+            share their gates, so a Unit with no business date is a
+            capability switched off between them, and the next render says
+            so. */}
+        {units.length === 0 ? (
+          <NoBookableUnit roomsHref={roomsHref} />
+        ) : today ? (
           <NewReservationDialog
             locale={locale}
             propertyId={property.propertyId}
-            today={calendarDay(property.timezone)}
+            today={today}
             units={units}
           />
         ) : null}

@@ -55,9 +55,11 @@ export function CheckInAction({
         ? t("unitOccupied")
         : outcome === "notInService"
           ? t("unitNotInService")
-          : outcome === "refused"
-            ? t("checkInRefused")
-            : null;
+          : outcome === "tooEarly"
+            ? t("checkInTooEarly")
+            : outcome === "refused"
+              ? t("checkInRefused")
+              : null;
 
   return (
     <form

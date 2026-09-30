@@ -9,6 +9,26 @@ Amended: 2026-09-25 — the double-booking constraint shipped as
 holds its nights". A checked-in Reservation's Stay holds its nights instead,
 which ADR 0033 builds on. The sketch is left as written; see RG-S1-12.
 
+Proposed amendment: 2026-09-29 — a Guest booking has a departure. An open-ended booking
+is the Resident's case; `reservations_guest_has_a_departure` refuses a `guest`
+row with no `ends_on` for every writer, and `createReservation` refuses it
+first with `ReservationPeriodError` (RG-S1-11, migration 20260916009500).
+Since ADR 0038 an open-ended priced Guest booking would hold its Unit and be
+charged a room night every night until somebody noticed.
+A booking already finished — checked out, cancelled or a no-show — is excused:
+it holds no Unit, and the finished-row trigger forbids giving it a departure
+afterwards, so a database holding one from before the rule could otherwise
+never apply it. Every booking is taken confirmed, so the rule binds each new one.
+
+Proposed amendment: 2026-09-29 — a booking is not taken on a closed business day. The
+module refuses a start before the Property's today; the database refuses,
+for every writer, a Reservation inserted with a start on or before a closed
+business day (`reservations_want_an_open_day`, RZ001, migration
+20260916009510), the booking-side mirror of 20260916005200 for Stays. The
+database does not refuse every date before today: a record of somebody who
+arrived days ago is not a booking taken late, and seeds and fixtures write
+them (RG-S1-08).
+
 ## Context
 
 Until now nothing in Ranza created a Reservation. Every one was written by

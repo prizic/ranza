@@ -42,8 +42,17 @@ const PROPERTY = "d5000003-0000-4000-8000-000000000001";
 const UNBILLED = "d5000003-0000-4000-8000-000000000002";
 /** Another Organization entirely, trading in dirhams. */
 const OTHER_PROPERTY = "d5000003-0000-4000-8000-000000000003";
+/**
+ * Same Organization, does billing, and is not assigned to ASSIGNED — the
+ * Property an assigned-properties reader must not reach (FO-S7-09).
+ */
+const SECOND_BILLED = "d5000003-0000-4000-8000-000000000004";
 const MEMBER = "d5000001-0000-4000-8000-000000000001";
 const OUTSIDER = "d5000001-0000-4000-8000-000000000002";
+/** The shipped Finance role, assigned to PROPERTY and nothing else. */
+const ASSIGNED = "d5000001-0000-4000-8000-000000000003";
+/** The shipped Front desk role: opens a Folio at check-in, posts nothing. */
+const DESK = "d5000001-0000-4000-8000-000000000004";
 
 /** One Unit per test, so no two of them contend for the exclusion constraint. */
 const UNITS = Array.from(
@@ -51,6 +60,7 @@ const UNITS = Array.from(
   (_, index) => `d5000004-0000-4000-8000-0000000000${String(index + 10)}`,
 );
 const UNBILLED_UNIT = "d5000004-0000-4000-8000-000000000099";
+const SECOND_BILLED_UNIT = "d5000004-0000-4000-8000-000000000097";
 const OTHER_UNIT = "d5000004-0000-4000-8000-000000000098";
 
 // The tenant query path exactly as the host composes it: ranza_app, which is
@@ -105,10 +115,13 @@ const interrupted = createFoliosModule({
 async function seed() {
   await owner.$executeRawUnsafe(
     `insert into public.users (id, email) values
-       ($1,'folio-member@example.test'), ($2,'folio-outsider@example.test')
+       ($1,'folio-member@example.test'), ($2,'folio-outsider@example.test'),
+       ($3,'folio-assigned@example.test'), ($4,'folio-desk@example.test')
      on conflict (id) do nothing`,
     MEMBER,
     OUTSIDER,
+    ASSIGNED,
+    DESK,
   );
   await owner.$executeRawUnsafe(
     `insert into public.organizations (id, name, status) values
@@ -123,13 +136,15 @@ async function seed() {
     `insert into public.properties (id, organization_id, name, timezone, currency) values
        ($1,$4,'Folio Property','Europe/Istanbul','TRY'),
        ($2,$4,'Folio Unbilled Property','Europe/Istanbul','TRY'),
-       ($3,$5,'Folio Other Property','Asia/Dubai','AED')
+       ($3,$5,'Folio Other Property','Asia/Dubai','AED'),
+       ($6,$4,'Folio Second Billed Property','Europe/Istanbul','TRY')
      on conflict (id) do nothing`,
     PROPERTY,
     UNBILLED,
     OTHER_PROPERTY,
     ORG,
     OTHER_ORG,
+    SECOND_BILLED,
   );
 
   const units = UNITS.map(
@@ -141,7 +156,8 @@ async function seed() {
        (id, property_id, organization_id, name, unit_type, capacity)
      values ${units},
        ('${UNBILLED_UNIT}'::uuid,'${UNBILLED}'::uuid,'${ORG}'::uuid,'UB-101','room',2),
-       ('${OTHER_UNIT}'::uuid,'${OTHER_PROPERTY}'::uuid,'${OTHER_ORG}'::uuid,'OT-101','suite',4)
+       ('${OTHER_UNIT}'::uuid,'${OTHER_PROPERTY}'::uuid,'${OTHER_ORG}'::uuid,'OT-101','suite',4),
+       ('${SECOND_BILLED_UNIT}'::uuid,'${SECOND_BILLED}'::uuid,'${ORG}'::uuid,'SB-101','room',2)
      on conflict (id) do nothing`,
   );
 
@@ -167,8 +183,8 @@ async function seed() {
   await owner.$executeRawUnsafe(
     `insert into public.property_capabilities
        (property_id, organization_id, capability_key, enabled) values
-       ($1,$4,$6,true), ($2,$4,$6,true), ($3,$5,$6,true),
-       ($1,$4,$7,true), ($3,$5,$7,true)
+       ($1,$4,$6,true), ($2,$4,$6,true), ($3,$5,$6,true), ($8,$4,$6,true),
+       ($1,$4,$7,true), ($3,$5,$7,true), ($8,$4,$7,true)
      on conflict (property_id, capability_key) do nothing`,
     PROPERTY,
     UNBILLED,
@@ -177,16 +193,27 @@ async function seed() {
     OTHER_ORG,
     FRONT_DESK_CAPABILITY.capabilityKey,
     FOLIO_CAPABILITY.capabilityKey,
+    SECOND_BILLED,
   );
   await owner.$executeRawUnsafe(
     `insert into public.organization_memberships
        (organization_id, user_id, role, access_scope) values
-       ($1,$2,'manager','organization_wide'), ($3,$4,'manager','organization_wide')
+       ($1,$2,'manager','organization_wide'), ($3,$4,'manager','organization_wide'),
+       ($1,$5,'finance','assigned_properties'), ($1,$6,'front_desk','organization_wide')
      on conflict (organization_id, user_id) do nothing`,
     ORG,
     MEMBER,
     OTHER_ORG,
     OUTSIDER,
+    ASSIGNED,
+    DESK,
+  );
+  await owner.$executeRawUnsafe(
+    `insert into public.property_assignments (property_id, organization_id, user_id)
+     values ($1, $2, $3) on conflict do nothing`,
+    PROPERTY,
+    ORG,
+    ASSIGNED,
   );
 }
 
@@ -203,7 +230,7 @@ async function checkInAt(
   unitId: string,
   guestName: string,
   actor = MEMBER,
-): Promise<{ stayId: string; folioId: string | null }> {
+): Promise<{ reservationId: string; stayId: string; folioId: string | null }> {
   const reservationId = randomUUID();
   await owner.$executeRawUnsafe(
     `with guest as (
@@ -285,6 +312,7 @@ afterAll(async () => {
     `delete from public.stays where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.reservations where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.property_capabilities where organization_id in ('${ORG}','${OTHER_ORG}')`,
+    `delete from public.property_assignments where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.organization_memberships where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.entitlements where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.subscriptions where organization_id in ('${ORG}','${OTHER_ORG}')`,
@@ -294,7 +322,7 @@ afterAll(async () => {
     `delete from public.guests where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.properties where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.organizations where id in ('${ORG}','${OTHER_ORG}')`,
-    `delete from public.users where id in ('${MEMBER}','${OUTSIDER}')`,
+    `delete from public.users where id in ('${MEMBER}','${OUTSIDER}','${ASSIGNED}','${DESK}')`,
   ]) {
     await owner.$executeRawUnsafe(statement);
   }
@@ -1010,5 +1038,257 @@ describe("checking out against the bill", () => {
       );
       expect(folio?.status === "closed" && folio.lines > 0).toBe(false);
     }
+  });
+});
+
+describe("the decision sheet's Folio rows", () => {
+  it("lists open Folios before closed ones, each group by unit name (FO-S9-02)", async () => {
+    // Named so the closed one would sort first by name, and the open pair
+    // would sort the other way round by creation.
+    const closedUnit = await aBilledUnit();
+    const laterUnit = await aBilledUnit();
+    const earlierUnit = await aBilledUnit();
+    await owner.$executeRawUnsafe(
+      `update public.accommodation_units set name = case id
+          when $1::uuid then 'FO-ORD-0 closed'
+          when $2::uuid then 'FO-ORD-2 open'
+          when $3::uuid then 'FO-ORD-1 open' end
+        where id in ($1::uuid, $2::uuid, $3::uuid)`,
+      closedUnit,
+      laterUnit,
+      earlierUnit,
+    );
+    const closed = await folioAt(closedUnit, "Closed First By Name");
+    await hasLeft(closed);
+    await folios.closeFolio(MEMBER, closed);
+    await folioAt(laterUnit, "Opened First");
+    await folioAt(earlierUnit, "Opened Second");
+
+    const listed = await folios.listFolios(MEMBER, PROPERTY);
+    const statuses = listed.map((folio) => folio.status);
+    // 'closed' < 'open' as text, which is what put finished Folios first.
+    expect(statuses.indexOf("closed")).toBeGreaterThan(
+      statuses.lastIndexOf("open"),
+    );
+    const ordered = listed
+      .map((folio) => folio.unitName)
+      .filter((name) => name.startsWith("FO-ORD-"));
+    expect(ordered).toEqual([
+      "FO-ORD-1 open",
+      "FO-ORD-2 open",
+      "FO-ORD-0 closed",
+    ]);
+  });
+
+  it("refuses a description over 200 characters, and takes one of exactly 200 (FO-S2-04)", async () => {
+    const folioId = await folioAt(await aBilledUnit(), "Long Description");
+
+    await expect(
+      folios.postCharge(MEMBER, {
+        folioId,
+        description: "x".repeat(201),
+        amountMinor: 100,
+      }),
+    ).rejects.toBeInstanceOf(FolioAmountError);
+    await expect(
+      folios.postCharge(MEMBER, {
+        folioId,
+        description: "x".repeat(200),
+        amountMinor: 100,
+      }),
+    ).resolves.toMatchObject({ lineId: expect.any(String) });
+
+    const detail = await folios.folioDetail(MEMBER, folioId);
+    expect(detail?.lineCount).toBe(1);
+  });
+
+  it("never prints a total that disagrees with its own lines while charges land (FO-S3-02)", async () => {
+    const folioId = await folioAt(await aBilledUnit(), "Busy Folio");
+    let posting = true;
+    const poster = (async () => {
+      let posted = 0;
+      while (posting) {
+        await rivalFolios.postCharge(MEMBER, {
+          folioId,
+          description: `Charge ${posted}`,
+          amountMinor: 100,
+        });
+        posted += 1;
+      }
+      return posted;
+    })();
+
+    // Bounded by time as well as count, so a loaded machine reads fewer
+    // times rather than timing out; the race is asserted below either way.
+    const mismatches: string[] = [];
+    const until = Date.now() + 3_000;
+    let reads = 0;
+    for (; reads < 150 && Date.now() < until; reads += 1) {
+      const detail = await folios.folioDetail(MEMBER, folioId);
+      const summed = detail!.lines.reduce(
+        (total, line) => total + line.amountMinor,
+        0,
+      );
+      if (
+        detail!.balanceMinor !== summed ||
+        detail!.lineCount !== detail!.lines.length
+      ) {
+        mismatches.push(
+          `balance ${detail!.balanceMinor} over ${detail!.lineCount} lines, rows sum ${summed} over ${detail!.lines.length}`,
+        );
+      }
+    }
+    posting = false;
+    const posted = await poster;
+
+    // The race has to have happened for the assertion to mean anything.
+    expect(reads).toBeGreaterThan(20);
+    expect(posted).toBeGreaterThan(20);
+    expect(mismatches).toEqual([]);
+  }, 30_000);
+
+  it("refuses to reverse a reversal, writing nothing (FO-S4-05)", async () => {
+    const folioId = await folioAt(
+      await aBilledUnit(),
+      "Reversal Of A Reversal",
+    );
+    const { lineId } = await folios.postCharge(MEMBER, {
+      folioId,
+      description: "Minibar",
+      amountMinor: 3000,
+    });
+    const reversal = await folios.reverseLine(MEMBER, lineId, "Not theirs");
+
+    await expect(
+      folios.reverseLine(MEMBER, reversal.lineId, "Undo the correction"),
+    ).rejects.toBeInstanceOf(FolioWriteError);
+
+    const detail = await folios.folioDetail(MEMBER, folioId);
+    expect(detail?.lineCount).toBe(2);
+    expect(detail?.balanceMinor).toBe(0);
+  });
+
+  it("refuses to reverse a charge on a closed Folio, writing nothing (FO-S4-09)", async () => {
+    const folioId = await folioAt(await aBilledUnit(), "Closed Then Reversed");
+    const { lineId } = await folios.postCharge(MEMBER, {
+      folioId,
+      description: "Late checkout",
+      amountMinor: 5000,
+    });
+    await hasLeft(folioId);
+    await folios.closeFolio(MEMBER, folioId);
+
+    await expect(
+      folios.reverseLine(MEMBER, lineId, "Waived after closing"),
+    ).rejects.toBeInstanceOf(FolioWriteError);
+
+    const detail = await folios.folioDetail(MEMBER, folioId);
+    expect(detail?.status).toBe("closed");
+    expect(detail?.lineCount).toBe(1);
+    expect(detail?.balanceMinor).toBe(5000);
+  });
+
+  it("closes once when two people close at the same moment (FO-S5-06)", async () => {
+    const folioId = await folioAt(await aBilledUnit(), "Two Closers");
+    await hasLeft(folioId);
+
+    const outcomes = await Promise.allSettled([
+      folios.closeFolio(MEMBER, folioId),
+      rivalFolios.closeFolio(MEMBER, folioId),
+    ]);
+
+    expect(outcomes.filter((o) => o.status === "fulfilled")).toHaveLength(1);
+    const lost = outcomes.find(
+      (o) => o.status === "rejected",
+    ) as PromiseRejectedResult;
+    expect(lost.reason).toBeInstanceOf(FolioWriteError);
+
+    const [closures] = await owner.$queryRawUnsafe<{ count: number }[]>(
+      `select count(*)::int as count from audit.records
+        where action = 'folio.closed' and subject_id = $1::uuid`,
+      folioId,
+    );
+    expect(closures?.count).toBe(1);
+  });
+
+  it("refuses a charge from the shipped Front desk role, which opened the Folio (FO-S7-01)", async () => {
+    const { folioId } = await checkInAt(
+      PROPERTY,
+      ORG,
+      await aBilledUnit(),
+      "Desk Checked In",
+      DESK,
+    );
+    expect(folioId).not.toBeNull();
+
+    await expect(
+      folios.postCharge(DESK, {
+        folioId: folioId!,
+        description: "Minibar",
+        amountMinor: 1500,
+      }),
+    ).rejects.toBeInstanceOf(FolioWriteError);
+
+    const detail = await folios.folioDetail(MEMBER, folioId!);
+    expect(detail?.lineCount).toBe(0);
+  });
+
+  it("shows an assigned Finance reader nothing at a Property they are not assigned (FO-S7-09)", async () => {
+    const { folioId: elsewhere } = await checkInAt(
+      SECOND_BILLED,
+      ORG,
+      SECOND_BILLED_UNIT,
+      "Unassigned Property Guest",
+    );
+    const { folioId: here } = await checkInAt(
+      PROPERTY,
+      ORG,
+      await aBilledUnit(),
+      "Assigned Property Guest",
+    );
+
+    await expect(folios.listFolios(ASSIGNED, SECOND_BILLED)).resolves.toEqual(
+      [],
+    );
+    await expect(folios.folioDetail(ASSIGNED, elsewhere!)).resolves.toBeNull();
+    await expect(
+      folios.postCharge(ASSIGNED, {
+        folioId: elsewhere!,
+        description: "Reached around",
+        amountMinor: 100,
+      }),
+    ).rejects.toBeInstanceOf(FolioWriteError);
+
+    // And the assigned Property is reached, so the empty answer above is
+    // about the assignment rather than about the role.
+    const listed = await folios.listFolios(ASSIGNED, PROPERTY);
+    expect(listed.map((folio) => folio.folioId)).toContain(here);
+    // The same Folio is there for somebody who reaches the whole Organization.
+    const all = await folios.listFolios(MEMBER, SECOND_BILLED);
+    expect(all.map((folio) => folio.folioId)).toContain(elsewhere);
+  });
+
+  it("records the Folio on the check-in, and no record of its own (FO-S8-03)", async () => {
+    const { reservationId, stayId, folioId } = await checkInAt(
+      PROPERTY,
+      ORG,
+      await aBilledUnit(),
+      "Recorded Check-in",
+    );
+    expect(folioId).not.toBeNull();
+
+    const checkedIn = await latestRecord(
+      owner,
+      "reservation.checked_in",
+      reservationId,
+    );
+    expect(checkedIn?.context).toMatchObject({ stayId, folioId });
+
+    const [opened] = await owner.$queryRawUnsafe<{ count: number }[]>(
+      `select count(*)::int as count from audit.records
+        where subject_type = 'folio' and subject_id = $1::uuid`,
+      folioId,
+    );
+    expect(opened?.count).toBe(0);
   });
 });

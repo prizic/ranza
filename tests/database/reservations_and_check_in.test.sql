@@ -11,7 +11,7 @@
 -- dropping the exclusion constraint — and confirming it went red. A test that
 -- cannot fail is worse than no test, because it is mistaken for evidence.
 begin;
-select plan(55);
+select plan(56);
 
 insert into public.users (id, email) values
   ('31111111-1111-4111-8111-111111111111', 'front-desk-a@example.test'),
@@ -702,6 +702,18 @@ select throws_ok(
             'charge', 'After the fact', 100)$$,
   '42501', NULL,
   'a withdrawn Stay''s Folio accepts nothing further');
+
+-- CI-S2-04. What the assertions above cannot prove on their own, pinned where
+-- it lives: the check runs as its owner, so a Staff Member holding front_desk
+-- and not finance is refused even if folio_lines is one day narrowed to those
+-- who hold finance. Read from the catalogue, so a missing trigger is a failing
+-- row rather than an error.
+select is(
+  (select p.prosecdef from pg_trigger as t join pg_proc as p on p.oid = t.tgfoid
+    where t.tgrelid = 'public.stays'::regclass
+      and t.tgname = 'stays_withdrawal_is_free_of_charges'),
+  true,
+  'the charges check on a withdrawal is security definer');
 
 -- ---------------------------------------------------------------------------
 -- The commercial gates apply to a write, not only to a read

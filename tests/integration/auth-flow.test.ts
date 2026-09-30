@@ -31,6 +31,8 @@ const { auth, linkRanzaUser, resolveRanzaUserId } = createAuthModule({
 
 let subject: string;
 let ranzaUserId: string;
+/** Emails the race test signed in with, removed afterwards. */
+const raced: string[] = [];
 
 beforeAll(async () => {
   await owner.$executeRawUnsafe(
@@ -61,6 +63,15 @@ afterAll(async () => {
   await owner.$executeRawUnsafe(
     "delete from public.auth_user where email = $1",
     EMAIL,
+  );
+  await owner.$executeRawUnsafe(
+    `delete from public.auth_identities
+      where user_id in (select id from public.users where email = any($1::text[]))`,
+    raced,
+  );
+  await owner.$executeRawUnsafe(
+    "delete from public.users where email = any($1::text[])",
+    raced,
   );
   await owner.$disconnect();
   await authDb.$disconnect();
@@ -98,6 +109,39 @@ describe("authentication to tenant isolation", () => {
       subject,
     );
     expect(Number(count[0]!.count)).toBe(1);
+  });
+
+  // OA-S2-02. The re-check inside linkRanzaUser's transaction does not
+  // serialize anything under READ COMMITTED: two first sign-ins both find no
+  // identity and both insert. The unique indexes are what stop a second Ranza
+  // user, and the loser's unique violation must come back as the winner's id
+  // rather than as a failed request. A single pair can interleave harmlessly,
+  // so several race at once, each on a subject nobody has signed in with.
+  it("gives two concurrent first sign-ins of one subject one Ranza user", async () => {
+    const runs = Array.from({ length: 8 }, (_, index) => ({
+      subject: `race-${Date.now()}-${index}`,
+      email: `race-${Date.now()}-${index}@example.test`,
+    }));
+    raced.push(...runs.map((run) => run.email));
+
+    const outcomes = await Promise.all(
+      runs.map((run) =>
+        Promise.allSettled([linkRanzaUser(run), linkRanzaUser(run)]),
+      ),
+    );
+
+    for (const [index, [first, second]] of outcomes.entries()) {
+      expect(first.status, `run ${index}, first`).toBe("fulfilled");
+      expect(second.status, `run ${index}, second`).toBe("fulfilled");
+      if (first.status === "fulfilled" && second.status === "fulfilled") {
+        expect(second.value).toBe(first.value);
+      }
+    }
+    const users = await owner.$queryRawUnsafe<{ count: bigint }[]>(
+      "select count(*)::bigint as count from public.users where email = any($1::text[])",
+      runs.map((run) => run.email),
+    );
+    expect(Number(users[0]!.count)).toBe(runs.length);
   });
 
   it("sees nothing before a membership exists", async () => {

@@ -1,9 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppBottomNav, AppSidebar, type SidebarLabels } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
 import { useWithProperty, useWorkspaceNav } from "../../../lib/nav";
+import { organizationFor } from "../../../lib/property-choice";
 
 /**
  * The workspace sidebar / rail, with the navigation tree built on the client.
@@ -20,7 +22,8 @@ export function WorkspaceRail({
   entitled,
   labels,
   locale,
-  organization,
+  organization: fallback,
+  organizations,
   root,
 }: {
   actions?: ReactNode | undefined;
@@ -30,11 +33,21 @@ export function WorkspaceRail({
   entitled: readonly string[];
   labels: SidebarLabels;
   locale: SupportedLocale;
+  /** The working Property's Organization, named when the URL names none. */
   organization?: string | undefined;
+  /** Each switchable Property's Organization, by Property id. */
+  organizations: Readonly<Record<string, string>>;
   root: string;
 }) {
   const entries = useWorkspaceNav(locale, entitled, defaultProperty);
   const withProperty = useWithProperty(defaultProperty);
+  // The Organization of the Property being worked in, read from the URL as
+  // the switcher reads it: a layout renders once, and ?property= changes.
+  const organization = organizationFor(
+    useSearchParams().get("property"),
+    organizations,
+    fallback,
+  );
 
   return (
     <AppSidebar

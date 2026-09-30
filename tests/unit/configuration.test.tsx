@@ -55,6 +55,11 @@ let maintenanceShown: MaintenanceSettings | null = null;
 let pricesShown: PriceList | null = null;
 
 vi.mock("../../apps/operator-workspace/node_modules/server-only", () => ({}));
+// Nothing remembered on this device (OA-S3-05): the page resolves its
+// Property from the URL and its own list, as it did before there was a cookie.
+vi.mock("../../apps/operator-workspace/node_modules/next/headers", () => ({
+  cookies: async () => ({ get: () => undefined }),
+}));
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("notFound");
@@ -159,7 +164,9 @@ async function pageFor(
   pricesFor.mockResolvedValue(pricesShown);
   const page = await ConfigurationPage({
     params: Promise.resolve({ locale: as }),
-    searchParams: Promise.resolve({}),
+    // Named, as every page's URL is once it has opened (OA-S3-02); a bare URL
+    // redirects, which front-desk-property.test.ts asserts.
+    searchParams: Promise.resolve({ property: PROPERTY }),
   });
   return (
     <NextIntlClientProvider locale={as} messages={messages[as]}>

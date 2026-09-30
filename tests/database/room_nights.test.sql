@@ -37,14 +37,15 @@
 --   the totals missing a check-out's night             RT-S3-03 (both)
 --   the dating trigger dropped                         RT-S3-09 (both)
 --   the room-night key dropped                         RT-S3-02 (catalogue)
---   room_nights_due owing a reversed night             RT-S3-11
+--   room_nights_due not counting a reversed night      RT-S3-11 (still posted);
+--                                                      the key alone still
+--                                                      keeps it from posting
+--   that, the key dropped and ON CONFLICT removed      RT-S3-11 (close, check
+--                                                      out, both lines checks)
+--   room_nights_due without the billing check          RT-S3-17 (listed, no line)
 --   the close's total net of reversals                 RT-S3-18 (have 20000)
---
--- RT-S3-11 once reversed a night nobody had posted, so nothing was reversed
--- and it asked about another Stay's night; the fixture assertions beside each
--- reversal now prove the reversal exists before anything reads it.
 begin;
-select plan(29);
+select plan(32);
 
 insert into public.users (id, email) values
   ('f1111111-1111-4111-8111-111111111111', 'rn-manager@example.test'),
@@ -59,6 +60,8 @@ insert into public.organizations (id, name, status) values
 insert into public.properties (id, organization_id, name, currency) values
   ('fb111111-1111-4111-8111-111111111111',
    'fa111111-1111-4111-8111-111111111111', 'Night Property', 'TRY'),
+  ('fb333333-3333-4333-8333-333333333333',
+   'fa111111-1111-4111-8111-111111111111', 'Night Unbilled Property', 'TRY'),
   ('fb222222-2222-4222-8222-222222222222',
    'fa222222-2222-4222-8222-222222222222', 'Night Other Property', 'TRY');
 
@@ -89,6 +92,11 @@ insert into public.property_capabilities
    'fa111111-1111-4111-8111-111111111111', 'front_desk', true),
   ('fb111111-1111-4111-8111-111111111111',
    'fa111111-1111-4111-8111-111111111111', 'finance', true),
+  -- The Organization bills; this Property does not (RT-S3-17).
+  ('fb333333-3333-4333-8333-333333333333',
+   'fa111111-1111-4111-8111-111111111111', 'front_desk', true),
+  ('fb333333-3333-4333-8333-333333333333',
+   'fa111111-1111-4111-8111-111111111111', 'finance', false),
   ('fb222222-2222-4222-8222-222222222222',
    'fa222222-2222-4222-8222-222222222222', 'front_desk', true);
 
@@ -100,10 +108,19 @@ select ('fc00000' || n || '-0000-4000-8000-000000000001')::uuid,
        'fa111111-1111-4111-8111-111111111111', 'RN-10' || n, 'room', 2
   from generate_series(1, 8) as n;
 
+-- And one at the Property that does not bill, for the Stay L below.
+insert into public.accommodation_units
+  (id, property_id, organization_id, name, unit_type, capacity)
+values ('fc000009-0000-4000-8000-000000000001',
+        'fb333333-3333-4333-8333-333333333333',
+        'fa111111-1111-4111-8111-111111111111', 'RN-109', 'room', 2);
+
 insert into public.property_rates
   (organization_id, property_id, unit_type, amount_minor)
 values ('fa111111-1111-4111-8111-111111111111',
-        'fb111111-1111-4111-8111-111111111111', 'room', 10000);
+        'fb111111-1111-4111-8111-111111111111', 'room', 10000),
+       ('fa111111-1111-4111-8111-111111111111',
+        'fb333333-3333-4333-8333-333333333333', 'room', 10000);
 
 insert into public.guests (id, organization_id, full_name) values
   ('fd111111-1111-4111-8111-111111111111',
@@ -183,6 +200,42 @@ update public.folios set status = 'closed', closed_at = now()
  where stay_id = 'ff000006-0000-4000-8000-000000000001';
 set local session_replication_role = origin;
 
+-- L: a priced Guest in house at the Property that does not bill, from the day
+-- before its today, with an open Folio (RT-S3-17). Its dates are its own
+-- Property's.
+select app.property_today('fb333333-3333-4333-8333-333333333333') as u \gset
+
+insert into public.reservations
+  (id, organization_id, property_id, accommodation_unit_id, guest_id,
+   stay_type, status, starts_on, ends_on)
+values ('fe000009-0000-4000-8000-000000000001',
+        'fa111111-1111-4111-8111-111111111111',
+        'fb333333-3333-4333-8333-333333333333',
+        'fc000009-0000-4000-8000-000000000001',
+        'fd111111-1111-4111-8111-111111111111',
+        'guest', 'checked_in', :'u'::date - 1, :'u'::date + 1);
+
+insert into public.stays
+  (id, organization_id, property_id, accommodation_unit_id, reservation_id,
+   stay_type, status, starts_on, ends_on)
+values ('ff000009-0000-4000-8000-000000000001',
+        'fa111111-1111-4111-8111-111111111111',
+        'fb333333-3333-4333-8333-333333333333',
+        'fc000009-0000-4000-8000-000000000001',
+        'fe000009-0000-4000-8000-000000000001',
+        'guest', 'in_house', :'u'::date - 1, :'u'::date + 1);
+
+insert into public.folios (organization_id, property_id, stay_id, currency)
+values ('fa111111-1111-4111-8111-111111111111',
+        'fb333333-3333-4333-8333-333333333333',
+        'ff000009-0000-4000-8000-000000000001', 'TRY');
+
+select is(
+  (select nightly_rate_minor from public.reservations
+    where id = 'fe000009-0000-4000-8000-000000000001'),
+  10000::bigint,
+  'fixture: L''s booking is priced, so only billing stands between it and a charge');
+
 -- ---------------------------------------------------------------------------
 -- What a night is
 -- ---------------------------------------------------------------------------
@@ -232,6 +285,28 @@ select results_eq(
 
 select app.set_request_context('f3333333-3333-4333-8333-333333333333');
 
+-- Finance reverses two of J's posted nights, T-3 and T-1, the way the Folio
+-- screen does (packages/ranza/folios reverseLine): a reversal line naming the
+-- charge, for minus its amount. T-1 is then reached by the close and T-3 by a
+-- second check-out (RT-S3-11).
+insert into public.folio_lines
+  (organization_id, property_id, folio_id, line_type, description,
+   amount_minor, reverses_line_id)
+select line.organization_id, line.property_id, line.folio_id, 'reversal',
+       'Correction', -line.amount_minor, line.id
+  from public.folio_lines as line
+  join public.folios as folio on folio.id = line.folio_id
+ where folio.stay_id = 'ff000007-0000-4000-8000-000000000001'
+   and line.source = 'room_night'
+   and line.business_date in (:'t'::date - 3, :'t'::date - 1);
+
+select is(
+  (select reason from app.room_nights_due(
+     'fb111111-1111-4111-8111-111111111111', :'t'::date - 3, :'t'::date - 3,
+     'ff000007-0000-4000-8000-000000000001')),
+  'already_posted',
+  'RT-S3-11: a reversed night is still posted');
+
 select throws_ok(
   $$ select * from app.post_room_nights_for_departure(
        'ff000001-0000-4000-8000-000000000001') $$,
@@ -274,32 +349,6 @@ select throws_ok(
 -- The close charges the night
 -- ---------------------------------------------------------------------------
 
--- J's night of T-1, posted by the check-out above, is reversed before the
--- close, so the close's total below is what was charged, gross (RT-S3-18).
-set local role none;
-insert into public.folio_lines
-  (organization_id, property_id, folio_id, line_type, description,
-   amount_minor, reverses_line_id)
-select line.organization_id, line.property_id, line.folio_id, 'reversal',
-       'Correction', -line.amount_minor, line.id
-  from public.folio_lines as line
-  join public.folios as folio on folio.id = line.folio_id
- where folio.stay_id = 'ff000007-0000-4000-8000-000000000001'
-   and line.source = 'room_night'
-   and line.business_date = :'t'::date - 1;
-
-select is(
-  (select count(*)::int from public.folio_lines as reversal
-     join public.folio_lines as line on line.id = reversal.reverses_line_id
-     join public.folios as folio on folio.id = line.folio_id
-    where folio.stay_id = 'ff000007-0000-4000-8000-000000000001'
-      and line.business_date = :'t'::date - 1),
-  1,
-  'fixture: J''s night of T-1 is reversed before the close');
-
-set local role ranza_app;
-select app.set_request_context('f2222222-2222-4222-8222-222222222222');
-
 select lives_ok(
   format($$ insert into public.business_day_closes
        (organization_id, property_id, business_date)
@@ -324,13 +373,34 @@ select results_eq(
   'RT-S3-01, RT-S3-02: one night each, at the booked price; the check-out''s is not posted again');
 
 select results_eq(
+  format($$ select line.line_type, line.source,
+                   line.business_date - %L::date as night,
+                   original.business_date - %L::date as reverses_night,
+                   line.amount_minor
+              from public.folio_lines as line
+              join public.folios as folio on folio.id = line.folio_id
+              left join public.folio_lines as original
+                on original.id = line.reverses_line_id
+             where folio.stay_id = 'ff000007-0000-4000-8000-000000000001'
+             order by line.line_type,
+                      coalesce(line.business_date, original.business_date) $$,
+         :'t', :'t'),
+  $$ values
+       ('charge', 'room_night', -3, null::integer, 10000::bigint),
+       ('charge', 'room_night', -2, null, 10000),
+       ('charge', 'room_night', -1, null, 10000),
+       ('reversal', null, null, -3, -10000),
+       ('reversal', null, null, -1, -10000) $$,
+  'RT-S3-11: the close does not post a reversed night again, and the night and its reversal, which carries no date or mark, both remain');
+
+select results_eq(
   format($$ select room_nights_posted, room_revenue_minor,
                    room_revenue_currency::text, room_nights_unposted
               from public.business_day_closes
              where property_id = 'fb111111-1111-4111-8111-111111111111'
                and business_date = %L::date - 1 $$, :'t'),
   $$ values (3, 30000::bigint, 'TRY', 3) $$,
-  'RT-S3-03, RT-S3-18: the close records every room night dated its day, whoever posted it, reversed or not');
+  'RT-S3-03, RT-S3-18: the close records every room night dated its day, whoever posted it, and J''s reversed night in its total');
 
 select set_eq(
   format($$ select item ->> 'stayId' || ':' || (item ->> 'reason')
@@ -448,55 +518,67 @@ select results_eq(
   $$ values (0, 0::bigint) $$,
   'RT-S3-13: a Guest who arrived today has no night to charge');
 
--- ---------------------------------------------------------------------------
--- A reversed night, and lapsed billing
--- ---------------------------------------------------------------------------
+select results_eq(
+  $$ select * from app.post_room_nights_for_departure(
+       'ff000007-0000-4000-8000-000000000001') $$,
+  $$ values (0, 0::bigint) $$,
+  'RT-S3-11: nor does check-out post a reversed night again');
 
 set local role none;
-insert into public.folio_lines
-  (organization_id, property_id, folio_id, line_type, description,
-   amount_minor, reverses_line_id)
-select line.organization_id, line.property_id, line.folio_id, 'reversal',
-       'Correction', -line.amount_minor, line.id
-  from public.folio_lines as line
-  join public.folios as folio on folio.id = line.folio_id
- where folio.stay_id = 'ff000001-0000-4000-8000-000000000001'
-   and line.source = 'room_night'
-   and line.business_date = :'t'::date - 1;
 
-select is(
-  (select count(*)::int from public.folio_lines as reversal
-     join public.folio_lines as line on line.id = reversal.reverses_line_id
-     join public.folios as folio on folio.id = line.folio_id
-    where folio.stay_id = 'ff000001-0000-4000-8000-000000000001'
-      and line.business_date = :'t'::date - 1),
-  1,
-  'fixture: A''s night of T-1, posted by the close, is reversed');
+select results_eq(
+  format($$ select line.line_type, line.source,
+                   line.business_date - %L::date as night,
+                   original.business_date - %L::date as reverses_night,
+                   line.amount_minor
+              from public.folio_lines as line
+              join public.folios as folio on folio.id = line.folio_id
+              left join public.folio_lines as original
+                on original.id = line.reverses_line_id
+             where folio.stay_id = 'ff000007-0000-4000-8000-000000000001'
+             order by line.line_type,
+                      coalesce(line.business_date, original.business_date) $$,
+         :'t', :'t'),
+  $$ values
+       ('charge', 'room_night', -3, null::integer, 10000::bigint),
+       ('charge', 'room_night', -2, null, 10000),
+       ('charge', 'room_night', -1, null, 10000),
+       ('reversal', null, null, -3, -10000),
+       ('reversal', null, null, -1, -10000) $$,
+  'RT-S3-11: after check-out J still has each night once, and both reversals');
 
-select is(
-  (select reason from app.room_nights_due(
-     'fb111111-1111-4111-8111-111111111111', :'t'::date - 2, :'t'::date - 2,
-     'ff000005-0000-4000-8000-000000000001')),
-  null,
-  'fixture: G''s night of T-2 was never posted, so it is still owed');
+-- ---------------------------------------------------------------------------
+-- Billing that is not available
+-- ---------------------------------------------------------------------------
 
-select is(
-  (select reason from app.room_nights_due(
-     'fb111111-1111-4111-8111-111111111111', :'t'::date - 1, :'t'::date - 1,
-     'ff000001-0000-4000-8000-000000000001')),
-  'already_posted',
-  'RT-S3-11: a posted night stays posted, reversed or not');
+-- L's Property closes the day before its today. It bills nothing, so L's night
+-- is listed and no line of any kind reaches L's Folio (RT-S3-17).
+set local role ranza_app;
+select app.set_request_context('f1111111-1111-4111-8111-111111111111');
 
-update public.property_capabilities set enabled = false
- where property_id = 'fb111111-1111-4111-8111-111111111111'
-   and capability_key = 'finance';
+select lives_ok(
+  format($$ insert into public.business_day_closes
+       (organization_id, property_id, business_date)
+     values ('fa111111-1111-4111-8111-111111111111',
+             'fb333333-3333-4333-8333-333333333333', %L::date - 1) $$, :'u'),
+  'RT-S3-17: the Property that does not bill closes its day');
 
-select is(
-  (select reason from app.room_nights_due(
-     'fb111111-1111-4111-8111-111111111111', :'t'::date - 2, :'t'::date - 2,
-     'ff000005-0000-4000-8000-000000000001')),
-  'billing_unavailable',
+set local role none;
+
+select results_eq(
+  format($$ select room_nights_posted, room_nights_unposted, unposted
+              from public.business_day_closes
+             where property_id = 'fb333333-3333-4333-8333-333333333333'
+               and business_date = %L::date - 1 $$, :'u'),
+  $$ values (0, 1, '[{"stayId": "ff000009-0000-4000-8000-000000000001", "reason": "billing_unavailable"}]'::jsonb) $$,
   'RT-S3-17: where billing is not available, a night is listed and not charged');
+
+select is(
+  (select count(*)::int from public.folio_lines as line
+     join public.folios as folio on folio.id = line.folio_id
+    where folio.stay_id = 'ff000009-0000-4000-8000-000000000001'),
+  0,
+  'RT-S3-17: and the close writes no line on that Guest''s Folio');
 
 select * from finish();
 rollback;

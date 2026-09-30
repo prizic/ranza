@@ -33,14 +33,19 @@ const owner = createPrismaClient(process.env.DIRECT_URL!);
 
 const { auth } = createAuthModule({ db: authDb, secret: SECRET });
 
+// The Portal composes its own auth module over its own client (OA-S2-14):
+// enrolment above goes through `auth`, and this is the second application.
+const portalDb = createPrismaClient(process.env.AUTH_DATABASE_URL!);
+const { auth: portalAuth } = createAuthModule({ db: portalDb, secret: SECRET });
+
 let jar: Record<string, string> = {};
 
-async function post(path: string, body: unknown) {
+async function post(path: string, body: unknown, via = auth) {
   const cookie = Object.entries(jar)
     .map(([name, value]) => `${name}=${value}`)
     .join("; ");
 
-  const response = await auth.handler(
+  const response = await via.handler(
     new Request(`http://localhost/api/auth${path}`, {
       method: "POST",
       headers: {
@@ -105,6 +110,7 @@ afterAll(async () => {
   );
   await owner.$disconnect();
   await authDb.$disconnect();
+  await portalDb.$disconnect();
   await tenant.$disconnect();
 });
 
@@ -164,6 +170,33 @@ describe("signing in once a second factor exists", () => {
     expect(verify.status).toBe(200);
 
     const session = await auth.api.getSession({
+      headers: new Headers({
+        cookie: Object.entries(jar)
+          .map(([name, value]) => `${name}=${value}`)
+          .join("; "),
+      }),
+    });
+    expect(session?.user.email).toBe(EMAIL);
+  });
+
+  it("challenges in the Portal too: one enrolment, both applications", async () => {
+    jar = {};
+    const signIn = await post(
+      "/sign-in/email",
+      { email: EMAIL, password: PASSWORD },
+      portalAuth,
+    );
+    expect(signIn.status).toBe(200);
+    expect(signIn.body?.twoFactorRedirect).toBe(true);
+    expect(signIn.body?.token).toBeUndefined();
+
+    const verify = await post(
+      "/two-factor/verify-totp",
+      { code: await codeFrom(totpURI) },
+      portalAuth,
+    );
+    expect(verify.status).toBe(200);
+    const session = await portalAuth.api.getSession({
       headers: new Headers({
         cookie: Object.entries(jar)
           .map(([name, value]) => `${name}=${value}`)

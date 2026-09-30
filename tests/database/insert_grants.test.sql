@@ -18,7 +18,7 @@
 -- `grant insert (every, column) on t` are byte-identical in it. That is how
 -- this defect survived six migrations and every audit run against the schema.
 begin;
-select plan(30);
+select plan(39);
 
 -- ---------------------------------------------------------------------------
 -- The shape of every write grant (IG-01)
@@ -31,16 +31,26 @@ select plan(30);
 -- anything going red, so nobody ever checks whether it became wrong instead.
 -- guests is narrowed here (IG-15) and the exception is gone. An assertion with
 -- no exceptions in it is a stronger instrument than one with a date on it.
+--
+-- Every schema that is not the system's, and both roles that write on behalf of
+-- somebody else: ranza_app for a request, ranza_worker for a job (IG-07). It
+-- once named public and outbox only, which left audit unswept, and it once
+-- named ranza_app only, which left the worker's table-level insert on
+-- outbox.deliveries in place until 20260916009720.
 select is_empty(
-  $$select n.nspname || '.' || c.relname || ' ' || a.privilege_type
+  $$select a.grantee::regrole::text || ' ' || n.nspname || '.' || c.relname || ' ' || a.privilege_type
       from pg_class as c
       join pg_namespace as n on n.oid = c.relnamespace
       cross join lateral aclexplode(c.relacl) as a
-     where c.relkind = 'r'
-       and n.nspname in ('public', 'outbox')
-       and a.grantee = 'ranza_app'::regrole
+     where c.relkind in ('r', 'p', 'v', 'm', 'f')
+       and n.nspname not in ('pg_catalog', 'information_schema')
+       and n.nspname !~ '^pg_'
+       and (a.grantee in ('ranza_app'::regrole, 'ranza_worker'::regrole)
+            -- PUBLIC is every role, ranza_app among them. Ranza's own schemas
+            -- only: a managed database's extensions are not ours to hold to it.
+            or (a.grantee = 0 and n.nspname in ('public', 'outbox', 'audit')))
        and a.privilege_type in ('INSERT', 'UPDATE', 'DELETE')$$,
-  'ranza_app holds no table-level write grant anywhere: a write names its columns');
+  'ranza_app holds no table-level write grant in any schema, nor does ranza_worker or PUBLIC: a write names its columns');
 
 -- ranza_auth is the credential role and the same rule reaches the two tables
 -- that are ours rather than Better Auth's. auth_* is deliberately excluded and
@@ -63,8 +73,63 @@ select is_empty(
 -- returned nothing.
 select ok(
   (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
-    where c.relkind = 'r' and n.nspname in ('public', 'outbox')) >= 20,
-  'and it swept a catalogue with tables in it');
+    where c.relkind in ('r', 'p')
+      and n.nspname not in ('pg_catalog', 'information_schema')
+      and n.nspname !~ '^pg_') >= 20
+  and array['public', 'outbox', 'audit']::name[] <@ array(
+    select distinct n.nspname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+     where c.relkind in ('r', 'p')
+       and n.nspname not in ('pg_catalog', 'information_schema')
+       and n.nspname !~ '^pg_'),
+  'and it swept a catalogue with tables in it, audit''s among them');
+
+-- The credential role reaches nothing but credentials (OA-S1-07, ADR 0005).
+-- Any privilege at all, table- or column-level, on any relation outside
+-- public.users, public.auth_identities and Better Auth's own auth_* tables is a
+-- read of Organization data from the connection that holds password hashes.
+-- A grant to PUBLIC is one to ranza_auth too, so it is swept in Ranza's own
+-- schemas as well — relations an extension owns aside: pgTAP's views grant
+-- SELECT to PUBLIC, and they are not Ranza's to hold to this.
+select is_empty(
+  $$select n.nspname || '.' || c.relname || ' ' || a.privilege_type
+      from pg_class as c
+      join pg_namespace as n on n.oid = c.relnamespace
+      cross join lateral aclexplode(c.relacl) as a
+     where n.nspname not in ('pg_catalog', 'information_schema')
+       and n.nspname !~ '^pg_'
+       and (a.grantee = 'ranza_auth'::regrole
+            or (a.grantee = 0 and n.nspname in ('public', 'outbox', 'audit')
+                and not exists (
+                  select 1 from pg_depend as d
+                   where d.classid = 'pg_class'::regclass
+                     and d.objid = c.oid and d.deptype = 'e')))
+       and not (n.nspname = 'public'
+                and (c.relname in ('users', 'auth_identities') or c.relname like 'auth\_%'))
+    union all
+    select n.nspname || '.' || c.relname || '.' || att.attname || ' ' || a.privilege_type
+      from pg_attribute as att
+      join pg_class as c on c.oid = att.attrelid
+      join pg_namespace as n on n.oid = c.relnamespace
+      cross join lateral aclexplode(att.attacl) as a
+     where n.nspname not in ('pg_catalog', 'information_schema')
+       and n.nspname !~ '^pg_'
+       and (a.grantee = 'ranza_auth'::regrole
+            or (a.grantee = 0 and n.nspname in ('public', 'outbox', 'audit')
+                and not exists (
+                  select 1 from pg_depend as d
+                   where d.classid = 'pg_class'::regclass
+                     and d.objid = c.oid and d.deptype = 'e')))
+       and not (n.nspname = 'public'
+                and (c.relname in ('users', 'auth_identities') or c.relname like 'auth\_%'))$$,
+  'ranza_auth holds no privilege on any relation but users, auth_identities and Better Auth''s tables, nor does PUBLIC');
+
+-- Proof the grantee filter matches something: sign-in works because ranza_auth
+-- does hold privileges, on exactly the tables the sweep excludes.
+select ok(
+  exists (select 1 from pg_class c cross join lateral aclexplode(c.relacl) a
+           where c.oid = 'public.auth_session'::regclass
+             and a.grantee = 'ranza_auth'::regrole),
+  'and the sweep would see a ranza_auth grant: it holds one on auth_session');
 
 -- ---------------------------------------------------------------------------
 -- The eight column lists, exactly (IG-02 … IG-11 and IG-15)
@@ -128,6 +193,13 @@ select set_eq(
        and grantee='ranza_auth' and privilege_type='INSERT'$$,
   array['user_id','issuer','subject','created_at'],
   'auth_identities: the four the identity write emits');
+
+select set_eq(
+  $$select column_name::text from information_schema.column_privileges
+     where table_schema='outbox' and table_name='deliveries'
+       and grantee='ranza_worker' and privilege_type='INSERT'$$,
+  array['consumer','event_id','organization_id'],
+  'outbox.deliveries: the three the dispatcher names, and not when it happened');
 
 -- ---------------------------------------------------------------------------
 -- The withheld column is REFUSED — which is the whole point
@@ -311,6 +383,31 @@ select lives_ok(
 
 reset role;
 
+-- The worker's delivery record (IG-07). A real event and a worker context, so
+-- the control below succeeds and the refusal after it is the column grant's —
+-- not the deliveries_record_worker policy's, which would also say 42501.
+insert into outbox.events (id, organization_id, event_type, payload) values
+  ('c4444444-4444-4444-8444-444444444444', 'ca111111-1111-4111-8111-111111111111',
+   'grants.probe', '{}'::jsonb);
+
+set local role ranza_worker;
+select app.set_worker_context('ca111111-1111-4111-8111-111111111111', 'grants.probe');
+
+select lives_ok(
+  $$insert into outbox.deliveries (consumer, event_id, organization_id)
+    values ('grants.probe_a', 'c4444444-4444-4444-8444-444444444444',
+            'ca111111-1111-4111-8111-111111111111')$$,
+  'the worker records a delivery with the three columns the dispatcher names');
+
+select throws_ok(
+  $$insert into outbox.deliveries (consumer, event_id, organization_id, delivered_at)
+    values ('grants.probe_b', 'c4444444-4444-4444-8444-444444444444',
+            'ca111111-1111-4111-8111-111111111111', now() - interval '1 year')$$,
+  '42501', 'permission denied for table deliveries',
+  'and cannot say when the delivery happened');
+
+reset role;
+
 -- ---------------------------------------------------------------------------
 -- A definer that writes checks its caller (IG-12)
 -- ---------------------------------------------------------------------------
@@ -320,12 +417,40 @@ reset role;
 -- context is set only by app.set_worker_context(), which is executable by
 -- ranza_worker and revoked from everybody else, so a function that consults it
 -- is asking who is calling and refusing when the answer is nobody.
+--
+-- Comments are stripped from each body before either pattern is matched. Nine
+-- definers carry comments, and two of them match the patterns — "the
+-- membership INSERT would apply" in identify_staff_user(), "UPDATE OF" in
+-- amend_reservation() — so without this a comment could count as a write, and
+-- a comment naming current_user_id could stand in for the check itself.
+--
+-- Stripping is by pattern, so it would also cut a string literal holding "--"
+-- and hide whatever follows it on that line. None does, and that is asserted
+-- rather than assumed: a quote followed by "--" on one line, in any body the
+-- stripping decides something about — every function in app, and any function
+-- anywhere that mentions capability_is_available (IG-14, below). Not every
+-- schema: a managed database's own extensions are not ours to hold to this.
+select is_empty(
+  $$select n.nspname || '.' || p.proname
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname not in ('pg_catalog', 'information_schema')
+       and n.nspname !~ '^pg_'
+       and (n.nspname = 'app' or p.prosrc ~ 'capability_is_available')
+       and (p.prosrc ~ '''[^''\n]*--'
+            -- A block comment is not stripped, so none may exist; nor a
+            -- dollar-quoted string nested in a body, which the quote test
+            -- above cannot see into.
+            or p.prosrc ~ '/\*'
+            or p.prosrc ~ '\$[A-Za-z_]*\$')$$,
+  'no function body holds "--" inside a string, a block comment, or a nested dollar quote, so stripping comments hides no code');
+
 select is_empty(
   $$select p.proname::text
       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      cross join lateral (select regexp_replace(p.prosrc, '--[^\n]*', '', 'g') as body) as code
      where n.nspname = 'app' and p.prosecdef
-       and p.prosrc ~* '(insert|update|delete)\s'
-       and p.prosrc !~* '(current_user_id|accessible_|can_use_capability|has_organization_permission|worker_organization_id)'$$,
+       and code.body ~* '(insert|update|delete)\s'
+       and code.body !~* '(current_user_id|accessible_|can_use_capability|has_organization_permission|worker_organization_id)'$$,
   'every security definer function in app that writes also checks its caller');
 
 -- The assertion above is no longer vacuous, and that is the whole reason the
@@ -412,7 +537,8 @@ select is(
 -- read it before changing the number.
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'app' and p.prosecdef and p.prosrc ~* '(insert|update|delete)\s'),
+    where n.nspname = 'app' and p.prosecdef
+      and regexp_replace(p.prosrc, '--[^\n]*', '', 'g') ~* '(insert|update|delete)\s'),
   13,
   'thirteen of them write, which is what makes the assertion above a test');
 
@@ -449,6 +575,9 @@ select is(
 -- first, and reads which room was left from the revision, never from the
 -- event's payload.
 -- The other seven are named in the comments above.
+-- The decision sheet (20260916009500-009720) brought none. Its closed-day
+-- triggers, app.reservations_keep_closed_days() among them, are invokers, and
+-- the three access migrations replaced two definers and changed a grant.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -480,6 +609,58 @@ select set_eq(
         'amend_reservation', 'reservation_is_priced_for_its_new_kind',
         'change_departure', 'move_stay', 'mark_unit_dirty_after_move'],
   'and they are exactly the fifty-one the design gives a reason for');
+
+-- ---------------------------------------------------------------------------
+-- Who asks the three-gate question (IG-14)
+-- ---------------------------------------------------------------------------
+-- app.capability_is_available() is gates 1-3 and deliberately lacks reach. The
+-- two names are one word apart, and only app.can_use_capability() is a whole
+-- gate, so calling the three-gate one where the four-gate one was meant reads
+-- as correct at the call site and removes the reach check silently.
+--
+-- Its callers are pinned from the catalogue, comments stripped, in every
+-- schema. can_use_capability() adds a Staff Member's reach and
+-- resident_can_use_capability() a Resident's; every other caller asks whether a
+-- Property has something switched on — housekeeping for readiness and the
+-- worker's room writers, the front desk for the worker's close and the nights
+-- it posts — not whether whoever is calling may reach it. A new caller is a red
+-- test that makes somebody decide which of the two they meant.
+select set_eq(
+  $$select n.nspname || '.' || p.proname
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname not in ('pg_catalog', 'information_schema')
+       and n.nspname !~ '^pg_'
+       and regexp_replace(p.prosrc, '--[^\n]*', '', 'g') ~ 'capability_is_available\s*\('
+       and not (n.nspname = 'app' and p.proname = 'capability_is_available')$$,
+  array['app.can_use_capability', 'app.resident_can_use_capability',
+        'app.unit_is_ready', 'app.mark_unit_dirty_after_check_out',
+        'app.mark_unit_returned_to_service', 'app.mark_unit_dirty_after_move',
+        'app.properties_due_for_close', 'app.close_business_day_automatically',
+        'app.room_nights_due'],
+  'app.capability_is_available() is called by exactly the functions that mean gates 1-3');
+
+-- A policy is where app.can_use_capability() is consulted, so a policy is the
+-- likeliest place for the three-gate one to be called by mistake; a view is
+-- the other place a query can hide. Both hold deparsed text, with no comments.
+select is_empty(
+  $$select 'policy ' || schemaname || '.' || tablename || ' ' || policyname
+      from pg_policies
+     where coalesce(qual, '') || ' ' || coalesce(with_check, '')
+           ~ 'capability_is_available\s*\('
+    union all
+    select 'view ' || schemaname || '.' || viewname
+      from pg_views
+     where schemaname not in ('pg_catalog', 'information_schema')
+       and definition ~ 'capability_is_available\s*\('$$,
+  'and no policy or view calls it');
+
+-- Proof the policy sweep reads text that names gates: dozens of policies ask
+-- app.can_use_capability(), in the same deparsed form.
+select ok(
+  (select count(*) from pg_policies
+    where coalesce(qual, '') || ' ' || coalesce(with_check, '')
+          ~ 'can_use_capability\s*\(') > 0,
+  'and the policy sweep would see a gate named in a policy');
 
 select finish();
 rollback;

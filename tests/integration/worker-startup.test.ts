@@ -11,11 +11,8 @@
  * red by removing the check it covers.
  */
 import { afterAll, describe, expect, it } from "vitest";
-import {
-  assertUnprivileged,
-  createComposition,
-} from "../../apps/worker/src/composition";
-import { createPrismaClient } from "../../packages/db/src";
+import { createComposition } from "../../apps/worker/src/composition";
+import { assertUnprivileged, createPrismaClient } from "../../packages/db/src";
 
 const worker = process.env.WORKER_DATABASE_URL!;
 const direct = process.env.DIRECT_URL!;
@@ -49,13 +46,17 @@ afterAll(async () => {
 
 describe("the role behind the connection", () => {
   it("accepts ranza_worker, which owns nothing and bypasses nothing", async () => {
-    await expect(assertUnprivileged(unprivileged)).resolves.toBeUndefined();
+    await expect(
+      assertUnprivileged(unprivileged, "WORKER_DATABASE_URL"),
+    ).resolves.toBeUndefined();
   });
 
   // The important half. This role works perfectly — it reads every table and
   // writes every row — which is exactly why nothing else would notice.
   it("refuses the migration role, which owns the tables", async () => {
-    await expect(assertUnprivileged(owner)).rejects.toThrow(/row-level/i);
+    await expect(
+      assertUnprivileged(owner, "WORKER_DATABASE_URL"),
+    ).rejects.toThrow(/row-level/i);
   });
 });
 

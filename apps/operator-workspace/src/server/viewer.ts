@@ -13,6 +13,7 @@ import type {
   AuditFilters,
   AuditNames,
   AuditPage,
+  BillingNotice,
   CapabilityProperties,
   CapabilityRef,
   EntitledProperty,
@@ -20,7 +21,7 @@ import type {
 } from "@ranza/core";
 import type { CloseTheDay } from "@ranza/business-day";
 import type { PriceList } from "@ranza/rates";
-import { FOLIO_CAPABILITY } from "@ranza/folios";
+import { FOLIO_CAPABILITY, REVERSE_CHARGE_PERMISSION } from "@ranza/folios";
 import type { FolioDetail, FolioSummary } from "@ranza/folios";
 import {
   BookingChangeError,
@@ -129,6 +130,7 @@ export {
   TODAY_CAPABILITY,
   FRONT_DESK_CAPABILITY,
   FOLIO_CAPABILITY,
+  REVERSE_CHARGE_PERMISSION,
   HOUSEKEEPING_CAPABILITY,
   MARK_BATCH,
   ROOMS_CAPABILITY,
@@ -499,6 +501,17 @@ export async function reservations(
 }
 
 /**
+ * The Property's business date for the booking form (RG-S1-10), or null where
+ * the viewer cannot book. Not `cache`d, like the other front-desk reads: the
+ * cutoff can pass between two requests.
+ */
+export async function bookingDay(propertyId: string): Promise<string | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().reservations.bookingDay(viewer.userId, propertyId);
+}
+
+/**
  * The Units a booking may be placed on.
  *
  * Every Unit in service, not the free ones. Availability over particular nights
@@ -629,6 +642,16 @@ export const permittedProperties = cache(
     );
   },
 );
+
+/**
+ * The Organizations whose Subscription is past due, for an Owner (ADR 0040).
+ * Asked once per full load by the shell.
+ */
+export async function billingNotices(): Promise<readonly BillingNotice[]> {
+  const viewer = await currentViewer();
+  if (!viewer) return [];
+  return getComposition().core.billingNotices(viewer.userId);
+}
 
 /**
  * One Property's Today for the viewer, or null when they do not have Today

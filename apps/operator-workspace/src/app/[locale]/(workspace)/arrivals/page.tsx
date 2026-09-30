@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { isSupportedLocale } from "@ranza/i18n";
+import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { LiveArrivals } from "../../../../features/front-office/components/live-arrivals";
@@ -45,7 +45,11 @@ export default async function ArrivalsPage({
   const t = await getTranslations();
   const viewer = await requireViewer(locale);
   const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
-  const property = frontDeskProperty(properties, await searchParams);
+  const property = await frontDeskProperty(
+    properties,
+    await searchParams,
+    localizeHref(locale, "arrivals"),
+  );
 
   if (!property) {
     return (

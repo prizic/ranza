@@ -13,6 +13,7 @@ import {
   MOVE_REASONS,
   type MoveReason,
   CheckInError,
+  CheckInTooEarlyError,
   CheckOutError,
   EarlyDepartureError,
   FolioChangedError,
@@ -56,6 +57,9 @@ import { currentViewer } from "./viewer";
  *
  * `notInService` is: the room is blocked or out of order, and the desk returns
  * it to service or moves the booking first (MT-S2-29).
+ *
+ * `tooEarly` is a booking the viewer could check in whose first night has not
+ * come: before the cutoff the business date is still yesterday's (CI-S1-07).
  */
 export type CheckInOutcome =
   | "idle"
@@ -64,6 +68,7 @@ export type CheckInOutcome =
   | "occupied"
   | "notInService"
   | "notReady"
+  | "tooEarly"
   | "refused";
 
 function isNotReady(error: unknown): error is UnitNotReadyError {
@@ -115,6 +120,7 @@ export async function checkInReservation(
     if (error instanceof UnitUnavailableError) return "unavailable";
     if (error instanceof UnitHasOccupantError) return "occupied";
     if (error instanceof UnitNotInServiceError) return "notInService";
+    if (error instanceof CheckInTooEarlyError) return "tooEarly";
     // A refusal this module raised is the answer, not an incident. Anything
     // else — a lost connection, a schema that moved — is shown the same way and
     // recorded, like the other commands on this screen.
