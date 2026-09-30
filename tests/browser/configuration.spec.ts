@@ -68,14 +68,14 @@ test("shows the business date a new cutoff would make, before saving", async ({
 
   const time = page.locator("#time");
   await expect(time.getByText("Business date now")).toBeVisible();
-  await expect(time.getByText("After saving")).toHaveCount(0);
+  await expect(time.getByText("After saving", { exact: true })).toHaveCount(0);
 
   await page.getByRole("combobox", { name: "Business day ends at" }).click();
   await page.getByRole("option", { name: "11:45" }).click();
-  await expect(time.getByText("After saving")).toBeVisible();
+  await expect(time.getByText("After saving", { exact: true })).toBeVisible();
 
   await time.getByRole("button", { name: "Discard" }).click();
-  await expect(time.getByText("After saving")).toHaveCount(0);
+  await expect(time.getByText("After saving", { exact: true })).toHaveCount(0);
   await expect(
     page.getByRole("combobox", { name: "Business day ends at" }),
   ).toHaveText("04:00");
