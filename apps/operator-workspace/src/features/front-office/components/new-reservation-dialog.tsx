@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import { formatMoney, type SupportedLocale } from "@ranza/i18n";
-import type { BookableUnit } from "@ranza/reservations";
+import type { BookableUnit, ChangeBlocker } from "@ranza/reservations";
 import {
   Button,
   Combobox,
@@ -41,11 +41,13 @@ import { unitLabel } from "../unit-label";
  * it is the answer: a booking for a fortnight's time appears in that list the
  * moment this closes, which is the only way anybody can tell it worked.
  *
- * Presentational. Nothing here asks whether the viewer may book this Unit, nor
- * whether those nights are free — the first is the policies' answer and the
- * second is `reservations_no_double_booking`'s. A check here would go stale
- * between this page rendering and somebody pressing the button, which is exactly
- * the race the constraint exists to have no window for.
+ * Nothing here decides whether the viewer may book this Unit, nor whether those
+ * nights are free — the first is the policies' answer and the second is
+ * `reservations_no_double_booking`'s. What it does is ask, as the dates are
+ * chosen, which Units are taken and mark them so they cannot be picked. That
+ * answer can go stale before the button is pressed, so the constraint still
+ * decides at saving, a refusal reads the marks again, and a read that fails
+ * marks nothing rather than blocking the booking.
  *
  * Arrival and departure are one field, because they are one decision: the
  * calendar shows the nights between them as they are chosen, which two
@@ -85,6 +87,35 @@ function nightsBetween(from: string, to: string): number {
   );
 }
 
+type Availability = {
+  kind: "ready";
+  unavailable: { unitId: string; blocker: ChangeBlocker }[];
+};
+
+async function fetchAvailability(
+  propertyId: string,
+  from: string,
+  to: string | undefined,
+  signal: AbortSignal,
+): Promise<Availability | { kind: "refused" | "invalidPeriod" }> {
+  const params = new URLSearchParams({ property: propertyId, from });
+  if (to) params.set("to", to);
+  const response = await fetch(
+    `/api/front-office/booking-availability?${params}`,
+    {
+      cache: "no-store",
+      signal,
+    },
+  );
+  if (!response.ok) {
+    throw Object.assign(new Error("the nights could not be checked"), {
+      status: response.status,
+    });
+  }
+  return (await response.json()) as
+    Availability | { kind: "refused" | "invalidPeriod" };
+}
+
 export function NewReservationDialog({
   locale,
   propertyId,
@@ -107,10 +138,26 @@ export function NewReservationDialog({
   const [unitId, setUnitId] = useState("");
   const [stayType, setStayType] = useState("guest");
   const [dates, setDates] = useState<{ from?: string; to?: string }>({});
+  // Which Units are taken over the nights chosen, to mark and never to hide:
+  // the read is true when made and the constraint decides when saving.
+  const [taken, setTaken] = useState<ReadonlyMap<string, ChangeBlocker>>(
+    new Map(),
+  );
+  const [availabilityUnknown, setAvailabilityUnknown] = useState(false);
+  const [guestMissing, setGuestMissing] = useState(false);
+  // Bumped when saving is refused for a clash, so the marks are read again
+  // with what stands now rather than what stood when the dates were chosen.
+  const [generation, setGeneration] = useState(0);
   const [outcome, act, pending] = useActionState<
     CreateReservationOutcome,
     FormData
-  >(createReservation, "idle");
+  >(async (previous, form) => {
+    const result = await createReservation(previous, form);
+    if (result === "unavailable" || result === "occupied") {
+      setGeneration((n) => n + 1);
+    }
+    return result;
+  }, "idle");
 
   // Closed by the booking having happened, not by the button that submitted it.
   // Unlike the withdrawal dialog beside it, this one is not removed by the
@@ -121,6 +168,42 @@ export function NewReservationDialog({
     if (outcome === "done") setOpen(false);
   }, [outcome]);
 
+  const asking =
+    dates.from !== undefined && (Boolean(dates.to) || stayType === "resident");
+  useEffect(() => {
+    // Marks that answer earlier dates are no use while the next read is out: a
+    // Unit free for these nights must not stay greyed for the last ones.
+    setTaken(new Map());
+    setAvailabilityUnknown(false);
+    if (!open || !dates.from || !asking) return;
+    const controller = new AbortController();
+    fetchAvailability(propertyId, dates.from, dates.to, controller.signal)
+      .then((answer) => {
+        if (answer.kind === "ready") {
+          setTaken(
+            new Map(answer.unavailable.map((u) => [u.unitId, u.blocker])),
+          );
+          setAvailabilityUnknown(false);
+        } else {
+          // Dates the server would refuse are the form's own message to give.
+          setTaken(new Map());
+          setAvailabilityUnknown(false);
+        }
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        // The route has logged it; this is the browser's half. A failed read
+        // marks nothing, so a booking is never blocked on it.
+        console.error("booking_availability.read_failed", {
+          propertyId,
+          error,
+        });
+        setTaken(new Map());
+        setAvailabilityUnknown(true);
+      });
+    return () => controller.abort();
+  }, [open, propertyId, dates.from, dates.to, asking, generation]);
+
   // Every field is uncontrolled and the next open is a fresh form, so what the
   // quote follows starts again with it.
   function openChanged(next: boolean) {
@@ -129,6 +212,7 @@ export function NewReservationDialog({
       setUnitId("");
       setStayType("guest");
       setDates({});
+      setGuestMissing(false);
     }
   }
 
@@ -221,12 +305,31 @@ export function NewReservationDialog({
 
           <Field htmlFor="booking-guest" label={t("guest")}>
             <Input
+              aria-describedby={
+                guestMissing ? "booking-guest-missing" : undefined
+              }
+              aria-invalid={guestMissing || undefined}
               autoComplete="off"
               id="booking-guest"
               maxLength={GUEST.name}
               name="guestName"
+              onChange={() => setGuestMissing(false)}
+              // Said under the field in our own words as well as in the
+              // browser's bubble, as the Unit picker beside it does. The event
+              // is left alone: the browser focuses the first problem field
+              // that did not cancel it, and the date field's own handler
+              // relies on that order.
+              onInvalid={() => setGuestMissing(true)}
               required
             />
+            {guestMissing ? (
+              <p
+                className="text-step--1 text-destructive"
+                id="booking-guest-missing"
+              >
+                {t("guestRequired")}
+              </p>
+            ) : null}
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -269,13 +372,25 @@ export function NewReservationDialog({
                 labels={unitLabels}
                 name="unit"
                 onValueChange={setUnitId}
-                options={units.map((unit) => ({
-                  value: unit.unitId,
-                  label: unitLabel(unit.roomName, unit.unitName),
-                  description: t(`unitType.${unit.unitType}`),
-                }))}
+                options={units.map((unit) => {
+                  const blocker = taken.get(unit.unitId);
+                  const type = t(`unitType.${unit.unitType}`);
+                  return {
+                    value: unit.unitId,
+                    label: unitLabel(unit.roomName, unit.unitName),
+                    description: blocker
+                      ? `${type} · ${t(blocker === "booked" ? "unitBookedThoseNights" : "unitOccupiedThoseNights")}`
+                      : type,
+                    disabled: blocker !== undefined,
+                  };
+                })}
                 required
               />
+              {unitId && taken.has(unitId) ? (
+                <p className="text-step--1 text-warning" role="status">
+                  {t("chosenUnitTakenThoseNights")}
+                </p>
+              ) : null}
             </Field>
             <Field htmlFor="booking-stay-type" label={t("stayTypeLabel")}>
               <Select
@@ -299,6 +414,7 @@ export function NewReservationDialog({
           <div className="grid gap-1.5">
             <Field htmlFor="booking-dates" label={t("stayDates")}>
               <DateRangeField
+                earliestFrom={today}
                 id="booking-dates"
                 labels={{
                   from: t("arrival"),
@@ -331,6 +447,11 @@ export function NewReservationDialog({
                 ? t("departureRequiredHint")
                 : t("departureHint")}
             </p>
+            {availabilityUnknown ? (
+              <p className="text-step--1 text-muted-foreground" role="status">
+                {t("bookingAvailabilityUnknown")}
+              </p>
+            ) : null}
           </div>
 
           {quote ? (

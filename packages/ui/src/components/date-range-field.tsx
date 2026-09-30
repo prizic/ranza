@@ -80,6 +80,11 @@ function daysBetween(start: Date, end: Date): number {
   return Math.round((utc(end) - utc(start)) / 86_400_000);
 }
 
+/** The later of two optional days, or whichever exists. */
+function latestOf(a: Date | undefined, b: Date | undefined) {
+  return a && b ? (a > b ? a : b) : (a ?? b);
+}
+
 /**
  * Two dates chosen as one thing, the way a flight search asks for them: a
  * single field split into its two ends, and one calendar that picks both.
@@ -107,7 +112,9 @@ function daysBetween(start: Date, end: Date): number {
  * `presets` and `required` are ignored with it: a preset sets both ends, and
  * a required start is one there is nothing to choose.
  * `earliestTo` greys out every end before it — a departure is tomorrow or
- * later — so a day the server would refuse is not offered.
+ * later — so a day the server would refuse is not offered. `earliestFrom` does
+ * the same for the start, so a booking cannot be begun on a night that has
+ * already passed.
  *
  * `today` is the Property's own day as `YYYY-MM-DD`. It marks today on the
  * calendar and decides when a year is worth printing; the reader's clock is
@@ -115,6 +122,7 @@ function daysBetween(start: Date, end: Date): number {
  */
 export function DateRangeField({
   defaultValue,
+  earliestFrom,
   earliestTo,
   id,
   labels,
@@ -129,6 +137,8 @@ export function DateRangeField({
   today,
 }: {
   defaultValue?: { from?: string | undefined; to?: string | undefined };
+  /** The first start that may be chosen, as `YYYY-MM-DD`. */
+  earliestFrom?: string | undefined;
   /** The first end that may be chosen, as `YYYY-MM-DD`. */
   earliestTo?: string | undefined;
   /** The start half's id, which the field's `<label>` points at. */
@@ -186,6 +196,14 @@ export function DateRangeField({
   const to = range?.to;
   const todayDate = fromIso(today) ?? new Date();
   const earliestEnd = fromIso(earliestTo);
+  const earliestStart = fromIso(earliestFrom);
+  // While the end is chosen, a day before the earliest start is no use as an end
+  // and would restart the range, so it is greyed out as well as the days before
+  // the earliest end.
+  const earliestPick = latestOf(
+    editing === "to" ? earliestEnd : undefined,
+    earliestStart,
+  );
 
   const describe = (date: Date | undefined) => {
     if (!date) return undefined;
@@ -222,6 +240,10 @@ export function DateRangeField({
       setOpen(false);
       return;
     }
+    // A backstop. The calendar greys these days out for both halves, so a click
+    // on one never arrives; if one ever did, it would begin a new range from
+    // either half, and a day before the earliest start must never do that.
+    if (earliestStart && day < earliestStart) return;
     const keepEnd = to && daysBetween(day, to) >= minSpan;
     setRange({ from: day, to: keepEnd ? to : undefined });
     setEditing("to");
@@ -426,11 +448,7 @@ export function DateRangeField({
               className="p-4"
               defaultMonth={(lockFrom ? to : from) ?? to ?? todayDate}
               dir={directionFor(locale)}
-              disabled={
-                earliestEnd && editing === "to"
-                  ? { before: earliestEnd }
-                  : undefined
-              }
+              disabled={earliestPick && { before: earliestPick }}
               locale={calendarLocales[locale]}
               mode="range"
               numberOfMonths={wide ? 2 : 1}

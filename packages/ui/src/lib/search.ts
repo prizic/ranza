@@ -12,8 +12,9 @@
  * leads with. Dotless ı is then read as i, for the reason on `fold`.
  *
  * There is no phone normalization here. The dashboard this came from folds Saudi
- * numbers to a local form; Ranza has no phone column yet, and inventing a
- * country's dialling rules before there is a number to match would be guessing.
+ * numbers to a local form; a Guest's telephone is stored as it was typed, and
+ * inventing a country's dialling rules would be guessing. A caller that wants a
+ * number found by its digits reduces it to them first, with `toAsciiDigits`.
  */
 
 /** Arabic-Indic and Eastern Arabic-Indic digits to their ASCII forms. */

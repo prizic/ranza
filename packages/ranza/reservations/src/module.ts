@@ -65,6 +65,7 @@ import {
   type NewReservation,
   type ReservationEnded,
   type ReservationRow,
+  type UnitAvailability,
   ROOM_CALENDAR_LEAD_DAYS,
   type RoomCalendar,
   type RoomCalendarWindow,
@@ -1262,13 +1263,96 @@ export function createReservationsModule(deps: ReservationsDeps) {
   }
 
   /**
+   * The Units in a Property that cannot take a booking over these nights.
+   *
+   * For the booking dialog to mark, not to decide: the exclusion constraint
+   * still refuses a clash at saving, and a booking landing between this read
+   * and the press is that refusal's to give. It is the same two questions
+   * `previewChange` asks of every Unit for a booking being moved — another
+   * confirmed booking over those nights, or somebody in house over them (ADR
+   * 0033, ADR 0039) — asked for a booking that does not exist yet, so there is
+   * no booking of its own to leave out.
+   *
+   * Only the Units with a blocker are returned. An open-ended booking, which
+   * only a Resident may have, is asked about as `[start, ∞)`, so any later
+   * confirmed booking on a Unit marks it, which is what the constraint would
+   * say too.
+   *
+   * Gated by the same capability as every front-desk read: a viewer with reach
+   * but the front desk switched off learns nothing about how full a Property
+   * is.
+   */
+  async function listUnavailableUnits(
+    userId: string,
+    propertyId: string,
+    startsOnInput: string,
+    endsOnInput: string | null,
+  ): Promise<UnitAvailability[]> {
+    const startsOn = calendarDay(startsOnInput);
+    const endsOn = endsOnInput === null ? null : calendarDay(endsOnInput);
+    if (!startsOn || (endsOnInput !== null && !endsOn)) {
+      throw new ReservationPeriodError("those are not calendar dates");
+    }
+    if (endsOn !== null && endsOn <= startsOn) {
+      throw new ReservationPeriodError(
+        "a Reservation covers at least one night",
+      );
+    }
+
+    return withOrganizationContext(
+      deps.db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<UnitAvailability[]>`
+        with wanted as (
+          select daterange(${startsOn}::date, ${endsOn}::date, '[)') as nights,
+                 app.property_today(${propertyId}::uuid)             as today
+        )
+        select
+          unit.id as "unitId",
+          case
+            when conflict.reference is not null then 'booked'
+            else 'occupied'
+          end     as "blocker"
+        from public.accommodation_units as unit
+        cross join wanted
+        left join lateral (
+          select other.reference
+            from public.reservations as other
+           where other.accommodation_unit_id = unit.id
+             and other.status = 'confirmed'
+             and daterange(other.starts_on, other.ends_on, '[)') && wanted.nights
+           limit 1
+        ) as conflict on true
+        left join lateral (
+          select stay.id
+            from public.stays as stay
+           where stay.accommodation_unit_id = unit.id
+             and stay.status in ('reserved', 'in_house')
+             and app.stay_holds(stay.status, stay.starts_on, stay.ends_on,
+                                wanted.today) && wanted.nights
+           limit 1
+        ) as occupant on true
+        where unit.property_id = ${propertyId}::uuid
+          and app.can_use_capability(
+            unit.property_id,
+            ${FRONT_DESK_CAPABILITY.moduleKey},
+            ${FRONT_DESK_CAPABILITY.capabilityKey}
+          )
+          and (conflict.reference is not null or occupant.id is not null)
+        order by unit.id
+      `,
+    );
+  }
+
+  /**
    * Every Unit in the Property a booking may be placed on.
    *
-   * In service, not free. Whether a Unit is free over particular nights is
-   * `reservations_no_double_booking`'s answer and nobody else's — computing it
-   * here would produce a list that was true when the page rendered and false by
-   * the time somebody pressed the button, and would be a second opinion about
-   * availability for the first time in this repository.
+   * In service, not free. Which are taken over particular nights is
+   * `listUnavailableUnits`, asked as the dates are chosen: an answer that is
+   * true when read and may be false by the time somebody presses the button,
+   * which is why the dialog marks with it and never removes a Unit, and why
+   * `reservations_no_double_booking` still decides at saving.
    *
    * Empty for a Property the viewer cannot reach and for one whose Organization
    * lost the Entitlement, which are deliberately the same answer.
@@ -1361,8 +1445,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
       { userId },
       (tx) =>
         tx.$queryRaw<
-          (Omit<ReservationRow, "nightlyRateMinor"> & {
+          (Omit<ReservationRow, "nightlyRateMinor" | "totalMinor"> & {
             nightlyRateMinor: string | null;
+            totalMinor: string | null;
           })[]
         >`
         select
@@ -1371,6 +1456,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
           guest.id                                      as "guestId",
           guest.full_name                               as "guestName",
           guest.email                                   as "guestEmail",
+          guest.phone                                   as "guestPhone",
           reservation.stay_type                         as "stayType",
           reservation.status                            as "status",
           to_char(reservation.starts_on, 'YYYY-MM-DD')  as "startsOn",
@@ -1393,7 +1479,49 @@ export function createReservationsModule(deps: ReservationsDeps) {
           reservation.status in ('requested', 'confirmed')
             and app.has_organization_permission(
                   reservation.organization_id, 'front_desk.amend')
-                                                        as "mayAmend"
+                                                        as "mayAmend",
+          -- checkIn's own predicate: a confirmed booking whose nights have all
+          -- passed is listed (so it can be marked a no-show) but is refused.
+          reservation.status = 'confirmed'
+            and reservation.starts_on <= today.day
+            and (reservation.ends_on is null
+                 or reservation.ends_on > today.day)
+            and unit_now.status not in ('blocked', 'out_of_service')
+            and occupant.id is null
+            and app.has_organization_permission(
+                  reservation.organization_id, 'front_desk.check_in')
+                                                        as "mayCheckIn",
+          -- Arrivals' own answer, in the order a desk would fix them.
+          case
+            when reservation.status not in ('requested', 'confirmed')
+              or reservation.starts_on > today.day
+              or (reservation.ends_on is not null
+                  and reservation.ends_on <= today.day)
+                                                  then null
+            when reservation.status = 'requested' then 'not_confirmed'
+            when unit_now.status = 'blocked'      then 'unit_blocked'
+            when unit_now.status = 'out_of_service'
+                                                  then 'unit_out_of_service'
+            when occupant.id is not null          then 'unit_occupied'
+          end                                     as "checkInBlocker",
+          coalesce(stay.status = 'in_house', false)
+            and app.has_organization_permission(
+                  reservation.organization_id, 'front_desk.amend')
+                                                        as "mayChangeStay",
+          coalesce(stay.status = 'in_house', false)
+            and stay.starts_on = today.day
+            and app.has_organization_permission(
+                  reservation.organization_id, 'front_desk.check_in')
+                                                        as "mayUndoCheckIn",
+          case when stay.status = 'in_house' then stay.id end
+                                                        as "stayId",
+          case when stay.status = 'in_house'
+               then to_char(stay.starts_on, 'YYYY-MM-DD') end
+                                                        as "stayStartsOn",
+          folio.id                                      as "folioId",
+          nights.count                                  as "stayNights",
+          (nights.count * reservation.nightly_rate_minor)::text
+                                                        as "totalMinor"
         from public.reservations as reservation
         join public.guests as guest
           on guest.id = reservation.guest_id
@@ -1401,6 +1529,36 @@ export function createReservationsModule(deps: ReservationsDeps) {
           on unit.id = reservation.accommodation_unit_id
         left join public.accommodation_units as room
           on room.id = unit.parent_id
+        -- A room out of order or blocked covers its beds (ADR 0032).
+        cross join lateral (
+          select case
+                   when room.status in ('out_of_service', 'blocked')
+                    and unit.status not in ('out_of_service', 'blocked')
+                     then room.status
+                   else unit.status
+                 end as status
+        ) as unit_now
+        -- Somebody else in the Unit: at most one, one in-house Stay per Unit
+        -- being unique (ADR 0033).
+        left join public.stays as occupant
+          on occupant.accommodation_unit_id = reservation.accommodation_unit_id
+         and occupant.status = 'in_house'
+         and occupant.reservation_id is distinct from reservation.id
+        left join public.stays as stay
+          on stay.reservation_id = reservation.id
+         and stay.status in ('in_house', 'departed')
+        left join public.folios as folio
+          on folio.stay_id = stay.id
+         and folio.status = 'open'
+         and stay.status = 'in_house'
+        cross join lateral (
+          select case
+                   when reservation.status in ('cancelled', 'no_show')
+                     then null
+                   else (coalesce(stay.ends_on, reservation.ends_on)
+                         - coalesce(stay.starts_on, reservation.starts_on))
+                 end as count
+        ) as nights
         cross join (
           select app.property_today(${propertyId}::uuid) as day
         ) as today
@@ -1423,6 +1581,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
       ...row,
       nightlyRateMinor:
         row.nightlyRateMinor === null ? null : Number(row.nightlyRateMinor),
+      totalMinor: row.totalMinor === null ? null : Number(row.totalMinor),
     }));
   }
 
@@ -2831,6 +2990,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
     listArrivals,
     bookingDay,
     listBookableUnits,
+    listUnavailableUnits,
     listDepartures,
     countDepartedToday,
     listReservations,

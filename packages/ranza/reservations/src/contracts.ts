@@ -491,10 +491,10 @@ export class BalanceReasonError extends CheckOutError {
 /**
  * A Unit a booking can be placed on.
  *
- * Every Unit in the Property that is in service, not only the free ones. Whether
- * these nights are free is `reservations_no_double_booking`'s answer, and asking
- * it here would be a second, weaker copy that goes stale between the page
- * rendering and somebody pressing the button.
+ * Every Unit in the Property that is in service, not only the free ones. Which
+ * of them are taken over particular nights is `listUnavailableUnits`, a read
+ * the dialog makes as the dates are chosen and uses to mark, never to hide. The
+ * answer is still `reservations_no_double_booking`'s, at the moment of saving.
  */
 export interface BookableUnit {
   unitId: string;
@@ -512,6 +512,12 @@ export interface BookableUnit {
   rateCurrency: string | null;
 }
 
+/** A Unit that cannot take a booking over the nights asked about, and why. */
+export interface UnitAvailability {
+  unitId: string;
+  blocker: ChangeBlocker;
+}
+
 /**
  * A Reservation on the Property's list.
  *
@@ -526,6 +532,7 @@ export interface ReservationRow {
   guestId: string;
   guestName: string;
   guestEmail: string | null;
+  guestPhone: string | null;
   stayType: ReservationStayType;
   status: ReservationStatus;
   /** Calendar date as `YYYY-MM-DD`; no instant, so no timezone to get wrong. */
@@ -552,6 +559,42 @@ export interface ReservationRow {
    * they hold `front_desk.amend` (AB-S1-14, AB-S1-22).
    */
   mayAmend: boolean;
+  /**
+   * Whether the viewer holds `front_desk.check_in` and the booking is
+   * confirmed, first night come and not all passed. Presentation, like `mayCancel`: the
+   * check-in decides again and refuses an occupied or out-of-service Unit.
+   */
+  mayCheckIn: boolean;
+  /**
+   * What stands in the way of a booking that has come due, so the desk is told
+   * instead of pressing a button certain to be refused; the same answer
+   * Arrivals gives. Null when nothing does, and for a booking not yet due.
+   */
+  checkInBlocker: CheckInBlocker | null;
+  /** Whether the viewer may change an in-house Stay's departure or move it (AB-S2-05). */
+  mayChangeStay: boolean;
+  /**
+   * Whether a check-in made today may be withdrawn from this row by the viewer
+   * (ADR 0022): the Stay began on the Property's today and they hold
+   * `front_desk.check_in`. Presentation, as `mayCheckIn` is: money already
+   * posted, or a closed business day, refuse it when pressed.
+   */
+  mayUndoCheckIn: boolean;
+  /** The in-house Stay this booking became; null before check-in and after. */
+  stayId: string | null;
+  /** That Stay's own arrival, which a late arrival makes differ from the booking's. */
+  stayStartsOn: string | null;
+  /** That Stay's open Folio; null before check-in or without billing. */
+  folioId: string | null;
+  /**
+   * Nights of the stay as it stands: the Stay's own dates once there is one,
+   * because a late arrival or an early departure makes the booking's dates say
+   * more than was slept. Null when open-ended or when the booking ended
+   * without a stay (cancelled, no-show).
+   */
+  stayNights: number | null;
+  /** `stayNights` at the rate the booking was taken at; null when either is. */
+  totalMinor: number | null;
 }
 
 /**

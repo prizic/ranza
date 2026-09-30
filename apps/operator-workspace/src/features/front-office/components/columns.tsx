@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
@@ -559,6 +560,13 @@ export function useDepartureColumns(
 }
 
 /**
+ * A booking as the list searches it: the Guest's telephone with only its digits,
+ * because the search compares text and a number is typed without the spaces and
+ * brackets it was written with.
+ */
+export type ReservationListRow = ReservationRow & { guestPhoneDigits: string };
+
+/**
  * The booking list.
  *
  * Every booking still ahead of the Property or under way, whatever became of
@@ -572,7 +580,7 @@ export function useDepartureColumns(
 export function useReservationColumns(
   locale: SupportedLocale,
   propertyId: string,
-): ColumnDef<ReservationRow, unknown>[] {
+): ColumnDef<ReservationListRow, unknown>[] {
   const t = useTranslations();
   const sort = useSortLabels();
   return [
@@ -592,13 +600,19 @@ export function useReservationColumns(
             <bdi>{row.original.guestName}</bdi>
           </p>
           <p className="text-step--1 text-muted-foreground">
-            {row.original.guestEmail ? (
-              // Isolated, like every other piece of data in a sentence: an
-              // address is Latin text and sits inside an Arabic column.
-              <bdi>{row.original.guestEmail}</bdi>
-            ) : (
-              t(`stayType.${row.original.stayType}`)
-            )}
+            {row.original.guestEmail || row.original.guestPhone
+              ? // Isolated, like every other piece of data in a sentence: an
+                // address and a number are Latin text and sit inside an Arabic
+                // column.
+                [row.original.guestEmail, row.original.guestPhone]
+                  .filter((detail) => detail !== null && detail !== "")
+                  .map((detail, index) => (
+                    <Fragment key={detail}>
+                      {index > 0 ? " · " : null}
+                      <bdi>{detail}</bdi>
+                    </Fragment>
+                  ))
+              : t(`stayType.${row.original.stayType}`)}
           </p>
         </div>
       ),
@@ -631,8 +645,11 @@ export function useReservationColumns(
       ),
       cell: ({ row }) => (
         <p className="whitespace-nowrap text-step--1">
-          <time dateTime={row.original.startsOn}>
-            {day(row.original.startsOn, locale)}
+          {/* A late arrival's Stay began after the booking said it would, and
+              the total beside this is over the nights the Stay has, so the
+              period starts where the Stay did. */}
+          <time dateTime={row.original.stayStartsOn ?? row.original.startsOn}>
+            {day(row.original.stayStartsOn ?? row.original.startsOn, locale)}
           </time>
           {row.original.endsOn ? (
             <>
@@ -670,8 +687,10 @@ export function useReservationColumns(
     },
     {
       // The price each booking was taken at (ADR 0038), not today's list: a
-      // price changed since does not change what these Guests are charged.
-      accessorKey: "nightlyRateMinor",
+      // price changed since does not change what these Guests are charged. The
+      // total is that rate over the nights the stay has, which is what the desk
+      // quotes; the rate itself stays beneath it, exactly as it was stamped.
+      accessorKey: "totalMinor",
       meta: { title: t("priceColumn") },
       header: ({ column }) => (
         <DataTableColumnHeader
@@ -680,25 +699,42 @@ export function useReservationColumns(
           title={t("priceColumn")}
         />
       ),
-      cell: ({ row }) =>
-        row.original.nightlyRateMinor === null ||
-        row.original.rateCurrency === null ? (
-          <span className="text-step--1 text-muted-foreground">
-            {t("bookedUnpriced")}
-          </span>
-        ) : (
-          <span className="whitespace-nowrap text-step--1 tabular-nums">
-            <bdi>
-              {t("bookedPerNight", {
-                price: formatMoney(
-                  row.original.nightlyRateMinor,
-                  row.original.rateCurrency,
-                  locale,
-                ),
-              })}
-            </bdi>
-          </span>
-        ),
+      cell: ({ row }) => {
+        const { nightlyRateMinor, rateCurrency, stayNights, totalMinor } =
+          row.original;
+        if (nightlyRateMinor === null || rateCurrency === null) {
+          return (
+            <span className="text-step--1 text-muted-foreground">
+              {t("bookedUnpriced")}
+            </span>
+          );
+        }
+        return (
+          <p className="whitespace-nowrap text-step--1 tabular-nums">
+            {totalMinor !== null && stayNights !== null ? (
+              <span className="block font-medium">
+                <bdi>
+                  {t("quoteStay", {
+                    count: stayNights,
+                    total: formatMoney(totalMinor, rateCurrency, locale),
+                  })}
+                </bdi>
+              </span>
+            ) : null}
+            <span
+              className={
+                totalMinor !== null ? "block text-muted-foreground" : undefined
+              }
+            >
+              <bdi>
+                {t("bookedPerNight", {
+                  price: formatMoney(nightlyRateMinor, rateCurrency, locale),
+                })}
+              </bdi>
+            </span>
+          </p>
+        );
+      },
     },
     {
       accessorKey: "status",
@@ -723,45 +759,89 @@ export function useReservationColumns(
       meta: { title: t("action") },
       enableHiding: false,
       header: () => <span className="sr-only">{t("action")}</span>,
-      cell: ({ row }) =>
-        row.original.mayCancel || row.original.mayAmend ? (
-          <div className="flex justify-end">
-            <FrontDeskRowMenu
-              key={row.original.reservationId}
-              booking={{
-                reservationId: row.original.reservationId,
-                reference: row.original.reference,
-                unitLabel: unitLabel(
-                  row.original.roomName,
-                  row.original.unitName,
-                ),
-                mayCancel: row.original.mayCancel,
-                // Here as well as on arrivals: a booking whose nights all
-                // passed unarrived is only on this list, and it is marked a
-                // no-show the morning after.
-                mayMarkNoShow: row.original.mayMarkNoShow,
-                change: row.original.mayAmend
-                  ? {
-                      reservationId: row.original.reservationId,
-                      reference: row.original.reference,
-                      guestName: row.original.guestName,
-                      unitLabel: unitLabel(
-                        row.original.roomName,
-                        row.original.unitName,
-                      ),
-                      unitId: row.original.unitId,
-                      startsOn: row.original.startsOn,
-                      endsOn: row.original.endsOn,
-                    }
-                  : undefined,
-              }}
-              folioId={null}
-              guestName={row.original.guestName}
-              locale={locale}
-              propertyId={propertyId}
-            />
+      cell: ({ row }) => {
+        const booking = row.original;
+        const label = unitLabel(booking.roomName, booking.unitName);
+        const inHouse = booking.stayId !== null;
+        const menu =
+          booking.mayCancel || booking.mayAmend || booking.mayChangeStay;
+        return (
+          <div className="flex items-center justify-end gap-1">
+            {booking.mayCheckIn ? (
+              <CheckInAction
+                locale={locale}
+                reservationId={booking.reservationId}
+              />
+            ) : booking.checkInBlocker ? (
+              // Where the button would be, what stands in its way, so nobody
+              // presses a button that is certain to be refused. Shown to
+              // anybody reading the row: it is information, not a control.
+              <span className="max-w-48 whitespace-normal text-end text-step--1 text-muted-foreground">
+                {t(`checkInBlocked.${booking.checkInBlocker}`)}
+              </span>
+            ) : null}
+            {booking.mayUndoCheckIn && booking.stayId ? (
+              // Where the button that just checked them in was: Check in has no
+              // confirmation because the way back is on the same row.
+              <UndoCheckInDialog
+                guestName={booking.guestName}
+                locale={locale}
+                reservationId={booking.reservationId}
+                stayId={booking.stayId}
+                unitName={label}
+              />
+            ) : null}
+            {menu || booking.folioId ? (
+              <FrontDeskRowMenu
+                key={booking.reservationId}
+                booking={
+                  inHouse
+                    ? undefined
+                    : {
+                        reservationId: booking.reservationId,
+                        reference: booking.reference,
+                        unitLabel: label,
+                        mayCancel: booking.mayCancel,
+                        // Here as well as on arrivals: a booking whose nights
+                        // all passed unarrived is only on this list, and it is
+                        // marked a no-show the morning after.
+                        mayMarkNoShow: booking.mayMarkNoShow,
+                        change: booking.mayAmend
+                          ? {
+                              reservationId: booking.reservationId,
+                              reference: booking.reference,
+                              guestName: booking.guestName,
+                              unitLabel: label,
+                              unitId: booking.unitId,
+                              startsOn: booking.startsOn,
+                              endsOn: booking.endsOn,
+                            }
+                          : undefined,
+                      }
+                }
+                folioId={booking.folioId}
+                guestName={booking.guestName}
+                locale={locale}
+                propertyId={propertyId}
+                stay={
+                  booking.stayId &&
+                  booking.stayStartsOn &&
+                  booking.mayChangeStay
+                    ? {
+                        stayId: booking.stayId,
+                        reference: booking.reference,
+                        guestName: booking.guestName,
+                        unitLabel: label,
+                        startsOn: booking.stayStartsOn,
+                        endsOn: booking.endsOn,
+                      }
+                    : undefined
+                }
+              />
+            ) : null}
           </div>
-        ) : null,
+        );
+      },
     },
   ];
 }

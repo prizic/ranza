@@ -320,6 +320,10 @@ export interface Messages {
       string
     >;
   };
+  reservationsViews: string;
+  reservationsTab: Record<"all" | "arriving" | "inHouse" | "upcoming", string>;
+  reservationsTabEmpty: Record<"arriving" | "inHouse" | "upcoming", string>;
+  reservationsTabEmptyHint: string;
   noReservationsTitle: string;
   noReservationsDescription: string;
   newReservation: string;
@@ -363,9 +367,14 @@ export interface Messages {
   takingBooking: string;
   discardBooking: string;
   bookingUnavailable: string;
+  unitBookedThoseNights: string;
+  unitOccupiedThoseNights: string;
+  chosenUnitTakenThoseNights: string;
+  bookingAvailabilityUnknown: string;
   bookingOverOccupant: string;
   bookingPeriodInvalid: string;
   bookingGuestInvalid: string;
+  guestRequired: string;
   bookingRefused: string;
   /** The price list changed while the booking dialog was open (RT-S2-12). */
   bookingPriceChanged: string;
@@ -1746,6 +1755,20 @@ export const messages: Record<SupportedLocale, Messages> = {
         finance: "Finans",
       },
     },
+    reservationsViews: "Rezervasyonları göster",
+    reservationsTab: {
+      all: "Tümü",
+      arriving: "Bugün gelenler",
+      inHouse: "Konaklayanlar",
+      upcoming: "Yaklaşanlar",
+    },
+    reservationsTabEmpty: {
+      arriving: "Bugün gelecek kimse yok",
+      inHouse: "Konaklayan kimse yok",
+      upcoming: "Daha sonrası için rezervasyon yok",
+    },
+    reservationsTabEmptyHint:
+      "Tüm rezervasyonları görmek için Tümü sekmesine geçin.",
     noReservationsTitle: "İleri tarihli rezervasyon yok",
     noReservationsDescription:
       "Bu tesiste bugünden itibaren bir rezervasyon bulunmuyor.",
@@ -1786,10 +1809,17 @@ export const messages: Record<SupportedLocale, Messages> = {
     takingBooking: "Oluşturuluyor",
     discardBooking: "Vazgeç",
     bookingUnavailable: "Bu birim o geceler için zaten dolu.",
+    unitBookedThoseNights: "Bu geceler dolu",
+    unitOccupiedThoseNights: "Bu gecelerde konaklayan var",
+    chosenUnitTakenThoseNights:
+      "Bu birim seçtiğiniz geceler için dolu. Başka bir birim ya da başka tarihler seçin.",
+    bookingAvailabilityUnknown:
+      "Bu geceler için hangi birimlerin boş olduğu kontrol edilemedi. Yine de seçebilirsiniz; çakışma varsa kayıt reddedilir.",
     bookingOverOccupant:
       "Bu birimde o gecelerin bazısında konaklayan biri var.",
     bookingPeriodInvalid:
       "Bu tarihler geçerli bir dönem değil. Rezervasyon en az bir gece sürer ve bugünden önce başlayamaz.",
+    guestRequired: "Misafirin adını girin.",
     bookingGuestInvalid:
       "Misafirin adını, e-postasını ve telefonunu kontrol edin.",
     bookingPriceChanged:
@@ -3259,6 +3289,19 @@ export const messages: Record<SupportedLocale, Messages> = {
         finance: "Finance",
       },
     },
+    reservationsViews: "Show bookings",
+    reservationsTab: {
+      all: "All",
+      arriving: "Arriving today",
+      inHouse: "In house",
+      upcoming: "Upcoming",
+    },
+    reservationsTabEmpty: {
+      arriving: "Nobody is due to arrive",
+      inHouse: "Nobody is in house",
+      upcoming: "Nothing booked for later",
+    },
+    reservationsTabEmptyHint: "Switch to All to see every booking.",
     noReservationsTitle: "Nothing booked ahead",
     noReservationsDescription:
       "Nothing is booked at this Property from today onwards.",
@@ -3301,10 +3344,17 @@ export const messages: Record<SupportedLocale, Messages> = {
     takingBooking: "Creating",
     discardBooking: "Cancel",
     bookingUnavailable: "That Unit is already booked for those nights.",
+    unitBookedThoseNights: "Booked for these nights",
+    unitOccupiedThoseNights: "Someone is staying then",
+    chosenUnitTakenThoseNights:
+      "This Unit is taken for the nights you chose. Pick another Unit or other dates.",
+    bookingAvailabilityUnknown:
+      "Could not check which Units are free for these nights. You can still choose one; saving will refuse a clash.",
     bookingOverOccupant:
       "Somebody is staying in that Unit for some of those nights.",
     bookingPeriodInvalid:
       "Those dates are not a period a Reservation can have. It covers at least one night and cannot start before today.",
+    guestRequired: "Enter the Guest's name.",
     bookingGuestInvalid:
       "Check the Guest's name, email address and telephone number.",
     bookingPriceChanged:
@@ -4776,6 +4826,19 @@ export const messages: Record<SupportedLocale, Messages> = {
         finance: "المالية",
       },
     },
+    reservationsViews: "عرض الحجوزات",
+    reservationsTab: {
+      all: "الكل",
+      arriving: "وصول اليوم",
+      inHouse: "المقيمون",
+      upcoming: "القادمة",
+    },
+    reservationsTabEmpty: {
+      arriving: "لا أحد متوقع وصوله اليوم",
+      inHouse: "لا أحد مقيم حالياً",
+      upcoming: "لا حجوزات لاحقة",
+    },
+    reservationsTabEmptyHint: "انتقل إلى «الكل» لعرض كل الحجوزات.",
     noReservationsTitle: "لا توجد حجوزات قادمة",
     noReservationsDescription: "لا يوجد حجز في هذه المنشأة من اليوم فصاعدًا.",
     newReservation: "حجز جديد",
@@ -4816,9 +4879,16 @@ export const messages: Record<SupportedLocale, Messages> = {
     takingBooking: "جارٍ الإنشاء",
     discardBooking: "إلغاء",
     bookingUnavailable: "هذه الوحدة محجوزة بالفعل لتلك الليالي.",
+    unitBookedThoseNights: "محجوزة لهذه الليالي",
+    unitOccupiedThoseNights: "يوجد نزيل مقيم في هذه الليالي",
+    chosenUnitTakenThoseNights:
+      "هذه الوحدة غير متاحة لليالي التي اخترتها. اختر وحدة أخرى أو تواريخ أخرى.",
+    bookingAvailabilityUnknown:
+      "تعذر التحقق من الوحدات المتاحة لهذه الليالي. يمكنك الاختيار، وسيُرفض الحفظ عند وجود تعارض.",
     bookingOverOccupant: "هناك نزيل يقيم في هذه الوحدة خلال بعض تلك الليالي.",
     bookingPeriodInvalid:
       "هذه التواريخ ليست مدة صالحة. يغطي الحجز ليلة واحدة على الأقل ولا يبدأ قبل اليوم.",
+    guestRequired: "أدخل اسم النزيل.",
     bookingGuestInvalid: "تحقق من اسم الضيف وبريده الإلكتروني وهاتفه.",
     bookingPriceChanged:
       "تغيّر سعر هذه الوحدة أثناء الحجز. راجع السعر الجديد ثم أعد أخذ الحجز.",
