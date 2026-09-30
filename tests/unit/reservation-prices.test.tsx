@@ -52,6 +52,7 @@ const BASE: ReservationRow = {
   mayMarkNoShow: false,
   mayAmend: false,
   mayCheckIn: false,
+  checkInBlocker: null,
   mayChangeStay: false,
   mayUndoCheckIn: false,
   stayId: null,

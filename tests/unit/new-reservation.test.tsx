@@ -304,6 +304,28 @@ describe("a departure (RG-S1-11, RG-S3-11)", () => {
   });
 });
 
+describe("a missing Guest name (RG-S4-15)", () => {
+  it("a_missing_guest_name_is_said_under_the_field_in_our_words: under the field, without cancelling the browser's own handling", () => {
+    openForm();
+    const guest = screen.getByLabelText(messages.en.guest);
+
+    // The browser refusing the empty required field.
+    const proceeds = fireEvent.invalid(guest);
+    // Not cancelled: the browser still decides which field takes focus, which
+    // is what the date and Unit fields beside this one rely on. Cancelling it
+    // sent focus, and the browser's bubble, to whichever field came next.
+    expect(proceeds).toBe(true);
+    expect(screen.getByText(messages.en.guestRequired)).toBeVisible();
+    expect(guest).toHaveAttribute("aria-invalid", "true");
+    expect(guest).toHaveAccessibleDescription(messages.en.guestRequired);
+
+    // Over as soon as there is something to check.
+    fireEvent.change(guest, { target: { value: "N" } });
+    expect(screen.queryByText(messages.en.guestRequired)).toBeNull();
+    expect(guest).not.toHaveAttribute("aria-invalid");
+  });
+});
+
 describe("the booking form in Arabic (RG-S3-12)", () => {
   it("the_booking_form_reads_in_arabic_and_mirrors", () => {
     render(

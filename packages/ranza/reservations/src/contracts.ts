@@ -565,6 +565,12 @@ export interface ReservationRow {
    * check-in decides again and refuses an occupied or out-of-service Unit.
    */
   mayCheckIn: boolean;
+  /**
+   * What stands in the way of a booking that has come due, so the desk is told
+   * instead of pressing a button certain to be refused; the same answer
+   * Arrivals gives. Null when nothing does, and for a booking not yet due.
+   */
+  checkInBlocker: CheckInBlocker | null;
   /** Whether the viewer may change an in-house Stay's departure or move it (AB-S2-05). */
   mayChangeStay: boolean;
   /**

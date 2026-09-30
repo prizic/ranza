@@ -1486,9 +1486,24 @@ export function createReservationsModule(deps: ReservationsDeps) {
             and reservation.starts_on <= today.day
             and (reservation.ends_on is null
                  or reservation.ends_on > today.day)
+            and unit_now.status not in ('blocked', 'out_of_service')
+            and occupant.id is null
             and app.has_organization_permission(
                   reservation.organization_id, 'front_desk.check_in')
                                                         as "mayCheckIn",
+          -- Arrivals' own answer, in the order a desk would fix them.
+          case
+            when reservation.status not in ('requested', 'confirmed')
+              or reservation.starts_on > today.day
+              or (reservation.ends_on is not null
+                  and reservation.ends_on <= today.day)
+                                                  then null
+            when reservation.status = 'requested' then 'not_confirmed'
+            when unit_now.status = 'blocked'      then 'unit_blocked'
+            when unit_now.status = 'out_of_service'
+                                                  then 'unit_out_of_service'
+            when occupant.id is not null          then 'unit_occupied'
+          end                                     as "checkInBlocker",
           coalesce(stay.status = 'in_house', false)
             and app.has_organization_permission(
                   reservation.organization_id, 'front_desk.amend')
@@ -1514,6 +1529,21 @@ export function createReservationsModule(deps: ReservationsDeps) {
           on unit.id = reservation.accommodation_unit_id
         left join public.accommodation_units as room
           on room.id = unit.parent_id
+        -- A room out of order or blocked covers its beds (ADR 0032).
+        cross join lateral (
+          select case
+                   when room.status in ('out_of_service', 'blocked')
+                    and unit.status not in ('out_of_service', 'blocked')
+                     then room.status
+                   else unit.status
+                 end as status
+        ) as unit_now
+        -- Somebody else in the Unit: at most one, one in-house Stay per Unit
+        -- being unique (ADR 0033).
+        left join public.stays as occupant
+          on occupant.accommodation_unit_id = reservation.accommodation_unit_id
+         and occupant.status = 'in_house'
+         and occupant.reservation_id is distinct from reservation.id
         left join public.stays as stay
           on stay.reservation_id = reservation.id
          and stay.status in ('in_house', 'departed')

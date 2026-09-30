@@ -59,6 +59,7 @@ const BASE: ReservationRow = {
   mayMarkNoShow: false,
   mayAmend: false,
   mayCheckIn: false,
+  checkInBlocker: null,
   mayChangeStay: false,
   mayUndoCheckIn: false,
   stayId: null,
@@ -158,5 +159,28 @@ describe("a Reservations row's actions", () => {
     // Arrived on an earlier day, or a viewer without the permission.
     const refused = show({ ...IN_HOUSE, mayUndoCheckIn: false });
     expect(within(refused).queryByRole("button", withdraw)).toBeNull();
+  });
+
+  it("a_due_booking_that_cannot_be_checked_in_says_why_instead_of_offering_the_button: says what stands in the way, in place of Check in", () => {
+    for (const blocker of [
+      "not_confirmed",
+      "unit_blocked",
+      "unit_out_of_service",
+      "unit_occupied",
+    ] as const) {
+      const row = show({ ...BASE, checkInBlocker: blocker });
+      expect(
+        within(row).getByText(messages.en.checkInBlocked[blocker]),
+      ).toBeVisible();
+      expect(
+        within(row).queryByRole("button", { name: messages.en.checkIn }),
+      ).toBeNull();
+      cleanup();
+    }
+    // Nothing in the way, and nothing due: neither a reason nor a button.
+    const quiet = show({ ...BASE });
+    for (const message of Object.values(messages.en.checkInBlocked)) {
+      expect(within(quiet).queryByText(message)).toBeNull();
+    }
   });
 });

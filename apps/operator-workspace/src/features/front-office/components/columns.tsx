@@ -772,6 +772,13 @@ export function useReservationColumns(
                 locale={locale}
                 reservationId={booking.reservationId}
               />
+            ) : booking.checkInBlocker ? (
+              // Where the button would be, what stands in its way, so nobody
+              // presses a button that is certain to be refused. Shown to
+              // anybody reading the row: it is information, not a control.
+              <span className="max-w-48 whitespace-normal text-end text-step--1 text-muted-foreground">
+                {t(`checkInBlocked.${booking.checkInBlocker}`)}
+              </span>
             ) : null}
             {booking.mayUndoCheckIn && booking.stayId ? (
               // Where the button that just checked them in was: Check in has no

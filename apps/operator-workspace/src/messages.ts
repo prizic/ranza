@@ -372,6 +372,7 @@ export interface Messages {
   bookingOverOccupant: string;
   bookingPeriodInvalid: string;
   bookingGuestInvalid: string;
+  guestRequired: string;
   bookingRefused: string;
   /** The price list changed while the booking dialog was open (RT-S2-12). */
   bookingPriceChanged: string;
@@ -1718,6 +1719,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Bu birimde o gecelerin bazısında konaklayan biri var.",
     bookingPeriodInvalid:
       "Bu tarihler geçerli bir dönem değil. Rezervasyon en az bir gece sürer ve bugünden önce başlayamaz.",
+    guestRequired: "Misafirin adını girin.",
     bookingGuestInvalid:
       "Misafirin adını, e-postasını ve telefonunu kontrol edin.",
     bookingPriceChanged:
@@ -3132,6 +3134,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Somebody is staying in that Unit for some of those nights.",
     bookingPeriodInvalid:
       "Those dates are not a period a Reservation can have. It covers at least one night and cannot start before today.",
+    guestRequired: "Enter the Guest's name.",
     bookingGuestInvalid:
       "Check the Guest's name, email address and telephone number.",
     bookingPriceChanged:
@@ -4544,6 +4547,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingOverOccupant: "هناك نزيل يقيم في هذه الوحدة خلال بعض تلك الليالي.",
     bookingPeriodInvalid:
       "هذه التواريخ ليست مدة صالحة. يغطي الحجز ليلة واحدة على الأقل ولا يبدأ قبل اليوم.",
+    guestRequired: "أدخل اسم النزيل.",
     bookingGuestInvalid: "تحقق من اسم الضيف وبريده الإلكتروني وهاتفه.",
     bookingPriceChanged:
       "تغيّر سعر هذه الوحدة أثناء الحجز. راجع السعر الجديد ثم أعد أخذ الحجز.",

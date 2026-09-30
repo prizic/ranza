@@ -138,3 +138,49 @@ test("a front desk takes a booking and finds it on the list", async ({
   await expect(row).toContainText(email);
   await expect(row).toContainText(unitName);
 });
+
+/**
+ * Where the browser puts focus when a submit is blocked with more than one
+ * field empty. It fires `invalid` at every problem field and then focuses the
+ * first whose handler did not cancel it, so a handler that cancels the event
+ * hands focus, and the browser's bubble, to whichever field comes next — which
+ * jsdom does not do, and which the unit suite therefore cannot see.
+ */
+test("a booking form with several problems asks about the Guest first", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const unitName = aFreeUnit(propertyId);
+
+  await signIn(page);
+  await page.goto(`/en/reservations?property=${propertyId}`);
+  await page.getByRole("button", { name: "New reservation" }).click();
+  const dialog = page.getByRole("dialog", { name: "New reservation" });
+  const guest = dialog.getByLabel("Guest", { exact: true });
+  const create = dialog.getByRole("button", { name: "Create reservation" });
+
+  /** Focus must be on something a reader can reach, never a proxy input. */
+  const focusIsReal = () =>
+    page.evaluate(
+      () => document.activeElement?.closest("[aria-hidden='true']") === null,
+    );
+
+  // Everything empty.
+  await create.click();
+  await expect(guest).toBeFocused();
+  await expect(dialog.getByText("Enter the Guest's name.")).toBeVisible();
+  expect(await focusIsReal()).toBe(true);
+
+  // A Unit chosen, still no name and no dates: the name is still first, and
+  // the date proxy does not open its calendar over it.
+  await dialog.getByLabel("Unit").click();
+  await page.getByRole("option", { name: new RegExp(unitName) }).click();
+  await create.click();
+  await expect(guest).toBeFocused();
+  await expect(page.getByText("Choose the arrival day")).toBeHidden();
+  expect(await focusIsReal()).toBe(true);
+
+  // Typing takes the message away.
+  await guest.fill("Somebody");
+  await expect(dialog.getByText("Enter the Guest's name.")).toBeHidden();
+});

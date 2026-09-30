@@ -144,6 +144,7 @@ export function NewReservationDialog({
     new Map(),
   );
   const [availabilityUnknown, setAvailabilityUnknown] = useState(false);
+  const [guestMissing, setGuestMissing] = useState(false);
   // Bumped when saving is refused for a clash, so the marks are read again
   // with what stands now rather than what stood when the dates were chosen.
   const [generation, setGeneration] = useState(0);
@@ -211,6 +212,7 @@ export function NewReservationDialog({
       setUnitId("");
       setStayType("guest");
       setDates({});
+      setGuestMissing(false);
     }
   }
 
@@ -303,12 +305,31 @@ export function NewReservationDialog({
 
           <Field htmlFor="booking-guest" label={t("guest")}>
             <Input
+              aria-describedby={
+                guestMissing ? "booking-guest-missing" : undefined
+              }
+              aria-invalid={guestMissing || undefined}
               autoComplete="off"
               id="booking-guest"
               maxLength={GUEST.name}
               name="guestName"
+              onChange={() => setGuestMissing(false)}
+              // Said under the field in our own words as well as in the
+              // browser's bubble, as the Unit picker beside it does. The event
+              // is left alone: the browser focuses the first problem field
+              // that did not cancel it, and the date field's own handler
+              // relies on that order.
+              onInvalid={() => setGuestMissing(true)}
               required
             />
+            {guestMissing ? (
+              <p
+                className="text-step--1 text-destructive"
+                id="booking-guest-missing"
+              >
+                {t("guestRequired")}
+              </p>
+            ) : null}
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">

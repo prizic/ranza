@@ -638,6 +638,74 @@ describe("the list and check-in agree on every kind of room", () => {
       (arrival) => arrival.reservationId === cases[key],
     );
 
+  it("a_due_booking_that_cannot_be_checked_in_says_why_instead_of_offering_the_button: a bed under a room out of service is out of service with it", async () => {
+    const room = randomUUID();
+    const bed = randomUUID();
+    const booking = reservationId();
+    await owner.$executeRawUnsafe(
+      `insert into public.accommodation_units
+         (id, property_id, organization_id, name, unit_type, capacity)
+       values ($1::uuid, $2::uuid, $3::uuid, $4, 'room', 2)`,
+      room,
+      PROPERTY,
+      ORG,
+      `BR-${room.slice(0, 6)}`,
+    );
+    await owner.$executeRawUnsafe(
+      `insert into public.accommodation_units
+         (id, property_id, organization_id, name, unit_type, capacity, parent_id)
+       values ($1::uuid, $2::uuid, $3::uuid, $4, 'bed', 1, $5::uuid)`,
+      bed,
+      PROPERTY,
+      ORG,
+      `BB-${bed.slice(0, 6)}`,
+      room,
+    );
+    await reserve(booking, PROPERTY, ORG, bed, "Bed guest", { from: 0, to: 2 });
+    await owner.$executeRawUnsafe(
+      `update public.accommodation_units set status = 'out_of_service' where id = $1::uuid`,
+      room,
+    );
+
+    const arrival = (await reservations.listArrivals(MEMBER, PROPERTY)).find(
+      (a) => a.reservationId === booking,
+    );
+    const row = (await reservations.listReservations(MEMBER, PROPERTY)).find(
+      (r) => r.reservationId === booking,
+    );
+    expect(arrival?.checkInBlocker).toBe("unit_out_of_service");
+    expect(row).toMatchObject({
+      mayCheckIn: false,
+      checkInBlocker: "unit_out_of_service",
+    });
+  });
+
+  it("a_due_booking_that_cannot_be_checked_in_says_why_instead_of_offering_the_button: the Reservations list gives Arrivals' answer for every kind of room", async () => {
+    const arrivals = await reservations.listArrivals(MEMBER, PROPERTY);
+    const rows = await reservations.listReservations(MEMBER, PROPERTY);
+    const blockers: Record<string, string | null> = {};
+
+    for (const key of Object.keys(cases) as (keyof typeof cases)[]) {
+      const arrival = arrivals.find((a) => a.reservationId === cases[key]);
+      const row = rows.find((r) => r.reservationId === cases[key]);
+      expect(arrival, `${key} on Arrivals`).toBeDefined();
+      expect(row, `${key} on the list`).toBeDefined();
+      // The manager holds the permission, so the button is the room's answer.
+      expect(row!.mayCheckIn, key).toBe(arrival!.canCheckIn);
+      expect(row!.checkInBlocker, key).toBe(arrival!.checkInBlocker);
+      blockers[key] = row!.checkInBlocker;
+    }
+
+    expect(blockers).toEqual({
+      ready: null,
+      requested: "not_confirmed",
+      blocked: "unit_blocked",
+      outOfService: "unit_out_of_service",
+      occupied: "unit_occupied",
+      overstayed: "unit_occupied",
+    });
+  });
+
   it("names what stands in the way, and nothing for a ready room", async () => {
     expect(await listed("ready")).toMatchObject({
       canCheckIn: true,
