@@ -1,0 +1,44 @@
+%% Anything not drawn here is forbidden.
+%% Every transition carries its trigger and its slice.
+%% Two lifecycles: analytics window selection and financial visibility gate.
+stateDiagram-v2
+  direction LR
+
+  state "Analytics reporting window" as window {
+    state "today (daily snapshot)" as w_today
+    state "7d (trailing week)" as w_7d
+    state "30d (trailing month)" as w_30d
+    state "mtd (month to date)" as w_mtd
+
+    [*] --> w_today : default / s1
+    w_today --> w_7d : select range 7d / s1
+    w_today --> w_30d : select range 30d / s1
+    w_today --> w_mtd : select range mtd / s1
+    w_7d --> w_today : select range today / s1
+    w_7d --> w_30d : select range 30d / s1
+    w_7d --> w_mtd : select range mtd / s1
+    w_30d --> w_today : select range today / s1
+    w_30d --> w_7d : select range 7d / s1
+    w_30d --> w_mtd : select range mtd / s1
+    w_mtd --> w_today : select range today / s1
+    w_mtd --> w_7d : select range 7d / s1
+    w_mtd --> w_30d : select range 30d / s1
+  }
+
+  state "Financial metrics visibility" as visibility {
+    state "governed (finance.manage_folio held)" as v_governed
+    state "masked (operational occupancy only)" as v_masked
+
+    [*] --> v_governed : viewer holds finance.manage_folio / s1
+    [*] --> v_masked : viewer lacks finance.manage_folio / s1
+  }
+
+  note right of v_governed
+    Shows room revenue, incidental revenue,
+    ADR, RevPAR, and payment breakdown.
+  end note
+
+  note right of v_masked
+    Shows sellable units, occupied nights,
+    and occupancy rate % only.
+  end note

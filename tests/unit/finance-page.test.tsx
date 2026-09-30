@@ -43,7 +43,10 @@ vi.mock("next-intl/server", () => ({
 }));
 vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
   FOLIO_CAPABILITY: { moduleKey: "billing_folios", capabilityKey: "finance" },
+  POST_CHARGE_PERMISSION: "finance.post_charge",
+  POST_PAYMENT_PERMISSION: "finance.post_payment",
   REVERSE_CHARGE_PERMISSION: "finance.reverse_charge",
+  REVERSE_PAYMENT_PERMISSION: "finance.reverse_payment",
   entitledProperties,
   folio,
   folios,

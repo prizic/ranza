@@ -1,0 +1,39 @@
+%% Slices decide implementation order and nothing else:
+%%   s1 operational occupancy and commercial revenue governance
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% UML directions: include points base --> included. extend points extension --> base.
+%% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
+%%
+%% Blueprint 5.14: Analytics and Reporting provides operational, commercial, and financial
+%% analysis using governed metrics. Analytics reads trusted module events and reporting
+%% models; it must not become the owner of operational truth.
+flowchart TD
+
+  MANAGER["Staff Member holding finance.manage_folio<br/>(Manager, Owner, Finance)"]
+  FRONT_DESK["Staff Member reaching the Property<br/>without finance.manage_folio"]
+  OUTSIDER["Staff Member reaching another Property"]
+
+  subgraph S1["slice 1 &mdash; occupancy and revenue reporting"]
+    VIEW_OCCUPANCY(["View operational occupancy metrics<br/>(sellable units, occupied nights, occupancy rate)"])
+    VIEW_REVENUE(["View commercial revenue metrics<br/>(room revenue, incidental revenue, ADR, RevPAR)"])
+    SELECT_RANGE(["Select analysis window<br/>(today, 7d, 30d, mtd)"])
+    MASK_REVENUE(["Mask financial values<br/>for readers without finance.manage_folio"])
+    PROPERTY_FILTER(["Filter reporting by reached Property"])
+  end
+
+  subgraph OUT["Not this feature"]
+    MULTI_PROPERTY(["Cross-organization consolidated enterprise analytics &mdash; deferred, blueprint 5.14"])
+    EXPORT_CSV(["Export raw financial reports &mdash; deferred, blueprint 5.14"])
+    CUSTOM_REPORTS(["Custom report query builder &mdash; deferred, blueprint 5.14"])
+  end
+
+  MANAGER --> VIEW_OCCUPANCY
+  MANAGER --> VIEW_REVENUE
+  FRONT_DESK --> VIEW_OCCUPANCY
+  FRONT_DESK --> MASK_REVENUE
+  OUTSIDER -. refuses .-> PROPERTY_FILTER
+
+  VIEW_OCCUPANCY -. include .-> PROPERTY_FILTER
+  VIEW_REVENUE -. include .-> PROPERTY_FILTER
+  VIEW_OCCUPANCY -. extend .-> SELECT_RANGE
+  VIEW_REVENUE -. extend .-> SELECT_RANGE

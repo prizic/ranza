@@ -10,8 +10,11 @@ import {
   FOLIO_CAPABILITY,
   folios,
   permittedProperties,
+  POST_CHARGE_PERMISSION,
+  POST_PAYMENT_PERMISSION,
   requireViewer,
   REVERSE_CHARGE_PERMISSION,
+  REVERSE_PAYMENT_PERMISSION,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
 
@@ -65,13 +68,37 @@ export default async function FinancePage({
 
   if (selected) {
     // Asked about the Folio's own Property, as the insert policy asks it.
-    const mayReverse = (
-      await permittedProperties(REVERSE_CHARGE_PERMISSION)
-    ).some((reachable) => reachable.propertyId === selected.propertyId);
+    const [canCharge, canReverseCharge, canPayment, canReversePayment] =
+      await Promise.all([
+        permittedProperties(POST_CHARGE_PERMISSION),
+        permittedProperties(REVERSE_CHARGE_PERMISSION),
+        permittedProperties(POST_PAYMENT_PERMISSION),
+        permittedProperties(REVERSE_PAYMENT_PERMISSION),
+      ]);
+    const mayPostCharge = canCharge.some(
+      (reachable) => reachable.propertyId === selected.propertyId,
+    );
+    const mayReverseCharge = canReverseCharge.some(
+      (reachable) => reachable.propertyId === selected.propertyId,
+    );
+    const mayPostPayment = canPayment.some(
+      (reachable) => reachable.propertyId === selected.propertyId,
+    );
+    const mayReversePayment = canReversePayment.some(
+      (reachable) => reachable.propertyId === selected.propertyId,
+    );
     return (
       <>
         <p className="text-sm text-muted-foreground">{property.propertyName}</p>
-        <FolioPanel folio={selected} locale={locale} mayReverse={mayReverse} />
+        <FolioPanel
+          folio={selected}
+          locale={locale}
+          mayPostCharge={mayPostCharge}
+          mayPostPayment={mayPostPayment}
+          mayReverse={mayReverseCharge}
+          mayReverseCharge={mayReverseCharge}
+          mayReversePayment={mayReversePayment}
+        />
       </>
     );
   }

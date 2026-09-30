@@ -1,0 +1,19 @@
+id,situation,given,when,then,enforced_by,test_name,status
+GX-S1-01,Log a request,a Staff Member holding guest_services.create_request at a Property where guest_experience is available,they log a request with a title category and priority,"the request is new, numbered consecutively per Property, and saved",module,logging_a_request_creates_a_new_request,approved
+GX-S1-02,Numbered per Property,"two Properties, and two requests at one Property at the same moment",the requests are written,each Property counts from 1 and numbers never collide,database_constraint,service_request_numbers_are_per_property,approved
+GX-S1-03,Stamping fields,"a caller supplying number, reported_at or updated_at in an insert",it is written,refused by column grants: the database stamps them,policy,service_request_stamped_not_supplied,approved
+GX-S1-04,Without create permission,a Staff Member whose role lacks guest_services.create_request,they log a request,refused by the policy and nothing written,policy,creating_without_permission_is_refused,approved
+GX-S1-05,Capability unavailable,the Property guest_experience capability is disabled or Subscription inactive,a Staff Member attempts to log or manage requests,refused by policy gates,policy,guest_experience_absent_when_disabled,approved
+GX-S1-06,Property out of reach,a Staff Member assigned to one Property,they read or write requests at another Property,nothing is returned and nothing is written,policy,requests_at_unreached_property_are_inaccessible,approved
+GX-S1-07,Another Property room,a request at Property A,it names a Unit of Property B,refused by composite foreign key,database_constraint,request_unit_must_belong_to_same_property,approved
+GX-S1-08,Title length,a request title shorter than 3 or longer than 200 characters,it is written,refused by check constraint,database_constraint,request_title_length_is_bounded,approved
+GX-S1-09,Details length,request details exceeding 2000 characters,it is written,refused by check constraint,database_constraint,request_details_length_is_bounded,approved
+GX-S1-10,Cancel requires reason,a request being cancelled,it is cancelled without a reason or with an empty reason,refused by check constraint pairing cancel status with reason,database_constraint,cancelled_request_requires_reason,approved
+GX-S1-11,Update status,a Staff Member holding guest_services.manage_requests,they move a request to in_progress or resolved,"status and timestamp are updated, and optional resolution notes stored",module,request_status_is_updated,approved
+GX-S1-12,Manage without permission,a Staff Member lacking guest_services.manage_requests,they attempt to update status or assign a request,refused by update policy,policy,managing_without_permission_is_refused,approved
+GX-S1-13,Assign staff,a request and a Staff Member reaching the Property,a manager assigns the request to them,assignee is recorded on the request,module,request_is_assigned,approved
+GX-S1-14,Valid categories,a request with an unknown category,it is written,refused by category check constraint,database_constraint,category_must_be_valid,approved
+GX-S1-15,Valid priorities,a request with an unknown priority,it is written,refused by priority check constraint,database_constraint,priority_must_be_valid,approved
+GX-S1-16,Never deleted,any service request,a caller attempts to delete it,refused: no delete policy or grant exists,policy,service_requests_are_never_deleted,approved
+GX-S1-17,Workspace table,requests in various statuses at a Property,a staff member opens the Guest Experience page,requests are displayed with filterable tabs and status indicators,ui_only,guest_experience_workspace_displays_queue,approved
+GX-S1-18,Localization,requests displayed across supported locales,page viewed in English Turkish or Arabic,all labels categories priorities and statuses translated and Arabic mirrors,ui_only,guest_experience_localized_in_all_locales,approved

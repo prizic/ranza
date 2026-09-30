@@ -1,0 +1,39 @@
+%% Slices decide implementation order:
+%%   s1 service requests lifecycle: creation, assignment, categories, priorities, resolution, cancellation
+%%   s2 portal submission and stay linking
+%% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
+%% State transitions are in states.mmd.
+flowchart TD
+
+  GUEST["Guest or Resident<br/>submits request via Portal or Front Desk"]
+  DESK["Staff Member holding guest_services.create_request<br/>logs a request on guest's behalf"]
+  MANAGER["Staff Member holding guest_services.manage_requests<br/>assigns, updates status, resolves, cancels"]
+  READER["Staff Member reaching the Property<br/>reads requests queue"]
+
+  subgraph S1["slice 1 &mdash; service requests lifecycle"]
+    CREATE(["Log a service request<br/>category, priority, room, title, details"])
+    LIST(["Read requests queue<br/>filters by status, category, priority, room"])
+    ASSIGN(["Assign request to staff member"])
+    STATUS(["Move request status<br/>new &rarr; in_progress &rarr; resolved"])
+    CANCEL(["Cancel request<br/>requires cancellation reason"])
+    RESOLVE(["Resolve request<br/>optional resolution notes"])
+  end
+
+  subgraph S2["slice 2 &mdash; stay integration"]
+    STAYLINK(["Link request to in-house Stay and Guest"])
+  end
+
+  subgraph OUT["Not this slice"]
+    CHAT(["Real-time guest chat &mdash; phase 5"])
+    SURVEY(["Post-stay feedback survey &mdash; phase 4"])
+  end
+
+  GUEST --> CREATE
+  DESK --> CREATE
+  DESK --> LIST
+  READER --> LIST
+  MANAGER --> ASSIGN
+  MANAGER --> STATUS
+  MANAGER --> CANCEL
+  MANAGER --> RESOLVE
+  CREATE -.-> STAYLINK

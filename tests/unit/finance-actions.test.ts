@@ -11,6 +11,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const postCharge = vi.fn();
+const postPayment = vi.fn();
 const reverseLine = vi.fn();
 const closeFolio = vi.fn();
 const revalidatePath = vi.fn();
@@ -23,7 +24,9 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
   currentViewer: async () => ({ userId: VIEWER }),
 }));
 vi.mock("../../apps/operator-workspace/src/server/composition", () => ({
-  getComposition: () => ({ folios: { postCharge, reverseLine, closeFolio } }),
+  getComposition: () => ({
+    folios: { postCharge, postPayment, reverseLine, closeFolio },
+  }),
 }));
 
 const VIEWER = "de000001-0000-4000-8000-000000000001";
@@ -50,10 +53,20 @@ const charge = (amount: string, currency = "TRY") =>
     amount,
   });
 
+const payment = (amount: string, paymentMethod = "card", currency = "TRY") =>
+  form({
+    locale: "ar",
+    folio: FOLIO,
+    description: "Front desk payment",
+    paymentMethod,
+    currency,
+    amount,
+  });
+
 let logged: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
-  for (const command of [postCharge, reverseLine, closeFolio]) {
+  for (const command of [postCharge, postPayment, reverseLine, closeFolio]) {
     command.mockReset().mockResolvedValue({});
   }
   revalidatePath.mockReset();
@@ -96,11 +109,35 @@ describe("an amount typed on the Finance screen (FO-S2-05)", () => {
       expect(postCharge).not.toHaveBeenCalled();
     },
   );
+
+  it("posts a payment with valid payment method", async () => {
+    await expect(
+      finance.postPayment("idle", payment("50", "card", "TRY")),
+    ).resolves.toBe("done");
+    expect(postPayment).toHaveBeenCalledWith(VIEWER, {
+      amountMinor: 5000,
+      description: "Front desk payment",
+      folioId: FOLIO,
+      paymentMethod: "card",
+    });
+  });
+
+  it("rejects an invalid payment method", async () => {
+    await expect(
+      finance.postPayment("idle", payment("50", "bitcoin", "TRY")),
+    ).resolves.toBe("invalid");
+    expect(postPayment).not.toHaveBeenCalled();
+  });
 });
 
 describe("what a failed action says (FO-S9-04)", () => {
   const commands = [
     ["postCharge", postCharge, () => finance.postCharge("idle", charge("5"))],
+    [
+      "postPayment",
+      postPayment,
+      () => finance.postPayment("idle", payment("5")),
+    ],
     [
       "reverseLine",
       reverseLine,

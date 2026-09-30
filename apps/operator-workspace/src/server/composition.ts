@@ -5,6 +5,7 @@ import { createBusinessDayModule } from "@ranza/business-day";
 import { createCoreModule } from "@ranza/core";
 import { assertUnprivileged, createPrismaClient } from "@ranza/db";
 import { createFoliosModule } from "@ranza/folios";
+import { createGuestServicesModule } from "@ranza/guest-services";
 import { createHousekeepingModule } from "@ranza/housekeeping";
 import { createMaintenanceModule } from "@ranza/maintenance";
 import { createRatesModule } from "@ranza/rates";
@@ -112,6 +113,8 @@ function compose() {
     businessDay: createBusinessDayModule({ db: tenantDb }),
     maintenance: createMaintenanceModule({ db: tenantDb }),
     rates: createRatesModule({ db: tenantDb }),
+    guestServices: createGuestServicesModule({ db: tenantDb }),
+    db: tenantDb,
   };
 }
 

@@ -132,6 +132,9 @@ importers:
       '@ranza/folios':
         specifier: workspace:*
         version: link:../../packages/ranza/folios
+      '@ranza/guest-services':
+        specifier: workspace:*
+        version: link:../../packages/ranza/guest-services
       '@ranza/guests':
         specifier: workspace:*
         version: link:../../packages/ranza/guests
@@ -331,6 +334,12 @@ importers:
       '@ranza/platform-audit':
         specifier: workspace:*
         version: link:../../platform/audit
+
+  packages/ranza/guest-services:
+    dependencies:
+      '@ranza/db':
+        specifier: workspace:*
+        version: link:../../db
 
   packages/ranza/guests:
     dependencies:

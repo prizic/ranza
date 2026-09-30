@@ -11,6 +11,11 @@ import {
   Field,
   FormError,
   Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Separator,
   Table,
   TableBody,
@@ -24,6 +29,7 @@ import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
 import {
   closeFolio,
   postCharge,
+  postPayment,
   reverseLine,
   type FinanceOutcome,
 } from "../../../server/finance";
@@ -119,6 +125,82 @@ function ChargeForm({
   );
 }
 
+function PaymentForm({
+  currency,
+  folioId,
+  locale,
+}: {
+  currency: string;
+  folioId: string;
+  locale: string;
+}) {
+  const t = useTranslations();
+  const [outcome, act, pending] = useActionState<FinanceOutcome, FormData>(
+    postPayment,
+    "idle",
+  );
+  const message = outcomeMessage(
+    outcome,
+    t("amountInvalid"),
+    t("paymentRefused"),
+  );
+
+  return (
+    <form action={act} className="mt-6 grid gap-4">
+      <h3 className="text-step-0 font-medium">{t("addPayment")}</h3>
+      <input name="folio" type="hidden" value={folioId} />
+      <input name="locale" type="hidden" value={locale} />
+      <input name="currency" type="hidden" value={currency} />
+
+      <div className="grid gap-4 sm:grid-cols-[1fr_12rem_10rem_auto] sm:items-end">
+        <Field htmlFor="payment-description" label={t("description")}>
+          <Input
+            autoComplete="off"
+            id="payment-description"
+            maxLength={200}
+            name="description"
+            required
+          />
+        </Field>
+        <Field htmlFor="payment-method" label={t("paymentMethod")}>
+          <Select defaultValue="card" name="paymentMethod">
+            <SelectTrigger id="payment-method">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="cash">{t("paymentMethods.cash")}</SelectItem>
+              <SelectItem value="card">{t("paymentMethods.card")}</SelectItem>
+              <SelectItem value="bank_transfer">
+                {t("paymentMethods.bank_transfer")}
+              </SelectItem>
+              <SelectItem value="other">{t("paymentMethods.other")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field htmlFor="payment-amount" label={`${t("amount")} (${currency})`}>
+          <Input
+            autoComplete="off"
+            className="text-end tabular-nums"
+            id="payment-amount"
+            inputMode="decimal"
+            name="amount"
+            required
+          />
+        </Field>
+        <Button disabled={pending} type="submit">
+          {pending ? t("posting") : t("post")}
+        </Button>
+      </div>
+
+      {message ? (
+        <div aria-live="polite">
+          <FormError>{message}</FormError>
+        </div>
+      ) : null}
+    </form>
+  );
+}
+
 function ReverseAction({ lineId, locale }: { lineId: string; locale: string }) {
   const t = useTranslations();
   const [outcome, act, pending] = useActionState<FinanceOutcome, FormData>(
@@ -189,14 +271,24 @@ export function FolioPanel({
   folio,
   locale,
   mayReverse,
+  mayPostCharge = true,
+  mayReverseCharge,
+  mayPostPayment = false,
+  mayReversePayment = false,
 }: {
   folio: FolioDetail;
   locale: SupportedLocale;
-  /** The viewer holds finance.reverse_charge at this Folio's Property. */
-  mayReverse: boolean;
+  /** Backwards compatible alias for mayReverseCharge. */
+  mayReverse?: boolean;
+  mayPostCharge?: boolean;
+  mayReverseCharge?: boolean;
+  mayPostPayment?: boolean;
+  mayReversePayment?: boolean;
 }) {
   const t = useTranslations();
   const open = folio.status === "open";
+  const canReverseCharge = mayReverseCharge ?? mayReverse ?? false;
+  const canReversePayment = mayReversePayment ?? false;
 
   // A room night reads in the reader's language, for the night it is for,
   // rather than as the description the database wrote (ADR 0038) — and so
@@ -267,6 +359,11 @@ export function FolioPanel({
                   >
                     {described(line)}
                   </span>
+                  {line.paymentMethod ? (
+                    <span className="ms-2 rounded-xs border border-border px-1.5 py-0.5 text-step--2 text-muted-foreground">
+                      {t(`paymentMethods.${line.paymentMethod}`)}
+                    </span>
+                  ) : null}
                   {/* The word as well as the strike-through, because a line
                       through text is the only carrier otherwise and it is
                       invisible to a screen reader (blueprint 18.5). */}
@@ -290,10 +387,10 @@ export function FolioPanel({
                   {formatMoney(line.amountMinor, folio.currency, locale)}
                 </TableCell>
                 <TableCell>
-                  {mayReverse &&
-                  open &&
-                  line.lineType === "charge" &&
-                  !line.reversed ? (
+                  {open &&
+                  !line.reversed &&
+                  ((line.lineType === "charge" && canReverseCharge) ||
+                    (line.lineType === "payment" && canReversePayment)) ? (
                     <ReverseAction lineId={line.lineId} locale={locale} />
                   ) : null}
                 </TableCell>
@@ -305,11 +402,20 @@ export function FolioPanel({
 
       {open ? (
         <>
-          <ChargeForm
-            currency={folio.currency}
-            folioId={folio.folioId}
-            locale={locale}
-          />
+          {mayPostCharge ? (
+            <ChargeForm
+              currency={folio.currency}
+              folioId={folio.folioId}
+              locale={locale}
+            />
+          ) : null}
+          {mayPostPayment ? (
+            <PaymentForm
+              currency={folio.currency}
+              folioId={folio.folioId}
+              locale={locale}
+            />
+          ) : null}
           <Separator className="my-6" />
           {folio.stayInHouse ? (
             // Not a disabled button: nothing the reader can do here closes

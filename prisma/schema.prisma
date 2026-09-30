@@ -35,6 +35,8 @@ model User {
   closedDays     BusinessDayClose[]
   ratesSet       PropertyRate[]
   bookingChanges ReservationChange[]
+  serviceRequestsAssigned ServiceRequest[] @relation("ServiceRequestAssignee")
+  serviceRequestsReported ServiceRequest[] @relation("ServiceRequestReporter")
 
   @@map("users")
 }
@@ -71,6 +73,7 @@ model Organization {
   staffRoles           StaffRole[]
   housekeepingSettings HousekeepingSetting[]
   maintenanceSettings  MaintenanceSetting[]
+  serviceRequests      ServiceRequest[]
 
   @@map("organizations")
 }
@@ -107,6 +110,7 @@ model Property {
   maintenanceEquipment MaintenanceEquipment[]
   rates                PropertyRate[]
   bookingChanges       ReservationChange[]
+  serviceRequests      ServiceRequest[]
 
   @@unique([id, organizationId])
   @@index([organizationId], map: "properties_organization_idx")
@@ -158,8 +162,9 @@ model AccommodationUnit {
   housekeeping HousekeepingUnitStatus[]
   maintenance  MaintenanceRequest[]
   equipment    MaintenanceEquipment[]
-  changesFrom  ReservationChange[]      @relation("ChangeFromUnit")
-  changesTo    ReservationChange[]      @relation("ChangeToUnit")
+  changesFrom     ReservationChange[]      @relation("ChangeFromUnit")
+  changesTo       ReservationChange[]      @relation("ChangeToUnit")
+  serviceRequests ServiceRequest[]
 
   /// A room's name is unique in its Property; a bed's is unique in its room.
   /// Two partial indexes rather than one over `(property_id, parent_id, name)`,
@@ -574,8 +579,9 @@ model Guest {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  reservations Reservation[]
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  reservations    Reservation[]
+  serviceRequests ServiceRequest[]
 
   /// What a Reservation's composite foreign key resolves against, so a
   /// Reservation naming another Organization's Guest is unrepresentable rather
@@ -678,8 +684,9 @@ model Stay {
   unit        AccommodationUnit   @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
   user        User?               @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   reservation Reservation?        @relation(fields: [reservationId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  folio       Folio?
-  changes     ReservationChange[]
+  folio           Folio?
+  changes         ReservationChange[]
+  serviceRequests ServiceRequest[]
 
   // The composite foreign key above forces property and organization to be the
   // Reservation's own, so uniqueness across the three is uniqueness on
@@ -798,15 +805,13 @@ model FolioLine {
   organizationId String    @map("organization_id") @db.Uuid
   propertyId     String    @map("property_id") @db.Uuid
   folioId        String    @map("folio_id") @db.Uuid
-  /// `charge` or `reversal`. Nothing else: payments, credits, deposits and
-  /// refunds are blueprint 5.9 workflows this slice does not build, and a value
-  /// invented for one of them would be inventing the workflow.
+  /// `charge`, `payment` or `reversal`.
   lineType       String    @map("line_type")
   description    String
   /// Integer minor units, signed. Never a float, and never scaled by a
   /// fraction — the unit is whatever the Folio's currency calls its hundredth.
   amountMinor    BigInt    @map("amount_minor")
-  /// The line this one reverses, null on an original charge.
+  /// The line this one reverses, null on an original charge or payment.
   reversesLineId String?   @map("reverses_line_id") @db.Uuid
   postedAt       DateTime  @default(now()) @map("posted_at") @db.Timestamptz(6)
   /// What posted this line when it was not a person: `room_night`, a night a
@@ -816,6 +821,8 @@ model FolioLine {
   /// The business date a `room_night` is for (ADR 0021); null exactly when
   /// `source` is.
   businessDate   DateTime? @map("business_date") @db.Date
+  /// Payment method when line_type is `payment`: `cash`, `card`, `bank_transfer`, `other`.
+  paymentMethod  String?   @map("payment_method")
 
   folio             Folio                     @relation(fields: [folioId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
   reverses          FolioLine?                @relation("FolioLineReversal", fields: [reversesLineId, folioId], references: [id, folioId], onDelete: Restrict, onUpdate: NoAction)
@@ -1029,4 +1036,49 @@ model ReservationChange {
   @@index([stayId], map: "reservation_changes_stay_idx")
   @@index([fromUnitId, changedAt], map: "reservation_changes_from_unit_idx")
   @@map("reservation_changes")
+}
+
+/// A guest or resident service request at a Property (blueprint 5.5, 4.3).
+/// Numbered per Property, so staff and guests can say "GX-14" or "#14".
+/// Never deleted: a cancelled request keeps its cancel reason, and status
+/// transitions track when work progresses and resolves.
+model ServiceRequest {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId      String    @map("organization_id") @db.Uuid
+  propertyId          String    @map("property_id") @db.Uuid
+  /// Stamped by the database: sequential per Property.
+  number              Int
+  title               String
+  details             String?
+  category            String    @default("other")
+  priority            String    @default("normal")
+  status              String    @default("new")
+  cancelReason        String?   @map("cancel_reason")
+  resolutionNotes     String?   @map("resolution_notes")
+  accommodationUnitId String?   @map("accommodation_unit_id") @db.Uuid
+  stayId              String?   @map("stay_id") @db.Uuid
+  guestId             String?   @map("guest_id") @db.Uuid
+  assignedToUserId    String?   @map("assigned_to_user_id") @db.Uuid
+  reportedByUserId    String?   @map("reported_by_user_id") @db.Uuid
+  reportedAt          DateTime  @default(now()) @map("reported_at") @db.Timestamptz(6)
+  resolvedAt          DateTime? @map("resolved_at") @db.Timestamptz(6)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  property          Property           @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  accommodationUnit AccommodationUnit? @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  stay              Stay?              @relation(fields: [stayId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  guest             Guest?             @relation(fields: [guestId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  assignedTo        User?              @relation("ServiceRequestAssignee", fields: [assignedToUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  reportedBy        User?              @relation("ServiceRequestReporter", fields: [reportedByUserId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([propertyId, number])
+  @@unique([id, propertyId, organizationId])
+  @@index([propertyId, status], map: "service_requests_property_status_idx")
+  @@index([organizationId], map: "service_requests_organization_idx")
+  @@index([accommodationUnitId], map: "service_requests_unit_idx")
+  @@index([stayId], map: "service_requests_stay_idx")
+  @@index([guestId], map: "service_requests_guest_idx")
+  @@map("service_requests")
 }

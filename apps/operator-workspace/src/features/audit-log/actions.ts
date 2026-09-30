@@ -27,6 +27,7 @@ export const KNOWN_ACTIONS = [
   "stay.departure_changed",
   "stay.moved",
   "folio.charge_posted",
+  "folio.payment_posted",
   "folio.line_reversed",
   "folio.closed",
   "staff.invited",

@@ -672,7 +672,8 @@ insert into public.staff_roles
   ('6a111111-1111-4111-8111-111111111111', 'rota_admin',
    '6a111111-1111-4111-8111-111111111111', 'Rota admin',
    array['staff.administer', 'finance.manage_folio', 'finance.post_charge',
-         'maintenance.report', 'finance.reverse_charge']),
+         'maintenance.report', 'finance.reverse_charge',
+         'finance.post_payment', 'finance.reverse_payment']),
   ('6a111111-1111-4111-8111-111111111111', 'night_auditor',
    '6a111111-1111-4111-8111-111111111111', 'Night auditor',
    array['audit.read']);

@@ -298,6 +298,8 @@ export interface Messages {
       | "manageFolio"
       | "postCharge"
       | "reverseCharge"
+      | "postPayment"
+      | "reversePayment"
       | "administerStaff"
       | "defineRoles"
       | "configureAccommodation"
@@ -445,6 +447,10 @@ export interface Messages {
   post: string;
   posting: string;
   chargeRefused: string;
+  addPayment: string;
+  paymentMethod: string;
+  paymentMethods: Record<"cash" | "card" | "bank_transfer" | "other", string>;
+  paymentRefused: string;
   amountInvalid: string;
   reverse: string;
   reversing: string;
@@ -1010,6 +1016,95 @@ export interface Messages {
     returnAs: Record<"dirty" | "clean" | "inspected", string>;
   };
 
+  analytics: {
+    heading: string;
+    subheading: string;
+    rangeToday: string;
+    range7d: string;
+    range30d: string;
+    rangeMtd: string;
+    rangeSelectorLabel: string;
+    occupancyRate: string;
+    occupancyRateDesc: string;
+    sellableUnits: string;
+    occupiedNights: string;
+    availableNights: string;
+    roomRevenue: string;
+    roomRevenueDesc: string;
+    otherRevenue: string;
+    totalRevenue: string;
+    adr: string;
+    adrDesc: string;
+    revPar: string;
+    revParDesc: string;
+    netPayments: string;
+    netPaymentsDesc: string;
+    financialsMasked: string;
+    financialsMaskedNotice: string;
+    dailyBreakdownTitle: string;
+    dailyBreakdownDesc: string;
+    dateCol: string;
+    occupiedUnitsCol: string;
+    availableUnitsCol: string;
+    occupancyCol: string;
+    roomRevenueCol: string;
+    paymentsBreakdownTitle: string;
+    cash: string;
+    card: string;
+    bankTransfer: string;
+    other: string;
+    noDataTitle: string;
+    noDataDesc: string;
+  };
+
+  guestExperience: {
+    heading: string;
+    subheading: string;
+    newRequest: string;
+    allRequests: string;
+    openRequests: string;
+    resolvedRequests: string;
+    title: string;
+    details: string;
+    category: string;
+    priority: string;
+    status: string;
+    room: string;
+    guest: string;
+    assignee: string;
+    unassigned: string;
+    reportedAt: string;
+    resolvedAt: string;
+    actions: string;
+    categories: Record<
+      "housekeeping" | "maintenance" | "amenities" | "front_desk" | "other",
+      string
+    >;
+    priorities: Record<"low" | "normal" | "high" | "urgent", string>;
+    statuses: Record<"new" | "in_progress" | "resolved" | "cancelled", string>;
+    markInProgress: string;
+    resolve: string;
+    cancel: string;
+    reopen: string;
+    cancelReason: string;
+    cancelReasonPlaceholder: string;
+    resolutionNotes: string;
+    resolutionNotesPlaceholder: string;
+    createDialogTitle: string;
+    createDialogDesc: string;
+    titlePlaceholder: string;
+    detailsPlaceholder: string;
+    selectCategory: string;
+    selectPriority: string;
+    selectRoom: string;
+    noRoom: string;
+    submit: string;
+    cancelling: string;
+    saving: string;
+    emptyTitle: string;
+    emptyDesc: string;
+  };
+
   auditLog: string;
   auditLogFor: string;
   noAuditTitle: string;
@@ -1148,7 +1243,10 @@ export interface Messages {
       string
     >;
     stay: Record<"checked_out" | "departure_changed" | "moved", string>;
-    folio: Record<"charge_posted" | "line_reversed" | "closed", string>;
+    folio: Record<
+      "charge_posted" | "payment_posted" | "line_reversed" | "closed",
+      string
+    >;
     staff: Record<
       | "invited"
       | "role_changed"
@@ -1623,6 +1721,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         manageFolio: "Folyo açma ve kapatma",
         postCharge: "Folyoya ücret işleme",
         reverseCharge: "Folyodaki ücreti ters kaydetme",
+        postPayment: "Ödeme kaydetme",
+        reversePayment: "Folyodaki ödemeyi ters kaydetme",
         administerStaff: "Ekibi yönetme",
         defineRoles: "Rol tanımlama",
         configureAccommodation: "Odaları ve yatakları yapılandırma",
@@ -1780,6 +1880,15 @@ export const messages: Record<SupportedLocale, Messages> = {
     post: "İşle",
     posting: "İşleniyor…",
     chargeRefused: "Bu ücret işlenemedi.",
+    addPayment: "Ödeme al",
+    paymentMethod: "Ödeme yöntemi",
+    paymentMethods: {
+      cash: "Nakit",
+      card: "Kredi kartı",
+      bank_transfer: "Banka havalesi",
+      other: "Diğer",
+    },
+    paymentRefused: "Bu ödeme kaydedilemedi.",
     amountInvalid:
       "Tutar, para biriminin izin verdiği ondalık basamakla pozitif bir sayı olmalıdır.",
     reverse: "Ters kaydet",
@@ -2400,6 +2509,114 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
     },
 
+    analytics: {
+      heading: "Analitik ve Raporlama",
+      subheading:
+        "Tesis doluluk, operasyonel hareketler ve finansal performans göstergeleri.",
+      rangeToday: "Bugün",
+      range7d: "Son 7 gün",
+      range30d: "Son 30 gün",
+      rangeMtd: "Ay başından bugüne",
+      rangeSelectorLabel: "Zaman aralığı",
+      occupancyRate: "Doluluk Oranı",
+      occupancyRateDesc: "Satılabilir oda/yataklara göre gerçekleşen doluluk",
+      sellableUnits: "Satılabilir Birim",
+      occupiedNights: "Dolu Geceleme",
+      availableNights: "Mevcut Geceleme",
+      roomRevenue: "Oda Geliri",
+      roomRevenueDesc: "Gerçekleşen net konaklama ücretleri",
+      otherRevenue: "Diğer Gelirler",
+      totalRevenue: "Toplam Gelir",
+      adr: "ADR (Ort. Günlük Fiyat)",
+      adrDesc: "Dolu oda/yatak başına ortalama konaklama geliri",
+      revPar: "RevPAR (Mevcut Oda Geliri)",
+      revParDesc: "Satılabilir tüm birimler başına ortalama konaklama geliri",
+      netPayments: "Tahsil Edilen Ödemeler",
+      netPaymentsDesc: "Dönem içinde tahsil edilen net ödeme tutarı",
+      financialsMasked: "Gizlendi",
+      financialsMaskedNotice:
+        "Finansal göstergeleri görüntüleme yetkiniz (finance.manage_folio) bulunmamaktadır.",
+      dailyBreakdownTitle: "Günlük Performans Dağılımı",
+      dailyBreakdownDesc:
+        "Seçilen tarih aralığında gün bazlı doluluk ve konaklama geliri dökümü.",
+      dateCol: "Tarih",
+      occupiedUnitsCol: "Dolu Birim",
+      availableUnitsCol: "Mevcut Birim",
+      occupancyCol: "Doluluk",
+      roomRevenueCol: "Oda Geliri",
+      paymentsBreakdownTitle: "Ödeme Yöntemleri Dağılımı",
+      cash: "Nakit",
+      card: "Kredi Kartı",
+      bankTransfer: "Havale / EFT",
+      other: "Diğer",
+      noDataTitle: "Veri bulunamadı",
+      noDataDesc:
+        "Bu tesis veya seçilen aralık için gösterilecek analitik veri bulunmuyor.",
+    },
+
+    guestExperience: {
+      heading: "Misafir Deneyimi ve Talepler",
+      subheading:
+        "Misafir ve konaklayan hizmet talepleri, önceliklendirme ve operasyonel takip.",
+      newRequest: "Yeni Talep",
+      allRequests: "Tüm Talepler",
+      openRequests: "Açık Talepler",
+      resolvedRequests: "Çözümlenenler",
+      title: "Başlık",
+      details: "Açıklama",
+      category: "Kategori",
+      priority: "Öncelik",
+      status: "Durum",
+      room: "Oda",
+      guest: "Misafir",
+      assignee: "Atanan Kişi",
+      unassigned: "Atanmadı",
+      reportedAt: "Oluşturulma",
+      resolvedAt: "Çözümlenme",
+      actions: "İşlemler",
+      categories: {
+        housekeeping: "Kat Hizmetleri",
+        maintenance: "Teknik Bakım",
+        amenities: "Oda İhtiyaçları",
+        front_desk: "Resepsiyon",
+        other: "Diğer",
+      },
+      priorities: {
+        low: "Düşük",
+        normal: "Normal",
+        high: "Yüksek",
+        urgent: "Acil",
+      },
+      statuses: {
+        new: "Yeni",
+        in_progress: "İşlemde",
+        resolved: "Çözümlendi",
+        cancelled: "İptal Edildi",
+      },
+      markInProgress: "İşleme Al",
+      resolve: "Çözümle",
+      cancel: "İptal Et",
+      reopen: "Yeniden Aç",
+      cancelReason: "İptal Gerekçesi",
+      cancelReasonPlaceholder: "Neden iptal edildiğini belirtin...",
+      resolutionNotes: "Çözüm Notları",
+      resolutionNotesPlaceholder: "Yapılan işlemi belirtin...",
+      createDialogTitle: "Yeni Hizmet Talebi Oluştur",
+      createDialogDesc:
+        "Misafir veya oda için yeni bir operasyonel hizmet talebi kaydedin.",
+      titlePlaceholder: "Örn. Ekstra havlu veya yastık talebi",
+      detailsPlaceholder: "Talep detaylarını yazınız...",
+      selectCategory: "Kategori seçin",
+      selectPriority: "Öncelik seçin",
+      selectRoom: "Oda seçin (opsiyonel)",
+      noRoom: "Oda seçilmedi",
+      submit: "Talebi Kaydet",
+      cancelling: "İptal ediliyor...",
+      saving: "Kaydediliyor...",
+      emptyTitle: "Henüz talep yok",
+      emptyDesc: "Bu tesis için kayıtlı herhangi bir hizmet talebi bulunmuyor.",
+    },
+
     auditLog: "Denetim kaydı",
     auditLogFor: "Son işlemler:",
     noAuditTitle: "Henüz kayıt yok",
@@ -2515,6 +2732,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       folio: {
         charge_posted: "Ücret işlendi",
+        payment_posted: "Ödeme kaydedildi",
         line_reversed: "Satır ters kaydedildi",
         closed: "Folyo kapatıldı",
       },
@@ -3017,6 +3235,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         manageFolio: "Open and close a Folio",
         postCharge: "Post a charge",
         reverseCharge: "Reverse a charge",
+        postPayment: "Record a payment",
+        reversePayment: "Reverse a payment",
         administerStaff: "Administer staff",
         defineRoles: "Define roles",
         configureAccommodation: "Configure rooms & beds",
@@ -3177,6 +3397,15 @@ export const messages: Record<SupportedLocale, Messages> = {
     post: "Post",
     posting: "Posting…",
     chargeRefused: "That charge could not be posted.",
+    addPayment: "Record payment",
+    paymentMethod: "Payment method",
+    paymentMethods: {
+      cash: "Cash",
+      card: "Credit card",
+      bank_transfer: "Bank transfer",
+      other: "Other",
+    },
+    paymentRefused: "That payment could not be posted.",
     amountInvalid:
       "An amount must be a positive number with no more decimal places than the currency allows.",
     reverse: "Reverse",
@@ -3806,6 +4035,115 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
     },
 
+    analytics: {
+      heading: "Analytics & Reporting",
+      subheading:
+        "Property occupancy, operational volume, and commercial performance KPIs.",
+      rangeToday: "Today",
+      range7d: "Last 7 days",
+      range30d: "Last 30 days",
+      rangeMtd: "Month to date",
+      rangeSelectorLabel: "Reporting period",
+      occupancyRate: "Occupancy Rate",
+      occupancyRateDesc: "Occupied share of sellable accommodation inventory",
+      sellableUnits: "Sellable Units",
+      occupiedNights: "Occupied Nights",
+      availableNights: "Available Nights",
+      roomRevenue: "Room Revenue",
+      roomRevenueDesc: "Net room night charges accrued in period",
+      otherRevenue: "Other Revenue",
+      totalRevenue: "Total Revenue",
+      adr: "ADR (Average Daily Rate)",
+      adrDesc: "Average room revenue per occupied room night",
+      revPar: "RevPAR (Revenue Per Available Room)",
+      revParDesc: "Average room revenue per available room night",
+      netPayments: "Payments Collected",
+      netPaymentsDesc: "Net payments collected during this period",
+      financialsMasked: "Masked",
+      financialsMaskedNotice:
+        "You do not hold permission to view financial metrics (finance.manage_folio).",
+      dailyBreakdownTitle: "Daily Performance Breakdown",
+      dailyBreakdownDesc:
+        "Day-by-day occupancy and room revenue across the selected period.",
+      dateCol: "Date",
+      occupiedUnitsCol: "Occupied Units",
+      availableUnitsCol: "Available Units",
+      occupancyCol: "Occupancy",
+      roomRevenueCol: "Room Revenue",
+      paymentsBreakdownTitle: "Payment Methods Breakdown",
+      cash: "Cash",
+      card: "Card",
+      bankTransfer: "Bank Transfer",
+      other: "Other",
+      noDataTitle: "No analytics data",
+      noDataDesc:
+        "There are no operational records for this property in the selected window.",
+    },
+
+    guestExperience: {
+      heading: "Guest Experience & Requests",
+      subheading:
+        "Guest and resident service requests, priority tracking, and resolution queue.",
+      newRequest: "New Request",
+      allRequests: "All Requests",
+      openRequests: "Open Requests",
+      resolvedRequests: "Resolved",
+      title: "Title",
+      details: "Details",
+      category: "Category",
+      priority: "Priority",
+      status: "Status",
+      room: "Room",
+      guest: "Guest",
+      assignee: "Assigned To",
+      unassigned: "Unassigned",
+      reportedAt: "Reported At",
+      resolvedAt: "Resolved At",
+      actions: "Actions",
+      categories: {
+        housekeeping: "Housekeeping",
+        maintenance: "Maintenance",
+        amenities: "Amenities",
+        front_desk: "Front Desk",
+        other: "Other",
+      },
+      priorities: {
+        low: "Low",
+        normal: "Normal",
+        high: "High",
+        urgent: "Urgent",
+      },
+      statuses: {
+        new: "New",
+        in_progress: "In Progress",
+        resolved: "Resolved",
+        cancelled: "Cancelled",
+      },
+      markInProgress: "Start Working",
+      resolve: "Resolve",
+      cancel: "Cancel",
+      reopen: "Reopen",
+      cancelReason: "Cancellation Reason",
+      cancelReasonPlaceholder: "Provide a reason for cancellation...",
+      resolutionNotes: "Resolution Notes",
+      resolutionNotesPlaceholder: "Action taken to resolve request...",
+      createDialogTitle: "Create Service Request",
+      createDialogDesc:
+        "Log a new service request on behalf of a guest or accommodation unit.",
+      titlePlaceholder: "e.g. Extra towels requested",
+      detailsPlaceholder: "Add any specific instructions or details...",
+      selectCategory: "Select category",
+      selectPriority: "Select priority",
+      selectRoom: "Select unit (optional)",
+      noRoom: "No unit",
+      submit: "Log Request",
+      cancelling: "Cancelling...",
+      saving: "Saving...",
+      emptyTitle: "No requests found",
+      emptyDesc:
+        "No guest service requests have been logged for this property.",
+    },
+
     auditLog: "Audit log",
     auditLogFor: "Recent actions at",
     noAuditTitle: "Nothing recorded yet",
@@ -3921,6 +4259,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       folio: {
         charge_posted: "Charge posted",
+        payment_posted: "Payment posted",
         line_reversed: "Line reversed",
         closed: "Folio closed",
       },
@@ -4413,6 +4752,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         manageFolio: "فتح وإغلاق الحساب",
         postCharge: "تسجيل رسم على الحساب",
         reverseCharge: "عكس رسم مسجَّل على الحساب",
+        postPayment: "تسجيل دفعة على الحساب",
+        reversePayment: "عكس دفعة مسجَّلة على الحساب",
         administerStaff: "إدارة الفريق",
         defineRoles: "تعريف الأدوار",
         configureAccommodation: "تهيئة الغرف والأسرّة",
@@ -4564,6 +4905,15 @@ export const messages: Record<SupportedLocale, Messages> = {
     post: "قيد",
     posting: "جارٍ القيد…",
     chargeRefused: "تعذّر قيد هذا الرسم.",
+    addPayment: "تسجيل دفعة",
+    paymentMethod: "طريقة الدفع",
+    paymentMethods: {
+      cash: "نقداً",
+      card: "بطاقة ائتمان",
+      bank_transfer: "تحويل بنكي",
+      other: "أخرى",
+    },
+    paymentRefused: "تعذّر تسجيل هذه الدفعة.",
     amountInvalid:
       "يجب أن يكون المبلغ رقمًا موجبًا بعدد خانات عشرية لا يتجاوز ما تسمح به العملة.",
     reverse: "عكس القيد",
@@ -5183,6 +5533,113 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
     },
 
+    analytics: {
+      heading: "التحليلات والتقارير",
+      subheading:
+        "مؤشرات نسبة الإشغال، والنشاط التشغيلي، والأداء المالي للمنشأة.",
+      rangeToday: "اليوم",
+      range7d: "آخر 7 أيام",
+      range30d: "آخر 30 يومًا",
+      rangeMtd: "من بداية الشهر حتى اليوم",
+      rangeSelectorLabel: "الفترة الزمنية",
+      occupancyRate: "نسبة الإشغال",
+      occupancyRateDesc:
+        "نسبة الوحدات المشغولة من إجمالي الوحدات القابلة للبيع",
+      sellableUnits: "الوحدات القابلة للبيع",
+      occupiedNights: "الليالي المشغولة",
+      availableNights: "الليالي المتاحة",
+      roomRevenue: "إيرادات الغرف",
+      roomRevenueDesc: "صافي إيرادات ليالي الإقامة المحققة خلال الفترة",
+      otherRevenue: "الإيرادات الأخرى",
+      totalRevenue: "إجمالي الإيرادات",
+      adr: "متوسط السعر اليومي (ADR)",
+      adrDesc: "متوسط إيراد الغرفة لكل ليلة مشغولة",
+      revPar: "الإيراد لكل غرفة متاحة (RevPAR)",
+      revParDesc: "متوسط إيراد الغرف لكل ليلة متاحة",
+      netPayments: "المدفوعات المحصلة",
+      netPaymentsDesc: "صافي المدفوعات المستلمة خلال هذه الفترة",
+      financialsMasked: "محجوب",
+      financialsMaskedNotice:
+        "ليس لديك صلاحية للاطلاع على المؤشرات المالية (finance.manage_folio).",
+      dailyBreakdownTitle: "تفصيل الأداء اليومي",
+      dailyBreakdownDesc:
+        "بيان يومي للإشغال وإيرادات الإقامة عبر الفترة المحددة.",
+      dateCol: "التاريخ",
+      occupiedUnitsCol: "الوحدات المشغولة",
+      availableUnitsCol: "الوحدات المتاحة",
+      occupancyCol: "نسبة الإشغال",
+      roomRevenueCol: "إيرادات الغرف",
+      paymentsBreakdownTitle: "تفصيل طرق الدفع",
+      cash: "نقدًا",
+      card: "بطاقة ائتمان",
+      bankTransfer: "تحويل بنكي",
+      other: "أخرى",
+      noDataTitle: "لا توجد بيانات تحليلية",
+      noDataDesc: "لا توجد سجلات تشغيلية لهذه المنشأة في الفترة المحددة.",
+    },
+
+    guestExperience: {
+      heading: "تجربة وطلبات الضيوف",
+      subheading:
+        "طلبات خدمة الضيوف والمقيمين، ومتابعة الأولويات وسير إنجاز المهام.",
+      newRequest: "طلب جديد",
+      allRequests: "كل الطلبات",
+      openRequests: "الطلبات المفتوحة",
+      resolvedRequests: "المنجزة",
+      title: "العنوان",
+      details: "التفاصيل",
+      category: "الفئة",
+      priority: "الأولوية",
+      status: "الحالة",
+      room: "الغرفة",
+      guest: "الضيف",
+      assignee: "المكلف",
+      unassigned: "غير مسند",
+      reportedAt: "وقت الطلب",
+      resolvedAt: "وقت الإنجاز",
+      actions: "الإجراءات",
+      categories: {
+        housekeeping: "خدمة الغرف",
+        maintenance: "الصيانة",
+        amenities: "مستلزمات الغرفة",
+        front_desk: "الاستقبال",
+        other: "أخرى",
+      },
+      priorities: {
+        low: "منخفضة",
+        normal: "عادية",
+        high: "عالية",
+        urgent: "عاجلة",
+      },
+      statuses: {
+        new: "جديد",
+        in_progress: "قيد التنفيذ",
+        resolved: "تم الحل",
+        cancelled: "ملغي",
+      },
+      markInProgress: "بدء المعالجة",
+      resolve: "إنجاز الطلب",
+      cancel: "إلغاء الطلب",
+      reopen: "إعادة فتح",
+      cancelReason: "سبب الإلغاء",
+      cancelReasonPlaceholder: "وضح سبب إلغاء الطلب...",
+      resolutionNotes: "ملاحظات الحل",
+      resolutionNotesPlaceholder: "الإجراء الذي تم اتخاذه لإنجاز الطلب...",
+      createDialogTitle: "تسجيل طلب خدمة جديد",
+      createDialogDesc: "تسجيل طلب خدمة جديد لغرفة أو ضيف في المنشأة.",
+      titlePlaceholder: "مثال: طلب مناشف إضافية",
+      detailsPlaceholder: "تفاصيل أو تعليمات إضافية...",
+      selectCategory: "اختر الفئة",
+      selectPriority: "اختر الأولوية",
+      selectRoom: "اختر الغرفة (اختياري)",
+      noRoom: "بدون غرفة",
+      submit: "حفظ الطلب",
+      cancelling: "جارٍ الإلغاء...",
+      saving: "جارٍ الحفظ...",
+      emptyTitle: "لا توجد طلبات",
+      emptyDesc: "لم يتم تسجيل أي طلبات خدمة لهذه المنشأة حتى الآن.",
+    },
+
     auditLog: "سجل التدقيق",
     auditLogFor: "آخر الإجراءات في",
     noAuditTitle: "لا توجد سجلات بعد",
@@ -5300,6 +5757,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       folio: {
         charge_posted: "تم إدراج رسم",
+        payment_posted: "تم تسجيل دفعة",
         line_reversed: "تم عكس بند",
         closed: "تم إغلاق الفوليو",
       },

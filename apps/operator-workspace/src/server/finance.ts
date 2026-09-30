@@ -88,6 +88,44 @@ export async function postCharge(
   return "done";
 }
 
+export async function postPayment(
+  _previous: FinanceOutcome,
+  form: FormData,
+): Promise<FinanceOutcome> {
+  const viewer = await currentViewer();
+  if (!viewer) return "refused";
+
+  const locale = String(form.get("locale") ?? "");
+  if (!isSupportedLocale(locale)) return "refused";
+
+  const folioId = String(form.get("folio") ?? "");
+  if (!UUID.test(folioId)) return "refused";
+  const description = String(form.get("description") ?? "");
+  const paymentMethod = String(form.get("paymentMethod") ?? "");
+  if (!["cash", "card", "bank_transfer", "other"].includes(paymentMethod)) {
+    return "invalid";
+  }
+
+  const currency = String(form.get("currency") ?? "");
+  const amountMinor = toMinorUnits(String(form.get("amount") ?? ""), currency);
+  if (amountMinor === null || amountMinor <= 0) return "invalid";
+
+  try {
+    await getComposition().folios.postPayment(viewer.userId, {
+      amountMinor,
+      description,
+      folioId,
+      paymentMethod: paymentMethod as
+        "cash" | "card" | "bank_transfer" | "other",
+    });
+  } catch (error) {
+    return failed("postPayment", { folioId }, error);
+  }
+
+  revalidatePath(`/${locale}/finance`);
+  return "done";
+}
+
 export async function reverseLine(
   _previous: FinanceOutcome,
   form: FormData,

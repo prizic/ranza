@@ -1,0 +1,48 @@
+%% Slices decide implementation order and nothing else:
+%%   s1 recording a payment and reversing one against an open Folio
+%%   s2 payment collection during check-out at the front desk
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% UML directions: include points base --> included. extend points extension --> base.
+%% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
+%%
+%% Blueprint 5.9: Recording money is not moving money. External payment processing
+%% is a separately entitled integration; this feature owns recording payment value,
+%% payment method, and folio settlement.
+flowchart TD
+
+  DESK["Staff Member holding finance.post_payment<br/>(Front desk, Finance, Manager, Owner)"]
+  SUPERVISOR["Staff Member holding finance.reverse_payment<br/>(Finance, Manager, Owner)"]
+  CHECKOUT_STAFF["Staff Member holding front_desk.check_out<br/>and finance.post_payment"]
+  READER["Staff Member reaching the Property<br/>without payment permissions"]
+
+  subgraph S1["slice 1 &mdash; recording a payment"]
+    PAY(["Record a payment on an open Folio<br/>(cash, card, bank transfer, other)"])
+    LINE(["The database adds a negative line<br/>reducing the open balance"])
+    CLOSE_SETTLED(["Close a settled Folio<br/>when balance reaches zero"])
+    REVERSE_PAY(["Reverse a mistaken payment line<br/>exact cancellation"])
+    SEE_FOLIO(["See the Folio balance and payment lines"])
+  end
+
+  subgraph S2["slice 2 &mdash; payment at check-out"]
+    CHECKOUT(["Check a Guest out with open charges"])
+    SETTLE_PAY(["Record payment in check-out dialog<br/>settling balance to zero"])
+    CLOSE_ON_CHECKOUT(["Check-out confirms zero bill<br/>and closes settled Folio"])
+    LEAVE_OPEN(["Leave balance open with a reason<br/>when Guest cannot pay now"])
+  end
+
+  subgraph OUT["Not this feature"]
+    GATEWAY(["Payment gateway or terminal integration &mdash; deferred, blueprint 5.9"])
+    SPLIT(["Split folios and routing rules &mdash; deferred, blueprint 5.9"])
+    DEPOSIT(["Advance deposits and payment schedules &mdash; deferred, blueprint 5.9"])
+    REFUND(["Direct cash/card payout refund &mdash; deferred, blueprint 5.9"])
+  end
+
+  DESK --> PAY
+  PAY -. include .-> LINE
+  LINE -. extend .-> CLOSE_SETTLED
+  SUPERVISOR --> REVERSE_PAY
+  READER --> SEE_FOLIO
+  CHECKOUT_STAFF --> CHECKOUT
+  SETTLE_PAY -. extend .-> CHECKOUT
+  SETTLE_PAY -. include .-> CLOSE_ON_CHECKOUT
+  LEAVE_OPEN -. extend .-> CHECKOUT

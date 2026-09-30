@@ -153,7 +153,7 @@ export const SCREENS: Screen[] = [
     module: "guest_services",
     icon: BellRing,
     blueprint: "5.5",
-    built: false,
+    built: true,
     section: "operations",
   },
   {
@@ -222,7 +222,7 @@ export const SCREENS: Screen[] = [
     module: "analytics",
     icon: BarChart3,
     blueprint: "5.14",
-    built: false,
+    built: true,
     section: "management",
   },
   {

@@ -33,11 +33,14 @@ export const FOLIO_CAPABILITY: CapabilityRef = {
 };
 
 /**
- * What a reversal line asks beside the gates, where a charge asks
- * `finance.post_charge` (ADR 0041). Named here so a screen offering the action
- * asks the same key the insert policy does.
+ * Permissions for posting and reversing lines on a Folio (ADR 0041, PRE-01).
+ * Named here so a screen offering the actions asks the same keys the insert
+ * policy does.
  */
+export const POST_CHARGE_PERMISSION = "finance.post_charge";
 export const REVERSE_CHARGE_PERMISSION = "finance.reverse_charge";
+export const POST_PAYMENT_PERMISSION = "finance.post_payment";
+export const REVERSE_PAYMENT_PERMISSION = "finance.reverse_payment";
 
 /**
  * Open or closed, and nothing else yet.
@@ -49,21 +52,30 @@ export const REVERSE_CHARGE_PERMISSION = "finance.reverse_charge";
 export type FolioStatus = "open" | "closed";
 
 /**
- * A charge, or the reversal that cancels one.
- *
- * There is no payment, credit, deposit or refund. Each is a blueprint 5.9
- * workflow with its own rules about what it may do to a balance, and a line
- * type added ahead of those rules would be a hole shaped like a feature.
+ * Valid payment methods accepted when recording a payment (PRE-01).
  */
-export type FolioLineType = "charge" | "reversal";
+export const PAYMENT_METHODS = [
+  "cash",
+  "card",
+  "bank_transfer",
+  "other",
+] as const;
+
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+/**
+ * A charge, a payment, or the reversal that cancels one.
+ */
+export type FolioLineType = "charge" | "payment" | "reversal";
 
 /**
  * Money, as this product holds it.
  *
  * `amountMinor` is an integer count of the currency's minor unit — kuruş for
- * TRY, fils for AED — and is signed: a charge is positive and a reversal
- * negative. Never a float, because a balance that is the sum of its lines must
- * be exact and binary floating point is not.
+ * TRY, fils for AED — and is signed: a charge is positive, a payment is negative,
+ * and a reversal cancels the original line (ADR 0015). Never a float, because
+ * a balance that is the sum of its lines must be exact and binary floating
+ * point is not.
  *
  * A JavaScript number is safe to 2^53, which is ninety trillion major units.
  * The column is `bigint`, so the database is not the limit; this contract is,
@@ -75,7 +87,9 @@ export interface FolioLine {
   lineType: FolioLineType;
   description: string;
   amountMinor: number;
-  /** The line this one cancels, on a reversal. Null on a charge. */
+  /** Payment method when lineType is 'payment'; null otherwise. */
+  paymentMethod: PaymentMethod | null;
+  /** The line this one cancels, on a reversal. Null on a charge or payment. */
   reversesLineId: string | null;
   /** Whether a later line has already cancelled this one. */
   reversed: boolean;
@@ -129,6 +143,21 @@ export interface Charge {
   folioId: string;
   description: string;
   /** Positive integer minor units of the Folio's own currency. */
+  amountMinor: number;
+}
+
+/** What a caller must supply to record a payment (PRE-01). */
+export interface Payment {
+  folioId: string;
+  description: string;
+  paymentMethod: PaymentMethod;
+  /**
+   * Positive integer minor units paid by the Guest.
+   *
+   * The caller supplies a positive integer (what was paid). The write
+   * operation stores it signed negative (`amountMinor < 0`) so that the
+   * Folio balance remains the exact sum of all lines (ADR 0015).
+   */
   amountMinor: number;
 }
 

@@ -64,6 +64,16 @@ const commands = {
       }),
     refusals: ["42501", "23514", "23503"],
   },
+  postPayment: {
+    run: (folios: ReturnType<typeof failingWith>) =>
+      folios.postPayment(USER, {
+        folioId: FOLIO,
+        description: "Front desk payment",
+        paymentMethod: "card",
+        amountMinor: 100,
+      }),
+    refusals: ["42501", "23514", "23503"],
+  },
   closeFolio: {
     run: (folios: ReturnType<typeof failingWith>) =>
       folios.closeFolio(USER, FOLIO),

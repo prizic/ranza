@@ -8,10 +8,18 @@ import {
   type FolioDetail,
   type FolioLine,
   type FolioSummary,
+  type Payment,
+  type PaymentMethod,
 } from "./contracts";
 import type { FoliosDeps } from "./ports";
 import { CLOSURE_REFUSED, raisedOneOf, REVERSAL_REFUSED } from "./refusals";
-import { assertPostable, DESCRIPTION_MAX, postChargeWithin } from "./write";
+import {
+  assertPaymentPostable,
+  assertPostable,
+  DESCRIPTION_MAX,
+  postChargeWithin,
+  postPaymentWithin,
+} from "./write";
 
 /**
  * Billing and Folios: the first time the product holds money.
@@ -60,9 +68,10 @@ interface SummaryRow {
 
 interface LineRow {
   lineId: string;
-  lineType: "charge" | "reversal";
+  lineType: "charge" | "payment" | "reversal";
   description: string;
   amountMinor: string;
+  paymentMethod: PaymentMethod | null;
   reversesLineId: string | null;
   reversed: boolean;
   postedAt: Date;
@@ -95,6 +104,7 @@ function toLine(row: LineRow): FolioLine {
     lineType: row.lineType,
     description: row.description,
     amountMinor: Number(row.amountMinor),
+    paymentMethod: row.paymentMethod,
     reversesLineId: row.reversesLineId,
     reversed: row.reversed,
     postedAt: row.postedAt,
@@ -206,6 +216,7 @@ export function createFoliosModule(deps: FoliosDeps) {
                 line.line_type          as "lineType",
                 line.description        as "description",
                 line.amount_minor::text as "amountMinor",
+                line.payment_method     as "paymentMethod",
                 line.reverses_line_id   as "reversesLineId",
                 exists (
                   select 1 from public.folio_lines as cancelling
@@ -255,6 +266,20 @@ export function createFoliosModule(deps: FoliosDeps) {
     assertPostable(charge);
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
       const { lineId } = await postChargeWithin(tx, userId, charge);
+      return { lineId };
+    });
+  }
+
+  /**
+   * Posts a payment, and records who posted it.
+   */
+  async function postPayment(
+    userId: string,
+    payment: Payment,
+  ): Promise<{ lineId: string }> {
+    assertPaymentPostable(payment);
+    return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      const { lineId } = await postPaymentWithin(tx, userId, payment);
       return { lineId };
     });
   }
@@ -323,7 +348,7 @@ export function createFoliosModule(deps: FoliosDeps) {
               original.id
             from public.folio_lines as original
             where original.id = ${lineId}::uuid
-              and original.line_type = 'charge'
+              and original.line_type in ('charge', 'payment')
             returning id, folio_id, organization_id, property_id, amount_minor,
                       reverses_line_id
           )
@@ -364,8 +389,8 @@ export function createFoliosModule(deps: FoliosDeps) {
         context: {
           reversedLineId: lineId,
           reversalLineId: line.id,
-          // The amount taken off, positive, as it was charged.
-          amountMinor: Number(line.amountMinor),
+          // The amount taken off or restored, positive.
+          amountMinor: Math.abs(Number(line.amountMinor)),
           currency: line.currency,
           description: line.description,
         },
@@ -450,7 +475,14 @@ export function createFoliosModule(deps: FoliosDeps) {
     });
   }
 
-  return { listFolios, folioDetail, postCharge, reverseLine, closeFolio };
+  return {
+    listFolios,
+    folioDetail,
+    postCharge,
+    postPayment,
+    reverseLine,
+    closeFolio,
+  };
 }
 
 export type FoliosModule = ReturnType<typeof createFoliosModule>;

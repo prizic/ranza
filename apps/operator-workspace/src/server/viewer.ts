@@ -21,7 +21,24 @@ import type {
 } from "@ranza/core";
 import type { CloseTheDay } from "@ranza/business-day";
 import type { PriceList } from "@ranza/rates";
-import { FOLIO_CAPABILITY, REVERSE_CHARGE_PERMISSION } from "@ranza/folios";
+import {
+  FOLIO_CAPABILITY,
+  POST_CHARGE_PERMISSION,
+  POST_PAYMENT_PERMISSION,
+  REVERSE_CHARGE_PERMISSION,
+  REVERSE_PAYMENT_PERMISSION,
+} from "@ranza/folios";
+import {
+  GUEST_SERVICES_CAPABILITY,
+  GUEST_SERVICES_PERMISSIONS,
+  SERVICE_REQUEST_CATEGORIES,
+  SERVICE_REQUEST_PRIORITIES,
+  SERVICE_REQUEST_STATUSES,
+  type ServiceRequestCategory,
+  type ServiceRequestItem,
+  type ServiceRequestPriority,
+  type ServiceRequestStatus,
+} from "@ranza/guest-services";
 import type { FolioDetail, FolioSummary } from "@ranza/folios";
 import {
   BookingChangeError,
@@ -100,6 +117,20 @@ import { getComposition } from "./composition";
 import { displayName } from "./display-name";
 import type { TodaySummary } from "./today-derive";
 import { readTodaySummary, todayReads } from "./today-summary";
+import {
+  getPropertyAnalytics,
+  type AnalyticsRange,
+  type DailyMetric,
+  type PaymentMethodBreakdown,
+  type PropertyAnalytics,
+} from "./analytics";
+
+export type {
+  AnalyticsRange,
+  DailyMetric,
+  PaymentMethodBreakdown,
+  PropertyAnalytics,
+};
 
 /**
  * The single funnel from a request to tenant data (ADR 0007).
@@ -130,7 +161,10 @@ export {
   TODAY_CAPABILITY,
   FRONT_DESK_CAPABILITY,
   FOLIO_CAPABILITY,
+  POST_CHARGE_PERMISSION,
+  POST_PAYMENT_PERMISSION,
   REVERSE_CHARGE_PERMISSION,
+  REVERSE_PAYMENT_PERMISSION,
   HOUSEKEEPING_CAPABILITY,
   MARK_BATCH,
   ROOMS_CAPABILITY,
@@ -149,8 +183,17 @@ export {
   VENDOR,
   ROOM_CALENDAR_DEFAULT_LENGTH,
   ROOM_CALENDAR_LENGTHS,
+  GUEST_SERVICES_CAPABILITY,
+  GUEST_SERVICES_PERMISSIONS,
+  SERVICE_REQUEST_CATEGORIES,
+  SERVICE_REQUEST_PRIORITIES,
+  SERVICE_REQUEST_STATUSES,
 };
 export type {
+  ServiceRequestCategory,
+  ServiceRequestItem,
+  ServiceRequestPriority,
+  ServiceRequestStatus,
   AccommodationUnitStatus,
   AccommodationUnitType,
   Arrival,
@@ -863,4 +906,29 @@ export async function equipmentRegister(
     viewer.userId,
     propertyId,
   );
+}
+
+/**
+ * Derives operational and financial analytics metrics for a Property.
+ * Returns null if the viewer cannot reach the Property or lacks the analytics capability.
+ */
+export async function propertyAnalytics(
+  propertyId: string,
+  range?: string | null,
+): Promise<PropertyAnalytics | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getPropertyAnalytics(viewer.userId, propertyId, range);
+}
+
+/**
+ * Reads service requests at a Property.
+ */
+export async function propertyServiceRequests(
+  propertyId: string,
+): Promise<ServiceRequestItem[]> {
+  const viewer = await currentViewer();
+  if (!viewer) return [];
+
+  return getComposition().guestServices.requests(viewer.userId, propertyId);
 }

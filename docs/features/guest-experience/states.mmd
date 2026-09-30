@@ -1,0 +1,14 @@
+%% Lifecycle transitions for Guest Service Requests
+stateDiagram-v2
+
+  state "Guest Service Request" as SR {
+    [*] --> New : create_request
+    New --> InProgress : start_progress
+    New --> Resolved : resolve (notes)
+    New --> Cancelled : cancel (reason)
+    InProgress --> Resolved : resolve (notes)
+    InProgress --> Cancelled : cancel (reason)
+    InProgress --> New : reset
+    Resolved --> InProgress : reopen
+    Cancelled --> New : reopen
+  }

@@ -148,8 +148,8 @@ select set_eq(
      where table_schema='public' and table_name='folio_lines'
        and grantee='ranza_app' and privilege_type='INSERT'$$,
   array['organization_id','property_id','folio_id','line_type','description',
-        'amount_minor','reverses_line_id'],
-  'folio_lines: six for a charge and the seventh for a reversal');
+        'amount_minor','reverses_line_id','payment_method'],
+  'folio_lines: six for a charge, the seventh for a reversal, and the eighth for a payment');
 
 select set_eq(
   $$select column_name::text from information_schema.column_privileges

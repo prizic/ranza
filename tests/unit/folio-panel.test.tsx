@@ -17,6 +17,7 @@ import { messages } from "../../apps/operator-workspace/src/messages";
 vi.mock("../../apps/operator-workspace/src/server/finance", () => ({
   closeFolio: vi.fn(),
   postCharge: vi.fn(),
+  postPayment: vi.fn(),
   reverseLine: vi.fn(),
 }));
 
@@ -136,19 +137,56 @@ describe("closing a Folio (FO-S5-01)", () => {
 
 function panel(
   folio: FolioDetail,
-  { locale = "en", mayReverse = true } = {} as {
+  {
+    locale = "en",
+    mayReverse = true,
+    mayPostCharge = true,
+    mayPostPayment = false,
+    mayReverseCharge,
+    mayReversePayment = false,
+  } = {} as {
     locale?: (typeof supportedLocales)[number];
     mayReverse?: boolean;
+    mayPostCharge?: boolean;
+    mayPostPayment?: boolean;
+    mayReverseCharge?: boolean;
+    mayReversePayment?: boolean;
   },
 ) {
   return render(
     <NextIntlClientProvider locale={locale} messages={messages[locale]}>
       <div dir={locale === "ar" ? "rtl" : "ltr"}>
-        <FolioPanel folio={folio} locale={locale} mayReverse={mayReverse} />
+        <FolioPanel
+          folio={folio}
+          locale={locale}
+          mayPostCharge={mayPostCharge}
+          mayPostPayment={mayPostPayment}
+          mayReverse={mayReverse}
+          mayReverseCharge={mayReverseCharge}
+          mayReversePayment={mayReversePayment}
+        />
       </div>
     </NextIntlClientProvider>,
   );
 }
+
+const FOLIO_WITH_PAYMENT: FolioDetail = {
+  ...FOLIO,
+  lines: [
+    ...FOLIO.lines,
+    {
+      lineId: "d9000007-0000-4000-8000-000000000014",
+      lineType: "payment",
+      description: "Payment",
+      amountMinor: -15000,
+      paymentMethod: "card",
+      reversesLineId: null,
+      reversed: false,
+      postedAt: new Date("2026-09-27T10:00:00Z"),
+      roomNightOf: null,
+    },
+  ],
+};
 
 describe("what one Folio offers (FO-S9-03)", () => {
   it("offers reverse only on a charge nothing has cancelled", () => {
@@ -164,6 +202,31 @@ describe("what one Folio offers (FO-S9-03)", () => {
     expect(screen.queryByRole("button", { name: "Reverse" })).toBeNull();
     // Posting is a different permission, and still offered.
     expect(screen.getByRole("button", { name: "Post" })).toBeTruthy();
+  });
+
+  it("offers payment form when mayPostPayment is true", () => {
+    panel(FOLIO, { mayPostPayment: true });
+    expect(screen.getByText(messages.en.addPayment)).toBeTruthy();
+    expect(screen.getByLabelText(messages.en.paymentMethod)).toBeTruthy();
+  });
+
+  it("shows payment method badge on payment lines", () => {
+    panel(FOLIO_WITH_PAYMENT);
+    expect(screen.getByText(messages.en.paymentMethods.card)).toBeTruthy();
+  });
+
+  it("offers reverse on a payment line only when mayReversePayment is true", () => {
+    // When mayReverseCharge is true (via mayReverse) but mayReversePayment is false:
+    panel(FOLIO_WITH_PAYMENT, { mayReverse: true, mayReversePayment: false });
+    // Still only 2 reverse buttons (the 2 charges, not the payment).
+    expect(screen.getAllByRole("button", { name: "Reverse" })).toHaveLength(2);
+
+    cleanup();
+
+    // When mayReversePayment is true:
+    panel(FOLIO_WITH_PAYMENT, { mayReverse: true, mayReversePayment: true });
+    // Now 3 reverse buttons (2 charges + 1 payment).
+    expect(screen.getAllByRole("button", { name: "Reverse" })).toHaveLength(3);
   });
 
   it("offers nothing on a closed Folio, and says so rather than a disabled reopen", () => {

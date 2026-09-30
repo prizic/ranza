@@ -48,6 +48,7 @@ packages/
     staff/                who works here, what they may do, and where
     business-day/         closing a Property's business day (the night audit)
     rates/                what a night costs, per unit type
+    guest-services/       service requests, priorities and guest request queue
   adapters/               Ranza-to-platform mappings
   config, db, i18n, ui, observability
                           cross-cutting infrastructure

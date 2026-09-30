@@ -1,0 +1,48 @@
+%% Anything not drawn here is forbidden.
+%% Every transition carries its command and its slice.
+%% Two lifecycles: a Folio's balance & settlement, and a payment line.
+stateDiagram-v2
+  direction LR
+
+  state "Folio status & balance" as folio {
+    state "open (unsettled, balance > 0)" as f_unsettled
+    state "open (settled, balance = 0)" as f_settled
+    state "open (credit, balance < 0)" as f_credit
+    state "closed (settled)" as f_closed_settled
+    state "closed (with balance, reason recorded)" as f_closed_unsettled
+
+    [*] --> f_settled : openFolioWithin / initial empty
+    f_settled --> f_unsettled : postChargeWithin or night audit / charge posted
+    f_unsettled --> f_settled : postPaymentWithin / payment equals balance
+    f_unsettled --> f_credit : postPaymentWithin / payment exceeds balance
+    f_unsettled --> f_unsettled : postPaymentWithin / partial payment
+    f_settled --> f_unsettled : reverseLine / payment reversed
+    f_credit --> f_settled : postChargeWithin / charge equals credit
+    f_credit --> f_unsettled : reverseLine / payment reversed
+    f_settled --> f_closed_settled : checkOut (confirm bill) or closeSettledFolioWithin / s1, s2
+    f_unsettled --> f_closed_unsettled : checkOut with reason (ADR 0030) / s2
+    f_closed_settled --> [*]
+    f_closed_unsettled --> [*]
+  }
+
+  state "Payment line" as payment {
+    state "posted (reduces balance)" as p_posted
+    state "reversed (exact cancellation)" as p_reversed
+
+    [*] --> p_posted : postPaymentWithin / s1
+    p_posted --> p_reversed : reverseLine / s1
+    p_posted --> [*] : folio closed
+    p_reversed --> [*] : folio closed
+  }
+
+  note right of f_closed_settled
+    Settled means sum(amount_minor) = 0.
+    Closing requires zero balance unless
+    explicitly confirmed with an audit reason.
+  end note
+
+  note right of p_posted
+    A payment is negative minor units.
+    Reversing it creates a positive line
+    cancelling it exactly.
+  end note

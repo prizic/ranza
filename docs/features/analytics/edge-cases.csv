@@ -1,0 +1,15 @@
+id,situation,given,when,then,enforced_by,test_name,status
+AN-S1-01,unentitled viewer,a viewer reaching a Property without the analytics capability,navigating to the analytics screen,says the capability is not entitled,module,unentitled_viewer_sees_empty_state,approved
+AN-S1-02,cross-organization isolation,a Property belonging to another Organization,querying analytics metrics,the database returns no rows and isolates the tenant,policy,cross_organization_analytics_isolated,approved
+AN-S1-03,zero sellable units,a Property with no rooms or beds configured,calculating occupancy rate,occupancy rate is zero percent without division by zero,module,zero_units_produces_zero_occupancy,approved
+AN-S1-04,zero occupied nights,a Property with inventory but no occupied stays in the window,calculating ADR and RevPAR,ADR and RevPAR are zero without division by zero,module,zero_stays_produces_zero_adr_revpar,approved
+AN-S1-05,reversals of charges,a folio with room night charge and an exact reversal,calculating net room revenue,reversals reduce gross revenue to net,module,reversals_subtracted_from_revenue,approved
+AN-S1-06,reversals of payments,a folio with a payment and an exact reversal,calculating net payments collected,reversals reduce gross payments to net,module,reversals_subtracted_from_payments,approved
+AN-S1-07,payment method breakdown,payments posted across cash card bank transfer and other,viewing payments breakdown,amounts are aggregated by payment method,module,payment_methods_aggregated_accurately,approved
+AN-S1-08,governed financial visibility,a viewer holding finance.manage_folio,viewing the analytics dashboard,full revenue ADR RevPAR and payments figures are displayed,module,viewer_with_permission_sees_financials,approved
+AN-S1-09,operational only visibility,a viewer lacking finance.manage_folio,viewing the analytics dashboard,occupancy figures are shown while revenue metrics are masked,module,viewer_without_permission_sees_no_financials,approved
+AN-S1-10,property business date,a Property in a specific timezone,evaluating date window,today is evaluated in the Property's own business date,database_function,analytics_uses_property_today,approved
+AN-S1-11,trailing week window,range parameter set to 7d,computing metrics,window spans 7 business days ending today,module,trailing_week_window_computed,approved
+AN-S1-12,trailing month window,range parameter set to 30d,computing metrics,window spans 30 business days ending today,module,trailing_month_window_computed,approved
+AN-S1-13,month to date window,range parameter set to mtd,computing metrics,window spans from first day of month to today,module,month_to_date_window_computed,approved
+AN-S1-14,invalid range fallback,unknown range parameter in URL,loading analytics dashboard,defaults gracefully to 7d,module,invalid_range_defaults_to_week,approved

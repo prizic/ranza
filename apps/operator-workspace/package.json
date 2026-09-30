@@ -17,6 +17,7 @@
     "@ranza/core": "workspace:*",
     "@ranza/db": "workspace:*",
     "@ranza/folios": "workspace:*",
+    "@ranza/guest-services": "workspace:*",
     "@ranza/guests": "workspace:*",
     "@ranza/housekeeping": "workspace:*",
     "@ranza/i18n": "workspace:*",

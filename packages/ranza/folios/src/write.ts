@@ -1,6 +1,12 @@
 import type { TenantClient } from "@ranza/db";
 import { recordWithin, type AuditClient } from "@ranza/platform-audit";
-import { FolioAmountError, FolioWriteError, type Charge } from "./contracts";
+import {
+  FolioAmountError,
+  FolioWriteError,
+  PAYMENT_METHODS,
+  type Charge,
+  type Payment,
+} from "./contracts";
 import { POSTING_REFUSED, raisedOneOf } from "./refusals";
 
 /**
@@ -152,6 +158,33 @@ export function assertPostable(charge: Charge): void {
 }
 
 /**
+ * Rejects a payment the database would reject anyway.
+ */
+export function assertPaymentPostable(payment: Payment): void {
+  if (!Number.isSafeInteger(payment.amountMinor)) {
+    throw new FolioAmountError(
+      "an amount is a whole number of minor units, within the exact integer range",
+    );
+  }
+  if (payment.amountMinor <= 0) {
+    throw new FolioAmountError(
+      "a payment amount must be positive; it is stored negative on the folio",
+    );
+  }
+  const description = payment.description.trim();
+  if (description.length < 1 || description.length > DESCRIPTION_MAX) {
+    throw new FolioAmountError(
+      `a description must be between 1 and ${DESCRIPTION_MAX} characters`,
+    );
+  }
+  if (!PAYMENT_METHODS.includes(payment.paymentMethod)) {
+    throw new FolioAmountError(
+      "payment method must be cash, card, bank_transfer, or other",
+    );
+  }
+}
+
+/**
  * Posts a charge, and records who posted it, for a caller that owns the
  * transaction.
  *
@@ -241,6 +274,85 @@ export async function postChargeWithin(
       amountMinor: charge.amountMinor,
       currency: line.currency,
       description: charge.description.trim(),
+    },
+  });
+
+  return { lineId: line.id, organizationId: line.organizationId };
+}
+
+/**
+ * Posts a payment, and records who posted it, for a caller that owns the
+ * transaction.
+ *
+ * Stored signed negative (`amount_minor < 0`) so that sum(amount_minor)
+ * represents the exact net balance (ADR 0015).
+ */
+export async function postPaymentWithin(
+  tx: FolioWriteClient & AuditClient,
+  userId: string,
+  payment: Payment,
+): Promise<{ lineId: string; organizationId: string }> {
+  assertPaymentPostable(payment);
+
+  const storedAmountMinor = -payment.amountMinor;
+
+  let posted;
+  try {
+    posted = await tx.$queryRaw<
+      {
+        id: string;
+        organizationId: string;
+        propertyId: string;
+        currency: string;
+      }[]
+    >`
+      with posted as (
+        insert into public.folio_lines
+          (organization_id, property_id, folio_id, line_type, description, amount_minor, payment_method)
+        select
+          folio.organization_id,
+          folio.property_id,
+          folio.id,
+          'payment',
+          ${payment.description.trim()},
+          ${storedAmountMinor}::bigint,
+          ${payment.paymentMethod}
+        from public.folios as folio
+        where folio.id = ${payment.folioId}::uuid
+        returning id, organization_id, property_id, folio_id
+      )
+      select posted.id,
+             posted.organization_id as "organizationId",
+             posted.property_id     as "propertyId",
+             folio.currency::text   as "currency"
+        from posted
+        join public.folios as folio on folio.id = posted.folio_id
+    `;
+  } catch (error: unknown) {
+    if (!raisedOneOf(error, POSTING_REFUSED)) throw error;
+    throw new FolioWriteError("that payment could not be posted", {
+      cause: error,
+    });
+  }
+
+  const [line] = posted;
+  if (!line) {
+    throw new FolioWriteError("that payment could not be posted");
+  }
+
+  await recordWithin(tx, {
+    organizationId: line.organizationId,
+    locationId: line.propertyId,
+    actorId: userId,
+    action: "folio.payment_posted",
+    subjectType: "folio",
+    subjectId: payment.folioId,
+    context: {
+      lineId: line.id,
+      amountMinor: storedAmountMinor,
+      currency: line.currency,
+      description: payment.description.trim(),
+      paymentMethod: payment.paymentMethod,
     },
   });
 
