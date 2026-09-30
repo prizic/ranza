@@ -23,12 +23,13 @@
 -- docs/evidence/amend-booking/README.md was applied, the altered object
 -- printed first, and the named assertion seen red.
 begin;
-select plan(45);
+select plan(47);
 
 insert into public.users (id, email) values
   ('ab010000-0000-4000-8000-000000000001', 'ab-desk@example.test'),
   ('ab010000-0000-4000-8000-000000000002', 'ab-check-in-only@example.test'),
-  ('ab010000-0000-4000-8000-000000000003', 'ab-outsider@example.test');
+  ('ab010000-0000-4000-8000-000000000003', 'ab-outsider@example.test'),
+  ('ab010000-0000-4000-8000-000000000004', 'ab-manager@example.test');
 
 insert into public.organizations (id, name, status) values
   ('ab0a0000-0000-4000-8000-00000000000a', 'Amend Organization', 'active'),
@@ -55,7 +56,8 @@ insert into public.staff_roles (scope_id, key, organization_id, name, permission
 insert into public.organization_memberships
   (organization_id, user_id, role, access_scope) values
   ('ab0a0000-0000-4000-8000-00000000000a', 'ab010000-0000-4000-8000-000000000001', 'front_desk', 'organization_wide'),
-  ('ab0a0000-0000-4000-8000-00000000000b', 'ab010000-0000-4000-8000-000000000003', 'front_desk', 'organization_wide');
+  ('ab0a0000-0000-4000-8000-00000000000b', 'ab010000-0000-4000-8000-000000000003', 'front_desk', 'organization_wide'),
+  ('ab0a0000-0000-4000-8000-00000000000a', 'ab010000-0000-4000-8000-000000000004', 'manager', 'organization_wide');
 insert into public.organization_memberships
   (organization_id, user_id, role, role_scope_id, access_scope) values
   ('ab0a0000-0000-4000-8000-00000000000a', 'ab010000-0000-4000-8000-000000000002', 'ab_check_in', 'ab0a0000-0000-4000-8000-00000000000a', 'organization_wide');
@@ -81,8 +83,12 @@ insert into public.accommodation_units
   (id, property_id, organization_id, name, unit_type, capacity, status, parent_id) values
   ('ab0c0000-0000-4000-8000-000000001051', 'ab0b0000-0000-4000-8000-000000000001', 'ab0a0000-0000-4000-8000-00000000000a', 'AB-105-A', 'bed', 1, 'available', 'ab0c0000-0000-4000-8000-000000000105');
 
+-- A bed costs what a room does, so moving booking 1 onto AB-105-A (AB-S1-16)
+-- is a change of Unit and not of price: a price that falls needs rates.manage
+-- (AB-S1-28), which the desk does not hold.
 insert into public.property_rates (organization_id, property_id, unit_type, amount_minor) values
   ('ab0a0000-0000-4000-8000-00000000000a', 'ab0b0000-0000-4000-8000-000000000001', 'room', 150000),
+  ('ab0a0000-0000-4000-8000-00000000000a', 'ab0b0000-0000-4000-8000-000000000001', 'bed', 150000),
   ('ab0a0000-0000-4000-8000-00000000000a', 'ab0b0000-0000-4000-8000-000000000001', 'suite', 300000);
 
 -- Bookings are taken as the desk would take them, so the stamp prices them:
@@ -257,6 +263,14 @@ select results_eq(
   $$values ('300000')$$,
   'AB-S1-04: and keeps that one when only its dates change after');
 
+-- A price that falls is a pricing decision: the desk holds front_desk.amend and
+-- not rates.manage, a Manager holds both (AB-S1-28, 20260916009300).
+select throws_ok(
+  $$select * from app.amend_reservation('ab0e0000-0000-4000-8000-000000000003', app.property_today('ab0b0000-0000-4000-8000-000000000001') + 11, app.property_today('ab0b0000-0000-4000-8000-000000000001') + 12, 'ab0c0000-0000-4000-8000-000000000104', 2, null)$$,
+  '42501', NULL,
+  'AB-S1-28: the desk cannot move a booking to a kind that costs less');
+
+select app.set_request_context('ab010000-0000-4000-8000-000000000004');
 select results_eq(
   $$select current_rate_minor from app.amend_reservation('ab0e0000-0000-4000-8000-000000000003', app.property_today('ab0b0000-0000-4000-8000-000000000001') + 11, app.property_today('ab0b0000-0000-4000-8000-000000000001') + 12, 'ab0c0000-0000-4000-8000-000000000104', 2, null)$$,
   $$values ('175000')$$,
@@ -267,10 +281,20 @@ update public.property_rates set amount_minor = null
  where property_id = 'ab0b0000-0000-4000-8000-000000000001' and unit_type = 'suite';
 set local role ranza_app;
 
+select app.set_request_context('ab010000-0000-4000-8000-000000000001');
+
+select throws_ok(
+  $$select * from app.amend_reservation('ab0e0000-0000-4000-8000-000000000003', app.property_today('ab0b0000-0000-4000-8000-000000000001') + 11, app.property_today('ab0b0000-0000-4000-8000-000000000001') + 12, 'ab0c0000-0000-4000-8000-000000000107', 3, null)$$,
+  '42501', NULL,
+  'AB-S1-28: nor to a kind nobody has priced, which would charge nothing');
+
+select app.set_request_context('ab010000-0000-4000-8000-000000000004');
 select results_eq(
   $$select current_rate_minor, current_rate_currency from app.amend_reservation('ab0e0000-0000-4000-8000-000000000003', app.property_today('ab0b0000-0000-4000-8000-000000000001') + 11, app.property_today('ab0b0000-0000-4000-8000-000000000001') + 12, 'ab0c0000-0000-4000-8000-000000000107', 3, null)$$,
   $$values (null::text, null::text)$$,
   'AB-S1-03: and a kind nobody has priced leaves it unpriced');
+
+select app.set_request_context('ab010000-0000-4000-8000-000000000001');
 
 select bag_eq(
   $$select from_rate_minor, to_rate_minor from public.reservation_changes

@@ -2,11 +2,11 @@
 
 Date: 2026-09-28
 
-Status: Proposed — applied in `20260916008000_a_night_has_a_price`,
+Status: Accepted — applied in `20260916008000_a_night_has_a_price`,
 `20260916008100_a_booking_is_priced_when_it_is_taken` and
 `20260916008200_a_night_is_charged_once`
 
-Proposed amendment: 2026-09-29 — re-pricing, which this left to amending a booking, is
+Amended: 2026-09-29 — re-pricing, which this left to amending a booking, is
 built: only a booking still to come moved to another kind of Unit takes that
 kind's price; dates alone never re-price, and a Guest moved in house keeps
 theirs ([ADR 0039](0039-a-booking-is-amended-through-commands-that-check-their-caller.md)).
