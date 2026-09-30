@@ -2,7 +2,7 @@
 
 Date: 2026-09-29
 
-Status: Proposed — applied in `20260916009700_past_due_is_a_grace_period`
+Status: Accepted — applied in `20260916009700_past_due_is_a_grace_period`
 
 Builds on [ADR 0007](0007-a-session-becomes-a-request-context.md),
 [ADR 0009](0009-a-resident-reaches-their-own-stay-not-an-organization.md) and
