@@ -1489,10 +1489,15 @@ export function createReservationsModule(deps: ReservationsDeps) {
             and app.has_organization_permission(
                   reservation.organization_id, 'front_desk.check_in')
                                                         as "mayCheckIn",
-          stay.status = 'in_house'
+          coalesce(stay.status = 'in_house', false)
             and app.has_organization_permission(
                   reservation.organization_id, 'front_desk.amend')
                                                         as "mayChangeStay",
+          coalesce(stay.status = 'in_house', false)
+            and stay.starts_on = today.day
+            and app.has_organization_permission(
+                  reservation.organization_id, 'front_desk.check_in')
+                                                        as "mayUndoCheckIn",
           case when stay.status = 'in_house' then stay.id end
                                                         as "stayId",
           case when stay.status = 'in_house'

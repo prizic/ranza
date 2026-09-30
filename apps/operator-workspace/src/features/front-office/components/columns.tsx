@@ -645,8 +645,11 @@ export function useReservationColumns(
       ),
       cell: ({ row }) => (
         <p className="whitespace-nowrap text-step--1">
-          <time dateTime={row.original.startsOn}>
-            {day(row.original.startsOn, locale)}
+          {/* A late arrival's Stay began after the booking said it would, and
+              the total beside this is over the nights the Stay has, so the
+              period starts where the Stay did. */}
+          <time dateTime={row.original.stayStartsOn ?? row.original.startsOn}>
+            {day(row.original.stayStartsOn ?? row.original.startsOn, locale)}
           </time>
           {row.original.endsOn ? (
             <>
@@ -768,6 +771,17 @@ export function useReservationColumns(
               <CheckInAction
                 locale={locale}
                 reservationId={booking.reservationId}
+              />
+            ) : null}
+            {booking.mayUndoCheckIn && booking.stayId ? (
+              // Where the button that just checked them in was: Check in has no
+              // confirmation because the way back is on the same row.
+              <UndoCheckInDialog
+                guestName={booking.guestName}
+                locale={locale}
+                reservationId={booking.reservationId}
+                stayId={booking.stayId}
+                unitName={label}
               />
             ) : null}
             {menu || booking.folioId ? (

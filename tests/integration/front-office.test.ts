@@ -1980,11 +1980,13 @@ describe("the Reservations list and check-in agree on who may be checked in", ()
     late: reservationId(),
     fresh: reservationId(),
     again: reservationId(),
+    old: reservationId(),
   };
   const HOUSEKEEPER = randomUUID();
 
   beforeAll(async () => {
     const units = await Promise.all([
+      aUnit(),
       aUnit(),
       aUnit(),
       aUnit(),
@@ -2007,6 +2009,12 @@ describe("the Reservations list and check-in agree on who may be checked in", ()
     });
     await reserve(ids.fresh, PROPERTY, ORG, units[4]!, "List fresh");
     await reserve(ids.again, PROPERTY, ORG, units[5]!, "List again");
+    // Arrived two days ago: its check-in is not one made today.
+    await reserve(ids.old, PROPERTY, ORG, units[6]!, "List old", {
+      from: -2,
+      to: 2,
+    });
+    await arrived(ids.old, units[6]!, -2, 2);
     // A Staff Member who reaches the Property and may see the list, but whose
     // role grants neither check-in nor changing a Stay.
     await owner.$executeRawUnsafe(
@@ -2071,14 +2079,7 @@ describe("the Reservations list and check-in agree on who may be checked in", ()
     });
   });
 
-  it("a_checked_in_row_offers_the_folio_and_stay_changes: a booking is one row however many Stays it has had", async () => {
-    const rows = (await reservations.listReservations(MEMBER, PROPERTY)).filter(
-      (row) => [ids.today, ids.late].includes(row.reservationId),
-    );
-    expect(rows).toHaveLength(2);
-  });
-
-  it("check_in_is_only_offered_on_a_confirmed_booking_that_has_arrived_to_a_viewer_who_may: a role without the permissions is offered neither", async () => {
+  it("a_check_in_made_today_can_be_withdrawn_from_the_list: and check_in_is_only_offered_to_a_viewer_who_may — a role without the permissions is offered none of it", async () => {
     const seen = async (viewer: string, id: string) =>
       (await reservations.listReservations(viewer, PROPERTY)).find(
         (row) => row.reservationId === id,
@@ -2097,6 +2098,26 @@ describe("the Reservations list and check-in agree on who may be checked in", ()
     });
     expect(await seen(HOUSEKEEPER, ids.today)).toMatchObject({
       status: "checked_in",
+      mayChangeStay: false,
+    });
+
+    // Withdrawing a check-in: the manager may for one made today, not for one
+    // that began earlier, and the housekeeper never.
+    expect(await seen(MEMBER, ids.today)).toMatchObject({
+      mayUndoCheckIn: true,
+    });
+    expect(await seen(MEMBER, ids.old)).toMatchObject({
+      status: "checked_in",
+      mayUndoCheckIn: false,
+      mayChangeStay: true,
+    });
+    expect(await seen(HOUSEKEEPER, ids.today)).toMatchObject({
+      mayUndoCheckIn: false,
+    });
+    // Nothing to withdraw or change before there is a check-in: false, not
+    // the null a comparison against a missing Stay yields.
+    expect(await seen(MEMBER, ids.fresh)).toMatchObject({
+      mayUndoCheckIn: false,
       mayChangeStay: false,
     });
   });

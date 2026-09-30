@@ -64,6 +64,7 @@ const BASE: ReservationRow = {
   mayAmend: false,
   mayCheckIn: false,
   mayChangeStay: false,
+  mayUndoCheckIn: false,
   stayId: null,
   stayStartsOn: null,
   folioId: null,
@@ -203,6 +204,66 @@ describe("the Reservations list's tabs", () => {
   });
 });
 
+describe("a booking or check-in the desk has just made", () => {
+  function showTabbed(rows: ReservationRow[]) {
+    const view = (list: ReservationRow[]) => (
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <ReservationsTable
+          changing={null}
+          locale="en"
+          propertyId="p1"
+          reservations={list}
+          today={TODAY}
+        />
+      </NextIntlClientProvider>
+    );
+    const { rerender } = render(view(rows));
+    return (list: ReservationRow[]) => rerender(view(list));
+  }
+  const rowOf = (reference: string) =>
+    screen.getByText(reference).closest("tr") as HTMLElement;
+
+  it("a_booking_or_check_in_just_made_is_never_hidden_by_a_tab: a new booking under another tab returns the list to All, marked", () => {
+    const reread = showTabbed([IN_HOUSE]);
+    pick(/In house/);
+    expect(tab(/In house/)).toHaveAttribute("aria-selected", "true");
+
+    // A booking for next week is not in house: without this it would vanish.
+    reread([IN_HOUSE, UPCOMING]);
+    expect(tab(/^All/)).toHaveAttribute("aria-selected", "true");
+    expect(rowOf("RZ-UPCOMING")).toHaveClass("ring-primary/30");
+    expect(rowOf("RZ-INHOUSE")).not.toHaveClass("ring-primary/30");
+  });
+
+  it("a_booking_or_check_in_just_made_is_never_hidden_by_a_tab: a check-in on Arriving today keeps its row in view", () => {
+    const reread = showTabbed([ARRIVING]);
+    pick(/Arriving today/);
+    expect(listed()).toEqual(["RZ-ARRIVING"]);
+
+    reread([{ ...ARRIVING, status: "checked_in" }]);
+    expect(tab(/^All/)).toHaveAttribute("aria-selected", "true");
+    expect(rowOf("RZ-ARRIVING")).toHaveClass("ring-primary/30");
+  });
+
+  it("a_booking_or_check_in_just_made_is_never_hidden_by_a_tab: a re-read with nothing new leaves the tab and marks alone", () => {
+    const reread = showTabbed([ARRIVING, UPCOMING]);
+    pick(/Upcoming/);
+
+    reread([{ ...ARRIVING }, { ...UPCOMING }]);
+    expect(tab(/Upcoming/)).toHaveAttribute("aria-selected", "true");
+    expect(listed()).toEqual(["RZ-UPCOMING"]);
+    expect(rowOf("RZ-UPCOMING")).not.toHaveClass("ring-primary/30");
+  });
+
+  it("a_booking_or_check_in_just_made_is_never_hidden_by_a_tab: choosing a tab clears the mark", () => {
+    const reread = showTabbed([IN_HOUSE]);
+    reread([IN_HOUSE, UPCOMING]);
+    expect(rowOf("RZ-UPCOMING")).toHaveClass("ring-primary/30");
+    pick(/Upcoming/);
+    expect(rowOf("RZ-UPCOMING")).not.toHaveClass("ring-primary/30");
+  });
+});
+
 describe("searching the Reservations list", () => {
   const search = (value: string) =>
     fireEvent.change(screen.getByRole("searchbox"), { target: { value } });
@@ -282,6 +343,35 @@ describe("the Reservations list's price column", () => {
     const cell = row("RZ-LATE");
     expect(within(cell).getByText(/2 nights: /)).toBeVisible();
     expect(within(cell).queryByText(/3 nights/)).toBeNull();
+  });
+
+  it("a_late_arrivals_period_starts_when_the_stay_did: the period agrees with the nights in the total", () => {
+    show([
+      {
+        ...priced,
+        reference: "RZ-PERIOD",
+        status: "checked_in",
+        startsOn: "2030-01-09",
+        endsOn: "2030-01-12",
+        stayId: "s",
+        stayStartsOn: "2030-01-10",
+        stayNights: 2,
+        totalMinor: 25_000,
+      },
+      {
+        ...priced,
+        reference: "RZ-BOOKED",
+        startsOn: "2030-01-09",
+        endsOn: "2030-01-12",
+        stayNights: 3,
+        totalMinor: 37_500,
+      },
+    ]);
+    // Arrived on the 10th: the booking's 9th is not where the stay began.
+    expect(within(row("RZ-PERIOD")).getByText(/Jan 10, 2030/)).toBeVisible();
+    expect(within(row("RZ-PERIOD")).queryByText(/Jan 9/)).toBeNull();
+    // Not arrived yet: the booking's own dates are all there is.
+    expect(within(row("RZ-BOOKED")).getByText(/Jan 9, 2030/)).toBeVisible();
   });
 
   it("the_price_column_shows_the_total_for_the_stay: open-ended and unpriced bookings claim no total", () => {

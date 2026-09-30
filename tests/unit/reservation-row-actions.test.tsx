@@ -32,6 +32,7 @@ vi.mock(
 );
 vi.mock("../../apps/operator-workspace/src/server/front-office", () => ({
   checkInReservation: vi.fn(),
+  reverseCheckIn: vi.fn(),
 }));
 
 const { ReservationsTable } =
@@ -59,6 +60,7 @@ const BASE: ReservationRow = {
   mayAmend: false,
   mayCheckIn: false,
   mayChangeStay: false,
+  mayUndoCheckIn: false,
   stayId: null,
   stayStartsOn: null,
   folioId: null,
@@ -145,5 +147,16 @@ describe("a Reservations row's actions", () => {
     expect(items).toContain(messages.en.openFolio);
     expect(items).not.toContain(messages.en.changeDeparture);
     expect(items).not.toContain(messages.en.moveGuest);
+  });
+
+  it("a_check_in_made_today_can_be_withdrawn_from_the_list: offers Withdraw check-in where the row says it may, and only there", () => {
+    const withdraw = { name: new RegExp(messages.en.undoCheckIn, "i") };
+    const offered = show({ ...IN_HOUSE, mayUndoCheckIn: true });
+    expect(within(offered).getByRole("button", withdraw)).toBeVisible();
+    cleanup();
+
+    // Arrived on an earlier day, or a viewer without the permission.
+    const refused = show({ ...IN_HOUSE, mayUndoCheckIn: false });
+    expect(within(refused).queryByRole("button", withdraw)).toBeNull();
   });
 });

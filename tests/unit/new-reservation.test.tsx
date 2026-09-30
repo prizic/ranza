@@ -437,6 +437,32 @@ describe("which Units are taken for the nights chosen (RG-S4-06, RG-S4-07)", () 
     );
   });
 
+  it("a_unit_booked_for_the_chosen_nights_is_marked_in_the_picker: a refused save reads the marks again, so a Unit taken in between is shown as taken", async () => {
+    // Free when the dates were chosen; a colleague books it before the press.
+    availability.mockResolvedValueOnce({ kind: "ready", unavailable: [] });
+    availability.mockResolvedValueOnce({
+      kind: "ready",
+      unavailable: [{ unitId: "u1", blocker: "booked" }],
+    });
+    createReservation.mockResolvedValue("unavailable");
+    openForm();
+    chooseUnit(/101/);
+    chooseNights();
+    await waitFor(() => expect(availability).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByLabelText(messages.en.guest), {
+      target: { value: "Nezihe Muhiddin" },
+    });
+    fireEvent.submit(takeBooking().closest("form")!);
+
+    expect(
+      await screen.findByText(messages.en.bookingUnavailable),
+    ).toBeVisible();
+    await waitFor(() => expect(availability).toHaveBeenCalledTimes(2));
+    expect(
+      await screen.findByText(messages.en.chosenUnitTakenThoseNights),
+    ).toBeVisible();
+  });
+
   it("a_failed_availability_read_leaves_every_unit_choosable", async () => {
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal("fetch", () => Promise.reject(new Error("offline")));

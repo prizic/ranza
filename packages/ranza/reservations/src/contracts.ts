@@ -567,6 +567,13 @@ export interface ReservationRow {
   mayCheckIn: boolean;
   /** Whether the viewer may change an in-house Stay's departure or move it (AB-S2-05). */
   mayChangeStay: boolean;
+  /**
+   * Whether a check-in made today may be withdrawn from this row by the viewer
+   * (ADR 0022): the Stay began on the Property's today and they hold
+   * `front_desk.check_in`. Presentation, as `mayCheckIn` is: money already
+   * posted, or a closed business day, refuse it when pressed.
+   */
+  mayUndoCheckIn: boolean;
   /** The in-house Stay this booking became; null before check-in and after. */
   stayId: string | null;
   /** That Stay's own arrival, which a late arrival makes differ from the booking's. */

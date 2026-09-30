@@ -24,10 +24,12 @@ Amended: 2026-09-30 — "availability is a constraint, never a query" still
 holds for what decides, and no longer for what is shown. The New reservation
 dialog asks `listUnavailableUnits` as the dates are chosen and _marks_ the Units
 that are taken, the way Change booking's preview already does (ADR 0039). A
-marked Unit cannot be picked, and is still in the list; the read can be stale,
-so it never decides. A booking landing between that read and the press is
-refused by `reservations_no_double_booking`, the dialog reads again when it is,
-and a read that fails marks nothing (RG-S4-06, RG-S4-07).
+marked Unit cannot be picked, and is still in the list. The read can be stale in
+either direction: a Unit taken since is caught by
+`reservations_no_double_booking` when saved, and the dialog then reads again; a
+Unit freed since stays marked until the dates change or the dialog is reopened,
+which costs the desk a choice and never a wrong booking. A read that fails marks
+nothing (RG-S4-06, RG-S4-07).
 
 Amended: 2026-09-29 — a booking is not taken on a closed business day. The
 module refuses a start before the Property's today; the database refuses,

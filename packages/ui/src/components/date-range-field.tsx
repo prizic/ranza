@@ -240,8 +240,9 @@ export function DateRangeField({
       setOpen(false);
       return;
     }
-    // Whatever is left would begin a new range, from either half: a day before
-    // the earliest start never can, including while the end is being chosen.
+    // A backstop. The calendar greys these days out for both halves, so a click
+    // on one never arrives; if one ever did, it would begin a new range from
+    // either half, and a day before the earliest start must never do that.
     if (earliestStart && day < earliestStart) return;
     const keepEnd = to && daysBetween(day, to) >= minSpan;
     setRange({ from: day, to: keepEnd ? to : undefined });

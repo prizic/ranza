@@ -23,6 +23,9 @@ import {
 } from "../reservation-tabs";
 import { unitLabel } from "../unit-label";
 
+/** The row an action has just made or changed, so the desk can see it. */
+const JUST_CHANGED = "bg-primary/5 ring-1 ring-primary/30";
+
 /**
  * The Property's current and upcoming Reservations.
  *
@@ -65,6 +68,26 @@ export function ReservationsTable({
   const pathname = usePathname();
   const search = useSearchParams();
   const [tab, setTab] = useState<ReservationTab>("all");
+  // The list is the only proof a booking or a check-in worked, and a tab can
+  // narrow it to somewhere the result is not. So when a row appears or changes
+  // status after an action, the list goes back to All and points at that row.
+  // Derived while rendering rather than in an effect, so the row is never
+  // painted missing first.
+  const [previous, setPrevious] = useState(reservations);
+  const [highlighted, setHighlighted] = useState<string | null>(null);
+  if (previous !== reservations) {
+    setPrevious(reservations);
+    const before = new Map(
+      previous.map((row) => [row.reservationId, row.status]),
+    );
+    const changed = reservations.find(
+      (row) => before.get(row.reservationId) !== row.status,
+    );
+    if (changed) {
+      setTab("all");
+      setHighlighted(changed.reservationId);
+    }
+  }
   // The counts are over everything on the list, not what a search has left, so
   // a tab's number does not move as somebody types.
   const counts = useMemo(
@@ -113,7 +136,10 @@ export function ReservationsTable({
       {today && reservations.length > 0 ? (
         <Tabs
           className="mb-3"
-          onValueChange={(value) => setTab(value as ReservationTab)}
+          onValueChange={(value) => {
+            setTab(value as ReservationTab);
+            setHighlighted(null);
+          }}
           value={tab}
         >
           <TabsList aria-label={t("reservationsViews")}>
@@ -147,6 +173,9 @@ export function ReservationsTable({
         }
         labels={labels}
         getRowId={(row) => row.reservationId}
+        rowClassName={(row) =>
+          row.reservationId === highlighted ? JUST_CHANGED : undefined
+        }
         searchColumns={[
           "guestName",
           "guestEmail",

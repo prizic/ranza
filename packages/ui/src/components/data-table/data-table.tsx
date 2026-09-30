@@ -104,6 +104,7 @@ export function DataTable<TData, TValue>({
   initialHidden = {},
   labels,
   onRowClick,
+  rowClassName,
   rowsInDatabase,
   searchColumns,
   toolbarExtra,
@@ -142,6 +143,12 @@ export function DataTable<TData, TValue>({
   labels: DataTableLabels;
   /** Makes rows openable. Clicks on a control inside a cell are left alone. */
   onRowClick?: (row: TData) => void;
+  /**
+   * Extra classes for one row, for a screen that needs to point at it — the
+   * booking the desk has just made or changed. Opt-in: no row is marked
+   * otherwise.
+   */
+  rowClassName?: (row: TData) => string | undefined;
   rowsInDatabase?: number;
   /**
    * Row fields the toolbar search looks in. These are keys on the data, not
@@ -361,12 +368,16 @@ export function DataTable<TData, TValue>({
             {table.getRowModel().rows.length > 0 ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
-                  className={ROW_CARD}
+                  className={cn(ROW_CARD, rowClassName?.(row.original))}
                   data-state={row.getIsSelected() ? "selected" : undefined}
                   key={row.id}
                   {...(onRowClick && {
                     tabIndex: 0,
-                    className: cn(ROW_CARD, "cursor-pointer"),
+                    className: cn(
+                      ROW_CARD,
+                      rowClassName?.(row.original),
+                      "cursor-pointer",
+                    ),
                     // A cell holds links and the row menu; opening the row on
                     // top of those would fire two things at once.
                     onClick: (event: MouseEvent) => {
