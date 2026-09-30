@@ -65,8 +65,10 @@ export default async function ReservationsPage({
 
   const units = await bookableUnits(property.propertyId);
   // The business date, not the calendar date in the Property's timezone: the
-  // two differ between midnight and the cutoff (RG-S1-10, ADR 0021).
-  const today = units.length > 0 ? await bookingDay(property.propertyId) : null;
+  // two differ between midnight and the cutoff (RG-S1-10, ADR 0021). Read
+  // whether or not a Unit can be booked: the list's tabs need it as much as
+  // the dialog's calendar does.
+  const today = await bookingDay(property.propertyId);
   const roomsHref =
     units.length === 0 &&
     (await permittedProperties(MANAGES_ROOMS)).some(
@@ -104,6 +106,7 @@ export default async function ReservationsPage({
         locale={locale}
         propertyId={property.propertyId}
         reservations={await reservations(property.propertyId)}
+        today={today}
       />
     </>
   );

@@ -573,6 +573,15 @@ export interface ReservationRow {
   stayStartsOn: string | null;
   /** That Stay's open Folio; null before check-in or without billing. */
   folioId: string | null;
+  /**
+   * Nights of the stay as it stands: the Stay's own dates once there is one,
+   * because a late arrival or an early departure makes the booking's dates say
+   * more than was slept. Null when open-ended or when the booking ended
+   * without a stay (cancelled, no-show).
+   */
+  stayNights: number | null;
+  /** `stayNights` at the rate the booking was taken at; null when either is. */
+  totalMinor: number | null;
 }
 
 /**

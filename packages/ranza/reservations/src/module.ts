@@ -1445,8 +1445,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
       { userId },
       (tx) =>
         tx.$queryRaw<
-          (Omit<ReservationRow, "nightlyRateMinor"> & {
+          (Omit<ReservationRow, "nightlyRateMinor" | "totalMinor"> & {
             nightlyRateMinor: string | null;
+            totalMinor: string | null;
           })[]
         >`
         select
@@ -1497,7 +1498,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
           case when stay.status = 'in_house'
                then to_char(stay.starts_on, 'YYYY-MM-DD') end
                                                         as "stayStartsOn",
-          folio.id                                      as "folioId"
+          folio.id                                      as "folioId",
+          nights.count                                  as "stayNights",
+          (nights.count * reservation.nightly_rate_minor)::text
+                                                        as "totalMinor"
         from public.reservations as reservation
         join public.guests as guest
           on guest.id = reservation.guest_id
@@ -1512,6 +1516,14 @@ export function createReservationsModule(deps: ReservationsDeps) {
           on folio.stay_id = stay.id
          and folio.status = 'open'
          and stay.status = 'in_house'
+        cross join lateral (
+          select case
+                   when reservation.status in ('cancelled', 'no_show')
+                     then null
+                   else (coalesce(stay.ends_on, reservation.ends_on)
+                         - coalesce(stay.starts_on, reservation.starts_on))
+                 end as count
+        ) as nights
         cross join (
           select app.property_today(${propertyId}::uuid) as day
         ) as today
@@ -1534,6 +1546,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
       ...row,
       nightlyRateMinor:
         row.nightlyRateMinor === null ? null : Number(row.nightlyRateMinor),
+      totalMinor: row.totalMinor === null ? null : Number(row.totalMinor),
     }));
   }
 

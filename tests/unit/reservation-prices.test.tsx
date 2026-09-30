@@ -56,6 +56,8 @@ const BASE: ReservationRow = {
   stayId: null,
   stayStartsOn: null,
   folioId: null,
+  stayNights: null,
+  totalMinor: null,
 };
 
 function show(rows: ReservationRow[]) {
@@ -66,6 +68,7 @@ function show(rows: ReservationRow[]) {
         locale="en"
         propertyId="p1"
         reservations={rows}
+        today="2030-01-10"
       />
     </NextIntlClientProvider>,
   );

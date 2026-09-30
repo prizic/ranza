@@ -2182,3 +2182,104 @@ describe("which Units are taken over the nights a booking is being made for", ()
     ).toEqual([]);
   });
 });
+
+describe("the Reservations list's nights, total and telephone", () => {
+  const ids = {
+    plain: reservationId(),
+    late: reservationId(),
+    open: reservationId(),
+    cancelled: reservationId(),
+  };
+  const RATE = 12_500;
+
+  beforeAll(async () => {
+    const units = await Promise.all([aUnit(), aUnit(), aUnit(), aUnit()]);
+    await reserve(ids.plain, PROPERTY, ORG, units[0]!, "Total plain", {
+      from: 1,
+      to: 4,
+    });
+    await reserve(ids.late, PROPERTY, ORG, units[1]!, "Total late", {
+      from: -1,
+      to: 2,
+    });
+    await reserve(
+      ids.open,
+      PROPERTY,
+      ORG,
+      units[2]!,
+      "Total open",
+      { from: 1, to: 1 },
+      "resident",
+      null,
+    );
+    await reserve(ids.cancelled, PROPERTY, ORG, units[3]!, "Total cancelled", {
+      from: 1,
+      to: 3,
+    });
+    // Stamped as a booking taken at that price would be: the guard that a
+    // booking keeps its price refuses changing one afterwards. Not the
+    // Resident's, which no constraint lets carry a nightly price.
+    await owner.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(
+        `set local session_replication_role = replica`,
+      );
+      await tx.$executeRawUnsafe(
+        `update public.reservations
+            set nightly_rate_minor = $2::bigint, rate_currency = 'TRY'
+          where id = any($1::uuid[])`,
+        [ids.plain, ids.late, ids.cancelled],
+        RATE,
+      );
+    });
+    await owner.$executeRawUnsafe(
+      `update public.reservations set status = 'cancelled' where id = $1::uuid`,
+      ids.cancelled,
+    );
+    await owner.$executeRawUnsafe(
+      `update public.guests set phone = '+90 532 000 11 22'
+        where id = (select guest_id from public.reservations where id = $1::uuid)`,
+      ids.plain,
+    );
+    await reservations.checkIn(MEMBER, ids.late);
+  });
+
+  const listed = async (id: string) =>
+    (await reservations.listReservations(MEMBER, PROPERTY)).find(
+      (row) => row.reservationId === id,
+    );
+
+  it("the_price_column_shows_the_total_for_the_stay: a booking's nights and total are its dates at the stamped rate", async () => {
+    expect(await listed(ids.plain)).toMatchObject({
+      stayNights: 3,
+      totalMinor: 3 * RATE,
+    });
+  });
+
+  it("the_price_column_shows_the_total_for_the_stay: a late arrival is totalled on the Stay, not the booking", async () => {
+    // Booked for three nights from yesterday, checked in today: two are slept.
+    expect(await listed(ids.late)).toMatchObject({
+      status: "checked_in",
+      stayNights: 2,
+      totalMinor: 2 * RATE,
+    });
+  });
+
+  it("the_price_column_shows_the_total_for_the_stay: an open-ended or cancelled booking has no total to claim", async () => {
+    expect(await listed(ids.open)).toMatchObject({
+      stayNights: null,
+      totalMinor: null,
+    });
+    expect(await listed(ids.cancelled)).toMatchObject({
+      status: "cancelled",
+      stayNights: null,
+      totalMinor: null,
+    });
+  });
+
+  it("search_matches_a_guests_phone_and_email: the list carries the Guest's telephone", async () => {
+    expect(await listed(ids.plain)).toMatchObject({
+      guestPhone: "+90 532 000 11 22",
+    });
+    expect(await listed(ids.late)).toMatchObject({ guestPhone: null });
+  });
+});

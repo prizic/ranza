@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
@@ -559,6 +560,13 @@ export function useDepartureColumns(
 }
 
 /**
+ * A booking as the list searches it: the Guest's telephone with only its digits,
+ * because the search compares text and a number is typed without the spaces and
+ * brackets it was written with.
+ */
+export type ReservationListRow = ReservationRow & { guestPhoneDigits: string };
+
+/**
  * The booking list.
  *
  * Every booking still ahead of the Property or under way, whatever became of
@@ -572,7 +580,7 @@ export function useDepartureColumns(
 export function useReservationColumns(
   locale: SupportedLocale,
   propertyId: string,
-): ColumnDef<ReservationRow, unknown>[] {
+): ColumnDef<ReservationListRow, unknown>[] {
   const t = useTranslations();
   const sort = useSortLabels();
   return [
@@ -592,13 +600,19 @@ export function useReservationColumns(
             <bdi>{row.original.guestName}</bdi>
           </p>
           <p className="text-step--1 text-muted-foreground">
-            {row.original.guestEmail ? (
-              // Isolated, like every other piece of data in a sentence: an
-              // address is Latin text and sits inside an Arabic column.
-              <bdi>{row.original.guestEmail}</bdi>
-            ) : (
-              t(`stayType.${row.original.stayType}`)
-            )}
+            {row.original.guestEmail || row.original.guestPhone
+              ? // Isolated, like every other piece of data in a sentence: an
+                // address and a number are Latin text and sit inside an Arabic
+                // column.
+                [row.original.guestEmail, row.original.guestPhone]
+                  .filter((detail) => detail !== null && detail !== "")
+                  .map((detail, index) => (
+                    <Fragment key={detail}>
+                      {index > 0 ? " · " : null}
+                      <bdi>{detail}</bdi>
+                    </Fragment>
+                  ))
+              : t(`stayType.${row.original.stayType}`)}
           </p>
         </div>
       ),
@@ -670,8 +684,10 @@ export function useReservationColumns(
     },
     {
       // The price each booking was taken at (ADR 0038), not today's list: a
-      // price changed since does not change what these Guests are charged.
-      accessorKey: "nightlyRateMinor",
+      // price changed since does not change what these Guests are charged. The
+      // total is that rate over the nights the stay has, which is what the desk
+      // quotes; the rate itself stays beneath it, exactly as it was stamped.
+      accessorKey: "totalMinor",
       meta: { title: t("priceColumn") },
       header: ({ column }) => (
         <DataTableColumnHeader
@@ -680,25 +696,42 @@ export function useReservationColumns(
           title={t("priceColumn")}
         />
       ),
-      cell: ({ row }) =>
-        row.original.nightlyRateMinor === null ||
-        row.original.rateCurrency === null ? (
-          <span className="text-step--1 text-muted-foreground">
-            {t("bookedUnpriced")}
-          </span>
-        ) : (
-          <span className="whitespace-nowrap text-step--1 tabular-nums">
-            <bdi>
-              {t("bookedPerNight", {
-                price: formatMoney(
-                  row.original.nightlyRateMinor,
-                  row.original.rateCurrency,
-                  locale,
-                ),
-              })}
-            </bdi>
-          </span>
-        ),
+      cell: ({ row }) => {
+        const { nightlyRateMinor, rateCurrency, stayNights, totalMinor } =
+          row.original;
+        if (nightlyRateMinor === null || rateCurrency === null) {
+          return (
+            <span className="text-step--1 text-muted-foreground">
+              {t("bookedUnpriced")}
+            </span>
+          );
+        }
+        return (
+          <p className="whitespace-nowrap text-step--1 tabular-nums">
+            {totalMinor !== null && stayNights !== null ? (
+              <span className="block font-medium">
+                <bdi>
+                  {t("quoteStay", {
+                    count: stayNights,
+                    total: formatMoney(totalMinor, rateCurrency, locale),
+                  })}
+                </bdi>
+              </span>
+            ) : null}
+            <span
+              className={
+                totalMinor !== null ? "block text-muted-foreground" : undefined
+              }
+            >
+              <bdi>
+                {t("bookedPerNight", {
+                  price: formatMoney(nightlyRateMinor, rateCurrency, locale),
+                })}
+              </bdi>
+            </span>
+          </p>
+        );
+      },
     },
     {
       accessorKey: "status",

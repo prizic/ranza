@@ -1,14 +1,19 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ReservationRow } from "@ranza/reservations";
-import { DataTable, EmptyState } from "@ranza/ui";
-import type { SupportedLocale } from "@ranza/i18n";
+import { DataTable, EmptyState, Tabs, TabsList, TabsTrigger } from "@ranza/ui";
+import { formatNumber, type SupportedLocale } from "@ranza/i18n";
 import { useTableLabels } from "../../../lib/table-labels";
 import { ChangeBookingDialog } from "./change-booking-dialog";
 import { useReservationColumns } from "./columns";
+import {
+  inTab,
+  RESERVATION_TABS,
+  type ReservationTab,
+} from "../reservation-tabs";
 import { unitLabel } from "../unit-label";
 
 /**
@@ -28,6 +33,7 @@ export function ReservationsTable({
   locale,
   propertyId,
   reservations,
+  today,
 }: {
   /**
    * A booking to open in Change booking on arrival, from `?change=` — where a
@@ -39,6 +45,11 @@ export function ReservationsTable({
   reservations: readonly ReservationRow[];
   /** The Property the rows belong to, which links out of them name. */
   propertyId: string;
+  /**
+   * The Property's business date, `YYYY-MM-DD`. Without one the date-based
+   * tabs cannot say who is arriving, so only All is offered.
+   */
+  today: string | null;
 }) {
   const t = useTranslations();
   const labels = useTableLabels();
@@ -46,6 +57,31 @@ export function ReservationsTable({
   const router = useRouter();
   const pathname = usePathname();
   const search = useSearchParams();
+  const [tab, setTab] = useState<ReservationTab>("all");
+  // The counts are over everything on the list, not what a search has left, so
+  // a tab's number does not move as somebody types.
+  const counts = useMemo(
+    () =>
+      Object.fromEntries(
+        RESERVATION_TABS.map((name) => [
+          name,
+          today
+            ? reservations.filter((row) => inTab(row, name, today)).length
+            : reservations.length,
+        ]),
+      ) as Record<ReservationTab, number>,
+    [reservations, today],
+  );
+  const rows = useMemo(
+    () =>
+      reservations
+        .filter((row) => (today ? inTab(row, tab, today) : true))
+        .map((row) => ({
+          ...row,
+          guestPhoneDigits: (row.guestPhone ?? "").replace(/\D/g, ""),
+        })),
+    [reservations, tab, today],
+  );
   const linked = reservations.find(
     (row) => row.reservationId === changing && row.mayAmend,
   );
@@ -64,19 +100,52 @@ export function ReservationsTable({
 
   return (
     <div className="mt-4">
+      {today && reservations.length > 0 ? (
+        <Tabs
+          className="mb-3"
+          onValueChange={(value) => setTab(value as ReservationTab)}
+          value={tab}
+        >
+          <TabsList aria-label={t("reservationsViews")}>
+            {RESERVATION_TABS.map((name) => (
+              <TabsTrigger key={name} value={name}>
+                {t(`reservationsTab.${name}`)}{" "}
+                <span className="tabular-nums text-muted-foreground">
+                  {formatNumber(counts[name], locale)}
+                </span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      ) : null}
       <DataTable
         caption={t("reservations")}
         columns={columns}
-        data={reservations}
+        data={rows}
         empty={
-          <EmptyState
-            description={t("noReservationsDescription")}
-            title={t("noReservationsTitle")}
-          />
+          tab === "all" ? (
+            <EmptyState
+              description={t("noReservationsDescription")}
+              title={t("noReservationsTitle")}
+            />
+          ) : (
+            <EmptyState
+              description={t("reservationsTabEmptyHint")}
+              title={t(`reservationsTabEmpty.${tab}`)}
+            />
+          )
         }
         labels={labels}
         getRowId={(row) => row.reservationId}
-        searchColumns={["guestName", "unitName", "roomName", "reference"]}
+        searchColumns={[
+          "guestName",
+          "guestEmail",
+          "guestPhone",
+          "guestPhoneDigits",
+          "unitName",
+          "roomName",
+          "reference",
+        ]}
       />
       {linked ? (
         <ChangeBookingDialog

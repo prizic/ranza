@@ -318,6 +318,10 @@ export interface Messages {
       string
     >;
   };
+  reservationsViews: string;
+  reservationsTab: Record<"all" | "arriving" | "inHouse" | "upcoming", string>;
+  reservationsTabEmpty: Record<"arriving" | "inHouse" | "upcoming", string>;
+  reservationsTabEmptyHint: string;
   noReservationsTitle: string;
   noReservationsDescription: string;
   newReservation: string;
@@ -1650,6 +1654,20 @@ export const messages: Record<SupportedLocale, Messages> = {
         finance: "Finans",
       },
     },
+    reservationsViews: "Rezervasyonları göster",
+    reservationsTab: {
+      all: "Tümü",
+      arriving: "Bugün gelenler",
+      inHouse: "Konaklayanlar",
+      upcoming: "Yaklaşanlar",
+    },
+    reservationsTabEmpty: {
+      arriving: "Bugün gelecek kimse yok",
+      inHouse: "Konaklayan kimse yok",
+      upcoming: "Daha sonrası için rezervasyon yok",
+    },
+    reservationsTabEmptyHint:
+      "Tüm rezervasyonları görmek için Tümü sekmesine geçin.",
     noReservationsTitle: "İleri tarihli rezervasyon yok",
     noReservationsDescription:
       "Bu tesiste bugünden itibaren bir rezervasyon bulunmuyor.",
@@ -3049,6 +3067,19 @@ export const messages: Record<SupportedLocale, Messages> = {
         finance: "Finance",
       },
     },
+    reservationsViews: "Show bookings",
+    reservationsTab: {
+      all: "All",
+      arriving: "Arriving today",
+      inHouse: "In house",
+      upcoming: "Upcoming",
+    },
+    reservationsTabEmpty: {
+      arriving: "Nobody is due to arrive",
+      inHouse: "Nobody is in house",
+      upcoming: "Nothing booked for later",
+    },
+    reservationsTabEmptyHint: "Switch to All to see every booking.",
     noReservationsTitle: "Nothing booked ahead",
     noReservationsDescription:
       "Nothing is booked at this Property from today onwards.",
@@ -4451,6 +4482,19 @@ export const messages: Record<SupportedLocale, Messages> = {
         finance: "المالية",
       },
     },
+    reservationsViews: "عرض الحجوزات",
+    reservationsTab: {
+      all: "الكل",
+      arriving: "وصول اليوم",
+      inHouse: "المقيمون",
+      upcoming: "القادمة",
+    },
+    reservationsTabEmpty: {
+      arriving: "لا أحد متوقع وصوله اليوم",
+      inHouse: "لا أحد مقيم حالياً",
+      upcoming: "لا حجوزات لاحقة",
+    },
+    reservationsTabEmptyHint: "انتقل إلى «الكل» لعرض كل الحجوزات.",
     noReservationsTitle: "لا توجد حجوزات قادمة",
     noReservationsDescription: "لا يوجد حجز في هذه المنشأة من اليوم فصاعدًا.",
     newReservation: "حجز جديد",
