@@ -59,7 +59,11 @@ describe("a range in the URL", () => {
       kind: "range",
       range: "30d",
     });
-    expect(resolveAnalyticsView({})).toEqual({ kind: "range", range: "7d" });
+    expect(resolveAnalyticsView({})).toEqual({ kind: "month", month: null });
+    expect(resolveAnalyticsView({ range: "1y" })).toEqual({
+      kind: "range",
+      range: "7d",
+    });
   });
 });
 

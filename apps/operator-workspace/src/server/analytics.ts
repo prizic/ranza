@@ -50,7 +50,9 @@ export type AnalyticsView =
 /**
  * Which view a request opens. A month in the URL wins; a bookmarked
  * `?range=mtd` opens the current month, which is the same figure (AN-S2-19);
- * today, 7d and 30d stay trailing windows. A null month is the current one.
+ * so does a request with neither (AN-S2-01). Today, 7d and 30d stay trailing
+ * windows, and a range nobody knows falls back to 7d (AN-S1-14). A null month
+ * is the current one.
  */
 export function resolveAnalyticsView(request: {
   range?: string | null;
@@ -59,6 +61,7 @@ export function resolveAnalyticsView(request: {
   if (request.month) {
     return { kind: "month", month: parseMonth(request.month) };
   }
+  if (!request.range) return { kind: "month", month: null };
   const range = parseRange(request.range);
   if (range === "mtd") return { kind: "month", month: null };
   return { kind: "range", range };
