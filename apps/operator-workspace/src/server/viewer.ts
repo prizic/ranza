@@ -119,9 +119,11 @@ import { displayName } from "./display-name";
 import type { TodaySummary } from "./today-derive";
 import { readTodaySummary, todayReads } from "./today-summary";
 import {
+  getMonthReport,
   getPropertyAnalytics,
   type AnalyticsRange,
   type DailyMetric,
+  type MonthReport,
   type PaymentMethodBreakdown,
   type PropertyAnalytics,
 } from "./analytics";
@@ -129,6 +131,7 @@ import {
 export type {
   AnalyticsRange,
   DailyMetric,
+  MonthReport,
   PaymentMethodBreakdown,
   PropertyAnalytics,
 };
@@ -957,6 +960,20 @@ export async function propertyAnalytics(
   const viewer = await currentViewer();
   if (!viewer) return null;
   return getPropertyAnalytics(viewer.userId, propertyId, range);
+}
+
+/**
+ * One calendar month of a Property, explained.
+ * Null if the viewer cannot reach the Property or lacks the analytics capability:
+ * the screen shows its not-found state, not an empty month (AN-S2-16).
+ */
+export async function propertyMonthReport(
+  propertyId: string,
+  month?: string | null,
+): Promise<MonthReport | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getMonthReport(viewer.userId, propertyId, month);
 }
 
 /**

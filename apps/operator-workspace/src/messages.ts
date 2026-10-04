@@ -1031,7 +1031,7 @@ export interface Messages {
     rangeToday: string;
     range7d: string;
     range30d: string;
-    rangeMtd: string;
+    rangeMonth: string;
     rangeSelectorLabel: string;
     occupancyRate: string;
     occupancyRateDesc: string;
@@ -1040,7 +1040,6 @@ export interface Messages {
     availableNights: string;
     roomRevenue: string;
     roomRevenueDesc: string;
-    otherRevenue: string;
     totalRevenue: string;
     adr: string;
     adrDesc: string;
@@ -1048,7 +1047,6 @@ export interface Messages {
     revParDesc: string;
     netPayments: string;
     netPaymentsDesc: string;
-    financialsMasked: string;
     financialsMaskedNotice: string;
     dailyBreakdownTitle: string;
     dailyBreakdownDesc: string;
@@ -1062,8 +1060,68 @@ export interface Messages {
     card: string;
     bankTransfer: string;
     other: string;
-    noDataTitle: string;
-    noDataDesc: string;
+    /** One month, explained (docs/features/analytics, slice 2). */
+    month: {
+      navigation: string;
+      previousMonth: string;
+      nextMonth: string;
+      /** `{closed}` of `{total}` business days have closed. */
+      monthToDate: string;
+      openNote: string;
+      /** `{date}`: the Property's business date today. */
+      asOf: string;
+      /** `{month}`: the month's name. */
+      noActivityTitle: string;
+      noActivityDescription: string;
+      notFoundTitle: string;
+      notFoundDescription: string;
+      headline: string;
+      occupancy: string;
+      /** `{occupied}` of `{available}` nights. */
+      occupancyArithmetic: string;
+      occupancyNone: string;
+      adr: string;
+      /** `{revenue}` over `{nights}` charged Guest nights. */
+      adrArithmetic: string;
+      adrNone: string;
+      revPar: string;
+      /** `{revenue}` over `{nights}` available nights. */
+      revParArithmetic: string;
+      revParNone: string;
+      /** The prior month's `{month}` and its figure `{value}`. */
+      againstPrior: string;
+      /** `{value}`: a signed number of percentage points. */
+      pointsChange: string;
+      /** `{month}`: the prior month, compared over the same elapsed days. */
+      sameElapsedDays: string;
+      noPrior: string;
+      revenue: string;
+      roomNightsCharged: string;
+      corrections: string;
+      netRoomRevenue: string;
+      otherRevenue: string;
+      totalRevenue: string;
+      collected: string;
+      revenueBooked: string;
+      moneyCollected: string;
+      owedChange: string;
+      owedChangeNote: string;
+      collectedByMethod: string;
+      nights: string;
+      availableNights: string;
+      occupiedNights: string;
+      guestNights: string;
+      residentNights: string;
+      residentNote: string;
+      days: string;
+      dayCol: string;
+      occupiedCol: string;
+      occupancyCol: string;
+      revenueCol: string;
+      openDay: string;
+      notYetCharged: string;
+      monthTotal: string;
+    };
   };
 
   guestExperience: {
@@ -2546,7 +2604,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       rangeToday: "Bugün",
       range7d: "Son 7 gün",
       range30d: "Son 30 gün",
-      rangeMtd: "Ay başından bugüne",
+      rangeMonth: "Ay",
       rangeSelectorLabel: "Zaman aralığı",
       occupancyRate: "Doluluk Oranı",
       occupancyRateDesc: "Satılabilir oda/yataklara göre gerçekleşen doluluk",
@@ -2555,7 +2613,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       availableNights: "Mevcut Geceleme",
       roomRevenue: "Oda Geliri",
       roomRevenueDesc: "Gerçekleşen net konaklama ücretleri",
-      otherRevenue: "Diğer Gelirler",
       totalRevenue: "Toplam Gelir",
       adr: "ADR (Ort. Günlük Fiyat)",
       adrDesc: "Dolu oda/yatak başına ortalama konaklama geliri",
@@ -2563,7 +2620,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       revParDesc: "Satılabilir tüm birimler başına ortalama konaklama geliri",
       netPayments: "Tahsil Edilen Ödemeler",
       netPaymentsDesc: "Dönem içinde tahsil edilen net ödeme tutarı",
-      financialsMasked: "Gizlendi",
       financialsMaskedNotice:
         "Finansal göstergeleri görüntüleme yetkiniz (finance.manage_folio) bulunmamaktadır.",
       dailyBreakdownTitle: "Günlük Performans Dağılımı",
@@ -2579,9 +2635,66 @@ export const messages: Record<SupportedLocale, Messages> = {
       card: "Kredi Kartı",
       bankTransfer: "Havale / EFT",
       other: "Diğer",
-      noDataTitle: "Veri bulunamadı",
-      noDataDesc:
-        "Bu tesis veya seçilen aralık için gösterilecek analitik veri bulunmuyor.",
+      month: {
+        navigation: "Rapor ayı",
+        previousMonth: "Önceki ay",
+        nextMonth: "Sonraki ay",
+        monthToDate: "Ay başından bugüne · {total} günün {closed} günü kapandı",
+        openNote:
+          "Tüm oran ve gelir rakamları yalnızca kapanmış günleri kapsar. Bugün hâlâ açık: geceleri gün kapanana kadar ücretlendirilmez, bu yüzden hiçbir orana dahil edilmez.",
+        asOf: "{date} itibarıyla. Bir düzeltme, düzelttiği gecenin gününe yazılır; bu yüzden geçmiş bir ay da değişebilir.",
+        noActivityTitle: "{month} ayında hiçbir şey olmadı",
+        noActivityDescription:
+          "Tesiste o tarihe kadar hiçbir konaklama ve hiçbir ücret kaydı yoktu; bu yüzden gösterilecek bir oran yok. Hiçbir şey olmaması sıfır anlamına gelmez.",
+        notFoundTitle: "Bu Tesis için analitik gösterilemiyor",
+        notFoundDescription:
+          "Analitik bu Tesiste açık olmayabilir ya da bu Tesise erişiminiz olmayabilir.",
+        headline: "Öne çıkan göstergeler",
+        occupancy: "Doluluk",
+        occupancyArithmetic: "{occupied} dolu ÷ {available} mevcut geceleme",
+        occupancyNone: "Mevcut geceleme yok, bölünecek bir şey yok.",
+        adr: "Ortalama günlük fiyat (ADR)",
+        adrArithmetic:
+          "{revenue} oda geliri ÷ {nights} ücretlendirilen Misafir gecelemesi",
+        adrNone:
+          "Henüz ücretlendirilen Misafir gecelemesi yok, bölünecek bir şey yok.",
+        revPar: "Mevcut geceleme başına gelir (RevPAR)",
+        revParArithmetic: "{revenue} oda geliri ÷ {nights} mevcut geceleme",
+        revParNone: "Mevcut geceleme yok, bölünecek bir şey yok.",
+        againstPrior: "{month} ayında: {value}",
+        pointsChange: "{value} puan",
+        sameElapsedDays:
+          "{month} ayının aynı geçen günleriyle karşılaştırılır.",
+        noPrior: "Karşılaştırılacak önceki bir ay yok.",
+        revenue: "Gelir",
+        roomNightsCharged: "Ücretlendirilen oda geceleri",
+        corrections: "Düzeltmeler (iptal edilen geceler)",
+        netRoomRevenue: "Net oda geliri",
+        otherRevenue: "Diğer gelir (net)",
+        totalRevenue: "Toplam gelir",
+        collected: "Tahakkuk ve tahsilat",
+        revenueBooked: "Tahakkuk eden gelir",
+        moneyCollected: "Tahsil edilen tutar",
+        owedChange: "Misafirlerin borcundaki değişim",
+        owedChangeNote:
+          "Tahakkuk eden gelirden tahsilat çıkarılır: artı değer, Misafirlerin ay başına göre daha fazla borçlu olduğunu gösterir. Bu bir alacak raporu değildir.",
+        collectedByMethod: "Yönteme göre tahsilat",
+        nights: "Geceleme",
+        availableNights: "Mevcut geceleme",
+        occupiedNights: "Dolu geceleme",
+        guestNights: "Misafir geceleri",
+        residentNights: "Sakin geceleri",
+        residentNote:
+          "Sakinler aylık faturalandırılır; bu yüzden çok sayıda Sakin gecelemesi olan bir Tesiste oda geliri burada düşük görünür.",
+        days: "Gün gün",
+        dayCol: "Gün",
+        occupiedCol: "Dolu geceleme",
+        occupancyCol: "Doluluk",
+        revenueCol: "Oda geliri",
+        openDay: "Açık gün",
+        notYetCharged: "Henüz ücretlendirilmedi",
+        monthTotal: "Kapanan günlerin toplamı",
+      },
     },
 
     guestExperience: {
@@ -4092,7 +4205,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       rangeToday: "Today",
       range7d: "Last 7 days",
       range30d: "Last 30 days",
-      rangeMtd: "Month to date",
+      rangeMonth: "Month",
       rangeSelectorLabel: "Reporting period",
       occupancyRate: "Occupancy Rate",
       occupancyRateDesc: "Occupied share of sellable accommodation inventory",
@@ -4101,7 +4214,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       availableNights: "Available Nights",
       roomRevenue: "Room Revenue",
       roomRevenueDesc: "Net room night charges accrued in period",
-      otherRevenue: "Other Revenue",
       totalRevenue: "Total Revenue",
       adr: "ADR (Average Daily Rate)",
       adrDesc: "Average room revenue per occupied room night",
@@ -4109,7 +4221,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       revParDesc: "Average room revenue per available room night",
       netPayments: "Payments Collected",
       netPaymentsDesc: "Net payments collected during this period",
-      financialsMasked: "Masked",
       financialsMaskedNotice:
         "You do not hold permission to view financial metrics (finance.manage_folio).",
       dailyBreakdownTitle: "Daily Performance Breakdown",
@@ -4125,9 +4236,64 @@ export const messages: Record<SupportedLocale, Messages> = {
       card: "Card",
       bankTransfer: "Bank Transfer",
       other: "Other",
-      noDataTitle: "No analytics data",
-      noDataDesc:
-        "There are no operational records for this property in the selected window.",
+      month: {
+        navigation: "Reporting month",
+        previousMonth: "Previous month",
+        nextMonth: "Next month",
+        monthToDate: "Month to date · {closed} of {total} days closed",
+        openNote:
+          "Every rate and revenue figure covers the closed days only. Today is still open: its nights are not charged until the day closes, so it counts toward no rate.",
+        asOf: "As of {date}. A correction counts on the night it corrects, so an earlier month can still change.",
+        noActivityTitle: "Nothing happened in {month}",
+        noActivityDescription:
+          "The Property had no Stay and no charge by then, so there are no rates to show. Nothing happening is not the same as zero.",
+        notFoundTitle: "Analytics are not available for this Property",
+        notFoundDescription:
+          "Analytics may not be switched on at this Property, or you may not have access to it.",
+        headline: "Headline figures",
+        occupancy: "Occupancy",
+        occupancyArithmetic:
+          "{occupied} occupied ÷ {available} available nights",
+        occupancyNone: "No available nights, so there is nothing to divide.",
+        adr: "Average daily rate (ADR)",
+        adrArithmetic: "{revenue} room revenue ÷ {nights} charged Guest nights",
+        adrNone: "No charged Guest nights yet, so there is nothing to divide.",
+        revPar: "Revenue per available night (RevPAR)",
+        revParArithmetic: "{revenue} room revenue ÷ {nights} available nights",
+        revParNone: "No available nights, so there is nothing to divide.",
+        againstPrior: "vs {month}: {value}",
+        pointsChange: "{value} points",
+        sameElapsedDays: "Compared with the same elapsed days of {month}.",
+        noPrior: "There is no earlier month to compare with.",
+        revenue: "Revenue",
+        roomNightsCharged: "Room nights charged",
+        corrections: "Corrections (reversed nights)",
+        netRoomRevenue: "Net room revenue",
+        otherRevenue: "Other revenue (net)",
+        totalRevenue: "Total revenue",
+        collected: "Booked and collected",
+        revenueBooked: "Revenue booked",
+        moneyCollected: "Money collected",
+        owedChange: "The change in what Guests owe",
+        owedChangeNote:
+          "Revenue booked less money collected: positive means Guests owe more than at the start of the month. This is not a receivables report.",
+        collectedByMethod: "Collected by method",
+        nights: "Nights",
+        availableNights: "Available nights",
+        occupiedNights: "Occupied nights",
+        guestNights: "Guest nights",
+        residentNights: "Resident nights",
+        residentNote:
+          "Residents are billed monthly, so a Property with many Resident nights shows low room revenue here.",
+        days: "Day by day",
+        dayCol: "Day",
+        occupiedCol: "Occupied nights",
+        occupancyCol: "Occupancy",
+        revenueCol: "Room revenue",
+        openDay: "Open day",
+        notYetCharged: "Not yet charged",
+        monthTotal: "Total of closed days",
+      },
     },
 
     guestExperience: {
@@ -5610,7 +5776,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       rangeToday: "اليوم",
       range7d: "آخر 7 أيام",
       range30d: "آخر 30 يومًا",
-      rangeMtd: "من بداية الشهر حتى اليوم",
+      rangeMonth: "الشهر",
       rangeSelectorLabel: "الفترة الزمنية",
       occupancyRate: "نسبة الإشغال",
       occupancyRateDesc:
@@ -5620,7 +5786,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       availableNights: "الليالي المتاحة",
       roomRevenue: "إيرادات الغرف",
       roomRevenueDesc: "صافي إيرادات ليالي الإقامة المحققة خلال الفترة",
-      otherRevenue: "الإيرادات الأخرى",
       totalRevenue: "إجمالي الإيرادات",
       adr: "متوسط السعر اليومي (ADR)",
       adrDesc: "متوسط إيراد الغرفة لكل ليلة مشغولة",
@@ -5628,7 +5793,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       revParDesc: "متوسط إيراد الغرف لكل ليلة متاحة",
       netPayments: "المدفوعات المحصلة",
       netPaymentsDesc: "صافي المدفوعات المستلمة خلال هذه الفترة",
-      financialsMasked: "محجوب",
       financialsMaskedNotice:
         "ليس لديك صلاحية للاطلاع على المؤشرات المالية (finance.manage_folio).",
       dailyBreakdownTitle: "تفصيل الأداء اليومي",
@@ -5644,8 +5808,64 @@ export const messages: Record<SupportedLocale, Messages> = {
       card: "بطاقة ائتمان",
       bankTransfer: "تحويل بنكي",
       other: "أخرى",
-      noDataTitle: "لا توجد بيانات تحليلية",
-      noDataDesc: "لا توجد سجلات تشغيلية لهذه المنشأة في الفترة المحددة.",
+      month: {
+        navigation: "شهر التقرير",
+        previousMonth: "الشهر السابق",
+        nextMonth: "الشهر التالي",
+        monthToDate:
+          "من بداية الشهر حتى اليوم · أُغلق {closed} من {total} يومًا",
+        openNote:
+          "كل أرقام النِّسَب والإيرادات تشمل الأيام المغلقة فقط. اليوم لا يزال مفتوحًا: لا تُحتسب رسوم لياليه حتى يُغلق اليوم، لذا لا يدخل في أي نسبة.",
+        asOf: "حتى {date}. يُحتسب التصحيح في الليلة التي يصحّحها، لذا قد يتغيّر شهر سابق.",
+        noActivityTitle: "لم يحدث شيء في {month}",
+        noActivityDescription:
+          "لم تكن للمنشأة أي إقامة أو رسوم حتى ذلك الحين، لذا لا توجد نِسَب تُعرض. عدم حدوث شيء لا يعني صفرًا.",
+        notFoundTitle: "التحليلات غير متاحة لهذه المنشأة",
+        notFoundDescription:
+          "قد لا تكون التحليلات مفعّلة في هذه المنشأة، أو قد لا تملك صلاحية الوصول إليها.",
+        headline: "المؤشرات الرئيسية",
+        occupancy: "الإشغال",
+        occupancyArithmetic: "{occupied} مشغولة ÷ {available} ليلة متاحة",
+        occupancyNone: "لا توجد ليالٍ متاحة، فلا شيء يُقسَم.",
+        adr: "متوسط السعر اليومي (ADR)",
+        adrArithmetic: "{revenue} إيرادات الغرف ÷ {nights} ليلة ضيوف محتسبة",
+        adrNone: "لا توجد ليالي ضيوف محتسبة بعد، فلا شيء يُقسَم.",
+        revPar: "الإيراد لكل ليلة متاحة (RevPAR)",
+        revParArithmetic: "{revenue} إيرادات الغرف ÷ {nights} ليلة متاحة",
+        revParNone: "لا توجد ليالٍ متاحة، فلا شيء يُقسَم.",
+        againstPrior: "مقابل {month}: {value}",
+        pointsChange: "{value} نقطة",
+        sameElapsedDays: "مقارنةً بالأيام المنقضية نفسها من {month}.",
+        noPrior: "لا يوجد شهر سابق للمقارنة معه.",
+        revenue: "الإيرادات",
+        roomNightsCharged: "ليالي الغرف المحتسبة",
+        corrections: "التصحيحات (ليالٍ مُلغاة)",
+        netRoomRevenue: "صافي إيرادات الغرف",
+        otherRevenue: "إيرادات أخرى (صافي)",
+        totalRevenue: "إجمالي الإيرادات",
+        collected: "المُحتسَب والمحصَّل",
+        revenueBooked: "الإيرادات المُحتسبة",
+        moneyCollected: "المبالغ المحصَّلة",
+        owedChange: "التغيّر في ما يدين به الضيوف",
+        owedChangeNote:
+          "الإيرادات المحتسبة مطروحًا منها المبالغ المحصَّلة: الرقم الموجب يعني أن الضيوف مدينون بأكثر مما كانوا عليه في بداية الشهر. هذا ليس تقرير ذمم مدينة.",
+        collectedByMethod: "المحصَّل بحسب الطريقة",
+        nights: "الليالي",
+        availableNights: "الليالي المتاحة",
+        occupiedNights: "الليالي المشغولة",
+        guestNights: "ليالي الضيوف",
+        residentNights: "ليالي المقيمين",
+        residentNote:
+          "يُحاسَب المقيمون شهريًا، لذا تُظهر المنشأة ذات ليالي المقيمين الكثيرة إيرادات غرف منخفضة هنا.",
+        days: "يومًا بيوم",
+        dayCol: "اليوم",
+        occupiedCol: "الليالي المشغولة",
+        occupancyCol: "الإشغال",
+        revenueCol: "إيرادات الغرف",
+        openDay: "يوم مفتوح",
+        notYetCharged: "لم تُحتسب بعد",
+        monthTotal: "مجموع الأيام المغلقة",
+      },
     },
 
     guestExperience: {

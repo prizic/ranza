@@ -63,7 +63,7 @@ export function AnalyticsDashboard({
         </div>
 
         <div className="shrink-0">
-          <RangeSelector currentRange={data.range} />
+          <RangeSelector current={data.range} />
         </div>
       </div>
 
