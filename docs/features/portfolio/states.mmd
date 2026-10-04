@@ -1,0 +1,33 @@
+%% The portfolio is a read and has no state of its own. What changes is how one Property
+%% appears in it for one viewer. Every arrow is a command of ANOTHER feature, named, because
+%% the portfolio never causes any of them and re-reads on every request (no cross-request cache).
+stateDiagram-v2
+  [*] --> Absent: Property created, viewer holds no reach
+
+  Absent --> Withheld: assign Property to the Staff Member (analytics off)
+  Absent --> Operational: assign Property to the Staff Member (analytics on)
+  Withheld --> Operational: enable analytics for the Property
+  Operational --> Withheld: disable analytics for the Property
+  Operational --> Full: grant finance.manage_folio
+  Full --> Operational: revoke finance.manage_folio
+  Withheld --> Absent: unassign Property from the Staff Member
+  Operational --> Absent: unassign Property from the Staff Member
+  Full --> Absent: unassign Property from the Staff Member
+  Absent --> [*]: archive Property
+  Withheld --> [*]: archive Property
+  Operational --> [*]: archive Property
+  Full --> [*]: archive Property
+
+  note right of Absent
+    No row, and nothing says a row was left out.
+    Also the state for every suspended or cancelled Subscription.
+  end note
+  note right of Withheld
+    Row present, name only, every figure null.
+  end note
+  note right of Operational
+    Counts shown, money null.
+  end note
+  note right of Full
+    Counts and money shown.
+  end note

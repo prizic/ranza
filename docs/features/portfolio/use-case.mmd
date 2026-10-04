@@ -1,0 +1,45 @@
+%% Slices decide implementation order and nothing else:
+%%   s1 the read: one figure set per Property the viewer reaches, gates asked once per Property
+%% The screen is not this slice. "Screen: nothing" on the card means the contract is what ships.
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% Refusals and empty answers are rows in edge-cases.csv, not use cases.
+flowchart TD
+
+  OWNER["Staff Member reaching every Property<br/>(organization_wide, e.g. Owner)"]
+  MANAGER["Staff Member reaching some Properties<br/>(assigned_properties, e.g. Manager)"]
+  DESK["Staff Member reaching one Property<br/>without finance.manage_folio"]
+  OUTSIDER["Staff Member of another Organization,<br/>or a Resident"]
+
+  subgraph S1["slice 1 &mdash; the portfolio read"]
+    LIST(["Read one row per reached Property<br/>in one call, one snapshot"])
+    OPS(["Read operational figures<br/>occupied and sellable units, arrivals and departures<br/>still to come, open maintenance requests"])
+    MONEY(["Read open folio balance<br/>per Property, per currency"])
+    MASK(["Mask money<br/>for a reader without finance.manage_folio"])
+    WITHHOLD(["Show a reached Property as withheld<br/>when its capability is off"])
+    ABSENT(["Leave out a Property the reader<br/>does not reach or that is archived"])
+    TOTAL(["Total occupancy across the rows<br/>as summed counts, never a percentage"])
+    OWNDAY(["Evaluate each Property on its own business date"])
+    REPORT(["Record portfolio.viewed<br/>actor, Property count, outcome"])
+  end
+
+  subgraph OUT["Not this feature"]
+    CHARGED(["Charged this month &mdash; deferred, needs a definition"])
+    TREND(["Occupancy trend line &mdash; deferred, mockup data is invented"])
+    CONVERT(["A money total across currencies &mdash; deferred"])
+    CLOSED(["A closed Property's history for the Owner &mdash; deferred, ADR 0040"])
+    SCREEN(["The portfolio screen &mdash; not this card"])
+  end
+
+  OWNER --> LIST
+  MANAGER --> LIST
+  DESK --> LIST
+  OUTSIDER -. refuses .-> LIST
+
+  LIST -. include .-> OWNDAY
+  LIST -. include .-> OPS
+  LIST -. include .-> ABSENT
+  LIST -. include .-> REPORT
+  LIST -. extend .-> TOTAL
+  LIST -. extend .-> MONEY
+  LIST -. extend .-> WITHHOLD
+  MONEY -. include .-> MASK

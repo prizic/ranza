@@ -125,11 +125,18 @@ import {
   type PaymentMethodBreakdown,
   type PropertyAnalytics,
 } from "./analytics";
+import {
+  getPortfolio,
+  type Portfolio,
+  type PortfolioProperty,
+} from "./portfolio";
 
 export type {
   AnalyticsRange,
   DailyMetric,
   PaymentMethodBreakdown,
+  Portfolio,
+  PortfolioProperty,
   PropertyAnalytics,
 };
 
@@ -957,6 +964,19 @@ export async function propertyAnalytics(
   const viewer = await currentViewer();
   if (!viewer) return null;
   return getPropertyAnalytics(viewer.userId, propertyId, range);
+}
+
+/**
+ * The figures of every Property the viewer reaches in one Organization.
+ * Returns null when nobody is signed in; refuses with PortfolioTooLargeError
+ * past the ceiling rather than truncating.
+ */
+export async function portfolio(
+  organizationId: string,
+): Promise<Portfolio | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getPortfolio(viewer.userId, organizationId);
 }
 
 /**
