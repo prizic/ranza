@@ -1,4 +1,29 @@
 import { withOrganizationContext } from "@ranza/db";
+import {
+  readContext,
+  readFirstActivity,
+  readMoney,
+  readNights,
+  roomNetOf,
+  totalsOf,
+  type DayState,
+  type NightsDay,
+  type PaymentsByMethod,
+  type Reader,
+  type Totals,
+} from "./analytics-engine";
+import {
+  addDays,
+  daysInMonth,
+  monthEnd,
+  monthOf,
+  monthStart,
+  parseMonth,
+  percentChange,
+  pointChange,
+  resolveMonth,
+  shiftMonth,
+} from "./analytics-months";
 import { getComposition } from "./composition";
 
 export type AnalyticsRange = "today" | "7d" | "30d" | "mtd";
@@ -17,11 +42,40 @@ export function parseRange(value?: string | null): AnalyticsRange {
   return "7d";
 }
 
+/** What the analytics screen is asked to show. */
+export type AnalyticsView =
+  | { kind: "month"; month: string | null }
+  | { kind: "range"; range: Exclude<AnalyticsRange, "mtd"> };
+
+/**
+ * Which view a request opens. A month in the URL wins; a bookmarked
+ * `?range=mtd` opens the current month, which is the same figure (AN-S2-19);
+ * today, 7d and 30d stay trailing windows. A null month is the current one.
+ */
+export function resolveAnalyticsView(request: {
+  range?: string | null;
+  month?: string | null;
+}): AnalyticsView {
+  if (request.month) {
+    return { kind: "month", month: parseMonth(request.month) };
+  }
+  const range = parseRange(request.range);
+  if (range === "mtd") return { kind: "month", month: null };
+  return { kind: "range", range };
+}
+
+// ---------------------------------------------------------------------------
+// A trailing window
+// ---------------------------------------------------------------------------
+
 export interface DailyMetric {
   date: string;
+  /** Whether the day counts toward the window's figures: only a closed day does. */
+  state: DayState;
   occupiedUnits: number;
   availableUnits: number;
   occupancyRatePercent: number;
+  /** Null when the viewer may not read money, and for a day not yet closed. */
   roomRevenueMinor: number | null;
 }
 
@@ -41,6 +95,8 @@ export interface PropertyAnalytics {
   today: string;
   currency: string;
   mayReadMoney: boolean;
+  /** Days of the window that have closed. Every figure below covers these only. */
+  daysClosed: number;
 
   // Operational metrics
   totalSellableUnits: number;
@@ -63,42 +119,39 @@ export interface PropertyAnalytics {
   dailySeries: DailyMetric[];
 }
 
-interface PropertyContextRow {
-  propertyId: string;
-  organizationId: string;
-  today: string;
-  currency: string;
-  mayReadMoney: boolean;
-  entitled: boolean;
+function trailingWindow(
+  range: AnalyticsRange,
+  today: string,
+): { start: string; end: string } {
+  switch (range) {
+    case "today":
+      return { start: today, end: today };
+    case "30d":
+      return { start: addDays(today, -29), end: today };
+    case "mtd":
+      return { start: monthStart(monthOf(today)), end: today };
+    case "7d":
+      return { start: addDays(today, -6), end: today };
+  }
 }
 
-interface WindowRow {
-  startDate: string;
-  endDate: string;
-  dayCount: number;
-}
-
-interface DailyOccRow {
-  day: string;
-  occupiedCount: number;
-}
-
-interface DailyRevRow {
-  day: string;
-  roomRevenueMinor: string;
-}
-
-interface PaymentMethodRow {
-  paymentMethod: string;
-  netAmountMinor: string;
+function ratioPercent(part: number, whole: number): number | null {
+  return whole > 0 ? Math.round((part / whole) * 1000) / 10 : null;
 }
 
 /**
- * Derives operational and financial analytics metrics for a Property in a given date range.
+ * Derives operational and financial analytics metrics for a Property over a
+ * trailing window of its business dates.
  *
- * All tenant queries run strictly under withOrganizationContext.
- * Financial figures are strictly masked (null) when the viewer lacks 'finance.manage_folio'.
- * Date ranges are evaluated relative to the Property's active business date (app.property_today).
+ * Every query runs under withOrganizationContext on one snapshot. Money is
+ * null, and never read, when the viewer lacks 'finance.manage_folio'. The
+ * window ends at the Property's business date (app.property_today) and its
+ * figures cover the days that have closed.
+ *
+ * A trailing window that holds no closed night reports zero, not a dash: a
+ * Property with no stays has zero occupancy, ADR and RevPAR without dividing
+ * by zero (AN-S1-03, AN-S1-04). The month report is the one that says "nothing
+ * happened" instead.
  */
 export async function getPropertyAnalytics(
   userId: string,
@@ -108,304 +161,394 @@ export async function getPropertyAnalytics(
   const range = parseRange(rangeInput);
   const db = getComposition().db;
 
-  return withOrganizationContext(db, { userId }, async (tx) => {
-    // 1. Resolve property, timezone/today, entitlement, and permission context
-    const propRows = await tx.$queryRaw<PropertyContextRow[]>`
-      select property.id::text as "propertyId",
-             property.organization_id::text as "organizationId",
-             to_char(app.property_today(property.id), 'YYYY-MM-DD') as "today",
-             trim(property.currency)::text as "currency",
-             app.has_organization_permission(property.organization_id, 'finance.manage_folio') as "mayReadMoney",
-             app.can_use_capability(property.id, 'analytics', 'analytics') as "entitled"
-      from public.properties as property
-      where property.id = ${propertyId}::uuid
-    `;
+  return withOrganizationContext(
+    db,
+    { userId },
+    async (tx) => {
+      const context = await readContext(tx, propertyId);
+      if (!context) return null;
 
-    const prop = propRows[0];
-    if (!prop || !prop.entitled) {
-      return null;
-    }
+      const { start, end } = trailingWindow(range, context.today);
+      const days = await readNights(tx, context, start, end);
+      const money = context.mayReadMoney
+        ? await readMoney(tx, context, start, end)
+        : null;
+      const totals = totalsOf(days, money);
+      const sums = totals.money;
 
-    const today = prop.today;
-    const mayReadMoney = prop.mayReadMoney;
-    const currency = prop.currency;
-
-    // 2. Compute date window boundaries in the Property's business calendar
-    const windowRows = await tx.$queryRaw<WindowRow[]>`
-      select
-        case
-          when ${range} = 'today' then ${today}::date
-          when ${range} = '7d' then (${today}::date - interval '6 days')::date
-          when ${range} = '30d' then (${today}::date - interval '29 days')::date
-          when ${range} = 'mtd' then date_trunc('month', ${today}::date)::date
-          else (${today}::date - interval '6 days')::date
-        end::text as "startDate",
-        ${today}::text as "endDate",
-        case
-          when ${range} = 'today' then 1
-          when ${range} = '7d' then 7
-          when ${range} = '30d' then 30
-          when ${range} = 'mtd' then (${today}::date - date_trunc('month', ${today}::date)::date + 1)
-          else 7
-        end::int as "dayCount"
-    `;
-
-    const win = windowRows[0] ?? {
-      startDate: today,
-      endDate: today,
-      dayCount: 1,
-    };
-    const startDate = win.startDate;
-    const endDate = win.endDate;
-    const dayCount = win.dayCount;
-
-    // 3. Count sellable units at this Property (units without children, ADR 0025)
-    const unitRows = await tx.$queryRaw<{ totalSellableUnits: number }[]>`
-      select count(*)::int as "totalSellableUnits"
-      from public.accommodation_units as unit
-      where unit.property_id = ${propertyId}::uuid
-        and not exists (
-          select 1 from public.accommodation_units as child
-          where child.parent_id = unit.id
-        )
-    `;
-    const totalSellableUnits = unitRows[0]?.totalSellableUnits ?? 0;
-    const availableRoomNights = totalSellableUnits * dayCount;
-
-    // 4. Query daily occupancy counts
-    const occRows = await tx.$queryRaw<DailyOccRow[]>`
-      with days as (
-        select d::date as day
-        from generate_series(${startDate}::date, ${endDate}::date, interval '1 day') as d
-      ),
-      daily_occ as (
-        select
-          days.day,
-          count(distinct stay.accommodation_unit_id)::int as occupied_count
-        from days
-        left join public.stays as stay
-          on stay.property_id = ${propertyId}::uuid
-         and stay.status in ('in_house', 'departed')
-         and stay.starts_on <= days.day
-         and (
-           (stay.status = 'in_house' and days.day <= ${today}::date)
-           or (stay.ends_on is not null and stay.ends_on > days.day)
-         )
-         and exists (
-           select 1 from public.accommodation_units as u
-           where u.id = stay.accommodation_unit_id
-             and u.property_id = ${propertyId}::uuid
-             and not exists (
-               select 1 from public.accommodation_units as child
-               where child.parent_id = u.id
-             )
-         )
-        group by days.day
-      )
-      select to_char(day, 'YYYY-MM-DD') as "day",
-             occupied_count as "occupiedCount"
-      from daily_occ
-      order by day asc
-    `;
-
-    const occupiedByDay = new Map<string, number>();
-    let totalOccupiedRoomNights = 0;
-    for (const row of occRows) {
-      occupiedByDay.set(row.day, row.occupiedCount);
-      totalOccupiedRoomNights += row.occupiedCount;
-    }
-
-    const occupancyRatePercent =
-      availableRoomNights > 0
-        ? Math.round((totalOccupiedRoomNights / availableRoomNights) * 1000) /
-          10
-        : 0;
-
-    // 5. Commercial and financial metrics (strictly gated by mayReadMoney)
-    let roomRevenueMinor: number | null = null;
-    let otherRevenueMinor: number | null = null;
-    let totalRevenueMinor: number | null = null;
-    let adrMinor: number | null = null;
-    let revParMinor: number | null = null;
-    let netPaymentsMinor: number | null = null;
-    let paymentsByMethod: PaymentMethodBreakdown | null = null;
-    const roomRevByDay = new Map<string, number>();
-
-    if (mayReadMoney) {
-      // Daily room night revenue (charges + reversals)
-      const dailyRevRows = await tx.$queryRaw<DailyRevRow[]>`
-        with days as (
-          select d::date as day
-          from generate_series(${startDate}::date, ${endDate}::date, interval '1 day') as d
-        ),
-        daily_rev as (
-          select
-            coalesce(line.business_date, line.posted_at::date) as day,
-            coalesce(sum(line.amount_minor), 0)::bigint as room_rev_minor
-          from public.folio_lines as line
-          where line.property_id = ${propertyId}::uuid
-            and (
-              (line.source = 'room_night' and line.line_type = 'charge')
-              or
-              (line.line_type = 'reversal' and exists (
-                 select 1 from public.folio_lines as orig
-                 where orig.id = line.reverses_line_id
-                   and orig.source = 'room_night'
-              ))
-            )
-            and coalesce(line.business_date, line.posted_at::date) between ${startDate}::date and ${endDate}::date
-          group by coalesce(line.business_date, line.posted_at::date)
-        )
-        select to_char(days.day, 'YYYY-MM-DD') as "day",
-               coalesce(daily_rev.room_rev_minor, 0)::text as "roomRevenueMinor"
-        from days
-        left join daily_rev on daily_rev.day = days.day
-        order by days.day asc
-      `;
-
-      let sumRoomRev = 0;
-      for (const row of dailyRevRows) {
-        const val = Number(row.roomRevenueMinor);
-        roomRevByDay.set(row.day, val);
-        sumRoomRev += val;
-      }
-      roomRevenueMinor = sumRoomRev;
-
-      // Other incidental revenue (charges + reversals)
-      const otherRevRows = await tx.$queryRaw<{ otherRevenueMinor: string }[]>`
-        select
-          coalesce(sum(line.amount_minor), 0)::text as "otherRevenueMinor"
-        from public.folio_lines as line
-        where line.property_id = ${propertyId}::uuid
-          and line.posted_at::date between ${startDate}::date and ${endDate}::date
-          and (
-            (line.line_type = 'charge' and (line.source is null or line.source <> 'room_night'))
-            or
-            (line.line_type = 'reversal' and exists (
-               select 1 from public.folio_lines as orig
-               where orig.id = line.reverses_line_id
-                 and orig.line_type = 'charge'
-                 and (orig.source is null or orig.source <> 'room_night')
-            ))
-          )
-      `;
-      otherRevenueMinor = Number(otherRevRows[0]?.otherRevenueMinor ?? 0);
-      totalRevenueMinor = roomRevenueMinor + otherRevenueMinor;
-
-      // ADR = Room Revenue / Occupied Room Nights
-      adrMinor =
-        totalOccupiedRoomNights > 0
-          ? Math.round(roomRevenueMinor / totalOccupiedRoomNights)
-          : 0;
-
-      // RevPAR = Room Revenue / Available Room Nights
-      revParMinor =
-        availableRoomNights > 0
-          ? Math.round(roomRevenueMinor / availableRoomNights)
-          : 0;
-
-      // Payments by method
-      const paymentRows = await tx.$queryRaw<PaymentMethodRow[]>`
-        select
-          coalesce(
-            case
-              when line.line_type = 'payment' then line.payment_method
-              when line.line_type = 'reversal' then (
-                select orig.payment_method from public.folio_lines as orig
-                where orig.id = line.reverses_line_id
-              )
-            end,
-            'other'
-          ) as "paymentMethod",
-          coalesce(sum(line.amount_minor), 0)::text as "netAmountMinor"
-        from public.folio_lines as line
-        where line.property_id = ${propertyId}::uuid
-          and line.posted_at::date between ${startDate}::date and ${endDate}::date
-          and (
-            line.line_type = 'payment'
-            or
-            (line.line_type = 'reversal' and exists (
-              select 1 from public.folio_lines as orig
-              where orig.id = line.reverses_line_id
-                and orig.line_type = 'payment'
-            ))
-          )
-        group by 1
-      `;
-
-      let cashMinor = 0;
-      let cardMinor = 0;
-      let bankTransferMinor = 0;
-      let otherMinor = 0;
-
-      for (const row of paymentRows) {
-        const val = Number(row.netAmountMinor);
-        switch (row.paymentMethod) {
-          case "cash":
-            cashMinor += val;
-            break;
-          case "card":
-            cardMinor += val;
-            break;
-          case "bank_transfer":
-            bankTransferMinor += val;
-            break;
-          default:
-            otherMinor += val;
-            break;
-        }
-      }
-
-      const totalPayments =
-        cashMinor + cardMinor + bankTransferMinor + otherMinor;
-      netPaymentsMinor = totalPayments;
-      paymentsByMethod = {
-        cashMinor,
-        cardMinor,
-        bankTransferMinor,
-        otherMinor,
-        totalMinor: totalPayments,
-      };
-    }
-
-    // 6. Assemble daily breakdown series
-    const dailySeries: DailyMetric[] = occRows.map((row) => {
-      const occ = row.occupiedCount;
-      const rate =
-        totalSellableUnits > 0
-          ? Math.round((occ / totalSellableUnits) * 1000) / 10
-          : 0;
+      const rate = ratioPercent(totals.occupiedNights, totals.availableNights);
       return {
-        date: row.day,
-        occupiedUnits: occ,
-        availableUnits: totalSellableUnits,
-        occupancyRatePercent: rate,
-        roomRevenueMinor: mayReadMoney
-          ? (roomRevByDay.get(row.day) ?? 0)
+        propertyId,
+        range,
+        startDate: start,
+        endDate: end,
+        today: context.today,
+        currency: context.currency,
+        mayReadMoney: context.mayReadMoney,
+        daysClosed: totals.daysClosed,
+        totalSellableUnits:
+          days.find((day) => day.date === context.today)?.availableNights ?? 0,
+        availableRoomNights: totals.availableNights,
+        occupiedRoomNights: totals.occupiedNights,
+        occupancyRatePercent: rate ?? 0,
+        roomRevenueMinor: sums ? sums.roomNetMinor : null,
+        otherRevenueMinor: sums ? sums.otherMinor : null,
+        totalRevenueMinor: sums ? sums.totalMinor : null,
+        adrMinor: sums
+          ? totals.chargedGuestNights > 0
+            ? Math.round(sums.roomNetMinor / totals.chargedGuestNights)
+            : 0
           : null,
+        revParMinor: sums
+          ? totals.availableNights > 0
+            ? Math.round(sums.roomNetMinor / totals.availableNights)
+            : 0
+          : null,
+        netPaymentsMinor: sums ? sums.collected.totalMinor : null,
+        paymentsByMethod: sums ? { ...sums.collected } : null,
+        dailySeries: days.map((day) =>
+          dailyMetric(day, money?.get(day.date), context.mayReadMoney),
+        ),
       };
-    });
+    },
+    { isolationLevel: "RepeatableRead" },
+  );
+}
 
-    return {
-      propertyId,
-      range,
-      startDate,
-      endDate,
-      today,
-      currency,
-      mayReadMoney,
-      totalSellableUnits,
-      availableRoomNights,
-      occupiedRoomNights: totalOccupiedRoomNights,
-      occupancyRatePercent,
-      roomRevenueMinor,
-      otherRevenueMinor,
-      totalRevenueMinor,
-      adrMinor,
-      revParMinor,
-      netPaymentsMinor,
-      paymentsByMethod,
-      dailySeries,
-    };
-  });
+function dailyMetric(
+  day: NightsDay,
+  money: Parameters<typeof roomNetOf>[0],
+  mayReadMoney: boolean,
+): DailyMetric {
+  const occupied = day.guestNights + day.residentNights;
+  return {
+    date: day.date,
+    state: day.state,
+    occupiedUnits: occupied,
+    availableUnits: day.availableNights,
+    occupancyRatePercent: ratioPercent(occupied, day.availableNights) ?? 0,
+    roomRevenueMinor:
+      mayReadMoney && day.state === "closed" ? roomNetOf(money) : null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// A month
+// ---------------------------------------------------------------------------
+
+export type MonthState = "open" | "closed" | "no_activity";
+
+export interface RoomRevenue {
+  grossMinor: number;
+  /** Reversals of this period's room nights; zero or negative. */
+  correctionsMinor: number;
+  netMinor: number;
+}
+
+export interface PaymentsCollected extends PaymentsByMethod {
+  totalMinor: number;
+}
+
+/**
+ * One month's headline, summed over its closed days. A rate is null when its
+ * denominator is zero — a dash on screen, never zero and never infinity.
+ * Every money field is null when the viewer may not read money.
+ */
+export interface Figures {
+  availableNights: number;
+  occupiedNights: number;
+  guestNights: number;
+  residentNights: number;
+  /** Guest nights that have a room night charge: ADR's denominator. */
+  chargedGuestNights: number;
+  occupancyPercent: number | null;
+  roomRevenue: RoomRevenue | null;
+  otherRevenueMinor: number | null;
+  totalRevenueMinor: number | null;
+  adrMinor: number | null;
+  revParMinor: number | null;
+  collectedMinor: number | null;
+  payments: PaymentsCollected | null;
+  /** Room and other revenue, net: what was booked. */
+  revenueBookedMinor: number | null;
+  /** Booked less collected: the change in what Guests owe. */
+  differenceMinor: number | null;
+}
+
+/**
+ * The change from the prior month's figure, null where it reads as a dash:
+ * no figure to compare, or a prior of zero. Occupancy is in points, money in
+ * percent of the prior.
+ */
+export interface FigureChanges {
+  occupancyPoints: number | null;
+  roomRevenuePercent: number | null;
+  otherRevenuePercent: number | null;
+  totalRevenuePercent: number | null;
+  adrPercent: number | null;
+  revParPercent: number | null;
+  collectedPercent: number | null;
+}
+
+export interface PriorMonth {
+  month: string;
+  /** Null when there is nothing to compare: the prior had no activity. */
+  figures: Figures | null;
+  /** True when the month is open, so the prior covers only the same elapsed days. */
+  sameElapsedDays: boolean;
+  changes: FigureChanges | null;
+}
+
+export interface DayRow {
+  date: string;
+  state: DayState;
+  occupiedNights: number;
+  availableNights: number;
+  /** Null for a future day, a day with no inventory and a month with no activity. */
+  occupancyPercent: number | null;
+  /** Net. Null when the viewer may not read money, and for a day not closed. */
+  roomRevenueMinor: number | null;
+}
+
+export interface MonthReport {
+  propertyId: string;
+  currency: string;
+  mayReadMoney: boolean;
+  /** The Property's business date today. */
+  today: string;
+  /** `YYYY-MM`. */
+  month: string;
+  state: MonthState;
+  daysInMonth: number;
+  daysClosed: number;
+  /** The last closed business date in the month, or null when none has. */
+  closedThrough: string | null;
+  /** Null for a month with no activity: nothing happened is not zero. */
+  figures: Figures | null;
+  prior: PriorMonth | null;
+  /** Every day of the month, closed or not. */
+  days: DayRow[];
+  previousMonth: string | null;
+  nextMonth: string | null;
+}
+
+function figuresOf(totals: Totals): Figures {
+  const money = totals.money;
+  return {
+    availableNights: totals.availableNights,
+    occupiedNights: totals.occupiedNights,
+    guestNights: totals.guestNights,
+    residentNights: totals.residentNights,
+    chargedGuestNights: totals.chargedGuestNights,
+    occupancyPercent: ratioPercent(
+      totals.occupiedNights,
+      totals.availableNights,
+    ),
+    roomRevenue: money
+      ? {
+          grossMinor: money.roomGrossMinor,
+          correctionsMinor: money.roomCorrectionsMinor,
+          netMinor: money.roomNetMinor,
+        }
+      : null,
+    otherRevenueMinor: money ? money.otherMinor : null,
+    totalRevenueMinor: money ? money.totalMinor : null,
+    adrMinor:
+      money && totals.chargedGuestNights > 0
+        ? Math.round(money.roomNetMinor / totals.chargedGuestNights)
+        : null,
+    revParMinor:
+      money && totals.availableNights > 0
+        ? Math.round(money.roomNetMinor / totals.availableNights)
+        : null,
+    collectedMinor: money ? money.collected.totalMinor : null,
+    payments: money ? { ...money.collected } : null,
+    revenueBookedMinor: money ? money.totalMinor : null,
+    differenceMinor: money
+      ? money.totalMinor - money.collected.totalMinor
+      : null,
+  };
+}
+
+function changesOf(current: Figures, prior: Figures): FigureChanges {
+  return {
+    occupancyPoints: pointChange(
+      current.occupancyPercent,
+      prior.occupancyPercent,
+    ),
+    roomRevenuePercent: percentChange(
+      current.roomRevenue?.netMinor ?? null,
+      prior.roomRevenue?.netMinor ?? null,
+    ),
+    otherRevenuePercent: percentChange(
+      current.otherRevenueMinor,
+      prior.otherRevenueMinor,
+    ),
+    totalRevenuePercent: percentChange(
+      current.totalRevenueMinor,
+      prior.totalRevenueMinor,
+    ),
+    adrPercent: percentChange(current.adrMinor, prior.adrMinor),
+    revParPercent: percentChange(current.revParMinor, prior.revParMinor),
+    collectedPercent: percentChange(
+      current.collectedMinor,
+      prior.collectedMinor,
+    ),
+  };
+}
+
+function dayRowOf(
+  day: NightsDay,
+  money: Parameters<typeof roomNetOf>[0],
+  mayReadMoney: boolean,
+  hasActivity: boolean,
+): DayRow {
+  const occupied = day.guestNights + day.residentNights;
+  return {
+    date: day.date,
+    state: day.state,
+    occupiedNights: occupied,
+    availableNights: day.availableNights,
+    occupancyPercent:
+      hasActivity && day.state !== "future"
+        ? ratioPercent(occupied, day.availableNights)
+        : null,
+    roomRevenueMinor:
+      mayReadMoney && hasActivity && day.state === "closed"
+        ? roomNetOf(money)
+        : null,
+  };
+}
+
+/**
+ * One calendar month of a Property's business calendar, explained.
+ *
+ * Null when the viewer does not reach the Property, or it has not bought
+ * analytics: the screen shows its not-found state, not an empty month. An
+ * unknown, malformed or future month is the current month (AN-S2-02).
+ *
+ * Every query runs in one REPEATABLE READ transaction, so the headline, the
+ * day table and the comparison are read from one snapshot: a night charged
+ * while the report is assembled cannot appear in one and not another
+ * (AN-S2-18).
+ */
+export async function getMonthReport(
+  userId: string,
+  propertyId: string,
+  monthInput?: string | null,
+): Promise<MonthReport | null> {
+  return withOrganizationContext(
+    getComposition().db,
+    { userId },
+    (tx) => buildMonthReport(tx, propertyId, monthInput),
+    { isolationLevel: "RepeatableRead" },
+  );
+}
+
+/**
+ * The report, built on a transaction the caller opened. Exported so a test can
+ * hand it a transaction whose snapshot it controls; the route calls
+ * `getMonthReport`.
+ */
+export async function buildMonthReport(
+  tx: Reader,
+  propertyId: string,
+  monthInput?: string | null,
+): Promise<MonthReport | null> {
+  const context = await readContext(tx, propertyId);
+  if (!context) return null;
+
+  const month = resolveMonth(parseMonth(monthInput), context.today);
+  const priorMonth = shiftMonth(month, -1);
+  const start = monthStart(month);
+  const end = monthEnd(month);
+  const windowStart = monthStart(priorMonth);
+
+  // One read covers the month and the one before it, so the comparison is made
+  // from the same rows as the headline.
+  const window = await readNights(tx, context, windowStart, end);
+  const money = context.mayReadMoney
+    ? await readMoney(tx, context, windowStart, end)
+    : null;
+  const firstActivity = await readFirstActivity(tx, propertyId);
+
+  const monthDays = window.filter((day) => day.date >= start);
+  const priorDays = window.filter((day) => day.date < start);
+  const hasActivity = firstActivity !== null && end >= firstActivity;
+
+  const closedDays = monthDays.filter((day) => day.state === "closed");
+  const closedThrough = closedDays.at(-1)?.date ?? null;
+  const state: MonthState = !hasActivity
+    ? "no_activity"
+    : closedDays.length === monthDays.length
+      ? "closed"
+      : "open";
+
+  const figures = hasActivity ? figuresOf(totalsOf(monthDays, money)) : null;
+
+  return {
+    propertyId,
+    currency: context.currency,
+    mayReadMoney: context.mayReadMoney,
+    today: context.today,
+    month,
+    state,
+    daysInMonth: daysInMonth(month),
+    daysClosed: closedDays.length,
+    closedThrough,
+    figures,
+    prior: figures
+      ? priorMonthOf({
+          month: priorMonth,
+          priorDays,
+          money,
+          figures,
+          open: state === "open",
+          elapsed: closedThrough ? Number(closedThrough.slice(8, 10)) : 0,
+          firstActivity,
+        })
+      : null,
+    days: monthDays.map((day) =>
+      dayRowOf(day, money?.get(day.date), context.mayReadMoney, hasActivity),
+    ),
+    previousMonth: hasActivity ? priorMonth : null,
+    nextMonth: month < monthOf(context.today) ? shiftMonth(month, 1) : null,
+  };
+}
+
+/**
+ * The prior month to set beside this one. An open month is compared with the
+ * same number of elapsed days of the prior, never with all of it: ten days of
+ * this month against thirty of the last would call every open month a decline
+ * (AN-S2-06). A prior with nothing in the compared days has no figures and
+ * reads as a dash (AN-S2-07).
+ */
+function priorMonthOf(input: {
+  month: string;
+  priorDays: readonly NightsDay[];
+  money: Parameters<typeof totalsOf>[1];
+  figures: Figures;
+  open: boolean;
+  elapsed: number;
+  firstActivity: string | null;
+}): PriorMonth {
+  const compared = input.open
+    ? input.priorDays.filter(
+        (day) => Number(day.date.slice(8, 10)) <= input.elapsed,
+      )
+    : input.priorDays;
+  const totals = totalsOf(compared, input.money);
+  const comparedEnd = compared.at(-1)?.date;
+  const hasActivity =
+    totals.daysClosed > 0 &&
+    comparedEnd !== undefined &&
+    input.firstActivity !== null &&
+    comparedEnd >= input.firstActivity;
+  const figures = hasActivity ? figuresOf(totals) : null;
+  return {
+    month: input.month,
+    figures,
+    sameElapsedDays: input.open,
+    changes: figures ? changesOf(input.figures, figures) : null,
+  };
 }
