@@ -1,5 +1,10 @@
 %% Slices decide implementation order and nothing else:
 %%   s1 operational occupancy and commercial revenue governance
+%%   s2 a month on the screen, compared, dated correctly
+%%   s3 a month explained: breakdown, uncharged nights, drill-down, payments against revenue
+%% Not drawn, deliberately: a breakdown of other revenue by category. A folio line carries a
+%% description and no category, and blueprint 13 forbids a table ahead of the workflow that
+%% needs it, so other revenue is one figure with its lines one drill-down away. AN-DEF-01.
 %% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
 %% UML directions: include points base --> included. extend points extension --> base.
 %% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
@@ -21,6 +26,20 @@ flowchart TD
     PROPERTY_FILTER(["Filter reporting by reached Property"])
   end
 
+  subgraph S2["slice 2 &mdash; a month on the screen"]
+    SELECT_MONTH(["Select a calendar month<br/>(previous, next, or any month with activity)"])
+    COMPARE_MONTH(["Compare with the prior month<br/>(same elapsed days while the month is open)"])
+    EXPLAIN_HEADLINE(["Read each headline with its arithmetic<br/>(ADR = revenue / charged nights, RevPAR = revenue / available nights)"])
+    SEE_CORRECTIONS(["See room revenue gross, corrections and net"])
+  end
+
+  subgraph S3["slice 3 &mdash; a month explained"]
+    BREAK_BY_UNIT_TYPE(["Break the month down by unit type<br/>(rows sum to the headline)"])
+    SEE_UNCHARGED(["See occupied nights that earned no charge<br/>(grouped by reason)"])
+    RECONCILE_PAYMENTS(["See revenue booked against money collected"])
+    DRILL_DAY(["Open one day<br/>(the Stays counted, their charge or reason, corrections posted)"])
+  end
+
   subgraph OUT["Not this feature"]
     MULTI_PROPERTY(["Cross-organization consolidated enterprise analytics &mdash; deferred, blueprint 5.14"])
     EXPORT_CSV(["Export raw financial reports &mdash; deferred, blueprint 5.14"])
@@ -37,3 +56,16 @@ flowchart TD
   VIEW_REVENUE -. include .-> PROPERTY_FILTER
   VIEW_OCCUPANCY -. extend .-> SELECT_RANGE
   VIEW_REVENUE -. extend .-> SELECT_RANGE
+
+  FRONT_DESK --> SELECT_MONTH
+  MANAGER --> SELECT_MONTH
+  SELECT_MONTH -. include .-> PROPERTY_FILTER
+  SELECT_MONTH -. extend .-> COMPARE_MONTH
+  SELECT_MONTH -. extend .-> BREAK_BY_UNIT_TYPE
+  SELECT_MONTH -. extend .-> SEE_UNCHARGED
+  SELECT_MONTH -. extend .-> DRILL_DAY
+  SELECT_MONTH -. include .-> EXPLAIN_HEADLINE
+  MANAGER --> SEE_CORRECTIONS
+  MANAGER --> RECONCILE_PAYMENTS
+  DRILL_DAY -. include .-> MASK_REVENUE
+  BREAK_BY_UNIT_TYPE -. include .-> MASK_REVENUE
