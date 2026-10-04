@@ -119,10 +119,12 @@ import { displayName } from "./display-name";
 import type { TodaySummary } from "./today-derive";
 import { readTodaySummary, todayReads } from "./today-summary";
 import {
+  getDayDetail,
   getMonthReport,
   getPropertyAnalytics,
   type AnalyticsRange,
   type DailyMetric,
+  type DayDetail,
   type MonthReport,
   type PaymentMethodBreakdown,
   type PropertyAnalytics,
@@ -131,6 +133,7 @@ import {
 export type {
   AnalyticsRange,
   DailyMetric,
+  DayDetail,
   MonthReport,
   PaymentMethodBreakdown,
   PropertyAnalytics,
@@ -974,6 +977,20 @@ export async function propertyMonthReport(
   const viewer = await currentViewer();
   if (!viewer) return null;
   return getMonthReport(viewer.userId, propertyId, month);
+}
+
+/**
+ * One day of a Property's business calendar, opened from the month table, or
+ * null when the viewer does not reach the Property, it has not bought
+ * analytics, or the day has not happened (AN-S3-05).
+ */
+export async function propertyDayDetail(
+  propertyId: string,
+  date: string,
+): Promise<DayDetail | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getDayDetail(viewer.userId, propertyId, date);
 }
 
 /**

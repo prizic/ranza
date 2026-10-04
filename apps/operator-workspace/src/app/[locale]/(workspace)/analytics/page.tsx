@@ -16,6 +16,7 @@ import { frontDeskProperty } from "../../../../server/front-desk";
 import {
   entitledProperties,
   propertyAnalytics,
+  propertyDayDetail,
   propertyMonthReport,
   requireViewer,
 } from "../../../../server/viewer";
@@ -27,7 +28,8 @@ const SEGMENT = "analytics";
  *
  * Opens on a calendar month (`?month=YYYY-MM`, the current one by default),
  * explained from the Property's closed business days; `?range=today|7d|30d`
- * is the trailing-window view beside it (AN-S2-19).
+ * is the trailing-window view beside it (AN-S2-19). `?day=YYYY-MM-DD` opens
+ * one day of the month shown and is ignored for any other (AN-S3-06).
  *
  * Operational metrics (sellable inventory, occupied room nights, occupancy rate %)
  * are available to any staff member with Property access.
@@ -43,6 +45,7 @@ export default async function AnalyticsPage({
     property?: string;
     range?: string;
     month?: string;
+    day?: string;
   }>;
 }) {
   const { locale } = await params;
@@ -87,8 +90,15 @@ export default async function AnalyticsPage({
   if (view.kind === "month") {
     const report = await propertyMonthReport(property.propertyId, view.month);
     if (!report) return unavailable;
+    const opened = report.days.find(
+      (day) => day.date === search.day && day.state !== "future",
+    );
+    const detail = opened
+      ? await propertyDayDetail(property.propertyId, opened.date)
+      : null;
     return (
       <MonthReportView
+        detail={detail}
         locale={locale as SupportedLocale}
         propertyName={property.propertyName}
         report={report}

@@ -10,7 +10,14 @@
  */
 import type { ReactNode } from "react";
 import { readFileSync } from "node:fs";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { messages } from "../../apps/operator-workspace/src/messages";
@@ -22,27 +29,40 @@ import {
   type SupportedLocale,
 } from "../../packages/i18n/src";
 import type {
+  DayDetail,
   DayRow,
   Figures,
   MonthReport,
   PriorMonth,
+  UnitTypeRow,
 } from "../../apps/operator-workspace/src/server/analytics";
+
+const PROPERTY = "90c161fa-b6e7-4a42-8060-352e23f05a09";
+
+const navigation = vi.hoisted(() => ({
+  replace: vi.fn(),
+  search: "property=90c161fa-b6e7-4a42-8060-352e23f05a09",
+}));
 
 vi.mock("../../apps/operator-workspace/node_modules/next/navigation", () => ({
   usePathname: () => "/en/analytics",
-  useSearchParams: () =>
-    new URLSearchParams("property=90c161fa-b6e7-4a42-8060-352e23f05a09"),
+  useSearchParams: () => new URLSearchParams(navigation.search),
+  useRouter: () => ({ replace: navigation.replace }),
 }));
 vi.mock("../../apps/operator-workspace/node_modules/next/link", () => ({
   default: ({
     children,
     href,
     prefetch: _prefetch,
+    replace: _replace,
+    scroll: _scroll,
     ...rest
   }: {
     children: ReactNode;
     href: string;
     prefetch?: boolean;
+    replace?: boolean;
+    scroll?: boolean;
   } & Record<string, unknown>) => (
     <a href={href} {...rest}>
       {children}
@@ -55,9 +75,12 @@ const { MonthReportView } =
 const { default: AnalyticsLoading } =
   await import("../../apps/operator-workspace/src/app/[locale]/(workspace)/analytics/loading");
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  navigation.replace.mockClear();
+  navigation.search = `property=${PROPERTY}`;
+});
 
-const PROPERTY = "90c161fa-b6e7-4a42-8060-352e23f05a09";
 const NAME = "Demo Otel İstanbul";
 
 // Ten closed days of twenty available nights, fifteen of them occupied, and
@@ -153,6 +176,33 @@ const PRIOR_MONTH: PriorMonth = {
   },
 };
 
+// Two unit types whose rows add up to CURRENT: 200 and 150 nights, 118 charged
+// Guest nights and 5 900.00 of room revenue.
+const UNIT_TYPES: UnitTypeRow[] = [
+  {
+    unitType: "room",
+    availableNights: 120,
+    occupiedNights: 100,
+    guestNights: 70,
+    residentNights: 30,
+    chargedGuestNights: 68,
+    occupancyPercent: 83.3,
+    roomRevenueMinor: 330_000,
+    adrMinor: 4_853,
+  },
+  {
+    unitType: "suite",
+    availableNights: 80,
+    occupiedNights: 50,
+    guestNights: 50,
+    residentNights: 0,
+    chargedGuestNights: 50,
+    occupancyPercent: 62.5,
+    roomRevenueMinor: 260_000,
+    adrMinor: 5_200,
+  },
+];
+
 const OPEN: MonthReport = {
   propertyId: PROPERTY,
   currency: "TRY",
@@ -166,6 +216,11 @@ const OPEN: MonthReport = {
   figures: CURRENT,
   prior: PRIOR_MONTH,
   days: days("2026-09", 10, 30),
+  byUnitType: UNIT_TYPES,
+  unchargedNights: [
+    { reason: "resident", nights: 30 },
+    { reason: "unpriced", nights: 2 },
+  ],
   previousMonth: "2026-08",
   nextMonth: null,
 };
@@ -193,6 +248,8 @@ const NO_ACTIVITY: MonthReport = {
   figures: null,
   prior: null,
   days: [],
+  byUnitType: [],
+  unchargedNights: [],
   previousMonth: null,
   nextMonth: "2026-04",
 };
@@ -230,20 +287,109 @@ function masked(report: MonthReport): MonthReport {
       },
     },
     days: report.days.map((day) => ({ ...day, roomRevenueMinor: null })),
+    byUnitType: report.byUnitType.map((row) => ({
+      ...row,
+      roomRevenueMinor: null,
+      adrMinor: null,
+    })),
   };
+}
+
+/** One closed day as a viewer who may read money receives it. */
+const DAY: DayDetail = {
+  propertyId: PROPERTY,
+  date: "2026-09-06",
+  state: "closed",
+  occupiedNights: 2,
+  chargedNights: 1,
+  currency: "TRY",
+  stays: [
+    {
+      stayId: "11111111-1111-4111-8111-111111111111",
+      unitName: "101",
+      roomName: null,
+      unitType: "room",
+      stayType: "guest",
+      displayName: "Ada Guest",
+      night: "charged",
+      chargeMinor: 10_000,
+    },
+    {
+      stayId: "22222222-2222-4222-8222-222222222222",
+      unitName: "B1",
+      roomName: "Dorm",
+      unitType: "bed",
+      stayType: "resident",
+      displayName: null,
+      night: "resident",
+    },
+  ],
+  corrections: [
+    {
+      stayId: "11111111-1111-4111-8111-111111111111",
+      unitName: "101",
+      roomName: null,
+      unitType: "room",
+      postedOn: "2026-09-09",
+      amountMinor: -10_000,
+    },
+  ],
+};
+
+const OTHER_DAY: DayDetail = {
+  ...DAY,
+  date: "2026-09-07",
+  occupiedNights: 1,
+  chargedNights: 0,
+  stays: [
+    {
+      stayId: "33333333-3333-4333-8333-333333333333",
+      unitName: "205",
+      roomName: null,
+      unitType: "suite",
+      stayType: "guest",
+      displayName: null,
+      night: "unpriced",
+      chargeMinor: undefined,
+    },
+  ],
+  corrections: [],
+};
+
+/** The same day as a viewer without finance.manage_folio receives it: no amount keys at all. */
+function maskedDay(detail: DayDetail): DayDetail {
+  const { currency: _currency, corrections: _corrections, ...rest } = detail;
+  return {
+    ...rest,
+    stays: rest.stays.map(({ chargeMinor: _charge, ...stay }) => stay),
+  };
+}
+
+function screenOf(
+  report: MonthReport,
+  locale: SupportedLocale,
+  detail: DayDetail | null,
+) {
+  return (
+    <NextIntlClientProvider locale={locale} messages={messages[locale]}>
+      <div dir={directionFor(locale)}>
+        <MonthReportView
+          detail={detail}
+          locale={locale}
+          propertyName={NAME}
+          report={report}
+        />
+      </div>
+    </NextIntlClientProvider>
+  );
 }
 
 function show(
   report: MonthReport,
   locale: SupportedLocale = "en",
+  detail: DayDetail | null = null,
 ): ReturnType<typeof render> {
-  return render(
-    <NextIntlClientProvider locale={locale} messages={messages[locale]}>
-      <div dir={directionFor(locale)}>
-        <MonthReportView locale={locale} propertyName={NAME} report={report} />
-      </div>
-    </NextIntlClientProvider>,
-  );
+  return render(screenOf(report, locale, detail));
 }
 
 // Intl separates a currency from its digits with a no-break space, and the
@@ -253,6 +399,12 @@ const money = (minor: number, locale: SupportedLocale = "en") =>
   plain(formatMoney(minor, "TRY", locale));
 const count = (value: number, locale: SupportedLocale = "en") =>
   plain(formatNumber(value, locale));
+
+/** The table of every day: the screen has a second, by unit type. */
+const daysTable = (locale: SupportedLocale = "en"): HTMLElement =>
+  within(
+    screen.getByRole("region", { name: messages[locale].analytics.month.days }),
+  ).getByRole("table");
 
 /** The text of the figure whose eyebrow label is `label`. */
 function figure(label: string): HTMLElement {
@@ -335,7 +487,7 @@ describe("month_screen_empty_loading_refused_and_rtl", () => {
     expect(readFileSync(`${SRC}/app/[locale]/layout.tsx`, "utf8")).toContain(
       "dir={directionFor(locale)}",
     );
-    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(daysTable("ar")).toBeInTheDocument();
   });
 
   it("says month to date, and how many days have closed, in an open month", () => {
@@ -391,7 +543,7 @@ describe("month_screen_empty_loading_refused_and_rtl", () => {
 
   it("gives every day of the month a row, quiet days included", () => {
     show(OPEN);
-    const rows = within(screen.getByRole("table")).getAllByRole("row");
+    const rows = within(daysTable()).getAllByRole("row");
     // header, 30 days, and the month's own total
     expect(rows).toHaveLength(1 + 30 + 1);
     const quiet = rows.find(
@@ -458,7 +610,7 @@ describe("month_screen_empty_loading_refused_and_rtl", () => {
       messages.en.analytics.financialsMaskedNotice,
     );
     expect(figure("Occupancy")).toHaveTextContent("75.0%");
-    expect(screen.getByRole("table")).not.toHaveTextContent("Room revenue");
+    expect(daysTable()).not.toHaveTextContent("Room revenue");
     expect(container.querySelector("svg.lucide-lock")).toBeNull();
   });
 
@@ -523,6 +675,9 @@ const component = (name: string): string =>
 
 const COMPONENTS = [
   "month-report-view",
+  "unit-type-section",
+  "uncharged-section",
+  "day-detail-sheet",
   "month-header",
   "month-control",
   "headline-figures",
@@ -594,8 +749,8 @@ describe("the month screen's copy, in three languages (AN-S2-21)", () => {
         // `tm` reads the whole analytics catalogue; `t` the scope its file opened.
         used.add(match[1] === "tm" ? (match[2] ?? "") : `${scope}${match[2]}`);
       }
-      for (const match of source.matchAll(/\blabelKey: "([A-Za-z0-9.]+)"/g)) {
-        used.add(match[1] ?? "");
+      for (const match of source.matchAll(/\blabelKey: "([A-Za-z0-9._]+)"/g)) {
+        used.add(`${scope}${match[1]}`);
       }
     };
     for (const name of COMPONENTS) {
@@ -616,6 +771,265 @@ describe("the month screen's copy, in three languages (AN-S2-21)", () => {
     for (const key of used) expect(defined, key).toContain(key);
     for (const key of [...defined].filter((key) => key.startsWith("month."))) {
       expect(used, key).toContain(key);
+    }
+  });
+});
+
+describe("a month explained (docs/features/analytics, slice 3)", () => {
+  const section = (name: string) =>
+    screen.getByRole("region", { name }) as HTMLElement;
+  const rowOf = (name: string) =>
+    within(section(messages.en.analytics.month.unitTypes))
+      .getByText(name)
+      .closest("tr") as HTMLElement;
+
+  it("shows one row per unit type, and a foot that is the headline (AN-S3-02)", () => {
+    show(CLOSED);
+    const table = within(section("By unit type")).getByRole("table");
+    expect(within(table).getAllByRole("row")).toHaveLength(1 + 2 + 1);
+
+    const room = rowOf("Room");
+    expect(room).toHaveTextContent(count(120));
+    expect(room).toHaveTextContent(count(100));
+    expect(room).toHaveTextContent("83.3%");
+    expect(room).toHaveTextContent(money(330_000));
+    expect(room).toHaveTextContent(money(4_853));
+    expect(rowOf("Suite")).toHaveTextContent(money(260_000));
+
+    // The foot is the month's figures, which the rows add up to.
+    const foot = within(table).getAllByRole("row").at(-1)!;
+    expect(foot).toHaveTextContent(count(CURRENT.availableNights));
+    expect(foot).toHaveTextContent(count(CURRENT.occupiedNights));
+    expect(foot).toHaveTextContent(money(590_000));
+    expect(
+      UNIT_TYPES.reduce((sum, row) => sum + (row.roomRevenueMinor ?? 0), 0),
+    ).toBe(590_000);
+  });
+
+  it("gives a viewer without finance.manage_folio the nights and no money column", () => {
+    show(masked(CLOSED));
+    const unitTypes = section("By unit type");
+    expect(
+      within(unitTypes).queryByRole("columnheader", { name: "Room revenue" }),
+    ).toBeNull();
+    expect(
+      within(unitTypes).queryByRole("columnheader", { name: "ADR" }),
+    ).toBeNull();
+    expect(unitTypes.textContent).not.toMatch(/₺|TRY|ADR/);
+    expect(rowOf("Room")).toHaveTextContent("83.3%");
+    expect(rowOf("Room")).toHaveTextContent(count(100));
+  });
+
+  it("lists the nights that earned no charge, each with the close's own reason (AN-S3-01)", () => {
+    show(CLOSED);
+    const uncharged = section("Nights with no charge");
+    expect(
+      within(uncharged)
+        .getByText("Resident Stay, billed monthly")
+        .closest("[data-row]"),
+    ).toHaveTextContent("30 nights");
+    expect(
+      within(uncharged)
+        .getByText("No price on the booking")
+        .closest("[data-row]"),
+    ).toHaveTextContent("2 nights");
+    // The same words the Close the day screen uses, in every language.
+    for (const locale of supportedLocales) {
+      const reasons = messages[locale].analytics.month.unchargedReason;
+      const close = messages[locale].closeDay.notChargedReason;
+      expect(reasons.unpriced).toBe(close.unpriced);
+      expect(reasons.billing_unavailable).toBe(close.billing_unavailable);
+      expect(reasons.no_folio).toBe(close.no_folio);
+      expect(reasons.folio_closed).toBe(close.folio_closed);
+      expect(reasons.currency).toBe(close.currency);
+    }
+  });
+
+  it("shows the same nights to a viewer without money, and never an amount", () => {
+    show(masked(CLOSED));
+    const uncharged = section("Nights with no charge");
+    expect(uncharged).toHaveTextContent("30 nights");
+    expect(uncharged).toHaveTextContent("2 nights");
+    expect(uncharged.textContent).not.toMatch(/₺|TRY/);
+  });
+
+  it("says so when every night was charged", () => {
+    show({ ...CLOSED, unchargedNights: [] });
+    expect(section("Nights with no charge")).toHaveTextContent(
+      messages.en.analytics.month.unchargedNone,
+    );
+  });
+
+  it("makes every day that has happened a link that opens it, and none of the days to come", () => {
+    show(OPEN);
+    const links = screen.getAllByRole("link", { name: /^Show / });
+    // Ten closed days and the open one; nineteen days to come have no link.
+    expect(links).toHaveLength(11);
+    expect(
+      screen.getByRole("link", { name: /Show .*Sep 6/ }).getAttribute("href"),
+    ).toBe(`/en/analytics?property=${PROPERTY}&month=2026-09&day=2026-09-06`);
+    const future = document.querySelector('[data-date="2026-09-20"]');
+    expect(future?.querySelector("a")).toBeNull();
+  });
+
+  it("opens a day with its Stays, units, night outcome, counts and corrections (AN-S3-04)", () => {
+    show(OPEN, "en", DAY);
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveAccessibleName(/Sep 6/);
+    expect(
+      dialog.querySelector('[data-day-count="occupied"]'),
+    ).toHaveTextContent("2");
+    expect(
+      dialog.querySelector('[data-day-count="charged"]'),
+    ).toHaveTextContent("1");
+
+    const guest = dialog.querySelector(
+      `[data-stay="${DAY.stays[0]!.stayId}"]`,
+    )!;
+    expect(guest).toHaveTextContent("101");
+    expect(guest).toHaveTextContent("Room · Guest");
+    expect(guest).toHaveTextContent("Ada Guest");
+    expect(guest).toHaveTextContent("Charged");
+    expect(guest).toHaveTextContent(money(10_000));
+
+    // A bed names its room, a Resident is billed monthly, and no name read is not invented.
+    const resident = dialog.querySelector(
+      `[data-stay="${DAY.stays[1]!.stayId}"]`,
+    )!;
+    expect(resident).toHaveTextContent("Dorm · B1");
+    expect(resident).toHaveTextContent("Bed · Resident");
+    expect(resident).toHaveTextContent("—");
+    expect(resident).toHaveTextContent("Resident Stay, billed monthly");
+    expect(resident).not.toHaveTextContent("₺");
+
+    const correction = dialog.querySelector("[data-correction]")!;
+    expect(correction).toHaveTextContent(money(-10_000));
+    expect(correction).toHaveTextContent("Posted");
+  });
+
+  it("says the open day has not closed, and the reason when a Guest has no name", () => {
+    show(OPEN, "en", {
+      ...OTHER_DAY,
+      date: "2026-09-11",
+      state: "open",
+      corrections: [],
+    });
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("status")).toHaveTextContent(
+      messages.en.analytics.month.dayOpenNote,
+    );
+    expect(dialog).toHaveTextContent("No name shown");
+    expect(dialog).toHaveTextContent("No price on the booking");
+  });
+
+  it("shows a viewer without finance.manage_folio the Stays and no money in the day (AN-S3-05)", () => {
+    show(masked(OPEN), "en", maskedDay(DAY));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("Ada Guest");
+    expect(dialog).toHaveTextContent("Charged");
+    expect(dialog).toHaveTextContent("Resident Stay, billed monthly");
+    expect(dialog.textContent).not.toMatch(/₺|TRY|\d[.,]\d{2}\b/);
+    expect(dialog.querySelector("[data-correction]")).toBeNull();
+    expect(
+      screen.queryByText(messages.en.analytics.month.dayCorrections),
+    ).toBeNull();
+  });
+
+  it("says nobody slept there when the day held no Stay", () => {
+    show(OPEN, "en", { ...OTHER_DAY, occupiedNights: 0, stays: [] });
+    expect(screen.getByRole("dialog")).toHaveTextContent(
+      messages.en.analytics.month.dayNoStays,
+    );
+  });
+
+  it("day_detail_closes_when_the_month_changes", async () => {
+    const view = show(OPEN, "en", DAY);
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+
+    // Opening another day replaces the detail rather than stacking a second.
+    view.rerender(screenOf(OPEN, "en", OTHER_DAY));
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(screen.getByRole("dialog")).toHaveAccessibleName(/Sep 7/);
+    expect(screen.queryByText("Ada Guest")).toBeNull();
+    expect(screen.getByRole("dialog")).toHaveTextContent("205");
+
+    // Selecting another month closes it: a month link carries no day, and a
+    // day from one month is never drawn under another.
+    navigation.search = `property=${PROPERTY}&month=2026-09&day=2026-09-07`;
+    cleanup();
+    show(OPEN, "en", OTHER_DAY);
+    // The sheet is modal, so the page behind it is hidden from the tree.
+    expect(
+      screen
+        .getByRole("link", { name: /Previous month/, hidden: true })
+        .getAttribute("href"),
+    ).toBe(`/en/analytics?property=${PROPERTY}&month=2026-08`);
+    cleanup();
+    show(CLOSED, "en", OTHER_DAY);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("heading", { name: /August 2026/ })).toBeVisible();
+
+    // Closing takes the day off the address, keeps the Property, and puts
+    // focus back on the day's row.
+    cleanup();
+    show(OPEN, "en", DAY);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(navigation.replace).toHaveBeenCalledWith(
+      `/en/analytics?property=${PROPERTY}&month=2026-09`,
+      { scroll: false },
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    const row = document.querySelector<HTMLElement>(
+      '[data-date="2026-09-06"] [data-day-link]',
+    );
+    await waitFor(() => expect(document.activeElement).toBe(row));
+  });
+
+  it("closes on Escape the same way, and steps to the next and previous day", async () => {
+    show(OPEN, "en", DAY);
+    const dialog = screen.getByRole("dialog");
+    const next = within(dialog).getByRole("link", { name: /Next day/ });
+    expect(next.getAttribute("href")).toBe(
+      `/en/analytics?property=${PROPERTY}&month=2026-09&day=2026-09-07`,
+    );
+    expect(
+      within(dialog)
+        .getByRole("link", { name: /Previous day/ })
+        .getAttribute("href"),
+    ).toBe(`/en/analytics?property=${PROPERTY}&month=2026-09&day=2026-09-05`);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(navigation.replace).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("offers no next day past the last day that has happened, and no previous before the first", () => {
+    show(OPEN, "en", { ...DAY, date: "2026-09-11", state: "open" });
+    expect(
+      within(screen.getByRole("dialog")).queryByRole("link", {
+        name: /Next day/,
+      }),
+    ).toBeNull();
+    cleanup();
+    show(OPEN, "en", { ...DAY, date: "2026-09-01" });
+    expect(
+      within(screen.getByRole("dialog")).queryByRole("link", {
+        name: /Previous day/,
+      }),
+    ).toBeNull();
+  });
+
+  it("draws the new sections in every language with that language's words", () => {
+    for (const locale of supportedLocales) {
+      show(CLOSED, locale, { ...DAY, date: "2026-08-06" });
+      const m = messages[locale].analytics.month;
+      // Behind a modal sheet the page is hidden from the accessibility tree,
+      // so the sections are found by their headings.
+      expect(screen.getByText(m.unitTypes)).toBeInTheDocument();
+      expect(
+        screen.getByText(m.uncharged).closest("section"),
+      ).toHaveTextContent(m.unchargedReason.resident);
+      expect(screen.getByRole("dialog")).toHaveTextContent(m.dayStays);
+      cleanup();
     }
   });
 });

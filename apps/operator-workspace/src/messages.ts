@@ -1121,6 +1121,44 @@ export interface Messages {
       openDay: string;
       notYetCharged: string;
       monthTotal: string;
+      /** The month by unit type (docs/features/analytics, slice 3). */
+      unitTypes: string;
+      unitTypeCol: string;
+      unitTypeNote: string;
+      adrCol: string;
+      /** Occupied nights with no room night charge, by reason. */
+      uncharged: string;
+      unchargedNote: string;
+      unchargedNone: string;
+      /** ICU plural on `n`. */
+      unchargedNights: string;
+      /** The close's own reasons (closeDay.notChargedReason), plus a Resident and a night not charged yet. */
+      unchargedReason: Record<
+        | "resident"
+        | "unpriced"
+        | "billing_unavailable"
+        | "no_folio"
+        | "folio_closed"
+        | "currency"
+        | "not_yet_charged",
+        string
+      >;
+      /** One day opened from the table. `{date}`: the day, for the row's link. */
+      showDay: string;
+      dayDescription: string;
+      dayOpenNote: string;
+      dayStays: string;
+      dayNoStays: string;
+      dayCharged: string;
+      nightCharged: string;
+      noGuestName: string;
+      dayCorrections: string;
+      /** `{date}`: the business date the correction was posted on. */
+      correctionPosted: string;
+      /** The accessible name of the previous and next day controls. */
+      dayNavigation: string;
+      previousDay: string;
+      nextDay: string;
     };
   };
 
@@ -2694,6 +2732,39 @@ export const messages: Record<SupportedLocale, Messages> = {
         openDay: "Açık gün",
         notYetCharged: "Henüz ücretlendirilmedi",
         monthTotal: "Kapanan günlerin toplamı",
+        unitTypes: "Birim türüne göre",
+        unitTypeCol: "Birim türü",
+        unitTypeNote:
+          "Her gece, kalındığı birimin türüne yazılır. Satırların toplamı yukarıdaki rakamlara eşittir.",
+        adrCol: "ADR",
+        uncharged: "Ücretlendirilmeyen geceler",
+        unchargedNote:
+          "Kapanan günlerde dolu olup hiçbir oda gecesi ücretiyle karşılanmayan geceler ve nedenleri. Yalnızca sayılar: tutar gösterilmez.",
+        unchargedNone: "Kapanan günlerin her dolu gecesi ücretlendirildi.",
+        unchargedNights: "{n, plural, one {# gece} other {# gece}}",
+        unchargedReason: {
+          resident: "Sakin konaklaması, aylık faturalanır",
+          unpriced: "Rezervasyonda fiyat yok",
+          billing_unavailable: "Burada faturalama kullanılamıyor",
+          no_folio: "Folyo yok",
+          folio_closed: "Folyo kapalı",
+          currency: "Başka bir para biriminde fiyatlanmış",
+          not_yet_charged: "Henüz ücretlendirilmedi",
+        },
+        showDay: "{date} gününü göster",
+        dayDescription: "O gece bir birimi tutan konaklamalar.",
+        dayOpenNote:
+          "Bu gün henüz kapanmadı. Geceleri gün kapanınca ücretlendirilir.",
+        dayStays: "Konaklamalar",
+        dayNoStays: "O gece kimse konaklamadı.",
+        dayCharged: "Ücretlendirilen Misafir geceleri",
+        nightCharged: "Ücretlendirildi",
+        noGuestName: "Ad gösterilmiyor",
+        dayCorrections: "Bu günün gecelerine yapılan düzeltmeler",
+        correctionPosted: "{date} tarihinde işlendi",
+        dayNavigation: "Gün",
+        previousDay: "Önceki gün",
+        nextDay: "Sonraki gün",
       },
     },
 
@@ -4293,6 +4364,39 @@ export const messages: Record<SupportedLocale, Messages> = {
         openDay: "Open day",
         notYetCharged: "Not yet charged",
         monthTotal: "Total of closed days",
+        unitTypes: "By unit type",
+        unitTypeCol: "Unit type",
+        unitTypeNote:
+          "Each night belongs to the type of the unit it was slept in. The rows add up to the figures above.",
+        adrCol: "ADR",
+        uncharged: "Nights with no charge",
+        unchargedNote:
+          "Occupied nights of the closed days that no room night charge covers, and why. Counts only: no amounts.",
+        unchargedNone: "Every occupied night of the closed days has a charge.",
+        unchargedNights: "{n, plural, one {# night} other {# nights}}",
+        unchargedReason: {
+          resident: "Resident Stay, billed monthly",
+          unpriced: "No price on the booking",
+          billing_unavailable: "Billing is not available here",
+          no_folio: "No Folio",
+          folio_closed: "Folio closed",
+          currency: "Priced in another currency",
+          not_yet_charged: "Not charged yet",
+        },
+        showDay: "Show {date}",
+        dayDescription: "The Stays that held a unit this night.",
+        dayOpenNote:
+          "This day has not closed. Its nights are charged when it does.",
+        dayStays: "Stays",
+        dayNoStays: "Nobody was in house this night.",
+        dayCharged: "Charged Guest nights",
+        nightCharged: "Charged",
+        noGuestName: "No name shown",
+        dayCorrections: "Corrections to this day's nights",
+        correctionPosted: "Posted {date}",
+        dayNavigation: "Day",
+        previousDay: "Previous day",
+        nextDay: "Next day",
       },
     },
 
@@ -5865,6 +5969,39 @@ export const messages: Record<SupportedLocale, Messages> = {
         openDay: "يوم مفتوح",
         notYetCharged: "لم تُحتسب بعد",
         monthTotal: "مجموع الأيام المغلقة",
+        unitTypes: "حسب نوع الوحدة",
+        unitTypeCol: "نوع الوحدة",
+        unitTypeNote:
+          "تُنسب كل ليلة إلى نوع الوحدة التي أُقيمت فيها. مجموع الصفوف يساوي الأرقام أعلاه.",
+        adrCol: "ADR",
+        uncharged: "ليالٍ بلا رسوم",
+        unchargedNote:
+          "الليالي المشغولة في الأيام المغلقة التي لا يغطيها أي رسم ليلة غرفة، وأسبابها. أعداد فقط، بلا مبالغ.",
+        unchargedNone: "كل ليلة مشغولة في الأيام المغلقة محتسبة.",
+        unchargedNights:
+          "{n, plural, one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلة} other {# ليلة}}",
+        unchargedReason: {
+          resident: "إقامة مقيم، تُفوتر شهريًا",
+          unpriced: "لا سعر على الحجز",
+          billing_unavailable: "الفوترة غير متاحة هنا",
+          no_folio: "لا يوجد حساب",
+          folio_closed: "الحساب مغلق",
+          currency: "مسعَّر بعملة أخرى",
+          not_yet_charged: "لم تُحتسب بعد",
+        },
+        showDay: "عرض {date}",
+        dayDescription: "الإقامات التي شغلت وحدة في هذه الليلة.",
+        dayOpenNote: "لم يُغلق هذا اليوم بعد. تُحتسب لياليه عند إغلاقه.",
+        dayStays: "الإقامات",
+        dayNoStays: "لم يكن أحد مقيمًا في هذه الليلة.",
+        dayCharged: "ليالي الضيوف المحتسبة",
+        nightCharged: "محتسبة",
+        noGuestName: "الاسم غير معروض",
+        dayCorrections: "تصحيحات ليالي هذا اليوم",
+        correctionPosted: "سُجّل في {date}",
+        dayNavigation: "اليوم",
+        previousDay: "اليوم السابق",
+        nextDay: "اليوم التالي",
       },
     },
 

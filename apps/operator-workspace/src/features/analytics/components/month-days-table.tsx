@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   Table,
@@ -13,10 +15,12 @@ import {
 } from "@ranza/ui";
 import { formatNumber, type SupportedLocale } from "@ranza/i18n";
 import type { DayRow, Figures } from "../../../server/analytics";
+import { analyticsHref } from "../href";
 import {
   formatDayOfMonth,
   formatMinorMoney,
   formatPercentValue,
+  formatShortDate,
   formatWeekdayShort,
 } from "../format";
 import { MonthSection } from "./month-section";
@@ -24,11 +28,26 @@ import { MonthSection } from "./month-section";
 const NUMERIC = "px-2 text-end tabular-nums sm:px-3";
 const HEAD = "h-auto py-2 align-bottom whitespace-normal";
 
+function DayLabel({ date, locale }: { date: string; locale: SupportedLocale }) {
+  return (
+    <>
+      <span className="inline-block w-7 font-medium tabular-nums">
+        {formatDayOfMonth(date, locale)}
+      </span>
+      <span className="text-muted-foreground">
+        {formatWeekdayShort(date, locale)}
+      </span>
+    </>
+  );
+}
+
 /**
  * Every day of the month, quiet ones included (AN-S2-14). The day not yet
  * closed is marked and says its nights are not charged; days to come are muted
  * and carry no figure, because a night that has not happened is not a zero.
  * The foot is the closed days' total, so the column can be summed by hand.
+ * Every day that has happened is a link that opens it (AN-S3-04); a day to
+ * come has nothing to open.
  */
 export function MonthDaysTable({
   currency,
@@ -44,6 +63,8 @@ export function MonthDaysTable({
   mayReadMoney: boolean;
 }) {
   const t = useTranslations("analytics.month");
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const nights = (day: DayRow) =>
     day.state === "future" ? "—" : formatNumber(day.occupiedNights, locale);
@@ -87,12 +108,25 @@ export function MonthDaysTable({
               key={day.date}
             >
               <TableCell className="ps-0">
-                <span className="inline-block w-7 font-medium tabular-nums">
-                  {formatDayOfMonth(day.date, locale)}
-                </span>
-                <span className="text-muted-foreground">
-                  {formatWeekdayShort(day.date, locale)}
-                </span>
+                {day.state === "future" ? (
+                  <DayLabel date={day.date} locale={locale} />
+                ) : (
+                  <Link
+                    aria-label={t("showDay", {
+                      date: formatShortDate(day.date, locale),
+                    })}
+                    className="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    data-day-link
+                    href={analyticsHref(pathname, searchParams, {
+                      month: day.date.slice(0, 7),
+                      day: day.date,
+                    })}
+                    prefetch={false}
+                    scroll={false}
+                  >
+                    <DayLabel date={day.date} locale={locale} />
+                  </Link>
+                )}
                 {day.state === "open" ? (
                   <span className="block text-xs font-medium text-primary sm:ms-3 sm:inline">
                     {t("openDay")}

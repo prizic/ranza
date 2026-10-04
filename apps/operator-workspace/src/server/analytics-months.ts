@@ -17,6 +17,19 @@ export function parseMonth(value?: string | null): string | null {
   return Number(match[1]) >= 1900 ? value : null;
 }
 
+const BUSINESS_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** Whether the value is a real calendar date written `YYYY-MM-DD`. */
+export function isBusinessDate(value: string): boolean {
+  const match = BUSINESS_DATE.exec(value);
+  if (!match || Number(match[1]) < 1900) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return (
+    !Number.isNaN(parsed.getTime()) &&
+    parsed.toISOString().slice(0, 10) === value
+  );
+}
+
 function parts(month: string): { year: number; month: number } {
   return {
     year: Number(month.slice(0, 4)),

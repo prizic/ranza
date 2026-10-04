@@ -13,8 +13,23 @@ import {
   type Totals,
 } from "./analytics-engine";
 import {
+  readDayCorrections,
+  readDayStays,
+  readTypeNights,
+  readTypeRoomMoney,
+  readUnchargedNights,
+  unchargedTotalsOf,
+  unitTypeTotalsOf,
+  type DayCorrectionRow,
+  type DayStayRow,
+  type UnchargedReason,
+  type UnitType,
+  type UnitTypeTotals,
+} from "./analytics-breakdown";
+import {
   addDays,
   daysInMonth,
+  isBusinessDate,
   monthEnd,
   monthOf,
   monthStart,
@@ -313,6 +328,27 @@ export interface DayRow {
   roomRevenueMinor: number | null;
 }
 
+/** The closed days' nights of one unit type, which add up to the headline. */
+export interface UnitTypeRow {
+  unitType: UnitType;
+  availableNights: number;
+  occupiedNights: number;
+  guestNights: number;
+  residentNights: number;
+  /** Guest nights that have a room night charge: ADR's denominator. */
+  chargedGuestNights: number;
+  occupancyPercent: number | null;
+  /** Net. Null when the viewer may not read money. */
+  roomRevenueMinor: number | null;
+  adrMinor: number | null;
+}
+
+/** Occupied nights that earned no charge, and why: operational, never money. */
+export interface UnchargedNights {
+  reason: UnchargedReason;
+  nights: number;
+}
+
 export interface MonthReport {
   propertyId: string;
   currency: string;
@@ -331,6 +367,10 @@ export interface MonthReport {
   prior: PriorMonth | null;
   /** Every day of the month, closed or not. */
   days: DayRow[];
+  /** One row per unit type the Property has; empty for a month with no activity. */
+  byUnitType: UnitTypeRow[];
+  /** Over the closed days, by reason; a reason with no nights is absent. */
+  unchargedNights: UnchargedNights[];
   previousMonth: string | null;
   nextMonth: string | null;
 }
@@ -370,6 +410,25 @@ function figuresOf(totals: Totals): Figures {
     differenceMinor: money
       ? money.totalMinor - money.collected.totalMinor
       : null,
+  };
+}
+
+function unitTypeRowOf(total: UnitTypeTotals): UnitTypeRow {
+  const occupied = total.guestNights + total.residentNights;
+  const net = total.roomNetMinor;
+  return {
+    unitType: total.unitType,
+    availableNights: total.availableNights,
+    occupiedNights: occupied,
+    guestNights: total.guestNights,
+    residentNights: total.residentNights,
+    chargedGuestNights: total.chargedGuestNights,
+    occupancyPercent: ratioPercent(occupied, total.availableNights),
+    roomRevenueMinor: net,
+    adrMinor:
+      net !== null && total.chargedGuestNights > 0
+        ? Math.round(net / total.chargedGuestNights)
+        : null,
   };
 }
 
@@ -489,6 +548,19 @@ export async function buildMonthReport(
 
   const figures = hasActivity ? figuresOf(totalsOf(monthDays, money)) : null;
 
+  const closedDates: ReadonlySet<string> = new Set(
+    closedDays.map((day) => day.date),
+  );
+  const [typeNights, typeMoney, uncharged] = hasActivity
+    ? [
+        await readTypeNights(tx, context, start, end),
+        context.mayReadMoney
+          ? await readTypeRoomMoney(tx, context, start, end)
+          : null,
+        await readUnchargedNights(tx, context, start, end),
+      ]
+    : [[], null, []];
+
   return {
     propertyId,
     currency: context.currency,
@@ -514,6 +586,10 @@ export async function buildMonthReport(
     days: monthDays.map((day) =>
       dayRowOf(day, money?.get(day.date), context.mayReadMoney, hasActivity),
     ),
+    byUnitType: unitTypeTotalsOf(closedDates, typeNights, typeMoney).map(
+      unitTypeRowOf,
+    ),
+    unchargedNights: unchargedTotalsOf(closedDates, uncharged),
     previousMonth: hasActivity ? priorMonth : null,
     nextMonth: month < monthOf(context.today) ? shiftMonth(month, 1) : null,
   };
@@ -553,5 +629,101 @@ function priorMonthOf(input: {
     figures,
     sameElapsedDays: input.open,
     changes: figures ? changesOf(input.figures, figures) : null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// A day
+// ---------------------------------------------------------------------------
+
+/**
+ * One Stay on the day opened. `chargeMinor` is a key only for a viewer who may
+ * read money, and only on a night that was charged: for anyone else it is not
+ * in the response at all (AN-S3-05).
+ */
+export interface DayDetailStay extends Omit<DayStayRow, "chargeMinor"> {
+  chargeMinor?: number;
+}
+
+/** A correction to one of the day's room nights. Money, so only for those who may read it. */
+export type DayCorrection = DayCorrectionRow;
+
+/**
+ * One business date, opened from the month table: the Stays that held a unit
+ * that night, each with its unit and its night's charge or the reason there
+ * was none. The counts are the day's row of the table.
+ *
+ * `currency` and `corrections` are keys only for a viewer who may read money.
+ * A viewer who may not gets the Stays, the units and the reasons, and the
+ * response holds no amount — not a null, not a field the screen leaves out
+ * (AN-S3-05).
+ */
+export interface DayDetail {
+  propertyId: string;
+  date: string;
+  /** A day to come cannot be opened, so it is one of these two. */
+  state: Exclude<DayState, "future">;
+  occupiedNights: number;
+  /** Guest nights with a room night charge. */
+  chargedNights: number;
+  stays: DayDetailStay[];
+  currency?: string;
+  corrections?: DayCorrection[];
+}
+
+/**
+ * One day of a Property's business calendar, in one REPEATABLE READ
+ * transaction so its Stays, charges and corrections are one moment.
+ *
+ * Null when the viewer does not reach the Property, it has not bought
+ * analytics, the date is not a date, or the day has not happened: the screen
+ * shows its not-found state and never an empty day. The open day can be opened;
+ * its nights are not charged until it closes (AN-S2-05).
+ */
+export async function getDayDetail(
+  userId: string,
+  propertyId: string,
+  date: string,
+): Promise<DayDetail | null> {
+  return withOrganizationContext(
+    getComposition().db,
+    { userId },
+    (tx) => buildDayDetail(tx, propertyId, date),
+    { isolationLevel: "RepeatableRead" },
+  );
+}
+
+/** The day, built on a transaction the caller opened. */
+export async function buildDayDetail(
+  tx: Reader,
+  propertyId: string,
+  date: string,
+): Promise<DayDetail | null> {
+  if (!isBusinessDate(date)) return null;
+  const context = await readContext(tx, propertyId);
+  if (!context || date > context.today) return null;
+
+  const [night] = await readNights(tx, context, date, date);
+  if (!night || night.state === "future") return null;
+
+  const stays = await readDayStays(tx, context, date);
+  const detail: DayDetail = {
+    propertyId,
+    date,
+    state: night.state,
+    occupiedNights: stays.length,
+    chargedNights: stays.filter((stay) => stay.night === "charged").length,
+    stays: stays.map(({ chargeMinor, ...stay }) =>
+      context.mayReadMoney && chargeMinor !== null
+        ? { ...stay, chargeMinor }
+        : stay,
+    ),
+  };
+  if (!context.mayReadMoney) return detail;
+
+  return {
+    ...detail,
+    currency: context.currency,
+    corrections: await readDayCorrections(tx, context, date),
   };
 }
