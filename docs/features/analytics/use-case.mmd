@@ -1,7 +1,7 @@
 %% Slices decide implementation order and nothing else:
 %%   s1 operational occupancy and commercial revenue governance
-%%   s2 a month on the screen, compared, dated correctly
-%%   s3 a month explained: breakdown, uncharged nights, drill-down, payments against revenue
+%%   s2 a month on the screen: compared, dated by business date, corrections, payments against revenue
+%%   s3 a month explained: breakdown by unit type, uncharged nights, day drill-down
 %% Not drawn, deliberately: a breakdown of other revenue by category. A folio line carries a
 %% description and no category, and blueprint 13 forbids a table ahead of the workflow that
 %% needs it, so other revenue is one figure with its lines one drill-down away. AN-DEF-01.
@@ -31,12 +31,12 @@ flowchart TD
     COMPARE_MONTH(["Compare with the prior month<br/>(same elapsed days while the month is open)"])
     EXPLAIN_HEADLINE(["Read each headline with its arithmetic<br/>(ADR = revenue / charged nights, RevPAR = revenue / available nights)"])
     SEE_CORRECTIONS(["See room revenue gross, corrections and net"])
+    RECONCILE_PAYMENTS(["See revenue booked against money collected"])
   end
 
   subgraph S3["slice 3 &mdash; a month explained"]
     BREAK_BY_UNIT_TYPE(["Break the month down by unit type<br/>(rows sum to the headline)"])
     SEE_UNCHARGED(["See occupied nights that earned no charge<br/>(grouped by reason)"])
-    RECONCILE_PAYMENTS(["See revenue booked against money collected"])
     DRILL_DAY(["Open one day<br/>(the Stays counted, their charge or reason, corrections posted)"])
   end
 
