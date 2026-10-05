@@ -13,11 +13,11 @@ operate it.
 
 |            |                                                                                                       |
 | ---------- | ----------------------------------------------------------------------------------------------------- |
-| Host       | `restra-staging-2`, `root@178.105.194.50`, Ubuntu 24.04, Docker Compose, Traefik on the `web` network |
+| Host       | `albaraa` (shared app host, also serves other apps' production), `root@46.225.168.54`, Ubuntu 24.04, Docker Compose, Traefik on the `web` network |
 | Source     | `/opt/apps/ranza/src` — replaced wholesale by every deploy                                            |
 | Secrets    | `/opt/apps/ranza/.env` — outside the tree, so a deploy cannot take it with it                         |
-| Workspace  | `https://ranza.178-105-194-50.nip.io`                                                                 |
-| Portal     | `https://ranza-portal.178-105-194-50.nip.io`                                                          |
+| Workspace  | `https://ranza.46-225-168-54.nip.io`                                                                 |
+| Portal     | `https://ranza-portal.46-225-168-54.nip.io`                                                          |
 | Containers | `ranza-db`, `ranza-migrate`, `ranza-workspace`, `ranza-portal`, `ranza-worker`                        |
 
 nip.io resolves any `<name>.<ip>.nip.io` to the IP, so no DNS record was
@@ -73,11 +73,11 @@ seed does it, with a password that is generated rather than known:
    Better Auth refuses a request without an `Origin`, so send one:
 
    ```sh
-   curl -fsS -c cookies https://ranza.178-105-194-50.nip.io/api/auth/sign-up/email \
+   curl -fsS -c cookies https://ranza.46-225-168-54.nip.io/api/auth/sign-up/email \
      -H 'content-type: application/json' \
-     -H 'origin: https://ranza.178-105-194-50.nip.io' \
+     -H 'origin: https://ranza.46-225-168-54.nip.io' \
      -d '{"email":"<email>","password":"<generated>","name":"<name>"}'
-   curl -fsS -b cookies -o /dev/null https://ranza.178-105-194-50.nip.io/tr/today
+   curl -fsS -b cookies -o /dev/null https://ranza.46-225-168-54.nip.io/tr/today
    ```
 
    The second request is one authenticated request, which is what creates the
@@ -144,7 +144,7 @@ say this database had them applied (AGENTS.md, "Testing security claims"). The
 database is published on the host's loopback for exactly this:
 
 ```sh
-ssh -N -L 54329:127.0.0.1:54329 root@178.105.194.50 &
+ssh -N -L 54329:127.0.0.1:54329 root@46.225.168.54 &
 DIRECT_URL="postgresql://ranza:<POSTGRES_PASSWORD>@localhost:54329/ranza" pnpm db:test
 ```
 
@@ -156,7 +156,7 @@ two scripts that overwrite role passwords and seed demo data.
 ## When something is wrong
 
 ```sh
-ssh root@178.105.194.50
+ssh root@46.225.168.54
 cd /opt/apps/ranza/src/deploy
 docker compose --env-file /opt/apps/ranza/.env ps
 docker logs ranza-workspace --tail 50   # exits non-zero if it refused its role
@@ -183,6 +183,6 @@ same way, with the connection error after "will not start."; with
 `restart: unless-stopped` the container then keeps retrying until the
 database answers.
 
-Traefik's dashboard on the host, `http://178.105.194.50:8080`, lists the
+Traefik's dashboard on the host, `http://46.225.168.54:8080`, lists the
 routers; a hostname that is not there is a label problem, not an application
 one.

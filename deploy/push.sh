@@ -6,7 +6,7 @@
 # it. Uncommitted work is therefore ignored, and the script says so.
 set -euo pipefail
 
-host=${RANZA_DEPLOY_HOST:-root@178.105.194.50}
+host=${RANZA_DEPLOY_HOST:-root@46.225.168.54}
 root=/opt/apps/ranza
 revision=$(git rev-parse --short HEAD)
 
