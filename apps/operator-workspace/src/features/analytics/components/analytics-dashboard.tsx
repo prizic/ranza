@@ -82,7 +82,7 @@ export function AnalyticsDashboard({
       )}
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {/* Occupancy Rate */}
         <KpiCard
           description={t("occupancyRateDesc")}

@@ -35,7 +35,7 @@ function HeadlineFigure({
       <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
         {label}
       </p>
-      <p className="mt-4 text-4xl leading-none font-light tracking-tight tabular-nums md:text-5xl">
+      <p className="mt-4 text-3xl leading-none font-light tracking-tight tabular-nums xl:text-4xl 2xl:text-5xl">
         <bdi>{value}</bdi>
       </p>
       <p className="mt-3 text-sm text-muted-foreground">{arithmetic}</p>
@@ -97,7 +97,7 @@ export function HeadlineFigures({
 
   return (
     <section aria-label={t("headline")} className="grid gap-4">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3">
         <HeadlineFigure
           arithmetic={
             figures.occupancyPercent === null
