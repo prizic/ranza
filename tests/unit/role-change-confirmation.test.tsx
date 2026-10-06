@@ -1,6 +1,6 @@
 /**
  * Changing somebody's role from the roster: choosing a role proposes it, and
- * nothing is sent until it is confirmed (SP-S1-41 to SP-S1-52).
+ * nothing is sent until it is confirmed (SP-S1-42 to SP-S1-53).
  *
  * A change ends every session the member holds, so a mis-click on a picker must
  * not be able to make one. Each test here is about what the screen does or

@@ -94,7 +94,7 @@ MT-DEF-03,Photos,a request,a photo is attached,deferred: there is no file founda
 MT-DEF-04,Open issues on Today,open urgent requests,Today is read,deferred: the Today dashboard's cards are not built,module,,deferred
 MT-DEF-05,Vendors and parts,a repair that needs a part from a supplier,it is recorded,deferred: the vendor is free text here; a vendor register and parts stock belong to Procurement and Inventory,module,,deferred
 MT-DEF-06,Work orders raised for you,an item coming due,a day passes,deferred: the worker does not raise work orders yet; the plan's button does,module,,deferred
-MT-DEF-07,Moving an affected booking,a Reservation on a room taken out of order,the desk moves it to another room,"resolved by AB-S1-17: each booking the warning lists opens in Change booking, in a new tab",ui_only,an_affected_booking_opens_in_change_booking,resolved
+MT-DEF-07,Moving an affected booking,a Reservation on a room taken out of order,the desk moves it to another room,"out of scope: moving a Reservation is not built (roadmap, cancelling and amending); the warning lists it",module,,out_of_scope
 MT-DEF-08,Service-level timers,an urgent request left alone,time passes,deferred: escalation belongs to Tasks (blueprint 5.17),module,,deferred
 MT-DEF-09,A Maintenance role,an Organization with technicians,it wants a role for them,out of scope: it composes one from the maintenance permissions (Staff slice 3); no role ships,policy,,out_of_scope
 MT-DEF-10,A technician on a phone,a technician on the floor,they work their requests,deferred: the mobile maintenance mode of blueprint 4.7,ui_only,,deferred

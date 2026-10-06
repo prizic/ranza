@@ -29,7 +29,7 @@ export interface RoleChangeProposal {
   fromName: string;
   toValue: string;
   toName: string;
-  /** The picker that opened this, which gets focus back (SP-S1-51). */
+  /** The picker that opened this, which gets focus back (SP-S1-52). */
   triggerId: string;
   self: boolean;
   selfLosesAccess: boolean;

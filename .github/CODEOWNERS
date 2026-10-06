@@ -1,0 +1,7 @@
+# Decisions and schema are the owner's to approve (AGENTS.md, "Who approves").
+/docs/features/                 @seifelesllamseif
+/docs/adr/                      @seifelesllamseif
+/prisma/migrations/             @seifelesllamseif
+/AGENTS.md                      @seifelesllamseif
+/.claude/skills/feature-design/ @seifelesllamseif
+/.github/CODEOWNERS             @seifelesllamseif

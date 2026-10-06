@@ -289,7 +289,7 @@ export function createStaffModule(deps: StaffDeps) {
    * `expected` is the role the actor was shown the member holding. It is part
    * of the UPDATE's own condition rather than a read beforehand, so two
    * administrators acting on one member end with one change and one refusal
-   * (SP-S1-45) and nobody's decision is overwritten by a stale screen.
+   * (SP-S1-46) and nobody's decision is overwritten by a stale screen.
    */
   async function changeRole(
     context: { userId: string },

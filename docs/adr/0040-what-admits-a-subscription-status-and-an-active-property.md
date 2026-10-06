@@ -73,6 +73,11 @@ keeps naming it ([ADR 0031](0031-an-audit-record-carries-its-location-and-is-rea
 
 - An Organization that is `past_due` on the day this deploys gets its access
   back. On hosted staging there were none (preflight, 2026-09-29).
+- The Control Plane does not exist yet (`apps/control-plane` is empty), so
+  nothing ends a grace period: until it does, moving a Subscription to
+  `suspended` is a manual write on the database, made by Prizic, and a
+  `past_due` Organization keeps full access until somebody makes it. The
+  Owner's notice therefore asks for payment and promises no consequence.
 - A test that wants "lapsed" must say `suspended`. Using `past_due` now asserts
   the opposite of what it names.
 - Once reporting exists, a closed Property's financial history will need a

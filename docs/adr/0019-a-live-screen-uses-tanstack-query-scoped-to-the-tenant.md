@@ -3,6 +3,14 @@
 Status: Accepted
 Date: 2026-09-16
 
+Amended: 2026-09-30 — the Property a Staff Member last chose is remembered in
+a cookie on the device for their session: signing in or out clears it, so a
+shared front-desk terminal does not hand one person's Property to the next
+(OA-S3-05, `apps/operator-workspace/src/lib/property-choice.ts`). It holds only
+a Property id and every request checks it against what the viewer reaches, so
+it widens nothing. It outlives the tab, which this ADR otherwise forbids; the
+owner accepted that for one session and not beyond.
+
 ## Context
 
 Every screen so far is a Server Component that reads through `src/server/`

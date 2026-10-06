@@ -160,7 +160,7 @@ export class RoleIsHeldError extends StaffRefusedError {
 }
 
 /**
- * The role somebody was shown is no longer the one they hold (SP-S1-45).
+ * The role somebody was shown is no longer the one they hold (SP-S1-46).
  *
  * Carries what they hold now, so a screen can say so rather than leave the
  * actor to guess why a confirmation they gave was not honoured.
@@ -175,7 +175,7 @@ export class RoleChangedMeanwhileError extends StaffRefusedError {
   }
 }
 
-/** The role chosen was retired after the picker loaded (SP-S1-48). */
+/** The role chosen was retired after the picker loaded (SP-S1-49). */
 export class RoleRetiredError extends StaffRefusedError {
   constructor(message: string) {
     super(message);
