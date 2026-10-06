@@ -26,7 +26,22 @@ export interface TenantClient {
   $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number>;
 }
 
-interface TransactionOptions {
+/**
+ * The isolation levels a tenant read may ask for. Absent means the database
+ * default, READ COMMITTED, where every statement sees its own snapshot.
+ */
+export type TenantIsolationLevel = "RepeatableRead";
+
+export interface TenantTransactionOptions {
+  /**
+   * RepeatableRead gives every statement in the transaction one snapshot, for
+   * a read made of several queries that must agree with each other. It is set
+   * when the transaction begins, so it applies from the context statement on.
+   */
+  isolationLevel?: TenantIsolationLevel;
+}
+
+interface TransactionOptions extends TenantTransactionOptions {
   maxWait?: number;
   timeout?: number;
 }
@@ -55,6 +70,7 @@ export async function withOrganizationContext<
   prisma: TransactionCapable<TClient>,
   context: RequestContext,
   query: (client: TClient) => Promise<TResult>,
+  options: TenantTransactionOptions = {},
 ): Promise<TResult> {
   if (!UUID.test(context.userId)) {
     throw new TenantContextError("request context requires a valid user id");
@@ -68,6 +84,6 @@ export async function withOrganizationContext<
       );
       return query(client);
     },
-    { maxWait: 15_000, timeout: 30_000 },
+    { maxWait: 15_000, timeout: 30_000, ...options },
   );
 }

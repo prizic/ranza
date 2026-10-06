@@ -67,7 +67,7 @@ export function PaymentsBreakdown({
           const share = total > 0 ? (amount / total) * 100 : 0;
           return (
             <div key={key} className="space-y-1">
-              <div className="flex items-center justify-between text-xs sm:text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-xs sm:text-sm">
                 <span className="flex items-center gap-2 font-medium text-slate-700 dark:text-slate-300">
                   <Icon aria-hidden="true" className="size-4 text-slate-400" />
                   {label}

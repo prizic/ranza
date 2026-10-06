@@ -55,7 +55,7 @@ export function KpiCard({
             <span className="text-xl font-semibold tracking-wide">••••••</span>
           </div>
         ) : (
-          <p className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50 sm:text-3xl">
+          <p className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-50 sm:text-2xl xl:text-3xl">
             {value}
           </p>
         )}

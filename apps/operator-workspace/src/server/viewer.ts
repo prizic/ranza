@@ -119,9 +119,13 @@ import { displayName } from "./display-name";
 import type { TodaySummary } from "./today-derive";
 import { readTodaySummary, todayReads } from "./today-summary";
 import {
+  getDayDetail,
+  getMonthReport,
   getPropertyAnalytics,
   type AnalyticsRange,
   type DailyMetric,
+  type DayDetail,
+  type MonthReport,
   type PaymentMethodBreakdown,
   type PropertyAnalytics,
 } from "./analytics";
@@ -134,6 +138,8 @@ import {
 export type {
   AnalyticsRange,
   DailyMetric,
+  DayDetail,
+  MonthReport,
   PaymentMethodBreakdown,
   Portfolio,
   PortfolioProperty,
@@ -977,6 +983,34 @@ export async function portfolio(
   const viewer = await currentViewer();
   if (!viewer) return null;
   return getPortfolio(viewer.userId, organizationId);
+}
+
+/**
+ * One calendar month of a Property, explained.
+ * Null if the viewer cannot reach the Property or lacks the analytics capability:
+ * the screen shows its not-found state, not an empty month (AN-S2-16).
+ */
+export async function propertyMonthReport(
+  propertyId: string,
+  month?: string | null,
+): Promise<MonthReport | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getMonthReport(viewer.userId, propertyId, month);
+}
+
+/**
+ * One day of a Property's business calendar, opened from the month table, or
+ * null when the viewer does not reach the Property, it has not bought
+ * analytics, or the day has not happened (AN-S3-05).
+ */
+export async function propertyDayDetail(
+  propertyId: string,
+  date: string,
+): Promise<DayDetail | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getDayDetail(viewer.userId, propertyId, date);
 }
 
 /**

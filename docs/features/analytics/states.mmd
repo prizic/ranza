@@ -1,6 +1,7 @@
 %% Anything not drawn here is forbidden.
 %% Every transition carries its trigger and its slice.
-%% Two lifecycles: analytics window selection and financial visibility gate.
+%% Four lifecycles: analytics window selection (s1), reported month (s2), day detail (s3)
+%% and the financial visibility gate. Slice 2 retires the mtd window: it is the open month.
 stateDiagram-v2
   direction LR
 
@@ -23,6 +24,32 @@ stateDiagram-v2
     w_mtd --> w_today : select range today / s1
     w_mtd --> w_7d : select range 7d / s1
     w_mtd --> w_30d : select range 30d / s1
+  }
+
+  state "Reported month" as month {
+    state "open month (current, N of M days closed)" as m_open
+    state "past month (every day closed)" as m_past
+    state "month with no activity" as m_empty
+
+    [*] --> m_open : open the screen / s2
+    m_open --> m_past : select an earlier month / s2
+    m_past --> m_past : select previous or next month / s2
+    m_past --> m_open : select the current month / s2
+    m_past --> m_empty : select a month before the Property's first activity / s2
+    m_open --> m_empty : select a month before the Property's first activity / s2
+    m_empty --> m_past : select a month with activity / s2
+    m_empty --> m_open : select the current month / s2
+  }
+
+  state "Day detail" as day {
+    state "closed (month table only)" as d_closed
+    state "open (one day's Stays, charges, corrections)" as d_open
+
+    [*] --> d_closed : month loaded / s3
+    d_closed --> d_open : open a day / s3
+    d_open --> d_closed : close the day detail / s3
+    d_open --> d_open : open another day / s3
+    d_open --> [*] : select another month / s3
   }
 
   state "Financial metrics visibility" as visibility {
