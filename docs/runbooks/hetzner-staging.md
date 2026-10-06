@@ -11,14 +11,14 @@ operate it.
 
 ## Where it is
 
-|            |                                                                                                       |
-| ---------- | ----------------------------------------------------------------------------------------------------- |
+|            |                                                                                                                                                   |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Host       | `albaraa` (shared app host, also serves other apps' production), `root@46.225.168.54`, Ubuntu 24.04, Docker Compose, Traefik on the `web` network |
-| Source     | `/opt/apps/ranza/src` — replaced wholesale by every deploy                                            |
-| Secrets    | `/opt/apps/ranza/.env` — outside the tree, so a deploy cannot take it with it                         |
-| Workspace  | `https://ranza.46-225-168-54.nip.io`                                                                 |
-| Portal     | `https://ranza-portal.46-225-168-54.nip.io`                                                          |
-| Containers | `ranza-db`, `ranza-migrate`, `ranza-workspace`, `ranza-portal`, `ranza-worker`                        |
+| Source     | `/opt/apps/ranza/src` — replaced wholesale by every deploy                                                                                        |
+| Secrets    | `/opt/apps/ranza/.env` — outside the tree, so a deploy cannot take it with it                                                                     |
+| Workspace  | `https://ranza.46-225-168-54.nip.io`                                                                                                              |
+| Portal     | `https://ranza-portal.46-225-168-54.nip.io`                                                                                                       |
+| Containers | `ranza-db`, `ranza-migrate`, `ranza-workspace`, `ranza-portal`, `ranza-worker`                                                                    |
 
 nip.io resolves any `<name>.<ip>.nip.io` to the IP, so no DNS record was
 needed; Traefik issues the certificates through Let's Encrypt on first contact.
