@@ -7,6 +7,7 @@
 import { describe, expect, it } from "vitest";
 import type { StaffMember } from "../../packages/ranza/staff/src";
 import {
+  leavesNoAdministrator,
   membersAboveViewer,
   rolesWithinViewer,
 } from "../../apps/operator-workspace/src/features/staff/acts-on";
@@ -152,5 +153,56 @@ describe("the roles a viewer may hand out", () => {
     const roster = [member("gone", { status: "revoked" })];
     expect(rolesWithinViewer(withAnEmptyRole, roster, "gone")).toEqual([]);
     expect(rolesWithinViewer(withAnEmptyRole, [], "stranger")).toEqual([]);
+  });
+});
+
+describe("the last administrator", () => {
+  const ADMIN = ["staff.administer"];
+  const NOTHING = ["audit.read"];
+
+  it("is refused a role without staff.administer when nobody else holds it", () => {
+    const roster = [
+      member("only", { rolePermissions: ADMIN }),
+      member("desk", { rolePermissions: NOTHING }),
+    ];
+    expect(leavesNoAdministrator(roster, "only", NOTHING)).toBe(true);
+  });
+
+  it("is refused one when they are the last organization-wide holder, beside administrators of assigned Properties", () => {
+    const roster = [
+      member("owner", {
+        rolePermissions: ADMIN,
+        accessScope: "organization_wide",
+      }),
+      member("manager", { rolePermissions: ADMIN }),
+    ];
+    expect(leavesNoAdministrator(roster, "owner", NOTHING)).toBe(true);
+  });
+
+  it("is not refused while another active organization-wide holder remains", () => {
+    const roster = [
+      member("owner", {
+        rolePermissions: ADMIN,
+        accessScope: "organization_wide",
+      }),
+      member("second", {
+        rolePermissions: ADMIN,
+        accessScope: "organization_wide",
+      }),
+    ];
+    expect(leavesNoAdministrator(roster, "owner", NOTHING)).toBe(false);
+  });
+
+  it("is not refused a role that still holds staff.administer", () => {
+    const roster = [member("only", { rolePermissions: ADMIN })];
+    expect(leavesNoAdministrator(roster, "only", ADMIN)).toBe(false);
+  });
+
+  it("ignores revoked holders", () => {
+    const roster = [
+      member("only", { rolePermissions: ADMIN }),
+      member("gone", { rolePermissions: ADMIN, status: "revoked" }),
+    ];
+    expect(leavesNoAdministrator(roster, "only", NOTHING)).toBe(true);
   });
 });

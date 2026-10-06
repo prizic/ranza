@@ -277,6 +277,15 @@ export interface Messages {
     refused: string;
     lastAdministrator: string;
     roleIsHeld: string;
+    confirmRoleTitle: string;
+    confirmRoleChange: string;
+    confirmRoleSessions: string;
+    confirmRoleSelf: string;
+    confirmRoleSelfLosesAccess: string;
+    confirmRoleConfirm: string;
+    confirmRoleClose: string;
+    roleChangedMeanwhile: string;
+    roleRetired: string;
     rolesHeading: string;
     defineRole: string;
     defineRoleTitle: string;
@@ -1728,6 +1737,18 @@ export const messages: Record<SupportedLocale, Messages> = {
       lastAdministrator:
         "Bir organizasyonda ekip yönetebilen en az bir kişi kalmalıdır.",
       roleIsHeld: "Bu rolü tutan kişiler var; önce onları taşıyın.",
+      confirmRoleTitle: "Bu rol değiştirilsin mi?",
+      confirmRoleChange: "{member}, {from} rolünden {to} rolüne geçecek.",
+      confirmRoleSessions:
+        "Sahip olduğu tüm oturumlar sona erecek ve yeniden giriş yapması gerekecek.",
+      confirmRoleSelf: "Bu sizin kendi rolünüz; oturumunuz kapatılacak.",
+      confirmRoleSelfLosesAccess:
+        "{to} ekip yönetemez; bu nedenle artık kimsenin rolünü değiştiremez veya ekip daveti gönderemezsiniz.",
+      confirmRoleConfirm: "Rolü değiştir",
+      confirmRoleClose: "Kapat",
+      roleChangedMeanwhile:
+        "Bu rol siz karar verirken değiştirildi. {member} artık {role} rolünde. Hiçbir şey değişmedi.",
+      roleRetired: "Bu rol artık sunulmuyor. Hiçbir şey değişmedi.",
       rolesHeading: "Roller",
       defineRole: "Rol tanımla",
       defineRoleTitle: "Yeni bir rol tanımla",
@@ -3273,6 +3294,18 @@ export const messages: Record<SupportedLocale, Messages> = {
       lastAdministrator:
         "An Organization must keep somebody who can add staff.",
       roleIsHeld: "Somebody holds this role. Move them first.",
+      confirmRoleTitle: "Change this role?",
+      confirmRoleChange: "{member} will go from {from} to {to}.",
+      confirmRoleSessions:
+        "Every session they hold will end, and they will need to sign in again.",
+      confirmRoleSelf: "This is your own role, so you will be signed out.",
+      confirmRoleSelfLosesAccess:
+        "{to} cannot manage staff, so you will no longer be able to change anyone’s role or invite staff.",
+      confirmRoleConfirm: "Change role",
+      confirmRoleClose: "Close",
+      roleChangedMeanwhile:
+        "Somebody changed this role while you were deciding. {member} now holds {role}. Nothing was changed.",
+      roleRetired: "That role is no longer offered. Nothing was changed.",
       rolesHeading: "Roles",
       defineRole: "Define a role",
       defineRoleTitle: "Define a new role",
@@ -4820,6 +4853,18 @@ export const messages: Record<SupportedLocale, Messages> = {
       refused: "رُفض هذا الإجراء.",
       lastAdministrator: "يجب أن يبقى في المؤسسة من يستطيع إدارة الفريق.",
       roleIsHeld: "هذا الدور يحمله أحدهم. انقلهم أولًا.",
+      confirmRoleTitle: "تغيير هذا الدور؟",
+      confirmRoleChange: "سينتقل {member} من {from} إلى {to}.",
+      confirmRoleSessions:
+        "ستنتهي جميع جلساته وسيحتاج إلى تسجيل الدخول من جديد.",
+      confirmRoleSelf: "هذا دورك أنت، لذا سيتم تسجيل خروجك.",
+      confirmRoleSelfLosesAccess:
+        "لا يستطيع دور {to} إدارة الفريق، لذلك لن تتمكن بعد الآن من تغيير دور أي شخص أو دعوة أعضاء جدد.",
+      confirmRoleConfirm: "تغيير الدور",
+      confirmRoleClose: "إغلاق",
+      roleChangedMeanwhile:
+        "غُيّر هذا الدور أثناء اتخاذك القرار. يحمل {member} الآن دور {role}. لم يتغير شيء.",
+      roleRetired: "لم يعد هذا الدور متاحًا. لم يتغير شيء.",
       rolesHeading: "الأدوار",
       defineRole: "تعريف دور",
       defineRoleTitle: "تعريف دور جديد",

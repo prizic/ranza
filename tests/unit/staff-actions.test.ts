@@ -11,6 +11,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   LastAdministratorError,
+  RoleChangedMeanwhileError,
+  RoleRetiredError,
   StaffRefusedError,
 } from "../../packages/ranza/staff/src";
 
@@ -18,8 +20,9 @@ const changeRole = vi.fn();
 
 // Resolved from the application's own node_modules, which is where the
 // actions import it from.
+const revalidatePath = vi.hoisted(() => vi.fn());
 vi.mock("../../apps/operator-workspace/node_modules/next/cache", () => ({
-  revalidatePath: vi.fn(),
+  revalidatePath,
 }));
 vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
   currentViewer: async () => ({
@@ -39,6 +42,7 @@ function aRoleChange(): FormData {
   form.set("organization", "d9000002-0000-4000-8000-000000000001");
   form.set("member", "d9000001-0000-4000-8000-000000000002");
   form.set("role", ":housekeeping");
+  form.set("expected", ":front_desk");
   return form;
 }
 
@@ -87,7 +91,42 @@ describe("a staff command that fails", () => {
         organizationId: "d9000002-0000-4000-8000-000000000001",
         userId: "d9000001-0000-4000-8000-000000000002",
         roleKey: "housekeeping",
+        expected: { roleKey: "front_desk" },
       },
     );
+  });
+
+  it("refuses and logs a role change that does not name the role it was shown", async () => {
+    const form = aRoleChange();
+    form.delete("expected");
+
+    expect(await changeStaffRole("idle", form)).toBe("refused");
+    expect(changeRole).not.toHaveBeenCalled();
+    expect(logged).toHaveBeenCalledWith(
+      "staff command failed",
+      expect.any(TypeError),
+    );
+  });
+
+  it("says the role changed meanwhile, quietly, and refreshes the roster", async () => {
+    changeRole.mockRejectedValue(
+      new RoleChangedMeanwhileError("moved on", {
+        roleKey: "housekeeping",
+        roleScopeId: "00000000-0000-0000-0000-000000000000",
+      }),
+    );
+
+    expect(await changeStaffRole("idle", aRoleChange())).toBe(
+      "roleChangedMeanwhile",
+    );
+    expect(logged).not.toHaveBeenCalled();
+    expect(revalidatePath).toHaveBeenCalledWith("/en/people");
+  });
+
+  it("says a retired role is no longer offered", async () => {
+    changeRole.mockRejectedValue(new RoleRetiredError("retired"));
+
+    expect(await changeStaffRole("idle", aRoleChange())).toBe("roleRetired");
+    expect(logged).not.toHaveBeenCalled();
   });
 });

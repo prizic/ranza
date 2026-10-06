@@ -25,24 +25,30 @@ import {
   type StatusBadgeProps,
 } from "@ranza/ui";
 import {
-  changeStaffRole,
   revokeStaffMember,
   undoStaffRevoke,
   type StaffOutcome,
 } from "../../../server/staff";
 import { shippedRoleOf } from "../labels";
+import { leavesNoAdministrator } from "../acts-on";
 import { usePickerLabels } from "../../../lib/picker-labels";
-import { roleOptionValue, useRoleOptions } from "./role-options";
-
-/** Every role Ranza ships lives in this scope, which is not an Organization. */
-const NIL_SCOPE = "00000000-0000-0000-0000-000000000000";
+import {
+  ConfirmRoleChange,
+  type RoleChangeProposal,
+} from "./confirm-role-change";
+import {
+  heldRoleValue,
+  roleNameOf,
+  roleOptionValue,
+  useRoleOptions,
+} from "./role-options";
 
 /**
  * Who works here, and where.
  *
- * The role is a control rather than a word, which is the mockup's shape and is
- * also the honest one: changing somebody's role is the commonest thing done on
- * this screen, and a select in the row is one gesture where a dialog is four.
+ * The role is a control rather than a word, which is the mockup's shape. It
+ * only proposes: a change ends every session the member holds, so picking a
+ * role opens a confirmation and nothing is sent until it is given (SP-S1-41).
  *
  * Revoked memberships stay on the list. A roster that dropped them would make
  * the undo window invisible — somebody revoked by mistake would have nothing to
@@ -63,6 +69,7 @@ export function RosterTable({
   organizationId,
   roles,
   roster,
+  viewerUserId,
 }: {
   locale: string;
   mayAdminister: boolean;
@@ -72,9 +79,56 @@ export function RosterTable({
   /** Only the roles the viewer may hand out (SP-S1-34). */
   roles: readonly Role[];
   roster: readonly StaffMember[];
+  viewerUserId: string;
 }) {
   const t = useTranslations();
   const above = new Set(membersAboveViewer);
+  const [proposal, setProposal] = useState<RoleChangeProposal | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  // Each pick is its own decision, so it starts a dialog with nothing left over
+  // from the last: a refusal read once must not block a retry.
+  const [attempt, setAttempt] = useState(0);
+
+  function propose(member: StaffMember, next: string): void {
+    const from = heldRoleValue(member);
+    if (next === from) return;
+
+    const target = roles.find((role) => roleOptionValue(role) === next);
+    if (!target) return;
+
+    const shipped = shippedRoleOf(target);
+    const toName = shipped ? t(`staff.roles.${shipped}`) : target.name;
+    const fromName = roleNameOf(member, t);
+    // Two roles can share a name — an Organization's own "Front desk" beside
+    // the shipped one — and a confirmation reading "from Front desk to Front
+    // desk" would not say what is changing.
+    const group = (authored: boolean): string =>
+      t(authored ? "staff.authoredGroup" : "staff.shippedGroup");
+    const named = fromName === toName;
+
+    setProposal({
+      userId: member.userId,
+      email: member.email,
+      fromValue: from,
+      fromName: named
+        ? `${fromName} (${group(from.split(":")[0] !== "")})`
+        : fromName,
+      toValue: next,
+      toName: named
+        ? `${toName} (${group(target.organizationId !== null)})`
+        : toName,
+      triggerId: `staff-role-${member.membershipId}`,
+      self: member.userId === viewerUserId,
+      selfLosesAccess: !target.permissions.includes("staff.administer"),
+      lastAdministrator: leavesNoAdministrator(
+        roster,
+        member.userId,
+        target.permissions,
+      ),
+    });
+    setAttempt((count) => count + 1);
+    setConfirming(true);
+  }
 
   return (
     <div className="overflow-x-auto">
@@ -122,9 +176,8 @@ export function RosterTable({
                 <TableCell>
                   {actsOn ? (
                     <RolePicker
-                      locale={locale}
                       member={member}
-                      organizationId={organizationId}
+                      onPropose={propose}
                       roles={roles}
                     />
                   ) : (
@@ -161,6 +214,17 @@ export function RosterTable({
           })}
         </TableBody>
       </Table>
+      {proposal ? (
+        <ConfirmRoleChange
+          current={roster.find((member) => member.userId === proposal.userId)}
+          key={attempt}
+          locale={locale}
+          onClose={() => setConfirming(false)}
+          open={confirming}
+          organizationId={organizationId}
+          proposal={proposal}
+        />
+      ) : null}
     </div>
   );
 }
@@ -190,19 +254,6 @@ function statusOf(
   return { icon: CircleCheck, label: t("staff.active"), tone: "success" };
 }
 
-/** A member's role as words, in the viewer's language when Ranza ships it. */
-function roleNameOf(
-  member: StaffMember,
-  t: ReturnType<typeof useTranslations>,
-): string {
-  const shipped = shippedRoleOf({
-    key: member.roleId,
-    organizationId:
-      member.roleScopeId === NIL_SCOPE ? null : member.roleScopeId,
-  });
-  return shipped ? t(`staff.roles.${shipped}`) : member.roleName;
-}
-
 /**
  * Initials from an address, because a Staff Member has no name.
  *
@@ -225,34 +276,21 @@ function initials(email: string): string {
  * The role, as a control, for a viewer who holds staff.administer.
  *
  * It offers only the roles the viewer may hand out and is drawn only for a
- * member within their role and reach (SP-S1-35), but whether a change is
- * allowed is still the policies' answer: one that comes back refused — the
- * roster was stale, or a commercial gate closed — the picker says so.
+ * member within their role and reach (SP-S1-35). It shows the role the roster
+ * says the member holds and proposes a change; whether that change is allowed
+ * is still the policies' answer, given after the actor confirms.
  */
 function RolePicker({
-  locale,
   member,
-  organizationId,
+  onPropose,
   roles,
 }: {
-  locale: string;
   member: StaffMember;
-  organizationId: string;
+  onPropose: (member: StaffMember, next: string) => void;
   roles: readonly Role[];
 }) {
   const t = useTranslations();
-  const [pending, startTransition] = useTransition();
-  const [outcome, setOutcome] = useState<StaffOutcome>("idle");
-  const [held, setHeld] = useState(
-    // The nil uuid is a scope, not an Organization, so it maps to the empty
-    // half of the pair the way a shipped role does everywhere else.
-    () =>
-      roleOptionValue({
-        key: member.roleId,
-        organizationId:
-          member.roleScopeId === NIL_SCOPE ? null : member.roleScopeId,
-      }),
-  );
+  const held = heldRoleValue(member);
 
   const roleOptions = useRoleOptions(
     roles.map((role) => {
@@ -271,45 +309,17 @@ function RolePicker({
     : [...roleOptions, { value: held, label: member.roleName, disabled: true }];
   const roleLabels = usePickerLabels(t("staff.role"));
 
-  function change(next: string): void {
-    const previous = held;
-    setHeld(next);
-    setOutcome("idle");
-
-    startTransition(async () => {
-      const form = new FormData();
-      form.set("locale", locale);
-      form.set("organization", organizationId);
-      form.set("member", member.userId);
-      form.set("role", next);
-
-      const result = await changeStaffRole("idle", form);
-      if (result !== "done") {
-        setHeld(previous);
-        setOutcome(result);
-      }
-    });
-  }
-
   return (
-    <span className="flex flex-col gap-1">
-      <Combobox
-        aria-label={`${t("staff.role")}: ${member.email}`}
-        className="min-w-40"
-        disabled={pending || member.status === "revoked"}
-        labels={roleLabels}
-        onValueChange={change}
-        options={pickerOptions}
-        value={held}
-      />
-      {outcome === "lastAdministrator" ? (
-        <span className="text-xs text-destructive">
-          {t("staff.lastAdministrator")}
-        </span>
-      ) : outcome !== "idle" ? (
-        <span className="text-xs text-destructive">{t("staff.refused")}</span>
-      ) : null}
-    </span>
+    <Combobox
+      aria-label={`${t("staff.role")}: ${member.email}`}
+      className="min-w-40"
+      disabled={member.status === "revoked"}
+      id={`staff-role-${member.membershipId}`}
+      labels={roleLabels}
+      onValueChange={(next) => onPropose(member, next)}
+      options={pickerOptions}
+      value={held}
+    />
   );
 }
 

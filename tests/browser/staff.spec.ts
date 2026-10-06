@@ -1,9 +1,16 @@
 import { randomUUID } from "node:crypto";
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import { psql } from "./local-database";
 import { DESK_EMAIL, OWNER_EMAIL, signIn, testProperty } from "./front-desk";
+
+/** Gives the confirmation a role change asks for, and waits for it to close. */
+async function confirmRoleChange(page: Page): Promise<void> {
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Change role" }).click();
+  await expect(dialog).toBeHidden();
+}
 
 /**
  * Inviting a colleague, through the screen an Organization actually uses.
@@ -198,6 +205,10 @@ test("an administrator changes somebody's role from the roster", async ({
   // A role Ranza ships.
   await select.click();
   await page.getByRole("option", { exact: true, name: "Housekeeping" }).click();
+  // Choosing is not changing: nothing is written until it is confirmed.
+  await expect(page.getByRole("dialog")).toContainText(colleague);
+  expect(roleOf(colleague)).toBe("front_desk@shipped");
+  await confirmRoleChange(page);
   await expect(select).toBeEnabled();
   await expect(row.getByText("That was refused.")).toHaveCount(0);
   await expect.poll(() => roleOf(colleague)).toBe("housekeeping@shipped");
@@ -205,6 +216,7 @@ test("an administrator changes somebody's role from the roster", async ({
   // One the Organization wrote, which only the scope half tells apart.
   await select.click();
   await page.getByRole("option", { exact: true, name: roleName }).click();
+  await confirmRoleChange(page);
   await expect(select).toBeEnabled();
   await expect(row.getByText("That was refused.")).toHaveCount(0);
   await expect.poll(() => roleOf(colleague)).toBe(`${roleKey}@organization`);
@@ -275,6 +287,14 @@ test("an Organization's own Front desk is picked apart from the shipped one", as
   await expect(ours).toHaveAttribute("aria-checked", "false");
 
   await ours.click();
+  // Two roles with one name: the confirmation says which is which.
+  await expect(page.getByRole("dialog")).toContainText(
+    "Front desk (Ranza ships these)",
+  );
+  await expect(page.getByRole("dialog")).toContainText(
+    "Front desk (You defined these)",
+  );
+  await confirmRoleChange(page);
   await expect(select).toBeEnabled();
   await expect(
     page

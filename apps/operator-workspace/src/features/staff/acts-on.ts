@@ -1,5 +1,7 @@
 import type { StaffMember } from "@ranza/staff";
 
+const ADMINISTER = "staff.administer";
+
 /**
  * What the viewer holds here, as the policies read it: the permissions of the
  * role on their active membership, and whether it reaches the whole
@@ -74,4 +76,37 @@ export function rolesWithinViewer<
   const ceiling = ceilingOf(roster, viewerUserId);
   if (!ceiling) return [];
   return roles.filter((role) => holdsAll(ceiling.held, role.permissions));
+}
+
+/**
+ * Whether giving a member this role would leave the Organization with nobody
+ * able to add staff, or nobody able to at every Property — the two refusals of
+ * the last-administrator trigger (SP-S1-12, SP-S1-38).
+ *
+ * A prediction, so the refusal can come before a confirmation rather than
+ * after a wasted one (SP-S1-47). The trigger stays the authority: this reads
+ * the roster the viewer was shown, and a roster that has since changed is
+ * answered by the trigger, not by this.
+ */
+export function leavesNoAdministrator(
+  roster: readonly StaffMember[],
+  memberUserId: string,
+  nextPermissions: readonly string[],
+): boolean {
+  const member = roster.find((candidate) => candidate.userId === memberUserId);
+  if (!member || member.status !== "active") return false;
+  if (!member.rolePermissions.includes(ADMINISTER)) return false;
+  if (nextPermissions.includes(ADMINISTER)) return false;
+
+  const others = roster.filter(
+    (candidate) =>
+      candidate.userId !== memberUserId &&
+      candidate.status === "active" &&
+      candidate.rolePermissions.includes(ADMINISTER),
+  );
+  if (others.length === 0) return true;
+  return (
+    member.accessScope === "organization_wide" &&
+    !others.some((other) => other.accessScope === "organization_wide")
+  );
 }

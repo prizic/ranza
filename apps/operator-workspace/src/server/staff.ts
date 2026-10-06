@@ -5,7 +5,9 @@ import { isSupportedLocale } from "@ranza/i18n";
 import {
   AlreadyAMemberError,
   LastAdministratorError,
+  RoleChangedMeanwhileError,
   RoleIsHeldError,
+  RoleRetiredError,
   StaffRefusedError,
   type Role,
   type StaffMember,
@@ -44,6 +46,8 @@ export type StaffOutcome =
   | "alreadyAMember"
   | "lastAdministrator"
   | "roleIsHeld"
+  | "roleChangedMeanwhile"
+  | "roleRetired"
   | "refused";
 
 /** What an invitation leaves on the screen: a link somebody has to pass on. */
@@ -62,6 +66,8 @@ function outcomeFor(error: unknown): StaffOutcome {
   if (error instanceof AlreadyAMemberError) return "alreadyAMember";
   if (error instanceof LastAdministratorError) return "lastAdministrator";
   if (error instanceof RoleIsHeldError) return "roleIsHeld";
+  if (error instanceof RoleChangedMeanwhileError) return "roleChangedMeanwhile";
+  if (error instanceof RoleRetiredError) return "roleRetired";
   if (!(error instanceof StaffRefusedError)) {
     console.error("staff command failed", error);
   }
@@ -145,22 +151,42 @@ export async function inviteStaffMember(
   }
 }
 
+/**
+ * The form names the role the actor was shown the member holding (`expected`),
+ * and a form that does not is a fault, not a refusal: an old client would
+ * otherwise change a role it had never checked (SP-S1-45).
+ */
 export async function changeStaffRole(
   _previous: StaffOutcome,
   form: FormData,
 ): Promise<StaffOutcome> {
-  return run(form, (staff, viewer, locale) =>
-    staff
-      .changeRole(
+  return run(form, async (staff, viewer, locale) => {
+    const expected = String(form.get("expected") ?? "");
+    if (!expected) {
+      throw new TypeError("a role change names the role it was shown");
+    }
+    try {
+      await staff.changeRole(
         { userId: viewer },
         {
           organizationId: String(form.get("organization") ?? ""),
           userId: String(form.get("member") ?? ""),
+          expected: roleFrom(expected),
           ...roleFrom(String(form.get("role") ?? "")),
         },
-      )
-      .then(() => revalidateRoster(locale)),
-  );
+      );
+    } catch (error) {
+      // The screen behind the dialog is out of date; the answer refreshes it.
+      if (
+        error instanceof RoleChangedMeanwhileError ||
+        error instanceof RoleRetiredError
+      ) {
+        revalidateRoster(locale);
+      }
+      throw error;
+    }
+    revalidateRoster(locale);
+  });
 }
 
 export async function revokeStaffMember(

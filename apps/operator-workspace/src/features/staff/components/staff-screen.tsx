@@ -75,6 +75,7 @@ export function StaffScreen({
               viewerUserId,
             )}
             roster={roster}
+            viewerUserId={viewerUserId}
           />
         </TabsContent>
 

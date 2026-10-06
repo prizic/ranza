@@ -6,7 +6,9 @@ import {
   AlreadyAMemberError,
   INVITATION_LIFETIME_DAYS,
   LastAdministratorError,
+  RoleChangedMeanwhileError,
   RoleIsHeldError,
+  RoleRetiredError,
   ROLE_NAME,
   StaffRefusedError,
   UNDO_REVOKE_WINDOW_HOURS,
@@ -35,6 +37,9 @@ import type { StaffDeps } from "./ports";
  */
 
 /** Every shipped role lives in this scope, which is not an Organization. */
+/** What a command's statement is given: the transaction, as the audit sees it. */
+type Tenant = Parameters<typeof recordWithin>[0];
+
 const SHIPPED_SCOPE = "00000000-0000-0000-0000-000000000000";
 
 /**
@@ -280,34 +285,95 @@ export function createStaffModule(deps: StaffDeps) {
    * The commercial gate applies, and the trigger refuses if this was the last
    * membership able to add staff. Demoting yourself is allowed when you are not
    * the last one — your own sessions end with everybody else's (SP-S1-24).
+   *
+   * `expected` is the role the actor was shown the member holding. It is part
+   * of the UPDATE's own condition rather than a read beforehand, so two
+   * administrators acting on one member end with one change and one refusal
+   * (SP-S1-45) and nobody's decision is overwritten by a stale screen.
    */
   async function changeRole(
     context: { userId: string },
-    input: { organizationId: string; userId: string } & RoleReference,
+    input: {
+      organizationId: string;
+      userId: string;
+      expected?: RoleReference;
+    } & RoleReference,
   ): Promise<void> {
     await command(
       context,
       input.organizationId,
       input.userId,
       "staff.role_changed",
+      // The role the statement matched on, when it was given: the unlocked
+      // read `before` can be a role that has since changed and changed back.
       (before) => ({
-        from: before.role,
-        fromAuthored: isAuthored(before.roleScopeId),
+        from: input.expected?.roleKey ?? before.role,
+        fromAuthored: isAuthored(
+          input.expected ? input.expected.roleScopeId : before.roleScopeId,
+        ),
         to: input.roleKey,
         toAuthored: isAuthored(input.roleScopeId),
       }),
-      (tx) =>
-        tx.$executeRawUnsafe(
+      async (tx: Tenant) => {
+        const written = await tx.$executeRawUnsafe(
           `update public.organization_memberships
               set role = $3, role_scope_id = $4::uuid, updated_at = now()
             where organization_id = $1::uuid and user_id = $2::uuid
-              and status = 'active'`,
+              and status = 'active'
+              and ($5::text is null
+                   or (role = $5 and role_scope_id = $6::uuid))`,
           input.organizationId,
           input.userId,
           input.roleKey,
           input.roleScopeId ?? SHIPPED_SCOPE,
-        ),
+          input.expected?.roleKey ?? null,
+          input.expected ? (input.expected.roleScopeId ?? SHIPPED_SCOPE) : null,
+        );
+        if (written === 0 && input.expected) {
+          await refuseIfRoleChangedMeanwhile(
+            tx,
+            input.organizationId,
+            input.userId,
+            input.expected,
+          );
+        }
+        return written;
+      },
     );
+  }
+
+  /**
+   * Tells "you were looking at an old role" from "there is nothing to change".
+   *
+   * Read after the statement matched nothing, in the same transaction, so what
+   * it sees is what the winning change committed.
+   */
+  async function refuseIfRoleChangedMeanwhile(
+    tx: Tenant,
+    organizationId: string,
+    userId: string,
+    expected: RoleReference,
+  ): Promise<void> {
+    const [current] = await tx.$queryRawUnsafe<
+      { role: string; roleScopeId: string }[]
+    >(
+      `select role, role_scope_id::text as "roleScopeId"
+         from public.organization_memberships
+        where organization_id = $1::uuid and user_id = $2::uuid
+          and status = 'active'`,
+      organizationId,
+      userId,
+    );
+    if (
+      current &&
+      (current.role !== expected.roleKey ||
+        current.roleScopeId !== (expected.roleScopeId ?? SHIPPED_SCOPE))
+    ) {
+      throw new RoleChangedMeanwhileError("that role has since changed", {
+        roleKey: current.role,
+        roleScopeId: current.roleScopeId,
+      });
+    }
   }
 
   /**
@@ -928,18 +994,18 @@ export function createStaffModule(deps: StaffDeps) {
 function translate(error: unknown, fallback: string): unknown {
   if (error instanceof StaffRefusedError) return error;
   if (raised(error, NOT_PERMITTED_BY_STATE)) {
-    // Two triggers raise 55000 and they mean different things to whoever is
-    // reading the screen: one is "find another Owner first", the other is
-    // "move these three people first". The message is what tells them apart,
-    // because a SQLSTATE cannot.
+    // Three refusals raise 55000 and they mean different things to whoever is
+    // reading the screen: "find another Owner first", "move these three people
+    // first", and "that role is retired". The message is what tells them
+    // apart, because a SQLSTATE cannot.
     const message = error instanceof Error ? error.message : "";
-    if (
-      message.includes("cannot be retired") ||
-      message.includes("is retired")
-    ) {
+    if (message.includes("cannot be retired")) {
       return new RoleIsHeldError(
-        "that role is held, or retired, and cannot be used that way",
+        "that role is held and cannot be retired while it is",
       );
+    }
+    if (message.includes("is retired")) {
+      return new RoleRetiredError("that role is no longer offered");
     }
     return new LastAdministratorError(
       "an Organization must keep somebody who can add staff",

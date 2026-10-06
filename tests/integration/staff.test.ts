@@ -24,7 +24,9 @@ import {
   AlreadyAMemberError,
   createStaffModule,
   LastAdministratorError,
+  RoleChangedMeanwhileError,
   RoleIsHeldError,
+  RoleRetiredError,
   StaffRefusedError,
 } from "../../packages/ranza/staff/src";
 
@@ -1509,3 +1511,164 @@ async function countEvents(): Promise<number> {
   );
   return Number(row?.total ?? 0);
 }
+
+describe("a role change names the role it was shown", () => {
+  const aRoleName = (): string => `Confirmed role ${randomUUID().slice(0, 8)}`;
+
+  // DESK holds Front desk, which carries no staff.administer, so the
+  // last-administrator trigger returns early and these are about the guard
+  // alone. Each test puts DESK back where it found them.
+  async function putDeskBack(): Promise<void> {
+    await owner.$executeRawUnsafe(
+      `update public.organization_memberships
+          set role = 'front_desk', role_scope_id = '00000000-0000-0000-0000-000000000000'::uuid,
+              status = 'active', revoked_at = null
+        where organization_id = $1::uuid and user_id = $2::uuid`,
+      ORG,
+      DESK,
+    );
+  }
+
+  it("refuses confirming against a role that has since changed, and overwrites nothing", async () => {
+    await owner.$executeRawUnsafe(
+      `update public.organization_memberships set role = 'housekeeping'
+        where organization_id = $1::uuid and user_id = $2::uuid`,
+      ORG,
+      DESK,
+    );
+
+    try {
+      const refusal = await staff
+        .changeRole(
+          { userId: OWNER },
+          {
+            organizationId: ORG,
+            userId: DESK,
+            roleKey: "finance",
+            expected: { roleKey: "front_desk" },
+          },
+        )
+        .then(
+          () => null,
+          (error: unknown) => error,
+        );
+
+      expect(refusal).toBeInstanceOf(RoleChangedMeanwhileError);
+      expect((refusal as RoleChangedMeanwhileError).current.roleKey).toBe(
+        "housekeeping",
+      );
+      expect(await roleOf(DESK)).toBe("housekeeping/active");
+    } finally {
+      await putDeskBack();
+    }
+  });
+
+  it("two administrators changing one member's role at once leave one change and one refusal", async () => {
+    const first = createPrismaClient(process.env.DATABASE_URL!);
+    const second = createPrismaClient(process.env.DATABASE_URL!);
+    const a = createStaffModule({ db: first });
+    const b = createStaffModule({ db: second });
+
+    try {
+      const results = await Promise.allSettled([
+        a.changeRole(
+          { userId: OWNER },
+          {
+            organizationId: ORG,
+            userId: DESK,
+            roleKey: "housekeeping",
+            expected: { roleKey: "front_desk" },
+          },
+        ),
+        b.changeRole(
+          { userId: SECOND_OWNER },
+          {
+            organizationId: ORG,
+            userId: DESK,
+            roleKey: "finance",
+            expected: { roleKey: "front_desk" },
+          },
+        ),
+      ]);
+
+      expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+      const refused = results.find((r) => r.status === "rejected");
+      expect(
+        refused && "reason" in refused ? refused.reason : null,
+      ).toBeInstanceOf(RoleChangedMeanwhileError);
+      expect(["housekeeping/active", "finance/active"]).toContain(
+        await roleOf(DESK),
+      );
+    } finally {
+      await first.$disconnect();
+      await second.$disconnect();
+      await putDeskBack();
+    }
+  });
+
+  it("refuses confirming a role retired since the picker loaded, and keeps the role held", async () => {
+    const { key } = await staff.defineRole(
+      { userId: OWNER },
+      { organizationId: ORG, name: aRoleName(), permissions: [] },
+    );
+    await staff.retireRole({ userId: OWNER }, { organizationId: ORG, key });
+
+    await expect(
+      staff.changeRole(
+        { userId: OWNER },
+        {
+          organizationId: ORG,
+          userId: DESK,
+          roleKey: key,
+          roleScopeId: ORG,
+          expected: { roleKey: "front_desk" },
+        },
+      ),
+    ).rejects.toBeInstanceOf(RoleRetiredError);
+    expect(await roleOf(DESK)).toBe("front_desk/active");
+  });
+
+  it("changing it back writes a second audit record and leaves the first", async () => {
+    try {
+      await staff.changeRole(
+        { userId: OWNER },
+        {
+          organizationId: ORG,
+          userId: DESK,
+          roleKey: "housekeeping",
+          expected: { roleKey: "front_desk" },
+        },
+      );
+      await staff.changeRole(
+        { userId: OWNER },
+        {
+          organizationId: ORG,
+          userId: DESK,
+          roleKey: "front_desk",
+          expected: { roleKey: "housekeeping" },
+        },
+      );
+
+      const records = await owner.$queryRawUnsafe<
+        { context: { from: string; to: string } }[]
+      >(
+        `select record.context
+           from audit.records as record
+           join public.organization_memberships as membership
+             on membership.id = record.subject_id
+          where record.action = 'staff.role_changed'
+            and membership.organization_id = $1::uuid
+            and membership.user_id = $2::uuid
+          order by record.occurred_at desc limit 2`,
+        ORG,
+        DESK,
+      );
+      expect(records.map((record) => record.context)).toMatchObject([
+        { from: "housekeeping", to: "front_desk" },
+        { from: "front_desk", to: "housekeeping" },
+      ]);
+    } finally {
+      await putDeskBack();
+    }
+  });
+});
