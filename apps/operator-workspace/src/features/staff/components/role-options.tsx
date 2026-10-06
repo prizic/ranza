@@ -1,7 +1,12 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import type { StaffMember } from "@ranza/staff";
 import type { ComboboxOption } from "@ranza/ui";
+import { shippedRoleOf } from "../labels";
+
+/** Every role Ranza ships lives in this scope, which is not an Organization. */
+const NIL_SCOPE = "00000000-0000-0000-0000-000000000000";
 
 /** A role as a picker offers it, already named in the reader's language. */
 export interface RoleOption {
@@ -20,6 +25,35 @@ export function roleOptionValue(
   role: Pick<RoleOption, "key" | "organizationId">,
 ): string {
   return `${role.organizationId ?? ""}:${role.key}`;
+}
+
+/**
+ * The role a member holds, as the picker's own value.
+ *
+ * The nil uuid is a scope, not an Organization, so it maps to the empty half of
+ * the pair the way a shipped role does everywhere else.
+ */
+export function heldRoleValue(
+  member: Pick<StaffMember, "roleId" | "roleScopeId">,
+): string {
+  return roleOptionValue({
+    key: member.roleId,
+    organizationId:
+      member.roleScopeId === NIL_SCOPE ? null : member.roleScopeId,
+  });
+}
+
+/** A member's role as words, in the viewer's language when Ranza ships it. */
+export function roleNameOf(
+  member: Pick<StaffMember, "roleId" | "roleScopeId" | "roleName">,
+  t: ReturnType<typeof useTranslations>,
+): string {
+  const shipped = shippedRoleOf({
+    key: member.roleId,
+    organizationId:
+      member.roleScopeId === NIL_SCOPE ? null : member.roleScopeId,
+  });
+  return shipped ? t(`staff.roles.${shipped}`) : member.roleName;
 }
 
 /**

@@ -89,6 +89,7 @@ function renderRoster(
         organizationId={ORGANIZATION}
         roles={[nightAuditor]}
         roster={roster}
+        viewerUserId="u-viewer"
       />
     </NextIntlClientProvider>,
   );
