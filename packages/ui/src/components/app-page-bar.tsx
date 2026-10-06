@@ -77,10 +77,10 @@ export function AppPageBar({
           back ? "ps-3 sm:ps-4" : "ps-4 sm:ps-6",
         )}
       >
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
           {back}
           {crumbs.length > 0 ? (
-            <nav aria-label={breadcrumbLabel} className="min-w-0">
+            <nav aria-label={breadcrumbLabel} className="min-w-0 flex-1">
               <ol className="flex min-w-0 items-center gap-2">
                 {crumbs.map((crumb, index) => (
                   <li
@@ -94,11 +94,11 @@ export function AppPageBar({
                     />
                   </li>
                 ))}
-                <li className="min-w-0">{leaf}</li>
+                <li className="min-w-0 flex-1 truncate">{leaf}</li>
               </ol>
             </nav>
           ) : (
-            <div className="min-w-0">{leaf}</div>
+            <div className="min-w-0 flex-1 truncate">{leaf}</div>
           )}
         </div>
 
@@ -106,7 +106,7 @@ export function AppPageBar({
             server component, and as one item of a children array React
             validates it as a dynamic child and asks for a key it cannot have. */}
         {action ? (
-          <div className="ms-auto flex min-w-0 items-center gap-2 sm:gap-3">
+          <div className="ms-auto flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
             {action}
           </div>
         ) : null}

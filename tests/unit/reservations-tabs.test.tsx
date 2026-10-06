@@ -105,7 +105,16 @@ const EXPIRED = {
   startsOn: "2030-01-01",
   endsOn: "2030-01-05",
 };
-const ROWS = [ARRIVING, IN_HOUSE, UPCOMING, EXPIRED];
+const DEPARTING = {
+  ...BASE,
+  reservationId: "r_dep",
+  reference: "RZ-DEPARTING",
+  guestName: "Margaret Hamilton",
+  status: "checked_in" as const,
+  startsOn: "2030-01-05",
+  endsOn: TODAY,
+};
+const ROWS = [ARRIVING, IN_HOUSE, UPCOMING, EXPIRED, DEPARTING];
 
 function show(rows: ReservationRow[], today: string | null = TODAY) {
   render(
@@ -136,16 +145,19 @@ describe("the Reservations list's tabs", () => {
     show(ROWS);
 
     expect(tab(/^All/)).toHaveAttribute("aria-selected", "true");
-    expect(listed()).toHaveLength(4);
-    expect(tab(/^All/)).toHaveTextContent("4");
+    expect(listed()).toHaveLength(5);
+    expect(tab(/^All/)).toHaveTextContent("5");
     expect(tab(/Arriving today/)).toHaveTextContent("1");
-    expect(tab(/In house/)).toHaveTextContent("1");
+    expect(tab(/Departing today/)).toHaveTextContent("1");
+    expect(tab(/In house/)).toHaveTextContent("2");
     expect(tab(/Upcoming/)).toHaveTextContent("1");
 
     pick(/Arriving today/);
     expect(listed()).toEqual(["RZ-ARRIVING"]);
+    pick(/Departing today/);
+    expect(listed()).toEqual(["RZ-DEPARTING"]);
     pick(/In house/);
-    expect(listed()).toEqual(["RZ-INHOUSE"]);
+    expect(listed()).toEqual(["RZ-DEPARTING", "RZ-INHOUSE"]);
     pick(/Upcoming/);
     expect(listed()).toEqual(["RZ-UPCOMING"]);
     // Only under All: nobody arrived, and its nights are gone.
@@ -173,7 +185,7 @@ describe("the Reservations list's tabs", () => {
     cleanup();
     show(ROWS, null);
     expect(screen.queryByRole("tab")).toBeNull();
-    expect(listed()).toHaveLength(4);
+    expect(listed()).toHaveLength(5);
   });
 
   it("status_tabs_narrow_the_list_and_show_counts: a late arrival is arriving, and a booking whose nights all passed is not", () => {
@@ -193,6 +205,9 @@ describe("the Reservations list's tabs", () => {
     expect(inTab({ ...BASE, status: "cancelled" }, "upcoming", TODAY)).toBe(
       false,
     );
+    expect(inTab(DEPARTING, "departing", TODAY)).toBe(true);
+    expect(inTab(IN_HOUSE, "departing", TODAY)).toBe(false);
+    expect(inTab(ARRIVING, "departing", TODAY)).toBe(false);
   });
 
   it("status_tabs_narrow_the_list_and_show_counts: the counts do not move while somebody searches", () => {
@@ -201,7 +216,22 @@ describe("the Reservations list's tabs", () => {
       target: { value: "Grace" },
     });
     expect(listed()).toEqual(["RZ-ARRIVING"]);
-    expect(tab(/^All/)).toHaveTextContent("4");
+    expect(tab(/^All/)).toHaveTextContent("5");
+  });
+
+  it("departure_indicator_badge: shows due today badge for in-house stay ending today", () => {
+    const overdue = {
+      ...BASE,
+      reservationId: "r_overdue",
+      reference: "RZ-OVERDUE",
+      guestName: "Katherine Johnson",
+      status: "checked_in" as const,
+      startsOn: "2030-01-01",
+      endsOn: "2030-01-09",
+    };
+    show([DEPARTING, overdue]);
+    expect(screen.getByText(messages.en.dueToday)).toBeVisible();
+    expect(screen.getByText(/Overdue since/)).toBeVisible();
   });
 });
 
@@ -296,6 +326,32 @@ describe("searching the Reservations list", () => {
     const row = screen.getByText("RZ-ARRIVING").closest("tr")!;
     expect(within(row).getByText("grace@example.test")).toBeVisible();
     expect(within(row).getByText("+90 532 123 45 67")).toBeVisible();
+  });
+
+  it("search_matches_unit_type_status_and_dates: finds rows by unit type, status, or date", () => {
+    const SUITE_ROW = {
+      ...BASE,
+      reservationId: "r_suite",
+      reference: "RZ-SUITE",
+      guestName: "Claude Shannon",
+      unitType: "suite" as const,
+      status: "confirmed" as const,
+      startsOn: "2030-02-01",
+      endsOn: "2030-02-05",
+    };
+    show([...ROWS, SUITE_ROW]);
+
+    // Search by unit type
+    search("suite");
+    expect(listed()).toEqual(["RZ-SUITE"]);
+
+    // Search by status
+    search("checked in");
+    expect(listed()).toEqual(["RZ-DEPARTING", "RZ-INHOUSE"]);
+
+    // Search by date
+    search("Feb 1");
+    expect(listed()).toEqual(["RZ-SUITE"]);
   });
 });
 

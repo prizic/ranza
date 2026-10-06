@@ -9,6 +9,7 @@ export const RESERVATION_TABS = [
   "all",
   "arriving",
   "inHouse",
+  "departing",
   "upcoming",
 ] as const;
 
@@ -35,6 +36,8 @@ export function inTab(
       return true;
     case "inHouse":
       return row.status === "checked_in";
+    case "departing":
+      return row.status === "checked_in" && row.endsOn === today;
     case "arriving":
       return (
         NOT_ARRIVED.has(row.status) &&

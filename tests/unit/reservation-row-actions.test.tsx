@@ -14,9 +14,18 @@ import {
   within,
 } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { ReservationRow } from "../../packages/ranza/reservations/src";
 import { messages } from "../../apps/operator-workspace/src/messages";
+
+beforeAll(() => {
+  class Observer {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  vi.stubGlobal("ResizeObserver", Observer);
+});
 
 const { navigation } = vi.hoisted(() => ({
   navigation: () => ({
@@ -182,5 +191,52 @@ describe("a Reservations row's actions", () => {
     for (const message of Object.values(messages.en.checkInBlocked)) {
       expect(within(quiet).queryByText(message)).toBeNull();
     }
+  });
+
+  it("show_on_the_room_map_links_to_the_unit: carries the unit parameter in the room map link", () => {
+    const row = show({ ...BASE, unitId: "u1" });
+    openMenu(row);
+    const link = screen
+      .getByRole("menuitem", { name: messages.en.showOnRoomMap })
+      .closest("a");
+    expect(link).toHaveAttribute("href", "/en/rooms?property=p1&unit=u1");
+  });
+
+  it("copy_reference_button: copies the reservation reference to the clipboard", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: { writeText },
+    });
+    const row = show({ ...BASE, reference: "RZ-TEST-COPY" });
+    const copyBtn = within(row).getByRole("button", {
+      name: messages.en.copyReference,
+    });
+    expect(copyBtn).toBeVisible();
+    fireEvent.click(copyBtn);
+    expect(writeText).toHaveBeenCalledWith("RZ-TEST-COPY");
+  });
+
+  it("reservation_detail_sheet: clicking a row opens the reservation detail sheet", () => {
+    const row = show({
+      ...BASE,
+      guestEmail: "ada@example.test",
+      guestPhone: "+90 532 999 88 77",
+      nightlyRateMinor: 50_000,
+      rateCurrency: "TRY",
+      totalMinor: 100_000,
+    });
+    const guestCell = within(row).getByText("Ada Lovelace");
+    fireEvent.click(guestCell);
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toBeVisible();
+    expect(within(dialog).getByText(/Reservation details/)).toBeVisible();
+    expect(within(dialog).getByText(messages.en.stayTimeline)).toBeVisible();
+    expect(within(dialog).getByText(messages.en.contactDetails)).toBeVisible();
+    expect(within(dialog).getByText("ada@example.test")).toBeVisible();
+    expect(within(dialog).getByText("+90 532 999 88 77")).toBeVisible();
+    expect(
+      within(dialog).getByText(messages.en.financialDetails),
+    ).toBeVisible();
   });
 });

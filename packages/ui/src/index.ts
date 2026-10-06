@@ -156,4 +156,11 @@ export {
   PopoverTrigger,
 } from "./components/ui/popover";
 
+export {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./components/ui/tooltip";
+
 export { cn } from "./lib/utils";

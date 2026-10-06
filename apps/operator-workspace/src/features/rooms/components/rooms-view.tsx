@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { formatDate, isSupportedLocale } from "@ranza/i18n";
 import {
@@ -48,12 +48,14 @@ export function RoomsView({
   data,
   propertyName,
   maintenance,
+  targetUnitId,
 }: {
   locale: string;
   propertyId: string;
   data: UnitMap;
   propertyName: string;
   maintenance: RoomsMaintenance;
+  targetUnitId?: string | null | undefined;
 }) {
   const t = useTranslations();
   const mt = useTranslations("maintenance");
@@ -61,6 +63,27 @@ export function RoomsView({
   const [selectedUnit, setSelectedUnit] = useState<UnitEntry | null>(null);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
+
+  const targetRoomId = useMemo(() => {
+    if (!targetUnitId) return null;
+    const directRoom = data.units.find((u) => u.unitId === targetUnitId);
+    if (directRoom) return directRoom.unitId;
+    const parentRoom = data.units.find((u) =>
+      u.beds.some((b) => b.unitId === targetUnitId),
+    );
+    return parentRoom?.unitId ?? null;
+  }, [data.units, targetUnitId]);
+
+  useEffect(() => {
+    if (!targetUnitId) return;
+    const el =
+      document.getElementById(`unit-${targetUnitId}`) ??
+      document.getElementById(`room-${targetUnitId}`) ??
+      document.getElementById(`list-unit-${targetUnitId}`);
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [targetUnitId]);
 
   // A bed under a room out of order is held by the room's request.
   const holdByUnit = new Map(
@@ -224,7 +247,12 @@ export function RoomsView({
                         return (
                           <Card
                             key={room.unitId}
-                            className="justify-between gap-4 rounded-4xl"
+                            id={`room-${room.unitId}`}
+                            className={cn(
+                              "justify-between gap-4 rounded-4xl transition-all duration-300",
+                              room.unitId === targetRoomId &&
+                                "ring-2 ring-primary ring-offset-2",
+                            )}
                           >
                             <CardHeader>
                               <div className="flex items-baseline justify-between gap-3">
@@ -268,11 +296,16 @@ export function RoomsView({
                                   {room.beds.map((bed) => (
                                     <button
                                       key={bed.unitId}
+                                      id={`unit-${bed.unitId}`}
                                       type="button"
                                       onClick={() =>
                                         handleSelectUnit(bed, room.unitId)
                                       }
-                                      className="hover-lift flex flex-col items-start rounded-2xl border bg-muted/40 p-2.5 text-start transition-colors hover:bg-secondary/70 focus-visible:ring-2 focus-visible:ring-ring"
+                                      className={cn(
+                                        "hover-lift flex flex-col items-start rounded-2xl border bg-muted/40 p-2.5 text-start transition-colors hover:bg-secondary/70 focus-visible:ring-2 focus-visible:ring-ring",
+                                        bed.unitId === targetUnitId &&
+                                          "ring-2 ring-primary ring-offset-1",
+                                      )}
                                     >
                                       <span className="text-xs font-semibold">
                                         {bed.name}
@@ -292,8 +325,13 @@ export function RoomsView({
                                 <div className="flex items-center justify-between">
                                   <button
                                     type="button"
+                                    id={`unit-${room.unitId}`}
                                     onClick={() => handleSelectUnit(room)}
-                                    className="rounded-full focus-visible:ring-2 focus-visible:ring-ring"
+                                    className={cn(
+                                      "rounded-full focus-visible:ring-2 focus-visible:ring-ring",
+                                      room.unitId === targetUnitId &&
+                                        "ring-2 ring-primary ring-offset-2",
+                                    )}
                                   >
                                     {stateBadge(
                                       room,
@@ -336,7 +374,14 @@ export function RoomsView({
               {data.units.map((room) => {
                 if (room.beds.length > 0) {
                   return room.beds.map((bed) => (
-                    <TableRow key={bed.unitId}>
+                    <TableRow
+                      key={bed.unitId}
+                      id={`list-unit-${bed.unitId}`}
+                      className={cn(
+                        bed.unitId === targetUnitId &&
+                          "bg-primary/5 ring-1 ring-primary/30",
+                      )}
+                    >
                       <TableCell className="font-medium">
                         {room.name} &mdash; {bed.name}
                       </TableCell>
@@ -364,7 +409,14 @@ export function RoomsView({
                 }
 
                 return (
-                  <TableRow key={room.unitId}>
+                  <TableRow
+                    key={room.unitId}
+                    id={`list-unit-${room.unitId}`}
+                    className={cn(
+                      room.unitId === targetUnitId &&
+                        "bg-primary/5 ring-1 ring-primary/30",
+                    )}
+                  >
                     <TableCell className="font-medium">{room.name}</TableCell>
                     <TableCell>{room.building ?? "—"}</TableCell>
                     <TableCell>{room.floor ?? "—"}</TableCell>

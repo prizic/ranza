@@ -221,6 +221,14 @@ export interface Messages {
    */
   reservations: string;
   reservationsAt: string;
+  copyReference: string;
+  referenceCopied: string;
+  dueToday: string;
+  viewDetails: string;
+  reservationDetails: string;
+  stayTimeline: string;
+  contactDetails: string;
+  financialDetails: string;
 
   /**
    * Staff and permissions.
@@ -321,8 +329,14 @@ export interface Messages {
     >;
   };
   reservationsViews: string;
-  reservationsTab: Record<"all" | "arriving" | "inHouse" | "upcoming", string>;
-  reservationsTabEmpty: Record<"arriving" | "inHouse" | "upcoming", string>;
+  reservationsTab: Record<
+    "all" | "arriving" | "inHouse" | "departing" | "upcoming",
+    string
+  >;
+  reservationsTabEmpty: Record<
+    "arriving" | "inHouse" | "departing" | "upcoming",
+    string
+  >;
   reservationsTabEmptyHint: string;
   noReservationsTitle: string;
   noReservationsDescription: string;
@@ -1658,6 +1672,14 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     reservations: "Rezervasyonlar",
     reservationsAt: "Rezervasyonlar —",
+    copyReference: "Referansı kopyala",
+    referenceCopied: "Kopyalandı",
+    dueToday: "Bugün çıkış",
+    viewDetails: "Ayrıntıları görüntüle",
+    reservationDetails: "Rezervasyon ayrıntıları",
+    stayTimeline: "Konaklama zaman çizelgesi",
+    contactDetails: "İletişim bilgileri",
+    financialDetails: "Ücret ve hesap bilgileri",
 
     staff: {
       rosterOf: "Ekip —",
@@ -1760,11 +1782,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       all: "Tümü",
       arriving: "Bugün gelenler",
       inHouse: "Konaklayanlar",
+      departing: "Bugün çıkanlar",
       upcoming: "Yaklaşanlar",
     },
     reservationsTabEmpty: {
       arriving: "Bugün gelecek kimse yok",
       inHouse: "Konaklayan kimse yok",
+      departing: "Bugün ayrılacak kimse yok",
       upcoming: "Daha sonrası için rezervasyon yok",
     },
     reservationsTabEmptyHint:
@@ -3194,6 +3218,14 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     reservations: "Reservations",
     reservationsAt: "Bookings at",
+    copyReference: "Copy reference",
+    referenceCopied: "Copied",
+    dueToday: "Due today",
+    viewDetails: "View details",
+    reservationDetails: "Reservation details",
+    stayTimeline: "Stay timeline",
+    contactDetails: "Contact details",
+    financialDetails: "Billing & rate details",
 
     staff: {
       rosterOf: "The team at",
@@ -3294,11 +3326,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       all: "All",
       arriving: "Arriving today",
       inHouse: "In house",
+      departing: "Departing today",
       upcoming: "Upcoming",
     },
     reservationsTabEmpty: {
       arriving: "Nobody is due to arrive",
       inHouse: "Nobody is in house",
+      departing: "Nobody is due to depart",
       upcoming: "Nothing booked for later",
     },
     reservationsTabEmptyHint: "Switch to All to see every booking.",
@@ -4734,6 +4768,14 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     reservations: "الحجوزات",
     reservationsAt: "الحجوزات في",
+    copyReference: "نسخ رقم الحجز",
+    referenceCopied: "تم النسخ",
+    dueToday: "مغادرة اليوم",
+    viewDetails: "عرض التفاصيل",
+    reservationDetails: "تفاصيل الحجز",
+    stayTimeline: "الجدول الزمني للإقامة",
+    contactDetails: "بيانات الاتصال",
+    financialDetails: "تفاصيل الفاتورة والأسعار",
 
     staff: {
       rosterOf: "فريق",
@@ -4831,11 +4873,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       all: "الكل",
       arriving: "وصول اليوم",
       inHouse: "المقيمون",
+      departing: "مغادرة اليوم",
       upcoming: "القادمة",
     },
     reservationsTabEmpty: {
       arriving: "لا أحد متوقع وصوله اليوم",
       inHouse: "لا أحد مقيم حالياً",
+      departing: "لا أحد متوقع مغادرته اليوم",
       upcoming: "لا حجوزات لاحقة",
     },
     reservationsTabEmptyHint: "انتقل إلى «الكل» لعرض كل الحجوزات.",

@@ -23,7 +23,7 @@ export default async function RoomsPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ property?: string }>;
+  searchParams: Promise<{ property?: string; unit?: string }>;
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
@@ -32,9 +32,10 @@ export default async function RoomsPage({
   const t = await getTranslations();
   await requireViewer(locale);
   const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
+  const search = await searchParams;
   const property = await frontDeskProperty(
     properties,
-    await searchParams,
+    search,
     localizeHref(locale, "rooms"),
   );
 
@@ -54,11 +55,12 @@ export default async function RoomsPage({
 
   return (
     <RoomsView
+      data={data}
       locale={locale}
+      maintenance={maintenance}
       propertyId={property.propertyId}
       propertyName={property.propertyName}
-      data={data}
-      maintenance={maintenance}
+      targetUnitId={search.unit ?? null}
     />
   );
 }

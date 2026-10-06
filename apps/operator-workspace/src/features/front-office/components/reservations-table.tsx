@@ -12,10 +12,11 @@ import {
   TabsTrigger,
   toAsciiDigits,
 } from "@ranza/ui";
-import { formatNumber, type SupportedLocale } from "@ranza/i18n";
+import { formatDate, formatNumber, type SupportedLocale } from "@ranza/i18n";
 import { useTableLabels } from "../../../lib/table-labels";
 import { ChangeBookingDialog } from "./change-booking-dialog";
-import { useReservationColumns } from "./columns";
+import { ReservationDetailSheet } from "./reservation-detail-sheet";
+import { useReservationColumns, type ReservationListRow } from "./columns";
 import {
   inTab,
   RESERVATION_TABS,
@@ -63,11 +64,13 @@ export function ReservationsTable({
 }) {
   const t = useTranslations();
   const labels = useTableLabels();
-  const columns = useReservationColumns(locale, propertyId);
+  const columns = useReservationColumns(locale, propertyId, today);
   const router = useRouter();
   const pathname = usePathname();
   const search = useSearchParams();
   const [tab, setTab] = useState<ReservationTab>("all");
+  const [selectedReservation, setSelectedReservation] =
+    useState<ReservationListRow | null>(null);
   // The list is the only proof a booking or a check-in worked, and a tab can
   // narrow it to somewhere the result is not. So when a row appears or changes
   // status after an action, the list goes back to All and points at that row.
@@ -106,14 +109,34 @@ export function ReservationsTable({
     () =>
       reservations
         .filter((row) => (today ? inTab(row, tab, today) : true))
-        .map((row) => ({
-          ...row,
-          guestPhoneDigits: toAsciiDigits(row.guestPhone ?? "").replace(
-            /\D/g,
-            "",
-          ),
-        })),
-    [reservations, tab, today],
+        .map((row) => {
+          const formatDay = (iso: string) =>
+            formatDate(new Date(`${iso}T00:00:00Z`), locale, {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+              timeZone: "UTC",
+            });
+          const dateSearch = [
+            row.startsOn,
+            formatDay(row.startsOn),
+            row.endsOn ? `${row.endsOn} ${formatDay(row.endsOn)}` : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+
+          return {
+            ...row,
+            guestPhoneDigits: toAsciiDigits(row.guestPhone ?? "").replace(
+              /\D/g,
+              "",
+            ),
+            unitTypeLabel: t(`unitType.${row.unitType}`),
+            statusLabel: t(`reservationStatus.${row.status}`),
+            dateSearch,
+          };
+        }),
+    [locale, reservations, t, tab, today],
   );
   const linked = reservations.find(
     (row) => row.reservationId === changing && row.mayAmend,
@@ -173,6 +196,7 @@ export function ReservationsTable({
         }
         labels={labels}
         getRowId={(row) => row.reservationId}
+        onRowClick={(row) => setSelectedReservation(row)}
         rowClassName={(row) =>
           row.reservationId === highlighted ? JUST_CHANGED : undefined
         }
@@ -183,8 +207,21 @@ export function ReservationsTable({
           "guestPhoneDigits",
           "unitName",
           "roomName",
+          "unitTypeLabel",
           "reference",
+          "statusLabel",
+          "dateSearch",
         ]}
+      />
+      <ReservationDetailSheet
+        locale={locale}
+        onOpenChange={(open) => {
+          if (!open) setSelectedReservation(null);
+        }}
+        open={selectedReservation !== null}
+        propertyId={propertyId}
+        reservation={selectedReservation}
+        today={today}
       />
       {linked ? (
         <ChangeBookingDialog

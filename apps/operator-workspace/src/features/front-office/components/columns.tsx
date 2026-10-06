@@ -28,6 +28,7 @@ import { CheckOutDialog } from "./check-out-dialog";
 import { unitLabel } from "../unit-label";
 import { UndoCheckInDialog } from "./undo-check-in-dialog";
 import { FrontDeskRowMenu } from "./row-menu";
+import { CopyReferenceButton } from "./copy-reference-button";
 
 /**
  * `meta.title` is not decoration: the column menu and the search placeholder
@@ -96,7 +97,7 @@ function initialsOf(name: string): string {
   return `${first}${last}`.toUpperCase();
 }
 
-const RESERVATION_TONE: Record<Arrival["status"], StatusTone> = {
+export const RESERVATION_TONE: Record<Arrival["status"], StatusTone> = {
   requested: "info",
   confirmed: "success",
   cancelled: "neutral",
@@ -105,7 +106,7 @@ const RESERVATION_TONE: Record<Arrival["status"], StatusTone> = {
   checked_out: "neutral",
 };
 
-const RESERVATION_ICON = {
+export const RESERVATION_ICON = {
   requested: CircleDashed,
   confirmed: CircleCheck,
   cancelled: CircleDashed,
@@ -165,9 +166,12 @@ export function useArrivalColumns(
       ),
       cell: ({ row }) => (
         <div>
-          <span className="font-mono tabular-nums font-medium">
-            {row.original.reference}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono tabular-nums font-medium">
+              {row.original.reference}
+            </span>
+            <CopyReferenceButton reference={row.original.reference} />
+          </div>
           {row.original.daysLate > 0 && row.original.status !== "checked_in" ? (
             <span className="block text-step--1 font-semibold text-warning">
               {t("daysLate", { n: row.original.daysLate })}
@@ -361,6 +365,7 @@ export function useArrivalColumns(
               guestName={arrival.guestName}
               locale={locale}
               propertyId={propertyId}
+              unitId={arrival.unitId}
             />
           </div>
         );
@@ -419,9 +424,12 @@ export function useDepartureColumns(
       ),
       cell: ({ row }) =>
         row.original.reference ? (
-          <span className="font-mono tabular-nums font-medium">
-            {row.original.reference}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono tabular-nums font-medium">
+              {row.original.reference}
+            </span>
+            <CopyReferenceButton reference={row.original.reference} />
+          </div>
         ) : (
           <span className="text-muted-foreground">{t("walkIn")}</span>
         ),
@@ -552,6 +560,7 @@ export function useDepartureColumns(
                   }
                 : undefined
             }
+            unitId={row.original.unitId}
           />
         </div>
       ),
@@ -564,7 +573,12 @@ export function useDepartureColumns(
  * because the search compares text and a number is typed without the spaces and
  * brackets it was written with.
  */
-export type ReservationListRow = ReservationRow & { guestPhoneDigits: string };
+export type ReservationListRow = ReservationRow & {
+  guestPhoneDigits: string;
+  unitTypeLabel?: string;
+  statusLabel?: string;
+  dateSearch?: string;
+};
 
 /**
  * The booking list.
@@ -580,6 +594,7 @@ export type ReservationListRow = ReservationRow & { guestPhoneDigits: string };
 export function useReservationColumns(
   locale: SupportedLocale,
   propertyId: string,
+  today?: string | null,
 ): ColumnDef<ReservationListRow, unknown>[] {
   const t = useTranslations();
   const sort = useSortLabels();
@@ -628,9 +643,12 @@ export function useReservationColumns(
         />
       ),
       cell: ({ row }) => (
-        <span className="font-mono tabular-nums font-medium">
-          {row.original.reference}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="font-mono tabular-nums font-medium">
+            {row.original.reference}
+          </span>
+          <CopyReferenceButton reference={row.original.reference} />
+        </div>
       ),
     },
     {
@@ -643,26 +661,44 @@ export function useReservationColumns(
           title={t("period")}
         />
       ),
-      cell: ({ row }) => (
-        <p className="whitespace-nowrap text-step--1">
-          {/* A late arrival's Stay began after the booking said it would, and
-              the total beside this is over the nights the Stay has, so the
-              period starts where the Stay did. */}
-          <time dateTime={row.original.stayStartsOn ?? row.original.startsOn}>
-            {day(row.original.stayStartsOn ?? row.original.startsOn, locale)}
-          </time>
-          {row.original.endsOn ? (
-            <>
-              {" – "}
-              <time dateTime={row.original.endsOn}>
-                {day(row.original.endsOn, locale)}
+      cell: ({ row }) => {
+        const { endsOn, startsOn, stayStartsOn, status } = row.original;
+        const inHouse = status === "checked_in";
+        const isDueToday = inHouse && today && endsOn === today;
+        const isOverdue = inHouse && today && endsOn && endsOn < today;
+
+        return (
+          <div>
+            <p className="whitespace-nowrap text-step--1">
+              {/* A late arrival's Stay began after the booking said it would, and
+                  the total beside this is over the nights the Stay has, so the
+                  period starts where the Stay did. */}
+              <time dateTime={stayStartsOn ?? startsOn}>
+                {day(stayStartsOn ?? startsOn, locale)}
               </time>
-            </>
-          ) : (
-            <> · {t("openEnded")}</>
-          )}
-        </p>
-      ),
+              {endsOn ? (
+                <>
+                  {" – "}
+                  <time dateTime={endsOn}>{day(endsOn, locale)}</time>
+                </>
+              ) : (
+                <> · {t("openEnded")}</>
+              )}
+            </p>
+            {isDueToday ? (
+              <span className="mt-0.5 inline-flex items-center gap-1 rounded-md bg-warning/15 px-1.5 py-0.5 text-step--2 font-medium text-warning-foreground">
+                <CalendarClock className="size-3" />
+                {t("dueToday")}
+              </span>
+            ) : isOverdue ? (
+              <span className="mt-0.5 inline-flex items-center gap-1 rounded-md bg-destructive/15 px-1.5 py-0.5 text-step--2 font-medium text-destructive">
+                <CalendarClock className="size-3" />
+                {t("overdueSince", { date: day(endsOn, locale) })}
+              </span>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "unitName",
@@ -766,7 +802,7 @@ export function useReservationColumns(
         const menu =
           booking.mayCancel || booking.mayAmend || booking.mayChangeStay;
         return (
-          <div className="flex items-center justify-end gap-1">
+          <div className="flex items-center justify-end gap-1 whitespace-nowrap">
             {booking.mayCheckIn ? (
               <CheckInAction
                 locale={locale}
@@ -791,7 +827,7 @@ export function useReservationColumns(
                 unitName={label}
               />
             ) : null}
-            {menu || booking.folioId ? (
+            {menu || booking.folioId || booking.unitId ? (
               <FrontDeskRowMenu
                 key={booking.reservationId}
                 booking={
@@ -837,6 +873,7 @@ export function useReservationColumns(
                       }
                     : undefined
                 }
+                unitId={booking.unitId}
               />
             ) : null}
           </div>

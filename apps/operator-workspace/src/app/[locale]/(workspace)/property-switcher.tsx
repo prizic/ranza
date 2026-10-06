@@ -86,7 +86,9 @@ export function PropertySwitcher({
           aria-hidden="true"
           className="size-4 shrink-0 text-muted-foreground"
         />
-        <span className="min-w-0 truncate sm:max-w-[12rem]">{active.name}</span>
+        <span className="min-w-0 truncate max-w-[8rem] sm:max-w-[10rem] lg:max-w-[14rem]">
+          {active.name}
+        </span>
       </p>
     );
   }
@@ -101,7 +103,7 @@ export function PropertySwitcher({
           aria-hidden="true"
           className="size-4 shrink-0 text-muted-foreground"
         />
-        <span className="min-w-0 truncate sm:max-w-[12rem]">
+        <span className="min-w-0 truncate max-w-[8rem] sm:max-w-[10rem] lg:max-w-[14rem]">
           {active ? active.name : chooseLabel}
         </span>
         <ChevronsUpDown

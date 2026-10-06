@@ -68,6 +68,7 @@ export function FrontDeskRowMenu({
   locale,
   propertyId,
   stay,
+  unitId,
 }: {
   booking?: EndableBooking | undefined;
   /** An in-house Guest whose departure the viewer may change (AB-S2-05). */
@@ -76,6 +77,7 @@ export function FrontDeskRowMenu({
   guestName: string;
   locale: SupportedLocale;
   propertyId: string;
+  unitId?: string | null | undefined;
 }) {
   const t = useTranslations();
   const [ending, setEnding] = useState<EndBookingKind | null>(null);
@@ -111,7 +113,7 @@ export function FrontDeskRowMenu({
           ) : null}
           <DropdownMenuItem asChild>
             <Link
-              href={`${localizeHref(locale, "rooms")}?property=${propertyId}`}
+              href={`${localizeHref(locale, "rooms")}?property=${propertyId}${unitId ? `&unit=${unitId}` : ""}`}
               prefetch={false}
             >
               <BedDouble className="size-4" />
