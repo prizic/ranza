@@ -74,6 +74,8 @@ model Organization {
   housekeepingSettings HousekeepingSetting[]
   maintenanceSettings  MaintenanceSetting[]
   serviceRequests      ServiceRequest[]
+  integrations         Integration[]
+  failedOperations     FailedOperation[]
 
   @@map("organizations")
 }
@@ -111,6 +113,8 @@ model Property {
   rates                PropertyRate[]
   bookingChanges       ReservationChange[]
   serviceRequests      ServiceRequest[]
+  integrations         Integration[]
+  failedOperations     FailedOperation[]
 
   @@unique([id, organizationId])
   @@index([organizationId], map: "properties_organization_idx")
@@ -1082,3 +1086,56 @@ model ServiceRequest {
   @@index([guestId], map: "service_requests_guest_idx")
   @@map("service_requests")
 }
+
+/// External system integrations per Property (Blueprint 5.15, Phase 5).
+/// Channels, payment providers, door locks, government reporting.
+model Integration {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  propertyId     String    @map("property_id") @db.Uuid
+  key            String
+  name           String
+  category       String
+  status         String    @default("not_connected")
+  detail         String?
+  config         Json      @default("{}")
+  lastSyncAt     DateTime? @map("last_sync_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  property         Property          @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  failedOperations FailedOperation[]
+
+  @@unique([propertyId, key])
+  @@index([propertyId, status], map: "integrations_property_status_idx")
+  @@index([organizationId], map: "integrations_organization_idx")
+  @@map("integrations")
+}
+
+/// Operationally visible failures from external integrations (Blueprint 5.16, INT-S1-*).
+/// Retries happen automatically or manually from the workspace.
+model FailedOperation {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  propertyId      String   @map("property_id") @db.Uuid
+  integrationId   String?  @map("integration_id") @db.Uuid
+  integrationName String   @map("integration_name")
+  operation       String
+  error           String
+  status          String   @default("failed")
+  attempts        Int      @default(1)
+  payload         Json     @default("{}")
+  lastAttemptAt   DateTime @default(now()) @map("last_attempt_at") @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  property     Property     @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  integration  Integration? @relation(fields: [integrationId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([propertyId, status], map: "failed_operations_property_status_idx")
+  @@index([organizationId], map: "failed_operations_organization_idx")
+  @@map("failed_operations")
+}
+

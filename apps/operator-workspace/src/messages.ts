@@ -597,6 +597,52 @@ export interface Messages {
     >;
   };
 
+  /** The Integrations screen (Blueprint 5.15, 5.16, Phase 5). */
+  integrations: {
+    subtitle: string;
+    connectedCount: string;
+    errorCount: string;
+    notConnectedCount: string;
+    activeIntegrations: string;
+    activeIntegrationsDescription: string;
+    failedOperationsTitle: string;
+    failedOperationsDescription: string;
+    noFailedOperations: string;
+    noIntegrations: string;
+    retry: string;
+    retrying: string;
+    retrySuccess: string;
+    retryFailed: string;
+    operation: string;
+    integration: string;
+    error: string;
+    attempts: string;
+    lastAttempt: string;
+    status: string;
+    category: string;
+    lastSync: string;
+    neverSynced: string;
+    statuses: {
+      connected: string;
+      error: string;
+      not_connected: string;
+    };
+    operationStatuses: {
+      failed: string;
+      retrying: string;
+      resolved: string;
+    };
+    categories: {
+      Distribution: string;
+      Payments: string;
+      Access: string;
+      Government: string;
+      Tax: string;
+      Messaging: string;
+      Other: string;
+    };
+  };
+
   /**
    * The Rates section of the Configuration screen (ADR 0038): a nightly price
    * per kind of Unit.
@@ -2411,6 +2457,54 @@ export const messages: Record<SupportedLocale, Messages> = {
         businessDateCutoff: "İş gününün bitişi",
       },
     },
+    integrations: {
+      subtitle:
+        "Kanal yöneticileri, kapı kilitleri, sanal POS ve resmi bildirim entegrasyonları.",
+      connectedCount: "Bağlı",
+      errorCount: "Hata",
+      notConnectedCount: "Bağlı Değil",
+      activeIntegrations: "Sistem Bağlantıları",
+      activeIntegrationsDescription:
+        "Tesis genelinde aktif çalışan veya yapılandırılmış dış servisler.",
+      failedOperationsTitle: "Başarısız İşlemler",
+      failedOperationsDescription:
+        "Dış sistemlere gönderilemeyen veya hata alan işlemler. Sistem otomatik dener veya buradan yeniden başlatılabilir.",
+      noFailedOperations:
+        "Kayıtlı başarısız işlem bulunmuyor. Tüm servisler senkronize.",
+      noIntegrations: "Bu tesiste yapılandırılmış entegrasyon bulunmuyor.",
+      retry: "Yeniden Dene",
+      retrying: "Deneniyor...",
+      retrySuccess: "İşlem başarıyla yeniden denendi ve tamamlandı.",
+      retryFailed: "Yeniden deneme başarısız oldu.",
+      operation: "İşlem",
+      integration: "Entegrasyon",
+      error: "Hata Detayı",
+      attempts: "Deneme",
+      lastAttempt: "Son Deneme",
+      status: "Durum",
+      category: "Kategori",
+      lastSync: "Son Eşitleme",
+      neverSynced: "Henüz eşitlenmedi",
+      statuses: {
+        connected: "Bağlı",
+        error: "Hata",
+        not_connected: "Bağlı Değil",
+      },
+      operationStatuses: {
+        failed: "Başarısız",
+        retrying: "Deneniyor",
+        resolved: "Çözüldü",
+      },
+      categories: {
+        Distribution: "Kanal Dağıtımı",
+        Payments: "Ödemeler",
+        Access: "Erişim & Kilit",
+        Government: "Resmi Bildirim",
+        Tax: "Maliye & E-Fatura",
+        Messaging: "Mesajlaşma",
+        Other: "Diğer",
+      },
+    },
     housekeeping: {
       subtitle: "{property} — temizlik bekleyen odalar",
       unavailableTitle: "Kat hizmetleri bu tesiste açık değil",
@@ -3186,6 +3280,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       people: "Ekip",
       analytics: "Analitik",
       configuration: "Ayarlar",
+      integrations: "Entegrasyonlar",
       "audit-log": "Denetim kaydı",
     },
     screenSummary: {
@@ -4066,6 +4161,54 @@ export const messages: Record<SupportedLocale, Messages> = {
         businessDateCutoff: "Business day ends at",
       },
     },
+    integrations: {
+      subtitle:
+        "Channel managers, door locks, payment gateways, and government reporting.",
+      connectedCount: "Connected",
+      errorCount: "Error",
+      notConnectedCount: "Not Connected",
+      activeIntegrations: "System Integrations",
+      activeIntegrationsDescription:
+        "Configured third-party services and synchronization status.",
+      failedOperationsTitle: "Failed Operations",
+      failedOperationsDescription:
+        "Operations that failed during external dispatch. Operations retry automatically or can be retried manually.",
+      noFailedOperations:
+        "No failed operations recorded. All external services are in sync.",
+      noIntegrations: "No integrations configured for this property.",
+      retry: "Retry",
+      retrying: "Retrying...",
+      retrySuccess: "Operation successfully retried and resolved.",
+      retryFailed: "Retry failed.",
+      operation: "Operation",
+      integration: "Integration",
+      error: "Error Detail",
+      attempts: "Attempts",
+      lastAttempt: "Last Attempt",
+      status: "Status",
+      category: "Category",
+      lastSync: "Last Sync",
+      neverSynced: "Never synced",
+      statuses: {
+        connected: "Connected",
+        error: "Error",
+        not_connected: "Not Connected",
+      },
+      operationStatuses: {
+        failed: "Failed",
+        retrying: "Retrying",
+        resolved: "Resolved",
+      },
+      categories: {
+        Distribution: "Distribution",
+        Payments: "Payments",
+        Access: "Access Control",
+        Government: "Government Reporting",
+        Tax: "Tax & Invoicing",
+        Messaging: "Messaging",
+        Other: "Other",
+      },
+    },
     housekeeping: {
       subtitle: "Which rooms need cleaning at {property}",
       unavailableTitle: "Housekeeping is not on at this Property",
@@ -4840,6 +4983,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       people: "People",
       analytics: "Analytics",
       configuration: "Configuration",
+      integrations: "Integrations",
       "audit-log": "Audit log",
     },
     screenSummary: {
@@ -5696,6 +5840,54 @@ export const messages: Record<SupportedLocale, Messages> = {
         businessDateCutoff: "نهاية يوم العمل",
       },
     },
+    integrations: {
+      subtitle:
+        "مديرو القنوات، أقفال الأبواب، بوابات الدفع، والتقارير الحكومية.",
+      connectedCount: "متصل",
+      errorCount: "خطأ",
+      notConnectedCount: "غير متصل",
+      activeIntegrations: "تكاملات النظام",
+      activeIntegrationsDescription:
+        "الخدمات الخارجية التي تم تكوينها وحالة المزامنة.",
+      failedOperationsTitle: "العمليات الفاشلة",
+      failedOperationsDescription:
+        "العمليات التي فشلت أثناء الإرسال الخارجي. تتم إعادة المحاولة تلقائيًا أو يدويًا.",
+      noFailedOperations:
+        "لا توجد عمليات فاشلة مسجلة. جميع الأنظمة متزامنة تمامًا.",
+      noIntegrations: "لا توجد تكاملات مهيأة لهذا العقار.",
+      retry: "إعادة المحاولة",
+      retrying: "جارٍ إعادة المحاولة...",
+      retrySuccess: "تمت إعادة محاولة العملية بنجاح وتسويتها.",
+      retryFailed: "فشلت إعادة المحاولة.",
+      operation: "العملية",
+      integration: "التكامل",
+      error: "تفاصيل الخطأ",
+      attempts: "المحاولات",
+      lastAttempt: "آخر محاولة",
+      status: "الحالة",
+      category: "الفئة",
+      lastSync: "آخر مزامنة",
+      neverSynced: "لم تتم المزامنة بعد",
+      statuses: {
+        connected: "متصل",
+        error: "خطأ",
+        not_connected: "غير متصل",
+      },
+      operationStatuses: {
+        failed: "فشل",
+        retrying: "جارٍ إعادة المحاولة",
+        resolved: "تم الحل",
+      },
+      categories: {
+        Distribution: "توزيع القنوات",
+        Payments: "المدفوعات",
+        Access: "التحكم بالدخول",
+        Government: "التقارير الحكومية",
+        Tax: "الضرائب والفواتير",
+        Messaging: "المراسلة",
+        Other: "أخرى",
+      },
+    },
     housekeeping: {
       subtitle: "الغرف التي تحتاج إلى تنظيف في {property}",
       unavailableTitle: "التدبير الفندقي غير مفعّل في هذه المنشأة",
@@ -6471,6 +6663,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       people: "الفريق",
       analytics: "التحليلات",
       configuration: "الإعدادات",
+      integrations: "التكاملات",
       "audit-log": "سجل التدقيق",
     },
     screenSummary: {

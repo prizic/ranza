@@ -226,6 +226,16 @@ export const SCREENS: Screen[] = [
     section: "management",
   },
   {
+    segment: "integrations",
+    capability: "integrations",
+    permission: "integrations.view",
+    module: "platform_core",
+    icon: Boxes,
+    blueprint: "5.15",
+    built: true,
+    section: "system",
+  },
+  {
     segment: "configuration",
     capability: "configuration",
     module: "platform_core",

@@ -1,0 +1,19 @@
+%% Lifecycle transitions for Integrations and Failed Operations
+stateDiagram-v2
+
+  state "Integration Status" as IS {
+    [*] --> NotConnected : configure
+    NotConnected --> Connected : connect
+    Connected --> Error : operation_failed
+    Error --> Connected : retry_succeeded
+    Connected --> NotConnected : disconnect
+    Error --> NotConnected : disconnect
+  }
+
+  state "Failed Operation" as FO {
+    [*] --> Failed : outbox_dispatch_failed
+    Failed --> Retrying : retry_operation
+    Retrying --> Succeeded : external_call_ok
+    Retrying --> Failed : external_call_error
+    Succeeded --> [*] : clear_resolved
+  }

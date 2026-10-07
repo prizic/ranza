@@ -7,6 +7,7 @@ import { assertUnprivileged, createPrismaClient } from "@ranza/db";
 import { createFoliosModule } from "@ranza/folios";
 import { createGuestServicesModule } from "@ranza/guest-services";
 import { createHousekeepingModule } from "@ranza/housekeeping";
+import { createIntegrationsModule } from "@ranza/integrations";
 import { createMaintenanceModule } from "@ranza/maintenance";
 import { createRatesModule } from "@ranza/rates";
 import { createReservationsModule } from "@ranza/reservations";
@@ -114,6 +115,7 @@ function compose() {
     maintenance: createMaintenanceModule({ db: tenantDb }),
     rates: createRatesModule({ db: tenantDb }),
     guestServices: createGuestServicesModule({ db: tenantDb }),
+    integrations: createIntegrationsModule({ db: tenantDb }),
     db: tenantDb,
   };
 }

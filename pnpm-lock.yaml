@@ -144,6 +144,9 @@ importers:
       '@ranza/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@ranza/integrations':
+        specifier: workspace:*
+        version: link:../../packages/ranza/integrations
       '@ranza/maintenance':
         specifier: workspace:*
         version: link:../../packages/ranza/maintenance
@@ -355,6 +358,12 @@ importers:
       '@ranza/platform-audit':
         specifier: workspace:*
         version: link:../../platform/audit
+
+  packages/ranza/integrations:
+    dependencies:
+      '@ranza/db':
+        specifier: workspace:*
+        version: link:../../db
 
   packages/ranza/maintenance:
     dependencies:

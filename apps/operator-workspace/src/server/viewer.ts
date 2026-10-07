@@ -39,6 +39,22 @@ import {
   type ServiceRequestPriority,
   type ServiceRequestStatus,
 } from "@ranza/guest-services";
+import {
+  INTEGRATIONS_CAPABILITY,
+  type FailedOperationRecord,
+  type IntegrationRecord,
+  type IntegrationStatus,
+  type OperationStatus,
+  type RetryOperationResult,
+} from "@ranza/integrations";
+export {
+  INTEGRATIONS_CAPABILITY,
+  type FailedOperationRecord,
+  type IntegrationRecord,
+  type IntegrationStatus,
+  type OperationStatus,
+  type RetryOperationResult,
+};
 import type { FolioDetail, FolioSummary } from "@ranza/folios";
 import {
   BookingChangeError,
@@ -1023,4 +1039,50 @@ export async function propertyServiceRequests(
   if (!viewer) return [];
 
   return getComposition().guestServices.requests(viewer.userId, propertyId);
+}
+
+export interface IntegrationsViewData {
+  integrations: IntegrationRecord[];
+  failedOperations: FailedOperationRecord[];
+}
+
+/**
+ * Reads external system integrations and active failed operations for a Property.
+ */
+export async function propertyIntegrations(
+  propertyId: string,
+): Promise<IntegrationsViewData> {
+  const viewer = await currentViewer();
+  if (!viewer) {
+    return { integrations: [], failedOperations: [] };
+  }
+
+  const comp = getComposition();
+  const [integrations, failedOperations] = await Promise.all([
+    comp.integrations.integrations(viewer.userId, propertyId),
+    comp.integrations.failedOperations(viewer.userId, propertyId),
+  ]);
+
+  return {
+    integrations,
+    failedOperations,
+  };
+}
+
+/**
+ * Retries a failed external integration operation.
+ */
+export async function retryIntegrationOperation(
+  propertyId: string,
+  operationId: string,
+): Promise<RetryOperationResult> {
+  const viewer = await currentViewer();
+  if (!viewer) {
+    throw new Error("Unauthorized");
+  }
+
+  return getComposition().integrations.retryOperation(viewer.userId, {
+    propertyId,
+    operationId,
+  });
 }

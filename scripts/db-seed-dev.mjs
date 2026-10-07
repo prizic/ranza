@@ -201,7 +201,7 @@ psql(`
          (values ('front_desk'), ('guest_experience'), ('housekeeping'),
                  ('food_and_beverage'), ('inventory'), ('finance'),
                  ('people'), ('staff_administration'), ('analytics'),
-                 ('configuration'), ('maintenance'))
+                 ('configuration'), ('maintenance'), ('integrations'))
            as wanted (capability_key)
   ), unit as (
     insert into public.accommodation_units
@@ -268,6 +268,33 @@ psql(`
     select id, property_id, organization_id, 'dirty'
     from arriving
     where name = '102'
+  ), seeded_integrations as (
+    insert into public.integrations
+      (property_id, organization_id, key, name, category, status, detail, last_sync_at)
+    select property.id, property.organization_id, wanted.key, wanted.name, wanted.category, wanted.status, wanted.detail, now()
+    from property,
+         (values ('channel_manager', 'Channel manager', 'Distribution', 'error', 'Rate plan not mapped: Standard Double (305-307)'),
+                 ('garanti_pos', 'Garanti BBVA Virtual POS', 'Payments', 'connected', null),
+                 ('door_locks', 'Dormakaba Access Control', 'Access', 'not_connected', null),
+                 ('kbs_reporting', 'Emniyet KBS Reporting', 'Government', 'connected', null),
+                 ('gib_invoices', 'GİB e-Arşiv Invoices', 'Tax', 'connected', null),
+                 ('whatsapp_biz', 'WhatsApp Business Messaging', 'Messaging', 'connected', null))
+           as wanted (key, name, category, status, detail)
+    where property.id = (select id from property order by name limit 1)
+    returning id, property_id, organization_id, key, name
+  ), seeded_failure as (
+    insert into public.failed_operations
+      (property_id, organization_id, integration_name, operation, error, status, attempts, payload, last_attempt_at)
+    select
+      si.property_id, si.organization_id, si.name,
+      'Push availability, rooms 305, 306, 307',
+      'Rate plan not mapped: Standard Double (305-307)',
+      'failed',
+      3,
+      '{"ratePlanId": "STD-DBL", "rooms": ["305", "306", "307"], "dates": ["2026-10-07", "2026-10-08"]}'::jsonb,
+      now() - interval '12 minutes'
+    from seeded_integrations si
+    where si.key = 'channel_manager'
   )
   insert into public.reservations
     (organization_id, property_id, accommodation_unit_id,

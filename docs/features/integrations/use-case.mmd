@@ -1,0 +1,38 @@
+%% Slices decide implementation order:
+%%   s1 integrations catalogue, live status, outbox failure recording, failed operations visibility, and manual retry
+%%   s2 bidirectional webhook receivers and channel inventory mapping
+%% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
+%% State transitions are in states.mmd.
+flowchart TD
+
+  MANAGER["Staff Member holding integrations.manage<br/>manages connections and retries operations"]
+  VIEWER["Staff Member holding integrations.view<br/>monitors integration health and failures"]
+  WORKER["Background Worker (ranza_worker)<br/>dispatches outbox events to external systems"]
+  EXTERNAL["External System<br/>Channel Manager, Door Locks, Payment POS, KBS"]
+
+  subgraph S1["slice 1 &mdash; health, outbox failure visibility and retry"]
+    LIST(["View integrations & failed operations queue<br/>status tones, error details, attempts"])
+    CONNECT(["Connect integration"])
+    DISPATCH(["Dispatch outbox event to external adapter"])
+    RECORD_FAIL(["Record failed operation in database<br/>error message, payload, incremented attempts"])
+    RETRY(["Retry failed operation<br/>re-executes external call or outbox task"])
+    RESOLVE(["Clear failure and restore connected status"])
+  end
+
+  subgraph S2["Not this slice &mdash; phase 5 deep distribution"]
+    WEBHOOKS(["Incoming channel manager webhooks"])
+    RATE_MAP(["Rate plan and room inventory mapping editor"])
+    LOCK_KEYS(["Direct door lock keycard / BLE issuance"])
+  end
+
+  VIEWER --> LIST
+  MANAGER --> LIST
+  MANAGER --> CONNECT
+  MANAGER --> RETRY
+
+  WORKER --> DISPATCH
+  DISPATCH --> EXTERNAL
+  EXTERNAL -- "API error / rejection" --> RECORD_FAIL
+  RECORD_FAIL --> LIST
+  RETRY --> DISPATCH
+  EXTERNAL -- "Success on retry" --> RESOLVE

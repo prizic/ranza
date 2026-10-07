@@ -5,7 +5,7 @@ modules may use hospitality vocabulary freely.
 
 Built: `core/`, `accommodation/`, `housekeeping/`, `stays/`, `reservations/`,
 `business-day/`, `folios/`, `rates/`, `guests/`, `maintenance/`, `staff/`,
-`guest-services/`.
+`guest-services/`, `integrations/`.
 Planned: `food-and-beverage/`.
 
 `core/` owns Organization, Property, identity, roles and assignments,
