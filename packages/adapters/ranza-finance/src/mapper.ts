@@ -1,0 +1,178 @@
+import type {
+  JournalEntryInput,
+  JournalLineInput,
+} from "@ranza/platform-finance";
+
+export interface FolioLineRecord {
+  id: string;
+  organizationId: string;
+  propertyId: string;
+  folioId: string;
+  lineType: string;
+  description: string;
+  amountMinor: number | bigint;
+  paymentMethod: string | null;
+  reversesLineId: string | null;
+  source: string | null;
+  currency: string;
+}
+
+export interface AccountMap {
+  readonly [code: string]: string; // code -> accountId
+}
+
+export const STANDARD_ACCOUNT_CODES = {
+  CASH: "1000",
+  BANK: "1010",
+  CARD: "1020",
+  RECEIVABLES: "1200",
+  ROOM_REVENUE: "4000",
+  OTHER_REVENUE: "4100",
+} as const;
+
+export function resolvePaymentAccount(paymentMethod: string | null): string {
+  switch (paymentMethod) {
+    case "bank_transfer":
+      return STANDARD_ACCOUNT_CODES.BANK;
+    case "card":
+      return STANDARD_ACCOUNT_CODES.CARD;
+    case "cash":
+    case "other":
+    default:
+      return STANDARD_ACCOUNT_CODES.CASH;
+  }
+}
+
+/**
+ * Translates a Folio line into a balanced generic JournalEntryInput.
+ */
+export function mapFolioLineToJournalEntry(
+  line: FolioLineRecord,
+  accounts: AccountMap,
+  reversedOriginalLine?: FolioLineRecord | null,
+): JournalEntryInput {
+  const amount = Math.abs(Number(line.amountMinor));
+  const receivablesId = accounts[STANDARD_ACCOUNT_CODES.RECEIVABLES];
+  const roomRevenueId = accounts[STANDARD_ACCOUNT_CODES.ROOM_REVENUE];
+  const otherRevenueId =
+    accounts[STANDARD_ACCOUNT_CODES.OTHER_REVENUE] ?? roomRevenueId;
+
+  if (!receivablesId) {
+    throw new Error(
+      `Missing required account mapping for ${STANDARD_ACCOUNT_CODES.RECEIVABLES}`,
+    );
+  }
+
+  const lines: JournalLineInput[] = [];
+
+  if (line.lineType === "charge") {
+    const revenueAccountId =
+      line.source === "room_night" ? roomRevenueId : otherRevenueId;
+    if (!revenueAccountId) {
+      throw new Error("Missing required revenue account mapping");
+    }
+
+    // Debit Accounts Receivable, Credit Revenue
+    lines.push(
+      {
+        accountId: receivablesId,
+        direction: "debit",
+        amountMinor: amount,
+        description: line.description,
+      },
+      {
+        accountId: revenueAccountId,
+        direction: "credit",
+        amountMinor: amount,
+        description: line.description,
+      },
+    );
+  } else if (line.lineType === "payment") {
+    const paymentAccountCode = resolvePaymentAccount(line.paymentMethod);
+    const paymentAccountId = accounts[paymentAccountCode];
+    if (!paymentAccountId) {
+      throw new Error(
+        `Missing required payment account mapping for code ${paymentAccountCode}`,
+      );
+    }
+
+    // Debit Cash/Bank, Credit Accounts Receivable
+    lines.push(
+      {
+        accountId: paymentAccountId,
+        direction: "debit",
+        amountMinor: amount,
+        description: line.description,
+      },
+      {
+        accountId: receivablesId,
+        direction: "credit",
+        amountMinor: amount,
+        description: line.description,
+      },
+    );
+  } else if (line.lineType === "reversal") {
+    // Reversal cancels the original line
+    if (reversedOriginalLine && reversedOriginalLine.lineType === "payment") {
+      const paymentAccountCode = resolvePaymentAccount(
+        reversedOriginalLine.paymentMethod,
+      );
+      const paymentAccountId = accounts[paymentAccountCode];
+      if (!paymentAccountId) {
+        throw new Error(
+          `Missing required payment account mapping for code ${paymentAccountCode}`,
+        );
+      }
+
+      // Reversing a payment: Debit Accounts Receivable, Credit Cash/Bank
+      lines.push(
+        {
+          accountId: receivablesId,
+          direction: "debit",
+          amountMinor: amount,
+          description: line.description,
+        },
+        {
+          accountId: paymentAccountId,
+          direction: "credit",
+          amountMinor: amount,
+          description: line.description,
+        },
+      );
+    } else {
+      // Reversing a charge: Debit Revenue, Credit Accounts Receivable
+      const revSource = reversedOriginalLine?.source ?? line.source;
+      const revenueAccountId =
+        revSource === "room_night" ? roomRevenueId : otherRevenueId;
+      if (!revenueAccountId) {
+        throw new Error("Missing required revenue account mapping");
+      }
+
+      lines.push(
+        {
+          accountId: revenueAccountId,
+          direction: "debit",
+          amountMinor: amount,
+          description: line.description,
+        },
+        {
+          accountId: receivablesId,
+          direction: "credit",
+          amountMinor: amount,
+          description: line.description,
+        },
+      );
+    }
+  } else {
+    throw new Error(`Unsupported folio line type: ${line.lineType}`);
+  }
+
+  return {
+    organizationId: line.organizationId,
+    currency: line.currency,
+    description: line.description,
+    sourceType: "folio_line",
+    sourceId: line.id,
+    lines,
+  };
+}

@@ -3,7 +3,7 @@
 Host-agnostic reusable modules. These are the **generic subdomains** — capabilities
 that are not unique to hospitality and could serve a second Prizic product.
 
-`audit/` is built. Planned: `finance/`, `inventory/`, `procurement/`,
+`audit/` and `finance/` are built. Planned: `inventory/`, `procurement/`,
 `notifications/`, `files/`, `tasks/`, `integrations/` — each when a slice needs
 it, not before (blueprint section 13).
 

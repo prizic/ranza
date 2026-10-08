@@ -1,4 +1,5 @@
 import type { OutboxSubscription } from "@ranza/platform-outbox";
+import { folioLinePostedSubscription } from "./folio-line";
 import { roomDirtySubscription } from "./room-dirty";
 import { roomMovedSubscription } from "./room-moved";
 import { roomReturnedSubscription } from "./room-returned";
@@ -55,4 +56,5 @@ export const subscriptions: readonly OutboxSubscription[] = [
   roomDirtySubscription,
   roomMovedSubscription,
   roomReturnedSubscription,
+  folioLinePostedSubscription,
 ];

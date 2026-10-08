@@ -3,7 +3,7 @@
 Thin mappings that connect Ranza concepts to generic platform module contracts.
 This is where hospitality vocabulary is translated away.
 
-Planned: `ranza-finance/`, `ranza-inventory/`, `ranza-notifications/`.
+`ranza-finance/` is built. Planned: `ranza-inventory/`, `ranza-notifications/`.
 
 ## Why this tier exists
 
