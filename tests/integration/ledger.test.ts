@@ -271,6 +271,14 @@ describe("the ledger behind billing (blueprint 5.10)", () => {
         chargeLineId,
       );
       expect(repeatedEntry?.id).toBe(chargeEntry?.id);
+
+      // Concurrent race condition: 2 parallel calls resolve to the identical entry
+      const [race1, race2] = await Promise.all([
+        postFolioLineToLedgerWithin(tx as unknown as FinanceClient, chargeLineId),
+        postFolioLineToLedgerWithin(tx as unknown as FinanceClient, chargeLineId),
+      ]);
+      expect(race1?.id).toBe(chargeEntry?.id);
+      expect(race2?.id).toBe(chargeEntry?.id);
     });
 
     // 7. Reversal: Reversing a charge posts exact reciprocal entry to ledger
@@ -301,6 +309,77 @@ describe("the ledger behind billing (blueprint 5.10)", () => {
       expect(revDebit?.amountMinor).toBe(50000);
       expect(revCredit?.accountCode).toBe(STANDARD_ACCOUNT_CODES.RECEIVABLES);
       expect(revCredit?.amountMinor).toBe(50000);
+    });
+
+    // 8. Room night charge maps specifically to Room Revenue (4000)
+    const roomChargeLineId = randomUUID();
+    await owner.$executeRawUnsafe(
+      `insert into public.folio_lines
+         (id, organization_id, property_id, folio_id, line_type, description, amount_minor, source, business_date)
+       values ($1::uuid, $2::uuid, $3::uuid, $4::uuid, 'charge', 'Night in Deluxe Room - Room Night', 120000, 'room_night', app.property_today($3::uuid) - 1)`,
+      roomChargeLineId,
+      ORG,
+      PROPERTY,
+      folioId,
+    );
+
+    await withOrganizationContext(prisma, { userId: MEMBER }, async (tx) => {
+      const roomEntry = await postFolioLineToLedgerWithin(
+        tx as unknown as FinanceClient,
+        roomChargeLineId,
+      );
+
+      expect(roomEntry).not.toBeNull();
+      const creditLeg = roomEntry?.lines.find((l) => l.direction === "credit");
+      expect(creditLeg?.accountCode).toBe(STANDARD_ACCOUNT_CODES.ROOM_REVENUE);
+      expect(creditLeg?.amountMinor).toBe(120000);
+    });
+
+    // 9. Payment reversal reverses credit to payment account and debits receivables
+    let paymentToReverseId!: string;
+    await withOrganizationContext(prisma, { userId: MEMBER }, async (tx) => {
+      const payment = await postPaymentWithin(
+        tx as unknown as FolioWriteClient & AuditClient,
+        MEMBER,
+        {
+          folioId,
+          description: "Payment to be reversed",
+          paymentMethod: "card",
+          amountMinor: 30000,
+        },
+      );
+      paymentToReverseId = payment.lineId;
+      await postFolioLineToLedgerWithin(
+        tx as unknown as FinanceClient,
+        paymentToReverseId,
+      );
+    });
+
+    const { lineId: paymentReversalLineId } = await folios.reverseLine(
+      MEMBER,
+      paymentToReverseId,
+      "Duplicate swipe refund",
+    );
+
+    await withOrganizationContext(prisma, { userId: MEMBER }, async (tx) => {
+      const payRevEntry = await postFolioLineToLedgerWithin(
+        tx as unknown as FinanceClient,
+        paymentReversalLineId,
+      );
+
+      expect(payRevEntry).not.toBeNull();
+      expect(payRevEntry?.lines).toHaveLength(2);
+
+      const revDebit = payRevEntry?.lines.find((l) => l.direction === "debit");
+      const revCredit = payRevEntry?.lines.find(
+        (l) => l.direction === "credit",
+      );
+
+      // Debit Receivables (1200), Credit Card Clearing (1020)
+      expect(revDebit?.accountCode).toBe(STANDARD_ACCOUNT_CODES.RECEIVABLES);
+      expect(revDebit?.amountMinor).toBe(30000);
+      expect(revCredit?.accountCode).toBe(STANDARD_ACCOUNT_CODES.CARD);
+      expect(revCredit?.amountMinor).toBe(30000);
     });
   });
 });

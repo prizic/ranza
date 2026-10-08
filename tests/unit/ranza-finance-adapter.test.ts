@@ -7,7 +7,10 @@ import {
   type AccountMap,
   type FolioLineRecord,
 } from "../../packages/adapters/ranza-finance/src";
-import type { FinanceClient } from "../../packages/platform/finance/src";
+import {
+  InvalidEntryError,
+  type FinanceClient,
+} from "../../packages/platform/finance/src";
 
 const ORG = "b1000000-0000-4000-8000-000000000001";
 const PROP = "b2000000-0000-4000-8000-000000000001";
@@ -198,6 +201,26 @@ describe("ranza-finance adapter: mapper", () => {
     expect(credit.accountId).toBe(MOCK_ACCOUNTS[STANDARD_ACCOUNT_CODES.CASH]);
     expect(credit.amountMinor).toBe(5000);
   });
+
+  it("throws InvalidEntryError if reversal is missing original line", () => {
+    const reversalLine: FolioLineRecord = {
+      id: LINE_REVERSAL,
+      organizationId: ORG,
+      propertyId: PROP,
+      folioId: FOLIO,
+      lineType: "reversal",
+      description: "Missing original",
+      amountMinor: 5000,
+      paymentMethod: null,
+      reversesLineId: null,
+      source: null,
+      currency: "TRY",
+    };
+
+    expect(() =>
+      mapFolioLineToJournalEntry(reversalLine, MOCK_ACCOUNTS, null),
+    ).toThrow(InvalidEntryError);
+  });
 });
 
 describe("ranza-finance adapter: postFolioLineToLedgerWithin", () => {
@@ -266,5 +289,57 @@ describe("ranza-finance adapter: postFolioLineToLedgerWithin", () => {
     );
     expect(result?.id).toBe(existingEntry.id);
     expect(result?.entryNumber).toBe(42);
+  });
+
+  it("uses snapshot payload directly without querying public.folio_lines", async () => {
+    let queriedFolioLines = false;
+    const existingEntry = {
+      id: "e1000000-0000-4000-8000-000000000001",
+      organizationId: ORG,
+      entryNumber: 99,
+      entryDate: new Date(),
+      postedAt: new Date(),
+      currency: "TRY",
+      description: "Snapshot posting",
+      sourceType: "folio_line",
+      sourceId: LINE_CHARGE,
+      createdBy: null,
+      lines: [],
+    };
+
+    const mockTx: Partial<FinanceClient> = {
+      $queryRaw: async (query: TemplateStringsArray) => {
+        const text = query.join("");
+        if (text.includes("from public.folio_lines")) {
+          queriedFolioLines = true;
+          return [];
+        }
+        if (text.includes("from finance.journal_entries")) {
+          return [{ ...existingEntry, entryNumber: "99" }];
+        }
+        return [];
+      },
+    };
+
+    const snapshot = {
+      lineId: LINE_CHARGE,
+      organizationId: ORG,
+      propertyId: PROP,
+      folioId: FOLIO,
+      lineType: "charge",
+      description: "Snapshot charge",
+      amountMinor: 50000,
+      paymentMethod: null,
+      currency: "TRY",
+    };
+
+    const result = await postFolioLineToLedgerWithin(
+      mockTx as FinanceClient,
+      LINE_CHARGE,
+      snapshot,
+    );
+
+    expect(queriedFolioLines).toBe(false);
+    expect(result?.id).toBe(existingEntry.id);
   });
 });

@@ -127,6 +127,22 @@ describe("platform finance: application operations", () => {
     const mockTx: Partial<FinanceClient> = {
       $queryRaw: async (query: TemplateStringsArray) => {
         const text = query.join("");
+        if (text.includes("from finance.accounts")) {
+          return [
+            {
+              id: ACC_RECEIVABLE,
+              isActive: true,
+              code: "1200",
+              organizationId: ORG,
+            },
+            {
+              id: ACC_REVENUE,
+              isActive: true,
+              code: "4000",
+              organizationId: ORG,
+            },
+          ];
+        }
         if (text.includes("insert into finance.journal_entries")) {
           return [
             {
@@ -180,6 +196,41 @@ describe("platform finance: application operations", () => {
     expect(posted.entryNumber).toBe(1);
     expect(posted.currency).toBe("TRY");
     expect(posted.lines).toHaveLength(2);
+  });
+
+  it("rejects posting if an account is inactive", async () => {
+    const mockTx: Partial<FinanceClient> = {
+      $queryRaw: async (query: TemplateStringsArray) => {
+        const text = query.join("");
+        if (text.includes("from finance.accounts")) {
+          return [
+            {
+              id: ACC_RECEIVABLE,
+              isActive: false, // inactive account
+              code: "1200",
+              organizationId: ORG,
+            },
+          ];
+        }
+        return [];
+      },
+    };
+
+    const entry: JournalEntryInput = {
+      organizationId: ORG,
+      currency: "TRY",
+      description: "Charge to inactive account",
+      sourceType: "folio_line",
+      sourceId: SOURCE_ID,
+      lines: [
+        { accountId: ACC_RECEIVABLE, direction: "debit", amountMinor: 50000 },
+        { accountId: ACC_REVENUE, direction: "credit", amountMinor: 50000 },
+      ],
+    };
+
+    await expect(
+      postJournalEntryWithin(mockTx as FinanceClient, entry),
+    ).rejects.toThrow(InvalidEntryError);
   });
 
   it("calculates account balances with correct normal balance directions", async () => {

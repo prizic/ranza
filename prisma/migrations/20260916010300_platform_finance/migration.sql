@@ -29,7 +29,8 @@ create table finance.accounts (
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
 
-  unique (organization_id, code)
+  unique (organization_id, code),
+  unique (organization_id, id)
 );
 
 create index accounts_organization_idx on finance.accounts (organization_id, code);
@@ -73,11 +74,13 @@ create table finance.journal_lines (
   line_number int not null default 1,
   created_at timestamptz not null default now(),
 
+  unique (journal_entry_id, line_number),
+
   foreign key (organization_id, journal_entry_id)
     references finance.journal_entries (organization_id, id)
     on delete restrict,
-  foreign key (account_id)
-    references finance.accounts (id)
+  foreign key (organization_id, account_id)
+    references finance.accounts (organization_id, id)
     on delete restrict
 );
 
@@ -152,9 +155,19 @@ create trigger journal_entries_append_only
   for each row
   execute function finance.forbid_rewrite();
 
+create trigger journal_entries_no_truncate
+  before truncate on finance.journal_entries
+  for each statement
+  execute function finance.forbid_rewrite();
+
 create trigger journal_lines_append_only
   before update or delete on finance.journal_lines
   for each row
+  execute function finance.forbid_rewrite();
+
+create trigger journal_lines_no_truncate
+  before truncate on finance.journal_lines
+  for each statement
   execute function finance.forbid_rewrite();
 
 -- ---------------------------------------------------------------------------
@@ -190,12 +203,43 @@ language plpgsql
 security invoker
 set search_path = ''
 as $$
+declare
+  v_currency text;
+  v_orig_type text;
+  v_orig_method text;
+  v_orig_source text;
 begin
+  select currency::text into v_currency
+  from public.folios
+  where id = NEW.folio_id;
+
+  if NEW.reverses_line_id is not null then
+    select line_type, payment_method, source
+    into v_orig_type, v_orig_method, v_orig_source
+    from public.folio_lines
+    where id = NEW.reverses_line_id;
+  end if;
+
   insert into outbox.events (organization_id, event_type, payload)
   values (
     NEW.organization_id,
     'folio.line_posted',
-    jsonb_build_object('lineId', NEW.id, 'folioId', NEW.folio_id)
+    jsonb_build_object(
+      'lineId', NEW.id,
+      'organizationId', NEW.organization_id,
+      'propertyId', NEW.property_id,
+      'folioId', NEW.folio_id,
+      'lineType', NEW.line_type,
+      'description', NEW.description,
+      'amountMinor', NEW.amount_minor,
+      'paymentMethod', NEW.payment_method,
+      'reversesLineId', NEW.reverses_line_id,
+      'source', NEW.source,
+      'currency', v_currency,
+      'reversedOriginalType', v_orig_type,
+      'reversedOriginalMethod', v_orig_method,
+      'reversedOriginalSource', v_orig_source
+    )
   );
   return NEW;
 end;
@@ -284,8 +328,18 @@ create policy lines_insert_worker
 -- ---------------------------------------------------------------------------
 
 grant usage on schema finance to ranza_app, ranza_worker;
-grant select, insert on finance.accounts to ranza_app, ranza_worker;
-grant select, insert on finance.journal_entries to ranza_app, ranza_worker;
-grant select, insert on finance.journal_lines to ranza_app, ranza_worker;
+grant select on finance.accounts to ranza_app, ranza_worker;
+grant insert (organization_id, code, name, type, normal_balance, is_active)
+  on finance.accounts to ranza_app, ranza_worker;
+
+grant select on finance.journal_entries to ranza_app, ranza_worker;
+grant insert (organization_id, currency, description, source_type, source_id, created_by)
+  on finance.journal_entries to ranza_app, ranza_worker;
+
+grant select on finance.journal_lines to ranza_app, ranza_worker;
+grant insert (organization_id, journal_entry_id, account_id, direction, amount_minor, description, line_number)
+  on finance.journal_lines to ranza_app, ranza_worker;
+
 grant usage on all sequences in schema finance to ranza_app, ranza_worker;
 grant execute on function finance.ensure_default_accounts(uuid) to ranza_app, ranza_worker;
+

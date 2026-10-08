@@ -10,7 +10,7 @@
 --   - folio_lines insert trigger notifies outbox with 'folio.line_posted'
 
 begin;
-select plan(12);
+select plan(17);
 
 insert into public.users (id, email) values
   ('e1000001-0000-4000-8000-000000000001', 'finance-a@example.test'),
@@ -42,6 +42,14 @@ select results_eq(
   $$values (6)$$,
   'standard chart of accounts has 6 accounts'
 );
+
+-- Ensure Org B also has default accounts for cross-tenant testing
+select finance.ensure_default_accounts('e2000002-0000-4000-8000-000000000002');
+
+create temp table test_b_acc as
+  select id from finance.accounts
+  where organization_id = 'e2000002-0000-4000-8000-000000000002' and code = '1200';
+grant select on test_b_acc to ranza_app;
 
 -- ---------------------------------------------------------------------------
 -- 2. Balanced journal entry insertion
@@ -81,7 +89,43 @@ select lives_ok(
 );
 
 -- ---------------------------------------------------------------------------
--- 3. Unbalanced entry is rejected by trigger
+-- 3. Composite foreign key prevents cross-tenant account pollution
+-- ---------------------------------------------------------------------------
+
+select throws_ok(
+  $$
+  insert into finance.journal_lines
+    (organization_id, journal_entry_id, account_id, direction, amount_minor, line_number)
+  values
+    ('e2000002-0000-4000-8000-000000000001',
+     (select id from finance.journal_entries where source_id = 'e3000003-0000-4000-8000-000000000001'),
+     (select id from test_b_acc),
+     'debit', 50000, 99)
+  $$,
+  '23503', NULL,
+  'referencing another organization account is refused by composite foreign key'
+);
+
+-- ---------------------------------------------------------------------------
+-- 4. Unique line number per entry
+-- ---------------------------------------------------------------------------
+
+select throws_ok(
+  $$
+  insert into finance.journal_lines
+    (organization_id, journal_entry_id, account_id, direction, amount_minor, line_number)
+  values
+    ('e2000002-0000-4000-8000-000000000001',
+     (select id from finance.journal_entries where source_id = 'e3000003-0000-4000-8000-000000000001'),
+     (select id from finance.accounts where organization_id = 'e2000002-0000-4000-8000-000000000001' and code = '1200'),
+     'debit', 50000, 1)
+  $$,
+  '23505', NULL,
+  'duplicate line_number on journal entry is refused by unique constraint'
+);
+
+-- ---------------------------------------------------------------------------
+-- 5. Unbalanced entry is rejected by trigger
 -- ---------------------------------------------------------------------------
 
 select throws_ok(
@@ -113,10 +157,9 @@ select throws_ok(
   '23514', NULL,
   'unbalanced entry is refused by balance check trigger'
 );
-set constraints all deferred;
 
 -- ---------------------------------------------------------------------------
--- 4. Idempotency: duplicate source posting refused
+-- 6. Idempotency: duplicate source posting refused
 -- ---------------------------------------------------------------------------
 
 select throws_ok(
@@ -132,10 +175,11 @@ select throws_ok(
 );
 
 -- ---------------------------------------------------------------------------
--- 5. Immutability: update and delete are refused by trigger
+-- 7. Immutability: update, delete, and truncate are refused by triggers
 -- ---------------------------------------------------------------------------
 
 reset role;
+set constraints all immediate;
 
 select throws_ok(
   $$update finance.journal_entries set description = 'Tampered' where source_id = 'e3000003-0000-4000-8000-000000000001'$$,
@@ -149,8 +193,20 @@ select throws_ok(
   'deleting a journal entry is refused by append-only trigger'
 );
 
+select throws_ok(
+  $$truncate table finance.journal_lines$$,
+  '42501', NULL,
+  'truncating journal lines is refused by append-only trigger'
+);
+
+select throws_ok(
+  $$truncate table finance.journal_entries, finance.journal_lines$$,
+  '42501', NULL,
+  'truncating journal entries is refused by append-only trigger'
+);
+
 -- ---------------------------------------------------------------------------
--- 6. Tenant isolation via RLS
+-- 8. Tenant isolation via RLS
 -- ---------------------------------------------------------------------------
 
 set local role ranza_app;
@@ -179,7 +235,7 @@ select throws_ok(
 );
 
 -- ---------------------------------------------------------------------------
--- 7. Folio lines outbox trigger notification
+-- 9. Folio lines outbox trigger notification
 -- ---------------------------------------------------------------------------
 
 reset role;
@@ -218,6 +274,13 @@ select results_eq(
   $$select (payload->>'lineId')::uuid from outbox.events where (payload->>'lineId')::uuid = 'e8000008-0000-4000-8000-000000000001'$$,
   $$values ('e8000008-0000-4000-8000-000000000001'::uuid)$$,
   'outbox event carries the exact folio line id'
+);
+
+select results_eq(
+  $$select (payload->>'amountMinor')::bigint, payload->>'currency'
+    from outbox.events where (payload->>'lineId')::uuid = 'e8000008-0000-4000-8000-000000000001'$$,
+  $$values (3500::bigint, 'TRY'::text)$$,
+  'outbox event carries the complete immutable line snapshot'
 );
 
 rollback;

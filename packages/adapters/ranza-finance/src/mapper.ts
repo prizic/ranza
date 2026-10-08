@@ -1,6 +1,7 @@
-import type {
-  JournalEntryInput,
-  JournalLineInput,
+import {
+  InvalidEntryError,
+  type JournalEntryInput,
+  type JournalLineInput,
 } from "@ranza/platform-finance";
 
 export interface FolioLineRecord {
@@ -58,7 +59,7 @@ export function mapFolioLineToJournalEntry(
     accounts[STANDARD_ACCOUNT_CODES.OTHER_REVENUE] ?? roomRevenueId;
 
   if (!receivablesId) {
-    throw new Error(
+    throw new InvalidEntryError(
       `Missing required account mapping for ${STANDARD_ACCOUNT_CODES.RECEIVABLES}`,
     );
   }
@@ -69,7 +70,7 @@ export function mapFolioLineToJournalEntry(
     const revenueAccountId =
       line.source === "room_night" ? roomRevenueId : otherRevenueId;
     if (!revenueAccountId) {
-      throw new Error("Missing required revenue account mapping");
+      throw new InvalidEntryError("Missing required revenue account mapping");
     }
 
     // Debit Accounts Receivable, Credit Revenue
@@ -91,12 +92,12 @@ export function mapFolioLineToJournalEntry(
     const paymentAccountCode = resolvePaymentAccount(line.paymentMethod);
     const paymentAccountId = accounts[paymentAccountCode];
     if (!paymentAccountId) {
-      throw new Error(
+      throw new InvalidEntryError(
         `Missing required payment account mapping for code ${paymentAccountCode}`,
       );
     }
 
-    // Debit Cash/Bank, Credit Accounts Receivable
+    // Debit Cash/Bank/Card, Credit Accounts Receivable
     lines.push(
       {
         accountId: paymentAccountId,
@@ -113,18 +114,24 @@ export function mapFolioLineToJournalEntry(
     );
   } else if (line.lineType === "reversal") {
     // Reversal cancels the original line
-    if (reversedOriginalLine && reversedOriginalLine.lineType === "payment") {
+    if (!reversedOriginalLine) {
+      throw new InvalidEntryError(
+        `Reversal line ${line.id} missing referenced original line for proper accounting classification`,
+      );
+    }
+
+    if (reversedOriginalLine.lineType === "payment") {
       const paymentAccountCode = resolvePaymentAccount(
         reversedOriginalLine.paymentMethod,
       );
       const paymentAccountId = accounts[paymentAccountCode];
       if (!paymentAccountId) {
-        throw new Error(
+        throw new InvalidEntryError(
           `Missing required payment account mapping for code ${paymentAccountCode}`,
         );
       }
 
-      // Reversing a payment: Debit Accounts Receivable, Credit Cash/Bank
+      // Reversing a payment: Debit Accounts Receivable, Credit Cash/Bank/Card
       lines.push(
         {
           accountId: receivablesId,
@@ -139,13 +146,13 @@ export function mapFolioLineToJournalEntry(
           description: line.description,
         },
       );
-    } else {
+    } else if (reversedOriginalLine.lineType === "charge") {
       // Reversing a charge: Debit Revenue, Credit Accounts Receivable
-      const revSource = reversedOriginalLine?.source ?? line.source;
+      const revSource = reversedOriginalLine.source ?? line.source;
       const revenueAccountId =
         revSource === "room_night" ? roomRevenueId : otherRevenueId;
       if (!revenueAccountId) {
-        throw new Error("Missing required revenue account mapping");
+        throw new InvalidEntryError("Missing required revenue account mapping");
       }
 
       lines.push(
@@ -162,9 +169,13 @@ export function mapFolioLineToJournalEntry(
           description: line.description,
         },
       );
+    } else {
+      throw new InvalidEntryError(
+        `Cannot reverse line ${line.id}: unrecognized original line type ${reversedOriginalLine.lineType}`,
+      );
     }
   } else {
-    throw new Error(`Unsupported folio line type: ${line.lineType}`);
+    throw new InvalidEntryError(`Unsupported folio line type: ${line.lineType}`);
   }
 
   return {

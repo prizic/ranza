@@ -7,7 +7,12 @@ import {
   JournalEntryInput,
   JournalLine,
 } from "../domain/entry";
-import { DuplicateEntryError, FinanceError } from "../domain/errors";
+import {
+  AccountNotFoundError,
+  DuplicateEntryError,
+  FinanceError,
+  InvalidEntryError,
+} from "../domain/errors";
 import type { FinanceClient } from "../ports";
 
 interface EntryRow {
@@ -60,6 +65,40 @@ export async function insertJournalEntry(
   tx: FinanceClient,
   entry: JournalEntryInput,
 ): Promise<JournalEntry> {
+  // Validate that all referenced accounts exist, belong to this organization, and are active
+  const uniqueAccountIds = Array.from(
+    new Set(entry.lines.map((l) => l.accountId)),
+  );
+  for (const accountId of uniqueAccountIds) {
+    const accRows = await tx.$queryRaw<
+      Array<{
+        id: string;
+        isActive: boolean;
+        code: string;
+        organizationId: string;
+      }>
+    >`
+      select
+        id,
+        is_active as "isActive",
+        code,
+        organization_id as "organizationId"
+      from finance.accounts
+      where id = ${accountId}::uuid
+    `;
+    const acc = accRows[0];
+    if (!acc || acc.organizationId !== entry.organizationId) {
+      throw new AccountNotFoundError(
+        `account ${accountId} does not exist for organization ${entry.organizationId}`,
+      );
+    }
+    if (!acc.isActive) {
+      throw new InvalidEntryError(
+        `account ${acc.code} is inactive and cannot accept postings`,
+      );
+    }
+  }
+
   let headerRows: EntryRow[];
   try {
     headerRows = await tx.$queryRaw<EntryRow[]>`

@@ -6,3 +6,4 @@ export {
 export type { AccountMap, FolioLineRecord } from "./mapper";
 
 export { postFolioLineToLedgerWithin } from "./posting";
+export type { FolioLineSnapshot } from "./posting";

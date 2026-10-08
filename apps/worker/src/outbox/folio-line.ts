@@ -1,4 +1,7 @@
-import { postFolioLineToLedgerWithin } from "@ranza/adapter-ranza-finance";
+import {
+  postFolioLineToLedgerWithin,
+  type FolioLineSnapshot,
+} from "@ranza/adapter-ranza-finance";
 import type { OutboxSubscription } from "@ranza/platform-outbox";
 
 /**
@@ -15,8 +18,10 @@ export const folioLinePostedSubscription: OutboxSubscription = {
   consumer: CONSUMER,
   eventType: "folio.line_posted",
   async handle(tx, event) {
-    const lineId = (event.payload as { lineId?: string })?.lineId;
+    const payload = event.payload as FolioLineSnapshot | undefined;
+    const lineId = payload?.lineId;
     if (!lineId) return;
-    await postFolioLineToLedgerWithin(tx as never, lineId);
+    await postFolioLineToLedgerWithin(tx as never, lineId, payload);
   },
 };
+
