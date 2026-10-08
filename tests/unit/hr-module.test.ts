@@ -36,6 +36,13 @@ describe("HR Module Unit Tests (HR-S1-*)", () => {
       expect(net).toBe(25021.85);
     });
 
+    it("caps SGK deductions at statutory ceiling for high wages", () => {
+      const gross = 200000;
+      const { sgk } = calculateDeductions(gross);
+      // SGK ceiling is 150,000, so 15% of 150,000 = 22,500
+      expect(sgk).toBe(22500);
+    });
+
     it("handles zero gross pay safely", () => {
       const { sgk, tax, stamp, net } = calculateDeductions(0);
       expect(sgk).toBe(0);
@@ -46,7 +53,7 @@ describe("HR Module Unit Tests (HR-S1-*)", () => {
   });
 
   describe("Module Operations & Tenant Context", () => {
-    it("registers an employee via Prisma within tenant context", async () => {
+    it("registers an employee via Prisma within tenant context and sanitizes strings", async () => {
       const now = new Date();
       const mockDb: any = {
         $executeRawUnsafe: vi.fn().mockResolvedValue(1),
@@ -85,7 +92,8 @@ describe("HR Module Unit Tests (HR-S1-*)", () => {
         propertyId: "prop-1",
         firstName: "Ahmet",
         lastName: "Yılmaz",
-        email: "ahmet@test.com",
+        email: "   ",
+        phone: "   ",
         department: "Housekeeping",
         position: "Housekeeper",
         grossPay: 30000,
@@ -93,7 +101,41 @@ describe("HR Module Unit Tests (HR-S1-*)", () => {
 
       expect(emp.fullName).toBe("Ahmet Yılmaz");
       expect(emp.status).toBe("active");
-      expect(mockDb.hrEmployee.create).toHaveBeenCalled();
+      expect(mockDb.hrEmployee.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          email: null,
+          phone: null,
+        }),
+      });
+    });
+
+    it("refuses assigning shift to a terminated employee or invalid time format", async () => {
+      const mockDb: any = {
+        $executeRawUnsafe: vi.fn().mockResolvedValue(1),
+        $transaction: vi.fn(async (run: (c: any) => Promise<any>) =>
+          run(mockDb),
+        ),
+        hrEmployee: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: "emp-term",
+            organizationId: "org-1",
+            propertyId: "prop-1",
+            status: "terminated",
+          }),
+        },
+      };
+
+      const hr = createHrModule({ db: mockDb as unknown as PrismaClient });
+
+      await expect(
+        hr.assignShift(TEST_USER_ID, {
+          organizationId: "org-1",
+          propertyId: "prop-1",
+          employeeId: "emp-term",
+          date: new Date("2026-10-15"),
+          shiftType: "morning",
+        }),
+      ).rejects.toThrow("Cannot assign shift to a terminated employee");
     });
 
     it("detects leave clash among colleagues in the same department", async () => {
@@ -144,12 +186,11 @@ describe("HR Module Unit Tests (HR-S1-*)", () => {
       const requests = await hr.leaveRequests(TEST_USER_ID, "org-1");
 
       expect(requests).toHaveLength(2);
-      // leave-1 is in the same department ('Front desk') and overlaps with approved leave-2: clash must be true
       expect(requests[0]?.clash).toBe(true);
       expect(requests[1]?.clash).toBe(false);
     });
 
-    it("approves payroll and calculates payslip breakdown accurately", async () => {
+    it("approves payroll and calculates payslip breakdown accurately using batch createMany", async () => {
       const mockDb: any = {
         $executeRawUnsafe: vi.fn().mockResolvedValue(1),
         $transaction: vi.fn(async (run: (c: any) => Promise<any>) =>
@@ -169,6 +210,7 @@ describe("HR Module Unit Tests (HR-S1-*)", () => {
           ]),
         },
         hrPayrollRun: {
+          findUnique: vi.fn().mockResolvedValue(null),
           upsert: vi.fn().mockResolvedValue({
             id: "run-1",
             organizationId: "org-1",
@@ -178,38 +220,43 @@ describe("HR Module Unit Tests (HR-S1-*)", () => {
             status: "approved",
             approvedAt: new Date(),
           }),
-          findUnique: vi.fn().mockResolvedValue({
-            id: "run-1",
-            organizationId: "org-1",
-            period: "2026-10",
-            totalGross: 35000,
-            totalNet: 25021.85,
-            status: "approved",
-            approvedAt: new Date(),
-            payslips: [
-              {
-                id: "slip-1",
-                employeeId: "emp-1",
-                grossPay: 35000,
-                socialSecurityDeduction: 5250,
-                taxDeduction: 4462.5,
-                stampDuty: 265.65,
-                netPay: 25021.85,
-                iban: "TR4417",
-                employee: {
-                  firstName: "Ahmet",
-                  lastName: "Yılmaz",
-                  department: "Front desk",
-                  position: "Agent",
-                },
-              },
-            ],
-          }),
         },
         hrPayslip: {
-          upsert: vi.fn().mockResolvedValue({ id: "slip-1" }),
+          createMany: vi.fn().mockResolvedValue({ count: 1 }),
         },
       };
+
+      // Mock getPayrollSummary secondary query
+      mockDb.hrPayrollRun.findUnique = vi
+        .fn()
+        .mockResolvedValueOnce(null) // first check in approvePayroll
+        .mockResolvedValueOnce({
+          id: "run-1",
+          organizationId: "org-1",
+          period: "2026-10",
+          totalGross: 35000,
+          totalNet: 25021.85,
+          status: "approved",
+          approvedAt: new Date(),
+          payslips: [
+            {
+              id: "slip-1",
+              employeeId: "emp-1",
+              grossPay: 35000,
+              socialSecurityDeduction: 5250,
+              taxDeduction: 4462.5,
+              stampDuty: 265.65,
+              netPay: 25021.85,
+              iban: "TR4417",
+              employee: {
+                firstName: "Ahmet",
+                lastName: "Yılmaz",
+                department: "Front desk",
+                position: "Agent",
+              },
+            },
+          ],
+        });
 
       const hr = createHrModule({ db: mockDb as unknown as PrismaClient });
       const summary = await hr.approvePayroll(TEST_USER_ID, "org-1", "2026-10");
@@ -219,6 +266,26 @@ describe("HR Module Unit Tests (HR-S1-*)", () => {
       expect(summary.totalNet).toBe(25021.85);
       expect(summary.payslips).toHaveLength(1);
       expect(summary.payslips[0]?.netPay).toBe(25021.85);
+      expect(mockDb.hrPayslip.createMany).toHaveBeenCalled();
+    });
+
+    it("refuses approving payroll if organization has zero active employees", async () => {
+      const mockDb: any = {
+        $executeRawUnsafe: vi.fn().mockResolvedValue(1),
+        $transaction: vi.fn(async (run: (c: any) => Promise<any>) =>
+          run(mockDb),
+        ),
+        hrEmployee: {
+          findMany: vi.fn().mockResolvedValue([]),
+        },
+      };
+
+      const hr = createHrModule({ db: mockDb as unknown as PrismaClient });
+      await expect(
+        hr.approvePayroll(TEST_USER_ID, "org-1", "2026-10"),
+      ).rejects.toThrow(
+        "Cannot approve payroll: no active employees in organization",
+      );
     });
   });
 });

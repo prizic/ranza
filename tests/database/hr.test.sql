@@ -1,13 +1,14 @@
 -- Human Resources and Payroll (Blueprint 5.11, Phase 4, HR-S1-*)
 -- "A Staff Member's record outlives their access to the system."
 begin;
-select plan(12);
+select plan(18);
 
 insert into public.users (id, email) values
   ('81111111-1111-4111-8111-111111111111', 'hr-manager@example.test'),
   ('82222222-2222-4222-8222-222222222222', 'hr-viewer@example.test'),
   ('83333333-3333-4333-8333-333333333333', 'hr-noperm@example.test'),
-  ('84444444-4444-4444-8444-444444444444', 'frontdesk-staff@example.test');
+  ('84444444-4444-4444-8444-444444444444', 'frontdesk-staff@example.test'),
+  ('85555555-5555-4555-8555-555555555555', 'hr-prop-viewer@example.test');
 
 insert into public.organizations (id, name, status) values
   ('8a111111-1111-4111-8111-111111111111', 'Hospitality Org', 'active'),
@@ -23,10 +24,12 @@ insert into public.entitlements (organization_id, module_key, status) values
 
 insert into public.properties (id, organization_id, name) values
   ('8b111111-1111-4111-8111-111111111111', '8a111111-1111-4111-8111-111111111111', 'Galata Hotel'),
+  ('8b333333-3333-4333-8333-333333333333', '8a111111-1111-4111-8111-111111111111', 'Kadikoy Hotel'),
   ('8b222222-2222-4222-8222-222222222222', '8a222222-2222-4222-8222-222222222222', 'Other Org Property');
 
 insert into public.property_capabilities (property_id, organization_id, capability_key, enabled) values
   ('8b111111-1111-4111-8111-111111111111', '8a111111-1111-4111-8111-111111111111', 'staff_administration', true),
+  ('8b333333-3333-4333-8333-333333333333', '8a111111-1111-4111-8111-111111111111', 'staff_administration', true),
   ('8b222222-2222-4222-8222-222222222222', '8a222222-2222-4222-8222-222222222222', 'staff_administration', true);
 
 -- Roles & Memberships
@@ -42,10 +45,12 @@ insert into public.organization_memberships (organization_id, user_id, role, rol
   ('8a111111-1111-4111-8111-111111111111', '81111111-1111-4111-8111-111111111111', 'hr_manager', '8a111111-1111-4111-8111-111111111111', 'organization_wide', 'active'),
   ('8a111111-1111-4111-8111-111111111111', '82222222-2222-4222-8222-222222222222', 'hr_viewer', '8a111111-1111-4111-8111-111111111111', 'organization_wide', 'active'),
   ('8a111111-1111-4111-8111-111111111111', '83333333-3333-4333-8333-333333333333', 'hr_noperms', '8a111111-1111-4111-8111-111111111111', 'organization_wide', 'active'),
-  ('8a111111-1111-4111-8111-111111111111', '84444444-4444-4444-8444-444444444444', 'hr_noperms', '8a111111-1111-4111-8111-111111111111', 'assigned_properties', 'active');
+  ('8a111111-1111-4111-8111-111111111111', '84444444-4444-4444-8444-444444444444', 'hr_noperms', '8a111111-1111-4111-8111-111111111111', 'assigned_properties', 'active'),
+  ('8a111111-1111-4111-8111-111111111111', '85555555-5555-4555-8555-555555555555', 'hr_viewer', '8a111111-1111-4111-8111-111111111111', 'assigned_properties', 'active');
 
 insert into public.property_assignments (property_id, organization_id, user_id) values
-  ('8b111111-1111-4111-8111-111111111111', '8a111111-1111-4111-8111-111111111111', '84444444-4444-4444-8444-444444444444');
+  ('8b111111-1111-4111-8111-111111111111', '8a111111-1111-4111-8111-111111111111', '84444444-4444-4444-8444-444444444444'),
+  ('8b111111-1111-4111-8111-111111111111', '8a111111-1111-4111-8111-111111111111', '85555555-5555-4555-8555-555555555555');
 
 -- Switch to application role
 set local role ranza_app;
@@ -212,6 +217,87 @@ select throws_matching(
   $$delete from public.hr_employees where id = '8e111111-1111-4111-8111-111111111111'$$,
   'permission denied',
   'Hard delete on hr_employees is denied by policy'
+);
+
+-- 11. HR-S1-18: Negative date bounds check (ends_on < starts_on)
+select throws_matching(
+  $$insert into public.hr_leave_requests (
+      organization_id, employee_id, leave_type, starts_on, ends_on, status
+    ) values (
+      '8a111111-1111-4111-8111-111111111111',
+      '8e222222-2222-4222-8222-222222222222',
+      'annual', '2026-10-20', '2026-10-10', 'pending'
+    )$$,
+  'hr_leave_dates_valid',
+  'Negative date range (ends_on < starts_on) is refused by check constraint'
+);
+
+-- 12. HR-S1-19: Whitespace-only email check
+select throws_matching(
+  $$insert into public.hr_employees (
+      organization_id, first_name, last_name, email, department, position, gross_pay
+    ) values (
+      '8a111111-1111-4111-8111-111111111111', 'Test', 'Clean', '   ', 'Front desk', 'Agent', 30000.00
+    )$$,
+  'hr_employees_email_clean',
+  'Whitespace-only email is refused by clean string check constraint'
+);
+
+-- 13. HR-S1-20: GIST exclusion constraint blocks overlapping approved leaves for the same employee
+select throws_matching(
+  $$insert into public.hr_leave_requests (
+      organization_id, employee_id, leave_type, starts_on, ends_on, status
+    ) values (
+      '8a111111-1111-4111-8111-111111111111',
+      '8e222222-2222-4222-8222-222222222222',
+      'annual', '2026-10-16', '2026-10-17', 'approved'
+    )$$,
+  'hr_leave_no_overlapping_approved',
+  'Overlapping approved leave for the same employee is refused by GIST exclusion constraint'
+);
+
+-- 14. HR-S1-21: Composite foreign key rejects assigning property from another organization
+select throws_matching(
+  $$insert into public.hr_employees (
+      organization_id, property_id, first_name, last_name, department, position, gross_pay
+    ) values (
+      '8a111111-1111-4111-8111-111111111111',
+      '8b222222-2222-4222-8222-222222222222', -- Belongs to Other Org!
+      'Cross', 'Org', 'Kitchen', 'Cook', 25000.00
+    )$$,
+  'hr_employees_property_fkey',
+  'Cross-organization property assignment is refused by composite foreign key'
+);
+
+-- 15. HR-S1-22: Property-scoped isolation on hr_shifts
+-- First, insert a shift on Kadikoy Hotel (Property B of Org A)
+insert into public.hr_shifts (
+  id, organization_id, property_id, employee_id, date, shift_type, start_time, end_time
+) values (
+  '8f333333-3333-4333-8333-333333333333',
+  '8a111111-1111-4111-8111-111111111111',
+  '8b333333-3333-4333-8333-333333333333',
+  '8e111111-1111-4111-8111-111111111111',
+  '2026-10-12', 'morning', '07:00', '15:00'
+);
+
+-- Switch context to hr-prop-viewer (assigned only to Galata Hotel)
+select app.set_request_context('85555555-5555-4555-8555-555555555555');
+select results_eq(
+  $$select count(*)::int from public.hr_shifts$$,
+  $$values (1)$$,
+  'Property-scoped staff only reads shifts of their assigned property'
+);
+
+-- 16. HR-S1-23: Payroll approval outbox event
+-- ranza_app has INSERT on outbox.events, but only ranza_worker has SELECT.
+set local role ranza_worker;
+select results_eq(
+  $$select count(*)::int from outbox.events
+     where organization_id = '8a111111-1111-4111-8111-111111111111'
+       and event_type = 'payroll.approved'$$,
+  $$values (1)$$,
+  'Approving a payroll run emits payroll.approved into outbox.events'
 );
 
 rollback;

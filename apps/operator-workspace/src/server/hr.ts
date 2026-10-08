@@ -29,6 +29,12 @@ async function resolveOrganization(propertyId: string): Promise<string | null> {
   return target?.organizationId ?? null;
 }
 
+function cleanString(val?: string | null): string | null {
+  if (!val) return null;
+  const trimmed = val.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 export async function registerEmployeeAction(
   locale: string,
   propertyId: string,
@@ -46,6 +52,14 @@ export async function registerEmployeeAction(
 ): Promise<HrActionResult> {
   if (!isSupportedLocale(locale) || !UUID.test(propertyId)) {
     return { status: "refused", message: "Invalid parameters" };
+  }
+
+  if (
+    typeof data.grossPay !== "number" ||
+    isNaN(data.grossPay) ||
+    data.grossPay < 0
+  ) {
+    return { status: "refused", message: "Invalid gross pay amount" };
   }
 
   const viewer = await currentViewer();
@@ -71,15 +85,15 @@ export async function registerEmployeeAction(
     await comp.hr.registerEmployee(viewer.userId, {
       organizationId,
       propertyId,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email ?? null,
-      phone: data.phone ?? null,
-      department: data.department,
-      position: data.position,
+      firstName: data.firstName.trim(),
+      lastName: data.lastName.trim(),
+      email: cleanString(data.email),
+      phone: cleanString(data.phone),
+      department: data.department.trim(),
+      position: data.position.trim(),
       contractType: data.contractType,
       grossPay: data.grossPay,
-      iban: data.iban ?? null,
+      iban: cleanString(data.iban),
     });
     revalidateHr(locale, propertyId);
     return { status: "done" };
@@ -104,7 +118,8 @@ export async function assignShiftAction(
   if (
     !isSupportedLocale(locale) ||
     !UUID.test(propertyId) ||
-    !UUID.test(data.employeeId)
+    !UUID.test(data.employeeId) ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(data.date)
   ) {
     return { status: "refused", message: "Invalid parameters" };
   }
@@ -129,6 +144,27 @@ export async function assignShiftAction(
 
   try {
     const comp = getComposition();
+    const employees = await comp.hr.employees(viewer.userId, organizationId);
+    const targetEmployee = employees.find((e) => e.id === data.employeeId);
+    if (!targetEmployee) {
+      return {
+        status: "refused",
+        message: "Employee not found in organization",
+      };
+    }
+    if (targetEmployee.status === "terminated") {
+      return {
+        status: "refused",
+        message: "Cannot assign shift to a terminated employee",
+      };
+    }
+    if (targetEmployee.propertyId && targetEmployee.propertyId !== propertyId) {
+      return {
+        status: "refused",
+        message: "Employee is assigned to a different property",
+      };
+    }
+
     await comp.hr.assignShift(viewer.userId, {
       organizationId,
       propertyId,
@@ -161,9 +197,18 @@ export async function submitLeaveRequestAction(
   if (
     !isSupportedLocale(locale) ||
     !UUID.test(propertyId) ||
-    !UUID.test(data.employeeId)
+    !UUID.test(data.employeeId) ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(data.startsOn) ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(data.endsOn)
   ) {
     return { status: "refused", message: "Invalid parameters" };
+  }
+
+  if (new Date(data.endsOn) < new Date(data.startsOn)) {
+    return {
+      status: "refused",
+      message: "End date cannot be earlier than start date",
+    };
   }
 
   const viewer = await currentViewer();
@@ -178,13 +223,28 @@ export async function submitLeaveRequestAction(
 
   try {
     const comp = getComposition();
+    const employees = await comp.hr.employees(viewer.userId, organizationId);
+    const targetEmployee = employees.find((e) => e.id === data.employeeId);
+    if (!targetEmployee) {
+      return {
+        status: "refused",
+        message: "Employee not found in organization",
+      };
+    }
+    if (targetEmployee.status === "terminated") {
+      return {
+        status: "refused",
+        message: "Cannot submit leave for a terminated employee",
+      };
+    }
+
     await comp.hr.submitLeaveRequest(viewer.userId, {
       organizationId,
       employeeId: data.employeeId,
       leaveType: data.leaveType,
       startsOn: new Date(data.startsOn),
       endsOn: new Date(data.endsOn),
-      notes: data.notes ?? null,
+      notes: cleanString(data.notes),
     });
     revalidateHr(locale, propertyId);
     return { status: "done" };
@@ -253,7 +313,11 @@ export async function approvePayrollAction(
   propertyId: string,
   period: string,
 ): Promise<HrActionResult> {
-  if (!isSupportedLocale(locale) || !UUID.test(propertyId)) {
+  if (
+    !isSupportedLocale(locale) ||
+    !UUID.test(propertyId) ||
+    !/^\d{4}-\d{2}$/.test(period)
+  ) {
     return { status: "refused", message: "Invalid parameters" };
   }
 

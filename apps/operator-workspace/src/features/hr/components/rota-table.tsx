@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import {
   Avatar,
@@ -48,6 +48,8 @@ export function RotaTable({
   const t = useTranslations("hr.rota");
   const [, startTransition] = useTransition();
 
+  const [pendingKeys, setPendingKeys] = useState<Set<string>>(new Set());
+
   // Compute Monday to Sunday for the current week
   const today = new Date();
   const currentDayOfWeek = today.getDay(); // 0 is Sun, 1 is Mon...
@@ -87,17 +89,29 @@ export function RotaTable({
     currentType: ShiftType,
   ) => {
     if (!canManage) return;
+    const key = `${employeeId}:${dateStr}`;
+    if (pendingKeys.has(key)) return;
 
     const nextIndex =
       (SHIFT_CYCLE.indexOf(currentType) + 1) % SHIFT_CYCLE.length;
     const nextType: ShiftType = SHIFT_CYCLE[nextIndex] ?? "off";
 
+    setPendingKeys((prev) => new Set(prev).add(key));
+
     startTransition(async () => {
-      await assignShiftAction(locale, propertyId, {
-        employeeId,
-        date: dateStr,
-        shiftType: nextType,
-      });
+      try {
+        await assignShiftAction(locale, propertyId, {
+          employeeId,
+          date: dateStr,
+          shiftType: nextType,
+        });
+      } finally {
+        setPendingKeys((prev) => {
+          const next = new Set(prev);
+          next.delete(key);
+          return next;
+        });
+      }
     });
   };
 
@@ -207,13 +221,18 @@ export function RotaTable({
                               <TooltipTrigger asChild>
                                 <button
                                   type="button"
-                                  disabled={!canManage}
+                                  disabled={
+                                    !canManage ||
+                                    pendingKeys.has(`${e.id}:${d.dateStr}`)
+                                  }
                                   onClick={() =>
                                     handleCycleShift(e.id, d.dateStr, shiftType)
                                   }
-                                  className={`inline-flex items-center justify-center px-2.5 py-1 text-step--2 rounded-full border transition-all ${shiftBadgeClasses(
-                                    shiftType,
-                                  )} ${canManage ? "cursor-pointer" : "cursor-default"}`}
+                                  className={`inline-flex items-center justify-center px-2.5 py-1 text-step--2 rounded-full border transition-all ${
+                                    pendingKeys.has(`${e.id}:${d.dateStr}`)
+                                      ? "opacity-50 cursor-wait animate-pulse"
+                                      : ""
+                                  } ${shiftBadgeClasses(shiftType)} ${canManage ? "cursor-pointer" : "cursor-default"}`}
                                 >
                                   {t(`shifts.${shiftType}`)}
                                 </button>

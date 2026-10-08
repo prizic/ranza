@@ -17,13 +17,25 @@ import type {
 } from "./contracts";
 import type { HrDeps } from "./ports";
 
+export const STATUTORY_SGK_CEILING = 150_000;
+
+export function cleanString(val?: string | null): string | null {
+  if (!val) return null;
+  const trimmed = val.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 export function calculateDeductions(gross: number): {
   sgk: number;
   tax: number;
   stamp: number;
   net: number;
 } {
-  const sgk = Math.round(gross * 0.15 * 100) / 100;
+  if (gross <= 0) {
+    return { sgk: 0, tax: 0, stamp: 0, net: 0 };
+  }
+  const sgkSubject = Math.min(gross, STATUTORY_SGK_CEILING);
+  const sgk = Math.round(sgkSubject * 0.15 * 100) / 100;
   const taxable = Math.max(0, gross - sgk);
   const tax = Math.round(taxable * 0.15 * 100) / 100;
   const stamp = Math.round(gross * 0.00759 * 100) / 100;
@@ -179,8 +191,8 @@ export function createHrModule(deps: HrDeps) {
             userId: input.userId ?? null,
             firstName: input.firstName.trim(),
             lastName: input.lastName.trim(),
-            email: input.email ? input.email.trim() : null,
-            phone: input.phone ? input.phone.trim() : null,
+            email: cleanString(input.email),
+            phone: cleanString(input.phone),
             department: input.department.trim(),
             position: input.position.trim(),
             contractType: input.contractType ?? "full_time",
@@ -188,8 +200,8 @@ export function createHrModule(deps: HrDeps) {
             grossPay: input.grossPay,
             currency: input.currency ?? "TRY",
             status: "active",
-            bankName: input.bankName ?? null,
-            iban: input.iban ?? null,
+            bankName: cleanString(input.bankName),
+            iban: cleanString(input.iban),
           },
         });
 
@@ -289,6 +301,20 @@ export function createHrModule(deps: HrDeps) {
     ): Promise<ShiftRecord> {
       return withOrganizationContext(db, { userId }, async (tx) => {
         const client = tx as unknown as PrismaClient;
+
+        const emp = await client.hrEmployee.findUnique({
+          where: { id: input.employeeId },
+        });
+        if (!emp || emp.organizationId !== input.organizationId) {
+          throw new Error("Employee not found in organization");
+        }
+        if (emp.status === "terminated") {
+          throw new Error("Cannot assign shift to a terminated employee");
+        }
+        if (emp.propertyId && emp.propertyId !== input.propertyId) {
+          throw new Error("Employee is assigned to a different property");
+        }
+
         const defaultTimes: Record<ShiftType, [string, string]> = {
           morning: ["07:00", "15:00"],
           evening: ["15:00", "23:00"],
@@ -302,6 +328,11 @@ export function createHrModule(deps: HrDeps) {
         ];
         const startTime = input.startTime ?? defStart;
         const endTime = input.endTime ?? defEnd;
+
+        const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
+        if (!TIME_REGEX.test(startTime) || !TIME_REGEX.test(endTime)) {
+          throw new Error("Invalid shift time format (HH:MM required)");
+        }
 
         const record = await client.hrShift.upsert({
           where: {
@@ -372,15 +403,14 @@ export function createHrModule(deps: HrDeps) {
           orderBy: [{ startsOn: "desc" }],
         });
 
-        // Detect clashes among colleagues in same department who already have approved leaves
-        const approved = rows.filter((r) => r.status === "approved");
-
+        // Detect clashes among colleagues in same department who are pending or approved
         return rows.map((r) => {
           const isClashing =
             r.status === "pending" &&
-            approved.some(
+            rows.some(
               (other) =>
                 other.id !== r.id &&
+                other.status !== "rejected" &&
                 other.employee.department === r.employee.department &&
                 other.startsOn <= r.endsOn &&
                 r.startsOn <= other.endsOn,
@@ -411,6 +441,22 @@ export function createHrModule(deps: HrDeps) {
     ): Promise<LeaveRequestRecord> {
       return withOrganizationContext(db, { userId }, async (tx) => {
         const client = tx as unknown as PrismaClient;
+
+        const emp = await client.hrEmployee.findUnique({
+          where: { id: input.employeeId },
+        });
+        if (!emp || emp.organizationId !== input.organizationId) {
+          throw new Error("Employee not found in organization");
+        }
+        if (emp.status === "terminated") {
+          throw new Error(
+            "Cannot submit leave request for a terminated employee",
+          );
+        }
+        if (input.endsOn < input.startsOn) {
+          throw new Error("End date cannot be earlier than start date");
+        }
+
         const created = await client.hrLeaveRequest.create({
           data: {
             organizationId: input.organizationId,
@@ -492,6 +538,32 @@ export function createHrModule(deps: HrDeps) {
           where: { organizationId, status: "active" },
         });
 
+        if (activeEmployees.length === 0) {
+          throw new Error(
+            "Cannot approve payroll: no active employees in organization",
+          );
+        }
+
+        const existingRun = await client.hrPayrollRun.findUnique({
+          where: {
+            organizationId_period: {
+              organizationId,
+              period,
+            },
+          },
+        });
+
+        if (existingRun) {
+          if (existingRun.status === "paid") {
+            throw new Error(
+              "Payroll period is already paid and cannot be re-approved",
+            );
+          }
+          if (existingRun.status === "approved") {
+            return getPayrollSummary(client, organizationId, period);
+          }
+        }
+
         let totalGross = 0;
         let totalNet = 0;
 
@@ -538,37 +610,21 @@ export function createHrModule(deps: HrDeps) {
           },
         });
 
-        // Insert or update payslips
-        for (const item of calculated) {
-          await client.hrPayslip.upsert({
-            where: {
-              payrollRunId_employeeId: {
-                payrollRunId: run.id,
-                employeeId: item.employeeId,
-              },
-            },
-            create: {
-              organizationId,
-              payrollRunId: run.id,
-              employeeId: item.employeeId,
-              grossPay: item.grossPay,
-              socialSecurityDeduction: item.socialSecurityDeduction,
-              taxDeduction: item.taxDeduction,
-              stampDuty: item.stampDuty,
-              netPay: item.netPay,
-              iban: item.iban,
-            },
-            update: {
-              grossPay: item.grossPay,
-              socialSecurityDeduction: item.socialSecurityDeduction,
-              taxDeduction: item.taxDeduction,
-              stampDuty: item.stampDuty,
-              netPay: item.netPay,
-              iban: item.iban,
-              updatedAt: new Date(),
-            },
-          });
-        }
+        // Batch insert payslips in a single query
+        await client.hrPayslip.createMany({
+          data: calculated.map((item) => ({
+            organizationId,
+            payrollRunId: run.id,
+            employeeId: item.employeeId,
+            grossPay: item.grossPay,
+            socialSecurityDeduction: item.socialSecurityDeduction,
+            taxDeduction: item.taxDeduction,
+            stampDuty: item.stampDuty,
+            netPay: item.netPay,
+            iban: item.iban,
+          })),
+          skipDuplicates: true,
+        });
 
         return getPayrollSummary(client, organizationId, period);
       });

@@ -143,7 +143,13 @@ export function LeaveTable({
           {t("title")}
         </CardTitle>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog
+          open={dialogOpen}
+          onOpenChange={(isOpen) => {
+            if (isPending) return;
+            setDialogOpen(isOpen);
+          }}
+        >
           <DialogTrigger asChild>
             <Button size="sm" variant="outline" className="gap-2">
               <Plus className="size-4" />

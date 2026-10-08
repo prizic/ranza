@@ -1231,12 +1231,13 @@ model HrEmployee {
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  property       Property?        @relation(fields: [propertyId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  property       Property?        @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: NoAction, onUpdate: NoAction)
   user           User?            @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   shifts         HrShift[]
   leaveRequests  HrLeaveRequest[]
   payslips       HrPayslip[]
 
+  @@unique([id, organizationId], map: "hr_employees_id_org_key")
   @@index([organizationId], map: "hr_employees_organization_idx")
   @@index([propertyId], map: "hr_employees_property_idx")
   @@index([userId], map: "hr_employees_user_idx")
@@ -1258,8 +1259,8 @@ model HrShift {
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  property     Property     @relation(fields: [propertyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  employee     HrEmployee   @relation(fields: [employeeId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  property     Property     @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  employee     HrEmployee   @relation(fields: [employeeId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
 
   @@unique([organizationId, employeeId, date], map: "hr_shifts_employee_date_key")
   @@index([organizationId, propertyId, date], map: "hr_shifts_org_prop_date_idx")
@@ -1280,7 +1281,7 @@ model HrLeaveRequest {
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  employee     HrEmployee   @relation(fields: [employeeId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  employee     HrEmployee   @relation(fields: [employeeId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([organizationId, status], map: "hr_leave_requests_org_status_idx")
   @@index([employeeId], map: "hr_leave_requests_employee_idx")
@@ -1323,7 +1324,7 @@ model HrPayslip {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   payrollRun   HrPayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  employee     HrEmployee   @relation(fields: [employeeId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  employee     HrEmployee   @relation(fields: [employeeId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
 
   @@unique([payrollRunId, employeeId], map: "hr_payslips_run_employee_key")
   @@index([organizationId], map: "hr_payslips_org_idx")

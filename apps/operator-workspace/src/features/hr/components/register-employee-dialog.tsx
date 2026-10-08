@@ -103,6 +103,7 @@ export function RegisterEmployeeDialog({
     <Dialog
       open={open}
       onOpenChange={(isOpen) => {
+        if (isPending) return;
         setOpen(isOpen);
         if (!isOpen) resetForm();
       }}
