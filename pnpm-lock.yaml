@@ -126,6 +126,9 @@ importers:
       '@ranza/core':
         specifier: workspace:*
         version: link:../../packages/ranza/core
+      '@ranza/data-export':
+        specifier: workspace:*
+        version: link:../../packages/ranza/data-export
       '@ranza/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -141,6 +144,9 @@ importers:
       '@ranza/housekeeping':
         specifier: workspace:*
         version: link:../../packages/ranza/housekeeping
+      '@ranza/hr':
+        specifier: workspace:*
+        version: link:../../packages/ranza/hr
       '@ranza/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
@@ -211,9 +217,15 @@ importers:
       '@prisma/client':
         specifier: ^7.10.0
         version: 7.10.0(prisma@7.10.0(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(magicast@0.5.5)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.9.3))(typescript@5.9.3)
+      '@ranza/adapter-ranza-finance':
+        specifier: workspace:*
+        version: link:../../packages/adapters/ranza-finance
       '@ranza/business-day':
         specifier: workspace:*
         version: link:../../packages/ranza/business-day
+      '@ranza/data-export':
+        specifier: workspace:*
+        version: link:../../packages/ranza/data-export
       '@ranza/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -230,6 +242,18 @@ importers:
       esbuild:
         specifier: 0.28.2
         version: 0.28.2
+
+  packages/adapters/ranza-finance:
+    dependencies:
+      '@ranza/db':
+        specifier: workspace:*
+        version: link:../../db
+      '@ranza/folios':
+        specifier: workspace:*
+        version: link:../../ranza/folios
+      '@ranza/platform-finance':
+        specifier: workspace:*
+        version: link:../../platform/finance
 
   packages/auth:
     dependencies:
@@ -284,6 +308,12 @@ importers:
         specifier: workspace:*
         version: link:../../db
 
+  packages/platform/finance:
+    dependencies:
+      '@ranza/db':
+        specifier: workspace:*
+        version: link:../../db
+
   packages/platform/outbox:
     dependencies:
       '@ranza/db':
@@ -326,6 +356,12 @@ importers:
         specifier: workspace:*
         version: link:../../platform/audit
 
+  packages/ranza/data-export:
+    dependencies:
+      '@ranza/db':
+        specifier: workspace:*
+        version: link:../../db
+
   packages/ranza/folios:
     dependencies:
       '@ranza/core':
@@ -358,6 +394,12 @@ importers:
       '@ranza/platform-audit':
         specifier: workspace:*
         version: link:../../platform/audit
+
+  packages/ranza/hr:
+    dependencies:
+      '@ranza/db':
+        specifier: workspace:*
+        version: link:../../db
 
   packages/ranza/integrations:
     dependencies:

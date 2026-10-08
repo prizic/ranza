@@ -643,6 +643,200 @@ export interface Messages {
     };
   };
 
+  /** The Data Export screen (Blueprint 7.5, Phase 1 data lifecycle). */
+  dataExport: {
+    heading: string;
+    subtitle: string;
+    tabs: {
+      exports: string;
+      schedules: string;
+      newExport: string;
+    };
+    newExportTitle: string;
+    newExportDescription: string;
+    datasetsTitle: string;
+    datasetsDescription: string;
+    datasets: {
+      residents_guests: string;
+      reservations_stays: string;
+      rooms_beds: string;
+      folios_payments: string;
+      audit_log: string;
+    };
+    datasetDescriptions: {
+      residents_guests: string;
+      reservations_stays: string;
+      rooms_beds: string;
+      folios_payments: string;
+      audit_log: string;
+    };
+    formatTitle: string;
+    formatDescription: string;
+    requestButton: string;
+    requesting: string;
+    requestSuccess: string;
+    requestFailed: string;
+    scheduleTitle: string;
+    scheduleDescription: string;
+    scheduleName: string;
+    scheduleNamePlaceholder: string;
+    frequencyTitle: string;
+    frequencies: {
+      daily: string;
+      weekly: string;
+      monthly: string;
+    };
+    createScheduleButton: string;
+    creatingSchedule: string;
+    scheduleSuccess: string;
+    scheduleFailed: string;
+    recentExportsTitle: string;
+    recentExportsDescription: string;
+    schedulesTitle: string;
+    schedulesDescription: string;
+    noExports: string;
+    noSchedules: string;
+    tableHeaders: {
+      requester: string;
+      datasets: string;
+      format: string;
+      status: string;
+      size: string;
+      records: string;
+      requestedAt: string;
+      actions: string;
+    };
+    scheduleHeaders: {
+      name: string;
+      datasets: string;
+      format: string;
+      frequency: string;
+      status: string;
+      nextRun: string;
+      actions: string;
+    };
+    statuses: {
+      pending: string;
+      processing: string;
+      ready: string;
+      failed: string;
+    };
+    scheduleStatuses: {
+      active: string;
+      paused: string;
+    };
+    download: string;
+    pause: string;
+    resume: string;
+    pausing: string;
+    resuming: string;
+  };
+
+  /** The Human Resources and Payroll screen (Blueprint 5.11, Phase 4). */
+  hr: {
+    heading: string;
+    subtitle: string;
+    tabs: {
+      employees: string;
+      rota: string;
+      leave: string;
+      payroll: string;
+    };
+    employees: {
+      title: string;
+      register: string;
+      registerTitle: string;
+      registerDescription: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string;
+      department: string;
+      position: string;
+      contract: string;
+      since: string;
+      grossPay: string;
+      iban: string;
+      status: string;
+      noEmployeesTitle: string;
+      noEmployeesDescription: string;
+      submit: string;
+      submitting: string;
+      contracts: {
+        full_time: string;
+        part_time: string;
+        seasonal: string;
+        fixed_term: string;
+      };
+    };
+    rota: {
+      title: string;
+      hint: string;
+      staffMember: string;
+      today: string;
+      shifts: {
+        morning: string;
+        evening: string;
+        day: string;
+        off: string;
+      };
+      shiftTimes: {
+        morning: string;
+        evening: string;
+        day: string;
+        off: string;
+      };
+    };
+    leave: {
+      title: string;
+      requestLeave: string;
+      requestLeaveTitle: string;
+      staffMember: string;
+      type: string;
+      dates: string;
+      days: string;
+      status: string;
+      approve: string;
+      decline: string;
+      clashWarning: string;
+      noLeaves: string;
+      startsOn: string;
+      endsOn: string;
+      notes: string;
+      submit: string;
+      submitting: string;
+      types: {
+        annual: string;
+        sick: string;
+        unpaid: string;
+        emergency: string;
+        maternity: string;
+      };
+      statuses: {
+        pending: string;
+        approved: string;
+        rejected: string;
+      };
+    };
+    payroll: {
+      period: string;
+      summaryGrossNet: string;
+      gross: string;
+      net: string;
+      socialSecurity: string;
+      incomeTax: string;
+      stampDuty: string;
+      approve: string;
+      approving: string;
+      approved: string;
+      payslip: string;
+      payslipTitle: string;
+      paidTo: string;
+      downloadPdf: string;
+      disclaimer: string;
+    };
+  };
+
   /**
    * The Rates section of the Configuration screen (ADR 0038): a nightly price
    * per kind of Unit.
@@ -2505,6 +2699,205 @@ export const messages: Record<SupportedLocale, Messages> = {
         Other: "Diğer",
       },
     },
+    dataExport: {
+      heading: "Veri Dışa Aktarma",
+      subtitle:
+        "İsteğe bağlı ve zamanlanmış veri dışa aktarma kayıtları ve dosya indirmeleri.",
+      tabs: {
+        exports: "Dışa Aktarma Geçmişi",
+        schedules: "Zamanlanmış Görevler",
+        newExport: "Yeni Dışa Aktarma",
+      },
+      newExportTitle: "Yeni Veri Dışa Aktarma Talebi",
+      newExportDescription:
+        "Dışa aktarmak istediğiniz veri setlerini ve dosya formatını seçin.",
+      datasetsTitle: "Veri Setleri",
+      datasetsDescription: "Dışa aktarılacak varlık ve operasyon kayıtları.",
+      datasets: {
+        residents_guests: "Konuklar ve Sakinler",
+        reservations_stays: "Rezervasyonlar ve Konaklamalar",
+        rooms_beds: "Odalar ve Yataklar",
+        folios_payments: "Folyolar ve Ödemeler",
+        audit_log: "Denetim Günlüğü",
+      },
+      datasetDescriptions: {
+        residents_guests: "İletişim bilgileri, kimlik ve profil verileri",
+        reservations_stays: "Tarihler, durumlar ve oda eşleşmeleri",
+        rooms_beds: "Oda numaraları, katlar, tipler ve kapasite",
+        folios_payments: "Ücret satırları, ödemeler ve bakiye dökümleri",
+        audit_log: "Operasyonel eylemler, zaman damgaları ve kullanıcılar",
+      },
+      formatTitle: "Dosya Formatı",
+      formatDescription: "Tablo (CSV) veya yapılandırılmış veri (JSON).",
+      requestButton: "Dışa Aktarmayı Başlat",
+      requesting: "Hazırlanıyor...",
+      requestSuccess: "Dışa aktarma talebi başarıyla oluşturuldu.",
+      requestFailed: "Dışa aktarma talebi oluşturulamadı.",
+      scheduleTitle: "Otomatik Zamanlama Oluştur",
+      scheduleDescription:
+        "Düzenli aralıklarla otomatik olarak veri dışa aktarın.",
+      scheduleName: "Plan Adı",
+      scheduleNamePlaceholder: "Örn: Haftalık Finans Yedeklemesi",
+      frequencyTitle: "Sıklık",
+      frequencies: {
+        daily: "Günlük",
+        weekly: "Haftalık",
+        monthly: "Aylık",
+      },
+      createScheduleButton: "Planı Kaydet",
+      creatingSchedule: "Kaydediliyor...",
+      scheduleSuccess: "Zamanlanmış dışa aktarma planı oluşturuldu.",
+      scheduleFailed: "Plan oluşturulamadı.",
+      recentExportsTitle: "Son Dışa Aktarma Kayıtları",
+      recentExportsDescription:
+        "Talebi gönderilen ve indirilebilir durumda olan dışa aktarma dosyaları.",
+      schedulesTitle: "Aktif Zamanlama Planları",
+      schedulesDescription:
+        "Otomatik olarak çalışan periyodik dışa aktarma kuralları.",
+      noExports: "Henüz bir dışa aktarma kaydı bulunmuyor.",
+      noSchedules: "Yapılandırılmış zamanlanmış dışa aktarma bulunmuyor.",
+      tableHeaders: {
+        requester: "Talep Eden",
+        datasets: "Veri Setleri",
+        format: "Format",
+        status: "Durum",
+        size: "Boyut",
+        records: "Kayıt Sayısı",
+        requestedAt: "Talep Zamanı",
+        actions: "İşlem",
+      },
+      scheduleHeaders: {
+        name: "Plan Adı",
+        datasets: "Veri Setleri",
+        format: "Format",
+        frequency: "Sıklık",
+        status: "Durum",
+        nextRun: "Sonraki Çalışma",
+        actions: "İşlem",
+      },
+      statuses: {
+        pending: "Bekliyor",
+        processing: "İşleniyor",
+        ready: "Hazır",
+        failed: "Hata",
+      },
+      scheduleStatuses: {
+        active: "Aktif",
+        paused: "Duraklatıldı",
+      },
+      download: "İndir",
+      pause: "Duraklat",
+      resume: "Sürdür",
+      pausing: "Duraklatılıyor...",
+      resuming: "Başlatılıyor...",
+    },
+    hr: {
+      heading: "İnsan kaynakları ve bordro",
+      subtitle:
+        "Personel sözleşmeleri, haftalık vardiya çizelgesi, izinler ve bordro.",
+      tabs: {
+        employees: "Personel",
+        rota: "Bu hafta",
+        leave: "İzinler",
+        payroll: "Bordro",
+      },
+      employees: {
+        title: "Personel listesi",
+        register: "Personel ekle",
+        registerTitle: "Yeni personel kaydı",
+        registerDescription:
+          "Personelin sözleşme, görev ve maaş bilgilerini girin.",
+        firstName: "Ad",
+        lastName: "Soyad",
+        email: "E-posta",
+        phone: "Telefon",
+        department: "Departman",
+        position: "Görev",
+        contract: "Sözleşme türü",
+        since: "Başlangıç",
+        grossPay: "Brüt maaş",
+        iban: "IBAN",
+        status: "Durum",
+        noEmployeesTitle: "Kayıtlı personel yok",
+        noEmployeesDescription: "İlk personeli ekleyerek başlayın.",
+        submit: "Kaydet",
+        submitting: "Kaydediliyor...",
+        contracts: {
+          full_time: "Tam zamanlı",
+          part_time: "Yarı zamanlı",
+          seasonal: "Sezonluk",
+          fixed_term: "Belirli süreli",
+        },
+      },
+      rota: {
+        title: "Haftalık vardiya çizelgesi",
+        hint: "Vardiyayı değiştirmek için tıklayın. Resepsiyonda her sabah ve akşam en az bir personel bulunmalıdır.",
+        staffMember: "Personel",
+        today: "bugün",
+        shifts: {
+          morning: "Sabah",
+          evening: "Akşam",
+          day: "Gündüz",
+          off: "İzinli",
+        },
+        shiftTimes: {
+          morning: "07:00–15:00",
+          evening: "15:00–23:00",
+          day: "09:00–18:00",
+          off: "İzin günü",
+        },
+      },
+      leave: {
+        title: "İzin talepleri",
+        requestLeave: "İzin talebi oluştur",
+        requestLeaveTitle: "Yeni izin talebi",
+        staffMember: "Personel",
+        type: "Tür",
+        dates: "Tarihler",
+        days: "gün",
+        status: "Durum",
+        approve: "Onayla",
+        decline: "Reddet",
+        clashWarning:
+          "Aynı departmandan başka bir personelin izniyle çakışıyor",
+        noLeaves: "Bekleyen veya geçmiş izin talebi bulunmuyor.",
+        startsOn: "Başlangıç tarihi",
+        endsOn: "Bitiş tarihi",
+        notes: "Açıklama",
+        submit: "Talebi ilet",
+        submitting: "İletiliyor...",
+        types: {
+          annual: "Yıllık izin",
+          sick: "Hastalık izni",
+          unpaid: "Ücretsiz izin",
+          emergency: "Mazeret izni",
+          maternity: "Doğum izni",
+        },
+        statuses: {
+          pending: "Bekliyor",
+          approved: "Onaylandı",
+          rejected: "Reddedildi",
+        },
+      },
+      payroll: {
+        period: "Dönem",
+        summaryGrossNet: "Brüt {amount}, net {total}",
+        gross: "Brüt",
+        net: "Net maaş",
+        socialSecurity: "SGK kesintisi",
+        incomeTax: "Gelir vergisi",
+        stampDuty: "Damga vergisi",
+        approve: "Bordroyu onayla",
+        approving: "Onaylanıyor...",
+        approved: "Onaylandı ve muhasebeye aktarıldı",
+        payslip: "Bordro eki",
+        payslipTitle: "Maaş bordrosu",
+        paidTo: "Ödeme hesabı",
+        downloadPdf: "PDF indir",
+        disclaimer:
+          "Buradaki kesinti oranları yasal mevzuat uyarınca hesaplanmıştır.",
+      },
+    },
     housekeeping: {
       subtitle: "{property} — temizlik bekleyen odalar",
       unavailableTitle: "Kat hizmetleri bu tesiste açık değil",
@@ -3278,9 +3671,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       inventory: "Stok",
       finance: "Finans",
       people: "Ekip",
+      hr: "İnsan kaynakları",
       analytics: "Analitik",
       configuration: "Ayarlar",
       integrations: "Entegrasyonlar",
+      "data-export": "Veri dışa aktarma",
       "audit-log": "Denetim kaydı",
     },
     screenSummary: {
@@ -3291,7 +3686,10 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Öğün planları, satış noktaları ve tüketim kayıtları.",
       inventory: "Stok hareketleri, sayımlar ve satın alma.",
       people: "Personel kayıtları, vardiyalar ve yetkilendirme.",
+      hr: "Personel sözleşmeleri, haftalık vardiya çizelgesi, izinler ve bordro.",
       analytics: "Doluluk, gelir ve operasyon raporları.",
+      "data-export":
+        "İsteğe bağlı ve zamanlanmış veri dışa aktarma kayıtları ve indirmeler.",
     },
     planned: "Planlandı",
     handoverLabel: "Bu ekranın devir notu",
@@ -4209,6 +4607,204 @@ export const messages: Record<SupportedLocale, Messages> = {
         Other: "Other",
       },
     },
+    dataExport: {
+      heading: "Data Export",
+      subtitle:
+        "On-demand and scheduled data exports, records and file downloads.",
+      tabs: {
+        exports: "Export History",
+        schedules: "Schedules",
+        newExport: "New Export",
+      },
+      newExportTitle: "Request New Data Export",
+      newExportDescription:
+        "Select datasets and format to export from your organization.",
+      datasetsTitle: "Datasets",
+      datasetsDescription:
+        "Select the operational and entity records to export.",
+      datasets: {
+        residents_guests: "Guests & Residents",
+        reservations_stays: "Reservations & Stays",
+        rooms_beds: "Rooms & Beds",
+        folios_payments: "Folios & Payments",
+        audit_log: "Audit Log",
+      },
+      datasetDescriptions: {
+        residents_guests:
+          "Contact details, identifications, and profile records",
+        reservations_stays: "Booking dates, statuses, and unit associations",
+        rooms_beds: "Unit numbers, floors, unit types, and capacities",
+        folios_payments: "Financial charges, payments, and balances",
+        audit_log: "Operational log entries, timestamps, and actors",
+      },
+      formatTitle: "Export Format",
+      formatDescription: "Tabular spreadsheet (CSV) or structured JSON.",
+      requestButton: "Request Export",
+      requesting: "Requesting...",
+      requestSuccess: "Data export request created successfully.",
+      requestFailed: "Failed to create data export request.",
+      scheduleTitle: "Create Export Schedule",
+      scheduleDescription: "Set up automatic recurring exports on a schedule.",
+      scheduleName: "Schedule Name",
+      scheduleNamePlaceholder: "e.g. Weekly Financial Export",
+      frequencyTitle: "Frequency",
+      frequencies: {
+        daily: "Daily",
+        weekly: "Weekly",
+        monthly: "Monthly",
+      },
+      createScheduleButton: "Create Schedule",
+      creatingSchedule: "Creating...",
+      scheduleSuccess: "Export schedule created successfully.",
+      scheduleFailed: "Failed to create export schedule.",
+      recentExportsTitle: "Recent Export Records",
+      recentExportsDescription:
+        "All requested exports with their state, metrics, and download links.",
+      schedulesTitle: "Active Export Schedules",
+      schedulesDescription:
+        "Recurring exports evaluated and generated automatically by background workers.",
+      noExports: "No export records found for this organization.",
+      noSchedules: "No automated export schedules configured.",
+      tableHeaders: {
+        requester: "Requester",
+        datasets: "Datasets",
+        format: "Format",
+        status: "Status",
+        size: "Size",
+        records: "Records",
+        requestedAt: "Requested At",
+        actions: "Actions",
+      },
+      scheduleHeaders: {
+        name: "Name",
+        datasets: "Datasets",
+        format: "Format",
+        frequency: "Frequency",
+        status: "Status",
+        nextRun: "Next Run",
+        actions: "Actions",
+      },
+      statuses: {
+        pending: "Pending",
+        processing: "Processing",
+        ready: "Ready",
+        failed: "Failed",
+      },
+      scheduleStatuses: {
+        active: "Active",
+        paused: "Paused",
+      },
+      download: "Download",
+      pause: "Pause",
+      resume: "Resume",
+      pausing: "Pausing...",
+      resuming: "Resuming...",
+    },
+    hr: {
+      heading: "HR & Payroll",
+      subtitle: "Staff contracts, the weekly rota, leave and monthly pay.",
+      tabs: {
+        employees: "Employees",
+        rota: "This week",
+        leave: "Leave",
+        payroll: "Payroll",
+      },
+      employees: {
+        title: "Employee Directory",
+        register: "Add employee",
+        registerTitle: "Register employee",
+        registerDescription:
+          "Enter the employee's contract, position and salary details.",
+        firstName: "First name",
+        lastName: "Last name",
+        email: "Email",
+        phone: "Phone",
+        department: "Department",
+        position: "Position",
+        contract: "Contract",
+        since: "Since",
+        grossPay: "Gross pay",
+        iban: "IBAN",
+        status: "Status",
+        noEmployeesTitle: "No employees registered",
+        noEmployeesDescription: "Get started by adding your first employee.",
+        submit: "Save employee",
+        submitting: "Saving...",
+        contracts: {
+          full_time: "Full time",
+          part_time: "Part time",
+          seasonal: "Seasonal",
+          fixed_term: "Fixed term",
+        },
+      },
+      rota: {
+        title: "Weekly shift rota",
+        hint: "Click a shift to change it. Front desk needs at least one person on every morning and evening.",
+        staffMember: "Staff member",
+        today: "today",
+        shifts: {
+          morning: "Morning",
+          evening: "Evening",
+          day: "Day",
+          off: "Off",
+        },
+        shiftTimes: {
+          morning: "07:00–15:00",
+          evening: "15:00–23:00",
+          day: "09:00–18:00",
+          off: "Day off",
+        },
+      },
+      leave: {
+        title: "Leave requests",
+        requestLeave: "Request leave",
+        requestLeaveTitle: "Submit leave request",
+        staffMember: "Staff member",
+        type: "Type",
+        dates: "Dates",
+        days: "days",
+        status: "Status",
+        approve: "Approve",
+        decline: "Decline",
+        clashWarning: "Clashes with another colleague in the same department",
+        noLeaves: "No pending or historical leave requests.",
+        startsOn: "Starts on",
+        endsOn: "Ends on",
+        notes: "Notes",
+        submit: "Submit request",
+        submitting: "Submitting...",
+        types: {
+          annual: "Annual leave",
+          sick: "Sick leave",
+          unpaid: "Unpaid leave",
+          emergency: "Emergency leave",
+          maternity: "Maternity leave",
+        },
+        statuses: {
+          pending: "Pending",
+          approved: "Approved",
+          rejected: "Rejected",
+        },
+      },
+      payroll: {
+        period: "Period",
+        summaryGrossNet: "Gross {amount}, net {total}",
+        gross: "Gross",
+        net: "Net pay",
+        socialSecurity: "Social security",
+        incomeTax: "Income tax",
+        stampDuty: "Stamp duty",
+        approve: "Approve payroll",
+        approving: "Approving...",
+        approved: "Approved and posted",
+        payslip: "Payslip",
+        payslipTitle: "Payslip",
+        paidTo: "Paid to",
+        downloadPdf: "Download PDF",
+        disclaimer:
+          "Deduction rates are calculated according to payroll rules.",
+      },
+    },
     housekeeping: {
       subtitle: "Which rooms need cleaning at {property}",
       unavailableTitle: "Housekeeping is not on at this Property",
@@ -4981,9 +5577,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       inventory: "Inventory",
       finance: "Finance",
       people: "People",
+      hr: "HR & Payroll",
       analytics: "Analytics",
       configuration: "Configuration",
       integrations: "Integrations",
+      "data-export": "Data export",
       "audit-log": "Audit log",
     },
     screenSummary: {
@@ -4993,7 +5591,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       "food-and-beverage": "Meal plans, outlets and consumption records.",
       inventory: "Stock movements, counts and procurement.",
       people: "Staff records, shifts and permissions.",
+      hr: "Staff contracts, weekly shift rota, leave and monthly payroll.",
       analytics: "Occupancy, revenue and operational reporting.",
+      "data-export":
+        "On-demand and scheduled data exports, records and downloads.",
     },
     planned: "Planned",
     handoverLabel: "This screen's handover note",
@@ -5888,6 +6489,200 @@ export const messages: Record<SupportedLocale, Messages> = {
         Other: "أخرى",
       },
     },
+    dataExport: {
+      heading: "تصدير البيانات",
+      subtitle:
+        "تصدير البيانات عند الطلب ووفق جداول زمنية، وسجلات وتنزيل الملفات.",
+      tabs: {
+        exports: "سجل التصدير",
+        schedules: "الجداول الزمنية",
+        newExport: "تصدير جديد",
+      },
+      newExportTitle: "طلب تصدير بيانات جديد",
+      newExportDescription: "حدد مجموعات البيانات والصيغة للتصدير من منشأتك.",
+      datasetsTitle: "مجموعات البيانات",
+      datasetsDescription: "اختر سجلات الكيانات والعمليات المراد تصديرها.",
+      datasets: {
+        residents_guests: "الضيوف والمقيمون",
+        reservations_stays: "الحجوزات والإقامات",
+        rooms_beds: "الغرف والأسرة",
+        folios_payments: "الحسابات والمدفوعات",
+        audit_log: "سجل التدقيق",
+      },
+      datasetDescriptions: {
+        residents_guests: "بيانات الاتصال والهوية والملفات الشخصية",
+        reservations_stays: "تواريخ الحجز والحالات وتخصيص الوحدات",
+        rooms_beds: "أرقام الوحدات والطوابق والأنواع والسعة",
+        folios_payments: "الرسوم المالية والدفعات وتفاصيل الأرصدة",
+        audit_log: "إجراءات العمليات والطوابع الزمنية والمستخدمون",
+      },
+      formatTitle: "صيغة التصدير",
+      formatDescription: "جدول بيانات (CSV) أو بيانات منظمة (JSON).",
+      requestButton: "بدء التصدير",
+      requesting: "جارٍ الطلب...",
+      requestSuccess: "تم إنشاء طلب تصدير البيانات بنجاح.",
+      requestFailed: "فشل إنشاء طلب تصدير البيانات.",
+      scheduleTitle: "إنشاء جدول زمني آلي",
+      scheduleDescription: "إعداد تصدير دوري آلي وفق جدول زمني محدد.",
+      scheduleName: "اسم الجدول",
+      scheduleNamePlaceholder: "مثال: تصدير مالي أسبوعي",
+      frequencyTitle: "التكرار",
+      frequencies: {
+        daily: "يومي",
+        weekly: "أسبوعي",
+        monthly: "شهري",
+      },
+      createScheduleButton: "حفظ الجدول",
+      creatingSchedule: "جارٍ الحفظ...",
+      scheduleSuccess: "تم إنشاء جدول التصدير بنجاح.",
+      scheduleFailed: "فشل إنشاء جدول التصدير.",
+      recentExportsTitle: "أحدث سجلات التصدير",
+      recentExportsDescription:
+        "كافة طلبات التصدير وحالاتها وقياساتها وروابط التنزيل.",
+      schedulesTitle: "جداول التصدير النشطة",
+      schedulesDescription:
+        "عمليات التصدير المتكررة التي يعالجها النظام آلياً في الخلفية.",
+      noExports: "لا توجد سجلات تصدير لهذه المنشأة.",
+      noSchedules: "لا توجد جداول تصدير آلية مجهزة.",
+      tableHeaders: {
+        requester: "مقدم الطلب",
+        datasets: "مجموعات البيانات",
+        format: "الصيغة",
+        status: "الحالة",
+        size: "الحجم",
+        records: "عدد السجلات",
+        requestedAt: "وقت الطلب",
+        actions: "الإجراءات",
+      },
+      scheduleHeaders: {
+        name: "اسم الجدول",
+        datasets: "مجموعات البيانات",
+        format: "الصيغة",
+        frequency: "التكرار",
+        status: "الحالة",
+        nextRun: "التشغيل القادم",
+        actions: "الإجراءات",
+      },
+      statuses: {
+        pending: "قيد الانتظار",
+        processing: "جارٍ المعالجة",
+        ready: "جاهز",
+        failed: "فشل",
+      },
+      scheduleStatuses: {
+        active: "نشط",
+        paused: "متوقف مؤقتاً",
+      },
+      download: "تنزيل",
+      pause: "إيقاف مؤقت",
+      resume: "استئناف",
+      pausing: "جارٍ الإيقاف...",
+      resuming: "جارٍ الاستئناف...",
+    },
+    hr: {
+      heading: "الموارد البشرية والرواتب",
+      subtitle:
+        "عقود الموظفين وجدول الورديات الأسبوعي والإجازات والرواتب الشهرية.",
+      tabs: {
+        employees: "الموظفون",
+        rota: "هذا الأسبوع",
+        leave: "الإجازات",
+        payroll: "الرواتب",
+      },
+      employees: {
+        title: "دليل الموظفين",
+        register: "إضافة موظف",
+        registerTitle: "تسجيل موظف جديد",
+        registerDescription: "أدخل تفاصيل العقد والمنصب والراتب للموظف.",
+        firstName: "الاسم الأول",
+        lastName: "اسم العائلة",
+        email: "البريد الإلكتروني",
+        phone: "الهاتف",
+        department: "القسم",
+        position: "المنصب",
+        contract: "نوع العقد",
+        since: "تاريخ البدء",
+        grossPay: "الراتب الإجمالي",
+        iban: "رقم الآيبان (IBAN)",
+        status: "الحالة",
+        noEmployeesTitle: "لا يوجد موظفون مسجلون",
+        noEmployeesDescription: "ابدأ بإضافة موظفك الأول.",
+        submit: "حفظ الموظف",
+        submitting: "جارٍ الحفظ...",
+        contracts: {
+          full_time: "دوام كامل",
+          part_time: "دوام جزئي",
+          seasonal: "موسمي",
+          fixed_term: "محدد المدة",
+        },
+      },
+      rota: {
+        title: "جدول الورديات الأسبوعي",
+        hint: "انقر على الوردية لتغييرها. يحتاج مكتب الاستقبال إلى شخص واحد على الأقل كل صباح ومساء.",
+        staffMember: "الموظف",
+        today: "اليوم",
+        shifts: {
+          morning: "صباحية",
+          evening: "مسائية",
+          day: "نهارية",
+          off: "إجازة",
+        },
+        shiftTimes: {
+          morning: "07:00–15:00",
+          evening: "15:00–23:00",
+          day: "09:00–18:00",
+          off: "يوم إجازة",
+        },
+      },
+      leave: {
+        title: "طلبات الإجازة",
+        requestLeave: "طلب إجازة",
+        requestLeaveTitle: "تقديم طلب إجازة",
+        staffMember: "الموظف",
+        type: "النوع",
+        dates: "التواريخ",
+        days: "أيام",
+        status: "الحالة",
+        approve: "الموافقة",
+        decline: "الرفض",
+        clashWarning: "يتعارض مع زميل آخر في نفس القسم",
+        noLeaves: "لا توجد طلبات إجازة معلقة أو سابقة.",
+        startsOn: "تاريخ البدء",
+        endsOn: "تاريخ الانتهاء",
+        notes: "ملاحظات",
+        submit: "إرسال الطلب",
+        submitting: "جارٍ الإرسال...",
+        types: {
+          annual: "إجازة سنوية",
+          sick: "إجازة مرضية",
+          unpaid: "إجازة غير مدفوعة",
+          emergency: "إجازة طارئة",
+          maternity: "إجازة أمومة",
+        },
+        statuses: {
+          pending: "معلق",
+          approved: "تمت الموافقة",
+          rejected: "مرفوض",
+        },
+      },
+      payroll: {
+        period: "الفترة",
+        summaryGrossNet: "الإجمالي {amount}، الصافي {total}",
+        gross: "الإجمالي",
+        net: "صافي الراتب",
+        socialSecurity: "التأمينات الاجتماعية",
+        incomeTax: "ضريبة الدخل",
+        stampDuty: "ضريبة الدمغة",
+        approve: "اعتماد الرواتب",
+        approving: "جارٍ الاعتماد...",
+        approved: "معتمد ومُرسل إلى الحسابات",
+        payslip: "قسيمة الراتب",
+        payslipTitle: "قسيمة الراتب",
+        paidTo: "مدفوع إلى",
+        downloadPdf: "تحميل PDF",
+        disclaimer: "يتم احتساب معدلات الخصم وفقاً للوائح والقوانين.",
+      },
+    },
     housekeeping: {
       subtitle: "الغرف التي تحتاج إلى تنظيف في {property}",
       unavailableTitle: "التدبير الفندقي غير مفعّل في هذه المنشأة",
@@ -6661,9 +7456,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       inventory: "المخزون",
       finance: "المالية",
       people: "الفريق",
+      hr: "الموارد البشرية والرواتب",
       analytics: "التحليلات",
       configuration: "الإعدادات",
       integrations: "التكاملات",
+      "data-export": "تصدير البيانات",
       "audit-log": "سجل التدقيق",
     },
     screenSummary: {
@@ -6672,7 +7469,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       "food-and-beverage": "خطط الوجبات والمنافذ وسجلات الاستهلاك.",
       inventory: "حركات المخزون والجرد والمشتريات.",
       people: "سجلات الموظفين والورديات والصلاحيات.",
+      hr: "عقود الموظفين وجدول الورديات الأسبوعي والإجازات والرواتب الشهرية.",
       analytics: "تقارير الإشغال والإيرادات والتشغيل.",
+      "data-export":
+        "تصدير البيانات عند الطلب وفق جداول زمنية، والسجلات والتنزيلات.",
     },
     planned: "مخطط له",
     handoverLabel: "ملاحظة التسليم لهذه الشاشة",

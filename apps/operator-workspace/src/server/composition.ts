@@ -3,10 +3,12 @@ import { createAccommodationModule } from "@ranza/accommodation";
 import { createAuthModule } from "@ranza/auth";
 import { createBusinessDayModule } from "@ranza/business-day";
 import { createCoreModule } from "@ranza/core";
+import { createDataExportModule } from "@ranza/data-export";
 import { assertUnprivileged, createPrismaClient } from "@ranza/db";
 import { createFoliosModule } from "@ranza/folios";
 import { createGuestServicesModule } from "@ranza/guest-services";
 import { createHousekeepingModule } from "@ranza/housekeeping";
+import { createHrModule } from "@ranza/hr";
 import { createIntegrationsModule } from "@ranza/integrations";
 import { createMaintenanceModule } from "@ranza/maintenance";
 import { createRatesModule } from "@ranza/rates";
@@ -116,6 +118,8 @@ function compose() {
     rates: createRatesModule({ db: tenantDb }),
     guestServices: createGuestServicesModule({ db: tenantDb }),
     integrations: createIntegrationsModule({ db: tenantDb }),
+    hr: createHrModule({ db: tenantDb }),
+    dataExport: createDataExportModule({ db: tenantDb }),
     db: tenantDb,
   };
 }

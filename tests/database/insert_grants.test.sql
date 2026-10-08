@@ -18,7 +18,7 @@
 -- `grant insert (every, column) on t` are byte-identical in it. That is how
 -- this defect survived six migrations and every audit run against the schema.
 begin;
-select plan(39);
+select plan(41);
 
 -- ---------------------------------------------------------------------------
 -- The shape of every write grant (IG-01)
@@ -527,8 +527,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  53,
-  'the definer sweep looked at 53 functions; change this number deliberately');
+  55,
+  'the definer sweep looked at 55 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -578,8 +578,21 @@ select is(
 -- The decision sheet (20260916009500-009720) brought none. Its closed-day
 -- triggers, app.reservations_keep_closed_days() among them, are invokers, and
 -- the three access migrations replaced two definers and changed a grant.
--- Integrations (20260916010000) brought two writers: record_integration_failure()
--- and resolve_failed_operation(), both checking their caller.
+-- Data export (20260916010100) brought two for the worker: export_schedules_due()
+-- and pending_data_exports(), neither of which writes.
+select is(
+  (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'app' and p.prosecdef),
+  55,
+  'the definer sweep looked at 55 functions; change this number deliberately');
+
+select is(
+  (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'app' and p.prosecdef
+      and regexp_replace(p.prosrc, '--[^\n]*', '', 'g') ~* '(insert|update|delete)\s'),
+  15,
+  'fifteen of them write, which is what makes the assertion above a test');
+
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -610,8 +623,9 @@ select set_eq(
         'post_room_nights', 'post_room_nights_for_departure',
         'amend_reservation', 'reservation_is_priced_for_its_new_kind',
         'change_departure', 'move_stay', 'mark_unit_dirty_after_move',
-        'record_integration_failure', 'resolve_failed_operation'],
-  'and they are exactly the fifty-three the design gives a reason for');
+        'record_integration_failure', 'resolve_failed_operation',
+        'export_schedules_due', 'pending_data_exports'],
+  'and they are exactly the fifty-five the design gives a reason for');
 
 -- ---------------------------------------------------------------------------
 -- Who asks the three-gate question (IG-14)
