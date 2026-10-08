@@ -24,4 +24,3 @@ export const folioLinePostedSubscription: OutboxSubscription = {
     await postFolioLineToLedgerWithin(tx as never, lineId, payload);
   },
 };
-

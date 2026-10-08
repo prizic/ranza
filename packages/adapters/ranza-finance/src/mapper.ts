@@ -39,8 +39,13 @@ export function resolvePaymentAccount(paymentMethod: string | null): string {
       return STANDARD_ACCOUNT_CODES.CARD;
     case "cash":
     case "other":
-    default:
+    case null:
+    case undefined:
       return STANDARD_ACCOUNT_CODES.CASH;
+    default:
+      throw new InvalidEntryError(
+        `Unsupported payment method "${paymentMethod}" for ledger classification`,
+      );
   }
 }
 
@@ -53,6 +58,7 @@ export function mapFolioLineToJournalEntry(
   reversedOriginalLine?: FolioLineRecord | null,
 ): JournalEntryInput {
   const amount = Math.abs(Number(line.amountMinor));
+  const description = line.description?.trim() || `${line.lineType} posting`;
   const receivablesId = accounts[STANDARD_ACCOUNT_CODES.RECEIVABLES];
   const roomRevenueId = accounts[STANDARD_ACCOUNT_CODES.ROOM_REVENUE];
   const otherRevenueId =
@@ -79,13 +85,13 @@ export function mapFolioLineToJournalEntry(
         accountId: receivablesId,
         direction: "debit",
         amountMinor: amount,
-        description: line.description,
+        description,
       },
       {
         accountId: revenueAccountId,
         direction: "credit",
         amountMinor: amount,
-        description: line.description,
+        description,
       },
     );
   } else if (line.lineType === "payment") {
@@ -103,13 +109,13 @@ export function mapFolioLineToJournalEntry(
         accountId: paymentAccountId,
         direction: "debit",
         amountMinor: amount,
-        description: line.description,
+        description,
       },
       {
         accountId: receivablesId,
         direction: "credit",
         amountMinor: amount,
-        description: line.description,
+        description,
       },
     );
   } else if (line.lineType === "reversal") {
@@ -137,13 +143,13 @@ export function mapFolioLineToJournalEntry(
           accountId: receivablesId,
           direction: "debit",
           amountMinor: amount,
-          description: line.description,
+          description,
         },
         {
           accountId: paymentAccountId,
           direction: "credit",
           amountMinor: amount,
-          description: line.description,
+          description,
         },
       );
     } else if (reversedOriginalLine.lineType === "charge") {
@@ -160,13 +166,13 @@ export function mapFolioLineToJournalEntry(
           accountId: revenueAccountId,
           direction: "debit",
           amountMinor: amount,
-          description: line.description,
+          description,
         },
         {
           accountId: receivablesId,
           direction: "credit",
           amountMinor: amount,
-          description: line.description,
+          description,
         },
       );
     } else {
@@ -175,13 +181,15 @@ export function mapFolioLineToJournalEntry(
       );
     }
   } else {
-    throw new InvalidEntryError(`Unsupported folio line type: ${line.lineType}`);
+    throw new InvalidEntryError(
+      `Unsupported folio line type: ${line.lineType}`,
+    );
   }
 
   return {
     organizationId: line.organizationId,
     currency: line.currency,
-    description: line.description,
+    description,
     sourceType: "folio_line",
     sourceId: line.id,
     lines,

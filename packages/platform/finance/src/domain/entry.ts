@@ -77,6 +77,7 @@ export interface AccountBalance {
   debitMinor: number;
   creditMinor: number;
   netBalanceMinor: number;
+  currency?: string | undefined;
 }
 
 const UUID =
@@ -105,6 +106,9 @@ export function assertPostableEntry(input: JournalEntryInput): void {
   if (!UUID.test(input.sourceId)) {
     throw new InvalidEntryError("sourceId must be a valid uuid");
   }
+  if (input.createdBy && !UUID.test(input.createdBy)) {
+    throw new InvalidEntryError("createdBy must be a valid uuid");
+  }
   if (!input.description || input.description.trim().length === 0) {
     throw new InvalidEntryError("description must not be empty");
   }
@@ -131,9 +135,14 @@ export function assertPostableEntry(input: JournalEntryInput): void {
         `line ${index + 1}: direction must be "debit" or "credit"`,
       );
     }
-    if (!Number.isInteger(line.amountMinor) || line.amountMinor <= 0) {
+    if (!Number.isSafeInteger(line.amountMinor) || line.amountMinor <= 0) {
       throw new InvalidEntryError(
-        `line ${index + 1}: amountMinor must be a positive integer, received ${line.amountMinor}`,
+        `line ${index + 1}: amountMinor must be a positive safe integer, received ${line.amountMinor}`,
+      );
+    }
+    if (line.description && line.description.length > 500) {
+      throw new InvalidEntryError(
+        `line ${index + 1}: description must not exceed 500 characters`,
       );
     }
 
@@ -142,6 +151,15 @@ export function assertPostableEntry(input: JournalEntryInput): void {
     } else {
       totalCredits += line.amountMinor;
     }
+  }
+
+  if (
+    totalDebits > Number.MAX_SAFE_INTEGER ||
+    totalCredits > Number.MAX_SAFE_INTEGER
+  ) {
+    throw new InvalidEntryError(
+      "total entry amount exceeds safe integer range",
+    );
   }
 
   if (totalDebits !== totalCredits) {

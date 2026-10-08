@@ -105,6 +105,69 @@ describe("platform finance: domain validation", () => {
     );
   });
 
+  it("rejects unsafe integers exceeding MAX_SAFE_INTEGER", () => {
+    const entryUnsafe: JournalEntryInput = {
+      organizationId: ORG,
+      currency: "TRY",
+      description: "Huge amount",
+      sourceType: "folio_line",
+      sourceId: SOURCE_ID,
+      lines: [
+        {
+          accountId: ACC_RECEIVABLE,
+          direction: "debit",
+          amountMinor: 2 ** 53,
+        },
+        {
+          accountId: ACC_REVENUE,
+          direction: "credit",
+          amountMinor: 2 ** 53,
+        },
+      ],
+    };
+    expect(() => assertPostableEntry(entryUnsafe)).toThrow(InvalidEntryError);
+  });
+
+  it("rejects non-uuid createdBy", () => {
+    const entryBadCreatedBy: JournalEntryInput = {
+      organizationId: ORG,
+      currency: "TRY",
+      description: "Room charge",
+      sourceType: "folio_line",
+      sourceId: SOURCE_ID,
+      createdBy: "not-a-valid-uuid",
+      lines: [
+        { accountId: ACC_RECEIVABLE, direction: "debit", amountMinor: 100 },
+        { accountId: ACC_REVENUE, direction: "credit", amountMinor: 100 },
+      ],
+    };
+    expect(() => assertPostableEntry(entryBadCreatedBy)).toThrow(
+      InvalidEntryError,
+    );
+  });
+
+  it("rejects line description exceeding 500 characters", () => {
+    const entryLongLineDesc: JournalEntryInput = {
+      organizationId: ORG,
+      currency: "TRY",
+      description: "Room charge",
+      sourceType: "folio_line",
+      sourceId: SOURCE_ID,
+      lines: [
+        {
+          accountId: ACC_RECEIVABLE,
+          direction: "debit",
+          amountMinor: 100,
+          description: "x".repeat(501),
+        },
+        { accountId: ACC_REVENUE, direction: "credit", amountMinor: 100 },
+      ],
+    };
+    expect(() => assertPostableEntry(entryLongLineDesc)).toThrow(
+      InvalidEntryError,
+    );
+  });
+
   it("accepts a well-formed, balanced journal entry", () => {
     const entry: JournalEntryInput = {
       organizationId: ORG,

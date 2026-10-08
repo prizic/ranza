@@ -10,7 +10,7 @@
 --   - folio_lines insert trigger notifies outbox with 'folio.line_posted'
 
 begin;
-select plan(17);
+select plan(19);
 
 insert into public.users (id, email) values
   ('e1000001-0000-4000-8000-000000000001', 'finance-a@example.test'),
@@ -88,6 +88,40 @@ select lives_ok(
   'a balanced journal entry posts without error'
 );
 
+select results_eq(
+  $$
+  with entry as (
+    insert into finance.journal_entries
+      (organization_id, currency, description, source_type, source_id, entry_date)
+    values
+      ('e2000002-0000-4000-8000-000000000001', 'TRY', 'Dated charge',
+       'folio_line', 'e3000003-0000-4000-8000-000000000010', '2026-09-18'::date)
+    returning id, organization_id, entry_date
+  ),
+  acc as (
+    select id, code from finance.accounts
+    where organization_id = 'e2000002-0000-4000-8000-000000000001'
+  ),
+  lines as (
+    insert into finance.journal_lines
+      (organization_id, journal_entry_id, account_id, direction, amount_minor, line_number)
+    select
+      entry.organization_id,
+      entry.id,
+      case when leg.num = 1 then (select id from acc where code = '1200')
+           else (select id from acc where code = '4000') end,
+      case when leg.num = 1 then 'debit' else 'credit' end,
+      12000,
+      leg.num
+    from entry
+    cross join (values (1), (2)) as leg(num)
+  )
+  select entry_date from entry;
+  $$,
+  $$values ('2026-09-18'::date)$$,
+  'journal entry explicitly records business entry_date'
+);
+
 -- ---------------------------------------------------------------------------
 -- 3. Composite foreign key prevents cross-tenant account pollution
 -- ---------------------------------------------------------------------------
@@ -156,6 +190,19 @@ select throws_ok(
   $$,
   '23514', NULL,
   'unbalanced entry is refused by balance check trigger'
+);
+
+select throws_ok(
+  $$
+  insert into finance.journal_entries
+    (organization_id, currency, description, source_type, source_id)
+  values
+    ('e2000002-0000-4000-8000-000000000001', 'TRY', 'Orphan header without lines',
+     'folio_line', 'e3000003-0000-4000-8000-000000000099');
+  set constraints all immediate;
+  $$,
+  '23514', NULL,
+  'a journal entry without at least two lines is refused by deferred trigger'
 );
 
 -- ---------------------------------------------------------------------------

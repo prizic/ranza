@@ -99,18 +99,23 @@ export async function insertJournalEntry(
     }
   }
 
+  const formattedDate = entry.entryDate
+    ? new Date(entry.entryDate).toISOString().slice(0, 10)
+    : null;
+
   let headerRows: EntryRow[];
   try {
     headerRows = await tx.$queryRaw<EntryRow[]>`
       insert into finance.journal_entries
-        (organization_id, currency, description, source_type, source_id, created_by)
+        (organization_id, currency, description, source_type, source_id, created_by, entry_date)
       values (
         ${entry.organizationId}::uuid,
         ${entry.currency},
         ${entry.description.trim()},
         ${entry.sourceType},
         ${entry.sourceId}::uuid,
-        ${entry.createdBy ?? null}::uuid
+        ${entry.createdBy ?? null}::uuid,
+        coalesce(${formattedDate}::date, current_date)
       )
       returning
         id,
@@ -391,22 +396,47 @@ export async function ensureDefaultAccounts(
 export async function getAccountBalances(
   tx: FinanceClient,
   organizationId: string,
+  currency?: string,
 ): Promise<AccountBalance[]> {
-  const rows = await tx.$queryRaw<BalanceRow[]>`
-    select
-      acc.id as "accountId",
-      acc.code as "accountCode",
-      acc.name as "accountName",
-      acc.type as "accountType",
-      acc.normal_balance as "normalBalance",
-      coalesce(sum(case when jl.direction = 'debit' then jl.amount_minor else 0 end), 0) as "debitMinor",
-      coalesce(sum(case when jl.direction = 'credit' then jl.amount_minor else 0 end), 0) as "creditMinor"
-    from finance.accounts as acc
-    left join finance.journal_lines as jl on jl.account_id = acc.id
-    where acc.organization_id = ${organizationId}::uuid
-    group by acc.id, acc.code, acc.name, acc.type, acc.normal_balance
-    order by acc.code asc
-  `;
+  const rows = currency
+    ? await tx.$queryRaw<BalanceRow[]>`
+        select
+          acc.id as "accountId",
+          acc.code as "accountCode",
+          acc.name as "accountName",
+          acc.type as "accountType",
+          acc.normal_balance as "normalBalance",
+          coalesce(sum(case when jl.direction = 'debit' then jl.amount_minor else 0 end), 0) as "debitMinor",
+          coalesce(sum(case when jl.direction = 'credit' then jl.amount_minor else 0 end), 0) as "creditMinor"
+        from finance.accounts as acc
+        left join finance.journal_lines as jl
+          on jl.account_id = acc.id
+          and jl.organization_id = acc.organization_id
+        left join finance.journal_entries as je
+          on je.id = jl.journal_entry_id
+          and je.organization_id = acc.organization_id
+        where acc.organization_id = ${organizationId}::uuid
+          and (je.currency is null or je.currency = ${currency})
+        group by acc.id, acc.code, acc.name, acc.type, acc.normal_balance
+        order by acc.code asc
+      `
+    : await tx.$queryRaw<BalanceRow[]>`
+        select
+          acc.id as "accountId",
+          acc.code as "accountCode",
+          acc.name as "accountName",
+          acc.type as "accountType",
+          acc.normal_balance as "normalBalance",
+          coalesce(sum(case when jl.direction = 'debit' then jl.amount_minor else 0 end), 0) as "debitMinor",
+          coalesce(sum(case when jl.direction = 'credit' then jl.amount_minor else 0 end), 0) as "creditMinor"
+        from finance.accounts as acc
+        left join finance.journal_lines as jl
+          on jl.account_id = acc.id
+          and jl.organization_id = acc.organization_id
+        where acc.organization_id = ${organizationId}::uuid
+        group by acc.id, acc.code, acc.name, acc.type, acc.normal_balance
+        order by acc.code asc
+      `;
 
   return rows.map((r) => {
     const debit = Number(r.debitMinor);
@@ -421,6 +451,7 @@ export async function getAccountBalances(
       debitMinor: debit,
       creditMinor: credit,
       netBalanceMinor: net,
+      ...(currency !== undefined ? { currency } : {}),
     };
   });
 }

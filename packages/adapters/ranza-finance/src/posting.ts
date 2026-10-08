@@ -1,5 +1,6 @@
 import {
   DuplicateEntryError,
+  InvalidEntryError,
   ensureDefaultAccountsWithin,
   getJournalEntryBySourceWithin,
   postJournalEntryWithin,
@@ -95,58 +96,72 @@ export async function postFolioLineToLedgerWithin(
   }
 
   if (!lineRecord) {
-    const lineRows = await tx.$queryRaw<LineRow[]>`
-      select
-        line.id,
-        line.organization_id  as "organizationId",
-        line.property_id      as "propertyId",
-        line.folio_id         as "folioId",
-        line.line_type        as "lineType",
-        line.description,
-        line.amount_minor     as "amountMinor",
-        line.payment_method   as "paymentMethod",
-        line.reverses_line_id as "reversesLineId",
-        line.source,
-        folio.currency::text  as "currency"
-      from public.folio_lines as line
-      join public.folios as folio on folio.id = line.folio_id
-      where line.id = ${folioLineId}::uuid
-    `;
-
-    const line = lineRows[0];
-    if (!line) {
-      return null;
-    }
-
-    lineRecord = {
-      ...line,
-      amountMinor: Number(line.amountMinor),
-    };
-
-    if (line.reversesLineId) {
-      const origRows = await tx.$queryRaw<LineRow[]>`
+    try {
+      const lineRows = await tx.$queryRaw<LineRow[]>`
         select
-          orig.id,
-          orig.organization_id  as "organizationId",
-          orig.property_id      as "propertyId",
-          orig.folio_id         as "folioId",
-          orig.line_type        as "lineType",
-          orig.description,
-          orig.amount_minor     as "amountMinor",
-          orig.payment_method   as "paymentMethod",
-          orig.reverses_line_id as "reversesLineId",
-          orig.source,
+          line.id,
+          line.organization_id  as "organizationId",
+          line.property_id      as "propertyId",
+          line.folio_id         as "folioId",
+          line.line_type        as "lineType",
+          line.description,
+          line.amount_minor     as "amountMinor",
+          line.payment_method   as "paymentMethod",
+          line.reverses_line_id as "reversesLineId",
+          line.source,
           folio.currency::text  as "currency"
-        from public.folio_lines as orig
-        join public.folios as folio on folio.id = orig.folio_id
-        where orig.id = ${line.reversesLineId}::uuid
+        from public.folio_lines as line
+        join public.folios as folio on folio.id = line.folio_id
+        where line.id = ${folioLineId}::uuid
       `;
-      if (origRows[0]) {
-        originalLine = {
-          ...origRows[0],
-          amountMinor: Number(origRows[0].amountMinor),
-        };
+
+      const line = lineRows[0];
+      if (!line) {
+        return null;
       }
+
+      lineRecord = {
+        ...line,
+        amountMinor: Number(line.amountMinor),
+      };
+
+      if (line.reversesLineId) {
+        const origRows = await tx.$queryRaw<LineRow[]>`
+          select
+            orig.id,
+            orig.organization_id  as "organizationId",
+            orig.property_id      as "propertyId",
+            orig.folio_id         as "folioId",
+            orig.line_type        as "lineType",
+            orig.description,
+            orig.amount_minor     as "amountMinor",
+            orig.payment_method   as "paymentMethod",
+            orig.reverses_line_id as "reversesLineId",
+            orig.source,
+            folio.currency::text  as "currency"
+          from public.folio_lines as orig
+          join public.folios as folio on folio.id = orig.folio_id
+          where orig.id = ${line.reversesLineId}::uuid
+        `;
+        if (origRows[0]) {
+          originalLine = {
+            ...origRows[0],
+            amountMinor: Number(origRows[0].amountMinor),
+          };
+        }
+      }
+    } catch (err: unknown) {
+      if (
+        typeof err === "object" &&
+        err !== null &&
+        "code" in err &&
+        (err as { code: string }).code === "42501"
+      ) {
+        throw new InvalidEntryError(
+          `Cannot retrieve folio line ${folioLineId}: caller lacks permissions on public.folio_lines and snapshot was incomplete`,
+        );
+      }
+      throw err;
     }
   }
 

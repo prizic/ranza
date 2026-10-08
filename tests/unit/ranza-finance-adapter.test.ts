@@ -37,6 +37,9 @@ describe("ranza-finance adapter: mapper", () => {
     );
     expect(resolvePaymentAccount("other")).toBe(STANDARD_ACCOUNT_CODES.CASH);
     expect(resolvePaymentAccount(null)).toBe(STANDARD_ACCOUNT_CODES.CASH);
+    expect(() => resolvePaymentAccount("unsupported_method")).toThrow(
+      InvalidEntryError,
+    );
   });
 
   it("maps a charge line into Debit Receivables, Credit Revenue", () => {
@@ -341,5 +344,25 @@ describe("ranza-finance adapter: postFolioLineToLedgerWithin", () => {
 
     expect(queriedFolioLines).toBe(false);
     expect(result?.id).toBe(existingEntry.id);
+  });
+
+  it("handles 42501 permission denied gracefully with a descriptive error when snapshot is absent", async () => {
+    const permissionError = new Error(
+      "permission denied for table folio_lines",
+    );
+    (permissionError as unknown as { code: string }).code = "42501";
+
+    const mockTx: Partial<FinanceClient> = {
+      $queryRaw: async () => {
+        throw permissionError;
+      },
+    };
+
+    await expect(
+      postFolioLineToLedgerWithin(
+        mockTx as FinanceClient,
+        "c1000000-0000-4000-8000-000000000001",
+      ),
+    ).rejects.toThrow(InvalidEntryError);
   });
 });

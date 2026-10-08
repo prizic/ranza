@@ -198,6 +198,7 @@ describe("the ledger behind billing (blueprint 5.10)", () => {
       expect(chargeEntry?.sourceType).toBe("folio_line");
       expect(chargeEntry?.sourceId).toBe(chargeLineId);
       expect(chargeEntry?.currency).toBe("TRY");
+      expect(chargeEntry?.entryDate).toBeDefined();
       expect(chargeEntry?.lines).toHaveLength(2);
 
       // Double-entry check: Debit Receivables (1200), Credit Accommodation Revenue (4000)
@@ -230,6 +231,7 @@ describe("the ledger behind billing (blueprint 5.10)", () => {
       );
 
       expect(paymentEntry).not.toBeNull();
+      expect(paymentEntry?.entryDate).toBeDefined();
       expect(paymentEntry?.lines).toHaveLength(2);
 
       // Double-entry check: Debit Card Clearing (1020), Credit Receivables (1200)
@@ -247,7 +249,15 @@ describe("the ledger behind billing (blueprint 5.10)", () => {
       const balances = await getAccountBalancesWithin(
         tx as unknown as FinanceClient,
         ORG,
+        "TRY",
       );
+
+      const usdBalances = await getAccountBalancesWithin(
+        tx as unknown as FinanceClient,
+        ORG,
+        "USD",
+      );
+      expect(usdBalances.every((b) => b.netBalanceMinor === 0)).toBe(true);
 
       const receivables = balances.find(
         (b) => b.accountCode === STANDARD_ACCOUNT_CODES.RECEIVABLES,
@@ -274,8 +284,14 @@ describe("the ledger behind billing (blueprint 5.10)", () => {
 
       // Concurrent race condition: 2 parallel calls resolve to the identical entry
       const [race1, race2] = await Promise.all([
-        postFolioLineToLedgerWithin(tx as unknown as FinanceClient, chargeLineId),
-        postFolioLineToLedgerWithin(tx as unknown as FinanceClient, chargeLineId),
+        postFolioLineToLedgerWithin(
+          tx as unknown as FinanceClient,
+          chargeLineId,
+        ),
+        postFolioLineToLedgerWithin(
+          tx as unknown as FinanceClient,
+          chargeLineId,
+        ),
       ]);
       expect(race1?.id).toBe(chargeEntry?.id);
       expect(race2?.id).toBe(chargeEntry?.id);

@@ -27,7 +27,10 @@ export interface FinanceModule {
     entryId: string,
   ): Promise<JournalEntry | null>;
   listAccounts(organizationId: string): Promise<Account[]>;
-  getAccountBalances(organizationId: string): Promise<AccountBalance[]>;
+  getAccountBalances(
+    organizationId: string,
+    currency?: string,
+  ): Promise<AccountBalance[]>;
 }
 
 /**
@@ -92,8 +95,9 @@ export async function ensureDefaultAccountsWithin(
 export async function getAccountBalancesWithin(
   tx: FinanceClient,
   organizationId: string,
+  currency?: string,
 ): Promise<AccountBalance[]> {
-  return getAccountBalances(tx, organizationId);
+  return getAccountBalances(tx, organizationId, currency);
 }
 
 export function createFinanceModule(deps: FinanceDeps): FinanceModule {
@@ -131,10 +135,12 @@ export function createFinanceModule(deps: FinanceDeps): FinanceModule {
     },
     async getAccountBalances(
       organizationId: string,
+      currency?: string,
     ): Promise<AccountBalance[]> {
       return getAccountBalancesWithin(
         deps.db as unknown as FinanceClient,
         organizationId,
+        currency,
       );
     },
   };
