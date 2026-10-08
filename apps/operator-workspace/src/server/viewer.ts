@@ -47,6 +47,30 @@ import {
   type OperationStatus,
   type RetryOperationResult,
 } from "@ranza/integrations";
+import {
+  HR_CAPABILITY,
+  type EmployeeRecord,
+  type ShiftRecord,
+  type LeaveRequestRecord,
+  type PayrollPeriodSummary,
+  type PayslipRecord,
+  type ShiftType,
+  type LeaveType,
+  type LeaveStatus,
+  type ContractType,
+} from "@ranza/hr";
+export {
+  HR_CAPABILITY,
+  type EmployeeRecord,
+  type ShiftRecord,
+  type LeaveRequestRecord,
+  type PayrollPeriodSummary,
+  type PayslipRecord,
+  type ShiftType,
+  type LeaveType,
+  type LeaveStatus,
+  type ContractType,
+};
 export {
   INTEGRATIONS_CAPABILITY,
   type FailedOperationRecord,
@@ -1085,4 +1109,73 @@ export async function retryIntegrationOperation(
     propertyId,
     operationId,
   });
+}
+
+export interface HrViewData {
+  organizationId: string;
+  propertyId: string;
+  employees: readonly EmployeeRecord[];
+  shifts: readonly ShiftRecord[];
+  leaveRequests: readonly LeaveRequestRecord[];
+  payroll: PayrollPeriodSummary;
+  canManage: boolean;
+}
+
+/**
+ * Reads employee records, weekly shift rota, leave requests, and payroll summary for HR screen.
+ */
+export async function hrViewData(
+  propertyId: string,
+  period?: string,
+): Promise<HrViewData | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+
+  const entitled = await entitledProperties(HR_CAPABILITY);
+  const targetProperty = entitled.find((p) => p.propertyId === propertyId);
+  if (!targetProperty) return null;
+
+  const manageProps = await permittedProperties("hr.manage");
+  const canManage = manageProps.some((p) => p.propertyId === propertyId);
+
+  const comp = getComposition();
+  const currentPeriod = period ?? new Date().toISOString().slice(0, 7);
+
+  const today = new Date();
+  const dayOfWeek = today.getDay();
+  const distanceToMonday = (dayOfWeek + 6) % 7;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - distanceToMonday);
+  monday.setHours(0, 0, 0, 0);
+
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+
+  const [employees, shifts, leaveRequests, payroll] = await Promise.all([
+    comp.hr.employees(viewer.userId, targetProperty.organizationId),
+    comp.hr.shifts(
+      viewer.userId,
+      targetProperty.organizationId,
+      propertyId,
+      monday,
+      sunday,
+    ),
+    comp.hr.leaveRequests(viewer.userId, targetProperty.organizationId),
+    comp.hr.payrollSummary(
+      viewer.userId,
+      targetProperty.organizationId,
+      currentPeriod,
+    ),
+  ]);
+
+  return {
+    organizationId: targetProperty.organizationId,
+    propertyId,
+    employees,
+    shifts,
+    leaveRequests,
+    payroll,
+    canManage,
+  };
 }

@@ -1,0 +1,25 @@
+stateDiagram-v2
+  direction LR
+
+  state "Employee Employment Status" as EmpStatus {
+    [*] --> active : register_employee
+    active --> on_leave : start_leave
+    on_leave --> active : return_from_leave
+    active --> terminated : terminate_employment
+    terminated --> [*]
+  }
+
+  state "Leave Request Status" as LeaveStatus {
+    [*] --> pending : submit_leave_request
+    pending --> approved : approve_leave
+    pending --> rejected : decline_leave
+    approved --> [*]
+    rejected --> [*]
+  }
+
+  state "Payroll Period Status" as PayrollStatus {
+    [*] --> draft : open_payroll_period
+    draft --> approved : approve_payroll
+    approved --> paid : record_payout
+    paid --> [*]
+  }

@@ -1,0 +1,36 @@
+%% Slices decide implementation order:
+%%   s1 employee records independent of system access, contract & compensation details, weekly rota shifts, leave requests, and payroll summary with payslips
+%%   s2 biometric time clock integration and automated overtime calculations
+%% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
+%% State transitions are in states.mmd.
+flowchart TD
+
+  HR_MANAGER["HR / Staff Manager holding hr.manage<br/>manages employee records, shifts, leave approvals, payroll"]
+  HR_VIEWER["Staff Member holding hr.view<br/>views employee directory, rota schedules, payroll status"]
+  EMPLOYEE["Staff Member / Employee<br/>employed human whose record outlives system access"]
+
+  subgraph S1["slice 1 &mdash; employee records, contracts, weekly rota, leave and payroll"]
+    LIST(["View employee directory, rota, leave requests and payroll"])
+    CREATE_EMP(["Register employee record<br/>department, position, contract, gross pay, hire date"])
+    LINK_ACCESS(["Optionally link to User / Organization Membership"])
+    REVOKE_ACCESS(["Revoke system access in staff module<br/>Employee HR record remains active and outlives access"])
+    ASSIGN_SHIFT(["Assign or toggle weekly rota shift<br/>Morning, Evening, Day, Off"])
+    SUBMIT_LEAVE(["Submit leave request<br/>annual, sick, unpaid, emergency"])
+    APPROVE_LEAVE(["Approve or decline leave request<br/>with shift clash warning"])
+    APPROVE_PAYROLL(["Approve payroll period & generate payslips<br/>gross pay, SGK, income tax, stamp duty, net pay"])
+  end
+
+  subgraph S2["Not this slice &mdash; automated time-clock & Turkish SGK integrations"]
+    BIO(["Biometric timeclock / attendance punch sync"])
+    SGK_EXPORT(["E-Bildirge / SGK payroll export"])
+  end
+
+  HR_VIEWER --> LIST
+  HR_MANAGER --> LIST
+  HR_MANAGER --> CREATE_EMP
+  HR_MANAGER --> LINK_ACCESS
+  HR_MANAGER --> ASSIGN_SHIFT
+  HR_MANAGER --> APPROVE_LEAVE
+  HR_MANAGER --> APPROVE_PAYROLL
+  EMPLOYEE --> SUBMIT_LEAVE
+  REVOKE_ACCESS -. "Membership ends" .-> LIST
