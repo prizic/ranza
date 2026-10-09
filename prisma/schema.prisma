@@ -27,16 +27,16 @@ model User {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  identities     AuthIdentity[]
-  memberships    OrganizationMembership[]
-  assignments    PropertyAssignment[]
-  stays          Stay[]
-  invitesSent    StaffInvitation[]        @relation("StaffInvitationAuthor")
-  closedDays     BusinessDayClose[]
-  ratesSet       PropertyRate[]
-  bookingChanges ReservationChange[]
-  serviceRequestsAssigned ServiceRequest[] @relation("ServiceRequestAssignee")
-  serviceRequestsReported ServiceRequest[] @relation("ServiceRequestReporter")
+  identities              AuthIdentity[]
+  memberships             OrganizationMembership[]
+  assignments             PropertyAssignment[]
+  stays                   Stay[]
+  invitesSent             StaffInvitation[]        @relation("StaffInvitationAuthor")
+  closedDays              BusinessDayClose[]
+  ratesSet                PropertyRate[]
+  bookingChanges          ReservationChange[]
+  serviceRequestsAssigned ServiceRequest[]         @relation("ServiceRequestAssignee")
+  serviceRequestsReported ServiceRequest[]         @relation("ServiceRequestReporter")
   dataExports             DataExport[]
   exportSchedules         ExportSchedule[]
   hrEmployees             HrEmployee[]
@@ -170,14 +170,14 @@ model AccommodationUnit {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  property     Property                 @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  parent       AccommodationUnit?       @relation("UnitNesting", fields: [parentId, propertyId, organizationId, parentUnitType], references: [id, propertyId, organizationId, unitType], onDelete: Restrict, onUpdate: NoAction)
-  children     AccommodationUnit[]      @relation("UnitNesting")
-  stays        Stay[]
-  reservations Reservation[]
-  housekeeping HousekeepingUnitStatus[]
-  maintenance  MaintenanceRequest[]
-  equipment    MaintenanceEquipment[]
+  property        Property                 @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  parent          AccommodationUnit?       @relation("UnitNesting", fields: [parentId, propertyId, organizationId, parentUnitType], references: [id, propertyId, organizationId, unitType], onDelete: Restrict, onUpdate: NoAction)
+  children        AccommodationUnit[]      @relation("UnitNesting")
+  stays           Stay[]
+  reservations    Reservation[]
+  housekeeping    HousekeepingUnitStatus[]
+  maintenance     MaintenanceRequest[]
+  equipment       MaintenanceEquipment[]
   changesFrom     ReservationChange[]      @relation("ChangeFromUnit")
   changesTo       ReservationChange[]      @relation("ChangeToUnit")
   serviceRequests ServiceRequest[]
@@ -696,10 +696,10 @@ model Stay {
   /// was marked before or after it. Null on every Stay that has not departed.
   departedAt          DateTime? @map("departed_at") @db.Timestamptz(6)
 
-  property    Property            @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  unit        AccommodationUnit   @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  user        User?               @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  reservation Reservation?        @relation(fields: [reservationId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  property        Property            @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  unit            AccommodationUnit   @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  user            User?               @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  reservation     Reservation?        @relation(fields: [reservationId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
   folio           Folio?
   changes         ReservationChange[]
   serviceRequests ServiceRequest[]
@@ -1154,29 +1154,29 @@ model FailedOperation {
 /// Data export request record (Blueprint 7.5, Phase 1 data lifecycle).
 /// An export is a record with a requester and a state, not a file somebody made once.
 model DataExport {
-  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String          @map("organization_id") @db.Uuid
-  requesterId    String          @map("requester_id") @db.Uuid
-  requesterName  String          @map("requester_name")
-  resourceTypes  String[]        @map("resource_types")
-  format         String          @default("csv")
-  status         String          @default("pending")
-  triggerType    String          @default("on_demand") @map("trigger_type")
-  scheduleId     String?         @map("schedule_id") @db.Uuid
-  fileName       String?         @map("file_name")
-  fileSizeBytes  BigInt?         @map("file_size_bytes")
-  fileContent    String?         @map("file_content")
-  recordCounts   Json            @default("{}") @map("record_counts")
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  requesterId    String    @map("requester_id") @db.Uuid
+  requesterName  String    @map("requester_name")
+  resourceTypes  String[]  @map("resource_types")
+  format         String    @default("csv")
+  status         String    @default("pending")
+  triggerType    String    @default("on_demand") @map("trigger_type")
+  scheduleId     String?   @map("schedule_id") @db.Uuid
+  fileName       String?   @map("file_name")
+  fileSizeBytes  BigInt?   @map("file_size_bytes")
+  fileContent    String?   @map("file_content")
+  recordCounts   Json      @default("{}") @map("record_counts")
   error          String?
-  expiresAt      DateTime?       @map("expires_at") @db.Timestamptz(6)
-  requestedAt    DateTime        @default(now()) @map("requested_at") @db.Timestamptz(6)
-  completedAt    DateTime?       @map("completed_at") @db.Timestamptz(6)
-  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  expiresAt      DateTime? @map("expires_at") @db.Timestamptz(6)
+  requestedAt    DateTime  @default(now()) @map("requested_at") @db.Timestamptz(6)
+  completedAt    DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  requester      User            @relation(fields: [requesterId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  schedule       ExportSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  requester    User            @relation(fields: [requesterId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  schedule     ExportSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@index([organizationId, requestedAt(sort: Desc)], map: "data_exports_organization_idx")
   @@index([status], map: "data_exports_status_idx")
@@ -1185,18 +1185,18 @@ model DataExport {
 
 /// Recurring scheduled data export configuration (Blueprint 7.5, 13.10).
 model ExportSchedule {
-  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String       @map("organization_id") @db.Uuid
-  createdBy      String       @map("created_by") @db.Uuid
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  createdBy      String    @map("created_by") @db.Uuid
   name           String
-  resourceTypes  String[]     @map("resource_types")
-  format         String       @default("csv")
-  frequency      String       @default("daily")
-  status         String       @default("active")
-  lastRunAt      DateTime?    @map("last_run_at") @db.Timestamptz(6)
-  nextRunAt      DateTime     @map("next_run_at") @db.Timestamptz(6)
-  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  resourceTypes  String[]  @map("resource_types")
+  format         String    @default("csv")
+  frequency      String    @default("daily")
+  status         String    @default("active")
+  lastRunAt      DateTime? @map("last_run_at") @db.Timestamptz(6)
+  nextRunAt      DateTime  @map("next_run_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   creator      User         @relation(fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
@@ -1210,32 +1210,32 @@ model ExportSchedule {
 /// Staff and employee records beyond system membership (Blueprint 5.11, HR-S1-*).
 /// An employee's record outlives their system access.
 model HrEmployee {
-  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String    @map("organization_id") @db.Uuid
-  propertyId     String?   @map("property_id") @db.Uuid
-  userId         String?   @map("user_id") @db.Uuid
-  firstName      String    @map("first_name")
-  lastName       String    @map("last_name")
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  propertyId     String?  @map("property_id") @db.Uuid
+  userId         String?  @map("user_id") @db.Uuid
+  firstName      String   @map("first_name")
+  lastName       String   @map("last_name")
   email          String?
   phone          String?
   department     String
   position       String
-  contractType   String    @default("full_time") @map("contract_type")
-  hiredOn        DateTime  @default(now()) @map("hired_on") @db.Date
-  grossPay       Decimal   @default(0) @map("gross_pay") @db.Decimal(12, 2)
-  currency       String    @default("TRY") @db.Char(3)
-  status         String    @default("active")
-  bankName       String?   @map("bank_name")
+  contractType   String   @default("full_time") @map("contract_type")
+  hiredOn        DateTime @default(dbgenerated("CURRENT_DATE")) @map("hired_on") @db.Date
+  grossPay       Decimal  @default(0) @map("gross_pay") @db.Decimal(12, 2)
+  currency       String   @default("TRY") @db.Char(3)
+  status         String   @default("active")
+  bankName       String?  @map("bank_name")
   iban           String?
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  property       Property?        @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: NoAction, onUpdate: NoAction)
-  user           User?            @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  shifts         HrShift[]
-  leaveRequests  HrLeaveRequest[]
-  payslips       HrPayslip[]
+  organization  Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  property      Property?        @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: SetNull, onUpdate: NoAction, map: "hr_employees_property_fkey")
+  user          User?            @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  shifts        HrShift[]
+  leaveRequests HrLeaveRequest[]
+  payslips      HrPayslip[]
 
   @@unique([id, organizationId], map: "hr_employees_id_org_key")
   @@index([organizationId], map: "hr_employees_organization_idx")
@@ -1259,8 +1259,8 @@ model HrShift {
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  property     Property     @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  employee     HrEmployee   @relation(fields: [employeeId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  property     Property     @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "hr_shifts_property_fkey")
+  employee     HrEmployee   @relation(fields: [employeeId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "hr_shifts_employee_fkey")
 
   @@unique([organizationId, employeeId, date], map: "hr_shifts_employee_date_key")
   @@index([organizationId, propertyId, date], map: "hr_shifts_org_prop_date_idx")
@@ -1281,7 +1281,7 @@ model HrLeaveRequest {
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  employee     HrEmployee   @relation(fields: [employeeId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  employee     HrEmployee   @relation(fields: [employeeId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "hr_leave_requests_employee_fkey")
 
   @@index([organizationId, status], map: "hr_leave_requests_org_status_idx")
   @@index([employeeId], map: "hr_leave_requests_employee_idx")
@@ -1313,21 +1313,20 @@ model HrPayslip {
   organizationId          String   @map("organization_id") @db.Uuid
   payrollRunId            String   @map("payroll_run_id") @db.Uuid
   employeeId              String   @map("employee_id") @db.Uuid
-  grossPay                Decimal  @map("gross_pay") @db.Decimal(12, 2)
-  socialSecurityDeduction Decimal  @map("social_security_deduction") @db.Decimal(12, 2)
-  taxDeduction            Decimal  @map("tax_deduction") @db.Decimal(12, 2)
-  stampDuty               Decimal  @map("stamp_duty") @db.Decimal(12, 2)
-  netPay                  Decimal  @map("net_pay") @db.Decimal(12, 2)
+  grossPay                Decimal  @default(0) @map("gross_pay") @db.Decimal(12, 2)
+  socialSecurityDeduction Decimal  @default(0) @map("social_security_deduction") @db.Decimal(12, 2)
+  taxDeduction            Decimal  @default(0) @map("tax_deduction") @db.Decimal(12, 2)
+  stampDuty               Decimal  @default(0) @map("stamp_duty") @db.Decimal(12, 2)
+  netPay                  Decimal  @default(0) @map("net_pay") @db.Decimal(12, 2)
   iban                    String?
   createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt               DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   payrollRun   HrPayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  employee     HrEmployee   @relation(fields: [employeeId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  employee     HrEmployee   @relation(fields: [employeeId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "hr_payslips_employee_fkey")
 
   @@unique([payrollRunId, employeeId], map: "hr_payslips_run_employee_key")
   @@index([organizationId], map: "hr_payslips_org_idx")
   @@map("hr_payslips")
 }
-
