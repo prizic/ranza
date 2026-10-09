@@ -23,11 +23,7 @@ export const EXPORT_FORMATS = ["csv", "json"] as const;
 export type ExportFormat = (typeof EXPORT_FORMATS)[number];
 
 export type ExportStatus =
-  | "pending"
-  | "processing"
-  | "ready"
-  | "failed"
-  | "expired";
+  "pending" | "processing" | "ready" | "failed" | "expired";
 
 export type ExportTriggerType = "on_demand" | "scheduled";
 export type ScheduleFrequency = "daily" | "weekly" | "monthly";

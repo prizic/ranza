@@ -13,12 +13,15 @@ import {
   csvCell,
   EXPORT_FAILURE_REASONS,
   EXPORT_RESOURCE_TYPES,
+  EXPORT_ROW_LIMIT,
   ExportTooLargeError,
   failureReasonOf,
   renderCsv,
   renderJson,
   requesterLabel,
+  type ExportClient,
 } from "../../packages/ranza/data-export/src";
+import { readDataset } from "../../packages/ranza/data-export/src/datasets";
 
 describe("a CSV cell", () => {
   it("EXP-S1-41: is written as text when it would run as a formula", () => {
@@ -106,7 +109,11 @@ describe("a JSON file", () => {
 
   it("EXP-S1-42: keeps an amount too large for a number as its digits", () => {
     const big = 2n ** 60n;
-    expect(JSON.parse(renderJson([{ key: "k", columns: ["a"], rows: [{ a: big }] }]))).toEqual({
+    expect(
+      JSON.parse(
+        renderJson([{ key: "k", columns: ["a"], rows: [{ a: big }] }]),
+      ),
+    ).toEqual({
       k: [{ a: big.toString() }],
     });
   });
@@ -128,9 +135,9 @@ describe("the name an export records", () => {
     expect(requesterLabel("dilara@hotel.example", "other@x.example")).toBe(
       "dilara@***",
     );
-    expect(requesterLabel("a name with an @ in it", "x@y.example")).not.toContain(
-      "y.example",
-    );
+    expect(
+      requesterLabel("a name with an @ in it", "x@y.example"),
+    ).not.toContain("y.example");
   });
 
   it("EXP-S1-09: strips control characters, as the database does", () => {
@@ -185,5 +192,26 @@ describe("the datasets", () => {
       "folios_payments",
       "audit_log",
     ]);
+  });
+
+  /** A client whose one query returns this many rows. */
+  const returning = (count: number) =>
+    ({
+      $queryRaw: async () => Array.from({ length: count }, (_, id) => ({ id })),
+    }) as unknown as ExportClient;
+
+  it("EXP-S1-45: a dataset of exactly the row limit is exported whole", async () => {
+    const rows = await readDataset(
+      returning(EXPORT_ROW_LIMIT),
+      "rooms_beds",
+      "e-1",
+    );
+    expect(rows).toHaveLength(EXPORT_ROW_LIMIT);
+  });
+
+  it("EXP-S1-45: one row more fails the export as too large instead of handing over a file that looks complete", async () => {
+    await expect(
+      readDataset(returning(EXPORT_ROW_LIMIT + 1), "rooms_beds", "e-1"),
+    ).rejects.toBeInstanceOf(ExportTooLargeError);
   });
 });

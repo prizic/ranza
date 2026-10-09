@@ -104,7 +104,12 @@ describe("a pass over the waiting exports", () => {
         new Promise<Awaited<ReturnType<ExportRunner["processPendingExports"]>>>(
           (resolve) => {
             finish = () =>
-              resolve({ processed: 0, succeeded: 0, failures: [], unrecorded: [] });
+              resolve({
+                processed: 0,
+                succeeded: 0,
+                failures: [],
+                unrecorded: [],
+              });
           },
         ),
     );

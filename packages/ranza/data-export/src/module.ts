@@ -131,10 +131,7 @@ function mapExportSchedule(row: RawExportSchedule): ExportScheduleRecord {
 }
 
 /** Datasets and format as the database would hold them, or the reason it would not. */
-function assertRequest(
-  resourceTypes: readonly string[],
-  format: string,
-): void {
+function assertRequest(resourceTypes: readonly string[], format: string): void {
   if (resourceTypes.length === 0) {
     throw new DataExportInputError("at least one dataset must be chosen");
   }
@@ -143,7 +140,9 @@ function assertRequest(
     resourceTypes.some((type) => !known.includes(type)) ||
     new Set(resourceTypes).size !== resourceTypes.length
   ) {
-    throw new DataExportInputError("the datasets chosen are not a set of known ones");
+    throw new DataExportInputError(
+      "the datasets chosen are not a set of known ones",
+    );
   }
   if (!(EXPORT_FORMATS as readonly string[]).includes(format)) {
     throw new DataExportInputError("that format is not offered");

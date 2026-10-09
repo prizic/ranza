@@ -2884,10 +2884,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       formats: {
         csv: { title: "CSV (e-tablo)", hint: "Excel, Numbers, Sheets" },
-        json: { title: "JSON (yapılandırılmış)", hint: "Geliştirici API'leri, yedekleme" },
+        json: {
+          title: "JSON (yapılandırılmış)",
+          hint: "Geliştirici API'leri, yedekleme",
+        },
       },
       expiresOn: "{date} tarihine kadar indirilebilir",
-      requestRefused: "Bu veri kümelerinin dışa aktarılmasını isteme yetkiniz yok.",
+      requestRefused:
+        "Bu veri kümelerinin dışa aktarılmasını isteme yetkiniz yok.",
       scheduleRefused: "Bu zamanlamayı oluşturma yetkiniz yok.",
       failedTitle: "Veri dışa aktarma açılamadı",
       failedDescription: "Dışa aktarma kayıtları okunamadı. Tekrar deneyin.",
@@ -6809,14 +6813,18 @@ export const messages: Record<SupportedLocale, Messages> = {
       pausing: "جارٍ الإيقاف...",
       resuming: "جارٍ الاستئناف...",
       failures: {
-        requester_not_permitted: "لم يعد لدى مقدّم الطلب صلاحية تصدير هذه البيانات.",
+        requester_not_permitted:
+          "لم يعد لدى مقدّم الطلب صلاحية تصدير هذه البيانات.",
         too_large: "حجم البيانات أكبر من أن يُصدَّر.",
         worker_stopped: "توقّف التصدير قبل أن يكتمل.",
         internal_error: "تعذّر إكمال التصدير.",
       },
       formats: {
         csv: { title: "CSV (جدول بيانات)", hint: "Excel وNumbers وSheets" },
-        json: { title: "JSON (بيانات منظمة)", hint: "واجهات المطورين والنسخ الاحتياطي" },
+        json: {
+          title: "JSON (بيانات منظمة)",
+          hint: "واجهات المطورين والنسخ الاحتياطي",
+        },
       },
       expiresOn: "متاح حتى {date}",
       requestRefused: "لا يحق لك طلب تصدير هذه البيانات.",

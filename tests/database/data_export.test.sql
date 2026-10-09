@@ -10,20 +10,37 @@
 --   - that the state machine refuses every arrow it does not draw, for the owner
 --     too;
 --   - that the worker holds no table privilege at all and reaches an export
---     through twelve functions only it may execute;
+--     through fourteen functions only it may execute (the two lists of the
+--     first migration and the twelve of the second);
 --   - that each reader returns exactly what its requester could read in the
 --     workspace NOW, compared against the workspace's own policies rather than
 --     against a list typed here, and refuses one who has lost the permission;
 --   - that a download asks the downloader again.
 --
--- Checked by breaking each thing in turn, proof printed first: the insert
--- grant widened to status, the select grant widened to file_content, the
--- requester's role permission test (EXP-S1-24), the reach filter, the
--- commercial gate, the audit.read mapping, the state trigger, the expiry test
--- in the download, the downloader's permission test — each red on the
--- assertion named for it.
+-- Checked by breaking each thing in turn, the change printed before the result
+-- was believed, in the live database and restored after. Each went red on the
+-- assertion named for it:
+--   insert grant widened to status                   EXP-S1-06 (x2)
+--   select grant widened to file_content             EXP-S1-12 (x2)
+--   worker granted select on data_exports            EXP-S1-18
+--   update grant on status for ranza_app             EXP-S1-07 (x2)
+--   state trigger dropped                            EXP-S1-14, 09, 01, 30 and others
+--   insert policy without may_export                 EXP-S1-03
+--   reader without the requester's dataset permission  EXP-S1-25
+--   reader without the requester's data_export.create  EXP-S1-27 (the last one)
+--   reader without the requester's active membership   EXP-S1-27, EXP-S1-33
+--   reach ignored                                    EXP-S1-23, 24, 26
+--   front desk gate removed from the rooms reader    EXP-S1-28
+--   audit_log mapped to no permission                EXP-S1-25, 38, 40, 03
+--   download without the expiry test                 EXP-S1-39
+--   download without the downloader's permissions    EXP-S1-38, 40
+--   download open to any reader                      EXP-S1-38
+--   readers not insisting on "processing"            EXP-S1-22
+--   claim not requiring pending                      the suite aborts on the trigger
+--   a refused schedule left running                  EXP-S1-33
+--   audit reach widened to every location            EXP-S1-26
 begin;
-select plan(110);
+select plan(112);
 
 -- ---------------------------------------------------------------------------
 -- The world
@@ -185,7 +202,11 @@ insert into audit.records (id, organization_id, location_id, actor_id, action, s
 --   E4  the owner: everything
 --   E5  somebody whose membership has been revoked
 --   E6  never claimed
+--   E10 somebody whose role no longer lets them export at all, whatever the
+--       dataset: it holds data_export.read and not data_export.create
 insert into public.data_exports (id, organization_id, requester_id, requester_name, resource_types, format) values
+  ('ece00000-0000-4000-8000-00000000000b', 'ec0a0000-0000-4000-8000-00000000000a', 'ec100000-0000-4000-8000-000000000004',
+   'Reader', array['rooms_beds'], 'csv'),
   ('ece00000-0000-4000-8000-000000000001', 'ec0a0000-0000-4000-8000-00000000000a', 'ec100000-0000-4000-8000-000000000002',
    'Exporter One', array['residents_guests', 'reservations_stays', 'rooms_beds', 'folios_payments'], 'csv'),
   ('ece00000-0000-4000-8000-000000000002', 'ec0a0000-0000-4000-8000-00000000000a', 'ec100000-0000-4000-8000-000000000003',
@@ -420,7 +441,7 @@ select app.set_request_context('ec100000-0000-4000-8000-000000000004');
 
 select results_eq(
   $$select count(*)::int from public.data_exports where organization_id = 'ec0a0000-0000-4000-8000-00000000000a'$$,
-  $$values (8)$$,
+  $$values (9)$$,
   'EXP-S1-10: a Staff Member holding data_export.read sees the Organization''s exports');
 
 select app.set_request_context('ec100000-0000-4000-8000-000000000003');
@@ -520,7 +541,7 @@ select app.set_worker_context('ec0a0000-0000-4000-8000-00000000000a', 'data_expo
 
 select results_eq(
   $$select count(*)::int from app.pending_data_exports() where export_id::text like 'ece00000-%'$$,
-  $$values (6)$$,
+  $$values (7)$$,
   'EXP-S1-36: the queue holds the Organization''s pending exports');
 
 select throws_ok(
@@ -562,6 +583,9 @@ select is(
 select is(
   (select count(*)::int from app.claim_data_export('ece00000-0000-4000-8000-000000000005')),
   1, 'EXP-S1-20: and the revoked member''s');
+select is(
+  (select count(*)::int from app.claim_data_export('ece00000-0000-4000-8000-00000000000b')),
+  1, 'EXP-S1-20: and one whose requester holds data_export.read and not data_export.create');
 
 -- ---------------------------------------------------------------------------
 -- What each reader returns: what the requester could read in the workspace
@@ -721,6 +745,11 @@ select throws_ok(
   $$select * from app.export_units('ece00000-0000-4000-8000-000000000005')$$,
   '42501', 'export_refused:requester_not_permitted',
   'EXP-S1-27: an export whose requester''s membership has since been revoked is refused, not produced');
+
+select throws_ok(
+  $$select * from app.export_units('ece00000-0000-4000-8000-00000000000b')$$,
+  '42501', 'export_refused:requester_not_permitted',
+  'EXP-S1-27: and so is one whose requester''s role no longer holds data_export.create, for a dataset that asks nothing else');
 
 -- ---------------------------------------------------------------------------
 -- The three ways an export ends, and the schedule

@@ -13,10 +13,10 @@
  * suite's own Organization, which is new on every run.
  *
  * Breaks that were run, and what went red:
- *   the formula guard removed from csvCell             EXP-S1-41
- *   the requester's role test removed from the reader  EXP-S1-27, EXP-S1-24
- *   the claim left in the build transaction            EXP-S1-36
- *   the stalled sweep not run                          EXP-S1-31
+ *   the formula guard removed from csvCell      EXP-S1-41 (and the unit suite)
+ *   every failure recorded as internal_error    EXP-S1-27, EXP-S1-33, EXP-S1-36
+ *   a failure not written down                  EXP-S1-27, EXP-S1-33, EXP-S1-36
+ *   the sweep failing nothing stalled           EXP-S1-31
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -213,7 +213,11 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await Promise.all([app.$disconnect(), worker.$disconnect(), owner.$disconnect()]);
+  await Promise.all([
+    app.$disconnect(),
+    worker.$disconnect(),
+    owner.$disconnect(),
+  ]);
 });
 
 async function produce(
@@ -249,21 +253,32 @@ describe("a request becomes a file", () => {
       fileName: null,
       error: null,
     });
-    expect(requested!.requesterName).toMatch(/^export-int-owner-[0-9a-f-]+@\*\*\*$/);
+    expect(requested!.requesterName).toMatch(
+      /^export-int-owner-[0-9a-f-]+@\*\*\*$/,
+    );
     expect(await exports.downloadExport(OWNER, id)).toBeNull();
 
     const report = await runner.processPendingExports();
-    expect(report.failures.filter((failure) => failure.exportId === id)).toEqual([]);
+    expect(
+      report.failures.filter((failure) => failure.exportId === id),
+    ).toEqual([]);
 
     const ready = await exports.getExport(OWNER, id);
-    expect(ready).toMatchObject({ status: "ready", fileName: `export-${id.slice(0, 8)}.csv` });
+    expect(ready).toMatchObject({
+      status: "ready",
+      fileName: `export-${id.slice(0, 8)}.csv`,
+    });
     expect(ready!.recordCounts).toMatchObject({ rooms_beds: 2 });
-    expect(ready!.expiresAt!.getTime()).toBeGreaterThan(Date.now() + 6 * 86_400_000);
+    expect(ready!.expiresAt!.getTime()).toBeGreaterThan(
+      Date.now() + 6 * 86_400_000,
+    );
 
     const file = await exports.downloadExport(OWNER, id);
     expect(file).not.toBeNull();
     expect(file!.fileName).toBe(`export-${id.slice(0, 8)}.csv`);
-    expect(file!.content.startsWith("\uFEFF# dataset: residents_guests\r\n")).toBe(true);
+    expect(
+      file!.content.startsWith("\uFEFF# dataset: residents_guests\r\n"),
+    ).toBe(true);
     expect(file!.content).toContain("\r\n\r\n# dataset: rooms_beds\r\n");
     expect(file!.content).toContain("INT-101");
     expect(file!.content).toContain("INT-201");
@@ -277,8 +292,12 @@ describe("a request becomes a file", () => {
 
     const file = (await exports.downloadExport(OWNER, id))!;
     // Plain CSV for one dataset: the header is the first row.
-    expect(file.content.startsWith("\uFEFFid,full_name,email,phone,created_at\r\n")).toBe(true);
-    expect(file.content).toContain(`"'=HYPERLINK(""http://example.test"",""click"")"`);
+    expect(
+      file.content.startsWith("\uFEFFid,full_name,email,phone,created_at\r\n"),
+    ).toBe(true);
+    expect(file.content).toContain(
+      `"'=HYPERLINK(""http://example.test"",""click"")"`,
+    );
     expect(file.content).not.toMatch(/(^|,)"?=HYPERLINK/m);
   });
 
@@ -289,12 +308,22 @@ describe("a request becomes a file", () => {
     const file = (await exports.downloadExport(OWNER, id))!;
     expect(file.fileName).toBe(`export-${id.slice(0, 8)}.json`);
     const parsed = JSON.parse(file.content) as {
-      folios_payments: { amount_minor: number; description: string; currency: string }[];
+      folios_payments: {
+        amount_minor: number;
+        description: string;
+        currency: string;
+      }[];
     };
-    const lines = parsed.folios_payments.filter((line) => line.amount_minor !== null);
-    expect(lines.map((line) => line.amount_minor).sort((a, b) => a - b)).toEqual([-4000, 12000]);
+    const lines = parsed.folios_payments.filter(
+      (line) => line.amount_minor !== null,
+    );
+    expect(
+      lines.map((line) => line.amount_minor).sort((a, b) => a - b),
+    ).toEqual([-4000, 12000]);
     expect(lines.every((line) => line.currency === "TRY")).toBe(true);
-    expect(lines.map((line) => line.description)).toContain('-Minibar, "late" night');
+    expect(lines.map((line) => line.description)).toContain(
+      '-Minibar, "late" night',
+    );
   });
 
   it("EXP-S1-13: a list of exports never carries a file", async () => {
@@ -315,13 +344,15 @@ describe("what the requester could read", () => {
   });
 
   it("EXP-S1-03: a dataset the role cannot export is refused when it is asked for", async () => {
-    await expect(produce(ONE, ["audit_log"])).rejects.toBeInstanceOf(DataExportRefusedError);
+    await expect(produce(ONE, ["audit_log"])).rejects.toBeInstanceOf(
+      DataExportRefusedError,
+    );
   });
 
   it("EXP-S1-05: nor can an Organization's export be asked for by somebody outside it", async () => {
-    await expect(produce(STRANGER, ["rooms_beds"], "csv", P1)).rejects.toBeInstanceOf(
-      DataExportRefusedError,
-    );
+    await expect(
+      produce(STRANGER, ["rooms_beds"], "csv", P1),
+    ).rejects.toBeInstanceOf(DataExportRefusedError);
   });
 
   it("EXP-S1-27: an export is refused at run time when its requester has since lost the permission", async () => {
@@ -334,9 +365,9 @@ describe("what the requester could read", () => {
 
     const report = await runner.processPendingExports();
 
-    expect(report.failures.filter((failure) => failure.exportId === id)).toMatchObject([
-      { exportId: id, reason: "requester_not_permitted" },
-    ]);
+    expect(
+      report.failures.filter((failure) => failure.exportId === id),
+    ).toMatchObject([{ exportId: id, reason: "requester_not_permitted" }]);
     expect(await statusOf(id)).toEqual({
       status: "failed",
       error: "requester_not_permitted",
@@ -374,14 +405,19 @@ describe("who may download", () => {
       id,
       OWNER,
     );
-    const downloaded = await row<{ context: { format: string; bytes: number; resourceTypes: string[] } }>(
+    const downloaded = await row<{
+      context: { format: string; bytes: number; resourceTypes: string[] };
+    }>(
       `select context from audit.records
         where action = 'data_export.downloaded' and subject_id = $1::uuid and actor_id = $2::uuid`,
       id,
       OWNER,
     );
     expect(requested.n).toBe(1);
-    expect(downloaded.context).toMatchObject({ format: "csv", resourceTypes: ["rooms_beds"] });
+    expect(downloaded.context).toMatchObject({
+      format: "csv",
+      resourceTypes: ["rooms_beds"],
+    });
     expect(downloaded.context.bytes).toBeGreaterThan(0);
   });
 });
@@ -389,7 +425,10 @@ describe("who may download", () => {
 describe("the queue", () => {
   it("EXP-S1-36: exports that fail do not hold the queue: one behind fifty-two of them is produced", async () => {
     const gone = randomUUID();
-    await sql(`insert into public.users (id, email) values ($1::uuid, 'export-int-gone-' || $1 || '@example.test')`, gone);
+    await sql(
+      `insert into public.users (id, email) values ($1::uuid, 'export-int-gone-' || $1 || '@example.test')`,
+      gone,
+    );
     // A requester who is not a member of anything: every one of these is
     // refused when the worker reads for them.
     await sql(
@@ -447,7 +486,11 @@ describe("the queue", () => {
       error: "worker_stopped",
       contentIsNull: true,
     });
-    expect(await statusOf(old)).toEqual({ status: "expired", error: null, contentIsNull: true });
+    expect(await statusOf(old)).toEqual({
+      status: "expired",
+      error: null,
+      contentIsNull: true,
+    });
     expect(await exports.downloadExport(OWNER, old)).toBeNull();
   });
 });
@@ -462,7 +505,9 @@ describe("a schedule", () => {
       creatorName: "Dilara Owner",
     });
     expect(created.createdByName).toBe("Dilara Owner");
-    expect(created.nextRunAt.getTime()).toBeGreaterThan(Date.now() + 23 * 3_600_000);
+    expect(created.nextRunAt.getTime()).toBeGreaterThan(
+      Date.now() + 23 * 3_600_000,
+    );
 
     await owner.$transaction([
       owner.$executeRawUnsafe(`set local session_replication_role = replica`),
@@ -477,7 +522,12 @@ describe("a schedule", () => {
     expect(schedules.exportsTriggered).toBeGreaterThanOrEqual(1);
     await runner.processPendingExports();
 
-    const started = await row<{ id: string; status: string; requesterName: string; triggerType: string }>(
+    const started = await row<{
+      id: string;
+      status: string;
+      requesterName: string;
+      triggerType: string;
+    }>(
       `select id, status, requester_name as "requesterName", trigger_type as "triggerType"
          from public.data_exports where schedule_id = $1::uuid`,
       created.id,
@@ -489,9 +539,13 @@ describe("a schedule", () => {
     });
     expect(await exports.downloadExport(OWNER, started.id)).not.toBeNull();
 
-    const [after] = (await exports.listSchedules(OWNER, P1)).filter((s) => s.id === created.id);
+    const [after] = (await exports.listSchedules(OWNER, P1)).filter(
+      (s) => s.id === created.id,
+    );
     expect(after!.lastRunAt).not.toBeNull();
-    expect(after!.nextRunAt.getTime()).toBeGreaterThan(Date.now() + 23 * 3_600_000);
+    expect(after!.nextRunAt.getTime()).toBeGreaterThan(
+      Date.now() + 23 * 3_600_000,
+    );
   });
 
   it("EXP-S1-33: a schedule whose creator may no longer export produces a refusal, and is paused", async () => {
@@ -522,17 +576,28 @@ describe("a schedule", () => {
       `select id, status, error from public.data_exports where schedule_id = $1::uuid`,
       created.id,
     );
-    expect(refused).toMatchObject({ status: "failed", error: "requester_not_permitted" });
-    expect(report.failures.map((failure) => failure.exportId)).toContain(refused.id);
+    expect(refused).toMatchObject({
+      status: "failed",
+      error: "requester_not_permitted",
+    });
+    expect(report.failures.map((failure) => failure.exportId)).toContain(
+      refused.id,
+    );
     expect(
-      (await exports.listSchedules(OWNER, P1)).find((s) => s.id === created.id)?.status,
+      (await exports.listSchedules(OWNER, P1)).find((s) => s.id === created.id)
+        ?.status,
     ).toBe("paused");
   });
 });
 
 describe("what the worker holds", () => {
   it("EXP-S1-18: ranza_worker cannot read an export or any table an export reads", async () => {
-    for (const table of ["public.data_exports", "public.guests", "public.folio_lines", "audit.records"]) {
+    for (const table of [
+      "public.data_exports",
+      "public.guests",
+      "public.folio_lines",
+      "audit.records",
+    ]) {
       await expect(
         worker.$queryRawUnsafe(`select 1 from ${table} limit 1`),
       ).rejects.toThrow(/permission denied/);
@@ -541,7 +606,9 @@ describe("what the worker holds", () => {
 
   it("EXP-S1-06: ranza_app cannot select an export's file or mark one ready", async () => {
     await expect(
-      app.$queryRawUnsafe(`select file_content from public.data_exports limit 1`),
+      app.$queryRawUnsafe(
+        `select file_content from public.data_exports limit 1`,
+      ),
     ).rejects.toThrow(/permission denied/);
     await expect(
       app.$executeRawUnsafe(`update public.data_exports set status = 'ready'`),

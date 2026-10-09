@@ -2,8 +2,9 @@
 
 Everything the product does that is not inside a request.
 
-Today that is two things: draining `outbox.events`, and closing each Property's
-business day once its cutoff has passed and nothing is left open (ADR 0034).
+Today that is three things: draining `outbox.events`, closing each Property's
+business day once its cutoff has passed and nothing is left open (ADR 0034), and
+producing the data exports Staff Members asked for (ADR 0043).
 Retention and notification delivery will land here too, and the rules below are
 what stop that turning into a second backend.
 
@@ -55,6 +56,13 @@ src/
     business-day.module.ts   wiring
     business-day.closer.ts   when to close due days: every minute. Not how:
                              that is @ranza/business-day and two functions
+    tokens.ts                injection token
+  export/
+    data-export.module.ts    wiring
+    data-export.service.ts   when to produce exports (15 s), start due schedules
+                             (a minute) and sweep the abandoned and expired
+                             (five). Not how: that is @ranza/data-export and
+                             fourteen functions. Names every failure it logs
     tokens.ts                injection token
   outbox/
     outbox.module.ts      wiring — every provider returns something already built

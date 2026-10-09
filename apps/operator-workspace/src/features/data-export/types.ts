@@ -20,18 +20,11 @@ export type ExportResourceType = (typeof EXPORT_RESOURCE_TYPES)[number];
 export type ExportFormat = "csv" | "json";
 
 export type ExportStatus =
-  | "pending"
-  | "processing"
-  | "ready"
-  | "failed"
-  | "expired";
+  "pending" | "processing" | "ready" | "failed" | "expired";
 
 /** Why an export failed, as a code the screen says in the reader's language. */
 export type ExportFailureReason =
-  | "requester_not_permitted"
-  | "too_large"
-  | "worker_stopped"
-  | "internal_error";
+  "requester_not_permitted" | "too_large" | "worker_stopped" | "internal_error";
 
 export type ScheduleFrequency = "daily" | "weekly" | "monthly";
 

@@ -1,0 +1,44 @@
+%% Anything not drawn here is forbidden, for every role, the owner included:
+%% app.data_export_is_drawn() raises 23514 for any other change, and for any
+%% rewrite of who asked or what was asked for. failed and expired are final.
+%% An update must move the export; nothing touches a row that stays where it is.
+stateDiagram-v2
+  direction LR
+
+  state "data_exports.status" as ExportMachine {
+    state "pending" as pending
+    state "processing" as processing
+    state "ready" as ready
+    state "failed" as failed
+    state "expired" as expired
+
+    [*] --> pending : the request is inserted, by the requester or by a due schedule
+    pending --> processing : app.claim_data_export() — one replica wins
+    pending --> failed : app.fail_data_export() — a row that could not even be claimed
+    processing --> ready : app.complete_data_export() — file, counts, seven-day expiry
+    processing --> failed : app.fail_data_export() — refused, too large, abandoned, or broken
+    ready --> expired : app.expire_data_export() — past expires_at, content cleared
+    failed --> [*]
+    expired --> [*]
+  }
+
+  state "export_schedules.status" as ScheduleMachine {
+    state "active" as active
+    state "paused" as paused
+
+    [*] --> active : the creator sets it up
+    active --> paused : a Staff Member pauses it, or its creator was refused
+    paused --> active : a Staff Member resumes it
+  }
+
+  note right of ready
+    The only state with a file. A ready export is downloadable until
+    expires_at whether or not the worker has cleared it yet, and the download
+    asks the downloader's permissions again.
+  end note
+
+  note right of failed
+    error holds exactly one of: requester_not_permitted, too_large,
+    worker_stopped, internal_error. The exception behind internal_error is in
+    the worker's log and nowhere in a row.
+  end note

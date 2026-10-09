@@ -1,0 +1,54 @@
+%% Slices decide implementation order and nothing else:
+%%   s1 an export is a record with a requester and a state, produced by the worker
+%%      for the requester as they are when it runs, and downloaded by whoever may
+%%   s2 a schedule starts exports on a cadence, as its creator
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% UML directions: include points base --> included. extend points extension --> base.
+%% Refusals are test cases, not use cases: they are rows in edge-cases.csv.
+%% The states are in states.mmd and are deliberately not repeated here.
+flowchart TD
+
+  EXPORTER["Staff Member<br/>holding data_export.create and what each dataset needs"]
+  READER["Staff Member<br/>holding data_export.read"]
+  WORKER["Background Worker (ranza_worker)<br/>holds no table; reaches an export through functions"]
+
+  subgraph S1["slice 1 &mdash; request, produce, download"]
+    REQUEST(["Ask for datasets in a format<br/>refused now for one the role could not export"])
+    LIST(["See who asked for what, and how it ended<br/>never the file"])
+    CLAIM(["Claim the oldest pending export<br/>it leaves the queue at once"])
+    READ(["Read each dataset for the requester as they are now<br/>membership, reach, permission, the Property's gates"])
+    FINISH(["Finish: the file, its counts, a seven-day expiry<br/>or fail with a reason code"])
+    DOWNLOAD(["Download the file<br/>asked again of the downloader, and audited"])
+    EXPIRE(["Clear the content past its expiry<br/>the record stays"])
+    SWEEP(["Fail an export a worker abandoned"])
+  end
+
+  subgraph S2["slice 2 &mdash; a schedule"]
+    SCHEDULE(["Set up daily, weekly or monthly exports"])
+    RUN(["Start the due ones, once, as the creator<br/>checked when they run, not when they were set up"])
+    PAUSE(["Pause the schedule of a creator who may no longer export"])
+  end
+
+  subgraph OUT["Not this feature"]
+    ZIP(["One file per dataset in a container &mdash; deferred"])
+    STORE(["Object storage for files &mdash; deferred"])
+    EXCEL(["An Excel format &mdash; removed, nothing wrote one"])
+    PORTABILITY(["Exporting after a Subscription ends &mdash; a product decision"])
+  end
+
+  EXPORTER --> REQUEST
+  EXPORTER --> DOWNLOAD
+  EXPORTER --> SCHEDULE
+  READER --> LIST
+  READER --> DOWNLOAD
+
+  WORKER --> CLAIM
+  CLAIM -- "include" --> READ
+  READ -- "include" --> FINISH
+  WORKER --> EXPIRE
+  WORKER --> SWEEP
+  WORKER --> RUN
+  RUN -- "extend" --> PAUSE
+  SCHEDULE --> RUN
+  REQUEST --> CLAIM
+  FINISH --> DOWNLOAD

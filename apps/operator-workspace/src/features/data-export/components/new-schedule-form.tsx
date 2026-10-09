@@ -166,7 +166,9 @@ export function NewScheduleForm({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="csv">{t("formats.csv.title")}</SelectItem>
-                  <SelectItem value="json">{t("formats.json.title")}</SelectItem>
+                  <SelectItem value="json">
+                    {t("formats.json.title")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -132,7 +132,9 @@ test("an owner requests an export, the worker makes it, and the file downloads",
   // guests alone, so a plain CSV a spreadsheet opens at once.
   await page.getByRole("checkbox", { name: /Reservations/ }).click();
   await page.getByRole("button", { name: "Request Export" }).click();
-  await expect(page.getByText("Data export request created successfully.")).toBeVisible();
+  await expect(
+    page.getByText("Data export request created successfully."),
+  ).toBeVisible();
 
   // Back on the list, pending, and by the name they signed up with.
   const row = page.getByRole("row").filter({ hasText: NAME });
@@ -156,7 +158,9 @@ test("an owner requests an export, the worker makes it, and the file downloads",
   expect(download.suggestedFilename()).toMatch(/^export-[0-9a-f]{8}\.csv$/);
   const content = await readFile((await download.path())!, "utf8");
 
-  expect(content.startsWith("﻿id,full_name,email,phone,created_at\r\n")).toBe(true);
+  expect(content.startsWith("﻿id,full_name,email,phone,created_at\r\n")).toBe(
+    true,
+  );
   expect(content).toContain(GUEST);
   // A guest whose name is a formula is text in the file.
   expect(content).toContain(`'${FORMULA_GUEST}`);

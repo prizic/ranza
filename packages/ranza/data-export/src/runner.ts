@@ -108,8 +108,11 @@ export function createExportRunner({ db }: DataExportDeps) {
     exportId: string,
     reason: ExportFailureReason,
   ): Promise<void> {
-    await inContext(organizationId, EXPORT_JOBS.run, (tx) =>
-      tx.$queryRaw<{ failed: boolean }[]>`
+    await inContext(
+      organizationId,
+      EXPORT_JOBS.run,
+      (tx) =>
+        tx.$queryRaw<{ failed: boolean }[]>`
         select app.fail_data_export(${exportId}::uuid, ${reason}) as failed`,
     );
   }
@@ -136,9 +139,7 @@ export function createExportRunner({ db }: DataExportDeps) {
           organizationId,
           EXPORT_JOBS.run,
           (tx) =>
-            tx.$queryRaw<
-              { resourceTypes: string[]; format: ExportFormat }[]
-            >`
+            tx.$queryRaw<{ resourceTypes: string[]; format: ExportFormat }[]>`
               select resource_types as "resourceTypes", format
                 from app.claim_data_export(${exportId}::uuid)`,
         );
