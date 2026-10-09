@@ -46,6 +46,14 @@ export const PERMISSION_CATALOGUE = [
   "audit.read",
   "configuration.manage",
   "rates.manage",
+  "data_export.read",
+  "data_export.create",
+  "guest_services.create_request",
+  "guest_services.manage_requests",
+  "hr.view",
+  "hr.manage",
+  "integrations.view",
+  "integrations.manage",
 ] as const;
 
 export type ShippedRole = (typeof SHIPPED_ROLES)[number];
@@ -105,6 +113,14 @@ const MESSAGE_KEYS = {
   "audit.read": "readAudit",
   "configuration.manage": "manageConfiguration",
   "rates.manage": "manageRates",
+  "data_export.read": "readDataExports",
+  "data_export.create": "createDataExports",
+  "guest_services.create_request": "createServiceRequests",
+  "guest_services.manage_requests": "manageServiceRequests",
+  "hr.view": "viewHr",
+  "hr.manage": "manageHr",
+  "integrations.view": "viewIntegrations",
+  "integrations.manage": "manageIntegrations",
 } as const satisfies Record<PermissionKey, string>;
 
 export type PermissionMessageKey =

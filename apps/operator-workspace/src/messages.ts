@@ -328,7 +328,15 @@ export interface Messages {
       | "manageEquipment"
       | "readAudit"
       | "manageConfiguration"
-      | "manageRates",
+      | "manageRates"
+      | "readDataExports"
+      | "createDataExports"
+      | "createServiceRequests"
+      | "manageServiceRequests"
+      | "viewHr"
+      | "manageHr"
+      | "viewIntegrations"
+      | "manageIntegrations",
       string
     >;
     emptyRosterTitle: string;
@@ -2169,6 +2177,14 @@ export const messages: Record<SupportedLocale, Messages> = {
         readAudit: "Denetim kaydını okuma",
         manageConfiguration: "Ayarları yönetme",
         manageRates: "Gecelik fiyatları belirleme",
+        readDataExports: "Dışa aktarımları görme",
+        createDataExports: "Veri dışa aktarımı isteme",
+        createServiceRequests: "Misafir talebi oluşturma",
+        manageServiceRequests: "Misafir taleplerini yönetme",
+        viewHr: "Personel kayıtlarını ve bordroyu görme",
+        manageHr: "Personel kayıtlarını ve bordroyu yönetme",
+        viewIntegrations: "Entegrasyonları görme",
+        manageIntegrations: "Entegrasyonları yönetme",
       },
       emptyRosterTitle: "Henüz kimse yok",
       emptyRosterDescription:
@@ -4109,6 +4125,14 @@ export const messages: Record<SupportedLocale, Messages> = {
         readAudit: "Reading the audit log",
         manageConfiguration: "Manage configuration",
         manageRates: "Set nightly rates",
+        readDataExports: "See data exports",
+        createDataExports: "Request a data export",
+        createServiceRequests: "Raise a guest request",
+        manageServiceRequests: "Manage guest requests",
+        viewHr: "See staff records and payroll",
+        manageHr: "Manage staff records and payroll",
+        viewIntegrations: "See integrations",
+        manageIntegrations: "Manage integrations",
       },
       emptyRosterTitle: "Nobody here yet",
       emptyRosterDescription: "This Organization has no Staff Member to show.",
@@ -6048,6 +6072,14 @@ export const messages: Record<SupportedLocale, Messages> = {
         readAudit: "قراءة سجل التدقيق",
         manageConfiguration: "إدارة الإعدادات",
         manageRates: "تحديد أسعار الليلة",
+        readDataExports: "عرض عمليات التصدير",
+        createDataExports: "طلب تصدير البيانات",
+        createServiceRequests: "إنشاء طلب نزيل",
+        manageServiceRequests: "إدارة طلبات النزلاء",
+        viewHr: "عرض سجلات الموظفين وكشوف الرواتب",
+        manageHr: "إدارة سجلات الموظفين وكشوف الرواتب",
+        viewIntegrations: "عرض عمليات التكامل",
+        manageIntegrations: "إدارة عمليات التكامل",
       },
       emptyRosterTitle: "لا أحد هنا بعد",
       emptyRosterDescription: "لا يوجد في هذه المؤسسة موظف لعرضه.",
