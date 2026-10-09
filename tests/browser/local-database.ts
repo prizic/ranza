@@ -38,10 +38,20 @@ export const AUTH_DATABASE_URL =
 export const OWNER_DATABASE_URL =
   process.env.DIRECT_URL ?? "postgresql://ranza:ranza@localhost:54322/ranza";
 
+/**
+ * The worker's connection, for a test that runs one pass of a job itself
+ * instead of waiting for the worker's timer: an export is produced by the
+ * worker, not by the request that asked for it.
+ */
+export const WORKER_DATABASE_URL =
+  process.env.WORKER_DATABASE_URL ??
+  "postgresql://ranza_worker:ranza_worker@localhost:54322/ranza";
+
 for (const [name, url] of [
   ["DATABASE_URL", DATABASE_URL],
   ["AUTH_DATABASE_URL", AUTH_DATABASE_URL],
   ["DIRECT_URL", OWNER_DATABASE_URL],
+  ["WORKER_DATABASE_URL", WORKER_DATABASE_URL],
 ] as const) {
   requireLocalDatabase(url, {
     name: `the browser tests' ${name}`,

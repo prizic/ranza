@@ -18,7 +18,7 @@
 -- `grant insert (every, column) on t` are byte-identical in it. That is how
 -- this defect survived six migrations and every audit run against the schema.
 begin;
-select plan(41);
+select plan(39);
 
 -- ---------------------------------------------------------------------------
 -- The shape of every write grant (IG-01)
@@ -527,8 +527,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  56,
-  'the definer sweep looked at 56 functions; change this number deliberately');
+  69,
+  'the definer sweep looked at 69 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -539,10 +539,10 @@ select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef
       and regexp_replace(p.prosrc, '--[^\n]*', '', 'g') ~* '(insert|update|delete)\s'),
-  16,
-  'sixteen of them write, which is what makes the assertion above a test');
+  21,
+  'twenty-one of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a fifty-second definer is a red test
+-- Part B: the inventory itself, so a seventieth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
 -- four are housekeeping; two are maintenance; five are the audit log's reach;
@@ -578,25 +578,26 @@ select is(
 -- The decision sheet (20260916009500-009720) brought none. Its closed-day
 -- triggers, app.reservations_keep_closed_days() among them, are invokers, and
 -- the three access migrations replaced two definers and changed a grant.
--- Data export (20260916010100) brought two for the worker: export_schedules_due()
--- and pending_data_exports(), neither of which writes.
+-- Integrations (20260916010000) brought two writers: record_integration_failure()
+-- and resolve_failed_operation(), both checking their caller.
+-- Data export (20260916010100) brought two lists for the worker,
+-- export_schedules_due() and pending_data_exports(), neither of which writes.
+-- Its second half (20260916010710) brought thirteen, and the worker is how every
+-- one of them is reached but one. Four write an export and all four name
+-- worker_organization_id() first: claim_data_export(), complete_data_export(),
+-- fail_data_export() and expire_data_export(); a fifth, run_export_schedule(),
+-- starts one from a schedule. Five read a dataset for the export's requester,
+-- not for the caller — export_guests(), export_reservations(), export_units(),
+-- export_folio_lines() and export_audit_records() — and two list work across
+-- Organizations, stalled_data_exports() and expired_data_exports(), as the
+-- close-the-day list does. The last, read_data_export_file(), is the runtime
+-- role's way to a file and asks who is asking. None of the readers writes. They
+-- call capability_is_available() because a worker has no Staff Member for
+-- can_use_capability() to ask about.
 -- The ledger (20260916010600) brought one, and it writes:
 -- post_folio_line_to_ledger() is the only way a journal entry exists. It is the
 -- worker's, it names worker_organization_id() first, and it derives every
 -- posting from the Folio line rather than from the event it was handed.
-select is(
-  (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'app' and p.prosecdef),
-  56,
-  'the definer sweep looked at 56 functions; change this number deliberately');
-
-select is(
-  (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'app' and p.prosecdef
-      and regexp_replace(p.prosrc, '--[^\n]*', '', 'g') ~* '(insert|update|delete)\s'),
-  16,
-  'sixteen of them write, which is what makes the assertion above a test');
-
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -629,8 +630,13 @@ select set_eq(
         'change_departure', 'move_stay', 'mark_unit_dirty_after_move',
         'record_integration_failure', 'resolve_failed_operation',
         'export_schedules_due', 'pending_data_exports',
+        'stalled_data_exports', 'expired_data_exports', 'claim_data_export',
+        'export_guests', 'export_reservations', 'export_units',
+        'export_folio_lines', 'export_audit_records', 'complete_data_export',
+        'fail_data_export', 'expire_data_export', 'run_export_schedule',
+        'read_data_export_file',
         'post_folio_line_to_ledger'],
-  'and they are exactly the fifty-six the design gives a reason for');
+  'and they are exactly the sixty-nine the design gives a reason for');
 
 -- ---------------------------------------------------------------------------
 -- Who asks the three-gate question (IG-14)
@@ -645,8 +651,11 @@ select set_eq(
 -- resident_can_use_capability() a Resident's; every other caller asks whether a
 -- Property has something switched on — housekeeping for readiness and the
 -- worker's room writers, the front desk for the worker's close and the nights
--- it posts — not whether whoever is calling may reach it. A new caller is a red
--- test that makes somebody decide which of the two they meant.
+-- it posts — not whether whoever is calling may reach it. The four export
+-- readers (20260916010710) are the same case with the reach written beside it:
+-- the caller is the worker, so the reach asked is the export requester's own,
+-- from app.export_requester_properties(). A new caller is a red test that
+-- makes somebody decide which of the two they meant.
 select set_eq(
   $$select n.nspname || '.' || p.proname
       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -658,7 +667,9 @@ select set_eq(
         'app.unit_is_ready', 'app.mark_unit_dirty_after_check_out',
         'app.mark_unit_returned_to_service', 'app.mark_unit_dirty_after_move',
         'app.properties_due_for_close', 'app.close_business_day_automatically',
-        'app.room_nights_due'],
+        'app.room_nights_due',
+        'app.export_guests', 'app.export_reservations', 'app.export_units',
+        'app.export_folio_lines'],
   'app.capability_is_available() is called by exactly the functions that mean gates 1-3');
 
 -- A policy is where app.can_use_capability() is consulted, so a policy is the

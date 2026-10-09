@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Calendar,
   CheckCircle2,
@@ -41,7 +42,19 @@ export function DataExportView({
   propertyId,
 }: DataExportViewProps) {
   const t = useTranslations("dataExport");
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>("exports");
+
+  // An export is produced by the worker, not by the request, so a screen that
+  // is showing one still waiting is asked to read again until it is not.
+  const unfinished = exports.some(
+    (item) => item.status === "pending" || item.status === "processing",
+  );
+  useEffect(() => {
+    if (!unfinished) return;
+    const timer = setInterval(() => router.refresh(), 5_000);
+    return () => clearInterval(timer);
+  }, [unfinished, router]);
 
   const totalExports = exports.length;
   const readyExports = exports.filter((e) => e.status === "ready").length;

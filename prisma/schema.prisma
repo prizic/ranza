@@ -1188,6 +1188,10 @@ model ExportSchedule {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String    @map("organization_id") @db.Uuid
   createdBy      String    @map("created_by") @db.Uuid
+  /// Who made it, as an export names who asked: a name, or an address cut to
+  /// `local@***`. Stamped by `export_schedules_are_stamped`, copied onto every
+  /// export the schedule starts.
+  createdByName  String    @map("created_by_name")
   name           String
   resourceTypes  String[]  @map("resource_types")
   format         String    @default("csv")

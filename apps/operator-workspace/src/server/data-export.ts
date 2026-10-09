@@ -2,13 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { isSupportedLocale } from "@ranza/i18n";
-import type {
-  DataExportRecord,
-  ExportFormat,
-  ExportResourceType,
-  ExportScheduleRecord,
-  ScheduleFrequency,
-  ScheduleStatus,
+import {
+  DataExportInputError,
+  DataExportRefusedError,
+  type DataExportRecord,
+  type ExportFormat,
+  type ExportResourceType,
+  type ExportScheduleRecord,
+  type ScheduleFrequency,
+  type ScheduleStatus,
 } from "@ranza/data-export";
 
 export type {
@@ -22,64 +24,92 @@ export type {
 import { getComposition } from "./composition";
 import { currentViewer } from "./viewer";
 
+/**
+ * What an action did, as a word the screen says in the reader's language.
+ * Never a message: the exception behind `error` goes to the log, and a refusal
+ * is the database's and says nothing about why.
+ */
 export interface DataExportActionResult {
   status: "idle" | "done" | "refused" | "error";
-  message?: string;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function revalidateDataExport(locale: string, propertyId?: string): void {
+function revalidateDataExport(locale: string, propertyId: string): void {
   revalidatePath(`/${locale}/data-export`);
-  if (propertyId) {
-    revalidatePath(`/${locale}/data-export?property=${propertyId}`);
-  }
+  revalidatePath(`/${locale}/data-export?property=${propertyId}`);
 }
 
 /**
- * Server query: Lists recent data exports for the current viewer's organization.
+ * Turns what a command threw into the word the screen shows, and reports the
+ * ones that are not a refusal. A refusal is expected and carries nothing worth
+ * logging; anything else is a defect or an outage and is never shown as a
+ * message, but is never quiet either.
  */
-export async function listDataExports(): Promise<DataExportRecord[]> {
-  const viewer = await currentViewer();
-  if (!viewer) return [];
-  try {
-    return await getComposition().dataExport.listExports(viewer.userId);
-  } catch {
-    return [];
+function answer(
+  event: string,
+  context: Record<string, unknown>,
+  error: unknown,
+): DataExportActionResult {
+  if (
+    error instanceof DataExportRefusedError ||
+    error instanceof DataExportInputError
+  ) {
+    return { status: "refused" };
   }
+  console.error(event, context, error);
+  return { status: "error" };
 }
 
 /**
- * Server query: Lists automated export schedules for the viewer's organization.
+ * The Organization's exports, for the Property the screen is opened from. A
+ * failure is the page's, not an empty list: a list that reads empty when the
+ * database is down is a list that says nobody exported anything.
  */
-export async function listExportSchedules(): Promise<ExportScheduleRecord[]> {
+export async function listDataExports(
+  propertyId: string,
+): Promise<DataExportRecord[]> {
   const viewer = await currentViewer();
-  if (!viewer) return [];
+  if (!viewer || !UUID.test(propertyId)) return [];
   try {
-    return await getComposition().dataExport.listSchedules(viewer.userId);
-  } catch {
-    return [];
+    return await getComposition().dataExport.listExports(
+      viewer.userId,
+      propertyId,
+    );
+  } catch (error) {
+    console.error(
+      "data_export.list_failed",
+      { propertyId, userId: viewer.userId },
+      error,
+    );
+    throw error;
+  }
+}
+
+/** The Organization's export schedules, for the same Property. */
+export async function listExportSchedules(
+  propertyId: string,
+): Promise<ExportScheduleRecord[]> {
+  const viewer = await currentViewer();
+  if (!viewer || !UUID.test(propertyId)) return [];
+  try {
+    return await getComposition().dataExport.listSchedules(
+      viewer.userId,
+      propertyId,
+    );
+  } catch (error) {
+    console.error(
+      "data_export.schedules_list_failed",
+      { propertyId, userId: viewer.userId },
+      error,
+    );
+    throw error;
   }
 }
 
 /**
- * Server query: Fetches a single export by ID.
- */
-export async function getDataExport(
-  exportId: string,
-): Promise<DataExportRecord | null> {
-  if (!UUID.test(exportId)) return null;
-  const viewer = await currentViewer();
-  if (!viewer) return null;
-  try {
-    return await getComposition().dataExport.getExport(viewer.userId, exportId);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Server action: Requests a new on-demand data export.
+ * Asks for an export. That is all this does: the worker picks the request up
+ * and produces the file, and the screen shows it pending until it has.
  */
 export async function requestDataExportAction(
   locale: string,
@@ -90,43 +120,29 @@ export async function requestDataExportAction(
   },
 ): Promise<DataExportActionResult> {
   if (!isSupportedLocale(locale) || !UUID.test(propertyId)) {
-    return { status: "refused", message: "Invalid parameters" };
+    return { status: "refused" };
   }
-
-  if (!input.resourceTypes || input.resourceTypes.length === 0) {
-    return {
-      status: "refused",
-      message: "At least one dataset must be selected",
-    };
-  }
-
   const viewer = await currentViewer();
-  if (!viewer) {
-    return { status: "refused", message: "Unauthorized" };
-  }
+  if (!viewer) return { status: "refused" };
 
   try {
-    const comp = getComposition();
-    await comp.dataExport.requestExport(viewer.userId, {
+    await getComposition().dataExport.requestExport(viewer.userId, propertyId, {
       resourceTypes: input.resourceTypes,
       format: input.format,
+      requesterName: viewer.signedUpAs,
     });
-    // Trigger immediate background worker pass if available
-    comp.dataExport.processPendingExports().catch(() => {});
-    revalidateDataExport(locale, propertyId);
-    return { status: "done" };
   } catch (error) {
-    return {
-      status: "error",
-      message:
-        error instanceof Error ? error.message : "Failed to request export",
-    };
+    return answer(
+      "data_export.request_failed",
+      { propertyId, userId: viewer.userId },
+      error,
+    );
   }
+  revalidateDataExport(locale, propertyId);
+  return { status: "done" };
 }
 
-/**
- * Server action: Creates an automated export schedule.
- */
+/** Sets up an export that repeats. */
 export async function createExportScheduleAction(
   locale: string,
   propertyId: string,
@@ -138,47 +154,35 @@ export async function createExportScheduleAction(
   },
 ): Promise<DataExportActionResult> {
   if (!isSupportedLocale(locale) || !UUID.test(propertyId)) {
-    return { status: "refused", message: "Invalid parameters" };
+    return { status: "refused" };
   }
-
-  if (!input.name || input.name.trim().length === 0) {
-    return { status: "refused", message: "Schedule name is required" };
-  }
-
-  if (!input.resourceTypes || input.resourceTypes.length === 0) {
-    return {
-      status: "refused",
-      message: "At least one dataset must be selected",
-    };
-  }
-
   const viewer = await currentViewer();
-  if (!viewer) {
-    return { status: "refused", message: "Unauthorized" };
-  }
+  if (!viewer) return { status: "refused" };
 
   try {
-    const comp = getComposition();
-    await comp.dataExport.createSchedule(viewer.userId, {
-      name: input.name.trim(),
-      resourceTypes: input.resourceTypes,
-      format: input.format,
-      frequency: input.frequency,
-    });
-    revalidateDataExport(locale, propertyId);
-    return { status: "done" };
+    await getComposition().dataExport.createSchedule(
+      viewer.userId,
+      propertyId,
+      {
+        name: input.name,
+        resourceTypes: input.resourceTypes,
+        format: input.format,
+        frequency: input.frequency,
+        creatorName: viewer.signedUpAs,
+      },
+    );
   } catch (error) {
-    return {
-      status: "error",
-      message:
-        error instanceof Error ? error.message : "Failed to create schedule",
-    };
+    return answer(
+      "data_export.schedule_create_failed",
+      { propertyId, userId: viewer.userId },
+      error,
+    );
   }
+  revalidateDataExport(locale, propertyId);
+  return { status: "done" };
 }
 
-/**
- * Server action: Toggles an export schedule between active and paused.
- */
+/** Pauses a schedule, or resumes it. */
 export async function toggleExportScheduleAction(
   locale: string,
   propertyId: string,
@@ -190,28 +194,24 @@ export async function toggleExportScheduleAction(
     !UUID.test(propertyId) ||
     !UUID.test(scheduleId)
   ) {
-    return { status: "refused", message: "Invalid parameters" };
+    return { status: "refused" };
   }
-
   const viewer = await currentViewer();
-  if (!viewer) {
-    return { status: "refused", message: "Unauthorized" };
-  }
+  if (!viewer) return { status: "refused" };
 
   try {
-    const comp = getComposition();
-    await comp.dataExport.updateScheduleStatus(
+    await getComposition().dataExport.updateScheduleStatus(
       viewer.userId,
       scheduleId,
       status,
     );
-    revalidateDataExport(locale, propertyId);
-    return { status: "done" };
   } catch (error) {
-    return {
-      status: "error",
-      message:
-        error instanceof Error ? error.message : "Failed to update schedule",
-    };
+    return answer(
+      "data_export.schedule_update_failed",
+      { scheduleId, userId: viewer.userId },
+      error,
+    );
   }
+  revalidateDataExport(locale, propertyId);
+  return { status: "done" };
 }

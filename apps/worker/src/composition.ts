@@ -8,7 +8,7 @@ import {
   createOutboxDispatcher,
   type OutboxDispatcher,
 } from "@ranza/platform-outbox";
-import { createDataExportModule } from "@ranza/data-export";
+import { createExportRunner, type ExportRunner } from "@ranza/data-export";
 
 /**
  * The composition root, and the only file in this application that reads the
@@ -35,7 +35,7 @@ export interface Composition {
   db: PrismaClient;
   outbox: OutboxDispatcher;
   closer: DayCloser;
-  dataExport: ReturnType<typeof createDataExportModule>;
+  dataExport: ExportRunner;
   disconnect(): Promise<void>;
 }
 
@@ -72,7 +72,7 @@ export async function createComposition(): Promise<Composition> {
     db,
     outbox: createOutboxDispatcher({ db }),
     closer: createDayCloser({ db }),
-    dataExport: createDataExportModule({ db }),
+    dataExport: createExportRunner({ db }),
     disconnect: () => db.$disconnect(),
   };
 }

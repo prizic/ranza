@@ -99,7 +99,8 @@ export function NewExportForm({
       } else {
         setFeedback({
           type: "error",
-          message: res.message || t("requestFailed"),
+          message:
+            res.status === "refused" ? t("requestRefused") : t("requestFailed"),
         });
       }
     } catch {
@@ -191,10 +192,10 @@ export function NewExportForm({
                 <FileSpreadsheet className="size-5 text-emerald-600 dark:text-emerald-400" />
                 <div>
                   <span className="text-sm font-medium block text-foreground">
-                    CSV (Spreadsheet)
+                    {t("formats.csv.title")}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    Excel, Numbers, Sheets
+                    {t("formats.csv.hint")}
                   </span>
                 </div>
               </label>
@@ -217,10 +218,10 @@ export function NewExportForm({
                 <FileJson className="size-5 text-amber-600 dark:text-amber-400" />
                 <div>
                   <span className="text-sm font-medium block text-foreground">
-                    JSON (Structured)
+                    {t("formats.json.title")}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    Developer APIs, Backup
+                    {t("formats.json.hint")}
                   </span>
                 </div>
               </label>

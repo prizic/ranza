@@ -311,6 +311,12 @@ export interface Viewer {
    */
   name: string;
   /**
+   * The name the session carries, untouched: null when they gave none. For
+   * what records a name and must tell "has one" from "was given the part of
+   * their email" — an export's requester is one.
+   */
+  signedUpAs: string | null;
+  /**
    * Whether this account carries a second factor. An authentication fact, not
    * an authorization one: it says how the session was obtained and never what
    * the Staff Member may reach.
@@ -345,6 +351,7 @@ export const currentViewer = cache(async (): Promise<Viewer | null> => {
     userId,
     email: session.user.email,
     name: displayName(session.user.name, session.user.email),
+    signedUpAs: session.user.name?.trim() || null,
     twoFactorEnabled: session.user.twoFactorEnabled === true,
   };
 });

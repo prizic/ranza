@@ -1,212 +1,189 @@
-import { describe, expect, it, vi } from "vitest";
+/**
+ * The parts of exporting that are decided without a database (EXP-S1-*).
+ *
+ * What a request may say, who may have a file and what the worker reads for
+ * whom are the database's answers and are proved against it in
+ * `tests/database/data_export.test.sql` and `tests/integration/data-export.test.ts`.
+ * What is left is the file itself — a pure function of rows — and the names
+ * the module gives things, where a slip is quiet: a cell that runs as a formula,
+ * an address printed whole, a reason the worker reads wrong.
+ */
+import { describe, expect, it } from "vitest";
 import {
-  createDataExportModule,
-  DATA_EXPORT_CAPABILITY,
+  csvCell,
+  EXPORT_FAILURE_REASONS,
   EXPORT_RESOURCE_TYPES,
+  ExportTooLargeError,
+  failureReasonOf,
+  renderCsv,
+  renderJson,
+  requesterLabel,
 } from "../../packages/ranza/data-export/src";
 
-const TEST_USER_ID = "81111111-1111-4111-8111-111111111111";
-
-describe("Data Export Module Unit Tests (EXP-S1-*)", () => {
-  it("exports capability reference matching Blueprint Phase 1", () => {
-    expect(DATA_EXPORT_CAPABILITY).toBe("data_export");
-    expect(EXPORT_RESOURCE_TYPES).toContain("residents_guests");
-    expect(EXPORT_RESOURCE_TYPES).toContain("reservations_stays");
-    expect(EXPORT_RESOURCE_TYPES).toContain("rooms_beds");
-    expect(EXPORT_RESOURCE_TYPES).toContain("folios_payments");
-    expect(EXPORT_RESOURCE_TYPES).toContain("audit_log");
+describe("a CSV cell", () => {
+  it("EXP-S1-41: is written as text when it would run as a formula", () => {
+    for (const trigger of ["=1+1", "+1", "-1", "@SUM(A1)", "\t=1", "\r=1"]) {
+      expect(csvCell(trigger)).toMatch(/^"?'/);
+    }
+    expect(csvCell('=HYPERLINK("x")')).toBe(`"'=HYPERLINK(""x"")"`);
   });
 
-  it("lists exports and maps row structure", async () => {
-    const mockDb: any = {
-      $executeRawUnsafe: vi.fn().mockResolvedValue(1),
-      $transaction: vi.fn(async (run: (c: any) => Promise<any>) => run(mockDb)),
-      $queryRaw: vi.fn().mockResolvedValue([
-        {
-          id: "ee111111-1111-4111-8111-111111111111",
-          organization_id: "aa111111-1111-4111-8111-111111111111",
-          requester_id: TEST_USER_ID,
-          requester_name: "Export Manager",
-          resource_types: ["residents_guests"],
-          format: "csv",
-          status: "ready",
-          trigger_type: "on_demand",
-          schedule_id: null,
-          file_name: "export-ee111111.csv",
-          file_size_bytes: 512,
-          file_content: "id,firstName\n1,Alice",
-          record_counts: { residents_guests: 1 },
-          error: null,
-          expires_at: new Date("2026-10-15T00:00:00Z"),
-          requested_at: new Date("2026-10-08T10:00:00Z"),
-          completed_at: new Date("2026-10-08T10:01:00Z"),
-          created_at: new Date("2026-10-08T10:00:00Z"),
-        },
-      ]),
-    };
-
-    const mod = createDataExportModule({ db: mockDb });
-    const list = await mod.listExports(TEST_USER_ID);
-
-    expect(list).toHaveLength(1);
-    expect(list[0]?.id).toBe("ee111111-1111-4111-8111-111111111111");
-    expect(list[0]?.status).toBe("ready");
-    expect(list[0]?.format).toBe("csv");
-    expect(list[0]?.recordCounts).toEqual({ residents_guests: 1 });
+  it("EXP-S1-41: leaves a number alone, a reversal's sign included", () => {
+    expect(csvCell(-5000)).toBe("-5000");
+    expect(csvCell(12000n)).toBe("12000");
+    expect(csvCell(-5000n)).toBe("-5000");
   });
 
-  it("creates an on-demand export request with pending status", async () => {
-    const mockDb: any = {
-      $executeRawUnsafe: vi.fn().mockResolvedValue(1),
-      $transaction: vi.fn(async (run: (c: any) => Promise<any>) => run(mockDb)),
-      $queryRaw: vi
-        .fn()
-        // 1. fetch user
-        .mockResolvedValueOnce([
-          { name: "Export Manager", email: "mgr@test.com" },
-        ])
-        // 2. fetch membership
-        .mockResolvedValueOnce([
-          { organization_id: "aa111111-1111-4111-8111-111111111111" },
-        ])
-        // 3. insert export
-        .mockResolvedValueOnce([
-          {
-            id: "ee222222-2222-4222-8222-222222222222",
-            organization_id: "aa111111-1111-4111-8111-111111111111",
-            requester_id: TEST_USER_ID,
-            requester_name: "Export Manager",
-            resource_types: ["rooms_beds"],
-            format: "json",
-            status: "pending",
-            trigger_type: "on_demand",
-            schedule_id: null,
-            file_name: null,
-            file_size_bytes: null,
-            file_content: null,
-            record_counts: {},
-            error: null,
-            expires_at: null,
-            requested_at: new Date("2026-10-08T10:00:00Z"),
-            completed_at: null,
-            created_at: new Date("2026-10-08T10:00:00Z"),
-          },
-        ]),
-    };
-
-    const mod = createDataExportModule({ db: mockDb });
-    const result = await mod.requestExport(TEST_USER_ID, {
-      resourceTypes: ["rooms_beds"],
-      format: "json",
-    });
-
-    expect(result.status).toBe("pending");
-    expect(result.format).toBe("json");
-    expect(result.resourceTypes).toEqual(["rooms_beds"]);
+  it("EXP-S1-41: quotes what a CSV needs quoted and nothing else", () => {
+    expect(csvCell("plain")).toBe("plain");
+    expect(csvCell("a,b")).toBe('"a,b"');
+    expect(csvCell('say "hi"')).toBe('"say ""hi"""');
+    expect(csvCell("two\nlines")).toBe('"two\nlines"');
+    expect(csvCell("Şule Çelik")).toBe("Şule Çelik");
   });
 
-  it("lists and creates export schedules", async () => {
-    const mockDb: any = {
-      $executeRawUnsafe: vi.fn().mockResolvedValue(1),
-      $transaction: vi.fn(async (run: (c: any) => Promise<any>) => run(mockDb)),
-      $queryRaw: vi
-        .fn()
-        // 1. fetch membership
-        .mockResolvedValueOnce([
-          { organization_id: "aa111111-1111-4111-8111-111111111111" },
-        ])
-        // 2. insert schedule
-        .mockResolvedValueOnce([
-          {
-            id: "ff111111-1111-4111-8111-111111111111",
-            organization_id: "aa111111-1111-4111-8111-111111111111",
-            created_by: TEST_USER_ID,
-            name: "Weekly Folios",
-            resource_types: ["folios_payments"],
-            format: "csv",
-            frequency: "weekly",
-            status: "active",
-            last_run_at: null,
-            next_run_at: new Date("2026-10-15T10:00:00Z"),
-            created_at: new Date("2026-10-08T10:00:00Z"),
-          },
-        ]),
-    };
-
-    const mod = createDataExportModule({ db: mockDb });
-    const schedule = await mod.createSchedule(TEST_USER_ID, {
-      name: "Weekly Folios",
-      resourceTypes: ["folios_payments"],
-      format: "csv",
-      frequency: "weekly",
-    });
-
-    expect(schedule.name).toBe("Weekly Folios");
-    expect(schedule.frequency).toBe("weekly");
-    expect(schedule.status).toBe("active");
-  });
-
-  it("worker processes pending exports to ready with calculated metrics", async () => {
-    const mockDb: any = {
-      $executeRawUnsafe: vi.fn().mockResolvedValue(1),
-      $executeRaw: vi.fn().mockResolvedValue(1),
-      $transaction: vi.fn(async (run: (c: any) => Promise<any>) => run(mockDb)),
-      $queryRaw: vi
-        .fn()
-        // 1. pending_data_exports
-        .mockResolvedValueOnce([
-          {
-            export_id: "ee111111-1111-4111-8111-111111111111",
-            organization_id: "aa111111-1111-4111-8111-111111111111",
-          },
-        ])
-        // 2. fetch exportRow inside transaction
-        .mockResolvedValueOnce([
-          {
-            id: "ee111111-1111-4111-8111-111111111111",
-            organization_id: "aa111111-1111-4111-8111-111111111111",
-            requester_id: TEST_USER_ID,
-            requester_name: "Export Manager",
-            resource_types: ["residents_guests"],
-            format: "json",
-            status: "pending",
-            trigger_type: "on_demand",
-            schedule_id: null,
-            file_name: null,
-            file_size_bytes: null,
-            file_content: null,
-            record_counts: {},
-            error: null,
-            expires_at: null,
-            requested_at: new Date("2026-10-08T10:00:00Z"),
-            completed_at: null,
-            created_at: new Date("2026-10-08T10:00:00Z"),
-          },
-        ])
-        // 3. fetch guests for residents_guests dataset
-        .mockResolvedValueOnce([
-          {
-            id: "g1",
-            firstName: "Jane",
-            lastName: "Doe",
-            email: "jane@test.com",
-            phone: "+1234567890",
-            nationality: "US",
-            idNumber: "P12345",
-            createdAt: new Date(),
-          },
-        ]),
-    };
-
-    const mod = createDataExportModule({ db: mockDb });
-    const report = await mod.processPendingExports();
-
-    expect(report.processed).toBe(1);
-    expect(report.succeeded).toBe(1);
-    expect(report.failed).toBe(0);
-    expect(mockDb.$executeRawUnsafe).toHaveBeenCalledWith(
-      "select app.set_worker_context($1::uuid, 'data_export')",
-      "aa111111-1111-4111-8111-111111111111",
+  it("EXP-S1-41: writes nothing for nothing, and ISO text for an instant", () => {
+    expect(csvCell(null)).toBe("");
+    expect(csvCell(undefined)).toBe("");
+    expect(csvCell(new Date("2026-10-09T10:00:00.000Z"))).toBe(
+      "2026-10-09T10:00:00.000Z",
     );
+    expect(csvCell({ a: 1 })).toBe('"{""a"":1}"');
+  });
+});
+
+describe("a CSV file", () => {
+  const guests = {
+    key: "residents_guests",
+    columns: ["id", "full_name"],
+    rows: [{ id: "g1", full_name: "=cmd|' /C calc'!A0" }],
+  };
+  const rooms = { key: "rooms_beds", columns: ["id", "name"], rows: [] };
+
+  it("EXP-S1-43: one dataset is a plain CSV, behind a byte-order mark", () => {
+    expect(renderCsv([guests])).toBe(
+      "\uFEFFid,full_name\r\ng1,'=cmd|' /C calc'!A0\r\n",
+    );
+  });
+
+  it("EXP-S1-43: several are sections under their names, and an empty one keeps its header", () => {
+    expect(renderCsv([guests, rooms])).toBe(
+      "\uFEFF# dataset: residents_guests\r\nid,full_name\r\ng1,'=cmd|' /C calc'!A0" +
+        "\r\n\r\n# dataset: rooms_beds\r\nid,name\r\n",
+    );
+  });
+});
+
+describe("a JSON file", () => {
+  it("EXP-S1-42: is an object of arrays, with numbers for amounts and nulls for nothing", () => {
+    const json = renderJson([
+      {
+        key: "folios_payments",
+        columns: ["line_id", "amount_minor", "posted_at", "context"],
+        rows: [
+          {
+            line_id: "l1",
+            amount_minor: -4000n,
+            posted_at: new Date("2026-10-09T10:00:00.000Z"),
+            context: { reason: "x" },
+          },
+          { line_id: null },
+        ],
+      },
+    ]);
+    expect(JSON.parse(json)).toEqual({
+      folios_payments: [
+        {
+          line_id: "l1",
+          amount_minor: -4000,
+          posted_at: "2026-10-09T10:00:00.000Z",
+          context: { reason: "x" },
+        },
+        { line_id: null, amount_minor: null, posted_at: null, context: null },
+      ],
+    });
+  });
+
+  it("EXP-S1-42: keeps an amount too large for a number as its digits", () => {
+    const big = 2n ** 60n;
+    expect(JSON.parse(renderJson([{ key: "k", columns: ["a"], rows: [{ a: big }] }]))).toEqual({
+      k: [{ a: big.toString() }],
+    });
+  });
+});
+
+describe("the name an export records", () => {
+  it("EXP-S1-09: is the name they signed up with when there is one", () => {
+    expect(requesterLabel("Dilara Yılmaz", "dilara@hotel.example")).toBe(
+      "Dilara Yılmaz",
+    );
+  });
+
+  it("EXP-S1-09: is the address cut to its local part when there is none", () => {
+    expect(requesterLabel(null, "dilara@hotel.example")).toBe("dilara@***");
+    expect(requesterLabel("   ", "dilara@hotel.example")).toBe("dilara@***");
+  });
+
+  it("EXP-S1-09: never prints an address, even as the name", () => {
+    expect(requesterLabel("dilara@hotel.example", "other@x.example")).toBe(
+      "dilara@***",
+    );
+    expect(requesterLabel("a name with an @ in it", "x@y.example")).not.toContain(
+      "y.example",
+    );
+  });
+
+  it("EXP-S1-09: strips control characters, as the database does", () => {
+    expect(requesterLabel("Dil\tara\n", "x@y.example")).toBe("Dilara");
+  });
+});
+
+describe("why an export failed", () => {
+  it("EXP-S1-30: names a requester who may no longer export as that, from the refusal the database raises", () => {
+    expect(
+      failureReasonOf(
+        new Error("ERROR: export_refused:requester_not_permitted"),
+      ),
+    ).toBe("requester_not_permitted");
+  });
+
+  it("EXP-S1-30: names a dataset or file that is too large as that", () => {
+    expect(failureReasonOf(new ExportTooLargeError("audit_log"))).toBe(
+      "too_large",
+    );
+    expect(
+      failureReasonOf(
+        new Error('violates check constraint "data_exports_file_is_bounded"'),
+      ),
+    ).toBe("too_large");
+  });
+
+  it("EXP-S1-30: records anything else as internal, whatever it said", () => {
+    expect(failureReasonOf(new Error("connection terminated: secret"))).toBe(
+      "internal_error",
+    );
+    expect(failureReasonOf("a string")).toBe("internal_error");
+  });
+
+  it("EXP-S1-30: only ever answers with a reason the database accepts", () => {
+    for (const error of [
+      new Error("x"),
+      new ExportTooLargeError("x"),
+      new Error("export_refused:requester_not_permitted"),
+    ]) {
+      expect(EXPORT_FAILURE_REASONS).toContain(failureReasonOf(error));
+    }
+  });
+});
+
+describe("the datasets", () => {
+  it("EXP-S1-35: are the five the database holds in its check constraint", () => {
+    expect([...EXPORT_RESOURCE_TYPES]).toEqual([
+      "residents_guests",
+      "reservations_stays",
+      "rooms_beds",
+      "folios_payments",
+      "audit_log",
+    ]);
   });
 });

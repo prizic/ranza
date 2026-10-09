@@ -19,7 +19,19 @@ export type ExportResourceType = (typeof EXPORT_RESOURCE_TYPES)[number];
 
 export type ExportFormat = "csv" | "json";
 
-export type ExportStatus = "pending" | "processing" | "ready" | "failed";
+export type ExportStatus =
+  | "pending"
+  | "processing"
+  | "ready"
+  | "failed"
+  | "expired";
+
+/** Why an export failed, as a code the screen says in the reader's language. */
+export type ExportFailureReason =
+  | "requester_not_permitted"
+  | "too_large"
+  | "worker_stopped"
+  | "internal_error";
 
 export type ScheduleFrequency = "daily" | "weekly" | "monthly";
 
@@ -39,9 +51,8 @@ export interface DataExportRecord {
   scheduleId: string | null;
   fileName: string | null;
   fileSizeBytes: number | null;
-  fileContent: string | null;
   recordCounts: Record<string, number>;
-  error: string | null;
+  error: ExportFailureReason | null;
   expiresAt: Date | null;
   requestedAt: Date;
   completedAt: Date | null;
@@ -52,6 +63,7 @@ export interface ExportScheduleRecord {
   id: string;
   organizationId: string;
   createdBy: string;
+  createdByName: string;
   name: string;
   resourceTypes: ExportResourceType[];
   format: ExportFormat;

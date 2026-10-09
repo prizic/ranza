@@ -729,6 +729,7 @@ export interface Messages {
       processing: string;
       ready: string;
       failed: string;
+      expired: string;
     };
     scheduleStatuses: {
       active: string;
@@ -739,6 +740,24 @@ export interface Messages {
     resume: string;
     pausing: string;
     resuming: string;
+    /** Why an export failed, by the code the database holds for it. */
+    failures: {
+      requester_not_permitted: string;
+      too_large: string;
+      worker_stopped: string;
+      internal_error: string;
+    };
+    formats: {
+      csv: { title: string; hint: string };
+      json: { title: string; hint: string };
+    };
+    /** `{date}`: when a ready export stops being downloadable. */
+    expiresOn: string;
+    requestRefused: string;
+    scheduleRefused: string;
+    failedTitle: string;
+    failedDescription: string;
+    retry: string;
   };
 
   /** The Human Resources and Payroll screen (Blueprint 5.11, Phase 4). */
@@ -1695,6 +1714,7 @@ export interface Messages {
     property: Record<"configured", string>;
     organization: Record<"configured", string>;
     price_list: Record<"changed", string>;
+    data_export: Record<"requested" | "downloaded", string>;
     maintenance_request: Record<
       | "reported"
       | "moved"
@@ -1723,7 +1743,8 @@ export interface Messages {
     | "organization"
     | "maintenance_request"
     | "maintenance_equipment"
-    | "business_day_close",
+    | "business_day_close"
+    | "data_export",
     string
   >;
 
@@ -2784,7 +2805,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         audit_log: "Denetim Günlüğü",
       },
       datasetDescriptions: {
-        residents_guests: "İletişim bilgileri, kimlik ve profil verileri",
+        residents_guests: "Adlar, e-posta adresleri ve telefon numaraları",
         reservations_stays: "Tarihler, durumlar ve oda eşleşmeleri",
         rooms_beds: "Oda numaraları, katlar, tipler ve kapasite",
         folios_payments: "Ücret satırları, ödemeler ve bakiye dökümleri",
@@ -2843,6 +2864,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         processing: "İşleniyor",
         ready: "Hazır",
         failed: "Hata",
+        expired: "Süresi doldu",
       },
       scheduleStatuses: {
         active: "Aktif",
@@ -2853,6 +2875,23 @@ export const messages: Record<SupportedLocale, Messages> = {
       resume: "Sürdür",
       pausing: "Duraklatılıyor...",
       resuming: "Başlatılıyor...",
+      failures: {
+        requester_not_permitted:
+          "İsteyenin bu verileri dışa aktarma yetkisi artık yok.",
+        too_large: "Dışa aktarma izin verilen boyutu aşıyor.",
+        worker_stopped: "Dışa aktarma tamamlanamadan durdu.",
+        internal_error: "Dışa aktarma tamamlanamadı.",
+      },
+      formats: {
+        csv: { title: "CSV (e-tablo)", hint: "Excel, Numbers, Sheets" },
+        json: { title: "JSON (yapılandırılmış)", hint: "Geliştirici API'leri, yedekleme" },
+      },
+      expiresOn: "{date} tarihine kadar indirilebilir",
+      requestRefused: "Bu veri kümelerinin dışa aktarılmasını isteme yetkiniz yok.",
+      scheduleRefused: "Bu zamanlamayı oluşturma yetkiniz yok.",
+      failedTitle: "Veri dışa aktarma açılamadı",
+      failedDescription: "Dışa aktarma kayıtları okunamadı. Tekrar deneyin.",
+      retry: "Tekrar dene",
     },
     hr: {
       heading: "İnsan kaynakları ve bordro",
@@ -3612,6 +3651,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       property: { configured: "Tesis ayarları değiştirildi" },
       organization: { configured: "Organizasyon yeniden adlandırıldı" },
       price_list: { changed: "Gecelik fiyatlar değiştirildi" },
+      data_export: {
+        requested: "Veri dışa aktarma istendi",
+        downloaded: "Veri dışa aktarma indirildi",
+      },
       maintenance_request: {
         reported: "Sorun bildirildi",
         moved: "Talep taşındı",
@@ -3645,6 +3688,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       maintenance_request: "Bakım talebi",
       maintenance_equipment: "Ekipman",
       business_day_close: "İş günü",
+      data_export: "Veri dışa aktarma",
     },
     closeDay: {
       at: "Günün kapatıldığı tesis:",
@@ -4743,8 +4787,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         audit_log: "Audit Log",
       },
       datasetDescriptions: {
-        residents_guests:
-          "Contact details, identifications, and profile records",
+        residents_guests: "Names, email addresses and phone numbers",
         reservations_stays: "Booking dates, statuses, and unit associations",
         rooms_beds: "Unit numbers, floors, unit types, and capacities",
         folios_payments: "Financial charges, payments, and balances",
@@ -4802,6 +4845,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         processing: "Processing",
         ready: "Ready",
         failed: "Failed",
+        expired: "Expired",
       },
       scheduleStatuses: {
         active: "Active",
@@ -4812,6 +4856,23 @@ export const messages: Record<SupportedLocale, Messages> = {
       resume: "Resume",
       pausing: "Pausing...",
       resuming: "Resuming...",
+      failures: {
+        requester_not_permitted:
+          "The requester can no longer export these datasets.",
+        too_large: "Too large to export.",
+        worker_stopped: "Stopped before it finished.",
+        internal_error: "Could not be completed.",
+      },
+      formats: {
+        csv: { title: "CSV (spreadsheet)", hint: "Excel, Numbers, Sheets" },
+        json: { title: "JSON (structured)", hint: "Developer APIs, backup" },
+      },
+      expiresOn: "Available until {date}",
+      requestRefused: "You may not request an export of these datasets.",
+      scheduleRefused: "You may not set up this schedule.",
+      failedTitle: "The data export could not be opened",
+      failedDescription: "The exports could not be read. Try again.",
+      retry: "Try again",
     },
     hr: {
       heading: "HR & Payroll",
@@ -5569,6 +5630,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       property: { configured: "Property settings changed" },
       organization: { configured: "Organization renamed" },
       price_list: { changed: "Nightly rates changed" },
+      data_export: {
+        requested: "Data export requested",
+        downloaded: "Data export downloaded",
+      },
       maintenance_request: {
         reported: "Problem reported",
         moved: "Request moved",
@@ -5601,6 +5666,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       organization: "Organization",
       maintenance_request: "Maintenance request",
       maintenance_equipment: "Equipment",
+      data_export: "Data export",
       business_day_close: "Business day",
     },
     closeDay: {
@@ -6673,7 +6739,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         audit_log: "سجل التدقيق",
       },
       datasetDescriptions: {
-        residents_guests: "بيانات الاتصال والهوية والملفات الشخصية",
+        residents_guests: "الأسماء وعناوين البريد الإلكتروني وأرقام الهاتف",
         reservations_stays: "تواريخ الحجز والحالات وتخصيص الوحدات",
         rooms_beds: "أرقام الوحدات والطوابق والأنواع والسعة",
         folios_payments: "الرسوم المالية والدفعات وتفاصيل الأرصدة",
@@ -6731,6 +6797,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         processing: "جارٍ المعالجة",
         ready: "جاهز",
         failed: "فشل",
+        expired: "منتهي الصلاحية",
       },
       scheduleStatuses: {
         active: "نشط",
@@ -6741,6 +6808,22 @@ export const messages: Record<SupportedLocale, Messages> = {
       resume: "استئناف",
       pausing: "جارٍ الإيقاف...",
       resuming: "جارٍ الاستئناف...",
+      failures: {
+        requester_not_permitted: "لم يعد لدى مقدّم الطلب صلاحية تصدير هذه البيانات.",
+        too_large: "حجم البيانات أكبر من أن يُصدَّر.",
+        worker_stopped: "توقّف التصدير قبل أن يكتمل.",
+        internal_error: "تعذّر إكمال التصدير.",
+      },
+      formats: {
+        csv: { title: "CSV (جدول بيانات)", hint: "Excel وNumbers وSheets" },
+        json: { title: "JSON (بيانات منظمة)", hint: "واجهات المطورين والنسخ الاحتياطي" },
+      },
+      expiresOn: "متاح حتى {date}",
+      requestRefused: "لا يحق لك طلب تصدير هذه البيانات.",
+      scheduleRefused: "لا يحق لك إنشاء هذا الجدول.",
+      failedTitle: "تعذّر فتح تصدير البيانات",
+      failedDescription: "تعذّرت قراءة سجلات التصدير. حاول مرة أخرى.",
+      retry: "إعادة المحاولة",
     },
     hr: {
       heading: "الموارد البشرية والرواتب",
@@ -7493,6 +7576,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       property: { configured: "تم تغيير إعدادات المنشأة" },
       organization: { configured: "تمت إعادة تسمية المؤسسة" },
       price_list: { changed: "تم تغيير أسعار الليلة" },
+      data_export: {
+        requested: "طُلب تصدير بيانات",
+        downloaded: "نُزّل تصدير بيانات",
+      },
       maintenance_request: {
         reported: "أُبلغ عن مشكلة",
         moved: "نُقل الطلب",
@@ -7525,6 +7612,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       organization: "المؤسسة",
       maintenance_request: "طلب صيانة",
       maintenance_equipment: "المعدات",
+      data_export: "تصدير البيانات",
       business_day_close: "يوم العمل",
     },
     closeDay: {

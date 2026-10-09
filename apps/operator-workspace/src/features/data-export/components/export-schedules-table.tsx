@@ -34,6 +34,7 @@ export function ExportSchedulesTable({
 }: ExportSchedulesTableProps) {
   const t = useTranslations("dataExport");
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [refusal, setRefusal] = useState<string | null>(null);
 
   const getDatasetLabel = (
     res: ExportScheduleRecord["resourceTypes"][number],
@@ -68,13 +69,25 @@ export function ExportSchedulesTable({
   const handleToggle = async (schedule: ExportScheduleRecord) => {
     const nextStatus = schedule.status === "active" ? "paused" : "active";
     setLoadingId(schedule.id);
+    setRefusal(null);
     try {
-      await toggleExportScheduleAction(
+      const res = await toggleExportScheduleAction(
         locale,
         propertyId,
         schedule.id,
         nextStatus,
       );
+      if (res.status !== "done") {
+        setRefusal(
+          res.status === "refused" ? t("scheduleRefused") : t("scheduleFailed"),
+        );
+      }
+    } catch (error) {
+      console.error("data_export.schedule_toggle_failed", {
+        scheduleId: schedule.id,
+        error,
+      });
+      setRefusal(t("scheduleFailed"));
     } finally {
       setLoadingId(null);
     }
@@ -91,6 +104,14 @@ export function ExportSchedulesTable({
         </CardDescription>
       </CardHeader>
       <CardContent className="p-0 sm:p-6 sm:pt-0">
+        {refusal && (
+          <div
+            className="m-4 rounded-md border border-destructive/30 bg-destructive/15 p-3 text-sm text-destructive sm:m-0 sm:mb-4"
+            role="alert"
+          >
+            {refusal}
+          </div>
+        )}
         {schedules.length === 0 ? (
           <div className="p-8 text-center text-sm text-muted-foreground">
             {t("noSchedules")}

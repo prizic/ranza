@@ -41,8 +41,8 @@ export default async function DataExportPage({
   }
 
   const [exports, schedules] = await Promise.all([
-    listDataExports(),
-    listExportSchedules(),
+    listDataExports(property.propertyId),
+    listExportSchedules(property.propertyId),
   ]);
 
   return (

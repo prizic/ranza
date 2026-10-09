@@ -82,7 +82,10 @@ export function NewScheduleForm({
       } else {
         setFeedback({
           type: "error",
-          message: res.message || t("scheduleFailed"),
+          message:
+            res.status === "refused"
+              ? t("scheduleRefused")
+              : t("scheduleFailed"),
         });
       }
     } catch {
@@ -162,8 +165,8 @@ export function NewScheduleForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="csv">CSV (Spreadsheet)</SelectItem>
-                  <SelectItem value="json">JSON (Structured)</SelectItem>
+                  <SelectItem value="csv">{t("formats.csv.title")}</SelectItem>
+                  <SelectItem value="json">{t("formats.json.title")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

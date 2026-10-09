@@ -71,6 +71,12 @@ export function RecentExportsTable({
         );
       case "failed":
         return <Badge variant="destructive">{t("statuses.failed")}</Badge>;
+      case "expired":
+        return (
+          <Badge variant="outline" className="text-muted-foreground">
+            {t("statuses.expired")}
+          </Badge>
+        );
       case "pending":
       default:
         return (
@@ -174,33 +180,43 @@ export function RecentExportsTable({
                       </TableCell>
                       <TableCell className="text-end">
                         {item.status === "ready" ? (
-                          <Button
-                            asChild
-                            size="sm"
-                            variant="outline"
-                            className="h-8 gap-1.5 text-emerald-700 hover:text-emerald-800 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-950"
-                          >
-                            <a
-                              href={`/api/data-export/${item.id}/download`}
-                              download={
-                                item.fileName ||
-                                `export-${item.id.slice(0, 8)}.${item.format}`
-                              }
+                          <div className="flex flex-col items-end gap-1">
+                            <Button
+                              asChild
+                              size="sm"
+                              variant="outline"
+                              className="h-8 gap-1.5 text-emerald-700 hover:text-emerald-800 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-950"
                             >
-                              <Download className="size-3.5" />
-                              <span>{t("download")}</span>
-                            </a>
-                          </Button>
+                              <a
+                                href={`/api/data-export/${item.id}/download`}
+                                download={
+                                  item.fileName ||
+                                  `export-${item.id.slice(0, 8)}.${item.format}`
+                                }
+                              >
+                                <Download className="size-3.5" />
+                                <span>{t("download")}</span>
+                              </a>
+                            </Button>
+                            {item.expiresAt && (
+                              <span className="text-[11px] text-muted-foreground">
+                                {t("expiresOn", {
+                                  date: new Date(
+                                    item.expiresAt,
+                                  ).toLocaleDateString(locale, {
+                                    dateStyle: "medium",
+                                  }),
+                                })}
+                              </span>
+                            )}
+                          </div>
                         ) : item.status === "failed" ? (
-                          <span
-                            className="text-xs text-destructive truncate max-w-[150px] inline-block"
-                            title={item.error || ""}
-                          >
-                            {item.error || t("statuses.failed")}
+                          <span className="text-xs text-destructive">
+                            {t(`failures.${item.error ?? "internal_error"}`)}
                           </span>
                         ) : (
                           <span className="text-xs text-muted-foreground italic">
-                            {t("statuses.processing")}
+                            {t(`statuses.${item.status}`)}
                           </span>
                         )}
                       </TableCell>

@@ -1,19 +1,56 @@
-import { withOrganizationContext, type PrismaClient } from "@ranza/db";
-import type {
-  CreateScheduleInput,
-  DataExportRecord,
-  ExportFormat,
-  ExportResourceType,
-  ExportScheduleRecord,
-  ExportStatus,
-  ExportTriggerType,
-  ProcessExportsReport,
-  ProcessSchedulesReport,
-  RequestExportInput,
-  ScheduleFrequency,
-  ScheduleStatus,
+import { withOrganizationContext } from "@ranza/db";
+import { recordWithin, type AuditClient } from "@ranza/platform-audit";
+import {
+  DataExportInputError,
+  DataExportRefusedError,
+  EXPORT_FORMATS,
+  EXPORT_RESOURCE_TYPES,
+  SCHEDULE_NAME,
+  type CreateScheduleInput,
+  type DataExportRecord,
+  type ExportFailureReason,
+  type ExportFile,
+  type ExportFormat,
+  type ExportResourceType,
+  type ExportScheduleRecord,
+  type ExportStatus,
+  type ExportTriggerType,
+  type RequestExportInput,
+  type ScheduleFrequency,
+  type ScheduleStatus,
 } from "./contracts";
+import { requesterLabel } from "./label";
 import type { DataExportDeps } from "./ports";
+
+/**
+ * The Staff Member's half of exporting (ADR 0043).
+ *
+ * A request is an insert of what was asked for and nothing else; the database
+ * stamps the rest, and a job outside this process moves it on. Nothing here
+ * decides whether somebody may ask for a dataset, or whether they may have the
+ * file: the insert policy and `app.read_data_export_file()` do, and a refusal
+ * is the database's, surfaced as one error that cannot be told from there
+ * being nothing (ADR 0012).
+ *
+ * The list never selects a file. The runtime role has no SELECT on the column,
+ * so this module could not read one by mistake.
+ */
+
+const INSUFFICIENT_PRIVILEGE = "42501";
+const CHECK_VIOLATION = "23514";
+
+/** Whether a failure carries a SQLSTATE, from the driver's meta and its message. */
+function raised(error: unknown, code: string): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const { meta, message } = error as {
+    meta?: { driverAdapterError?: { cause?: { code?: unknown } } };
+    message?: unknown;
+  };
+  return (
+    meta?.driverAdapterError?.cause?.code === code ||
+    (typeof message === "string" && message.includes(code))
+  );
+}
 
 interface RawDataExport {
   id: string;
@@ -27,7 +64,6 @@ interface RawDataExport {
   schedule_id: string | null;
   file_name: string | null;
   file_size_bytes: string | number | bigint | null;
-  file_content: string | null;
   record_counts: unknown;
   error: string | null;
   expires_at: Date | null;
@@ -40,6 +76,7 @@ interface RawExportSchedule {
   id: string;
   organization_id: string;
   created_by: string;
+  created_by_name: string;
   name: string;
   resource_types: string[];
   format: string;
@@ -62,13 +99,13 @@ function mapDataExport(row: RawDataExport): DataExportRecord {
     triggerType: row.trigger_type as ExportTriggerType,
     scheduleId: row.schedule_id,
     fileName: row.file_name,
-    fileSizeBytes: row.file_size_bytes ? Number(row.file_size_bytes) : null,
-    fileContent: row.file_content,
+    fileSizeBytes:
+      row.file_size_bytes === null ? null : Number(row.file_size_bytes),
     recordCounts:
       typeof row.record_counts === "object" && row.record_counts !== null
         ? (row.record_counts as Record<string, number>)
         : {},
-    error: row.error,
+    error: row.error as ExportFailureReason | null,
     expiresAt: row.expires_at,
     requestedAt: row.requested_at,
     completedAt: row.completed_at,
@@ -81,6 +118,7 @@ function mapExportSchedule(row: RawExportSchedule): ExportScheduleRecord {
     id: row.id,
     organizationId: row.organization_id,
     createdBy: row.created_by,
+    createdByName: row.created_by_name,
     name: row.name,
     resourceTypes: row.resource_types as ExportResourceType[],
     format: row.format as ExportFormat,
@@ -92,470 +130,272 @@ function mapExportSchedule(row: RawExportSchedule): ExportScheduleRecord {
   };
 }
 
-function computeNextRun(frequency: ScheduleFrequency): Date {
-  const next = new Date();
-  if (frequency === "daily") {
-    next.setDate(next.getDate() + 1);
-  } else if (frequency === "weekly") {
-    next.setDate(next.getDate() + 7);
-  } else if (frequency === "monthly") {
-    next.setMonth(next.getMonth() + 1);
+/** Datasets and format as the database would hold them, or the reason it would not. */
+function assertRequest(
+  resourceTypes: readonly string[],
+  format: string,
+): void {
+  if (resourceTypes.length === 0) {
+    throw new DataExportInputError("at least one dataset must be chosen");
   }
-  return next;
+  const known: readonly string[] = EXPORT_RESOURCE_TYPES;
+  if (
+    resourceTypes.some((type) => !known.includes(type)) ||
+    new Set(resourceTypes).size !== resourceTypes.length
+  ) {
+    throw new DataExportInputError("the datasets chosen are not a set of known ones");
+  }
+  if (!(EXPORT_FORMATS as readonly string[]).includes(format)) {
+    throw new DataExportInputError("that format is not offered");
+  }
 }
 
-function toCsvString(
-  headers: string[],
-  rows: Record<string, unknown>[],
-): string {
-  const escapeCsv = (val: unknown): string => {
-    if (val === null || val === undefined) return "";
-    const str = typeof val === "object" ? JSON.stringify(val) : String(val);
-    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-      return `"${str.replace(/"/g, '""')}"`;
-    }
-    return str;
-  };
+/** The Organization of a Property the acting Staff Member reaches, or a refusal. */
+async function organizationOf(
+  tx: AuditClient,
+  propertyId: string,
+): Promise<string> {
+  const [property] = await tx.$queryRaw<{ organization_id: string }[]>`
+    select organization_id from public.properties
+     where id = ${propertyId}::uuid`;
+  if (!property) throw new DataExportRefusedError();
+  return property.organization_id;
+}
 
-  const headerLine = headers.join(",");
-  const dataLines = rows.map((row) =>
-    headers.map((h) => escapeCsv(row[h])).join(","),
-  );
-  return [headerLine, ...dataLines].join("\n");
+async function emailOf(tx: AuditClient, userId: string): Promise<string> {
+  const [user] = await tx.$queryRaw<{ email: string }[]>`
+    select email from public.users where id = ${userId}::uuid`;
+  if (!user) throw new DataExportRefusedError();
+  return user.email;
 }
 
 export function createDataExportModule({ db }: DataExportDeps) {
   return {
     /**
-     * Lists recent data exports for the user's organization.
+     * The Organization's recent exports, newest first: who asked, what, and how
+     * it ended. The Organization is the one the Property belongs to, so a Staff
+     * Member in two sees one at a time.
      */
-    async listExports(userId: string): Promise<DataExportRecord[]> {
+    async listExports(
+      userId: string,
+      propertyId: string,
+    ): Promise<DataExportRecord[]> {
       return withOrganizationContext(db, { userId }, async (tx) => {
-        const client = tx as unknown as PrismaClient;
-        const rows = await client.$queryRaw<RawDataExport[]>`
+        const rows = await tx.$queryRaw<RawDataExport[]>`
           select id, organization_id, requester_id, requester_name, resource_types,
-                 format, status, trigger_type, schedule_id, file_name, file_size_bytes,
-                 file_content, record_counts, error, expires_at, requested_at,
-                 completed_at, created_at
+                 format, status, trigger_type, schedule_id, file_name,
+                 file_size_bytes, record_counts, error, expires_at,
+                 requested_at, completed_at, created_at
             from public.data_exports
-           order by requested_at desc
-           limit 50
-        `;
+           where organization_id = (
+                   select organization_id from public.properties
+                    where id = ${propertyId}::uuid)
+           order by requested_at desc, id
+           limit 50`;
         return rows.map(mapDataExport);
       });
     },
 
-    /**
-     * Fetches a single data export by ID.
-     */
+    /** One export, without its file. */
     async getExport(
       userId: string,
       exportId: string,
     ): Promise<DataExportRecord | null> {
       return withOrganizationContext(db, { userId }, async (tx) => {
-        const client = tx as unknown as PrismaClient;
-        const rows = await client.$queryRaw<RawDataExport[]>`
+        const [row] = await tx.$queryRaw<RawDataExport[]>`
           select id, organization_id, requester_id, requester_name, resource_types,
-                 format, status, trigger_type, schedule_id, file_name, file_size_bytes,
-                 file_content, record_counts, error, expires_at, requested_at,
-                 completed_at, created_at
+                 format, status, trigger_type, schedule_id, file_name,
+                 file_size_bytes, record_counts, error, expires_at,
+                 requested_at, completed_at, created_at
             from public.data_exports
-           where id = ${exportId}::uuid
-           limit 1
-        `;
-        if (rows.length === 0 || !rows[0]) return null;
-        return mapDataExport(rows[0]);
+           where id = ${exportId}::uuid`;
+        return row ? mapDataExport(row) : null;
       });
     },
 
     /**
-     * Creates an on-demand data export request with status 'pending'.
+     * Asks for an export of an Organization's data, and records that it was
+     * asked. Nothing is produced here: the request is pending until the worker
+     * claims it, and is refused now if the requester could not export a dataset
+     * they named.
      */
     async requestExport(
       userId: string,
+      propertyId: string,
       input: RequestExportInput,
     ): Promise<DataExportRecord> {
+      assertRequest(input.resourceTypes, input.format);
       return withOrganizationContext(db, { userId }, async (tx) => {
-        const client = tx as unknown as PrismaClient;
-        // Resolve user name and organization
-        const [user] = await client.$queryRaw<{ email: string }[]>`
-          select email from public.users where id = ${userId}::uuid
-        `;
-        const requesterName = user?.email || "Staff Member";
+        const organizationId = await organizationOf(tx, propertyId);
+        const requesterName = requesterLabel(
+          input.requesterName,
+          await emailOf(tx, userId),
+        );
 
-        const [membership] = await client.$queryRaw<
-          { organization_id: string }[]
-        >`
-          select organization_id from public.organization_memberships
-           where user_id = ${userId}::uuid
-             and status = 'active'
-           limit 1
-        `;
-
-        if (!membership) {
-          throw new Error("User has no active organization membership");
+        let created: RawDataExport | undefined;
+        try {
+          [created] = await tx.$queryRaw<RawDataExport[]>`
+            insert into public.data_exports
+              (organization_id, requester_id, requester_name, resource_types, format)
+            values
+              (${organizationId}::uuid, ${userId}::uuid, ${requesterName},
+               ${input.resourceTypes}::text[], ${input.format})
+            returning id, organization_id, requester_id, requester_name,
+                      resource_types, format, status, trigger_type, schedule_id,
+                      file_name, file_size_bytes, record_counts, error,
+                      expires_at, requested_at, completed_at, created_at`;
+        } catch (error) {
+          if (raised(error, INSUFFICIENT_PRIVILEGE)) {
+            throw new DataExportRefusedError();
+          }
+          throw error;
         }
+        if (!created) throw new DataExportRefusedError();
 
-        const orgId = membership.organization_id;
-        const resourceTypesArray = input.resourceTypes;
-
-        const [created] = await client.$queryRaw<RawDataExport[]>`
-          insert into public.data_exports (
-            organization_id, requester_id, requester_name, resource_types,
-            format, status, trigger_type
-          ) values (
-            ${orgId}::uuid, ${userId}::uuid, ${requesterName}, ${resourceTypesArray}::text[],
-            ${input.format}, 'pending', 'on_demand'
-          )
-          returning id, organization_id, requester_id, requester_name, resource_types,
-                    format, status, trigger_type, schedule_id, file_name, file_size_bytes,
-                    file_content, record_counts, error, expires_at, requested_at,
-                    completed_at, created_at
-        `;
-
-        if (!created) {
-          throw new Error("Failed to create export record");
-        }
+        await recordWithin(tx, {
+          organizationId,
+          actorId: userId,
+          action: "data_export.requested",
+          subjectType: "data_export",
+          subjectId: created.id,
+          context: {
+            resourceTypes: input.resourceTypes,
+            format: input.format,
+          },
+        });
         return mapDataExport(created);
       });
     },
 
     /**
-     * Lists export schedules for the user's organization.
+     * The file of a ready export, to whoever the database lets have it, and a
+     * record in the audit log that they did. Both happen in one transaction: a
+     * file is never handed over unrecorded. Null for every reason there is no
+     * file for this person — not theirs, not ready, expired, never existed.
      */
-    async listSchedules(userId: string): Promise<ExportScheduleRecord[]> {
+    async downloadExport(
+      userId: string,
+      exportId: string,
+    ): Promise<ExportFile | null> {
       return withOrganizationContext(db, { userId }, async (tx) => {
-        const client = tx as unknown as PrismaClient;
-        const rows = await client.$queryRaw<RawExportSchedule[]>`
-          select id, organization_id, created_by, name, resource_types,
-                 format, frequency, status, last_run_at, next_run_at, created_at
+        const [file] = await tx.$queryRaw<
+          {
+            organization_id: string;
+            file_name: string;
+            format: ExportFormat;
+            file_content: string;
+            resource_types: string[];
+          }[]
+        >`
+          select organization_id, file_name, format, file_content, resource_types
+            from app.read_data_export_file(${exportId}::uuid)`;
+        if (!file) return null;
+
+        await recordWithin(tx, {
+          organizationId: file.organization_id,
+          actorId: userId,
+          action: "data_export.downloaded",
+          subjectType: "data_export",
+          subjectId: exportId,
+          context: {
+            resourceTypes: file.resource_types,
+            format: file.format,
+            bytes: Buffer.byteLength(file.file_content, "utf8"),
+          },
+        });
+        return {
+          fileName: file.file_name,
+          format: file.format,
+          content: file.file_content,
+        };
+      });
+    },
+
+    /** The Organization's export schedules. */
+    async listSchedules(
+      userId: string,
+      propertyId: string,
+    ): Promise<ExportScheduleRecord[]> {
+      return withOrganizationContext(db, { userId }, async (tx) => {
+        const rows = await tx.$queryRaw<RawExportSchedule[]>`
+          select id, organization_id, created_by, created_by_name, name,
+                 resource_types, format, frequency, status, last_run_at,
+                 next_run_at, created_at
             from public.export_schedules
-           order by created_at desc
-        `;
+           where organization_id = (
+                   select organization_id from public.properties
+                    where id = ${propertyId}::uuid)
+           order by created_at desc, id`;
         return rows.map(mapExportSchedule);
       });
     },
 
     /**
-     * Creates an automated export schedule.
+     * Sets up an export that repeats. Its first run is one step from now, and
+     * every run is checked as its creator is when it runs, not when it was set
+     * up (ADR 0043).
      */
     async createSchedule(
       userId: string,
+      propertyId: string,
       input: CreateScheduleInput,
     ): Promise<ExportScheduleRecord> {
+      assertRequest(input.resourceTypes, input.format);
+      const name = input.name.trim();
+      if (name.length < SCHEDULE_NAME.min || name.length > SCHEDULE_NAME.max) {
+        throw new DataExportInputError("a schedule needs a name");
+      }
       return withOrganizationContext(db, { userId }, async (tx) => {
-        const client = tx as unknown as PrismaClient;
-        const [membership] = await client.$queryRaw<
-          { organization_id: string }[]
-        >`
-          select organization_id from public.organization_memberships
-           where user_id = ${userId}::uuid
-             and status = 'active'
-           limit 1
-        `;
+        const organizationId = await organizationOf(tx, propertyId);
+        const creatorName = requesterLabel(
+          input.creatorName,
+          await emailOf(tx, userId),
+        );
 
-        if (!membership) {
-          throw new Error("User has no active organization membership");
+        let created: RawExportSchedule | undefined;
+        try {
+          [created] = await tx.$queryRaw<RawExportSchedule[]>`
+            insert into public.export_schedules
+              (organization_id, created_by, created_by_name, name,
+               resource_types, format, frequency)
+            values
+              (${organizationId}::uuid, ${userId}::uuid, ${creatorName}, ${name},
+               ${input.resourceTypes}::text[], ${input.format}, ${input.frequency})
+            returning id, organization_id, created_by, created_by_name, name,
+                      resource_types, format, frequency, status, last_run_at,
+                      next_run_at, created_at`;
+        } catch (error) {
+          if (
+            raised(error, INSUFFICIENT_PRIVILEGE) ||
+            raised(error, CHECK_VIOLATION)
+          ) {
+            throw new DataExportRefusedError();
+          }
+          throw error;
         }
-
-        const orgId = membership.organization_id;
-        const nextRunAt = computeNextRun(input.frequency);
-        const resourceTypesArray = input.resourceTypes;
-
-        const [created] = await client.$queryRaw<RawExportSchedule[]>`
-          insert into public.export_schedules (
-            organization_id, created_by, name, resource_types,
-            format, frequency, status, next_run_at
-          ) values (
-            ${orgId}::uuid, ${userId}::uuid, ${input.name}, ${resourceTypesArray}::text[],
-            ${input.format}, ${input.frequency}, 'active', ${nextRunAt}
-          )
-          returning id, organization_id, created_by, name, resource_types,
-                    format, frequency, status, last_run_at, next_run_at, created_at
-        `;
-
-        if (!created) {
-          throw new Error("Failed to create export schedule");
-        }
+        if (!created) throw new DataExportRefusedError();
         return mapExportSchedule(created);
       });
     },
 
-    /**
-     * Updates an export schedule's active/paused status.
-     */
+    /** Pauses a schedule or resumes it. The only change a schedule takes. */
     async updateScheduleStatus(
       userId: string,
       scheduleId: string,
       status: ScheduleStatus,
     ): Promise<void> {
-      return withOrganizationContext(db, { userId }, async (tx) => {
-        const client = tx as unknown as PrismaClient;
-        await client.$executeRaw`
+      await withOrganizationContext(db, { userId }, async (tx) => {
+        const changed = await tx.$queryRaw<{ id: string }[]>`
           update public.export_schedules
              set status = ${status}, updated_at = now()
            where id = ${scheduleId}::uuid
-        `;
+          returning id`;
+        // A policy that refuses an update matches no row rather than raising
+        // (ADR 0012), so "no row" is the refusal.
+        if (changed.length === 0) throw new DataExportRefusedError();
       });
-    },
-
-    /**
-     * Worker routine to process all pending data exports.
-     */
-    async processPendingExports(): Promise<ProcessExportsReport> {
-      const pending = await db.$queryRaw<
-        { export_id: string; organization_id: string }[]
-      >`
-        select export_id, organization_id from app.pending_data_exports()
-      `;
-
-      let succeeded = 0;
-      let failed = 0;
-
-      for (const item of pending) {
-        try {
-          await db.$transaction(async (tx) => {
-            const client = tx as unknown as PrismaClient;
-            await client.$executeRawUnsafe(
-              "select app.set_worker_context($1::uuid, 'data_export')",
-              item.organization_id,
-            );
-
-            // Fetch export request
-            const [exportRow] = await client.$queryRaw<RawDataExport[]>`
-              select id, organization_id, requester_id, requester_name, resource_types,
-                     format, status, trigger_type, schedule_id, file_name, file_size_bytes,
-                     file_content, record_counts, error, expires_at, requested_at,
-                     completed_at, created_at
-                from public.data_exports
-               where id = ${item.export_id}::uuid
-            `;
-
-            if (!exportRow || exportRow.status !== "pending") {
-              return;
-            }
-
-            // Move to processing
-            await client.$executeRaw`
-              update public.data_exports
-                 set status = 'processing', updated_at = now()
-               where id = ${item.export_id}::uuid
-            `;
-
-            const resourceTypes =
-              exportRow.resource_types as ExportResourceType[];
-            const format = exportRow.format as ExportFormat;
-            const exportData: Record<string, Record<string, unknown>[]> = {};
-            const recordCounts: Record<string, number> = {};
-
-            // 1. Residents & Guests
-            if (resourceTypes.includes("residents_guests")) {
-              const guests = await client.$queryRaw<Record<string, unknown>[]>`
-                select id, first_name as "firstName", last_name as "lastName",
-                       email, phone, nationality, identification_number as "idNumber",
-                       created_at as "createdAt"
-                  from public.guests
-                 where organization_id = ${item.organization_id}::uuid
-                 order by created_at desc
-              `;
-              exportData.residents_guests = guests;
-              recordCounts.residents_guests = guests.length;
-            }
-
-            // 2. Reservations & Stays
-            if (resourceTypes.includes("reservations_stays")) {
-              const reservations = await client.$queryRaw<
-                Record<string, unknown>[]
-              >`
-                select r.id, r.confirmation_code as "confirmationCode",
-                       r.status, r.arrival_date as "arrivalDate",
-                       r.departure_date as "departureDate",
-                       s.id as "stayId", s.status as "stayStatus"
-                  from public.reservations r
-                  left join public.stays s on s.reservation_id = r.id
-                 where r.organization_id = ${item.organization_id}::uuid
-                 order by r.created_at desc
-              `;
-              exportData.reservations_stays = reservations;
-              recordCounts.reservations_stays = reservations.length;
-            }
-
-            // 3. Rooms & Beds
-            if (resourceTypes.includes("rooms_beds")) {
-              const rooms = await client.$queryRaw<Record<string, unknown>[]>`
-                select id, property_id as "propertyId", unit_number as "unitNumber",
-                       unit_type as "unitType", floor_number as "floorNumber",
-                       status, max_occupancy as "maxOccupancy"
-                  from public.accommodation_units
-                 where organization_id = ${item.organization_id}::uuid
-                 order by unit_number asc
-              `;
-              exportData.rooms_beds = rooms;
-              recordCounts.rooms_beds = rooms.length;
-            }
-
-            // 4. Folios & Payments
-            if (resourceTypes.includes("folios_payments")) {
-              const folios = await client.$queryRaw<Record<string, unknown>[]>`
-                select f.id, f.property_id as "propertyId", f.status,
-                       f.currency, fl.id as "lineId", fl.line_type as "lineType",
-                       fl.amount, fl.posted_at as "postedAt"
-                  from public.folios f
-                  left join public.folio_lines fl on fl.folio_id = f.id
-                 where f.organization_id = ${item.organization_id}::uuid
-                 order by f.created_at desc
-              `;
-              exportData.folios_payments = folios;
-              recordCounts.folios_payments = folios.length;
-            }
-
-            // 5. Audit Log
-            if (resourceTypes.includes("audit_log")) {
-              const logs = await client.$queryRaw<Record<string, unknown>[]>`
-                select id, action, actor_user_id as "actorUserId",
-                       actor_type as "actorType", location,
-                       occurred_at as "occurredAt"
-                  from audit.events
-                 where organization_id = ${item.organization_id}::uuid
-                 order by occurred_at desc
-                 limit 1000
-              `;
-              exportData.audit_log = logs;
-              recordCounts.audit_log = logs.length;
-            }
-
-            // Format payload
-            let fileContent: string;
-            let fileName: string;
-            const shortId = item.export_id.slice(0, 8);
-
-            if (format === "json") {
-              fileContent = JSON.stringify(exportData, null, 2);
-              fileName = `export-${shortId}.json`;
-            } else {
-              // CSV format
-              const sections: string[] = [];
-              for (const [key, rows] of Object.entries(exportData)) {
-                sections.push(
-                  `--- DATASET: ${key} (${rows.length} records) ---`,
-                );
-                if (rows.length > 0 && rows[0]) {
-                  const headers = Object.keys(rows[0]);
-                  sections.push(toCsvString(headers, rows));
-                } else {
-                  sections.push("No records");
-                }
-                sections.push("\n");
-              }
-              fileContent = sections.join("\n");
-              fileName = `export-${shortId}.csv`;
-            }
-
-            const fileSizeBytes = Buffer.byteLength(fileContent, "utf8");
-            const expiresAt = new Date();
-            expiresAt.setDate(expiresAt.getDate() + 7); // 7-day retention
-
-            await client.$executeRaw`
-              update public.data_exports
-                 set status = 'ready',
-                     file_name = ${fileName},
-                     file_size_bytes = ${fileSizeBytes}::bigint,
-                     file_content = ${fileContent},
-                     record_counts = ${JSON.stringify(recordCounts)}::jsonb,
-                     completed_at = now(),
-                     expires_at = ${expiresAt},
-                     updated_at = now()
-               where id = ${item.export_id}::uuid
-            `;
-          });
-          succeeded++;
-        } catch (err) {
-          failed++;
-          const errorMessage = err instanceof Error ? err.message : String(err);
-          await db.$executeRaw`
-            update public.data_exports
-               set status = 'failed',
-                   error = ${errorMessage},
-                   updated_at = now()
-             where id = ${item.export_id}::uuid
-          `.catch(() => {});
-        }
-      }
-
-      return {
-        processed: pending.length,
-        succeeded,
-        failed,
-      };
-    },
-
-    /**
-     * Worker routine to evaluate due export schedules and trigger exports.
-     */
-    async processDueSchedules(): Promise<ProcessSchedulesReport> {
-      const due = await db.$queryRaw<
-        { schedule_id: string; organization_id: string }[]
-      >`
-        select schedule_id, organization_id from app.export_schedules_due()
-      `;
-
-      let exportsTriggered = 0;
-
-      for (const item of due) {
-        try {
-          await db.$transaction(async (tx) => {
-            const client = tx as unknown as PrismaClient;
-            await client.$executeRawUnsafe(
-              "select app.set_worker_context($1::uuid, 'data_export')",
-              item.organization_id,
-            );
-
-            const [schedule] = await client.$queryRaw<RawExportSchedule[]>`
-              select id, organization_id, created_by, name, resource_types,
-                     format, frequency, status, last_run_at, next_run_at, created_at
-                from public.export_schedules
-               where id = ${item.schedule_id}::uuid
-            `;
-
-            if (!schedule || schedule.status !== "active") return;
-
-            const nextRunAt = computeNextRun(
-              schedule.frequency as ScheduleFrequency,
-            );
-
-            // Create triggered export record
-            await client.$executeRaw`
-              insert into public.data_exports (
-                organization_id, requester_id, requester_name, resource_types,
-                format, status, trigger_type, schedule_id
-              ) values (
-                ${item.organization_id}::uuid, ${schedule.created_by}::uuid,
-                ${"Scheduled (" + schedule.name + ")"},
-                ${schedule.resource_types}::text[],
-                ${schedule.format}, 'pending', 'scheduled', ${schedule.id}::uuid
-              )
-            `;
-
-            // Update schedule next run
-            await client.$executeRaw`
-              update public.export_schedules
-                 set last_run_at = now(),
-                     next_run_at = ${nextRunAt},
-                     updated_at = now()
-               where id = ${schedule.id}::uuid
-            `;
-
-            exportsTriggered++;
-          });
-        } catch {
-          // Continue to next schedule on error
-        }
-      }
-
-      return {
-        schedulesEvaluated: due.length,
-        exportsTriggered,
-      };
     },
   };
 }
+
+export type DataExportModule = ReturnType<typeof createDataExportModule>;
