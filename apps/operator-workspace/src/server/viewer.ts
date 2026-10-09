@@ -171,10 +171,12 @@ import {
 } from "./analytics";
 import {
   getPortfolio,
+  PortfolioTooLargeError,
   type Portfolio,
   type PortfolioProperty,
 } from "./portfolio";
 
+export { PortfolioTooLargeError };
 export type {
   AnalyticsRange,
   DailyMetric,

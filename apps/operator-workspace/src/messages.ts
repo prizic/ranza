@@ -1426,6 +1426,51 @@ export interface Messages {
     };
   };
 
+  /** All Properties (docs/features/portfolio): every reached Property side by side. */
+  portfolio: {
+    /** `{organization}`. */
+    subtitle: string;
+    /** `{time}`: when the figures were read, in the working Property's zone. */
+    asOf: string;
+    listLabel: string;
+    occupancyTitle: string;
+    /** `{reporting}` of `{total}` Properties, when some withhold a figure. */
+    coverage: string;
+    notReporting: string;
+    moneyOwedTitle: string;
+    moneyOwedNote: string;
+    maintenanceTitle: string;
+    maintenanceNote: string;
+    cardOccupancy: string;
+    /** `{date}`: the Property's own business date. */
+    businessDate: string;
+    noSellableUnits: string;
+    arrivals: string;
+    departures: string;
+    maintenance: string;
+    moneyOwed: string;
+    /** A figure the viewer's role keeps from them. */
+    hidden: string;
+    /** A figure whose module is off at that Property. */
+    unavailable: string;
+    withheld: string;
+    moneyHiddenNotice: string;
+    /** `{property}`. */
+    open: string;
+    oneTitle: string;
+    /** `{property}`. */
+    oneDescription: string;
+    noneTitle: string;
+    noneDescription: string;
+    goToToday: string;
+    tooLargeTitle: string;
+    /** `{count}` reached and `{max}` compared at most. */
+    tooLargeDescription: string;
+    failedTitle: string;
+    failedDescription: string;
+    retry: string;
+  };
+
   guestExperience: {
     heading: string;
     subheading: string;
@@ -3302,6 +3347,46 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
     },
 
+    portfolio: {
+      subtitle: "{organization}: tüm Tesisler yan yana.",
+      asOf: "Rakamlar {time} itibarıyla",
+      listLabel: "Yan yana Tesisler",
+      occupancyTitle: "Tesisler genelinde doluluk",
+      coverage: "{total} Tesisin {reporting} tanesinde sayıldı",
+      notReporting: "Hiçbir Tesiste mevcut değil",
+      moneyOwedTitle: "Tahsil edilecek tutar",
+      moneyOwedNote: "Açık folyo bakiyeleri, para birimi başına bir satır",
+      maintenanceTitle: "Açık bakım",
+      maintenanceNote: "Henüz tamamlanmamış talepler",
+      cardOccupancy: "Dolu birimler",
+      businessDate: "İş günü {date}",
+      noSellableUnits: "Satılabilir birim yok",
+      arrivals: "Bugün kalan girişler",
+      departures: "Bugün kalan çıkışlar",
+      maintenance: "Açık bakım talepleri",
+      moneyOwed: "Tahsil edilecek tutar",
+      hidden: "Gizli",
+      unavailable: "Mevcut değil",
+      withheld:
+        "Bu Tesiste Analitik açık olmadığı için rakamlar gösterilmiyor.",
+      moneyHiddenNotice:
+        "Tahsil edilecek tutar gizli. Yalnızca folyo yönetebilenlere, faturalamanın açık olduğu Tesislerde gösterilir.",
+      open: "{property} Tesisini aç",
+      oneTitle: "Karşılaştıracak bir şey yok",
+      oneDescription:
+        "Tek bir Tesise erişiyorsunuz: {property}. Birden fazla Tesise eriştiğinizde burada yan yana görünürler.",
+      noneTitle: "Gösterilecek Tesis yok",
+      noneDescription: "Bu Organizasyonda erişebildiğiniz bir Tesis yok.",
+      goToToday: "Bugün'e git",
+      tooLargeTitle: "Karşılaştırmak için çok fazla Tesis var",
+      tooLargeDescription:
+        "{count} Tesise erişiliyor ve bu sayfa en fazla {max} Tesisi karşılaştırır. Sessizce kesilen bir karşılaştırma yanıltıcı olacağından hiçbiri gösterilmiyor.",
+      failedTitle: "Portföy gösterilemedi",
+      failedDescription:
+        "Tesisleriniz okunurken bir şeyler ters gitti. Tekrar deneyin; sürerse yöneticinize bildirin.",
+      retry: "Tekrar dene",
+    },
+
     guestExperience: {
       heading: "Misafir Deneyimi ve Talepler",
       subheading:
@@ -3675,6 +3760,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       people: "Ekip",
       hr: "İnsan kaynakları",
       analytics: "Analitik",
+      portfolio: "Tüm Tesisler",
       configuration: "Ayarlar",
       integrations: "Entegrasyonlar",
       "data-export": "Veri dışa aktarma",
@@ -5209,6 +5295,46 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
     },
 
+    portfolio: {
+      subtitle: "{organization}: every Property side by side.",
+      asOf: "Figures as of {time}",
+      listLabel: "Properties side by side",
+      occupancyTitle: "Occupancy across Properties",
+      coverage: "Counted at {reporting} of {total} Properties",
+      notReporting: "Not available at any Property",
+      moneyOwedTitle: "Money owed",
+      moneyOwedNote: "Open Folio balances, one line per currency",
+      maintenanceTitle: "Open maintenance",
+      maintenanceNote: "Requests not yet done",
+      cardOccupancy: "Units in use",
+      businessDate: "Business date {date}",
+      noSellableUnits: "No sellable units",
+      arrivals: "Arrivals still to come",
+      departures: "Departures still to come",
+      maintenance: "Open maintenance",
+      moneyOwed: "Money owed",
+      hidden: "Hidden",
+      unavailable: "Not available",
+      withheld:
+        "Figures are not shown for this Property because Analytics is not switched on there.",
+      moneyHiddenNotice:
+        "Money owed is hidden. It is shown only to people who can manage Folios, at Properties with billing switched on.",
+      open: "Open {property}",
+      oneTitle: "Nothing to compare yet",
+      oneDescription:
+        "You reach one Property, {property}. Properties line up side by side here once you reach more than one.",
+      noneTitle: "No Property to show",
+      noneDescription: "You do not reach any Property in this Organization.",
+      goToToday: "Go to Today",
+      tooLargeTitle: "Too many Properties to compare",
+      tooLargeDescription:
+        "{count} Properties are reached and this page compares at most {max}. Nothing is cut off silently, so no comparison is shown.",
+      failedTitle: "The portfolio could not be shown",
+      failedDescription:
+        "Something went wrong reading your Properties. Try again, and if it keeps happening tell your administrator.",
+      retry: "Try again",
+    },
+
     guestExperience: {
       heading: "Guest Experience & Requests",
       subheading:
@@ -5582,6 +5708,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       people: "People",
       hr: "HR & Payroll",
       analytics: "Analytics",
+      portfolio: "All Properties",
       configuration: "Configuration",
       integrations: "Integrations",
       "data-export": "Data export",
@@ -7085,6 +7212,45 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
     },
 
+    portfolio: {
+      subtitle: "{organization}: كل المنشآت جنبًا إلى جنب.",
+      asOf: "الأرقام حتى {time}",
+      listLabel: "المنشآت جنبًا إلى جنب",
+      occupancyTitle: "الإشغال عبر المنشآت",
+      coverage: "حُسبت في {reporting} من {total} منشآت",
+      notReporting: "غير متاحة في أي منشأة",
+      moneyOwedTitle: "المبالغ المستحقة",
+      moneyOwedNote: "أرصدة الحسابات المفتوحة، سطر لكل عملة",
+      maintenanceTitle: "الصيانة المفتوحة",
+      maintenanceNote: "طلبات لم تُنجز بعد",
+      cardOccupancy: "الوحدات المشغولة",
+      businessDate: "يوم العمل {date}",
+      noSellableUnits: "لا وحدات قابلة للبيع",
+      arrivals: "وصول متبقٍ اليوم",
+      departures: "مغادرة متبقية اليوم",
+      maintenance: "طلبات الصيانة المفتوحة",
+      moneyOwed: "المبالغ المستحقة",
+      hidden: "مخفي",
+      unavailable: "غير متاح",
+      withheld: "لا تُعرض أرقام هذه المنشأة لأن التحليلات غير مفعّلة فيها.",
+      moneyHiddenNotice:
+        "المبالغ المستحقة مخفية. تظهر فقط لمن يستطيع إدارة الحسابات، في المنشآت التي فُعّل فيها الإصدار.",
+      open: "افتح {property}",
+      oneTitle: "لا شيء للمقارنة بعد",
+      oneDescription:
+        "تصل إلى منشأة واحدة: {property}. تظهر المنشآت جنبًا إلى جنب هنا عندما تصل إلى أكثر من واحدة.",
+      noneTitle: "لا منشأة للعرض",
+      noneDescription: "لا تصل إلى أي منشأة في هذه المؤسسة.",
+      goToToday: "اذهب إلى اليوم",
+      tooLargeTitle: "منشآت أكثر من أن تُقارَن",
+      tooLargeDescription:
+        "تصل إلى {count} منشأة وهذه الصفحة تقارن {max} على الأكثر. لا يُقتطع شيء بصمت، لذلك لا تُعرض أي مقارنة.",
+      failedTitle: "تعذّر عرض المحفظة",
+      failedDescription:
+        "حدث خطأ أثناء قراءة منشآتك. أعد المحاولة، وإن تكرر فأبلغ المسؤول.",
+      retry: "أعد المحاولة",
+    },
+
     guestExperience: {
       heading: "تجربة وطلبات الضيوف",
       subheading:
@@ -7462,6 +7628,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       people: "الفريق",
       hr: "الموارد البشرية والرواتب",
       analytics: "التحليلات",
+      portfolio: "كل المنشآت",
       configuration: "الإعدادات",
       integrations: "التكاملات",
       "data-export": "تصدير البيانات",

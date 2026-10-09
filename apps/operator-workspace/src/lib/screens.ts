@@ -3,6 +3,7 @@ import {
   Bed,
   BellRing,
   Boxes,
+  Building2,
   CalendarCheck,
   CalendarDays,
   CalendarRange,
@@ -77,6 +78,13 @@ export interface Screen {
   section?: string | undefined;
   /** Children make this a rail category rather than a destination. */
   children?: Screen[] | undefined;
+  /**
+   * Not a capability a Property switches on: the shell decides whether to
+   * offer it, from what the viewer reaches (`lib/portfolio-offer.ts`). Its
+   * `capability` is only the key the rail filters on, so it is never asked of
+   * the database.
+   */
+  derived?: boolean | undefined;
 }
 
 export const SCREENS: Screen[] = [
@@ -234,6 +242,21 @@ export const SCREENS: Screen[] = [
     blueprint: "5.14",
     built: true,
     section: "management",
+  },
+  // The Owner's view across Properties (RANZ-43). Offered only to someone who
+  // reaches more than one Property in an Organization, because with one there
+  // is nothing to put beside it (docs/features/portfolio/edge-cases.csv). The
+  // Enterprise-plan gate the mockup hints at is the owner's to decide, so none
+  // is invented here.
+  {
+    segment: "portfolio",
+    capability: "portfolio",
+    module: "analytics",
+    icon: Building2,
+    blueprint: "11",
+    built: true,
+    section: "management",
+    derived: true,
   },
   {
     segment: "integrations",

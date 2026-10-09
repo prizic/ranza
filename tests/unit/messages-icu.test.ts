@@ -128,6 +128,7 @@ describe("every catalogue parses", () => {
                 property: "x",
                 reason: "x",
                 reference: "R3F7K2Q",
+                reporting: 2,
                 revenue: "₺5.900,00",
                 role: "x",
                 room: "x",

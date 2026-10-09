@@ -4,6 +4,11 @@ import { ShieldCheck } from "lucide-react";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { AccountMenu, AppShell, BrandMark, DropdownMenuItem } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import {
+  offersPortfolio,
+  PORTFOLIO_GATE,
+  PORTFOLIO_KEY,
+} from "../../../lib/portfolio-offer";
 import { ALL_SCREENS } from "../../../lib/screens";
 import {
   switchableProperties,
@@ -69,10 +74,12 @@ export default async function WorkspaceLayout({
   // the capability read rather than after it.
   const capabilities = [
     ...new Map(
-      ALL_SCREENS.filter((screen) => !screen.permission).map((screen) => [
-        `${screen.module}:${screen.capability}`,
-        { capabilityKey: screen.capability, moduleKey: screen.module },
-      ]),
+      ALL_SCREENS.filter((screen) => !screen.permission && !screen.derived).map(
+        (screen) => [
+          `${screen.module}:${screen.capability}`,
+          { capabilityKey: screen.capability, moduleKey: screen.module },
+        ],
+      ),
     ).values(),
   ];
   const permitted = ALL_SCREENS.flatMap((screen) =>
@@ -91,6 +98,21 @@ export default async function WorkspaceLayout({
     billingNotices(),
   ]);
 
+  // All Properties is not a capability anybody switches on: it is offered
+  // when the viewer reaches several Properties of one Organization and has
+  // analytics at one of them (`offersPortfolio`).
+  const portfolioOffered = offersPortfolio(
+    [
+      ...byCapability.flatMap((answer) => answer.properties),
+      ...byPermission.flatMap((answer) => answer.reachable),
+    ],
+    byCapability.find(
+      (answer) =>
+        answer.capability.moduleKey === PORTFOLIO_GATE.moduleKey &&
+        answer.capability.capabilityKey === PORTFOLIO_GATE.capabilityKey,
+    )?.properties ?? [],
+  );
+
   // Plain strings, so the tree can be built on the client where its icons live.
   const entitled = [
     ...byCapability
@@ -99,6 +121,7 @@ export default async function WorkspaceLayout({
     ...byPermission
       .filter((answer) => answer.reachable.length > 0)
       .map((answer) => answer.key),
+    ...(portfolioOffered ? [PORTFOLIO_KEY] : []),
   ];
 
   // The switcher lists every Property the viewer can use at least one

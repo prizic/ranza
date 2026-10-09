@@ -5,10 +5,13 @@ import { expect, test as setup } from "@playwright/test";
 
 import { psql } from "./local-database";
 import {
+  analyticsAtTheTestProperty,
   aPropertyTheViewerDoesNotReach,
   DESK_EMAIL,
+  HOUSEKEEPER_EMAIL,
   OWNER_EMAIL,
   PASSWORD,
+  portfolioProperty,
   propertyWithHousekeepingOff,
   propertyWithTodayOff,
   testProperty,
@@ -145,5 +148,79 @@ setup(
         `the workspace did not create a Ranza user for ${person.email}`,
       ).toBe("1");
     }
+  },
+);
+
+/**
+ * What All Properties needs beyond the Properties above: analytics at the
+ * browser tests' own Property, a second Property that trades in euros, and a
+ * Housekeeping colleague — the shipped role without `finance.manage_folio` —
+ * reaching that one and a demo Property: a reader without money who still has
+ * two Properties to compare. Reached only there, so no other screen's roster
+ * of the browser tests' own Property gains a person.
+ *
+ * Here and not in a spec for the reason the Properties above are: it looks
+ * before it writes, and two specs doing so at once would both insert.
+ */
+setup(
+  "the portfolio has Properties to compare",
+  async ({ request, baseURL }) => {
+    analyticsAtTheTestProperty();
+    const second = portfolioProperty();
+
+    const headers = { origin: new URL("/", baseURL).origin };
+    const signedUp = await request.post("/api/auth/sign-up/email", {
+      headers,
+      data: {
+        email: HOUSEKEEPER_EMAIL,
+        password: PASSWORD,
+        name: "housekeeping",
+      },
+    });
+    if (!signedUp.ok()) {
+      const signedIn = await request.post("/api/auth/sign-in/email", {
+        headers,
+        data: { email: HOUSEKEEPER_EMAIL, password: PASSWORD },
+      });
+      expect(
+        signedIn.ok(),
+        `could not sign up or sign in ${HOUSEKEEPER_EMAIL}: ${signedIn.status()}`,
+      ).toBe(true);
+    }
+    // The first authenticated request maps the provider subject onto a user.
+    await request.get("/en/today");
+
+    psql(
+      `with person as (
+         select id from public.users where lower(email) = lower('${HOUSEKEEPER_EMAIL}')
+       ), home as (
+         select organization_id as id from public.properties where id = '${second}'
+       ), membership as (
+         insert into public.organization_memberships
+           (organization_id, user_id, role, access_scope)
+         select home.id, person.id, 'housekeeping', 'assigned_properties'
+         from home, person
+         on conflict (organization_id, user_id) do nothing
+       ), reached as (
+         select property.id
+         from public.properties as property, home
+         where property.organization_id = home.id
+           and (property.id = '${second}'
+                or property.name = 'Deniz Otel Kadıköy')
+       )
+       insert into public.property_assignments
+         (property_id, organization_id, user_id)
+       select reached.id, home.id, person.id
+       from reached, home, person
+       on conflict (property_id, user_id) do nothing`,
+    );
+    expect(
+      psql(
+        `select count(*) from public.property_assignments as assignment
+         join public.users as member on member.id = assignment.user_id
+         where lower(member.email) = lower('${HOUSEKEEPER_EMAIL}')`,
+      ),
+      "the Housekeeping colleague should reach exactly two Properties",
+    ).toBe("2");
   },
 );

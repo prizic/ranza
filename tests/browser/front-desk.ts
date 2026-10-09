@@ -26,6 +26,13 @@ export const PASSWORD = "correct-horse-battery-staple";
 export const DESK_EMAIL = "e2e-front-desk@example.test";
 export const OWNER_EMAIL = "e2e-owner@example.test";
 
+/**
+ * A Housekeeping colleague, made by `seed.setup.ts` for the portfolio: the
+ * shipped role that does not hold `finance.manage_folio`, reaching the
+ * portfolio Property and one demo Property and no other.
+ */
+export const HOUSEKEEPER_EMAIL = "e2e-housekeeper@example.test";
+
 /** Kept away from the demo Property, and named so nobody mistakes it for one. */
 const TEST_PROPERTY = "E2E Test Property";
 
@@ -84,6 +91,43 @@ export function propertyWithTodayOff(): string {
     front_desk: true,
     housekeeping: true,
   });
+}
+
+/**
+ * A Property of the tests' own that trades in euros, for the portfolio: beside
+ * the lira Properties it is the second currency that must stay a line of its
+ * own, and the second Property a Front desk Staff Member reaches (see the
+ * portfolio step in seed.setup.ts), so a reader without
+ * `finance.manage_folio` has something to compare.
+ */
+export function portfolioProperty(): string {
+  const propertyId = aPropertyOfTheTests(`${TEST_PROPERTY} (portfolio)`, {
+    today: true,
+    front_desk: true,
+    finance: true,
+    maintenance: true,
+    analytics: true,
+  });
+  psql(
+    `update public.properties set currency = 'EUR'
+      where id = '${propertyId}' and currency <> 'EUR'`,
+  );
+  return propertyId;
+}
+
+/**
+ * The analytics capability switched on at the browser tests' own Property, so
+ * the portfolio reads figures there instead of withholding it. Left on: a
+ * Property with analytics is a Property the Analytics screen opens for.
+ */
+export function analyticsAtTheTestProperty(): void {
+  psql(
+    `insert into public.property_capabilities
+       (property_id, organization_id, capability_key, enabled)
+     select id, organization_id, 'analytics', true
+     from public.properties where id = '${testProperty()}'
+     on conflict (property_id, capability_key) do update set enabled = true`,
+  );
 }
 
 /**

@@ -1,6 +1,6 @@
 %% Slices decide implementation order and nothing else:
 %%   s1 the read: one figure set per Property the viewer reaches, gates asked once per Property
-%% The screen is not this slice. "Screen: nothing" on the card means the contract is what ships.
+%%   s2 the screen: All Properties, drawn from the s1 read and nothing else (rows PF-S2-*, proposed)
 %% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
 %% Refusals and empty answers are rows in edge-cases.csv, not use cases.
 flowchart TD
@@ -27,7 +27,15 @@ flowchart TD
     TREND(["Occupancy trend line &mdash; deferred, mockup data is invented"])
     CONVERT(["A money total across currencies &mdash; deferred"])
     CLOSED(["A closed Property's history for the Owner &mdash; deferred, ADR 0040"])
-    SCREEN(["The portfolio screen &mdash; not this card"])
+  end
+
+  subgraph S2["slice 2 &mdash; the All Properties screen"]
+    OFFER(["Offer the destination<br/>only to a viewer reaching several Properties of one Organization"])
+    COMPARE(["Set the Properties side by side<br/>one card each, three summary figures, as-of stamp"])
+    SAYHIDDEN(["Say what is hidden or unavailable<br/>never show it as zero"])
+    OPEN(["Open a Property<br/>remember it, then Today at it"])
+    ONE(["Say there is nothing to compare<br/>when only one Property is reached"])
+    REFUSED(["Say the portfolio is too large<br/>when more than the ceiling is reached"])
   end
 
   OWNER --> LIST
@@ -43,3 +51,12 @@ flowchart TD
   LIST -. extend .-> MONEY
   LIST -. extend .-> WITHHOLD
   MONEY -. include .-> MASK
+
+  OWNER --> OFFER
+  MANAGER --> OFFER
+  OFFER --> COMPARE
+  COMPARE -. include .-> LIST
+  COMPARE -. include .-> SAYHIDDEN
+  COMPARE -. extend .-> OPEN
+  OFFER -. extend .-> ONE
+  COMPARE -. extend .-> REFUSED

@@ -32,6 +32,9 @@ export interface Portfolio {
 }
 
 export class PortfolioTooLargeError extends Error {
+  /** What the screen quotes: the most the portfolio will compare. */
+  readonly ceiling = PROPERTY_CEILING;
+
   constructor(readonly propertyCount: number) {
     super(
       `${propertyCount} Properties are reached; the portfolio shows at most ${PROPERTY_CEILING}`,
