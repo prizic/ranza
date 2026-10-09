@@ -303,109 +303,9 @@ export function NewReservationDialog({
             }
           />
 
-          {/* Section 1: Dates & Duration */}
-          <div className="grid gap-1.5">
-            <Field htmlFor="booking-dates" label={t("stayDates")}>
-              <DateRangeField
-                earliestFrom={today}
-                id="booking-dates"
-                labels={{
-                  from: t("arrival"),
-                  to: t("departure"),
-                  emptyFrom: t("bookingAddDate"),
-                  emptyTo: departureRequired
-                    ? t("bookingAddDate")
-                    : t("bookingOpenEnded"),
-                  pickFrom: t("bookingPickArrival"),
-                  pickTo: departureRequired
-                    ? t("bookingPickDepartureRequired")
-                    : t("bookingPickDeparture"),
-                  clear: t("dateRangeClear"),
-                  done: t("dateRangeDone"),
-                  span: (nights) => t("stayNights", { count: nights }),
-                }}
-                locale={locale}
-                // A departure is a later night: a booking cannot end on the
-                // day it starts.
-                minSpan={1}
-                names={{ from: "startsOn", to: "endsOn" }}
-                onChange={setDates}
-                required
-                requiredTo={departureRequired}
-                today={today}
-              />
-            </Field>
-            <p className="text-step--1 text-muted-foreground">
-              {departureRequired
-                ? t("departureRequiredHint")
-                : t("departureHint")}
-            </p>
-            {availabilityUnknown ? (
-              <p className="text-step--1 text-muted-foreground" role="status">
-                {t("bookingAvailabilityUnknown")}
-              </p>
-            ) : null}
-          </div>
-
-          {/* Section 2: Unit & Stay Type */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field htmlFor="booking-unit" label={t("unit")}>
-              <Combobox
-                id="booking-unit"
-                labels={unitLabels}
-                name="unit"
-                onValueChange={setUnitId}
-                options={units.map((unit) => {
-                  const blocker = taken.get(unit.unitId);
-                  const type = t(`unitType.${unit.unitType}`);
-                  return {
-                    value: unit.unitId,
-                    label: unitLabel(unit.roomName, unit.unitName),
-                    description: blocker
-                      ? `${type} · ${t(blocker === "booked" ? "unitBookedThoseNights" : "unitOccupiedThoseNights")}`
-                      : type,
-                    disabled: blocker !== undefined,
-                  };
-                })}
-                required
-              />
-              {unitId && taken.has(unitId) ? (
-                <p className="text-step--1 text-warning" role="status">
-                  {t("chosenUnitTakenThoseNights")}
-                </p>
-              ) : null}
-            </Field>
-            <Field htmlFor="booking-stay-type" label={t("stayTypeLabel")}>
-              <Select
-                defaultValue="guest"
-                name="stayType"
-                onValueChange={setStayType}
-              >
-                <SelectTrigger className="w-full" id="booking-stay-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="guest">{t("stayType.guest")}</SelectItem>
-                  <SelectItem value="resident">
-                    {t("stayType.resident")}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
-
-          {quote ? (
-            // Polite: it changes as the Unit, the kind of stay and the dates
-            // do, and each change is detail rather than an interruption.
-            <p
-              aria-live="polite"
-              className="rounded-lg border bg-muted/40 px-3 py-2 text-step--1"
-            >
-              <bdi>{quote}</bdi>
-            </p>
-          ) : null}
-
-          {/* Section 3: Guest Details */}
+          {/* First in the form on purpose: a blocked submit focuses the first
+              problem field in document order, and the desk is asked for the
+              Guest's name before the Unit and the dates (RG-S4-19). */}
           <Field htmlFor="booking-guest" label={t("guest")}>
             <Input
               aria-describedby={
@@ -467,6 +367,106 @@ export function NewReservationDialog({
               />
             </Field>
           </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field htmlFor="booking-unit" label={t("unit")}>
+              <Combobox
+                id="booking-unit"
+                labels={unitLabels}
+                name="unit"
+                onValueChange={setUnitId}
+                options={units.map((unit) => {
+                  const blocker = taken.get(unit.unitId);
+                  const type = t(`unitType.${unit.unitType}`);
+                  return {
+                    value: unit.unitId,
+                    label: unitLabel(unit.roomName, unit.unitName),
+                    description: blocker
+                      ? `${type} · ${t(blocker === "booked" ? "unitBookedThoseNights" : "unitOccupiedThoseNights")}`
+                      : type,
+                    disabled: blocker !== undefined,
+                  };
+                })}
+                required
+              />
+              {unitId && taken.has(unitId) ? (
+                <p className="text-step--1 text-warning" role="status">
+                  {t("chosenUnitTakenThoseNights")}
+                </p>
+              ) : null}
+            </Field>
+            <Field htmlFor="booking-stay-type" label={t("stayTypeLabel")}>
+              <Select
+                defaultValue="guest"
+                name="stayType"
+                onValueChange={setStayType}
+              >
+                <SelectTrigger className="w-full" id="booking-stay-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="guest">{t("stayType.guest")}</SelectItem>
+                  <SelectItem value="resident">
+                    {t("stayType.resident")}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
+
+          <div className="grid gap-1.5">
+            <Field htmlFor="booking-dates" label={t("stayDates")}>
+              <DateRangeField
+                earliestFrom={today}
+                id="booking-dates"
+                labels={{
+                  from: t("arrival"),
+                  to: t("departure"),
+                  emptyFrom: t("bookingAddDate"),
+                  emptyTo: departureRequired
+                    ? t("bookingAddDate")
+                    : t("bookingOpenEnded"),
+                  pickFrom: t("bookingPickArrival"),
+                  pickTo: departureRequired
+                    ? t("bookingPickDepartureRequired")
+                    : t("bookingPickDeparture"),
+                  clear: t("dateRangeClear"),
+                  done: t("dateRangeDone"),
+                  span: (nights) => t("stayNights", { count: nights }),
+                }}
+                locale={locale}
+                // A departure is a later night: a booking cannot end on the
+                // day it starts.
+                minSpan={1}
+                names={{ from: "startsOn", to: "endsOn" }}
+                onChange={setDates}
+                required
+                requiredTo={departureRequired}
+                today={today}
+              />
+            </Field>
+            <p className="text-step--1 text-muted-foreground">
+              {departureRequired
+                ? t("departureRequiredHint")
+                : t("departureHint")}
+            </p>
+            {availabilityUnknown ? (
+              <p className="text-step--1 text-muted-foreground" role="status">
+                {t("bookingAvailabilityUnknown")}
+              </p>
+            ) : null}
+          </div>
+
+          {quote ? (
+            // Polite: it changes as the Unit, the kind of stay and the dates
+            // do, and each change is detail rather than an interruption.
+            <p
+              aria-live="polite"
+              className="rounded-lg border bg-muted/40 px-3 py-2 text-step--1"
+            >
+              <bdi>{quote}</bdi>
+            </p>
+          ) : null}
 
           {message ? (
             // Polite rather than assertive: the dialog is still open and the

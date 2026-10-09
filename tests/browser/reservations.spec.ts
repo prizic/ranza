@@ -146,7 +146,7 @@ test("a front desk takes a booking and finds it on the list", async ({
  * hands focus, and the browser's bubble, to whichever field comes next — which
  * jsdom does not do, and which the unit suite therefore cannot see.
  */
-test("a booking form with several problems asks about the Guest first", async ({
+test("a_booking_form_with_several_problems_asks_about_the_guest_first: the name is asked about first", async ({
   page,
 }) => {
   const propertyId = testProperty();
@@ -183,4 +183,192 @@ test("a booking form with several problems asks about the Guest first", async ({
   // Typing takes the message away.
   await guest.fill("Somebody");
   await expect(dialog.getByText("Enter the Guest's name.")).toBeHidden();
+});
+
+/**
+ * A confirmed booking of this run's own on a Unit of its own, dated from the
+ * Property's today so it lands in the same tab on whichever day this runs.
+ */
+function aConfirmedBooking(
+  propertyId: string,
+  guestName: string,
+  firstNight: number,
+  lastNight: number,
+  contact: { email: string; phone: string },
+): { reservationId: string; reference: string; unitName: string } {
+  const unitName = `E2E-LIST-${randomUUID().slice(0, 8)}`;
+  const reservationId = psql(
+    `with target as (
+       select id, organization_id from public.properties where id = '${propertyId}'
+     ), unit as (
+       insert into public.accommodation_units
+         (property_id, organization_id, name, unit_type, capacity)
+       select id, organization_id, '${unitName}', 'room', 2 from target
+       returning id, property_id, organization_id
+     ), guest as (
+       insert into public.guests (organization_id, full_name, email, phone)
+       select organization_id, '${guestName}', '${contact.email}', '${contact.phone}'
+         from target
+       returning id
+     )
+     insert into public.reservations
+       (organization_id, property_id, accommodation_unit_id,
+        guest_id, stay_type, status, starts_on, ends_on)
+     select unit.organization_id, unit.property_id, unit.id,
+            guest.id, 'guest', 'confirmed',
+            app.property_today(unit.property_id) + ${firstNight},
+            app.property_today(unit.property_id) + ${lastNight}
+       from unit, guest
+     returning id`,
+  );
+  const reference = psql(
+    `select reference from public.reservations where id = '${reservationId}'`,
+  );
+  return { reservationId, reference, unitName };
+}
+
+/** Seven digits, so a telephone typed in full is found by nothing else. */
+function sevenDigits(): string {
+  return String(Math.floor(Math.random() * 1e7)).padStart(7, "0");
+}
+
+test("a_booking_is_found_by_tab_by_phone_and_by_reference", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const tag = randomUUID().slice(0, 8);
+  const arriving = `Tabs Arriving ${tag}`;
+  const upcoming = `Tabs Upcoming ${tag}`;
+  const digits = sevenDigits();
+  const arrivingBooking = aConfirmedBooking(propertyId, arriving, 0, 2, {
+    email: `tabs.arriving.${tag}@example.test`,
+    phone: `+90 555 ${sevenDigits()}`,
+  });
+  aConfirmedBooking(propertyId, upcoming, 20, 22, {
+    email: `tabs.upcoming.${tag}@example.test`,
+    // Written with spaces, found by its digits alone.
+    phone: `+90 555 ${digits.slice(0, 3)} ${digits.slice(3)}`,
+  });
+
+  await signIn(page);
+  await page.goto(`/en/reservations?property=${propertyId}`);
+
+  const search = page.getByRole("searchbox");
+  const row = (name: string) => page.getByRole("row").filter({ hasText: name });
+
+  // All is where the list opens: nothing is hidden until somebody asks.
+  await search.fill(tag);
+  await expect(page.getByRole("tab", { name: /^All/ })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(row(arriving)).toBeVisible();
+  await expect(row(upcoming)).toBeVisible();
+
+  await page.getByRole("tab", { name: /^Arriving today/ }).click();
+  await expect(row(arriving)).toBeVisible();
+  await expect(row(upcoming)).toBeHidden();
+
+  await page.getByRole("tab", { name: /^Upcoming/ }).click();
+  await expect(row(upcoming)).toBeVisible();
+  await expect(row(arriving)).toBeHidden();
+
+  // Nobody is in house under this search: neither booking has arrived.
+  await page.getByRole("tab", { name: /^In house/ }).click();
+  await expect(row(arriving)).toBeHidden();
+  await expect(row(upcoming)).toBeHidden();
+
+  await page.getByRole("tab", { name: /^All/ }).click();
+  await expect(row(arriving)).toBeVisible();
+  await expect(row(upcoming)).toBeVisible();
+
+  // The telephone is found by its digits, typed without the spaces it was
+  // written with.
+  await search.fill(`555${digits}`);
+  await expect(row(upcoming)).toBeVisible();
+  await expect(row(arriving)).toBeHidden();
+
+  // And a booking is found by the reference it was given.
+  await search.fill(arrivingBooking.reference);
+  await expect(row(arriving)).toBeVisible();
+  await expect(row(upcoming)).toBeHidden();
+});
+
+test("a_row_opens_the_bookings_detail_sheet: and the sheet closes back to the list", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const guestName = `Detail Guest ${randomUUID().slice(0, 8)}`;
+  const email = `${guestName.replaceAll(" ", ".").toLowerCase()}@example.test`;
+  const phone = `+90 555 ${sevenDigits()}`;
+  const booking = aConfirmedBooking(propertyId, guestName, 5, 8, {
+    email,
+    phone,
+  });
+
+  await signIn(page);
+  await page.goto(`/en/reservations?property=${propertyId}`);
+  await page.getByRole("searchbox").fill(guestName);
+  const row = page.getByRole("row").filter({ hasText: guestName });
+  await expect(row).toBeVisible();
+
+  // Pressed on text in the row, not on a control inside it.
+  await row.getByText(booking.unitName).click();
+  const sheet = page.getByRole("dialog", { name: guestName });
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByText("Stay timeline")).toBeVisible();
+  await expect(sheet.getByText(booking.reference)).toBeVisible();
+  await expect(sheet.getByText(booking.unitName)).toBeVisible();
+  await expect(sheet.getByRole("link", { name: email })).toBeVisible();
+  await expect(sheet.getByRole("link", { name: phone })).toBeVisible();
+  await expect(
+    sheet.getByRole("link", { name: "Show on the room map" }),
+  ).toHaveAttribute("href", /\/rooms\?property=.*&unit=/);
+
+  await sheet.getByRole("button", { name: "Close" }).click();
+  await expect(sheet).toBeHidden();
+
+  // The row is a keyboard target as well, and Escape closes the sheet. Focus
+  // starts on Copy reference, whose tooltip takes the first Escape.
+  await row.focus();
+  await page.keyboard.press("Enter");
+  await expect(sheet).toBeVisible();
+  await expect(async () => {
+    await page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden({ timeout: 1_000 });
+  }).toPass();
+});
+
+test("choosing_from_a_rows_menu_opens_that_action_and_not_the_sheet", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const guestName = `Menu Guest ${randomUUID().slice(0, 8)}`;
+  aConfirmedBooking(propertyId, guestName, 5, 8, {
+    email: `${guestName.replaceAll(" ", ".").toLowerCase()}@example.test`,
+    phone: `+90 555 ${sevenDigits()}`,
+  });
+
+  await signIn(page);
+  await page.goto(`/en/reservations?property=${propertyId}`);
+  await page.getByRole("searchbox").fill(guestName);
+  const row = page.getByRole("row").filter({ hasText: guestName });
+  await expect(row).toBeVisible();
+
+  // The menu and the dialog it opens are portals, but React still bubbles
+  // their clicks through the row. No sheet is opened first, because one closed
+  // just before arms a guard that would hide the fault.
+  await row
+    .getByRole("button", {
+      name: new RegExp(`More actions for .?${guestName}`),
+    })
+    .click();
+  await page.getByRole("menuitem", { name: "Change booking" }).click();
+  const change = page.getByRole("dialog", { name: "Change booking" });
+  await expect(change).toBeVisible();
+  // Pressing inside the dialog, on text rather than a control, is not a press
+  // on the row either.
+  await change.getByText("Stay dates").click();
+  await expect(change).toBeVisible();
+  await expect(page.getByRole("dialog", { name: guestName })).toBeHidden();
 });

@@ -384,6 +384,14 @@ export function DataTable<TData, TValue>({
                       // An overlay that just closed over this row sends its
                       // click here — see lib/menu-guard.
                       if (overlayJustClosed()) return;
+                      // A menu or dialog a cell opens is a portal, but React
+                      // still bubbles its clicks through the cell to this
+                      // row: choosing a menu item, or pressing anywhere in
+                      // the dialog it opened, would open the row as well.
+                      // Those clicks land outside the row in the document.
+                      if (!event.currentTarget.contains(event.target as Node)) {
+                        return;
+                      }
                       if (
                         !(event.target as HTMLElement).closest(
                           "button, a, input, [role=checkbox]",
