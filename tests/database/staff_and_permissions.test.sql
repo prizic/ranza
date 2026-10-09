@@ -639,8 +639,10 @@ select throws_ok(
 -- this transaction. The array is Finance's, so a permission added to Finance
 -- (maintenance.report, 20260916004300; finance.reverse_charge,
 -- 20260916009600; data_export.read and data_export.create,
--- 20260916010100_data_export_and_schedules) is added here too, or the ceiling
--- correctly refuses the hand-out and the lives_ok below goes red.
+-- 20260916010100_data_export_and_schedules; finance.view_ledger,
+-- 20260916010600_the_ledger_is_read_by_permission_and_posted_by_the_worker) is
+-- added here too, or the ceiling correctly refuses the hand-out and the
+-- lives_ok below goes red.
 
 set local role none;
 -- How many rows a statement changed, -1 when a policy refused it by raising,
@@ -675,7 +677,7 @@ insert into public.staff_roles
    array['staff.administer', 'finance.manage_folio', 'finance.post_charge',
          'maintenance.report', 'finance.reverse_charge',
          'finance.post_payment', 'finance.reverse_payment',
-         'data_export.read', 'data_export.create']),
+         'data_export.read', 'data_export.create', 'finance.view_ledger']),
   ('6a111111-1111-4111-8111-111111111111', 'night_auditor',
    '6a111111-1111-4111-8111-111111111111', 'Night auditor',
    array['audit.read']);

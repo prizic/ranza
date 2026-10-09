@@ -15,7 +15,6 @@
     "@nestjs/schedule": "12.0.2",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
-    "@ranza/adapter-ranza-finance": "workspace:*",
     "@ranza/business-day": "workspace:*",
     "@ranza/data-export": "workspace:*",
     "@ranza/db": "workspace:*",

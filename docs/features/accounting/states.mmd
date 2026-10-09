@@ -1,0 +1,43 @@
+%% Anything not drawn here is forbidden.
+%% Every transition carries its command and its slice.
+%% Two lifecycles: the event that carries a Folio line to the ledger, and the
+%% journal entry it produces. The command that posts is
+%% app.post_folio_line_to_ledger(), executable by ranza_worker alone.
+stateDiagram-v2
+  direction LR
+
+  state "Folio line event (folio.line_posted)" as folioEvent {
+    state "pending (published with the line)" as e_pending
+    state "retrying (last_error and attempts recorded, backoff)" as e_retrying
+    state "delivered (the entry exists)" as e_delivered
+    state "dead (attempt cap reached, last_error kept)" as e_dead
+
+    [*] --> e_pending : folio_lines insert trigger / s1
+    e_pending --> e_delivered : post_folio_line_to_ledger / s1
+    e_pending --> e_retrying : post_folio_line_to_ledger raises / s1
+    e_retrying --> e_delivered : post_folio_line_to_ledger / s1
+    e_retrying --> e_retrying : post_folio_line_to_ledger raises below the cap / s1
+    e_retrying --> e_dead : post_folio_line_to_ledger raises at the cap / s1
+    e_delivered --> [*]
+    e_dead --> [*]
+  }
+
+  state "Journal entry" as journalEntry {
+    state "posted (balanced, dated, append-only)" as j_posted
+
+    [*] --> j_posted : post_folio_line_to_ledger / s1
+    j_posted --> [*] : never changed or removed
+  }
+
+  note right of e_dead
+    A dead event is not deleted and is not
+    delivered. The dispatcher logs it, and
+    last_error says which event and why.
+  end note
+
+  note right of j_posted
+    Update, delete and truncate are refused
+    for everyone, the owner included.
+    A correction is a new reversing entry
+    posted from a reversal Folio line.
+  end note

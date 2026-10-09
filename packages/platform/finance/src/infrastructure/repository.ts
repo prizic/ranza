@@ -4,16 +4,16 @@ import {
   AccountType,
   BalanceDirection,
   JournalEntry,
-  JournalEntryInput,
-  JournalLine,
 } from "../domain/entry";
-import {
-  AccountNotFoundError,
-  DuplicateEntryError,
-  FinanceError,
-  InvalidEntryError,
-} from "../domain/errors";
 import type { FinanceClient } from "../ports";
+
+/**
+ * Reads of the ledger, under the caller's own policies.
+ *
+ * There is no write here. The ledger is written by one database function that
+ * only the worker may execute (ADR 0042, ADR 0027), so a runtime role that
+ * called an `insert` from this package would be refused by the grant it lacks.
+ */
 
 interface EntryRow {
   id: string;
@@ -61,144 +61,26 @@ interface BalanceRow {
   creditMinor: string | number;
 }
 
-export async function insertJournalEntry(
+async function loadEntry(
   tx: FinanceClient,
-  entry: JournalEntryInput,
+  header: EntryRow,
 ): Promise<JournalEntry> {
-  // Validate that all referenced accounts exist, belong to this organization, and are active
-  const uniqueAccountIds = Array.from(
-    new Set(entry.lines.map((l) => l.accountId)),
-  );
-  for (const accountId of uniqueAccountIds) {
-    const accRows = await tx.$queryRaw<
-      Array<{
-        id: string;
-        isActive: boolean;
-        code: string;
-        organizationId: string;
-      }>
-    >`
-      select
-        id,
-        is_active as "isActive",
-        code,
-        organization_id as "organizationId"
-      from finance.accounts
-      where id = ${accountId}::uuid
-    `;
-    const acc = accRows[0];
-    if (!acc || acc.organizationId !== entry.organizationId) {
-      throw new AccountNotFoundError(
-        `account ${accountId} does not exist for organization ${entry.organizationId}`,
-      );
-    }
-    if (!acc.isActive) {
-      throw new InvalidEntryError(
-        `account ${acc.code} is inactive and cannot accept postings`,
-      );
-    }
-  }
-
-  const formattedDate = entry.entryDate
-    ? new Date(entry.entryDate).toISOString().slice(0, 10)
-    : null;
-
-  let headerRows: EntryRow[];
-  try {
-    headerRows = await tx.$queryRaw<EntryRow[]>`
-      insert into finance.journal_entries
-        (organization_id, currency, description, source_type, source_id, created_by, entry_date)
-      values (
-        ${entry.organizationId}::uuid,
-        ${entry.currency},
-        ${entry.description.trim()},
-        ${entry.sourceType},
-        ${entry.sourceId}::uuid,
-        ${entry.createdBy ?? null}::uuid,
-        coalesce(${formattedDate}::date, current_date)
-      )
-      returning
-        id,
-        organization_id as "organizationId",
-        entry_number    as "entryNumber",
-        entry_date      as "entryDate",
-        posted_at       as "postedAt",
-        currency,
-        description,
-        source_type     as "sourceType",
-        source_id       as "sourceId",
-        created_by      as "createdBy"
-    `;
-  } catch (error: unknown) {
-    const err = error as { code?: string; message?: string };
-    if (
-      err.code === "23505" ||
-      err.message?.includes("journal_entries_source")
-    ) {
-      throw new DuplicateEntryError(
-        `a journal entry already exists for source ${entry.sourceType}:${entry.sourceId}`,
-      );
-    }
-    throw new FinanceError("could not insert journal entry header", {
-      cause: error,
-    });
-  }
-
-  const header = headerRows[0];
-  if (!header) {
-    throw new FinanceError("the journal entry header was not returned");
-  }
-
-  const createdLines: JournalLine[] = [];
-
-  for (const [idx, line] of entry.lines.entries()) {
-    const lineNumber = idx + 1;
-    const lineRows = await tx.$queryRaw<LineRow[]>`
-      with inserted as (
-        insert into finance.journal_lines
-          (organization_id, journal_entry_id, account_id, direction, amount_minor, description, line_number)
-        values (
-          ${entry.organizationId}::uuid,
-          ${header.id}::uuid,
-          ${line.accountId}::uuid,
-          ${line.direction},
-          ${line.amountMinor}::bigint,
-          ${line.description ?? null},
-          ${lineNumber}
-        )
-        returning id, journal_entry_id, account_id, direction, amount_minor, description, line_number
-      )
-      select
-        inserted.id,
-        inserted.journal_entry_id as "journalEntryId",
-        inserted.account_id       as "accountId",
-        acc.code                  as "accountCode",
-        acc.name                  as "accountName",
-        inserted.direction,
-        inserted.amount_minor     as "amountMinor",
-        inserted.description,
-        inserted.line_number      as "lineNumber"
-      from inserted
-      join finance.accounts as acc on acc.id = inserted.account_id
-    `;
-
-    const row = lineRows[0];
-    if (!row) {
-      throw new FinanceError(`could not insert journal line ${lineNumber}`);
-    }
-
-    createdLines.push({
-      id: row.id,
-      journalEntryId: row.journalEntryId,
-      accountId: row.accountId,
-      accountCode: row.accountCode,
-      accountName: row.accountName,
-      direction: row.direction,
-      amountMinor: Number(row.amountMinor),
-      description: row.description,
-      lineNumber: row.lineNumber,
-    });
-  }
+  const lineRows = await tx.$queryRaw<LineRow[]>`
+    select
+      jl.id,
+      jl.journal_entry_id as "journalEntryId",
+      jl.account_id       as "accountId",
+      acc.code            as "accountCode",
+      acc.name            as "accountName",
+      jl.direction,
+      jl.amount_minor     as "amountMinor",
+      jl.description,
+      jl.line_number      as "lineNumber"
+    from finance.journal_lines as jl
+    join finance.accounts as acc on acc.id = jl.account_id
+    where jl.journal_entry_id = ${header.id}::uuid
+    order by jl.line_number asc
+  `;
 
   return {
     id: header.id,
@@ -211,7 +93,17 @@ export async function insertJournalEntry(
     sourceType: header.sourceType,
     sourceId: header.sourceId,
     createdBy: header.createdBy,
-    lines: createdLines,
+    lines: lineRows.map((r) => ({
+      id: r.id,
+      journalEntryId: r.journalEntryId,
+      accountId: r.accountId,
+      accountCode: r.accountCode,
+      accountName: r.accountName,
+      direction: r.direction,
+      amountMinor: Number(r.amountMinor),
+      description: r.description,
+      lineNumber: r.lineNumber,
+    })),
   };
 }
 
@@ -240,48 +132,7 @@ export async function findJournalEntryBySource(
   `;
 
   const header = headerRows[0];
-  if (!header) return null;
-
-  const lineRows = await tx.$queryRaw<LineRow[]>`
-    select
-      jl.id,
-      jl.journal_entry_id as "journalEntryId",
-      jl.account_id       as "accountId",
-      acc.code            as "accountCode",
-      acc.name            as "accountName",
-      jl.direction,
-      jl.amount_minor     as "amountMinor",
-      jl.description,
-      jl.line_number      as "lineNumber"
-    from finance.journal_lines as jl
-    join finance.accounts as acc on acc.id = jl.account_id
-    where jl.journal_entry_id = ${header.id}::uuid
-    order by jl.line_number asc
-  `;
-
-  return {
-    id: header.id,
-    organizationId: header.organizationId,
-    entryNumber: Number(header.entryNumber),
-    entryDate: new Date(header.entryDate),
-    postedAt: new Date(header.postedAt),
-    currency: header.currency.trim(),
-    description: header.description,
-    sourceType: header.sourceType,
-    sourceId: header.sourceId,
-    createdBy: header.createdBy,
-    lines: lineRows.map((r) => ({
-      id: r.id,
-      journalEntryId: r.journalEntryId,
-      accountId: r.accountId,
-      accountCode: r.accountCode,
-      accountName: r.accountName,
-      direction: r.direction,
-      amountMinor: Number(r.amountMinor),
-      description: r.description,
-      lineNumber: r.lineNumber,
-    })),
-  };
+  return header ? loadEntry(tx, header) : null;
 }
 
 export async function findJournalEntryById(
@@ -307,48 +158,7 @@ export async function findJournalEntryById(
   `;
 
   const header = headerRows[0];
-  if (!header) return null;
-
-  const lineRows = await tx.$queryRaw<LineRow[]>`
-    select
-      jl.id,
-      jl.journal_entry_id as "journalEntryId",
-      jl.account_id       as "accountId",
-      acc.code            as "accountCode",
-      acc.name            as "accountName",
-      jl.direction,
-      jl.amount_minor     as "amountMinor",
-      jl.description,
-      jl.line_number      as "lineNumber"
-    from finance.journal_lines as jl
-    join finance.accounts as acc on acc.id = jl.account_id
-    where jl.journal_entry_id = ${header.id}::uuid
-    order by jl.line_number asc
-  `;
-
-  return {
-    id: header.id,
-    organizationId: header.organizationId,
-    entryNumber: Number(header.entryNumber),
-    entryDate: new Date(header.entryDate),
-    postedAt: new Date(header.postedAt),
-    currency: header.currency.trim(),
-    description: header.description,
-    sourceType: header.sourceType,
-    sourceId: header.sourceId,
-    createdBy: header.createdBy,
-    lines: lineRows.map((r) => ({
-      id: r.id,
-      journalEntryId: r.journalEntryId,
-      accountId: r.accountId,
-      accountCode: r.accountCode,
-      accountName: r.accountName,
-      direction: r.direction,
-      amountMinor: Number(r.amountMinor),
-      description: r.description,
-      lineNumber: r.lineNumber,
-    })),
-  };
+  return header ? loadEntry(tx, header) : null;
 }
 
 export async function listAccounts(
@@ -380,17 +190,6 @@ export async function listAccounts(
     isActive: r.isActive,
     createdAt: new Date(r.createdAt),
   }));
-}
-
-export async function ensureDefaultAccounts(
-  tx: FinanceClient,
-  organizationId: string,
-): Promise<Account[]> {
-  await tx.$executeRawUnsafe(
-    `select finance.ensure_default_accounts($1::uuid)`,
-    organizationId,
-  );
-  return listAccounts(tx, organizationId);
 }
 
 export async function getAccountBalances(

@@ -317,6 +317,7 @@ export interface Messages {
       | "reverseCharge"
       | "postPayment"
       | "reversePayment"
+      | "viewLedger"
       | "administerStaff"
       | "defineRoles"
       | "configureAccommodation"
@@ -2111,6 +2112,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         reverseCharge: "Folyodaki ücreti ters kaydetme",
         postPayment: "Ödeme kaydetme",
         reversePayment: "Folyodaki ödemeyi ters kaydetme",
+        viewLedger: "Muhasebe defterini okuma",
         administerStaff: "Ekibi yönetme",
         defineRoles: "Rol tanımlama",
         configureAccommodation: "Odaları ve yatakları yapılandırma",
@@ -4009,6 +4011,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         reverseCharge: "Reverse a charge",
         postPayment: "Record a payment",
         reversePayment: "Reverse a payment",
+        viewLedger: "Read the general ledger",
         administerStaff: "Administer staff",
         defineRoles: "Define roles",
         configureAccommodation: "Configure rooms & beds",
@@ -5906,6 +5909,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         reverseCharge: "عكس رسم مسجَّل على الحساب",
         postPayment: "تسجيل دفعة على الحساب",
         reversePayment: "عكس دفعة مسجَّلة على الحساب",
+        viewLedger: "قراءة دفتر الأستاذ العام",
         administerStaff: "إدارة الفريق",
         defineRoles: "تعريف الأدوار",
         configureAccommodation: "تهيئة الغرف والأسرّة",

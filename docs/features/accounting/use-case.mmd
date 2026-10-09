@@ -1,0 +1,57 @@
+%% Slices decide implementation order and nothing else:
+%%   s1 posting: a Folio line reaches the ledger through the worker alone
+%%   s2 reading: who may read the ledger
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% UML directions: include points base --> included. extend points extension --> base.
+%% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
+%%
+%% Blueprint 5.10: operational modules supply approved posting events and never
+%% write another module's records. Here that is enforced by the database: no
+%% application role can write the ledger, and the worker reaches it through one
+%% function (ADR 0027, ADR 0042).
+%%
+%% Open question, owner to answer: the shipped Finance role reads the ledger
+%% only when its access scope is organization_wide (ACC-S2-05), because an entry
+%% carries no Property. Drawn as it is built, not as it is settled.
+flowchart TD
+
+  FRONT["Staff Member who writes Folio lines<br/>(finance.post_charge, finance.post_payment, reversals)"]
+  WORKER["Background worker<br/>(ranza_worker, holds nothing on the ledger tables)"]
+  READER["Staff Member holding finance.view_ledger<br/>with whole-Organization reach<br/>(Owner, Manager, Finance, or a role the Organization wrote)"]
+  OTHER["Staff Member without finance.view_ledger<br/>(Front desk, Housekeeping)"]
+  ASSIGNED["Finance Staff Member assigned to one Property"]
+
+  subgraph S1["slice 1 &mdash; posting"]
+    LINE(["Write a Folio line<br/>(charge, payment, reversal)"])
+    EVENT(["The database publishes folio.line_posted<br/>in the same transaction"])
+    POST(["Post the entry the Folio line owes<br/>(derived from folio_lines, never from the payload)"])
+    ACCOUNTS(["Create the Organization's standard chart<br/>on its first posting"])
+    AGAIN(["Find the entry that exists<br/>when the line is delivered again"])
+    FAIL(["Record a posting that fails<br/>(last_error, retry, dead at the cap)"])
+    EVERY(["Refuse an event that names no line, a missing line,<br/>another kind, or another Organization"])
+  end
+
+  subgraph S2["slice 2 &mdash; reading"]
+    READ(["Read journal entries, journal lines<br/>and the chart of accounts"])
+    DENIED(["Read nothing<br/>(no permission, assigned reach,<br/>suspended Subscription, Folio finance off)"])
+  end
+
+  subgraph OUT["Not this feature"]
+    PERIODS(["Accounting periods and controlled close &mdash; deferred, blueprint 5.10"])
+    STATEMENTS(["Financial statements &mdash; deferred, blueprint 5.10"])
+    SCREEN(["A ledger screen &mdash; deferred"])
+    SCOPED(["A Property-scoped read &mdash; deferred, needs a location on the entry"])
+    CHART(["Editing the chart of accounts &mdash; deferred"])
+    OTHERSRC(["Payroll and other sources posting &mdash; deferred"])
+  end
+
+  FRONT --> LINE
+  LINE -. include .-> EVENT
+  WORKER --> POST
+  POST -. include .-> ACCOUNTS
+  AGAIN -. extend .-> POST
+  FAIL -. extend .-> POST
+  EVERY -. extend .-> POST
+  READER --> READ
+  OTHER --> DENIED
+  ASSIGNED --> DENIED

@@ -527,8 +527,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  55,
-  'the definer sweep looked at 55 functions; change this number deliberately');
+  56,
+  'the definer sweep looked at 56 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -539,8 +539,8 @@ select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef
       and regexp_replace(p.prosrc, '--[^\n]*', '', 'g') ~* '(insert|update|delete)\s'),
-  15,
-  'fifteen of them write, which is what makes the assertion above a test');
+  16,
+  'sixteen of them write, which is what makes the assertion above a test');
 
 -- Part B: the inventory itself, so a fifty-second definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
@@ -580,18 +580,22 @@ select is(
 -- the three access migrations replaced two definers and changed a grant.
 -- Data export (20260916010100) brought two for the worker: export_schedules_due()
 -- and pending_data_exports(), neither of which writes.
+-- The ledger (20260916010600) brought one, and it writes:
+-- post_folio_line_to_ledger() is the only way a journal entry exists. It is the
+-- worker's, it names worker_organization_id() first, and it derives every
+-- posting from the Folio line rather than from the event it was handed.
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  55,
-  'the definer sweep looked at 55 functions; change this number deliberately');
+  56,
+  'the definer sweep looked at 56 functions; change this number deliberately');
 
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef
       and regexp_replace(p.prosrc, '--[^\n]*', '', 'g') ~* '(insert|update|delete)\s'),
-  15,
-  'fifteen of them write, which is what makes the assertion above a test');
+  16,
+  'sixteen of them write, which is what makes the assertion above a test');
 
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -624,8 +628,9 @@ select set_eq(
         'amend_reservation', 'reservation_is_priced_for_its_new_kind',
         'change_departure', 'move_stay', 'mark_unit_dirty_after_move',
         'record_integration_failure', 'resolve_failed_operation',
-        'export_schedules_due', 'pending_data_exports'],
-  'and they are exactly the fifty-five the design gives a reason for');
+        'export_schedules_due', 'pending_data_exports',
+        'post_folio_line_to_ledger'],
+  'and they are exactly the fifty-six the design gives a reason for');
 
 -- ---------------------------------------------------------------------------
 -- Who asks the three-gate question (IG-14)

@@ -1,22 +1,21 @@
+import type { Account, AccountBalance, JournalEntry } from "../domain/entry";
 import {
-  Account,
-  AccountBalance,
-  assertPostableEntry,
-  JournalEntry,
-  JournalEntryInput,
-} from "../domain/entry";
-import {
-  ensureDefaultAccounts,
   findJournalEntryById,
   findJournalEntryBySource,
   getAccountBalances,
-  insertJournalEntry,
   listAccounts,
 } from "../infrastructure/repository";
 import type { FinanceClient, FinanceDeps } from "../ports";
 
+/**
+ * Reads of the general ledger (blueprint 5.10).
+ *
+ * Reading is bounded by the caller's own row-level security: a member who does
+ * not hold `finance.view_ledger`, or whose Subscription has lapsed, gets empty
+ * results rather than an error. Writing the ledger is not part of this contract
+ * (ADR 0042).
+ */
 export interface FinanceModule {
-  postJournalEntry(entry: JournalEntryInput): Promise<JournalEntry>;
   getJournalEntryBySource(
     organizationId: string,
     sourceType: string,
@@ -31,19 +30,6 @@ export interface FinanceModule {
     organizationId: string,
     currency?: string,
   ): Promise<AccountBalance[]>;
-}
-
-/**
- * Posts a balanced journal entry inside an existing transaction.
- *
- * Validates domain invariants (balanced debits and credits) before persistence.
- */
-export async function postJournalEntryWithin(
-  tx: FinanceClient,
-  entry: JournalEntryInput,
-): Promise<JournalEntry> {
-  assertPostableEntry(entry);
-  return insertJournalEntry(tx, entry);
 }
 
 /**
@@ -80,16 +66,6 @@ export async function listAccountsWithin(
 }
 
 /**
- * Ensures standard chart of accounts exists for an organization.
- */
-export async function ensureDefaultAccountsWithin(
-  tx: FinanceClient,
-  organizationId: string,
-): Promise<Account[]> {
-  return ensureDefaultAccounts(tx, organizationId);
-}
-
-/**
  * Calculates current net balances across chart of accounts.
  */
 export async function getAccountBalancesWithin(
@@ -101,47 +77,14 @@ export async function getAccountBalancesWithin(
 }
 
 export function createFinanceModule(deps: FinanceDeps): FinanceModule {
+  const db = deps.db as unknown as FinanceClient;
   return {
-    async postJournalEntry(entry: JournalEntryInput): Promise<JournalEntry> {
-      return postJournalEntryWithin(deps.db as unknown as FinanceClient, entry);
-    },
-    async getJournalEntryBySource(
-      organizationId: string,
-      sourceType: string,
-      sourceId: string,
-    ): Promise<JournalEntry | null> {
-      return getJournalEntryBySourceWithin(
-        deps.db as unknown as FinanceClient,
-        organizationId,
-        sourceType,
-        sourceId,
-      );
-    },
-    async getJournalEntry(
-      organizationId: string,
-      entryId: string,
-    ): Promise<JournalEntry | null> {
-      return getJournalEntryWithin(
-        deps.db as unknown as FinanceClient,
-        organizationId,
-        entryId,
-      );
-    },
-    async listAccounts(organizationId: string): Promise<Account[]> {
-      return listAccountsWithin(
-        deps.db as unknown as FinanceClient,
-        organizationId,
-      );
-    },
-    async getAccountBalances(
-      organizationId: string,
-      currency?: string,
-    ): Promise<AccountBalance[]> {
-      return getAccountBalancesWithin(
-        deps.db as unknown as FinanceClient,
-        organizationId,
-        currency,
-      );
-    },
+    getJournalEntryBySource: (organizationId, sourceType, sourceId) =>
+      getJournalEntryBySourceWithin(db, organizationId, sourceType, sourceId),
+    getJournalEntry: (organizationId, entryId) =>
+      getJournalEntryWithin(db, organizationId, entryId),
+    listAccounts: (organizationId) => listAccountsWithin(db, organizationId),
+    getAccountBalances: (organizationId, currency) =>
+      getAccountBalancesWithin(db, organizationId, currency),
   };
 }

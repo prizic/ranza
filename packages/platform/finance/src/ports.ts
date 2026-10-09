@@ -10,8 +10,7 @@ export interface FinanceDeps {
   readonly db: TenantClient;
 }
 
-/** The transaction client surface this module requires. */
+/** The transaction client surface this module requires: reads only. */
 export interface FinanceClient extends TenantClient {
   $queryRaw<T>(query: TemplateStringsArray, ...values: unknown[]): Promise<T>;
-  $queryRawUnsafe<T>(query: string, ...values: unknown[]): Promise<T>;
 }

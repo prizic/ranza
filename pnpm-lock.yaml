@@ -217,9 +217,6 @@ importers:
       '@prisma/client':
         specifier: ^7.10.0
         version: 7.10.0(prisma@7.10.0(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(magicast@0.5.5)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.9.3))(typescript@5.9.3)
-      '@ranza/adapter-ranza-finance':
-        specifier: workspace:*
-        version: link:../../packages/adapters/ranza-finance
       '@ranza/business-day':
         specifier: workspace:*
         version: link:../../packages/ranza/business-day
@@ -242,18 +239,6 @@ importers:
       esbuild:
         specifier: 0.28.2
         version: 0.28.2
-
-  packages/adapters/ranza-finance:
-    dependencies:
-      '@ranza/db':
-        specifier: workspace:*
-        version: link:../../db
-      '@ranza/folios':
-        specifier: workspace:*
-        version: link:../../ranza/folios
-      '@ranza/platform-finance':
-        specifier: workspace:*
-        version: link:../../platform/finance
 
   packages/auth:
     dependencies:
