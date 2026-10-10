@@ -42,10 +42,12 @@ export function validCurrency(value: string): string {
   return value;
 }
 
-/** A payroll period, `YYYY-MM`, and the last day of it. */
+/** A payroll period, `YYYY-MM`, its first and last days, and the day after it. */
 export function validPeriod(value: string): {
   period: string;
+  firstDay: Date;
   lastDay: Date;
+  nextPeriodStarts: string;
 } {
   const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(value);
   if (!match) throw new HrInputError("period");
@@ -53,7 +55,11 @@ export function validPeriod(value: string): {
   const month = Number(match[2]);
   return {
     period: value,
+    firstDay: new Date(Date.UTC(year, month - 1, 1)),
     lastDay: new Date(Date.UTC(year, month, 0)),
+    nextPeriodStarts: new Date(Date.UTC(year, month, 1))
+      .toISOString()
+      .slice(0, 10),
   };
 }
 

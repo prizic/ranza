@@ -26,6 +26,11 @@
 --   6. `on_leave` and `paid` are removed: nothing reached either (HR-S1-31).
 --   7. hr_employees_property_fkey nulls property_id and nothing else.
 --   8. The outbox trigger's definer has an empty search_path.
+--   9. A run is approved for a period that has ended, and it covers everyone
+--      who was employed at any point in it (HR-S1-40, HR-S1-45).
+--  10. The rota is read only where the employee is (HR-S1-47), and a
+--      terminated employee takes no new shift or leave (HR-S1-39).
+--  11. A termination is dated on a day that has come (HR-S1-46).
 
 -- ---------------------------------------------------------------------------
 -- What exists must convert exactly, or nothing converts
@@ -125,6 +130,18 @@ begin
     raise exception 'a terminated employee stays terminated: register a new record to re-hire'
       using errcode = '55000';
   end if;
+
+  -- An ending is recorded on or after the day it happens. A date ahead is a
+  -- plan, and a record that is final cannot hold one: it would be terminated
+  -- today and still working tomorrow (HR-S1-46). The Property's own calendar
+  -- day, or the earliest one in the Organization for an employee with none.
+  if new.status = 'terminated'
+     and old.status is distinct from 'terminated'
+     and new.terminated_on > app.hr_today(new.organization_id, new.property_id) then
+    raise exception 'a termination is recorded on or after the day it happens, not ahead of it'
+      using errcode = '23514';
+  end if;
+
   return new;
 end;
 $$;
@@ -285,7 +302,14 @@ alter table public.hr_payslips
 --     and at least one payslip;
 --   * approved is final. An UPDATE that restates what is already true (the
 --     re-approval a double click makes) changes nothing and is skipped, so no
---     second `payroll.approved` is ever emitted; any other change is refused.
+--     second `payroll.approved` is ever emitted; any other change is refused;
+--   * a period is opened, and so approved, only once it has ended (HR-S1-45): a
+--     run is locked, so approving a month that is still running would lock in a
+--     headcount that is still changing, and there is no way to revise it
+--     (HR-DEF-10). It has ended when the first day of the next month is no
+--     later than today, which is the Organization's earliest calendar day. A
+--     period cannot change after the draft is opened, so asking once, there,
+--     is asking for the approval too.
 create function public.hr_payroll_runs_lifecycle()
 returns trigger
 language plpgsql
@@ -301,6 +325,11 @@ begin
     if new.status <> 'draft' then
       raise exception 'a payroll run is opened as a draft and approved afterwards'
         using errcode = '55000';
+    end if;
+    if (to_date(new.period || '-01', 'YYYY-MM-DD') + interval '1 month')::date
+         > app.hr_today(new.organization_id, null) then
+      raise exception 'a payroll period is approved only once it has ended'
+        using errcode = '23514';
     end if;
     return new;
   end if;
@@ -449,8 +478,44 @@ create trigger hr_payroll_run_approved_outbox_trg
   execute function public.hr_payroll_run_emit_outbox();
 
 -- ---------------------------------------------------------------------------
--- Two questions a policy on a child row asks about its employee
+-- Three questions HR asks of the database
 -- ---------------------------------------------------------------------------
+
+-- What day it is for the people concerned, as a calendar date: the Property's
+-- own when one is named, otherwise the earliest day in any of the
+-- Organization's Properties, so that "has ended" and "has happened" mean it is
+-- over or done everywhere the Organization works. A definer so a trigger can
+-- ask whoever is writing. It reads nothing but time zones and returns a date.
+create function app.hr_today(
+  target_organization_id uuid,
+  target_property_id uuid default null
+)
+returns date
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(
+    (select (now() at time zone property.timezone)::date
+       from public.properties as property
+      where property.id = target_property_id
+        and property.organization_id = target_organization_id),
+    (select min((now() at time zone property.timezone)::date)
+       from public.properties as property
+      where property.organization_id = target_organization_id
+        and property.status = 'active'),
+    (now() at time zone 'UTC')::date
+  );
+$$;
+
+comment on function app.hr_today(uuid, uuid) is
+  'The calendar date for a Property, or the earliest one across an Organization''s Properties. What "a period has ended" and "a termination has happened" are measured against.';
+
+revoke execute on function app.hr_today(uuid, uuid) from public;
+grant execute on function app.hr_today(uuid, uuid) to ranza_app;
+
+-- Two questions a policy on a child row asks about its employee
 
 -- A leave request and a payslip carry no Property, and the employee they
 -- belong to does. Asking hr_employees from inside their policies would use the
@@ -482,9 +547,12 @@ $$;
 comment on function app.hr_employee_is_reachable(uuid) is
   'Whether the acting Staff Member reaches the employee: the whole Organization, or the employee''s own Property. Says nothing about permission or the commercial gates.';
 
--- Reach and the commercial gates for a write about the employee: the
--- Property's own capability when the employee has one, otherwise the
--- Organization-wide reach and the capability somewhere in the Organization.
+-- Reach and the commercial gates for a write about the employee, who is still
+-- employed: a terminated employee takes no new shift and no new leave
+-- (HR-S1-39). The Property's own capability when the employee has one,
+-- otherwise the Organization-wide reach and the capability somewhere in the
+-- Organization. A floater is therefore rostered only by whoever reaches the
+-- whole Organization, as one is read only by them.
 create function app.hr_employee_is_manageable(target_employee_id uuid)
 returns boolean
 language sql
@@ -496,6 +564,7 @@ as $$
     select 1
     from public.hr_employees as employee
     where employee.id = target_employee_id
+      and employee.status = 'active'
       and case
             when employee.property_id is not null
               then app.can_use_capability(
@@ -602,7 +671,15 @@ create policy hr_employees_update
         end
   );
 
--- Shifts belong to a Property: the Property's gates, which carry its reach.
+-- Shifts belong to a Property and to an employee, and a shift is read where
+-- BOTH can be reached. The Property's gates carry its reach; the employee's is
+-- asked of the employee, as leave and payslips ask it. Without that a shift of
+-- an employee the reader may not read (one with no Property, or one moved to a
+-- Property they do not reach, whose old shifts stay) came back joined to no
+-- employee and broke the page that listed it (HR-S1-47).
+--
+-- A write also asks whether the employee is still employed and whether the
+-- writer may manage them (HR-S1-39).
 create policy hr_shifts_read
   on public.hr_shifts for select
   to ranza_app
@@ -611,6 +688,7 @@ create policy hr_shifts_read
     and app.has_organization_permission(organization_id, 'hr.view')
     and app.can_use_capability(
           property_id, 'human_resources', 'staff_administration')
+    and app.hr_employee_is_reachable(employee_id)
   );
 
 create policy hr_shifts_insert
@@ -621,6 +699,7 @@ create policy hr_shifts_insert
     and app.has_organization_permission(organization_id, 'hr.manage')
     and app.can_use_capability(
           property_id, 'human_resources', 'staff_administration')
+    and app.hr_employee_is_manageable(employee_id)
   );
 
 create policy hr_shifts_update
@@ -631,12 +710,14 @@ create policy hr_shifts_update
     and app.has_organization_permission(organization_id, 'hr.manage')
     and app.can_use_capability(
           property_id, 'human_resources', 'staff_administration')
+    and app.hr_employee_is_manageable(employee_id)
   )
   with check (
     organization_id in (select app.accessible_organization_ids())
     and app.has_organization_permission(organization_id, 'hr.manage')
     and app.can_use_capability(
           property_id, 'human_resources', 'staff_administration')
+    and app.hr_employee_is_manageable(employee_id)
   );
 
 -- Leave belongs to an employee and so to wherever they are.

@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 
 import { messages } from "../../apps/operator-workspace/src/messages";
 import { OWNER_EMAIL, signIn, testProperty } from "./front-desk";
+import { psql } from "./local-database";
 
 /**
  * The HR screen through the screens a manager actually uses (RANZ-42).
@@ -12,20 +13,48 @@ import { OWNER_EMAIL, signIn, testProperty } from "./front-desk";
  * unit suite the words. This proves what none of them can see: that the form
  * exists and posts the shape the action wants, that the people it registers
  * appear, that ending employment keeps them on the screen, that approving
- * payroll is one button for the whole Organization, and that a manager who
- * reaches one Property is told why they cannot.
+ * payroll asks first and then locks one run for the whole Organization, that
+ * a month still running cannot be approved, and that a manager who reaches one
+ * Property still gets a page, and is told why they cannot approve.
  *
  * Each run registers people of its own and approves a period of its own,
  * because an approved run and a person's record are history that is never
- * deleted: a far-future month nobody else uses, chosen at random.
+ * deleted. A run is approved only for a period that has ended, and a person
+ * registered today was hired today, so the people are given an old hire date by
+ * the owner of the database, as a fixture, and the period is a long-gone month
+ * nobody else uses, chosen at random.
  */
 
 const hr = messages.en.hr;
 
-function aPeriod(): string {
-  const year = 3000 + Math.floor(Math.random() * 6000);
-  const month = String(1 + Math.floor(Math.random() * 12)).padStart(2, "0");
-  return `${year}-${month}`;
+function organizationOf(propertyId: string): string {
+  return psql(
+    `select organization_id from public.properties where id = '${propertyId}'`,
+  );
+}
+
+/** The Organization's calendar day plus a number of months, as `YYYY-MM`. */
+function monthFromToday(propertyId: string, months: number): string {
+  return psql(
+    `select to_char(app.hr_today('${organizationOf(propertyId)}') + interval '${months} months', 'YYYY-MM')`,
+  );
+}
+
+/** A month long gone that no run has used. */
+function anUnusedPeriod(): string {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const year = 1900 + Math.floor(Math.random() * 100);
+    const month = String(1 + Math.floor(Math.random() * 12)).padStart(2, "0");
+    const period = `${year}-${month}`;
+    if (
+      psql(
+        `select count(*) from public.hr_payroll_runs where period = '${period}'`,
+      ) === "0"
+    ) {
+      return period;
+    }
+  }
+  throw new Error("no unused period in a hundred years of months");
 }
 
 test("HR-S1-44: an Owner registers an employee, ends another's employment, and approves payroll for the whole Organization", async ({
@@ -35,7 +64,7 @@ test("HR-S1-44: an Owner registers an employee, ends another's employment, and a
   const tag = randomUUID().slice(0, 6);
   const stays = `Stays${tag}`;
   const leaves = `Leaves${tag}`;
-  const period = aPeriod();
+  const period = anUnusedPeriod();
 
   await signIn(page, OWNER_EMAIL);
   await page.goto(`/en/hr?property=${propertyId}`);
@@ -100,8 +129,16 @@ test("HR-S1-44: an Owner registers an employee, ends another's employment, and a
     }),
   ).toHaveCount(0);
 
+  // Both were hired today, which is what registering means. A run is for a
+  // month that has ended, so they are given an old hire date as a fixture.
+  psql(
+    `update public.hr_employees set hired_on = '1800-01-01'
+      where first_name in ('${stays}', '${leaves}')`,
+  );
+
   // Payroll: one button for the whole Organization, with the deductions marked
-  // as the placeholders they are.
+  // as the placeholders they are. Both people are in a month long gone: the one
+  // who left, after it, was employed during it.
   await page.goto(`/en/hr?property=${propertyId}&period=${period}`);
   await page.getByRole("tab", { name: new RegExp(hr.tabs.payroll) }).click();
   await expect(page.getByRole("note").first()).toContainText(
@@ -110,12 +147,28 @@ test("HR-S1-44: an Owner registers an employee, ends another's employment, and a
   await expect(page.getByText(hr.payroll.organizationWide)).toBeVisible();
   const row = page.getByRole("row", { name: new RegExp(`${stays} Tester`) });
   await expect(row).toBeVisible();
-  // The person who left is not in a later run.
   await expect(
     page.getByRole("row", { name: new RegExp(`${leaves} Tester`) }),
+  ).toBeVisible();
+
+  // Approving asks first, and names what is about to be locked.
+  await page.getByRole("button", { name: hr.payroll.approve }).click();
+  const confirm = page.getByRole("dialog", {
+    name: `Approve payroll for ${period}?`,
+  });
+  await expect(confirm).toContainText("will be paid in");
+  await expect(confirm).toContainText(/locks the run/);
+  await confirm.getByRole("button", { name: hr.payroll.cancel }).click();
+  await expect(confirm).toBeHidden();
+  await expect(
+    page.getByText(hr.payroll.approved, { exact: true }),
   ).toHaveCount(0);
 
   await page.getByRole("button", { name: hr.payroll.approve }).click();
+  await page
+    .getByRole("dialog", { name: `Approve payroll for ${period}?` })
+    .getByRole("button", { name: hr.payroll.confirm })
+    .click();
   await expect(
     page.getByText(hr.payroll.approved, { exact: true }),
   ).toBeVisible();
@@ -131,6 +184,35 @@ test("HR-S1-44: an Owner registers an employee, ends another's employment, and a
   const drawer = page.getByRole("dialog");
   await expect(drawer).toContainText("TR•• •••• •••• 1326");
   expect(await page.content()).not.toContain("6100519786");
+});
+
+test("HR-S1-45: payroll opens on the last month that ended, and a month still running cannot be approved", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+
+  await signIn(page, OWNER_EMAIL);
+
+  // No period in the address: the month before the one that is running.
+  await page.goto(`/en/hr?property=${propertyId}`);
+  await page.getByRole("tab", { name: new RegExp(hr.tabs.payroll) }).click();
+  await expect(page.locator('[data-slot="card-title"]').first()).toHaveText(
+    monthFromToday(propertyId, -1),
+  );
+
+  // The month that is running, and the one after: told why, offered nothing.
+  for (const months of [0, 1]) {
+    const running = monthFromToday(propertyId, months);
+    await page.goto(`/en/hr?property=${propertyId}&period=${running}`);
+    await page.getByRole("tab", { name: new RegExp(hr.tabs.payroll) }).click();
+    await expect(page.locator('[data-slot="card-title"]').first()).toHaveText(
+      running,
+    );
+    await expect(page.getByText(/has not ended yet/)).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: hr.payroll.approve }),
+    ).toHaveCount(0);
+  }
 });
 
 test("HR-S1-17: the HR screen has a back button to Today that keeps the Property", async ({
@@ -151,6 +233,38 @@ test("HR-S1-17: the HR screen has a back button to Today that keeps the Property
   }
 });
 
+test("HR-S1-47: a manager who reaches one Property still gets the page when the whole Organization's manager has rostered a floater", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const tag = randomUUID().slice(0, 6);
+  const floater = `Floater${tag}`;
+
+  // An employee with no Property, rostered at this Property today: the shift
+  // the seeded Manager can read and the person they cannot.
+  psql(
+    `with employee as (
+       insert into public.hr_employees
+         (organization_id, first_name, last_name, department, position, gross_pay_minor)
+       select organization_id, '${floater}', 'Tester', 'Front desk', 'Agent', 100
+         from public.properties where id = '${propertyId}'
+       returning id, organization_id
+     )
+     insert into public.hr_shifts
+       (organization_id, property_id, employee_id, date, shift_type)
+     select employee.organization_id, '${propertyId}', employee.id,
+            current_date, 'day'
+       from employee`,
+  );
+
+  // The seeded Manager is assigned to Properties, not to the Organization.
+  await signIn(page);
+  await page.goto(`/en/hr?property=${propertyId}`);
+  await page.getByRole("tab", { name: new RegExp(hr.tabs.rota) }).click();
+  await expect(page.getByText(hr.rota.title)).toBeVisible();
+  await expect(page.getByText(floater)).toHaveCount(0);
+});
+
 test("HR-S1-24: a manager who reaches one Property is told payroll is the whole Organization's, and is offered no approval", async ({
   page,
 }) => {
@@ -159,7 +273,7 @@ test("HR-S1-24: a manager who reaches one Property is told payroll is the whole 
   // The seeded Manager reaches the browser tests' own Property and others, but
   // not every Property of the Organization.
   await signIn(page);
-  await page.goto(`/en/hr?property=${propertyId}&period=${aPeriod()}`);
+  await page.goto(`/en/hr?property=${propertyId}`);
   await page.getByRole("tab", { name: new RegExp(hr.tabs.payroll) }).click();
 
   await expect(page.getByText(hr.payroll.needsReach.title)).toBeVisible();

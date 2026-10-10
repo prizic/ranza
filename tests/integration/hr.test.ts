@@ -20,6 +20,16 @@
  *   the advisory lock removed from approvePayroll                     HR-S1-27 (concurrent approvals)
  *   the status guard removed from the run's update policy             HR-S1-25
  *   `terminated_on` left unset by terminateEmployee                   HR-S1-29
+ *   the period-has-ended check removed from approvePayroll only        none: the trigger refuses and the refusal reads the same (HR-S1-45)
+ *   the same check removed from the trigger only                       none: the module refuses first
+ *   the same check removed from both                                   HR-S1-45
+ *   the future-day check removed from terminateEmployee only           none: the trigger refuses and the refusal reads the same (HR-S1-46)
+ *   the same check removed from the trigger only                       HR-S1-46 (the half that goes past the module)
+ *   the same check removed from both                                   HR-S1-46
+ *   `hr_employee_is_reachable` removed from the shift read policy      HR-S1-47 (TypeError: null.firstName, the page's crash)
+ *
+ * Each layer of a pair above is enough on its own, which is why removing one
+ * shows nothing: the pgTAP suite is what proves the database layer by itself.
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -190,11 +200,30 @@ async function outboxEvents(organization: string, period: string) {
   );
 }
 
+/** The Organization's calendar day, or a Property's, the way the database counts it. */
+async function today(organization: string, property?: string): Promise<string> {
+  const [row] = await owner.$queryRawUnsafe<{ day: string }[]>(
+    `select to_char(app.hr_today($1::uuid, $2::uuid), 'YYYY-MM-DD') as day`,
+    organization,
+    property ?? null,
+  );
+  return row!.day;
+}
+
+/** The period `delta` months from a day's own, `YYYY-MM`. */
+function periodOf(day: string, delta = 0): string {
+  const [year = 0, month = 1] = day.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1 + delta, 1))
+    .toISOString()
+    .slice(0, 7);
+}
+
 let main: Fixture;
 let currencies: Fixture;
 let empty: Fixture;
 let lapsing: Fixture;
 let clashing: Fixture;
+let leavers: Fixture;
 
 beforeAll(async () => {
   main = await seed("main");
@@ -202,6 +231,7 @@ beforeAll(async () => {
   empty = await seed("empty");
   lapsing = await seed("lapsing");
   clashing = await seed("clashing");
+  leavers = await seed("leavers");
   await hr.registerEmployee(currencies.manager, anEmployee(currencies));
 });
 
@@ -384,6 +414,130 @@ describe("an employee record outlives the access it was linked to", () => {
     ).rejects.toBeInstanceOf(HrInputError);
   });
 
+  it("HR-S1-46: an ending is recorded on or after the day it happens", async () => {
+    const employee = await hr.registerEmployee(main.manager, anEmployee(main));
+    const day = await today(main.organization, main.north);
+    const tomorrow = new Date(`${day}T00:00:00Z`);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+
+    await expect(
+      hr.terminateEmployee(main.manager, {
+        organizationId: main.organization,
+        employeeId: employee.id,
+        terminatedOn: tomorrow,
+      }),
+    ).rejects.toMatchObject({ field: "terminatedOn" });
+    // The database holds the same line for a caller that skips the module.
+    await expect(
+      withOrganizationContext(prisma, { userId: main.manager }, (tx) =>
+        tx.$executeRawUnsafe(
+          `update public.hr_employees
+              set status = 'terminated', terminated_on = $2::date
+            where id = $1::uuid`,
+          employee.id,
+          tomorrow.toISOString().slice(0, 10),
+        ),
+      ),
+    ).rejects.toThrow(/not ahead of it/);
+    expect(
+      (await hr.employees(main.manager, main.organization)).find(
+        (e) => e.id === employee.id,
+      )?.status,
+    ).toBe("active");
+
+    await hr.terminateEmployee(main.manager, {
+      organizationId: main.organization,
+      employeeId: employee.id,
+      terminatedOn: new Date(`${day}T00:00:00Z`),
+    });
+    expect(
+      (await hr.employees(main.manager, main.organization))
+        .find((e) => e.id === employee.id)
+        ?.terminatedOn?.toISOString()
+        .slice(0, 10),
+    ).toBe(day);
+  });
+
+  it("HR-S1-39: the database itself gives a leaver no shift and no leave", async () => {
+    const leaver = await hr.registerEmployee(main.manager, anEmployee(main));
+    await hr.terminateEmployee(main.manager, {
+      organizationId: main.organization,
+      employeeId: leaver.id,
+      terminatedOn: new Date("2026-06-30"),
+    });
+
+    // Past the module, as the application role: the policies refuse it.
+    await expect(
+      withOrganizationContext(prisma, { userId: main.manager }, (tx) =>
+        tx.$executeRawUnsafe(
+          `insert into public.hr_shifts
+             (organization_id, property_id, employee_id, date, shift_type)
+           values ($1::uuid, $2::uuid, $3::uuid, '2027-10-20', 'day')`,
+          main.organization,
+          main.north,
+          leaver.id,
+        ),
+      ),
+    ).rejects.toThrow(/row-level security/);
+    await expect(
+      withOrganizationContext(prisma, { userId: main.manager }, (tx) =>
+        tx.$executeRawUnsafe(
+          `insert into public.hr_leave_requests
+             (organization_id, employee_id, leave_type, starts_on, ends_on)
+           values ($1::uuid, $2::uuid, 'annual', '2027-10-20', '2027-10-21')`,
+          main.organization,
+          leaver.id,
+        ),
+      ),
+    ).rejects.toThrow(/row-level security/);
+  });
+
+  it("HR-S1-47: a manager of one Property reads a rota holding people they cannot read", async () => {
+    const floater = await hr.registerEmployee(
+      main.manager,
+      anEmployee(main, { propertyId: null }),
+    );
+    const mover = await hr.registerEmployee(main.manager, anEmployee(main));
+    const base = {
+      organizationId: main.organization,
+      propertyId: main.north,
+      date: new Date("2027-10-04"),
+      shiftType: "day" as const,
+    };
+    await hr.assignShift(main.manager, { ...base, employeeId: floater.id });
+    await hr.assignShift(main.manager, { ...base, employeeId: mover.id });
+    // The mover goes to the other Property, and their shift at this one stays.
+    await owner.$executeRawUnsafe(
+      `update public.hr_employees set property_id = $1::uuid where id = $2::uuid`,
+      main.south,
+      mover.id,
+    );
+
+    const week = (userId: string) =>
+      hr.shifts(
+        userId,
+        main.organization,
+        main.north,
+        new Date("2027-10-04"),
+        new Date("2027-10-10"),
+      );
+
+    // This used to throw reading a name off no employee, and with it the whole
+    // page, for as long as either shift stood.
+    const seen = await week(main.scoped);
+    const seenIds = seen.map((shift) => shift.employeeId);
+    expect(seenIds).not.toContain(floater.id);
+    expect(seenIds).not.toContain(mover.id);
+    expect(seen.every((shift) => Boolean(shift.employeeName))).toBe(true);
+
+    // The manager of the whole Organization reads both, with their names.
+    const all = await week(main.manager);
+    expect(all.map((shift) => shift.employeeId)).toEqual(
+      expect.arrayContaining([floater.id, mover.id]),
+    );
+    expect(all.every((shift) => Boolean(shift.employeeName))).toBe(true);
+  });
+
   it("HR-S1-37: registering and terminating are audited at the employees property", async () => {
     const record = await hr.registerEmployee(
       main.manager,
@@ -563,9 +717,12 @@ describe("leave", () => {
     expect(listed?.status).toBe("approved");
     const written = await latestRecord(owner, "leave.approved", request.id);
     expect(written?.locationId).toBe(main.north);
-    expect(written?.context).toMatchObject({
+    // Ids and days. A kind of leave is health and pregnancy data, and this
+    // table is append-only (HR-S1-37).
+    expect(written?.context).toEqual({
       employeeId: employee.id,
       leaveFrom: "2027-01-10",
+      leaveTo: "2027-01-14",
     });
   });
 
@@ -737,8 +894,8 @@ describe("leave", () => {
       organizationId: clashing.organization,
       employeeId: employee.id,
       leaveType: "annual",
-      startsOn: new Date("2027-08-01"),
-      endsOn: new Date("2027-08-31"),
+      startsOn: new Date("2026-07-01"),
+      endsOn: new Date("2026-07-31"),
     });
     await hr.decideLeave(clashing.manager, {
       organizationId: clashing.organization,
@@ -750,7 +907,7 @@ describe("leave", () => {
     // leave request, not a status the run skips (HR-S1-31).
     const run = await hr.approvePayroll(clashing.manager, {
       organizationId: clashing.organization,
-      period: "2027-08",
+      period: "2026-07",
     });
     expect(run.payslips.map((slip) => slip.employeeId)).toContain(employee.id);
     expect(
@@ -764,8 +921,13 @@ describe("leave", () => {
 describe("payroll", () => {
   it("HR-S1-12: approving payroll covers every property as an organization wide manager", async () => {
     const period = "2026-09";
+    // Everyone employed at any point in September: hired by its last day and
+    // not ended before its first.
     const before = (await hr.employees(main.manager, main.organization)).filter(
-      (employee) => employee.status === "active",
+      (employee) =>
+        employee.hiredOn <= new Date("2026-09-30") &&
+        (employee.terminatedOn === null ||
+          employee.terminatedOn >= new Date("2026-09-01")),
     );
     expect(new Set(before.map((employee) => employee.propertyId)).size).toBe(3);
 
@@ -855,14 +1017,14 @@ describe("payroll", () => {
     await expect(
       hr.approvePayroll(main.scoped, {
         organizationId: main.organization,
-        period: "2026-10",
+        period: "2026-07",
       }),
     ).rejects.toMatchObject({ reason: "payroll_needs_organization_reach" });
 
     expect(
       await count(
         `select count(*) as n from public.hr_payroll_runs
-          where organization_id = $1::uuid and period = '2026-10'`,
+          where organization_id = $1::uuid and period = '2026-07'`,
         main.organization,
       ),
     ).toBe(0);
@@ -892,7 +1054,7 @@ describe("payroll", () => {
   });
 
   it("HR-S1-27: two approvals at once make one run", async () => {
-    const period = "2026-11";
+    const period = "2026-08";
     const [first, second] = await Promise.all([
       hr.approvePayroll(main.manager, {
         organizationId: main.organization,
@@ -918,22 +1080,82 @@ describe("payroll", () => {
     expect(await outboxEvents(main.organization, period)).toBe(1);
   });
 
-  it("HR-S1-40: an employee hired after the period or terminated is not in its run", async () => {
-    const late = await hr.registerEmployee(
-      main.manager,
-      anEmployee(main, { hiredOn: new Date("2030-01-15") }),
-    );
-    const run = await hr.approvePayroll(main.manager, {
-      organizationId: main.organization,
-      period: "2026-12",
+  it("HR-S1-40: a run covers everyone employed at any point in its period", async () => {
+    // Their own Organization and their own people, so the set below is the
+    // whole of what the run can contain.
+    const register = (overrides: Parameters<typeof anEmployee>[1]) =>
+      hr.registerEmployee(leavers.manager, anEmployee(leavers, overrides));
+    const end = (employeeId: string, day: string) =>
+      hr.terminateEmployee(leavers.manager, {
+        organizationId: leavers.organization,
+        employeeId,
+        terminatedOn: new Date(day),
+      });
+
+    const steady = await register({});
+    const leftDuring = await register({});
+    const leftBefore = await register({});
+    const joinedDuring = await register({ hiredOn: new Date("2026-06-20") });
+    const joinedAfter = await register({ hiredOn: new Date("2026-07-01") });
+    await end(leftDuring.id, "2026-06-15");
+    await end(leftBefore.id, "2026-05-31");
+
+    const june = await hr.approvePayroll(leavers.manager, {
+      organizationId: leavers.organization,
+      period: "2026-06",
     });
-    expect(run.payslips.map((payslip) => payslip.employeeId)).not.toContain(
-      late.id,
+    const inJune = june.payslips.map((slip) => slip.employeeId).sort();
+    // Someone who left on the 15th is paid for the month, because a run is
+    // locked and leaving them out is a mistake no one can correct; paying them
+    // for half of it is HR-DEF-05's. Someone who left before it began, and
+    // someone who joined after it ended, are not in it.
+    expect(inJune).toEqual([steady.id, leftDuring.id, joinedDuring.id].sort());
+    expect(inJune).not.toContain(leftBefore.id);
+    expect(inJune).not.toContain(joinedAfter.id);
+
+    const july = await hr.approvePayroll(leavers.manager, {
+      organizationId: leavers.organization,
+      period: "2026-07",
+    });
+    expect(july.payslips.map((slip) => slip.employeeId).sort()).toEqual(
+      [steady.id, joinedDuring.id, joinedAfter.id].sort(),
     );
-    expect(run.payslips.map((payslip) => payslip.employeeId)).not.toContain(
-      (await hr.employees(main.manager, main.organization)).find(
-        (employee) => employee.status === "terminated",
-      )?.id,
+  });
+
+  it("HR-S1-45: a period is approved only once it has ended", async () => {
+    const day = await today(main.organization);
+    const running = periodOf(day);
+    const periods = [running, periodOf(day, 1)];
+
+    for (const period of periods) {
+      await expect(
+        hr.approvePayroll(main.manager, {
+          organizationId: main.organization,
+          period,
+        }),
+      ).rejects.toMatchObject({ reason: "payroll_period_not_ended" });
+      // The screen is told why instead of being shown a table it cannot approve.
+      expect(
+        await hr.payrollSummary(main.manager, main.organization, period),
+      ).toMatchObject({
+        status: "draft",
+        blocker: "period_not_ended",
+        payslips: [],
+      });
+    }
+    expect(
+      await count(
+        `select count(*) as n from public.hr_payroll_runs
+          where organization_id = $1::uuid and period = any($2::text[])`,
+        main.organization,
+        periods,
+      ),
+    ).toBe(0);
+
+    // The month before the running one has ended: it is the most recent one a
+    // run can be approved for, and the one payroll opens on.
+    expect(await hr.latestEndedPeriod(main.manager, main.organization)).toBe(
+      periodOf(day, -1),
     );
   });
 

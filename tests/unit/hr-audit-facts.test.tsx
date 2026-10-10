@@ -39,17 +39,17 @@ function facts(
 afterEach(cleanup);
 
 describe("the HR records on the audit screen", () => {
-  it("HR-S1-37: a leave decision names the days as leave and the kind in the HR screen's words", () => {
+  it("HR-S1-37: a leave decision names the days as leave, and not the kind of leave", () => {
     facts("en", "leave.approved", {
       employeeId: "9e222222-2222-4222-8222-222222222222",
-      leaveType: "sick",
       leaveFrom: "2027-02-01",
       leaveTo: "2027-02-05",
     });
 
     expect(screen.getByText("Leave from")).toBeInTheDocument();
     expect(screen.getByText("Leave until")).toBeInTheDocument();
-    expect(screen.getByText("Sick leave")).toBeInTheDocument();
+    // A kind of leave is not recorded: it is health data (HR-S1-37).
+    expect(screen.queryByText("Leave type")).toBeNull();
     expect(screen.getByText("Feb 1, 2027")).toBeInTheDocument();
     // Not a booking's Arrival and Departure.
     expect(screen.queryByText("Arrival")).toBeNull();

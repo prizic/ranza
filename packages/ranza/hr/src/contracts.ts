@@ -90,7 +90,11 @@ export interface PayslipRecord {
 }
 
 /** Why a period that is still a draft cannot be approved as it stands. */
-export type PayrollBlocker = "no_employees" | "mixed_currency";
+export type PayrollBlocker =
+  | "no_employees"
+  | "mixed_currency"
+  /** The period is still running: a run is locked once approved (HR-S1-45). */
+  | "period_not_ended";
 
 export interface PayrollPeriodSummary {
   readonly period: string;

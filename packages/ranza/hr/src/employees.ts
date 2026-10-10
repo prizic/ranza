@@ -175,10 +175,13 @@ export function createEmployees(deps: HrDeps) {
           propertyId: string | null;
           status: string;
           hiredOn: string;
+          today: string;
         }[]
       >`
         select property_id as "propertyId", status,
-               to_char(hired_on, 'YYYY-MM-DD') as "hiredOn"
+               to_char(hired_on, 'YYYY-MM-DD') as "hiredOn",
+               to_char(app.hr_today(organization_id, property_id), 'YYYY-MM-DD')
+                 as "today"
           from public.hr_employees
          where id = ${input.employeeId}::uuid
            and organization_id = ${input.organizationId}::uuid
@@ -188,7 +191,12 @@ export function createEmployees(deps: HrDeps) {
       if (employee.status === "terminated") {
         throw new HrRefusedError("already_terminated");
       }
-      if (isoDay(terminatedOn) < employee.hiredOn) {
+      // Not before they were hired, and not ahead of the day it is for the
+      // people who work there: an ending is recorded when it has happened.
+      if (
+        isoDay(terminatedOn) < employee.hiredOn ||
+        isoDay(terminatedOn) > employee.today
+      ) {
         throw new HrInputError("terminatedOn");
       }
 

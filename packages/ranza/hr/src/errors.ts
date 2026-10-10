@@ -47,6 +47,8 @@ export type HrRefusalReason =
   | "payroll_needs_organization_reach"
   | "payroll_no_employees"
   | "payroll_mixed_currency"
+  /** A run is locked once approved, so a period that is still running is not approved (HR-S1-45). */
+  | "payroll_period_not_ended"
   /** A draft run is already open for the period, which only a hand-made row can cause. */
   | "payroll_draft_exists";
 

@@ -40,8 +40,9 @@ await hr.assignShift(userId, input);
 await hr.leaveRequests(userId, organizationId);
 await hr.submitLeaveRequest(userId, input);
 await hr.decideLeave(userId, { organizationId, leaveId, approved });
-await hr.payrollSummary(userId, organizationId, "2026-10"); // null without whole-Organization reach
-await hr.approvePayroll(userId, { organizationId, period: "2026-10" });
+await hr.payrollSummary(userId, organizationId, "2026-09"); // null without whole-Organization reach
+await hr.approvePayroll(userId, { organizationId, period: "2026-09" }); // only a period that has ended
+await hr.latestEndedPeriod(userId, organizationId); // the month before the running one
 await hr.workplace(userId, propertyId); // the Property's currency and today
 ```
 
@@ -51,11 +52,12 @@ Every command takes the acting user first and runs in their request context. A c
 
 - Receives its client; never reads the environment or process.env (ADR 0006).
 - Row-level security enforces tenant boundaries, permissions (`hr.view`, `hr.manage`), the commercial gates and reach (ADR 0012). A Staff Member who reaches one Property reads and writes only that Property's rows.
-- **Payroll is the whole Organization's.** A run is read, opened and approved only with reach to every Property, and covers every active employee hired by the end of the period.
+- **Payroll is the whole Organization's.** A run is read, opened and approved only with reach to every Property, covers everyone employed at any point in the period, and is approved only once the period has ended.
 - **Money is whole minor units** (ADR 0015), and a run is in one currency.
 - **An approved run cannot change**, for any role. Approving again is a no-op that emits nothing.
 - **The deductions are placeholders** (`deductions.ts`), pending the owner and an accountant. Do not add rules to that function without an approved row.
 - The IBAN is stored whole and returned masked; nothing here returns the whole number.
-- Never deletes operational history or employment records: terminations update status.
-- Meaningful actions are audited in the transaction that does them: `employee.registered`, `employee.terminated`, `leave.approved`, `leave.declined`, `payroll_run.approved`.
+- Never deletes operational history or employment records: terminations update status, dated on or after the day they happen. A leaver takes no new shift or leave, in the module and in the database.
+- A rota, leave and payslips are read where their employee is.
+- Meaningful actions are audited in the transaction that does them: `employee.registered`, `employee.terminated`, `leave.approved`, `leave.declined`, `payroll_run.approved`. A kind of leave is never recorded: it is health data.
 - `payroll.approved` is emitted to the outbox and nothing consumes it yet (HR-DEF-02).

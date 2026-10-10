@@ -12,7 +12,7 @@ import {
   CardTitle,
   EmptyState,
 } from "@ranza/ui";
-import { Briefcase, Calendar, DollarSign } from "lucide-react";
+import { Banknote, Briefcase, Calendar } from "lucide-react";
 import type { EmployeeRecord } from "../../../server/viewer";
 import { RegisterEmployeeDialog } from "./register-employee-dialog";
 import { TerminateEmployeeDialog } from "./terminate-employee-dialog";
@@ -132,7 +132,7 @@ export function EmployeesTable({
 
                   <div className="flex items-center justify-between text-muted-foreground pt-1 border-t border-dashed border-border/60">
                     <span className="flex items-center gap-1.5">
-                      <DollarSign className="size-3.5" />
+                      <Banknote className="size-3.5" />
                       <span>{t("grossPay")}</span>
                     </span>
                     <span className="font-semibold text-foreground">

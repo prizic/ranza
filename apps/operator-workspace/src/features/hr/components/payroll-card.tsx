@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
@@ -12,6 +13,12 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   EmptyState,
   Table,
   TableBody,
@@ -20,7 +27,14 @@ import {
   TableHeader,
   TableRow,
 } from "@ranza/ui";
-import { Check, CheckCircle2, FileText, TriangleAlert } from "lucide-react";
+import {
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  TriangleAlert,
+} from "lucide-react";
 import type {
   PayrollPeriodSummary,
   PayslipRecord,
@@ -40,6 +54,14 @@ interface PayrollCardProps {
   propertyId: string;
 }
 
+/** The period `delta` months from `period` (`YYYY-MM`). */
+function shiftPeriod(period: string, delta: number): string {
+  const [year = 0, month = 1] = period.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1 + delta, 1))
+    .toISOString()
+    .slice(0, 7);
+}
+
 export function PayrollCard({
   payroll,
   canManage,
@@ -50,6 +72,7 @@ export function PayrollCard({
   const outcomeText = useOutcomeText();
   const [isPending, startTransition] = useTransition();
   const [failure, setFailure] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const [selectedPayslip, setSelectedPayslip] = useState<PayslipRecord | null>(
     null,
   );
@@ -76,8 +99,12 @@ export function PayrollCard({
         payroll.period,
       );
       setFailure(outcomeText(outcome));
+      setConfirming(false);
     });
   };
+
+  const periodHref = (period: string) =>
+    `/${locale}/hr?property=${propertyId}&period=${period}`;
 
   const canApprove =
     payroll.status === "draft" && canManage && payroll.blocker === null;
@@ -87,9 +114,29 @@ export function PayrollCard({
       <Card className="border-border">
         <CardHeader className="p-4 pb-3 flex flex-row items-center justify-between space-y-0">
           <div>
-            <CardTitle className="text-step-1 font-semibold text-foreground">
-              {payroll.period}
-            </CardTitle>
+            <div className="flex items-center gap-1">
+              <Button asChild size="icon" variant="ghost" className="size-7">
+                <Link
+                  aria-label={t("previousPeriod")}
+                  href={periodHref(shiftPeriod(payroll.period, -1))}
+                  prefetch={false}
+                >
+                  <ChevronLeft className="size-4 rtl:rotate-180" />
+                </Link>
+              </Button>
+              <CardTitle className="text-step-1 font-semibold text-foreground">
+                {payroll.period}
+              </CardTitle>
+              <Button asChild size="icon" variant="ghost" className="size-7">
+                <Link
+                  aria-label={t("nextPeriod")}
+                  href={periodHref(shiftPeriod(payroll.period, 1))}
+                  prefetch={false}
+                >
+                  <ChevronRight className="size-4 rtl:rotate-180" />
+                </Link>
+              </Button>
+            </div>
             {currency && (
               <p className="text-step--1 text-muted-foreground mt-0.5">
                 {t("summaryGrossNet", {
@@ -115,7 +162,7 @@ export function PayrollCard({
               </Badge>
             ) : canApprove ? (
               <Button
-                onClick={handleApprovePayroll}
+                onClick={() => setConfirming(true)}
                 disabled={isPending}
                 className="gap-2"
               >
@@ -251,6 +298,49 @@ export function PayrollCard({
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={confirming}
+        onOpenChange={(isOpen) => {
+          if (!isPending) setConfirming(isOpen);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {t("confirmTitle", { period: payroll.period })}
+            </DialogTitle>
+            <DialogDescription>
+              {t("confirmBody", {
+                count: payroll.payslips.length,
+                currency: currency ?? "",
+                amount: money(payroll.totalGrossMinor),
+                total: money(payroll.totalNetMinor),
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-step--1 text-muted-foreground">
+            {t("confirmLocked")}
+          </p>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isPending}
+              onClick={() => setConfirming(false)}
+            >
+              {t("cancel")}
+            </Button>
+            <Button
+              type="button"
+              disabled={isPending}
+              onClick={handleApprovePayroll}
+            >
+              {isPending ? t("approving") : t("confirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <PayslipDrawer
         payslip={selectedPayslip}

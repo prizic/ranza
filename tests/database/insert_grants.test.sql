@@ -527,8 +527,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  72,
-  'the definer sweep looked at 72 functions; change this number deliberately');
+  73,
+  'the definer sweep looked at 73 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -542,7 +542,7 @@ select is(
   22,
   'twenty-two of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a seventy-third definer is a red test
+-- Part B: the inventory itself, so a seventy-fourth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
 -- four are housekeeping; two are maintenance; five are the audit log's reach;
@@ -598,13 +598,17 @@ select is(
 -- post_folio_line_to_ledger() is the only way a journal entry exists. It is the
 -- worker's, it names worker_organization_id() first, and it derives every
 -- posting from the Folio line rather than from the event it was handed.
--- HR (20260916010800) brought two, and neither writes:
+-- HR (20260916010800) brought three, and none writes:
 -- app.hr_employee_is_reachable() and app.hr_employee_is_manageable() answer, for
 -- a leave request or a payslip that carries no Property, whether the acting
 -- Staff Member reaches the employee it belongs to and, for a write, whether the
 -- gates hold where the employee is. Definers so that each policy asking owns
 -- the answer and does not lean on the employee read policy it would otherwise
--- go through, which a test could not tell from a clause of its own.
+-- go through, which a test could not tell from a clause of its own. The third,
+-- app.hr_today(), is what "a period has ended" and "a termination has happened"
+-- are measured against: a Property's calendar date, or the earliest one across
+-- an Organization's. A definer so the triggers that ask it can ask it of
+-- whoever is writing; it reads time zones and returns a date.
 -- The expected arrival (20260916011000) brought one, and it writes:
 -- change_expected_arrival() is the only way a booking's expected time changes
 -- after it is taken, checked like amend_reservation() with the gates and
@@ -647,8 +651,8 @@ select set_eq(
         'fail_data_export', 'expire_data_export', 'run_export_schedule',
         'read_data_export_file',
         'post_folio_line_to_ledger', 'change_expected_arrival',
-        'hr_employee_is_reachable', 'hr_employee_is_manageable'],
-  'and they are exactly the seventy-two the design gives a reason for');
+        'hr_employee_is_reachable', 'hr_employee_is_manageable', 'hr_today'],
+  'and they are exactly the seventy-three the design gives a reason for');
 
 -- ---------------------------------------------------------------------------
 -- Who asks the three-gate question (IG-14)

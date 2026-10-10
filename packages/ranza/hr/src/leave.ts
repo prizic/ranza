@@ -147,7 +147,6 @@ export function createLeave(deps: HrDeps) {
           propertyId: string | null;
           status: string;
           employeeStatus: string;
-          leaveType: string;
           startsOn: string;
           endsOn: string;
         }[]
@@ -155,7 +154,6 @@ export function createLeave(deps: HrDeps) {
         select request.employee_id as "employeeId",
                employee.property_id as "propertyId",
                request.status, employee.status as "employeeStatus",
-               request.leave_type as "leaveType",
                to_char(request.starts_on, 'YYYY-MM-DD') as "startsOn",
                to_char(request.ends_on, 'YYYY-MM-DD') as "endsOn"
           from public.hr_leave_requests as request
@@ -191,7 +189,6 @@ export function createLeave(deps: HrDeps) {
         subjectId: input.leaveId,
         context: {
           employeeId: request.employeeId,
-          leaveType: request.leaveType,
           leaveFrom: request.startsOn,
           leaveTo: request.endsOn,
         },

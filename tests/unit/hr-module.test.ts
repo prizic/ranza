@@ -149,7 +149,12 @@ describe("input", () => {
     }
   });
 
-  it("reads a payroll period and its last day", () => {
+  it("reads a payroll period, its first and last days, and the day after it", () => {
+    const december = validPeriod("2026-12");
+    expect(december.firstDay.toISOString()).toBe("2026-12-01T00:00:00.000Z");
+    // The year turns over: December's next period starts in January.
+    expect(december.nextPeriodStarts).toBe("2027-01-01");
+    expect(validPeriod("2026-02").nextPeriodStarts).toBe("2026-03-01");
     expect(validPeriod("2026-02").lastDay.toISOString()).toBe(
       "2026-02-28T00:00:00.000Z",
     );

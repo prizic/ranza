@@ -222,7 +222,7 @@ describe("an employee card", () => {
       await screen.findByText(/does not remove their access to the system/),
     ).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Last day of employment"), {
-      target: { value: "2026-10-20" },
+      target: { value: "2026-10-05" },
     });
     fireEvent.click(screen.getByRole("button", { name: "End employment" }));
     await vi.waitFor(() =>
@@ -230,7 +230,7 @@ describe("an employee card", () => {
         "en",
         "prop-1",
         "emp-1",
-        "2026-10-20",
+        "2026-10-05",
       ),
     );
   });
@@ -266,7 +266,43 @@ describe("payroll", () => {
     ).toBeVisible();
   });
 
-  it("the whole run is approved from one button, and a refusal is worded from the catalogue", async () => {
+  it("HR-S1-48: approving asks first, names what is locked, and sends nothing until confirmed", async () => {
+    approvePayrollAction.mockResolvedValue({ status: "done" });
+    inLocale(
+      "en",
+      <PayrollCard payroll={draft} canManage locale="en" propertyId="prop-1" />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Approve payroll" }));
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Approve payroll for 2026-10?",
+    });
+    // The period, the headcount, the currency and the totals, and that it locks.
+    expect(dialog).toHaveTextContent("1 employee will be paid in TRY");
+    expect(dialog).toHaveTextContent("TRY 35,000.00 gross");
+    expect(dialog).toHaveTextContent("TRY 25,021.85 net");
+    expect(dialog).toHaveTextContent(/locks the run/);
+    expect(approvePayrollAction).not.toHaveBeenCalled();
+
+    // Backing out sends nothing.
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await vi.waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(approvePayrollAction).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Approve payroll" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Approve and lock" }),
+    );
+    await vi.waitFor(() =>
+      expect(approvePayrollAction).toHaveBeenCalledWith(
+        "en",
+        "prop-1",
+        "2026-10",
+      ),
+    );
+  });
+
+  it("a refusal is worded from the catalogue, in the reader's language", async () => {
     approvePayrollAction.mockResolvedValue({
       status: "refused",
       reason: "payroll_needs_organization_reach",
@@ -276,16 +312,50 @@ describe("payroll", () => {
       <PayrollCard payroll={draft} canManage locale="tr" propertyId="prop-1" />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Bordroyu onayla" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Onayla ve kilitle" }),
+    );
     expect(
       await screen.findByText(
         messages.tr.hr.outcomes.refused.payroll_needs_organization_reach,
       ),
     ).toBeInTheDocument();
-    expect(approvePayrollAction).toHaveBeenCalledWith(
-      "tr",
-      "prop-1",
-      "2026-10",
+  });
+
+  it("HR-S1-45: a period that is still running says so and offers no approval", () => {
+    inLocale(
+      "en",
+      <PayrollCard
+        payroll={{
+          ...draft,
+          currency: null,
+          totalGrossMinor: 0,
+          totalNetMinor: 0,
+          payslips: [],
+          blocker: "period_not_ended",
+        }}
+        canManage
+        locale="en"
+        propertyId="prop-1"
+      />,
     );
+    expect(screen.getByText(/has not ended yet/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Approve payroll" }),
+    ).toBeNull();
+  });
+
+  it("HR-S1-48: moves between periods by links that keep the Property, mirrored in Arabic", () => {
+    inLocale(
+      "ar",
+      <PayrollCard payroll={draft} canManage locale="ar" propertyId="prop-1" />,
+    );
+    expect(
+      screen.getByRole("link", { name: messages.ar.hr.payroll.previousPeriod }),
+    ).toHaveAttribute("href", "/ar/hr?property=prop-1&period=2026-09");
+    expect(
+      screen.getByRole("link", { name: messages.ar.hr.payroll.nextPeriod }),
+    ).toHaveAttribute("href", "/ar/hr?property=prop-1&period=2026-11");
   });
 
   it("HR-S1-24: says why instead of showing a run it may not read", () => {

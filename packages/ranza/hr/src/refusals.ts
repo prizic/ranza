@@ -1,4 +1,4 @@
-import { HrRefusedError } from "./errors";
+import { HrInputError, HrRefusedError } from "./errors";
 
 /**
  * What the database says when it refuses an HR write, turned into this
@@ -63,6 +63,12 @@ export function refusal(error: unknown): Error {
   }
   if (raised(error, CHECK_VIOLATION) && says(error, "one currency")) {
     return new HrRefusedError("payroll_mixed_currency", { cause: error });
+  }
+  if (raised(error, CHECK_VIOLATION) && says(error, "only once it has ended")) {
+    return new HrRefusedError("payroll_period_not_ended", { cause: error });
+  }
+  if (raised(error, CHECK_VIOLATION) && says(error, "not ahead of it")) {
+    return new HrInputError("terminatedOn");
   }
   if (
     raised(error, NOT_PERMITTED_BY_STATE) &&

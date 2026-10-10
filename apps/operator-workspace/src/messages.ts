@@ -887,6 +887,16 @@ export interface Messages {
       approving: string;
       approved: string;
       draft: string;
+      previousPeriod: string;
+      nextPeriod: string;
+      /** `{period}`. */
+      confirmTitle: string;
+      /** `{count}` employees, `{currency}` a code, `{amount}` and `{total}` formatted. */
+      confirmBody: string;
+      /** Says the run locks, and that nothing yet reverses or revises one. */
+      confirmLocked: string;
+      confirm: string;
+      cancel: string;
       /** `{date}`: when the run was approved, already formatted. */
       approvedOn: string;
       /** What approving covers: every employee of the Organization. */
@@ -906,6 +916,7 @@ export interface Messages {
         description: string;
       };
       blocked: {
+        period_not_ended: string;
         no_employees: string;
         mixed_currency: string;
       };
@@ -937,6 +948,7 @@ export interface Messages {
         payroll_no_employees: string;
         payroll_mixed_currency: string;
         payroll_draft_exists: string;
+        payroll_period_not_ended: string;
       };
       error: string;
     };
@@ -1748,7 +1760,6 @@ export interface Messages {
     | "totalGrossMinor"
     | "totalNetMinor"
     | "employeeId"
-    | "leaveType"
     | "leaveFrom"
     | "leaveTo"
     | "contractType"
@@ -3191,6 +3202,15 @@ export const messages: Record<SupportedLocale, Messages> = {
         approving: "Onaylanıyor...",
         approved: "Onaylandı",
         draft: "Taslak",
+        previousPeriod: "Önceki dönem",
+        nextPeriod: "Sonraki dönem",
+        confirmTitle: "{period} bordrosu onaylansın mı?",
+        confirmBody:
+          "{count, plural, one {# personel} other {# personel}} için {currency} cinsinden ödeme yapılacak: brüt {amount}, net {total}.",
+        confirmLocked:
+          "Onay bordroyu kilitler. Sonradan değiştirilemez; şimdilik geri alma ya da düzeltme yolu da yoktur.",
+        confirm: "Onayla ve kilitle",
+        cancel: "Vazgeç",
         approvedOn:
           "{date} tarihinde onaylandı. Onaylanan bordro değiştirilemez.",
         organizationWide:
@@ -3210,6 +3230,8 @@ export const messages: Record<SupportedLocale, Messages> = {
             "Tüm tesisleri kapsadığı için hepsine erişim gerekir. Tüm organizasyona erişimi olan birinden isteyin.",
         },
         blocked: {
+          period_not_ended:
+            "Bu dönem henüz bitmedi, bu yüzden onaylanamaz. Bordro, ayın son gününden sonra onaylanır.",
           no_employees: "Bu dönem için ödeme yapılacak aktif personel yok.",
           mixed_currency:
             "Personele birden fazla para biriminde ödeme yapılıyor; bir bordro tek para birimindedir. Bu dönem, sorun çözülene kadar onaylanamaz.",
@@ -3248,6 +3270,8 @@ export const messages: Record<SupportedLocale, Messages> = {
             "Bu dönem için ödeme yapılacak aktif personel yok.",
           payroll_mixed_currency:
             "Personele birden fazla para biriminde ödeme yapılıyor; bir bordro tek para birimindedir.",
+          payroll_period_not_ended:
+            "Bu dönem henüz bitmedi; henüz onaylanamaz.",
           payroll_draft_exists:
             "Bu dönem için bir taslak zaten var; bir yöneticinin temizlemesi gerekiyor.",
         },
@@ -3827,7 +3851,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       totalGrossMinor: "Toplam brüt",
       totalNetMinor: "Toplam net",
       employeeId: "Personel",
-      leaveType: "İzin türü",
       leaveFrom: "İznin başlangıcı",
       leaveTo: "İznin bitişi",
       contractType: "Sözleşme türü",
@@ -5312,6 +5335,15 @@ export const messages: Record<SupportedLocale, Messages> = {
         approving: "Approving...",
         approved: "Approved",
         draft: "Draft",
+        previousPeriod: "Previous period",
+        nextPeriod: "Next period",
+        confirmTitle: "Approve payroll for {period}?",
+        confirmBody:
+          "{count, plural, one {# employee} other {# employees}} will be paid in {currency}: {amount} gross and {total} net.",
+        confirmLocked:
+          "Approving locks the run. It cannot be changed afterwards, and there is no way yet to reverse or revise it.",
+        confirm: "Approve and lock",
+        cancel: "Cancel",
         approvedOn: "Approved {date}. An approved run cannot be changed.",
         organizationWide:
           "Approving covers every active employee of the Organization, at every Property.",
@@ -5330,6 +5362,8 @@ export const messages: Record<SupportedLocale, Messages> = {
             "It covers every Property, so it needs access to all of them. Ask someone with Organization-wide access.",
         },
         blocked: {
+          period_not_ended:
+            "This period has not ended yet, so it cannot be approved. Payroll is approved after the last day of the month.",
           no_employees: "There are no active employees to pay in this period.",
           mixed_currency:
             "Employees are paid in more than one currency, and a payroll run is in one. This period cannot be approved until that is resolved.",
@@ -5369,6 +5403,8 @@ export const messages: Record<SupportedLocale, Messages> = {
             "There are no active employees to pay in this period.",
           payroll_mixed_currency:
             "Employees are paid in more than one currency, and a payroll run is in one.",
+          payroll_period_not_ended:
+            "That period has not ended, so it cannot be approved yet.",
           payroll_draft_exists:
             "A draft for this period already exists and needs an administrator to clear it.",
         },
@@ -5948,7 +5984,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       totalGrossMinor: "Total gross",
       totalNetMinor: "Total net",
       employeeId: "Employee",
-      leaveType: "Leave type",
       leaveFrom: "Leave from",
       leaveTo: "Leave until",
       contractType: "Contract",
@@ -7408,6 +7443,15 @@ export const messages: Record<SupportedLocale, Messages> = {
         approving: "جارٍ الاعتماد...",
         approved: "معتمد",
         draft: "مسودة",
+        previousPeriod: "الفترة السابقة",
+        nextPeriod: "الفترة التالية",
+        confirmTitle: "اعتماد رواتب {period}؟",
+        confirmBody:
+          "{count, plural, one {موظف واحد} two {موظفان} few {# موظفين} many {# موظفًا} other {# موظف}} سيُصرف لهم بعملة {currency}: الإجمالي {amount} والصافي {total}.",
+        confirmLocked:
+          "يقفل الاعتماد الكشف: لا يمكن تعديله بعدها، ولا توجد حتى الآن طريقة لعكسه أو مراجعته.",
+        confirm: "اعتماد وقفل",
+        cancel: "إلغاء",
         approvedOn: "اعتُمد في {date}. لا يمكن تعديل كشف الرواتب بعد اعتماده.",
         organizationWide:
           "يشمل الاعتماد كل موظف على رأس العمل في المؤسسة، في كل المنشآت.",
@@ -7426,6 +7470,8 @@ export const messages: Record<SupportedLocale, Messages> = {
             "تشمل الرواتب كل المنشآت، لذا تحتاج إلى صلاحية الوصول إليها جميعًا. اطلب ذلك ممن لديه وصول على مستوى المؤسسة.",
         },
         blocked: {
+          period_not_ended:
+            "لم تنتهِ هذه الفترة بعد، لذا لا يمكن اعتمادها. تُعتمد الرواتب بعد آخر يوم في الشهر.",
           no_employees:
             "لا يوجد موظفون على رأس العمل ليُصرف لهم في هذه الفترة.",
           mixed_currency:
@@ -7464,6 +7510,8 @@ export const messages: Record<SupportedLocale, Messages> = {
             "لا يوجد موظفون على رأس العمل ليُصرف لهم في هذه الفترة.",
           payroll_mixed_currency:
             "يُصرف للموظفين بأكثر من عملة، وكشف الرواتب بعملة واحدة.",
+          payroll_period_not_ended:
+            "لم تنتهِ هذه الفترة بعد، فلا يمكن اعتمادها الآن.",
           payroll_draft_exists:
             "توجد مسودة لهذه الفترة بالفعل وتحتاج إلى مسؤول لإزالتها.",
         },
@@ -8038,7 +8086,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       totalGrossMinor: "إجمالي الراتب الإجمالي",
       totalNetMinor: "إجمالي صافي الراتب",
       employeeId: "الموظف",
-      leaveType: "نوع الإجازة",
       leaveFrom: "بداية الإجازة",
       leaveTo: "نهاية الإجازة",
       contractType: "نوع العقد",

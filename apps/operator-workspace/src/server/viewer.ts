@@ -1166,8 +1166,15 @@ export async function hrViewData(
   const comp = getComposition();
   const workplace = await comp.hr.workplace(viewer.userId, propertyId);
   if (!workplace) return null;
+  // The period asked for, or the most recent one that has ended: the latest a
+  // payroll run can be approved for, and the one somebody opening payroll means.
   const currentPeriod =
-    period && PERIOD.test(period) ? period : workplace.today.slice(0, 7);
+    period && PERIOD.test(period)
+      ? period
+      : await comp.hr.latestEndedPeriod(
+          viewer.userId,
+          targetProperty.organizationId,
+        );
 
   const today = new Date();
   const dayOfWeek = today.getDay();

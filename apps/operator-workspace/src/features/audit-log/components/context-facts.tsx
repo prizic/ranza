@@ -33,7 +33,6 @@ const CONTEXT_KEYS = [
   "totalGrossMinor",
   "totalNetMinor",
   "employeeId",
-  "leaveType",
   "leaveFrom",
   "leaveTo",
   "contractType",
@@ -259,10 +258,7 @@ export function ContextFacts({
     if (PERMISSIONS.has(key) && Array.isArray(value)) {
       return list(value, (item) => permission(String(item)));
     }
-    // The words the HR screen already uses for a kind of leave and a contract.
-    if (key === "leaveType" && typeof value === "string") {
-      return t(`hr.leave.types.${value as "annual"}`);
-    }
+    // The words the HR screen already uses for a kind of contract.
     if (key === "contractType" && typeof value === "string") {
       return t(`hr.employees.contracts.${value as "full_time"}`);
     }

@@ -55,18 +55,26 @@ async function payrollAccess(
 }
 
 /**
- * Everyone a run covers: every active employee of the Organization who was
- * hired by the end of the period. Not "the employees this person can see": the
- * run is unique per period, so one that left a Property out would leave it
- * without payslips for good (HR-S1-24).
+ * Everyone a run covers: every employee of the Organization who was employed at
+ * any point in the period — hired by its last day, and not ended before its
+ * first. A person who left in the middle of it is paid for it, because a run is
+ * locked and leaving them out would be a mistake no one can correct; paying
+ * them in full is HR-DEF-05's. Not "the employees this person can see": the run
+ * is unique per period, so one that left a Property out would leave it without
+ * payslips for good (HR-S1-24).
  */
 function payableEmployees(
   tx: HrTransaction,
   organizationId: string,
+  firstDay: Date,
   lastDay: Date,
 ) {
   return tx.hrEmployee.findMany({
-    where: { organizationId, status: "active", hiredOn: { lte: lastDay } },
+    where: {
+      organizationId,
+      hiredOn: { lte: lastDay },
+      OR: [{ terminatedOn: null }, { terminatedOn: { gte: firstDay } }],
+    },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }, { id: "asc" }],
   });
 }
@@ -119,8 +127,9 @@ function blockerOf(employees: readonly Payable[]): PayrollBlocker | null {
 function draftSummary(
   period: string,
   employees: readonly Payable[],
+  ended: boolean,
 ): PayrollPeriodSummary {
-  const blocker = blockerOf(employees);
+  const blocker = ended ? blockerOf(employees) : "period_not_ended";
   if (blocker !== null) {
     return {
       period,
@@ -211,8 +220,41 @@ async function readRun(
   };
 }
 
+/**
+ * Today for the Organization — the earliest calendar day across its Properties,
+ * so a period that has ended has ended everywhere. The database asks the same
+ * question of the same function (HR-S1-45), so the module can name the reason
+ * and the trigger still holds for a caller that never came through here.
+ */
+async function today(
+  tx: HrTransaction,
+  organizationId: string,
+): Promise<string> {
+  const [row] = await tx.$queryRaw<{ today: string }[]>`
+    select to_char(app.hr_today(${organizationId}::uuid, null), 'YYYY-MM-DD')
+             as today
+  `;
+  return row?.today ?? new Date().toISOString().slice(0, 10);
+}
+
 /** Payroll runs, approved once for the whole Organization and then locked. */
 export function createPayroll(deps: HrDeps) {
+  /**
+   * The most recent period that has ended, `YYYY-MM`: the one a person opening
+   * payroll most likely means, and the latest one that can be approved.
+   */
+  async function latestEndedPeriod(
+    userId: string,
+    organizationId: string,
+  ): Promise<string> {
+    return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      const [year = 0, month = 1] = (await today(tx, organizationId))
+        .split("-")
+        .map(Number);
+      return new Date(Date.UTC(year, month - 2, 1)).toISOString().slice(0, 7);
+    });
+  }
+
   /**
    * One period of payroll as it stands: the approved run if there is one,
    * otherwise what approving it now would produce.
@@ -226,7 +268,7 @@ export function createPayroll(deps: HrDeps) {
     organizationId: string,
     period: string,
   ): Promise<PayrollPeriodSummary | null> {
-    const { lastDay } = validPeriod(period);
+    const { firstDay, lastDay, nextPeriodStarts } = validPeriod(period);
 
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
       const access = await payrollAccess(tx, organizationId);
@@ -238,7 +280,8 @@ export function createPayroll(deps: HrDeps) {
         (await readRun(tx, organizationId, period)) ??
         draftSummary(
           period,
-          await payableEmployees(tx, organizationId, lastDay),
+          await payableEmployees(tx, organizationId, firstDay, lastDay),
+          nextPeriodStarts <= (await today(tx, organizationId)),
         )
       );
     });
@@ -260,7 +303,9 @@ export function createPayroll(deps: HrDeps) {
     userId: string,
     input: ApprovePayrollInput,
   ): Promise<PayrollPeriodSummary> {
-    const { period, lastDay } = validPeriod(input.period);
+    const { period, firstDay, lastDay, nextPeriodStarts } = validPeriod(
+      input.period,
+    );
     const { organizationId } = input;
 
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
@@ -281,7 +326,18 @@ export function createPayroll(deps: HrDeps) {
       if (existing?.status === "approved") return existing;
       if (existing) throw new HrRefusedError("payroll_draft_exists");
 
-      const employees = await payableEmployees(tx, organizationId, lastDay);
+      // A run is locked once approved, so a period that is still running is not
+      // approved: its headcount is still changing and nothing can revise it.
+      if (nextPeriodStarts > (await today(tx, organizationId))) {
+        throw new HrRefusedError("payroll_period_not_ended");
+      }
+
+      const employees = await payableEmployees(
+        tx,
+        organizationId,
+        firstDay,
+        lastDay,
+      );
       const blocker = blockerOf(employees);
       const [first] = employees;
       if (blocker === "no_employees" || !first) {
@@ -366,5 +422,5 @@ export function createPayroll(deps: HrDeps) {
     });
   }
 
-  return { payrollSummary, approvePayroll };
+  return { payrollSummary, approvePayroll, latestEndedPeriod };
 }

@@ -124,6 +124,7 @@ describe("every catalogue parses", () => {
                 occupied: 150,
                 of: 9,
                 organization: "x",
+                period: "2026-10",
                 price: "₺1.500,00",
                 property: "x",
                 reason: "x",

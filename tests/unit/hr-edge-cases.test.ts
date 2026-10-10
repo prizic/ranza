@@ -55,10 +55,23 @@ function locate(file: string): string | undefined {
   );
 }
 
-/** The text a title would be written as in a source file. */
-function sourceOf(file: string): string {
-  const text = readFileSync(locate(file)!, "utf8");
-  return file.endsWith(".sql") ? text.replaceAll("''", "'") : text;
+/**
+ * The tests a source file declares whose title starts with an HR row id.
+ *
+ * A pgTAP description is a whole quoted string on a line of its own, as the
+ * last argument of an assertion; anything else that looks like one, in a
+ * comment or inside a longer string, is not a test. A vitest or Playwright
+ * test is the first argument of `it` or `test`. Reading both the same way for
+ * the forward and the reverse check is what keeps either from being satisfied
+ * by prose.
+ */
+function titlesIn(file: string, text: string): string[] {
+  const pattern = file.endsWith(".sql")
+    ? /^[ \t]*'(HR-S1-\d{2}: (?:[^']|'')*)'[ \t]*$/gm
+    : /(?:^|[^\w.])(?:it|test)\(\s*"(HR-S1-\d{2}: [^"]*)"/g;
+  return [...text.matchAll(pattern)].map((match) =>
+    match[1]!.replaceAll("''", "'"),
+  );
 }
 
 describe("the HR edge-case table and its tests", () => {
@@ -83,7 +96,9 @@ describe("the HR edge-case table and its tests", () => {
           missing.push(`${id}: "${title}" is filed under another row`);
         } else if (!locate(file)) {
           missing.push(`${id}: no file ${file}`);
-        } else if (!sourceOf(file).includes(title)) {
+        } else if (
+          !titlesIn(file, readFileSync(locate(file)!, "utf8")).includes(title)
+        ) {
           missing.push(`${id}: ${file} has no test called "${title}"`);
         }
       }
@@ -103,11 +118,7 @@ describe("the HR edge-case table and its tests", () => {
     for (const file of FILES) {
       const text = readFileSync(path.join(root, file), "utf8");
       const base = path.basename(file);
-      const pattern = file.endsWith(".sql")
-        ? /'(HR-S1-\d{2}: (?:[^']|'')*)'/g
-        : /(?:it|test)\(\s*"(HR-S1-\d{2}: [^"]*)"/g;
-      for (const match of text.matchAll(pattern)) {
-        const title = match[1]!.replaceAll("''", "'");
+      for (const title of titlesIn(file, text)) {
         if (!listed.has(`${base}: ${title}`)) {
           orphans.push(`${base}: ${title}`);
         }

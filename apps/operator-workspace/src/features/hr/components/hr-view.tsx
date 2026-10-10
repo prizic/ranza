@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import type { SupportedLocale } from "@ranza/i18n";
 import { Badge, Tabs, TabsContent, TabsList, TabsTrigger } from "@ranza/ui";
-import { Calendar, DollarSign, Palmtree, Users } from "lucide-react";
+import { Banknote, Calendar, Palmtree, Users } from "lucide-react";
 import type { HrViewData } from "../../../server/viewer";
 import { EmployeesTable } from "./employees-table";
 import { RotaTable } from "./rota-table";
@@ -67,7 +67,7 @@ export function HrView({ data, locale, propertyId }: HrViewProps) {
           </TabsTrigger>
 
           <TabsTrigger value="payroll" className="gap-2 text-step--1">
-            <DollarSign className="size-4" />
+            <Banknote className="size-4" />
             <span>{t("tabs.payroll")}</span>
           </TabsTrigger>
         </TabsList>

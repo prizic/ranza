@@ -115,6 +115,7 @@ export function TerminateEmployeeDialog({
               type="date"
               required
               min={new Date(hiredOn).toISOString().slice(0, 10)}
+              max={today}
               value={lastDay}
               onChange={(e) => setLastDay(e.target.value)}
             />
