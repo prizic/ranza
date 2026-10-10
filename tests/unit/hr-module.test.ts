@@ -32,7 +32,7 @@ describe("the HR capability", () => {
 });
 
 describe("placeholder deductions", () => {
-  it("placeholder_deductions_add_up_to_the_minor_unit: a gross of 35,000 is split exactly", () => {
+  it("HR-S1-11: a gross of 35,000 is split exactly", () => {
     expect(calculatePlaceholderDeductions(3_500_000)).toEqual({
       socialSecurityMinor: 525_000,
       incomeTaxMinor: 446_250,
@@ -41,7 +41,7 @@ describe("placeholder deductions", () => {
     });
   });
 
-  it("placeholder_deductions_add_up_to_the_minor_unit: for every gross, the parts add up and nothing is fractional", () => {
+  it("HR-S1-11: for every gross, the parts add up and nothing is fractional", () => {
     // Amounts that float arithmetic rounds the wrong way: the old
     // Math.round(x * 0.15 * 100) / 100 was not exact for these.
     const awkward = [1, 7, 33, 199, 1005, 1_234_567, 9_999_999_999, 10_001];
@@ -117,7 +117,7 @@ describe("an IBAN", () => {
     expect(() => normalizeIban("TR33")).toThrow(HrInputError);
   });
 
-  it("iban_is_masked_on_the_server: is shown as the country and the last four", () => {
+  it("HR-S1-30: is shown as the country and the last four", () => {
     expect(maskIban("TR330006100519786457841326")).toBe("TR•• •••• •••• 1326");
     expect(maskIban(null)).toBeNull();
     expect(maskIban("TR33")).toBe("••••");
@@ -126,7 +126,7 @@ describe("an IBAN", () => {
 });
 
 describe("input", () => {
-  it("a_currency_that_is_not_one_is_refused: accepts ISO 4217 codes and nothing else", () => {
+  it("HR-S1-34: accepts ISO 4217 codes and nothing else", () => {
     for (const code of ["TRY", "EUR", "USD", "JPY", "KWD"]) {
       expect(validCurrency(code)).toBe(code);
     }
@@ -135,7 +135,7 @@ describe("input", () => {
     }
   });
 
-  it("an_amount_that_is_not_whole_minor_units_is_refused", () => {
+  it("HR-S1-32: an amount that is not whole minor units is refused", () => {
     expect(wholeMinorUnits(0, "grossPay")).toBe(0);
     expect(wholeMinorUnits(3_500_000, "grossPay")).toBe(3_500_000);
     for (const value of [

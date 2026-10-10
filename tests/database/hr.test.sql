@@ -121,14 +121,14 @@ select results_eq(
       join public.organization_memberships m on m.user_id = e.user_id
      where e.id = '9e222222-2222-4222-8222-222222222222'$$,
   $$values ('Mert', 'active', 'revoked')$$,
-  'employee_record_outlives_membership_revocation: a Staff Member''s record is still there, active, when their membership is revoked'
+  'HR-S1-01: a Staff Member''s record is still there, active, when their membership is revoked'
 );
 
 select results_eq(
   $$select (select count(*)::int from public.hr_shifts where employee_id = '9e222222-2222-4222-8222-222222222222'),
           (select count(*)::int from public.hr_leave_requests where employee_id = '9e222222-2222-4222-8222-222222222222')$$,
   $$values (1, 1)$$,
-  'employee_record_outlives_membership_revocation: and so are their shift and their leave'
+  'HR-S1-01: and so are their shift and their leave'
 );
 
 -- ---------------------------------------------------------------------------
@@ -149,18 +149,18 @@ select results_eq(
   $$select first_name, user_id is null, status, terminated_on is null
       from public.hr_employees where id = '9e111111-1111-4111-8111-111111111111'$$,
   $$values ('Ahmet', true, 'active', true)$$,
-  'employee_can_exist_without_system_login: an employee record exists with no user and starts active'
+  'HR-S1-02: an employee record exists with no user and starts active'
 );
 
 select results_eq(
   $$select count(*)::int from public.hr_employees$$,
   $$values (6)$$,
-  'list_employees_returns_organization_staff: a manager reaching the Organization reads all six of its employees, the one with no Property included'
+  'HR-S1-03: a manager reaching the Organization reads all six of its employees, the one with no Property included'
 );
 
 select is_empty(
   $$select * from public.hr_employees where organization_id = '9a222222-2222-4222-8222-222222222222'$$,
-  'employees_of_other_organizations_are_invisible: another Organization''s employees are not read'
+  'HR-S1-04: another Organization''s employees are not read'
 );
 
 select throws_matching(
@@ -169,7 +169,7 @@ select throws_matching(
     values ('9a222222-2222-4222-8222-222222222222', '9b222222-2222-4222-8222-222222222222',
             'Cross', 'Tenant', 'Kitchen', 'Cook', 100)$$,
   'row-level security',
-  'employees_of_other_organizations_are_invisible: and none is written into it'
+  'HR-S1-04: and none is written into it'
 );
 
 -- ---------------------------------------------------------------------------
@@ -181,7 +181,7 @@ select app.set_request_context('92222222-2222-4222-8222-222222222222');
 select results_eq(
   $$select count(*)::int from public.hr_employees$$,
   $$values (6)$$,
-  'list_employees_returns_organization_staff: hr.view reads the directory'
+  'HR-S1-03: hr.view reads the directory'
 );
 
 select throws_matching(
@@ -190,25 +190,25 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', '9b111111-1111-4111-8111-111111111111',
             'Ali', 'Demir', 'Kitchen', 'Cook', 2800000)$$,
   'row-level security',
-  'registering_employee_without_manage_is_refused: hr.view alone does not register an employee'
+  'HR-S1-06: hr.view alone does not register an employee'
 );
 
 select is_empty(
   $$update public.hr_employees set position = 'Boss' where id = '9e222222-2222-4222-8222-222222222222' returning id$$,
-  'registering_employee_without_manage_is_refused: nor change one'
+  'HR-S1-06: nor change one'
 );
 
 select app.set_request_context('93333333-3333-4333-8333-333333333333');
 
 select is_empty(
   $$select * from public.hr_employees$$,
-  'hr_queries_without_permission_are_denied: a Staff Member without hr.view reads no employee'
+  'HR-S1-05: a Staff Member without hr.view reads no employee'
 );
 
 select is(
   (select count(*) from public.hr_shifts) + (select count(*) from public.hr_leave_requests),
   0::bigint,
-  'hr_queries_without_permission_are_denied: no shift and no leave request either'
+  'HR-S1-05: no shift and no leave request either'
 );
 
 -- ---------------------------------------------------------------------------
@@ -220,19 +220,19 @@ select app.set_request_context('95555555-5555-4555-8555-555555555555');
 select results_eq(
   $$select first_name from public.hr_employees order by first_name$$,
   $$values ('Ahmet'), ('Eva'), ('Mert')$$,
-  'a_property_scoped_manager_reads_and_writes_only_their_property: reads only the employees of the Galata Hotel'
+  'HR-S1-22: reads only the employees of the Galata Hotel'
 );
 
 select results_eq(
   $$select count(*)::int from public.hr_shifts$$,
   $$values (1)$$,
-  'a_property_scoped_manager_reads_and_writes_only_their_property: and only its shifts'
+  'HR-S1-22: and only its shifts'
 );
 
 select results_eq(
   $$select count(*)::int from public.hr_leave_requests$$,
   $$values (1)$$,
-  'a_property_scoped_manager_reads_and_writes_only_their_property: and only the leave of its employees'
+  'HR-S1-22: and only the leave of its employees'
 );
 
 select throws_matching(
@@ -241,7 +241,7 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', '9b333333-3333-4333-8333-333333333333',
             'Out', 'Of Reach', 'Kitchen', 'Cook', 100)$$,
   'row-level security',
-  'a_property_scoped_manager_reads_and_writes_only_their_property: registering an employee at a Property they do not reach is refused'
+  'HR-S1-22: registering an employee at a Property they do not reach is refused'
 );
 
 select throws_matching(
@@ -249,17 +249,17 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', '9b333333-3333-4333-8333-333333333333',
             '9e333333-3333-4333-8333-333333333333', '2026-10-13', 'day')$$,
   'row-level security',
-  'a_property_scoped_manager_reads_and_writes_only_their_property: so is a shift there'
+  'HR-S1-22: so is a shift there'
 );
 
 select is_empty(
   $$update public.hr_employees set position = 'Boss' where id = '9e333333-3333-4333-8333-333333333333' returning id$$,
-  'a_property_scoped_manager_reads_and_writes_only_their_property: and changing an employee there matches nothing'
+  'HR-S1-22: and changing an employee there matches nothing'
 );
 
 select is_empty(
   $$update public.hr_leave_requests set status = 'approved' where id = '9f444444-4444-4444-8444-444444444444' returning id$$,
-  'a_property_scoped_manager_reads_and_writes_only_their_property: and deciding their leave'
+  'HR-S1-22: and deciding their leave'
 );
 
 select throws_matching(
@@ -268,18 +268,18 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', null,
             'No', 'Property', 'Kitchen', 'Cook', 100)$$,
   'row-level security',
-  'an_employee_without_a_property_needs_organization_wide_reach: an employee with no Property is the whole Organization''s, so a manager of one Property cannot register one'
+  'HR-S1-26: an employee with no Property is the whole Organization''s, so a manager of one Property cannot register one'
 );
 
 select throws_matching(
   $$update public.hr_employees set property_id = null where id = '9e222222-2222-4222-8222-222222222222'$$,
   'row-level security',
-  'an_employee_without_a_property_needs_organization_wide_reach: nor move one out of their Property into the whole Organization'
+  'HR-S1-26: nor move one out of their Property into the whole Organization'
 );
 
 select is_empty(
   $$select * from public.hr_employees where property_id is null$$,
-  'an_employee_without_a_property_needs_organization_wide_reach: and cannot read one'
+  'HR-S1-26: and cannot read one'
 );
 
 -- ---------------------------------------------------------------------------
@@ -293,7 +293,7 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', '9b111111-1111-4111-8111-111111111111',
             '9e222222-2222-4222-8222-222222222222', '2026-10-10', 'evening')$$,
   'hr_shifts_employee_date_key',
-  'duplicate_shift_per_date_is_prevented: a second shift for one employee on one day is refused by the unique key'
+  'HR-S1-08: a second shift for one employee on one day is refused by the unique key'
 );
 
 select throws_matching(
@@ -301,7 +301,7 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', '9e222222-2222-4222-8222-222222222222',
             'annual', '2026-10-16', '2026-10-17', 'approved')$$,
   'hr_leave_no_overlapping_approved',
-  'overlapping_approved_leave_is_refused: approved leave over days already approved is refused by the exclusion constraint'
+  'HR-S1-19: approved leave over days already approved is refused by the exclusion constraint'
 );
 
 select throws_matching(
@@ -309,7 +309,7 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', '9e222222-2222-4222-8222-222222222222',
             'annual', '2026-10-20', '2026-10-10', 'pending')$$,
   'hr_leave_dates_valid',
-  'blank_text_and_backwards_leave_are_refused: leave that ends before it starts is refused by a check'
+  'HR-S1-43: leave that ends before it starts is refused by a check'
 );
 
 select throws_matching(
@@ -318,7 +318,7 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', 'Test', 'Clean', '   ', 'Front desk', 'Agent', 100)
     $$,
   'hr_employees_email_clean',
-  'blank_text_and_backwards_leave_are_refused: a blank email is refused by a check'
+  'HR-S1-43: a blank email is refused by a check'
 );
 
 select throws_matching(
@@ -326,7 +326,7 @@ select throws_matching(
       (organization_id, first_name, last_name, department, position, gross_pay_minor, currency)
     values ('9a111111-1111-4111-8111-111111111111', 'Bad', 'Currency', 'Kitchen', 'Cook', 100, 'try')$$,
   'hr_employees_currency_check',
-  'a_currency_that_is_not_one_is_refused: a currency code that is not three capitals is refused'
+  'HR-S1-34: a currency code that is not three capitals is refused'
 );
 
 select throws_matching(
@@ -334,13 +334,13 @@ select throws_matching(
       (organization_id, first_name, last_name, department, position, gross_pay_minor)
     values ('9a111111-1111-4111-8111-111111111111', 'Neg', 'Pay', 'Kitchen', 'Cook', -1)$$,
   'hr_employees_gross_pay_minor_check',
-  'an_amount_that_is_not_whole_minor_units_is_refused: a negative amount is refused'
+  'HR-S1-32: a negative amount is refused'
 );
 
 select throws_matching(
   $$update public.hr_employees set currency = 'EUR' where id = '9e222222-2222-4222-8222-222222222222'$$,
   'permission denied',
-  'a_currency_that_is_not_one_is_refused: and an employee''s currency is not in the update grant, so it is never restated'
+  'HR-S1-34: and an employee''s currency is not in the update grant, so it is never restated'
 );
 
 -- ---------------------------------------------------------------------------
@@ -350,19 +350,19 @@ select throws_matching(
 select throws_matching(
   $$delete from public.hr_employees where id = '9e111111-1111-4111-8111-111111111111'$$,
   'permission denied',
-  'hr_records_cannot_be_hard_deleted: an employee cannot be deleted'
+  'HR-S1-13: an employee cannot be deleted'
 );
 
 select throws_matching(
   $$delete from public.hr_payroll_runs$$,
   'permission denied',
-  'hr_records_cannot_be_hard_deleted: nor a payroll run'
+  'HR-S1-13: nor a payroll run'
 );
 
 select throws_matching(
   $$delete from public.hr_payslips$$,
   'permission denied',
-  'hr_records_cannot_be_hard_deleted: nor a payslip'
+  'HR-S1-13: nor a payslip'
 );
 
 -- ---------------------------------------------------------------------------
@@ -373,42 +373,42 @@ select lives_ok(
   $$update public.hr_employees
        set status = 'terminated', terminated_on = '2026-10-31'
      where id = '9e111111-1111-4111-8111-111111111111'$$,
-  'terminating_an_employee_keeps_the_record_and_its_payslips: an employee is terminated by a status and a date'
+  'HR-S1-29: an employee is terminated by a status and a date'
 );
 
 select results_eq(
   $$select first_name, status, terminated_on from public.hr_employees
      where id = '9e111111-1111-4111-8111-111111111111'$$,
   $$values ('Ahmet', 'terminated', '2026-10-31'::date)$$,
-  'terminating_an_employee_keeps_the_record_and_its_payslips: and the record is still there and readable'
+  'HR-S1-29: and the record is still there and readable'
 );
 
 select throws_matching(
   $$update public.hr_employees set status = 'active', terminated_on = null
      where id = '9e111111-1111-4111-8111-111111111111'$$,
   'stays terminated',
-  'a_terminated_employee_stays_terminated: a terminated employee cannot be made active again'
+  'HR-S1-39: a terminated employee cannot be made active again'
 );
 
 select throws_matching(
   $$update public.hr_employees set terminated_on = '2026-11-30'
      where id = '9e111111-1111-4111-8111-111111111111'$$,
   'stays terminated',
-  'a_terminated_employee_stays_terminated: nor have the day they left moved'
+  'HR-S1-39: nor have the day they left moved'
 );
 
 select throws_matching(
   $$update public.hr_employees set status = 'terminated'
      where id = '9e222222-2222-4222-8222-222222222222'$$,
   'hr_employees_termination_dated',
-  'terminating_an_employee_keeps_the_record_and_its_payslips: a termination without a day is refused by a check'
+  'HR-S1-29: a termination without a day is refused by a check'
 );
 
 select throws_matching(
   $$update public.hr_employees set status = 'terminated', terminated_on = '2000-01-01'
      where id = '9e222222-2222-4222-8222-222222222222'$$,
   'hr_employees_terminated_after_hired',
-  'terminating_an_employee_keeps_the_record_and_its_payslips: nor one before the day they were hired'
+  'HR-S1-29: nor one before the day they were hired'
 );
 
 set local role none;
@@ -418,14 +418,14 @@ select throws_matching(
       (organization_id, first_name, last_name, department, position, gross_pay_minor, status)
     values ('9a111111-1111-4111-8111-111111111111', 'On', 'Leave', 'Kitchen', 'Cook', 100, 'on_leave')$$,
   'hr_employees_status_check',
-  'unreachable_states_are_not_in_the_check_constraints: on_leave is not a status, so nothing can be left dangling in it'
+  'HR-S1-38: on_leave is not a status, so nothing can be left dangling in it'
 );
 
 select is(
   (select pg_get_constraintdef(oid) from pg_constraint
     where conname = 'hr_payroll_runs_status_check'),
   'CHECK ((status = ANY (ARRAY[''draft''::text, ''approved''::text])))',
-  'unreachable_states_are_not_in_the_check_constraints: a run is a draft or approved, and there is no paid'
+  'HR-S1-38: a run is a draft or approved, and there is no paid'
 );
 
 -- The policy refuses an employee at a Property the writer does not reach, and
@@ -436,7 +436,7 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', '9b222222-2222-4222-8222-222222222222',
             'Cross', 'Org', 'Kitchen', 'Cook', 100)$$,
   'hr_employees_property_fkey',
-  'cross_organization_property_assignment_is_refused: another Organization''s Property is refused by the composite key, even for the table owner'
+  'HR-S1-20: another Organization''s Property is refused by the composite key, even for the table owner'
 );
 
 -- A Property with an employee can be deleted, and the employee stays.
@@ -446,14 +446,14 @@ select results_eq(
   $$select property_id is null, organization_id, status
       from public.hr_employees where id = '9e666666-6666-4666-8666-666666666666'$$,
   $$values (true, '9a111111-1111-4111-8111-111111111111'::uuid, 'active')$$,
-  'deleting_a_property_unassigns_its_employees: deleting a Property nulls the employee''s Property and nothing else'
+  'HR-S1-21: deleting a Property nulls the employee''s Property and nothing else'
 );
 
 select is(
   (select pg_get_constraintdef(oid) from pg_constraint
     where conname = 'hr_employees_property_fkey'),
   'FOREIGN KEY (property_id, organization_id) REFERENCES properties(id, organization_id) ON DELETE SET NULL (property_id)',
-  'deleting_a_property_unassigns_its_employees: the key says which column it nulls'
+  'HR-S1-21: the key says which column it nulls'
 );
 
 -- ---------------------------------------------------------------------------
@@ -465,7 +465,7 @@ select is_empty(
       from information_schema.columns
      where table_schema = 'public' and table_name like 'hr\_%'
        and data_type in ('numeric', 'real', 'double precision', 'money')$$,
-  'an_amount_that_is_not_whole_minor_units_is_refused: no HR table holds a fractional amount'
+  'HR-S1-32: no HR table holds a fractional amount'
 );
 
 select is(
@@ -484,7 +484,7 @@ select is(
     'hr_payslips.stamp_duty_minor:bigint',
     'hr_payslips.tax_deduction_minor:bigint'
   ],
-  'an_amount_that_is_not_whole_minor_units_is_refused: every amount is a bigint count of minor units'
+  'HR-S1-32: every amount is a bigint count of minor units'
 );
 
 -- ---------------------------------------------------------------------------
@@ -498,7 +498,7 @@ select throws_matching(
   $$insert into public.hr_payroll_runs (organization_id, period, currency, status)
     values ('9a111111-1111-4111-8111-111111111111', '2026-08', 'TRY', 'approved')$$,
   'permission denied',
-  'a_run_is_opened_as_a_draft_and_approved_once: the application role cannot insert a run as approved, because status is not in its insert grant'
+  'HR-S1-36: the application role cannot insert a run as approved, because status is not in its insert grant'
 );
 
 insert into public.hr_payroll_runs
@@ -510,7 +510,7 @@ select results_eq(
   $$select status, approved_at is null, approved_by is null
       from public.hr_payroll_runs where id = '99111111-1111-4111-8111-111111111111'$$,
   $$values ('draft', true, true)$$,
-  'a_run_is_opened_as_a_draft_and_approved_once: a run is opened as a draft'
+  'HR-S1-36: a run is opened as a draft'
 );
 
 select throws_matching(
@@ -519,7 +519,7 @@ select throws_matching(
            approved_by = '91111111-1111-4111-8111-111111111111'
      where id = '99111111-1111-4111-8111-111111111111'$$,
   'no payslips',
-  'a_run_whose_totals_differ_from_its_payslips_cannot_be_approved: a run with no payslips cannot be approved'
+  'HR-S1-35: a run with no payslips cannot be approved'
 );
 
 insert into public.hr_payslips
@@ -535,7 +535,7 @@ select throws_matching(
            approved_by = '91111111-1111-4111-8111-111111111111'
      where id = '99111111-1111-4111-8111-111111111111'$$,
   'must equal the sum of its payslips',
-  'a_run_whose_totals_differ_from_its_payslips_cannot_be_approved: totals that are not the sum of the payslips are refused'
+  'HR-S1-35: totals that are not the sum of the payslips are refused'
 );
 
 select throws_matching(
@@ -545,7 +545,7 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', '99111111-1111-4111-8111-111111111111',
             '9e333333-3333-4333-8333-333333333333', 100, 0, 0, 0, 99)$$,
   'hr_payslips_net_is_gross_less_deductions',
-  'a_run_whose_totals_differ_from_its_payslips_cannot_be_approved: a payslip whose parts do not add up is refused'
+  'HR-S1-35: a payslip whose parts do not add up is refused'
 );
 
 select throws_matching(
@@ -555,14 +555,14 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', '99111111-1111-4111-8111-111111111111',
             '9e555555-5555-4555-8555-555555555555', 300000, 0, 0, 0, 300000)$$,
   'one currency',
-  'a_run_in_two_currencies_is_refused_and_says_so: a payslip for an employee paid in euros cannot join a run in lira'
+  'HR-S1-33: a payslip for an employee paid in euros cannot join a run in lira'
 );
 
 select throws_matching(
   $$update public.hr_payslips set net_pay_minor = net_pay_minor
      where id = '99222222-2222-4222-8222-222222222222'$$,
   'permission denied',
-  'a_run_is_opened_as_a_draft_and_approved_once: a payslip is inserted and never updated, so it has no update grant'
+  'HR-S1-36: a payslip is inserted and never updated, so it has no update grant'
 );
 
 -- Fix the totals to the payslip's, then approve, naming somebody else first.
@@ -579,7 +579,7 @@ select throws_matching(
            approved_by = '92222222-2222-4222-8222-222222222222'
      where id = '99111111-1111-4111-8111-111111111111'$$,
   'row-level security',
-  'a_run_is_opened_as_a_draft_and_approved_once: approving as somebody else is refused'
+  'HR-S1-36: approving as somebody else is refused'
 );
 
 select lives_ok(
@@ -587,7 +587,7 @@ select lives_ok(
        set status = 'approved', approved_at = now(),
            approved_by = '91111111-1111-4111-8111-111111111111'
      where id = '99111111-1111-4111-8111-111111111111'$$,
-  'a_run_is_opened_as_a_draft_and_approved_once: a draft whose totals are its payslips'' is approved, by the person approving it'
+  'HR-S1-36: a draft whose totals are its payslips'' is approved, by the person approving it'
 );
 
 -- The approval emitted exactly one event.
@@ -599,20 +599,20 @@ select results_eq(
      where organization_id = '9a111111-1111-4111-8111-111111111111'
        and event_type = 'payroll.approved'$$,
   $$values (1, 'TRY', 3500000::bigint)$$,
-  'approving_payroll_twice_is_one_approval: approving a run emits payroll.approved once, in minor units and its currency'
+  'HR-S1-27: approving a run emits payroll.approved once, in minor units and its currency'
 );
 set local role ranza_app;
 select app.set_request_context('91111111-1111-4111-8111-111111111111');
 
 select is_empty(
   $$update public.hr_payroll_runs set status = 'draft' where id = '99111111-1111-4111-8111-111111111111' returning id$$,
-  'an_approved_run_cannot_be_changed: the application role cannot revert an approved run, because the update policy matches only drafts'
+  'HR-S1-25: the application role cannot revert an approved run, because the update policy matches only drafts'
 );
 
 select is_empty(
   $$update public.hr_payroll_runs set status = 'approved', approved_at = now()
      where id = '99111111-1111-4111-8111-111111111111' returning id$$,
-  'approving_payroll_twice_is_one_approval: nor approve it again'
+  'HR-S1-27: nor approve it again'
 );
 
 -- The owner: the policies say nothing to it, the trigger does.
@@ -621,31 +621,31 @@ set local role none;
 select throws_matching(
   $$update public.hr_payroll_runs set total_gross_minor = 1 where id = '99111111-1111-4111-8111-111111111111'$$,
   'cannot be changed',
-  'an_approved_run_cannot_be_changed: even the table owner cannot change its totals'
+  'HR-S1-25: even the table owner cannot change its totals'
 );
 
 select throws_matching(
   $$update public.hr_payroll_runs set status = 'draft' where id = '99111111-1111-4111-8111-111111111111'$$,
   'cannot be changed',
-  'an_approved_run_cannot_be_changed: nor revert it to a draft'
+  'HR-S1-25: nor revert it to a draft'
 );
 
 select throws_matching(
   $$update public.hr_payslips set net_pay_minor = net_pay_minor where id = '99222222-2222-4222-8222-222222222222'$$,
   'cannot be changed',
-  'an_approved_run_cannot_be_changed: nor touch one of its payslips'
+  'HR-S1-25: nor touch one of its payslips'
 );
 
 select throws_matching(
   $$delete from public.hr_payslips where id = '99222222-2222-4222-8222-222222222222'$$,
   'cannot be changed',
-  'an_approved_run_cannot_be_changed: nor delete one'
+  'HR-S1-25: nor delete one'
 );
 
 select throws_matching(
   $$delete from public.hr_payroll_runs where id = '99111111-1111-4111-8111-111111111111'$$,
   'cannot be deleted',
-  'an_approved_run_cannot_be_changed: nor delete the run'
+  'HR-S1-25: nor delete the run'
 );
 
 select throws_matching(
@@ -654,7 +654,7 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', '99111111-1111-4111-8111-111111111111',
             '9e333333-3333-4333-8333-333333333333', 100, 100)$$,
   'cannot be changed',
-  'an_approved_run_cannot_be_changed: nor add a payslip to it'
+  'HR-S1-25: nor add a payslip to it'
 );
 
 select throws_matching(
@@ -662,7 +662,7 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', '2026-07', 'TRY', 'approved', now(),
             '91111111-1111-4111-8111-111111111111')$$,
   'opened as a draft',
-  'a_run_is_opened_as_a_draft_and_approved_once: even the owner cannot insert a run already approved'
+  'HR-S1-36: even the owner cannot insert a run already approved'
 );
 
 -- Re-approval by the owner is a no-op: nothing changes, nothing is emitted.
@@ -671,14 +671,14 @@ with attempt as (
    where id = '99111111-1111-4111-8111-111111111111' returning id
 )
 select is((select count(*)::int from attempt), 0,
-  'approving_payroll_twice_is_one_approval: restating an approved run changes no row, even for the table owner');
+  'HR-S1-27: restating an approved run changes no row, even for the table owner');
 
 select is(
   (select count(*)::int from outbox.events
     where organization_id = '9a111111-1111-4111-8111-111111111111'
       and event_type = 'payroll.approved'),
   1,
-  'approving_payroll_twice_is_one_approval: and emits no second event'
+  'HR-S1-27: and emits no second event'
 );
 
 -- ---------------------------------------------------------------------------
@@ -691,14 +691,14 @@ select app.set_request_context('95555555-5555-4555-8555-555555555555');
 
 select is_empty(
   $$select * from public.hr_payroll_runs$$,
-  'a_property_scoped_manager_cannot_approve_payroll: a manager of one Property cannot read a payroll run, which has no Property to narrow to'
+  'HR-S1-24: a manager of one Property cannot read a payroll run, which has no Property to narrow to'
 );
 
 select throws_matching(
   $$insert into public.hr_payroll_runs (organization_id, period, currency)
     values ('9a111111-1111-4111-8111-111111111111', '2026-10', 'TRY')$$,
   'row-level security',
-  'a_property_scoped_manager_cannot_approve_payroll: nor open one'
+  'HR-S1-24: nor open one'
 );
 
 select throws_matching(
@@ -707,13 +707,13 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', '99333333-3333-4333-8333-333333333333',
             '9e222222-2222-4222-8222-222222222222', 100, 100)$$,
   'row-level security',
-  'a_property_scoped_manager_cannot_approve_payroll: nor write a payslip'
+  'HR-S1-24: nor write a payslip'
 );
 
 select results_eq(
   $$select count(*)::int from public.hr_payslips$$,
   $$values (1)$$,
-  'a_property_scoped_manager_cannot_approve_payroll: but reads the payslips of the employees they reach'
+  'HR-S1-24: but reads the payslips of the employees they reach'
 );
 
 select app.set_request_context('92222222-2222-4222-8222-222222222222');
@@ -721,14 +721,14 @@ select app.set_request_context('92222222-2222-4222-8222-222222222222');
 select results_eq(
   $$select count(*)::int from public.hr_payroll_runs$$,
   $$values (2)$$,
-  'a_property_scoped_manager_cannot_approve_payroll: hr.view with reach to every Property reads the runs'
+  'HR-S1-24: hr.view with reach to every Property reads the runs'
 );
 
 select throws_matching(
   $$insert into public.hr_payroll_runs (organization_id, period, currency)
     values ('9a111111-1111-4111-8111-111111111111', '2026-10', 'TRY')$$,
   'row-level security',
-  'a_property_scoped_manager_cannot_approve_payroll: but hr.view does not open one'
+  'HR-S1-24: but hr.view does not open one'
 );
 
 select throws_matching(
@@ -737,7 +737,7 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', '99333333-3333-4333-8333-333333333333',
             '9e222222-2222-4222-8222-222222222222', 100, 100)$$,
   'row-level security',
-  'registering_employee_without_manage_is_refused: nor write a payslip'
+  'HR-S1-06: nor write a payslip'
 );
 
 select throws_matching(
@@ -745,7 +745,7 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', '9b111111-1111-4111-8111-111111111111',
             '9e222222-2222-4222-8222-222222222222', '2026-10-14', 'day')$$,
   'row-level security',
-  'registering_employee_without_manage_is_refused: nor assign a shift'
+  'HR-S1-06: nor assign a shift'
 );
 
 select throws_matching(
@@ -753,14 +753,14 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', '9e222222-2222-4222-8222-222222222222',
             'annual', '2026-12-01', '2026-12-02')$$,
   'row-level security',
-  'registering_employee_without_manage_is_refused: nor request leave for someone'
+  'HR-S1-06: nor request leave for someone'
 );
 
 select app.set_request_context('93333333-3333-4333-8333-333333333333');
 
 select is_empty(
   $$select * from public.hr_payroll_runs$$,
-  'hr_queries_without_permission_are_denied: without hr.view there is no run to read'
+  'HR-S1-05: without hr.view there is no run to read'
 );
 
 -- ---------------------------------------------------------------------------
@@ -774,7 +774,7 @@ select lives_ok(
       (organization_id, property_id, first_name, last_name, department, position, gross_pay_minor)
     values ('9a111111-1111-4111-8111-111111111111', '9b111111-1111-4111-8111-111111111111',
             'Gate', 'Open', 'Kitchen', 'Cook', 100)$$,
-  'a_lapsed_subscription_stops_payroll_and_registration: with every gate open, a manager registers an employee'
+  'HR-S1-23: with every gate open, a manager registers an employee'
 );
 
 -- Gate 1: the Subscription.
@@ -790,14 +790,14 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', '9b111111-1111-4111-8111-111111111111',
             'Gate', 'Closed', 'Kitchen', 'Cook', 100)$$,
   'row-level security',
-  'a_lapsed_subscription_stops_payroll_and_registration: a suspended Subscription stops an employee being registered'
+  'HR-S1-23: a suspended Subscription stops an employee being registered'
 );
 
 select throws_matching(
   $$insert into public.hr_payroll_runs (organization_id, period, currency)
     values ('9a111111-1111-4111-8111-111111111111', '2026-10', 'TRY')$$,
   'row-level security',
-  'a_lapsed_subscription_stops_payroll_and_registration: and payroll being opened'
+  'HR-S1-23: and payroll being opened'
 );
 
 select throws_matching(
@@ -805,7 +805,7 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', '9b111111-1111-4111-8111-111111111111',
             '9e222222-2222-4222-8222-222222222222', '2026-10-30', 'day')$$,
   'row-level security',
-  'a_lapsed_subscription_stops_payroll_and_registration: and a shift being assigned'
+  'HR-S1-23: and a shift being assigned'
 );
 
 select throws_matching(
@@ -813,12 +813,12 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', '9e222222-2222-4222-8222-222222222222',
             'annual', '2026-12-01', '2026-12-02')$$,
   'row-level security',
-  'a_lapsed_subscription_stops_payroll_and_registration: and leave being requested'
+  'HR-S1-23: and leave being requested'
 );
 
 select is_empty(
   $$select * from public.hr_employees$$,
-  'a_lapsed_subscription_stops_payroll_and_registration: and a read carries the gates too, so a lapsed Organization reads no employee'
+  'HR-S1-23: and a read carries the gates too, so a lapsed Organization reads no employee'
 );
 
 -- Past due is a grace period (ADR 0040), not a lapse.
@@ -833,7 +833,7 @@ select lives_ok(
       (organization_id, property_id, first_name, last_name, department, position, gross_pay_minor)
     values ('9a111111-1111-4111-8111-111111111111', '9b111111-1111-4111-8111-111111111111',
             'Grace', 'Period', 'Kitchen', 'Cook', 100)$$,
-  'a_lapsed_subscription_stops_payroll_and_registration: past due is a grace period and does not stop it'
+  'HR-S1-23: past due is a grace period and does not stop it'
 );
 
 -- Gate 2: the Entitlement. Gate 3: the Property's capability.
@@ -852,7 +852,7 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', '9b111111-1111-4111-8111-111111111111',
             'Gate', 'Three', 'Kitchen', 'Cook', 100)$$,
   'row-level security',
-  'a_lapsed_subscription_stops_payroll_and_registration: a Property that has not switched HR on cannot take an employee'
+  'HR-S1-23: a Property that has not switched HR on cannot take an employee'
 );
 
 select lives_ok(
@@ -860,7 +860,7 @@ select lives_ok(
       (organization_id, property_id, first_name, last_name, department, position, gross_pay_minor)
     values ('9a111111-1111-4111-8111-111111111111', '9b333333-3333-4333-8333-333333333333',
             'Gate', 'Elsewhere', 'Kitchen', 'Cook', 100)$$,
-  'a_lapsed_subscription_stops_payroll_and_registration: but another Property that has can'
+  'HR-S1-23: but another Property that has can'
 );
 
 set local role none;
@@ -879,7 +879,7 @@ select throws_matching(
     values ('9a111111-1111-4111-8111-111111111111', '9b111111-1111-4111-8111-111111111111',
             'Gate', 'Two', 'Kitchen', 'Cook', 100)$$,
   'row-level security',
-  'a_lapsed_subscription_stops_payroll_and_registration: an Entitlement the Subscription does not include stops it'
+  'HR-S1-23: an Entitlement the Subscription does not include stops it'
 );
 
 set local role none;
@@ -899,7 +899,7 @@ select is_empty(
      where schemaname = 'public' and tablename like 'hr\_%'
        and cmd in ('INSERT', 'UPDATE')
        and coalesce(qual, '') || coalesce(with_check, '') !~ '(can_use_capability|hr_employee_is_manageable)'$$,
-  'a_lapsed_subscription_stops_payroll_and_registration: every HR write policy carries the commercial gates'
+  'HR-S1-23: every HR write policy carries the commercial gates'
 );
 
 select is_empty(
@@ -907,7 +907,7 @@ select is_empty(
       from pg_policies
      where schemaname = 'public' and tablename like 'hr\_%' and cmd = 'SELECT'
        and coalesce(qual, '') !~ 'can_use_capability'$$,
-  'a_lapsed_subscription_stops_payroll_and_registration: and every HR read policy does'
+  'HR-S1-23: and every HR read policy does'
 );
 
 select is_empty(
@@ -916,7 +916,7 @@ select is_empty(
      where schemaname = 'public'
        and tablename in ('hr_payroll_runs')
        and coalesce(qual, '') || coalesce(with_check, '') !~ 'has_organization_wide_reach'$$,
-  'a_property_scoped_manager_cannot_approve_payroll: every payroll run policy asks for reach to the whole Organization'
+  'HR-S1-24: every payroll run policy asks for reach to the whole Organization'
 );
 
 select is_empty(
@@ -924,7 +924,7 @@ select is_empty(
       from pg_policies
      where schemaname = 'public' and tablename like 'hr\_%'
        and (roles <> '{ranza_app}' or cmd = 'DELETE')$$,
-  'hr_records_cannot_be_hard_deleted: every HR policy is for ranza_app and none is for DELETE'
+  'HR-S1-13: every HR policy is for ranza_app and none is for DELETE'
 );
 
 select is_empty(
@@ -933,14 +933,14 @@ select is_empty(
       cross join lateral aclexplode(c.relacl) as a
      where c.relname like 'hr\_%' and c.relnamespace = 'public'::regnamespace
        and a.grantee = 'ranza_app'::regrole and a.privilege_type = 'DELETE'$$,
-  'hr_records_cannot_be_hard_deleted: ranza_app holds no DELETE on any HR table'
+  'HR-S1-13: ranza_app holds no DELETE on any HR table'
 );
 
 select is(
   (select proconfig from pg_proc
     where proname = 'hr_payroll_run_emit_outbox' and pronamespace = 'public'::regnamespace),
   array['search_path=""'],
-  'an_approved_run_cannot_be_changed: the definer that writes the outbox has an empty search_path'
+  'HR-S1-25: the definer that writes the outbox has an empty search_path'
 );
 
 select * from finish();

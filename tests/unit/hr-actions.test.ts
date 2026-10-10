@@ -114,7 +114,7 @@ describe("registering an employee", () => {
     );
   });
 
-  it("an_amount_that_is_not_whole_minor_units_is_refused: more decimals than the currency has is invalid, and nothing is called", async () => {
+  it("HR-S1-32: more decimals than the currency has is invalid, and nothing is called", async () => {
     const outcome = await hr.registerEmployeeAction("en", PROPERTY, {
       ...person,
       grossPay: "35000.505",
@@ -169,7 +169,7 @@ describe("what a failed command becomes", () => {
     expect(logged).not.toHaveBeenCalled();
   });
 
-  it("an_unexpected_failure_is_reported_and_shown_without_its_message", async () => {
+  it("HR-S1-42: an unexpected failure is reported and shown without its message", async () => {
     const outage = new Error(
       "connection to 10.0.0.7 refused; password=hunter2",
     );

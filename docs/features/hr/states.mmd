@@ -1,10 +1,14 @@
+%% Employment is employed or not. Being away is a leave request over some days,
+%% not a state: a person on leave is paid and on the rota like anyone else
+%% (HR-S1-31). A terminated record is final; re-hiring is a new record (HR-S1-39).
+%% A payroll run is opened as a draft and approved once; there is no paid state
+%% because paying is not built (HR-DEF-01), and no state is reached by anything
+%% that is not in this diagram (HR-S1-38).
 stateDiagram-v2
   direction LR
 
   state "Employee Employment Status" as EmpStatus {
     [*] --> active : register_employee
-    active --> on_leave : start_leave
-    on_leave --> active : return_from_leave
     active --> terminated : terminate_employment
     terminated --> [*]
   }
@@ -17,9 +21,8 @@ stateDiagram-v2
     rejected --> [*]
   }
 
-  state "Payroll Period Status" as PayrollStatus {
-    [*] --> draft : open_payroll_period
+  state "Payroll Run Status" as PayrollStatus {
+    [*] --> draft : open_payroll_run
     draft --> approved : approve_payroll
-    approved --> paid : record_payout
-    paid --> [*]
+    approved --> [*]
   }

@@ -126,7 +126,7 @@ afterEach(() => {
 });
 
 describe("the HR screen is in the reader's language", () => {
-  it("hr_screen_supports_all_locales_and_rtl", () => {
+  it("HR-S1-16: hr screen supports all locales and rtl", () => {
     const headings = {
       en: "Employees",
       tr: "Personel",
@@ -143,7 +143,7 @@ describe("the HR screen is in the reader's language", () => {
     }
   });
 
-  it("hr_screen_renders_empty_state", () => {
+  it("HR-S1-14: hr screen renders empty state", () => {
     inLocale(
       "en",
       <EmployeesTable
@@ -179,7 +179,7 @@ describe("an employee card", () => {
     expect(screen.getByText("€1,234.56")).toBeInTheDocument();
   });
 
-  it("terminating_an_employee_keeps_the_record_and_its_payslips", () => {
+  it("HR-S1-29: terminating an employee keeps the record and its payslips", () => {
     inLocale(
       "en",
       <EmployeesTable
@@ -237,7 +237,7 @@ describe("an employee card", () => {
 });
 
 describe("payroll", () => {
-  it("payroll_screen_marks_deductions_as_placeholder", () => {
+  it("HR-S1-28: payroll screen marks deductions as placeholder", () => {
     for (const locale of supportedLocales) {
       inLocale(
         locale,
@@ -288,7 +288,7 @@ describe("payroll", () => {
     );
   });
 
-  it("a_property_scoped_manager_cannot_approve_payroll: says why instead of showing a run it may not read", () => {
+  it("HR-S1-24: says why instead of showing a run it may not read", () => {
     inLocale(
       "en",
       <PayrollCard payroll={null} canManage locale="en" propertyId="prop-1" />,
@@ -322,7 +322,7 @@ describe("payroll", () => {
     ).toBeNull();
   });
 
-  it("a_run_in_two_currencies_is_refused_and_says_so: a blocked draft explains itself and offers no approval", () => {
+  it("HR-S1-33: a blocked draft explains itself and offers no approval", () => {
     inLocale(
       "en",
       <PayrollCard
@@ -347,7 +347,7 @@ describe("payroll", () => {
 });
 
 describe("the payslip", () => {
-  it("payslip_drawer_displays_breakdown", () => {
+  it("HR-S1-15: payslip drawer displays breakdown", () => {
     inLocale(
       "en",
       <PayslipDrawer
@@ -365,7 +365,7 @@ describe("the payslip", () => {
     expect(screen.getByText("TRY 25,021.85")).toBeInTheDocument();
   });
 
-  it("iban_is_masked_on_the_server: shows what it was given and has no number to reveal", () => {
+  it("HR-S1-30: shows what it was given and has no number to reveal", () => {
     inLocale(
       "en",
       <PayslipDrawer

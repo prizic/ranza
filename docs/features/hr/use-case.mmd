@@ -13,16 +13,19 @@ flowchart TD
     LIST(["View employee directory, rota, leave requests and payroll"])
     CREATE_EMP(["Register employee record<br/>department, position, contract, gross pay, hire date"])
     LINK_ACCESS(["Optionally link to User / Organization Membership"])
-    REVOKE_ACCESS(["Revoke system access in staff module<br/>Employee HR record remains active and outlives access"])
+    REVOKE_ACCESS(["Revoke system access in the People screen<br/>Employee HR record remains active and outlives access"])
+    END_EMPLOYMENT(["End employment on a day<br/>record, shifts, leave and payslips stay and stay readable"])
     ASSIGN_SHIFT(["Assign or toggle weekly rota shift<br/>Morning, Evening, Day, Off"])
     SUBMIT_LEAVE(["Submit leave request<br/>annual, sick, unpaid, emergency"])
     APPROVE_LEAVE(["Approve or decline leave request<br/>with shift clash warning"])
-    APPROVE_PAYROLL(["Approve payroll period & generate payslips<br/>gross pay, SGK, income tax, stamp duty, net pay"])
+    APPROVE_PAYROLL(["Approve a payroll period for the whole Organization<br/>needs reach to every Property; one run, one currency, locked once approved<br/>deductions are placeholders pending the owner and an accountant"])
   end
 
-  subgraph S2["Not this slice &mdash; automated time-clock & Turkish SGK integrations"]
+  subgraph S2["Not this slice &mdash; time-clock, statutory exports, paying and the ledger"]
     BIO(["Biometric timeclock / attendance punch sync"])
     SGK_EXPORT(["E-Bildirge / SGK payroll export"])
+    PAYOUT(["Record that a run was paid (HR-DEF-01)"])
+    LEDGER(["Post payroll to the General Ledger (HR-DEF-02)"])
   end
 
   HR_VIEWER --> LIST
@@ -31,6 +34,7 @@ flowchart TD
   HR_MANAGER --> LINK_ACCESS
   HR_MANAGER --> ASSIGN_SHIFT
   HR_MANAGER --> APPROVE_LEAVE
+  HR_MANAGER --> END_EMPLOYMENT
   HR_MANAGER --> APPROVE_PAYROLL
   EMPLOYEE --> SUBMIT_LEAVE
   REVOKE_ACCESS -. "Membership ends" .-> LIST

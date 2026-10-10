@@ -213,7 +213,7 @@ afterAll(async () => {
 describe("an employee record outlives the access it was linked to", () => {
   let linkedEmployee: string;
 
-  it("employee_can_exist_without_system_login", async () => {
+  it("HR-S1-02: employee can exist without system login", async () => {
     const record = await hr.registerEmployee(
       main.manager,
       anEmployee(main, { iban: IBAN, propertyId: null }),
@@ -231,7 +231,7 @@ describe("an employee record outlives the access it was linked to", () => {
     expect(JSON.stringify(record)).not.toContain("6100519786");
   });
 
-  it("employee_record_outlives_membership_revocation", async () => {
+  it("HR-S1-01: employee record outlives membership revocation", async () => {
     const record = await hr.registerEmployee(
       main.manager,
       anEmployee(main, { userId: main.linked, iban: IBAN }),
@@ -267,7 +267,7 @@ describe("an employee record outlives the access it was linked to", () => {
     expect(shift.employeeId).toBe(record.id);
   });
 
-  it("iban_is_masked_on_the_server", async () => {
+  it("HR-S1-30: iban is masked on the server", async () => {
     const record = await hr.registerEmployee(
       main.manager,
       anEmployee(main, { iban: IBAN }),
@@ -292,7 +292,7 @@ describe("an employee record outlives the access it was linked to", () => {
     ).toBe(IBAN_MASKED);
   });
 
-  it("terminating_an_employee_keeps_the_record_and_its_payslips", async () => {
+  it("HR-S1-29: terminating an employee keeps the record and its payslips", async () => {
     // A payslip first, so there is something that must outlive the ending.
     const payslipPeriod = "2026-05";
     const run = await hr.approvePayroll(main.manager, {
@@ -341,7 +341,7 @@ describe("an employee record outlives the access it was linked to", () => {
     expect(written?.context).toEqual({ terminatedOn: "2026-06-30" });
   });
 
-  it("a_terminated_employee_stays_terminated_and_takes_no_new_work", async () => {
+  it("HR-S1-39: a terminated employee stays terminated and takes no new work", async () => {
     await expect(
       hr.terminateEmployee(main.manager, {
         organizationId: main.organization,
@@ -370,7 +370,7 @@ describe("an employee record outlives the access it was linked to", () => {
     ).rejects.toMatchObject({ reason: "employee_terminated" });
   });
 
-  it("terminating_before_the_hire_date_is_refused", async () => {
+  it("HR-S1-29: terminating before the hire date is refused", async () => {
     const record = await hr.registerEmployee(
       main.manager,
       anEmployee(main, { hiredOn: new Date("2026-08-10") }),
@@ -384,7 +384,7 @@ describe("an employee record outlives the access it was linked to", () => {
     ).rejects.toBeInstanceOf(HrInputError);
   });
 
-  it("registering_and_terminating_are_audited_at_the_employees_property", async () => {
+  it("HR-S1-37: registering and terminating are audited at the employees property", async () => {
     const record = await hr.registerEmployee(
       main.manager,
       anEmployee(main, { propertyId: main.south }),
@@ -405,7 +405,7 @@ describe("an employee record outlives the access it was linked to", () => {
 });
 
 describe("who may do what", () => {
-  it("list_employees_returns_organization_staff", async () => {
+  it("HR-S1-03: list employees returns organization staff", async () => {
     const listed = await hr.employees(main.manager, main.organization);
     expect(listed.length).toBeGreaterThan(3);
     expect(
@@ -425,7 +425,7 @@ describe("who may do what", () => {
     expect(statuses).toEqual([...statuses].sort());
   });
 
-  it("assigning_shift_updates_rota", async () => {
+  it("HR-S1-07: assigning shift updates rota", async () => {
     const employee = await hr.registerEmployee(main.manager, anEmployee(main));
     const base = {
       organizationId: main.organization,
@@ -478,7 +478,7 @@ describe("who may do what", () => {
     ).rejects.toMatchObject({ reason: "other_property" });
   });
 
-  it("a_property_scoped_manager_reads_and_writes_only_their_property", async () => {
+  it("HR-S1-22: a property scoped manager reads and writes only their property", async () => {
     const southern = await hr.registerEmployee(
       main.manager,
       anEmployee(main, { propertyId: main.south }),
@@ -516,7 +516,7 @@ describe("who may do what", () => {
     expect(own.propertyId).toBe(main.north);
   });
 
-  it("someone_with_hr_view_alone_reads_and_changes_nothing", async () => {
+  it("HR-S1-06: someone with hr view alone reads and changes nothing", async () => {
     expect(
       (await hr.employees(main.viewer, main.organization)).length,
     ).toBeGreaterThan(0);
@@ -531,7 +531,7 @@ describe("who may do what", () => {
     ).rejects.toMatchObject({ reason: "not_permitted" });
   });
 
-  it("hr_queries_without_permission_are_denied", async () => {
+  it("HR-S1-05: hr queries without permission are denied", async () => {
     expect(await hr.employees(main.outsider, main.organization)).toEqual([]);
     expect(
       await hr.payrollSummary(main.outsider, main.organization, "2026-01"),
@@ -540,7 +540,7 @@ describe("who may do what", () => {
 });
 
 describe("leave", () => {
-  it("approving_leave_updates_status_and_is_audited", async () => {
+  it("HR-S1-09: approving leave updates status and is audited", async () => {
     const employee = await hr.registerEmployee(main.manager, anEmployee(main));
     const request = await hr.submitLeaveRequest(main.manager, {
       organizationId: main.organization,
@@ -569,7 +569,7 @@ describe("leave", () => {
     });
   });
 
-  it("a_leave_request_is_decided_once", async () => {
+  it("HR-S1-18: a leave request is decided once", async () => {
     const employee = await hr.registerEmployee(main.manager, anEmployee(main));
     const request = await hr.submitLeaveRequest(main.manager, {
       organizationId: main.organization,
@@ -605,7 +605,7 @@ describe("leave", () => {
     expect(row?.status).toBe("approved");
   });
 
-  it("declining_leave_is_audited_and_overlapping_approval_is_refused", async () => {
+  it("HR-S1-19: declining leave is audited and overlapping approval is refused", async () => {
     const employee = await hr.registerEmployee(main.manager, anEmployee(main));
     const first = await hr.submitLeaveRequest(main.manager, {
       organizationId: main.organization,
@@ -645,7 +645,7 @@ describe("leave", () => {
     ).toBe(main.north);
   });
 
-  it("a_leave_request_ending_before_it_starts_is_refused", async () => {
+  it("HR-S1-43: a leave request ending before it starts is refused", async () => {
     const employee = await hr.registerEmployee(main.manager, anEmployee(main));
     await expect(
       hr.submitLeaveRequest(main.manager, {
@@ -658,7 +658,7 @@ describe("leave", () => {
     ).rejects.toBeInstanceOf(HrInputError);
   });
 
-  it("a_scoped_manager_decides_leave_only_where_they_reach", async () => {
+  it("HR-S1-22: a scoped manager decides leave only where they reach", async () => {
     const southern = await hr.registerEmployee(
       main.manager,
       anEmployee(main, { propertyId: main.south }),
@@ -684,7 +684,7 @@ describe("leave", () => {
     ).not.toContain(request.id);
   });
 
-  it("overlapping_leave_flags_clash", async () => {
+  it("HR-S1-10: overlapping leave flags clash", async () => {
     // Their own Organization, so no other test's leave is in the department.
     const first = await hr.registerEmployee(
       clashing.manager,
@@ -728,7 +728,7 @@ describe("leave", () => {
     expect(flags.get(later.id)).toBe(false);
   });
 
-  it("approved_leave_does_not_stop_pay", async () => {
+  it("HR-S1-31: approved leave does not stop pay", async () => {
     const employee = await hr.registerEmployee(
       clashing.manager,
       anEmployee(clashing, { department: "Housekeeping" }),
@@ -762,7 +762,7 @@ describe("leave", () => {
 });
 
 describe("payroll", () => {
-  it("approving_payroll_covers_every_property_as_an_organization_wide_manager", async () => {
+  it("HR-S1-12: approving payroll covers every property as an organization wide manager", async () => {
     const period = "2026-09";
     const before = (await hr.employees(main.manager, main.organization)).filter(
       (employee) => employee.status === "active",
@@ -822,7 +822,7 @@ describe("payroll", () => {
     });
   });
 
-  it("every_payslip_adds_up_to_the_minor_unit", async () => {
+  it("HR-S1-11: every payslip adds up to the minor unit", async () => {
     const run = await hr.payrollSummary(
       main.manager,
       main.organization,
@@ -851,7 +851,7 @@ describe("payroll", () => {
     }
   });
 
-  it("a_property_scoped_manager_cannot_approve_payroll", async () => {
+  it("HR-S1-24: a property scoped manager cannot approve payroll", async () => {
     await expect(
       hr.approvePayroll(main.scoped, {
         organizationId: main.organization,
@@ -872,7 +872,7 @@ describe("payroll", () => {
     ).toBeNull();
   });
 
-  it("approving_payroll_twice_is_one_approval", async () => {
+  it("HR-S1-27: approving payroll twice is one approval", async () => {
     const period = "2026-09";
     const again = await hr.approvePayroll(main.manager, {
       organizationId: main.organization,
@@ -891,7 +891,7 @@ describe("payroll", () => {
     ).toBe(1);
   });
 
-  it("two_approvals_at_once_make_one_run", async () => {
+  it("HR-S1-27: two approvals at once make one run", async () => {
     const period = "2026-11";
     const [first, second] = await Promise.all([
       hr.approvePayroll(main.manager, {
@@ -918,7 +918,7 @@ describe("payroll", () => {
     expect(await outboxEvents(main.organization, period)).toBe(1);
   });
 
-  it("an_employee_hired_after_the_period_or_terminated_is_not_in_its_run", async () => {
+  it("HR-S1-40: an employee hired after the period or terminated is not in its run", async () => {
     const late = await hr.registerEmployee(
       main.manager,
       anEmployee(main, { hiredOn: new Date("2030-01-15") }),
@@ -937,7 +937,7 @@ describe("payroll", () => {
     );
   });
 
-  it("a_run_in_two_currencies_is_refused_and_says_so", async () => {
+  it("HR-S1-33: a run in two currencies is refused and says so", async () => {
     await hr.registerEmployee(currencies.manager, anEmployee(currencies));
     await hr.registerEmployee(
       currencies.manager,
@@ -968,7 +968,7 @@ describe("payroll", () => {
     ).toBe(0);
   });
 
-  it("a_currency_that_is_not_one_is_refused", async () => {
+  it("HR-S1-34: a currency that is not one is refused", async () => {
     await expect(
       hr.registerEmployee(
         currencies.manager,
@@ -983,7 +983,7 @@ describe("payroll", () => {
     ).rejects.toMatchObject({ field: "currency" });
   });
 
-  it("an_amount_that_is_not_whole_minor_units_is_refused", async () => {
+  it("HR-S1-32: an amount that is not whole minor units is refused", async () => {
     await expect(
       hr.registerEmployee(
         currencies.manager,
@@ -998,7 +998,7 @@ describe("payroll", () => {
     ).rejects.toMatchObject({ field: "grossPay" });
   });
 
-  it("payroll_with_no_employees_is_refused", async () => {
+  it("HR-S1-41: payroll with no employees is refused", async () => {
     await expect(
       hr.approvePayroll(empty.manager, {
         organizationId: empty.organization,
@@ -1010,7 +1010,7 @@ describe("payroll", () => {
     ).toMatchObject({ status: "draft", blocker: "no_employees" });
   });
 
-  it("an_approved_run_cannot_be_changed_by_the_application", async () => {
+  it("HR-S1-25: an approved run cannot be changed by the application", async () => {
     const [run] = await owner.$queryRawUnsafe<{ id: string }[]>(
       `select id from public.hr_payroll_runs where organization_id = $1::uuid and period = '2026-09'`,
       main.organization,
@@ -1045,7 +1045,7 @@ describe("payroll", () => {
 });
 
 describe("a lapsed Organization", () => {
-  it("a_lapsed_subscription_stops_payroll_and_registration", async () => {
+  it("HR-S1-23: a lapsed subscription stops payroll and registration", async () => {
     await hr.registerEmployee(lapsing.manager, anEmployee(lapsing));
     await owner.$executeRawUnsafe(
       `update public.subscriptions set status = 'suspended' where organization_id = $1::uuid`,

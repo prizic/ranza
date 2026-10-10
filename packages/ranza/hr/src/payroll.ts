@@ -283,7 +283,8 @@ export function createPayroll(deps: HrDeps) {
 
       const employees = await payableEmployees(tx, organizationId, lastDay);
       const blocker = blockerOf(employees);
-      if (blocker === "no_employees") {
+      const [first] = employees;
+      if (blocker === "no_employees" || !first) {
         throw new HrRefusedError("payroll_no_employees");
       }
       if (blocker === "mixed_currency") {
@@ -291,7 +292,7 @@ export function createPayroll(deps: HrDeps) {
       }
 
       const slips = employees.map(slipFor);
-      const currency = employees[0]!.currency;
+      const { currency } = first;
       const totalGrossMinor = sum(slips.map((slip) => slip.grossPayMinor));
       const totalNetMinor = sum(slips.map((slip) => slip.netPayMinor));
 
