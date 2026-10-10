@@ -1747,6 +1747,15 @@ export interface Messages {
     | "balanceMinor"
     | "totalGrossMinor"
     | "totalNetMinor"
+    | "employeeId"
+    | "leaveType"
+    | "leaveFrom"
+    | "leaveTo"
+    | "contractType"
+    | "hasSystemAccess"
+    | "terminatedOn"
+    | "period"
+    | "employeeCount"
     | "description"
     | "lineId"
     | "reversedLineId"
@@ -3817,6 +3826,15 @@ export const messages: Record<SupportedLocale, Messages> = {
       balanceMinor: "Kapanıştaki bakiye",
       totalGrossMinor: "Toplam brüt",
       totalNetMinor: "Toplam net",
+      employeeId: "Personel",
+      leaveType: "İzin türü",
+      leaveFrom: "İznin başlangıcı",
+      leaveTo: "İznin bitişi",
+      contractType: "Sözleşme türü",
+      hasSystemAccess: "Sistem erişimi var",
+      terminatedOn: "Son çalışma günü",
+      period: "Bordro dönemi",
+      employeeCount: "Ödenen personel sayısı",
       description: "Açıklama",
       lineId: "Satır",
       reversedLineId: "Ters kaydedilen satır",
@@ -5929,6 +5947,15 @@ export const messages: Record<SupportedLocale, Messages> = {
       balanceMinor: "Balance at closing",
       totalGrossMinor: "Total gross",
       totalNetMinor: "Total net",
+      employeeId: "Employee",
+      leaveType: "Leave type",
+      leaveFrom: "Leave from",
+      leaveTo: "Leave until",
+      contractType: "Contract",
+      hasSystemAccess: "Has system access",
+      terminatedOn: "Last day of employment",
+      period: "Payroll period",
+      employeeCount: "Employees paid",
       description: "Description",
       lineId: "Line",
       reversedLineId: "Reversed line",
@@ -8010,6 +8037,15 @@ export const messages: Record<SupportedLocale, Messages> = {
       balanceMinor: "الرصيد عند الإغلاق",
       totalGrossMinor: "إجمالي الراتب الإجمالي",
       totalNetMinor: "إجمالي صافي الراتب",
+      employeeId: "الموظف",
+      leaveType: "نوع الإجازة",
+      leaveFrom: "بداية الإجازة",
+      leaveTo: "نهاية الإجازة",
+      contractType: "نوع العقد",
+      hasSystemAccess: "لديه صلاحية دخول النظام",
+      terminatedOn: "آخر يوم عمل",
+      period: "فترة الرواتب",
+      employeeCount: "عدد الموظفين المدفوع لهم",
       description: "الوصف",
       lineId: "البند",
       reversedLineId: "البند المعكوس",

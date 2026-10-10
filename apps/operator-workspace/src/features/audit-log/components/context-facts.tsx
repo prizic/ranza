@@ -32,6 +32,15 @@ const CONTEXT_KEYS = [
   "balanceMinor",
   "totalGrossMinor",
   "totalNetMinor",
+  "employeeId",
+  "leaveType",
+  "leaveFrom",
+  "leaveTo",
+  "contractType",
+  "hasSystemAccess",
+  "terminatedOn",
+  "period",
+  "employeeCount",
   "description",
   "lineId",
   "reversedLineId",
@@ -90,7 +99,13 @@ const MONEY = new Set([
 const CHANGE = new Set(["from", "to"]);
 const HOUSEKEEPING_STATUS = new Set(["status", "previousStatus"]);
 const PERMISSIONS = new Set(["added", "removed", "permissions"]);
-const DAYS = new Set(["startsOn", "endsOn"]);
+const DAYS = new Set([
+  "startsOn",
+  "endsOn",
+  "leaveFrom",
+  "leaveTo",
+  "terminatedOn",
+]);
 const DAY = /^\d{4}-\d{2}-\d{2}/;
 /** What the housekeeping module writes, as the Housekeeping screen says it. */
 const ROOM_STATUSES = ["dirty", "clean", "inspected"] as const;
@@ -243,6 +258,13 @@ export function ContextFacts({
     }
     if (PERMISSIONS.has(key) && Array.isArray(value)) {
       return list(value, (item) => permission(String(item)));
+    }
+    // The words the HR screen already uses for a kind of leave and a contract.
+    if (key === "leaveType" && typeof value === "string") {
+      return t(`hr.leave.types.${value as "annual"}`);
+    }
+    if (key === "contractType" && typeof value === "string") {
+      return t(`hr.employees.contracts.${value as "full_time"}`);
     }
     if (DAYS.has(key) && typeof value === "string" && DAY.test(value)) {
       return formatDate(new Date(value.slice(0, 10)), locale, {

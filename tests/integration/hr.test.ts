@@ -565,7 +565,7 @@ describe("leave", () => {
     expect(written?.locationId).toBe(main.north);
     expect(written?.context).toMatchObject({
       employeeId: employee.id,
-      startsOn: "2027-01-10",
+      leaveFrom: "2027-01-10",
     });
   });
 

@@ -192,8 +192,8 @@ export function createLeave(deps: HrDeps) {
         context: {
           employeeId: request.employeeId,
           leaveType: request.leaveType,
-          startsOn: request.startsOn,
-          endsOn: request.endsOn,
+          leaveFrom: request.startsOn,
+          leaveTo: request.endsOn,
         },
       };
       if (input.approved) {

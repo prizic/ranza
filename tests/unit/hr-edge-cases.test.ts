@@ -29,6 +29,7 @@ const FILES = [
   "tests/unit/hr-module.test.ts",
   "tests/unit/hr-view.test.tsx",
   "tests/unit/hr-actions.test.ts",
+  "tests/unit/hr-audit-facts.test.tsx",
   "tests/browser/hr.spec.ts",
 ];
 
