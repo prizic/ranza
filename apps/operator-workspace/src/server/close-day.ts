@@ -40,6 +40,22 @@ export type CloseDayOutcome =
   | "reasonTooLong"
   | "refused";
 
+/**
+ * Matched by class and by name: a class imported through a second copy of the
+ * module in the server bundle is a different constructor, and a close made
+ * behind the desk's back would then read as an unexpected failure instead of
+ * as the day being closed.
+ */
+function is<T extends Error>(
+  error: unknown,
+  type: new (...args: never[]) => T,
+): error is T {
+  return (
+    error instanceof type ||
+    (error instanceof Error && error.name === type.name)
+  );
+}
+
 export async function closeBusinessDay(
   _previous: CloseDayOutcome,
   form: FormData,
@@ -75,15 +91,12 @@ export async function closeBusinessDay(
     // the reason field it needs. The other two change which day is waiting, so
     // refreshing now would take the dialog, and the message saying why, away
     // with it; the dialog refreshes the screen when it is dismissed instead.
-    if (error instanceof DayAlreadyClosedError) return "alreadyClosed";
-    if (error instanceof CloseReasonRequiredError) {
+    if (is(error, DayAlreadyClosedError)) return "alreadyClosed";
+    if (is(error, CloseReasonRequiredError)) {
       revalidatePath(`/${locale}/close-day`);
       return "reasonRequired";
     }
-    if (
-      !(error instanceof BusinessDayCloseError) &&
-      !(error instanceof CloseInputError)
-    ) {
+    if (!is(error, BusinessDayCloseError) && !is(error, CloseInputError)) {
       // Not a refusal the module raised: a lost connection, a schema that
       // moved, a defect. Shown as one — there is nothing else to show — but
       // never quietly. `console.error` is the whole of the workspace's
