@@ -23,11 +23,13 @@ import {
   StatusBadge,
   type StatusTone,
 } from "@ranza/ui";
-import type { RoomCalendarBar } from "../../../server/viewer";
+import type { RoomCalendar, RoomCalendarBar } from "../../../server/viewer";
 import { ChangeDepartureDialog } from "../../front-office/components/change-departure-dialog";
 import { MoveGuestDialog } from "../../front-office/components/move-guest-dialog";
 import { daysBetween, type PlacedEntry } from "../layout";
+import type { MoveRequest } from "../move";
 import { BAR_ICON, barLook, type BarLook } from "./bar-style";
+import { MoveDialogs } from "./move-dialogs";
 
 const TONE: Record<BarLook, StatusTone> = {
   requested: "neutral",
@@ -91,6 +93,7 @@ function Notice({
  */
 export function BarDrawer({
   barKey,
+  calendar,
   changed,
   entry,
   locale,
@@ -103,6 +106,8 @@ export function BarDrawer({
 }: {
   /** The bar that opened it, which gets focus back when it closes (RC-S1-58). */
   barKey: string | null;
+  /** What the calendar knows, which Move… checks a move against (RC-S3-04). */
+  calendar: RoomCalendar;
   changed: boolean;
   entry: PlacedEntry | null;
   locale: SupportedLocale;
@@ -146,6 +151,7 @@ export function BarDrawer({
           </SheetHeader>
         ) : (
           <DrawerBody
+            calendar={calendar}
             changed={changed}
             entry={entry}
             locale={locale}
@@ -161,14 +167,16 @@ export function BarDrawer({
 }
 
 function DrawerBody({
+  calendar,
   changed,
-  entry: { bar, unit, room },
+  entry,
   locale,
   mayAmend,
   onChanged,
   propertyId,
   today,
 }: {
+  calendar: RoomCalendar;
   changed: boolean;
   entry: PlacedEntry;
   locale: SupportedLocale;
@@ -179,8 +187,13 @@ function DrawerBody({
 }) {
   const t = useTranslations("roomCalendar");
   const common = useTranslations();
+  const { bar, unit, room } = entry;
   const [changingDeparture, setChangingDeparture] = useState(false);
   const [moving, setMoving] = useState(false);
+  // Move… for a booking not yet arrived: the keyboard's way to what a drag
+  // does, opening the same dialog with pickers on the nights and the Unit
+  // (RC-S3-12).
+  const [movingBooking, setMovingBooking] = useState<MoveRequest | null>(null);
   const departureChangeable =
     mayAmend &&
     bar.kind === "stay" &&
@@ -330,6 +343,38 @@ function DrawerBody({
               />
             ) : null}
           </>
+        ) : null}
+
+        {mayAmend && bar.kind === "reservation" ? (
+          <Button
+            className="w-full"
+            onClick={() =>
+              setMovingBooking({
+                kind: "booking",
+                entry: { ...entry, bar },
+                target: {
+                  unitId: unit.unitId,
+                  startsOn: bar.startsOn,
+                  endsOn: bar.endsOn,
+                },
+              })
+            }
+            type="button"
+            variant="outline"
+          >
+            {t("moveAction")}
+          </Button>
+        ) : null}
+        {movingBooking ? (
+          <MoveDialogs
+            calendar={calendar}
+            locale={locale}
+            onClose={() => {
+              setMovingBooking(null);
+              onChanged();
+            }}
+            request={movingBooking}
+          />
         ) : null}
 
         <Button asChild className="w-full">

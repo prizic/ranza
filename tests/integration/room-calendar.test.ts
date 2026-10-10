@@ -604,6 +604,8 @@ describe("bars", () => {
     expect(bar).toMatchObject({
       kind: "reservation",
       reservationId: id,
+      reference: expect.stringMatching(/\S/),
+      expectedArrival: null,
       status: "confirmed",
       guestName: "Confirmed Guest",
       startsOn: await day(1),

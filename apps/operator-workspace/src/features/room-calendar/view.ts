@@ -12,12 +12,30 @@
 
 export const ROOM_CALENDAR_COOKIE = "ranza-room-calendar";
 
+/**
+ * What a Unit can be filtered by. Allow-lists, so a link carrying anything
+ * else drops that one filter and keeps the rest (RC-S1-60).
+ */
+export const UNIT_TYPES = ["room", "bed", "apartment", "suite"] as const;
+export const UNIT_STATES = [
+  "available",
+  "occupied",
+  "blocked",
+  "out_of_service",
+] as const;
+export type UnitTypeFilter = (typeof UNIT_TYPES)[number];
+export type UnitStateFilter = (typeof UNIT_STATES)[number];
+
 export interface RoomCalendarView {
   /** `YYYY-MM-DD`, or null for the default window around today. */
   from: string | null;
   days: number;
   /** Null for every floor, `"none"` for Units with no floor, else the floor. */
   floor: string | null;
+  /** Null for every kind of Unit (RC-S3-14). */
+  unitType: UnitTypeFilter | null;
+  /** Null for every state of Unit (RC-S3-14). */
+  unitState: UnitStateFilter | null;
   showRequested: boolean;
   showDeparted: boolean;
   search: string;
@@ -53,6 +71,13 @@ export function isCalendarDay(value: string | undefined): value is string {
 
 function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function oneOf<T extends string>(
+  allowed: readonly T[],
+  value: string | undefined,
+): T | null {
+  return allowed.find((candidate) => candidate === value) ?? null;
 }
 
 function flag(value: string | undefined): boolean | undefined {
@@ -113,6 +138,8 @@ export function parseView(
       allowed(remembered.days) ??
       defaultLength,
     floor: floor && FLOOR.test(floor) ? floor : null,
+    unitType: oneOf(UNIT_TYPES, first(params.type)),
+    unitState: oneOf(UNIT_STATES, first(params.state)),
     showRequested:
       flag(first(params.requested)) ?? remembered.showRequested ?? true,
     showDeparted:
@@ -133,6 +160,8 @@ export function viewSearch(
   if (view.from) params.set("from", view.from);
   if (view.days !== defaultLength) params.set("days", String(view.days));
   if (view.floor) params.set("floor", view.floor);
+  if (view.unitType) params.set("type", view.unitType);
+  if (view.unitState) params.set("state", view.unitState);
   if (!view.showRequested) params.set("requested", "0");
   if (!view.showDeparted) params.set("departed", "0");
   if (view.search) params.set("q", view.search);

@@ -25,6 +25,7 @@ import {
   type ChangeDepartureOutcome,
 } from "../../../server/front-office";
 import { submitWithoutReset } from "../../../lib/submit-without-reset";
+import { describePeriod, MoveSummary } from "./move-summary";
 
 /**
  * Extending or shortening an in-house Guest's Stay, or giving an open-ended
@@ -39,8 +40,19 @@ import { submitWithoutReset } from "../../../lib/submit-without-reset";
  * booking and for the same reason: a later read that names another version
  * refills the field and says so, rather than letting one press of Save
  * overwrite a change nobody here has seen (AB-S1-19).
+ *
+ * Opened by pulling a bar's end on the room calendar it starts on the day
+ * dropped, and names what the calendar already knows against it above the same
+ * preview (RC-S3-08).
  */
 const NOTE = { min: 3, max: 500 };
+
+/** The departure a drag proposes, and what is known against it. */
+export interface ProposedDeparture {
+  endsOn: string | null;
+  /** The reasons the calendar already knows the Guest cannot leave then. */
+  conflictsFor: (endsOn: string | null) => string[];
+}
 
 export interface ChangeableStay {
   stayId: string;
@@ -98,12 +110,14 @@ function tomorrowOf(day: string): string {
 
 export function ChangeDepartureDialog({
   locale,
+  move,
   onDone,
   onOpenChange,
   open,
   stay,
 }: {
   locale: SupportedLocale;
+  move?: ProposedDeparture;
   /** Told after a change is saved, for a screen that keeps its own data. */
   onDone?: () => void;
   onOpenChange: (open: boolean) => void;
@@ -112,12 +126,12 @@ export function ChangeDepartureDialog({
 }) {
   const t = useTranslations();
   const [endsOn, setEndsOn] = useState<string | undefined>(
-    stay.endsOn ?? undefined,
+    (move ? move.endsOn : stay.endsOn) ?? undefined,
   );
   const [note, setNote] = useState("");
   const [read, setRead] = useState<Read>({ state: "loading" });
   const [generation, setGeneration] = useState(0);
-  const resetFromPreview = useRef(true);
+  const resetFromPreview = useRef(move === undefined);
   const pinnedRef = useRef<number | null>(null);
   const [pinned, setPinned] = useState<{
     version: number;
@@ -166,6 +180,13 @@ export function ChangeDepartureDialog({
           pinnedRef.current === null
             ? fresh.endsOn !== stay.endsOn
             : fresh.version !== pinnedRef.current;
+        // A proposal keeps its day on the first read unless the Stay changed
+        // after the calendar drew it; either way the version a save is sent
+        // with is the one this read named.
+        if (pinnedRef.current === null && !stale) {
+          pinnedRef.current = fresh.version;
+          setPinned({ version: fresh.version, endsOn: fresh.endsOn });
+        }
         if (resetFromPreview.current || stale) {
           if (stale) setMovedUnderneath(true);
           resetFromPreview.current = false;
@@ -214,6 +235,14 @@ export function ChangeDepartureDialog({
     });
   })();
 
+  // What the calendar knew before the database was asked. Said once: the
+  // database's own words for the same nights are kept for what only it sees.
+  const known = move && endsOn !== undefined ? move.conflictsFor(endsOn) : [];
+  const words = {
+    openEnded: t("bookingOpenEnded"),
+    nights: (count: number) => t("stayNights", { count }),
+  };
+
   const readMessage = needsEnd
     ? t("changeDepartureNeedsEnd")
     : read.state === "failed"
@@ -222,7 +251,7 @@ export function ChangeDepartureDialog({
         ? t("bookingPeriodInvalid")
         : read.state === "refused"
           ? t("changeDepartureRefused")
-          : preview?.blocker === "booked"
+          : preview?.blocker === "booked" && known.length === 0
             ? t("changeDepartureBlocked", {
                 reference: preview.conflictReference ?? "",
               })
@@ -242,6 +271,7 @@ export function ChangeDepartureDialog({
               : null;
 
   const canSave =
+    known.length === 0 &&
     preview !== null &&
     pinned !== null &&
     preview.blocker === null &&
@@ -271,6 +301,30 @@ export function ChangeDepartureDialog({
               <bdi className="tabular-nums">{stay.unitLabel}</bdi>
             </Fact>
           </FactList>
+
+          {move ? (
+            <MoveSummary
+              conflicts={known}
+              from={{
+                place: stay.unitLabel,
+                period: describePeriod(
+                  stay.startsOn,
+                  stay.endsOn,
+                  locale,
+                  words,
+                ),
+              }}
+              to={{
+                place: stay.unitLabel,
+                period: describePeriod(
+                  stay.startsOn,
+                  endsOn ?? null,
+                  locale,
+                  words,
+                ),
+              }}
+            />
+          ) : null}
 
           <input name="stay" type="hidden" value={stay.stayId} />
           <input name="locale" type="hidden" value={locale} />

@@ -3,6 +3,7 @@ import type {
   RoomCalendarBar,
   RoomCalendarUnit,
 } from "../../server/viewer";
+import { unitLabel } from "../front-office/unit-label";
 import type { RoomCalendarView } from "./view";
 
 /**
@@ -56,6 +57,36 @@ export function barKey(bar: RoomCalendarBar): string {
     : `stay:${bar.stayId}:${bar.startsOn}`;
 }
 
+/** Where nights `[startsOn, until)` fall on the half-day grid, before lanes are chosen. */
+export interface Span {
+  start: number;
+  end: number;
+  continuesBefore: boolean;
+  continuesAfter: boolean;
+}
+
+/**
+ * The half-days a stretch of nights covers, cut to the window; null `until`
+ * runs on without end. Empty (`start >= end`) when none of it is in view.
+ */
+export function spanOf(
+  startsOn: string,
+  until: string | null,
+  from: string,
+  days: number,
+): Span {
+  const arrival = daysBetween(from, startsOn);
+  const departure = until === null ? null : daysBetween(from, until);
+  const continuesBefore = arrival < 0;
+  const continuesAfter = departure === null || departure >= days;
+  return {
+    start: continuesBefore ? 0 : arrival * 2 + 1,
+    end: continuesAfter ? days * 2 : (departure ?? 0) * 2 + 1,
+    continuesBefore,
+    continuesAfter,
+  };
+}
+
 /**
  * Bars placed and stacked. Overlapping bars take lanes of their own, so the
  * named gap is two bars one above the other rather than one hiding the other
@@ -66,22 +97,11 @@ export function placeBars(
   from: string,
   days: number,
 ): { placed: PlacedBar[]; lanes: number } {
-  const halves = days * 2;
   const positioned = bars
-    .map((bar) => {
-      const arrival = daysBetween(from, bar.startsOn);
-      const departure =
-        bar.heldUntil === null ? null : daysBetween(from, bar.heldUntil);
-      const continuesBefore = arrival < 0;
-      const continuesAfter = departure === null || departure >= days;
-      return {
-        bar,
-        start: continuesBefore ? 0 : arrival * 2 + 1,
-        end: continuesAfter ? halves : (departure ?? 0) * 2 + 1,
-        continuesBefore,
-        continuesAfter,
-      };
-    })
+    .map((bar) => ({
+      bar,
+      ...spanOf(bar.startsOn, bar.heldUntil, from, days),
+    }))
     .filter((item) => item.start < item.end)
     .sort((a, b) => a.start - b.start || b.end - a.end);
 
@@ -115,6 +135,8 @@ export type CalendarRow =
       unit: RoomCalendarUnit;
       /** A bed under its room is drawn indented. */
       nested: boolean;
+      /** The room a bed is in; null for a room. */
+      room: RoomCalendarUnit | null;
       /** Set on a room with beds: whether they are folded into this row. */
       collapsed: boolean;
     };
@@ -166,6 +188,15 @@ function floorMatches(unit: RoomCalendarUnit, floor: string | null): boolean {
   return unit.floor === Number(floor);
 }
 
+/** A room is kept when it or one of its beds is what the filter asks for, as a search keeps it. */
+function matchesKind(unit: RoomCalendarUnit, view: RoomCalendarView): boolean {
+  return (
+    ((view.unitType === null || unit.unitType === view.unitType) &&
+      (view.unitState === null || unit.status === view.unitState)) ||
+    unit.beds.some((bed) => matchesKind(bed, view))
+  );
+}
+
 /**
  * The rooms the view shows, grouped under building and floor headings in the
  * order the read returned them. The filters decide what is drawn and nothing
@@ -184,6 +215,7 @@ export function calendarRows(
 
   for (const unit of calendar.units) {
     if (!floorMatches(unit, view.floor)) continue;
+    if (!matchesKind(unit, view)) continue;
     if (view.overlapsOnly && !hasOverlap(unit)) continue;
     if (!matchesSearch(unit, view.search)) continue;
 
@@ -217,6 +249,7 @@ export function calendarRows(
       key: unit.unitId,
       unit: shown,
       nested: false,
+      room: null,
       collapsed,
     });
     if (!collapsed) {
@@ -226,6 +259,7 @@ export function calendarRows(
           key: bed.unitId,
           unit: bed,
           nested: true,
+          room: shown,
           collapsed: false,
         });
       }
@@ -263,6 +297,11 @@ export interface PlacedEntry {
   bar: RoomCalendarBar;
   unit: RoomCalendarUnit;
   room: RoomCalendarUnit | null;
+}
+
+/** Where a bar is, as the desk names it: a bed by its room and its own name. */
+export function placeOf({ unit, room }: PlacedEntry): string {
+  return unitLabel(room?.name ?? null, unit.name);
 }
 
 /**

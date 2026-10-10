@@ -11,6 +11,9 @@ everything lands under Unreleased.
 
 ### Added
 
+- `RoomCalendarReservationBar.reference` and `.expectedArrival`, so a move
+  dragged on the room calendar can open Change booking without reading the
+  booking again (RC-S3-01).
 - An expected arrival: `NewReservation.expectedArrival` (`HH:MM` on the
   Property's clock, optional), `Arrival.expectedArrival` and
   `Arrival.expectedArrivalPassed` (read from the database's clock and the

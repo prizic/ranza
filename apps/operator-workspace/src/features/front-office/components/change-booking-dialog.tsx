@@ -29,6 +29,7 @@ import {
 import { usePickerLabels } from "../../../lib/picker-labels";
 import { submitWithoutReset } from "../../../lib/submit-without-reset";
 import { unitLabel } from "../unit-label";
+import { describePeriod, MoveSummary } from "./move-summary";
 
 /**
  * Changing a booking that has not arrived: its nights, its Unit, or both
@@ -47,6 +48,13 @@ import { unitLabel } from "../unit-label";
  * booking somebody else changed meanwhile, or a price that moved, is refused
  * and read again rather than overwritten (AB-S1-19, AB-S1-03).
  *
+ * Opened by a drag on the room calendar, or by its Move…, it starts on the
+ * nights and Unit proposed and names what the calendar already knows against
+ * them above the same preview (RC-S3-04). That is the only difference: the
+ * preview, the quote and the save are this dialog's own. The Unit it names
+ * moves into From → To, and the expected arrival is left out — a move says
+ * nothing of it, so a save leaves it as it is.
+ *
  * `NOTE` restates `CHANGE_NOTE` for the reason `end-booking-dialog.tsx` gives:
  * a value import from the module pulls Prisma into the browser bundle.
  */
@@ -62,6 +70,17 @@ export interface ChangeableBooking {
   endsOn: string | null;
   /** `HH:MM`, or null when nobody said. */
   expectedArrival: string | null;
+}
+
+/** Where a drag or Move… proposes to put the booking, and what is known against it. */
+export interface ProposedMove {
+  to: { unitId: string; startsOn: string; endsOn: string | null };
+  /** The reasons the calendar already knows the booking cannot go there. */
+  conflictsFor: (target: {
+    unitId: string;
+    startsOn: string;
+    endsOn: string | null;
+  }) => string[];
 }
 
 type PreviewAnswer =
@@ -109,21 +128,24 @@ function sameMoney(
 export function ChangeBookingDialog({
   booking,
   locale,
+  move,
   onOpenChange,
   open,
 }: {
   booking: ChangeableBooking;
   locale: SupportedLocale;
+  move?: ProposedMove;
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
   const t = useTranslations();
   const unitLabels = usePickerLabels(t("chooseUnit"));
+  const start = move?.to ?? booking;
   const [dates, setDates] = useState<{ from?: string; to?: string }>({
-    from: booking.startsOn,
-    ...(booking.endsOn ? { to: booking.endsOn } : {}),
+    from: start.startsOn,
+    ...(start.endsOn ? { to: start.endsOn } : {}),
   });
-  const [unitId, setUnitId] = useState(booking.unitId);
+  const [unitId, setUnitId] = useState(start.unitId);
   // `HH:MM`, or empty for none: what a time field holds.
   const [arrival, setArrival] = useState(booking.expectedArrival ?? "");
   const [note, setNote] = useState("");
@@ -140,7 +162,7 @@ export function ChangeBookingDialog({
   // (AB-S1-19). So the first preview fills the fields — the row they opened
   // from may already be out of date — and a later one naming another version
   // fills them again and says why.
-  const resetFromPreview = useRef(true);
+  const resetFromPreview = useRef(move === undefined);
   const pinnedRef = useRef<number | null>(null);
   const [pinned, setPinned] = useState<number | null>(null);
   const [movedUnderneath, setMovedUnderneath] = useState(false);
@@ -186,6 +208,13 @@ export function ChangeBookingDialog({
                 fresh.expectedArrival !== booking.expectedArrival ||
                 fresh.unitId !== booking.unitId
               : fresh.version !== pinnedRef.current;
+          // A proposal keeps its fields on the first read unless the booking
+          // changed after the calendar drew it; either way the version a save
+          // is sent with is the one this read named.
+          if (pinnedRef.current === null && !stale) {
+            pinnedRef.current = fresh.version;
+            setPinned(fresh.version);
+          }
           if (resetFromPreview.current || stale) {
             if (stale) setMovedUnderneath(true);
             resetFromPreview.current = false;
@@ -269,14 +298,30 @@ export function ChangeBookingDialog({
     });
   })();
 
-  const blocked =
-    chosen?.blocker === "booked"
-      ? t("changeBookingBlockedBooked", {
-          reference: chosen.conflictReference ?? "",
+  // What the calendar knew before the database was asked. Said once: the
+  // database's own words for the same nights are kept for what only it sees.
+  const known =
+    move && dates.from
+      ? move.conflictsFor({
+          unitId,
+          startsOn: dates.from,
+          endsOn: dates.to ?? null,
         })
-      : chosen?.blocker === "occupied"
-        ? t("changeBookingBlockedOccupied")
-        : null;
+      : [];
+  const blocked =
+    known.length > 0
+      ? null
+      : chosen?.blocker === "booked"
+        ? t("changeBookingBlockedBooked", {
+            reference: chosen.conflictReference ?? "",
+          })
+        : chosen?.blocker === "occupied"
+          ? t("changeBookingBlockedOccupied")
+          : null;
+  const words = {
+    openEnded: t("bookingOpenEnded"),
+    nights: (count: number) => t("stayNights", { count }),
+  };
 
   const readMessage =
     read.state === "failed"
@@ -317,6 +362,7 @@ export function ChangeBookingDialog({
     chosen !== undefined && chosen.current && !chosen.takesBookings;
 
   const canSave =
+    known.length === 0 &&
     preview !== null &&
     pinned !== null &&
     chosen !== undefined &&
@@ -332,8 +378,14 @@ export function ChangeBookingDialog({
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <form className="grid gap-4" onSubmit={submitWithoutReset(act)}>
           <DialogHeader>
-            <DialogTitle>{t("changeBooking")}</DialogTitle>
-            <DialogDescription>{t("changeBookingSummary")}</DialogDescription>
+            <DialogTitle>
+              {move ? t("roomCalendar.moveBooking") : t("changeBooking")}
+            </DialogTitle>
+            <DialogDescription>
+              {move
+                ? t("roomCalendar.moveBookingSummary")
+                : t("changeBookingSummary")}
+            </DialogDescription>
           </DialogHeader>
 
           <FactList className="gap-4 pt-0">
@@ -345,10 +397,35 @@ export function ChangeBookingDialog({
                 {booking.reference}
               </span>
             </Fact>
-            <Fact label={t("unit")}>
-              <bdi className="tabular-nums">{booking.unitLabel}</bdi>
-            </Fact>
+            {move ? null : (
+              <Fact label={t("unit")}>
+                <bdi className="tabular-nums">{booking.unitLabel}</bdi>
+              </Fact>
+            )}
           </FactList>
+
+          {move ? (
+            <MoveSummary
+              conflicts={known}
+              from={{
+                place: booking.unitLabel,
+                period: describePeriod(
+                  booking.startsOn,
+                  booking.endsOn,
+                  locale,
+                  words,
+                ),
+              }}
+              to={{
+                place: chosen
+                  ? unitLabel(chosen.roomName, chosen.unitName)
+                  : "—",
+                period: dates.from
+                  ? describePeriod(dates.from, dates.to ?? null, locale, words)
+                  : null,
+              }}
+            />
+          ) : null}
 
           <input
             name="reservation"
@@ -400,34 +477,36 @@ export function ChangeBookingDialog({
                 today={preview?.today}
               />
             </Field>
-            {beforeToday ? (
+            {beforeToday && known.length === 0 ? (
               <p className="text-step--1 text-destructive">
                 {t("changeBookingBeforeToday")}
               </p>
             ) : null}
           </div>
 
-          <div className="grid gap-1.5 sm:max-w-48">
-            <Field
-              htmlFor={`change-arrival-${booking.reservationId}`}
-              label={t("expectedArrival")}
-            >
-              <Input
-                aria-describedby={`change-arrival-hint-${booking.reservationId}`}
-                id={`change-arrival-${booking.reservationId}`}
-                name="expectedArrival"
-                onChange={(event) => setArrival(event.target.value)}
-                type="time"
-                value={arrival}
-              />
-            </Field>
-            <p
-              className="text-step--1 text-muted-foreground"
-              id={`change-arrival-hint-${booking.reservationId}`}
-            >
-              {t("expectedArrivalHint")}
-            </p>
-          </div>
+          {move ? null : (
+            <div className="grid gap-1.5 sm:max-w-48">
+              <Field
+                htmlFor={`change-arrival-${booking.reservationId}`}
+                label={t("expectedArrival")}
+              >
+                <Input
+                  aria-describedby={`change-arrival-hint-${booking.reservationId}`}
+                  id={`change-arrival-${booking.reservationId}`}
+                  name="expectedArrival"
+                  onChange={(event) => setArrival(event.target.value)}
+                  type="time"
+                  value={arrival}
+                />
+              </Field>
+              <p
+                className="text-step--1 text-muted-foreground"
+                id={`change-arrival-hint-${booking.reservationId}`}
+              >
+                {t("expectedArrivalHint")}
+              </p>
+            </div>
+          )}
 
           <Field
             htmlFor={`change-unit-${booking.reservationId}`}
@@ -522,7 +601,11 @@ export function ChangeBookingDialog({
               </Button>
             </DialogClose>
             <Button disabled={pending || !canSave} type="submit">
-              {pending ? t("saving") : t("saveChange")}
+              {pending
+                ? t("saving")
+                : move
+                  ? t("roomCalendar.confirmMove")
+                  : t("saveChange")}
             </Button>
           </DialogFooter>
         </form>

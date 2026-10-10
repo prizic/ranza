@@ -72,11 +72,27 @@ export type CheckInOutcome =
   | "tooEarly"
   | "refused";
 
-function isNotReady(error: unknown): error is UnitNotReadyError {
+/**
+ * Whether `error` is a `kind`, by class or by name.
+ *
+ * A dev server can hold the module that threw an error and this file in
+ * different bundles, so the same class is two classes and `instanceof` says no
+ * about an error that plainly is one. The name survives, and every error of the
+ * module sets its own. Room calendar drags meet it on a refusal, which is the
+ * one answer they cannot do without (RC-S3-09).
+ */
+function isA(
+  error: unknown,
+  kind: abstract new (...args: never[]) => Error,
+): boolean {
   return (
-    error instanceof UnitNotReadyError ||
-    (error instanceof Error && error.name === "UnitNotReadyError")
+    error instanceof kind ||
+    (error instanceof Error && error.name === kind.name)
   );
+}
+
+function isNotReady(error: unknown): error is UnitNotReadyError {
+  return isA(error, UnitNotReadyError);
 }
 
 /**
@@ -566,18 +582,18 @@ export async function changeBooking(
       note: note.length === 0 ? null : note,
     });
   } catch (error) {
-    if (error instanceof UnitUnavailableError) return "unavailable";
-    if (error instanceof UnitHasOccupantError) return "occupied";
-    if (error instanceof UnitNotInServiceError) return "notInService";
-    if (error instanceof ReservationPeriodError) return "invalidPeriod";
-    if (error instanceof ExpectedArrivalError) return "invalidArrival";
-    if (error instanceof PriceChangedError) return "priceChanged";
-    if (error instanceof ChangeNoteError) return "invalidNote";
-    if (error instanceof BookingChangedError) {
+    if (isA(error, UnitUnavailableError)) return "unavailable";
+    if (isA(error, UnitHasOccupantError)) return "occupied";
+    if (isA(error, UnitNotInServiceError)) return "notInService";
+    if (isA(error, ReservationPeriodError)) return "invalidPeriod";
+    if (isA(error, ExpectedArrivalError)) return "invalidArrival";
+    if (isA(error, PriceChangedError)) return "priceChanged";
+    if (isA(error, ChangeNoteError)) return "invalidNote";
+    if (isA(error, BookingChangedError)) {
       revalidateFrontDesk(locale);
       return "changed";
     }
-    if (error instanceof BookingChangeError) return "refused";
+    if (isA(error, BookingChangeError)) return "refused";
     console.error(
       "changeBooking failed unexpectedly",
       { reservationId },
@@ -643,14 +659,14 @@ export async function changeDeparture(
       note: note.length === 0 ? null : note,
     });
   } catch (error) {
-    if (error instanceof UnitHasOccupantError) return "occupied";
-    if (error instanceof ReservationPeriodError) return "invalidPeriod";
-    if (error instanceof ChangeNoteError) return "invalidNote";
-    if (error instanceof BookingChangedError) {
+    if (isA(error, UnitHasOccupantError)) return "occupied";
+    if (isA(error, ReservationPeriodError)) return "invalidPeriod";
+    if (isA(error, ChangeNoteError)) return "invalidNote";
+    if (isA(error, BookingChangedError)) {
       revalidateFrontDesk(locale);
       return "changed";
     }
-    if (error instanceof BookingChangeError) return "refused";
+    if (isA(error, BookingChangeError)) return "refused";
     console.error("changeDeparture failed unexpectedly", { stayId }, error);
     return "refused";
   }
@@ -729,15 +745,15 @@ export async function moveGuest(
     });
   } catch (error) {
     if (isNotReady(error)) return "notReady";
-    if (error instanceof UnitHasOccupantError) return "occupied";
-    if (error instanceof UnitUnavailableError) return "unavailable";
-    if (error instanceof UnitNotInServiceError) return "notInService";
-    if (error instanceof ChangeNoteError) return "invalidNote";
-    if (error instanceof BookingChangedError) {
+    if (isA(error, UnitHasOccupantError)) return "occupied";
+    if (isA(error, UnitUnavailableError)) return "unavailable";
+    if (isA(error, UnitNotInServiceError)) return "notInService";
+    if (isA(error, ChangeNoteError)) return "invalidNote";
+    if (isA(error, BookingChangedError)) {
       revalidateFrontDesk(locale);
       return "changed";
     }
-    if (error instanceof BookingChangeError) return "refused";
+    if (isA(error, BookingChangeError)) return "refused";
     console.error("moveGuest failed unexpectedly", { stayId }, error);
     return "refused";
   }

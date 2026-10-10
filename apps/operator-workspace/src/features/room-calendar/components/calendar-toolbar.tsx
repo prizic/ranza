@@ -21,9 +21,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@ranza/ui";
-import type { RoomCalendar } from "../../../server/viewer";
+import type { RoomCalendar, RoomCalendarUnit } from "../../../server/viewer";
 import { shiftDay } from "../layout";
-import { isCalendarDay, type RoomCalendarView } from "../view";
+import {
+  isCalendarDay,
+  UNIT_STATES,
+  UNIT_TYPES,
+  type RoomCalendarView,
+} from "../view";
 import { Legend } from "./legend";
 
 /** A window moves a week at a time, whatever its length. */
@@ -31,6 +36,23 @@ const STEP_DAYS = 7;
 /** A chosen date opens with the same lead as today does: three days before it. */
 const LEAD_DAYS = 3;
 const ALL_FLOORS = "all";
+const ALL = "all";
+
+/** The types and states of the Units the calendar holds, beds included. */
+function presentKinds(units: readonly RoomCalendarUnit[]): {
+  types: Set<string>;
+  states: Set<string>;
+} {
+  const types = new Set<string>();
+  const states = new Set<string>();
+  const visit = (unit: RoomCalendarUnit) => {
+    types.add(unit.unitType);
+    states.add(unit.status);
+    unit.beds.forEach(visit);
+  };
+  units.forEach(visit);
+  return { types, states };
+}
 
 function range(calendar: RoomCalendar, locale: SupportedLocale): string {
   const format = (day: string) =>
@@ -57,6 +79,10 @@ export function CalendarToolbar({
   view: RoomCalendarView;
 }) {
   const t = useTranslations("roomCalendar");
+  const common = useTranslations();
+  // Only what the Property has is offered, so no filter can empty the grid on
+  // a kind of Unit that does not exist (RC-S3-14).
+  const present = presentKinds(calendar.units);
   const floors = [
     ...new Set(
       calendar.units
@@ -168,6 +194,52 @@ export function CalendarToolbar({
             {hasNoFloor ? (
               <SelectItem value="none">{t("noFloor")}</SelectItem>
             ) : null}
+          </SelectContent>
+        </Select>
+
+        <Select
+          onValueChange={(value) =>
+            onChange({
+              unitType: UNIT_TYPES.find((type) => type === value) ?? null,
+            })
+          }
+          value={view.unitType ?? ALL}
+        >
+          <SelectTrigger aria-label={t("typeFilter")} className="h-8 w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>{t("allTypes")}</SelectItem>
+            {UNIT_TYPES.filter((type) => present.types.has(type)).map(
+              (type) => (
+                <SelectItem key={type} value={type}>
+                  {common(`unitType.${type}`)}
+                </SelectItem>
+              ),
+            )}
+          </SelectContent>
+        </Select>
+
+        <Select
+          onValueChange={(value) =>
+            onChange({
+              unitState: UNIT_STATES.find((state) => state === value) ?? null,
+            })
+          }
+          value={view.unitState ?? ALL}
+        >
+          <SelectTrigger aria-label={t("stateFilter")} className="h-8 w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>{t("allStates")}</SelectItem>
+            {UNIT_STATES.filter((state) => present.states.has(state)).map(
+              (state) => (
+                <SelectItem key={state} value={state}>
+                  {t(`unitState.${state}`)}
+                </SelectItem>
+              ),
+            )}
           </SelectContent>
         </Select>
 

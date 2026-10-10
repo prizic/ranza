@@ -347,3 +347,704 @@ test("RC-S1-60: a date typed from the keyboard opens that week, and nothing half
   await expect(page).toHaveURL(new RegExp(`from=${from}`));
   expect(seen.filter((url) => /from=0/.test(url))).toEqual([]);
 });
+
+/**
+ * Moving a bar (RC-S3-*). The unit suite proves what a drag proposes and what
+ * the calendar already knows against it; the integration suite proves the
+ * commands agree. This proves what only a browser can: that a real pointer
+ * drag opens the preview, writes nothing, and saves through the command.
+ */
+
+interface Room {
+  id: string;
+  name: string;
+}
+
+interface Rooms {
+  propertyId: string;
+  tag: string;
+  rooms: Record<string, Room>;
+}
+
+/** Rooms of this run's own, named `<tag>-<suffix>`, so a search finds exactly them. */
+function aSetOfRooms(
+  suffixes: readonly (
+    string | { suffix: string; type?: string; status?: string }
+  )[],
+): Rooms {
+  const propertyId = testProperty();
+  const tag = `MV-${randomUUID().slice(0, 6)}`;
+  const specs = suffixes.map((entry) =>
+    typeof entry === "string" ? { suffix: entry } : entry,
+  );
+  const values = specs
+    .map(
+      (spec) =>
+        `('${tag}-${spec.suffix}', '${spec.type ?? "room"}', '${spec.status ?? "available"}')`,
+    )
+    .join(", ");
+  const found = psql(
+    `with created as (
+       insert into public.accommodation_units
+         (property_id, organization_id, name, unit_type, status,
+          status_reason, capacity)
+       select property.id, property.organization_id, spec.name,
+              spec.unit_type, spec.status,
+              case when spec.status = 'blocked' then 'E2E fixture' end,
+              2
+         from public.properties as property,
+              (values ${values}) as spec(name, unit_type, status)
+        where property.id = '${propertyId}'
+       returning id, name
+     )
+     select name || '|' || id from created`,
+  );
+  const rooms: Record<string, Room> = {};
+  for (const line of found.split("\n")) {
+    const [name, id] = line.split("|") as [string, string];
+    rooms[name.slice(tag.length + 1)] = { id, name };
+  }
+  return { propertyId, tag, rooms };
+}
+
+/** A confirmed booking over nights counted from the Property's today. */
+function aBookingOn(
+  room: Room,
+  guest: string,
+  nights: { from: number; to: number },
+  status: "confirmed" | "requested" = "confirmed",
+): string {
+  return psql(
+    `with guest as (
+       insert into public.guests (organization_id, full_name)
+       select organization_id, '${guest}'
+         from public.accommodation_units where id = '${room.id}'
+       returning id
+     )
+     insert into public.reservations
+       (organization_id, property_id, accommodation_unit_id, guest_id,
+        stay_type, status, starts_on, ends_on)
+     select unit.organization_id, unit.property_id, unit.id, guest.id,
+            'guest', '${status}',
+            app.property_today(unit.property_id) + ${nights.from},
+            app.property_today(unit.property_id) + ${nights.to}
+       from public.accommodation_units as unit, guest
+      where unit.id = '${room.id}'
+     returning id`,
+  );
+}
+
+/** A Guest in house: a checked-in booking and its Stay, from yesterday by default. */
+function anInHouseGuestIn(
+  room: Room,
+  guest: string,
+  nights: { from: number; to: number } = { from: -1, to: 3 },
+): string {
+  return psql(
+    `with guest as (
+       insert into public.guests (organization_id, full_name)
+       select organization_id, '${guest}'
+         from public.accommodation_units where id = '${room.id}'
+       returning id
+     ), arrived as (
+       insert into public.reservations
+         (organization_id, property_id, accommodation_unit_id, guest_id,
+          stay_type, status, starts_on, ends_on)
+       select unit.organization_id, unit.property_id, unit.id, guest.id,
+              'guest', 'checked_in',
+              app.property_today(unit.property_id) + ${nights.from},
+              app.property_today(unit.property_id) + ${nights.to}
+         from public.accommodation_units as unit, guest
+        where unit.id = '${room.id}'
+       returning id, organization_id, property_id, accommodation_unit_id,
+                 starts_on, ends_on
+     ), stay as (
+       insert into public.stays
+         (organization_id, property_id, accommodation_unit_id, reservation_id,
+          stay_type, status, starts_on, ends_on)
+       select organization_id, property_id, accommodation_unit_id, id,
+              'guest', 'in_house', starts_on, ends_on
+         from arrived
+       returning id
+     )
+     select id from stay`,
+  );
+}
+
+function propertyDay(propertyId: string, days: number): string {
+  return psql(
+    `select to_char(app.property_today('${propertyId}') + ${days}, 'YYYY-MM-DD')`,
+  );
+}
+
+async function openRooms(
+  page: Page,
+  locale: "en" | "ar",
+  fixture: Rooms,
+): Promise<void> {
+  await page.goto(
+    `/${locale}/room-calendar?property=${fixture.propertyId}&q=${fixture.tag}`,
+  );
+  await expect(page.locator("[data-unit-id]").first()).toBeVisible();
+}
+
+/** The middle of a Unit's cell for a day, where a pointer can be put. */
+async function cellCentre(
+  page: Page,
+  room: Room,
+  day: string,
+): Promise<{ x: number; y: number }> {
+  const box = await page
+    .locator(`[data-unit-id="${room.id}"] [data-day="${day}"]`)
+    .boundingBox();
+  if (!box) throw new Error(`no cell for ${room.name} on ${day}`);
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+/**
+ * A real pointer drag: press inside the bar over `grab.day`, travel to the
+ * cell of `drop.day` in `drop.room`'s row, and either release or leave the
+ * button down.
+ */
+async function dragBar(
+  page: Page,
+  grab: { room: Room; day: string },
+  drop: { room: Room; day: string },
+  release = true,
+): Promise<void> {
+  const from = await cellCentre(page, grab.room, grab.day);
+  const to = await cellCentre(page, drop.room, drop.day);
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x + 8, from.y + 2, { steps: 3 });
+  await page.mouse.move(to.x, to.y, { steps: 12 });
+  if (release) await page.mouse.up();
+}
+
+/**
+ * Takes hold of the grip at the end of the Stay's or booking's bar in `room`,
+ * and pulls it to `toDay`.
+ */
+async function pullEnd(
+  page: Page,
+  room: Room,
+  toDay: string,
+  of: "stay" | "reservation" = "reservation",
+): Promise<void> {
+  const grip = page
+    .locator(`[data-unit-id="${room.id}"]`)
+    .locator(`[data-end-handle^="${of}:"]`);
+  const box = await grip.boundingBox();
+  if (!box) throw new Error(`${room.name} has no end grip`);
+  const to = await cellCentre(page, room, toDay);
+  const y = box.y + box.height / 2;
+  await page.mouse.move(box.x + box.width / 2, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 6, y, { steps: 3 });
+  await page.mouse.move(to.x, y, { steps: 12 });
+  await page.mouse.up();
+}
+
+function bookingRow(reservationId: string): string {
+  return psql(
+    `select accommodation_unit_id || '|' || to_char(starts_on, 'YYYY-MM-DD')
+            || '|' || coalesce(to_char(ends_on, 'YYYY-MM-DD'), '')
+       from public.reservations where id = '${reservationId}'`,
+  );
+}
+
+function stayEnd(stayId: string): string {
+  return psql(
+    `select to_char(ends_on, 'YYYY-MM-DD') from public.stays where id = '${stayId}'`,
+  );
+}
+
+/**
+ * Screenshots for the evidence folder, taken only when asked for. A dialog is
+ * photographed tall enough to show its buttons; a drag in progress is not
+ * resized, so the pointer stays where it is.
+ */
+async function evidence(
+  page: Page,
+  name: string,
+  { tall = true }: { tall?: boolean } = {},
+): Promise<void> {
+  if (!process.env.RANZA_EVIDENCE) return;
+  const size = page.viewportSize();
+  if (tall) await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.screenshot({ path: `docs/evidence/m1/RANZ-25/${name}.png` });
+  if (tall && size) await page.setViewportSize(size);
+}
+
+test("RC-S3-01: a booking dragged to a free room is previewed, writes nothing, and is moved on confirming", async ({
+  page,
+}) => {
+  const { propertyId, tag, rooms } = aSetOfRooms(["A", "B"]);
+  const guest = `Mover ${tag}`;
+  const reservationId = aBookingOn(rooms.A!, guest, { from: 2, to: 4 });
+  await signIn(page);
+  await openRooms(page, "en", { propertyId, tag, rooms });
+  await expect(
+    page.getByRole("button", { name: new RegExp(`^${guest}, Confirmed`) }),
+  ).toBeVisible();
+
+  await dragBar(
+    page,
+    { room: rooms.A!, day: propertyDay(propertyId, 3) },
+    { room: rooms.B!, day: propertyDay(propertyId, 4) },
+  );
+
+  const dialog = page.getByRole("dialog", { name: "Move booking" });
+  const summary = dialog.locator("[data-move-summary]");
+  await expect(summary).toContainText(rooms.A!.name);
+  await expect(summary).toContainText(rooms.B!.name);
+  // From two nights to two nights, a day later: the length is kept.
+  await expect(summary).toContainText("2 nights");
+  const confirm = dialog.getByRole("button", { name: "Move booking" });
+  await expect(confirm).toBeEnabled();
+  await evidence(page, "move-preview");
+
+  // Nothing is written by a drop.
+  expect(bookingRow(reservationId)).toBe(
+    `${rooms.A!.id}|${propertyDay(propertyId, 2)}|${propertyDay(propertyId, 4)}`,
+  );
+
+  await confirm.click();
+  await expect(dialog).toBeHidden();
+  await expect(
+    page
+      .locator(`[data-unit-id="${rooms.B!.id}"]`)
+      .getByRole("button", { name: new RegExp(`^${guest}, Confirmed`) }),
+  ).toBeVisible();
+  expect(bookingRow(reservationId)).toBe(
+    `${rooms.B!.id}|${propertyDay(propertyId, 3)}|${propertyDay(propertyId, 5)}`,
+  );
+
+  await page.goto(`/en/reservations?property=${propertyId}`);
+  await page.getByPlaceholder(/search/i).fill(guest);
+  await expect(
+    page.getByRole("row", { name: new RegExp(guest) }).getByText(rooms.B!.name),
+  ).toBeVisible();
+});
+
+test("RC-S3-04: dropped on a room that is booked for those nights, the preview names the booking and cannot be confirmed", async ({
+  page,
+}) => {
+  const { propertyId, tag, rooms } = aSetOfRooms(["A", "C"]);
+  const guest = `Mover ${tag}`;
+  const reservationId = aBookingOn(rooms.A!, guest, { from: 2, to: 4 });
+  aBookingOn(rooms.C!, `Holder ${tag}`, { from: 3, to: 6 });
+  await signIn(page);
+  await openRooms(page, "en", { propertyId, tag, rooms });
+
+  await dragBar(
+    page,
+    { room: rooms.A!, day: propertyDay(propertyId, 3) },
+    { room: rooms.C!, day: propertyDay(propertyId, 3) },
+    false,
+  );
+  // While the button is down the outline is already marked as one that
+  // cannot go there.
+  await expect(page.locator("[data-drop-ghost]")).toHaveAttribute(
+    "data-blocked",
+    "true",
+  );
+  await evidence(page, "move-drag-blocked", { tall: false });
+  await page.mouse.up();
+
+  const dialog = page.getByRole("dialog", { name: "Move booking" });
+  await expect(
+    dialog.getByText(`Holder ${tag} has booked some of those nights.`),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Move booking" }),
+  ).toBeDisabled();
+  await evidence(page, "move-conflict");
+  await dialog.getByRole("button", { name: "Keep as it was" }).click();
+  await expect(dialog).toBeHidden();
+  expect(bookingRow(reservationId)).toBe(
+    `${rooms.A!.id}|${propertyDay(propertyId, 2)}|${propertyDay(propertyId, 4)}`,
+  );
+});
+
+test("RC-S3-03: a booking may arrive the day another leaves, and leave the day another arrives", async ({
+  page,
+}) => {
+  const { propertyId, tag, rooms } = aSetOfRooms(["A", "B"]);
+  const guest = `Mover ${tag}`;
+  const reservationId = aBookingOn(rooms.A!, guest, { from: 2, to: 4 });
+  aBookingOn(rooms.B!, `Leaving ${tag}`, { from: 0, to: 2 });
+  aBookingOn(rooms.B!, `Arriving ${tag}`, { from: 4, to: 6 });
+  await signIn(page);
+  await openRooms(page, "en", { propertyId, tag, rooms });
+
+  await dragBar(
+    page,
+    { room: rooms.A!, day: propertyDay(propertyId, 3) },
+    { room: rooms.B!, day: propertyDay(propertyId, 3) },
+  );
+  const dialog = page.getByRole("dialog", { name: "Move booking" });
+  const confirm = dialog.getByRole("button", { name: "Move booking" });
+  await expect(confirm).toBeEnabled();
+  await expect(dialog.locator("[data-move-conflicts]")).toHaveCount(0);
+  await confirm.click();
+  await expect(dialog).toBeHidden();
+  expect(bookingRow(reservationId)).toBe(
+    `${rooms.B!.id}|${propertyDay(propertyId, 2)}|${propertyDay(propertyId, 4)}`,
+  );
+});
+
+test("RC-S3-05 and RC-S3-06: a blocked room, a room let by the bed, a day gone by and a stay that ended are each told", async ({
+  page,
+}) => {
+  const { propertyId, tag, rooms } = aSetOfRooms([
+    "A",
+    { suffix: "K", status: "blocked" },
+    "D",
+  ]);
+  psql(
+    `insert into public.accommodation_units
+       (property_id, organization_id, name, unit_type, capacity, parent_id)
+     select property_id, organization_id, '${tag}-bed', 'bed', 1, id
+       from public.accommodation_units where id = '${rooms.D!.id}'`,
+  );
+  aBookingOn(rooms.A!, `Mover ${tag}`, { from: 2, to: 4 });
+  psql(
+    `insert into public.stays
+       (organization_id, property_id, accommodation_unit_id, stay_type,
+        status, starts_on, ends_on)
+     select organization_id, property_id, id, 'guest', 'departed',
+            app.property_today(property_id) - 3,
+            app.property_today(property_id) - 1
+       from public.accommodation_units where id = '${rooms.K!.id}'`,
+  );
+  await signIn(page);
+  await openRooms(page, "en", { propertyId, tag, rooms });
+
+  const dialog = page.getByRole("dialog", { name: "Move booking" });
+  const drop = async (
+    onto: { room: Room; day: string },
+    words: string | RegExp,
+  ) => {
+    await dragBar(
+      page,
+      { room: rooms.A!, day: propertyDay(propertyId, 3) },
+      onto,
+    );
+    await expect(dialog.getByText(words)).toBeVisible();
+    await expect(
+      dialog.getByRole("button", { name: "Move booking" }),
+    ).toBeDisabled();
+    await dialog.getByRole("button", { name: "Keep as it was" }).click();
+    await expect(dialog).toBeHidden();
+  };
+
+  await drop(
+    { room: rooms.K!, day: propertyDay(propertyId, 3) },
+    `${rooms.K!.name} is blocked for some of those nights.`,
+  );
+  await drop(
+    { room: rooms.D!, day: propertyDay(propertyId, 3) },
+    `${rooms.D!.name} is let by the bed: choose one of its beds.`,
+  );
+  await drop(
+    { room: rooms.A!, day: propertyDay(propertyId, -1) },
+    "The arrival must be today or later.",
+  );
+
+  // The Stay that ended in the blocked room has no command to move it: the
+  // drop explains, in a preview with nothing to confirm.
+  await expect(
+    page
+      .locator(`[data-unit-id="${rooms.K!.id}"]`)
+      .getByRole("button", { name: /^No Guest recorded/ }),
+  ).toBeVisible();
+  await dragBar(
+    page,
+    { room: rooms.K!, day: propertyDay(propertyId, -2) },
+    { room: rooms.A!, day: propertyDay(propertyId, -2) },
+  );
+  const refused = page.getByRole("dialog", { name: "This cannot be moved" });
+  await expect(
+    refused.getByText("A stay that has ended cannot be moved."),
+  ).toBeVisible();
+  await expect(
+    refused.getByRole("button", { name: "Move booking" }),
+  ).toBeDisabled();
+});
+
+test("RC-S3-09: a room taken while the preview was open is refused on confirming, in words, and nothing changes", async ({
+  page,
+}) => {
+  const { propertyId, tag, rooms } = aSetOfRooms(["A", "B"]);
+  const reservationId = aBookingOn(rooms.A!, `Mover ${tag}`, {
+    from: 2,
+    to: 4,
+  });
+  await signIn(page);
+  await openRooms(page, "en", { propertyId, tag, rooms });
+
+  await dragBar(
+    page,
+    { room: rooms.A!, day: propertyDay(propertyId, 3) },
+    { room: rooms.B!, day: propertyDay(propertyId, 3) },
+  );
+  const dialog = page.getByRole("dialog", { name: "Move booking" });
+  const confirm = dialog.getByRole("button", { name: "Move booking" });
+  await expect(confirm).toBeEnabled();
+
+  // Somebody else books the room after the preview was read.
+  aBookingOn(rooms.B!, `Quicker ${tag}`, { from: 2, to: 4 });
+  await confirm.click();
+  await expect(dialog.getByText("That Unit is already booked")).toBeVisible();
+  await expect(confirm).toBeDisabled();
+  expect(bookingRow(reservationId)).toBe(
+    `${rooms.A!.id}|${propertyDay(propertyId, 2)}|${propertyDay(propertyId, 4)}`,
+  );
+
+  // Closing the dialog reads the calendar again, so the booking that won is drawn.
+  await dialog.getByRole("button", { name: "Keep as it was" }).click();
+  await expect(
+    page
+      .locator(`[data-unit-id="${rooms.B!.id}"]`)
+      .getByRole("button", { name: new RegExp(`^Quicker ${tag}`) }),
+  ).toBeVisible();
+});
+
+test("RC-S3-12: Move… on a booking's details does the same without a pointer", async ({
+  page,
+}) => {
+  const { propertyId, tag, rooms } = aSetOfRooms(["A", "B"]);
+  const guest = `Keyboard ${tag}`;
+  const reservationId = aBookingOn(rooms.A!, guest, { from: 2, to: 4 });
+  await signIn(page);
+  await openRooms(page, "en", { propertyId, tag, rooms });
+
+  const bar = page.getByRole("button", {
+    name: new RegExp(`^${guest}, Confirmed`),
+  });
+  await bar.focus();
+  await page.keyboard.press("Enter");
+  const drawer = page.getByRole("dialog", { name: guest });
+  await drawer.getByRole("button", { name: "Move…" }).focus();
+  await page.keyboard.press("Enter");
+
+  const dialog = page.getByRole("dialog", { name: "Move booking" });
+  // Opened on where it is: nothing to move yet.
+  await expect(
+    dialog.getByText(
+      "The dates and the Unit are the same: there is nothing to change.",
+    ),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Move booking" }),
+  ).toBeDisabled();
+
+  await dialog.getByLabel("Unit").click();
+  await page
+    .getByRole("option", { name: new RegExp(`${rooms.B!.name}.*Free`) })
+    .click();
+  const confirm = dialog.getByRole("button", { name: "Move booking" });
+  await expect(confirm).toBeEnabled();
+  await confirm.focus();
+  await page.keyboard.press("Enter");
+  await expect(dialog).toBeHidden();
+  expect(bookingRow(reservationId)).toBe(
+    `${rooms.B!.id}|${propertyDay(propertyId, 2)}|${propertyDay(propertyId, 4)}`,
+  );
+});
+
+test("RC-S3-07: a Guest in house dragged to another room is moved, with a reason", async ({
+  page,
+}) => {
+  const { propertyId, tag, rooms } = aSetOfRooms(["A", "B"]);
+  const guest = `House ${tag}`;
+  const stayId = anInHouseGuestIn(rooms.A!, guest);
+  await signIn(page);
+  await openRooms(page, "en", { propertyId, tag, rooms });
+
+  // The day dropped on is not theirs to choose: they arrived yesterday.
+  await dragBar(
+    page,
+    { room: rooms.A!, day: propertyDay(propertyId, 1) },
+    { room: rooms.B!, day: propertyDay(propertyId, 2) },
+  );
+  const dialog = page.getByRole("dialog", { name: "Move Guest" });
+  const summary = dialog.locator("[data-move-summary]");
+  await expect(summary).toContainText(rooms.A!.name);
+  await expect(summary).toContainText(rooms.B!.name);
+  const confirm = dialog.getByRole("button", { name: "Move Guest" });
+  // The command needs a reason, and asks for it here.
+  await expect(confirm).toBeDisabled();
+  await dialog.getByRole("combobox", { name: "Reason" }).click();
+  await page.getByRole("option", { name: "An upgrade" }).click();
+  await expect(confirm).toBeEnabled();
+  await evidence(page, "move-in-house-with-reason");
+  await confirm.click();
+  await expect(dialog).toBeHidden();
+
+  expect(
+    psql(
+      `select unit.name || ' ' || change.reason_kind
+         from public.stays as stay
+         join public.accommodation_units as unit on unit.id = stay.accommodation_unit_id
+         join public.reservation_changes as change on change.stay_id = stay.id
+        where stay.id = '${stayId}' and change.kind = 'moved'`,
+    ),
+  ).toBe(`${rooms.B!.name} upgrade`);
+  await expect(
+    page
+      .locator(`[data-unit-id="${rooms.B!.id}"]`)
+      .getByRole("button", { name: new RegExp(`^${guest}, In house`) }),
+  ).toBeVisible();
+});
+
+test("RC-S3-08: pulling the end of a Guest in house previews the new departure, and a booking in the way blocks it", async ({
+  page,
+}) => {
+  const { propertyId, tag, rooms } = aSetOfRooms(["A"]);
+  const stayId = anInHouseGuestIn(rooms.A!, `Stretch ${tag}`);
+  await signIn(page);
+  await openRooms(page, "en", { propertyId, tag, rooms });
+
+  await pullEnd(page, rooms.A!, propertyDay(propertyId, 4), "stay");
+  const dialog = page.getByRole("dialog", { name: "Change departure" });
+  await expect(dialog.locator("[data-move-summary]")).toContainText("5 nights");
+  expect(stayEnd(stayId)).toBe(propertyDay(propertyId, 3));
+  const save = dialog.getByRole("button", { name: "Save departure" });
+  await expect(save).toBeEnabled();
+  await save.click();
+  await expect(dialog).toBeHidden();
+  expect(stayEnd(stayId)).toBe(propertyDay(propertyId, 4));
+
+  // The next booking now begins where they leave: pulling further runs into it.
+  aBookingOn(rooms.A!, `Next ${tag}`, { from: 4, to: 6 });
+  await page.reload();
+  await expect(page.locator('[data-end-handle^="stay:"]')).toBeVisible();
+  await pullEnd(page, rooms.A!, propertyDay(propertyId, 5), "stay");
+  const blocked = page.getByRole("dialog", { name: "Change departure" });
+  await expect(
+    blocked.getByText(`Next ${tag} has booked some of those nights.`),
+  ).toBeVisible();
+  await expect(
+    blocked.getByRole("button", { name: "Save departure" }),
+  ).toBeDisabled();
+});
+
+test("RC-S3-15: pulling the end of a booking shortens it", async ({ page }) => {
+  const { propertyId, tag, rooms } = aSetOfRooms(["A"]);
+  const reservationId = aBookingOn(rooms.A!, `Shorter ${tag}`, {
+    from: 2,
+    to: 5,
+  });
+  await signIn(page);
+  await openRooms(page, "en", { propertyId, tag, rooms });
+
+  await pullEnd(page, rooms.A!, propertyDay(propertyId, 4));
+  const dialog = page.getByRole("dialog", { name: "Move booking" });
+  await dialog.getByRole("button", { name: "Move booking" }).click();
+  await expect(dialog).toBeHidden();
+  expect(bookingRow(reservationId)).toBe(
+    `${rooms.A!.id}|${propertyDay(propertyId, 2)}|${propertyDay(propertyId, 4)}`,
+  );
+});
+
+test("RC-S3-16: Escape drops a drag in progress, and a plain click still opens the drawer", async ({
+  page,
+}) => {
+  const { propertyId, tag, rooms } = aSetOfRooms(["A", "B"]);
+  const guest = `Escape ${tag}`;
+  const reservationId = aBookingOn(rooms.A!, guest, { from: 2, to: 4 });
+  await signIn(page);
+  await openRooms(page, "en", { propertyId, tag, rooms });
+
+  await dragBar(
+    page,
+    { room: rooms.A!, day: propertyDay(propertyId, 3) },
+    { room: rooms.B!, day: propertyDay(propertyId, 3) },
+    false,
+  );
+  await expect(page.locator("[data-drop-ghost]")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("[data-drop-ghost]")).toHaveCount(0);
+  await page.mouse.up();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(bookingRow(reservationId)).toBe(
+    `${rooms.A!.id}|${propertyDay(propertyId, 2)}|${propertyDay(propertyId, 4)}`,
+  );
+
+  await page
+    .getByRole("button", { name: new RegExp(`^${guest}, Confirmed`) })
+    .click();
+  await expect(page.getByRole("dialog", { name: guest })).toBeVisible();
+});
+
+test("RC-S3-11: in Arabic the drag follows the pointer to the left and the dates are the right ones", async ({
+  page,
+}) => {
+  const { propertyId, tag, rooms } = aSetOfRooms(["A", "B"]);
+  const reservationId = aBookingOn(rooms.A!, `Arabic ${tag}`, {
+    from: 2,
+    to: 4,
+  });
+  await signIn(page);
+  await openRooms(page, "ar", { propertyId, tag, rooms });
+
+  // Later days are to the left in Arabic.
+  const [three, four] = [
+    await cellCentre(page, rooms.A!, propertyDay(propertyId, 3)),
+    await cellCentre(page, rooms.A!, propertyDay(propertyId, 4)),
+  ];
+  expect(four.x).toBeLessThan(three.x);
+
+  await dragBar(
+    page,
+    { room: rooms.A!, day: propertyDay(propertyId, 3) },
+    { room: rooms.B!, day: propertyDay(propertyId, 4) },
+  );
+  const dialog = page.getByRole("dialog", { name: "نقل الحجز" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator("[data-move-summary]")).toContainText(
+    rooms.B!.name,
+  );
+  await evidence(page, "move-preview-arabic");
+  const confirm = dialog.getByRole("button", { name: "نقل الحجز" });
+  await expect(confirm).toBeEnabled();
+  await confirm.click();
+  await expect(dialog).toBeHidden();
+  expect(bookingRow(reservationId)).toBe(
+    `${rooms.B!.id}|${propertyDay(propertyId, 3)}|${propertyDay(propertyId, 5)}`,
+  );
+});
+
+test("RC-S3-14: the calendar is filtered by the type and the state of its Units", async ({
+  page,
+}) => {
+  const { propertyId, tag, rooms } = aSetOfRooms([
+    "A",
+    { suffix: "S", type: "suite" },
+    { suffix: "K", status: "blocked" },
+  ]);
+  await signIn(page);
+  await openRooms(page, "en", { propertyId, tag, rooms });
+  const rowHeaders = page.getByRole("rowheader", { name: new RegExp(tag) });
+  await expect(rowHeaders).toHaveCount(3);
+
+  await page.getByRole("combobox", { name: "Unit type" }).click();
+  await page.getByRole("option", { name: "Suite" }).click();
+  await expect(rowHeaders).toHaveCount(1);
+  await expect(rowHeaders.first()).toContainText(rooms.S!.name);
+  await expect(page).toHaveURL(/type=suite/);
+
+  await page.getByRole("combobox", { name: "Unit type" }).click();
+  await page.getByRole("option", { name: "All types" }).click();
+  await page.getByRole("combobox", { name: "Unit state" }).click();
+  await page.getByRole("option", { name: "Blocked" }).click();
+  await expect(rowHeaders).toHaveCount(1);
+  await expect(rowHeaders.first()).toContainText(rooms.K!.name);
+  await expect(page).toHaveURL(/state=blocked/);
+
+  // A shared link opens the same filter.
+  await page.reload();
+  await expect(rowHeaders).toHaveCount(1);
+});

@@ -1054,6 +1054,10 @@ interface RoomCalendarBarBase {
 export interface RoomCalendarReservationBar extends RoomCalendarBarBase {
   kind: "reservation";
   reservationId: string;
+  /** The booking's reference, which Change booking names it by. */
+  reference: string;
+  /** The time the Guest expects to arrive, `HH:MM`; null when unsaid. */
+  expectedArrival: string | null;
   status: "requested" | "confirmed";
 }
 

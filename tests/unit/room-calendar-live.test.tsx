@@ -132,6 +132,8 @@ function renderCalendar(
               from: null,
               days: 14,
               floor: null,
+              unitType: null,
+              unitState: null,
               showRequested: true,
               showDeparted: true,
               search: "",
@@ -236,6 +238,8 @@ function room(
 const ADA: RoomCalendarBar = {
   kind: "reservation",
   reservationId: crypto.randomUUID(),
+  reference: "RES-0001",
+  expectedArrival: null,
   status: "confirmed",
   stayType: "guest",
   guestName: "Ada Lovelace",

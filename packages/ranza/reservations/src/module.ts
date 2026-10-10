@@ -3048,6 +3048,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
             select
               'reservation'                               as kind,
               reservation.id                              as "reservationId",
+              reservation.reference                       as "reference",
+              to_char(reservation.expected_arrival_time, 'HH24:MI')
+                                                          as "expectedArrival",
               null::uuid                                  as "stayId",
               reservation.status::text                    as status,
               reservation.stay_type::text                 as "stayType",
@@ -3078,6 +3081,8 @@ export function createReservationsModule(deps: ReservationsDeps) {
             select
               'stay',
               stay.reservation_id,
+              null::text,
+              null::text,
               stay.id,
               (case when seg.is_last then stay.status else 'departed' end)::text,
               stay.stay_type::text,

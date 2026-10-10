@@ -1,8 +1,8 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useCallback, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
-import { Bed, ChevronDown, ChevronRight, Lock } from "lucide-react";
+import { Ban, Bed, ChevronDown, ChevronRight, Lock } from "lucide-react";
 import { formatDate, type SupportedLocale } from "@ranza/i18n";
 import { cn } from "@ranza/ui";
 import type {
@@ -16,7 +16,10 @@ import {
   outOfUseOn,
   placeBars,
   type CalendarRow,
+  type PlacedEntry,
 } from "../layout";
+import { ghostOf, hasEndHandle, type Ghost, type MoveRequest } from "../move";
+import { useBarDrag } from "./use-bar-drag";
 import {
   BAR_ICON,
   BAR_LOOK,
@@ -84,6 +87,8 @@ function shortDate(day: string, locale: SupportedLocale): string {
 export function CalendarGrid({
   calendar,
   locale,
+  mayAmend,
+  onDrop,
   onOpen,
   onToggleBeds,
   rows,
@@ -91,6 +96,10 @@ export function CalendarGrid({
 }: {
   calendar: RoomCalendar;
   locale: SupportedLocale;
+  /** Whether a bar can be dragged: the viewer holds `front_desk.amend` (RC-S3-10). */
+  mayAmend: boolean;
+  /** A bar was dropped somewhere; nothing has been written (RC-S3-01). */
+  onDrop: (request: MoveRequest) => void;
   onOpen: (bar: RoomCalendarBar) => void;
   onToggleBeds: (roomId: string) => void;
   rows: CalendarRow[];
@@ -98,6 +107,16 @@ export function CalendarGrid({
 }) {
   const t = useTranslations("roomCalendar");
   const nights = calendar.nights.map((night) => night.day);
+  const lastDay = nights[nights.length - 1] ?? calendar.from;
+  const [drag, setDrag] = useState<{
+    key: string;
+    ghost: Ghost;
+  } | null>(null);
+  const preview = useCallback(
+    (key: string, request: MoveRequest | null) =>
+      setDrag(request ? { key, ghost: ghostOf(calendar, request) } : null),
+    [calendar],
+  );
 
   return (
     <div
@@ -211,12 +230,21 @@ export function CalendarGrid({
               <UnitRow
                 calendar={calendar}
                 collapsed={row.collapsed}
+                draggingKey={drag?.key ?? null}
+                ghost={
+                  drag?.ghost.unitId === row.unit.unitId ? drag.ghost : null
+                }
                 key={row.key}
+                lastDay={lastDay}
                 locale={locale}
+                mayAmend={mayAmend}
                 nested={row.nested}
                 nights={nights}
+                onDrop={onDrop}
                 onOpen={onOpen}
+                onPreview={preview}
                 onToggleBeds={onToggleBeds}
+                room={row.room}
                 unit={row.unit}
               />
             );
@@ -230,20 +258,36 @@ export function CalendarGrid({
 function UnitRow({
   calendar,
   collapsed,
+  draggingKey,
+  ghost,
+  lastDay,
   locale,
+  mayAmend,
   nested,
   nights,
+  onDrop,
   onOpen,
+  onPreview,
   onToggleBeds,
+  room,
   unit,
 }: {
   calendar: RoomCalendar;
   collapsed: boolean;
+  /** The bar being dragged, drawn faint where it still stands. */
+  draggingKey: string | null;
+  /** Where the drag would put its bar, when that is this row. */
+  ghost: Ghost | null;
+  lastDay: string;
   locale: SupportedLocale;
+  mayAmend: boolean;
   nested: boolean;
   nights: string[];
+  onDrop: (request: MoveRequest) => void;
   onOpen: (bar: RoomCalendarBar) => void;
+  onPreview: (key: string, request: MoveRequest | null) => void;
   onToggleBeds: (roomId: string) => void;
+  room: RoomCalendarUnit | null;
   unit: RoomCalendarUnit;
 }) {
   const t = useTranslations("roomCalendar");
@@ -255,6 +299,7 @@ function UnitRow({
   return (
     <div
       className={cn(ROW, "relative auto-rows-[2.25rem] border-b")}
+      data-unit-id={unit.unitId}
       role="row"
       style={vars({ "--lanes": lanes })}
     >
@@ -310,6 +355,7 @@ function UnitRow({
             day === calendar.today && "bg-primary/5",
             outOfUseOn(unit, day, calendar.today) && OUT_OF_USE,
           )}
+          data-day={day}
           key={day}
           role="cell"
           style={vars({ "--day-col": index * 2 + 2 })}
@@ -337,15 +383,48 @@ function UnitRow({
                 continuesAfter={continuesAfter}
                 continuesBefore={continuesBefore}
                 days={calendar.days}
+                dragging={draggingKey === barKey(bar)}
                 end={end}
+                entry={{ bar, unit, room }}
                 key={barKey(bar)}
                 lane={lane}
+                lastDay={lastDay}
                 locale={locale}
+                mayAmend={mayAmend}
+                onDrop={onDrop}
                 onOpen={onOpen}
+                onPreview={onPreview}
                 start={start}
               />
             ),
           )}
+
+      {ghost && ghost.span.start < ghost.span.end ? (
+        <DropGhost ghost={ghost} />
+      ) : null}
+    </div>
+  );
+}
+
+/** Where a drag would put its bar: dashed, and marked with an icon when it cannot go. */
+function DropGhost({ ghost }: { ghost: Ghost }) {
+  const t = useTranslations("roomCalendar");
+  const { span } = ghost;
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        "pointer-events-none relative z-[3] col-start-(--bar-start) col-end-(--bar-end) row-start-1 my-1 flex items-center justify-center rounded-md border-2 border-dashed",
+        ghost.blocked
+          ? "border-danger bg-danger-soft/70 text-danger"
+          : "border-primary bg-primary/10 text-primary",
+      )}
+      data-blocked={ghost.blocked}
+      data-drop-ghost=""
+      style={vars({ "--bar-start": span.start + 2, "--bar-end": span.end + 2 })}
+      title={ghost.blocked ? t("dropBlocked") : undefined}
+    >
+      {ghost.blocked ? <Ban className="size-4" /> : null}
     </div>
   );
 }
@@ -355,23 +434,45 @@ function BarButton({
   continuesAfter,
   continuesBefore,
   days,
+  dragging,
   end,
+  entry,
   lane,
+  lastDay,
   locale,
+  mayAmend,
+  onDrop,
   onOpen,
+  onPreview,
   start,
 }: {
   bar: RoomCalendarBar;
   continuesAfter: boolean;
   continuesBefore: boolean;
   days: number;
+  dragging: boolean;
   end: number;
+  entry: PlacedEntry;
   lane: number;
+  lastDay: string;
   locale: SupportedLocale;
+  mayAmend: boolean;
+  onDrop: (request: MoveRequest) => void;
   onOpen: (bar: RoomCalendarBar) => void;
+  onPreview: (key: string, request: MoveRequest | null) => void;
   start: number;
 }) {
   const t = useTranslations("roomCalendar");
+  const key = barKey(bar);
+  const { grip, consumeDragClick } = useBarDrag({
+    enabled: mayAmend,
+    entry,
+    onDrop,
+    onPreview: useCallback(
+      (request) => onPreview(key, request),
+      [key, onPreview],
+    ),
+  });
   const guest = bar.guestName ?? t("noGuestRecorded");
   const look = barLook(bar);
   const warnings = barWarnings(bar);
@@ -395,42 +496,62 @@ function BarButton({
     ...flags,
   ].join(". ");
 
+  const position = vars({
+    "--bar-start": start + 2,
+    "--bar-end": end + 2,
+    "--bar-lane": lane + 1,
+  });
+
   return (
-    <button
-      aria-label={label}
-      data-bar-key={barKey(bar)}
-      data-look={look}
-      className={cn(
-        "relative z-[1] col-start-(--bar-start) col-end-(--bar-end) row-start-(--bar-lane) my-1 flex min-w-0 items-center overflow-hidden rounded-md text-start text-xs font-medium shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/40",
-        showWords ? "gap-1 px-1.5" : "gap-0.5 px-0.5",
-        BAR_LOOK[look],
-        warningRing(warnings),
-        continuesBefore && "rounded-s-none border-s-0",
-        continuesAfter && "rounded-e-none border-e-0",
-      )}
-      onClick={() => onOpen(bar)}
-      style={vars({
-        "--bar-start": start + 2,
-        "--bar-end": end + 2,
-        "--bar-lane": lane + 1,
-      })}
-      title={label}
-      type="button"
-    >
-      <StateIcon aria-hidden="true" className={cn(iconSize, "shrink-0")} />
-      {(showWords ? warnings : warnings.slice(0, 1)).map((warning) => {
-        const WarningIcon = WARNING_ICON[warning];
-        return (
-          <span
-            className="inline-flex shrink-0 items-center gap-0.5 font-semibold"
-            key={warning}
-          >
-            <WarningIcon aria-hidden="true" className={iconSize} />
-            {showWords ? t(`barWord.${warning}`) : null}
-          </span>
-        );
-      })}
-      <span className="truncate">{guest}</span>
-    </button>
+    <>
+      <button
+        aria-label={label}
+        data-bar-key={key}
+        data-dragging={dragging || undefined}
+        data-look={look}
+        className={cn(
+          "relative z-[1] col-start-(--bar-start) col-end-(--bar-end) row-start-(--bar-lane) my-1 flex min-w-0 select-none items-center overflow-hidden rounded-md text-start text-xs font-medium shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/40",
+          showWords ? "gap-1 px-1.5" : "gap-0.5 px-0.5",
+          BAR_LOOK[look],
+          warningRing(warnings),
+          continuesBefore && "rounded-s-none border-s-0",
+          continuesAfter && "rounded-e-none border-e-0",
+          mayAmend && "cursor-grab active:cursor-grabbing",
+          dragging && "opacity-40",
+        )}
+        onClick={() => {
+          if (!consumeDragClick()) onOpen(bar);
+        }}
+        {...grip("move")}
+        style={position}
+        title={mayAmend ? `${label}. ${t("dragHint")}` : label}
+        type="button"
+      >
+        <StateIcon aria-hidden="true" className={cn(iconSize, "shrink-0")} />
+        {(showWords ? warnings : warnings.slice(0, 1)).map((warning) => {
+          const WarningIcon = WARNING_ICON[warning];
+          return (
+            <span
+              className="inline-flex shrink-0 items-center gap-0.5 font-semibold"
+              key={warning}
+            >
+              <WarningIcon aria-hidden="true" className={iconSize} />
+              {showWords ? t(`barWord.${warning}`) : null}
+            </span>
+          );
+        })}
+        <span className="truncate">{guest}</span>
+      </button>
+      {mayAmend && hasEndHandle(bar, lastDay) ? (
+        <div
+          aria-hidden="true"
+          className="relative z-[2] col-start-(--bar-start) col-end-(--bar-end) row-start-(--bar-lane) my-1 w-2 cursor-ew-resize justify-self-end rounded-e-md hover:bg-foreground/20"
+          data-end-handle={key}
+          {...grip("resize")}
+          style={position}
+          title={t("resizeHint")}
+        />
+      ) : null}
+    </>
   );
 }

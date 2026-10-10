@@ -978,6 +978,43 @@ export interface Messages {
     open: Record<"arrivals" | "departures" | "reservations", string>;
     /** The short word a bar carries beside a warning's icon, when it fits. */
     barWord: Record<"overlap" | "bookedWhileBlocked" | "clashes", string>;
+    typeFilter: string;
+    allTypes: string;
+    stateFilter: string;
+    allStates: string;
+    unitState: Record<
+      "available" | "occupied" | "blocked" | "out_of_service",
+      string
+    >;
+    /** Beneath the subtitle, for a viewer who may move bookings. */
+    moveHint: string;
+    /** On a bar the viewer may drag, in its tooltip. */
+    dragHint: string;
+    /** On the grip at the end of a bar. */
+    resizeHint: string;
+    /** On the outline a drag draws where the bar cannot go. */
+    dropBlocked: string;
+    /** The drawer's way to move a booking without a mouse. */
+    moveAction: string;
+    moveBooking: string;
+    moveBookingSummary: string;
+    confirmMove: string;
+    moveFrom: string;
+    moveTo: string;
+    cannotMoveTitle: string;
+    /** What the calendar already knows against a move; `{unit}` or `{guest}`. */
+    moveConflict: Record<
+      | "past"
+      | "notSellable"
+      | "blocked"
+      | "outOfService"
+      | "booked"
+      | "occupied"
+      | "leavesToday"
+      | "ended"
+      | "noBooking",
+      string
+    >;
   };
   /** The Today dashboard (docs/features/today-dashboard). */
   dashboard: {
@@ -2462,8 +2499,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     blockedStatus: "Kapalı",
     roomCalendar: {
       title: "{property} oda takvimi",
-      subtitle:
-        "Odalar ve yataklar, tesisin iş günlerine göre. Yalnızca görüntüleme: rezervasyon, yapıldığı yerde değiştirilir.",
+      subtitle: "Odalar ve yataklar, tesisin iş günlerine göre.",
       previous: "Önceki hafta",
       next: "Sonraki hafta",
       today: "Bugün",
@@ -2558,6 +2594,43 @@ export const messages: Record<SupportedLocale, Messages> = {
         overlap: "Çakışma",
         bookedWhileBlocked: "Kapalı",
         clashes: "Çakışıyor",
+      },
+      typeFilter: "Birim türü",
+      allTypes: "Tüm türler",
+      stateFilter: "Birim durumu",
+      allStates: "Tüm durumlar",
+      unitState: {
+        available: "Müsait",
+        occupied: "Dolu",
+        blocked: "Kapalı",
+        out_of_service: "Hizmet dışı",
+      },
+      moveHint:
+        "Bir rezervasyonu başka bir odaya ya da güne sürükleyerek taşıyın; siz onaylayana kadar hiçbir şey kaydedilmez.",
+      dragHint:
+        "Taşımak için sürükleyin ya da ayrıntılarındaki Taşı… düğmesini kullanın.",
+      resizeHint: "Çıkış gününü değiştirmek için sürükleyin",
+      dropBlocked: "Buraya taşınamaz",
+      moveAction: "Taşı…",
+      moveBooking: "Rezervasyonu taşı",
+      moveBookingSummary:
+        "Hiçbir şey kaydedilmeden önce nereye gideceğine bakın. Birim başka türdeyse fiyat değişir, değilse korunur.",
+      confirmMove: "Rezervasyonu taşı",
+      moveFrom: "Nereden",
+      moveTo: "Nereye",
+      cannotMoveTitle: "Bu taşınamaz",
+      moveConflict: {
+        past: "Giriş bugün ya da daha sonra olmalı.",
+        notSellable:
+          "{unit} yatak yatak kiralanıyor: yataklarından birini seçin.",
+        blocked: "{unit} bu gecelerin bir kısmında kapalı.",
+        outOfService: "{unit} bu gecelerin bir kısmında hizmet dışı.",
+        booked: "{guest} bu gecelerin bir kısmını rezerve etmiş.",
+        occupied: "{guest} bu gecelerin bir kısmında o birimde konaklıyor.",
+        leavesToday:
+          "Bugün ayrılmak bir çıkış işlemidir. Yarını ya da daha sonrasını seçin.",
+        ended: "Sona ermiş bir konaklama taşınamaz.",
+        noBooking: "Rezervasyonu olmayan bir konaklama buradan taşınamaz.",
       },
     },
 
@@ -4447,8 +4520,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     blockedStatus: "Blocked",
     roomCalendar: {
       title: "Room calendar at {property}",
-      subtitle:
-        "Rooms and beds against the Property's business days. Read-only: a booking is changed where it was made.",
+      subtitle: "Rooms and beds against the Property's business days.",
       previous: "Previous week",
       next: "Next week",
       today: "Today",
@@ -4545,6 +4617,40 @@ export const messages: Record<SupportedLocale, Messages> = {
         overlap: "Overlap",
         bookedWhileBlocked: "Blocked",
         clashes: "Clash",
+      },
+      typeFilter: "Unit type",
+      allTypes: "All types",
+      stateFilter: "Unit state",
+      allStates: "All states",
+      unitState: {
+        available: "Available",
+        occupied: "Occupied",
+        blocked: "Blocked",
+        out_of_service: "Out of service",
+      },
+      moveHint:
+        "Drag a booking to another room or day to move it; nothing is saved until you confirm.",
+      dragHint: "Drag to move it, or use Move… in its details.",
+      resizeHint: "Drag to change the departure",
+      dropBlocked: "It cannot go here",
+      moveAction: "Move…",
+      moveBooking: "Move booking",
+      moveBookingSummary:
+        "Check where it would go before anything is saved. Its price is kept unless the Unit is of another kind.",
+      confirmMove: "Move booking",
+      moveFrom: "From",
+      moveTo: "To",
+      cannotMoveTitle: "This cannot be moved",
+      moveConflict: {
+        past: "The arrival must be today or later.",
+        notSellable: "{unit} is let by the bed: choose one of its beds.",
+        blocked: "{unit} is blocked for some of those nights.",
+        outOfService: "{unit} is out of service for some of those nights.",
+        booked: "{guest} has booked some of those nights.",
+        occupied: "{guest} is staying in that Unit for some of those nights.",
+        leavesToday: "Leaving today is a check-out. Choose tomorrow or later.",
+        ended: "A stay that has ended cannot be moved.",
+        noBooking: "A stay with no booking cannot be moved from here.",
       },
     },
 
@@ -6414,8 +6520,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     blockedStatus: "مغلق",
     roomCalendar: {
       title: "تقويم الغرف في {property}",
-      subtitle:
-        "الغرف والأسرّة مقابل أيام عمل المنشأة. للعرض فقط: يُعدَّل الحجز حيث أُنشئ.",
+      subtitle: "الغرف والأسرّة مقابل أيام عمل المنشأة.",
       previous: "الأسبوع السابق",
       next: "الأسبوع التالي",
       today: "اليوم",
@@ -6511,6 +6616,39 @@ export const messages: Record<SupportedLocale, Messages> = {
         overlap: "تداخل",
         bookedWhileBlocked: "مغلق",
         clashes: "تعارض",
+      },
+      typeFilter: "نوع الوحدة",
+      allTypes: "كل الأنواع",
+      stateFilter: "حالة الوحدة",
+      allStates: "كل الحالات",
+      unitState: {
+        available: "متاحة",
+        occupied: "مشغولة",
+        blocked: "مغلقة",
+        out_of_service: "خارج الخدمة",
+      },
+      moveHint: "اسحب حجزًا إلى غرفة أو يوم آخر لنقله؛ لا يُحفظ شيء حتى تؤكّد.",
+      dragHint: "اسحبه لنقله، أو استخدم «نقل…» في تفاصيله.",
+      resizeHint: "اسحب لتغيير موعد المغادرة",
+      dropBlocked: "لا يمكن نقله إلى هنا",
+      moveAction: "نقل…",
+      moveBooking: "نقل الحجز",
+      moveBookingSummary:
+        "تحقّق من وجهته قبل حفظ أي شيء. يبقى سعره كما هو ما لم تكن الوحدة من نوع آخر.",
+      confirmMove: "نقل الحجز",
+      moveFrom: "من",
+      moveTo: "إلى",
+      cannotMoveTitle: "لا يمكن نقل هذا",
+      moveConflict: {
+        past: "يجب أن يكون الوصول اليوم أو بعده.",
+        notSellable: "{unit} تُؤجَّر بالسرير: اختر أحد أسرّتها.",
+        blocked: "{unit} مغلقة في بعض هذه الليالي.",
+        outOfService: "{unit} خارج الخدمة في بعض هذه الليالي.",
+        booked: "{guest} لديه حجز في بعض هذه الليالي.",
+        occupied: "{guest} يقيم في تلك الوحدة في بعض هذه الليالي.",
+        leavesToday: "المغادرة اليوم هي تسجيل مغادرة. اختر الغد أو ما بعده.",
+        ended: "لا يمكن نقل إقامة انتهت.",
+        noBooking: "لا يمكن نقل إقامة بلا حجز من هنا.",
       },
     },
 

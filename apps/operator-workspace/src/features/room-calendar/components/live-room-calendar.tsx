@@ -20,9 +20,11 @@ import {
   viewSearch,
   type RoomCalendarView,
 } from "../view";
+import type { MoveRequest } from "../move";
 import { BarDrawer } from "./bar-drawer";
 import { CalendarGrid } from "./calendar-grid";
 import { CalendarToolbar } from "./calendar-toolbar";
+import { MoveDialogs } from "./move-dialogs";
 
 async function fetchCalendar(
   propertyId: string,
@@ -88,6 +90,8 @@ export function LiveRoomCalendar({
     status: string;
   } | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // What a drop asked for. Nothing is written until the dialog it opens saves.
+  const [moving, setMoving] = useState<MoveRequest | null>(null);
 
   const query = useQuery({
     queryKey: frontOfficeKeys.roomCalendar(scope, {
@@ -187,6 +191,8 @@ export function LiveRoomCalendar({
   const nothingBooked = bars.size === 0;
   const filtered =
     view.floor !== null ||
+    view.unitType !== null ||
+    view.unitState !== null ||
     view.search !== "" ||
     view.overlapsOnly ||
     !view.showRequested ||
@@ -200,7 +206,10 @@ export function LiveRoomCalendar({
         <h2 className="text-2xl font-bold tracking-tight">
           {t("title", { property: propertyName })}
         </h2>
-        <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+        <p className="text-sm text-muted-foreground">
+          {t("subtitle")}
+          {calendar.mayAmend ? ` ${t("moveHint")}` : null}
+        </p>
       </PageHeader>
 
       <CalendarToolbar
@@ -247,6 +256,8 @@ export function LiveRoomCalendar({
               onClick={() =>
                 update({
                   floor: null,
+                  unitType: null,
+                  unitState: null,
                   search: "",
                   overlapsOnly: false,
                   showRequested: true,
@@ -274,6 +285,8 @@ export function LiveRoomCalendar({
           <CalendarGrid
             calendar={calendar}
             locale={locale}
+            mayAmend={calendar.mayAmend}
+            onDrop={setMoving}
             onOpen={(bar) => {
               setSelected({ key: barKey(bar), status: bar.status });
               setDrawerOpen(true);
@@ -294,8 +307,21 @@ export function LiveRoomCalendar({
         </>
       )}
 
+      {moving ? (
+        <MoveDialogs
+          calendar={calendar}
+          locale={locale}
+          onClose={() => {
+            setMoving(null);
+            void query.refetch();
+          }}
+          request={moving}
+        />
+      ) : null}
+
       <BarDrawer
         barKey={opened ? barKey(opened.bar) : (selected?.key ?? null)}
+        calendar={calendar}
         changed={opened !== null && selected?.status !== opened.bar.status}
         entry={opened}
         locale={locale}

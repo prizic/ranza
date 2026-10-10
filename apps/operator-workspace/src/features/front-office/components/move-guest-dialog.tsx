@@ -29,6 +29,7 @@ import { moveGuest, type MoveGuestOutcome } from "../../../server/front-office";
 import { usePickerLabels } from "../../../lib/picker-labels";
 import { submitWithoutReset } from "../../../lib/submit-without-reset";
 import { unitLabel } from "../unit-label";
+import { MoveSummary } from "./move-summary";
 
 /**
  * Moving an in-house Guest to another Unit from tonight (amend-booking slice 3,
@@ -43,6 +44,10 @@ import { unitLabel } from "../unit-label";
  * later read naming another version says somebody changed the Stay, and the
  * choice is cleared rather than saved over it (AB-S3-09).
  *
+ * Opened by a drag on the room calendar it starts on the Unit dropped on, and
+ * names what the calendar already knows against it above the same preview
+ * (RC-S3-07); the reason is still asked for, as the command requires.
+ *
  * `REASONS` and `NOTE` restate `MOVE_REASONS` and `CHANGE_NOTE` for the reason
  * `end-booking-dialog.tsx` gives: a value import from the module pulls Prisma
  * into the browser bundle.
@@ -54,6 +59,13 @@ export interface MovableStay {
   stayId: string;
   guestName: string;
   unitLabel: string;
+}
+
+/** Where a drag proposes to put the Guest, and what is known against it. */
+export interface ProposedGuestMove {
+  unitId: string;
+  /** The reasons the calendar already knows the Guest cannot go there. */
+  conflictsFor: (unitId: string) => string[];
 }
 
 type PreviewAnswer =
@@ -83,12 +95,14 @@ async function fetchPreview(
 
 export function MoveGuestDialog({
   locale,
+  move,
   onDone,
   onOpenChange,
   open,
   stay,
 }: {
   locale: SupportedLocale;
+  move?: ProposedGuestMove;
   /** Told after a move is saved, for a screen that keeps its own data. */
   onDone?: () => void;
   onOpenChange: (open: boolean) => void;
@@ -97,7 +111,7 @@ export function MoveGuestDialog({
 }) {
   const t = useTranslations();
   const unitLabels = usePickerLabels(t("chooseUnit"));
-  const [unitId, setUnitId] = useState("");
+  const [unitId, setUnitId] = useState(move?.unitId ?? "");
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
   const [read, setRead] = useState<Read>({ state: "loading" });
@@ -166,16 +180,21 @@ export function MoveGuestDialog({
   const noteLength = [...note.trim()].length;
   const noteMissing = reason === "other" && noteLength === 0;
 
+  // What the calendar knew before the database was asked. Said once: the
+  // database's own words for the same nights are kept for what only it sees.
+  const known = move && unitId ? move.conflictsFor(unitId) : [];
   const blocked =
-    chosen?.blocker === "booked"
-      ? t("changeBookingBlockedBooked", {
-          reference: chosen.conflictReference ?? "",
-        })
-      : chosen?.blocker === "occupied"
-        ? t("changeBookingBlockedOccupied")
-        : chosen && !chosen.ready
-          ? t("moveGuestNotReady")
-          : null;
+    known.length > 0
+      ? null
+      : chosen?.blocker === "booked"
+        ? t("changeBookingBlockedBooked", {
+            reference: chosen.conflictReference ?? "",
+          })
+        : chosen?.blocker === "occupied"
+          ? t("changeBookingBlockedOccupied")
+          : chosen && !chosen.ready
+            ? t("moveGuestNotReady")
+            : null;
 
   const price =
     preview === null
@@ -215,6 +234,7 @@ export function MoveGuestDialog({
                   : null;
 
   const canSave =
+    known.length === 0 &&
     preview !== null &&
     pinned !== null &&
     chosen !== undefined &&
@@ -240,6 +260,19 @@ export function MoveGuestDialog({
               <bdi className="tabular-nums">{stay.unitLabel}</bdi>
             </Fact>
           </FactList>
+
+          {move ? (
+            <MoveSummary
+              conflicts={known}
+              from={{ place: stay.unitLabel, period: null }}
+              to={{
+                place: chosen
+                  ? unitLabel(chosen.roomName, chosen.unitName)
+                  : "—",
+                period: null,
+              }}
+            />
+          ) : null}
 
           <input name="stay" type="hidden" value={stay.stayId} />
           <input name="locale" type="hidden" value={locale} />

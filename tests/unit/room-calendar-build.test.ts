@@ -19,6 +19,8 @@ function bar(overrides: Partial<RawCalendarBar>): RawCalendarBar {
   return {
     kind: "reservation",
     reservationId: crypto.randomUUID(),
+    reference: "RES-0001",
+    expectedArrival: null,
     stayId: null,
     status: "confirmed",
     stayType: "guest",
@@ -41,6 +43,8 @@ function bar(overrides: Partial<RawCalendarBar>): RawCalendarBar {
 function stay(overrides: Partial<RawCalendarBar>): RawCalendarBar {
   return bar({
     kind: "stay",
+    reference: null,
+    expectedArrival: null,
     stayId: crypto.randomUUID(),
     status: "in_house",
     ...overrides,
@@ -338,6 +342,24 @@ describe("rows", () => {
     expect(calendar.units).toEqual([]);
     expect(calendar.days).toBe(14);
     expect(calendar.from).toBe(addDays(calendar.today, -3));
+  });
+
+  it("RC-S3-03: a booking carries its reference and expected arrival, for the dialog a move opens", () => {
+    const calendar = build([
+      row({
+        bars: [
+          bar({ reference: "RES-0042", expectedArrival: "15:30" }),
+          stay({ startsOn: addDays(TODAY, 4), endsOn: addDays(TODAY, 6) }),
+        ],
+      }),
+    ]);
+    const [booking, inHouse] = calendar.units[0]!.bars;
+    expect(booking).toMatchObject({
+      kind: "reservation",
+      reference: "RES-0042",
+      expectedArrival: "15:30",
+    });
+    expect(inHouse).not.toHaveProperty("reference");
   });
 
   it("RC-S1-49: a Stay with no Folio has no balance, never zero", () => {

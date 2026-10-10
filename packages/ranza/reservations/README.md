@@ -160,7 +160,10 @@ in the room; and two people in one room on one night — which
 Guest staying into a booked night or from a row written before that trigger —
 are returned and marked as an overlap rather than hidden. A departed Stay is
 history and overlaps nothing. The nightly free count and the overlap count
-cover every Unit, so a screen that filters by floor cannot hide one. Days are `app.property_today`'s, so the calendar follows the business
+cover every Unit, so a screen that filters by floor, type or state cannot hide one.
+A booking's bar carries its reference and expected arrival, so a drag can open
+Change booking on it; the drag itself writes nothing and moves a bar only through
+`amendBooking`, `moveGuest` and `changeDeparture`. Days are `app.property_today`'s, so the calendar follows the business
 date when that function does. What each bar shows is specified row by row in
 [`docs/features/room-calendar/edge-cases.csv`](../../../docs/features/room-calendar/edge-cases.csv).
 

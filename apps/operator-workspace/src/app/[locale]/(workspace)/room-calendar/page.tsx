@@ -25,10 +25,11 @@ import { frontDeskProperty } from "../../../../server/front-desk";
  * The room calendar (RANZ-25): rooms and beds against days, bookings and
  * Stays as bars.
  *
- * Read-only. Every command a bar points at already has one home — Arrivals,
- * Departures, Reservations — and moving a Stay is refused by a column grant on
- * purpose, so the drawer links there rather than repeating them (RC-DEF-04,
- * RC-DEF-05).
+ * It writes nothing of its own. Most commands a bar points at have one home —
+ * Arrivals, Departures, Reservations — so the drawer links there rather than
+ * repeating them (RC-DEF-04). Moving is the exception: a drag only proposes,
+ * and the dialogs of ADR 0039 save it through their commands, which check the
+ * caller and refuse a conflict (RC-S3-01).
  *
  * Live, like Arrivals (ADR 0019 names the room rack): prefetched here so it
  * paints with bars, then polled. The window in the URL is the one prefetched;

@@ -27,6 +27,9 @@ import {
 export interface RawCalendarBar {
   kind: "reservation" | "stay";
   reservationId: string | null;
+  /** A booking's reference and expected arrival; null on a Stay. */
+  reference: string | null;
+  expectedArrival: string | null;
   stayId: string | null;
   status: string;
   stayType: ReservationStayType;
@@ -158,6 +161,8 @@ function barOf(raw: RawCalendarBar): RoomCalendarBar {
     ...shared,
     kind: "reservation",
     reservationId: raw.reservationId ?? "",
+    reference: raw.reference ?? "",
+    expectedArrival: raw.expectedArrival,
     status,
     holds: status === "confirmed",
   };

@@ -86,6 +86,8 @@ describe("the view in the URL and the cookie", () => {
       from: "2026-09-21",
       days: 30,
       floor: "3",
+      unitType: "suite",
+      unitState: "blocked",
       showRequested: false,
       showDeparted: false,
       search: "Ada",
