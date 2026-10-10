@@ -41,7 +41,7 @@
 --   the worker function without the returned_at match   MT-S2-19 (forged)
 --   the worker function without the context check       MT-S2-19
 begin;
-select plan(71);
+select plan(77);
 
 insert into public.users (id, email) values
   ('91111111-1111-4111-8111-111111111111', 'mt-manager@example.test'),
@@ -158,6 +158,44 @@ values
   ('9c2b2222-2222-4222-8222-222222222222', '9b111111-1111-4111-8111-111111111111',
    '9a111111-1111-4111-8111-111111111111', '9c222222-2222-4222-8222-222222222222',
    'room', 'B', 'bed', 1);
+
+-- A second Property of the first Organization with maintenance, for the
+-- numbering (MT-S1-02). Nothing else in this suite reaches it.
+insert into public.properties (id, organization_id, name) values
+  ('9b666666-6666-4666-8666-666666666666',
+   '9a111111-1111-4111-8111-111111111111', 'Maintenance Second Property');
+insert into public.property_capabilities
+  (property_id, organization_id, capability_key, enabled) values
+  ('9b666666-6666-4666-8666-666666666666', '9a111111-1111-4111-8111-111111111111', 'maintenance', true);
+insert into public.accommodation_units
+  (id, property_id, organization_id, name, unit_type, capacity) values
+  ('9c999999-9999-4999-8999-999999999999', '9b666666-6666-4666-8666-666666666666',
+   '9a111111-1111-4111-8111-111111111111', 'MT-601', 'room', 2);
+
+-- An Organization with an active Subscription, the capability switched on at
+-- its Property and no maintenance Entitlement: the fifth gate on its own
+-- (MT-S1-05).
+insert into public.users (id, email) values
+  ('9d111111-1111-4111-8111-111111111111', 'mt-unentitled@example.test');
+insert into public.organizations (id, name, status) values
+  ('9a444444-4444-4444-8444-444444444444', 'Maintenance Unentitled Organization', 'active');
+insert into public.properties (id, organization_id, name) values
+  ('9b555555-5555-4555-8555-555555555555',
+   '9a444444-4444-4444-8444-444444444444', 'Maintenance Unentitled Property');
+insert into public.organization_memberships
+  (organization_id, user_id, role, role_scope_id, access_scope, status, revoked_at)
+values
+  ('9a444444-4444-4444-8444-444444444444', '9d111111-1111-4111-8111-111111111111',
+   'manager', '00000000-0000-0000-0000-000000000000', 'organization_wide', 'active', null);
+insert into public.subscriptions (organization_id, status) values
+  ('9a444444-4444-4444-8444-444444444444', 'active');
+insert into public.property_capabilities
+  (property_id, organization_id, capability_key, enabled) values
+  ('9b555555-5555-4555-8555-555555555555', '9a444444-4444-4444-8444-444444444444', 'maintenance', true);
+insert into public.accommodation_units
+  (id, property_id, organization_id, name, unit_type, capacity) values
+  ('9c888888-8888-4888-8888-888888888888', '9b555555-5555-4555-8555-555555555555',
+   '9a444444-4444-4444-8444-444444444444', 'MT-501', 'room', 2);
 
 -- ---------------------------------------------------------------------------
 -- What ships
@@ -368,6 +406,31 @@ select throws_ok(
              'A lapsed Subscription', '9c777777-7777-4777-8777-777777777777', 'urgent') $$,
   '42501', null,
   'MT-S1-05: and where the Subscription has lapsed');
+
+select app.set_request_context('9d111111-1111-4111-8111-111111111111');
+
+select throws_ok(
+  $$ insert into public.maintenance_requests
+       (organization_id, property_id, title, accommodation_unit_id, priority)
+     values ('9a444444-4444-4444-8444-444444444444', '9b555555-5555-4555-8555-555555555555',
+             'No Entitlement', '9c888888-8888-4888-8888-888888888888', 'urgent') $$,
+  '42501', null,
+  'MT-S1-05: and where the Organization has not bought the module');
+
+-- MT-S1-02: every Property counts from one, whatever another of the same
+-- Organization has reached. The first Property above is at 2.
+select app.set_request_context('91111111-1111-4111-8111-111111111111');
+
+insert into public.maintenance_requests
+  (organization_id, property_id, title, accommodation_unit_id, priority)
+values ('9a111111-1111-4111-8111-111111111111', '9b666666-6666-4666-8666-666666666666',
+        'A leak at the second Property', '9c999999-9999-4999-8999-999999999999', 'urgent');
+
+select results_eq(
+  $$ select number from public.maintenance_requests
+      where property_id = '9b666666-6666-4666-8666-666666666666' $$,
+  $$ values (1) $$,
+  'MT-S1-02: a second Property of the Organization counts from one, whatever the first has reached');
 
 -- ---------------------------------------------------------------------------
 -- Working the board
@@ -891,6 +954,75 @@ select is(
     where accommodation_unit_id = '9c333333-3333-4333-8333-333333333333'),
   'inspected',
   'MT-S2-31: the room is still inspected');
+
+-- ---------------------------------------------------------------------------
+-- Where housekeeping is not available, a return writes nothing (MT-S2-17)
+-- ---------------------------------------------------------------------------
+-- A second room, taken out of order and returned by the desk, with the worker
+-- delivering its return while housekeeping is switched off at the Property and
+-- then once it is on again. The same event writes nothing in the first case
+-- and the room's status in the second, so the first answer is the capability's
+-- and not an event no release matches.
+
+set local role ranza_app;
+select app.set_request_context('92222222-2222-4222-8222-222222222222');
+
+insert into public.maintenance_requests
+  (organization_id, property_id, title, accommodation_unit_id, priority)
+values ('9a111111-1111-4111-8111-111111111111', '9b111111-1111-4111-8111-111111111111',
+        'The door will not lock', '9c444444-4444-4444-8444-444444444444', 'this_week');
+
+insert into public.maintenance_unit_holds (request_id, organization_id, property_id)
+select id, organization_id, property_id from public.maintenance_requests
+ where title = 'The door will not lock';
+
+update public.maintenance_unit_holds set returned_at = now()
+ where request_id = (select id from public.maintenance_requests
+                      where title = 'The door will not lock');
+
+set local role none;
+update public.property_capabilities set enabled = false
+ where property_id = '9b111111-1111-4111-8111-111111111111'
+   and capability_key = 'housekeeping';
+
+insert into outbox.events (id, organization_id, event_type, payload, occurred_at)
+select '9e888888-8888-4888-8888-888888888888', organization_id,
+       'unit.returned_to_service',
+       jsonb_build_object('requestId', id, 'unitId', accommodation_unit_id),
+       now()
+  from public.maintenance_requests where title = 'The door will not lock';
+
+select set_config('app.user_id', '', true);
+set local role ranza_worker;
+select app.set_worker_context('9a111111-1111-4111-8111-111111111111',
+                              'housekeeping.markRoomOnReturnToService');
+select is(app.mark_unit_returned_to_service('9e888888-8888-4888-8888-888888888888'),
+  false, 'MT-S2-17: where housekeeping is not available a real return writes nothing');
+set local role none;
+
+select is(
+  (select count(*)::int from public.housekeeping_unit_status
+    where accommodation_unit_id = '9c444444-4444-4444-8444-444444444444'),
+  0,
+  'MT-S2-17: and the room has no status row');
+
+update public.property_capabilities set enabled = true
+ where property_id = '9b111111-1111-4111-8111-111111111111'
+   and capability_key = 'housekeeping';
+
+select set_config('app.user_id', '', true);
+set local role ranza_worker;
+select app.set_worker_context('9a111111-1111-4111-8111-111111111111',
+                              'housekeeping.markRoomOnReturnToService');
+select is(app.mark_unit_returned_to_service('9e888888-8888-4888-8888-888888888888'),
+  true, 'MT-S2-17: the same event writes once housekeeping is available');
+set local role none;
+
+select is(
+  (select status from public.housekeeping_unit_status
+    where accommodation_unit_id = '9c444444-4444-4444-8444-444444444444'),
+  'dirty',
+  'MT-S2-17: as the Property''s setting says');
 
 select finish();
 rollback;

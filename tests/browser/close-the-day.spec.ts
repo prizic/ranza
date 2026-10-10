@@ -238,8 +238,14 @@ test("a close already made elsewhere says so", async ({ page }) => {
     dialog.getByText(/already been closed, by another desk or automatically/),
   ).toBeVisible();
 
+  // Pressing it again could only be refused again: the confirm is gone, and
+  // Done is what is left (CD-S3-07).
+  await expect(dialog.getByRole("button", { name: /^Close / })).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Not now" })).toHaveCount(0);
+
   // Read first, then the screen catches up: the day is closed, and by nobody.
-  await dialog.getByRole("button", { name: "Not now" }).click();
+  await dialog.getByRole("button", { name: "Done" }).click();
+  await expect(dialog).toBeHidden();
   await expect(page.getByText(/ is still open$/)).toBeVisible();
   await expect(
     page.getByRole("row").filter({ hasText: "Automatically" }),
@@ -372,9 +378,21 @@ test("closing posts one room night per occupied room, and a second close of the 
     ),
   ).toBeVisible();
   expect(roomNights()).toBe(`2|2|${2 * ROOM_NIGHT_MINOR}`);
+  // The refused desk is not offered the same close again, only Done.
+  await expect(
+    secondDialog.getByRole("button", { name: /^Close / }),
+  ).toHaveCount(0);
   await second.screenshot({
     path: path.join(EVIDENCE, "second-close-refused.png"),
   });
+
+  // Done dismisses it and the screen shows the day as closed, by the desk
+  // that closed it.
+  await secondDialog.getByRole("button", { name: "Done" }).click();
+  await expect(secondDialog).toBeHidden();
+  await expect(
+    second.getByRole("row").filter({ hasText: EMAIL }),
+  ).toContainText("2 · TRY 3,000.00");
   await second.close();
 
   // The charge is on each Guest's own bill, where the desk reads it.

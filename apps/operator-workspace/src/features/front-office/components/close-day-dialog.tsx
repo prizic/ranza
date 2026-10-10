@@ -96,6 +96,8 @@ function CloseDayForm({
     "idle",
   );
 
+  const dayHasMovedOn = outcome === "alreadyClosed" || outcome === "refused";
+
   const message =
     outcome === "alreadyClosed"
       ? t("closeDay.alreadyClosed")
@@ -156,16 +158,28 @@ function CloseDayForm({
       {message ? <FormError>{message}</FormError> : null}
 
       <DialogFooter>
-        <DialogClose asChild>
-          <Button type="button" variant="outline">
-            {t("closeDay.keepOpen")}
-          </Button>
-        </DialogClose>
-        <Button disabled={pending} type="submit">
-          {pending
-            ? t("closeDay.closing")
-            : t("closeDay.close", { date: dayLabel })}
-        </Button>
+        {dayHasMovedOn ? (
+          // The day this was about is closed, or no longer the one waiting:
+          // pressing it again could only be refused again, so the only thing
+          // left is to dismiss, which refreshes the screen to the day it shows
+          // now.
+          <DialogClose asChild>
+            <Button type="button">{t("closeDay.dismissed")}</Button>
+          </DialogClose>
+        ) : (
+          <>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                {t("closeDay.keepOpen")}
+              </Button>
+            </DialogClose>
+            <Button disabled={pending} type="submit">
+              {pending
+                ? t("closeDay.closing")
+                : t("closeDay.close", { date: dayLabel })}
+            </Button>
+          </>
+        )}
       </DialogFooter>
     </form>
   );

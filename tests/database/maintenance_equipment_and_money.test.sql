@@ -28,7 +28,7 @@
 --   the retired-equipment trigger dropped               MT-S3-06
 --   the service definer without its caller check       MT-S4-04, the desk
 begin;
-select plan(30);
+select plan(37);
 
 insert into public.users (id, email) values
   ('a1111111-1111-4111-8111-111111111111', 'mtm-manager@example.test'),
@@ -205,6 +205,53 @@ select throws_ok(
   '23514', 'equipment is not serviced in the future',
   'MT-S3-03: nor serviced in the future');
 
+select throws_ok(
+  $$ insert into public.maintenance_equipment
+       (organization_id, property_id, name, category, location)
+     values ('aa111111-1111-4111-8111-111111111111', 'ab111111-1111-4111-8111-111111111111',
+             repeat('n', 121), 'Plumbing', 'Roof') $$,
+  '23514', null,
+  'MT-S3-03: a name is at most 120 characters');
+
+select throws_ok(
+  $$ insert into public.maintenance_equipment
+       (organization_id, property_id, name, category, location)
+     values ('aa111111-1111-4111-8111-111111111111', 'ab111111-1111-4111-8111-111111111111',
+             'Long category', repeat('c', 61), 'Roof') $$,
+  '23514', null,
+  'MT-S3-03: a category is at most 60 characters');
+
+select throws_ok(
+  $$ insert into public.maintenance_equipment
+       (organization_id, property_id, name, category, location)
+     values ('aa111111-1111-4111-8111-111111111111', 'ab111111-1111-4111-8111-111111111111',
+             'Long place', 'Plumbing', repeat('l', 121)) $$,
+  '23514', null,
+  'MT-S3-03: a place is at most 120 characters');
+
+select throws_ok(
+  $$ insert into public.maintenance_equipment
+       (organization_id, property_id, name, category, location, service_interval_months)
+     values ('aa111111-1111-4111-8111-111111111111', 'ab111111-1111-4111-8111-111111111111',
+             'Rarely', 'Plumbing', 'Roof', 121) $$,
+  '23514', null,
+  'MT-S3-03: an interval is at most 120 months');
+
+select lives_ok(
+  $$ insert into public.maintenance_equipment
+       (organization_id, property_id, name, category, location, service_interval_months)
+     values ('aa111111-1111-4111-8111-111111111111', 'ab111111-1111-4111-8111-111111111111',
+             repeat('n', 120), repeat('c', 60), repeat('l', 120), 120) $$,
+  'MT-S3-03: and the limits themselves are allowed');
+
+-- Somewhere else: an item at the other Property, for MT-S3-07 below.
+select lives_ok(
+  $$ insert into public.maintenance_equipment
+       (organization_id, property_id, name, category, location)
+     values ('aa111111-1111-4111-8111-111111111111', 'ab222222-2222-4222-8222-222222222222',
+             'Other Property boiler', 'Heating', 'Other roof') $$,
+  'MT-S3-01: a manager registers equipment at another Property they reach');
+
 select lives_ok(
   $$ insert into public.maintenance_equipment
        (organization_id, property_id, name, category, location)
@@ -250,6 +297,15 @@ select lives_ok(
             'Machine two will not drain', id, 'urgent'
        from public.maintenance_equipment where location = 'Laundry room' $$,
   'MT-S3-07: a problem is reported about equipment with no room');
+
+select throws_ok(
+  $$ insert into public.maintenance_requests
+       (organization_id, property_id, title, equipment_id, priority)
+     select 'aa111111-1111-4111-8111-111111111111', 'ab111111-1111-4111-8111-111111111111',
+            'The other Property''s boiler', id, 'urgent'
+       from public.maintenance_equipment where location = 'Other roof' $$,
+  '23503', null,
+  'MT-S3-07: an item at another Property is refused by a composite foreign key');
 
 select lives_ok(
   $$ insert into public.maintenance_requests

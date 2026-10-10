@@ -1990,6 +1990,7 @@ export interface Messages {
     dialogOpen: string;
     final: string;
     keepOpen: string;
+    dismissed: string;
     reasonHint: string;
     noPermission: string;
     alreadyClosed: string;
@@ -4149,6 +4150,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       final:
         "Kapatılmış bir günü yeniden açmak henüz mümkün değil; kapatmadan önce tarihi kontrol edin.",
       keepOpen: "Şimdi değil",
+      dismissed: "Tamam",
       reasonHint:
         "Günün neden açık kayıtlarla kapandığını yazın. Kapanışla birlikte saklanır.",
       noPermission:
@@ -6338,6 +6340,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       final:
         "Reopening a closed day is not available yet, so check the date before you close it.",
       keepOpen: "Not now",
+      dismissed: "Done",
       reasonHint:
         "Say why the day closes with items open. It is kept with the close.",
       noPermission:
@@ -8500,6 +8503,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       final:
         "إعادة فتح يوم مغلق غير متاحة بعد، لذا تحقّق من التاريخ قبل الإغلاق.",
       keepOpen: "ليس الآن",
+      dismissed: "تم",
       reasonHint:
         "اذكر سبب إغلاق اليوم مع وجود عناصر مفتوحة. يُحفظ مع الإغلاق.",
       noPermission:
