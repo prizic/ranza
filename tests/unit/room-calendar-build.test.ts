@@ -304,6 +304,50 @@ describe("blocks and free nights", () => {
     expect(free[TODAY]).toBe(2);
     expect(free[addDays(TODAY, 1)]).toBe(3);
   });
+
+  it("TD-S3-04: a night's booked Units and free Units are the Units in use, held nights counting bookings and Stays alone", () => {
+    const calendar = build(
+      [
+        row({
+          name: "In",
+          bars: [
+            stay({
+              startsOn: addDays(TODAY, -1),
+              heldUntil: addDays(TODAY, 2),
+            }),
+          ],
+        }),
+        row({
+          name: "Booked",
+          bars: [
+            bar({
+              status: "confirmed",
+              startsOn: addDays(TODAY, 1),
+              heldUntil: addDays(TODAY, 3),
+            }),
+          ],
+        }),
+        row({
+          name: "Asked",
+          bars: [bar({ status: "requested", startsOn: TODAY })],
+        }),
+        row({ name: "Blocked", status: "blocked", statusReason: "Leak" }),
+      ],
+      7,
+    );
+    const night = (offset: number) =>
+      calendar.nights.find((n) => n.day === addDays(TODAY, offset))!;
+    // Today: the Guest in the room holds it; a request holds nothing, and the
+    // blocked Unit is neither booked nor free.
+    expect([night(0).booked, night(0).free]).toEqual([1, 2]);
+    // Tomorrow the booking holds its first night too.
+    expect([night(1).booked, night(1).free]).toEqual([2, 1]);
+    // Past the stay and the booking, nothing is held.
+    expect([night(3).booked, night(3).free]).toEqual([0, 3]);
+    for (const n of calendar.nights) {
+      expect(n.booked + n.free).toBeLessThanOrEqual(calendar.sellable);
+    }
+  });
 });
 
 describe("rows", () => {

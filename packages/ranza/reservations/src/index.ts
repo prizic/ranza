@@ -58,6 +58,7 @@ export type {
   CheckInReversed,
   CheckOutConfirmation,
   CreatedReservation,
+  DepartedStay,
   Departure,
   DepartureView,
   NewReservation,

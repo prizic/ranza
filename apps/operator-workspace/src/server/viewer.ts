@@ -91,6 +91,7 @@ import type {
   Arrival,
   BookableUnit,
   ChangePreview,
+  DepartedStay,
   Departure,
   DeparturePreview,
   DepartureView,
@@ -262,6 +263,7 @@ export type {
   BookableUnit,
   ChangePreview,
   CloseTheDay,
+  DepartedStay,
   DeparturePreview,
   Departure,
   FolioDetail,
@@ -609,6 +611,24 @@ export async function departures(
 }
 
 /**
+ * The Guests already checked out today at one Property: the rows behind the
+ * departures figure on Today, which `departures` cannot show because it lists
+ * who is still here.
+ *
+ * Same funnel and same non-checking as `departures`.
+ */
+export async function departedToday(
+  propertyId: string,
+): Promise<readonly DepartedStay[]> {
+  const viewer = await currentViewer();
+  if (!viewer) return [];
+  return getComposition().reservations.listDepartedToday(
+    viewer.userId,
+    propertyId,
+  );
+}
+
+/**
  * Close the day at one Property: the day waiting to be closed, what is still
  * open on it, and the recent closes — or null when the viewer cannot reach the
  * Property with the front desk, which is the same answer for one that does not
@@ -829,6 +849,76 @@ export async function todaySummary(
         error,
       }),
   );
+}
+
+/** One Property in the Organization strip: what its own Today says (TD-S3-03). */
+export interface TodayStripEntry {
+  propertyId: string;
+  /** Null where its occupancy is not part of this viewer's Today there. */
+  occupancy: { inHouse: number; sellable: number } | null;
+  /** Items in that Property's attention row; null when it could not be read. */
+  attention: number | null;
+  /** False when a section its attention row draws on could not be read. */
+  complete: boolean;
+}
+
+/** The most Properties the strip reads, because each is a whole Today. */
+export const STRIP_LIMIT = 12;
+
+/**
+ * The Properties of one Organization the viewer has Today at, with the
+ * occupancy and attention count their own Today shows — or nothing when that
+ * is one Property, where a strip would compare a Property with itself.
+ *
+ * Each is the Property's own `todaySummary`, so a strip figure is the figure
+ * on that Property's Today and cannot drift from it. They are read one after
+ * another, never side by side: each is its own transaction, and several at once
+ * is the pool exhaustion #58 fixed in the layout. A Property whose read fails
+ * is reported and shown unread, not left out or shown as zero.
+ */
+export async function todayStrip(
+  propertyId: string,
+): Promise<readonly TodayStripEntry[]> {
+  const reachable = await entitledProperties(TODAY_CAPABILITY);
+  const current = reachable.find(
+    (property) => property.propertyId === propertyId,
+  );
+  if (!current) return [];
+  const siblings = reachable
+    .filter((property) => property.organizationId === current.organizationId)
+    .slice(0, STRIP_LIMIT);
+  if (siblings.length < 2) return [];
+
+  const entries: TodayStripEntry[] = [];
+  for (const sibling of siblings) {
+    try {
+      const summary = await todaySummary(sibling.propertyId);
+      entries.push({
+        propertyId: sibling.propertyId,
+        occupancy:
+          summary?.occupancy?.status === "ok"
+            ? {
+                inHouse: summary.occupancy.data.inHouse,
+                sellable: summary.occupancy.data.sellable,
+              }
+            : null,
+        attention: summary ? summary.attention.items.length : null,
+        complete: summary ? summary.attention.complete : false,
+      });
+    } catch (error: unknown) {
+      console.error("today.strip_failed", {
+        propertyId: sibling.propertyId,
+        error,
+      });
+      entries.push({
+        propertyId: sibling.propertyId,
+        occupancy: null,
+        attention: null,
+        complete: false,
+      });
+    }
+  }
+  return entries;
 }
 
 const NO_AUDIT: AuditPage = {

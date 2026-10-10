@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { LogOut } from "lucide-react";
@@ -72,10 +72,13 @@ function day(iso: string, locale: SupportedLocale): string {
 export function CheckOutDialog({
   departure,
   locale,
+  onDone,
   propertyId,
 }: {
   departure: Departure;
   locale: SupportedLocale;
+  /** Called once the Guest is out: Today refreshes its figures (TD-S2-02). */
+  onDone?: () => void;
   propertyId: string;
 }) {
   const t = useTranslations();
@@ -85,6 +88,9 @@ export function CheckOutDialog({
   );
   const [acknowledged, setAcknowledged] = useState(false);
   const [reason, setReason] = useState("");
+  useEffect(() => {
+    if (outcome === "done") onDone?.();
+  }, [outcome, onDone]);
 
   const name = departure.guestName || t("noGuestRecorded");
   // What the Folio will hold once check-out has charged its nights: the bill

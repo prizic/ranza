@@ -103,6 +103,17 @@ export interface FolioLine {
 }
 
 /**
+ * What was charged to Folios at a Property on its business date, less what was
+ * reversed of it: one entry per currency, because a Folio keeps the currency it
+ * opened in and a sum across two is a number in none. Payments are not charges
+ * and are in neither half (FO-S9).
+ */
+export interface ChargesPosted {
+  currency: string;
+  netMinor: number;
+}
+
+/**
  * A Folio as the Finance screen lists it.
  *
  * `balanceMinor` is the sum of the lines the reader may see, computed in the

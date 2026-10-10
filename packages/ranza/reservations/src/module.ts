@@ -62,6 +62,7 @@ import {
   type CheckInReversed,
   type CheckOutConfirmation,
   type CreatedReservation,
+  type DepartedStay,
   type Departure,
   type DepartureView,
   type NewReservation,
@@ -823,27 +824,46 @@ export function createReservationsModule(deps: ReservationsDeps) {
   }
 
   /**
-   * How many Stays at a Property were checked out on its business date.
+   * The Stays at a Property that were checked out on its business date.
    *
-   * The departures list reads Stays still in house, so it cannot say how many
-   * have gone; the dashboard's "out of due" needs both halves. Dated by the
-   * moment of departure in the Property's own business day (ADR 0021), so a
-   * check-out at 01:00 before the cutoff counts towards the working day it
-   * belongs to.
+   * The departures list reads Stays still in house, so it cannot say who has
+   * gone; the dashboard's "out of due" counts them and opens this list, so the
+   * number and the rows are one query. Dated by the moment of departure in the
+   * Property's own business day (ADR 0021), so a check-out at 01:00 before the
+   * cutoff belongs to the working day it was done in. Latest first.
    */
-  async function countDepartedToday(
+  async function listDepartedToday(
     userId: string,
     propertyId: string,
-  ): Promise<number> {
-    const rows = await withOrganizationContext(
+  ): Promise<DepartedStay[]> {
+    return withOrganizationContext(
       deps.db,
       { userId },
       (tx) =>
-        tx.$queryRaw<{ departed: number }[]>`
-        select count(*)::int as "departed"
+        tx.$queryRaw<DepartedStay[]>`
+        select
+          stay.id                                   as "stayId",
+          reservation.reference                     as "reference",
+          coalesce(guest.full_name, '')             as "guestName",
+          stay.stay_type                            as "stayType",
+          unit.name                                 as "unitName",
+          room.name                                 as "roomName",
+          unit.unit_type                            as "unitType",
+          to_char(stay.starts_on, 'YYYY-MM-DD')     as "startsOn",
+          to_char(stay.ends_on, 'YYYY-MM-DD')       as "endsOn",
+          to_char(stay.departed_at at time zone 'UTC',
+                  'YYYY-MM-DD"T"HH24:MI:SS"Z"')     as "departedAt"
         from public.stays as stay
         join public.properties as property
           on property.id = stay.property_id
+        join public.accommodation_units as unit
+          on unit.id = stay.accommodation_unit_id
+        left join public.accommodation_units as room
+          on room.id = unit.parent_id
+        left join public.reservations as reservation
+          on reservation.id = stay.reservation_id
+        left join public.guests as guest
+          on guest.id = reservation.guest_id
         where stay.property_id = ${propertyId}::uuid
           and stay.status = 'departed'
           and stay.departed_at is not null
@@ -860,9 +880,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
             ${FRONT_DESK_CAPABILITY.moduleKey},
             ${FRONT_DESK_CAPABILITY.capabilityKey}
           )
+        order by stay.departed_at desc, stay.id
       `,
     );
-    return rows[0]?.departed ?? 0;
   }
 
   /**
@@ -3192,7 +3212,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
     listBookableUnits,
     listUnavailableUnits,
     listDepartures,
-    countDepartedToday,
+    listDepartedToday,
     listReservations,
     moveGuest,
     previewChange,

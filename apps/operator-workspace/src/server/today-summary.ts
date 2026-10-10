@@ -1,5 +1,10 @@
-import type { CapabilityRef, CoreModule, WorkingDay } from "@ranza/core";
-import type { FolioSummary, FoliosModule } from "@ranza/folios";
+import type {
+  AuditPage,
+  CapabilityRef,
+  CoreModule,
+  WorkingDay,
+} from "@ranza/core";
+import type { ChargesPosted, FolioSummary, FoliosModule } from "@ranza/folios";
 import type {
   HousekeepingBoard,
   HousekeepingModule,
@@ -9,9 +14,11 @@ import type {
   Arrival,
   Departure,
   ReservationsModule,
+  RoomCalendar,
 } from "@ranza/reservations";
 import type { AccommodationModule, UnitMap } from "@ranza/accommodation";
 import {
+  BOOKED_AHEAD_NIGHTS,
   deriveToday,
   grantsFor,
   needsFor,
@@ -39,6 +46,11 @@ export interface TodayReads {
   board: (propertyId: string) => Promise<HousekeepingBoard>;
   folios: (propertyId: string) => Promise<readonly FolioSummary[]>;
   maintenance: (propertyId: string) => Promise<TodayMaintenance>;
+  /** The newest records, newest first, of the log the viewer may read. */
+  activity: (propertyId: string) => Promise<AuditPage>;
+  charges: (propertyId: string) => Promise<readonly ChargesPosted[]>;
+  /** From the business date, the nights ahead. */
+  calendar: (propertyId: string, from: string) => Promise<RoomCalendar>;
 }
 
 export interface TodayModules {
@@ -58,13 +70,21 @@ export function todayReads(modules: TodayModules, userId: string): TodayReads {
       modules.reservations.listArrivals(userId, propertyId),
     departures: (propertyId) =>
       modules.reservations.listDepartures(userId, propertyId, "due"),
-    departedToday: (propertyId) =>
-      modules.reservations.countDepartedToday(userId, propertyId),
+    departedToday: async (propertyId) =>
+      (await modules.reservations.listDepartedToday(userId, propertyId)).length,
     units: (propertyId) => modules.accommodation.listUnits(userId, propertyId),
     board: (propertyId) => modules.housekeeping.board(userId, propertyId),
     folios: (propertyId) => modules.folios.listFolios(userId, propertyId),
     maintenance: (propertyId) =>
       modules.maintenance.todayView(userId, propertyId),
+    activity: (propertyId) => modules.core.auditLog(userId, propertyId, {}),
+    charges: (propertyId) =>
+      modules.folios.chargesPostedToday(userId, propertyId),
+    calendar: (propertyId, from) =>
+      modules.reservations.listRoomCalendar(userId, propertyId, {
+        from,
+        days: BOOKED_AHEAD_NIGHTS,
+      }),
   };
 }
 
@@ -159,6 +179,27 @@ export async function readTodaySummary(
     input.folios = await attempt(
       "folios",
       () => reads.folios(propertyId),
+      report,
+    );
+  }
+  if (needs.activity) {
+    input.activity = await attempt(
+      "activity",
+      () => reads.activity(propertyId),
+      report,
+    );
+  }
+  if (needs.charges) {
+    input.charges = await attempt(
+      "charges",
+      () => reads.charges(propertyId),
+      report,
+    );
+  }
+  if (needs.calendar) {
+    input.calendar = await attempt(
+      "calendar",
+      () => reads.calendar(propertyId, day.businessDate),
       report,
     );
   }

@@ -17,6 +17,13 @@ import {
   REVERSE_PAYMENT_PERMISSION,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
+import { ListFilterNotice } from "../../../../features/today/components/list-filter-notice";
+import { money } from "../../../../features/today/format";
+import {
+  inFolioFilter,
+  parseFolioFilter,
+  totals,
+} from "../../../../features/today/views";
 
 /**
  * Finance: what each Stay at a Property has accrued, and the charges on one.
@@ -36,7 +43,11 @@ export default async function FinancePage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ folio?: string; property?: string }>;
+  searchParams: Promise<{
+    folio?: string;
+    property?: string;
+    show?: string;
+  }>;
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
@@ -103,16 +114,42 @@ export default async function FinancePage({
     );
   }
 
+  const financeHref = `${localizeHref(locale, "finance")}?property=${property.propertyId}`;
+  const filter = parseFolioFilter(search.show);
+  const shown = (await folios(property.propertyId)).filter((row) =>
+    inFolioFilter(filter, row),
+  );
+  const first = shown[0];
+
   return (
     <>
       <p className="text-sm text-muted-foreground">
         {t("foliosAt")} {property.propertyName}
       </p>
-      <FoliosTable
-        folioHref={`${localizeHref(locale, "finance")}?property=${property.propertyId}`}
-        folios={await folios(property.propertyId)}
-        locale={locale}
-      />
+      {filter ? (
+        <div className="mt-4">
+          <ListFilterNotice
+            allHref={financeHref}
+            count={shown.length}
+            detail={
+              first
+                ? money(
+                    totals(
+                      shown.map((row) => ({
+                        amountMinor: row.balanceMinor,
+                        currency: row.currency,
+                      })),
+                    ),
+                    first.currency,
+                    locale,
+                  )
+                : undefined
+            }
+            filter="filterOpenFolios"
+          />
+        </div>
+      ) : null}
+      <FoliosTable folioHref={financeHref} folios={shown} locale={locale} />
     </>
   );
 }

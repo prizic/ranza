@@ -392,6 +392,37 @@ describe("the figures, as the database answers them", () => {
   );
 
   it(
+    "the_departed_list_is_the_departed_count: the figure opens exactly the Guests it counts",
+    async () => {
+      const summary = await todayFor(DESK, BARE);
+      const departed = await modules.reservations.listDepartedToday(DESK, BARE);
+      expect(summary?.departures).toMatchObject({
+        status: "ok",
+        data: { departed: departed.length },
+      });
+      expect(departed).toHaveLength(1);
+      expect(departed[0]).toMatchObject({
+        guestName: "Today Guest",
+        unitName: "TD-B1",
+        roomName: null,
+      });
+      // The moment they left, as an instant a screen can set in the
+      // Property's own clock.
+      expect(Date.parse(departed[0]?.departedAt ?? "")).not.toBeNaN();
+
+      // Nobody who does not reach the Property reads who left it, and nobody
+      // is listed at a Property they did not leave (TD-S1-29).
+      expect(
+        await modules.reservations.listDepartedToday(OUTSIDER, BARE),
+      ).toEqual([]);
+      expect(
+        await modules.reservations.listDepartedToday(DESK, PROPERTY),
+      ).toEqual([]);
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
     "the_day_is_the_property_business_date",
     async () => {
       const [row] = await owner.$queryRawUnsafe<{ today: string }[]>(
@@ -402,6 +433,120 @@ describe("the figures, as the database answers them", () => {
       expect(row).toBeDefined();
       expect(summary?.day.businessDate).toBe(row?.today);
       expect(summary?.day.cutoff).toBe("04:00");
+    },
+    DATABASE_BUDGET_MS,
+  );
+});
+
+describe("the manager's depth, as the database answers it", () => {
+  it(
+    "charges_today_are_charges_less_reversals_on_the_business_date: from the real lines",
+    async () => {
+      const folioId = (await modules.folios.listFolios(FINANCE, PROPERTY))[0]
+        ?.folioId;
+      expect(folioId).toBeDefined();
+      const today = () => modules.folios.chargesPostedToday(FINANCE, PROPERTY);
+      // The Minibar charge `dueTodayOwing` posted, and nothing else yet.
+      const before = await today();
+      expect(before).toEqual([{ currency: "TRY", netMinor: BALANCE }]);
+
+      // A charge and its reversal net to nothing; a payment is not a charge,
+      // nor is the reversal of one.
+      const charge = await modules.folios.postCharge(FINANCE, {
+        folioId: folioId!,
+        description: "Laundry",
+        amountMinor: 5_000,
+      });
+      expect(await today()).toEqual([
+        { currency: "TRY", netMinor: BALANCE + 5_000 },
+      ]);
+      await modules.folios.reverseLine(FINANCE, charge.lineId, "Posted twice");
+      expect(await today()).toEqual(before);
+      const payment = await modules.folios.postPayment(FINANCE, {
+        folioId: folioId!,
+        description: "Part payment",
+        paymentMethod: "cash",
+        amountMinor: 3_000,
+      });
+      expect(await today()).toEqual(before);
+      await modules.folios.reverseLine(FINANCE, payment.lineId, "Wrong Folio");
+      expect(await today()).toEqual(before);
+
+      // A charge posted before the business day began is yesterday's. Placed
+      // as the owner: a posted line is never rewritten, and this one is made
+      // old rather than changed.
+      await owner.$executeRawUnsafe(
+        `insert into public.folio_lines
+           (organization_id, property_id, folio_id, line_type, description,
+            amount_minor, posted_at)
+         select $1::uuid, $2::uuid, $3::uuid, 'charge', 'Yesterday', 9999,
+                now() - interval '30 hours'`,
+        ORG,
+        PROPERTY,
+        folioId,
+      );
+      expect(await today()).toEqual(before);
+
+      // The figure is withheld in the module, not hidden by the screen: only
+      // a holder of finance.manage_folio reads it, and only where they reach.
+      expect(
+        await modules.folios.chargesPostedToday(HOUSEKEEPER, PROPERTY),
+      ).toEqual([]);
+      expect(
+        await modules.folios.chargesPostedToday(OUTSIDER, PROPERTY),
+      ).toEqual([]);
+      expect(await modules.folios.chargesPostedToday(FINANCE, BARE)).toEqual(
+        [],
+      );
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "recent_activity_follows_audit_read: the log the viewer may read, five at most",
+    async () => {
+      const manager = await todayFor(MANAGER, PROPERTY);
+      expect(manager?.activity?.status).toBe("ok");
+      const rows =
+        manager?.activity?.status === "ok" ? manager.activity.data.rows : [];
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows.length).toBeLessThanOrEqual(5);
+      // Newest first, each carrying the id of the record it opens.
+      expect(rows.map((row) => row.at)).toEqual(
+        [...rows.map((row) => row.at)].sort().reverse(),
+      );
+      expect(rows.every((row) => row.recordId.length > 0)).toBe(true);
+
+      // A role without audit.read has no card, and the read is not made for
+      // it: the front desk and housekeeping and finance leads never ask.
+      for (const user of [DESK, HOUSEKEEPER, FINANCE]) {
+        expect((await todayFor(user, PROPERTY))?.activity).toBeUndefined();
+      }
+      expect(failures).toEqual([]);
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "booked_occupancy_counts_reservations_and_stays_per_night: from the room calendar",
+    async () => {
+      const summary = await todayFor(MANAGER, PROPERTY);
+      expect(summary?.booked?.status).toBe("ok");
+      const nights =
+        summary?.booked?.status === "ok" ? summary.booked.data.nights : [];
+      expect(nights).toHaveLength(14);
+      expect(nights[0]?.day).toBe(summary?.day.businessDate);
+      // Tonight: the Guest due out today still holds it, and so does the one
+      // arriving; a night's booked and free are the Units in use, never more
+      // than the Property has to let.
+      expect(nights[0]?.booked).toBeGreaterThanOrEqual(1);
+      for (const night of nights) {
+        expect(night.inUse).toBeGreaterThanOrEqual(night.booked);
+        expect(night.inUse).toBeLessThanOrEqual(5);
+      }
+      // A viewer who is not the manager is not sent it.
+      expect((await todayFor(DESK, PROPERTY))?.booked).toBeUndefined();
+      expect(failures).toEqual([]);
     },
     DATABASE_BUDGET_MS,
   );

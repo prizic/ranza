@@ -49,7 +49,7 @@ function renderArrivals(): void {
   render(
     <QueryProvider scope={scope.userId}>
       <Hydrated client={prefetched}>
-        <LiveArrivals locale="en" scope={scope} />
+        <LiveArrivals allHref="" filter={null} locale="en" scope={scope} />
       </Hydrated>
     </QueryProvider>,
   );

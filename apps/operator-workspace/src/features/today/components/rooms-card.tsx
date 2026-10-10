@@ -49,25 +49,45 @@ export function RoomsCard({
       {rooms.status === "unavailable" ? (
         <SectionUnavailable onRetry={onRetry} />
       ) : (
-        <Breakdown locale={locale} rooms={rooms.data} />
+        <Breakdown locale={locale} propertyId={propertyId} rooms={rooms.data} />
       )}
     </section>
   );
 }
 
+const LINK =
+  "-mx-2 rounded-lg px-2 py-0.5 transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
+
 function Breakdown({
   locale,
+  propertyId,
   rooms,
 }: {
   locale: SupportedLocale;
+  propertyId: string;
   rooms: Rooms;
 }) {
   const t = useTranslations("dashboard");
   const parts = [
-    { key: "ready", count: rooms.ready, swatch: "bg-success" },
-    { key: "awaiting", count: rooms.awaitingInspection, swatch: "bg-warning" },
-    { key: "dirty", count: rooms.dirty, swatch: "bg-danger" },
-    { key: "outOfService", count: rooms.outOfService, swatch: "bg-border" },
+    {
+      key: "ready",
+      count: rooms.ready,
+      show: "ready",
+      swatch: "bg-success",
+    },
+    {
+      key: "awaiting",
+      count: rooms.awaitingInspection,
+      show: "awaiting_inspection",
+      swatch: "bg-warning",
+    },
+    { key: "dirty", count: rooms.dirty, show: "dirty", swatch: "bg-danger" },
+    {
+      key: "outOfService",
+      count: rooms.outOfService,
+      show: "out_of_service",
+      swatch: "bg-border",
+    },
   ] as const;
 
   return (
@@ -86,27 +106,42 @@ function Breakdown({
           ) : null,
         )}
       </div>
-      <dl className="mt-4 grid gap-2">
+      <ul className="mt-4 grid gap-1">
         {parts.map((part) => (
-          <div className="flex items-center gap-2.5 text-sm" key={part.key}>
-            <span
-              aria-hidden="true"
-              className={cn("size-3 rounded", part.swatch)}
-            />
-            <dt className="flex-1">{t(part.key)}</dt>
-            <dd className="font-semibold tabular-nums">
-              {formatNumber(part.count, locale)}
-            </dd>
-          </div>
+          <li key={part.key}>
+            <Link
+              className={cn("flex items-center gap-2.5 text-sm", LINK)}
+              href={todayHref(locale, "housekeeping", propertyId, {
+                show: part.show,
+              })}
+              prefetch={false}
+            >
+              <span
+                aria-hidden="true"
+                className={cn("size-3 rounded", part.swatch)}
+              />
+              <span className="flex-1">{t(part.key)}</span>
+              <span className="font-semibold tabular-nums">
+                {formatNumber(part.count, locale)}
+              </span>
+            </Link>
+          </li>
         ))}
-      </dl>
+      </ul>
       {rooms.floors.length > 1 ? (
         <section
           aria-label={t("roomsByFloor")}
           className="mt-4 grid gap-2.5 border-t border-border pt-4"
         >
           {rooms.floors.map((floor) => (
-            <div className="text-sm" key={floor.floor ?? "none"}>
+            <Link
+              className={cn("block text-sm", LINK)}
+              href={todayHref(locale, "housekeeping", propertyId, {
+                floor: floor.floor === null ? "none" : String(floor.floor),
+              })}
+              key={floor.floor ?? "none"}
+              prefetch={false}
+            >
               <div className="mb-1 flex justify-between">
                 <span>
                   {floor.floor === null
@@ -131,7 +166,7 @@ function Breakdown({
                   }}
                 />
               </div>
-            </div>
+            </Link>
           ))}
         </section>
       ) : null}

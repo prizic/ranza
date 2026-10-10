@@ -63,9 +63,11 @@ function screenOf(board: Board, locale: SupportedLocale) {
   return (
     <NextIntlClientProvider locale={locale} messages={messages[locale]}>
       <HousekeepingBoard
+        allHref=""
         board={board}
         locale={locale}
         markLimit={60}
+        narrowed={null}
         propertyName="Deniz Otel"
         timeZone="Europe/Istanbul"
       />

@@ -100,6 +100,12 @@ export default async function TodayPage({
         greeting={greetingAt(hour)}
         locale={locale}
         name={viewer.name}
+        properties={properties
+          .filter((other) => other.organizationId === property.organizationId)
+          .map((other) => ({
+            propertyId: other.propertyId,
+            propertyName: other.propertyName,
+          }))}
         scope={scope}
       />
     </Hydrated>

@@ -199,6 +199,10 @@ export interface Messages {
   showOnRoomMap: string;
   noDeparturesTitle: string;
   noDeparturesDescription: string;
+  /** The departures screen's list of who has already gone today. */
+  leftToday: string;
+  leftAt: string;
+  nobodyLeftYet: string;
   readiness: string;
   reservation: string;
   roomAndBed: string;
@@ -1191,7 +1195,6 @@ export interface Messages {
     floor: string;
     noFloor: string;
     nothingToClean: string;
-    wholeBoard: string;
     rooms: string;
     ready: string;
     awaiting: string;
@@ -1209,6 +1212,42 @@ export interface Messages {
     sectionUnavailableDescription: string;
     retry: string;
     nothingForRole: string;
+    filterArrivalsToCome: string;
+    filterOwing: string;
+    filterOverdueOwing: string;
+    filterInService: string;
+    filterReady: string;
+    filterAwaitingInspection: string;
+    filterDirty: string;
+    filterOutOfService: string;
+    filterForArrival: string;
+    filterCleanFirst: string;
+    filterFloor: string;
+    filterNoFloor: string;
+    filterOpenFolios: string;
+    filterShowAll: string;
+    filterReadyCount: string;
+    roomOccupiedNoMark: string;
+    activityTitle: string;
+    activityEmpty: string;
+    openAuditLog: string;
+    chargesTitle: string;
+    chargesNote: string;
+    openFinance: string;
+    bookedTitle: string;
+    bookedNote: string;
+    bookedColNight: string;
+    bookedColUnits: string;
+    bookedColShare: string;
+    bookedOf: string;
+    openCalendar: string;
+    stripTitle: string;
+    stripAttention: string;
+    stripUnread: string;
+    stripPartial: string;
+    allRoomsToClean: string;
+    allOpenFolios: string;
+    allOwing: string;
   };
   /** The Housekeeping screen (RANZ-28). */
   housekeeping: {
@@ -2221,6 +2260,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     noDeparturesTitle: "Bugün çıkış yok",
     noDeparturesDescription:
       "Bu tesiste bugün ayrılması beklenen bir konaklama bulunmuyor.",
+    leftToday: "Bugün ayrılanlar",
+    leftAt: "Ayrılış",
+    nobodyLeftYet: "Bugün henüz ayrılan olmadı.",
     readiness: "Hazırlık",
     reservation: "Rezervasyon",
     roomAndBed: "Oda ve yatak",
@@ -2824,7 +2866,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       floor: "{floor}. kat",
       noFloor: "Katsız",
       nothingToClean: "Temizlenecek oda yok.",
-      wholeBoard: "Panonun tümü",
       rooms: "Odalar",
       ready: "Hazır",
       awaiting: "Temiz, kontrol bekliyor",
@@ -2844,6 +2885,56 @@ export const messages: Record<SupportedLocale, Messages> = {
       retry: "Yeniden dene",
       nothingForRole:
         "Bu tesiste rolünüz için burada gösterilecek bir şey henüz yok.",
+      filterArrivalsToCome:
+        "{count, plural, one {# geliş bekleniyor} other {# geliş bekleniyor}}",
+      filterOwing:
+        "{count, plural, one {# misafir bakiyeyle ayrılıyor} other {# misafir bakiyeyle ayrılıyor}}",
+      filterOverdueOwing:
+        "{count, plural, one {# gecikmiş çıkış, bakiyeli} other {# gecikmiş çıkış, bakiyeli}}",
+      filterInService:
+        "{count, plural, one {# hizmetteki oda} other {# hizmetteki oda}}",
+      filterReady: "{count, plural, one {# hazır oda} other {# hazır oda}}",
+      filterAwaitingInspection:
+        "{count, plural, one {# temiz oda, kontrol bekliyor} other {# temiz oda, kontrol bekliyor}}",
+      filterDirty: "{count, plural, one {# kirli oda} other {# kirli oda}}",
+      filterOutOfService:
+        "{count, plural, one {# hizmet dışı oda} other {# hizmet dışı oda}}",
+      filterForArrival:
+        "{count, plural, one {Gelenin beklediği # oda} other {Gelenlerin beklediği # oda}}",
+      filterCleanFirst:
+        "{count, plural, one {Önce temizlenecek # oda} other {Önce temizlenecek # oda}}",
+      filterFloor:
+        "{count, plural, one {{floor}. katta # oda} other {{floor}. katta # oda}}",
+      filterNoFloor: "{count, plural, one {Katsız # oda} other {Katsız # oda}}",
+      filterOpenFolios:
+        "{count, plural, one {# açık folyo} other {# açık folyo}}",
+      filterShowAll: "Tümünü göster",
+      filterReadyCount: "{count, plural, one {# hazır} other {# hazır}}",
+      roomOccupiedNoMark: "İçinde misafir var; ayrılınca temizlenir.",
+      activityTitle: "Son hareketler",
+      activityEmpty: "Henüz bir kayıt yok.",
+      openAuditLog: "Denetim kaydını aç",
+      chargesTitle: "Bugünkü ücretler",
+      chargesNote: "Bugün işlenen ücretler, iadeler düşülmüş",
+      openFinance: "Finansı aç",
+      bookedTitle: "Önümüzdeki doluluk",
+      bookedNote: "Rezervasyonlar ve konaklamalar; tahmin değil",
+      bookedColNight: "Gece",
+      bookedColUnits: "Tutulan birim",
+      bookedColShare: "Doluluk",
+      bookedOf: "{count} / {of}",
+      openCalendar: "Oda takvimini aç",
+      stripTitle: "Tesisleriniz",
+      stripAttention:
+        "{count, plural, =0 {Dikkat gerektiren bir şey yok} one {# şey dikkat gerektiriyor} other {# şey dikkat gerektiriyor}}",
+      stripUnread: "Okunamadı",
+      stripPartial: "bazı bölümler okunamadı",
+      allRoomsToClean:
+        "{count, plural, one {Temizlenecek odayı aç} other {Temizlenecek # odanın tümü}}",
+      allOpenFolios:
+        "{count, plural, one {Açık folyoyu aç} other {# açık folyonun tümü}}",
+      allOwing:
+        "{count, plural, one {Bakiyeyle ayrılan misafiri aç} other {Bakiyeyle ayrılan # misafirin tümü}}",
     },
     rates: {
       title: "Gecelik fiyatlar",
@@ -4356,6 +4447,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     showOnRoomMap: "Show on the room map",
     noDeparturesTitle: "No departures today",
     noDeparturesDescription: "Nobody is due to leave this Property today.",
+    leftToday: "Left today",
+    leftAt: "Left at",
+    nobodyLeftYet: "Nobody has left yet today.",
     readiness: "Readiness",
     reservation: "Reservation",
     roomAndBed: "Room and bed",
@@ -4963,7 +5057,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       floor: "Floor {floor}",
       noFloor: "No floor",
       nothingToClean: "No room needs cleaning.",
-      wholeBoard: "The whole board",
       rooms: "Rooms",
       ready: "Ready",
       awaiting: "Clean, awaiting inspection",
@@ -4983,6 +5076,58 @@ export const messages: Record<SupportedLocale, Messages> = {
       retry: "Try again",
       nothingForRole:
         "There is nothing here for your role at this Property yet.",
+      filterArrivalsToCome:
+        "{count, plural, one {# arrival still to come} other {# arrivals still to come}}",
+      filterOwing:
+        "{count, plural, one {# Guest leaving with a balance} other {# Guests leaving with a balance}}",
+      filterOverdueOwing:
+        "{count, plural, one {# overdue departure with a balance} other {# overdue departures with a balance}}",
+      filterInService:
+        "{count, plural, one {# room in service} other {# rooms in service}}",
+      filterReady: "{count, plural, one {# ready room} other {# ready rooms}}",
+      filterAwaitingInspection:
+        "{count, plural, one {# clean room awaiting inspection} other {# clean rooms awaiting inspection}}",
+      filterDirty: "{count, plural, one {# dirty room} other {# dirty rooms}}",
+      filterOutOfService:
+        "{count, plural, one {# room out of service} other {# rooms out of service}}",
+      filterForArrival:
+        "{count, plural, one {# room an arrival is waiting on} other {# rooms arrivals are waiting on}}",
+      filterCleanFirst:
+        "{count, plural, one {# room to clean first} other {# rooms to clean first}}",
+      filterFloor:
+        "{count, plural, one {# room on floor {floor}} other {# rooms on floor {floor}}}",
+      filterNoFloor:
+        "{count, plural, one {# room with no floor} other {# rooms with no floor}}",
+      filterOpenFolios:
+        "{count, plural, one {# open Folio} other {# open Folios}}",
+      filterShowAll: "Show all",
+      filterReadyCount: "{count, plural, one {# ready} other {# ready}}",
+      roomOccupiedNoMark:
+        "A Guest is still in it; it is cleaned once they leave.",
+      activityTitle: "Recent activity",
+      activityEmpty: "Nothing has been recorded yet.",
+      openAuditLog: "Open the audit log",
+      chargesTitle: "Charges today",
+      chargesNote: "Charges less reversals posted today",
+      openFinance: "Open Finance",
+      bookedTitle: "Booked ahead",
+      bookedNote: "Bookings and Stays, not a forecast",
+      bookedColNight: "Night",
+      bookedColUnits: "Units held",
+      bookedColShare: "Booked",
+      bookedOf: "{count} of {of}",
+      openCalendar: "Open the room calendar",
+      stripTitle: "Your Properties",
+      stripAttention:
+        "{count, plural, =0 {Nothing needs attention} one {# thing needs attention} other {# things need attention}}",
+      stripUnread: "Could not be read",
+      stripPartial: "some sections unread",
+      allRoomsToClean:
+        "{count, plural, one {Open the room to clean} other {All # rooms to clean}}",
+      allOpenFolios:
+        "{count, plural, one {Open the open Folio} other {All # open Folios}}",
+      allOwing:
+        "{count, plural, one {Open the Guest leaving with a balance} other {All # Guests leaving with a balance}}",
     },
     rates: {
       title: "Nightly rates",
@@ -6483,6 +6628,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     showOnRoomMap: "عرض على خريطة الغرف",
     noDeparturesTitle: "لا توجد مغادرات اليوم",
     noDeparturesDescription: "لا أحد من المقرر أن يغادر هذه المنشأة اليوم.",
+    leftToday: "غادروا اليوم",
+    leftAt: "وقت المغادرة",
+    nobodyLeftYet: "لم يغادر أحد بعد اليوم.",
     readiness: "الجاهزية",
     reservation: "الحجز",
     roomAndBed: "الغرفة والسرير",
@@ -7080,7 +7228,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       floor: "الطابق {floor}",
       noFloor: "بلا طابق",
       nothingToClean: "لا غرفة تحتاج إلى تنظيف.",
-      wholeBoard: "اللوحة كاملة",
       rooms: "الغرف",
       ready: "جاهزة",
       awaiting: "نظيفة، بانتظار الفحص",
@@ -7098,6 +7245,60 @@ export const messages: Record<SupportedLocale, Messages> = {
         "باقي الأقسام محدّثة. أعد المحاولة أو افتح الشاشة.",
       retry: "أعد المحاولة",
       nothingForRole: "لا يوجد هنا شيء لدورك في هذا المرفق بعد.",
+      filterArrivalsToCome:
+        "{count, plural, zero {لا قادمين بعد} one {قادم واحد بعد} two {قادمان بعد} few {# قادمين بعد} many {# قادمًا بعد} other {# قادم بعد}}",
+      filterOwing:
+        "{count, plural, zero {لا ضيوف يغادرون برصيد} one {ضيف واحد يغادر برصيد} two {ضيفان يغادران برصيد} few {# ضيوف يغادرون برصيد} many {# ضيفًا يغادرون برصيد} other {# ضيف يغادرون برصيد}}",
+      filterOverdueOwing:
+        "{count, plural, zero {لا مغادرات متأخرة برصيد} one {مغادرة متأخرة واحدة برصيد} two {مغادرتان متأخرتان برصيد} few {# مغادرات متأخرة برصيد} many {# مغادرة متأخرة برصيد} other {# مغادرة متأخرة برصيد}}",
+      filterInService:
+        "{count, plural, zero {لا غرف في الخدمة} one {غرفة واحدة في الخدمة} two {غرفتان في الخدمة} few {# غرف في الخدمة} many {# غرفة في الخدمة} other {# غرفة في الخدمة}}",
+      filterReady:
+        "{count, plural, zero {لا غرف جاهزة} one {غرفة واحدة جاهزة} two {غرفتان جاهزتان} few {# غرف جاهزة} many {# غرفة جاهزة} other {# غرفة جاهزة}}",
+      filterAwaitingInspection:
+        "{count, plural, zero {لا غرف نظيفة بانتظار الفحص} one {غرفة واحدة نظيفة بانتظار الفحص} two {غرفتان نظيفتان بانتظار الفحص} few {# غرف نظيفة بانتظار الفحص} many {# غرفة نظيفة بانتظار الفحص} other {# غرفة نظيفة بانتظار الفحص}}",
+      filterDirty:
+        "{count, plural, zero {لا غرف متسخة} one {غرفة واحدة متسخة} two {غرفتان متسختان} few {# غرف متسخة} many {# غرفة متسخة} other {# غرفة متسخة}}",
+      filterOutOfService:
+        "{count, plural, zero {لا غرف خارج الخدمة} one {غرفة واحدة خارج الخدمة} two {غرفتان خارج الخدمة} few {# غرف خارج الخدمة} many {# غرفة خارج الخدمة} other {# غرفة خارج الخدمة}}",
+      filterForArrival:
+        "{count, plural, zero {لا غرف ينتظرها قادمون} one {غرفة واحدة ينتظرها قادم} two {غرفتان ينتظرهما قادمون} few {# غرف ينتظرها قادمون} many {# غرفة ينتظرها قادمون} other {# غرفة ينتظرها قادمون}}",
+      filterCleanFirst:
+        "{count, plural, zero {لا غرف للتنظيف أولًا} one {غرفة واحدة للتنظيف أولًا} two {غرفتان للتنظيف أولًا} few {# غرف للتنظيف أولًا} many {# غرفة للتنظيف أولًا} other {# غرفة للتنظيف أولًا}}",
+      filterFloor:
+        "{count, plural, zero {لا غرف في الطابق {floor}} one {غرفة واحدة في الطابق {floor}} two {غرفتان في الطابق {floor}} few {# غرف في الطابق {floor}} many {# غرفة في الطابق {floor}} other {# غرفة في الطابق {floor}}}",
+      filterNoFloor:
+        "{count, plural, zero {لا غرف بلا طابق} one {غرفة واحدة بلا طابق} two {غرفتان بلا طابق} few {# غرف بلا طابق} many {# غرفة بلا طابق} other {# غرفة بلا طابق}}",
+      filterOpenFolios:
+        "{count, plural, zero {لا فواتير مفتوحة} one {فاتورة مفتوحة واحدة} two {فاتورتان مفتوحتان} few {# فواتير مفتوحة} many {# فاتورة مفتوحة} other {# فاتورة مفتوحة}}",
+      filterShowAll: "اعرض الكل",
+      filterReadyCount:
+        "{count, plural, zero {لا جاهزة} one {واحدة جاهزة} two {اثنتان جاهزتان} few {# جاهزة} many {# جاهزة} other {# جاهزة}}",
+      roomOccupiedNoMark: "ما زال فيها ضيف؛ تُنظَّف بعد مغادرته.",
+      activityTitle: "آخر النشاط",
+      activityEmpty: "لم يُسجَّل شيء بعد.",
+      openAuditLog: "افتح سجل التدقيق",
+      chargesTitle: "رسوم اليوم",
+      chargesNote: "الرسوم المسجّلة اليوم بعد خصم عكوسها",
+      openFinance: "افتح المالية",
+      bookedTitle: "المحجوز قادمًا",
+      bookedNote: "حجوزات وإقامات، لا توقّعات",
+      bookedColNight: "الليلة",
+      bookedColUnits: "وحدات محجوزة",
+      bookedColShare: "الإشغال",
+      bookedOf: "{count} من {of}",
+      openCalendar: "افتح تقويم الغرف",
+      stripTitle: "منشآتك",
+      stripAttention:
+        "{count, plural, zero {لا شيء يحتاج إلى انتباه} one {شيء واحد يحتاج إلى انتباه} two {شيئان يحتاجان إلى انتباه} few {# أشياء تحتاج إلى انتباه} many {# شيئًا يحتاج إلى انتباه} other {# شيء يحتاج إلى انتباه}}",
+      stripUnread: "تعذّرت قراءتها",
+      stripPartial: "تعذّرت قراءة بعض الأقسام",
+      allRoomsToClean:
+        "{count, plural, one {افتح الغرفة المطلوب تنظيفها} other {كل الغرف المطلوب تنظيفها (#)}}",
+      allOpenFolios:
+        "{count, plural, one {افتح الفاتورة المفتوحة} other {كل الفواتير المفتوحة (#)}}",
+      allOwing:
+        "{count, plural, one {افتح الضيف المغادر برصيد} other {كل المغادرين برصيد (#)}}",
     },
     rates: {
       title: "أسعار الليلة",

@@ -322,12 +322,13 @@ export function buildRoomCalendar(
   const sellable = [...entries.values()].filter((unit) => unit.sellable);
   const nights: RoomCalendarNight[] = Array.from({ length: days }, (_, i) => {
     const day = addDays(from, i);
-    const free = sellable.filter(
-      (unit) =>
-        !(isOutOfUse(unit.status) && day >= today) &&
-        !unit.bars.some((bar) => holdsNight(bar, day)),
+    const inUse = sellable.filter(
+      (unit) => !(isOutOfUse(unit.status) && day >= today),
+    );
+    const booked = inUse.filter((unit) =>
+      unit.bars.some((bar) => holdsNight(bar, day)),
     ).length;
-    return { day, free };
+    return { day, free: inUse.length - booked, booked };
   });
 
   return {

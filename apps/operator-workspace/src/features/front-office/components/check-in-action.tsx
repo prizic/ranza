@@ -26,9 +26,12 @@ import {
  */
 export function CheckInAction({
   locale,
+  onDone,
   reservationId,
 }: {
   locale: string;
+  /** Called once the Guest is in: Today refreshes its figures (TD-S2-01). */
+  onDone?: () => void;
   reservationId: string;
 }) {
   const t = useTranslations();
@@ -47,6 +50,9 @@ export function CheckInAction({
   useEffect(() => {
     if (claimCheckInFocus(reservationId)) button.current?.focus();
   }, [reservationId]);
+  useEffect(() => {
+    if (outcome === "done") onDone?.();
+  }, [outcome, onDone]);
 
   const message =
     outcome === "unavailable"

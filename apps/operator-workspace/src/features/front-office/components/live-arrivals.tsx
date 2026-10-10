@@ -3,6 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import type { Arrival } from "@ranza/reservations";
 import type { SupportedLocale } from "@ranza/i18n";
+import { ListFilterNotice } from "../../today/components/list-filter-notice";
+import { inArrivalFilter, type ArrivalFilter } from "../../today/views";
 import { frontOfficeKeys, type Scope } from "../query-keys";
 import { ArrivalsTable } from "./arrivals-table";
 
@@ -36,9 +38,15 @@ async function fetchArrivals(propertyId: string): Promise<readonly Arrival[]> {
 }
 
 export function LiveArrivals({
+  allHref,
+  filter,
   locale,
   scope,
 }: {
+  /** This list unnarrowed, for the way back from a figure on Today. */
+  allHref: string;
+  /** The part of the day a figure on Today counted (TD-S5-01). */
+  filter: ArrivalFilter | null;
   locale: SupportedLocale;
   scope: Scope;
 }) {
@@ -57,11 +65,25 @@ export function LiveArrivals({
   // `data` is present on first paint because the route prefetched it and
   // `Hydrated` handed it over. A 401 or a refusal leaves the last good rows on
   // screen rather than blanking a working list.
+  const rows = (data ?? []).filter((arrival) =>
+    inArrivalFilter(filter, arrival),
+  );
   return (
-    <ArrivalsTable
-      arrivals={data ?? []}
-      locale={locale}
-      propertyId={scope.propertyId}
-    />
+    <>
+      {filter === null ? null : (
+        <div className="mt-4">
+          <ListFilterNotice
+            allHref={allHref}
+            count={rows.length}
+            filter="filterArrivalsToCome"
+          />
+        </div>
+      )}
+      <ArrivalsTable
+        arrivals={rows}
+        locale={locale}
+        propertyId={scope.propertyId}
+      />
+    </>
   );
 }

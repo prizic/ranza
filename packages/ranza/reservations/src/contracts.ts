@@ -179,6 +179,28 @@ export interface CheckedIn {
 /** Which Stays the departures screen lists. */
 export type DepartureView = "due" | "in_house";
 
+/**
+ * A Guest who has already left today (the dashboard's "out of due"): the
+ * departures list shows who is still here, this shows who is not.
+ */
+export interface DepartedStay {
+  stayId: string;
+  /** Null for a Stay that began without a Reservation. */
+  reference: string | null;
+  /** Empty when the Stay began without a Reservation. */
+  guestName: string;
+  stayType: ReservationStayType;
+  startsOn: string;
+  /** Their planned departure as `YYYY-MM-DD`, or null for an open-ended Stay. */
+  endsOn: string | null;
+  unitName: string;
+  /** The room a bed is in, so "A" reads as "401 · A"; null for a room. */
+  roomName: string | null;
+  unitType: AccommodationUnitType;
+  /** The moment they left, as an ISO instant. */
+  departedAt: string;
+}
+
 export interface Departure {
   stayId: string;
   /** Null for a Stay that began without a Reservation. */
@@ -1103,10 +1125,16 @@ export interface RoomCalendarUnit {
   beds: RoomCalendarUnit[];
 }
 
-/** One night of the window: how many sellable Units nothing holds (RC-S1-24). */
+/**
+ * One night of the window: how many sellable Units nothing holds (RC-S1-24),
+ * and how many a booking or a Stay holds. Together they are the Units in use
+ * that night, so `booked` over their sum is the booked occupancy Today draws
+ * (TD-S3-04): bookings and Stays, not a forecast.
+ */
 export interface RoomCalendarNight {
   day: string;
   free: number;
+  booked: number;
 }
 
 /**

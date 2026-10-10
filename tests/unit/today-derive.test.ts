@@ -14,12 +14,20 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import type { WorkingDay } from "../../packages/ranza/core/src";
-import type { FolioSummary } from "../../packages/ranza/folios/src";
+import type { AuditPage } from "../../packages/ranza/core/src";
+import type {
+  ChargesPosted,
+  FolioSummary,
+} from "../../packages/ranza/folios/src";
 import type {
   HousekeepingBoard,
   HousekeepingRoom,
 } from "../../packages/ranza/housekeeping/src";
-import type { Arrival, Departure } from "../../packages/ranza/reservations/src";
+import type {
+  Arrival,
+  Departure,
+  RoomCalendar,
+} from "../../packages/ranza/reservations/src";
 import type {
   UnitCounts,
   UnitEntry,
@@ -33,8 +41,21 @@ import {
   grantsFor,
   needsFor,
   occupancyFrom,
+  roomsFrom,
+  roomsInFilter,
   type TodayInput,
 } from "../../apps/operator-workspace/src/server/today-derive";
+import {
+  inArrivalFilter,
+  inDepartureFilter,
+  isToCome,
+  parseArrivalFilter,
+  parseDepartureFilter,
+  parseFloorFilter,
+  parseFolioFilter,
+  parseRoomFilter,
+  type RoomFilter,
+} from "../../apps/operator-workspace/src/features/today/views";
 import {
   readTodaySummary,
   type TodayReads,
@@ -997,6 +1018,9 @@ describe("reading it", () => {
       board: vi.fn(async () => board([room({})])),
       folios: vi.fn(async () => [] as FolioSummary[]),
       maintenance: vi.fn(async () => maintenance()),
+      activity: vi.fn(async () => auditPage([])),
+      charges: vi.fn(async () => [] as ChargesPosted[]),
+      calendar: vi.fn(async () => calendarOf([])),
       ...overrides,
     };
   }
@@ -1125,6 +1149,9 @@ describe("reading it", () => {
       board: track("board", board([room({})])),
       folios: track("folios", []),
       maintenance: track("maintenance", maintenance()),
+      activity: track("activity", auditPage([])),
+      charges: track("charges", [] as ChargesPosted[]),
+      calendar: track("calendar", calendarOf([])),
     });
     await readTodaySummary(manager, "p", CAPS, vi.fn());
     expect(most).toBe(1);
@@ -1136,7 +1163,302 @@ describe("reading it", () => {
       "units",
       "board",
       "maintenance",
+      "activity",
+      "charges",
+      "calendar",
     ]);
+  });
+});
+
+describe("every figure opens the list it counts", () => {
+  /** A board with every kind of room a count can be of, and one of each. */
+  const rooms = board([
+    room({ unitId: "ready", name: "101", status: "inspected", ready: true }),
+    room({ unitId: "dirty", name: "102", status: "dirty", ready: false }),
+    room({ unitId: "waits", name: "103", status: "clean", ready: false }),
+    room({
+      unitId: "broken",
+      name: "104",
+      status: "dirty",
+      ready: false,
+      outOfService: true,
+    }),
+    room({ unitId: "arr", name: "105", status: "dirty", ready: false }),
+    room({ unitId: "bed", name: "106", status: "clean", ready: false }),
+  ]);
+  const arrivals = [
+    arrival({ reservationId: "a1", unitName: "105", unitIsReady: false }),
+    arrival({
+      reservationId: "a2",
+      unitName: "A",
+      roomName: "106",
+      unitIsReady: false,
+    }),
+    arrival({ reservationId: "a3", unitName: "101", unitIsReady: true }),
+    arrival({
+      reservationId: "a4",
+      unitName: "104",
+      unitIsReady: false,
+      checkInBlocker: "unit_out_of_service",
+    }),
+    arrival({
+      reservationId: "a5",
+      unitName: "102",
+      unitIsReady: false,
+      status: "checked_in",
+    }),
+  ];
+
+  it("a_figure_is_the_length_of_the_list_it_opens", () => {
+    const departures = [departure({ unitName: "103" })];
+    const card = roomsFrom(rooms, arrivals, departures);
+    const opened = (filter: RoomFilter) =>
+      roomsInFilter(filter, rooms, arrivals, departures).map((r) => r.unitId);
+
+    // Every count on the rooms card is the length of the narrowed board.
+    expect(card.ready).toBe(opened("ready").length);
+    expect(card.awaitingInspection).toBe(opened("awaiting_inspection").length);
+    expect(card.dirty).toBe(opened("dirty").length);
+    expect(card.outOfService).toBe(opened("out_of_service").length);
+    expect(card.arrivalsWaiting).toBe(opened("for_arrival").length);
+    expect(card.cleanFirstTotal).toBe(opened("clean_first").length);
+
+    // And what those rooms are: a room out of service is in none of the
+    // others, a bed's arrival waits on its room, a checked-in Guest waits on
+    // nothing.
+    expect(opened("in_service")).toEqual([
+      "ready",
+      "dirty",
+      "waits",
+      "arr",
+      "bed",
+    ]);
+    expect(opened("ready")).toEqual(["ready"]);
+    expect(opened("dirty")).toEqual(["dirty", "arr"]);
+    expect(opened("awaiting_inspection")).toEqual(["waits", "bed"]);
+    expect(opened("out_of_service")).toEqual(["broken"]);
+    expect(opened("for_arrival")).toEqual(["arr", "bed"]);
+    expect(opened("clean_first")).toEqual(
+      cleanFirst(rooms, arrivals, departures).map((row) => row.unitId),
+    );
+
+    // The same for the lists the movements own.
+    const owing = [
+      departure({ stayId: "o1", balanceMinor: 500 }),
+      departure({ stayId: "o2", balanceMinor: 0 }),
+      departure({ stayId: "o3", balanceMinor: 900, overdue: true }),
+    ];
+    const money = deriveToday(
+      input(["finance.manage_folio"], {
+        departures: ok(owing),
+        folios: ok([]),
+      }),
+    ).money;
+    expect(money?.status === "ok" && money.data.leaving).toMatchObject({
+      owing: owing.filter((d) => inDepartureFilter("owing", d)).length,
+      overdueOwing: owing.filter((d) => inDepartureFilter("overdue_owing", d))
+        .length,
+    });
+    const summary = deriveToday(
+      input(MANAGER, { arrivals: ok(arrivals), board: ok(rooms) }),
+    );
+    expect(
+      summary.arrivals?.status === "ok" && summary.arrivals.data,
+    ).toMatchObject({
+      expected: arrivals.length,
+      checkedIn: arrivals.filter((a) => !inArrivalFilter("to_come", a)).length,
+    });
+  });
+
+  it("rooms_ready_for_arrivals_counts_the_arrivals_list_rows", () => {
+    const summary = deriveToday(
+      input(FRONT_DESK, { arrivals: ok(arrivals), board: ok(rooms) }),
+    );
+    const data = summary.arrivals?.status === "ok" && summary.arrivals.data;
+    // To come: four. One has a ready room, two a room that is not (the bed's
+    // arrival included), and one cannot be checked in at all: the arrivals
+    // list says "Blocked" there, and neither ready nor not ready.
+    expect(data).toMatchObject({ ready: 1, notReady: 2 });
+    expect(
+      arrivals.filter(isToCome).length -
+        (data ? data.ready + data.notReady : 0),
+    ).toBe(1);
+  });
+
+  it("an_unknown_show_is_no_narrowing", () => {
+    expect(parseArrivalFilter("to_come")).toBe("to_come");
+    for (const parse of [
+      parseArrivalFilter,
+      parseDepartureFilter,
+      parseRoomFilter,
+      parseFolioFilter,
+    ]) {
+      expect(parse(undefined)).toBeNull();
+      expect(parse("")).toBeNull();
+      expect(parse("everything")).toBeNull();
+    }
+    expect(parseRoomFilter("dirty")).toBe("dirty");
+    expect(parseDepartureFilter("owing")).toBe("owing");
+    expect(parseFolioFilter("open")).toBe("open");
+    expect(parseFloorFilter("2")).toEqual({ floor: 2 });
+    expect(parseFloorFilter("-1")).toEqual({ floor: -1 });
+    expect(parseFloorFilter("none")).toEqual({ floor: null });
+    expect(parseFloorFilter("2; drop table")).toBeNull();
+    expect(parseFloorFilter("12345")).toBeNull();
+  });
+});
+
+/** An audit page of records, newest first, as the core module answers one. */
+function auditPage(
+  entries: { id: string; action?: string; actorId?: string }[],
+  labels: Record<string, string> = {},
+): AuditPage {
+  return {
+    entries: entries.map((entry, index) => ({
+      id: entry.id,
+      organizationId: "d0000002-0000-4000-8000-000000000001",
+      locationId: null,
+      actorId: entry.actorId ?? "actor-1",
+      action: entry.action ?? "reservation.checked_in",
+      subjectType: "reservation",
+      subjectId: "s-1",
+      occurredAt: new Date(Date.UTC(2026, 8, 25, 12, 0, 0) - index * 60_000),
+      propertyName: "Galata Rezidans",
+      timeZone: "Europe/Istanbul",
+    })) as AuditPage["entries"],
+    total: entries.length,
+    nextCursor: null,
+    labels,
+    locations: {},
+    roles: {},
+  };
+}
+
+/** A room calendar with only the nights, as the booked line reads it. */
+function calendarOf(nights: { day: string; booked: number; free: number }[]) {
+  return {
+    today: "2026-09-25",
+    from: "2026-09-25",
+    days: 14,
+    sellable: 10,
+    nights,
+    overlaps: 0,
+    bookedWhileBlocked: 0,
+    units: [],
+    mayAmend: false,
+  } as RoomCalendar;
+}
+
+describe("the manager's depth", () => {
+  it("recent_activity_follows_audit_read", () => {
+    const page = auditPage(
+      Array.from({ length: 8 }, (_, i) => ({ id: `rec-${i}` })),
+      { "actor-1": "Deniz" },
+    );
+    // A viewer holding audit.read sees the five newest, in the log's order,
+    // each named by who did it and carrying the id it opens.
+    const manager = deriveToday(input(MANAGER, { activity: ok(page) }));
+    expect(manager.activity).toMatchObject({
+      status: "ok",
+      data: {
+        rows: [
+          { recordId: "rec-0", actor: "Deniz", timeZone: "Europe/Istanbul" },
+          { recordId: "rec-1" },
+          { recordId: "rec-2" },
+          { recordId: "rec-3" },
+          { recordId: "rec-4" },
+        ],
+      },
+    });
+    expect(
+      manager.activity?.status === "ok" && manager.activity.data.rows[0]?.at,
+    ).toBe("2026-09-25T12:00:00.000Z");
+
+    // Without audit.read there is no card, even for a manager by another
+    // permission and even if the read were handed in by mistake.
+    const noLog = MANAGER.filter((key) => key !== "audit.read");
+    expect(needsFor(grantsFor(noLog), ALL).activity).toBe(false);
+    expect(
+      deriveToday(input(noLog, { activity: ok(page) })).activity,
+    ).toBeUndefined();
+    expect(needsFor(grantsFor(MANAGER), ALL).activity).toBe(true);
+    // And it is the manager focus's, not a front desk's.
+    expect(needsFor(grantsFor(FRONT_DESK), ALL).activity).toBe(false);
+
+    // A failed read is that card's alone.
+    expect(
+      deriveToday(input(MANAGER, { activity: { ok: false } })).activity,
+    ).toEqual({ status: "unavailable" });
+  });
+
+  it("charges_today_are_charges_less_reversals_on_the_business_date", () => {
+    // The module sums per currency; Today shows them, and shows them to the
+    // money figures' own focuses and nobody else.
+    const posted: ChargesPosted[] = [{ currency: "TRY", netMinor: 1_500 }];
+    const manager = deriveToday(input(MANAGER, { charges: ok(posted) }));
+    expect(manager.charges).toEqual({
+      status: "ok",
+      data: { net: [{ amountMinor: 1_500, currency: "TRY" }] },
+    });
+    expect(
+      deriveToday(input(FINANCE, { charges: ok(posted) })).charges,
+    ).toMatchObject({ status: "ok" });
+    // A front desk holds finance.manage_folio and still has no Folio card
+    // (TD-S1-02); nor does a viewer without it, or a Property without billing.
+    expect(needsFor(grantsFor(FRONT_DESK), ALL).charges).toBe(false);
+    expect(
+      deriveToday(input(FRONT_DESK, { charges: ok(posted) })).charges,
+    ).toBeUndefined();
+    const withoutMoney = MANAGER.filter(
+      (key) => key !== "finance.manage_folio",
+    );
+    expect(needsFor(grantsFor(withoutMoney), ALL).charges).toBe(false);
+    expect(
+      deriveToday(input(withoutMoney, { charges: ok(posted) })).charges,
+    ).toBeUndefined();
+    expect(
+      needsFor(grantsFor(MANAGER), { ...ALL, billing: false }).charges,
+    ).toBe(false);
+    // A quiet day posts nothing, which is a figure of nothing.
+    expect(deriveToday(input(MANAGER, { charges: ok([]) })).charges).toEqual({
+      status: "ok",
+      data: { net: [] },
+    });
+  });
+
+  it("booked_occupancy_counts_reservations_and_stays_per_night", () => {
+    const nights = Array.from({ length: 20 }, (_, i) => ({
+      day: `2026-10-${String(i + 1).padStart(2, "0")}`,
+      booked: i,
+      free: 10 - Math.min(i, 10),
+    }));
+    const summary = deriveToday(
+      input(MANAGER, { calendar: ok(calendarOf(nights)) }),
+    );
+    const data = summary.booked?.status === "ok" && summary.booked.data;
+    // Fourteen nights from the business date, each the Units a booking or Stay
+    // holds of those in use: bookings, not a forecast.
+    expect(data && data.nights).toHaveLength(14);
+    expect(data && data.nights[0]).toEqual({
+      day: nights[0]!.day,
+      booked: 0,
+      inUse: 10,
+    });
+    expect(data && data.nights[13]).toEqual({
+      day: nights[13]!.day,
+      booked: 13,
+      inUse: 13,
+    });
+    // It is the manager's, and needs the room calendar: the front desk.
+    expect(needsFor(grantsFor(MANAGER), ALL).calendar).toBe(true);
+    expect(
+      needsFor(grantsFor(MANAGER), { ...ALL, frontDesk: false }).calendar,
+    ).toBe(false);
+    expect(needsFor(grantsFor(FRONT_DESK), ALL).calendar).toBe(false);
+    expect(
+      deriveToday(input(FRONT_DESK, { calendar: ok(calendarOf(nights)) }))
+        .booked,
+    ).toBeUndefined();
   });
 });
 

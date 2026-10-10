@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { CalendarDays, CheckCircle2, Clock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { StatusBadge, cn } from "@ranza/ui";
@@ -22,12 +23,15 @@ const ROW =
  * reversals, not payments (TD-S1-15).
  */
 export function MoneyLists({
+  aside,
   currency,
   locale,
   onRetry,
   propertyId,
   section,
 }: {
+  /** What sits under the largest balances: charges today, where it is shown. */
+  aside?: ReactNode;
   currency: string;
   locale: SupportedLocale;
   onRetry: () => void;
@@ -112,46 +116,60 @@ export function MoneyLists({
               ))}
             </ul>
           )}
+          {leaving.owing > 0 ? (
+            <AllLink
+              href={todayHref(locale, "departures", propertyId, {
+                show: "owing",
+              })}
+            >
+              {t("allOwing", { count: leaving.owing })}
+            </AllLink>
+          ) : null}
         </section>
       ) : null}
-      <section aria-labelledby="today-largest" className={card}>
-        <h2 className="mb-4 text-base font-semibold" id="today-largest">
-          {t("largestBalances")}
-        </h2>
-        {data.largest.length === 0 ? (
-          <p className="flex items-center gap-2.5 rounded-2xl bg-success-soft px-5 py-4 font-medium text-success">
-            <CheckCircle2 aria-hidden="true" className="size-4" />
-            {t("noBalances")}
-          </p>
-        ) : (
-          <ul className="grid gap-1">
-            {data.largest.map((row) => (
-              <li key={row.folioId}>
-                <Link
-                  className="flex items-center gap-3 rounded-2xl px-2 py-2.5 text-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                  href={folio(row.folioId)}
-                  prefetch={false}
-                >
-                  <span className="flex-1">
-                    <span className="block font-medium">
-                      <bdi>{row.guestName}</bdi>
+      <div className="flex flex-col gap-4">
+        <section aria-labelledby="today-largest" className={card}>
+          <h2 className="mb-4 text-base font-semibold" id="today-largest">
+            {t("largestBalances")}
+          </h2>
+          {data.largest.length === 0 ? (
+            <p className="flex items-center gap-2.5 rounded-2xl bg-success-soft px-5 py-4 font-medium text-success">
+              <CheckCircle2 aria-hidden="true" className="size-4" />
+              {t("noBalances")}
+            </p>
+          ) : (
+            <ul className="grid gap-1">
+              {data.largest.map((row) => (
+                <li key={row.folioId}>
+                  <Link
+                    className="flex items-center gap-3 rounded-2xl px-2 py-2.5 text-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    href={folio(row.folioId)}
+                    prefetch={false}
+                  >
+                    <span className="flex-1">
+                      <span className="block font-medium">
+                        <bdi>{row.guestName}</bdi>
+                      </span>
+                      <span className="block text-xs text-muted-foreground tabular-nums">
+                        <bdi>{row.unitName}</bdi>
+                      </span>
                     </span>
-                    <span className="block text-xs text-muted-foreground tabular-nums">
-                      <bdi>{row.unitName}</bdi>
+                    <span className="font-semibold tabular-nums">
+                      {money([row.balance], currency, locale)}
                     </span>
-                  </span>
-                  <span className="font-semibold tabular-nums">
-                    {money([row.balance], currency, locale)}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-        <AllLink href={todayHref(locale, "finance", propertyId)}>
-          {t("allFolios")}
-        </AllLink>
-      </section>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+          <AllLink
+            href={todayHref(locale, "finance", propertyId, { show: "open" })}
+          >
+            {t("allOpenFolios", { count: data.openFolios })}
+          </AllLink>
+        </section>
+        {aside}
+      </div>
     </>
   );
 }

@@ -5,9 +5,12 @@ import { Button, EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { DepartureView } from "@ranza/reservations";
 import { LiveDepartures } from "../../../../features/front-office/components/live-departures";
+import { LiveLeftToday } from "../../../../features/front-office/components/live-left-today";
+import { parseDepartureFilter } from "../../../../features/today/views";
 import { frontOfficeKeys } from "../../../../features/front-office/query-keys";
 import { Hydrated, requestQueryClient } from "../../../providers/hydrate";
 import {
+  departedToday,
   departures,
   entitledProperties,
   FRONT_DESK_CAPABILITY,
@@ -33,7 +36,11 @@ export default async function DeparturesPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ property?: string; view?: string }>;
+  searchParams: Promise<{
+    property?: string;
+    show?: string;
+    view?: string;
+  }>;
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
@@ -72,6 +79,14 @@ export default async function DeparturesPage({
     queryKey: frontOfficeKeys.departures(scope, view),
     queryFn: () => departures(property.propertyId, view),
   });
+  // Who has already gone sits under who is still to go, on the due view only:
+  // an in-house list has no "today" to have left on.
+  if (view === "due") {
+    await client.prefetchQuery({
+      queryKey: frontOfficeKeys.departedToday(scope),
+      queryFn: () => departedToday(property.propertyId),
+    });
+  }
 
   const base = `${localizeHref(locale, "departures")}?property=${property.propertyId}`;
 
@@ -110,7 +125,20 @@ export default async function DeparturesPage({
         </nav>
       </div>
       <Hydrated client={client}>
-        <LiveDepartures locale={locale} scope={scope} view={view} />
+        <LiveDepartures
+          allHref={base}
+          filter={view === "due" ? parseDepartureFilter(search.show) : null}
+          locale={locale}
+          scope={scope}
+          view={view}
+        />
+        {view === "due" ? (
+          <LiveLeftToday
+            locale={locale}
+            scope={scope}
+            timeZone={property.timezone}
+          />
+        ) : null}
       </Hydrated>
     </>
   );

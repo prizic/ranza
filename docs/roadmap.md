@@ -51,6 +51,14 @@ which the worker also runs for a quiet day), or by their check-out for a night
 no close has reached. The close records what it charged and lists the nights it
 could not, and never blocks on them.
 
+**Today**, the Operator Workspace's home, is built to the end of its approved
+slices ([`features/today-dashboard`](features/today-dashboard/edge-cases.csv)):
+the day at a Property shaped by the permissions held; check-in, check-out and
+marking a room from a row; the manager's recent activity, charges today, booked
+occupancy ahead and Organization strip; and every figure opening exactly the rows
+it counts, which a browser spec reads, follows and counts (TD-S5-*). Guest
+requests on Today are proposed, not built (TD-S6-01).
+
 The next few slices, in the order decided by what each one unblocks:
 
 1. **Amending a booking and moving a Guest**

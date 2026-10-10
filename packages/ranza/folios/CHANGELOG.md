@@ -36,6 +36,10 @@ everything lands under Unreleased.
 
 ### Added
 
+- `chargesPostedToday()`: charges posted at a Property on its business date,
+  less the reversals of charges, per currency, for a viewer holding
+  `finance.manage_folio` and empty for anybody else (TD-S3-02). Payments are in
+  neither half.
 - `postChargeWithin(tx, userId, charge)`: a charge posted inside another
   module's transaction, under the same policy, bounds and audit record as
   `postCharge`, which now wraps it. Maintenance posts a damage charge this way

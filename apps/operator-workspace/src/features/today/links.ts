@@ -14,7 +14,9 @@ export function todayHref(
     | "maintenance"
     | "finance"
     | "rooms"
-    | "reservations",
+    | "reservations"
+    | "room-calendar"
+    | "audit-log",
   propertyId: string,
   extra?: Record<string, string>,
 ): string {

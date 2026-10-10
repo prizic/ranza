@@ -17,6 +17,7 @@ import type {
   Section,
 } from "../../../server/today-derive";
 import { todayHref } from "../links";
+import { MarkRoomAction } from "./mark-room-action";
 import { AllLink } from "./movements-card";
 import { SectionUnavailable } from "./section-unavailable";
 
@@ -35,23 +36,29 @@ const PRIORITY: Record<
 };
 
 /**
- * The rooms to clean, in the order somebody needs them (TD-S1-21). Marking a
- * room is the board's command, so each row opens the board; acting from here
- * is slice 2.
+ * The rooms to clean, in the order somebody needs them (TD-S1-21). Each row
+ * opens the board, and for somebody who may mark rooms carries the board's own
+ * command beside it (TD-S2-03).
  */
 export function CleanFirstCard({
   locale,
+  onChanged,
   onRetry,
   propertyId,
   rooms,
 }: {
   locale: SupportedLocale;
+  /** A room was marked from a row: read the day again. */
+  onChanged: () => void;
   onRetry: () => void;
   propertyId: string;
   rooms: Section<RoomsCard>;
 }) {
   const t = useTranslations("dashboard");
   const href = todayHref(locale, "housekeeping", propertyId);
+  const queue = todayHref(locale, "housekeeping", propertyId, {
+    show: "clean_first",
+  });
 
   return (
     <section
@@ -66,9 +73,13 @@ export function CleanFirstCard({
           {t("cleanFirst")}
         </h2>
         {rooms.status === "ok" ? (
-          <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+          <Link
+            className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            href={queue}
+            prefetch={false}
+          >
             {t("roomCount", { count: rooms.data.cleanFirstTotal })}
-          </span>
+          </Link>
         ) : null}
       </div>
       {rooms.status === "unavailable" ? (
@@ -84,9 +95,12 @@ export function CleanFirstCard({
             {rooms.data.cleanFirst.map((row) => {
               const priority = PRIORITY[row.priority];
               return (
-                <li key={row.unitId}>
+                <li
+                  className="flex flex-wrap items-center gap-x-2 gap-y-2 rounded-2xl bg-muted/60 pe-3 transition-colors hover:bg-muted"
+                  key={row.unitId}
+                >
                   <Link
-                    className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl bg-muted/60 px-4 py-3 transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl px-4 py-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                     href={href}
                     prefetch={false}
                   >
@@ -106,11 +120,20 @@ export function CleanFirstCard({
                       tone={priority.tone}
                     />
                   </Link>
+                  {rooms.data.mayMark ? (
+                    <MarkRoomAction
+                      locale={locale}
+                      onDone={onChanged}
+                      room={row}
+                    />
+                  ) : null}
                 </li>
               );
             })}
           </ul>
-          <AllLink href={href}>{t("wholeBoard")}</AllLink>
+          <AllLink href={queue}>
+            {t("allRoomsToClean", { count: rooms.data.cleanFirstTotal })}
+          </AllLink>
         </>
       )}
     </section>

@@ -31,6 +31,17 @@ import {
 } from "../../apps/operator-workspace/src/features/today/components/today-dashboard";
 import { todayKeys } from "../../apps/operator-workspace/src/features/today/query-keys";
 
+// The commands a row offers: the server actions the Arrivals, Departures and
+// Housekeeping screens already call, which reach the composition root and a
+// database. Here only whether a row offers them is in question.
+vi.mock("../../apps/operator-workspace/src/server/housekeeping", () => ({
+  markRooms: vi.fn(),
+}));
+vi.mock("../../apps/operator-workspace/src/server/front-office", () => ({
+  checkInReservation: vi.fn(),
+  checkOutStay: vi.fn(),
+}));
+
 const PROPERTY = "d0000003-0000-4000-8000-000000000001";
 const SCOPE = { userId: "u", organizationId: "o", propertyId: PROPERTY };
 
@@ -63,10 +74,13 @@ const ROOMS = {
         name: "204",
         floor: 2,
         priority: "arrival" as const,
+        status: "dirty" as const,
+        inHouse: false,
         since: null,
       },
     ],
     cleanFirstTotal: 12,
+    mayMark: true,
   },
 };
 
@@ -178,6 +192,7 @@ function view(summary: TodaySummary, locale: SupportedLocale = "tr") {
             greeting="morning"
             locale={locale}
             name="Selin"
+            properties={[]}
             scope={SCOPE}
           />
         </NextIntlClientProvider>

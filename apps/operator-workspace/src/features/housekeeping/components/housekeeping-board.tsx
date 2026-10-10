@@ -18,6 +18,10 @@ import {
   Stat,
 } from "@ranza/ui";
 import { useTableLabels } from "../../../lib/table-labels";
+import {
+  ListFilterNotice,
+  type ListFilterKey,
+} from "../../today/components/list-filter-notice";
 import { markRooms, type MarkOutcome } from "../../../server/housekeeping";
 import { MARK_LABEL, MARKS, useHousekeepingColumns } from "./columns";
 import { STATUS_LOOK } from "./status";
@@ -38,13 +42,27 @@ import { STATUS_LOOK } from "./status";
  * decided by the product owner, 2026-09-24).
  */
 export function HousekeepingBoard({
+  allHref,
   board,
   locale,
   markLimit,
+  narrowed,
   propertyName,
   timeZone,
 }: {
+  /** The board unnarrowed, for the way back from a figure on Today. */
+  allHref: string;
   board: Board;
+  /**
+   * The rooms a figure on Today counted, when the reader came from one
+   * (TD-S5-01). The tiles above still count the whole board.
+   */
+  narrowed: {
+    detail?: string;
+    filter: ListFilterKey;
+    floor?: string;
+    rooms: readonly HousekeepingRoom[];
+  } | null;
   locale: SupportedLocale;
   /** The most rooms one mark may name; the module refuses more. */
   markLimit: number;
@@ -119,6 +137,16 @@ export function HousekeepingBoard({
         />
       </div>
 
+      {narrowed ? (
+        <ListFilterNotice
+          allHref={allHref}
+          count={narrowed.rooms.length}
+          detail={narrowed.detail}
+          filter={narrowed.filter}
+          floor={narrowed.floor}
+        />
+      ) : null}
+
       {/* Only over rooms: on an empty board the notice would claim a
           restriction about nothing, beside a Property that has no rooms yet. */}
       {board.mayMark || board.rooms.length === 0 ? null : (
@@ -182,7 +210,7 @@ export function HousekeepingBoard({
           : {})}
         caption={t("subtitle", { property: propertyName })}
         columns={columns}
-        data={board.rooms}
+        data={narrowed ? narrowed.rooms : board.rooms}
         empty={
           <EmptyState
             description={t("noRoomsDescription")}

@@ -573,10 +573,12 @@ export function useDepartureColumns(
         <div className="flex items-center justify-end gap-1">
           {row.original.mayCheckOut ? (
             // Keyed by the Stay, so a dialog can never outlive the row it
-            // was opened on and submit for whichever row took its place.
+            // was opened on and submit for whichever row took its place. The
+            // menu beside it is keyed by the Stay too, under its own suffix:
+            // two siblings sharing a key is a React error on every render.
             <CheckOutDialog
               departure={row.original}
-              key={row.original.stayId}
+              key={`${row.original.stayId}:check-out`}
               locale={locale}
               propertyId={propertyId}
             />
@@ -584,7 +586,7 @@ export function useDepartureColumns(
           <FrontDeskRowMenu
             folioId={row.original.folioId}
             guestName={row.original.guestName || t("noGuestRecorded")}
-            key={row.original.stayId}
+            key={`${row.original.stayId}:menu`}
             locale={locale}
             propertyId={propertyId}
             stay={

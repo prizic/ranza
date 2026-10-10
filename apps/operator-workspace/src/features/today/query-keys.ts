@@ -22,4 +22,13 @@ export const todayKeys = {
       "today",
       "summary",
     ] as const,
+  strip: (scope: TodayScope) =>
+    [
+      "ranza",
+      scope.userId,
+      scope.organizationId,
+      scope.propertyId,
+      "today",
+      "strip",
+    ] as const,
 };

@@ -5,6 +5,7 @@ import {
   FolioAmountError,
   FolioWriteError,
   type Charge,
+  type ChargesPosted,
   type FolioDetail,
   type FolioLine,
   type FolioSummary,
@@ -189,6 +190,64 @@ export function createFoliosModule(deps: FoliosDeps) {
       ),
     );
     return rows.map(toSummary);
+  }
+
+  /**
+   * Charges posted at a Property on its business date, less their reversals
+   * (TD-S3-02): what the day has put on Guests' accounts so far.
+   *
+   * Dated by the moment each line was posted in the Property's own business day
+   * (ADR 0021), so a charge at 01:00 before the cutoff belongs to the working
+   * day it was made in. A reversal counts when it cancels a charge, and a
+   * payment, and the reversal of one, count in neither: money taken is not a
+   * charge. Empty for a viewer who does not hold `finance.manage_folio`, as
+   * for a Property out of reach or without billing — the amount is withheld
+   * here and not only hidden by a screen.
+   */
+  async function chargesPostedToday(
+    userId: string,
+    propertyId: string,
+  ): Promise<ChargesPosted[]> {
+    const rows = await withOrganizationContext(
+      deps.db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<{ currency: string; netMinor: string }[]>`
+        select trim(folio.currency)                       as "currency",
+               coalesce(sum(line.amount_minor), 0)::text  as "netMinor"
+          from public.folio_lines as line
+          join public.folios as folio
+            on folio.id = line.folio_id
+          join public.properties as property
+            on property.id = line.property_id
+          left join public.folio_lines as original
+            on original.id = line.reverses_line_id
+         where line.property_id = ${propertyId}::uuid
+           and (line.line_type = 'charge'
+                or (line.line_type = 'reversal'
+                    and original.line_type = 'charge'))
+           -- A business day is at most 25 hours of wall clock, so nothing
+           -- posted earlier than this can fall on today; the bound spares the
+           -- function call on every line the Property has ever had.
+           and line.posted_at > now() - interval '26 hours'
+           and app.business_date(
+                 line.posted_at, property.timezone,
+                 property.business_date_cutoff)
+               = app.property_today(property.id)
+           and app.can_use_capability(
+                 line.property_id,
+                 ${FOLIO_CAPABILITY.moduleKey},
+                 ${FOLIO_CAPABILITY.capabilityKey})
+           and app.has_organization_permission(
+                 property.organization_id, 'finance.manage_folio')
+         group by trim(folio.currency)
+         order by trim(folio.currency)
+      `,
+    );
+    return rows.map((row) => ({
+      currency: row.currency,
+      netMinor: Number(row.netMinor),
+    }));
   }
 
   /**
@@ -477,6 +536,7 @@ export function createFoliosModule(deps: FoliosDeps) {
 
   return {
     listFolios,
+    chargesPostedToday,
     folioDetail,
     postCharge,
     postPayment,

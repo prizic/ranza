@@ -18,6 +18,7 @@ export type {
   FolioLine,
   FolioLineType,
   FolioStatus,
+  ChargesPosted,
   FolioSummary,
   Payment,
   PaymentMethod,

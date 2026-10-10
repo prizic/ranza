@@ -12,6 +12,7 @@ import {
   requireViewer,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
+import { parseArrivalFilter } from "../../../../features/today/views";
 
 /**
  * Arrivals: who is expected today at one Property, and the one action worth
@@ -36,7 +37,7 @@ export default async function ArrivalsPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ property?: string }>;
+  searchParams: Promise<{ property?: string; show?: string }>;
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
@@ -44,10 +45,11 @@ export default async function ArrivalsPage({
 
   const t = await getTranslations();
   const viewer = await requireViewer(locale);
+  const search = await searchParams;
   const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
   const property = await frontDeskProperty(
     properties,
-    await searchParams,
+    search,
     localizeHref(locale, "arrivals"),
   );
 
@@ -84,7 +86,12 @@ export default async function ArrivalsPage({
         {t("arrivalsAt")} {property.propertyName}
       </p>
       <Hydrated client={client}>
-        <LiveArrivals locale={locale} scope={scope} />
+        <LiveArrivals
+          allHref={`${localizeHref(locale, "arrivals")}?property=${property.propertyId}`}
+          filter={parseArrivalFilter(search.show)}
+          locale={locale}
+          scope={scope}
+        />
       </Hydrated>
     </>
   );

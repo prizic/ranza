@@ -1,14 +1,30 @@
-import type { WorkingDay } from "@ranza/core";
-import type { FolioSummary } from "@ranza/folios";
-import type { HousekeepingBoard } from "@ranza/housekeeping";
+import type { AuditPage, WorkingDay } from "@ranza/core";
+import type { ChargesPosted, FolioSummary } from "@ranza/folios";
+import type {
+  HousekeepingBoard,
+  HousekeepingRoom,
+  HousekeepingStatus,
+} from "@ranza/housekeeping";
 import type { TodayMaintenance } from "@ranza/maintenance";
 import type {
   Arrival,
   CheckInBlocker,
   Departure,
   ReservationStayType,
+  RoomCalendar,
 } from "@ranza/reservations";
 import type { UnitCounts, UnitMap } from "@ranza/accommodation";
+import {
+  inRoomFilter,
+  isOwing,
+  isToCome,
+  totals,
+  type Money,
+  type RoomFilter,
+} from "../features/today/views";
+
+export { totals };
+export type { Money };
 
 /**
  * The Today dashboard, derived. Pure: no reads, no clock, no session.
@@ -26,11 +42,6 @@ import type { UnitCounts, UnitMap } from "@ranza/accommodation";
 /** Whose day the page leads with (TD-S1-01, TD-S1-02). */
 export type TodayFocus =
   "manager" | "front_desk" | "housekeeping" | "finance" | "none";
-
-export interface Money {
-  amountMinor: number;
-  currency: string;
-}
 
 /**
  * A section the viewer may see: answered, or unavailable because its read
@@ -59,6 +70,12 @@ export interface ArrivalRow {
   endsOn: string | null;
   state: ArrivalState;
   blocker: CheckInBlocker | null;
+  /**
+   * Whether the viewer may check this Guest in from the row (TD-S2-01,
+   * TD-S2-04): the command would succeed, and they hold front_desk.check_in.
+   * The command checks again; this only decides whether to offer it.
+   */
+  mayCheckIn: boolean;
 }
 
 export interface DepartureRow {
@@ -68,6 +85,8 @@ export interface DepartureRow {
   unit: UnitLabel;
   endsOn: string | null;
   overdue: boolean;
+  /** Whether the viewer holds front_desk.check_out (TD-S2-02, TD-S2-04). */
+  mayCheckOut: boolean;
   /** Present only for a viewer holding finance.manage_folio. */
   balance?: Money;
   folioId?: string;
@@ -76,6 +95,10 @@ export interface DepartureRow {
 export interface ArrivalsCard {
   expected: number;
   checkedIn: number;
+  /** Still to come, whose room the arrivals list calls ready. */
+  ready: number;
+  /** Still to come, whose room the arrivals list calls not ready. */
+  notReady: number;
   rows: readonly ArrivalRow[];
 }
 
@@ -102,6 +125,10 @@ export interface CleanRow {
   name: string;
   floor: number | null;
   priority: CleanPriority;
+  /** What the board says the room is, which decides the next mark. */
+  status: HousekeepingStatus;
+  /** Somebody is in it: it is marked once they have gone (TD-S2-03). */
+  inHouse: boolean;
   /** When the room last changed status, as an ISO instant. */
   since: string | null;
 }
@@ -119,10 +146,12 @@ export interface RoomsCard {
   dirty: number;
   outOfService: number;
   floors: readonly FloorReadiness[];
-  /** Rooms arrivals are waiting on, not yet ready. */
+  /** Rooms an arrival today is waiting on: in service and not yet ready. */
   arrivalsWaiting: number;
   cleanFirst: readonly CleanRow[];
   cleanFirstTotal: number;
+  /** Whether the viewer holds housekeeping.update_status (TD-S2-03, TD-S2-04). */
+  mayMark: boolean;
 }
 
 /** Who leaves owing — present only where departures were read. */
@@ -158,6 +187,42 @@ export interface MaintenanceCard {
   waitingForParts: number;
   /** Rooms and beds held out of order, each counted once. */
   outOfOrder: number;
+}
+
+/** One of the newest audit records the viewer may read (TD-S3-01). */
+export interface ActivityRow {
+  recordId: string;
+  action: string;
+  subjectType: string;
+  actorId: string;
+  /** The person's name as the log names them; null when it cannot. */
+  actor: string | null;
+  /** When it happened, as an ISO instant. */
+  at: string;
+  /** The clock the time is read on: its own Property's. */
+  timeZone: string;
+  propertyName: string | null;
+}
+
+export interface ActivityCard {
+  rows: readonly ActivityRow[];
+}
+
+/** Charges less reversals posted on the business date, per currency (TD-S3-02). */
+export interface ChargesCard {
+  net: readonly Money[];
+}
+
+/** One night of booked occupancy: Units a booking or Stay holds, of those in use. */
+export interface BookedNight {
+  day: string;
+  booked: number;
+  inUse: number;
+}
+
+/** The nights ahead, bookings and Stays alone, never a forecast (TD-S3-04). */
+export interface BookedAheadCard {
+  nights: readonly BookedNight[];
 }
 
 export type AttentionKind =
@@ -216,6 +281,9 @@ export interface TodaySummary {
   rooms?: Section<RoomsCard>;
   money?: Section<MoneyCard>;
   maintenance?: Section<MaintenanceCard>;
+  activity?: Section<ActivityCard>;
+  charges?: Section<ChargesCard>;
+  booked?: Section<BookedAheadCard>;
   attention: {
     items: readonly AttentionItem[];
     /** False when a section it draws on could not be read. */
@@ -236,6 +304,8 @@ export interface Grants {
    * alone is not reading maintenance.
    */
   maintenance: boolean;
+  /** audit.read: the log, and so the newest of it on Today (TD-S3-01). */
+  audit: boolean;
 }
 
 export function grantsFor(permissions: readonly string[]): Grants {
@@ -250,6 +320,7 @@ export function grantsFor(permissions: readonly string[]): Grants {
     manager: has("staff.administer") || has("audit.read"),
     money: has("finance.manage_folio"),
     maintenance: has("maintenance.report") || has("maintenance.manage"),
+    audit: has("audit.read"),
   };
 }
 
@@ -282,6 +353,12 @@ export interface Needs {
   rooms: boolean;
   folios: boolean;
   maintenance: boolean;
+  /** The newest audit records, for audit.read (TD-S3-01). */
+  activity: boolean;
+  /** Charges less reversals today, for the money figures' own focuses (TD-S3-02). */
+  charges: boolean;
+  /** Booked occupancy ahead, from the room calendar (TD-S3-04). */
+  calendar: boolean;
 }
 
 export interface Capabilities {
@@ -308,6 +385,12 @@ export function needsFor(grants: Grants, capabilities: Capabilities): Needs {
     // so nothing is read for it.
     maintenance:
       capabilities.maintenance && grants.maintenance && focus !== "none",
+    activity: focus === "manager" && grants.audit,
+    // The money figures stay the finance focus's own (TD-S1-02); a manager
+    // holds them too, so charges today sit with them and not on a front desk
+    // that merely holds finance.manage_folio.
+    charges: money && (focus === "manager" || focus === "finance"),
+    calendar: capabilities.frontDesk && focus === "manager",
   };
 }
 
@@ -324,6 +407,9 @@ export interface TodayInput {
   board?: Read<HousekeepingBoard>;
   folios?: Read<readonly FolioSummary[]>;
   maintenance?: Read<TodayMaintenance>;
+  activity?: Read<AuditPage>;
+  charges?: Read<readonly ChargesPosted[]>;
+  calendar?: Read<RoomCalendar>;
 }
 
 /** Rows the clean-first queue and the movements list show, at most. */
@@ -344,18 +430,6 @@ function arrivalState(arrival: Arrival): ArrivalState {
   return arrival.unitIsReady ? "ready" : "not_ready";
 }
 
-/** Sums per currency, in first-seen order; a Property keeps one in practice. */
-export function totals(amounts: readonly Money[]): Money[] {
-  const byCurrency = new Map<string, number>();
-  for (const { amountMinor, currency } of amounts) {
-    byCurrency.set(currency, (byCurrency.get(currency) ?? 0) + amountMinor);
-  }
-  return [...byCurrency].map(([currency, amountMinor]) => ({
-    amountMinor,
-    currency,
-  }));
-}
-
 function departureRow(departure: Departure, money: boolean): DepartureRow {
   return {
     stayId: departure.stayId,
@@ -364,6 +438,7 @@ function departureRow(departure: Departure, money: boolean): DepartureRow {
     unit: unitOf(departure),
     endsOn: departure.endsOn,
     overdue: departure.overdue,
+    mayCheckOut: departure.mayCheckOut,
     ...(money
       ? {
           balance: {
@@ -391,7 +466,7 @@ export function occupancyFrom(
   arrivals: readonly Arrival[],
   departures: readonly Departure[],
 ): OccupancyCard {
-  const toCome = arrivals.filter((a) => a.status !== "checked_in").length;
+  const toCome = arrivals.filter(isToCome).length;
   const expected = counts.inHouse + toCome - departures.length;
   return {
     sellable: counts.sellable,
@@ -418,9 +493,7 @@ export function cleanFirst(
   departures: readonly Departure[],
 ): CleanRow[] {
   const arrivingInto = new Set(
-    arrivals
-      .filter((arrival) => arrival.status !== "checked_in")
-      .map((arrival) => roomNameOf(arrival)),
+    arrivals.filter(isToCome).map((arrival) => roomNameOf(arrival)),
   );
   const leaving = new Set(
     departures
@@ -446,6 +519,8 @@ export function cleanFirst(
       name: room.name,
       floor: room.floor,
       priority,
+      status: room.status,
+      inHouse: room.inHouse,
       since: room.changedAt,
     });
   }
@@ -457,12 +532,41 @@ export function cleanFirst(
   );
 }
 
+/**
+ * The rooms a figure on Today counts, in the order the board lists them. The
+ * board opens narrowed to exactly these (TD-S5-01), and `roomsFrom` counts
+ * with the same call, so a count and the rows it opens are one definition.
+ */
+export function roomsInFilter(
+  filter: RoomFilter,
+  board: HousekeepingBoard,
+  arrivals: readonly Arrival[],
+  departures: readonly Departure[],
+): HousekeepingRoom[] {
+  if (filter === "clean_first") {
+    const byId = new Map(board.rooms.map((room) => [room.unitId, room]));
+    return cleanFirst(board, arrivals, departures).flatMap((row) => {
+      const room = byId.get(row.unitId);
+      return room ? [room] : [];
+    });
+  }
+  if (filter === "for_arrival") {
+    const arrivingInto = new Set(
+      arrivals.filter(isToCome).map((arrival) => roomNameOf(arrival)),
+    );
+    return board.rooms.filter(
+      (room) =>
+        !room.outOfService && !room.ready && arrivingInto.has(room.name),
+    );
+  }
+  return board.rooms.filter((room) => inRoomFilter(filter, room));
+}
+
 export function roomsFrom(
   board: HousekeepingBoard,
   arrivals: readonly Arrival[],
   departures: readonly Departure[],
 ): RoomsCard {
-  const inService = board.rooms.filter((room) => !room.outOfService);
   const floors = new Map<number | null, FloorReadiness>();
   for (const room of board.rooms) {
     const floor = floors.get(room.floor) ?? {
@@ -471,31 +575,25 @@ export function roomsFrom(
       total: 0,
     };
     floor.total += 1;
-    if (room.ready && !room.outOfService) floor.ready += 1;
+    if (inRoomFilter("ready", room)) floor.ready += 1;
     floors.set(room.floor, floor);
   }
+  const count = (filter: RoomFilter) =>
+    roomsInFilter(filter, board, arrivals, departures).length;
   const queue = cleanFirst(board, arrivals, departures);
-  const notReadyFor = new Set(
-    arrivals
-      .filter(
-        (arrival) => arrival.status !== "checked_in" && !arrival.unitIsReady,
-      )
-      .map((arrival) => arrival.reservationId),
-  );
   return {
     total: board.rooms.length,
-    ready: inService.filter((room) => room.ready).length,
-    awaitingInspection: inService.filter(
-      (room) => room.status === "clean" && !room.ready,
-    ).length,
-    dirty: inService.filter((room) => room.status === "dirty").length,
-    outOfService: board.rooms.length - inService.length,
+    ready: count("ready"),
+    awaitingInspection: count("awaiting_inspection"),
+    dirty: count("dirty"),
+    outOfService: count("out_of_service"),
     floors: [...floors.values()].sort(
       (a, b) => (a.floor ?? Infinity) - (b.floor ?? Infinity),
     ),
-    arrivalsWaiting: notReadyFor.size,
+    arrivalsWaiting: count("for_arrival"),
     cleanFirst: queue.slice(0, LIST_LIMIT),
     cleanFirstTotal: queue.length,
+    mayMark: board.mayMark,
   };
 }
 
@@ -524,9 +622,7 @@ export function moneyFrom(
   };
   if (departures === null) return card;
 
-  const owingRows = departures.filter(
-    (departure) => departure.balanceMinor > 0,
-  );
+  const owingRows = departures.filter(isOwing);
   const overdueRows = owingRows.filter((departure) => departure.overdue);
   card.leaving = {
     owed: totals(owingRows.map(balanceOf)),
@@ -543,6 +639,46 @@ export function moneyFrom(
       .map((row) => departureRow(row, true)),
   };
   return card;
+}
+
+/** How many of the newest records Today shows (TD-S3-01). */
+export const ACTIVITY_LIMIT = 5;
+
+/** How many nights ahead the booked line covers (TD-S3-04). */
+export const BOOKED_AHEAD_NIGHTS = 14;
+
+export function activityFrom(page: AuditPage): ActivityCard {
+  return {
+    rows: page.entries.slice(0, ACTIVITY_LIMIT).map((entry) => ({
+      recordId: entry.id,
+      action: entry.action,
+      subjectType: entry.subjectType,
+      actorId: entry.actorId,
+      actor: page.labels[entry.actorId] ?? null,
+      at: entry.occurredAt.toISOString(),
+      timeZone: entry.timeZone,
+      propertyName: entry.propertyName,
+    })),
+  };
+}
+
+export function chargesFrom(posted: readonly ChargesPosted[]): ChargesCard {
+  return {
+    net: posted.map(({ currency, netMinor }) => ({
+      amountMinor: netMinor,
+      currency,
+    })),
+  };
+}
+
+export function bookedAheadFrom(calendar: RoomCalendar): BookedAheadCard {
+  return {
+    nights: calendar.nights.slice(0, BOOKED_AHEAD_NIGHTS).map((night) => ({
+      day: night.day,
+      booked: night.booked,
+      inUse: night.booked + night.free,
+    })),
+  };
 }
 
 const ATTENTION_ORDER: Record<AttentionKind, number> = {
@@ -704,7 +840,7 @@ export function attentionFrom(
   }
 
   for (const departure of departures) {
-    const owing = money && departure.balanceMinor > 0;
+    const owing = money && isOwing(departure);
     const balance = owing
       ? {
           balance: {
@@ -835,8 +971,10 @@ export function deriveToday(input: TodayInput): TodaySummary {
   const arrivalsCard = section(input.arrivals, (rows) => ({
     expected: rows.length,
     checkedIn: rows.filter((row) => row.status === "checked_in").length,
+    ready: rows.filter((row) => arrivalState(row) === "ready").length,
+    notReady: rows.filter((row) => arrivalState(row) === "not_ready").length,
     rows: rows
-      .filter((row) => row.status !== "checked_in")
+      .filter(isToCome)
       .slice(0, LIST_LIMIT)
       .map((row): ArrivalRow => ({
         reservationId: row.reservationId,
@@ -848,6 +986,7 @@ export function deriveToday(input: TodayInput): TodaySummary {
         endsOn: row.endsOn,
         state: arrivalState(row),
         blocker: row.checkInBlocker,
+        mayCheckIn: row.canCheckIn && row.mayCheckIn,
       })),
   }));
   if (arrivalsCard && focus !== "housekeeping" && focus !== "finance") {
@@ -912,6 +1051,21 @@ export function deriveToday(input: TodayInput): TodaySummary {
       outOfOrder: value.outOfOrder,
     }));
     if (maintenance) summary.maintenance = maintenance;
+  }
+
+  // Checked again here, as the maintenance items are: a read handed in by
+  // mistake still names nothing for a viewer who may not have it.
+  if (focus === "manager" && grants.audit) {
+    const activity = section(input.activity, activityFrom);
+    if (activity) summary.activity = activity;
+  }
+  if (money && (focus === "manager" || focus === "finance")) {
+    const charges = section(input.charges, chargesFrom);
+    if (charges) summary.charges = charges;
+  }
+  if (focus === "manager") {
+    const booked = section(input.calendar, bookedAheadFrom);
+    if (booked) summary.booked = booked;
   }
 
   return summary;

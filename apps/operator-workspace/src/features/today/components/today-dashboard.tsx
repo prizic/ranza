@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRef, type ReactNode } from "react";
+import { useCallback, useRef, type ReactNode } from "react";
 import {
   BedDouble,
   Clock,
@@ -18,13 +18,17 @@ import { clockAt, money, percent } from "../format";
 import { todayHref } from "../links";
 import { hasStale, mergeSummary } from "../merge";
 import { todayKeys, type TodayScope } from "../query-keys";
+import { ActivityCard } from "./activity-card";
 import { AttentionQueue } from "./attention-queue";
+import { BookedAheadCard } from "./booked-ahead-card";
+import { ChargesCard } from "./charges-card";
 import { CleanFirstCard } from "./clean-first-card";
 import { MaintenanceCard } from "./maintenance-card";
 import { MoneyLists } from "./money-cards";
 import { MovementsCard } from "./movements-card";
 import { RoomsCard } from "./rooms-card";
 import { SectionUnavailable } from "./section-unavailable";
+import { OrganizationStrip } from "./organization-strip";
 import { OfTotal, StatTile } from "./stat-tile";
 import { TodayHeader, type Greeting } from "./today-header";
 
@@ -60,12 +64,15 @@ export function TodayDashboard({
   greeting,
   locale,
   name,
+  properties,
   scope,
 }: {
   clock: string;
   greeting: Greeting;
   locale: SupportedLocale;
   name: string;
+  /** The Organization's Properties with Today, for the strip; one or none is no strip. */
+  properties: readonly { propertyId: string; propertyName: string }[];
   scope: TodayScope;
 }) {
   const t = useTranslations("dashboard");
@@ -93,9 +100,12 @@ export function TodayDashboard({
   if (summary && !query.isError && !partlyStale) {
     lastComplete.current = query.dataUpdatedAt;
   }
+  // Stable, because a row's command calls it from an effect that runs when
+  // its own outcome lands and must not run again for a new function.
+  const refetch = query.refetch;
+  const retry = useCallback(() => void refetch(), [refetch]);
   if (!summary) return null;
 
-  const retry = () => void query.refetch();
   // A focus is not a card: a role can lead somewhere nothing it may see is
   // switched on, and an empty grid under "nothing needs attention" would be a
   // false all-clear (TD-S1-30).
@@ -143,7 +153,20 @@ export function TodayDashboard({
             <Tiles locale={locale} onRetry={retry} summary={summary} />
           </div>
           <div className="order-2 md:order-3">
-            <MainRow locale={locale} onRetry={retry} summary={summary} />
+            <MainRow
+              locale={locale}
+              onChanged={retry}
+              onRetry={retry}
+              scope={scope}
+              summary={summary}
+            />
+          </div>
+          <div className="order-4">
+            <OrganizationStrip
+              locale={locale}
+              properties={properties}
+              scope={scope}
+            />
           </div>
         </>
       )}
@@ -189,7 +212,8 @@ function Tiles({
   const n = (value: number) => formatNumber(value, locale);
   const href = (
     segment: "arrivals" | "departures" | "housekeeping" | "finance" | "rooms",
-  ) => todayHref(locale, segment, summary.day.propertyId);
+    extra?: Record<string, string>,
+  ) => todayHref(locale, segment, summary.day.propertyId, extra);
   const currency = summary.day.currency;
 
   const arrivals = (
@@ -275,25 +299,25 @@ function Tiles({
   const readyForArrivals =
     summary.arrivals?.status === "ok" ? (
       <Tile key="ready-for-arrivals" onRetry={onRetry} section={summary.rooms}>
-        {(rooms, stale) => {
+        {(_rooms, stale) => {
           const arrivalsData =
             summary.arrivals?.status === "ok" ? summary.arrivals.data : null;
           const toCome = arrivalsData
             ? arrivalsData.expected - arrivalsData.checkedIn
             : 0;
-          const waiting = Math.min(rooms.arrivalsWaiting, toCome);
+          const notReady = arrivalsData?.notReady ?? 0;
           return (
             <StatTile
-              href={href("housekeeping")}
+              href={href("arrivals", { show: "to_come" })}
               icon={Sparkles}
               label={t("roomsReadyForArrivals")}
-              opens={t("rooms")}
+              opens={t("arrivals")}
               stale={stale}
               sub={
-                waiting > 0 ? t("roomsNotReadyYet", { count: waiting }) : null
+                notReady > 0 ? t("roomsNotReadyYet", { count: notReady }) : null
               }
             >
-              <OfTotal of={n(toCome)} value={n(toCome - waiting)} />
+              <OfTotal of={n(toCome)} value={n(arrivalsData?.ready ?? 0)} />
             </StatTile>
           );
         }}
@@ -304,7 +328,7 @@ function Tiles({
     <Tile key="ready-rooms" onRetry={onRetry} section={summary.rooms}>
       {(rooms, stale) => (
         <StatTile
-          href={href("housekeeping")}
+          href={href("housekeeping", { show: "in_service" })}
           icon={CheckCheck}
           label={t("readyRooms")}
           opens={t("rooms")}
@@ -315,7 +339,6 @@ function Tiles({
                 : 0,
           }}
           stale={stale}
-          sub={`${t("dirty")} ${n(rooms.dirty)} · ${t("awaitingInspection")} ${n(rooms.awaitingInspection)}`}
         >
           <OfTotal
             of={n(rooms.total - rooms.outOfService)}
@@ -333,7 +356,7 @@ function Tiles({
           {(rooms, stale) => (
             <>
               <StatTile
-                href={href("housekeeping")}
+                href={href("housekeeping", { show: "dirty" })}
                 icon={Sparkles}
                 label={t("toClean")}
                 opens={t("dirty")}
@@ -343,7 +366,7 @@ function Tiles({
               </StatTile>
               <StatTile
                 accent
-                href={href("housekeeping")}
+                href={href("housekeeping", { show: "awaiting_inspection" })}
                 icon={CheckCheck}
                 label={t("awaitingInspection")}
                 opens={t("awaiting")}
@@ -353,10 +376,10 @@ function Tiles({
               </StatTile>
               {readyRooms}
               <StatTile
-                href={href("housekeeping")}
+                href={href("housekeeping", { show: "for_arrival" })}
                 icon={LogIn}
                 label={t("arrivalsWaiting")}
-                opens={t("cleanFirst")}
+                opens={t("rooms")}
                 stale={stale}
               >
                 {n(rooms.arrivalsWaiting)}
@@ -377,7 +400,7 @@ function Tiles({
               {data.leaving ? (
                 <StatTile
                   accent
-                  href={href("departures")}
+                  href={href("departures", { show: "owing" })}
                   icon={LogOut}
                   label={t("owedOnDepartures")}
                   opens={t("departures")}
@@ -388,7 +411,7 @@ function Tiles({
                 </StatTile>
               ) : null}
               <StatTile
-                href={href("finance")}
+                href={href("finance", { show: "open" })}
                 icon={Wallet}
                 label={t("openFolios")}
                 opens={t("allFolios")}
@@ -397,7 +420,7 @@ function Tiles({
                 {n(data.openFolios)}
               </StatTile>
               <StatTile
-                href={href("finance")}
+                href={href("finance", { show: "open" })}
                 icon={Wallet}
                 label={t("openBalance")}
                 opens={t("allFolios")}
@@ -407,7 +430,7 @@ function Tiles({
               </StatTile>
               {data.leaving ? (
                 <StatTile
-                  href={href("departures")}
+                  href={href("departures", { show: "overdue_owing" })}
                   icon={Clock}
                   label={t("overdueOwing")}
                   opens={t("departures")}
@@ -439,11 +462,16 @@ function Tiles({
 
 function MainRow({
   locale,
+  onChanged,
   onRetry,
+  scope,
   summary,
 }: {
   locale: SupportedLocale;
+  /** A command run from a row changed the day: read it again. */
+  onChanged: () => void;
   onRetry: () => void;
+  scope: TodayScope;
   summary: TodaySummary;
 }) {
   const propertyId = summary.day.propertyId;
@@ -453,6 +481,17 @@ function MainRow({
     return summary.money ? (
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
         <MoneyLists
+          aside={
+            summary.charges ? (
+              <ChargesCard
+                charges={summary.charges}
+                currency={currency}
+                locale={locale}
+                onRetry={onRetry}
+                propertyId={propertyId}
+              />
+            ) : null
+          }
           currency={currency}
           locale={locale}
           onRetry={onRetry}
@@ -468,6 +507,7 @@ function MainRow({
       summary.rooms ? (
         <CleanFirstCard
           locale={locale}
+          onChanged={onChanged}
           onRetry={onRetry}
           propertyId={propertyId}
           rooms={summary.rooms}
@@ -479,15 +519,37 @@ function MainRow({
         currency={currency}
         departures={summary.departures}
         locale={locale}
+        onChanged={onChanged}
         onRetry={onRetry}
-        propertyId={propertyId}
+        scope={scope}
       />
     ) : null;
 
+  const side = summary.rooms || summary.maintenance || summary.charges;
+
   return (
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
-      {primary}
-      {summary.rooms || summary.maintenance ? (
+      <div className="flex flex-col gap-4">
+        {primary}
+        {summary.booked ? (
+          <BookedAheadCard
+            booked={summary.booked}
+            locale={locale}
+            onRetry={onRetry}
+            propertyId={propertyId}
+          />
+        ) : null}
+        {summary.activity ? (
+          <ActivityCard
+            activity={summary.activity}
+            locale={locale}
+            onRetry={onRetry}
+            propertyId={propertyId}
+            userId={scope.userId}
+          />
+        ) : null}
+      </div>
+      {side ? (
         <div className="flex flex-col gap-4">
           {summary.rooms ? (
             <RoomsCard
@@ -501,6 +563,15 @@ function MainRow({
             <MaintenanceCard
               locale={locale}
               maintenance={summary.maintenance}
+              onRetry={onRetry}
+              propertyId={propertyId}
+            />
+          ) : null}
+          {summary.charges ? (
+            <ChargesCard
+              charges={summary.charges}
+              currency={currency}
+              locale={locale}
               onRetry={onRetry}
               propertyId={propertyId}
             />

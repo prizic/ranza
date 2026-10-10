@@ -14,6 +14,13 @@ everything lands under Unreleased.
 - `RoomCalendarReservationBar.reference` and `.expectedArrival`, so a move
   dragged on the room calendar can open Change booking without reading the
   booking again (RC-S3-01).
+- `RoomCalendarNight.booked`: how many sellable Units in use a booking or a
+  Stay holds on a night, beside `free`, so a night's booked occupancy is one
+  definition with the free count it complements (TD-S3-04).
+- `listDepartedToday()`: the Stays checked out on the Property's business date,
+  latest first. It replaces `countDepartedToday()`, so the dashboard's "out of
+  due" number is the length of the list it opens and not a second query that
+  could drift from it (TD-S5-02).
 - An expected arrival: `NewReservation.expectedArrival` (`HH:MM` on the
   Property's clock, optional), `Arrival.expectedArrival` and
   `Arrival.expectedArrivalPassed` (read from the database's clock and the

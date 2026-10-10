@@ -1,9 +1,17 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { Departure, DepartureView } from "@ranza/reservations";
+import type { DepartureView } from "@ranza/reservations";
 import type { SupportedLocale } from "@ranza/i18n";
+import { ListFilterNotice } from "../../today/components/list-filter-notice";
+import { money } from "../../today/format";
+import {
+  inDepartureFilter,
+  totals,
+  type DepartureFilter,
+} from "../../today/views";
 import { frontOfficeKeys, type Scope } from "../query-keys";
+import { fetchDepartures } from "../queries";
 import { DeparturesTable } from "./departures-table";
 
 /**
@@ -13,30 +21,17 @@ import { DeparturesTable } from "./departures-table";
  * Guests out at once, and a list read once at page load keeps offering to
  * check out somebody a colleague already sent home.
  */
-async function fetchDepartures(
-  propertyId: string,
-  view: DepartureView,
-): Promise<readonly Departure[]> {
-  const response = await fetch(
-    `/api/front-office/departures?property=${encodeURIComponent(propertyId)}&view=${view}`,
-    { cache: "no-store" },
-  );
-  if (!response.ok) {
-    throw Object.assign(new Error("departures could not be read"), {
-      status: response.status,
-    });
-  }
-  const body = (await response.json()) as {
-    departures: readonly Departure[];
-  };
-  return body.departures;
-}
-
 export function LiveDepartures({
+  allHref,
+  filter,
   locale,
   scope,
   view,
 }: {
+  /** This list unnarrowed, for the way back from a figure on Today. */
+  allHref: string;
+  /** The part of the day a figure on Today counted (TD-S5-01). */
+  filter: DepartureFilter | null;
   locale: SupportedLocale;
   scope: Scope;
   view: DepartureView;
@@ -49,12 +44,41 @@ export function LiveDepartures({
 
   // Present on first paint from the prefetch. A refusal leaves the last good
   // rows on screen rather than blanking a working list.
+  const rows = (data ?? []).filter((departure) =>
+    inDepartureFilter(filter, departure),
+  );
+  const first = rows[0];
   return (
-    <DeparturesTable
-      departures={data ?? []}
-      locale={locale}
-      propertyId={scope.propertyId}
-      view={view}
-    />
+    <>
+      {filter === null ? null : (
+        <div className="mt-4">
+          <ListFilterNotice
+            allHref={allHref}
+            count={rows.length}
+            detail={
+              first
+                ? money(
+                    totals(
+                      rows.map((row) => ({
+                        amountMinor: row.balanceMinor,
+                        currency: row.currency,
+                      })),
+                    ),
+                    first.currency,
+                    locale,
+                  )
+                : undefined
+            }
+            filter={filter === "owing" ? "filterOwing" : "filterOverdueOwing"}
+          />
+        </div>
+      )}
+      <DeparturesTable
+        departures={rows}
+        locale={locale}
+        propertyId={scope.propertyId}
+        view={view}
+      />
+    </>
   );
 }

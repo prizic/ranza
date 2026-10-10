@@ -55,6 +55,7 @@ await reservations.previewMove(userId, stayId);
 await reservations.moveGuest(userId, guestMove);
 await reservations.listArrivals(userId, propertyId);
 await reservations.listDepartures(userId, propertyId, "due" | "in_house");
+await reservations.listDepartedToday(userId, propertyId);
 await reservations.checkIn(userId, reservationId);
 await reservations.checkOut(userId, stayId, {
   folioVersion,

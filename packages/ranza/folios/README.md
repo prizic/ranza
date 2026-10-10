@@ -32,6 +32,7 @@ historical amount if that Property ever changed currency.
 ```ts
 const folios = createFoliosModule({ db }); // the ranza_app client (ADR 0006)
 await folios.listFolios(userId, propertyId);
+await folios.chargesPostedToday(userId, propertyId);
 await folios.folioDetail(userId, folioId);
 await folios.postCharge(userId, { folioId, description, amountMinor });
 await folios.reverseLine(userId, lineId, reason);
