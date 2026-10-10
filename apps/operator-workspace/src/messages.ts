@@ -2066,7 +2066,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Bu rezervasyon fiyatsız alındı; geceleri ücretlendirilmez.",
     balanceAfterCheckOut: "Çıkıştan sonraki bakiye",
     checkOutBalanceHint:
-      "Henüz ödeme alınamıyor. Hesap {balance} bakiyesiyle açık kalır ve gerekçeniz kaydedilir.",
+      "Hesap {balance} bakiyesiyle açık kalır ve gerekçeniz kaydedilir. Ödeme, hesap üzerinden kaydedilir.",
     checkOutBalanceReasonRequired:
       "Hesapta bakiye var. Açık kalmasının gerekçesini yazın.",
     checkOutFolioChanged:
@@ -4051,7 +4051,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "This booking was taken without a price, so its nights are not charged.",
     balanceAfterCheckOut: "Balance after check-out",
     checkOutBalanceHint:
-      "Payments cannot be taken yet. The Folio stays open with {balance} on it, and your reason is recorded.",
+      "The Folio stays open with {balance} on it, and your reason is recorded. A payment is recorded on the Folio.",
     checkOutBalanceReasonRequired:
       "The Folio has a balance. Say why it stays open.",
     checkOutFolioChanged:
@@ -6032,7 +6032,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutUnpriced: "أُخذ هذا الحجز بلا سعر، لذا لا تُحتسب لياليه.",
     balanceAfterCheckOut: "الرصيد بعد المغادرة",
     checkOutBalanceHint:
-      "لا يمكن تحصيل الدفعات بعد. يبقى الحساب مفتوحًا برصيد {balance}، ويُسجَّل السبب الذي تكتبه.",
+      "يبقى الحساب مفتوحًا برصيد {balance}، ويُسجَّل السبب الذي تكتبه. تُسجَّل الدفعة على الحساب.",
     checkOutBalanceReasonRequired: "على الحساب رصيد. اكتب سبب إبقائه مفتوحًا.",
     checkOutFolioChanged:
       "أُضيف قيد إلى الحساب أثناء مراجعتك. راجعه مرة أخرى ثم أعد المحاولة.",

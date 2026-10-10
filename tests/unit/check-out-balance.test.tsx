@@ -64,7 +64,7 @@ const collapse = (text: string) => text.replace(/\s+/g, " ");
 afterEach(cleanup);
 
 describe("checking out a Guest who owes", () => {
-  it("RT-S3-16: says payments cannot be taken yet and asks why the balance stays open", () => {
+  it("RT-S3-16: says the Folio stays open and asks why the balance stays open", () => {
     open(PRICED);
 
     const hint = messages.en.checkOutBalanceHint.replace(
@@ -72,7 +72,8 @@ describe("checking out a Guest who owes", () => {
       formatMoney(25_000, "TRY", "en"),
     );
     expect(screen.getByText(collapse(hint))).toBeVisible();
-    expect(hint).toMatch(/Payments cannot be taken yet/);
+    expect(hint).toMatch(/The Folio stays open with/);
+    expect(hint).not.toMatch(/cannot be taken/);
 
     const reason = screen.getByLabelText(messages.en.checkOutBalanceReason);
     expect(reason).toBeRequired();
@@ -96,6 +97,6 @@ describe("checking out a Guest who owes", () => {
     expect(
       screen.queryByLabelText(messages.en.checkOutBalanceReason),
     ).toBeNull();
-    expect(screen.queryByText(/Payments cannot be taken yet/)).toBeNull();
+    expect(screen.queryByText(/The Folio stays open with/)).toBeNull();
   });
 });
