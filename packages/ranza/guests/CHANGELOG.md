@@ -11,6 +11,9 @@ everything lands under Unreleased.
 
 ### Added
 
+- `GUEST_DETAILS.email.min`, and a `GuestDetailsError` on the email for an
+  address shorter than it, or one `guests_email_is_normalized` refuses with
+  23514 after the module let it through (RG-S1-42).
 - The `guests` table: a person, owned by an Organization rather than by a
   Property ([ADR 0024](../../../docs/adr/0024-a-guest-belongs-to-an-organization-and-a-reservation-holds-its-nights.md)).
 - `app.can_use_capability_in_organization()`, which asks blueprint 3.5's four

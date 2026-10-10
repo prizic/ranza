@@ -19,6 +19,9 @@ import { frontDeskProperty } from "../../../../server/front-desk";
 /** Adding, blocking and splitting rooms (accommodation_units' write policies). */
 const MANAGES_ROOMS = "accommodation.configure";
 
+/** Taking a booking (reservations_insert_front_desk). */
+const TAKES_BOOKINGS = "front_desk.book";
+
 /**
  * Reservations: what is booked at this Property from today onwards, and the one
  * thing a front desk does that nothing else in the product could do — take a
@@ -69,6 +72,12 @@ export default async function ReservationsPage({
   // whether or not a Unit can be booked: the list's tabs need it as much as
   // the dialog's calendar does.
   const today = await bookingDay(property.propertyId);
+  // Offering the button is the screen's half and refusing the booking stays the
+  // policies': a role without the permission is not shown a control it cannot
+  // use, as on every other front-desk list (FD-S5-03, RG-S3-05).
+  const mayBook = (await permittedProperties(TAKES_BOOKINGS)).some(
+    (permitted) => permitted.propertyId === property.propertyId,
+  );
   const roomsHref =
     units.length === 0 &&
     (await permittedProperties(MANAGES_ROOMS)).some(
@@ -83,14 +92,13 @@ export default async function ReservationsPage({
         <p className="text-sm text-muted-foreground">
           {t("reservationsAt")} {property.propertyName}
         </p>
-        {/* Offered whenever the Property has a Unit in service. Whether this
-            viewer may book one is the policies' answer, and hiding the button
-            on their behalf would be a second, weaker copy of it. With none to
-            sell it is shown disabled and says why (RG-S3-04). The two reads
-            share their gates, so a Unit with no business date is a
+        {/* Offered to a viewer holding front_desk.book whenever the Property
+            has a Unit in service; the policies still decide each booking. With
+            none to sell it is shown disabled and says why (RG-S3-04). The two
+            reads share their gates, so a Unit with no business date is a
             capability switched off between them, and the next render says
-            so. */}
-        {units.length === 0 ? (
+            so. A viewer who may not book is offered nothing (RG-S3-05). */}
+        {!mayBook ? null : units.length === 0 ? (
           <NoBookableUnit roomsHref={roomsHref} />
         ) : today ? (
           <NewReservationDialog

@@ -128,6 +128,10 @@ describe("the booking form", () => {
       "maxlength",
       String(GUEST_DETAILS.email.max),
     );
+    expect(screen.getByLabelText(messages.en.guestEmail)).toHaveAttribute(
+      "minlength",
+      String(GUEST_DETAILS.email.min),
+    );
     expect(screen.getByLabelText(messages.en.guestPhone)).toHaveAttribute(
       "maxlength",
       String(GUEST_DETAILS.phone.max),
@@ -323,6 +327,71 @@ describe("a missing Guest name (RG-S4-15)", () => {
     fireEvent.change(guest, { target: { value: "N" } });
     expect(screen.queryByText(messages.en.guestRequired)).toBeNull();
     expect(guest).not.toHaveAttribute("aria-invalid");
+  });
+});
+
+describe("an email the Guest record cannot hold (RG-S1-42)", () => {
+  it("a_short_email_is_said_under_the_field_in_our_words: from the browser refusing it and cleared by typing", () => {
+    openForm();
+    const email = screen.getByLabelText(messages.en.guestEmail);
+    expect(email).toHaveAccessibleDescription(messages.en.guestEmailHint);
+
+    // The browser refusing a one-character address.
+    fireEvent.change(email, { target: { value: "a" } });
+    expect(fireEvent.invalid(email)).toBe(true);
+    expect(screen.getByText(messages.en.guestEmailInvalid)).toBeVisible();
+    expect(email).toHaveAttribute("aria-invalid", "true");
+    expect(email).toHaveAccessibleDescription(messages.en.guestEmailInvalid);
+
+    fireEvent.change(email, { target: { value: "ab" } });
+    expect(screen.queryByText(messages.en.guestEmailInvalid)).toBeNull();
+    expect(email).not.toHaveAttribute("aria-invalid");
+    expect(email).toHaveAccessibleDescription(messages.en.guestEmailHint);
+  });
+
+  it("a_short_email_is_said_under_the_field_in_our_words: the server's refusal lands on the field, not in the generic message", async () => {
+    createReservation.mockResolvedValue("invalidEmail");
+    openForm();
+    fireEvent.change(screen.getByLabelText(messages.en.guest), {
+      target: { value: "Nezihe Muhiddin" },
+    });
+    fireEvent.submit(takeBooking().closest("form")!);
+
+    const email = screen.getByLabelText(messages.en.guestEmail);
+    expect(
+      await screen.findByText(messages.en.guestEmailInvalid),
+    ).toBeVisible();
+    expect(email).toHaveAttribute("aria-invalid", "true");
+    expect(email).toHaveFocus();
+    expect(screen.queryByText(messages.en.bookingGuestInvalid)).toBeNull();
+    await waitFor(() => expect(takeBooking()).toBeEnabled());
+  });
+
+  it("a_short_email_is_said_under_the_field_in_our_words: in Turkish and Arabic too", () => {
+    expect(messages.tr.guestEmailInvalid).not.toBe(
+      messages.en.guestEmailInvalid,
+    );
+    expect(messages.ar.guestEmailInvalid).not.toBe(
+      messages.en.guestEmailInvalid,
+    );
+
+    render(
+      <NextIntlClientProvider locale="ar" messages={messages.ar}>
+        <DirectionProvider dir={directionFor("ar")}>
+          <NewReservationDialog
+            locale="ar"
+            propertyId="d9000003-0000-4000-8000-000000000001"
+            today="2026-09-25"
+            units={UNITS}
+          />
+        </DirectionProvider>
+      </NextIntlClientProvider>,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: messages.ar.newReservation }),
+    );
+    fireEvent.invalid(screen.getByLabelText(messages.ar.guestEmail));
+    expect(screen.getByText(messages.ar.guestEmailInvalid)).toBeVisible();
   });
 });
 

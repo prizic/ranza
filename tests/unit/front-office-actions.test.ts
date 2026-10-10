@@ -39,6 +39,8 @@ const {
   UnitUnavailableError,
 } = await import("../../packages/ranza/reservations/src");
 
+const { GuestDetailsError } = await import("../../packages/ranza/guests/src");
+
 function booking(overrides: Record<string, string> = {}): FormData {
   const form = new FormData();
   for (const [key, value] of Object.entries({
@@ -98,6 +100,25 @@ describe("taking a booking", () => {
       new UnitHasOccupantError("that Accommodation Unit has somebody in it"),
     );
     expect(await actions.createReservation("idle", booking())).toBe("occupied");
+    expect(logged).not.toHaveBeenCalled();
+  });
+
+  it("RG-S1-42: names the email when it is the email, and the Guest's details when it is anything else", async () => {
+    createReservation.mockRejectedValueOnce(
+      new GuestDetailsError(
+        "an email address must be at least 3 characters",
+        "email",
+      ),
+    );
+    expect(await actions.createReservation("idle", booking())).toBe(
+      "invalidEmail",
+    );
+    createReservation.mockRejectedValueOnce(
+      new GuestDetailsError("a telephone number is too long", "phone"),
+    );
+    expect(await actions.createReservation("idle", booking())).toBe(
+      "invalidGuest",
+    );
     expect(logged).not.toHaveBeenCalled();
   });
 

@@ -413,6 +413,7 @@ export interface Messages {
   expectedArrivalNone: string;
   expectedArrivalPassed: string;
   guestRequired: string;
+  guestEmailInvalid: string;
   bookingRefused: string;
   /** The price list changed while the booking dialog was open (RT-S2-12). */
   bookingPriceChanged: string;
@@ -2428,6 +2429,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingPeriodInvalid:
       "Bu tarihler geçerli bir dönem değil. Rezervasyon en az bir gece sürer ve bugünden önce başlayamaz.",
     guestRequired: "Misafirin adını girin.",
+    guestEmailInvalid:
+      "Geçerli bir e-posta adresi girin (ad@ornek.com gibi) ya da boş bırakın.",
     bookingGuestInvalid:
       "Misafirin adını, e-postasını ve telefonunu kontrol edin.",
     bookingArrivalInvalid: "Beklenen varışı bir saat olarak girin.",
@@ -4560,6 +4563,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingPeriodInvalid:
       "Those dates are not a period a Reservation can have. It covers at least one night and cannot start before today.",
     guestRequired: "Enter the Guest's name.",
+    guestEmailInvalid:
+      "Enter a valid email address, such as name@example.com, or leave it empty.",
     bookingGuestInvalid:
       "Check the Guest's name, email address and telephone number.",
     bookingArrivalInvalid: "Enter the expected arrival as a time of day.",
@@ -6680,6 +6685,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingPeriodInvalid:
       "هذه التواريخ ليست مدة صالحة. يغطي الحجز ليلة واحدة على الأقل ولا يبدأ قبل اليوم.",
     guestRequired: "أدخل اسم النزيل.",
+    guestEmailInvalid:
+      "أدخل بريدًا إلكترونيًا صالحًا مثل name@example.com، أو اتركه فارغًا.",
     bookingGuestInvalid: "تحقق من اسم الضيف وبريده الإلكتروني وهاتفه.",
     bookingArrivalInvalid: "أدخل الوصول المتوقع كوقت من اليوم.",
     expectedArrival: "الوصول المتوقع",

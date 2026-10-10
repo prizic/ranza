@@ -103,12 +103,19 @@ async function show() {
   );
 }
 
+/** Where the viewer holds each permission, as the funnel answers it. */
+let held: Record<string, (typeof PROPERTY)[]> = {};
+
 beforeEach(() => {
+  // Somebody who may book here, and nothing else.
+  held = { "front_desk.book": [PROPERTY] };
   bookableUnits.mockReset().mockResolvedValue([UNIT]);
   // A date nobody's clock would produce, so a page that worked the day out
   // for itself could not match it by accident.
   bookingDay.mockReset().mockResolvedValue("2020-01-02");
-  permittedProperties.mockReset().mockResolvedValue([]);
+  permittedProperties
+    .mockReset()
+    .mockImplementation(async (permission: string) => held[permission] ?? []);
   reservations.mockReset().mockResolvedValue([]);
 });
 afterEach(cleanup);
@@ -146,7 +153,7 @@ describe("the Reservations page", () => {
 
   it("RG-S3-04: somebody who may manage rooms is sent to Rooms, keeping the Property", async () => {
     bookableUnits.mockResolvedValue([]);
-    permittedProperties.mockResolvedValue([PROPERTY]);
+    held["accommodation.configure"] = [PROPERTY];
     await show();
 
     expect(permittedProperties).toHaveBeenCalledWith("accommodation.configure");
@@ -160,12 +167,37 @@ describe("the Reservations page", () => {
 
   it("RG-S3-04: may manage rooms somewhere else is not a link here", async () => {
     bookableUnits.mockResolvedValue([]);
-    permittedProperties.mockResolvedValue([
+    held["accommodation.configure"] = [
       { ...PROPERTY, propertyId: "d9000004-0000-4000-8000-000000000009" },
-    ]);
+    ];
     await show();
     expect(
       screen.queryByRole("link", { name: messages.en.openRooms }),
     ).toBeNull();
+  });
+
+  it("RG-S3-05: a viewer who may not book is offered no New reservation, whether or not there is a Unit to sell", async () => {
+    held = {};
+    await show();
+    expect(permittedProperties).toHaveBeenCalledWith("front_desk.book");
+    expect(screen.queryByTestId("booking-today")).toBeNull();
+
+    cleanup();
+    bookableUnits.mockResolvedValue([]);
+    await show();
+    expect(
+      screen.queryByRole("button", { name: messages.en.newReservation }),
+    ).toBeNull();
+    expect(screen.queryByText(messages.en.noBookableUnit)).toBeNull();
+  });
+
+  it("RG-S3-05: may book at another Property is not an offer here", async () => {
+    held = {
+      "front_desk.book": [
+        { ...PROPERTY, propertyId: "d9000004-0000-4000-8000-000000000009" },
+      ],
+    };
+    await show();
+    expect(screen.queryByTestId("booking-today")).toBeNull();
   });
 });

@@ -315,11 +315,11 @@ export async function reverseCheckIn(
 /**
  * What the booking form shows afterwards.
  *
- * Three of these name a field the person filling it in can fix — the dates, the
- * Guest's details, the Unit being taken — and `refused` is everything else. That
- * split is the same one the module makes and for the same reason: a refusal that
- * hides whether a row exists must not be told apart from one that does not,
- * while a length somebody typed is theirs to correct.
+ * Four of these name a field the person filling it in can fix — the dates, the
+ * Guest's details, the email, the Unit being taken — and `refused` is
+ * everything else. That split is the same one the module makes and for the same
+ * reason: a refusal that hides whether a row exists must not be told apart from
+ * one that does not, while a length somebody typed is theirs to correct.
  */
 export type CreateReservationOutcome =
   | "idle"
@@ -328,6 +328,7 @@ export type CreateReservationOutcome =
   | "occupied"
   | "invalidPeriod"
   | "invalidGuest"
+  | "invalidEmail"
   | "invalidArrival"
   | "priceChanged"
   | "refused";
@@ -419,7 +420,9 @@ export async function createReservation(
     if (error instanceof UnitUnavailableError) return "unavailable";
     if (error instanceof UnitHasOccupantError) return "occupied";
     if (error instanceof ReservationPeriodError) return "invalidPeriod";
-    if (error instanceof GuestDetailsError) return "invalidGuest";
+    if (error instanceof GuestDetailsError) {
+      return error.field === "email" ? "invalidEmail" : "invalidGuest";
+    }
     if (error instanceof ExpectedArrivalError) return "invalidArrival";
     // The dialog is read again with the price that stands now.
     if (error instanceof PriceChangedError) {

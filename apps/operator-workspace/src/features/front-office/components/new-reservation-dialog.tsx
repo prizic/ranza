@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import { formatMoney, type SupportedLocale } from "@ranza/i18n";
@@ -77,7 +77,7 @@ import { unitLabel } from "../unit-label";
  * these ever disagree with the module, which is the only thing the import would
  * have bought.
  */
-const GUEST = { name: 120, email: 254, phone: 40 };
+const GUEST = { name: 120, emailMin: 3, email: 254, phone: 40 };
 
 /** Nights between two `YYYY-MM-DD` dates, counted in UTC so no clock shifts them. */
 function nightsBetween(from: string, to: string): number {
@@ -145,6 +145,10 @@ export function NewReservationDialog({
   );
   const [availabilityUnknown, setAvailabilityUnknown] = useState(false);
   const [guestMissing, setGuestMissing] = useState(false);
+  // Set by the browser refusing the address and by the server doing so, and
+  // cleared by typing: the same message from either, under the field.
+  const [emailRejected, setEmailRejected] = useState(false);
+  const emailField = useRef<HTMLInputElement>(null);
   // Bumped when saving is refused for a clash, so the marks are read again
   // with what stands now rather than what stood when the dates were chosen.
   const [generation, setGeneration] = useState(0);
@@ -155,6 +159,10 @@ export function NewReservationDialog({
     const result = await createReservation(previous, form);
     if (result === "unavailable" || result === "occupied") {
       setGeneration((n) => n + 1);
+    }
+    if (result === "invalidEmail") {
+      setEmailRejected(true);
+      emailField.current?.focus();
     }
     return result;
   }, "idle");
@@ -213,6 +221,7 @@ export function NewReservationDialog({
       setStayType("guest");
       setDates({});
       setGuestMissing(false);
+      setEmailRejected(false);
     }
   }
 
@@ -341,20 +350,40 @@ export function NewReservationDialog({
             <div className="grid gap-1.5">
               <Field htmlFor="booking-email" label={t("guestEmail")}>
                 <Input
-                  aria-describedby="booking-email-hint"
+                  aria-describedby={
+                    emailRejected
+                      ? "booking-email-invalid"
+                      : "booking-email-hint"
+                  }
+                  aria-invalid={emailRejected || undefined}
                   autoComplete="off"
                   id="booking-email"
                   maxLength={GUEST.email}
+                  minLength={GUEST.emailMin}
                   name="guestEmail"
+                  onChange={() => setEmailRejected(false)}
+                  // In our words, like the Guest's name beside it, and without
+                  // cancelling the event so the browser still decides focus.
+                  onInvalid={() => setEmailRejected(true)}
+                  ref={emailField}
                   type="email"
                 />
               </Field>
-              <p
-                className="text-step--1 text-muted-foreground"
-                id="booking-email-hint"
-              >
-                {t("guestEmailHint")}
-              </p>
+              {emailRejected ? (
+                <p
+                  className="text-step--1 text-destructive"
+                  id="booking-email-invalid"
+                >
+                  {t("guestEmailInvalid")}
+                </p>
+              ) : (
+                <p
+                  className="text-step--1 text-muted-foreground"
+                  id="booking-email-hint"
+                >
+                  {t("guestEmailHint")}
+                </p>
+              )}
             </div>
             <Field htmlFor="booking-phone" label={t("guestPhone")}>
               {/* type="tel", so a telephone keypad appears and nothing is

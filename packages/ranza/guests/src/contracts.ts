@@ -29,8 +29,12 @@
  */
 export const GUEST_DETAILS = {
   name: { min: 1, max: 120 },
-  /** RFC 5321's limit on an address, which is the only claim made about it. */
-  email: { max: 254 },
+  /**
+   * RFC 5321's limit on an address at the top. At the bottom, the shortest
+   * thing `guests_email_is_normalized` accepts, which is also the shortest
+   * address that can hold an `@` with something either side of it.
+   */
+  email: { min: 3, max: 254 },
   phone: { max: 40 },
 } as const;
 

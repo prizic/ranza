@@ -28,6 +28,39 @@ export interface GuestWriteClient extends TenantClient {
   $queryRaw<T>(query: TemplateStringsArray, ...values: unknown[]): Promise<T>;
 }
 
+/**
+ * check_violation. `guests_email_is_normalized` is the only check on this
+ * insert that an address can trip, and `char_length` there counts characters
+ * where JavaScript counts UTF-16 units, so the two can still disagree.
+ */
+const CHECK_VIOLATION = "23514";
+const EMAIL_CONSTRAINT = "guests_email_is_normalized";
+
+/**
+ * Whether the database refused the row for its email: the driver's error code
+ * and the constraint it names, which Prisma carries in the adapter error or,
+ * failing that, in the message.
+ */
+function refusedForItsEmail(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const { meta, message } = error as {
+    meta?: {
+      driverAdapterError?: {
+        cause?: { code?: unknown; constraint?: unknown; message?: unknown };
+      };
+    };
+    message?: unknown;
+  };
+  const cause = meta?.driverAdapterError?.cause;
+  const text = [message, cause?.message, cause?.constraint].filter(
+    (part): part is string => typeof part === "string",
+  );
+  const code =
+    cause?.code === CHECK_VIOLATION ||
+    text.some((part) => part.includes(CHECK_VIOLATION));
+  return code && text.some((part) => part.includes(EMAIL_CONSTRAINT));
+}
+
 /** The write was refused: out of reach, unentitled, or no front desk. */
 export class GuestWriteError extends Error {
   constructor(message: string) {
@@ -100,6 +133,15 @@ export async function identifyGuestWithin(
       "fullName",
     );
   }
+  // UTF-16 units, where `char_length` counts characters: two emoji are four
+  // units and two characters. That gap is the one way a short address reaches
+  // the insert, and the mapping below answers it.
+  if (email && email.length < GUEST_DETAILS.email.min) {
+    throw new GuestDetailsError(
+      `an email address must be at least ${GUEST_DETAILS.email.min} characters`,
+      "email",
+    );
+  }
   if (email && email.length > GUEST_DETAILS.email.max) {
     throw new GuestDetailsError(
       `an email address must be at most ${GUEST_DETAILS.email.max} characters`,
@@ -113,21 +155,35 @@ export async function identifyGuestWithin(
     );
   }
 
-  const rows = await tx.$queryRaw<{ id: string; created: boolean }[]>`
-    insert into public.guests (organization_id, full_name, email, phone)
-    values (
-      ${details.organizationId}::uuid,
-      ${fullName},
-      ${email},
-      ${phone}
-    )
-    on conflict (organization_id, email) where email is not null
-      -- A no-op that is still an UPDATE, which is what makes RETURNING give
-      -- back the existing row. Assigning anything else would edit a profile
-      -- because somebody booked a second time.
-      do update set updated_at = public.guests.updated_at
-    returning id, (xmax = 0) as created
-  `;
+  let rows: { id: string; created: boolean }[];
+  try {
+    rows = await tx.$queryRaw<{ id: string; created: boolean }[]>`
+      insert into public.guests (organization_id, full_name, email, phone)
+      values (
+        ${details.organizationId}::uuid,
+        ${fullName},
+        ${email},
+        ${phone}
+      )
+      on conflict (organization_id, email) where email is not null
+        -- A no-op that is still an UPDATE, which is what makes RETURNING give
+        -- back the existing row. Assigning anything else would edit a profile
+        -- because somebody booked a second time.
+        do update set updated_at = public.guests.updated_at
+      returning id, (xmax = 0) as created
+    `;
+  } catch (error: unknown) {
+    // The constraint is the boundary and the checks above are its published
+    // bounds; this is what a disagreement between the two looks like to the
+    // person typing, which is still a sentence about the email.
+    if (refusedForItsEmail(error)) {
+      throw new GuestDetailsError(
+        "that email address is not one the Guest record can hold",
+        "email",
+      );
+    }
+    throw error;
+  }
 
   const [row] = rows;
   if (!row) {

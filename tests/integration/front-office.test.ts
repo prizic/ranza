@@ -29,6 +29,7 @@ import {
   UnitUnavailableError,
 } from "../../packages/ranza/reservations/src";
 import type { Arrival } from "../../packages/ranza/reservations/src";
+import { GuestDetailsError } from "../../packages/ranza/guests/src";
 import { createPrismaClient } from "../../packages/db/src";
 import { FRONT_DESK_CAPABILITY } from "../../packages/ranza/reservations/src";
 
@@ -1347,6 +1348,67 @@ describe("taking a booking", () => {
       "Refused Booking",
     );
     expect(guests).toEqual([]);
+  });
+
+  it("an_email_shorter_than_three_characters_is_refused_as_the_email: nothing is written, whether the module or the database caught it (RG-S1-42)", async () => {
+    const attempt = async (guestEmail: string) => {
+      const error = await reservations
+        .createReservation(MEMBER, {
+          propertyId: PROPERTY,
+          accommodationUnitId: BOOKED,
+          guestName: "Short Email",
+          guestEmail,
+          guestPhone: null,
+          stayType: "guest",
+          quotedRateMinor: null,
+          quotedCurrency: null,
+          startsOn: await propertyDay(50),
+          endsOn: await propertyDay(52),
+        })
+        .then(
+          () => null,
+          (thrown: unknown) => thrown,
+        );
+      expect(error).toBeInstanceOf(GuestDetailsError);
+      return error as GuestDetailsError;
+    };
+
+    // The module's own bound.
+    for (const short of ["a", "ab"]) {
+      const error = await attempt(short);
+      expect(error.field).toBe("email");
+      expect(error.message).toMatch(/at least 3 characters/);
+    }
+
+    // Two emoji are four UTF-16 units and two characters: the module lets
+    // them by and guests_email_is_normalized refuses them with 23514, which
+    // is mapped to the same field rather than escaping as an unexpected
+    // failure.
+    const refusedByTheDatabase = await attempt("\u{1F600}\u{1F600}");
+    expect(refusedByTheDatabase.field).toBe("email");
+    expect(refusedByTheDatabase.message).toMatch(/record can hold/);
+
+    // And the Guest and the booking went with it.
+    const written = await owner.$queryRawUnsafe<{ id: string }[]>(
+      `select id from public.guests where full_name = $1`,
+      "Short Email",
+    );
+    expect(written).toEqual([]);
+
+    // Three characters is the shortest address, and it books.
+    const booked = await reservations.createReservation(MEMBER, {
+      propertyId: PROPERTY,
+      accommodationUnitId: BOOKED,
+      guestName: "Short Email",
+      guestEmail: "a@b",
+      guestPhone: null,
+      stayType: "guest",
+      quotedRateMinor: null,
+      quotedCurrency: null,
+      startsOn: await propertyDay(50),
+      endsOn: await propertyDay(52),
+    });
+    expect(booked.guestCreated).toBe(true);
   });
 
   it("refuses dates that are not a period a Reservation can have", async () => {
