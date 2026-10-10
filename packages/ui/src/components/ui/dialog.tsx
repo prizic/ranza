@@ -74,7 +74,7 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 start-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 rtl:translate-x-1/2 -translate-y-1/2 gap-6 sm:rounded-lg bg-popover p-6 text-sm text-popover-foreground shadow-lg ring-1 ring-foreground/5 duration-100 outline-none sm:max-w-md dark:ring-foreground/10 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 start-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 rtl:translate-x-1/2 -translate-y-1/2 gap-6 sm:rounded-lg bg-popover p-6 text-sm text-popover-foreground shadow-lg ring-1 ring-foreground/5 duration-100 outline-none sm:max-w-md dark:ring-foreground/10 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 max-h-[calc(100dvh-2rem)] overflow-y-auto",
           className,
         )}
         {...props}
@@ -119,7 +119,10 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+        // Held at the bottom of a dialog taller than the screen, so its
+        // actions are never scrolled out of reach; the negative margin lets
+        // it cover the content's own padding, which it gives back as its own.
+        "sticky -bottom-6 z-10 -mx-6 -mb-6 flex flex-col-reverse gap-2 bg-popover px-6 pt-2 pb-6 sm:flex-row sm:justify-end",
         className,
       )}
       {...props}

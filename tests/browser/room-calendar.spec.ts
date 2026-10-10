@@ -665,7 +665,6 @@ test("RC-S3-04: dropped on a room that is booked for those nights, the preview n
   await expect(
     dialog.getByRole("button", { name: "Move booking" }),
   ).toBeDisabled();
-  await evidence(page, "move-conflict");
   await dialog.getByRole("button", { name: "Keep as it was" }).click();
   await expect(dialog).toBeHidden();
   expect(bookingRow(reservationId)).toBe(
@@ -816,6 +815,65 @@ test("RC-S3-09: a room taken while the preview was open is refused on confirming
       .getByRole("button", { name: new RegExp(`^Quicker ${tag}`) }),
   ).toBeVisible();
 });
+
+for (const viewport of [
+  { name: "a laptop", width: 1280, height: 720 },
+  { name: "a phone", width: 390, height: 844 },
+]) {
+  test(`RC-S3-04: on ${viewport.name} the Move booking actions are in reach, disabled on a conflict and clickable once it is cleared`, async ({
+    page,
+  }) => {
+    const { propertyId, tag, rooms } = aSetOfRooms(["A", "B", "C"]);
+    const guest = `Reach ${tag}`;
+    const reservationId = aBookingOn(rooms.A!, guest, { from: 2, to: 4 });
+    aBookingOn(rooms.C!, `Holder ${tag}`, { from: 3, to: 6 });
+    await page.setViewportSize(viewport);
+    await signIn(page);
+    await openRooms(page, "en", { propertyId, tag, rooms });
+
+    await page
+      .getByRole("button", { name: new RegExp(`^${guest}, Confirmed`) })
+      .click();
+    await page
+      .getByRole("dialog", { name: guest })
+      .getByRole("button", { name: "Move…" })
+      .click();
+    const dialog = page.getByRole("dialog", { name: "Move booking" });
+    const confirm = dialog.getByRole("button", { name: "Move booking" });
+
+    // The conflict: the reason is told and the confirm is visibly disabled,
+    // in the viewport without scrolling for it.
+    await dialog.getByLabel("Unit").click();
+    await page
+      .getByRole("option", { name: new RegExp(`${rooms.C!.name}.*Booked`) })
+      .click();
+    await expect(
+      dialog.getByText(`Holder ${tag} has booked some of those nights.`),
+    ).toBeVisible();
+    await expect(confirm).toBeInViewport();
+    await expect(confirm).toBeDisabled();
+    await expect(
+      dialog.getByRole("button", { name: "Keep as it was" }),
+    ).toBeInViewport();
+    if (viewport.width === 1280) {
+      await evidence(page, "move-conflict", { tall: false });
+    }
+
+    // Cleared, the same button is enabled and a click reaches it.
+    await dialog.getByLabel("Unit").click();
+    await page
+      .getByRole("option", { name: new RegExp(`${rooms.B!.name}.*Free`) })
+      .click();
+    await expect(confirm).toBeEnabled();
+    await confirm.scrollIntoViewIfNeeded();
+    await expect(confirm).toBeInViewport();
+    await confirm.click();
+    await expect(dialog).toBeHidden();
+    expect(bookingRow(reservationId)).toBe(
+      `${rooms.B!.id}|${propertyDay(propertyId, 2)}|${propertyDay(propertyId, 4)}`,
+    );
+  });
+}
 
 test("RC-S3-12: Move… on a booking's details does the same without a pointer", async ({
   page,
