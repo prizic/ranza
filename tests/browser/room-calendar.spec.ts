@@ -1,9 +1,15 @@
 import { randomUUID } from "node:crypto";
 
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 
 import { psql } from "./local-database";
-import { signIn, testProperty } from "./front-desk";
+import { PASSWORD, signIn, testProperty } from "./front-desk";
 
 /**
  * The room calendar in a browser (RANZ-25).
@@ -1015,6 +1021,87 @@ test("RC-S3-11: in Arabic the drag follows the pointer to the left and the dates
   expect(bookingRow(reservationId)).toBe(
     `${rooms.B!.id}|${propertyDay(propertyId, 3)}|${propertyDay(propertyId, 5)}`,
   );
+});
+
+/**
+ * A Staff Member who reaches the front desk and may not amend: a role of the
+ * Organization's own holding only `front_desk.check_in`, which is what the
+ * integration suite uses for the same refusal. Made the way seed.setup.ts makes
+ * the others, through the application's own sign-up route.
+ */
+async function aDeskWithoutAmend(
+  request: APIRequestContext,
+  baseURL: string,
+  propertyId: string,
+): Promise<string> {
+  const email = "e2e-no-amend@example.test";
+  const headers = { origin: new URL("/", baseURL).origin };
+  const signedUp = await request.post("/api/auth/sign-up/email", {
+    headers,
+    data: { email, password: PASSWORD, name: "No amend" },
+  });
+  if (!signedUp.ok()) {
+    const signedIn = await request.post("/api/auth/sign-in/email", {
+      headers,
+      data: { email, password: PASSWORD },
+    });
+    expect(signedIn.ok()).toBe(true);
+  }
+  await request.get("/en/today");
+  psql(
+    `with home as (
+       select organization_id as id from public.properties where id = '${propertyId}'
+     ), role as (
+       insert into public.staff_roles (scope_id, key, organization_id, name, permissions)
+       select id, 'e2e_no_amend', id, 'E2E no amend', array['front_desk.check_in']
+         from home
+       on conflict do nothing
+     ), person as (
+       select id from public.users where lower(email) = '${email}'
+     )
+     insert into public.organization_memberships
+       (organization_id, user_id, role, role_scope_id, access_scope)
+     select home.id, person.id, 'e2e_no_amend', home.id, 'organization_wide'
+       from home, person
+     on conflict do nothing`,
+  );
+  return email;
+}
+
+test("RC-S3-10: without front_desk.amend a bar has no grip, no end handle, no Move…, and a drag opens nothing", async ({
+  page,
+  baseURL,
+  request,
+}) => {
+  const { propertyId, tag, rooms } = aSetOfRooms(["A", "B"]);
+  const guest = `Reader ${tag}`;
+  aBookingOn(rooms.A!, guest, { from: 2, to: 4 });
+  anInHouseGuestIn(rooms.B!, `Stays ${tag}`);
+  const email = await aDeskWithoutAmend(request, baseURL!, propertyId);
+  await signIn(page, email);
+  await openRooms(page, "en", { propertyId, tag, rooms });
+
+  const bar = page.getByRole("button", {
+    name: new RegExp(`^${guest}, Confirmed`),
+  });
+  await expect(bar).toBeVisible();
+  await expect(bar).not.toHaveAttribute("title", /drag/i);
+  await expect(page.locator("[data-end-handle]")).toHaveCount(0);
+  await expect(page.getByText(/Drag a booking to another room/)).toHaveCount(0);
+
+  await dragBar(
+    page,
+    { room: rooms.A!, day: propertyDay(propertyId, 3) },
+    { room: rooms.B!, day: propertyDay(propertyId, 3) },
+  );
+  await expect(page.locator("[data-drop-ghost]")).toHaveCount(0);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  // The drawer, opened by a click, offers no Move… either.
+  await bar.click();
+  const drawer = page.getByRole("dialog", { name: guest });
+  await expect(drawer).toBeVisible();
+  await expect(drawer.getByRole("button", { name: "Move…" })).toHaveCount(0);
 });
 
 test("RC-S3-14: the calendar is filtered by the type and the state of its Units", async ({
