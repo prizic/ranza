@@ -318,6 +318,52 @@
     </p>
   </section>
 
+  <section class="verdict" style="border-color: var(--pass); background: var(--pass-bg)">
+    <p class="big">Update, 2026-10-10: the three failures above are closed</p>
+    <p>
+      Not a re-walk of the 48 cases: this record is the 2026-09-24 run and is
+      left as it was. What has changed on <code>main</code> since, each
+      exercised in a browser against a local database on 2026-10-10 (head
+      <code>7207900</code>):
+    </p>
+    <ul>
+      <li>
+        <strong>F-1 (HK-S2-13)</strong> is closed by a decision, not a fix: the
+        row now says a refusal is followed by the board the server sends, which
+        is read-only when the permission went, so no selection is kept
+        (product owner, 2026-09-24; the row and
+        <code>housekeeping-board.tsx</code> say so).
+      </li>
+      <li>
+        <strong>O-2 (HK-S1-24)</strong> passes: a Property with housekeeping
+        off, one the viewer does not reach, and a bare URL each show the empty
+        state under the right switcher
+        (<code>tests/browser/housekeeping.spec.ts</code>, three tests).
+      </li>
+      <li>
+        <strong>W-1 (HK-S2-14)</strong> passes: the not-ready warning wraps
+        inside its cell at 1440 px with no horizontal overflow
+        (<code>arrivals asks before checking a Guest into a room that is not
+        ready</code>).
+      </li>
+      <li>
+        <strong>New, HK-S1-25 (proposed):</strong> a check-out through the
+        screens, the real worker run once, and a separate cleaner taking the
+        room Dirty, Clean, Inspected. The stored status stays
+        <code>inspected</code> until the worker's delivery is recorded
+        (<code>outbox.deliveries</code>, consumer
+        <code>housekeeping.markRoomDirtyOnCheckOut</code>), then reads
+        <code>dirty</code> with no Staff Member behind it, while the board
+        already reads the room dirty before it runs (HK-S1-22). Screenshots:
+        <code>docs/evidence/m1/RANZ-28/</code>.
+      </li>
+    </ul>
+    <p>
+      Still open and not built, by the approved design: HK-DEF-04, assigning
+      work to a named cleaner.
+    </p>
+  </section>
+
   <h2>Environment</h2>
   <dl class="env">
     <dt>Code</dt>

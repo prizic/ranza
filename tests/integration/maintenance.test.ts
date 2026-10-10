@@ -412,6 +412,19 @@ describe("reporting and the board", { timeout: DATABASE_BUDGET_MS }, () => {
     await expect(report(DESK, ROOM, { title: " ab " })).rejects.toBeInstanceOf(
       MaintenanceInputError,
     );
+    // The upper bounds: a title of 200 and details of 2000, and one over each.
+    await expect(
+      report(DESK, ROOM, { title: "t".repeat(201) }),
+    ).rejects.toBeInstanceOf(MaintenanceInputError);
+    await expect(
+      report(DESK, ROOM, { details: "d".repeat(2001) }),
+    ).rejects.toBeInstanceOf(MaintenanceInputError);
+    await expect(
+      report(DESK, ROOM, {
+        title: "t".repeat(200),
+        details: "d".repeat(2000),
+      }),
+    ).resolves.toBeDefined();
   });
 
   it("shows nothing to a Staff Member without reach, and refuses their report (MT-S1-06)", async () => {

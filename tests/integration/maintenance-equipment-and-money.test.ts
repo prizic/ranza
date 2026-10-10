@@ -622,6 +622,14 @@ describe("money", { timeout: DATABASE_BUDGET_MS }, () => {
         vendor: null,
       }),
     ).rejects.toBeInstanceOf(MaintenanceInputError);
+    await expect(
+      maintenance.recordCost(MANAGER, {
+        requestId,
+        costMinor: 450,
+        currency: "TRY",
+        vendor: "v".repeat(121),
+      }),
+    ).rejects.toBeInstanceOf(MaintenanceInputError);
     await maintenance.recordCost(MANAGER, {
       requestId,
       costMinor: 45000,

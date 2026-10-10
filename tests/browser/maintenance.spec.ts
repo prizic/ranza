@@ -152,7 +152,7 @@ async function openUnitPicker(page: Page, propertyId: string, search: string) {
 const EVIDENCE = path.resolve(__dirname, "../../docs/evidence/m1/RANZ-33");
 
 /** Reports a problem from the dialog a Rooms tile opens, taking it out of order. */
-async function reportOutOfOrder(page: Page, title: string) {
+async function reportOutOfOrder(page: Page, title: string, backOn?: string) {
   await page
     .getByRole("dialog")
     .getByRole("link", { name: "Report a problem" })
@@ -162,6 +162,7 @@ async function reportOutOfOrder(page: Page, title: string) {
   await form
     .getByRole("checkbox", { name: "Take it out of order until it is fixed" })
     .click();
+  if (backOn) await form.getByLabel("Expected back (optional)").fill(backOn);
   await form.getByRole("button", { name: "Send request" }).click();
   await expect(page.getByText(/Request MT-\d+ sent\./)).toBeVisible();
   await page.keyboard.press("Escape");
@@ -346,7 +347,11 @@ test("a broken room and a broken bed leave the booking form, and done offers the
     .getByRole("button")
     .first()
     .click();
-  await reportOutOfOrder(page, roomTitle);
+  const backOn = psql(
+    `select to_char(app.property_today(id) + 3, 'YYYY-MM-DD')
+       from public.properties where id = '${propertyId}'`,
+  );
+  await reportOutOfOrder(page, roomTitle, backOn);
 
   // MT-S2-07: and one bed of the shared room, on its own.
   await page.goto(`/en/rooms?property=${propertyId}`);
@@ -367,6 +372,18 @@ test("a broken room and a broken bed leave the booking form, and done offers the
   await sharedCard.screenshot({
     path: path.join(EVIDENCE, "rooms-bed-a-out-of-order.png"),
   });
+  // And the whole room says when it is expected back, in the danger tone the
+  // desk reads Out of order in.
+  const wholeBadge = page
+    .locator('[data-slot="card"]')
+    .filter({ hasText: wholeRoom })
+    .getByText(/Out of order · MT-\d+ · Back [A-Z][a-z]{2} \d{1,2}/);
+  await expect(wholeBadge).toBeVisible();
+  await expect(
+    wholeBadge.locator(
+      "xpath=ancestor-or-self::*[contains(@class,'danger')][1]",
+    ),
+  ).toBeVisible();
 
   // The booking form stops offering what is broken: not the whole room, not
   // the bed, not the shared room itself — and still offers the bed beside it.
