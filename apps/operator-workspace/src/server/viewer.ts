@@ -1127,15 +1127,27 @@ export async function retryIntegrationOperation(
 export interface HrViewData {
   organizationId: string;
   propertyId: string;
+  /** The Property's currency, which a new employee is paid in (ADR 0015). */
+  currency: string;
+  /** The Property's own calendar date, `YYYY-MM-DD`. */
+  today: string;
   employees: readonly EmployeeRecord[];
   shifts: readonly ShiftRecord[];
   leaveRequests: readonly LeaveRequestRecord[];
-  payroll: PayrollPeriodSummary;
+  /**
+   * Null for a viewer who does not reach the whole Organization: a payroll run
+   * has no Property to narrow to, so there is nothing of it to show them.
+   */
+  payroll: PayrollPeriodSummary | null;
+  /** Whether to offer the write controls; the policies are what decide. */
   canManage: boolean;
 }
 
+const PERIOD = /^\d{4}-(0[1-9]|1[0-2])$/;
+
 /**
- * Reads employee records, weekly shift rota, leave requests, and payroll summary for HR screen.
+ * Reads employee records, the weekly rota, leave requests and the payroll
+ * period for the HR screen.
  */
 export async function hrViewData(
   propertyId: string,
@@ -1152,7 +1164,10 @@ export async function hrViewData(
   const canManage = manageProps.some((p) => p.propertyId === propertyId);
 
   const comp = getComposition();
-  const currentPeriod = period ?? new Date().toISOString().slice(0, 7);
+  const workplace = await comp.hr.workplace(viewer.userId, propertyId);
+  if (!workplace) return null;
+  const currentPeriod =
+    period && PERIOD.test(period) ? period : workplace.today.slice(0, 7);
 
   const today = new Date();
   const dayOfWeek = today.getDay();
@@ -1185,6 +1200,8 @@ export async function hrViewData(
   return {
     organizationId: targetProperty.organizationId,
     propertyId,
+    currency: workplace.currency,
+    today: workplace.today,
     employees,
     shifts,
     leaveRequests,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
 import {
   Avatar,
   AvatarFallback,
@@ -14,47 +15,44 @@ import {
 import { Briefcase, Calendar, DollarSign } from "lucide-react";
 import type { EmployeeRecord } from "../../../server/viewer";
 import { RegisterEmployeeDialog } from "./register-employee-dialog";
+import { TerminateEmployeeDialog } from "./terminate-employee-dialog";
 
 interface EmployeesTableProps {
   employees: readonly EmployeeRecord[];
   canManage: boolean;
-  locale: string;
+  /** The Property's currency, which a new employee is paid in. */
+  currency: string;
+  /** The Property's own calendar date, `YYYY-MM-DD`. */
+  today: string;
+  locale: SupportedLocale;
   propertyId: string;
 }
 
 export function EmployeesTable({
   employees,
   canManage,
+  currency,
+  today,
   locale,
   propertyId,
 }: EmployeesTableProps) {
   const t = useTranslations("hr.employees");
 
-  const formatMoney = (amount: number, currency: string = "TRY") => {
-    return new Intl.NumberFormat(locale, {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  const registerDialog = (
+    <RegisterEmployeeDialog
+      currency={currency}
+      locale={locale}
+      propertyId={propertyId}
+    />
+  );
 
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat(locale, {
+  const formatMonth = (date: Date) =>
+    formatDate(new Date(date), locale, {
+      day: undefined,
       month: "short",
       year: "numeric",
       timeZone: "UTC",
-    }).format(new Date(date));
-  };
-
-  const contractLabel = (type: string) => {
-    const map: Record<string, string> = {
-      full_time: t("contracts.full_time"),
-      part_time: t("contracts.part_time"),
-      seasonal: t("contracts.seasonal"),
-      fixed_term: t("contracts.fixed_term"),
-    };
-    return map[type] || type;
-  };
+    });
 
   return (
     <div className="space-y-4">
@@ -64,30 +62,26 @@ export function EmployeesTable({
             {t("title")}
           </h2>
         </div>
-        {canManage && (
-          <RegisterEmployeeDialog locale={locale} propertyId={propertyId} />
-        )}
+        {canManage && employees.length > 0 && registerDialog}
       </div>
 
       {employees.length === 0 ? (
         <EmptyState
           title={t("noEmployeesTitle")}
           description={t("noEmployeesDescription")}
-          action={
-            canManage ? (
-              <RegisterEmployeeDialog locale={locale} propertyId={propertyId} />
-            ) : undefined
-          }
+          action={canManage ? registerDialog : undefined}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {employees.map((e) => {
+          {employees.map((employee) => {
             const initials =
-              `${e.firstName.charAt(0)}${e.lastName.charAt(0)}`.toUpperCase();
+              `${employee.firstName.charAt(0)}${employee.lastName.charAt(0)}`.toUpperCase();
+            const left = employee.status === "terminated";
 
             return (
               <Card
-                key={e.id}
+                key={employee.id}
+                data-employee={employee.fullName}
                 className="border-border hover:border-primary/40 transition-colors"
               >
                 <CardHeader className="p-4 pb-3 flex flex-row items-center gap-3 space-y-0">
@@ -98,16 +92,14 @@ export function EmployeesTable({
                   </Avatar>
                   <div className="min-w-0 flex-1">
                     <CardTitle className="text-step-0 font-semibold text-foreground truncate">
-                      {e.fullName}
+                      {employee.fullName}
                     </CardTitle>
                     <p className="text-step--1 text-muted-foreground truncate">
-                      {e.position}
+                      {employee.position}
                     </p>
                   </div>
-                  <Badge
-                    variant={e.status === "active" ? "default" : "secondary"}
-                  >
-                    {e.status}
+                  <Badge variant={left ? "secondary" : "default"}>
+                    {t(`statuses.${employee.status}`)}
                   </Badge>
                 </CardHeader>
                 <CardContent className="p-4 pt-1 space-y-2 text-step--1 border-t border-border/60">
@@ -117,14 +109,14 @@ export function EmployeesTable({
                       <span>{t("department")}</span>
                     </span>
                     <span className="font-medium text-foreground">
-                      {e.department}
+                      {employee.department}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between text-muted-foreground">
                     <span>{t("contract")}</span>
                     <span className="font-medium text-foreground">
-                      {contractLabel(e.contractType)}
+                      {t(`contracts.${employee.contractType}`)}
                     </span>
                   </div>
 
@@ -134,7 +126,7 @@ export function EmployeesTable({
                       <span>{t("since")}</span>
                     </span>
                     <span className="font-medium text-foreground">
-                      {formatDate(e.hiredOn)}
+                      {formatMonth(employee.hiredOn)}
                     </span>
                   </div>
 
@@ -144,9 +136,36 @@ export function EmployeesTable({
                       <span>{t("grossPay")}</span>
                     </span>
                     <span className="font-semibold text-foreground">
-                      {formatMoney(e.grossPay, e.currency)}
+                      {formatMoney(
+                        employee.grossPayMinor,
+                        employee.currency,
+                        locale,
+                      )}
                     </span>
                   </div>
+
+                  {left && employee.terminatedOn ? (
+                    <p className="pt-1 text-muted-foreground">
+                      {t("leftOn", {
+                        date: formatDate(
+                          new Date(employee.terminatedOn),
+                          locale,
+                          { timeZone: "UTC" },
+                        ),
+                      })}
+                    </p>
+                  ) : canManage ? (
+                    <div className="pt-1 flex justify-end">
+                      <TerminateEmployeeDialog
+                        employeeId={employee.id}
+                        employeeName={employee.fullName}
+                        hiredOn={employee.hiredOn}
+                        locale={locale}
+                        propertyId={propertyId}
+                        today={today}
+                      />
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
             );

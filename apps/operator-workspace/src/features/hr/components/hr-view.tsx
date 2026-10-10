@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import type { SupportedLocale } from "@ranza/i18n";
 import { Badge, Tabs, TabsContent, TabsList, TabsTrigger } from "@ranza/ui";
 import { Calendar, DollarSign, Palmtree, Users } from "lucide-react";
 import type { HrViewData } from "../../../server/viewer";
@@ -12,7 +13,7 @@ import { PayrollCard } from "./payroll-card";
 
 interface HrViewProps {
   data: HrViewData;
-  locale: string;
+  locale: SupportedLocale;
   propertyId: string;
 }
 
@@ -20,8 +21,11 @@ export function HrView({ data, locale, propertyId }: HrViewProps) {
   const t = useTranslations("hr");
   const [activeTab, setActiveTab] = useState("employees");
 
+  const employed = data.employees.filter(
+    (employee) => employee.status === "active",
+  );
   const pendingLeaveCount = data.leaveRequests.filter(
-    (l) => l.status === "pending",
+    (leave) => leave.status === "pending" && !leave.employeeTerminated,
   ).length;
 
   return (
@@ -40,7 +44,7 @@ export function HrView({ data, locale, propertyId }: HrViewProps) {
             <Users className="size-4" />
             <span>{t("tabs.employees")}</span>
             <span className="text-step--2 text-muted-foreground font-mono">
-              ({data.employees.length})
+              ({employed.length})
             </span>
           </TabsTrigger>
 
@@ -72,6 +76,8 @@ export function HrView({ data, locale, propertyId }: HrViewProps) {
           <EmployeesTable
             employees={data.employees}
             canManage={data.canManage}
+            currency={data.currency}
+            today={data.today}
             locale={locale}
             propertyId={propertyId}
           />
@@ -79,7 +85,7 @@ export function HrView({ data, locale, propertyId }: HrViewProps) {
 
         <TabsContent value="rota" className="space-y-4 pt-1">
           <RotaTable
-            employees={data.employees}
+            employees={employed}
             shifts={data.shifts}
             canManage={data.canManage}
             locale={locale}
@@ -89,7 +95,7 @@ export function HrView({ data, locale, propertyId }: HrViewProps) {
 
         <TabsContent value="leave" className="space-y-4 pt-1">
           <LeaveTable
-            employees={data.employees}
+            employees={employed}
             leaveRequests={data.leaveRequests}
             canManage={data.canManage}
             locale={locale}

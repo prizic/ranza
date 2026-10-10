@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
+import type { SupportedLocale } from "@ranza/i18n";
 import {
   Button,
   Dialog,
@@ -22,17 +23,29 @@ import {
 import { Plus } from "lucide-react";
 import type { ContractType } from "../../../server/viewer";
 import { registerEmployeeAction } from "../../../server/hr";
+import { useOutcomeText } from "./outcome-text";
 
 interface RegisterEmployeeDialogProps {
-  locale: string;
+  /** The Property's currency: what a new employee is paid in. */
+  currency: string;
+  locale: SupportedLocale;
   propertyId: string;
 }
 
+const CONTRACT_TYPES: readonly ContractType[] = [
+  "full_time",
+  "part_time",
+  "seasonal",
+  "fixed_term",
+];
+
 export function RegisterEmployeeDialog({
+  currency,
   locale,
   propertyId,
 }: RegisterEmployeeDialogProps) {
   const t = useTranslations("hr.employees");
+  const outcomeText = useOutcomeText();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -60,41 +73,27 @@ export function RegisterEmployeeDialog({
     setErrorMessage(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (
-      !firstName.trim() ||
-      !lastName.trim() ||
-      !department.trim() ||
-      !position.trim()
-    ) {
-      return;
-    }
-    const parsedPay = parseFloat(grossPay);
-    if (isNaN(parsedPay) || parsedPay <= 0) {
-      setErrorMessage("Invalid gross pay amount");
-      return;
-    }
-
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
     setErrorMessage(null);
     startTransition(async () => {
-      const res = await registerEmployeeAction(locale, propertyId, {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        department: department.trim(),
-        position: position.trim(),
+      const outcome = await registerEmployeeAction(locale, propertyId, {
+        firstName,
+        lastName,
+        department,
+        position,
         contractType,
-        grossPay: parsedPay,
+        grossPay,
         email: email.trim() || undefined,
         phone: phone.trim() || undefined,
         iban: iban.trim() || undefined,
       });
 
-      if (res.status === "done") {
+      if (outcome.status === "done") {
         resetForm();
         setOpen(false);
       } else {
-        setErrorMessage(res.message || "Failed to register employee");
+        setErrorMessage(outcomeText(outcome));
       }
     });
   };
@@ -122,7 +121,10 @@ export function RegisterEmployeeDialog({
           </DialogHeader>
 
           {errorMessage && (
-            <div className="mt-3 p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">
+            <div
+              role="alert"
+              className="mt-3 p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium"
+            >
               {errorMessage}
             </div>
           )}
@@ -135,7 +137,6 @@ export function RegisterEmployeeDialog({
                 required
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                placeholder="Ahmet"
               />
             </div>
             <div className="space-y-1.5">
@@ -145,7 +146,6 @@ export function RegisterEmployeeDialog({
                 required
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                placeholder="Yılmaz"
               />
             </div>
 
@@ -156,7 +156,6 @@ export function RegisterEmployeeDialog({
                 required
                 value={department}
                 onChange={(e) => setDepartment(e.target.value)}
-                placeholder="Front Desk"
               />
             </div>
             <div className="space-y-1.5">
@@ -166,7 +165,6 @@ export function RegisterEmployeeDialog({
                 required
                 value={position}
                 onChange={(e) => setPosition(e.target.value)}
-                placeholder="Front Desk Agent"
               />
             </div>
 
@@ -180,33 +178,25 @@ export function RegisterEmployeeDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="full_time">
-                    {t("contracts.full_time")}
-                  </SelectItem>
-                  <SelectItem value="part_time">
-                    {t("contracts.part_time")}
-                  </SelectItem>
-                  <SelectItem value="seasonal">
-                    {t("contracts.seasonal")}
-                  </SelectItem>
-                  <SelectItem value="fixed_term">
-                    {t("contracts.fixed_term")}
-                  </SelectItem>
+                  {CONTRACT_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {t(`contracts.${type}`)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="grossPay">{t("grossPay")} (TRY) *</Label>
+              <Label htmlFor="grossPay">
+                {t("grossPayIn", { currency })} *
+              </Label>
               <Input
                 id="grossPay"
-                type="number"
-                min="0"
-                step="0.01"
+                inputMode="decimal"
                 required
                 value={grossPay}
                 onChange={(e) => setGrossPay(e.target.value)}
-                placeholder="35000"
               />
             </div>
 
@@ -217,7 +207,6 @@ export function RegisterEmployeeDialog({
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="employee@hospitality.com"
               />
             </div>
 
@@ -227,7 +216,6 @@ export function RegisterEmployeeDialog({
                 id="phone"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+90 532 000 0000"
               />
             </div>
 
@@ -235,10 +223,14 @@ export function RegisterEmployeeDialog({
               <Label htmlFor="iban">{t("iban")}</Label>
               <Input
                 id="iban"
+                dir="ltr"
                 value={iban}
                 onChange={(e) => setIban(e.target.value)}
                 placeholder="TR00 0000 0000 0000 0000 0000 00"
               />
+              <p className="text-step--2 text-muted-foreground">
+                {t("ibanHint")}
+              </p>
             </div>
           </div>
 
@@ -246,10 +238,13 @@ export function RegisterEmployeeDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                resetForm();
+              }}
               disabled={isPending}
             >
-              Cancel
+              {t("cancel")}
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending ? t("submitting") : t("submit")}

@@ -40,6 +40,7 @@ model User {
   dataExports             DataExport[]
   exportSchedules         ExportSchedule[]
   hrEmployees             HrEmployee[]
+  payrollRunsApproved     HrPayrollRun[]
 
   @@map("users")
 }
@@ -1221,25 +1222,26 @@ model ExportSchedule {
 /// Staff and employee records beyond system membership (Blueprint 5.11, HR-S1-*).
 /// An employee's record outlives their system access.
 model HrEmployee {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String   @map("organization_id") @db.Uuid
-  propertyId     String?  @map("property_id") @db.Uuid
-  userId         String?  @map("user_id") @db.Uuid
-  firstName      String   @map("first_name")
-  lastName       String   @map("last_name")
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  propertyId     String?   @map("property_id") @db.Uuid
+  userId         String?   @map("user_id") @db.Uuid
+  firstName      String    @map("first_name")
+  lastName       String    @map("last_name")
   email          String?
   phone          String?
   department     String
   position       String
-  contractType   String   @default("full_time") @map("contract_type")
-  hiredOn        DateTime @default(dbgenerated("CURRENT_DATE")) @map("hired_on") @db.Date
-  grossPay       Decimal  @default(0) @map("gross_pay") @db.Decimal(12, 2)
-  currency       String   @default("TRY") @db.Char(3)
-  status         String   @default("active")
-  bankName       String?  @map("bank_name")
+  contractType   String    @default("full_time") @map("contract_type")
+  hiredOn        DateTime  @default(dbgenerated("CURRENT_DATE")) @map("hired_on") @db.Date
+  grossPayMinor  BigInt    @default(0) @map("gross_pay_minor")
+  currency       String    @default("TRY") @db.Char(3)
+  status         String    @default("active")
+  terminatedOn   DateTime? @map("terminated_on") @db.Date
+  bankName       String?   @map("bank_name")
   iban           String?
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization  Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   property      Property?        @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: SetNull, onUpdate: NoAction, map: "hr_employees_property_fkey")
@@ -1301,40 +1303,44 @@ model HrLeaveRequest {
 
 /// Monthly payroll calculation and approval runs (Blueprint 5.11, HR-S1-12).
 model HrPayrollRun {
-  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String    @map("organization_id") @db.Uuid
-  period         String
-  totalGross     Decimal   @default(0) @map("total_gross") @db.Decimal(12, 2)
-  totalNet       Decimal   @default(0) @map("total_net") @db.Decimal(12, 2)
-  status         String    @default("draft")
-  approvedAt     DateTime? @map("approved_at") @db.Timestamptz(6)
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  period          String
+  currency        String    @default("TRY") @db.Char(3)
+  totalGrossMinor BigInt    @default(0) @map("total_gross_minor")
+  totalNetMinor   BigInt    @default(0) @map("total_net_minor")
+  status          String    @default("draft")
+  approvedAt      DateTime? @map("approved_at") @db.Timestamptz(6)
+  approvedBy      String?   @map("approved_by") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  approver     User?        @relation(fields: [approvedBy], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "hr_payroll_runs_approved_by_fkey")
   payslips     HrPayslip[]
 
+  @@unique([id, organizationId], map: "hr_payroll_runs_id_org_key")
   @@unique([organizationId, period], map: "hr_payroll_runs_org_period_key")
   @@map("hr_payroll_runs")
 }
 
 /// Detailed payslips per employee per payroll period with SGK and tax deductions (Blueprint 5.11).
 model HrPayslip {
-  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId          String   @map("organization_id") @db.Uuid
-  payrollRunId            String   @map("payroll_run_id") @db.Uuid
-  employeeId              String   @map("employee_id") @db.Uuid
-  grossPay                Decimal  @default(0) @map("gross_pay") @db.Decimal(12, 2)
-  socialSecurityDeduction Decimal  @default(0) @map("social_security_deduction") @db.Decimal(12, 2)
-  taxDeduction            Decimal  @default(0) @map("tax_deduction") @db.Decimal(12, 2)
-  stampDuty               Decimal  @default(0) @map("stamp_duty") @db.Decimal(12, 2)
-  netPay                  Decimal  @default(0) @map("net_pay") @db.Decimal(12, 2)
-  iban                    String?
-  createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt               DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId               String   @map("organization_id") @db.Uuid
+  payrollRunId                 String   @map("payroll_run_id") @db.Uuid
+  employeeId                   String   @map("employee_id") @db.Uuid
+  grossPayMinor                BigInt   @default(0) @map("gross_pay_minor")
+  socialSecurityDeductionMinor BigInt   @default(0) @map("social_security_deduction_minor")
+  taxDeductionMinor            BigInt   @default(0) @map("tax_deduction_minor")
+  stampDutyMinor               BigInt   @default(0) @map("stamp_duty_minor")
+  netPayMinor                  BigInt   @default(0) @map("net_pay_minor")
+  iban                         String?
+  createdAt                    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  payrollRun   HrPayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  payrollRun   HrPayrollRun @relation(fields: [payrollRunId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "hr_payslips_run_fkey")
   employee     HrEmployee   @relation(fields: [employeeId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "hr_payslips_employee_fkey")
 
   @@unique([payrollRunId, employeeId], map: "hr_payslips_run_employee_key")

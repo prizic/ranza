@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
+import { formatDate, type SupportedLocale } from "@ranza/i18n";
 import {
   Avatar,
   AvatarFallback,
@@ -39,17 +40,27 @@ import type {
   LeaveType,
 } from "../../../server/viewer";
 import {
-  approveLeaveAction,
+  decideLeaveAction,
   submitLeaveRequestAction,
 } from "../../../server/hr";
+import { useOutcomeText } from "./outcome-text";
 
 interface LeaveTableProps {
+  /** Only the people who are still employed: nobody new is recorded for a leaver. */
   employees: readonly EmployeeRecord[];
   leaveRequests: readonly LeaveRequestRecord[];
   canManage: boolean;
-  locale: string;
+  locale: SupportedLocale;
   propertyId: string;
 }
+
+const LEAVE_TYPES: readonly LeaveType[] = [
+  "annual",
+  "sick",
+  "unpaid",
+  "emergency",
+  "maternity",
+];
 
 export function LeaveTable({
   employees,
@@ -59,6 +70,7 @@ export function LeaveTable({
   propertyId,
 }: LeaveTableProps) {
   const t = useTranslations("hr.leave");
+  const outcomeText = useOutcomeText();
   const [isPending, startTransition] = useTransition();
 
   // Dialog state for submitting leave request
@@ -71,15 +83,10 @@ export function LeaveTable({
   const [endsOn, setEndsOn] = useState("");
   const [notes, setNotes] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [decisionError, setDecisionError] = useState<string | null>(null);
 
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat(locale, {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      timeZone: "UTC",
-    }).format(new Date(date));
-  };
+  const formatDay = (date: Date) =>
+    formatDate(new Date(date), locale, { timeZone: "UTC" });
 
   const calculateDays = (start: Date, end: Date) => {
     const s = new Date(start).getTime();
@@ -88,9 +95,16 @@ export function LeaveTable({
     return Math.max(1, diff + 1);
   };
 
-  const handleApprove = (leaveId: string, approved: boolean) => {
+  const handleDecision = (leaveId: string, approved: boolean) => {
+    setDecisionError(null);
     startTransition(async () => {
-      await approveLeaveAction(locale, propertyId, leaveId, approved);
+      const outcome = await decideLeaveAction(
+        locale,
+        propertyId,
+        leaveId,
+        approved,
+      );
+      setDecisionError(outcomeText(outcome));
     });
   };
 
@@ -98,14 +112,9 @@ export function LeaveTable({
     e.preventDefault();
     if (!selectedEmployeeId || !startsOn || !endsOn) return;
 
-    if (new Date(endsOn) < new Date(startsOn)) {
-      setErrorMsg("End date cannot be earlier than start date");
-      return;
-    }
-
     setErrorMsg(null);
     startTransition(async () => {
-      const res = await submitLeaveRequestAction(locale, propertyId, {
+      const outcome = await submitLeaveRequestAction(locale, propertyId, {
         employeeId: selectedEmployeeId,
         leaveType,
         startsOn,
@@ -113,13 +122,13 @@ export function LeaveTable({
         notes: notes.trim() || undefined,
       });
 
-      if (res.status === "done") {
+      if (outcome.status === "done") {
         setDialogOpen(false);
         setStartsOn("");
         setEndsOn("");
         setNotes("");
       } else {
-        setErrorMsg(res.message || "Failed to submit leave request");
+        setErrorMsg(outcomeText(outcome));
       }
     });
   };
@@ -163,7 +172,10 @@ export function LeaveTable({
               </DialogHeader>
 
               {errorMsg && (
-                <div className="mt-3 p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">
+                <div
+                  role="alert"
+                  className="mt-3 p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium"
+                >
                   {errorMsg}
                 </div>
               )}
@@ -198,19 +210,11 @@ export function LeaveTable({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="annual">
-                        {t("types.annual")}
-                      </SelectItem>
-                      <SelectItem value="sick">{t("types.sick")}</SelectItem>
-                      <SelectItem value="unpaid">
-                        {t("types.unpaid")}
-                      </SelectItem>
-                      <SelectItem value="emergency">
-                        {t("types.emergency")}
-                      </SelectItem>
-                      <SelectItem value="maternity">
-                        {t("types.maternity")}
-                      </SelectItem>
+                      {LEAVE_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {t(`types.${type}`)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -245,7 +249,7 @@ export function LeaveTable({
                     id="leaveNotes"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Optional notes"
+                    placeholder={t("notesPlaceholder")}
                   />
                 </div>
               </div>
@@ -256,7 +260,7 @@ export function LeaveTable({
                   variant="outline"
                   onClick={() => setDialogOpen(false)}
                 >
-                  Cancel
+                  {t("cancel")}
                 </Button>
                 <Button type="submit" disabled={isPending}>
                   {isPending ? t("submitting") : t("submit")}
@@ -268,6 +272,14 @@ export function LeaveTable({
       </CardHeader>
 
       <CardContent className="p-0">
+        {decisionError && (
+          <div
+            role="alert"
+            className="mx-4 mb-3 p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium"
+          >
+            {decisionError}
+          </div>
+        )}
         {leaveRequests.length === 0 ? (
           <div className="p-6">
             <EmptyState title={t("title")} description={t("noLeaves")} />
@@ -281,7 +293,7 @@ export function LeaveTable({
                   <TableHead>{t("type")}</TableHead>
                   <TableHead>{t("dates")}</TableHead>
                   <TableHead>{t("status")}</TableHead>
-                  <TableHead className="text-end">Actions</TableHead>
+                  <TableHead className="text-end">{t("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -330,7 +342,7 @@ export function LeaveTable({
 
                       <TableCell className="text-step--1">
                         <div className="font-mono text-step--1">
-                          {formatDate(l.startsOn)} – {formatDate(l.endsOn)}
+                          {formatDay(l.startsOn)} – {formatDay(l.endsOn)}
                         </div>
                         <div className="text-step--2 text-muted-foreground font-mono">
                           {days} {t("days")}
@@ -342,7 +354,12 @@ export function LeaveTable({
                           <Badge variant={statusVariant(l.status)}>
                             {t(`statuses.${l.status}`)}
                           </Badge>
-                          {l.clash && (
+                          {l.employeeTerminated && (
+                            <span className="text-step--2 text-muted-foreground">
+                              {t("employeeLeft")}
+                            </span>
+                          )}
+                          {l.clash && !l.employeeTerminated && (
                             <div className="flex items-center gap-1 text-destructive text-step--2 font-medium">
                               <AlertCircle className="size-3 shrink-0" />
                               <span>{t("clashWarning")}</span>
@@ -352,29 +369,31 @@ export function LeaveTable({
                       </TableCell>
 
                       <TableCell className="text-end">
-                        {l.status === "pending" && canManage && (
-                          <div className="flex items-center justify-end gap-1.5">
-                            <Button
-                              size="sm"
-                              disabled={isPending}
-                              onClick={() => handleApprove(l.id, true)}
-                              className="h-8 gap-1 px-2.5"
-                            >
-                              <Check className="size-3.5" />
-                              <span>{t("approve")}</span>
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={isPending}
-                              onClick={() => handleApprove(l.id, false)}
-                              className="h-8 gap-1 px-2.5 text-destructive hover:text-destructive"
-                            >
-                              <X className="size-3.5" />
-                              <span>{t("decline")}</span>
-                            </Button>
-                          </div>
-                        )}
+                        {l.status === "pending" &&
+                          canManage &&
+                          !l.employeeTerminated && (
+                            <div className="flex items-center justify-end gap-1.5">
+                              <Button
+                                size="sm"
+                                disabled={isPending}
+                                onClick={() => handleDecision(l.id, true)}
+                                className="h-8 gap-1 px-2.5"
+                              >
+                                <Check className="size-3.5" />
+                                <span>{t("approve")}</span>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={isPending}
+                                onClick={() => handleDecision(l.id, false)}
+                                className="h-8 gap-1 px-2.5 text-destructive hover:text-destructive"
+                              >
+                                <X className="size-3.5" />
+                                <span>{t("decline")}</span>
+                              </Button>
+                            </div>
+                          )}
                       </TableCell>
                     </TableRow>
                   );

@@ -2,37 +2,146 @@
 
 import { revalidatePath } from "next/cache";
 import { isSupportedLocale } from "@ranza/i18n";
-import type { ShiftType, LeaveType, ContractType } from "@ranza/hr";
-import { getComposition } from "./composition";
 import {
-  currentViewer,
-  entitledProperties,
-  permittedProperties,
-  HR_CAPABILITY,
-} from "./viewer";
+  HrInputError,
+  HrRefusedError,
+  type ContractType,
+  type HrField,
+  type HrRefusalReason,
+  type LeaveType,
+  type ShiftType,
+} from "@ranza/hr";
+import { toMinorUnits } from "../lib/amount";
+import { getComposition } from "./composition";
+import { currentViewer, entitledProperties, HR_CAPABILITY } from "./viewer";
 
-export interface HrActionResult {
-  status: "idle" | "done" | "refused" | "error";
-  message?: string;
-}
+/**
+ * Working HR from the Workspace (RANZ-42).
+ *
+ * Every command goes through the composition root under the acting user's
+ * context (ADR 0007), and the policies decide whether it lands (ADR 0012), so
+ * nothing here checks a permission. An outcome carries no English: the
+ * component chooses the copy from `status`, `reason` and `field`.
+ */
+
+export type HrOutcome =
+  | { status: "done" }
+  /** What the person typed that cannot be used. */
+  | { status: "invalid"; field: HrField | "request" }
+  | { status: "refused"; reason: HrRefusalReason }
+  /** Something the module did not expect; it has been reported. */
+  | { status: "error" };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
-function revalidateHr(locale: string, propertyId: string): void {
+/** Matched by name as well, because a server bundle may hold two copies. */
+function named(error: unknown, name: string): error is Error {
+  return error instanceof Error && error.name === name;
+}
+
+/**
+ * What a failed command becomes. A refusal or a bad input is an answer; any
+ * other failure is a defect or an outage, so it is shown as a plain error and
+ * recorded — the screen says "try again", and this is the only place anybody
+ * learns it happened.
+ */
+function outcomeOf(
+  command: string,
+  context: Record<string, string>,
+  error: unknown,
+): HrOutcome {
+  if (named(error, "HrInputError")) {
+    return {
+      status: "invalid",
+      field: (error as Error & { field: HrField }).field,
+    };
+  }
+  if (named(error, "HrRefusedError")) {
+    return {
+      status: "refused",
+      reason: (error as Error & { reason: HrRefusalReason }).reason,
+    };
+  }
+  console.error(`hr.${command}_failed`, context, error);
+  return { status: "error" };
+}
+
+function revalidateHr(locale: string): void {
   revalidatePath(`/${locale}/hr`);
-  revalidatePath(`/${locale}/hr?property=${propertyId}`);
 }
 
-async function resolveOrganization(propertyId: string): Promise<string | null> {
+/**
+ * The Organization a Property belongs to, among the Properties the viewer may
+ * use HR at. Null for any other, which the command reports as a refusal.
+ */
+async function organizationOf(propertyId: string): Promise<string | null> {
   const entitled = await entitledProperties(HR_CAPABILITY);
-  const target = entitled.find((p) => p.propertyId === propertyId);
-  return target?.organizationId ?? null;
+  return (
+    entitled.find((property) => property.propertyId === propertyId)
+      ?.organizationId ?? null
+  );
 }
 
-function cleanString(val?: string | null): string | null {
-  if (!val) return null;
-  const trimmed = val.trim();
-  return trimmed.length > 0 ? trimmed : null;
+interface Scope {
+  userId: string;
+  organizationId: string;
+}
+
+/**
+ * Runs one command for the signed-in viewer, with the locale and the ids
+ * checked first. A malformed post is "invalid", never a cast error surfacing as
+ * a crash.
+ */
+async function run(
+  command: string,
+  locale: string,
+  propertyId: string,
+  ids: readonly string[],
+  work: (scope: Scope) => Promise<void>,
+): Promise<HrOutcome> {
+  if (
+    !isSupportedLocale(locale) ||
+    !UUID.test(propertyId) ||
+    !ids.every((id) => UUID.test(id))
+  ) {
+    return { status: "invalid", field: "request" };
+  }
+  const viewer = await currentViewer();
+  if (!viewer) return { status: "refused", reason: "not_permitted" };
+  const organizationId = await organizationOf(propertyId);
+  if (!organizationId) return { status: "refused", reason: "not_permitted" };
+
+  try {
+    await work({ userId: viewer.userId, organizationId });
+    revalidateHr(locale);
+    return { status: "done" };
+  } catch (error: unknown) {
+    // A refusal usually means the page is older than the truth: a permission
+    // taken away, a request somebody else decided. The next read shows what is
+    // true now.
+    const outcome = outcomeOf(
+      command,
+      { propertyId, userId: viewer.userId },
+      error,
+    );
+    if (outcome.status !== "invalid") revalidateHr(locale);
+    return outcome;
+  }
+}
+
+/**
+ * A day as the form posts it, or null for one that is not on the calendar.
+ * `Date` rolls 31 February over into March rather than refusing it, so the
+ * answer is read back and has to say what was typed.
+ */
+function calendarDate(value: string): Date | null {
+  if (!DAY.test(value)) return null;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) &&
+    date.toISOString().slice(0, 10) === value
+    ? date
+    : null;
 }
 
 export async function registerEmployeeAction(
@@ -46,141 +155,82 @@ export async function registerEmployeeAction(
     department: string;
     position: string;
     contractType?: ContractType | undefined;
-    grossPay: number;
+    /** As the person typed it, in the Property's currency. */
+    grossPay: string;
     iban?: string | undefined;
   },
-): Promise<HrActionResult> {
-  if (!isSupportedLocale(locale) || !UUID.test(propertyId)) {
-    return { status: "refused", message: "Invalid parameters" };
-  }
-
-  if (
-    typeof data.grossPay !== "number" ||
-    isNaN(data.grossPay) ||
-    data.grossPay < 0
-  ) {
-    return { status: "refused", message: "Invalid gross pay amount" };
-  }
-
-  const viewer = await currentViewer();
-  if (!viewer) {
-    return { status: "refused", message: "Unauthorized" };
-  }
-
-  const organizationId = await resolveOrganization(propertyId);
-  if (!organizationId) {
-    return { status: "refused", message: "Property not accessible" };
-  }
-
-  const manageProps = await permittedProperties("hr.manage");
-  if (!manageProps.some((p) => p.propertyId === propertyId)) {
-    return {
-      status: "refused",
-      message: "Permission denied: requires hr.manage",
-    };
-  }
-
-  try {
+): Promise<HrOutcome> {
+  return run("register_employee", locale, propertyId, [], async (scope) => {
     const comp = getComposition();
-    await comp.hr.registerEmployee(viewer.userId, {
-      organizationId,
+    // The currency is the Property's, read here and not taken from the form: a
+    // caller that could name one could restate every amount it posted (ADR 0015).
+    const workplace = await comp.hr.workplace(scope.userId, propertyId);
+    if (!workplace) throw new HrRefusedError("not_permitted");
+    const grossPayMinor = toMinorUnits(data.grossPay, workplace.currency);
+    if (grossPayMinor === null) throw new HrInputError("grossPay");
+
+    await comp.hr.registerEmployee(scope.userId, {
+      organizationId: scope.organizationId,
       propertyId,
-      firstName: data.firstName.trim(),
-      lastName: data.lastName.trim(),
-      email: cleanString(data.email),
-      phone: cleanString(data.phone),
-      department: data.department.trim(),
-      position: data.position.trim(),
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+      phone: data.phone,
+      department: data.department,
+      position: data.position,
       contractType: data.contractType,
-      grossPay: data.grossPay,
-      iban: cleanString(data.iban),
+      grossPayMinor,
+      currency: workplace.currency,
+      iban: data.iban,
     });
-    revalidateHr(locale, propertyId);
-    return { status: "done" };
-  } catch (error) {
-    return {
-      status: "error",
-      message:
-        error instanceof Error ? error.message : "Failed to register employee",
-    };
-  }
+  });
+}
+
+export async function terminateEmployeeAction(
+  locale: string,
+  propertyId: string,
+  employeeId: string,
+  terminatedOn: string,
+): Promise<HrOutcome> {
+  const day = calendarDate(terminatedOn);
+  return run(
+    "terminate_employee",
+    locale,
+    propertyId,
+    [employeeId],
+    async (scope) => {
+      if (!day) throw new HrInputError("terminatedOn");
+      await getComposition().hr.terminateEmployee(scope.userId, {
+        organizationId: scope.organizationId,
+        employeeId,
+        terminatedOn: day,
+      });
+    },
+  );
 }
 
 export async function assignShiftAction(
   locale: string,
   propertyId: string,
-  data: {
-    employeeId: string;
-    date: string; // YYYY-MM-DD
-    shiftType: ShiftType;
-  },
-): Promise<HrActionResult> {
-  if (
-    !isSupportedLocale(locale) ||
-    !UUID.test(propertyId) ||
-    !UUID.test(data.employeeId) ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(data.date)
-  ) {
-    return { status: "refused", message: "Invalid parameters" };
-  }
-
-  const viewer = await currentViewer();
-  if (!viewer) {
-    return { status: "refused", message: "Unauthorized" };
-  }
-
-  const organizationId = await resolveOrganization(propertyId);
-  if (!organizationId) {
-    return { status: "refused", message: "Property not accessible" };
-  }
-
-  const manageProps = await permittedProperties("hr.manage");
-  if (!manageProps.some((p) => p.propertyId === propertyId)) {
-    return {
-      status: "refused",
-      message: "Permission denied: requires hr.manage",
-    };
-  }
-
-  try {
-    const comp = getComposition();
-    const employees = await comp.hr.employees(viewer.userId, organizationId);
-    const targetEmployee = employees.find((e) => e.id === data.employeeId);
-    if (!targetEmployee) {
-      return {
-        status: "refused",
-        message: "Employee not found in organization",
-      };
-    }
-    if (targetEmployee.status === "terminated") {
-      return {
-        status: "refused",
-        message: "Cannot assign shift to a terminated employee",
-      };
-    }
-    if (targetEmployee.propertyId && targetEmployee.propertyId !== propertyId) {
-      return {
-        status: "refused",
-        message: "Employee is assigned to a different property",
-      };
-    }
-
-    await comp.hr.assignShift(viewer.userId, {
-      organizationId,
-      propertyId,
-      employeeId: data.employeeId,
-      date: new Date(data.date),
-      shiftType: data.shiftType,
-    });
-    revalidateHr(locale, propertyId);
-    return { status: "done" };
-  } catch (error) {
-    return {
-      status: "error",
-      message:
-        error instanceof Error ? error.message : "Failed to assign shift",
-    };
-  }
+  data: { employeeId: string; date: string; shiftType: ShiftType },
+): Promise<HrOutcome> {
+  const day = calendarDate(data.date);
+  return run(
+    "assign_shift",
+    locale,
+    propertyId,
+    [data.employeeId],
+    async (scope) => {
+      if (!day) throw new HrInputError("dates");
+      await getComposition().hr.assignShift(scope.userId, {
+        organizationId: scope.organizationId,
+        propertyId,
+        employeeId: data.employeeId,
+        date: day,
+        shiftType: data.shiftType,
+      });
+    },
+  );
 }
 
 export async function submitLeaveRequestAction(
@@ -193,162 +243,58 @@ export async function submitLeaveRequestAction(
     endsOn: string;
     notes?: string | undefined;
   },
-): Promise<HrActionResult> {
-  if (
-    !isSupportedLocale(locale) ||
-    !UUID.test(propertyId) ||
-    !UUID.test(data.employeeId) ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(data.startsOn) ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(data.endsOn)
-  ) {
-    return { status: "refused", message: "Invalid parameters" };
-  }
-
-  if (new Date(data.endsOn) < new Date(data.startsOn)) {
-    return {
-      status: "refused",
-      message: "End date cannot be earlier than start date",
-    };
-  }
-
-  const viewer = await currentViewer();
-  if (!viewer) {
-    return { status: "refused", message: "Unauthorized" };
-  }
-
-  const organizationId = await resolveOrganization(propertyId);
-  if (!organizationId) {
-    return { status: "refused", message: "Property not accessible" };
-  }
-
-  try {
-    const comp = getComposition();
-    const employees = await comp.hr.employees(viewer.userId, organizationId);
-    const targetEmployee = employees.find((e) => e.id === data.employeeId);
-    if (!targetEmployee) {
-      return {
-        status: "refused",
-        message: "Employee not found in organization",
-      };
-    }
-    if (targetEmployee.status === "terminated") {
-      return {
-        status: "refused",
-        message: "Cannot submit leave for a terminated employee",
-      };
-    }
-
-    await comp.hr.submitLeaveRequest(viewer.userId, {
-      organizationId,
-      employeeId: data.employeeId,
-      leaveType: data.leaveType,
-      startsOn: new Date(data.startsOn),
-      endsOn: new Date(data.endsOn),
-      notes: cleanString(data.notes),
-    });
-    revalidateHr(locale, propertyId);
-    return { status: "done" };
-  } catch (error) {
-    return {
-      status: "error",
-      message:
-        error instanceof Error ? error.message : "Failed to submit leave",
-    };
-  }
+): Promise<HrOutcome> {
+  const startsOn = calendarDate(data.startsOn);
+  const endsOn = calendarDate(data.endsOn);
+  return run(
+    "submit_leave",
+    locale,
+    propertyId,
+    [data.employeeId],
+    async (scope) => {
+      if (!startsOn || !endsOn) throw new HrInputError("dates");
+      await getComposition().hr.submitLeaveRequest(scope.userId, {
+        organizationId: scope.organizationId,
+        employeeId: data.employeeId,
+        leaveType: data.leaveType,
+        startsOn,
+        endsOn,
+        notes: data.notes,
+      });
+    },
+  );
 }
 
-export async function approveLeaveAction(
+export async function decideLeaveAction(
   locale: string,
   propertyId: string,
   leaveId: string,
   approved: boolean,
-): Promise<HrActionResult> {
-  if (
-    !isSupportedLocale(locale) ||
-    !UUID.test(propertyId) ||
-    !UUID.test(leaveId)
-  ) {
-    return { status: "refused", message: "Invalid parameters" };
-  }
-
-  const viewer = await currentViewer();
-  if (!viewer) {
-    return { status: "refused", message: "Unauthorized" };
-  }
-
-  const organizationId = await resolveOrganization(propertyId);
-  if (!organizationId) {
-    return { status: "refused", message: "Property not accessible" };
-  }
-
-  const manageProps = await permittedProperties("hr.manage");
-  if (!manageProps.some((p) => p.propertyId === propertyId)) {
-    return {
-      status: "refused",
-      message: "Permission denied: requires hr.manage",
-    };
-  }
-
-  try {
-    const comp = getComposition();
-    await comp.hr.approveLeave(
-      viewer.userId,
+): Promise<HrOutcome> {
+  return run("decide_leave", locale, propertyId, [leaveId], async (scope) => {
+    await getComposition().hr.decideLeave(scope.userId, {
+      organizationId: scope.organizationId,
       leaveId,
-      organizationId,
       approved,
-    );
-    revalidateHr(locale, propertyId);
-    return { status: "done" };
-  } catch (error) {
-    return {
-      status: "error",
-      message:
-        error instanceof Error ? error.message : "Failed to update leave",
-    };
-  }
+    });
+  });
 }
 
+/**
+ * Approves a period for the whole Organization. Whether the viewer may is the
+ * module's and the policies' to say — it takes reach to every Property, not
+ * to the one this page was opened from (HR-S1-24) — so this does not narrow
+ * it by the Property in the address.
+ */
 export async function approvePayrollAction(
   locale: string,
   propertyId: string,
   period: string,
-): Promise<HrActionResult> {
-  if (
-    !isSupportedLocale(locale) ||
-    !UUID.test(propertyId) ||
-    !/^\d{4}-\d{2}$/.test(period)
-  ) {
-    return { status: "refused", message: "Invalid parameters" };
-  }
-
-  const viewer = await currentViewer();
-  if (!viewer) {
-    return { status: "refused", message: "Unauthorized" };
-  }
-
-  const organizationId = await resolveOrganization(propertyId);
-  if (!organizationId) {
-    return { status: "refused", message: "Property not accessible" };
-  }
-
-  const manageProps = await permittedProperties("hr.manage");
-  if (!manageProps.some((p) => p.propertyId === propertyId)) {
-    return {
-      status: "refused",
-      message: "Permission denied: requires hr.manage",
-    };
-  }
-
-  try {
-    const comp = getComposition();
-    await comp.hr.approvePayroll(viewer.userId, organizationId, period);
-    revalidateHr(locale, propertyId);
-    return { status: "done" };
-  } catch (error) {
-    return {
-      status: "error",
-      message:
-        error instanceof Error ? error.message : "Failed to approve payroll",
-    };
-  }
+): Promise<HrOutcome> {
+  return run("approve_payroll", locale, propertyId, [], async (scope) => {
+    await getComposition().hr.approvePayroll(scope.userId, {
+      organizationId: scope.organizationId,
+      period,
+    });
+  });
 }

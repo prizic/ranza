@@ -68,6 +68,11 @@ export const KNOWN_ACTIONS = [
   "price_list.changed",
   "data_export.requested",
   "data_export.downloaded",
+  "employee.registered",
+  "employee.terminated",
+  "leave.approved",
+  "leave.declined",
+  "payroll_run.approved",
 ] as const;
 
 export type KnownAction = (typeof KNOWN_ACTIONS)[number];
@@ -85,6 +90,9 @@ export const KNOWN_SUBJECTS = [
   "maintenance_request",
   "maintenance_equipment",
   "data_export",
+  "employee",
+  "leave_request",
+  "payroll_run",
 ] as const;
 
 export type KnownSubject = (typeof KNOWN_SUBJECTS)[number];

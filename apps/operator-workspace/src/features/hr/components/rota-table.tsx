@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
+import type { SupportedLocale } from "@ranza/i18n";
 import {
   Avatar,
   AvatarFallback,
@@ -27,12 +28,13 @@ import type {
   ShiftType,
 } from "../../../server/viewer";
 import { assignShiftAction } from "../../../server/hr";
+import { useOutcomeText } from "./outcome-text";
 
 interface RotaTableProps {
   employees: readonly EmployeeRecord[];
   shifts: readonly ShiftRecord[];
   canManage: boolean;
-  locale: string;
+  locale: SupportedLocale;
   propertyId: string;
 }
 
@@ -46,7 +48,9 @@ export function RotaTable({
   propertyId,
 }: RotaTableProps) {
   const t = useTranslations("hr.rota");
+  const outcomeText = useOutcomeText();
   const [, startTransition] = useTransition();
+  const [failure, setFailure] = useState<string | null>(null);
 
   const [pendingKeys, setPendingKeys] = useState<Set<string>>(new Set());
 
@@ -98,13 +102,15 @@ export function RotaTable({
 
     setPendingKeys((prev) => new Set(prev).add(key));
 
+    setFailure(null);
     startTransition(async () => {
       try {
-        await assignShiftAction(locale, propertyId, {
+        const outcome = await assignShiftAction(locale, propertyId, {
           employeeId,
           date: dateStr,
           shiftType: nextType,
         });
+        setFailure(outcomeText(outcome));
       } finally {
         setPendingKeys((prev) => {
           const next = new Set(prev);
@@ -151,6 +157,14 @@ export function RotaTable({
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
+        {failure && (
+          <div
+            role="alert"
+            className="mx-4 mb-3 p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium"
+          >
+            {failure}
+          </div>
+        )}
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>

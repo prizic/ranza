@@ -790,18 +790,36 @@ export interface Messages {
       contract: string;
       since: string;
       grossPay: string;
+      /** `{currency}`: what the Property pays in, already a code. */
+      grossPayIn: string;
       iban: string;
+      ibanHint: string;
       status: string;
       noEmployeesTitle: string;
       noEmployeesDescription: string;
       submit: string;
       submitting: string;
+      cancel: string;
       contracts: {
         full_time: string;
         part_time: string;
         seasonal: string;
         fixed_term: string;
       };
+      statuses: {
+        active: string;
+        terminated: string;
+      };
+      /** `{date}`: the last day of employment, already formatted. */
+      leftOn: string;
+      terminate: string;
+      /** `{name}` */
+      terminateTitle: string;
+      /** Says that ending employment does not end access to the system. */
+      terminateDescription: string;
+      terminateDate: string;
+      terminateConfirm: string;
+      terminating: string;
     };
     rota: {
       title: string;
@@ -830,6 +848,7 @@ export interface Messages {
       dates: string;
       days: string;
       status: string;
+      actions: string;
       approve: string;
       decline: string;
       clashWarning: string;
@@ -837,8 +856,11 @@ export interface Messages {
       startsOn: string;
       endsOn: string;
       notes: string;
+      notesPlaceholder: string;
       submit: string;
       submitting: string;
+      cancel: string;
+      employeeLeft: string;
       types: {
         annual: string;
         sick: string;
@@ -854,6 +876,7 @@ export interface Messages {
     };
     payroll: {
       period: string;
+      /** `{amount}` and `{total}`, already formatted in the run's currency. */
       summaryGrossNet: string;
       gross: string;
       net: string;
@@ -863,11 +886,59 @@ export interface Messages {
       approve: string;
       approving: string;
       approved: string;
+      draft: string;
+      /** `{date}`: when the run was approved, already formatted. */
+      approvedOn: string;
+      /** What approving covers: every employee of the Organization. */
+      organizationWide: string;
       payslip: string;
       payslipTitle: string;
       paidTo: string;
+      noBankAccount: string;
       downloadPdf: string;
-      disclaimer: string;
+      actions: string;
+      /** The deductions are not approved figures (HR-S1-28). */
+      placeholderTitle: string;
+      placeholderBody: string;
+      /** Shown instead of the run to somebody who does not reach every Property. */
+      needsReach: {
+        title: string;
+        description: string;
+      };
+      blocked: {
+        no_employees: string;
+        mixed_currency: string;
+      };
+    };
+    /** What a command that did not happen says, by the module's own reasons. */
+    outcomes: {
+      invalid: {
+        name: string;
+        department: string;
+        position: string;
+        email: string;
+        grossPay: string;
+        currency: string;
+        iban: string;
+        period: string;
+        dates: string;
+        terminatedOn: string;
+        shiftTime: string;
+        request: string;
+      };
+      refused: {
+        not_permitted: string;
+        employee_terminated: string;
+        already_terminated: string;
+        other_property: string;
+        leave_overlap: string;
+        leave_decided: string;
+        payroll_needs_organization_reach: string;
+        payroll_no_employees: string;
+        payroll_mixed_currency: string;
+        payroll_draft_exists: string;
+      };
+      error: string;
     };
   };
 
@@ -1674,6 +1745,8 @@ export interface Messages {
   auditContext: Record<
     | "amountMinor"
     | "balanceMinor"
+    | "totalGrossMinor"
+    | "totalNetMinor"
     | "description"
     | "lineId"
     | "reversedLineId"
@@ -1775,6 +1848,9 @@ export interface Messages {
       string
     >;
     maintenance_setting: Record<"changed", string>;
+    employee: Record<"registered" | "terminated", string>;
+    leave: Record<"approved" | "declined", string>;
+    payroll_run: Record<"approved", string>;
   };
   auditSubject: Record<
     | "reservation"
@@ -1788,7 +1864,10 @@ export interface Messages {
     | "maintenance_request"
     | "maintenance_equipment"
     | "business_day_close"
-    | "data_export",
+    | "data_export"
+    | "employee"
+    | "leave_request"
+    | "payroll_run",
     string
   >;
 
@@ -3009,18 +3088,33 @@ export const messages: Record<SupportedLocale, Messages> = {
         contract: "Sözleşme türü",
         since: "Başlangıç",
         grossPay: "Brüt maaş",
+        grossPayIn: "Brüt maaş ({currency})",
         iban: "IBAN",
+        ibanHint: "Kaydedildikten sonra maskelenmiş gösterilir.",
         status: "Durum",
         noEmployeesTitle: "Kayıtlı personel yok",
         noEmployeesDescription: "İlk personeli ekleyerek başlayın.",
         submit: "Kaydet",
         submitting: "Kaydediliyor...",
+        cancel: "Vazgeç",
         contracts: {
           full_time: "Tam zamanlı",
           part_time: "Yarı zamanlı",
           seasonal: "Sezonluk",
           fixed_term: "Belirli süreli",
         },
+        statuses: {
+          active: "Çalışıyor",
+          terminated: "Ayrıldı",
+        },
+        leftOn: "{date} tarihinde ayrıldı",
+        terminate: "İşten ayrılışı kaydet",
+        terminateTitle: "{name} için işten ayrılışı kaydet",
+        terminateDescription:
+          "Personel kaydı, vardiyaları, izinleri ve bordroları saklanır. İşten ayrılış, sisteme erişimi kaldırmaz; bunu Ekip ekranından değiştirin.",
+        terminateDate: "Son çalışma günü",
+        terminateConfirm: "Ayrılışı kaydet",
+        terminating: "Kaydediliyor...",
       },
       rota: {
         title: "Haftalık vardiya çizelgesi",
@@ -3049,6 +3143,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         dates: "Tarihler",
         days: "gün",
         status: "Durum",
+        actions: "İşlemler",
         approve: "Onayla",
         decline: "Reddet",
         clashWarning:
@@ -3057,8 +3152,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         startsOn: "Başlangıç tarihi",
         endsOn: "Bitiş tarihi",
         notes: "Açıklama",
+        notesPlaceholder: "İsteğe bağlı açıklama",
         submit: "Talebi ilet",
         submitting: "İletiliyor...",
+        cancel: "Vazgeç",
+        employeeLeft: "İşten ayrıldı",
         types: {
           annual: "Yıllık izin",
           sick: "Hastalık izni",
@@ -3082,13 +3180,70 @@ export const messages: Record<SupportedLocale, Messages> = {
         stampDuty: "Damga vergisi",
         approve: "Bordroyu onayla",
         approving: "Onaylanıyor...",
-        approved: "Onaylandı ve muhasebeye aktarıldı",
+        approved: "Onaylandı",
+        draft: "Taslak",
+        approvedOn:
+          "{date} tarihinde onaylandı. Onaylanan bordro değiştirilemez.",
+        organizationWide:
+          "Onay, organizasyondaki tüm tesislerin tüm aktif personelini kapsar.",
         payslip: "Bordro eki",
         payslipTitle: "Maaş bordrosu",
         paidTo: "Ödeme hesabı",
+        noBankAccount: "Kayıtlı banka hesabı yok",
         downloadPdf: "PDF indir",
-        disclaimer:
-          "Buradaki kesinti oranları yasal mevzuat uyarınca hesaplanmıştır.",
+        actions: "İşlemler",
+        placeholderTitle: "Geçici kesintiler",
+        placeholderBody:
+          "SGK, gelir vergisi ve damga vergisi tutarları, işletme sahibi ve bir mali müşavirin onayı beklenen geçici değerlerdir. Onaylanmamıştır ve kimseye ödeme yapmak için kullanılmamalıdır.",
+        needsReach: {
+          title: "Bordro tüm organizasyon için yapılır",
+          description:
+            "Tüm tesisleri kapsadığı için hepsine erişim gerekir. Tüm organizasyona erişimi olan birinden isteyin.",
+        },
+        blocked: {
+          no_employees: "Bu dönem için ödeme yapılacak aktif personel yok.",
+          mixed_currency:
+            "Personele birden fazla para biriminde ödeme yapılıyor; bir bordro tek para birimindedir. Bu dönem, sorun çözülene kadar onaylanamaz.",
+        },
+      },
+      outcomes: {
+        invalid: {
+          name: "Ad ve soyad girin.",
+          department: "Bir departman girin.",
+          position: "Bir görev girin.",
+          email: "Bu e-posta adresi geçerli görünmüyor.",
+          grossPay:
+            "Brüt maaşı sayı olarak girin; para biriminin izin verdiğinden fazla ondalık yazmayın.",
+          currency: "Bu para birimi tanınmıyor.",
+          iban: "Bu IBAN geçerli görünmüyor.",
+          period: "Bu bordro dönemi geçerli değil.",
+          dates: "Tarihleri kontrol edin: bitiş, başlangıçtan önce olamaz.",
+          terminatedOn:
+            "Son çalışma gününü kontrol edin: işe başladığı günden önce olamaz.",
+          shiftTime: "Bu vardiya saati geçerli değil.",
+          request: "İstek okunamadı. Sayfayı yenileyip tekrar deneyin.",
+        },
+        refused: {
+          not_permitted:
+            "Bunu burada yapamazsınız ya da sayfa yüklendikten sonra durum değişti.",
+          employee_terminated:
+            "Bu personel işten ayrıldı; onun için yeni bir kayıt girilemez.",
+          already_terminated: "Bu personel zaten işten ayrıldı.",
+          other_property: "Bu personel başka bir tesise atanmış.",
+          leave_overlap:
+            "Bu personelin bu günlerin bir kısmında zaten onaylı izni var.",
+          leave_decided: "Bu talep için zaten karar verildi.",
+          payroll_needs_organization_reach:
+            "Bordro tüm tesisleri kapsar; yalnızca hepsine erişimi olan biri onaylayabilir.",
+          payroll_no_employees:
+            "Bu dönem için ödeme yapılacak aktif personel yok.",
+          payroll_mixed_currency:
+            "Personele birden fazla para biriminde ödeme yapılıyor; bir bordro tek para birimindedir.",
+          payroll_draft_exists:
+            "Bu dönem için bir taslak zaten var; bir yöneticinin temizlemesi gerekiyor.",
+        },
+        error:
+          "Bir şeyler ters gitti ve bildirildi. Biraz sonra tekrar deneyin.",
       },
     },
     housekeeping: {
@@ -3660,6 +3815,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditContext: {
       amountMinor: "Tutar",
       balanceMinor: "Kapanıştaki bakiye",
+      totalGrossMinor: "Toplam brüt",
+      totalNetMinor: "Toplam net",
       description: "Açıklama",
       lineId: "Satır",
       reversedLineId: "Ters kaydedilen satır",
@@ -3767,6 +3924,17 @@ export const messages: Record<SupportedLocale, Messages> = {
         restored: "Ekipman geri alındı",
         serviced: "Ekipmana bakım yapıldı",
       },
+      employee: {
+        registered: "Personel kaydedildi",
+        terminated: "İşten ayrılış kaydedildi",
+      },
+      leave: {
+        approved: "İzin onaylandı",
+        declined: "İzin reddedildi",
+      },
+      payroll_run: {
+        approved: "Bordro onaylandı",
+      },
     },
     auditSubject: {
       reservation: "Rezervasyon",
@@ -3781,6 +3949,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       maintenance_equipment: "Ekipman",
       business_day_close: "İş günü",
       data_export: "Veri dışa aktarma",
+      employee: "Personel",
+      leave_request: "İzin talebi",
+      payroll_run: "Bordro",
     },
     closeDay: {
       at: "Günün kapatıldığı tesis:",
@@ -5030,18 +5201,33 @@ export const messages: Record<SupportedLocale, Messages> = {
         contract: "Contract",
         since: "Since",
         grossPay: "Gross pay",
+        grossPayIn: "Gross pay ({currency})",
         iban: "IBAN",
+        ibanHint: "Shown masked once saved.",
         status: "Status",
         noEmployeesTitle: "No employees registered",
         noEmployeesDescription: "Get started by adding your first employee.",
         submit: "Save employee",
         submitting: "Saving...",
+        cancel: "Cancel",
         contracts: {
           full_time: "Full time",
           part_time: "Part time",
           seasonal: "Seasonal",
           fixed_term: "Fixed term",
         },
+        statuses: {
+          active: "Active",
+          terminated: "Left",
+        },
+        leftOn: "Left {date}",
+        terminate: "End employment",
+        terminateTitle: "End employment for {name}",
+        terminateDescription:
+          "Their record, shifts, leave and payslips stay. Ending employment does not remove their access to the system: change that on the People screen.",
+        terminateDate: "Last day of employment",
+        terminateConfirm: "End employment",
+        terminating: "Ending...",
       },
       rota: {
         title: "Weekly shift rota",
@@ -5070,6 +5256,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         dates: "Dates",
         days: "days",
         status: "Status",
+        actions: "Actions",
         approve: "Approve",
         decline: "Decline",
         clashWarning: "Clashes with another colleague in the same department",
@@ -5077,8 +5264,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         startsOn: "Starts on",
         endsOn: "Ends on",
         notes: "Notes",
+        notesPlaceholder: "Optional notes",
         submit: "Submit request",
         submitting: "Submitting...",
+        cancel: "Cancel",
+        employeeLeft: "Has left",
         types: {
           annual: "Annual leave",
           sick: "Sick leave",
@@ -5102,13 +5292,70 @@ export const messages: Record<SupportedLocale, Messages> = {
         stampDuty: "Stamp duty",
         approve: "Approve payroll",
         approving: "Approving...",
-        approved: "Approved and posted",
+        approved: "Approved",
+        draft: "Draft",
+        approvedOn: "Approved {date}. An approved run cannot be changed.",
+        organizationWide:
+          "Approving covers every active employee of the Organization, at every Property.",
         payslip: "Payslip",
         payslipTitle: "Payslip",
         paidTo: "Paid to",
+        noBankAccount: "No bank account on file",
         downloadPdf: "Download PDF",
-        disclaimer:
-          "Deduction rates are calculated according to payroll rules.",
+        actions: "Actions",
+        placeholderTitle: "Placeholder deductions",
+        placeholderBody:
+          "The social security, income tax and stamp duty figures are placeholders pending the owner and an accountant. They have not been approved and must not be used to pay anyone.",
+        needsReach: {
+          title: "Payroll is run for the whole Organization",
+          description:
+            "It covers every Property, so it needs access to all of them. Ask someone with Organization-wide access.",
+        },
+        blocked: {
+          no_employees: "There are no active employees to pay in this period.",
+          mixed_currency:
+            "Employees are paid in more than one currency, and a payroll run is in one. This period cannot be approved until that is resolved.",
+        },
+      },
+      outcomes: {
+        invalid: {
+          name: "Enter a first and last name.",
+          department: "Enter a department.",
+          position: "Enter a position.",
+          email: "That email address does not look right.",
+          grossPay:
+            "Enter the gross pay as a number, with no more decimals than the currency has.",
+          currency: "That currency is not recognised.",
+          iban: "That IBAN does not look right.",
+          period: "That payroll period is not valid.",
+          dates: "Check the dates: the end cannot be before the start.",
+          terminatedOn:
+            "Check the last day: it cannot be before the day they started.",
+          shiftTime: "That shift time is not valid.",
+          request:
+            "That request could not be read. Reload the page and try again.",
+        },
+        refused: {
+          not_permitted:
+            "You cannot do that here, or it has changed since this page loaded.",
+          employee_terminated:
+            "That employee has left, so nothing new can be recorded for them.",
+          already_terminated: "That employee has already left.",
+          other_property: "That employee is assigned to a different Property.",
+          leave_overlap:
+            "That employee already has approved leave over some of these days.",
+          leave_decided: "That request has already been decided.",
+          payroll_needs_organization_reach:
+            "Payroll covers every Property, so it can only be approved with access to all of them.",
+          payroll_no_employees:
+            "There are no active employees to pay in this period.",
+          payroll_mixed_currency:
+            "Employees are paid in more than one currency, and a payroll run is in one.",
+          payroll_draft_exists:
+            "A draft for this period already exists and needs an administrator to clear it.",
+        },
+        error:
+          "Something went wrong, and it has been reported. Try again in a moment.",
       },
     },
     housekeeping: {
@@ -5680,6 +5927,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditContext: {
       amountMinor: "Amount",
       balanceMinor: "Balance at closing",
+      totalGrossMinor: "Total gross",
+      totalNetMinor: "Total net",
       description: "Description",
       lineId: "Line",
       reversedLineId: "Reversed line",
@@ -5787,6 +6036,17 @@ export const messages: Record<SupportedLocale, Messages> = {
         restored: "Equipment restored",
         serviced: "Equipment serviced",
       },
+      employee: {
+        registered: "Employee registered",
+        terminated: "Employment ended",
+      },
+      leave: {
+        approved: "Leave approved",
+        declined: "Leave declined",
+      },
+      payroll_run: {
+        approved: "Payroll approved",
+      },
     },
     auditSubject: {
       reservation: "Reservation",
@@ -5801,6 +6061,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       maintenance_equipment: "Equipment",
       data_export: "Data export",
       business_day_close: "Business day",
+      employee: "Employee",
+      leave_request: "Leave request",
+      payroll_run: "Payroll run",
     },
     closeDay: {
       at: "Closing the day at",
@@ -7025,18 +7288,33 @@ export const messages: Record<SupportedLocale, Messages> = {
         contract: "نوع العقد",
         since: "تاريخ البدء",
         grossPay: "الراتب الإجمالي",
+        grossPayIn: "الراتب الإجمالي ({currency})",
         iban: "رقم الآيبان (IBAN)",
+        ibanHint: "يُعرض مخفيًا جزئيًا بعد الحفظ.",
         status: "الحالة",
         noEmployeesTitle: "لا يوجد موظفون مسجلون",
         noEmployeesDescription: "ابدأ بإضافة موظفك الأول.",
         submit: "حفظ الموظف",
         submitting: "جارٍ الحفظ...",
+        cancel: "إلغاء",
         contracts: {
           full_time: "دوام كامل",
           part_time: "دوام جزئي",
           seasonal: "موسمي",
           fixed_term: "محدد المدة",
         },
+        statuses: {
+          active: "على رأس العمل",
+          terminated: "غادر",
+        },
+        leftOn: "غادر في {date}",
+        terminate: "إنهاء الخدمة",
+        terminateTitle: "إنهاء خدمة {name}",
+        terminateDescription:
+          "يبقى سجله ووردياته وإجازاته وقسائم رواتبه. إنهاء الخدمة لا يسحب صلاحية دخوله إلى النظام: غيّر ذلك من شاشة الفريق.",
+        terminateDate: "آخر يوم عمل",
+        terminateConfirm: "إنهاء الخدمة",
+        terminating: "جارٍ الإنهاء...",
       },
       rota: {
         title: "جدول الورديات الأسبوعي",
@@ -7065,6 +7343,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         dates: "التواريخ",
         days: "أيام",
         status: "الحالة",
+        actions: "الإجراءات",
         approve: "الموافقة",
         decline: "الرفض",
         clashWarning: "يتعارض مع زميل آخر في نفس القسم",
@@ -7072,8 +7351,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         startsOn: "تاريخ البدء",
         endsOn: "تاريخ الانتهاء",
         notes: "ملاحظات",
+        notesPlaceholder: "ملاحظات اختيارية",
         submit: "إرسال الطلب",
         submitting: "جارٍ الإرسال...",
+        cancel: "إلغاء",
+        employeeLeft: "غادر العمل",
         types: {
           annual: "إجازة سنوية",
           sick: "إجازة مرضية",
@@ -7097,12 +7379,68 @@ export const messages: Record<SupportedLocale, Messages> = {
         stampDuty: "ضريبة الدمغة",
         approve: "اعتماد الرواتب",
         approving: "جارٍ الاعتماد...",
-        approved: "معتمد ومُرسل إلى الحسابات",
+        approved: "معتمد",
+        draft: "مسودة",
+        approvedOn: "اعتُمد في {date}. لا يمكن تعديل كشف الرواتب بعد اعتماده.",
+        organizationWide:
+          "يشمل الاعتماد كل موظف على رأس العمل في المؤسسة، في كل المنشآت.",
         payslip: "قسيمة الراتب",
         payslipTitle: "قسيمة الراتب",
         paidTo: "مدفوع إلى",
+        noBankAccount: "لا يوجد حساب مصرفي مسجل",
         downloadPdf: "تحميل PDF",
-        disclaimer: "يتم احتساب معدلات الخصم وفقاً للوائح والقوانين.",
+        actions: "الإجراءات",
+        placeholderTitle: "خصومات تجريبية",
+        placeholderBody:
+          "أرقام التأمينات الاجتماعية وضريبة الدخل وضريبة الدمغة أرقام مؤقتة بانتظار قرار المالك ومحاسب. لم تُعتمد ولا يجوز الدفع للموظفين بناءً عليها.",
+        needsReach: {
+          title: "الرواتب تُدار للمؤسسة كاملة",
+          description:
+            "تشمل الرواتب كل المنشآت، لذا تحتاج إلى صلاحية الوصول إليها جميعًا. اطلب ذلك ممن لديه وصول على مستوى المؤسسة.",
+        },
+        blocked: {
+          no_employees:
+            "لا يوجد موظفون على رأس العمل ليُصرف لهم في هذه الفترة.",
+          mixed_currency:
+            "يُصرف للموظفين بأكثر من عملة، وكشف الرواتب بعملة واحدة، لذا لا يمكن اعتماد هذه الفترة قبل معالجة ذلك.",
+        },
+      },
+      outcomes: {
+        invalid: {
+          name: "أدخل الاسم الأول واسم العائلة.",
+          department: "أدخل القسم.",
+          position: "أدخل المنصب.",
+          email: "عنوان البريد الإلكتروني هذا يبدو غير صحيح.",
+          grossPay:
+            "أدخل الراتب الإجمالي رقمًا، بعدد خانات عشرية لا يزيد على ما تسمح به العملة.",
+          currency: "هذه العملة غير معروفة.",
+          iban: "رقم الآيبان هذا يبدو غير صحيح.",
+          period: "فترة الرواتب هذه غير صالحة.",
+          dates: "راجع التواريخ: لا يمكن أن ينتهي قبل أن يبدأ.",
+          terminatedOn: "راجع آخر يوم عمل: لا يمكن أن يسبق يوم التحاقه.",
+          shiftTime: "وقت الوردية هذا غير صالح.",
+          request: "تعذّرت قراءة الطلب. أعد تحميل الصفحة وحاول مرة أخرى.",
+        },
+        refused: {
+          not_permitted:
+            "لا يمكنك فعل ذلك هنا، أو تغيّر الوضع منذ تحميل الصفحة.",
+          employee_terminated:
+            "هذا الموظف غادر، فلا يمكن تسجيل أي شيء جديد له.",
+          already_terminated: "هذا الموظف غادر بالفعل.",
+          other_property: "هذا الموظف معيَّن في منشأة أخرى.",
+          leave_overlap:
+            "لدى هذا الموظف إجازة معتمدة بالفعل تغطي بعض هذه الأيام.",
+          leave_decided: "تم البت في هذا الطلب بالفعل.",
+          payroll_needs_organization_reach:
+            "تشمل الرواتب كل المنشآت، فلا يعتمدها إلا من لديه وصول إليها جميعًا.",
+          payroll_no_employees:
+            "لا يوجد موظفون على رأس العمل ليُصرف لهم في هذه الفترة.",
+          payroll_mixed_currency:
+            "يُصرف للموظفين بأكثر من عملة، وكشف الرواتب بعملة واحدة.",
+          payroll_draft_exists:
+            "توجد مسودة لهذه الفترة بالفعل وتحتاج إلى مسؤول لإزالتها.",
+        },
+        error: "حدث خطأ ما وتم الإبلاغ عنه. حاول مرة أخرى بعد قليل.",
       },
     },
     housekeeping: {
@@ -7670,6 +8008,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditContext: {
       amountMinor: "المبلغ",
       balanceMinor: "الرصيد عند الإغلاق",
+      totalGrossMinor: "إجمالي الراتب الإجمالي",
+      totalNetMinor: "إجمالي صافي الراتب",
       description: "الوصف",
       lineId: "البند",
       reversedLineId: "البند المعكوس",
@@ -7777,6 +8117,17 @@ export const messages: Record<SupportedLocale, Messages> = {
         restored: "أُعيدت المعدات إلى الاستخدام",
         serviced: "صينت المعدات",
       },
+      employee: {
+        registered: "تم تسجيل موظف",
+        terminated: "انتهت خدمة الموظف",
+      },
+      leave: {
+        approved: "تمت الموافقة على إجازة",
+        declined: "رُفضت إجازة",
+      },
+      payroll_run: {
+        approved: "اعتُمدت الرواتب",
+      },
     },
     auditSubject: {
       reservation: "حجز",
@@ -7791,6 +8142,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       maintenance_equipment: "المعدات",
       data_export: "تصدير البيانات",
       business_day_close: "يوم العمل",
+      employee: "موظف",
+      leave_request: "طلب إجازة",
+      payroll_run: "كشف رواتب",
     },
     closeDay: {
       at: "إغلاق اليوم في",

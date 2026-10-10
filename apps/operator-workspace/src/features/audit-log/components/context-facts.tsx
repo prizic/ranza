@@ -30,6 +30,8 @@ import type { AuditWords } from "../words";
 const CONTEXT_KEYS = [
   "amountMinor",
   "balanceMinor",
+  "totalGrossMinor",
+  "totalNetMinor",
   "description",
   "lineId",
   "reversedLineId",
@@ -79,7 +81,12 @@ const HIDDEN = new Set([
   "fromAuthored",
   "toAuthored",
 ]);
-const MONEY = new Set(["amountMinor", "balanceMinor"]);
+const MONEY = new Set([
+  "amountMinor",
+  "balanceMinor",
+  "totalGrossMinor",
+  "totalNetMinor",
+]);
 const CHANGE = new Set(["from", "to"]);
 const HOUSEKEEPING_STATUS = new Set(["status", "previousStatus"]);
 const PERMISSIONS = new Set(["added", "removed", "permissions"]);

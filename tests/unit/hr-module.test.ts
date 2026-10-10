@@ -1,291 +1,210 @@
-import { describe, expect, it, vi } from "vitest";
-import type { PrismaClient } from "../../packages/db/src";
+/**
+ * The parts of the HR module that need no database (RANZ-42).
+ *
+ * What the module does with one is in tests/integration/hr.test.ts; this holds
+ * the arithmetic and the input rules, which are pure and which a regression in
+ * would not announce itself by failing a query.
+ */
+import { describe, expect, it } from "vitest";
 import {
-  calculateDeductions,
-  createHrModule,
+  calculatePlaceholderDeductions,
   HR_CAPABILITY,
+  HrInputError,
+  maskIban,
+  normalizeIban,
+  PLACEHOLDER_SOCIAL_SECURITY_CEILING_MINOR,
 } from "../../packages/ranza/hr/src";
+import {
+  validCurrency,
+  validPeriod,
+  wholeMinorUnits,
+} from "../../packages/ranza/hr/src/input";
+import { refusal } from "../../packages/ranza/hr/src/refusals";
+import { HrRefusedError } from "../../packages/ranza/hr/src";
 
-const TEST_USER_ID = "11111111-1111-4111-8111-111111111111";
-
-describe("HR Module Unit Tests (HR-S1-*)", () => {
-  describe("Domain Contracts & Calculations", () => {
-    it("exports capability reference matching blueprint 5.11", () => {
-      expect(HR_CAPABILITY).toEqual({
-        moduleKey: "human_resources",
-        capabilityKey: "staff_administration",
-      });
+describe("the HR capability", () => {
+  it("is the one blueprint 5.11 names", () => {
+    expect(HR_CAPABILITY).toEqual({
+      moduleKey: "human_resources",
+      capabilityKey: "staff_administration",
     });
+  });
+});
 
-    it("calculates accurate Turkish payroll deductions according to blueprint and mockup", () => {
-      // Test gross of 35,000 TRY
-      const gross = 35000;
-      const { sgk, tax, stamp, net } = calculateDeductions(gross);
-
-      // SGK: 15% of 35000 = 5250
-      expect(sgk).toBe(5250);
-
-      // Taxable: 35000 - 5250 = 29750
-      // Tax: 15% of 29750 = 4462.50
-      expect(tax).toBe(4462.5);
-
-      // Stamp duty: 0.759% of 35000 = 265.65
-      expect(stamp).toBe(265.65);
-
-      // Net: 35000 - 5250 - 4462.50 - 265.65 = 25021.85
-      expect(net).toBe(25021.85);
-    });
-
-    it("caps SGK deductions at statutory ceiling for high wages", () => {
-      const gross = 200000;
-      const { sgk } = calculateDeductions(gross);
-      // SGK ceiling is 150,000, so 15% of 150,000 = 22,500
-      expect(sgk).toBe(22500);
-    });
-
-    it("handles zero gross pay safely", () => {
-      const { sgk, tax, stamp, net } = calculateDeductions(0);
-      expect(sgk).toBe(0);
-      expect(tax).toBe(0);
-      expect(stamp).toBe(0);
-      expect(net).toBe(0);
+describe("placeholder deductions", () => {
+  it("placeholder_deductions_add_up_to_the_minor_unit: a gross of 35,000 is split exactly", () => {
+    expect(calculatePlaceholderDeductions(3_500_000)).toEqual({
+      socialSecurityMinor: 525_000,
+      incomeTaxMinor: 446_250,
+      stampDutyMinor: 26_565,
+      netMinor: 2_502_185,
     });
   });
 
-  describe("Module Operations & Tenant Context", () => {
-    it("registers an employee via Prisma within tenant context and sanitizes strings", async () => {
-      const now = new Date();
-      const mockDb: any = {
-        $executeRawUnsafe: vi.fn().mockResolvedValue(1),
-        $transaction: vi.fn(async (run: (c: any) => Promise<any>) =>
-          run(mockDb),
-        ),
-        hrEmployee: {
-          create: vi.fn().mockResolvedValue({
-            id: "emp-1",
-            organizationId: "org-1",
-            propertyId: "prop-1",
-            userId: null,
-            firstName: "Ahmet",
-            lastName: "Yılmaz",
-            email: "ahmet@test.com",
-            phone: "+905551234567",
-            department: "Housekeeping",
-            position: "Housekeeper",
-            contractType: "full_time",
-            hiredOn: now,
-            grossPay: 30000,
-            currency: "TRY",
-            status: "active",
-            bankName: "Ziraat",
-            iban: "TR123456",
-            createdAt: now,
-            updatedAt: now,
-          }),
-        },
-      };
+  it("placeholder_deductions_add_up_to_the_minor_unit: for every gross, the parts add up and nothing is fractional", () => {
+    // Amounts that float arithmetic rounds the wrong way: the old
+    // Math.round(x * 0.15 * 100) / 100 was not exact for these.
+    const awkward = [1, 7, 33, 199, 1005, 1_234_567, 9_999_999_999, 10_001];
+    for (const gross of [
+      ...awkward,
+      ...Array.from({ length: 500 }, (_, i) => i * 4_321 + 3),
+    ]) {
+      const parts = calculatePlaceholderDeductions(gross);
+      for (const value of Object.values(parts)) {
+        expect(Number.isSafeInteger(value)).toBe(true);
+        expect(value).toBeGreaterThanOrEqual(0);
+      }
+      expect(
+        parts.netMinor +
+          parts.socialSecurityMinor +
+          parts.incomeTaxMinor +
+          parts.stampDutyMinor,
+      ).toBe(gross);
+    }
+  });
 
-      const hr = createHrModule({ db: mockDb as unknown as PrismaClient });
+  it("rounds half up once, in integers", () => {
+    // 15% of 10 is 1.5, which rounds up to 2; of 1005 is 150.75, which rounds
+    // to 151; of 3 is 0.45, which rounds to 0.
+    expect(calculatePlaceholderDeductions(10).socialSecurityMinor).toBe(2);
+    expect(calculatePlaceholderDeductions(1005).socialSecurityMinor).toBe(151);
+    expect(calculatePlaceholderDeductions(3).socialSecurityMinor).toBe(0);
+  });
 
-      const emp = await hr.registerEmployee(TEST_USER_ID, {
-        organizationId: "org-1",
-        propertyId: "prop-1",
-        firstName: "Ahmet",
-        lastName: "Yılmaz",
-        email: "   ",
-        phone: "   ",
-        department: "Housekeeping",
-        position: "Housekeeper",
-        grossPay: 30000,
-      });
+  it("stops charging social security at the ceiling", () => {
+    const atCeiling = calculatePlaceholderDeductions(
+      Number(PLACEHOLDER_SOCIAL_SECURITY_CEILING_MINOR),
+    );
+    const above = calculatePlaceholderDeductions(
+      Number(PLACEHOLDER_SOCIAL_SECURITY_CEILING_MINOR) + 5_000_000,
+    );
+    expect(above.socialSecurityMinor).toBe(atCeiling.socialSecurityMinor);
+    expect(atCeiling.socialSecurityMinor).toBe(2_250_000);
+  });
 
-      expect(emp.fullName).toBe("Ahmet Yılmaz");
-      expect(emp.status).toBe("active");
-      expect(mockDb.hrEmployee.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          email: null,
-          phone: null,
-        }),
-      });
+  it("handles no pay", () => {
+    expect(calculatePlaceholderDeductions(0)).toEqual({
+      socialSecurityMinor: 0,
+      incomeTaxMinor: 0,
+      stampDutyMinor: 0,
+      netMinor: 0,
+    });
+  });
+
+  it("refuses an amount that is not whole minor units", () => {
+    expect(() => calculatePlaceholderDeductions(10.5)).toThrow(RangeError);
+    expect(() => calculatePlaceholderDeductions(-1)).toThrow(RangeError);
+    expect(() => calculatePlaceholderDeductions(Number.NaN)).toThrow(
+      RangeError,
+    );
+  });
+});
+
+describe("an IBAN", () => {
+  it("is stored without spaces, in capitals", () => {
+    expect(normalizeIban(" tr33 0006 1005 1978 6457 8413 26 ")).toBe(
+      "TR330006100519786457841326",
+    );
+  });
+
+  it("is nothing when blank, because cash has none", () => {
+    expect(normalizeIban(undefined)).toBeNull();
+    expect(normalizeIban("   ")).toBeNull();
+  });
+
+  it("is refused when it is not the shape of one", () => {
+    expect(() => normalizeIban("not an iban")).toThrow(HrInputError);
+    expect(() => normalizeIban("TR33")).toThrow(HrInputError);
+  });
+
+  it("iban_is_masked_on_the_server: is shown as the country and the last four", () => {
+    expect(maskIban("TR330006100519786457841326")).toBe("TR•• •••• •••• 1326");
+    expect(maskIban(null)).toBeNull();
+    expect(maskIban("TR33")).toBe("••••");
+    expect(maskIban("TR330006100519786457841326")).not.toContain("0006");
+  });
+});
+
+describe("input", () => {
+  it("a_currency_that_is_not_one_is_refused: accepts ISO 4217 codes and nothing else", () => {
+    for (const code of ["TRY", "EUR", "USD", "JPY", "KWD"]) {
+      expect(validCurrency(code)).toBe(code);
+    }
+    for (const code of ["try", "TR", "TRYY", "XYZ", "", "T R"]) {
+      expect(() => validCurrency(code)).toThrow(HrInputError);
+    }
+  });
+
+  it("an_amount_that_is_not_whole_minor_units_is_refused", () => {
+    expect(wholeMinorUnits(0, "grossPay")).toBe(0);
+    expect(wholeMinorUnits(3_500_000, "grossPay")).toBe(3_500_000);
+    for (const value of [
+      -1,
+      0.5,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      2 ** 60,
+    ]) {
+      expect(() => wholeMinorUnits(value, "grossPay")).toThrow(HrInputError);
+    }
+  });
+
+  it("reads a payroll period and its last day", () => {
+    expect(validPeriod("2026-02").lastDay.toISOString()).toBe(
+      "2026-02-28T00:00:00.000Z",
+    );
+    expect(validPeriod("2028-02").lastDay.toISOString()).toBe(
+      "2028-02-29T00:00:00.000Z",
+    );
+    expect(validPeriod("2026-12").lastDay.toISOString()).toBe(
+      "2026-12-31T00:00:00.000Z",
+    );
+    for (const bad of [
+      "2026-13",
+      "2026-00",
+      "2026-1",
+      "26-10",
+      "2026-10-01",
+      "",
+    ]) {
+      expect(() => validPeriod(bad)).toThrow(HrInputError);
+    }
+  });
+});
+
+describe("what the database says becomes a reason", () => {
+  const driverError = (code: string, message: string) =>
+    Object.assign(new Error(message), {
+      meta: { driverAdapterError: { cause: { code } } },
     });
 
-    it("refuses assigning shift to a terminated employee or invalid time format", async () => {
-      const mockDb: any = {
-        $executeRawUnsafe: vi.fn().mockResolvedValue(1),
-        $transaction: vi.fn(async (run: (c: any) => Promise<any>) =>
-          run(mockDb),
-        ),
-        hrEmployee: {
-          findUnique: vi.fn().mockResolvedValue({
-            id: "emp-term",
-            organizationId: "org-1",
-            propertyId: "prop-1",
-            status: "terminated",
-          }),
-        },
-      };
+  it("reads the exclusion constraint as overlapping leave", () => {
+    const refused = refusal(
+      driverError("23P01", "hr_leave_no_overlapping_approved"),
+    );
+    expect(refused).toBeInstanceOf(HrRefusedError);
+    expect((refused as HrRefusedError).reason).toBe("leave_overlap");
+  });
 
-      const hr = createHrModule({ db: mockDb as unknown as PrismaClient });
+  it("reads the currency trigger as a run in two currencies", () => {
+    const refused = refusal(
+      driverError(
+        "23514",
+        "a payroll run is in one currency, and this employee is paid in another",
+      ),
+    );
+    expect((refused as HrRefusedError).reason).toBe("payroll_mixed_currency");
+  });
 
-      await expect(
-        hr.assignShift(TEST_USER_ID, {
-          organizationId: "org-1",
-          propertyId: "prop-1",
-          employeeId: "emp-term",
-          date: new Date("2026-10-15"),
-          shiftType: "morning",
-        }),
-      ).rejects.toThrow("Cannot assign shift to a terminated employee");
-    });
+  it("reads a policy, a grant, a key and a locked row alike, as not permitted", () => {
+    for (const code of ["42501", "23503", "23505", "55000", "P2025"]) {
+      const refused = refusal(driverError(code, "x"));
+      expect((refused as HrRefusedError).reason).toBe("not_permitted");
+    }
+  });
 
-    it("detects leave clash among colleagues in the same department", async () => {
-      const mockDb: any = {
-        $executeRawUnsafe: vi.fn().mockResolvedValue(1),
-        $transaction: vi.fn(async (run: (c: any) => Promise<any>) =>
-          run(mockDb),
-        ),
-        hrLeaveRequest: {
-          findMany: vi.fn().mockResolvedValue([
-            {
-              id: "leave-1",
-              organizationId: "org-1",
-              employeeId: "emp-1",
-              employee: {
-                firstName: "Mert",
-                lastName: "Polat",
-                department: "Front desk",
-                position: "Agent",
-              },
-              leaveType: "annual",
-              startsOn: new Date("2026-10-15"),
-              endsOn: new Date("2026-10-20"),
-              status: "pending",
-              notes: null,
-            },
-            {
-              id: "leave-2",
-              organizationId: "org-1",
-              employeeId: "emp-2",
-              employee: {
-                firstName: "Sibel",
-                lastName: "Koç",
-                department: "Front desk",
-                position: "Supervisor",
-              },
-              leaveType: "annual",
-              startsOn: new Date("2026-10-14"),
-              endsOn: new Date("2026-10-18"),
-              status: "approved",
-              notes: null,
-            },
-          ]),
-        },
-      };
-
-      const hr = createHrModule({ db: mockDb as unknown as PrismaClient });
-      const requests = await hr.leaveRequests(TEST_USER_ID, "org-1");
-
-      expect(requests).toHaveLength(2);
-      expect(requests[0]?.clash).toBe(true);
-      expect(requests[1]?.clash).toBe(false);
-    });
-
-    it("approves payroll and calculates payslip breakdown accurately using batch createMany", async () => {
-      const mockDb: any = {
-        $executeRawUnsafe: vi.fn().mockResolvedValue(1),
-        $transaction: vi.fn(async (run: (c: any) => Promise<any>) =>
-          run(mockDb),
-        ),
-        hrEmployee: {
-          findMany: vi.fn().mockResolvedValue([
-            {
-              id: "emp-1",
-              firstName: "Ahmet",
-              lastName: "Yılmaz",
-              department: "Front desk",
-              position: "Agent",
-              grossPay: 35000,
-              iban: "TR4417",
-            },
-          ]),
-        },
-        hrPayrollRun: {
-          findUnique: vi.fn().mockResolvedValue(null),
-          upsert: vi.fn().mockResolvedValue({
-            id: "run-1",
-            organizationId: "org-1",
-            period: "2026-10",
-            totalGross: 35000,
-            totalNet: 25021.85,
-            status: "approved",
-            approvedAt: new Date(),
-          }),
-        },
-        hrPayslip: {
-          createMany: vi.fn().mockResolvedValue({ count: 1 }),
-        },
-      };
-
-      // Mock getPayrollSummary secondary query
-      mockDb.hrPayrollRun.findUnique = vi
-        .fn()
-        .mockResolvedValueOnce(null) // first check in approvePayroll
-        .mockResolvedValueOnce({
-          id: "run-1",
-          organizationId: "org-1",
-          period: "2026-10",
-          totalGross: 35000,
-          totalNet: 25021.85,
-          status: "approved",
-          approvedAt: new Date(),
-          payslips: [
-            {
-              id: "slip-1",
-              employeeId: "emp-1",
-              grossPay: 35000,
-              socialSecurityDeduction: 5250,
-              taxDeduction: 4462.5,
-              stampDuty: 265.65,
-              netPay: 25021.85,
-              iban: "TR4417",
-              employee: {
-                firstName: "Ahmet",
-                lastName: "Yılmaz",
-                department: "Front desk",
-                position: "Agent",
-              },
-            },
-          ],
-        });
-
-      const hr = createHrModule({ db: mockDb as unknown as PrismaClient });
-      const summary = await hr.approvePayroll(TEST_USER_ID, "org-1", "2026-10");
-
-      expect(summary.status).toBe("approved");
-      expect(summary.totalGross).toBe(35000);
-      expect(summary.totalNet).toBe(25021.85);
-      expect(summary.payslips).toHaveLength(1);
-      expect(summary.payslips[0]?.netPay).toBe(25021.85);
-      expect(mockDb.hrPayslip.createMany).toHaveBeenCalled();
-    });
-
-    it("refuses approving payroll if organization has zero active employees", async () => {
-      const mockDb: any = {
-        $executeRawUnsafe: vi.fn().mockResolvedValue(1),
-        $transaction: vi.fn(async (run: (c: any) => Promise<any>) =>
-          run(mockDb),
-        ),
-        hrEmployee: {
-          findMany: vi.fn().mockResolvedValue([]),
-        },
-      };
-
-      const hr = createHrModule({ db: mockDb as unknown as PrismaClient });
-      await expect(
-        hr.approvePayroll(TEST_USER_ID, "org-1", "2026-10"),
-      ).rejects.toThrow(
-        "Cannot approve payroll: no active employees in organization",
-      );
-    });
+  it("gives back what it does not recognise, for the host to report", () => {
+    const outage = new Error("connection reset");
+    expect(refusal(outage)).toBe(outage);
   });
 });

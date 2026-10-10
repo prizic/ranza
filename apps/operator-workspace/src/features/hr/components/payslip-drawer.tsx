@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { formatMoney, type SupportedLocale } from "@ranza/i18n";
 import {
   Avatar,
   AvatarFallback,
@@ -12,42 +13,31 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@ranza/ui";
-import { Download } from "lucide-react";
+import { Download, TriangleAlert } from "lucide-react";
 import type { PayslipRecord } from "../../../server/viewer";
 
 interface PayslipDrawerProps {
   payslip: PayslipRecord | null;
   period: string;
-  locale: string;
+  /** The run's currency; a payslip carries none of its own. */
+  currency: string | null;
+  locale: SupportedLocale;
   onClose: () => void;
 }
 
 export function PayslipDrawer({
   payslip,
   period,
+  currency,
   locale,
   onClose,
 }: PayslipDrawerProps) {
   const t = useTranslations("hr.payroll");
 
-  if (!payslip) return null;
+  if (!payslip || !currency) return null;
 
-  const formatMoney = (amount: number) => {
-    return new Intl.NumberFormat(locale, {
-      style: "currency",
-      currency: "TRY",
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
-
-  const maskIban = (iban: string | null) => {
-    if (!iban) return "—";
-    const cleaned = iban.replace(/\s+/g, "");
-    if (cleaned.length < 8) return iban;
-    const prefix = cleaned.slice(0, 2);
-    const suffix = cleaned.slice(-4);
-    return `${prefix}•• •••• •••• ${suffix}`;
-  };
+  const money = (amountMinor: number) =>
+    formatMoney(amountMinor, currency, locale);
 
   const initials = payslip.employeeName
     .split(" ")
@@ -90,28 +80,28 @@ export function PayslipDrawer({
               <div className="flex justify-between items-center">
                 <dt className="text-muted-foreground">{t("gross")}</dt>
                 <dd className="font-mono font-medium text-foreground">
-                  {formatMoney(payslip.grossPay)}
+                  {money(payslip.grossPayMinor)}
                 </dd>
               </div>
 
               <div className="flex justify-between items-center text-destructive">
                 <dt>{t("socialSecurity")}</dt>
                 <dd className="font-mono font-medium">
-                  −{formatMoney(payslip.socialSecurityDeduction)}
+                  −{money(payslip.socialSecurityDeductionMinor)}
                 </dd>
               </div>
 
               <div className="flex justify-between items-center text-destructive">
                 <dt>{t("incomeTax")}</dt>
                 <dd className="font-mono font-medium">
-                  −{formatMoney(payslip.taxDeduction)}
+                  −{money(payslip.taxDeductionMinor)}
                 </dd>
               </div>
 
               <div className="flex justify-between items-center text-destructive">
                 <dt>{t("stampDuty")}</dt>
                 <dd className="font-mono font-medium">
-                  −{formatMoney(payslip.stampDuty)}
+                  −{money(payslip.stampDutyMinor)}
                 </dd>
               </div>
 
@@ -120,7 +110,7 @@ export function PayslipDrawer({
               <div className="flex justify-between items-center text-step-0 font-bold">
                 <dt className="text-foreground">{t("net")}</dt>
                 <dd className="font-mono text-primary text-step-1">
-                  {formatMoney(payslip.netPay)}
+                  {money(payslip.netPayMinor)}
                 </dd>
               </div>
 
@@ -128,11 +118,19 @@ export function PayslipDrawer({
 
               <div className="flex justify-between items-center text-step--1">
                 <dt className="text-muted-foreground">{t("paidTo")}</dt>
-                <dd className="font-mono font-medium text-foreground">
-                  {maskIban(payslip.iban)}
+                <dd className="font-mono font-medium text-foreground" dir="ltr">
+                  {payslip.ibanMasked ?? t("noBankAccount")}
                 </dd>
               </div>
             </dl>
+
+            <div
+              role="note"
+              className="flex items-start gap-2 rounded-md border border-border bg-muted/40 p-3 text-step--1"
+            >
+              <TriangleAlert className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+              <p className="text-muted-foreground">{t("placeholderBody")}</p>
+            </div>
           </div>
         </div>
 
