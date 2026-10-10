@@ -1,15 +1,21 @@
 import { randomUUID } from "node:crypto";
+import path from "node:path";
 
 import { expect, test } from "@playwright/test";
 
 import { psql } from "./local-database";
 import {
   aPropertyTheViewerDoesNotReach,
+  aStaffMember,
+  EMAIL,
   propertyWithHousekeepingOff,
   propertyWithTodayOff,
   signIn,
   testProperty,
 } from "./front-desk";
+import { startWorker } from "./worker";
+
+const EVIDENCE = path.resolve(__dirname, "../../docs/evidence/m1/RANZ-28");
 
 /**
  * Housekeeping through the screens a front desk actually uses (RANZ-28).
@@ -37,7 +43,7 @@ test.beforeEach(() => {
 /** A room of this run's own, with a Guest arriving today. Dirty unless told. */
 function aRoomWithAnArrival(
   propertyId: string,
-  status: "dirty" | "clean" = "dirty",
+  status: "dirty" | "clean" | "inspected" = "dirty",
 ): {
   unitName: string;
   guestName: string;
@@ -95,6 +101,202 @@ test("a front desk marks a dirty room clean from the board", async ({
 
   await expect(page.getByText("1 room updated")).toBeVisible();
   await expect(row).toContainText("Clean");
+});
+
+const made: string[] = [];
+
+test.afterAll(() => {
+  if (made.length === 0) return;
+  psql(
+    `update public.properties set status = 'archived', updated_at = now()
+      where id in (${made.map((id) => `'${id}'`).join(",")})`,
+  );
+});
+
+/**
+ * A Property of this run's own, in the seeded Staff Member's Organization, with
+ * housekeeping on and Check rooms after cleaning on. The worker is not
+ * selective — it delivers every departure waiting in the database — and a
+ * Property of the run's own is where the room it dirties is the only one
+ * anybody reads, and where a cleaner can be given reach without joining the
+ * shared test Property's roster. Archived afterwards, so runs do not pile up
+ * in the switcher.
+ */
+function aPropertyWithInspection(): string {
+  const name = `E2E Housekeeping ${randomUUID().slice(0, 8)}`;
+  const propertyId = psql(
+    `with member as (
+       select id from public.users where lower(email) = lower('${EMAIL}')
+     ), home as (
+       select property.organization_id as id
+       from public.properties as property
+       join public.property_assignments as assignment
+         on assignment.property_id = property.id
+        and assignment.user_id = (select id from member)
+       order by property.name
+       limit 1
+     ), created as (
+       insert into public.properties (organization_id, name)
+       select id, '${name}' from home
+       returning id, organization_id
+     ), capability as (
+       insert into public.property_capabilities
+         (property_id, organization_id, capability_key, enabled)
+       select created.id, created.organization_id, wanted.key, true
+       from created,
+            (values ('today'), ('front_desk'), ('finance'), ('housekeeping'))
+              as wanted (key)
+     ), inspection as (
+       insert into public.housekeeping_settings
+         (organization_id, property_id, inspect_after_cleaning)
+       select organization_id, id, true from created
+     ), assignment as (
+       insert into public.property_assignments
+         (property_id, organization_id, user_id)
+       select id, organization_id, (select id from member) from created
+     )
+     select id from created`,
+  );
+  expect(propertyId, "no seeded Organization to put a Property in").not.toBe(
+    "",
+  );
+  made.push(propertyId);
+  return propertyId;
+}
+
+test("a check-out leaves the room dirty through the worker, and a cleaner takes it to inspected", async ({
+  page,
+  browser,
+  request,
+  baseURL,
+}) => {
+  test.setTimeout(240_000);
+  const propertyId = aPropertyWithInspection();
+  // Inspected when the Guest arrives — inspection is on here, so clean would
+  // not be ready — so the check-in asks nothing and the only thing that can
+  // make the room dirty afterwards is the departure.
+  const { unitName, guestName } = aRoomWithAnArrival(propertyId, "inspected");
+  const cleaner = await aStaffMember(
+    request,
+    baseURL!,
+    propertyId,
+    "housekeeping",
+  );
+
+  await signIn(page);
+
+  // The desk checks the Guest in and then out, through the real screens.
+  await page.goto(`/en/arrivals?property=${propertyId}`);
+  await page.getByRole("searchbox").fill(guestName);
+  const arrival = page.getByRole("row").filter({ hasText: guestName });
+  await arrival.getByRole("button", { name: "Check in" }).click();
+  await expect(arrival.getByText("Checked in")).toBeVisible();
+
+  await page.goto(`/en/departures?property=${propertyId}&view=in_house`);
+  await page.getByRole("searchbox").fill(guestName);
+  await page
+    .getByRole("row")
+    .filter({ hasText: guestName })
+    .getByRole("button", { name: /^Check .* out$/ })
+    .click();
+  const checkOut = page.getByRole("dialog");
+  // Three nights early on a booking of two, with nothing owed: the
+  // acknowledgement is all the dialog asks.
+  await checkOut.getByRole("checkbox").click();
+  await checkOut.getByRole("button", { name: "Confirm check-out" }).click();
+  await expect(checkOut).toBeHidden();
+
+  const stayId = psql(
+    `select stay.id from public.stays as stay
+       join public.reservations as reservation on reservation.id = stay.reservation_id
+       join public.guests as guest on guest.id = reservation.guest_id
+      where guest.full_name = '${guestName}'`,
+  );
+  const stored = () =>
+    psql(
+      `select held.status || '|' || (held.status_changed_by is null)::text
+         from public.housekeeping_unit_status as held
+         join public.accommodation_units as unit on unit.id = held.accommodation_unit_id
+        where unit.property_id = '${propertyId}' and unit.name = '${unitName}'`,
+    );
+  const delivered = () =>
+    psql(
+      `select count(*) from outbox.deliveries as delivery
+         join outbox.events as event on event.id = delivery.event_id
+        where delivery.consumer = 'housekeeping.markRoomDirtyOnCheckOut'
+          and event.payload ->> 'stayId' = '${stayId}'`,
+    );
+
+  // Nobody has delivered the departure yet: the stored status is still the
+  // inspected the room was given, and the event is waiting. The board reads the
+  // room dirty all the same — a Guest has left it since its status was set
+  // (HK-S1-22) — so the desk is never told a room is ready that is not.
+  expect(stored()).toBe("inspected|true");
+  expect(delivered()).toBe("0");
+  await page.goto(`/en/housekeeping?property=${propertyId}`);
+  await page.getByRole("searchbox").fill(unitName);
+  await expect(
+    page.getByRole("row").filter({ hasText: unitName }),
+  ).toContainText("Dirty");
+
+  // The worker goes round on its own timer. Nobody marks anything: the row the
+  // departure leaves behind is written by the worker's handler, stamped with
+  // no Staff Member.
+  const worker = startWorker();
+  try {
+    await expect
+      .poll(delivered, {
+        message: `the worker said:\n${worker.output()}`,
+        timeout: 90_000,
+      })
+      .toBe("1");
+  } finally {
+    worker.stop();
+  }
+  expect(worker.output()).not.toMatch(/\b(?:failed|dead) [1-9]|ERROR/);
+  expect(stored()).toBe("dirty|true");
+
+  // A cleaner, who reaches this Property and nothing else, finds it dirty.
+  const cleanerContext = await browser.newContext({ baseURL: baseURL! });
+  const cleanerPage = await cleanerContext.newPage();
+  try {
+    await signIn(cleanerPage, cleaner.email);
+    await cleanerPage.goto(`/en/housekeeping?property=${propertyId}`);
+    await cleanerPage.getByRole("searchbox").fill(unitName);
+    const row = cleanerPage.getByRole("row").filter({ hasText: unitName });
+    await expect(row).toContainText("Dirty");
+    await cleanerPage.screenshot({
+      path: path.join(EVIDENCE, "cleaner-sees-the-room-dirty.png"),
+    });
+
+    // Dirty to clean, which with inspection on is not yet ready to let.
+    await row.getByRole("button", { name: `Actions for ${unitName}` }).click();
+    await cleanerPage.getByRole("menuitem", { name: "Mark clean" }).click();
+    await expect(cleanerPage.getByText("1 room updated")).toBeVisible();
+    await expect(row).toContainText("Clean");
+    await expect(row).toContainText("Waiting for inspection");
+
+    // Clean to inspected, which is.
+    await row.getByRole("button", { name: `Actions for ${unitName}` }).click();
+    await cleanerPage.getByRole("menuitem", { name: "Mark inspected" }).click();
+    await expect(row).toContainText("Inspected");
+    await expect(row).not.toContainText("Waiting for inspection");
+    await cleanerPage.screenshot({
+      path: path.join(EVIDENCE, "cleaner-marks-the-room-inspected.png"),
+    });
+  } finally {
+    await cleanerContext.close();
+  }
+
+  // The last word is the cleaner's, stamped with who pressed the button.
+  expect(
+    psql(
+      `select held.status || '|' || (held.status_changed_by = '${cleaner.userId}')::text
+         from public.housekeeping_unit_status as held
+         join public.accommodation_units as unit on unit.id = held.accommodation_unit_id
+        where unit.property_id = '${propertyId}' and unit.name = '${unitName}'`,
+    ),
+  ).toBe("inspected|true");
 });
 
 test("arrivals asks before checking a Guest into a room that is not ready", async ({

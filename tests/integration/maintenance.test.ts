@@ -505,6 +505,9 @@ describe("working the board", { timeout: DATABASE_BUDGET_MS }, () => {
       (request) => request.requestId === requestId,
     );
     expect(card).toMatchObject({ status: "new", cancelReason: null });
+    // The audit record keeps what it was.
+    const [reopened] = await audited("maintenance_request.moved", requestId);
+    expect(reopened?.context).toMatchObject({ from: "cancelled", to: "new" });
   });
 
   it("assigns somebody who reaches the Property, and no one else (MT-S1-18, MT-S1-19)", async () => {
@@ -642,13 +645,26 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
     await expect(asked).rejects.toBeInstanceOf(OutOfOrderImpactError);
     await expect(asked).rejects.toMatchObject({
       impact: {
-        inHouse: [{ unitName: "MTI-103", guestName: "Maintenance Guest" }],
+        inHouse: [
+          {
+            unitName: "MTI-103",
+            guestName: "Maintenance Guest",
+            endsOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+          },
+        ],
       },
     });
     expect(await holding(requestId)).toBe(false);
 
     await maintenance.takeOutOfOrder(DESK, { requestId, acknowledged: true });
     expect(await statusOf(OCCUPIED_ROOM)).toBe("out_of_service");
+    // The Guest stays: the room is out of order and they are still in house.
+    expect(
+      await owner.$queryRawUnsafe(
+        `select status from public.stays where id = $1::uuid`,
+        stayId,
+      ),
+    ).toEqual([{ status: "in_house" }]);
     await expect(
       reservations.checkOut(MANAGER, stayId, REVIEWED),
     ).resolves.toBeDefined();
@@ -1347,8 +1363,15 @@ describe("coming back", { timeout: DATABASE_BUDGET_MS }, () => {
       outOfOrder: { acknowledged: true },
     });
     await maintenance.returnToService(DESK, { requestId, note: "too early" });
+    // MT-S2-21: the mistaken one is undone, and the note is kept.
+    expect(await statusOf(ROOM)).toBe("available");
+    const [returned] = await audited("unit.returned_to_service", ROOM);
+    expect(returned?.reason).toBe("too early");
     await maintenance.takeOutOfOrder(DESK, { requestId, acknowledged: true });
     expect(await statusOf(ROOM)).toBe("out_of_service");
+    // MT-S2-20: and the second taking-out is audited as the first was.
+    const [again] = await audited("unit.taken_out_of_order", ROOM);
+    expect(again?.context).toMatchObject({ requestId });
     await maintenance.returnToService(DESK, { requestId });
   });
 
@@ -1389,12 +1412,15 @@ describe("coming back", { timeout: DATABASE_BUDGET_MS }, () => {
       mayConfigure: true,
       mayConfigureDefault: true,
     });
-    expect(
-      await audited("maintenance_setting.changed", PROPERTY),
-    ).not.toHaveLength(0);
-    expect(await audited("maintenance_setting.changed", ORG)).not.toHaveLength(
-      0,
-    );
+    // Where, from what and to what; the actor is the record's own.
+    const [property] = await audited("maintenance_setting.changed", PROPERTY);
+    expect(property?.context).toMatchObject({ to: { returnAs: "inspected" } });
+    expect(property?.context).toHaveProperty("from");
+    const [organization] = await audited("maintenance_setting.changed", ORG);
+    expect(organization?.context).toMatchObject({
+      to: { returnAs: "clean" },
+    });
+    expect(organization?.context).toHaveProperty("from");
   });
 });
 

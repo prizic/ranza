@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { psql } from "./local-database";
 import { EMAIL, signIn } from "./front-desk";
@@ -12,6 +13,8 @@ import { EMAIL, signIn } from "./front-desk";
  * and an archived Property leaves the switcher, so the runs do not pile up in
  * front of the person who opens the workspace next.
  */
+
+const EVIDENCE = path.resolve(__dirname, "../../docs/evidence/m1/RANZ-26");
 
 const made: string[] = [];
 
@@ -241,6 +244,150 @@ test("a close already made elsewhere says so", async ({ page }) => {
   await expect(
     page.getByRole("row").filter({ hasText: "Automatically" }),
   ).toBeVisible();
+});
+
+/**
+ * Guests in house in two of a Property's three rooms since yesterday, each
+ * booked at a price: the nights the close of yesterday has to charge, one per
+ * occupied room and none for the empty one. Written by the owner connection
+ * with the triggers lifted, because the close is what is under test and not how
+ * a Guest came to be in house at a price: the stamp that prices a booking
+ * answers to a Staff Member's reach, which a fixture has none of. The reference
+ * the lifted trigger would have given is made the way it makes one, because
+ * `reservation_lifecycle.test.sql` reads every Reservation's.
+ */
+function twoRoomsInHouse(propertyId: string): string[] {
+  const guests = [0, 1].map(() => `Test Occupant ${randomUUID().slice(0, 8)}`);
+  for (const guestName of guests) {
+    psql(
+      `set session_replication_role = replica;
+       with target as (
+         select id, organization_id from public.properties where id = '${propertyId}'
+       ), unit as (
+         insert into public.accommodation_units
+           (property_id, organization_id, name, unit_type, capacity)
+         select id, organization_id, 'E2E-N-' || left('${guestName}', 24), 'room', 2
+           from target
+         returning id, property_id, organization_id
+       ), guest as (
+         insert into public.guests (organization_id, full_name)
+         select organization_id, '${guestName}' from target
+         returning id
+       ), booking as (
+         insert into public.reservations
+           (organization_id, property_id, accommodation_unit_id, guest_id,
+            stay_type, status, starts_on, ends_on,
+            nightly_rate_minor, rate_currency, reference)
+         select unit.organization_id, unit.property_id, unit.id, guest.id,
+                'guest', 'checked_in',
+                app.property_today(unit.property_id) - 1,
+                app.property_today(unit.property_id) + 2,
+                ${ROOM_NIGHT_MINOR}, 'TRY',
+                app.reservation_reference(
+                  nextval('public.reservation_reference_seq'))
+           from unit, guest
+         returning id, organization_id, property_id, accommodation_unit_id
+       ), stay as (
+         insert into public.stays
+           (organization_id, property_id, accommodation_unit_id, reservation_id,
+            stay_type, status, starts_on, ends_on)
+         select booking.organization_id, booking.property_id,
+                booking.accommodation_unit_id, booking.id, 'guest', 'in_house',
+                app.property_today(booking.property_id) - 1,
+                app.property_today(booking.property_id) + 2
+           from booking
+         returning id, organization_id, property_id
+       )
+       insert into public.folios (organization_id, property_id, stay_id, currency)
+       select organization_id, property_id, id, 'TRY' from stay`,
+    );
+  }
+  psql(
+    `insert into public.accommodation_units
+       (property_id, organization_id, name, unit_type, capacity)
+     select id, organization_id, 'E2E-N-empty', 'room', 2
+       from public.properties where id = '${propertyId}'`,
+  );
+  return guests;
+}
+
+const ROOM_NIGHT_MINOR = 150_000;
+
+test("closing posts one room night per occupied room, and a second close of the day posts none", async ({
+  page,
+  context,
+}) => {
+  const propertyId = aProperty();
+  const guests = twoRoomsInHouse(propertyId);
+  const roomNights = () =>
+    psql(
+      `select count(*) || '|' || count(distinct line.folio_id) || '|'
+              || coalesce(sum(line.amount_minor), 0)
+         from public.folio_lines as line
+         join public.folios as folio on folio.id = line.folio_id
+        where folio.property_id = '${propertyId}'
+          and line.source = 'room_night'
+          and line.business_date = app.property_today('${propertyId}') - 1`,
+    );
+  const closeOf = (screen: typeof page) =>
+    screen.getByRole("button", { name: /^Close / });
+  await signIn(page);
+
+  // The night before the close, said before it is closed: two nights, at the
+  // price the bookings were taken at.
+  await page.goto(`/en/close-day?property=${propertyId}`);
+  await expect(page.getByText(/is ready to close/)).toBeVisible();
+  await expect(
+    page.getByText("2 nights to charge · TRY 3,000.00"),
+  ).toBeVisible();
+  expect(roomNights()).toBe("0|0|0");
+
+  // A second desk has the same day open, and presses close after the first.
+  const second = await context.newPage();
+  await second.goto(`/en/close-day?property=${propertyId}`);
+  await closeOf(second).click();
+  const secondDialog = second.getByRole("dialog");
+  await expect(secondDialog).toBeVisible();
+
+  await closeOf(page).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: /^Close / }).click();
+  await expect(page.getByText(/ is still open$/)).toBeVisible();
+
+  // One room night for each occupied room — a charge on each Guest's Folio at
+  // the price — and nothing for the empty one.
+  expect(roomNights()).toBe(`2|2|${2 * ROOM_NIGHT_MINOR}`);
+  const closed = page.getByRole("row").filter({ hasText: EMAIL });
+  await expect(closed).toContainText("2 · TRY 3,000.00");
+  await page.locator("#recent-closes").scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: path.join(EVIDENCE, "closed-with-two-room-nights.png"),
+  });
+
+  // The second desk's close of the same day is refused, and charges nothing.
+  await secondDialog.getByRole("button", { name: /^Close / }).click();
+  await expect(
+    secondDialog.getByText(
+      /already been closed, by another desk or automatically/,
+    ),
+  ).toBeVisible();
+  expect(roomNights()).toBe(`2|2|${2 * ROOM_NIGHT_MINOR}`);
+  await second.screenshot({
+    path: path.join(EVIDENCE, "second-close-refused.png"),
+  });
+  await second.close();
+
+  // The charge is on each Guest's own bill, where the desk reads it.
+  const folioId = psql(
+    `select folio.id from public.folios as folio
+       join public.stays as stay on stay.id = folio.stay_id
+       join public.reservations as reservation on reservation.id = stay.reservation_id
+       join public.guests as guest on guest.id = reservation.guest_id
+      where guest.full_name = '${guests[0]}'`,
+  );
+  await page.goto(`/en/finance?property=${propertyId}&folio=${folioId}`);
+  await expect(page.getByText(/^Room night · /)).toBeVisible();
+  await expect(page.getByText("TRY 1,500.00").first()).toBeVisible();
 });
 
 test("the close the day screen is in the rail, and mirrors in Arabic", async ({

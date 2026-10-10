@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { expect, type Page } from "@playwright/test";
+import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
 import { psql } from "./local-database";
 
@@ -308,6 +308,54 @@ export function anArrivalToday(
   );
 
   return guestName;
+}
+
+/**
+ * Somebody holding a shipped role, reaching only this Property, with an address
+ * of this run's own. Made the way the seed makes a Staff Member, through the
+ * application's own sign-up route (ADR 0005), so a run that needs a person to
+ * be a cleaner, or to lose a permission halfway, does not have to borrow one
+ * of the shared accounts and change what every other spec sees of it.
+ */
+export async function aStaffMember(
+  request: APIRequestContext,
+  baseURL: string,
+  propertyId: string,
+  role: string,
+): Promise<{ email: string; userId: string }> {
+  const email = `e2e-${role}-${randomUUID().slice(0, 8)}@example.test`;
+  const signedUp = await request.post("/api/auth/sign-up/email", {
+    headers: { origin: new URL("/", baseURL).origin },
+    data: { email, password: PASSWORD, name: role },
+  });
+  expect(signedUp.ok(), `could not sign up ${email}`).toBe(true);
+  // One authenticated request maps the provider subject onto a Ranza user.
+  await request.get("/en/today");
+
+  psql(
+    `with person as (
+       select id from public.users where lower(email) = lower('${email}')
+     ), home as (
+       select organization_id as id from public.properties
+        where id = '${propertyId}'
+     ), membership as (
+       insert into public.organization_memberships
+         (organization_id, user_id, role, access_scope)
+       select home.id, person.id, '${role}', 'assigned_properties'
+       from home, person
+     )
+     insert into public.property_assignments
+       (property_id, organization_id, user_id)
+     select '${propertyId}', home.id, person.id from home, person`,
+  );
+  const userId = psql(
+    `select id from public.users where lower(email) = lower('${email}')`,
+  );
+  expect(
+    userId,
+    `the workspace did not create a Ranza user for ${email}`,
+  ).not.toBe("");
+  return { email, userId };
 }
 
 export async function signIn(page: Page, email = EMAIL): Promise<void> {
