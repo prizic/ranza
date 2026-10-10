@@ -80,7 +80,7 @@ function isBooking(bar: RoomCalendarBar): bar is RoomCalendarReservationBar {
 }
 
 /** The Guest in house in the room now, whose Stay a command can change. */
-export function isMovableGuest(
+function isMovableGuest(
   bar: RoomCalendarBar,
 ): bar is RoomCalendarStayBar & { reservationId: string } {
   return (
@@ -92,7 +92,7 @@ export function isMovableGuest(
 }
 
 /** Whether a command exists that changes this bar at all. */
-export function isMovable(bar: RoomCalendarBar): boolean {
+function isMovable(bar: RoomCalendarBar): boolean {
   return isBooking(bar) || isMovableGuest(bar);
 }
 
@@ -251,7 +251,7 @@ export function departureConflicts(
 }
 
 /** Why a bar cannot be moved, when no command can change it. */
-export function cannotMoveBecause(bar: RoomCalendarBar): MoveConflict {
+function cannotMoveBecause(bar: RoomCalendarBar): MoveConflict {
   return {
     kind: "cannotMove",
     why:
