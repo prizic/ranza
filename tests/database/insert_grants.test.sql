@@ -527,8 +527,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  69,
-  'the definer sweep looked at 69 functions; change this number deliberately');
+  70,
+  'the definer sweep looked at 70 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -539,10 +539,10 @@ select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef
       and regexp_replace(p.prosrc, '--[^\n]*', '', 'g') ~* '(insert|update|delete)\s'),
-  21,
-  'twenty-one of them write, which is what makes the assertion above a test');
+  22,
+  'twenty-two of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a seventieth definer is a red test
+-- Part B: the inventory itself, so a seventy-first definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
 -- four are housekeeping; two are maintenance; five are the audit log's reach;
@@ -598,6 +598,10 @@ select is(
 -- post_folio_line_to_ledger() is the only way a journal entry exists. It is the
 -- worker's, it names worker_organization_id() first, and it derives every
 -- posting from the Folio line rather than from the event it was handed.
+-- The expected arrival (20260916011000) brought one, and it writes:
+-- change_expected_arrival() is the only way a booking's expected time changes
+-- after it is taken, checked like amend_reservation() with the gates and
+-- front_desk.amend before it reads anything.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -635,8 +639,8 @@ select set_eq(
         'export_folio_lines', 'export_audit_records', 'complete_data_export',
         'fail_data_export', 'expire_data_export', 'run_export_schedule',
         'read_data_export_file',
-        'post_folio_line_to_ledger'],
-  'and they are exactly the sixty-nine the design gives a reason for');
+        'post_folio_line_to_ledger', 'change_expected_arrival'],
+  'and they are exactly the seventy the design gives a reason for');
 
 -- ---------------------------------------------------------------------------
 -- Who asks the three-gate question (IG-14)

@@ -25,6 +25,7 @@ import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
 import { useSortLabels } from "../../../lib/table-labels";
 import { CheckInAction } from "./check-in-action";
 import { CheckOutDialog } from "./check-out-dialog";
+import { expectedArrivalLabel } from "../expected-arrival";
 import { unitLabel } from "../unit-label";
 import { UndoCheckInDialog } from "./undo-check-in-dialog";
 import { FrontDeskRowMenu } from "./row-menu";
@@ -179,6 +180,47 @@ export function useArrivalColumns(
           ) : null}
         </div>
       ),
+    },
+    {
+      id: "expectedArrival",
+      // `HH:MM` sorts as text. Undefined and not null, because only undefined
+      // is held last: a Guest nobody has a time for is neither the earliest
+      // nor the latest, whichever way the column is sorted.
+      accessorFn: (arrival) => arrival.expectedArrival ?? undefined,
+      meta: { title: t("expectedArrival") },
+      sortUndefined: "last",
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          labels={sort}
+          title={t("expectedArrival")}
+        />
+      ),
+      cell: ({ row }) => {
+        const arrival = row.original;
+        if (arrival.expectedArrival === null) {
+          return (
+            <span
+              aria-label={t("expectedArrivalNone")}
+              className="text-muted-foreground"
+            >
+              {"\u2014"}
+            </span>
+          );
+        }
+        return (
+          <div>
+            <span className="font-medium tabular-nums">
+              {expectedArrivalLabel(arrival.expectedArrival, locale)}
+            </span>
+            {arrival.expectedArrivalPassed ? (
+              <span className="block text-step--1 font-semibold text-warning">
+                {t("expectedArrivalPassed")}
+              </span>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "unitName",
@@ -357,6 +399,7 @@ export function useArrivalColumns(
                             unitId: arrival.unitId,
                             startsOn: arrival.startsOn,
                             endsOn: arrival.endsOn,
+                            expectedArrival: arrival.expectedArrival,
                           }
                         : undefined,
                     }
@@ -851,6 +894,7 @@ export function useReservationColumns(
                               unitId: booking.unitId,
                               startsOn: booking.startsOn,
                               endsOn: booking.endsOn,
+                              expectedArrival: booking.expectedArrival,
                             }
                           : undefined,
                       }

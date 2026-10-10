@@ -24,6 +24,7 @@ import {
   StatusBadge,
 } from "@ranza/ui";
 import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
+import { expectedArrivalLabel } from "../expected-arrival";
 import { unitLabel } from "../unit-label";
 import { CopyReferenceButton } from "./copy-reference-button";
 import { CheckInAction } from "./check-in-action";
@@ -72,6 +73,7 @@ export function ReservationDetailSheet({
   const {
     checkInBlocker,
     endsOn,
+    expectedArrival,
     folioId,
     guestEmail,
     guestName,
@@ -145,6 +147,14 @@ export function ReservationDetailSheet({
                 <span className="font-medium">
                   {formatFullDate(effectiveStart, locale)}
                 </span>
+                {expectedArrival && !inHouse ? (
+                  <span className="block text-step--1 text-muted-foreground">
+                    {t("expectedArrival")}{" "}
+                    <bdi className="tabular-nums">
+                      {expectedArrivalLabel(expectedArrival, locale)}
+                    </bdi>
+                  </span>
+                ) : null}
               </div>
               <div>
                 <span className="block text-step--2 text-muted-foreground">

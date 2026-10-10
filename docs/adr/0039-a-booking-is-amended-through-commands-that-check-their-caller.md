@@ -7,6 +7,19 @@ Status: Accepted — applied in `20260916009000_a_booking_is_amended`,
 `20260916009200_a_guest_moves_room` and
 `20260916009300_a_lower_price_is_a_pricing_decision`
 
+Proposed amendment: 2026-10-10 (RANZ-23), pending the owner. A booking may carry
+the time its Guest expects to arrive (`reservations.expected_arrival_time`, migration
+`20260916011000`). It is set when the booking is taken, by whoever may book (an insert
+grant on the column), and changed afterwards only by `app.change_expected_arrival()`, a
+fourth command of this ADR's shape: the four gates and `front_desk.amend` first, a stale
+version refused as `RZ003`, and one revision of kind `arrival_time_changed` that records
+the time before and after. It is a command of its own rather than a parameter of
+`app.amend_reservation()` because a time takes no night, so the Unit locks that command
+takes protect nothing it changes, and keeping them apart leaves that command, its tests
+and its callers as they were. One save of the Change booking dialog that asks for both
+runs the nights first and the time second in one transaction, which is two revisions
+sharing a `changed_at`. Nothing else in this ADR changes.
+
 Amends [ADR 0029](0029-housekeeping-status-is-a-room-s-own-row.md): a room a
 Guest was moved out of reads dirty, as one a Guest left does;
 [ADR 0033](0033-an-in-house-stay-holds-its-unit-until-it-is-checked-out.md):

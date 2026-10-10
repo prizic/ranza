@@ -131,6 +131,18 @@ export interface Arrival {
   /** That Stay's open Folio; null before check-in or without billing. */
   folioId: string | null;
   daysLate: number;
+  /**
+   * When the Guest said they would arrive on `startsOn`, as `HH:MM` on the
+   * Property's own clock; null when nobody said.
+   */
+  expectedArrival: string | null;
+  /**
+   * Whether that time has passed at the Property and the Guest is still not
+   * checked in. False without a time, once checked in, and for a booking that
+   * is days late, which `daysLate` already says. Read from the database's
+   * clock and the Property's timezone, never the browser's.
+   */
+  expectedArrivalPassed: boolean;
   balanceMinor: number;
   currency: string;
   /**
@@ -539,6 +551,8 @@ export interface ReservationRow {
   startsOn: string;
   /** Null means open-ended, which is normal for long-term residence. */
   endsOn: string | null;
+  /** The time the Guest expects to arrive on `startsOn`, `HH:MM`; null when unsaid. */
+  expectedArrival: string | null;
   unitId: string;
   unitName: string;
   /** The room a bed is in; null for a room. */
@@ -629,6 +643,11 @@ export interface NewReservation {
    */
   quotedRateMinor: number | null;
   quotedCurrency: string | null;
+  /**
+   * When the Guest expects to arrive on `startsOn`, `HH:MM` on the Property's
+   * clock. Omitted or null when nobody said, which is the common case.
+   */
+  expectedArrival?: string | null;
 }
 
 /** What a completed booking produced. */
@@ -740,6 +759,12 @@ export interface BookingChange {
    */
   quotedRateMinor: number | null;
   quotedCurrency: string | null;
+  /**
+   * The expected arrival the booking should carry after the change, `HH:MM`;
+   * null clears it. Omitted leaves it as it is, so a caller that knows nothing
+   * of the time cannot clear one.
+   */
+  expectedArrival?: string | null | undefined;
   note: string | null;
 }
 
@@ -791,6 +816,8 @@ export interface ChangePreview {
   stayType: ReservationStayType;
   startsOn: string;
   endsOn: string | null;
+  /** The time the Guest is expected on `startsOn`, `HH:MM`; null when unsaid. */
+  expectedArrival: string | null;
   unitId: string;
   nightlyRateMinor: number | null;
   rateCurrency: string | null;
@@ -925,6 +952,20 @@ export class BookingChangeError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "BookingChangeError";
+  }
+}
+
+/** The shape of an expected arrival: a 24-hour `HH:MM`, as a time field submits. */
+export const EXPECTED_ARRIVAL = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * An expected arrival that is not a time of day, which the person typing can
+ * fix. Raised before any statement runs.
+ */
+export class ExpectedArrivalError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ExpectedArrivalError";
   }
 }
 

@@ -269,7 +269,10 @@ function aPropertyOfTheTests(
  * either — a Stay is operational history and is never deleted — so each run
  * brings rows it does not have to take back, the way the integration suites do.
  */
-export function anArrivalToday(propertyId: string): string {
+export function anArrivalToday(
+  propertyId: string,
+  expectedArrival: string | null = null,
+): string {
   const tag = randomUUID().slice(0, 8);
   const guestName = `Test Arrival ${tag}`;
 
@@ -292,13 +295,15 @@ export function anArrivalToday(propertyId: string): string {
      )
      insert into public.reservations
        (organization_id, property_id, accommodation_unit_id,
-        guest_id, stay_type, status, starts_on, ends_on)
+        guest_id, stay_type, status, starts_on, ends_on,
+        expected_arrival_time)
      select unit.organization_id, unit.property_id, unit.id,
             guest.id, 'guest', 'confirmed',
             -- The Property's own day, which is what the arrivals list compares
             -- against. The runner's date is somebody else's.
             app.property_today(target.id),
-            app.property_today(target.id) + 2
+            app.property_today(target.id) + 2,
+            ${expectedArrival === null ? "null" : `'${expectedArrival}'::time`}
      from unit, target, guest`,
   );
 

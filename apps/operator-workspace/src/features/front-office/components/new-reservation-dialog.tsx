@@ -257,11 +257,13 @@ export function NewReservationDialog({
           ? t("bookingPeriodInvalid")
           : outcome === "invalidGuest"
             ? t("bookingGuestInvalid")
-            : outcome === "priceChanged"
-              ? t("bookingPriceChanged")
-              : outcome === "refused"
-                ? t("bookingRefused")
-                : null;
+            : outcome === "invalidArrival"
+              ? t("bookingArrivalInvalid")
+              : outcome === "priceChanged"
+                ? t("bookingPriceChanged")
+                : outcome === "refused"
+                  ? t("bookingRefused")
+                  : null;
 
   return (
     <Dialog onOpenChange={openChanged} open={open}>
@@ -455,6 +457,29 @@ export function NewReservationDialog({
                 {t("bookingAvailabilityUnknown")}
               </p>
             ) : null}
+          </div>
+
+          {/* After the dates and never before the Guest: the field order is
+              pinned (RG-S4-19). Optional, and a clock time on the Property's
+              own day of arrival, so it takes no timezone of its own. */}
+          <div className="grid gap-1.5 sm:max-w-48">
+            <Field
+              htmlFor="booking-expected-arrival"
+              label={t("expectedArrival")}
+            >
+              <Input
+                aria-describedby="booking-expected-arrival-hint"
+                id="booking-expected-arrival"
+                name="expectedArrival"
+                type="time"
+              />
+            </Field>
+            <p
+              className="text-step--1 text-muted-foreground"
+              id="booking-expected-arrival-hint"
+            >
+              {t("expectedArrivalHint")}
+            </p>
           </div>
 
           {quote ? (

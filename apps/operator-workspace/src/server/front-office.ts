@@ -16,6 +16,7 @@ import {
   CheckInTooEarlyError,
   CheckOutError,
   EarlyDepartureError,
+  ExpectedArrivalError,
   FolioChangedError,
   ReservationEndError,
   ReservationPeriodError,
@@ -311,6 +312,7 @@ export type CreateReservationOutcome =
   | "occupied"
   | "invalidPeriod"
   | "invalidGuest"
+  | "invalidArrival"
   | "priceChanged"
   | "refused";
 
@@ -323,6 +325,17 @@ function stayType(value: unknown): ReservationStayType | null {
 function optional(form: FormData, field: string): string | null {
   const value = String(form.get(field) ?? "").trim();
   return value.length > 0 ? value : null;
+}
+
+/**
+ * The expected-arrival field: `undefined` for a form that never carried it, so
+ * a caller that knows nothing of the time cannot clear one, and null for a
+ * field left empty. The shape is the module's to check.
+ */
+function expectedArrivalField(form: FormData): string | null | undefined {
+  return form.has("expectedArrival")
+    ? optional(form, "expectedArrival")
+    : undefined;
 }
 
 /**
@@ -384,12 +397,14 @@ export async function createReservation(
       endsOn: optional(form, "endsOn"),
       quotedRateMinor: quotedRate === "" ? null : Number(quotedRate),
       quotedCurrency: quotedCurrency === "" ? null : quotedCurrency,
+      expectedArrival: optional(form, "expectedArrival"),
     });
   } catch (error) {
     if (error instanceof UnitUnavailableError) return "unavailable";
     if (error instanceof UnitHasOccupantError) return "occupied";
     if (error instanceof ReservationPeriodError) return "invalidPeriod";
     if (error instanceof GuestDetailsError) return "invalidGuest";
+    if (error instanceof ExpectedArrivalError) return "invalidArrival";
     // The dialog is read again with the price that stands now.
     if (error instanceof PriceChangedError) {
       revalidateFrontDesk(locale);
@@ -486,6 +501,7 @@ export type ChangeBookingOutcome =
   | "notInService"
   | "invalidPeriod"
   | "invalidNote"
+  | "invalidArrival"
   | "priceChanged"
   | "changed"
   | "refused";
@@ -546,6 +562,7 @@ export async function changeBooking(
       version,
       quotedRateMinor: quotedRate === "" ? null : Number(quotedRate),
       quotedCurrency: quotedCurrency === "" ? null : quotedCurrency,
+      expectedArrival: expectedArrivalField(form),
       note: note.length === 0 ? null : note,
     });
   } catch (error) {
@@ -553,6 +570,7 @@ export async function changeBooking(
     if (error instanceof UnitHasOccupantError) return "occupied";
     if (error instanceof UnitNotInServiceError) return "notInService";
     if (error instanceof ReservationPeriodError) return "invalidPeriod";
+    if (error instanceof ExpectedArrivalError) return "invalidArrival";
     if (error instanceof PriceChangedError) return "priceChanged";
     if (error instanceof ChangeNoteError) return "invalidNote";
     if (error instanceof BookingChangedError) {

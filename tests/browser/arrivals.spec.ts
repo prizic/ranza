@@ -200,3 +200,135 @@ test("a reason of spaces is refused, and what was typed survives it", async ({
   );
   await expect(dialog.getByLabel("Reason")).toHaveValue("   ");
 });
+
+/**
+ * The expected arrival on the arrivals row (FD-S6-18..20).
+ *
+ * The integration suite proves the list reads the Property's clock; this proves
+ * a person sees it: the time on the row, "—" for a Guest nobody has a time for,
+ * a word for one whose time has passed, and a time edited from Change booking
+ * landing on the same row.
+ */
+test("an_arrival_shows_its_expected_time_and_says_so_when_it_has_passed", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  // 00:01 has passed on whatever day this runs: the Property's day starts at
+  // its midnight, and the business date never runs ahead of the calendar.
+  const lateName = anArrivalToday(propertyId, "00:01");
+  const unsaidName = anArrivalToday(propertyId);
+
+  await signIn(page);
+  await page.goto(`/en/arrivals?property=${propertyId}`);
+
+  await page.getByRole("searchbox").fill(lateName);
+  const late = page.getByRole("row").filter({ hasText: lateName });
+  await expect(late.getByText("00:01")).toBeVisible();
+  await expect(late.getByText("Past the expected time")).toBeVisible();
+
+  // Checking the Guest in takes the word away and leaves the time.
+  await late.getByRole("button", { name: "Check in" }).click();
+  await expect(late.getByText("Checked in")).toBeVisible();
+  await expect(late.getByText("Past the expected time")).toBeHidden();
+  await expect(late.getByText("00:01")).toBeVisible();
+
+  await page.getByRole("searchbox").fill(unsaidName);
+  const unsaid = page.getByRole("row").filter({ hasText: unsaidName });
+  await expect(unsaid.getByLabel("No expected time")).toBeVisible();
+  await expect(unsaid.getByText("Past the expected time")).toBeHidden();
+});
+
+test("an_expected_time_that_has_not_come_does_not_say_it_has_passed", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  // Between 22:00 and 04:00 at the Property the arrival's own day is nearly
+  // over, or the business date is still yesterday: 23:59 on it has passed, and
+  // saying so is right. Outside that window it is still to come.
+  const nearMidnight =
+    psql(
+      `select extract(hour from now() at time zone timezone) >= 22
+           or extract(hour from now() at time zone timezone) < 4
+         from public.properties where id = '${propertyId}'`,
+    ) === "t";
+  test.skip(
+    nearMidnight,
+    "23:59 has passed on the arrival's day at this hour; the integration suite covers it on a clock of its own",
+  );
+  const guestName = anArrivalToday(propertyId, "23:59");
+
+  await signIn(page);
+  await page.goto(`/en/arrivals?property=${propertyId}`);
+  await page.getByRole("searchbox").fill(guestName);
+  const row = page.getByRole("row").filter({ hasText: guestName });
+  await expect(row.getByText("23:59")).toBeVisible();
+  await expect(row.getByText("Past the expected time")).toBeHidden();
+});
+
+test("an_expected_time_is_changed_from_change_booking_and_the_row_follows", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const guestName = anArrivalToday(propertyId, "14:00");
+
+  await signIn(page);
+  await page.goto(`/en/arrivals?property=${propertyId}`);
+  await page.getByRole("searchbox").fill(guestName);
+  const row = page.getByRole("row").filter({ hasText: guestName });
+  await expect(row.getByText("14:00")).toBeVisible();
+
+  await row
+    .getByRole("button", {
+      name: new RegExp(`More actions for .?${guestName}`),
+    })
+    .click();
+  await page.getByRole("menuitem", { name: "Change booking" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Change booking" });
+  const time = dialog.getByLabel("Expected arrival");
+  // Filled from the booking, and nothing to save until it differs. The first
+  // preview fills the fields afresh, so typing waits for it to have arrived.
+  await expect(time).toHaveValue("14:00");
+  await expect(
+    dialog.getByText("The dates and the Unit are the same"),
+  ).toBeVisible();
+  const save = dialog.getByRole("button", { name: "Save change" });
+  await expect(save).toBeDisabled();
+
+  await time.fill("18:30");
+  await dialog.getByLabel("Note (optional)").fill("The Guest called ahead");
+  await save.click();
+  await expect(dialog).toBeHidden();
+
+  await expect(row.getByText("18:30")).toBeVisible();
+  await expect(row.getByText("14:00")).toBeHidden();
+  expect(
+    psql(
+      `select change.kind || ' ' ||
+              to_char(change.from_expected_arrival_time, 'HH24:MI') || ' ' ||
+              to_char(change.to_expected_arrival_time, 'HH24:MI') || ' ' ||
+              change.note
+         from public.reservation_changes as change
+         join public.reservations as reservation on reservation.id = change.reservation_id
+         join public.guests as guest on guest.id = reservation.guest_id
+        where guest.full_name = '${guestName}'`,
+    ),
+  ).toBe("arrival_time_changed 14:00 18:30 The Guest called ahead");
+
+  // Cleared again, the row says it has no time.
+  await row
+    .getByRole("button", {
+      name: new RegExp(`More actions for .?${guestName}`),
+    })
+    .click();
+  await page.getByRole("menuitem", { name: "Change booking" }).click();
+  const again = page.getByRole("dialog", { name: "Change booking" });
+  await expect(again.getByLabel("Expected arrival")).toHaveValue("18:30");
+  await expect(
+    again.getByText("The dates and the Unit are the same"),
+  ).toBeVisible();
+  await again.getByLabel("Expected arrival").clear();
+  await again.getByRole("button", { name: "Save change" }).click();
+  await expect(again).toBeHidden();
+  await expect(row.getByLabel("No expected time")).toBeVisible();
+});

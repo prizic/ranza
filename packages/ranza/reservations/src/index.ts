@@ -17,6 +17,8 @@ export {
   CheckInReversalError,
   CheckOutError,
   EarlyDepartureError,
+  EXPECTED_ARRIVAL,
+  ExpectedArrivalError,
   FolioChangedError,
   FRONT_DESK_CAPABILITY,
   ReservationEndError,

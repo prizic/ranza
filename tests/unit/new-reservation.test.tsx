@@ -326,6 +326,39 @@ describe("a missing Guest name (RG-S4-15)", () => {
   });
 });
 
+describe("the expected arrival (FD-S6-04, FD-S6-21)", () => {
+  it("the_expected_arrival_is_optional_and_asked_after_the_guest_and_the_dates", () => {
+    openForm();
+    const guest = screen.getByLabelText(messages.en.guest);
+    const time = screen.getByLabelText(messages.en.expectedArrival);
+    expect(time).toHaveAttribute("type", "time");
+    expect(time).not.toBeRequired();
+    // The Guest is asked about first and the time after the dates, so a blocked
+    // submit still lands on the Guest (RG-S4-19).
+    const dates = screen.getByRole("button", { name: /^Arrival/ });
+    expect(
+      guest.compareDocumentPosition(dates) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      dates.compareDocumentPosition(time) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(time).toHaveAccessibleDescription(messages.en.expectedArrivalHint);
+  });
+
+  it("the_expected_arrival_is_sent_with_the_booking, empty when nobody said", () => {
+    openForm();
+    const form = () =>
+      new FormData(
+        screen.getByRole("button", { name: /^Arrival/ }).closest("form")!,
+      );
+    expect(form().get("expectedArrival")).toBe("");
+    fireEvent.change(screen.getByLabelText(messages.en.expectedArrival), {
+      target: { value: "15:30" },
+    });
+    expect(form().get("expectedArrival")).toBe("15:30");
+  });
+});
+
 describe("the booking form in Arabic (RG-S3-12)", () => {
   it("the_booking_form_reads_in_arabic_and_mirrors", () => {
     render(

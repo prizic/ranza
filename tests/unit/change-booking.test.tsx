@@ -40,6 +40,7 @@ const BOOKING = {
   unitId: "u101",
   startsOn: "2026-10-05",
   endsOn: "2026-10-08",
+  expectedArrival: null,
 };
 
 function preview(overrides: Partial<ChangePreview> = {}): ChangePreview {
@@ -49,6 +50,7 @@ function preview(overrides: Partial<ChangePreview> = {}): ChangePreview {
     stayType: "guest",
     startsOn: BOOKING.startsOn,
     endsOn: BOOKING.endsOn,
+    expectedArrival: null,
     unitId: "u101",
     nightlyRateMinor: 150000,
     rateCurrency: "TRY",
@@ -168,6 +170,57 @@ describe("the Change booking dialog", () => {
       document.querySelector<HTMLInputElement>('input[name="version"]')?.value,
     ).toBe("2");
     expect(screen.getByText(/as booked/)).toBeInTheDocument();
+  });
+
+  it("the_expected_arrival_is_filled_from_the_booking_and_saved_with_the_change", async () => {
+    answering({
+      kind: "preview",
+      preview: preview({ expectedArrival: "14:00" }),
+    });
+    changeBooking.mockResolvedValueOnce("done");
+    open();
+
+    const time = await screen.findByLabelText<HTMLInputElement>(
+      messages.en.expectedArrival,
+    );
+    // Filled from the booking as it stands, and nothing to save until it differs.
+    await waitFor(() => expect(time.value).toBe("14:00"));
+    expect(
+      await screen.findByText(messages.en.changeBookingNothing),
+    ).toBeInTheDocument();
+    expect(save()).toBeDisabled();
+
+    fireEvent.change(time, { target: { value: "18:30" } });
+    await waitFor(() => expect(save()).toBeEnabled());
+    expect(screen.queryByText(messages.en.changeBookingNothing)).toBeNull();
+    fireEvent.click(save());
+    await waitFor(() => expect(changeBooking).toHaveBeenCalledTimes(1));
+    const [, form] = changeBooking.mock.calls.at(-1) as unknown as [
+      unknown,
+      FormData,
+    ];
+    expect(form.get("expectedArrival")).toBe("18:30");
+    expect(form.get("startsOn")).toBe("2026-10-05");
+
+    // Cleared, it is sent empty: that is how a time is taken away.
+    fireEvent.change(time, { target: { value: "" } });
+    await waitFor(() => expect(save()).toBeEnabled());
+  });
+
+  it("a_malformed_expected_arrival_is_said_to_be_the_times_fault", async () => {
+    answering({ kind: "preview", preview: preview() });
+    changeBooking.mockResolvedValueOnce("invalidArrival");
+    open();
+    const time = await screen.findByLabelText<HTMLInputElement>(
+      messages.en.expectedArrival,
+    );
+    await screen.findByText(messages.en.changeBookingNothing);
+    fireEvent.change(time, { target: { value: "09:15" } });
+    await waitFor(() => expect(save()).toBeEnabled());
+    fireEvent.click(save());
+    expect(
+      await screen.findByText(messages.en.bookingArrivalInvalid),
+    ).toBeInTheDocument();
   });
 
   it("a_unit_the_preview_says_is_taken_is_not_saved_onto", async () => {

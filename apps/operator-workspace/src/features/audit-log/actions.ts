@@ -23,6 +23,7 @@ export const KNOWN_ACTIONS = [
   "reservation.cancelled",
   "reservation.no_show",
   "reservation.amended",
+  "reservation.arrival_time_changed",
   "stay.checked_out",
   "stay.departure_changed",
   "stay.moved",

@@ -109,6 +109,8 @@ function arrival(overrides: Partial<Arrival>): Arrival {
     stayId: null,
     folioId: null,
     daysLate: 0,
+    expectedArrival: null,
+    expectedArrivalPassed: false,
     balanceMinor: 0,
     currency: "TRY",
     mayCheckIn: true,

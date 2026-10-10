@@ -860,6 +860,75 @@ describe("checking out against the bill", () => {
     expect(folio?.status).toBe("closed");
   });
 
+  it("closes a Folio the Guest has paid, with the Stay (CO PRE-01)", async () => {
+    const { stayId, folioId } = await checkInAt(
+      PROPERTY,
+      ORG,
+      await aBilledUnit(),
+      "Paying Guest",
+    );
+    await folios.postCharge(MEMBER, {
+      folioId: folioId!,
+      description: "Minibar",
+      amountMinor: 4500,
+    });
+    // A payment line exists now, so a charged Folio can reach zero without the
+    // desk leaving it open with a reason.
+    await folios.postPayment(MEMBER, {
+      folioId: folioId!,
+      description: "Cash at the desk",
+      paymentMethod: "cash",
+      amountMinor: 4500,
+    });
+
+    await expect(
+      reservations.checkOut(MEMBER, stayId, reviewed(2)),
+    ).resolves.toMatchObject({ folioClosed: true });
+
+    const [folio] = await owner.$queryRawUnsafe<{ status: string }[]>(
+      `select status from public.folios where id = $1::uuid`,
+      folioId,
+    );
+    expect(folio?.status).toBe("closed");
+  });
+
+  it("leaves a prepaid credit open with a reason, as any other balance (CO-S1-27)", async () => {
+    const { stayId, folioId } = await checkInAt(
+      PROPERTY,
+      ORG,
+      await aBilledUnit(),
+      "Prepaid Guest",
+    );
+    await folios.postCharge(MEMBER, {
+      folioId: folioId!,
+      description: "One night",
+      amountMinor: 4500,
+    });
+    await folios.postPayment(MEMBER, {
+      folioId: folioId!,
+      description: "Three nights prepaid",
+      paymentMethod: "card",
+      amountMinor: 13500,
+    });
+
+    await expect(
+      reservations.checkOut(MEMBER, stayId, reviewed(2)),
+    ).rejects.toBeInstanceOf(BalanceReasonError);
+    await expect(
+      reservations.checkOut(
+        MEMBER,
+        stayId,
+        reviewed(2, "two nights to refund by transfer"),
+      ),
+    ).resolves.toMatchObject({ folioClosed: false });
+
+    const [folio] = await owner.$queryRawUnsafe<{ status: string }[]>(
+      `select status from public.folios where id = $1::uuid`,
+      folioId,
+    );
+    expect(folio?.status).toBe("open");
+  });
+
   it("refuses a balance without a reason, and leaves it open with one", async () => {
     const { stayId, folioId } = await checkInAt(
       PROPERTY,

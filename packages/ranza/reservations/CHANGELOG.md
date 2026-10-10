@@ -11,6 +11,16 @@ everything lands under Unreleased.
 
 ### Added
 
+- An expected arrival: `NewReservation.expectedArrival` (`HH:MM` on the
+  Property's clock, optional), `Arrival.expectedArrival` and
+  `Arrival.expectedArrivalPassed` (read from the database's clock and the
+  Property's timezone), `ReservationRow.expectedArrival`,
+  `ChangePreview.expectedArrival` and `BookingChange.expectedArrival` (omitted
+  leaves it, null clears it). `amendBooking()` changes it through
+  `app.change_expected_arrival()`, which leaves a revision of kind
+  `arrival_time_changed` and the audit action `reservation.arrival_time_changed`;
+  a save that changes the nights too runs both in one transaction.
+  `ExpectedArrivalError` names a malformed time (FD-S6-*).
 - `bookingDay()`: the Property's business date for the booking form, null
   where the viewer cannot book (RG-S1-10).
 - `CheckInTooEarlyError`, a `CheckInError` carrying the booking's start date,

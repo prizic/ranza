@@ -233,6 +233,7 @@ export function ReservationsTable({
             unitId: linked.unitId,
             startsOn: linked.startsOn,
             endsOn: linked.endsOn,
+            expectedArrival: linked.expectedArrival,
           }}
           key={linked.reservationId}
           locale={locale}

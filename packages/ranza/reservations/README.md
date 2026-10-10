@@ -190,7 +190,10 @@ search, extensions and room moves. Group reservations, quotations, deposits and
 availability search are not in this module.
 
 A booking that has not arrived is changed — its nights, its Unit — only through
-`app.amend_reservation()`, an in-house Guest's planned departure only through
+`app.amend_reservation()`, the time its Guest expects to arrive only through
+`app.change_expected_arrival()` (it is set when the booking is taken, and
+`amendBooking` runs the two in one transaction when a save changes both), an
+in-house Guest's planned departure only through
 `app.change_departure()`, and their room only through `app.move_stay()`:
 commands that check their caller
 ([ADR 0039](../../../docs/adr/0039-a-booking-is-amended-through-commands-that-check-their-caller.md)).

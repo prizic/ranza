@@ -406,6 +406,11 @@ export interface Messages {
   bookingOverOccupant: string;
   bookingPeriodInvalid: string;
   bookingGuestInvalid: string;
+  bookingArrivalInvalid: string;
+  expectedArrival: string;
+  expectedArrivalHint: string;
+  expectedArrivalNone: string;
+  expectedArrivalPassed: string;
   guestRequired: string;
   bookingRefused: string;
   /** The price list changed while the booking dialog was open (RT-S2-12). */
@@ -1680,7 +1685,8 @@ export interface Messages {
       | "check_in_reversed"
       | "cancelled"
       | "no_show"
-      | "amended",
+      | "amended"
+      | "arrival_time_changed",
       string
     >;
     stay: Record<"checked_out" | "departure_changed" | "moved", string>;
@@ -2287,6 +2293,12 @@ export const messages: Record<SupportedLocale, Messages> = {
     guestRequired: "Misafirin adını girin.",
     bookingGuestInvalid:
       "Misafirin adını, e-postasını ve telefonunu kontrol edin.",
+    bookingArrivalInvalid: "Beklenen varışı bir saat olarak girin.",
+    expectedArrival: "Beklenen varış",
+    expectedArrivalHint:
+      "İsteğe bağlı. Misafirin gelmeyi beklediği saat, tesisin saatine göre.",
+    expectedArrivalNone: "Beklenen saat yok",
+    expectedArrivalPassed: "Beklenen saat geçti",
     bookingPriceChanged:
       "Bu birimin fiyatı siz rezervasyon yaparken değişti. Yeni fiyatı kontrol edip rezervasyonu yeniden alın.",
     bookingRefused: "Bu rezervasyon oluşturulamıyor.",
@@ -3616,6 +3628,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         cancelled: "Rezervasyon iptal edildi",
         no_show: "Gelmedi olarak işaretlendi",
         amended: "Rezervasyon değiştirildi",
+        arrival_time_changed: "Beklenen varış saati değiştirildi",
       },
       stay: {
         checked_out: "Çıkış yapıldı",
@@ -4262,6 +4275,12 @@ export const messages: Record<SupportedLocale, Messages> = {
     guestRequired: "Enter the Guest's name.",
     bookingGuestInvalid:
       "Check the Guest's name, email address and telephone number.",
+    bookingArrivalInvalid: "Enter the expected arrival as a time of day.",
+    expectedArrival: "Expected arrival",
+    expectedArrivalHint:
+      "Optional. When the Guest expects to arrive, on the Property's clock.",
+    expectedArrivalNone: "No expected time",
+    expectedArrivalPassed: "Past the expected time",
     bookingPriceChanged:
       "The price for this Unit changed while you were booking. Check the new price and take the booking again.",
     bookingRefused: "That booking cannot be taken.",
@@ -5595,6 +5614,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         cancelled: "Booking cancelled",
         no_show: "Marked as a no-show",
         amended: "Booking changed",
+        arrival_time_changed: "Expected arrival time changed",
       },
       stay: {
         checked_out: "Checked out",
@@ -6227,6 +6247,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       "هذه التواريخ ليست مدة صالحة. يغطي الحجز ليلة واحدة على الأقل ولا يبدأ قبل اليوم.",
     guestRequired: "أدخل اسم النزيل.",
     bookingGuestInvalid: "تحقق من اسم الضيف وبريده الإلكتروني وهاتفه.",
+    bookingArrivalInvalid: "أدخل الوصول المتوقع كوقت من اليوم.",
+    expectedArrival: "الوصول المتوقع",
+    expectedArrivalHint:
+      "اختياري. الوقت الذي يتوقع النزيل الوصول فيه، بتوقيت المنشأة.",
+    expectedArrivalNone: "لا يوجد وقت متوقع",
+    expectedArrivalPassed: "تجاوز وقت الوصول المتوقع",
     bookingPriceChanged:
       "تغيّر سعر هذه الوحدة أثناء الحجز. راجع السعر الجديد ثم أعد أخذ الحجز.",
     bookingRefused: "لا يمكن إنشاء هذا الحجز.",
@@ -7545,6 +7571,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         cancelled: "أُلغي الحجز",
         no_show: "سُجِّل عدم الحضور",
         amended: "عُدِّل الحجز",
+        arrival_time_changed: "عُدِّل وقت الوصول المتوقع",
       },
       stay: {
         checked_out: "تم تسجيل المغادرة",

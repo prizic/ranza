@@ -53,6 +53,7 @@ const BASE: ReservationRow = {
   status: "confirmed",
   startsOn: TODAY,
   endsOn: "2030-01-13",
+  expectedArrival: null,
   unitId: "u",
   unitName: "101",
   roomName: null,

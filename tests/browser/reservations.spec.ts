@@ -124,6 +124,9 @@ test("a front desk takes a booking and finds it on the list", async ({
     dialog.getByRole("button", { name: /^Departure/ }),
   ).not.toHaveText("Open-ended");
 
+  // Optional, and after the dates: the Guest stays first (RG-S4-19).
+  await dialog.getByLabel("Expected arrival").fill("15:30");
+
   await dialog.getByRole("button", { name: "Create reservation" }).click();
 
   // The dialog closes by the booking having happened, so its absence is the
@@ -137,6 +140,15 @@ test("a front desk takes a booking and finds it on the list", async ({
   // returning Guest would be recognized rather than duplicated.
   await expect(row).toContainText(email);
   await expect(row).toContainText(unitName);
+  // The expected arrival travelled in with the booking (FD-S6-04).
+  expect(
+    psql(
+      `select to_char(reservation.expected_arrival_time, 'HH24:MI')
+         from public.reservations as reservation
+         join public.guests as guest on guest.id = reservation.guest_id
+        where guest.full_name = '${guestName}'`,
+    ),
+  ).toBe("15:30");
 });
 
 /**

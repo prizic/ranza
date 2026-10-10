@@ -19,6 +19,7 @@ import {
   FactList,
   Field,
   FormError,
+  Input,
   Textarea,
 } from "@ranza/ui";
 import {
@@ -59,6 +60,8 @@ export interface ChangeableBooking {
   unitId: string;
   startsOn: string;
   endsOn: string | null;
+  /** `HH:MM`, or null when nobody said. */
+  expectedArrival: string | null;
 }
 
 type PreviewAnswer =
@@ -121,6 +124,8 @@ export function ChangeBookingDialog({
     ...(booking.endsOn ? { to: booking.endsOn } : {}),
   });
   const [unitId, setUnitId] = useState(booking.unitId);
+  // `HH:MM`, or empty for none: what a time field holds.
+  const [arrival, setArrival] = useState(booking.expectedArrival ?? "");
   const [note, setNote] = useState("");
   const [read, setRead] = useState<Read>({ state: "loading" });
   // Bumped when a save is refused for something the preview did not know —
@@ -178,6 +183,7 @@ export function ChangeBookingDialog({
             pinnedRef.current === null
               ? fresh.startsOn !== booking.startsOn ||
                 fresh.endsOn !== booking.endsOn ||
+                fresh.expectedArrival !== booking.expectedArrival ||
                 fresh.unitId !== booking.unitId
               : fresh.version !== pinnedRef.current;
           if (resetFromPreview.current || stale) {
@@ -190,6 +196,7 @@ export function ChangeBookingDialog({
               ...(fresh.endsOn ? { to: fresh.endsOn } : {}),
             });
             setUnitId(fresh.unitId);
+            setArrival(fresh.expectedArrival ?? "");
             setResets((n) => n + 1);
           }
           setRead({ state: "ready", preview: fresh });
@@ -213,6 +220,7 @@ export function ChangeBookingDialog({
     booking.reservationId,
     booking.startsOn,
     booking.endsOn,
+    booking.expectedArrival,
     booking.unitId,
     dates.from,
     dates.to,
@@ -229,6 +237,7 @@ export function ChangeBookingDialog({
     preview !== null &&
     dates.from === preview.startsOn &&
     (dates.to ?? null) === preview.endsOn &&
+    arrival === (preview.expectedArrival ?? "") &&
     unitId === preview.unitId;
 
   const price = (() => {
@@ -293,11 +302,13 @@ export function ChangeBookingDialog({
               ? t("bookingPeriodInvalid")
               : outcome === "invalidNote"
                 ? t("changeBookingNoteInvalid")
-                : outcome === "priceChanged"
-                  ? t("bookingPriceChanged")
-                  : outcome === "refused"
-                    ? t("changeBookingRefused")
-                    : null;
+                : outcome === "invalidArrival"
+                  ? t("bookingArrivalInvalid")
+                  : outcome === "priceChanged"
+                    ? t("bookingPriceChanged")
+                    : outcome === "refused"
+                      ? t("changeBookingRefused")
+                      : null;
 
   // The booking's own Unit may have gone out of order or been split into beds
   // since it was taken: its dates can still change there, and the desk is told
@@ -394,6 +405,28 @@ export function ChangeBookingDialog({
                 {t("changeBookingBeforeToday")}
               </p>
             ) : null}
+          </div>
+
+          <div className="grid gap-1.5 sm:max-w-48">
+            <Field
+              htmlFor={`change-arrival-${booking.reservationId}`}
+              label={t("expectedArrival")}
+            >
+              <Input
+                aria-describedby={`change-arrival-hint-${booking.reservationId}`}
+                id={`change-arrival-${booking.reservationId}`}
+                name="expectedArrival"
+                onChange={(event) => setArrival(event.target.value)}
+                type="time"
+                value={arrival}
+              />
+            </Field>
+            <p
+              className="text-step--1 text-muted-foreground"
+              id={`change-arrival-hint-${booking.reservationId}`}
+            >
+              {t("expectedArrivalHint")}
+            </p>
           </div>
 
           <Field
