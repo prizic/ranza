@@ -116,6 +116,9 @@ test("a front desk takes a booking and finds it on the list", async ({
   await page.keyboard.press("Escape");
   await expect(page.getByText("Choose the departure day")).toBeHidden();
   await dialog.getByRole("button", { name: "Create reservation" }).click();
+  // The calendar opens where the button was, so the pointer is left over one of
+  // its days and the footer shows that hover's nights in place of the prompt.
+  await page.mouse.move(0, 0);
   await expect(page.getByText("Choose the departure day")).toBeVisible();
   await expect(dialog).toBeVisible();
   await pickDay(page, propertyDay(propertyId, 10));
@@ -403,15 +406,6 @@ async function evidence(page: Page, name: string): Promise<void> {
   });
 }
 
-/**
- * The booking dialog does not scroll, and the note that the chosen Unit is
- * taken makes it taller than the default 720 pixels: its submit button then
- * sits below the viewport and Playwright's click lands on the page behind.
- */
-async function onATallScreen(page: Page): Promise<void> {
-  await page.setViewportSize({ width: 1280, height: 1000 });
-}
-
 /** A Unit of this run's own, with a name nobody else's run can match. */
 function aUnitNamed(propertyId: string, label: string): string {
   const unitName = `E2E-${label}-${randomUUID().slice(0, 8)}`;
@@ -697,7 +691,6 @@ test("a_booking_for_today_is_checked_in_moved_while_in_house_and_checked_out: ea
 test("a_booking_over_nights_that_are_taken_is_refused_in_the_desks_words", async ({
   page,
 }) => {
-  await onATallScreen(page);
   const propertyId = testProperty();
   const booked = aConfirmedBooking(
     propertyId,
@@ -743,7 +736,6 @@ test("a_booking_over_nights_that_are_taken_is_refused_in_the_desks_words", async
 test("a_booking_over_the_nights_of_somebody_in_house_is_refused_in_the_desks_words", async ({
   page,
 }) => {
-  await onATallScreen(page);
   const propertyId = testProperty();
   const unitName = aUnitNamed(propertyId, "OCC");
   const occupant = `Occupant ${randomUUID().slice(0, 8)}`;
@@ -839,7 +831,6 @@ test("a_viewer_who_may_not_book_or_amend_is_offered_neither (RG-S3-05)", async (
 test("an_email_too_short_to_be_one_is_said_under_the_field (RG-S1-42): from the browser and from the server, in English and Arabic", async ({
   page,
 }) => {
-  await onATallScreen(page);
   const propertyId = testProperty();
   const unitName = aUnitNamed(propertyId, "EM");
 
