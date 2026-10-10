@@ -1,14 +1,13 @@
 /**
- * The expected arrival on an arrivals row (FD-S6-18, FD-S6-19, FD-S6-24).
+ * The expected arrival on an arrivals row (FD-S6-18, FD-S6-19).
  *
  * What the screen decides on its own: how a time of day is written in each
- * language, that it is never shifted by the reader's zone, what the cell says
- * for a Guest with no time and for one whose time has passed, and that the
- * column sorts the ones with no time last in either direction. Whether a time
- * has passed is the database's, on the Property's clock, and is proven in
- * tests/integration/expected-arrival.test.ts.
+ * language, that it is never shifted by the reader's zone, and what the row
+ * says for a Guest with no time, for one whose time has passed and for one who
+ * is already in. Whether a time has passed is the database's, on the
+ * Property's clock, and is proven in tests/integration/expected-arrival.test.ts.
  */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { Arrival } from "../../packages/ranza/reservations/src";
@@ -86,23 +85,6 @@ function show(rows: Arrival[]) {
   );
 }
 
-/** The Guests in the order the table shows them. */
-function order(): string[] {
-  return screen
-    .getAllByRole("row")
-    .slice(1)
-    .map(
-      (row) =>
-        ["Early", "Late", "Unsaid"].find((name) =>
-          row.textContent?.includes(name),
-        ) ?? "",
-    );
-}
-
-const early = arrival({ guestName: "Early", expectedArrival: "09:00" });
-const late = arrival({ guestName: "Late", expectedArrival: "21:30" });
-const unsaid = arrival({ guestName: "Unsaid" });
-
 describe("writing a time of day", () => {
   it("an_expected_time_is_written_as_the_property_clock_reads_whatever_the_readers_zone", () => {
     // 24-hour in every language, and never shifted: it is a wall-clock time.
@@ -120,15 +102,16 @@ describe("writing a time of day", () => {
   });
 });
 
-describe("the expected arrival column", () => {
-  it("the_column_says_nothing_is_known_with_a_dash_and_a_name_for_the_screen_reader", () => {
-    show([unsaid]);
-    expect(
-      screen.getByLabelText(messages.en.expectedArrivalNone),
-    ).toHaveTextContent("—");
+describe("the expected arrival on the row", () => {
+  it("the_row_says_nothing_is_known_with_a_dash_and_a_name_for_the_screen_reader", () => {
+    show([arrival({ guestName: "Unsaid" })]);
+    expect(screen.getByText("Expected —")).toBeInTheDocument();
+    expect(screen.getByText(messages.en.expectedArrivalNone)).toHaveClass(
+      "sr-only",
+    );
   });
 
-  it("the_column_says_the_time_has_passed_only_when_the_row_says_so", () => {
+  it("the_row_says_the_time_has_passed_only_when_the_row_says_so", () => {
     show([
       arrival({
         guestName: "Passed",
@@ -136,28 +119,27 @@ describe("the expected arrival column", () => {
         expectedArrivalPassed: true,
       }),
     ]);
-    expect(screen.getByText("09:00")).toBeInTheDocument();
+    expect(screen.getByText("Expected 09:00")).toBeInTheDocument();
     expect(
       screen.getByText(messages.en.expectedArrivalPassed),
     ).toBeInTheDocument();
     cleanup();
 
-    show([early]);
-    expect(screen.getByText("09:00")).toBeInTheDocument();
+    show([arrival({ guestName: "Early", expectedArrival: "09:00" })]);
+    expect(screen.getByText("Expected 09:00")).toBeInTheDocument();
     expect(screen.queryByText(messages.en.expectedArrivalPassed)).toBeNull();
   });
 
-  it("the_column_sorts_the_guests_with_no_time_last_in_either_direction", () => {
-    show([unsaid, late, early]);
-    const header = () =>
-      screen.getByRole("button", {
-        name: new RegExp(`^${messages.en.expectedArrival} `),
-      });
-
-    fireEvent.click(header());
-    expect(order()).toEqual(["Early", "Late", "Unsaid"]);
-
-    fireEvent.click(header());
-    expect(order()).toEqual(["Late", "Early", "Unsaid"]);
+  it("a_guest_who_is_in_shows_no_expected_time_and_no_word_about_it", () => {
+    show([
+      arrival({
+        guestName: "In",
+        status: "checked_in",
+        expectedArrival: "09:00",
+        expectedArrivalPassed: true,
+      }),
+    ]);
+    expect(screen.queryByText(/^Expected /)).toBeNull();
+    expect(screen.queryByText(messages.en.expectedArrivalPassed)).toBeNull();
   });
 });

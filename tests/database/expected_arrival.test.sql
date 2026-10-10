@@ -305,9 +305,10 @@ select is(
   'FD-S6-11: a revision of the time belongs to a booking that has not arrived, so it names no Stay');
 
 select is(
-  (select count(*)::int from public.reservation_changes where kind = 'arrival_time_changed'),
+  (select count(*)::int from public.reservation_changes
+    where kind = 'arrival_time_changed' and reservation_id = 'ea0e0000-0000-4000-8000-000000000001'),
   2,
-  'FD-S6-13: and two is all the suite wrote');
+  'FD-S6-13: and two is all the suite wrote for the booking it changed');
 
 -- The definer checks its caller before it reads anything it returns (IG-12 in
 -- insert_grants.test.sql sweeps the same thing across every definer).

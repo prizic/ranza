@@ -116,6 +116,43 @@ export const RESERVATION_ICON = {
   checked_out: DoorClosed,
 } as const;
 
+/**
+ * When the Guest said they would arrive, under the reference, and a word when
+ * the Property's clock has passed it. A dash that a screen reader names when
+ * nobody said. Not shown once the Guest is in: the time is moot then.
+ */
+function ExpectedArrival({
+  arrival,
+  locale,
+}: {
+  arrival: Arrival;
+  locale: SupportedLocale;
+}) {
+  const t = useTranslations();
+  if (arrival.expectedArrival === null) {
+    return (
+      <span className="block text-step--1 text-muted-foreground">
+        <span aria-hidden="true">{t("expectedAt", { time: "\u2014" })}</span>
+        <span className="sr-only">{t("expectedArrivalNone")}</span>
+      </span>
+    );
+  }
+  return (
+    <>
+      <span className="block text-step--1 text-muted-foreground tabular-nums">
+        {t("expectedAt", {
+          time: expectedArrivalLabel(arrival.expectedArrival, locale),
+        })}
+      </span>
+      {arrival.expectedArrivalPassed ? (
+        <span className="block text-step--1 font-semibold text-warning">
+          {t("expectedArrivalPassed")}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
 export function useArrivalColumns(
   locale: SupportedLocale,
   propertyId: string,
@@ -178,49 +215,11 @@ export function useArrivalColumns(
               {t("daysLate", { n: row.original.daysLate })}
             </span>
           ) : null}
+          {row.original.status !== "checked_in" ? (
+            <ExpectedArrival arrival={row.original} locale={locale} />
+          ) : null}
         </div>
       ),
-    },
-    {
-      id: "expectedArrival",
-      // `HH:MM` sorts as text. Undefined and not null, because only undefined
-      // is held last: a Guest nobody has a time for is neither the earliest
-      // nor the latest, whichever way the column is sorted.
-      accessorFn: (arrival) => arrival.expectedArrival ?? undefined,
-      meta: { title: t("expectedArrival") },
-      sortUndefined: "last",
-      header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          labels={sort}
-          title={t("expectedArrival")}
-        />
-      ),
-      cell: ({ row }) => {
-        const arrival = row.original;
-        if (arrival.expectedArrival === null) {
-          return (
-            <span
-              aria-label={t("expectedArrivalNone")}
-              className="text-muted-foreground"
-            >
-              {"\u2014"}
-            </span>
-          );
-        }
-        return (
-          <div>
-            <span className="font-medium tabular-nums">
-              {expectedArrivalLabel(arrival.expectedArrival, locale)}
-            </span>
-            {arrival.expectedArrivalPassed ? (
-              <span className="block text-step--1 font-semibold text-warning">
-                {t("expectedArrivalPassed")}
-              </span>
-            ) : null}
-          </div>
-        );
-      },
     },
     {
       accessorKey: "unitName",

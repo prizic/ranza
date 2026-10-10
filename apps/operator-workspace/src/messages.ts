@@ -408,6 +408,7 @@ export interface Messages {
   bookingGuestInvalid: string;
   bookingArrivalInvalid: string;
   expectedArrival: string;
+  expectedAt: string;
   expectedArrivalHint: string;
   expectedArrivalNone: string;
   expectedArrivalPassed: string;
@@ -2295,6 +2296,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Misafirin adını, e-postasını ve telefonunu kontrol edin.",
     bookingArrivalInvalid: "Beklenen varışı bir saat olarak girin.",
     expectedArrival: "Beklenen varış",
+    expectedAt: "Beklenen {time}",
     expectedArrivalHint:
       "İsteğe bağlı. Misafirin gelmeyi beklediği saat, tesisin saatine göre.",
     expectedArrivalNone: "Beklenen saat yok",
@@ -4277,6 +4279,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Check the Guest's name, email address and telephone number.",
     bookingArrivalInvalid: "Enter the expected arrival as a time of day.",
     expectedArrival: "Expected arrival",
+    expectedAt: "Expected {time}",
     expectedArrivalHint:
       "Optional. When the Guest expects to arrive, on the Property's clock.",
     expectedArrivalNone: "No expected time",
@@ -6249,6 +6252,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingGuestInvalid: "تحقق من اسم الضيف وبريده الإلكتروني وهاتفه.",
     bookingArrivalInvalid: "أدخل الوصول المتوقع كوقت من اليوم.",
     expectedArrival: "الوصول المتوقع",
+    expectedAt: "المتوقع {time}",
     expectedArrivalHint:
       "اختياري. الوقت الذي يتوقع النزيل الوصول فيه، بتوقيت المنشأة.",
     expectedArrivalNone: "لا يوجد وقت متوقع",

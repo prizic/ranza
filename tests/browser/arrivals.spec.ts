@@ -205,7 +205,7 @@ test("a reason of spaces is refused, and what was typed survives it", async ({
  * The expected arrival on the arrivals row (FD-S6-18..20).
  *
  * The integration suite proves the list reads the Property's clock; this proves
- * a person sees it: the time on the row, "—" for a Guest nobody has a time for,
+ * a person sees it: the time under the reference, "—" for a Guest nobody has a time for,
  * a word for one whose time has passed, and a time edited from Change booking
  * landing on the same row.
  */
@@ -223,18 +223,19 @@ test("an_arrival_shows_its_expected_time_and_says_so_when_it_has_passed", async 
 
   await page.getByRole("searchbox").fill(lateName);
   const late = page.getByRole("row").filter({ hasText: lateName });
-  await expect(late.getByText("00:01")).toBeVisible();
+  await expect(late.getByText("Expected 00:01")).toBeVisible();
   await expect(late.getByText("Past the expected time")).toBeVisible();
 
-  // Checking the Guest in takes the word away and leaves the time.
+  // Checking the Guest in takes the time and the word away: it is moot now.
   await late.getByRole("button", { name: "Check in" }).click();
   await expect(late.getByText("Checked in")).toBeVisible();
   await expect(late.getByText("Past the expected time")).toBeHidden();
-  await expect(late.getByText("00:01")).toBeVisible();
+  await expect(late.getByText("Expected 00:01")).toBeHidden();
 
   await page.getByRole("searchbox").fill(unsaidName);
   const unsaid = page.getByRole("row").filter({ hasText: unsaidName });
-  await expect(unsaid.getByLabel("No expected time")).toBeVisible();
+  await expect(unsaid.getByText("Expected \u2014")).toBeVisible();
+  await expect(unsaid.getByText("No expected time")).toBeAttached();
   await expect(unsaid.getByText("Past the expected time")).toBeHidden();
 });
 
@@ -261,7 +262,7 @@ test("an_expected_time_that_has_not_come_does_not_say_it_has_passed", async ({
   await page.goto(`/en/arrivals?property=${propertyId}`);
   await page.getByRole("searchbox").fill(guestName);
   const row = page.getByRole("row").filter({ hasText: guestName });
-  await expect(row.getByText("23:59")).toBeVisible();
+  await expect(row.getByText("Expected 23:59")).toBeVisible();
   await expect(row.getByText("Past the expected time")).toBeHidden();
 });
 
@@ -275,7 +276,7 @@ test("an_expected_time_is_changed_from_change_booking_and_the_row_follows", asyn
   await page.goto(`/en/arrivals?property=${propertyId}`);
   await page.getByRole("searchbox").fill(guestName);
   const row = page.getByRole("row").filter({ hasText: guestName });
-  await expect(row.getByText("14:00")).toBeVisible();
+  await expect(row.getByText("Expected 14:00")).toBeVisible();
 
   await row
     .getByRole("button", {
@@ -300,8 +301,8 @@ test("an_expected_time_is_changed_from_change_booking_and_the_row_follows", asyn
   await save.click();
   await expect(dialog).toBeHidden();
 
-  await expect(row.getByText("18:30")).toBeVisible();
-  await expect(row.getByText("14:00")).toBeHidden();
+  await expect(row.getByText("Expected 18:30")).toBeVisible();
+  await expect(row.getByText("Expected 14:00")).toBeHidden();
   expect(
     psql(
       `select change.kind || ' ' ||
@@ -330,5 +331,5 @@ test("an_expected_time_is_changed_from_change_booking_and_the_row_follows", asyn
   await again.getByLabel("Expected arrival").clear();
   await again.getByRole("button", { name: "Save change" }).click();
   await expect(again).toBeHidden();
-  await expect(row.getByLabel("No expected time")).toBeVisible();
+  await expect(row.getByText("Expected \u2014")).toBeVisible();
 });

@@ -163,8 +163,8 @@ select set_eq(
      where table_schema='public' and table_name='reservations'
        and grantee='ranza_app' and privilege_type='INSERT'$$,
   array['organization_id','property_id','accommodation_unit_id','guest_id',
-        'stay_type','status','starts_on','ends_on'],
-  'reservations: the eight createReservation names');
+        'stay_type','status','starts_on','ends_on','expected_arrival_time'],
+  'reservations: the nine createReservation names');
 
 select set_eq(
   $$select column_name::text from information_schema.column_privileges
