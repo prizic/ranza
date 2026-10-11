@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ArrowRight, CalendarDays } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { ar, enGB, tr } from "react-day-picker/locale";
@@ -121,6 +121,7 @@ function latestOf(a: Date | undefined, b: Date | undefined) {
  * the wrong day for part of every day at a Property in another timezone.
  */
 export function DateRangeField({
+  className,
   defaultValue,
   earliestFrom,
   earliestTo,
@@ -135,7 +136,9 @@ export function DateRangeField({
   required = false,
   requiredTo = false,
   today,
+  value,
 }: {
+  className?: string;
   defaultValue?: { from?: string | undefined; to?: string | undefined };
   /** The first start that may be chosen, as `YYYY-MM-DD`. */
   earliestFrom?: string | undefined;
@@ -148,7 +151,7 @@ export function DateRangeField({
   /** Shows the start without letting it change; only the end is picked. */
   lockFrom?: boolean;
   minSpan?: number;
-  names: { from: string; to: string };
+  names?: { from: string; to: string };
   /**
    * Told each chosen range as `YYYY-MM-DD`, for a form that says something
    * about the dates before it is sent — a price for the nights chosen. The
@@ -160,14 +163,24 @@ export function DateRangeField({
   /** A missing end stops the submit, as `required` does for the start. */
   requiredTo?: boolean;
   today?: string | undefined;
+  value?: { from?: string | undefined; to?: string | undefined };
 }) {
   const [range, setStoredRange] = useState<DateRange | undefined>(() => {
-    const from = fromIso(defaultValue?.from);
-    const to = fromIso(defaultValue?.to);
+    const initial = value ?? defaultValue;
+    const from = fromIso(initial?.from);
+    const to = fromIso(initial?.to);
     return from || to ? { from, to } : undefined;
   });
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Edge>(lockFrom ? "to" : "from");
+
+  useEffect(() => {
+    if (value !== undefined && !open) {
+      const from = fromIso(value.from);
+      const to = fromIso(value.to);
+      setStoredRange(from || to ? { from, to } : undefined);
+    }
+  }, [value?.from, value?.to, open]);
 
   function setRange(next: DateRange | undefined) {
     setStoredRange(next);
@@ -309,6 +322,7 @@ export function DateRangeField({
             "group relative flex h-9 w-full min-w-0 items-center gap-1 rounded-2xl border border-input/80 bg-background/90 p-1 ps-2 text-xs font-medium text-foreground transition-all duration-200 hover:border-primary/50 hover:bg-background hover:shadow-xs",
             open && "border-primary shadow-xs ring-2 ring-primary/20",
             (from || to) && "border-primary/40 bg-primary/5",
+            className,
           )}
           ref={anchor}
         >
@@ -332,53 +346,61 @@ export function DateRangeField({
         </div>
       </PopoverAnchor>
 
-      <input name={names.from} type="hidden" value={from ? toIso(from) : ""} />
-      <input name={names.to} type="hidden" value={to ? toIso(to) : ""} />
-      {required && !lockFrom ? (
-        // Hidden inputs are never validated, so a required start is carried by
-        // one out of sight and out of the tab order. Its bubble would point at
-        // nothing, so a blocked submit opens the calendar at the start instead
-        // — but only when this is the form's first problem; an empty name
-        // before it keeps the browser's own message.
-        <input
-          aria-hidden="true"
-          className="sr-only"
-          onChange={() => undefined}
-          onInvalid={(event) => {
-            const input = event.currentTarget;
-            if (input.form?.querySelector(":invalid") !== input) return;
-            event.preventDefault();
-            halves.from.current?.focus();
-            openAt("from");
-          }}
-          ref={requiredFrom}
-          required
-          tabIndex={-1}
-          value={from ? toIso(from) : ""}
-        />
-      ) : null}
-      {requiredTo ? (
-        // The end's twin of the proxy above, after it in the form, so a form
-        // missing both asks for the start first. Then this one stays quiet as
-        // well: the browser focuses the first invalid control nobody claimed,
-        // and focusing this one would close the calendar the start just opened.
-        <input
-          aria-hidden="true"
-          className="sr-only"
-          onChange={() => undefined}
-          onInvalid={(event) => {
-            const input = event.currentTarget;
-            const first = input.form?.querySelector(":invalid");
-            if (first === requiredFrom.current) event.preventDefault();
-            if (first !== input) return;
-            event.preventDefault();
-            halves.to.current?.focus();
-            openAt("to");
-          }}
-          required
-          tabIndex={-1}
-          value={to ? toIso(to) : ""}
-        />
+      {names ? (
+        <>
+          <input
+            name={names.from}
+            type="hidden"
+            value={from ? toIso(from) : ""}
+          />
+          <input name={names.to} type="hidden" value={to ? toIso(to) : ""} />
+          {required && !lockFrom ? (
+            // Hidden inputs are never validated, so a required start is carried by
+            // one out of sight and out of the tab order. Its bubble would point at
+            // nothing, so a blocked submit opens the calendar at the start instead
+            // — but only when this is the form's first problem; an empty name
+            // before it keeps the browser's own message.
+            <input
+              aria-hidden="true"
+              className="sr-only"
+              onChange={() => undefined}
+              onInvalid={(event) => {
+                const input = event.currentTarget;
+                if (input.form?.querySelector(":invalid") !== input) return;
+                event.preventDefault();
+                halves.from.current?.focus();
+                openAt("from");
+              }}
+              ref={requiredFrom}
+              required
+              tabIndex={-1}
+              value={from ? toIso(from) : ""}
+            />
+          ) : null}
+          {requiredTo ? (
+            // The end's twin of the proxy above, after it in the form, so a form
+            // missing both asks for the start first. Then this one stays quiet as
+            // well: the browser focuses the first invalid control nobody claimed,
+            // and focusing this one would close the calendar the start just opened.
+            <input
+              aria-hidden="true"
+              className="sr-only"
+              onChange={() => undefined}
+              onInvalid={(event) => {
+                const input = event.currentTarget;
+                const first = input.form?.querySelector(":invalid");
+                if (first === requiredFrom.current) event.preventDefault();
+                if (first !== input) return;
+                event.preventDefault();
+                halves.to.current?.focus();
+                openAt("to");
+              }}
+              required
+              tabIndex={-1}
+              value={to ? toIso(to) : ""}
+            />
+          ) : null}
+        </>
       ) : null}
 
       <PopoverContent

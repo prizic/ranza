@@ -306,6 +306,21 @@ describe("what the screen says", () => {
       else process.env.TZ = zone;
     }
   });
+
+  it("date range selection: renders from and to in DateRangeField and changes window on preset", async () => {
+    renderCalendar();
+    expect(screen.getByRole("button", { name: /^From:/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^To:/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^From:/ }));
+    const presets = screen.getAllByRole("button", { name: "7 days" });
+    expect(presets).toHaveLength(2);
+    fireEvent.click(presets[1]!);
+
+    await waitFor(() => {
+      expect(window.location.search).toContain("days=7");
+    });
+  });
 });
 
 describe("live", () => {

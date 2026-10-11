@@ -13,6 +13,7 @@ import { formatDate, type SupportedLocale } from "@ranza/i18n";
 import {
   Button,
   Checkbox,
+  DateRangeField,
   Input,
   Label,
   Select,
@@ -23,18 +24,11 @@ import {
 } from "@ranza/ui";
 import type { RoomCalendar, RoomCalendarUnit } from "../../../server/viewer";
 import { shiftDay } from "../layout";
-import {
-  isCalendarDay,
-  UNIT_STATES,
-  UNIT_TYPES,
-  type RoomCalendarView,
-} from "../view";
+import { UNIT_STATES, UNIT_TYPES, type RoomCalendarView } from "../view";
 import { Legend } from "./legend";
 
 /** A window moves a week at a time, whatever its length. */
 const STEP_DAYS = 7;
-/** A chosen date opens with the same lead as today does: three days before it. */
-const LEAD_DAYS = 3;
 const ALL_FLOORS = "all";
 const ALL = "all";
 
@@ -128,31 +122,55 @@ export function CalendarToolbar({
           </Button>
         </div>
 
-        <p aria-live="polite" className="px-2 text-sm font-medium tabular-nums">
+        <p aria-live="polite" className="sr-only">
           {range(calendar, locale)}
         </p>
 
-        <Label className="sr-only" htmlFor="room-calendar-date">
-          {t("goTo")}
-        </Label>
-        {/*
-          Uncontrolled, so a date half typed is not cleared under the cursor,
-          and a value is taken only once it is a real day in range: typing a
-          year passes through 0002 and 0202 on the way to 2026, and none of
-          those may reach the URL.
-        */}
-        <Input
-          className="h-8 w-auto"
-          id="room-calendar-date"
-          onChange={(event) => {
-            const day = event.target.value;
-            if (isCalendarDay(day)) {
-              onChange({ from: shiftDay(day, -LEAD_DAYS) });
-            }
-          }}
-          title={t("goTo")}
-          type="date"
-        />
+        <div className="w-64 sm:w-72">
+          <DateRangeField
+            id="room-calendar-range"
+            labels={{
+              from: t("from"),
+              to: t("to"),
+              emptyFrom: t("emptyFrom"),
+              emptyTo: t("emptyTo"),
+              pickFrom: t("pickFrom"),
+              pickTo: t("pickTo"),
+              clear: common("dateRangeClear"),
+              done: common("dateRangeDone"),
+              span: (days) => t("lengthOption", { days: days + 1 }),
+            }}
+            locale={locale}
+            onChange={(range) => {
+              if (range.from && range.to) {
+                const fromDate = new Date(`${range.from}T00:00:00Z`);
+                const toDate = new Date(`${range.to}T00:00:00Z`);
+                const span =
+                  Math.round(
+                    (toDate.getTime() - fromDate.getTime()) / 86_400_000,
+                  ) + 1;
+                const closest = lengths.reduce((prev, curr) =>
+                  Math.abs(curr - span) < Math.abs(prev - span) ? curr : prev,
+                );
+                onChange({ from: range.from, days: closest });
+              } else if (range.from && !range.to) {
+                onChange({ from: range.from });
+              } else if (!range.from && !range.to) {
+                onChange({ from: null });
+              }
+            }}
+            presets={lengths.map((days) => ({
+              label: t("lengthOption", { days }),
+              from: calendar.from,
+              to: shiftDay(calendar.from, days - 1),
+            }))}
+            today={calendar.today}
+            value={{
+              from: calendar.from,
+              to: shiftDay(calendar.from, calendar.days - 1),
+            }}
+          />
+        </div>
 
         <div
           aria-label={t("length")}

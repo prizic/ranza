@@ -991,6 +991,12 @@ export interface Messages {
     next: string;
     today: string;
     goTo: string;
+    from: string;
+    to: string;
+    emptyFrom: string;
+    emptyTo: string;
+    pickFrom: string;
+    pickTo: string;
     length: string;
     lengthOption: string;
     floorFilter: string;
@@ -2649,6 +2655,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       next: "Sonraki hafta",
       today: "Bugün",
       goTo: "Tarihe git",
+      from: "Başlangıç",
+      to: "Bitiş",
+      emptyFrom: "Tarih ekle",
+      emptyTo: "Tarih ekle",
+      pickFrom: "Başlangıç gününü seçin",
+      pickTo: "Bitiş gününü seçin",
       length: "Gösterilen gün",
       lengthOption: "{days, plural, other {# gün}}",
       floorFilter: "Kat",
@@ -4838,6 +4850,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       next: "Next week",
       today: "Today",
       goTo: "Go to a date",
+      from: "From",
+      to: "To",
+      emptyFrom: "Add date",
+      emptyTo: "Add date",
+      pickFrom: "Choose start day",
+      pickTo: "Choose end day",
       length: "Days shown",
       lengthOption: "{days, plural, one {# day} other {# days}}",
       floorFilter: "Floor",
@@ -7008,6 +7026,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       next: "الأسبوع التالي",
       today: "اليوم",
       goTo: "الانتقال إلى تاريخ",
+      from: "من",
+      to: "إلى",
+      emptyFrom: "أضف تاريخًا",
+      emptyTo: "أضف تاريخًا",
+      pickFrom: "اختر يوم البدء",
+      pickTo: "اختر يوم الانتهاء",
       length: "الأيام المعروضة",
       lengthOption:
         "{days, plural, zero {# يوم} one {يوم واحد} two {يومان} few {# أيام} many {# يومًا} other {# يوم}}",

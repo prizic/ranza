@@ -277,4 +277,44 @@ describe("DateRangeField", () => {
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
     expect(submitted()).toEqual({ startsOn: "2026-10-05", endsOn: "" });
   });
+
+  it("updates range when controlled value prop changes", () => {
+    const { rerender } = render(
+      <DateRangeField
+        id="dates"
+        labels={labels}
+        locale="en"
+        value={{ from: "2026-10-05", to: "2026-10-12" }}
+      />,
+    );
+
+    expect(half(/^Arrival/)).toHaveTextContent(/Oct 5/);
+    expect(half(/^Departure/)).toHaveTextContent(/Oct 12/);
+
+    rerender(
+      <DateRangeField
+        id="dates"
+        labels={labels}
+        locale="en"
+        value={{ from: "2026-10-15", to: "2026-10-22" }}
+      />,
+    );
+
+    expect(half(/^Arrival/)).toHaveTextContent(/Oct 15/);
+    expect(half(/^Departure/)).toHaveTextContent(/Oct 22/);
+  });
+
+  it("renders cleanly without names when not in a form", () => {
+    render(
+      <DateRangeField
+        id="dates-standalone"
+        labels={labels}
+        locale="en"
+        value={{ from: "2026-10-01", to: "2026-10-08" }}
+      />,
+    );
+    expect(document.querySelector('input[type="hidden"]')).toBeNull();
+    expect(half(/^Arrival/)).toBeInTheDocument();
+    expect(half(/^Departure/)).toBeInTheDocument();
+  });
 });
