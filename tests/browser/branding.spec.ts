@@ -2,12 +2,12 @@ import path from "node:path";
 
 import {
   expect,
-  test,
   type APIRequestContext,
   type Browser,
   type Page,
   type PlaywrightWorkerArgs,
 } from "@playwright/test";
+import { test } from "./hydration";
 
 import {
   DESK_EMAIL,

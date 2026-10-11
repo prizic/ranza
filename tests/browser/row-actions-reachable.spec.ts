@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
+import { test } from "./hydration";
 
 import { psql } from "./local-database";
 import { anArrivalToday, signIn, testProperty } from "./front-desk";

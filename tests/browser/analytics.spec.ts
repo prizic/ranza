@@ -1,6 +1,7 @@
 import path from "node:path";
 
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
+import { test } from "./hydration";
 
 import { messages } from "../../apps/operator-workspace/src/messages";
 import { aStaffMember, signIn } from "./front-desk";

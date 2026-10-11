@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
+import { test } from "./hydration";
 
 import { psql } from "./local-database";
 import {
@@ -420,6 +421,10 @@ test("a correction reads in Arabic with its actor and its reason as they were wr
 
   await row.getByRole("link").click();
   await expect(page).toHaveURL(/record=/);
-  await expect(page.getByText(reason)).toBeVisible();
-  await expect(page.getByText(EMAIL)).toBeVisible();
+  // Inside the record, and the whole text of one element: the reason is also
+  // the search box's value, and a page that failed to hydrate quotes it again
+  // in the error overlay.
+  const record = page.getByRole("main").locator("section");
+  await expect(record.getByText(reason, { exact: true })).toBeVisible();
+  await expect(record.getByText(EMAIL, { exact: true })).toBeVisible();
 });
