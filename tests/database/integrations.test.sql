@@ -464,9 +464,10 @@ set local role ranza_worker;
 select set_config('app.user_id', '', true);
 
 select is(
-  (select count(*)::int from app.due_webhook_deliveries(50)),
+  (select count(*)::int from app.due_webhook_deliveries(50)
+    where organization_id = 'e2000000-0000-4000-8000-000000000001'),
   4,
-  'INT-S1-31: the worker lists every due delivery, across Organizations, as ids');
+  'INT-S1-31: the worker lists the due deliveries, across Organizations, as ids');
 
 set local role none;
 

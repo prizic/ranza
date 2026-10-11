@@ -442,6 +442,12 @@ grant select (id, organization_id, endpoint_id, property_id, event_id, event_typ
 -- Changing where an Organization sends its data: all four of blueprint 3.5's
 -- gates, with reach to the WHOLE Organization because an endpoint receives the
 -- events of every Property (the ledger's reasoning, 20260916010600).
+--
+-- The membership conjunct is implied: has_organization_wide_reach() and
+-- has_organization_permission() each need an active membership, so deleting it
+-- fails no test. It stays because the other two are helpers that may one day be
+-- reshaped, and a membership check that is only implied is one change from
+-- missing. The other three each fail a test of their own when removed.
 create function app.webhook_endpoints_are_managed_by_caller(target_organization_id uuid)
 returns boolean
 language sql
@@ -457,6 +463,11 @@ $$;
 
 -- Acting on one failure: the permission, and the commercial gates and reach of
 -- the Property it belongs to.
+--
+-- Two conjuncts are implied by can_use_capability(), which includes the
+-- caller's reach to the Property and so their membership: deleting either
+-- fails no test, and the reach to a failure's Property is asserted through the
+-- capability clause. They stay for the reason above.
 create function app.failed_operation_is_managed_by_caller(
   target_organization_id uuid,
   target_property_id uuid

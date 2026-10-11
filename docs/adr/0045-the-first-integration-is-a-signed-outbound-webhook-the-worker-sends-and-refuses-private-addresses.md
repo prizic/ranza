@@ -187,7 +187,12 @@ endpoints.
 handler and the real delivery pass against a receiver started in the test.
 `tests/database/integrations.test.sql` asserts each gate denying on its own, that
 the worker functions answer only the worker and that no application role reads
-a secret; each was watched go red by removing the clause it covers.
+a secret. Each was watched go red by removing the clause it covers, with three
+exceptions that are findings and not oversights: the membership conjunct of the
+endpoint gate, and the membership and Property-reach conjuncts of the failure
+gate, are implied by the clauses beside them (`has_organization_wide_reach`,
+`has_organization_permission` and `can_use_capability` each need what they
+restate), so removing one fails nothing. They stay, and the migration says why.
 
 ## Owner to confirm
 
