@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import type { BrandSettings } from "@ranza/branding";
 import {
   AUDIT_READ_PERMISSION,
   CONFIGURATION_CAPABILITY,
@@ -1351,4 +1352,23 @@ export async function hrViewData(
     payroll,
     canManage,
   };
+}
+
+export type { BrandSettings };
+
+/**
+ * The brand the Branding screen edits for one Organization, and whether the
+ * viewer may change it (ADR 0046). The default brand with `canManage` false is
+ * what a viewer the policies give nothing to is shown, which is also what an
+ * Organization that never opened the screen has; the page tells the two apart
+ * by `canManage`.
+ *
+ * Not `cache`d: saving changes this, and the request that saved re-reads it.
+ */
+export async function organizationBrand(
+  organizationId: string,
+): Promise<BrandSettings | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().branding.brandSettings(viewer.userId, organizationId);
 }

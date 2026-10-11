@@ -74,6 +74,9 @@ importers:
       '@ranza/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@ranza/branding':
+        specifier: workspace:*
+        version: link:../../packages/ranza/branding
       '@ranza/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -120,6 +123,9 @@ importers:
       '@ranza/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@ranza/branding':
+        specifier: workspace:*
+        version: link:../../packages/ranza/branding
       '@ranza/business-day':
         specifier: workspace:*
         version: link:../../packages/ranza/business-day
@@ -310,6 +316,15 @@ importers:
       '@ranza/core':
         specifier: workspace:*
         version: link:../core
+      '@ranza/db':
+        specifier: workspace:*
+        version: link:../../db
+      '@ranza/platform-audit':
+        specifier: workspace:*
+        version: link:../../platform/audit
+
+  packages/ranza/branding:
+    dependencies:
       '@ranza/db':
         specifier: workspace:*
         version: link:../../db

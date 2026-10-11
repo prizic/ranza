@@ -527,8 +527,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  73,
-  'the definer sweep looked at 73 functions; change this number deliberately');
+  74,
+  'the definer sweep looked at 74 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -613,6 +613,12 @@ select is(
 -- change_expected_arrival() is the only way a booking's expected time changes
 -- after it is taken, checked like amend_reservation() with the gates and
 -- front_desk.amend before it reads anything.
+-- A brand (20260916011100) brought one, and it writes nothing:
+-- resident_organization_ids() is the Resident's counterpart of
+-- accessible_organization_ids() (ADR 0009, ADR 0046): the Organizations the
+-- acting user has a current Stay with. A definer, as resident_stay_property_ids()
+-- is, so that each policy asking owns the answer and does not lean on the Stays
+-- read policy beneath it.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -651,8 +657,9 @@ select set_eq(
         'fail_data_export', 'expire_data_export', 'run_export_schedule',
         'read_data_export_file',
         'post_folio_line_to_ledger', 'change_expected_arrival',
-        'hr_employee_is_reachable', 'hr_employee_is_manageable', 'hr_today'],
-  'and they are exactly the seventy-three the design gives a reason for');
+        'hr_employee_is_reachable', 'hr_employee_is_manageable', 'hr_today',
+        'resident_organization_ids'],
+  'and they are exactly the seventy-four the design gives a reason for');
 
 -- ---------------------------------------------------------------------------
 -- Who asks the three-gate question (IG-14)

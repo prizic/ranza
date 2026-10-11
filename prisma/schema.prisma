@@ -41,6 +41,8 @@ model User {
   exportSchedules         ExportSchedule[]
   hrEmployees             HrEmployee[]
   payrollRunsApproved     HrPayrollRun[]
+  brandsSet               OrganizationBrand[]
+  brandLogosSet           OrganizationBrandLogo[]
 
   @@map("users")
 }
@@ -87,6 +89,7 @@ model Organization {
   hrLeaveRequests      HrLeaveRequest[]
   hrPayrollRuns        HrPayrollRun[]
   hrPayslips           HrPayslip[]
+  brand                OrganizationBrand?
 
   @@map("organizations")
 }
@@ -1349,4 +1352,42 @@ model HrPayslip {
   @@unique([payrollRunId, employeeId], map: "hr_payslips_run_employee_key")
   @@index([organizationId], map: "hr_payslips_org_idx")
   @@map("hr_payslips")
+}
+
+/// An Organization's white-label presentation: one colour (blueprint 8,
+/// ADR 0046). The logo's bytes are in `OrganizationBrandLogo`, so reading the
+/// colour never reads them. A row with no colour and no logo is the default
+/// theme; nothing is deleted, a reset empties it.
+model OrganizationBrand {
+  organizationId String   @id @map("organization_id") @db.Uuid
+  /// Lower-case `#rrggbb`. The foreground is derived when it is read.
+  primaryColor   String?  @map("primary_color")
+  updatedBy      String   @map("updated_by") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  updater      User                   @relation(fields: [updatedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  logo         OrganizationBrandLogo?
+
+  @@map("organization_brands")
+}
+
+/// The bytes of a logo and what is known of them. Absent facts mean no logo.
+model OrganizationBrandLogo {
+  organizationId String   @id @map("organization_id") @db.Uuid
+  content        Bytes?
+  contentType    String?  @map("content_type")
+  /// Hex SHA-256 of `content`; versions the URL the Portal serves it at.
+  contentHash    String?  @map("content_hash")
+  sizeBytes      Int?     @map("size_bytes")
+  width          Int?
+  height         Int?
+  updatedBy      String   @map("updated_by") @db.Uuid
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  brand   OrganizationBrand @relation(fields: [organizationId], references: [organizationId], onDelete: Cascade, onUpdate: NoAction)
+  updater User              @relation(fields: [updatedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@map("organization_brand_logos")
 }

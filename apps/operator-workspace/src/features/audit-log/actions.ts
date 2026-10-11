@@ -73,6 +73,8 @@ export const KNOWN_ACTIONS = [
   "leave.approved",
   "leave.declined",
   "payroll_run.approved",
+  "branding.changed",
+  "branding.reset",
 ] as const;
 
 export type KnownAction = (typeof KNOWN_ACTIONS)[number];
@@ -93,6 +95,7 @@ export const KNOWN_SUBJECTS = [
   "employee",
   "leave_request",
   "payroll_run",
+  "organization_brand",
 ] as const;
 
 export type KnownSubject = (typeof KNOWN_SUBJECTS)[number];

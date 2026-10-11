@@ -340,7 +340,8 @@ export interface Messages {
       | "viewHr"
       | "manageHr"
       | "viewIntegrations"
-      | "manageIntegrations",
+      | "manageIntegrations"
+      | "manageBranding",
       string
     >;
     emptyRosterTitle: string;
@@ -661,6 +662,65 @@ export interface Messages {
       Messaging: string;
       Other: string;
     };
+  };
+
+  /**
+   * The Branding screen (blueprint 8, ADR 0046): the colour and the logo the
+   * Guest/Resident Portal is drawn in. `{ratio}` is a contrast ratio already
+   * rounded to one decimal.
+   */
+  branding: {
+    /** `{organization}`. */
+    subtitle: string;
+    colorTitle: string;
+    colorHint: string;
+    colorLabel: string;
+    colorPicker: string;
+    colorEmpty: string;
+    /** What a record names a colour or a logo that was not set. */
+    defaultTheme: string;
+    colorInvalid: string;
+    colorUnreadable: string;
+    /** `{foreground}`: the word below for the text on the colour. */
+    colorReadable: string;
+    foreground: Record<"white" | "black", string>;
+    logoTitle: string;
+    logoHint: string;
+    logoLabel: string;
+    logoCurrent: string;
+    logoNone: string;
+    logoRemove: string;
+    logoKeep: string;
+    logoWillBeRemoved: string;
+    logoErrors: Record<
+      | "empty"
+      | "too_large"
+      | "svg"
+      | "unsupported_type"
+      | "corrupt"
+      | "too_small"
+      | "dimensions_too_large",
+      string
+    >;
+    previewTitle: string;
+    previewHint: string;
+    previewHeader: string;
+    previewButton: string;
+    previewLink: string;
+    previewActive: string;
+    save: string;
+    discard: string;
+    saving: string;
+    saved: string;
+    reset: string;
+    resetDone: string;
+    refused: string;
+    error: string;
+    needsReachTitle: string;
+    needsReach: string;
+    failedTitle: string;
+    failedDescription: string;
+    retry: string;
   };
 
   /** The Data Export screen (Blueprint 7.5, Phase 1 data lifecycle). */
@@ -1919,6 +1979,7 @@ export interface Messages {
     employee: Record<"registered" | "terminated", string>;
     leave: Record<"approved" | "declined", string>;
     payroll_run: Record<"approved", string>;
+    branding: Record<"changed" | "reset", string>;
   };
   auditSubject: Record<
     | "reservation"
@@ -1935,7 +1996,8 @@ export interface Messages {
     | "data_export"
     | "employee"
     | "leave_request"
-    | "payroll_run",
+    | "payroll_run"
+    | "organization_brand",
     string
   >;
 
@@ -2401,6 +2463,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         manageHr: "Personel kayıtlarını ve bordroyu yönetme",
         viewIntegrations: "Entegrasyonları görme",
         manageIntegrations: "Entegrasyonları yönetme",
+        manageBranding: "Organizasyonun markasını (renk ve logo) yönetme",
       },
       emptyRosterTitle: "Henüz kimse yok",
       emptyRosterDescription:
@@ -3071,6 +3134,65 @@ export const messages: Record<SupportedLocale, Messages> = {
         Messaging: "Mesajlaşma",
         Other: "Diğer",
       },
+    },
+    branding: {
+      subtitle: "{organization} misafirlerine nasıl görünüyor",
+      colorTitle: "Marka rengi",
+      colorHint:
+        "Misafir portalındaki birincil düğmeler, bağlantılar, etkin menü öğesi ve üst çubuk bu renkle çizilir. Başarı, uyarı ve hata renkleri değişmez.",
+      colorLabel: "Renk (#rrggbb)",
+      colorPicker: "Rengi seç",
+      colorEmpty: "Renk seçilmedi: Ranza'nın kendi teması kullanılır.",
+      defaultTheme: "Varsayılan tema",
+      colorInvalid: "Rengi #0f5132 gibi, # ile ve altı hanede yazın.",
+      colorUnreadable:
+        "Bu renk beyaz zemin üzerinde yazı olarak okunamayacak kadar açık (karşıtlık {ratio} : 1; en az 4,5 : 1 gerekir). Daha koyu bir renk seçin.",
+      colorReadable:
+        "Okunabilir: üzerindeki yazı {foreground}, beyaz zemine karşıtlığı {ratio} : 1.",
+      foreground: { white: "beyaz", black: "siyah" },
+      logoTitle: "Logo",
+      logoHint:
+        "PNG, JPEG veya WebP; en fazla 512 KB, en az 128 piksel yüksekliğinde. SVG kabul edilmez, çünkü kod taşıyabilir.",
+      logoLabel: "Logo dosyası",
+      logoCurrent: "Geçerli logo",
+      logoNone: "Logo yok: Ranza'nın işareti gösterilir.",
+      logoRemove: "Logoyu kaldır",
+      logoKeep: "Logoyu koru",
+      logoWillBeRemoved: "Kaydettiğinizde logo kaldırılacak.",
+      logoErrors: {
+        empty: "Dosya boş.",
+        too_large: "Dosya 512 KB'tan büyük.",
+        svg: "SVG kabul edilmez, çünkü kod taşıyabilir. PNG, JPEG veya WebP kullanın.",
+        unsupported_type:
+          "Bu bir PNG, JPEG veya WebP görseli değil. Dosya adı değil, içeriği denetlenir.",
+        corrupt: "Görsel okunamadı. Dosya bozuk olabilir.",
+        too_small: "Görsel en az 128 piksel yüksekliğinde olmalı.",
+        dimensions_too_large:
+          "Görselin genişliği ve yüksekliği 4096 pikseli geçemez.",
+      },
+      previewTitle: "Önizleme",
+      previewHint:
+        "Misafir portalının üst çubuğu ve denetimleri böyle görünür.",
+      previewHeader: "Portal üst çubuğu",
+      previewButton: "Birincil düğme",
+      previewLink: "Bir bağlantı",
+      previewActive: "Etkin öğe",
+      save: "Kaydet",
+      discard: "Vazgeç",
+      saving: "Kaydediliyor…",
+      saved: "Kaydedildi. Misafirler sayfayı bir sonraki açışlarında görür.",
+      reset: "Varsayılana döndür",
+      resetDone: "Varsayılan tema geri geldi.",
+      refused:
+        "Bu değişiklik yapılamadı. Yetkiniz değişmiş olabilir; sayfayı yenileyin.",
+      error: "Bir şeyler ters gitti. Yeniden deneyin.",
+      needsReachTitle: "Markayı yalnızca tüm tesislere erişen biri değiştirir",
+      needsReach:
+        "Marka bütün Organizasyonun markasıdır. Değiştirmek, yetkiye ek olarak tüm tesislere erişimi gerektirir.",
+      failedTitle: "Marka ekranı açılamadı",
+      failedDescription:
+        "Marka okunamadı. Yeniden deneyin; sürerse destek ekibine bildirin.",
+      retry: "Yeniden dene",
     },
     dataExport: {
       heading: "Veri Dışa Aktarma",
@@ -4087,6 +4209,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       payroll_run: {
         approved: "Bordro onaylandı",
       },
+      branding: {
+        changed: "Marka değiştirildi",
+        reset: "Marka varsayılana döndürüldü",
+      },
     },
     auditSubject: {
       reservation: "Rezervasyon",
@@ -4104,6 +4230,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       employee: "Personel",
       leave_request: "İzin talebi",
       payroll_run: "Bordro",
+      organization_brand: "Organizasyon markası",
     },
     closeDay: {
       at: "Günün kapatıldığı tesis:",
@@ -4239,6 +4366,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       portfolio: "Tüm Tesisler",
       configuration: "Ayarlar",
       integrations: "Entegrasyonlar",
+      branding: "Marka",
       "data-export": "Veri dışa aktarma",
       "audit-log": "Denetim kaydı",
     },
@@ -4596,6 +4724,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         manageHr: "Manage staff records and payroll",
         viewIntegrations: "See integrations",
         manageIntegrations: "Manage integrations",
+        manageBranding: "Manage the Organization's brand (colour and logo)",
       },
       emptyRosterTitle: "Nobody here yet",
       emptyRosterDescription: "This Organization has no Staff Member to show.",
@@ -5275,6 +5404,65 @@ export const messages: Record<SupportedLocale, Messages> = {
         Messaging: "Messaging",
         Other: "Other",
       },
+    },
+    branding: {
+      subtitle: "How {organization} looks to its guests",
+      colorTitle: "Brand colour",
+      colorHint:
+        "Primary buttons, links, the active menu item and the header accent in the Guest Portal are drawn in this colour. Success, warning and error colours do not change.",
+      colorLabel: "Colour (#rrggbb)",
+      colorPicker: "Pick the colour",
+      colorEmpty: "No colour set: Ranza's own theme is used.",
+      defaultTheme: "Default theme",
+      colorInvalid: "Write the colour like #0f5132, with the # and six digits.",
+      colorUnreadable:
+        "This colour is too light to read as text on white (contrast {ratio} : 1; at least 4.5 : 1 is needed). Choose a darker one.",
+      colorReadable:
+        "Readable: {foreground} text on it, and {ratio} : 1 against a white page.",
+      foreground: { white: "white", black: "black" },
+      logoTitle: "Logo",
+      logoHint:
+        "PNG, JPEG or WebP, up to 512 KB and at least 128 px tall. SVG is not accepted because it can carry code.",
+      logoLabel: "Logo file",
+      logoCurrent: "Current logo",
+      logoNone: "No logo: Ranza's mark is shown.",
+      logoRemove: "Remove the logo",
+      logoKeep: "Keep the logo",
+      logoWillBeRemoved: "The logo will be removed when you save.",
+      logoErrors: {
+        empty: "The file is empty.",
+        too_large: "The file is larger than 512 KB.",
+        svg: "SVG is not accepted because it can carry code. Use PNG, JPEG or WebP.",
+        unsupported_type:
+          "That is not a PNG, JPEG or WebP image. The contents are checked, not the file name.",
+        corrupt: "The image could not be read. The file may be damaged.",
+        too_small: "The image must be at least 128 px tall.",
+        dimensions_too_large:
+          "The image cannot be wider or taller than 4096 px.",
+      },
+      previewTitle: "Preview",
+      previewHint: "How the Guest Portal's header and controls look.",
+      previewHeader: "Portal header",
+      previewButton: "Primary button",
+      previewLink: "A link",
+      previewActive: "Active item",
+      save: "Save",
+      discard: "Discard",
+      saving: "Saving…",
+      saved: "Saved. Guests see it the next time they open a page.",
+      reset: "Reset to default",
+      resetDone: "Back to the default theme.",
+      refused:
+        "That change could not be made. Your access may have changed; refresh the page.",
+      error: "Something went wrong. Try again.",
+      needsReachTitle:
+        "Only someone who reaches every Property changes the brand",
+      needsReach:
+        "The brand is the whole Organization's. Changing it takes the permission and access to every Property.",
+      failedTitle: "The Branding screen could not open",
+      failedDescription:
+        "The brand could not be read. Try again; if it keeps happening, tell support.",
+      retry: "Try again",
     },
     dataExport: {
       heading: "Data Export",
@@ -6285,6 +6473,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       payroll_run: {
         approved: "Payroll approved",
       },
+      branding: {
+        changed: "Brand changed",
+        reset: "Brand reset to the default",
+      },
     },
     auditSubject: {
       reservation: "Reservation",
@@ -6302,6 +6494,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       employee: "Employee",
       leave_request: "Leave request",
       payroll_run: "Payroll run",
+      organization_brand: "Organization brand",
     },
     closeDay: {
       at: "Closing the day at",
@@ -6436,6 +6629,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       portfolio: "All Properties",
       configuration: "Configuration",
       integrations: "Integrations",
+      branding: "Branding",
       "data-export": "Data export",
       "audit-log": "Audit log",
     },
@@ -6784,6 +6978,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         manageHr: "إدارة سجلات الموظفين وكشوف الرواتب",
         viewIntegrations: "عرض عمليات التكامل",
         manageIntegrations: "إدارة عمليات التكامل",
+        manageBranding: "إدارة هوية المؤسسة البصرية (اللون والشعار)",
       },
       emptyRosterTitle: "لا أحد هنا بعد",
       emptyRosterDescription: "لا يوجد في هذه المؤسسة موظف لعرضه.",
@@ -7449,6 +7644,63 @@ export const messages: Record<SupportedLocale, Messages> = {
         Messaging: "المراسلة",
         Other: "أخرى",
       },
+    },
+    branding: {
+      subtitle: "كيف تظهر {organization} لضيوفها",
+      colorTitle: "لون العلامة",
+      colorHint:
+        "تُرسم بهذا اللون الأزرار الرئيسية والروابط والعنصر النشط في القائمة ولمسة الشريط العلوي في بوابة الضيوف. ألوان النجاح والتحذير والخطأ لا تتغيّر.",
+      colorLabel: "اللون (#rrggbb)",
+      colorPicker: "اختر اللون",
+      colorEmpty: "لم يُحدَّد لون: يُستخدم سمة Ranza الخاصة.",
+      defaultTheme: "السمة الافتراضية",
+      colorInvalid: "اكتب اللون بالشكل #0f5132، مع # وستة أرقام.",
+      colorUnreadable:
+        "هذا اللون فاتح جدًا فلا يُقرأ كنص على خلفية بيضاء (التباين {ratio} : 1؛ المطلوب 4.5 : 1 على الأقل). اختر لونًا أغمق.",
+      colorReadable:
+        "مقروء: النص فوقه {foreground}، وتباينه مع الصفحة البيضاء {ratio} : 1.",
+      foreground: { white: "أبيض", black: "أسود" },
+      logoTitle: "الشعار",
+      logoHint:
+        "PNG أو JPEG أو WebP، بحجم أقصاه 512 كيلوبايت وارتفاع لا يقل عن 128 بكسل. لا يُقبل SVG لأنه قد يحمل شيفرة.",
+      logoLabel: "ملف الشعار",
+      logoCurrent: "الشعار الحالي",
+      logoNone: "لا شعار: تظهر علامة Ranza.",
+      logoRemove: "إزالة الشعار",
+      logoKeep: "الإبقاء على الشعار",
+      logoWillBeRemoved: "سيُزال الشعار عند الحفظ.",
+      logoErrors: {
+        empty: "الملف فارغ.",
+        too_large: "الملف أكبر من 512 كيلوبايت.",
+        svg: "لا يُقبل SVG لأنه قد يحمل شيفرة. استخدم PNG أو JPEG أو WebP.",
+        unsupported_type:
+          "هذه ليست صورة PNG أو JPEG أو WebP. يُفحص المحتوى لا اسم الملف.",
+        corrupt: "تعذّرت قراءة الصورة. قد يكون الملف تالفًا.",
+        too_small: "يجب ألا يقل ارتفاع الصورة عن 128 بكسل.",
+        dimensions_too_large:
+          "لا يجوز أن يتجاوز عرض الصورة أو ارتفاعها 4096 بكسل.",
+      },
+      previewTitle: "معاينة",
+      previewHint: "هكذا يظهر الشريط العلوي وعناصر التحكم في بوابة الضيوف.",
+      previewHeader: "الشريط العلوي للبوابة",
+      previewButton: "زر رئيسي",
+      previewLink: "رابط",
+      previewActive: "عنصر نشط",
+      save: "حفظ",
+      discard: "تجاهل",
+      saving: "جارٍ الحفظ…",
+      saved: "تم الحفظ. يراه الضيوف عند فتحهم الصفحة في المرة القادمة.",
+      reset: "إعادة إلى الافتراضي",
+      resetDone: "عادت السمة الافتراضية.",
+      refused: "تعذّر إجراء هذا التغيير. ربما تغيّرت صلاحياتك؛ حدّث الصفحة.",
+      error: "حدث خطأ ما. حاول مرة أخرى.",
+      needsReachTitle: "لا يغيّر الهوية البصرية إلا من يصل إلى جميع المنشآت",
+      needsReach:
+        "الهوية البصرية للمؤسسة كلها. تغييرها يتطلب الصلاحية مع الوصول إلى جميع المنشآت.",
+      failedTitle: "تعذّر فتح شاشة الهوية البصرية",
+      failedDescription:
+        "تعذّرت قراءة الهوية البصرية. حاول مرة أخرى؛ وإن استمر ذلك فأبلغ الدعم.",
+      retry: "حاول مرة أخرى",
     },
     dataExport: {
       heading: "تصدير البيانات",
@@ -8453,6 +8705,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       payroll_run: {
         approved: "اعتُمدت الرواتب",
       },
+      branding: {
+        changed: "تغيّرت الهوية البصرية",
+        reset: "أُعيدت الهوية البصرية إلى الافتراضي",
+      },
     },
     auditSubject: {
       reservation: "حجز",
@@ -8470,6 +8726,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       employee: "موظف",
       leave_request: "طلب إجازة",
       payroll_run: "كشف رواتب",
+      organization_brand: "الهوية البصرية للمؤسسة",
     },
     closeDay: {
       at: "إغلاق اليوم في",
@@ -8608,6 +8865,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       portfolio: "كل المنشآت",
       configuration: "الإعدادات",
       integrations: "التكاملات",
+      branding: "الهوية البصرية",
       "data-export": "تصدير البيانات",
       "audit-log": "سجل التدقيق",
     },

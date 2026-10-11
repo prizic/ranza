@@ -5,8 +5,15 @@ import {
   type SupportedLocale,
 } from "@ranza/i18n";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { EmptyState, Fact, FactList, PageHeader } from "@ranza/ui";
-import { ownStays } from "../../../../server/viewer";
+import {
+  defaultBrandVariables,
+  EmptyState,
+  Fact,
+  FactList,
+  PageHeader,
+} from "@ranza/ui";
+import { brandStyle } from "../../../../lib/brand-style";
+import { ownStays, stayBrands } from "../../../../server/viewer";
 
 /**
  * The viewer's own Stay: where, which Unit, and for how long.
@@ -49,7 +56,7 @@ export default async function StayPage({
   setRequestLocale(locale);
 
   const t = await getTranslations();
-  const stays = await ownStays();
+  const [stays, brands] = await Promise.all([ownStays(), stayBrands()]);
 
   if (stays.length === 0) {
     return (
@@ -63,7 +70,15 @@ export default async function StayPage({
   return (
     <>
       {stays.map((stay) => (
-        <section key={stay.stayId}>
+        // Each Stay is drawn in its own Organization's brand, so a second
+        // Stay is not coloured by the first's (ADR 0046).
+        <section
+          key={stay.stayId}
+          style={
+            brandStyle(brands.find((entry) => entry.stayId === stay.stayId)) ??
+            defaultBrandVariables
+          }
+        >
           <PageHeader
             aside={
               // The Unit takes the place the Workspace gives the clock: on a

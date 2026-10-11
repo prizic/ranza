@@ -54,6 +54,7 @@ export const PERMISSION_CATALOGUE = [
   "hr.manage",
   "integrations.view",
   "integrations.manage",
+  "branding.manage",
 ] as const;
 
 export type ShippedRole = (typeof SHIPPED_ROLES)[number];
@@ -121,6 +122,7 @@ const MESSAGE_KEYS = {
   "hr.manage": "manageHr",
   "integrations.view": "viewIntegrations",
   "integrations.manage": "manageIntegrations",
+  "branding.manage": "manageBranding",
 } as const satisfies Record<PermissionKey, string>;
 
 export type PermissionMessageKey =

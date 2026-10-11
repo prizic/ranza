@@ -132,6 +132,31 @@ const isSetting = (value: unknown): value is Setting =>
   (SETTINGS as readonly unknown[]).includes(value);
 
 /**
+ * A brand change or reset names what changed and carries each as `{ from, to }`
+ * (ADR 0046): a colour as `#rrggbb` or null, a logo as its hash and size or
+ * null — never the bytes. It reads as one row per part.
+ */
+const BRANDED = new Set(["branding.changed", "branding.reset"]);
+const BRAND_PARTS = ["color", "logo"] as const;
+type BrandPart = (typeof BRAND_PARTS)[number];
+const isBrandPart = (value: unknown): value is BrandPart =>
+  (BRAND_PARTS as readonly unknown[]).includes(value);
+
+interface LogoFact {
+  hash: string;
+  sizeBytes: number;
+}
+
+function logoFactOf(value: unknown): LogoFact | null | undefined {
+  if (value === null) return null;
+  if (typeof value !== "object") return undefined;
+  const { hash, sizeBytes } = value as Partial<LogoFact>;
+  return typeof hash === "string" && typeof sizeBytes === "number"
+    ? { hash, sizeBytes }
+    : undefined;
+}
+
+/**
  * A price list save carries `changes`: each kind of Unit with its price before
  * and after, either side null when there was none (ADR 0038). It reads as one
  * row per kind, "₺1.500,00 → ₺1.750,00", rather than as the objects.
@@ -275,6 +300,22 @@ export function ContextFacts({
     CONFIGURED.has(action) && Array.isArray(context.changed)
       ? context.changed.filter(isSetting)
       : null;
+  const branded =
+    BRANDED.has(action) && Array.isArray(context.changed)
+      ? context.changed.filter(isBrandPart)
+      : null;
+  const brandValue = (part: BrandPart, value: unknown): string => {
+    if (value === null) return t("branding.defaultTheme");
+    if (part === "color") return scalar(value);
+    const logo = logoFactOf(value);
+    if (!logo) return scalar(value);
+    const size = new Intl.NumberFormat(locale, {
+      maximumFractionDigits: 1,
+      style: "unit",
+      unit: "kilobyte",
+    }).format(logo.sizeBytes / 1024);
+    return `${logo.hash.slice(0, 12)} · ${size}`;
+  };
   const priced =
     action === "price_list.changed" ? priceChangesOf(context.changes) : null;
   const price = (value: Price | null) =>
@@ -310,6 +351,31 @@ export function ContextFacts({
               </TableCell>
             </TableRow>
           ))
+        ) : branded ? (
+          branded.map((part) => {
+            const change = context[part];
+            const { from, to } =
+              typeof change === "object" && change !== null
+                ? (change as { from?: unknown; to?: unknown })
+                : { from: undefined, to: undefined };
+            return (
+              <TableRow key={part}>
+                <TableCell className="text-muted-foreground">
+                  {t(`branding.${part}Title`)}
+                </TableCell>
+                <TableCell className="break-words">
+                  <span className="inline-flex flex-wrap items-center gap-2">
+                    <bdi>{brandValue(part, from ?? null)}</bdi>
+                    <ArrowRight
+                      aria-label={t("auditChangedTo")}
+                      className="size-3.5 text-muted-foreground rtl:-scale-x-100"
+                    />
+                    <bdi>{brandValue(part, to ?? null)}</bdi>
+                  </span>
+                </TableCell>
+              </TableRow>
+            );
+          })
         ) : changed ? (
           changed.map((setting) => {
             const change = changeOf(context[setting]);

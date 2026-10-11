@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ranza/auth": "workspace:*",
+    "@ranza/branding": "workspace:*",
     "@ranza/db": "workspace:*",
     "@ranza/i18n": "workspace:*",
     "@ranza/stays": "workspace:*",

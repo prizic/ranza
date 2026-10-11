@@ -1,6 +1,7 @@
 import "server-only";
 import { createAccommodationModule } from "@ranza/accommodation";
 import { createAuthModule } from "@ranza/auth";
+import { createBrandingModule } from "@ranza/branding";
 import { createBusinessDayModule } from "@ranza/business-day";
 import { createCoreModule } from "@ranza/core";
 import { createDataExportModule } from "@ranza/data-export";
@@ -119,6 +120,7 @@ function compose() {
     guestServices: createGuestServicesModule({ db: tenantDb }),
     integrations: createIntegrationsModule({ db: tenantDb }),
     hr: createHrModule({ db: tenantDb }),
+    branding: createBrandingModule({ db: tenantDb }),
     dataExport: createDataExportModule({ db: tenantDb }),
     db: tenantDb,
   };

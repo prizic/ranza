@@ -37,6 +37,7 @@ export { DataTableRowActions } from "./components/data-table/row-actions";
 export type { RowAction } from "./components/data-table/row-actions";
 export { DataTableViewOptions } from "./components/data-table/view-options";
 export { markOverlayClosed, overlayJustClosed } from "./lib/menu-guard";
+export { brandVariables, defaultBrandVariables } from "./lib/brand-variables";
 export { fieldMatches, toAsciiDigits } from "./lib/search";
 export { Combobox, MultiCombobox } from "./components/combobox";
 export type {

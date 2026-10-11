@@ -36,6 +36,7 @@ export interface PageCrumb {
 export function AppPageBar({
   action,
   back,
+  brand,
   breadcrumbLabel,
   crumbs = [],
   display = true,
@@ -46,6 +47,8 @@ export function AppPageBar({
   action?: ReactNode;
   /** The way up from an inner page, at the leading edge. Absent on the root. */
   back?: ReactNode;
+  /** An Organization's logo, after the way up and before the title. */
+  brand?: ReactNode;
   /** Names the trail's landmark. Localized; required once there are crumbs. */
   breadcrumbLabel?: string | undefined;
   /** The levels above this page, outermost first. Folded away on a phone,
@@ -79,6 +82,7 @@ export function AppPageBar({
       >
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
           {back}
+          {brand}
           {crumbs.length > 0 ? (
             <nav aria-label={breadcrumbLabel} className="min-w-0 flex-1">
               <ol className="flex min-w-0 items-center gap-2">

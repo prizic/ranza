@@ -15,6 +15,7 @@ const config: NextConfig = {
   // business asking which Properties a Staff Member may reach (blueprint 4.3).
   transpilePackages: [
     "@ranza/auth",
+    "@ranza/branding",
     "@ranza/i18n",
     "@ranza/stays",
     "@ranza/ui",

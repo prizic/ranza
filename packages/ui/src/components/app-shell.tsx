@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 /**
  * The frame, as the Leaders portal lays it out: a sidebar down the start edge,
@@ -17,6 +17,7 @@ export function AppShell({
   pageBar,
   rail,
   skipLabel,
+  style,
 }: {
   bottomNav?: ReactNode;
   children: ReactNode;
@@ -24,9 +25,11 @@ export function AppShell({
   rail?: ReactNode;
   /** Localized: this is the first thing a keyboard user hears. */
   skipLabel: string;
+  /** Theme tokens for everything inside the frame: an Organization's brand. */
+  style?: CSSProperties | undefined;
 }) {
   return (
-    <div className="flex min-h-svh bg-background">
+    <div className="flex min-h-svh bg-background" style={style}>
       <a
         className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-3 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
         href="#main-content"

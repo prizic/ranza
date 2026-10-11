@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import type { StayBrand } from "@ranza/branding";
 import type { OwnStay } from "@ranza/stays";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import { getComposition } from "./composition";
@@ -22,9 +23,10 @@ import { getComposition } from "./composition";
  * outside src/server/ may import @ranza/db or a Ranza domain module, which
  * .dependency-cruiser.cjs enforces and tests/boundaries proves.
  *
- * There is exactly one read below, and it is Stay-scoped. That is not a
- * convention to be extended casually: a Portal read that is not bounded by the
- * viewer's own Stay does not belong in this application at all.
+ * Every tenant read below is Stay-scoped: the Stays, and the brand of the
+ * Organization each is with. That is not a convention to be extended casually:
+ * a Portal read that is not bounded by the viewer's own Stay does not belong in
+ * this application at all.
  */
 
 export interface Viewer {
@@ -79,4 +81,20 @@ export const ownStays = cache(async (): Promise<readonly OwnStay[]> => {
   const viewer = await currentViewer();
   if (!viewer) return [];
   return getComposition().stays.listOwnStays(viewer.userId);
+});
+
+/**
+ * How each of the viewer's own current Stays is branded (ADR 0046), by Stay: a
+ * Resident reaches an Organization only through a Stay and is not told its
+ * identity (ADR 0009). An Organization that set nothing, or reset it, has a
+ * Stay with no colour and no logo, which is the default theme.
+ *
+ * A failure is not swallowed into the default: a Portal that quietly drops an
+ * Organization's colour when the database is down is a Portal nobody is told is
+ * broken, so the error reaches the page.
+ */
+export const stayBrands = cache(async (): Promise<readonly StayBrand[]> => {
+  const viewer = await currentViewer();
+  if (!viewer) return [];
+  return getComposition().branding.stayBrands(viewer.userId);
 });
