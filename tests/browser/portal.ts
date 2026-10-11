@@ -47,7 +47,19 @@ export async function aResident(
     signedUp.ok(),
     `could not sign up ${email}: ${signedUp.status()}`,
   ).toBe(true);
-  await request.get(`${PORTAL_URL}/en/stay`);
+  // Asked until it has happened: the first request to a cold server can be
+  // answered before the session it carries has been written.
+  await expect
+    .poll(
+      async () => {
+        await request.get(`${PORTAL_URL}/en/stay`);
+        return psql(
+          `select count(*) from public.users where lower(email) = lower('${email}')`,
+        );
+      },
+      { timeout: 60_000 },
+    )
+    .toBe("1");
 
   const propertyId = testProperty();
   // The Portal shows a Stay only where the Organization is entitled to Front

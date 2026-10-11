@@ -259,12 +259,13 @@ test("BR-S1-33: the Branding screen reads right to left in Arabic with the colou
 
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(page.locator("h1")).toHaveText("الهوية البصرية");
-  const field = page.getByLabel("اللون (#rrggbb)");
+  const field = page.getByLabel(/^اللون/);
   await expect(field).toHaveAttribute("dir", "ltr");
   await expect(field).toHaveValue(BURGUNDY);
   await expect(page.getByText("لون العلامة")).toBeVisible();
 
   await page.screenshot({
+    fullPage: true,
     path: path.join(EVIDENCE, "branding-screen-arabic.png"),
   });
 });

@@ -7650,7 +7650,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       colorTitle: "لون العلامة",
       colorHint:
         "تُرسم بهذا اللون الأزرار الرئيسية والروابط والعنصر النشط في القائمة ولمسة الشريط العلوي في بوابة الضيوف. ألوان النجاح والتحذير والخطأ لا تتغيّر.",
-      colorLabel: "اللون (#rrggbb)",
+      colorLabel: "اللون (⁦#rrggbb⁩)",
       colorPicker: "اختر اللون",
       colorEmpty: "لم يُحدَّد لون: يُستخدم سمة Ranza الخاصة.",
       defaultTheme: "السمة الافتراضية",
