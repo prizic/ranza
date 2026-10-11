@@ -39,6 +39,11 @@
 --   claim not requiring pending                      the suite aborts on the trigger
 --   a refused schedule left running                  EXP-S1-33
 --   audit reach widened to every location            EXP-S1-26
+--
+-- The two counts of outbox events (EXP-S1-29, EXP-S1-30) are of this suite's own
+-- exports, the ids beginning ece00000-, and not of the table: the browser tests
+-- run the real worker, which publishes the same events for the exports it makes,
+-- and a count of the whole table failed on a database they had been run against.
 begin;
 select plan(112);
 
@@ -770,7 +775,8 @@ select results_eq(
 
 select results_eq(
   $$select event_type, payload->>'exportId', payload->'recordCounts'->>'residents_guests'
-      from outbox.events where event_type = 'data_export.completed'$$,
+      from outbox.events where event_type = 'data_export.completed'
+       and payload->>'exportId' like 'ece00000-%'$$,
   $$values ('data_export.completed', 'ece00000-0000-4000-8000-000000000001', '1')$$,
   'EXP-S1-29: finishing publishes data_export.completed, with ids and counts and no row');
 
@@ -807,7 +813,8 @@ select results_eq(
   'EXP-S1-30: a reason outside the fixed set is recorded as internal_error, and the detail stays in the log');
 
 select results_eq(
-  $$select count(*)::int from outbox.events where event_type = 'data_export.failed'$$,
+  $$select count(*)::int from outbox.events where event_type = 'data_export.failed'
+       and payload->>'exportId' like 'ece00000-%'$$,
   $$values (2)$$,
   'EXP-S1-30: each failure is published once');
 
