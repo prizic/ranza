@@ -44,3 +44,38 @@ export function startWorker(): RunningWorker {
     },
   };
 }
+
+/**
+ * How long a test may wait on the worker, and the reason it is not longer.
+ *
+ * The worker closes every Property's due business day on a one-minute timer,
+ * and a close cannot be undone. A run that outlives the minute would shut
+ * yesterday at the other Properties the browser tests share and fail specs
+ * that have nothing to do with this one. Its first pass of that timer is a
+ * minute after it starts, so a wait of three export passes (fifteen seconds
+ * each) never reaches it — and a worker too slow to deliver in that time fails
+ * the test that started it instead of running on.
+ */
+export const WORKER_BUDGET_MS = 45_000;
+
+/**
+ * Waits for the one effect the worker was started for, and stops it the moment
+ * that effect is there or the wait has failed. A failure carries what the
+ * process said, which a message built before the wait could not: nothing had
+ * been written yet.
+ */
+export async function whileWorking(
+  worker: RunningWorker,
+  effect: Promise<unknown>,
+): Promise<void> {
+  try {
+    await effect;
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`${reason}\nthe worker said:\n${worker.output()}`, {
+      cause: error,
+    });
+  } finally {
+    worker.stop();
+  }
+}

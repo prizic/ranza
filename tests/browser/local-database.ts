@@ -73,3 +73,32 @@ export function psql(sql: string): string {
   }
   return result.stdout.trim();
 }
+
+/**
+ * One statement as the application's own runtime role, speaking for `userId`:
+ * what a screen reads, under the policies a screen is subject to. The context
+ * is published the way `withOrganizationContext` publishes it, inside the
+ * transaction that runs the statement, so a policy that asks who is acting
+ * finds an answer.
+ *
+ * For what a Staff Member is shown, and what they are not, in a place with no
+ * screen to look at.
+ */
+export function psqlAs(userId: string, sql: string): string {
+  // Prisma's pool parameters are not libpq's.
+  const url = new URL(DATABASE_URL);
+  url.search = "";
+  const result = spawnSync(
+    "psql",
+    [url.toString(), "-v", "ON_ERROR_STOP=1", "-q", "-t", "-A", "-f", "-"],
+    {
+      encoding: "utf8",
+      env: withoutConnectionOverrides(),
+      input: `begin;\nselect app.set_request_context('${userId}') as context \\gset\n${sql};\ncommit;\n`,
+    },
+  );
+  if (result.status !== 0) {
+    throw new Error(`psql as ${userId} failed:\n${result.stderr}`);
+  }
+  return result.stdout.trim();
+}

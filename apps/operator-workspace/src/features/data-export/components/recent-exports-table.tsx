@@ -211,7 +211,7 @@ export function RecentExportsTable({
                             )}
                           </div>
                         ) : item.status === "failed" ? (
-                          <span className="text-xs text-destructive">
+                          <span className="block max-w-60 whitespace-normal text-xs text-destructive">
                             {t(`failures.${item.error ?? "internal_error"}`)}
                           </span>
                         ) : (
