@@ -27,6 +27,7 @@
  *   the same check removed from the trigger only                       HR-S1-46 (the half that goes past the module)
  *   the same check removed from both                                   HR-S1-46
  *   `hr_employee_is_reachable` removed from the shift read policy      HR-S1-47 (TypeError: null.firstName, the page's crash)
+ *   hr_employees_organization_login_key dropped                         HR-S1-51 (the second record), HR-S1-52 (a leaver registered again)
  *
  * Each layer of a pair above is enough on its own, which is why removing one
  * shows nothing: the pgTAP suite is what proves the database layer by itself.
@@ -45,6 +46,7 @@ import {
   HrRefusedError,
 } from "../../packages/ranza/hr/src";
 import { createStaffModule } from "../../packages/ranza/staff/src";
+import { loginsWithoutEmployment } from "../../apps/operator-workspace/src/lib/unregistered-staff";
 
 const prisma = createPrismaClient(process.env.DATABASE_URL!);
 const hr = createHrModule({ db: prisma });
@@ -224,6 +226,7 @@ let empty: Fixture;
 let lapsing: Fixture;
 let clashing: Fixture;
 let leavers: Fixture;
+let logins: Fixture;
 
 beforeAll(async () => {
   main = await seed("main");
@@ -232,6 +235,7 @@ beforeAll(async () => {
   lapsing = await seed("lapsing");
   clashing = await seed("clashing");
   leavers = await seed("leavers");
+  logins = await seed("logins");
   await hr.registerEmployee(currencies.manager, anEmployee(currencies));
 });
 
@@ -1306,5 +1310,124 @@ describe("a lapsed Organization", () => {
       anEmployee(lapsing),
     );
     expect(record.status).toBe("active");
+  });
+});
+
+describe("a login is offered for registration until it has an employment record", () => {
+  /** What the Employees screen offers, from the real roster and the real records. */
+  async function offered(fixture: Fixture): Promise<string[]> {
+    const [roster, employees] = await Promise.all([
+      staff.readRoster({ userId: fixture.admin }, fixture.organization),
+      hr.employees(fixture.manager, fixture.organization),
+    ]);
+    return loginsWithoutEmployment(roster, employees)
+      .map((login) => login.userId)
+      .sort();
+  }
+
+  it("HR-S1-49: every active login with no employment record is offered", async () => {
+    const everyone = [
+      logins.admin,
+      logins.manager,
+      logins.scoped,
+      logins.viewer,
+      logins.outsider,
+      logins.linked,
+    ].sort();
+    expect(await offered(logins)).toEqual(everyone);
+  });
+
+  it("HR-S1-50: registering from a login links the record to it and takes the login off the offer", async () => {
+    const record = await hr.registerEmployee(
+      logins.manager,
+      anEmployee(logins, { userId: logins.outsider }),
+    );
+
+    expect(record.userId).toBe(logins.outsider);
+    expect(await offered(logins)).not.toContain(logins.outsider);
+    // The other logins are still offered: one registration is one login.
+    expect(await offered(logins)).toContain(logins.linked);
+    const written = await latestRecord(owner, "employee.registered", record.id);
+    expect(written?.context).toMatchObject({ hasSystemAccess: true });
+  });
+
+  it("HR-S1-51: the same login cannot be registered twice, one after the other or at once", async () => {
+    const first = await hr.registerEmployee(
+      logins.manager,
+      anEmployee(logins, { userId: logins.viewer }),
+    );
+    await expect(
+      hr.registerEmployee(
+        logins.manager,
+        anEmployee(logins, { userId: logins.viewer }),
+      ),
+    ).rejects.toMatchObject({ reason: "already_registered" });
+
+    const settled = await Promise.allSettled([
+      hr.registerEmployee(
+        logins.manager,
+        anEmployee(logins, { userId: logins.scoped }),
+      ),
+      hr.registerEmployee(
+        logins.manager,
+        anEmployee(logins, { userId: logins.scoped }),
+      ),
+    ]);
+    expect(
+      settled.filter((outcome) => outcome.status === "fulfilled"),
+    ).toHaveLength(1);
+    const rejected = settled.find((outcome) => outcome.status === "rejected");
+    expect(rejected).toMatchObject({
+      reason: { reason: "already_registered" },
+    });
+
+    for (const login of [logins.viewer, logins.scoped]) {
+      expect(
+        await count(
+          `select count(*) as n from public.hr_employees
+            where organization_id = $1::uuid and user_id = $2::uuid`,
+          logins.organization,
+          login,
+        ),
+      ).toBe(1);
+    }
+    expect(first.userId).toBe(logins.viewer);
+  });
+
+  it("HR-S1-51: the same person may be employed in another Organization", async () => {
+    const record = await hr.registerEmployee(
+      currencies.manager,
+      anEmployee(currencies, { userId: logins.viewer }),
+    );
+    expect(record.userId).toBe(logins.viewer);
+  });
+
+  it("HR-S1-52: a terminated employee's login is not offered again, nor registered again", async () => {
+    const record = await hr.registerEmployee(
+      logins.manager,
+      anEmployee(logins, { userId: logins.admin }),
+    );
+    await hr.terminateEmployee(logins.manager, {
+      organizationId: logins.organization,
+      employeeId: record.id,
+      terminatedOn: new Date("2026-01-15"),
+    });
+
+    expect(await offered(logins)).not.toContain(logins.admin);
+    await expect(
+      hr.registerEmployee(
+        logins.manager,
+        anEmployee(logins, { userId: logins.admin }),
+      ),
+    ).rejects.toMatchObject({ reason: "already_registered" });
+  });
+
+  it("HR-S1-53: a login whose membership is revoked is not offered", async () => {
+    expect(await offered(logins)).toContain(logins.linked);
+    await staff.revoke(
+      { userId: logins.admin },
+      { organizationId: logins.organization, userId: logins.linked },
+    );
+    expect(await offered(logins)).not.toContain(logins.linked);
   });
 });

@@ -157,6 +157,10 @@ import type {
   UnitHold,
 } from "@ranza/maintenance";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
+import {
+  loginsWithoutEmployment,
+  type UnregisteredStaffMember,
+} from "../lib/unregistered-staff";
 import { getComposition } from "./composition";
 import { displayName } from "./display-name";
 import type { TodaySummary } from "./today-derive";
@@ -1222,6 +1226,13 @@ export interface HrViewData {
   /** The Property's own calendar date, `YYYY-MM-DD`. */
   today: string;
   employees: readonly EmployeeRecord[];
+  /**
+   * Active Staff Members of the Organization with no employment record: they
+   * can sign in and are not on the rota or in payroll (HR-S1-49). Empty for a
+   * viewer who may not register an employee, because the panel that lists them
+   * is the only thing it is read for.
+   */
+  unregisteredStaff: readonly UnregisteredStaffMember[];
   shifts: readonly ShiftRecord[];
   leaveRequests: readonly LeaveRequestRecord[];
   /**
@@ -1234,6 +1245,32 @@ export interface HrViewData {
 }
 
 const PERIOD = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/**
+ * The Organization's logins with no employment record, for the panel that
+ * offers them for registration.
+ *
+ * Any member of an Organization reads its roster, so no permission is asked
+ * here; the caller decides whether the viewer is shown the answer. A roster
+ * that cannot be read leaves the panel out rather than the screen, and is
+ * reported.
+ */
+async function unregisteredStaffOf(
+  userId: string,
+  organizationId: string,
+  employees: readonly EmployeeRecord[],
+): Promise<readonly UnregisteredStaffMember[]> {
+  try {
+    const roster = await getComposition().staff.readRoster(
+      { userId },
+      organizationId,
+    );
+    return loginsWithoutEmployment(roster, employees);
+  } catch (error: unknown) {
+    console.error("hr.unregistered_staff_failed", { organizationId }, error);
+    return [];
+  }
+}
 
 /**
  * Reads employee records, the weekly rota, leave requests and the payroll
@@ -1294,12 +1331,21 @@ export async function hrViewData(
     ),
   ]);
 
+  const unregisteredStaff = canManage
+    ? await unregisteredStaffOf(
+        viewer.userId,
+        targetProperty.organizationId,
+        employees,
+      )
+    : [];
+
   return {
     organizationId: targetProperty.organizationId,
     propertyId,
     currency: workplace.currency,
     today: workplace.today,
     employees,
+    unregisteredStaff,
     shifts,
     leaveRequests,
     payroll,

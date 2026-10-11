@@ -16,6 +16,8 @@ const UNIQUE_VIOLATION = "23505";
 const NOT_PERMITTED_BY_STATE = "55000";
 /** The exclusion constraint on approved leave (HR-S1-10). */
 const EXCLUSION_VIOLATION = "23P01";
+/** The partial unique index that holds a login to one record per Organization. */
+const LOGIN_KEY = "hr_employees_organization_login_key";
 /** Prisma's own "the row it was asked to change is not there". */
 const RECORD_NOT_FOUND = "P2025";
 
@@ -75,6 +77,9 @@ export function refusal(error: unknown): Error {
     says(error, "stays terminated")
   ) {
     return new HrRefusedError("already_terminated", { cause: error });
+  }
+  if (raised(error, UNIQUE_VIOLATION) && says(error, LOGIN_KEY)) {
+    return new HrRefusedError("already_registered", { cause: error });
   }
   if (
     raised(error, INSUFFICIENT_PRIVILEGE) ||

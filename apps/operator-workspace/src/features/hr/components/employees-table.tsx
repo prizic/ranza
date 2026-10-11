@@ -13,12 +13,15 @@ import {
   EmptyState,
 } from "@ranza/ui";
 import { Banknote, Briefcase, Calendar } from "lucide-react";
+import type { UnregisteredStaffMember } from "../../../lib/unregistered-staff";
 import type { EmployeeRecord } from "../../../server/viewer";
 import { RegisterEmployeeDialog } from "./register-employee-dialog";
 import { TerminateEmployeeDialog } from "./terminate-employee-dialog";
 
 interface EmployeesTableProps {
   employees: readonly EmployeeRecord[];
+  /** Logins with no employment record, offered for registration (HR-S1-49). */
+  unregisteredStaff: readonly UnregisteredStaffMember[];
   canManage: boolean;
   /** The Property's currency, which a new employee is paid in. */
   currency: string;
@@ -30,6 +33,7 @@ interface EmployeesTableProps {
 
 export function EmployeesTable({
   employees,
+  unregisteredStaff,
   canManage,
   currency,
   today,
@@ -64,6 +68,39 @@ export function EmployeesTable({
         </div>
         {canManage && employees.length > 0 && registerDialog}
       </div>
+
+      {canManage && unregisteredStaff.length > 0 ? (
+        <Card data-unregistered-staff className="border-border">
+          <CardHeader className="p-4 pb-2 space-y-1">
+            <CardTitle className="text-step-0 font-semibold text-foreground">
+              {t("unregisteredTitle")}
+            </CardTitle>
+            <p className="text-step--1 text-muted-foreground">
+              {t("unregisteredDescription")}
+            </p>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ul className="divide-y divide-border/60">
+              {unregisteredStaff.map((member) => (
+                <li
+                  key={member.userId}
+                  className="flex items-center justify-between gap-3 px-4 py-3"
+                >
+                  <span className="min-w-0 truncate text-step--1 text-foreground">
+                    {member.email}
+                  </span>
+                  <RegisterEmployeeDialog
+                    currency={currency}
+                    locale={locale}
+                    prefill={member}
+                    propertyId={propertyId}
+                  />
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {employees.length === 0 ? (
         <EmptyState

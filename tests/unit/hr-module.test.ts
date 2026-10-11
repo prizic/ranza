@@ -208,6 +208,17 @@ describe("what the database says becomes a reason", () => {
     }
   });
 
+  it("HR-S1-51: reads the login index as a person who is already registered", () => {
+    const refused = refusal(
+      driverError(
+        "23505",
+        'duplicate key value violates unique constraint "hr_employees_organization_login_key"',
+      ),
+    );
+    expect(refused).toBeInstanceOf(HrRefusedError);
+    expect((refused as HrRefusedError).reason).toBe("already_registered");
+  });
+
   it("gives back what it does not recognise, for the host to report", () => {
     const outage = new Error("connection reset");
     expect(refusal(outage)).toBe(outage);

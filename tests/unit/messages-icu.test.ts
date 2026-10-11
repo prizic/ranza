@@ -109,6 +109,7 @@ describe("every catalogue parses", () => {
                 currency: "TRY",
                 date: "16 Sep",
                 days: 14,
+                email: "x@example.test",
                 eta: "14:00",
                 floor: 2,
                 from: "16 Sep",

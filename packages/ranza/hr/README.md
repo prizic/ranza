@@ -8,8 +8,9 @@ Staff records beyond membership: contracts, weekly rota shifts, leave requests, 
 The `hr_employees`, `hr_shifts`, `hr_leave_requests`, `hr_payroll_runs`, and `hr_payslips` tables, their constraints, triggers and row-level security policies — in
 [`prisma/migrations/20260916010100_human_resources_and_payroll`](../../../prisma/migrations/20260916010100_human_resources_and_payroll/migration.sql),
 [`…010500_hr_security_and_hardening`](../../../prisma/migrations/20260916010500_hr_security_and_hardening/migration.sql) and
-[`…010800_payroll_is_approved_organization_wide_and_locked_once_approved`](../../../prisma/migrations/20260916010800_payroll_is_approved_organization_wide_and_locked_once_approved/migration.sql),
-which states the end state. The design is [`docs/features/hr/`](../../../docs/features/hr/edge-cases.csv) and
+[`…010800_payroll_is_approved_organization_wide_and_locked_once_approved`](../../../prisma/migrations/20260916010800_payroll_is_approved_organization_wide_and_locked_once_approved/migration.sql)
+and [`…010900_an_employee_is_linked_to_one_login`](../../../prisma/migrations/20260916010900_an_employee_is_linked_to_one_login/migration.sql),
+which state the end state. The design is [`docs/features/hr/`](../../../docs/features/hr/edge-cases.csv) and
 [ADR 0044](../../../docs/adr/0044-payroll-is-the-organizations-kept-in-minor-units-and-locked-once-approved.md).
 
 ## Invariant: Membership is access, not employment
@@ -21,6 +22,7 @@ Conflating the two is the mistake this module avoids:
 - An employee can be employed without having system access (e.g. frontline staff without system logins).
 - When a staff member's system access is revoked or ends, their employment record, contract history, rota shifts, and payroll slips remain intact and outlive their access to the system.
 - Ending employment is its own act: `terminateEmployee` sets a status and a day, keeps everything, and does not touch a membership.
+- Linking them is an act too, and optional: `registerEmployee` takes a `userId`, and the Employees screen offers every active login that no record is linked to (HR-S1-49). A login is linked to at most one record per Organization, a leaver's included, held by a partial unique index; a second registration is refused as `already_registered` (HR-S1-51). The module does not check that the login is a member of the Organization: the host reads the roster and does (HR-S1-55).
 
 ## Contract
 
@@ -29,7 +31,7 @@ import { createHrModule } from "@ranza/hr";
 
 const hr = createHrModule({ db });
 await hr.employees(userId, organizationId);
-await hr.registerEmployee(userId, input); // grossPayMinor + currency, never a float
+await hr.registerEmployee(userId, input); // grossPayMinor + currency, never a float; userId optional
 await hr.terminateEmployee(userId, {
   organizationId,
   employeeId,

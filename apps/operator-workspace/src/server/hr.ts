@@ -144,10 +144,29 @@ function calendarDate(value: string): Date | null {
     : null;
 }
 
+/**
+ * Whether a login may be linked to a new employee record: an active member of
+ * this Organization. Read here and not taken from the form, because a post can
+ * name any id (HR-S1-55). That the login is not already linked is the
+ * database's to say, through a unique index, so two registrations at once end
+ * in one record (HR-S1-51).
+ */
+async function isActiveMember(scope: Scope, loginId: string): Promise<boolean> {
+  const roster = await getComposition().staff.readRoster(
+    { userId: scope.userId },
+    scope.organizationId,
+  );
+  return roster.some(
+    (member) => member.userId === loginId && member.status === "active",
+  );
+}
+
 export async function registerEmployeeAction(
   locale: string,
   propertyId: string,
   data: {
+    /** The login this record is for, when it is registered from one. */
+    userId?: string | undefined;
     firstName: string;
     lastName: string;
     email?: string | undefined;
@@ -160,30 +179,44 @@ export async function registerEmployeeAction(
     iban?: string | undefined;
   },
 ): Promise<HrOutcome> {
-  return run("register_employee", locale, propertyId, [], async (scope) => {
-    const comp = getComposition();
-    // The currency is the Property's, read here and not taken from the form: a
-    // caller that could name one could restate every amount it posted (ADR 0015).
-    const workplace = await comp.hr.workplace(scope.userId, propertyId);
-    if (!workplace) throw new HrRefusedError("not_permitted");
-    const grossPayMinor = toMinorUnits(data.grossPay, workplace.currency);
-    if (grossPayMinor === null) throw new HrInputError("grossPay");
+  const loginIds = data.userId === undefined ? [] : [data.userId];
+  return run(
+    "register_employee",
+    locale,
+    propertyId,
+    loginIds,
+    async (scope) => {
+      const comp = getComposition();
+      if (
+        data.userId !== undefined &&
+        !(await isActiveMember(scope, data.userId))
+      ) {
+        throw new HrRefusedError("not_permitted");
+      }
+      // The currency is the Property's, read here and not taken from the form: a
+      // caller that could name one could restate every amount it posted (ADR 0015).
+      const workplace = await comp.hr.workplace(scope.userId, propertyId);
+      if (!workplace) throw new HrRefusedError("not_permitted");
+      const grossPayMinor = toMinorUnits(data.grossPay, workplace.currency);
+      if (grossPayMinor === null) throw new HrInputError("grossPay");
 
-    await comp.hr.registerEmployee(scope.userId, {
-      organizationId: scope.organizationId,
-      propertyId,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email,
-      phone: data.phone,
-      department: data.department,
-      position: data.position,
-      contractType: data.contractType,
-      grossPayMinor,
-      currency: workplace.currency,
-      iban: data.iban,
-    });
-  });
+      await comp.hr.registerEmployee(scope.userId, {
+        organizationId: scope.organizationId,
+        propertyId,
+        userId: data.userId,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        department: data.department,
+        position: data.position,
+        contractType: data.contractType,
+        grossPayMinor,
+        currency: workplace.currency,
+        iban: data.iban,
+      });
+    },
+  );
 }
 
 export async function terminateEmployeeAction(

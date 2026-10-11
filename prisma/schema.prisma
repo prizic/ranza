@@ -1251,6 +1251,9 @@ model HrEmployee {
   payslips      HrPayslip[]
 
   @@unique([id, organizationId], map: "hr_employees_id_org_key")
+  /// A login is one employee record in an Organization, and a record with no
+  /// login is the normal case, so the index is over the rows that have one.
+  @@unique([organizationId, userId], map: "hr_employees_organization_login_key", where: raw("user_id IS NOT NULL"))
   @@index([organizationId], map: "hr_employees_organization_idx")
   @@index([propertyId], map: "hr_employees_property_idx")
   @@index([userId], map: "hr_employees_user_idx")

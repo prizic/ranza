@@ -20,6 +20,7 @@ import { EmployeesTable } from "../../apps/operator-workspace/src/features/hr/co
 import { HrView } from "../../apps/operator-workspace/src/features/hr/components/hr-view";
 import { PayrollCard } from "../../apps/operator-workspace/src/features/hr/components/payroll-card";
 import { PayslipDrawer } from "../../apps/operator-workspace/src/features/hr/components/payslip-drawer";
+import { loginsWithoutEmployment } from "../../apps/operator-workspace/src/lib/unregistered-staff";
 import type {
   EmployeeRecord,
   HrViewData,
@@ -28,10 +29,12 @@ import type {
 } from "../../apps/operator-workspace/src/server/viewer";
 
 const approvePayrollAction = vi.fn();
+const registerEmployeeAction = vi.fn();
 const terminateEmployeeAction = vi.fn();
 
 vi.mock("../../apps/operator-workspace/src/server/hr", () => ({
-  registerEmployeeAction: vi.fn().mockResolvedValue({ status: "done" }),
+  registerEmployeeAction: (...args: unknown[]) =>
+    registerEmployeeAction(...args),
   terminateEmployeeAction: (...args: unknown[]) =>
     terminateEmployeeAction(...args),
   assignShiftAction: vi.fn().mockResolvedValue({ status: "done" }),
@@ -106,6 +109,7 @@ const data: HrViewData = {
   today: "2026-10-09",
   canManage: true,
   employees: [employee, leaver],
+  unregisteredStaff: [],
   shifts: [],
   leaveRequests: [],
   payroll: draft,
@@ -123,6 +127,7 @@ afterEach(() => {
   cleanup();
   approvePayrollAction.mockReset();
   terminateEmployeeAction.mockReset();
+  registerEmployeeAction.mockReset().mockResolvedValue({ status: "done" });
 });
 
 describe("the HR screen is in the reader's language", () => {
@@ -147,6 +152,7 @@ describe("the HR screen is in the reader's language", () => {
     inLocale(
       "en",
       <EmployeesTable
+        unregisteredStaff={[]}
         employees={[]}
         canManage
         currency="TRY"
@@ -156,10 +162,182 @@ describe("the HR screen is in the reader's language", () => {
       />,
     );
     expect(screen.getByText("No employees registered")).toBeInTheDocument();
+    // Why a Staff Member added under People is not here (the screen that showed
+    // an empty list to an Organization with five logins said nothing of it).
+    expect(
+      screen.getByText(/kept apart from sign-in access/),
+    ).toBeInTheDocument();
     // One way in, not two buttons with the same name.
     expect(
       screen.getAllByRole("button", { name: "Add employee" }),
     ).toHaveLength(1);
+  });
+});
+
+describe("logins offered for registration", () => {
+  const ada = { userId: "user-ada", email: "ada@hotel.test" };
+  const bora = { userId: "user-bora", email: "bora@hotel.test" };
+
+  function table(
+    unregisteredStaff: readonly (typeof ada)[],
+    overrides: { canManage?: boolean; employees?: EmployeeRecord[] } = {},
+  ) {
+    return inLocale(
+      "en",
+      <EmployeesTable
+        employees={overrides.employees ?? []}
+        unregisteredStaff={unregisteredStaff}
+        canManage={overrides.canManage ?? true}
+        currency="TRY"
+        today="2026-10-09"
+        locale="en"
+        propertyId="prop-1"
+      />,
+    );
+  }
+
+  it("HR-S1-49: with every login registered there is no panel", () => {
+    table([], { employees: [employee] });
+    expect(
+      screen.queryByText("Staff without an employment record"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("HR-S1-49: a login with no record is listed with its email and a way to register it, above the empty state that hid it", () => {
+    table([ada, bora]);
+    const panel = screen
+      .getByText("Staff without an employment record")
+      .closest("[data-unregistered-staff]")!;
+    expect(panel).toHaveTextContent("ada@hotel.test");
+    expect(panel).toHaveTextContent("bora@hotel.test");
+    expect(
+      screen.getByRole("button", {
+        name: "Register as employee: ada@hotel.test",
+      }),
+    ).toBeInTheDocument();
+    // The empty state is still true, and still there.
+    expect(screen.getByText("No employees registered")).toBeInTheDocument();
+  });
+
+  it("HR-S1-50: registering from a login starts from its email and sends its id", async () => {
+    inLocale(
+      "en",
+      <EmployeesTable
+        employees={[employee]}
+        unregisteredStaff={[ada, bora]}
+        canManage
+        currency="TRY"
+        today="2026-10-09"
+        locale="en"
+        propertyId="prop-1"
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Register as employee: bora@hotel.test",
+      }),
+    );
+    expect(
+      await screen.findByText(/Linked to the sign-in bora@hotel\.test\./),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toHaveValue("bora@hotel.test");
+
+    fireEvent.change(screen.getByLabelText(/First name/), {
+      target: { value: "Bora" },
+    });
+    fireEvent.change(screen.getByLabelText(/Last name/), {
+      target: { value: "Demir" },
+    });
+    fireEvent.change(screen.getByLabelText(/Department/), {
+      target: { value: "Kitchen" },
+    });
+    fireEvent.change(screen.getByLabelText(/Position/), {
+      target: { value: "Cook" },
+    });
+    fireEvent.change(screen.getByLabelText(/Gross pay/), {
+      target: { value: "30000" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save employee" }));
+    await vi.waitFor(() =>
+      expect(registerEmployeeAction).toHaveBeenCalledWith(
+        "en",
+        "prop-1",
+        expect.objectContaining({
+          userId: "user-bora",
+          email: "bora@hotel.test",
+          firstName: "Bora",
+        }),
+      ),
+    );
+  });
+
+  it("HR-S1-54: someone who may not register employees is shown no panel", () => {
+    table([ada], { canManage: false, employees: [employee] });
+    expect(
+      screen.queryByText("Staff without an employment record"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Register as employee/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("HR-S1-49: the panel is worded in every language", () => {
+    for (const locale of supportedLocales) {
+      inLocale(
+        locale,
+        <EmployeesTable
+          employees={[employee]}
+          unregisteredStaff={[ada]}
+          canManage
+          currency="TRY"
+          today="2026-10-09"
+          locale={locale}
+          propertyId="prop-1"
+        />,
+      );
+      expect(
+        screen.getByText(messages[locale].hr.employees.unregisteredTitle),
+      ).toBeInTheDocument();
+      cleanup();
+    }
+  });
+});
+
+describe("who is offered for registration", () => {
+  const login = (userId: string, status: "active" | "revoked") => ({
+    userId,
+    email: `${userId}@hotel.test`,
+    status,
+  });
+
+  it("HR-S1-49: an active login with no record is offered with its email", () => {
+    expect(
+      loginsWithoutEmployment([login("a", "active")], [{ userId: "b" }]),
+    ).toEqual([{ userId: "a", email: "a@hotel.test" }]);
+  });
+
+  it("HR-S1-50: a login that a record is linked to is not offered", () => {
+    expect(
+      loginsWithoutEmployment([login("a", "active")], [{ userId: "a" }]),
+    ).toEqual([]);
+  });
+
+  it("HR-S1-52: a terminated employee's login is not offered again", () => {
+    expect(
+      loginsWithoutEmployment(
+        [login("a", "active")],
+        [{ ...leaver, userId: "a" }],
+      ),
+    ).toEqual([]);
+  });
+
+  it("HR-S1-53: a revoked login is not offered, and records with no login hide nobody", () => {
+    expect(
+      loginsWithoutEmployment(
+        [login("a", "revoked"), login("b", "active")],
+        [{ userId: null }],
+      ),
+    ).toEqual([{ userId: "b", email: "b@hotel.test" }]);
   });
 });
 
@@ -168,6 +346,7 @@ describe("an employee card", () => {
     inLocale(
       "en",
       <EmployeesTable
+        unregisteredStaff={[]}
         employees={[{ ...employee, currency: "EUR", grossPayMinor: 123_456 }]}
         canManage={false}
         currency="EUR"
@@ -183,6 +362,7 @@ describe("an employee card", () => {
     inLocale(
       "en",
       <EmployeesTable
+        unregisteredStaff={[]}
         employees={[employee, leaver]}
         canManage
         currency="TRY"
@@ -207,6 +387,7 @@ describe("an employee card", () => {
     inLocale(
       "en",
       <EmployeesTable
+        unregisteredStaff={[]}
         employees={[employee]}
         canManage
         currency="TRY"

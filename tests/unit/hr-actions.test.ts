@@ -14,6 +14,7 @@ const terminateEmployee = vi.fn();
 const approvePayroll = vi.fn();
 const decideLeave = vi.fn();
 const workplace = vi.fn();
+const readRoster = vi.fn();
 const revalidatePath = vi.fn();
 
 // The application resolves its own copy of next, so the mock names that copy.
@@ -39,6 +40,7 @@ vi.mock("../../apps/operator-workspace/src/server/composition", () => ({
       decideLeave,
       workplace,
     },
+    staff: { readRoster },
   }),
 }));
 
@@ -47,6 +49,9 @@ const ORGANIZATION = "df000002-0000-4000-8000-000000000001";
 const PROPERTY = "df000003-0000-4000-8000-000000000001";
 const OTHER_PROPERTY = "df000003-0000-4000-8000-000000000002";
 const EMPLOYEE = "df000004-0000-4000-8000-000000000001";
+const ACTIVE_LOGIN = "df000006-0000-4000-8000-000000000001";
+const REVOKED_LOGIN = "df000006-0000-4000-8000-000000000002";
+const ANOTHER_ORGANIZATIONS_LOGIN = "df000006-0000-4000-8000-000000000003";
 
 const hr = await import("../../apps/operator-workspace/src/server/hr");
 const { HrInputError, HrRefusedError } =
@@ -74,6 +79,10 @@ beforeEach(() => {
   workplace
     .mockReset()
     .mockResolvedValue({ currency: "TRY", today: "2026-10-09" });
+  readRoster.mockReset().mockResolvedValue([
+    { userId: ACTIVE_LOGIN, email: "ada@hotel.test", status: "active" },
+    { userId: REVOKED_LOGIN, email: "gone@hotel.test", status: "revoked" },
+  ]);
   revalidatePath.mockReset();
   logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
@@ -144,6 +153,67 @@ describe("registering an employee", () => {
         field: "request",
       },
     );
+  });
+});
+
+describe("registering an employee from a login", () => {
+  it("HR-S1-50: an active member's login is linked to the record", async () => {
+    const outcome = await hr.registerEmployeeAction("en", PROPERTY, {
+      ...person,
+      userId: ACTIVE_LOGIN,
+    });
+
+    expect(outcome).toEqual({ status: "done" });
+    expect(readRoster).toHaveBeenCalledWith({ userId: VIEWER }, ORGANIZATION);
+    expect(registerEmployee).toHaveBeenCalledWith(
+      VIEWER,
+      expect.objectContaining({ userId: ACTIVE_LOGIN }),
+    );
+  });
+
+  it("registers a person with no login without reading the roster", async () => {
+    await hr.registerEmployeeAction("en", PROPERTY, person);
+    expect(readRoster).not.toHaveBeenCalled();
+    expect(registerEmployee).toHaveBeenCalledWith(
+      VIEWER,
+      expect.objectContaining({ userId: undefined }),
+    );
+  });
+
+  it("HR-S1-55: a login that is revoked, or is not in this Organization, is refused and nothing is registered", async () => {
+    for (const forged of [REVOKED_LOGIN, ANOTHER_ORGANIZATIONS_LOGIN]) {
+      const outcome = await hr.registerEmployeeAction("en", PROPERTY, {
+        ...person,
+        userId: forged,
+      });
+      expect(outcome).toEqual({ status: "refused", reason: "not_permitted" });
+    }
+    expect(registerEmployee).not.toHaveBeenCalled();
+  });
+
+  it("HR-S1-55: a login id that is not an id is invalid, and the roster is not read", async () => {
+    const outcome = await hr.registerEmployeeAction("en", PROPERTY, {
+      ...person,
+      userId: "not-a-uuid",
+    });
+    expect(outcome).toEqual({ status: "invalid", field: "request" });
+    expect(readRoster).not.toHaveBeenCalled();
+    expect(registerEmployee).not.toHaveBeenCalled();
+  });
+
+  it("HR-S1-51: a login that already has a record is the module's refusal, not a failure", async () => {
+    registerEmployee.mockRejectedValue(
+      new HrRefusedError("already_registered"),
+    );
+    const outcome = await hr.registerEmployeeAction("en", PROPERTY, {
+      ...person,
+      userId: ACTIVE_LOGIN,
+    });
+    expect(outcome).toEqual({
+      status: "refused",
+      reason: "already_registered",
+    });
+    expect(logged).not.toHaveBeenCalled();
   });
 });
 

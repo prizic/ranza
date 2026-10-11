@@ -75,6 +75,7 @@ export function HrView({ data, locale, propertyId }: HrViewProps) {
         <TabsContent value="employees" className="space-y-4 pt-1">
           <EmployeesTable
             employees={data.employees}
+            unregisteredStaff={data.unregisteredStaff}
             canManage={data.canManage}
             currency={data.currency}
             today={data.today}

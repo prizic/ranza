@@ -37,6 +37,8 @@ export type HrRefusalReason =
   /** The employee is terminated, and a terminated record takes no new work. */
   | "employee_terminated"
   | "already_terminated"
+  /** That login already has an employee record in the Organization (HR-S1-51). */
+  | "already_registered"
   /** A shift at a Property the employee is not assigned to. */
   | "other_property"
   /** Approved leave already covers some of those days (HR-S1-10). */

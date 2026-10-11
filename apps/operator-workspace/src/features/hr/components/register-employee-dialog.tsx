@@ -30,6 +30,12 @@ interface RegisterEmployeeDialogProps {
   currency: string;
   locale: SupportedLocale;
   propertyId: string;
+  /**
+   * The sign-in the record is for, when it is registered from one: the new
+   * record is linked to it and its email is where the form starts. The name is
+   * not known, because a Staff Member has only an email.
+   */
+  prefill?: { userId: string; email: string } | undefined;
 }
 
 const CONTRACT_TYPES: readonly ContractType[] = [
@@ -43,6 +49,7 @@ export function RegisterEmployeeDialog({
   currency,
   locale,
   propertyId,
+  prefill,
 }: RegisterEmployeeDialogProps) {
   const t = useTranslations("hr.employees");
   const outcomeText = useOutcomeText();
@@ -56,7 +63,7 @@ export function RegisterEmployeeDialog({
   const [position, setPosition] = useState("");
   const [contractType, setContractType] = useState<ContractType>("full_time");
   const [grossPay, setGrossPay] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(prefill?.email ?? "");
   const [phone, setPhone] = useState("");
   const [iban, setIban] = useState("");
 
@@ -67,7 +74,7 @@ export function RegisterEmployeeDialog({
     setPosition("");
     setContractType("full_time");
     setGrossPay("");
-    setEmail("");
+    setEmail(prefill?.email ?? "");
     setPhone("");
     setIban("");
     setErrorMessage(null);
@@ -78,6 +85,7 @@ export function RegisterEmployeeDialog({
     setErrorMessage(null);
     startTransition(async () => {
       const outcome = await registerEmployeeAction(locale, propertyId, {
+        userId: prefill?.userId,
         firstName,
         lastName,
         department,
@@ -108,16 +116,30 @@ export function RegisterEmployeeDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button size="sm" className="gap-2">
-          <Plus className="size-4" />
-          <span>{t("register")}</span>
-        </Button>
+        {prefill ? (
+          <Button
+            size="sm"
+            variant="outline"
+            aria-label={`${t("registerAsEmployee")}: ${prefill.email}`}
+          >
+            {t("registerAsEmployee")}
+          </Button>
+        ) : (
+          <Button size="sm" className="gap-2">
+            <Plus className="size-4" />
+            <span>{t("register")}</span>
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>{t("registerTitle")}</DialogTitle>
-            <DialogDescription>{t("registerDescription")}</DialogDescription>
+            <DialogDescription>
+              {prefill
+                ? `${t("registerForLogin", { email: prefill.email })} ${t("registerDescription")}`
+                : t("registerDescription")}
+            </DialogDescription>
           </DialogHeader>
 
           {errorMessage && (

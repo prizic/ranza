@@ -801,7 +801,14 @@ export interface Messages {
       ibanHint: string;
       status: string;
       noEmployeesTitle: string;
+      /** Says that employment records are kept apart from sign-in access. */
       noEmployeesDescription: string;
+      unregisteredTitle: string;
+      /** Says why a login with no employment record is not on the rota or in payroll. */
+      unregisteredDescription: string;
+      registerAsEmployee: string;
+      /** `{email}`: the login the new record will be linked to. */
+      registerForLogin: string;
       submit: string;
       submitting: string;
       cancel: string;
@@ -946,6 +953,7 @@ export interface Messages {
         not_permitted: string;
         employee_terminated: string;
         already_terminated: string;
+        already_registered: string;
         other_property: string;
         leave_overlap: string;
         leave_decided: string;
@@ -3208,7 +3216,13 @@ export const messages: Record<SupportedLocale, Messages> = {
         ibanHint: "Kaydedildikten sonra maskelenmiş gösterilir.",
         status: "Durum",
         noEmployeesTitle: "Kayıtlı personel yok",
-        noEmployeesDescription: "İlk personeli ekleyerek başlayın.",
+        noEmployeesDescription:
+          "Personel kayıtları giriş yetkisinden ayrı tutulur; bu yüzden Ekip ekranından eklenen kişiler siz kaydedene kadar burada görünmez.",
+        unregisteredTitle: "Personel kaydı olmayan ekip üyeleri",
+        unregisteredDescription:
+          "Bu kişiler sisteme girebilir, ancak personel olarak kaydedilene kadar vardiya listesinde ve bordroda yer almazlar.",
+        registerAsEmployee: "Personel olarak kaydet",
+        registerForLogin: "{email} girişine bağlanacak.",
         submit: "Kaydet",
         submitting: "Kaydediliyor...",
         cancel: "Vazgeç",
@@ -3355,6 +3369,8 @@ export const messages: Record<SupportedLocale, Messages> = {
           employee_terminated:
             "Bu personel işten ayrıldı; onun için yeni bir kayıt girilemez.",
           already_terminated: "Bu personel zaten işten ayrıldı.",
+          already_registered:
+            "Bu kişinin bu Organizasyonda zaten bir personel kaydı var.",
           other_property: "Bu personel başka bir tesise atanmış.",
           leave_overlap:
             "Bu personelin bu günlerin bir kısmında zaten onaylı izni var.",
@@ -5399,7 +5415,13 @@ export const messages: Record<SupportedLocale, Messages> = {
         ibanHint: "Shown masked once saved.",
         status: "Status",
         noEmployeesTitle: "No employees registered",
-        noEmployeesDescription: "Get started by adding your first employee.",
+        noEmployeesDescription:
+          "Employment records are kept apart from sign-in access, so people added under People do not appear here until you register them.",
+        unregisteredTitle: "Staff without an employment record",
+        unregisteredDescription:
+          "These people can sign in, but they are not on the rota or in payroll until you register them as employees.",
+        registerAsEmployee: "Register as employee",
+        registerForLogin: "Linked to the sign-in {email}.",
         submit: "Save employee",
         submitting: "Saving...",
         cancel: "Cancel",
@@ -5545,6 +5567,8 @@ export const messages: Record<SupportedLocale, Messages> = {
           employee_terminated:
             "That employee has left, so nothing new can be recorded for them.",
           already_terminated: "That employee has already left.",
+          already_registered:
+            "That person already has an employment record in this Organization.",
           other_property: "That employee is assigned to a different Property.",
           leave_overlap:
             "That employee already has approved leave over some of these days.",
@@ -7566,7 +7590,13 @@ export const messages: Record<SupportedLocale, Messages> = {
         ibanHint: "يُعرض مخفيًا جزئيًا بعد الحفظ.",
         status: "الحالة",
         noEmployeesTitle: "لا يوجد موظفون مسجلون",
-        noEmployeesDescription: "ابدأ بإضافة موظفك الأول.",
+        noEmployeesDescription:
+          "تُحفظ سجلات التوظيف بمعزل عن صلاحية الدخول، لذلك لا يظهر هنا من أُضيفوا من شاشة الفريق حتى تسجّلهم.",
+        unregisteredTitle: "أعضاء الفريق بلا سجل توظيف",
+        unregisteredDescription:
+          "يستطيع هؤلاء تسجيل الدخول، لكنهم لا يظهرون في جدول المناوبات ولا في الرواتب حتى تسجّلهم موظفين.",
+        registerAsEmployee: "تسجيل كموظف",
+        registerForLogin: "سيُربط بحساب الدخول {email}.",
         submit: "حفظ الموظف",
         submitting: "جارٍ الحفظ...",
         cancel: "إلغاء",
@@ -7711,6 +7741,7 @@ export const messages: Record<SupportedLocale, Messages> = {
           employee_terminated:
             "هذا الموظف غادر، فلا يمكن تسجيل أي شيء جديد له.",
           already_terminated: "هذا الموظف غادر بالفعل.",
+          already_registered: "لدى هذا الشخص سجل توظيف في هذه المؤسسة بالفعل.",
           other_property: "هذا الموظف معيَّن في منشأة أخرى.",
           leave_overlap:
             "لدى هذا الموظف إجازة معتمدة بالفعل تغطي بعض هذه الأيام.",
