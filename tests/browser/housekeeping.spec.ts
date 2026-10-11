@@ -244,16 +244,30 @@ test("a check-out leaves the room dirty through the worker, and a cleaner takes 
   // no Staff Member.
   const worker = startWorker();
   try {
+    // Under a minute, on purpose: the worker also closes every Property's
+    // due business day on a one-minute timer, and a close cannot be undone.
+    // A run that outlives it would shut yesterday at the other Properties of
+    // the tests, so a worker too slow to deliver this departure in that time
+    // fails here instead.
     await expect
       .poll(delivered, {
         message: `the worker said:\n${worker.output()}`,
-        timeout: 90_000,
+        timeout: 45_000,
       })
       .toBe("1");
   } finally {
     worker.stop();
   }
-  expect(worker.output()).not.toMatch(/\b(?:failed|dead) [1-9]|ERROR/);
+  // This departure's own event, not the process's output: the worker delivers
+  // whatever else is waiting in the database too, and an event somebody else's
+  // fixture left failing is not this test's to report.
+  expect(
+    psql(
+      `select (published_at is not null)::text || '|' || coalesce(last_error, '')
+         from outbox.events where event_type = 'stay.checked_out'
+          and payload ->> 'stayId' = '${stayId}'`,
+    ),
+  ).toBe("true|");
   expect(stored()).toBe("dirty|true");
 
   // A cleaner, who reaches this Property and nothing else, finds it dirty.
