@@ -3,8 +3,9 @@ import { createServer, type IncomingHttpHeaders, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 
+import { test } from "./hydration";
 import { verifyDelivery } from "../../packages/ranza/integrations/src/signing";
 import { PASSWORD, signIn } from "./front-desk";
 import { psql } from "./local-database";
