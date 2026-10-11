@@ -281,3 +281,64 @@ test("HR-S1-24: a manager who reaches one Property is told payroll is the whole 
     page.getByRole("button", { name: hr.payroll.approve }),
   ).toHaveCount(0);
 });
+
+/**
+ * A colleague of this run's own with a login and no employment record: a
+ * membership is access, and nothing here employs them (HR-S1-49).
+ */
+function aLoginWithNoRecord(propertyId: string): string {
+  const email = `e2e-login-${randomUUID().slice(0, 8)}@example.test`;
+  psql(
+    `with home as (
+       select organization_id as id from public.properties where id = '${propertyId}'
+     ), person as (
+       insert into public.users (email) values ('${email}') returning id
+     )
+     insert into public.organization_memberships
+       (organization_id, user_id, role, access_scope)
+     select home.id, person.id, 'front_desk', 'assigned_properties'
+     from home, person`,
+  );
+  return email;
+}
+
+test("HR-S1-50: an Owner registers a Staff Member's login as an employee, and the login leaves the offer", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const email = aLoginWithNoRecord(propertyId);
+  const name = `Login${randomUUID().slice(0, 6)}`;
+
+  await signIn(page, OWNER_EMAIL);
+  await page.goto(`/en/hr?property=${propertyId}`);
+
+  const offer = page.locator("[data-unregistered-staff] li", {
+    hasText: email,
+  });
+  await expect(offer).toHaveCount(1);
+  await offer
+    .getByRole("button", {
+      name: `${hr.employees.registerAsEmployee}: ${email}`,
+    })
+    .click();
+
+  const dialog = page.getByRole("dialog", { name: hr.employees.registerTitle });
+  await expect(dialog.getByLabel(hr.employees.email)).toHaveValue(email);
+  await dialog.getByLabel(`${hr.employees.firstName} *`).fill(name);
+  await dialog.getByLabel(`${hr.employees.lastName} *`).fill("Tester");
+  await dialog.getByLabel(`${hr.employees.department} *`).fill("Front desk");
+  await dialog.getByLabel(`${hr.employees.position} *`).fill("Agent");
+  await dialog.getByLabel(/^Gross pay \([A-Z]{3}\) \*$/).fill("30000");
+  await dialog.getByRole("button", { name: hr.employees.submit }).click();
+
+  await expect(dialog).toBeHidden();
+  await expect(page.locator(`[data-employee="${name} Tester"]`)).toBeVisible();
+  await expect(offer).toHaveCount(0);
+  expect(
+    psql(
+      `select count(*) from public.hr_employees as employee
+         join public.users as member on member.id = employee.user_id
+        where member.email = '${email}' and employee.first_name = '${name}'`,
+    ),
+  ).toBe("1");
+});
