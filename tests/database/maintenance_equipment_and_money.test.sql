@@ -28,7 +28,7 @@
 --   the retired-equipment trigger dropped               MT-S3-06
 --   the service definer without its caller check       MT-S4-04, the desk
 begin;
-select plan(37);
+select plan(40);
 
 insert into public.users (id, email) values
   ('a1111111-1111-4111-8111-111111111111', 'mtm-manager@example.test'),
@@ -482,6 +482,52 @@ select throws_ok(
        from public.maintenance_requests where title = 'A lamp was broken in 102' $$,
   '23514', 'a damage charge links the charge posted with it',
   'MT-S5-03: nor is a reversal, though it was posted now');
+
+-- ---------------------------------------------------------------------------
+-- A Folio that is closed takes no charge (MT-S5-04)
+-- ---------------------------------------------------------------------------
+-- A Guest who has left, with a Folio the front desk closed: a fixture, written
+-- by the owner with the triggers lifted, because how a Folio comes to be
+-- closed is not what is under test.
+
+set local role none;
+set local session_replication_role = replica;
+insert into public.stays
+  (id, organization_id, property_id, accommodation_unit_id, stay_type, status,
+   starts_on, ends_on, departed_at)
+values ('ad333333-3333-4333-8333-333333333333', 'aa111111-1111-4111-8111-111111111111',
+        'ab111111-1111-4111-8111-111111111111', 'ac2a2222-2222-4222-8222-222222222222',
+        'guest', 'departed',
+        app.property_today('ab111111-1111-4111-8111-111111111111') - 4,
+        app.property_today('ab111111-1111-4111-8111-111111111111') - 2,
+        now());
+insert into public.folios (id, organization_id, property_id, stay_id, currency, status, closed_at)
+values ('ae333333-3333-4333-8333-333333333333', 'aa111111-1111-4111-8111-111111111111',
+        'ab111111-1111-4111-8111-111111111111', 'ad333333-3333-4333-8333-333333333333',
+        'TRY', 'closed', now());
+set local session_replication_role = origin;
+set local role ranza_app;
+select app.set_request_context('a3333333-3333-4333-8333-333333333333');
+
+select throws_ok(
+  $$ insert into public.folio_lines
+       (organization_id, property_id, folio_id, line_type, description, amount_minor)
+     values ('aa111111-1111-4111-8111-111111111111', 'ab111111-1111-4111-8111-111111111111',
+             'ae333333-3333-4333-8333-333333333333', 'charge', 'Damage: after closing', 9000) $$,
+  '42501', 'that Folio is not open',
+  'MT-S5-04: a charge to a closed Folio is refused by the Folio''s own trigger');
+
+select is(
+  (select count(*)::int from public.folio_lines
+    where description = 'Damage: after closing'),
+  0,
+  'MT-S5-04: so there is no line to link');
+
+select is(
+  (select count(*)::int from public.maintenance_request_charges
+    where folio_id = 'ae333333-3333-4333-8333-333333333333'),
+  0,
+  'MT-S5-04: and nothing is linked to that Folio');
 
 select finish();
 rollback;

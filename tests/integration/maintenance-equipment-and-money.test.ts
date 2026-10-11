@@ -448,9 +448,23 @@ describe("the register", { timeout: DATABASE_BUDGET_MS }, () => {
   });
 
   it("retires an item out of the report form, and restores it (MT-S3-06)", async () => {
-    const { equipmentId } = await item("Old fridge");
+    const { equipmentId } = await item("Old fridge", {
+      serviceIntervalMonths: 6,
+    });
+    const earlier = await maintenance.report(DESK, {
+      propertyId: PROPERTY,
+      equipmentId,
+      title: "The fridge leaks",
+      priority: "can_wait",
+    });
+    const before = await itemNamed(equipmentId);
     await maintenance.retireEquipment(MANAGER, equipmentId);
     expect((await itemNamed(equipmentId))?.retired).toBe(true);
+    // It keeps its requests and its history.
+    const board = await maintenance.board(MANAGER, PROPERTY);
+    expect(
+      board.requests.find((request) => request.requestId === earlier.requestId),
+    ).toMatchObject({ equipment: { equipmentId, name: "Old fridge" } });
     const options = await maintenance.reportOptions(DESK, PROPERTY);
     expect(options.equipment.map((entry) => entry.equipmentId)).not.toContain(
       equipmentId,
@@ -465,7 +479,13 @@ describe("the register", { timeout: DATABASE_BUDGET_MS }, () => {
       }),
     ).rejects.toBeInstanceOf(MaintenanceRefusedError);
     await maintenance.restoreEquipment(MANAGER, equipmentId);
-    expect((await itemNamed(equipmentId))?.retired).toBe(false);
+    // Restored, it is back as it was.
+    expect(await itemNamed(equipmentId)).toEqual({ ...before, retired: false });
+    expect(
+      (await maintenance.reportOptions(DESK, PROPERTY)).equipment.map(
+        (entry) => entry.equipmentId,
+      ),
+    ).toContain(equipmentId);
   });
 
   it("refuses the register to somebody without the permission (MT-S3-08)", async () => {

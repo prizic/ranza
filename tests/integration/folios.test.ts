@@ -702,6 +702,22 @@ describe("closing a Folio", () => {
     expect(lines?.balanceMinor).toBe(2500);
     const record = await latestRecord(owner, "folio.closed", folioId!);
     expect(record?.context).toMatchObject({ balanceMinor: 2500 });
+
+    // A charge arriving after the closure is refused, because the Folio is
+    // closed: it waited for the lock, then found the Folio shut.
+    await expect(
+      folios.postCharge(MEMBER, {
+        folioId: folioId!,
+        description: "Too late",
+        amountMinor: 100,
+      }),
+    ).rejects.toBeInstanceOf(FolioWriteError);
+    const [after] = await owner.$queryRawUnsafe<{ n: number }[]>(
+      `select count(*)::int as n from public.folio_lines
+        where folio_id = $1::uuid and description = 'Too late'`,
+      folioId,
+    );
+    expect(after?.n).toBe(0);
   });
 });
 

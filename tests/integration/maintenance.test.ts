@@ -455,6 +455,67 @@ describe("reporting and the board", { timeout: DATABASE_BUDGET_MS }, () => {
       manager.requests.filter((request) => request.status === "new").length,
     );
   });
+
+  it("counts every state and carries what a card shows (MT-S1-10)", async () => {
+    const waiting = await report(DESK, ROOM, { title: "Card waiting" });
+    await maintenance.move(MANAGER, {
+      requestId: waiting.requestId,
+      from: "new",
+      to: "waiting_for_parts",
+    });
+    const working = await report(DESK, ROOM, {
+      title: "Card working",
+      priority: "urgent",
+    });
+    await maintenance.assign(MANAGER, {
+      requestId: working.requestId,
+      assigneeId: TECHNICIAN,
+    });
+    await maintenance.move(MANAGER, {
+      requestId: working.requestId,
+      from: "new",
+      to: "in_progress",
+    });
+    const finished = await report(DESK, ROOM, { title: "Card finished" });
+    await maintenance.move(MANAGER, {
+      requestId: finished.requestId,
+      from: "new",
+      to: "done",
+    });
+    const dropped = await report(DESK, ROOM, { title: "Card dropped" });
+    await maintenance.cancel(MANAGER, {
+      requestId: dropped.requestId,
+      from: "new",
+      reason: "reported twice",
+    });
+
+    const board = await maintenance.board(MANAGER, PROPERTY);
+    // Four columns and the cancelled ones, each counted as the cards in it.
+    for (const state of [
+      "new",
+      "in_progress",
+      "waiting_for_parts",
+      "done",
+      "cancelled",
+    ] as const) {
+      const shown = board.requests.filter(
+        (request) => request.status === state,
+      );
+      expect(shown.length, state).toBeGreaterThan(0);
+      expect(board.counts[state], state).toBe(shown.length);
+    }
+    // Number, title, where, priority and assignee.
+    const card = board.requests.find(
+      (request) => request.requestId === working.requestId,
+    );
+    expect(card).toMatchObject({
+      number: working.number,
+      title: "Card working",
+      priority: "urgent",
+      unit: { unitId: ROOM },
+      assignee: { userId: TECHNICIAN },
+    });
+  });
 });
 
 describe("working the board", { timeout: DATABASE_BUDGET_MS }, () => {
@@ -690,7 +751,17 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
     await expect(
       maintenance.takeOutOfOrder(DESK, { requestId, acknowledged: false }),
     ).rejects.toMatchObject({
-      impact: { reservations: [{ unitName: "MTI-107" }] },
+      impact: {
+        reservations: [
+          {
+            reservationId,
+            unitName: "MTI-107",
+            guestName: "Maintenance Guest",
+            startsOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+            endsOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+          },
+        ],
+      },
     });
     await maintenance.takeOutOfOrder(DESK, { requestId, acknowledged: true });
 

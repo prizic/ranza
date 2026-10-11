@@ -265,6 +265,271 @@ test("a Property with nothing reported says so on every tab, and offers the firs
   });
 });
 
+/**
+ * Requests of a Property in every state, written by the owner connection as
+ * the seeded manager: how a request came to be where it is is not what is under
+ * test, and the stamp that numbers and dates one answers to a Staff Member.
+ */
+function requestsInEveryState(propertyId: string, unitName: string): void {
+  const insert = (title: string, priority: string) =>
+    `insert into public.maintenance_requests
+       (organization_id, property_id, title, accommodation_unit_id, priority)
+     select unit.organization_id, unit.property_id, '${title}', unit.id, '${priority}'
+       from public.accommodation_units as unit
+      where unit.property_id = '${propertyId}' and unit.name = '${unitName}';`;
+  psql(
+    `select app.set_request_context(
+       (select id from public.users where lower(email) = lower('${EMAIL}')));
+     ${insert("Board new", "urgent")}
+     ${insert("Board in progress", "this_week")}
+     ${insert("Board waiting", "can_wait")}
+     ${insert("Board done", "can_wait")}
+     ${insert("Board aged", "can_wait")}
+     ${insert("Board cancelled", "can_wait")}
+     update public.maintenance_requests set status = 'in_progress',
+            assignee_id = (select id from public.users where lower(email) = lower('${EMAIL}'))
+      where title = 'Board in progress' and property_id = '${propertyId}';
+     update public.maintenance_requests set status = 'waiting_for_parts'
+      where title = 'Board waiting' and property_id = '${propertyId}';
+     update public.maintenance_requests set status = 'done'
+      where title in ('Board done', 'Board aged') and property_id = '${propertyId}';
+     update public.maintenance_requests set status = 'cancelled', cancel_reason = 'reported twice'
+      where title = 'Board cancelled' and property_id = '${propertyId}';
+     update public.maintenance_requests set status_changed_at = now() - interval '31 days'
+      where title = 'Board aged' and property_id = '${propertyId}';`,
+  );
+}
+
+test("the board groups requests by state, hides cancelled ones behind a filter, and counts what it shows", async ({
+  page,
+}) => {
+  const propertyId = aPropertyWithNothingReported();
+  const unitName = aRoom(propertyId);
+  requestsInEveryState(propertyId, unitName);
+  await signIn(page);
+  await page.goto(`/en/maintenance?property=${propertyId}`);
+
+  const ids: Record<string, string> = {
+    New: "new",
+    "In progress": "in_progress",
+    "Waiting for parts": "waiting_for_parts",
+    Done: "done",
+    Cancelled: "cancelled",
+  };
+  const count = (name: string) =>
+    page.locator(`#column-${ids[name]} > span`).last();
+  const card = (title: string) =>
+    page
+      .getByRole("button", { name: /^Open MT-\d+$/ })
+      .filter({ hasText: title });
+
+  // MT-S1-10: four columns, each with its count; Done shows the last thirty
+  // days only; cancelled requests are behind a filter.
+  await expect(count("New")).toHaveText("1");
+  await expect(count("In progress")).toHaveText("1");
+  await expect(count("Waiting for parts")).toHaveText("1");
+  await expect(count("Done")).toHaveText("1");
+  await expect(card("Board aged")).toHaveCount(0);
+  await expect(card("Board cancelled")).toHaveCount(0);
+
+  // Each card: number, title, where, priority, assignee.
+  const progress = card("Board in progress");
+  await expect(progress).toContainText(/MT-\d+/);
+  await expect(progress).toContainText("Board in progress");
+  await expect(progress).toContainText(unitName);
+  await expect(progress).toContainText("This week");
+  await expect(progress).toContainText(EMAIL);
+  await expect(card("Board new")).toContainText("Urgent");
+  await expect(card("Board new")).toContainText("Not assigned");
+
+  await page.getByRole("checkbox", { name: "Show cancelled" }).click();
+  await expect(card("Board cancelled")).toBeVisible();
+  await expect(count("Cancelled")).toHaveText("1");
+  await page.getByRole("checkbox", { name: "Show cancelled" }).click();
+
+  // MT-S1-29: filtering by priority, assignee and out of order shows only
+  // what matches, and each column's count is the count of what is shown.
+  await page.getByRole("combobox", { name: "Priority" }).click();
+  await page.getByRole("option", { name: "Can wait" }).click();
+  await expect(card("Board waiting")).toBeVisible();
+  await expect(card("Board new")).toHaveCount(0);
+  await expect(count("New")).toHaveText("0");
+  await expect(count("In progress")).toHaveText("0");
+  await expect(count("Waiting for parts")).toHaveText("1");
+  await expect(count("Done")).toHaveText("1");
+  await page.getByRole("combobox", { name: "Priority" }).click();
+  await page.getByRole("option", { name: "Any priority" }).click();
+
+  await page.getByRole("combobox", { name: "Assignee" }).click();
+  await page.getByRole("option", { name: EMAIL }).click();
+  await expect(card("Board in progress")).toBeVisible();
+  await expect(card("Board new")).toHaveCount(0);
+  await expect(count("In progress")).toHaveText("1");
+  await expect(count("New")).toHaveText("0");
+  await page.getByRole("combobox", { name: "Assignee" }).click();
+  await page.getByRole("option", { name: "Not assigned" }).click();
+  await expect(card("Board new")).toBeVisible();
+  await expect(card("Board in progress")).toHaveCount(0);
+  await expect(count("New")).toHaveText("1");
+  await page.getByRole("combobox", { name: "Assignee" }).click();
+  await page.getByRole("option", { name: "Anyone" }).click();
+
+  await page.getByRole("checkbox", { name: "Out of order only" }).click();
+  for (const name of ["New", "In progress", "Waiting for parts", "Done"]) {
+    await expect(count(name)).toHaveText("0");
+  }
+  await page.getByRole("checkbox", { name: "Out of order only" }).click();
+  await expect(count("New")).toHaveText("1");
+  await page.screenshot({
+    path: path.join(EVIDENCE, "board-in-every-state.png"),
+  });
+});
+
+test("the service plan lists items by next service, with the tone and the days", async ({
+  page,
+}) => {
+  const propertyId = aPropertyWithNothingReported();
+  const add = (name: string, months: number, servicedDaysAgo: number) =>
+    psql(
+      `insert into public.maintenance_equipment
+         (organization_id, property_id, name, category, location,
+          service_interval_months, last_serviced_on)
+       select organization_id, id, '${name}', 'Plant', 'Roof', ${months},
+              app.property_today(id) - ${servicedDaysAgo}
+         from public.properties where id = '${propertyId}'`,
+    );
+  // Entered out of order on purpose: the plan sorts, the register does not.
+  add("Plan later", 6, 0);
+  add("Plan soon", 1, 25);
+  add("Plan overdue", 1, 60);
+  await signIn(page);
+  await page.goto(`/en/maintenance?property=${propertyId}`);
+  await page.getByRole("tab", { name: "Service plan" }).click();
+
+  // MT-S4-01: soonest first.
+  const rows = page.getByRole("listitem").filter({ hasText: /^Plan / });
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(0)).toContainText("Plan overdue");
+  await expect(rows.nth(1)).toContainText("Plan soon");
+  await expect(rows.nth(2)).toContainText("Plan later");
+
+  // Overdue in the danger tone and saying how many days; due within fourteen
+  // days in the warning tone and saying in how many; further out, neither.
+  await expect(rows.nth(0)).toContainText(/\d+ days? overdue/);
+  await expect(rows.nth(0).getByText("Service overdue")).toHaveClass(
+    /text-danger/,
+  );
+  await expect(rows.nth(1)).toContainText(/in \d+ days?/);
+  await expect(rows.nth(1).getByText("Service due")).toHaveClass(
+    /text-warning/,
+  );
+  await expect(rows.nth(2).getByText("Working")).toHaveClass(/text-success/);
+  const soon = await rows.nth(1).innerText();
+  const days = Number(/in (\d+) days?/.exec(soon)?.[1]);
+  expect(days).toBeGreaterThan(0);
+  expect(days).toBeLessThanOrEqual(14);
+  await page.screenshot({
+    path: path.join(EVIDENCE, "service-plan-by-date.png"),
+  });
+
+  // MT-S3-06: a retired item leaves the plan, and comes back as it was.
+  await page.getByRole("tab", { name: "Equipment" }).click();
+  const register = page.getByRole("row").filter({ hasText: "Plan soon" });
+  await register.getByRole("button", { name: "Retire" }).click();
+  await page.getByRole("tab", { name: "Service plan" }).click();
+  await expect(rows).toHaveCount(2);
+  await expect(
+    page.getByRole("listitem").filter({ hasText: "Plan soon" }),
+  ).toHaveCount(0);
+  await page.getByRole("tab", { name: "Equipment" }).click();
+  await page.getByRole("checkbox", { name: "Show retired" }).click();
+  await page
+    .getByRole("row")
+    .filter({ hasText: "Plan soon" })
+    .getByRole("button", { name: "Restore" })
+    .click();
+  await page.getByRole("tab", { name: "Service plan" }).click();
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(1)).toContainText("Plan soon");
+});
+
+test("a reader who may not report sees the board and no New request button", async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  const propertyId = aPropertyWithNothingReported();
+  const unitName = aRoom(propertyId);
+  requestsInEveryState(propertyId, unitName);
+  // A role of the Organization's own that reaches rooms and nothing of
+  // maintenance's: every shipped role may report, so none can stand for this.
+  const organizationId = psql(
+    `select organization_id from public.properties where id = '${propertyId}'`,
+  );
+  const key = `rooms_only_${randomUUID().slice(0, 6)}`;
+  psql(
+    `insert into public.staff_roles (scope_id, key, organization_id, name, permissions)
+     values ('${organizationId}', '${key}', '${organizationId}', 'Rooms only ${key}',
+             array['accommodation.configure'])`,
+  );
+  const reader = await aStaffMember(
+    request,
+    baseURL!,
+    propertyId,
+    "front_desk",
+  );
+  psql(
+    `update public.organization_memberships
+        set role = '${key}', role_scope_id = '${organizationId}'
+      where user_id = '${reader.userId}'`,
+  );
+  await signIn(page, reader.email);
+  await page.goto(`/en/maintenance?property=${propertyId}`);
+
+  // MT-S1-04: they read every request and are offered no way to report one.
+  await expect(
+    page.getByRole("button", { name: /^Open MT-\d+$/ }).first(),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "New request" })).toHaveCount(
+    0,
+  );
+});
+
+test("maintenance is absent from the rail and the screen where the Property does not have it", async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  const propertyId = aPropertyWithNothingReported();
+  psql(
+    `update public.property_capabilities set enabled = false
+      where property_id = '${propertyId}' and capability_key = 'maintenance'`,
+  );
+  // Somebody who reaches this Property and no other, so the rail is read for
+  // what this Property has and not for what a sibling does.
+  const colleague = await aStaffMember(
+    request,
+    baseURL!,
+    propertyId,
+    "front_desk",
+  );
+  await signIn(page, colleague.email);
+  await page.goto(`/en/today?property=${propertyId}`);
+
+  // MT-S1-05: no rail entry, and nothing of the board where it is not on.
+  await expect(page.locator("aside").getByRole("link")).not.toHaveCount(0);
+  await expect(
+    page.locator("aside").getByRole("link", { name: "Maintenance" }),
+  ).toHaveCount(0);
+  await page.goto(`/en/maintenance?property=${propertyId}`);
+  await expect(page.getByRole("button", { name: /^Open MT-\d+$/ })).toHaveCount(
+    0,
+  );
+  await expect(page.getByRole("button", { name: "New request" })).toHaveCount(
+    0,
+  );
+});
+
 test("a report the database refuses keeps the form and claims nothing", async ({
   page,
   request,
