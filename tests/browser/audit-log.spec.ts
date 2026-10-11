@@ -393,3 +393,33 @@ test("a one-character search is not run and the screen says why", async ({
     page.getByText("Type at least two characters to search."),
   ).toBeVisible();
 });
+
+/**
+ * The same record in Arabic: the action in the reader's language, the actor's
+ * address and the reason exactly as typed, the page laid out from the right.
+ */
+test("a correction reads in Arabic with its actor and its reason as they were written", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const reason = `evid3 ${randomUUID().slice(0, 8)} charged in error`;
+  writeRecord(propertyId, reason);
+
+  await signIn(page, OWNER_EMAIL);
+  await page.goto(
+    `/ar/audit-log?property=${propertyId}&q=${encodeURIComponent(reason)}`,
+  );
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  const row = page.getByRole("row").filter({ hasText: reason });
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText("تم عكس بند");
+  await expect(row).toContainText(EMAIL);
+  await page.screenshot({
+    path: path.join(EVIDENCE, "correction-in-arabic.png"),
+  });
+
+  await row.getByRole("link").click();
+  await expect(page).toHaveURL(/record=/);
+  await expect(page.getByText(reason)).toBeVisible();
+  await expect(page.getByText(EMAIL)).toBeVisible();
+});
