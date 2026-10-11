@@ -33,7 +33,11 @@ export default async function BrandingPage({
   await requireViewer(locale);
 
   const t = await getTranslations();
-  const properties = await permittedProperties("branding.manage");
+  const properties = await permittedProperties(
+    "branding.manage",
+    "platform_core",
+    "configuration",
+  );
   const property = await frontDeskProperty(
     properties,
     await searchParams,
@@ -43,7 +47,12 @@ export default async function BrandingPage({
     ? await organizationBrand(property.organizationId)
     : null;
 
-  if (!property || !settings) {
+  // The Properties above are those where the permission and the Configuration
+  // capability both hold, so a Subscription that has lapsed, an Entitlement
+  // that is not there and a Property with Configuration off all leave nothing
+  // to open, and say what every unreachable screen says. `unavailable` is the
+  // same answer for the one that changes between the list and the read.
+  if (!property || !settings || settings.reason === "unavailable") {
     return (
       <EmptyState
         description={t("notEntitledDescription")}
@@ -54,8 +63,9 @@ export default async function BrandingPage({
 
   // Holding the permission at a Property is not holding it across the
   // Organization, which a brand takes: say who can, rather than show a form
-  // whose every save would be refused.
-  if (!settings.canManage) {
+  // whose every save would be refused. Only reach is said here: a gate that
+  // failed is not something reach can put right.
+  if (settings.reason === "reach") {
     return (
       <EmptyState
         description={t("branding.needsReach")}

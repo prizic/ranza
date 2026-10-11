@@ -67,6 +67,10 @@
   --popover: var(--surface);
   --popover-foreground: var(--ink);
   --primary: var(--accent);
+  /* Text and outlines drawn in the brand colour on the white canvas. The theme's
+     own is dark enough to be both; an Organization's is a shade of its colour
+     that reads there (ADR 0046). */
+  --primary-text: var(--primary);
   --primary-foreground: hsl(0 0% 100%);
   --secondary: var(--accent-soft);
   --secondary-foreground: var(--accent);
@@ -99,6 +103,7 @@
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
+  --color-primary-text: var(--primary-text);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);

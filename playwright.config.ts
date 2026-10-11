@@ -4,6 +4,7 @@ import {
   AUTH_DATABASE_URL,
   DATABASE_URL,
 } from "./tests/browser/local-database";
+import { portalUrl } from "./tests/browser/portal-url";
 
 /**
  * The Operator Workspace in a browser.
@@ -27,7 +28,7 @@ const WORKSPACE = "http://localhost:3000";
  * look at what a Guest sees (RANZ-47). The same database, a server of its own,
  * and a port of its own: `tests/browser/portal.ts` reads the same address.
  */
-const PORTAL = process.env.PORTAL_URL ?? "http://localhost:3001";
+const PORTAL = portalUrl();
 
 export default defineConfig({
   testDir: "./tests/browser",

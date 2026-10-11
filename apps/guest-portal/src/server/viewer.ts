@@ -89,12 +89,19 @@ export const ownStays = cache(async (): Promise<readonly OwnStay[]> => {
  * identity (ADR 0009). An Organization that set nothing, or reset it, has a
  * Stay with no colour and no logo, which is the default theme.
  *
- * A failure is not swallowed into the default: a Portal that quietly drops an
- * Organization's colour when the database is down is a Portal nobody is told is
- * broken, so the error reaches the page.
+ * A failure to read it is reported and answered with the default theme, not
+ * with an error page: a Guest who could not see their own Stay because the
+ * colour of the Organization could not be read would have lost what the Portal
+ * is for to something that is only decoration. The report is the console, as it
+ * is for the sign-in form, which is this application's only reporter so far.
  */
 export const stayBrands = cache(async (): Promise<readonly StayBrand[]> => {
   const viewer = await currentViewer();
   if (!viewer) return [];
-  return getComposition().branding.stayBrands(viewer.userId);
+  try {
+    return await getComposition().branding.stayBrands(viewer.userId);
+  } catch (error: unknown) {
+    console.error("branding.read_failed", { userId: viewer.userId }, error);
+    return [];
+  }
 });

@@ -5,6 +5,7 @@ import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
 import { testProperty, PASSWORD } from "./front-desk";
 import { psql } from "./local-database";
+import { portalUrl } from "./portal-url";
 
 /**
  * Where the Guest/Resident Portal is served while the browser tests run.
@@ -14,7 +15,7 @@ import { psql } from "./local-database";
  * Workspace, so a test that needs both holds two pages, and the session cookie
  * of one never reaches the other: they are separate browser contexts.
  */
-export const PORTAL_URL = process.env.PORTAL_URL ?? "http://localhost:3001";
+export const PORTAL_URL = portalUrl();
 
 /** The Organization the browser tests' Property belongs to. */
 export function theOrganization(): string {

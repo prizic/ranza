@@ -68,6 +68,13 @@ export interface Screen {
    * the one destination no package selection may remove.
    */
   permission?: string | undefined;
+  /**
+   * For an entry decided by `permission` that is an Organization's to
+   * configure and not a baseline right: the capability, in `module`, a Property
+   * must also have for the entry to be offered there (gates 1 to 3). The same
+   * three the write policies ask, so the rail and the policy agree.
+   */
+  requires?: string | undefined;
   /** Matched against `entitlements.module_key` (gate 2). */
   module: string;
   icon: LucideIcon;
@@ -282,6 +289,7 @@ export const SCREENS: Screen[] = [
     segment: "branding",
     capability: "branding",
     permission: "branding.manage",
+    requires: "configuration",
     module: "platform_core",
     icon: Palette,
     blueprint: "8",

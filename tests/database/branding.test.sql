@@ -16,8 +16,9 @@
 --   b  whole-Organization reach out of the UPDATE policies
 --        BR-S1-14: a holder who reaches one Property writes nothing, nor the logo
 --   c  the commercial gates out of the UPDATE policies
---        BR-S1-15: a suspended Subscription, no Configuration capability and no
---        platform_core Entitlement each write nothing, nor a logo
+--        BR-S1-15: no Configuration capability and no platform_core
+--        Entitlement each write nothing (the suspended Subscription's own
+--        assertion is not among them: see below)
 --   d  `updated_by = app.current_user_id()` out of the UPDATE policies
 --        BR-S1-16: a write names the acting user as its author
 --   m  branding.manage out of the INSERT policies of both tables
@@ -38,8 +39,31 @@
 --        desk member's
 --   f  app.resident_organization_ids() loses its status filter
 --        BR-S1-20: a departed Resident and a cancelled one read nothing
+--        (its next run, with the gates also gone, is w below)
+--   w  app.resident_organization_ids() loses the Portal's capability gate
+--        BR-S1-36: a Resident of a suspended Organization and one at a
+--        Property with the Portal off read no brand and no logo
 --   l  branding.manage out of the Staff read policies
 --        BR-S1-22: a member without the permission, and a Manager, read no brand
+--   u  whole-Organization reach out of the Staff read policies
+--        BR-S1-41: a holder who reaches one Property reads no brand and no logo
+--   v  the commercial gates out of the Staff read policies
+--        BR-S1-41: a holder who reaches everything reads no brand where the
+--        Configuration capability is off
+--   x  SELECT granted on both tables at table level
+--        BR-S1-39: the columns the application role may read are exactly the
+--        ones the Portal draws (both assertions)
+--   q  organization_brand_logos_size dropped
+--        BR-S1-07: a logo over 512 KB is refused by the table
+--   r  organization_brand_logos_dimensions dropped
+--        BR-S1-08: under 128 px tall, and over 4096 px wide
+--   s  organization_brand_logos_size_is_the_bytes dropped
+--        BR-S1-10: a size that is not the bytes' own
+--   t  UPDATE granted on organization_id of both tables
+--        BR-S1-18: a brand cannot be moved to another Organization, even by
+--        somebody who administers both, nor a logo. With the grant, the update
+--        reaches the primary key of the other Organization's row and fails
+--        there, 23505 and not 42501, which is why the assertions are red
 --   g  organization_brands_primary_color_format dropped
 --        BR-S1-02: a colour that is not #rrggbb, one in capitals, the short form
 --   h  organization_brand_logos_type_is_the_bytes dropped
@@ -63,11 +87,19 @@
 --        so the assertions for a Manager, a scoped Owner and the Owners of three
 --        lapsed Organizations who are also staying at them are the ones that
 --        tell the two apart, and they are what went red above.
+--   c, the suspended Subscription: the Resident path now asks the Portal's
+--        gates too (BR-S1-36), a suspended Subscription denies it, and so the
+--        Owner of a suspended Organization who is also staying there reads
+--        nothing as a Resident either. Gate 1 is therefore asked by both read
+--        paths and no assertion can tell the update policy's copy of it from
+--        theirs: a missing Entitlement and a missing capability are the gates
+--        that can, and are what c turns red. Gate 1 is held by the update policy
+--        and stands on the read policies for its test.
 --   BR-S1-10, the size half: a size that is not the bytes' own is also refused
 --      by organization_brand_logos_size_is_the_bytes; i drops the hash check
 --      alone, so the size assertion holds on its other constraint.
 begin;
-select plan(79);
+select plan(93);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures: six Organizations, because each commercial gate needs one of its own
@@ -93,7 +125,13 @@ insert into public.users (id, email) values
   ('bb000001-0000-4000-8000-000000000014', 'brand-owner-e@example.test'),
   ('bb000001-0000-4000-8000-000000000015', 'brand-resident-cancelled@example.test'),
   ('bb000001-0000-4000-8000-000000000016', 'brand-resident-reserved@example.test'),
-  ('bb000001-0000-4000-8000-000000000017', 'brand-manager-resident-a@example.test');
+  ('bb000001-0000-4000-8000-000000000017', 'brand-manager-resident-a@example.test'),
+  ('bb000001-0000-4000-8000-000000000018', 'brand-owner-of-a-and-b@example.test'),
+  ('bb000001-0000-4000-8000-000000000019', 'brand-owner-a-scoped-no-stay@example.test'),
+  ('bb000001-0000-4000-8000-000000000020', 'brand-owner-n-no-stay@example.test'),
+  ('bb000001-0000-4000-8000-000000000021', 'brand-resident-suspended@example.test'),
+  ('bb000001-0000-4000-8000-000000000022', 'brand-resident-portal-off@example.test'),
+  ('bb000001-0000-4000-8000-000000000023', 'brand-resident-past-due@example.test');
 
 insert into public.organizations (id, name, status) values
   ('ba000001-0000-4000-8000-00000000000a', 'Brand Org A', 'active'),
@@ -128,7 +166,14 @@ insert into public.entitlements (organization_id, module_key) values
   ('ba000001-0000-4000-8000-0000000000a5', 'platform_core'),
   ('ba000001-0000-4000-8000-0000000000a6', 'platform_core'),
   ('ba000001-0000-4000-8000-0000000000a7', 'platform_core'),
-  ('ba000001-0000-4000-8000-0000000000a8', 'front_office');
+  ('ba000001-0000-4000-8000-0000000000a8', 'front_office'),
+  -- The Portal is a Front Office capability, which a Resident's Stay is asked
+  -- for as well (ADR 0009): every Organization a Resident stays at has it.
+  ('ba000001-0000-4000-8000-00000000000a', 'front_office'),
+  ('ba000001-0000-4000-8000-00000000000b', 'front_office'),
+  ('ba000001-0000-4000-8000-0000000000a5', 'front_office'),
+  ('ba000001-0000-4000-8000-0000000000a6', 'front_office'),
+  ('ba000001-0000-4000-8000-0000000000a7', 'front_office');
 
 insert into public.property_capabilities
   (property_id, organization_id, capability_key, enabled) values
@@ -138,7 +183,16 @@ insert into public.property_capabilities
   ('bc000001-0000-4000-8000-0000000000c5', 'ba000001-0000-4000-8000-0000000000a5', 'configuration', true),
   ('bc000001-0000-4000-8000-0000000000c6', 'ba000001-0000-4000-8000-0000000000a6', 'configuration', true),
   ('bc000001-0000-4000-8000-0000000000c7', 'ba000001-0000-4000-8000-0000000000a7', 'configuration', false),
-  ('bc000001-0000-4000-8000-0000000000c8', 'ba000001-0000-4000-8000-0000000000a8', 'configuration', true);
+  ('bc000001-0000-4000-8000-0000000000c8', 'ba000001-0000-4000-8000-0000000000a8', 'configuration', true),
+  -- The Portal's own capability: on wherever a Resident below is staying, and
+  -- off at A Two, where one is staying to be told there is nothing to read.
+  ('bc000001-0000-4000-8000-0000000000a1', 'ba000001-0000-4000-8000-00000000000a', 'portal_stay_overview', true),
+  ('bc000001-0000-4000-8000-0000000000a2', 'ba000001-0000-4000-8000-00000000000a', 'portal_stay_overview', false),
+  ('bc000001-0000-4000-8000-0000000000b1', 'ba000001-0000-4000-8000-00000000000b', 'portal_stay_overview', true),
+  ('bc000001-0000-4000-8000-0000000000c5', 'ba000001-0000-4000-8000-0000000000a5', 'portal_stay_overview', true),
+  ('bc000001-0000-4000-8000-0000000000c6', 'ba000001-0000-4000-8000-0000000000a6', 'portal_stay_overview', true),
+  ('bc000001-0000-4000-8000-0000000000c7', 'ba000001-0000-4000-8000-0000000000a7', 'portal_stay_overview', true),
+  ('bc000001-0000-4000-8000-0000000000c8', 'ba000001-0000-4000-8000-0000000000a8', 'portal_stay_overview', true);
 
 -- A role an Organization wrote, holding the permission and nothing else: what
 -- makes the permission, and not the name of a role, the thing asked.
@@ -161,11 +215,16 @@ insert into public.organization_memberships
   ('ba000001-0000-4000-8000-0000000000a5', 'bb000001-0000-4000-8000-000000000011', 'owner', '00000000-0000-0000-0000-000000000000', 'organization_wide'),
   ('ba000001-0000-4000-8000-0000000000a6', 'bb000001-0000-4000-8000-000000000012', 'owner', '00000000-0000-0000-0000-000000000000', 'organization_wide'),
   ('ba000001-0000-4000-8000-0000000000a7', 'bb000001-0000-4000-8000-000000000013', 'owner', '00000000-0000-0000-0000-000000000000', 'organization_wide'),
-  ('ba000001-0000-4000-8000-0000000000a8', 'bb000001-0000-4000-8000-000000000014', 'owner', '00000000-0000-0000-0000-000000000000', 'organization_wide');
+  ('ba000001-0000-4000-8000-0000000000a8', 'bb000001-0000-4000-8000-000000000014', 'owner', '00000000-0000-0000-0000-000000000000', 'organization_wide'),
+  ('ba000001-0000-4000-8000-00000000000a', 'bb000001-0000-4000-8000-000000000018', 'owner', '00000000-0000-0000-0000-000000000000', 'organization_wide'),
+  ('ba000001-0000-4000-8000-00000000000b', 'bb000001-0000-4000-8000-000000000018', 'owner', '00000000-0000-0000-0000-000000000000', 'organization_wide'),
+  ('ba000001-0000-4000-8000-00000000000a', 'bb000001-0000-4000-8000-000000000019', 'owner', '00000000-0000-0000-0000-000000000000', 'assigned_properties'),
+  ('ba000001-0000-4000-8000-0000000000a7', 'bb000001-0000-4000-8000-000000000020', 'owner', '00000000-0000-0000-0000-000000000000', 'organization_wide');
 
 insert into public.property_assignments (property_id, organization_id, user_id) values
   ('bc000001-0000-4000-8000-0000000000a1', 'ba000001-0000-4000-8000-00000000000a', 'bb000001-0000-4000-8000-000000000003'),
-  ('bc000001-0000-4000-8000-0000000000a1', 'ba000001-0000-4000-8000-00000000000a', 'bb000001-0000-4000-8000-000000000007');
+  ('bc000001-0000-4000-8000-0000000000a1', 'ba000001-0000-4000-8000-00000000000a', 'bb000001-0000-4000-8000-000000000007'),
+  ('bc000001-0000-4000-8000-0000000000a1', 'ba000001-0000-4000-8000-00000000000a', 'bb000001-0000-4000-8000-000000000019');
 
 insert into public.accommodation_units (id, property_id, organization_id, name, unit_type, capacity) values
   ('bd000001-0000-4000-8000-000000000001', 'bc000001-0000-4000-8000-0000000000a1', 'ba000001-0000-4000-8000-00000000000a', 'BR-101', 'room', 2),
@@ -178,7 +237,10 @@ insert into public.accommodation_units (id, property_id, organization_id, name, 
   ('bd000001-0000-4000-8000-000000000008', 'bc000001-0000-4000-8000-0000000000a1', 'ba000001-0000-4000-8000-00000000000a', 'BR-107', 'room', 2),
   ('bd000001-0000-4000-8000-000000000009', 'bc000001-0000-4000-8000-0000000000c5', 'ba000001-0000-4000-8000-0000000000a5', 'BR-501', 'room', 2),
   ('bd000001-0000-4000-8000-000000000010', 'bc000001-0000-4000-8000-0000000000c7', 'ba000001-0000-4000-8000-0000000000a7', 'BR-701', 'room', 2),
-  ('bd000001-0000-4000-8000-000000000011', 'bc000001-0000-4000-8000-0000000000c8', 'ba000001-0000-4000-8000-0000000000a8', 'BR-801', 'room', 2);
+  ('bd000001-0000-4000-8000-000000000011', 'bc000001-0000-4000-8000-0000000000c8', 'ba000001-0000-4000-8000-0000000000a8', 'BR-801', 'room', 2),
+  ('bd000001-0000-4000-8000-000000000012', 'bc000001-0000-4000-8000-0000000000c5', 'ba000001-0000-4000-8000-0000000000a5', 'BR-502', 'room', 2),
+  ('bd000001-0000-4000-8000-000000000013', 'bc000001-0000-4000-8000-0000000000c6', 'ba000001-0000-4000-8000-0000000000a6', 'BR-601', 'room', 2),
+  ('bd000001-0000-4000-8000-000000000014', 'bc000001-0000-4000-8000-0000000000a2', 'ba000001-0000-4000-8000-00000000000a', 'BR-201A', 'room', 2);
 
 -- Five Residents: one with a current Stay at A, one whose Stay at A has
 -- departed, one whose was cancelled, one with a reservation at A, and one with
@@ -205,7 +267,10 @@ insert into public.stays
   ('be000001-0000-4000-8000-000000000008', 'ba000001-0000-4000-8000-00000000000a', 'bc000001-0000-4000-8000-0000000000a1', 'bd000001-0000-4000-8000-000000000008', 'bb000001-0000-4000-8000-000000000003', 'guest', 'in_house', date '2026-09-01', null, null),
   ('be000001-0000-4000-8000-000000000009', 'ba000001-0000-4000-8000-0000000000a5', 'bc000001-0000-4000-8000-0000000000c5', 'bd000001-0000-4000-8000-000000000009', 'bb000001-0000-4000-8000-000000000011', 'guest', 'in_house', date '2026-09-01', null, null),
   ('be000001-0000-4000-8000-000000000010', 'ba000001-0000-4000-8000-0000000000a7', 'bc000001-0000-4000-8000-0000000000c7', 'bd000001-0000-4000-8000-000000000010', 'bb000001-0000-4000-8000-000000000013', 'guest', 'in_house', date '2026-09-01', null, null),
-  ('be000001-0000-4000-8000-000000000011', 'ba000001-0000-4000-8000-0000000000a8', 'bc000001-0000-4000-8000-0000000000c8', 'bd000001-0000-4000-8000-000000000011', 'bb000001-0000-4000-8000-000000000014', 'guest', 'in_house', date '2026-09-01', null, null);
+  ('be000001-0000-4000-8000-000000000011', 'ba000001-0000-4000-8000-0000000000a8', 'bc000001-0000-4000-8000-0000000000c8', 'bd000001-0000-4000-8000-000000000011', 'bb000001-0000-4000-8000-000000000014', 'guest', 'in_house', date '2026-09-01', null, null),
+  ('be000001-0000-4000-8000-000000000012', 'ba000001-0000-4000-8000-0000000000a5', 'bc000001-0000-4000-8000-0000000000c5', 'bd000001-0000-4000-8000-000000000012', 'bb000001-0000-4000-8000-000000000021', 'guest', 'in_house', date '2026-09-01', null, null),
+  ('be000001-0000-4000-8000-000000000013', 'ba000001-0000-4000-8000-00000000000a', 'bc000001-0000-4000-8000-0000000000a2', 'bd000001-0000-4000-8000-000000000014', 'bb000001-0000-4000-8000-000000000022', 'guest', 'in_house', date '2026-09-01', null, null),
+  ('be000001-0000-4000-8000-000000000014', 'ba000001-0000-4000-8000-0000000000a6', 'bc000001-0000-4000-8000-0000000000c6', 'bd000001-0000-4000-8000-000000000013', 'bb000001-0000-4000-8000-000000000023', 'guest', 'in_house', date '2026-09-01', null, null);
 
 -- A PNG signature and padding: all the table reads of a logo is how its bytes
 -- start, how long they are, and what is recorded beside them.
@@ -715,14 +780,40 @@ select throws_ok(
   null,
   'BR-S1-18: the application role writes only the columns the commands write');
 
+-- Somebody who holds branding.manage across both Organizations, so that every
+-- policy admits moving a brand from one to the other — the old row is theirs
+-- and so is the new one, the author is named, the gates hold at both — and the
+-- column grant is the only thing left to refuse it. With an Owner of one, the
+-- policies refuse it too, and the grant is never asked.
+set local role none;
+set local role ranza_app;
+select app.set_request_context('bb000001-0000-4000-8000-000000000018');
+
 select throws_ok(
   $$update public.organization_brands
-       set organization_id = 'ba000001-0000-4000-8000-0000000000a5',
-           updated_by = 'bb000001-0000-4000-8000-000000000001'
+       set organization_id = 'ba000001-0000-4000-8000-00000000000b',
+           updated_by = 'bb000001-0000-4000-8000-000000000018'
      where organization_id = 'ba000001-0000-4000-8000-00000000000a'$$,
   '42501',
   null,
-  'BR-S1-18: a brand cannot be moved to another Organization');
+  'BR-S1-18: a brand cannot be moved to another Organization, even by somebody who administers both');
+
+select throws_ok(
+  $$update public.organization_brand_logos
+       set organization_id = 'ba000001-0000-4000-8000-00000000000b',
+           updated_by = 'bb000001-0000-4000-8000-000000000018'
+     where organization_id = 'ba000001-0000-4000-8000-00000000000a'$$,
+  '42501',
+  null,
+  'BR-S1-18: nor a logo');
+
+select is(
+  pg_temp.rows_changed($$update public.organization_brands
+       set primary_color = '#1a5d3a',
+           updated_by = 'bb000001-0000-4000-8000-000000000018'
+     where organization_id = 'ba000001-0000-4000-8000-00000000000b'$$),
+  1,
+  'BR-S1-18: and the same person does change the brand of either, so it is the move and not the person that is refused');
 
 select is(
   (select count(*)::int from pg_class as c
@@ -828,6 +919,107 @@ select is_empty(
 select is_empty(
   'select app.resident_organization_ids()',
   'BR-S1-22: a membership is not a Stay, so the Resident path adds nothing for Staff');
+
+-- ---------------------------------------------------------------------------
+-- A Resident is shown a brand where the Portal is shown a Stay (BR-S1-36)
+-- ---------------------------------------------------------------------------
+
+-- The Stay list asks app.resident_can_use_capability() of every Stay it lists.
+-- The brand around a Stay is read through the same question, so a Resident who
+-- is shown no Stay is handed no brand: the Subscription, the Entitlement and
+-- the Property's own capability, and not the Stay alone.
+set local role none;
+set local role ranza_app;
+select app.set_request_context('bb000001-0000-4000-8000-000000000021');
+
+select is_empty(
+  'select organization_id from public.organization_brands',
+  'BR-S1-36: a Resident of an Organization whose Subscription is suspended reads no brand and no logo');
+
+select is_empty(
+  'select organization_id from public.organization_brand_logos',
+  'BR-S1-36: not the logo either');
+
+select is_empty(
+  'select app.resident_organization_ids()',
+  'BR-S1-36: and the Resident path names no Organization for them');
+
+set local role none;
+set local role ranza_app;
+select app.set_request_context('bb000001-0000-4000-8000-000000000022');
+
+select is_empty(
+  'select organization_id from public.organization_brands',
+  'BR-S1-36: a Resident whose Stay is at a Property with the Portal switched off reads no brand');
+
+select is_empty(
+  'select organization_id from public.organization_brand_logos',
+  'BR-S1-36: and no logo');
+
+set local role none;
+set local role ranza_app;
+select app.set_request_context('bb000001-0000-4000-8000-000000000023');
+
+select set_eq(
+  'select organization_id::text from public.organization_brands',
+  array['ba000001-0000-4000-8000-0000000000a6'],
+  'BR-S1-36: a past_due Subscription is in its grace period and its Resident still reads the brand (ADR 0040)');
+
+-- ---------------------------------------------------------------------------
+-- A Resident reads the columns the Portal draws and no others (BR-S1-39)
+-- ---------------------------------------------------------------------------
+
+-- The Resident reads through the same role as Staff do, so what the role may
+-- read is what a Resident may: who wrote the brand and when are in neither
+-- screen. Read from the catalogue, which a table-level grant would also fill.
+set local role none;
+
+select set_eq(
+  $$select column_name::text from information_schema.column_privileges
+     where grantee = 'ranza_app' and privilege_type = 'SELECT'
+       and table_schema = 'public' and table_name = 'organization_brands'$$,
+  array['organization_id', 'primary_color'],
+  'BR-S1-39: the application role reads the colour of a brand and which Organization it is, and nothing else');
+
+select set_eq(
+  $$select column_name::text from information_schema.column_privileges
+     where grantee = 'ranza_app' and privilege_type = 'SELECT'
+       and table_schema = 'public' and table_name = 'organization_brand_logos'$$,
+  array['organization_id', 'content', 'content_type', 'content_hash',
+        'size_bytes', 'width', 'height'],
+  'BR-S1-39: and of a logo its bytes and what is known of them, not who wrote it or when');
+
+-- ---------------------------------------------------------------------------
+-- The Staff read policies, each gate on its own (BR-S1-41)
+-- ---------------------------------------------------------------------------
+
+-- Neither of these is staying anywhere, so the Resident policy cannot answer
+-- for them: what they read is what the Staff policy admits and nothing else.
+-- The first holds the permission and every commercial gate and reaches one
+-- Property; the second holds the permission and reaches everything, in an
+-- Organization where the Configuration capability is off.
+set local role ranza_app;
+select app.set_request_context('bb000001-0000-4000-8000-000000000019');
+
+select is_empty(
+  'select organization_id from public.organization_brands',
+  'BR-S1-41: a holder of the permission who reaches one Property reads no brand, which reach alone refuses');
+
+select is_empty(
+  'select organization_id from public.organization_brand_logos',
+  'BR-S1-41: and no logo');
+
+set local role none;
+set local role ranza_app;
+select app.set_request_context('bb000001-0000-4000-8000-000000000020');
+
+select is_empty(
+  'select organization_id from public.organization_brands',
+  'BR-S1-41: a holder who reaches everything reads no brand where the Configuration capability is off, which the gate alone refuses');
+
+select is_empty(
+  'select organization_id from public.organization_brand_logos',
+  'BR-S1-41: and no logo');
 
 -- ---------------------------------------------------------------------------
 -- The first logo and the first brand an Organization writes (BR-S1-05, 13 to 16)

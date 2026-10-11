@@ -680,9 +680,14 @@ export interface Messages {
     /** What a record names a colour or a logo that was not set. */
     defaultTheme: string;
     colorInvalid: string;
-    colorUnreadable: string;
-    /** `{foreground}`: the word below for the text on the colour. */
+    /** `{foreground}`: the word below for the text on the colour; `{ratio}` its contrast. */
     colorReadable: string;
+    /** `{ratio}`: the colour's own contrast against white, where it reads. */
+    colorTextSame: string;
+    /** `{shade}`, a hex value, and `{ratio}`: the shade's contrast against white. */
+    colorTextDarker: string;
+    swatchFill: string;
+    swatchText: string;
     foreground: Record<"white" | "black", string>;
     logoTitle: string;
     logoHint: string;
@@ -3145,10 +3150,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       colorEmpty: "Renk seçilmedi: Ranza'nın kendi teması kullanılır.",
       defaultTheme: "Varsayılan tema",
       colorInvalid: "Rengi #0f5132 gibi, # ile ve altı hanede yazın.",
-      colorUnreadable:
-        "Bu renk beyaz zemin üzerinde yazı olarak okunamayacak kadar açık (karşıtlık {ratio} : 1; en az 4,5 : 1 gerekir). Daha koyu bir renk seçin.",
       colorReadable:
-        "Okunabilir: üzerindeki yazı {foreground}, beyaz zemine karşıtlığı {ratio} : 1.",
+        "Renkli yüzeylerdeki yazı {foreground}; karşıtlığı {ratio} : 1.",
+      colorTextSame:
+        "Bağlantılar ve yazılar rengin kendisiyle çizilir; beyaz zeminde karşıtlığı {ratio} : 1.",
+      colorTextDarker:
+        "Bağlantılar ve yazılar beyaz zeminde okunabilsin diye aynı tonun daha koyu bir gölgesiyle çizilir: {shade} ({ratio} : 1).",
+      swatchFill: "Düğmeler ve dolgular",
+      swatchText: "Bağlantılar ve yazı",
       foreground: { white: "beyaz", black: "siyah" },
       logoTitle: "Logo",
       logoHint:
@@ -5415,10 +5424,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       colorEmpty: "No colour set: Ranza's own theme is used.",
       defaultTheme: "Default theme",
       colorInvalid: "Write the colour like #0f5132, with the # and six digits.",
-      colorUnreadable:
-        "This colour is too light to read as text on white (contrast {ratio} : 1; at least 4.5 : 1 is needed). Choose a darker one.",
       colorReadable:
-        "Readable: {foreground} text on it, and {ratio} : 1 against a white page.",
+        "Text on filled surfaces is {foreground}, at {ratio} : 1.",
+      colorTextSame:
+        "Links and text use the colour itself, which reads on white at {ratio} : 1.",
+      colorTextDarker:
+        "Links and text use a darker shade of the same hue so they stay readable on white: {shade} ({ratio} : 1).",
+      swatchFill: "Buttons and fills",
+      swatchText: "Links and text",
       foreground: { white: "white", black: "black" },
       logoTitle: "Logo",
       logoHint:
@@ -7655,10 +7668,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       colorEmpty: "لم يُحدَّد لون: يُستخدم سمة Ranza الخاصة.",
       defaultTheme: "السمة الافتراضية",
       colorInvalid: "اكتب اللون بالشكل #0f5132، مع # وستة أرقام.",
-      colorUnreadable:
-        "هذا اللون فاتح جدًا فلا يُقرأ كنص على خلفية بيضاء (التباين {ratio} : 1؛ المطلوب 4.5 : 1 على الأقل). اختر لونًا أغمق.",
       colorReadable:
-        "مقروء: النص فوقه {foreground}، وتباينه مع الصفحة البيضاء {ratio} : 1.",
+        "النص على الأسطح الملوّنة {foreground}، بتباين {ratio} : 1.",
+      colorTextSame:
+        "تُرسم الروابط والنصوص باللون نفسه، ويُقرأ على الأبيض بتباين {ratio} : 1.",
+      colorTextDarker:
+        "تُرسم الروابط والنصوص بظلّ أغمق من اللون نفسه ليبقى مقروءًا على الأبيض: \u2066{shade}\u2069 ({ratio} : 1).",
+      swatchFill: "الأزرار والتعبئة",
+      swatchText: "الروابط والنص",
       foreground: { white: "أبيض", black: "أسود" },
       logoTitle: "الشعار",
       logoHint:

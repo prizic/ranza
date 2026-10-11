@@ -1,5 +1,5 @@
-export { assessBrandColor, MINIMUM_CONTRAST } from "./color";
-export type { ColorAssessment, Foreground } from "./color";
+export { assessBrandColor, MINIMUM_CONTRAST, oklchOf } from "./color";
+export type { ColorAssessment, Foreground, Oklch } from "./color";
 export * from "./contracts";
 export * from "./errors";
 export { LOGO_MAX_BYTES, LOGO_MIN_HEIGHT } from "./image";

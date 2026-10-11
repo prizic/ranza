@@ -3,8 +3,7 @@ import { serveLogo } from "@ranza/branding";
 import { getComposition } from "./composition";
 import { currentViewer } from "./viewer";
 
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * The logo of the Organization one of the viewer's own current Stays is with

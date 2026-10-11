@@ -30,10 +30,12 @@ import {
   BrandingRefusedError,
   createBrandingModule,
 } from "../../packages/ranza/branding/src";
+import { createCoreModule } from "../../packages/ranza/core/src";
 import { jpeg, png, svg } from "../unit/branding-images";
 
 const prisma = createPrismaClient(process.env.DATABASE_URL!);
 const branding = createBrandingModule({ db: prisma });
+const core = createCoreModule({ db: prisma });
 const owner = createPrismaClient(process.env.DIRECT_URL!);
 
 const SHIPPED = "00000000-0000-0000-0000-000000000000";
@@ -101,13 +103,15 @@ async function seed(label: string): Promise<Fixture> {
   );
   await owner.$executeRawUnsafe(
     `insert into public.entitlements (organization_id, module_key, status)
-     values ($1::uuid, 'platform_core', 'active')`,
+     values ($1::uuid, 'platform_core', 'active'),
+            ($1::uuid, 'front_office', 'active')`,
     f.organization,
   );
   await owner.$executeRawUnsafe(
     `insert into public.property_capabilities
        (property_id, organization_id, capability_key, enabled)
-     values ($1::uuid, $2::uuid, 'configuration', true)`,
+     values ($1::uuid, $2::uuid, 'configuration', true),
+            ($1::uuid, $2::uuid, 'portal_stay_overview', true)`,
     f.property,
     f.organization,
   );
@@ -253,6 +257,7 @@ describe("branding an Organization", () => {
     expect(settings.brand).toMatchObject({
       primaryColor: GREEN,
       primaryForeground: "#ffffff",
+      primaryText: GREEN,
       logo: { contentType: "image/png", width: 300, height: 200 },
     });
 
@@ -262,6 +267,7 @@ describe("branding an Organization", () => {
       stayId: f.residentStay,
       primaryColor: GREEN,
       primaryForeground: "#ffffff",
+      primaryText: GREEN,
     });
     expect(seen[0]!.logo?.hash).toBe(settings.brand.logo?.hash);
 
@@ -270,22 +276,34 @@ describe("branding an Organization", () => {
     expect(Buffer.from(logo!.bytes).equals(bytes)).toBe(true);
   });
 
-  it("BR-S1-04: an unreadable colour is refused and nothing is written", async () => {
-    const f = await seed("unreadable");
+  it("BR-S1-04: a light colour is accepted as it is and read back with a darker text shade", async () => {
+    const f = await seed("light");
+    await branding.saveBrand(f.admin, {
+      organizationId: f.organization,
+      primaryColor: "#E67E22",
+    });
+
+    const { brand } = await branding.brandSettings(f.admin, f.organization);
+    expect(brand.primaryColor).toBe("#e67e22");
+    expect(brand.primaryForeground).toBe("#000000");
+    expect(brand.primaryText).toMatch(/^#[0-9a-f]{6}$/);
+    expect(brand.primaryText).not.toBe("#e67e22");
+
+    const seen = await branding.stayBrands(f.resident);
+    expect(seen[0]).toMatchObject({
+      primaryColor: "#e67e22",
+      primaryText: brand.primaryText,
+    });
+  });
+
+  it("BR-S1-02: a value that is not a colour is refused and nothing is written", async () => {
+    const f = await seed("invalid");
     await branding.saveBrand(f.admin, {
       organizationId: f.organization,
       primaryColor: GREEN,
     });
     const before = await records(f.organization, "branding.changed");
 
-    expect(
-      await rejected(
-        branding.saveBrand(f.admin, {
-          organizationId: f.organization,
-          primaryColor: "#ffeb3b",
-        }),
-      ),
-    ).toMatchObject({ field: "color", reason: "unreadable" });
     expect(
       await rejected(
         branding.saveBrand(f.admin, {
@@ -392,6 +410,7 @@ describe("branding an Organization", () => {
     expect(settings.brand).toEqual({
       primaryColor: null,
       primaryForeground: null,
+      primaryText: null,
       logo: null,
     });
     expect(await branding.logoOfStay(f.resident, f.residentStay)).toBeNull();
@@ -400,6 +419,7 @@ describe("branding an Organization", () => {
         stayId: f.residentStay,
         primaryColor: null,
         primaryForeground: null,
+        primaryText: null,
         logo: null,
       },
     ]);
@@ -571,7 +591,13 @@ describe("branding an Organization", () => {
       const settings = await branding.brandSettings(person, f.organization);
       expect(settings).toEqual({
         canManage: false,
-        brand: { primaryColor: null, primaryForeground: null, logo: null },
+        reason: "unavailable",
+        brand: {
+          primaryColor: null,
+          primaryForeground: null,
+          primaryText: null,
+          logo: null,
+        },
       });
       expect(await branding.logoOf(person, f.organization)).toBeNull();
     }
@@ -594,7 +620,13 @@ describe("branding an Organization", () => {
     expect(await branding.stayBrands(f.resident)).toEqual([]);
     expect(await branding.brandSettings(f.admin, f.organization)).toEqual({
       canManage: true,
-      brand: { primaryColor: null, primaryForeground: null, logo: null },
+      reason: null,
+      brand: {
+        primaryColor: null,
+        primaryForeground: null,
+        primaryText: null,
+        logo: null,
+      },
     });
     // Resetting nothing is not an error and records nothing.
     await branding.resetBrand(f.admin, f.organization);
@@ -625,6 +657,129 @@ describe("branding an Organization", () => {
     );
     expect(await branding.logoOfStay(f.resident, f.residentStay)).toBeNull();
     expect(await branding.stayBrands(f.resident)).toEqual([]);
+  });
+  /** One statement as the owner, for a gate a test switches off and back on. */
+  async function setGate(sql: string, ...values: unknown[]): Promise<void> {
+    await owner.$executeRawUnsafe(sql, ...values);
+  }
+
+  it("BR-S1-36: a Resident is shown a brand only where the Portal is shown a Stay", async () => {
+    const f = await seed("portal-gates");
+    await branding.saveBrand(f.admin, {
+      organizationId: f.organization,
+      primaryColor: GREEN,
+      logo: png(300, 200),
+    });
+    const reads = async () => ({
+      brands: (await branding.stayBrands(f.resident)).length,
+      logo: (await branding.logoOfStay(f.resident, f.residentStay)) !== null,
+    });
+    expect(await reads()).toEqual({ brands: 1, logo: true });
+
+    // The Property's own Portal capability.
+    await setGate(
+      `update public.property_capabilities set enabled = false
+        where property_id = $1::uuid and capability_key = 'portal_stay_overview'`,
+      f.property,
+    );
+    expect(await reads()).toEqual({ brands: 0, logo: false });
+    await setGate(
+      `update public.property_capabilities set enabled = true
+        where property_id = $1::uuid and capability_key = 'portal_stay_overview'`,
+      f.property,
+    );
+    expect(await reads()).toEqual({ brands: 1, logo: true });
+
+    // Front Office, which the Portal is part of.
+    await setGate(
+      `update public.entitlements set status = 'revoked'
+        where organization_id = $1::uuid and module_key = 'front_office'`,
+      f.organization,
+    );
+    expect(await reads()).toEqual({ brands: 0, logo: false });
+    await setGate(
+      `update public.entitlements set status = 'active'
+        where organization_id = $1::uuid and module_key = 'front_office'`,
+      f.organization,
+    );
+
+    // The Subscription: suspended denies, and past due is a grace period.
+    await setGate(
+      `update public.subscriptions set status = 'suspended'
+        where organization_id = $1::uuid`,
+      f.organization,
+    );
+    expect(await reads()).toEqual({ brands: 0, logo: false });
+    await setGate(
+      `update public.subscriptions set status = 'past_due'
+        where organization_id = $1::uuid`,
+      f.organization,
+    );
+    expect(await reads()).toEqual({ brands: 1, logo: true });
+  });
+
+  it("BR-S1-38: the Branding screen is offered where the policies would let a save through", async () => {
+    const f = await seed("screen-gates");
+    const offered = async (person: string) =>
+      (
+        await core.listPermittedProperties(person, "branding.manage", {
+          moduleKey: "platform_core",
+          capabilityKey: "configuration",
+        })
+      ).length;
+    const reason = async (person: string) =>
+      (await branding.brandSettings(person, f.organization)).reason;
+    expect(await offered(f.admin)).toBe(1);
+    expect(await reason(f.admin)).toBeNull();
+
+    // Configuration switched off at the only Property.
+    await setGate(
+      `update public.property_capabilities set enabled = false
+        where property_id = $1::uuid and capability_key = 'configuration'`,
+      f.property,
+    );
+    expect(await offered(f.admin)).toBe(0);
+    // The list the rail used to ask, with the permission alone, still offers it:
+    // the gate is what removes it.
+    expect(
+      (await core.listPermittedProperties(f.admin, "branding.manage")).length,
+    ).toBe(1);
+    expect(await reason(f.admin)).toBe("unavailable");
+    await setGate(
+      `update public.property_capabilities set enabled = true
+        where property_id = $1::uuid and capability_key = 'configuration'`,
+      f.property,
+    );
+
+    // A lapsed Subscription, and an Entitlement that is gone.
+    await setGate(
+      `update public.subscriptions set status = 'suspended'
+        where organization_id = $1::uuid`,
+      f.organization,
+    );
+    expect(await offered(f.admin)).toBe(0);
+    expect(await reason(f.admin)).toBe("unavailable");
+    await setGate(
+      `update public.subscriptions set status = 'active'
+        where organization_id = $1::uuid`,
+      f.organization,
+    );
+    await setGate(
+      `update public.entitlements set status = 'revoked'
+        where organization_id = $1::uuid and module_key = 'platform_core'`,
+      f.organization,
+    );
+    expect(await offered(f.admin)).toBe(0);
+    expect(await reason(f.admin)).toBe("unavailable");
+    await setGate(
+      `update public.entitlements set status = 'active'
+        where organization_id = $1::uuid and module_key = 'platform_core'`,
+      f.organization,
+    );
+
+    // Reach is said as reach: the permission and every gate hold, at one Property.
+    expect(await offered(f.scoped)).toBe(1);
+    expect(await reason(f.scoped)).toBe("reach");
   });
 });
 

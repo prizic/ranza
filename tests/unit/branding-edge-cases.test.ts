@@ -30,6 +30,9 @@ const FILES = [
   "tests/integration/branding.test.ts",
   "tests/unit/branding-module.test.ts",
   "tests/unit/branding-actions.test.ts",
+  "tests/unit/branding-page.test.tsx",
+  "tests/unit/brand-logo-routes.test.ts",
+  "tests/unit/portal-brand-fallback.test.tsx",
   "tests/browser/branding.spec.ts",
 ];
 

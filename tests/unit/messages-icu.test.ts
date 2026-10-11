@@ -136,6 +136,7 @@ describe("every catalogue parses", () => {
                 revenue: "₺5.900,00",
                 role: "x",
                 room: "x",
+                shade: "#a35200",
                 state: "x",
                 status: "x",
                 time: "14:00",

@@ -506,7 +506,7 @@ function CollapsedGroupItem({
                   className={cn(
                     "flex items-center gap-2 text-xs",
                     childActive
-                      ? "text-primary font-semibold"
+                      ? "text-primary-text font-semibold"
                       : "text-foreground",
                   )}
                   href={child.href}

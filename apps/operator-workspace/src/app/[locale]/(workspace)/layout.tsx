@@ -84,7 +84,14 @@ export default async function WorkspaceLayout({
   ];
   const permitted = ALL_SCREENS.flatMap((screen) =>
     screen.permission
-      ? [{ key: screen.capability, permission: screen.permission }]
+      ? [
+          {
+            key: screen.capability,
+            permission: screen.permission,
+            module: screen.module,
+            requires: screen.requires,
+          },
+        ]
       : [],
   );
   const [byCapability, byPermission, overdue] = await Promise.all([
@@ -92,7 +99,11 @@ export default async function WorkspaceLayout({
     Promise.all(
       permitted.map(async (screen) => ({
         key: screen.key,
-        reachable: await permittedProperties(screen.permission),
+        reachable: await permittedProperties(
+          screen.permission,
+          screen.module,
+          screen.requires,
+        ),
       })),
     ),
     billingNotices(),

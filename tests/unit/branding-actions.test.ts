@@ -89,23 +89,34 @@ describe("saving the brand", () => {
     expect(logged).toHaveBeenCalledTimes(1);
   });
 
-  it("BR-S1-04: a refused colour is an answer naming the rule, and is not reported", async () => {
+  it("BR-S1-02: a refused colour is an answer naming the rule, and is not reported", async () => {
     saveBrand.mockRejectedValue(
-      new BrandingInputError({
-        field: "color",
-        reason: "unreadable",
-        contrast: 1.2,
-      }),
+      new BrandingInputError({ field: "color", reason: "invalid" }),
     );
     expect(
-      await actions.saveBranding(
-        { status: "idle" },
-        form({ color: "#ffeb3b" }),
-      ),
+      await actions.saveBranding({ status: "idle" }, form({ color: "red" })),
     ).toEqual({
       status: "invalid",
-      rejection: { field: "color", reason: "unreadable", contrast: 1.2 },
+      rejection: { field: "color", reason: "invalid" },
     });
+    expect(logged).not.toHaveBeenCalled();
+  });
+
+  it("BR-S1-42: a logo of 600 KB or 2 MB reaches the module whole, and its refusal reaches the screen", async () => {
+    saveBrand.mockRejectedValue(
+      new BrandingInputError({ field: "logo", reason: "too_large" }),
+    );
+    for (const size of [600 * 1024, 2 * 1024 * 1024]) {
+      const file = new File([new Uint8Array(size)], "logo.png");
+      expect(
+        await actions.saveBranding({ status: "idle" }, form({ logo: file })),
+      ).toEqual({
+        status: "invalid",
+        rejection: { field: "logo", reason: "too_large" },
+      });
+      const call = saveBrand.mock.calls.at(-1)![1] as { logo: Uint8Array };
+      expect(call.logo.byteLength).toBe(size);
+    }
     expect(logged).not.toHaveBeenCalled();
   });
 

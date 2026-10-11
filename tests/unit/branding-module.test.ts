@@ -10,6 +10,7 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   assessBrandColor,
+  oklchOf,
   BrandingInputError,
   LOGO_MAX_BYTES,
   MINIMUM_CONTRAST,
@@ -85,55 +86,111 @@ describe("a brand colour", () => {
     });
   });
 
-  it("BR-S1-04: a colour under 4.5:1 against white is unreadable and every colour reaches 4.5:1 against white or black", () => {
+  it("BR-S1-04: any valid colour is accepted and every colour has a text shade of at least 4.5:1 against white", () => {
     expect(assessBrandColor("#ffeb3b")).toMatchObject({
-      status: "unreadable",
+      status: "ok",
       color: "#ffeb3b",
     });
-    expect(assessBrandColor("#ffffff")).toMatchObject({
-      status: "unreadable",
-      contrast: 1,
+    expect(assessBrandColor("#ffffff")).toMatchObject({ status: "ok" });
+    // A colour that already reads on white is its own text colour.
+    expect(assessBrandColor("#0f5132")).toMatchObject({
+      textColor: "#0f5132",
     });
 
-    // The finding the row records: the foreground rule alone refuses nothing,
-    // because no colour is out of reach of both white and black. Every one the
-    // module refuses would have had a foreground; the refusal is the colour
-    // itself as text on the page.
     const steps = Array.from({ length: 17 }, (_, i) => i * 15);
-    let refused = 0;
-    let accepted = 0;
+    let darkened = 0;
+    let kept = 0;
     for (const red of steps) {
       for (const green of steps) {
         for (const blue of steps) {
           const color = `#${[red, green, blue]
             .map((channel) => channel.toString(16).padStart(2, "0"))
             .join("")}`;
-          const own = luminance(color);
-          expect(
-            Math.max(contrast(own, 1), contrast(own, 0)),
-            color,
-          ).toBeGreaterThanOrEqual(MINIMUM_CONTRAST);
-
           const assessment = assessBrandColor(color);
-          if (assessment.status === "unreadable") {
-            refused += 1;
-            expect(contrast(own, 1), color).toBeLessThan(MINIMUM_CONTRAST);
+          expect(assessment.status, color).toBe("ok");
+          if (assessment.status !== "ok") continue;
+
+          // Buttons: the colour as it is, and a foreground that reads on it.
+          expect(assessment.color).toBe(color);
+          const own = luminance(color);
+          const foreground = assessment.foreground === "#ffffff" ? 1 : 0;
+          expect(contrast(own, foreground), color).toBeGreaterThanOrEqual(
+            MINIMUM_CONTRAST,
+          );
+
+          // Text and outlines: reads on white, checked here and not borrowed.
+          expect(assessment.textColor, color).toMatch(/^#[0-9a-f]{6}$/);
+          expect(
+            contrast(luminance(assessment.textColor), 1),
+            `${color} -> ${assessment.textColor}`,
+          ).toBeGreaterThanOrEqual(MINIMUM_CONTRAST);
+          expect(assessment.textContrast).toBeGreaterThanOrEqual(
+            MINIMUM_CONTRAST,
+          );
+
+          if (contrast(own, 1) >= MINIMUM_CONTRAST) {
+            kept += 1;
+            expect(assessment.textColor, color).toBe(color);
           } else {
-            accepted += 1;
-            expect(assessment.status, color).toBe("ok");
-            if (assessment.status === "ok") {
-              const foreground = assessment.foreground === "#ffffff" ? 1 : 0;
-              expect(contrast(own, foreground), color).toBeGreaterThanOrEqual(
-                MINIMUM_CONTRAST,
-              );
-            }
+            darkened += 1;
+            expect(oklchOf(assessment.textColor).lightness, color).toBeLessThan(
+              oklchOf(color).lightness,
+            );
           }
         }
       }
     }
-    // A sweep that refused everything, or nothing, would prove nothing.
-    expect(refused).toBeGreaterThan(0);
-    expect(accepted).toBeGreaterThan(0);
+    // A sweep that darkened nothing, or kept nothing, would prove nothing.
+    expect(darkened).toBeGreaterThan(0);
+    expect(kept).toBeGreaterThan(0);
+  });
+
+  it("BR-S1-04: the text shade keeps the hue of the colour", () => {
+    // OKLCH of pure red, which is published: L 0.628, C 0.258, h 29.2.
+    expect(oklchOf("#ff0000")).toMatchObject({
+      lightness: expect.closeTo(0.628, 2),
+      chroma: expect.closeTo(0.258, 2),
+      hue: expect.closeTo(29.2, 0),
+    });
+
+    const steps = Array.from({ length: 12 }, (_, i) => i * 23);
+    let compared = 0;
+    for (const red of steps) {
+      for (const green of steps) {
+        for (const blue of steps) {
+          const color = `#${[red, green, blue]
+            .map((channel) => channel.toString(16).padStart(2, "0"))
+            .join("")}`;
+          const assessment = assessBrandColor(color);
+          if (assessment.status !== "ok") continue;
+          const before = oklchOf(color);
+          const after = oklchOf(assessment.textColor);
+          // A grey has no hue to keep, and a colour near grey has one that a
+          // single step of eight-bit rounding moves.
+          if (before.chroma < 0.06 || after.chroma < 0.04) continue;
+          compared += 1;
+          const difference = Math.abs(before.hue - after.hue);
+          expect(
+            Math.min(difference, 360 - difference),
+            `${color} -> ${assessment.textColor}`,
+          ).toBeLessThan(4);
+        }
+      }
+    }
+    expect(compared).toBeGreaterThan(100);
+  });
+
+  it("BR-S1-04: an orange is a fine fill and its text shade is a darker orange", () => {
+    const orange = assessBrandColor("#e67e22");
+    expect(orange).toMatchObject({ status: "ok", color: "#e67e22" });
+    if (orange.status !== "ok") return;
+    expect(contrast(luminance("#e67e22"), 1)).toBeLessThan(MINIMUM_CONTRAST);
+    expect(orange.textColor).not.toBe("#e67e22");
+    const shade = oklchOf(orange.textColor);
+    expect(shade.lightness).toBeLessThan(oklchOf("#e67e22").lightness);
+    // Still orange: between red and yellow.
+    expect(shade.hue).toBeGreaterThan(40);
+    expect(shade.hue).toBeLessThan(75);
   });
 });
 
@@ -183,6 +240,15 @@ describe("a logo", () => {
     expect(rejection(png(300, 200, LOGO_MAX_BYTES))).toBeNull();
   });
 
+  it("BR-S1-42: a logo of 600 KB or 2 MB is refused as too large, before it is read", () => {
+    for (const size of [600 * 1024, 2 * 1024 * 1024]) {
+      expect(rejection(png(300, 200, size))).toEqual({
+        field: "logo",
+        reason: "too_large",
+      });
+    }
+  });
+
   it("BR-S1-08: a logo under 128 px tall or over 4096 px is refused", () => {
     expect(rejection(png(300, 127))).toEqual({
       field: "logo",
@@ -228,22 +294,75 @@ describe("a logo", () => {
     });
   });
 
+  const corrupt = { field: "logo", reason: "corrupt" } as const;
+
   it("BR-S1-11: a truncated image is corrupt", () => {
-    expect(rejection(Buffer.from(png(300, 200).subarray(0, 8)))).toEqual({
-      field: "logo",
-      reason: "corrupt",
-    });
-    // A JPEG that reaches its scan without a frame ever naming a size.
+    // A PNG cut short at the signature, in a chunk, and before its end; a JPEG
+    // that reaches its scan without a frame naming a size, and one with no end
+    // marker; a WebP that is only its header.
+    const whole = png(300, 200);
+    for (const cut of [8, 20, whole.length - 12, whole.length - 1]) {
+      expect(rejection(whole.subarray(0, cut)), `png at ${cut}`).toEqual(
+        corrupt,
+      );
+    }
     expect(
       rejection(
         Buffer.from([
           0xff, 0xd8, 0xff, 0xe0, 0x00, 0x04, 0, 0, 0xff, 0xda, 0, 2,
         ]),
       ),
-    ).toEqual({ field: "logo", reason: "corrupt" });
-    expect(rejection(Buffer.from("RIFF\u0000\u0000\u0000\u0000WEBP"))).toEqual({
+    ).toEqual(corrupt);
+    const photo = jpeg(300, 200);
+    expect(rejection(photo.subarray(0, photo.length - 2))).toEqual(corrupt);
+    expect(rejection(Buffer.from("RIFF\u0000\u0000\u0000\u0000WEBP"))).toEqual(
+      corrupt,
+    );
+  });
+
+  it("BR-S1-11: a PNG whose header checksum is wrong, or that has no IEND, or a tail after it, is corrupt", () => {
+    const whole = Buffer.from(png(300, 200));
+    // The IHDR checksum is the four bytes after its 13 data bytes.
+    const badChecksum = Buffer.from(whole);
+    badChecksum[8 + 8 + 13] = (badChecksum[8 + 8 + 13]! + 1) & 255;
+    expect(rejection(badChecksum)).toEqual(corrupt);
+
+    // Data changed under a checksum that was left as it was.
+    const changed = Buffer.from(whole);
+    changed[8 + 8 + 3] = (changed[8 + 8 + 3]! + 1) & 255;
+    expect(rejection(changed)).toEqual(corrupt);
+
+    // Whole chunks, no end.
+    const endless = whole.subarray(0, whole.length - 12);
+    expect(rejection(endless)).toEqual(corrupt);
+
+    // Something appended after the end.
+    expect(rejection(Buffer.concat([whole, Buffer.from("tail")]))).toEqual(
+      corrupt,
+    );
+    expect(rejection(whole)).toBeNull();
+  });
+
+  it("BR-S1-11: a WebP whose RIFF length is not the file's, and a JPEG with a tail after its end, are corrupt", () => {
+    const sound = Buffer.from(webp(300, 200));
+    expect(rejection(sound)).toBeNull();
+    expect(rejection(Buffer.concat([sound, Buffer.from("tail")]))).toEqual(
+      corrupt,
+    );
+    expect(rejection(sound.subarray(0, sound.length - 2))).toEqual(corrupt);
+    const lying = Buffer.from(sound);
+    lying.writeUInt32LE(sound.length, 4);
+    expect(rejection(lying)).toEqual(corrupt);
+
+    const photo = jpeg(300, 200);
+    expect(rejection(photo)).toBeNull();
+    expect(rejection(Buffer.concat([photo, Buffer.from("tail")]))).toEqual(
+      corrupt,
+    );
+    // No start-of-image marker is no JPEG at all.
+    expect(rejection(Buffer.concat([Buffer.from([0, 0]), photo]))).toEqual({
       field: "logo",
-      reason: "corrupt",
+      reason: "unsupported_type",
     });
   });
 });

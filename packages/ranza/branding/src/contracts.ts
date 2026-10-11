@@ -21,6 +21,11 @@ export interface OrganizationBrand {
   primaryColor: string | null;
   /** White or black, derived from the colour; null with it. */
   primaryForeground: Foreground | null;
+  /**
+   * What text and links on the white canvas are drawn in: the colour itself
+   * where it reads there, otherwise a darker shade of its hue that does.
+   */
+  primaryText: string | null;
   logo: BrandLogo | null;
 }
 
@@ -35,6 +40,13 @@ export type StayBrand = OrganizationBrand & { stayId: string };
 export interface BrandSettings {
   /** Whether the viewer may change it; the database decides, the screen asks. */
   canManage: boolean;
+  /**
+   * Why not, for the screen to say the right thing: `unavailable` is a
+   * Subscription, an Entitlement or a capability that is not there (blueprint
+   * 3.5), and `reach` is holding the permission without reaching the whole
+   * Organization. Null where they may.
+   */
+  reason: "unavailable" | "reach" | null;
   brand: OrganizationBrand;
 }
 

@@ -23,7 +23,7 @@ import { assessBrandColor, createBrandingModule } from "@ranza/branding";
 const branding = createBrandingModule({ db });
 
 // Staff, on the runtime connection (apps/operator-workspace).
-await branding.brandSettings(userId, organizationId); // { canManage, brand }
+await branding.brandSettings(userId, organizationId); // { canManage, reason, brand }
 await branding.saveBrand(userId, {
   organizationId,
   primaryColor: "#0f5132", // absent: unchanged, null: back to the default
@@ -36,8 +36,8 @@ await branding.logoOf(userId, organizationId); // the bytes, for the preview
 await branding.stayBrands(userId); // one per own current Stay, by Stay id
 await branding.logoOfStay(userId, stayId);
 
-// Pure: the verdict the screen shows while somebody is still choosing.
-assessBrandColor("#ffeb3b"); // { status: "unreadable", contrast: 1.2, … }
+// Pure: what the screen shows while somebody is still choosing.
+assessBrandColor("#e67e22"); // { status: "ok", foreground: "#000000", textColor: "#a35200", … }
 ```
 
 ## Rules
@@ -47,13 +47,18 @@ assessBrandColor("#ffeb3b"); // { status: "unreadable", contrast: 1.2, … }
   and blueprint 3.5's gates are in the write policies (ADR 0012); a Resident
   reads through policies of their own, keyed on a current Stay (ADR 0009). A
   refusal is one error that cannot be told from there being nothing.
-- The foreground is derived, never stored: white or black, whichever has the
-  greater WCAG contrast against the colour. A colour under 4.5:1 against the
-  Portal's white canvas is refused, because links and the active navigation
-  item draw it as text there.
+- Every valid `#rrggbb` is accepted. The foreground of a filled surface is
+  derived, never stored: white or black, whichever has the greater WCAG contrast
+  against the colour, and one of them always reaches 4.5:1. Text, links and
+  outlines on the Portal's white canvas use a text shade, also derived: the colour
+  where it reaches 4.5:1 against white, otherwise a darker shade of the same hue
+  (OKLCH lightness reduced until it does).
+- A Resident reads a brand and a logo only where the Portal is shown a Stay: the
+  Stay-keyed reads and the policies both ask `app.resident_can_use_capability()`.
 - A logo is PNG, JPEG or WebP, at most 512 KB, at least 128 px tall and at most
-  4096 either way. The type and the size are read from the bytes. SVG is
-  refused by name: it can carry script (blueprint 8). The database repeats the
+  4096 either way. The type and the size are read from the bytes, and a file that is cut short or
+  added to is refused (PNG chunk checksums and IEND, a WebP's declared length, a
+  JPEG's markers). SVG is refused by name: it can carry script (blueprint 8). The database repeats the
   signature, hash, size and dimension rules in constraints.
 - Nothing is deleted. A reset empties the colour and the logo; every change and
   every reset is audited with the old and new colour, and the logo as a hash and

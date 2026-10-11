@@ -20,6 +20,11 @@ const config: NextConfig = {
     "@ranza/stays",
     "@ranza/ui",
   ],
+  // A server action's body is 1 MB by default, and a logo larger than that is
+  // refused by the framework with an error nobody can read as a reason. The
+  // limit is 512 KB and the module says so (ADR 0046); this lets a file several
+  // times that reach it and be told, instead of failing in transit.
+  experimental: { serverActions: { bodySizeLimit: "4mb" } },
   // Every route is locale-prefixed and every locale opens on Today, so neither
   // the bare origin nor a bare locale has a page of its own. "tr" is
   // defaultLocale in @ranza/i18n; it is repeated rather than imported because

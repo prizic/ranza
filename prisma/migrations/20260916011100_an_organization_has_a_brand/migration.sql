@@ -12,7 +12,9 @@
 --      read and written by whoever holds the permission across the whole
 --      Organization, behind blueprint 3.5's gates (ADR 0012).
 --   3. A Resident reads the brand of an Organization they have a current Stay
---      with, through policies of their own (ADR 0009), and no other.
+--      with, at a Property whose Portal is available to them, through policies
+--      of their own (ADR 0009), and no other; and only the columns the Portal
+--      draws.
 --   4. The database refuses what the module refuses: a colour that is not
 --      `#rrggbb`, a logo whose bytes do not start the way its type says, one
 --      that is too large or too small, and one whose recorded hash or size is
@@ -171,6 +173,12 @@ comment on column public.organization_brand_logos.content_hash is
 -- Organization is reached through a current Stay and through no membership.
 -- Only a current Stay counts, so a departed Resident keeps their own Stay and
 -- stops reading the brand around it.
+--
+-- And only one the Portal is available at: the Subscription, the Entitlement
+-- and the Property's portal_stay_overview capability, asked as the Portal asks
+-- them of the Stay itself (app.resident_can_use_capability(), ADR 0009). A
+-- Resident who is shown no Stay must not be handed the brand of the Organization
+-- that Stay belongs to.
 create function app.resident_organization_ids()
 returns setof uuid
 language sql
@@ -181,11 +189,13 @@ as $$
   select distinct stay.organization_id
   from public.stays as stay
   where stay.user_id = app.current_user_id()
-    and stay.status in ('reserved', 'in_house');
+    and stay.status in ('reserved', 'in_house')
+    and app.resident_can_use_capability(
+          stay.property_id, 'front_office', 'portal_stay_overview');
 $$;
 
 comment on function app.resident_organization_ids() is
-  'The Organizations the acting user has a current Stay with (ADR 0009). The Resident''s equivalent of accessible_organization_ids(); never widened to admit Staff.';
+  'The Organizations the acting user has a current Stay with, at a Property whose Portal is available to them (ADR 0009). The Resident''s equivalent of accessible_organization_ids(); never widened to admit Staff.';
 
 revoke execute on function app.resident_organization_ids() from public;
 grant execute on function app.resident_organization_ids() to ranza_app;
@@ -194,8 +204,14 @@ grant execute on function app.resident_organization_ids() to ranza_app;
 -- Grants: a write names its columns
 -- ---------------------------------------------------------------------------
 
-grant select on public.organization_brands, public.organization_brand_logos
-  to ranza_app;
+-- A read names its columns as well: who wrote the brand and when are not the
+-- Portal's to read, and a Resident reads through the same role as Staff do.
+-- Everything either screen draws is listed, and nothing else.
+grant select (organization_id, primary_color)
+  on public.organization_brands to ranza_app;
+grant select (organization_id, content, content_type, content_hash,
+              size_bytes, width, height)
+  on public.organization_brand_logos to ranza_app;
 
 grant insert (organization_id, primary_color, updated_by)
   on public.organization_brands to ranza_app;

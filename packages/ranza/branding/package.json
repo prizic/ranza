@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@ranza/db": "workspace:*",
-    "@ranza/platform-audit": "workspace:*"
+    "@ranza/platform-audit": "workspace:*",
+    "@ranza/stays": "workspace:*"
   }
 }

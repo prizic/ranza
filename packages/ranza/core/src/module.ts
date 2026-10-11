@@ -193,10 +193,17 @@ export function createCoreModule(deps: CoreDeps) {
    * for a destination no package selection may remove — the audit log, which
    * is a baseline right (blueprint 3.6, ADR 0031). It is what puts that
    * destination in the rail and what its Property switcher offers.
+   *
+   * A destination that is an Organization's to configure rather than a
+   * baseline right names `capability`, and a Property is listed only where
+   * gates 1 to 3 hold for it as well (blueprint 3.5): the same ones the write
+   * policies ask, so the rail and the policy agree about who is shown the
+   * screen.
    */
   async function listPermittedProperties(
     userId: string,
     permission: string,
+    capability?: CapabilityRef,
   ): Promise<EntitledProperty[]> {
     return withOrganizationContext(deps.db, { userId }, (tx) =>
       tx.$queryRawUnsafe<EntitledProperty[]>(
@@ -210,8 +217,12 @@ export function createCoreModule(deps: CoreDeps) {
              on organization.id = property.organization_id
           where property.id in (select app.accessible_property_ids())
             and app.has_organization_permission(property.organization_id, $1)
+            and ($2::text is null
+                 or app.can_use_capability(property.id, $2, $3))
           order by organization.name, property.name`,
         permission,
+        capability?.moduleKey ?? null,
+        capability?.capabilityKey ?? null,
       ),
     );
   }

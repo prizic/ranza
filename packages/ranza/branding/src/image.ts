@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { crc32 } from "node:zlib";
 import { BrandingInputError } from "./errors";
 
 export const LOGO_MAX_BYTES = 512 * 1024;
@@ -56,10 +57,30 @@ interface Size {
   height: number;
 }
 
-/** The IHDR chunk is always first: length, "IHDR", then width and height. */
+/**
+ * The chunks, from the signature to the IEND that ends the file: each one's
+ * length must fit, each one's checksum must hold, the first must be a header,
+ * and nothing may follow the end. A file that is cut short, or has something
+ * appended, is not read for a size at all.
+ */
 function pngSize(bytes: Uint8Array): Size | null {
-  if (bytes.length < 24 || ascii(bytes, 12, 4) !== "IHDR") return null;
-  return { width: big32(bytes, 16), height: big32(bytes, 20) };
+  let at = PNG_SIGNATURE.length;
+  let size: Size | null = null;
+  while (at + 12 <= bytes.length) {
+    const length = big32(bytes, at);
+    const type = ascii(bytes, at + 4, 4);
+    const end = at + 12 + length;
+    if (end > bytes.length) return null;
+    const checked = Buffer.from(bytes.subarray(at + 4, at + 8 + length));
+    if (crc32(checked) !== big32(bytes, at + 8 + length)) return null;
+    if (at === PNG_SIGNATURE.length) {
+      if (type !== "IHDR" || length !== 13) return null;
+      size = { width: big32(bytes, at + 8), height: big32(bytes, at + 12) };
+    }
+    if (type === "IEND") return end === bytes.length ? size : null;
+    at = end;
+  }
+  return null;
 }
 
 /**
@@ -78,6 +99,13 @@ function isStartOfFrame(marker: number): boolean {
 }
 
 function jpegSize(bytes: Uint8Array): Size | null {
+  // The end-of-image marker closes the file; a cut one does not have it.
+  if (
+    byte(bytes, bytes.length - 2) !== 0xff ||
+    byte(bytes, bytes.length - 1) !== 0xd9
+  ) {
+    return null;
+  }
   let at = 2;
   while (at + 4 <= bytes.length) {
     if (bytes[at] !== 0xff) return null;
@@ -105,6 +133,8 @@ function jpegSize(bytes: Uint8Array): Size | null {
 /** The first chunk after "WEBP" says which of three encodings the file is. */
 function webpSize(bytes: Uint8Array): Size | null {
   if (bytes.length < 30) return null;
+  // The RIFF header says how long the file is, after its own eight bytes.
+  if (little32(bytes, 4) + 8 !== bytes.length) return null;
   const kind = ascii(bytes, 12, 4);
   if (kind === "VP8X") {
     return {

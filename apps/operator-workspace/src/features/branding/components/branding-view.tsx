@@ -23,7 +23,6 @@ import type { BrandSettings } from "../../../server/viewer";
 import { SettingsCard } from "../../configuration/components/settings-card";
 
 const IDLE: BrandingOutcome = { status: "idle" };
-const LOGO_MAX_BYTES = 512 * 1024;
 const ACCEPTED = "image/png,image/jpeg,image/webp";
 
 /** `#` is optional while typing; the stored form always has it. */
@@ -67,7 +66,7 @@ export function BrandingView({
   const [outcome, setOutcome] = useState<BrandingOutcome>(IDLE);
   const [assessed, setAssessed] = useState<{
     candidate: string;
-    answer: Assessment;
+    answer: Assessment | "failed";
   } | null>(null);
   const [pending, startWorking] = useTransition();
 
@@ -84,8 +83,15 @@ export function BrandingView({
     if (candidate === "") return;
     let current = true;
     const timer = setTimeout(async () => {
-      const answer = await assessBrandingColor(candidate);
-      if (current) setAssessed({ candidate, answer });
+      try {
+        const answer = await assessBrandingColor(candidate);
+        if (current) setAssessed({ candidate, answer });
+      } catch (error: unknown) {
+        // Reported, and said on the screen: a colour that could not be judged
+        // is not one that may be saved.
+        console.error("branding.assess_failed", { candidate }, error);
+        if (current) setAssessed({ candidate, answer: "failed" });
+      }
     }, 150);
     return () => {
       current = false;
@@ -93,14 +99,17 @@ export function BrandingView({
     };
   }, [candidate]);
 
-  const verdict =
+  const judged =
     candidate !== "" && assessed?.candidate === candidate
       ? assessed.answer
       : null;
+  const assessFailed = judged === "failed";
+  const verdict = judged === "failed" ? null : judged;
 
-  const fileTooLarge = file !== null && file.size > LOGO_MAX_BYTES;
+  // A logo's size is the server's to judge, as every other rule about it is: a
+  // second copy of the limit here would be one that could drift.
   const colorUsable = candidate === "" || verdict?.status === "ok";
-  const canSave = dirty && !pending && colorUsable && !fileTooLarge;
+  const canSave = dirty && !pending && colorUsable;
 
   const chosenLogo = useMemo(
     () => (file ? URL.createObjectURL(file) : null),
@@ -119,11 +128,19 @@ export function BrandingView({
 
   const previewStyle =
     verdict?.status === "ok"
-      ? brandVariables({ color: verdict.color, foreground: verdict.foreground })
-      : candidate === "" && brand.primaryColor && brand.primaryForeground
+      ? brandVariables({
+          color: verdict.color,
+          foreground: verdict.foreground,
+          text: verdict.textColor,
+        })
+      : candidate === "" &&
+          brand.primaryColor &&
+          brand.primaryForeground &&
+          brand.primaryText
         ? brandVariables({
             color: brand.primaryColor,
             foreground: brand.primaryForeground,
+            text: brand.primaryText,
           })
         : undefined;
 
@@ -193,7 +210,7 @@ export function BrandingView({
                   <Input
                     aria-describedby="brand-color-verdict"
                     aria-invalid={
-                      verdict !== null && verdict.status !== "ok"
+                      verdict?.status === "invalid" || assessFailed
                         ? true
                         : undefined
                     }
@@ -224,19 +241,33 @@ export function BrandingView({
                 </p>
               ) : verdict?.status === "invalid" ? (
                 <FormError>{t("colorInvalid")}</FormError>
-              ) : verdict?.status === "unreadable" ? (
-                <FormError>
-                  {t("colorUnreadable", { ratio: ratio(verdict.contrast) })}
-                </FormError>
+              ) : assessFailed ? (
+                <FormError>{t("error")}</FormError>
               ) : verdict?.status === "ok" ? (
-                <p className="text-step--1 text-success">
-                  {t("colorReadable", {
-                    foreground: t(
-                      `foreground.${verdict.foreground === "#ffffff" ? "white" : "black"}`,
-                    ),
-                    ratio: ratio(verdict.contrast),
-                  })}
-                </p>
+                <div className="grid gap-2">
+                  <div className="flex flex-wrap items-center gap-4">
+                    <Swatch color={verdict.color} label={t("swatchFill")} />
+                    <Swatch color={verdict.textColor} label={t("swatchText")} />
+                  </div>
+                  <p className="text-step--1 text-success">
+                    {t("colorReadable", {
+                      foreground: t(
+                        `foreground.${verdict.foreground === "#ffffff" ? "white" : "black"}`,
+                      ),
+                      ratio: ratio(verdict.foregroundContrast),
+                    })}
+                  </p>
+                  <p className="text-step--1 text-muted-foreground">
+                    {verdict.textColor === verdict.color
+                      ? t("colorTextSame", {
+                          ratio: ratio(verdict.textContrast),
+                        })
+                      : t("colorTextDarker", {
+                          ratio: ratio(verdict.textContrast),
+                          shade: verdict.textColor,
+                        })}
+                  </p>
+                </div>
               ) : null}
             </div>
           </div>
@@ -288,9 +319,6 @@ export function BrandingView({
               <p className="text-step--1 text-muted-foreground">
                 {t("logoWillBeRemoved")}
               </p>
-            ) : null}
-            {fileTooLarge ? (
-              <FormError>{t("logoErrors.too_large")}</FormError>
             ) : null}
             {outcome.status === "invalid" &&
             outcome.rejection.field === "logo" ? (
@@ -364,7 +392,7 @@ export function BrandingView({
               <Button tabIndex={-1} type="button">
                 {t("previewButton")}
               </Button>
-              <span className="text-primary underline underline-offset-4">
+              <span className="text-primary-text underline underline-offset-4">
                 {t("previewLink")}
               </span>
               <span className="rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">
@@ -402,12 +430,23 @@ function OutcomeLine({
       return <FormError>{t("error")}</FormError>;
     case "invalid":
       if (outcome.rejection.field === "logo") return null;
-      return outcome.rejection.reason === "unreadable" ? (
-        <FormError>{t("colorUnreadable", { ratio: "4.5" })}</FormError>
-      ) : (
-        <FormError>{t("colorInvalid")}</FormError>
-      );
+      return <FormError>{t("colorInvalid")}</FormError>;
     case "idle":
       return null;
   }
+}
+
+/** A colour as it is drawn, named, with its value for somebody who wants to copy it. */
+function Swatch({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-2 text-step--1">
+      <span
+        aria-hidden="true"
+        className="size-6 rounded-md border"
+        style={{ backgroundColor: color }}
+      />
+      <span className="text-muted-foreground">{label}</span>
+      <bdi className="font-mono">{color}</bdi>
+    </span>
+  );
 }

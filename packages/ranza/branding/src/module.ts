@@ -1,4 +1,5 @@
 import { withOrganizationContext } from "@ranza/db";
+import { PORTAL_STAY_CAPABILITY } from "@ranza/stays";
 import { recordWithin } from "@ranza/platform-audit";
 import { assessBrandColor, requireBrandColor, type Foreground } from "./color";
 import type {
@@ -34,10 +35,15 @@ const BRAND_COLUMNS = `
   logo.width,
   logo.height`;
 
-function foregroundOf(color: string | null): Foreground | null {
+/** What the colour is drawn as; null for none, and for a stored value that is not one. */
+function drawnAs(
+  color: string | null,
+): { foreground: Foreground; text: string } | null {
   if (color === null) return null;
   const assessment = assessBrandColor(color);
-  return assessment.status === "ok" ? assessment.foreground : null;
+  return assessment.status === "ok"
+    ? { foreground: assessment.foreground, text: assessment.textColor }
+    : null;
 }
 
 function toLogo(row: BrandRow): BrandLogo | null {
@@ -60,9 +66,11 @@ function toLogo(row: BrandRow): BrandLogo | null {
 }
 
 function toBrand(row: BrandRow): OrganizationBrand {
+  const drawn = drawnAs(row.primaryColor);
   return {
     primaryColor: row.primaryColor,
-    primaryForeground: foregroundOf(row.primaryColor),
+    primaryForeground: drawn?.foreground ?? null,
+    primaryText: drawn?.text ?? null,
     logo: toLogo(row),
   };
 }
@@ -70,8 +78,13 @@ function toBrand(row: BrandRow): OrganizationBrand {
 const DEFAULT_BRAND: OrganizationBrand = {
   primaryColor: null,
   primaryForeground: null,
+  primaryText: null,
   logo: null,
 };
+
+/** What the Portal asks of a Stay before it shows it, and so before it shows its brand. */
+const PORTAL_MODULE = PORTAL_STAY_CAPABILITY.moduleKey;
+const PORTAL_CAPABILITY = PORTAL_STAY_CAPABILITY.capabilityKey;
 
 /** What the audit record says a logo was: a hash and a size, never the bytes. */
 function logoFact(logo: BrandLogo | null) {
@@ -111,25 +124,38 @@ function refusal(error: unknown): Error {
  * Every command runs inside the acting user's request context (ADR 0007), so
  * the row-level policies decide who may change it and who may read it (ADR
  * 0012, ADR 0009): Staff with `branding.manage` across the whole Organization,
- * and a Resident of an Organization they have a current Stay with. Nothing here
- * asks a permission of its own.
+ * and a Resident of an Organization they have a current Stay with, at a
+ * Property whose Portal is available to them: the Stay reads below ask the Portal's
+ * own capability gate, as the Stay list does, and the policies ask it again.
  */
 export function createBrandingModule(deps: BrandingDeps) {
-  /** Whether the acting user holds every gate a change to the brand needs. */
+  /**
+   * Whether the acting user holds every gate a change to the brand needs, and
+   * if not which kind kept them out: the permission and the commercial gates
+   * of blueprint 3.5 are told apart from reach, because the screen says
+   * different things to them.
+   */
   async function mayManage(
     tx: BrandingTransaction,
     organizationId: string,
-  ): Promise<boolean> {
-    const [answer] = await tx.$queryRaw<{ may: boolean }[]>`
-      select (
-        app.has_organization_wide_reach(${organizationId}::uuid)
-        and app.has_organization_permission(
-              ${organizationId}::uuid, 'branding.manage')
-        and app.can_use_capability_in_organization(
-              ${organizationId}::uuid, 'platform_core', 'configuration')
-      ) as "may"
+  ): Promise<{ may: boolean; reason: BrandSettings["reason"] }> {
+    const [answer] = await tx.$queryRaw<
+      { reach: boolean; permitted: boolean; available: boolean }[]
+    >`
+      select app.has_organization_wide_reach(${organizationId}::uuid) as "reach",
+             app.has_organization_permission(
+               ${organizationId}::uuid, 'branding.manage') as "permitted",
+             app.can_use_capability_in_organization(
+               ${organizationId}::uuid, 'platform_core', 'configuration')
+               as "available"
     `;
-    return answer?.may === true;
+    if (answer?.reach && answer.permitted && answer.available) {
+      return { may: true, reason: null };
+    }
+    return {
+      may: false,
+      reason: answer?.permitted && answer.available ? "reach" : "unavailable",
+    };
   }
 
   /** The brand as the policies let the acting user see it, or none. */
@@ -174,8 +200,10 @@ export function createBrandingModule(deps: BrandingDeps) {
   ): Promise<BrandSettings> {
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
       const row = await readBrand(tx, organizationId);
+      const { may, reason } = await mayManage(tx, organizationId);
       return {
-        canManage: await mayManage(tx, organizationId),
+        canManage: may,
+        reason,
         brand: row ? toBrand(row) : DEFAULT_BRAND,
       };
     });
@@ -200,7 +228,11 @@ export function createBrandingModule(deps: BrandingDeps) {
            left join public.organization_brand_logos as logo
              on logo.organization_id = brand.organization_id
           where stay.user_id = app.current_user_id()
-            and stay.status in ('reserved', 'in_house')`,
+            and stay.status in ('reserved', 'in_house')
+            and app.resident_can_use_capability(
+                  stay.property_id, $1, $2)`,
+        PORTAL_MODULE,
+        PORTAL_CAPABILITY,
       );
       return rows.map((row) => ({ stayId: row.stayId, ...toBrand(row) }));
     });
@@ -230,8 +262,13 @@ export function createBrandingModule(deps: BrandingDeps) {
                on logo.organization_id = stay.organization_id
             where stay.id = $1::uuid
               and stay.user_id = app.current_user_id()
-              and stay.status in ('reserved', 'in_house')`,
+              and stay.status in ('reserved', 'in_house')
+              and app.resident_can_use_capability(
+                    stay.property_id, $2, $3)`,
       id,
+      ...(column === "organization_id"
+        ? []
+        : [PORTAL_MODULE, PORTAL_CAPABILITY]),
     );
     if (!row?.content || !row.contentType || !row.contentHash) return null;
     return {
@@ -304,7 +341,7 @@ export function createBrandingModule(deps: BrandingDeps) {
                   app.current_user_id())
           on conflict (organization_id) do update
             set primary_color = excluded.primary_color,
-                updated_by = excluded.updated_by,
+                updated_by = app.current_user_id(),
                 updated_at = now()
         `;
         if (logo !== undefined && logo !== null) {
@@ -324,7 +361,7 @@ export function createBrandingModule(deps: BrandingDeps) {
                   size_bytes = excluded.size_bytes,
                   width = excluded.width,
                   height = excluded.height,
-                  updated_by = excluded.updated_by,
+                  updated_by = app.current_user_id(),
                   updated_at = now()
           `;
         } else if (logo === null) {
@@ -397,7 +434,7 @@ export function createBrandingModule(deps: BrandingDeps) {
       // Asked first, and of everybody: an update that matches nothing raises
       // nothing, so a Resident who can read the brand but not change it would
       // otherwise reach the audit record below having reset nothing.
-      if (!(await mayManage(tx, organizationId))) {
+      if (!(await mayManage(tx, organizationId)).may) {
         throw new BrandingRefusedError();
       }
       const before = await readBrand(tx, organizationId);

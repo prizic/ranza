@@ -6,14 +6,8 @@
  * error that is neither is a defect or an outage, and the host reports it.
  */
 
-export type ColorRejection =
-  /** Not `#rrggbb`. */
-  | "invalid"
-  /**
-   * Too light to be read as text on the Portal's white canvas, which is how
-   * links and the active navigation item draw it (ADR 0046).
-   */
-  | "unreadable";
+/** Not `#rrggbb`. Every valid colour is accepted (ADR 0046). */
+export type ColorRejection = "invalid";
 
 export type LogoRejection =
   | "empty"
@@ -29,7 +23,7 @@ export type LogoRejection =
 
 /** What the caller supplied that cannot be used. Raised before any statement runs. */
 export type BrandingInputRejection =
-  | { field: "color"; reason: ColorRejection; contrast?: number }
+  | { field: "color"; reason: ColorRejection }
   | { field: "logo"; reason: LogoRejection };
 
 export class BrandingInputError extends Error {

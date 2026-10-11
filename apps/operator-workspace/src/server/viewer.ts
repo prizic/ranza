@@ -801,16 +801,25 @@ export async function housekeepingInspection(
  * Every Property the viewer reaches in an Organization where they hold
  * `permission` — the gate for a destination no package selection may remove.
  *
+ * A destination that is an Organization's to configure names the capability it
+ * needs as well, by its two keys (strings, so that `cache` can tell one call
+ * from another), and a Property is listed only where that holds for it too.
+ *
  * `cache`d like `entitledProperties`: the layout and the page beneath it ask
  * the same question in one request.
  */
 export const permittedProperties = cache(
-  async (permission: string): Promise<readonly EntitledProperty[]> => {
+  async (
+    permission: string,
+    moduleKey?: string,
+    capabilityKey?: string,
+  ): Promise<readonly EntitledProperty[]> => {
     const viewer = await currentViewer();
     if (!viewer) return [];
     return getComposition().core.listPermittedProperties(
       viewer.userId,
       permission,
+      moduleKey && capabilityKey ? { moduleKey, capabilityKey } : undefined,
     );
   },
 );

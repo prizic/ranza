@@ -1,8 +1,23 @@
 import path from "node:path";
 
-import { expect, test, type Browser, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Browser,
+  type Page,
+  type PlaywrightWorkerArgs,
+} from "@playwright/test";
 
-import { DESK_EMAIL, OWNER_EMAIL, signIn, testProperty } from "./front-desk";
+import {
+  DESK_EMAIL,
+  OWNER_EMAIL,
+  PASSWORD,
+  signIn,
+  testProperty,
+} from "./front-desk";
+import { psql } from "./local-database";
+import { png } from "../unit/branding-images";
 import {
   aLogo,
   aResident,
@@ -61,6 +76,38 @@ async function activeItem(
   }));
 }
 
+/** A CSS colour as the browser computes it (`rgb(...)` or `#rrggbb`), against white. */
+function contrastWithWhite(color: string): number {
+  const channels = color.startsWith("#")
+    ? [1, 3, 5].map((at) => Number.parseInt(color.slice(at, at + 2), 16))
+    : (color.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map(Number);
+  const [red, green, blue] = channels.map((value) => {
+    const unit = value / 255;
+    return unit <= 0.04045 ? unit / 12.92 : ((unit + 0.055) / 1.055) ** 2.4;
+  }) as [number, number, number];
+  const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+  return 1.05 / (luminance + 0.05);
+}
+
+/**
+ * Chooses the logo, and is sure the screen has taken it: a file chosen before
+ * the page has hydrated is lost, and Save stays disabled for ever. The first
+ * choice that enables Save is the one that counts, so it is made again until it
+ * does.
+ */
+async function chooseLogo(page: Page, buffer: Buffer): Promise<void> {
+  await expect(async () => {
+    await page.getByLabel("Logo file").setInputFiles({
+      name: "logo.png",
+      mimeType: "image/png",
+      buffer,
+    });
+    await expect(
+      page.getByRole("button", { name: "Save", exact: true }),
+    ).toBeEnabled({ timeout: 1_500 });
+  }).toPass({ timeout: 30_000 });
+}
+
 function shellOf(page: Page) {
   return page.locator("div.min-h-svh").first();
 }
@@ -87,12 +134,10 @@ test("BR-S1-01: the Owner brands the Organization and the Resident's Portal carr
   await expect(page.getByRole("link", { name: "Back" })).toBeVisible();
 
   await page.getByLabel("Colour (#rrggbb)").fill(BURGUNDY);
-  await expect(page.getByText(/Readable: white text on it/)).toBeVisible();
-  await page.getByLabel("Logo file").setInputFiles({
-    name: "logo.png",
-    mimeType: "image/png",
-    buffer: aLogo(),
-  });
+  await expect(
+    page.getByText(/Text on filled surfaces is white/),
+  ).toBeVisible();
+  await chooseLogo(page, aLogo());
 
   // The preview follows the draft before anything is saved.
   const preview = page.getByTestId("brand-preview");
@@ -165,7 +210,7 @@ test("BR-S1-12: reset returns the Portal to the default theme", async ({
   await expect(shellOf(portal)).not.toHaveAttribute("style", /--primary/);
 });
 
-test("BR-S1-04: an unreadable colour is refused with the reason", async ({
+test("BR-S1-04: a light colour is accepted and the screen shows the darker shade used for text", async ({
   page,
 }) => {
   await signIn(page, OWNER_EMAIL);
@@ -173,20 +218,72 @@ test("BR-S1-04: an unreadable colour is refused with the reason", async ({
   const field = page.getByLabel("Colour (#rrggbb)");
   const save = page.getByRole("button", { name: "Save", exact: true });
 
+  // A yellow: a fine button and an unreadable link.
   await field.fill("#ffeb3b");
   await expect(
-    page.getByText(/too light to read as text on white \(contrast 1\.\d : 1/),
+    page.getByText(/Links and text use a darker shade of the same hue/),
   ).toBeVisible();
-  await expect(field).toHaveAttribute("aria-invalid", "true");
-  await expect(save).toBeDisabled();
+  await expect(page.getByText("Buttons and fills")).toBeVisible();
+  await expect(page.getByText("Links and text", { exact: true })).toBeVisible();
+  await expect(field).not.toHaveAttribute("aria-invalid", "true");
+  await expect(save).toBeEnabled();
+
+  // The preview draws a link in the shade, which reads on white.
+  const link = page.getByTestId("brand-preview").getByText("A link");
+  const shade = await link.evaluate(
+    (element) => getComputedStyle(element).color,
+  );
+  expect(contrastWithWhite(shade)).toBeGreaterThanOrEqual(4.5);
+  const fill = page
+    .getByTestId("brand-preview")
+    .getByRole("button", { name: "Primary button" });
+  await expect(fill).toHaveCSS("background-color", "rgb(255, 235, 59)");
+  await page.screenshot({
+    fullPage: true,
+    path: path.join(EVIDENCE, "branding-screen-light-colour.png"),
+  });
+
+  // A colour that already reads on white is its own text colour.
+  await field.fill(BURGUNDY);
+  await expect(
+    page.getByText(/Links and text use the colour itself/),
+  ).toBeVisible();
 
   await field.fill("rebeccapurple");
   await expect(page.getByText(/Write the colour like #0f5132/)).toBeVisible();
   await expect(save).toBeDisabled();
+});
 
-  await field.fill(BURGUNDY);
-  await expect(page.getByText(/Readable: white text on it/)).toBeVisible();
-  await expect(save).toBeEnabled();
+test("BR-S1-04: a link in the Portal of an orange brand reads at 4.5:1 on white", async ({
+  browser,
+  request,
+}) => {
+  const ORANGE = "#e67e22";
+  brandTheOrganization(theOrganization(), ORANGE, aLogo());
+  const resident = await aResident(request);
+  const portal = await aPortalPage(browser);
+  await signInToThePortal(portal, resident.email);
+
+  // Fills are the colour as it is.
+  expect((await activeItem(portal)).background).toBe("rgb(230, 126, 34)");
+
+  // The Portal has no link on its one page, so one is drawn where a link
+  // would be, in the theme's own class for it, inside the branded shell.
+  const link = await shellOf(portal).evaluate((shell) => {
+    const anchor = document.createElement("a");
+    anchor.className = "text-primary-text";
+    anchor.textContent = "a link";
+    shell.appendChild(anchor);
+    const style = getComputedStyle(anchor);
+    return {
+      color: style.color,
+      ring: getComputedStyle(shell).getPropertyValue("--ring").trim(),
+    };
+  });
+  expect(contrastWithWhite(link.color)).toBeGreaterThanOrEqual(4.5);
+  expect(link.color).not.toBe("rgb(230, 126, 34)");
+  // Focus rings are drawn in the same shade.
+  expect(contrastWithWhite(link.ring)).toBeGreaterThanOrEqual(4.5);
 });
 
 test("BR-S1-23: the Portal's sign-in page stays Ranza's", async ({
@@ -268,4 +365,180 @@ test("BR-S1-33: the Branding screen reads right to left in Arabic with the colou
     fullPage: true,
     path: path.join(EVIDENCE, "branding-screen-arabic.png"),
   });
+});
+
+/** The Organization's Subscription, so a test that suspends it can put it back. */
+function subscriptionStatus(organizationId: string): string {
+  return psql(
+    `select status from public.subscriptions where organization_id = '${organizationId}'`,
+  );
+}
+
+function setSubscription(organizationId: string, status: string): void {
+  psql(
+    `update public.subscriptions set status = '${status}' where organization_id = '${organizationId}'`,
+  );
+}
+
+/** A browser-less session of its own: cookies are kept per context, never shared. */
+async function signedInWorkspace(
+  playwright: PlaywrightWorkerArgs["playwright"],
+  baseURL: string,
+  email: string,
+): Promise<APIRequestContext> {
+  const context = await playwright.request.newContext({ baseURL });
+  const answer = await context.post("/api/auth/sign-in/email", {
+    headers: { origin: baseURL },
+    data: { email, password: PASSWORD },
+  });
+  expect(answer.ok(), `could not sign in ${email}: ${answer.status()}`).toBe(
+    true,
+  );
+  return context;
+}
+
+test("BR-S1-40: the Portal's logo route answers 401 without a session and 404 for another person's Stay, a departed Stay and a gated Organization", async ({
+  playwright,
+}) => {
+  const organization = theOrganization();
+  brandTheOrganization(organization, BURGUNDY, aLogo());
+  const mine = await playwright.request.newContext();
+  const theirs = await playwright.request.newContext();
+  const gated = await playwright.request.newContext();
+  const stranger = await playwright.request.newContext();
+  const me = await aResident(mine);
+  const them = await aResident(theirs);
+  const lapsed = await aResident(gated);
+  const logo = (stay: string) => `${PORTAL_URL}/api/brand/${stay}/logo`;
+
+  // No session at all.
+  expect((await stranger.get(logo(me.stayId))).status()).toBe(401);
+
+  // Their own, and not somebody else's.
+  expect((await mine.get(logo(me.stayId))).status()).toBe(200);
+  const another = await mine.get(logo(them.stayId));
+  expect(another.status()).toBe(404);
+  expect(await another.body()).toHaveLength(0);
+  expect((await mine.get(logo("not-a-uuid"))).status()).toBe(404);
+  expect(
+    (await mine.get(logo("00000000-0000-8000-8000-000000000000"))).status(),
+  ).toBe(404);
+
+  // An Organization whose Subscription is suspended shows its Resident no Stay
+  // and so no brand; a past-due one is in its grace period.
+  const before = subscriptionStatus(organization);
+  try {
+    expect((await gated.get(logo(lapsed.stayId))).status()).toBe(200);
+    setSubscription(organization, "suspended");
+    expect((await gated.get(logo(lapsed.stayId))).status()).toBe(404);
+    setSubscription(organization, "past_due");
+    expect((await gated.get(logo(lapsed.stayId))).status()).toBe(200);
+  } finally {
+    setSubscription(organization, before);
+  }
+
+  // A Stay that has ended.
+  psql(
+    `update public.stays set status = 'departed', ends_on = date '2026-09-05',
+            departed_at = now() where id = '${me.stayId}'`,
+  );
+  expect((await mine.get(logo(me.stayId))).status()).toBe(404);
+});
+
+test("BR-S1-40: the Portal's logo is served private, nosniff, with its stored type and a closed policy", async ({
+  playwright,
+}) => {
+  const organization = theOrganization();
+  brandTheOrganization(organization, BURGUNDY, aLogo());
+  const mine = await playwright.request.newContext();
+  const me = await aResident(mine);
+  const url = `${PORTAL_URL}/api/brand/${me.stayId}/logo`;
+
+  // Without the version a page links it by: revalidated, never held for good.
+  const bare = await mine.get(url);
+  expect(bare.status()).toBe(200);
+  expect(bare.headers()["content-type"]).toBe("image/png");
+  expect(bare.headers()["x-content-type-options"]).toBe("nosniff");
+  expect(bare.headers()["content-security-policy"]).toBe("default-src 'none'");
+  expect(bare.headers()["cache-control"]).toBe("private, no-cache");
+  const etag = bare.headers().etag!;
+  expect(etag).toMatch(/^"[0-9a-f]{64}"$/);
+
+  // With it: private, and cached for as long as that logo is the logo.
+  const versioned = await mine.get(`${url}?v=${etag.slice(1, -1)}`);
+  expect(versioned.headers()["cache-control"]).toBe(
+    "private, max-age=31536000, immutable",
+  );
+  expect(Buffer.from(await versioned.body()).equals(aLogo())).toBe(true);
+
+  // And a matching tag is a 304 with nothing in it.
+  const revalidated = await mine.get(url, {
+    headers: { "if-none-match": etag },
+  });
+  expect(revalidated.status()).toBe(304);
+  expect(await revalidated.body()).toHaveLength(0);
+});
+
+test("BR-S1-40: the Workspace's logo route answers 401 without a session and 404 to those who may not manage the brand", async ({
+  baseURL,
+  playwright,
+}) => {
+  const organization = theOrganization();
+  brandTheOrganization(organization, BURGUNDY, aLogo());
+  const url = `/api/branding/${organization}/logo`;
+  const anonymous = await playwright.request.newContext({ baseURL: baseURL! });
+  expect((await anonymous.get(url)).status()).toBe(401);
+
+  const owner = await signedInWorkspace(playwright, baseURL!, OWNER_EMAIL);
+  const answer = await owner.get(url);
+  expect(answer.status()).toBe(200);
+  expect(answer.headers()["content-type"]).toBe("image/png");
+  expect(answer.headers()["cache-control"]).toBe("private, no-cache");
+  expect(answer.headers()["x-content-type-options"]).toBe("nosniff");
+  expect(answer.headers()["content-security-policy"]).toBe(
+    "default-src 'none'",
+  );
+  expect((await owner.get("/api/branding/not-a-uuid/logo")).status()).toBe(404);
+  expect(
+    (
+      await owner.get("/api/branding/00000000-0000-8000-8000-000000000000/logo")
+    ).status(),
+  ).toBe(404);
+
+  // A Front desk member holds no permission over the brand.
+  const desk = await signedInWorkspace(playwright, baseURL!, DESK_EMAIL);
+  const refused = await desk.get(url);
+  expect(refused.status()).toBe(404);
+  expect(await refused.body()).toHaveLength(0);
+
+  // And nobody manages it where the Subscription is suspended.
+  const before = subscriptionStatus(organization);
+  try {
+    setSubscription(organization, "suspended");
+    expect((await owner.get(url)).status()).toBe(404);
+  } finally {
+    setSubscription(organization, before);
+  }
+});
+
+test("BR-S1-42: a logo of 600 KB and one of 2 MB are each told they are too large", async ({
+  page,
+}) => {
+  await signIn(page, OWNER_EMAIL);
+  await page.goto(`/en/branding?property=${testProperty()}`);
+
+  for (const size of [600 * 1024, 2 * 1024 * 1024]) {
+    await chooseLogo(page, png(320, 160, size));
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(
+      page.getByText("The file is larger than 512 KB."),
+    ).toBeVisible();
+  }
+  // Told, and nothing saved.
+  expect(
+    psql(
+      `select count(*) from public.organization_brand_logos
+        where organization_id = '${theOrganization()}' and content is not null`,
+    ),
+  ).toBe("0");
 });

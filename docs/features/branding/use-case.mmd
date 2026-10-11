@@ -6,7 +6,6 @@
 %% UML directions: include points base --> included. extend points extension --> base.
 %% Refusals are test cases, not use cases: they are rows in edge-cases.csv.
 %% The states are in states.mmd and are deliberately not repeated here.
-%% OPEN: BR-S1-04. The refusal as first specified, a colour where neither white nor black reaches 4.5:1, can never fire, since every colour reaches 4.58:1 against one of them. The row refuses a colour too light to read as text on the white canvas instead; the owner confirms or removes the refusal.
 flowchart TD
 
   OWNER["Staff Member<br/>holding branding.manage across the whole Organization<br/>(the shipped Owner)"]
@@ -15,13 +14,13 @@ flowchart TD
   VISITOR["Visitor<br/>not signed in"]
 
   subgraph S1["slice 1 &mdash; one colour and one logo"]
-    COLOR(["Choose the brand colour<br/>one hex; the foreground is derived by contrast"])
+    COLOR(["Choose the brand colour<br/>one hex; the foreground and a darker text shade are derived"])
     LOGO(["Upload the logo<br/>PNG, JPEG or WebP, validated by its bytes"])
     PREVIEW(["See the Portal header and controls in the draft<br/>before saving"])
     SAVE(["Save<br/>audited with old and new values"])
     RESET(["Reset to default<br/>empties both, keeps the rows, audited"])
     DRAW(["The Portal is drawn in the brand<br/>primary buttons, links, active item, header"])
-    SERVE(["The logo is served, versioned by its hash<br/>revalidated by ETag"])
+    SERVE(["The logo is served, versioned by its hash<br/>revalidated by ETag, 404 where the Portal is not shown"])
     REFUSE(["Told why a colour or a logo is refused<br/>in their language"])
   end
 
