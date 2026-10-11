@@ -5424,8 +5424,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       colorEmpty: "No colour set: Ranza's own theme is used.",
       defaultTheme: "Default theme",
       colorInvalid: "Write the colour like #0f5132, with the # and six digits.",
-      colorReadable:
-        "Text on filled surfaces is {foreground}, at {ratio} : 1.",
+      colorReadable: "Text on filled surfaces is {foreground}, at {ratio} : 1.",
       colorTextSame:
         "Links and text use the colour itself, which reads on white at {ratio} : 1.",
       colorTextDarker:
