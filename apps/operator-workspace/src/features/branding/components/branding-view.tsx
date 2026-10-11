@@ -133,7 +133,10 @@ export function BrandingView({
           foreground: verdict.foreground,
           text: verdict.textColor,
         })
-      : candidate === "" &&
+      : // The saved colour, until the server has judged what was typed: what is
+        // there already needs no judging, and a preview that waited for it
+        // would draw the default theme for a moment under a saved brand.
+        candidate === savedColor &&
           brand.primaryColor &&
           brand.primaryForeground &&
           brand.primaryText

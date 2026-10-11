@@ -360,6 +360,14 @@ test("BR-S1-33: the Branding screen reads right to left in Arabic with the colou
   await expect(field).toHaveAttribute("dir", "ltr");
   await expect(field).toHaveValue(BURGUNDY);
   await expect(page.getByText("لون العلامة")).toBeVisible();
+  // The server's verdict on the saved colour, which is drawn under it.
+  await expect(
+    page.getByText(/تُرسم الروابط والنصوص باللون نفسه/),
+  ).toBeVisible();
+  await expect(page.getByTestId("brand-preview").getByRole("button")).toHaveCSS(
+    "background-color",
+    BURGUNDY_RGB,
+  );
 
   await page.screenshot({
     fullPage: true,
