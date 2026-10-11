@@ -1,38 +1,53 @@
 %% Slices decide implementation order:
-%%   s1 integrations catalogue, live status, outbox failure recording, failed operations visibility, and manual retry
-%%   s2 bidirectional webhook receivers and channel inventory mapping
+%%   s1 one integration, an outbound webhook: register an endpoint, deliver signed events, show failures, retry
+%%   s2 not built: other connectors (INT-DEF-05), an endpoint per Property (INT-DEF-06), editing and rotating (INT-DEF-01/02)
 %% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
 %% State transitions are in states.mmd.
 flowchart TD
 
-  MANAGER["Staff Member holding integrations.manage<br/>manages connections and retries operations"]
-  VIEWER["Staff Member holding integrations.view<br/>monitors integration health and failures"]
-  WORKER["Background Worker (ranza_worker)<br/>dispatches outbox events to external systems"]
-  EXTERNAL["External System<br/>Channel Manager, Door Locks, Payment POS, KBS"]
+  MANAGER["Staff Member holding integrations.manage<br/>with reach to the whole Organization"]
+  PROPERTY_MANAGER["Staff Member holding integrations.manage<br/>at one Property"]
+  VIEWER["Staff Member holding integrations.view<br/>monitors endpoints and failures"]
+  OUTBOX["Transactional outbox<br/>facts published with the transaction that made them"]
+  WORKER["Background worker (ranza_worker)<br/>queues, sends, records"]
+  RECEIVER["Receiver<br/>the Organization's own HTTPS endpoint"]
 
-  subgraph S1["slice 1 &mdash; health, outbox failure visibility and retry"]
-    LIST(["View integrations & failed operations queue<br/>status tones, error details, attempts"])
-    CONNECT(["Connect integration"])
-    DISPATCH(["Dispatch outbox event to external adapter"])
-    RECORD_FAIL(["Record failed operation in database<br/>error message, payload, incremented attempts"])
-    RETRY(["Retry failed operation<br/>re-executes external call or outbox task"])
-    RESOLVE(["Clear failure and restore connected status"])
+  subgraph S1["slice 1 &mdash; one webhook, and its failures in view"]
+    REGISTER(["Add endpoint<br/>name, https address, chosen events"])
+    SECRET(["See the signing secret once"])
+    TEST(["Send test event"])
+    REMOVE(["Remove endpoint"])
+    LIST(["View endpoints and open failures<br/>state in words, what the receiver answered,<br/>attempts, next attempt"])
+    QUEUE(["Queue a delivery per subscribed endpoint<br/>ids and facts only, frozen body"])
+    SEND(["Send signed JSON<br/>no redirects, no private addresses"])
+    RECORD(["Record the outcome<br/>delivered, retry on schedule, or failed"])
+    RETRY(["Retry now"])
+    CANCEL(["Stop retrying, with a reason"])
+    RESOLVE(["Mark resolved, with a reason"])
   end
 
-  subgraph S2["Not this slice &mdash; phase 5 deep distribution"]
-    WEBHOOKS(["Incoming channel manager webhooks"])
-    RATE_MAP(["Rate plan and room inventory mapping editor"])
-    LOCK_KEYS(["Direct door lock keycard / BLE issuance"])
+  subgraph S2["Not this slice"]
+    CONNECTORS(["KBS, e-Arsiv, WhatsApp, payments, channel manager"])
+    EDIT(["Edit an endpoint, rotate its secret"])
   end
 
-  VIEWER --> LIST
+  MANAGER --> REGISTER
+  REGISTER --> SECRET
+  MANAGER --> TEST
+  MANAGER --> REMOVE
   MANAGER --> LIST
-  MANAGER --> CONNECT
-  MANAGER --> RETRY
+  PROPERTY_MANAGER --> LIST
+  PROPERTY_MANAGER --> RETRY
+  PROPERTY_MANAGER --> CANCEL
+  PROPERTY_MANAGER --> RESOLVE
+  VIEWER --> LIST
 
-  WORKER --> DISPATCH
-  DISPATCH --> EXTERNAL
-  EXTERNAL -- "API error / rejection" --> RECORD_FAIL
-  RECORD_FAIL --> LIST
-  RETRY --> DISPATCH
-  EXTERNAL -- "Success on retry" --> RESOLVE
+  OUTBOX --> QUEUE
+  TEST --> QUEUE
+  QUEUE --> WORKER
+  WORKER --> SEND
+  SEND --> RECEIVER
+  RECEIVER -- "2xx, 4xx, 5xx, silence" --> RECORD
+  RECORD --> LIST
+  RETRY --> QUEUE
+  RECORD -- "a delivery that arrives" --> RESOLVE

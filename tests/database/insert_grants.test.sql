@@ -527,8 +527,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  74,
-  'the definer sweep looked at 74 functions; change this number deliberately');
+  83,
+  'the definer sweep looked at 83 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -539,10 +539,10 @@ select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef
       and regexp_replace(p.prosrc, '--[^\n]*', '', 'g') ~* '(insert|update|delete)\s'),
-  22,
-  'twenty-two of them write, which is what makes the assertion above a test');
+  29,
+  'twenty-nine of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a seventy-fourth definer is a red test
+-- Part B: the inventory itself, so an eighty-fourth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
 -- four are housekeeping; two are maintenance; five are the audit log's reach;
@@ -578,8 +578,21 @@ select is(
 -- The decision sheet (20260916009500-009720) brought none. Its closed-day
 -- triggers, app.reservations_keep_closed_days() among them, are invokers, and
 -- the three access migrations replaced two definers and changed a grant.
--- Integrations (20260916010000) brought two writers: record_integration_failure()
--- and resolve_failed_operation(), both checking their caller.
+-- Integrations (20260916010000) brought two writers, record_integration_failure()
+-- and resolve_failed_operation(), both checking their caller. 20260916011200
+-- replaced both: the first is gone, the second takes a reason, and nine more
+-- came with the webhook (ADR 0045), all of them writers. Four of the writers are the worker's
+-- and name worker_organization_id() first: enqueue_webhook_deliveries() (from an
+-- event, never from its payload), webhook_delivery_secret(),
+-- record_webhook_attempt() and claim_webhook_delivery(), which leases one due
+-- delivery in its Organization. A fifth, due_webhook_deliveries(), only lists
+-- which are due across Organizations, as the export lists do, and writes
+-- nothing. Five are Staff
+-- Members' commands and ask blueprint 3.5's gates themselves because a definer
+-- bypasses the policies: create_webhook_endpoint(), remove_webhook_endpoint()
+-- and send_webhook_test() with reach to the whole Organization, and
+-- retry_failed_operation() and cancel_failed_operation() with reach to the
+-- failure's Property. resolve_failed_operation() asks the same.
 -- Data export (20260916010100) brought two lists for the worker,
 -- export_schedules_due() and pending_data_exports(), neither of which writes.
 -- Its second half (20260916010710) brought thirteen, and the worker is how every
@@ -649,7 +662,12 @@ select set_eq(
         'post_room_nights', 'post_room_nights_for_departure',
         'amend_reservation', 'reservation_is_priced_for_its_new_kind',
         'change_departure', 'move_stay', 'mark_unit_dirty_after_move',
-        'record_integration_failure', 'resolve_failed_operation',
+        'resolve_failed_operation', 'enqueue_webhook_deliveries',
+        'claim_webhook_delivery', 'due_webhook_deliveries',
+        'webhook_delivery_secret',
+        'record_webhook_attempt', 'create_webhook_endpoint',
+        'remove_webhook_endpoint', 'send_webhook_test',
+        'retry_failed_operation', 'cancel_failed_operation',
         'export_schedules_due', 'pending_data_exports',
         'stalled_data_exports', 'expired_data_exports', 'claim_data_export',
         'export_guests', 'export_reservations', 'export_units',
@@ -659,7 +677,7 @@ select set_eq(
         'post_folio_line_to_ledger', 'change_expected_arrival',
         'hr_employee_is_reachable', 'hr_employee_is_manageable', 'hr_today',
         'resident_organization_ids'],
-  'and they are exactly the seventy-four the design gives a reason for');
+  'and they are exactly the eighty-three the design gives a reason for');
 
 -- ---------------------------------------------------------------------------
 -- Who asks the three-gate question (IG-14)

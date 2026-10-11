@@ -2,9 +2,10 @@
 
 Everything the product does that is not inside a request.
 
-Today that is three things: draining `outbox.events`, closing each Property's
-business day once its cutoff has passed and nothing is left open (ADR 0034), and
-producing the data exports Staff Members asked for (ADR 0043).
+Today that is four things: draining `outbox.events`, closing each Property's
+business day once its cutoff has passed and nothing is left open (ADR 0034),
+producing the data exports Staff Members asked for (ADR 0043), and sending the
+webhook deliveries Organizations subscribed to (ADR 0045).
 Retention and notification delivery will land here too, and the rules below are
 what stop that turning into a second backend.
 
@@ -15,7 +16,10 @@ pnpm --filter @ranza/worker build
 pnpm --filter @ranza/worker start
 ```
 
-It needs `WORKER_DATABASE_URL`, and refuses to start without it. It also refuses
+It needs `WORKER_DATABASE_URL`, and refuses to start without it. Setting
+`WEBHOOK_ALLOW_LOOPBACK_HTTP=true` lets a webhook be sent over plain http to this
+machine, which a test needs to run a receiver; a worker with `NODE_ENV=production`
+refuses to start with it set. It also refuses
 to start when that URL is `DIRECT_URL` or `DATABASE_URL`, and when the role it
 actually connected as turns out to be a superuser, to carry `BYPASSRLS`, or to
 own — or be a member of the role that owns — a table in `public`. A connection
@@ -68,7 +72,16 @@ src/
     outbox.module.ts      wiring — every provider returns something already built
     outbox.dispatcher.ts  when to run. Not how: that is @ranza/platform-outbox
     subscriptions.ts      event type to handler, one database function each
+    webhook-deliveries.ts one subscription per event an endpoint can ask for;
+                          queues deliveries and nothing else
     tokens.ts             injection tokens
+  webhooks/
+    webhook-delivery.module.ts   wiring
+    webhook-delivery.service.ts  when to send what is due (three seconds). Not
+                                 how: that is @ranza/integrations. Logs every
+                                 delivery that reached a final state, with ids
+                                 and a code and never an address or a body
+    tokens.ts                    injection token
 ```
 
 `subscriptions.ts` landed empty on purpose: the lease, the idempotency and the

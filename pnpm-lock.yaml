@@ -232,6 +232,9 @@ importers:
       '@ranza/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@ranza/integrations':
+        specifier: workspace:*
+        version: link:../../packages/ranza/integrations
       '@ranza/platform-outbox':
         specifier: workspace:*
         version: link:../../packages/platform/outbox
@@ -415,6 +418,9 @@ importers:
       '@ranza/db':
         specifier: workspace:*
         version: link:../../db
+      '@ranza/platform-audit':
+        specifier: workspace:*
+        version: link:../../platform/audit
 
   packages/ranza/maintenance:
     dependencies:

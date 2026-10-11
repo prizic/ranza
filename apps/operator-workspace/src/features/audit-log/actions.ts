@@ -75,6 +75,12 @@ export const KNOWN_ACTIONS = [
   "payroll_run.approved",
   "branding.changed",
   "branding.reset",
+  "webhook_endpoint.registered",
+  "webhook_endpoint.removed",
+  "webhook_endpoint.test_sent",
+  "failed_operation.retried",
+  "failed_operation.cancelled",
+  "failed_operation.resolved",
 ] as const;
 
 export type KnownAction = (typeof KNOWN_ACTIONS)[number];
@@ -96,6 +102,8 @@ export const KNOWN_SUBJECTS = [
   "leave_request",
   "payroll_run",
   "organization_brand",
+  "webhook_endpoint",
+  "failed_operation",
 ] as const;
 
 export type KnownSubject = (typeof KNOWN_SUBJECTS)[number];

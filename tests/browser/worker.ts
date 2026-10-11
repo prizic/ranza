@@ -20,7 +20,9 @@ export interface RunningWorker {
   stop(): void;
 }
 
-export function startWorker(): RunningWorker {
+export function startWorker(
+  extraEnv: Readonly<Record<string, string>> = {},
+): RunningWorker {
   const built = spawnSync("pnpm", ["--filter", "@ranza/worker", "build"], {
     cwd: ROOT,
     encoding: "utf8",
@@ -32,7 +34,7 @@ export function startWorker(): RunningWorker {
   const chunks: string[] = [];
   const worker: ChildProcess = spawn("node", ["apps/worker/dist/main.mjs"], {
     cwd: ROOT,
-    env: { ...process.env, WORKER_DATABASE_URL },
+    env: { ...process.env, WORKER_DATABASE_URL, ...extraEnv },
   });
   worker.stdout?.on("data", (chunk: Buffer) => chunks.push(String(chunk)));
   worker.stderr?.on("data", (chunk: Buffer) => chunks.push(String(chunk)));

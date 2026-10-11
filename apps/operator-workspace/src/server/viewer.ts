@@ -42,11 +42,11 @@ import {
 } from "@ranza/guest-services";
 import {
   INTEGRATIONS_CAPABILITY,
+  type EndpointHealth,
+  type EndpointsView,
   type FailedOperationRecord,
-  type IntegrationRecord,
-  type IntegrationStatus,
   type OperationStatus,
-  type RetryOperationResult,
+  type WebhookEndpointRecord,
 } from "@ranza/integrations";
 import {
   HR_CAPABILITY,
@@ -74,11 +74,11 @@ export {
 };
 export {
   INTEGRATIONS_CAPABILITY,
+  type EndpointHealth,
+  type EndpointsView,
   type FailedOperationRecord,
-  type IntegrationRecord,
-  type IntegrationStatus,
   type OperationStatus,
-  type RetryOperationResult,
+  type WebhookEndpointRecord,
 };
 import type { FolioDetail, FolioSummary } from "@ranza/folios";
 import {
@@ -1183,49 +1183,34 @@ export async function propertyServiceRequests(
 }
 
 export interface IntegrationsViewData {
-  integrations: IntegrationRecord[];
+  endpoints: EndpointsView;
   failedOperations: FailedOperationRecord[];
 }
 
 /**
- * Reads external system integrations and active failed operations for a Property.
+ * The Organization's webhook endpoints and the Property's open failures, for
+ * the Integrations screen (ADR 0045). The endpoints are the Organization's and
+ * the failures are the Property's, so both are asked for.
  */
 export async function propertyIntegrations(
+  organizationId: string,
   propertyId: string,
 ): Promise<IntegrationsViewData> {
   const viewer = await currentViewer();
   if (!viewer) {
-    return { integrations: [], failedOperations: [] };
+    return {
+      endpoints: { endpoints: [], mayManage: false },
+      failedOperations: [],
+    };
   }
 
-  const comp = getComposition();
-  const [integrations, failedOperations] = await Promise.all([
-    comp.integrations.integrations(viewer.userId, propertyId),
-    comp.integrations.failedOperations(viewer.userId, propertyId),
+  const integrations = getComposition().integrations;
+  const [endpoints, failedOperations] = await Promise.all([
+    integrations.endpoints(viewer.userId, organizationId),
+    integrations.failedOperations(viewer.userId, propertyId),
   ]);
 
-  return {
-    integrations,
-    failedOperations,
-  };
-}
-
-/**
- * Retries a failed external integration operation.
- */
-export async function retryIntegrationOperation(
-  propertyId: string,
-  operationId: string,
-): Promise<RetryOperationResult> {
-  const viewer = await currentViewer();
-  if (!viewer) {
-    throw new Error("Unauthorized");
-  }
-
-  return getComposition().integrations.retryOperation(viewer.userId, {
-    propertyId,
-    operationId,
-  });
+  return { endpoints, failedOperations };
 }
 
 export interface HrViewData {

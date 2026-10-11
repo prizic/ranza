@@ -7,6 +7,7 @@ import { frontDeskProperty } from "../../../../server/front-desk";
 import {
   entitledProperties,
   INTEGRATIONS_CAPABILITY,
+  permittedProperties,
   propertyIntegrations,
   requireViewer,
 } from "../../../../server/viewer";
@@ -40,15 +41,19 @@ export default async function IntegrationsPage({
     );
   }
 
-  const { integrations, failedOperations } = await propertyIntegrations(
-    property.propertyId,
-  );
+  const [{ endpoints, failedOperations }, managed] = await Promise.all([
+    propertyIntegrations(property.organizationId, property.propertyId),
+    permittedProperties("integrations.manage"),
+  ]);
 
   return (
     <IntegrationsView
+      endpoints={endpoints}
       failedOperations={failedOperations}
-      integrations={integrations}
       locale={locale}
+      mayActOnFailures={managed.some(
+        (permitted) => permitted.propertyId === property.propertyId,
+      )}
       propertyId={property.propertyId}
     />
   );

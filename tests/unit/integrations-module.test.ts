@@ -1,127 +1,173 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  ClosureInputError,
   createIntegrationsModule,
+  EndpointInputError,
+  IntegrationsRefusedError,
   INTEGRATIONS_CAPABILITY,
+  WEBHOOK_EVENT_TYPES,
 } from "../../packages/ranza/integrations/src";
 
-const TEST_USER_ID = "11111111-1111-4111-8111-111111111111";
+const USER = "11111111-1111-4111-8111-111111111111";
+const ORGANIZATION = "aa111111-1111-4111-8111-111111111111";
+const OPERATION = "ff111111-1111-4111-8111-111111111111";
 
-describe("Integrations Module Unit Tests (INT-S1-*)", () => {
-  it("exports capability reference matching Blueprint 5.15", () => {
+/** A client that fails the test if anything reaches the database. */
+function untouchedDb() {
+  const touched = vi.fn(() => {
+    throw new Error("the database was reached");
+  });
+  return {
+    db: {
+      $transaction: touched,
+      $queryRaw: touched,
+      $executeRawUnsafe: touched,
+    } as never,
+    touched,
+  };
+}
+
+/** A client whose transaction fails the way a function in the database fails. */
+function failingWith(sqlstate: string) {
+  const error = Object.assign(new Error("raised"), {
+    meta: { driverAdapterError: { cause: { code: sqlstate } } },
+  });
+  return { $transaction: vi.fn().mockRejectedValue(error) } as never;
+}
+
+const valid = {
+  organizationId: ORGANIZATION,
+  name: "Channel manager",
+  url: "https://hooks.example.test/ranza",
+  eventTypes: ["stay.checked_in"],
+};
+
+describe("Integrations module", () => {
+  it("exports the capability reference matching blueprint 5.15", () => {
     expect(INTEGRATIONS_CAPABILITY).toEqual({
       moduleKey: "platform_core",
       capabilityKey: "integrations",
     });
   });
 
-  it("lists integrations and maps row structures", async () => {
-    const mockDb: any = {
-      $executeRawUnsafe: vi.fn().mockResolvedValue(1),
-      $transaction: vi.fn(async (run: (c: any) => Promise<any>) => run(mockDb)),
-      $queryRaw: vi.fn().mockResolvedValue([
-        {
-          id: "11111111-1111-4111-8111-111111111111",
-          organization_id: "aa111111-1111-4111-8111-111111111111",
-          property_id: "bb111111-1111-4111-8111-111111111111",
-          key: "channel_manager",
-          name: "Channel manager",
-          category: "Distribution",
-          status: "connected",
-          detail: null,
-          config: {},
-          last_sync_at: new Date("2026-10-07T12:00:00Z"),
-          created_at: new Date("2026-10-07T10:00:00Z"),
-          updated_at: new Date("2026-10-07T12:00:00Z"),
-        },
-      ]),
-    };
+  it("INT-S1-19: offers exactly the six events the database will deliver", () => {
+    expect([...WEBHOOK_EVENT_TYPES]).toEqual([
+      "reservation.created",
+      "reservation.cancelled",
+      "reservation.no_show",
+      "stay.checked_in",
+      "stay.checked_out",
+      "folio.line_posted",
+    ]);
+  });
+});
 
-    const mod = createIntegrationsModule({ db: mockDb });
-    const list = await mod.integrations(
-      TEST_USER_ID,
-      "bb111111-1111-4111-8111-111111111111",
-    );
+describe("what is refused before the database is asked", () => {
+  it.each([
+    ["an empty name", { name: "   " }, { field: "name", reason: "empty" }],
+    [
+      "a long name",
+      { name: "x".repeat(81) },
+      { field: "name", reason: "too_long" },
+    ],
+    ["no events", { eventTypes: [] }, { field: "events", reason: "none" }],
+    [
+      "an event nobody can subscribe to",
+      { eventTypes: ["stay.checked_in", "staff.reach_changed"] },
+      { field: "events", reason: "unknown" },
+    ],
+    [
+      "plain http",
+      { url: "http://hooks.example.test/x" },
+      { field: "url", reason: "not_https" },
+    ],
+    [
+      "a private address",
+      { url: "https://10.0.0.5/x" },
+      { field: "url", reason: "blocked_host" },
+    ],
+  ])("INT-S1-18: registering with %s", async (_label, change, rejection) => {
+    const { db, touched } = untouchedDb();
+    const module = createIntegrationsModule({ db });
 
-    expect(list).toHaveLength(1);
-    expect(list[0]?.key).toBe("channel_manager");
-    expect(list[0]?.status).toBe("connected");
-    expect(list[0]?.category).toBe("Distribution");
+    await expect(
+      module.registerEndpoint(USER, { ...valid, ...change }),
+    ).rejects.toEqual(expect.objectContaining({ rejection }));
+    await expect(
+      module.registerEndpoint(USER, { ...valid, ...change }),
+    ).rejects.toBeInstanceOf(EndpointInputError);
+    expect(touched).not.toHaveBeenCalled();
   });
 
-  it("lists failed operations and maps attempt counts", async () => {
-    const mockDb: any = {
-      $executeRawUnsafe: vi.fn().mockResolvedValue(1),
-      $transaction: vi.fn(async (run: (c: any) => Promise<any>) => run(mockDb)),
-      $queryRaw: vi.fn().mockResolvedValue([
-        {
-          id: "ff111111-1111-4111-8111-111111111111",
-          organization_id: "aa111111-1111-4111-8111-111111111111",
-          property_id: "bb111111-1111-4111-8111-111111111111",
-          integration_id: "11111111-1111-4111-8111-111111111111",
-          integration_name: "Channel manager",
-          operation: "Push availability",
-          error: "Rate plan not mapped",
-          status: "failed",
-          attempts: 3,
-          payload: { room: 305 },
-          last_attempt_at: new Date("2026-10-07T12:00:00Z"),
-          created_at: new Date("2026-10-07T11:45:00Z"),
-          updated_at: new Date("2026-10-07T12:00:00Z"),
-        },
-      ]),
-    };
+  it.each(["", "  ", "no", " x "])(
+    "INT-S1-43: a reason of %j says nothing and is refused",
+    async (reason) => {
+      const { db, touched } = untouchedDb();
+      const module = createIntegrationsModule({ db });
 
-    const mod = createIntegrationsModule({ db: mockDb });
-    const failed = await mod.failedOperations(
-      TEST_USER_ID,
-      "bb111111-1111-4111-8111-111111111111",
-    );
+      await expect(
+        module.cancelOperation(USER, { operationId: OPERATION, reason }),
+      ).rejects.toBeInstanceOf(ClosureInputError);
+      await expect(
+        module.resolveOperation(USER, { operationId: OPERATION, reason }),
+      ).rejects.toBeInstanceOf(ClosureInputError);
+      expect(touched).not.toHaveBeenCalled();
+    },
+  );
 
-    expect(failed).toHaveLength(1);
-    expect(failed[0]?.operation).toBe("Push availability");
-    expect(failed[0]?.error).toBe("Rate plan not mapped");
-    expect(failed[0]?.attempts).toBe(3);
-    expect(failed[0]?.status).toBe("failed");
-  });
-
-  it("retrying an operation updates operation and clears integration error if 0 remain", async () => {
-    let executeCalls = 0;
-    const mockDb: any = {
-      $executeRawUnsafe: vi.fn().mockResolvedValue(1),
-      $transaction: vi.fn(async (run: (c: any) => Promise<any>) => run(mockDb)),
-      $queryRaw: vi
-        .fn()
-        .mockResolvedValueOnce([
-          {
-            id: "ff111111-1111-4111-8111-111111111111",
-            organization_id: "aa111111-1111-4111-8111-111111111111",
-            property_id: "bb111111-1111-4111-8111-111111111111",
-            integration_name: "Channel manager",
-            operation: "Push availability",
-            error: "Rate plan not mapped",
-            status: "failed",
-            attempts: 1,
-            payload: {},
-            last_attempt_at: new Date(),
-            created_at: new Date(),
-            updated_at: new Date(),
-          },
-        ])
-        .mockResolvedValueOnce([{ count: 0n }]),
-      $executeRaw: vi.fn().mockImplementation(async () => {
-        executeCalls++;
-        return 1;
+  it("INT-S1-43: a reason of more than five hundred characters is refused", async () => {
+    const { db } = untouchedDb();
+    await expect(
+      createIntegrationsModule({ db }).cancelOperation(USER, {
+        operationId: OPERATION,
+        reason: "x".repeat(501),
       }),
-    };
+    ).rejects.toMatchObject({ reason: "reason_too_long" });
+  });
+});
 
-    const mod = createIntegrationsModule({ db: mockDb });
-    const result = await mod.retryOperation(TEST_USER_ID, {
-      propertyId: "bb111111-1111-4111-8111-111111111111",
-      operationId: "ff111111-1111-4111-8111-111111111111",
-    });
+describe("what the database refuses", () => {
+  it.each([
+    ["42501", "not_permitted"],
+    ["23505", "duplicate_url"],
+    ["54000", "too_many_endpoints"],
+    ["55000", "test_in_flight"],
+    ["22023", "unavailable"],
+  ])("INT-S1-16: SQLSTATE %s is %s", async (sqlstate, reason) => {
+    const module = createIntegrationsModule({ db: failingWith(sqlstate) });
 
-    expect(result.ok).toBe(true);
-    expect(result.integrationName).toBe("Channel manager");
-    expect(executeCalls).toBe(2); // 1 to mark resolved, 1 to restore integration connected status
+    for (const command of [
+      () => module.registerEndpoint(USER, valid),
+      () => module.removeEndpoint(USER, OPERATION),
+      () =>
+        module.sendTestEvent(USER, {
+          endpointId: OPERATION,
+          propertyId: OPERATION,
+        }),
+      () => module.retryOperation(USER, { operationId: OPERATION }),
+      () =>
+        module.cancelOperation(USER, {
+          operationId: OPERATION,
+          reason: "No longer needed",
+        }),
+      () =>
+        module.resolveOperation(USER, {
+          operationId: OPERATION,
+          reason: "Handled by phone",
+        }),
+    ]) {
+      const error = await command().catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(IntegrationsRefusedError);
+      expect((error as IntegrationsRefusedError).reason).toBe(reason);
+    }
+  });
+
+  it("INT-S1-16: a failure that is not a refusal is passed on to be reported, not disguised", async () => {
+    const outage = new Error("connection reset");
+    const db = { $transaction: vi.fn().mockRejectedValue(outage) } as never;
+
+    await expect(
+      createIntegrationsModule({ db }).registerEndpoint(USER, valid),
+    ).rejects.toBe(outage);
   });
 });

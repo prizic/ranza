@@ -142,11 +142,23 @@ with a host adapter, because a platform module may not name a Property or a Stay
 
 ## Phase 5 — Ecosystem and optimization
 
-Not started. External payments · Channel and distribution integrations · Door
-locks and specialized devices · Advanced forecasting and revenue optimization ·
-Native applications only where validated · Public APIs, webhooks, integration
-catalog · Reusable Platform Module publication **only when a second real product
-requires it** (blueprint 9.9).
+**Webhooks: done, proposed.** The first integration is an outbound webhook an
+Organization registers: an HTTPS address and chosen events, delivered signed by
+the worker on a bounded retry schedule, with what failed on the Integrations
+screen and Retry, Stop retrying and Mark resolved recording who and why
+(`packages/ranza/integrations`, `apps/worker/src/webhooks`,
+`20260916011200_an_organization_registers_a_webhook`,
+[ADR 0045](adr/0045-the-first-integration-is-a-signed-outbound-webhook-the-worker-sends-and-refuses-private-addresses.md),
+[`features/integrations/`](features/integrations/edge-cases.csv)). The choice of
+system, whole-Organization scope, plaintext secret storage and the six events are
+the owner's to confirm (INT-S1-60, INT-S1-61, INT-DEF-03, INT-DEF-04).
+
+Not started: External payments · Channel and distribution integrations (and KBS,
+e-Arşiv and messaging, which need a contract and credentials) · Door locks and
+specialized devices · Advanced forecasting and revenue optimization · Native
+applications only where validated · Public APIs, integration catalog · Reusable
+Platform Module publication **only when a second real product requires it**
+(blueprint 9.9).
 
 ## Decisions not yet applied
 

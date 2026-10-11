@@ -38,6 +38,8 @@ model User {
   serviceRequestsAssigned ServiceRequest[]         @relation("ServiceRequestAssignee")
   serviceRequestsReported ServiceRequest[]         @relation("ServiceRequestReporter")
   dataExports             DataExport[]
+  webhookEndpointsCreated WebhookEndpoint[]        @relation("WebhookEndpointCreator")
+  failuresClosed          FailedOperation[]        @relation("FailedOperationCloser")
   exportSchedules         ExportSchedule[]
   hrEmployees             HrEmployee[]
   payrollRunsApproved     HrPayrollRun[]
@@ -80,7 +82,8 @@ model Organization {
   housekeepingSettings HousekeepingSetting[]
   maintenanceSettings  MaintenanceSetting[]
   serviceRequests      ServiceRequest[]
-  integrations         Integration[]
+  webhookEndpoints     WebhookEndpoint[]
+  webhookDeliveries    WebhookDelivery[]
   failedOperations     FailedOperation[]
   dataExports          DataExport[]
   exportSchedules      ExportSchedule[]
@@ -127,7 +130,7 @@ model Property {
   rates                PropertyRate[]
   bookingChanges       ReservationChange[]
   serviceRequests      ServiceRequest[]
-  integrations         Integration[]
+  webhookDeliveries    WebhookDelivery[]
   failedOperations     FailedOperation[]
   hrEmployees          HrEmployee[]
   hrShifts             HrShift[]
@@ -1110,53 +1113,111 @@ model ServiceRequest {
   @@map("service_requests")
 }
 
-/// External system integrations per Property (Blueprint 5.15, Phase 5).
-/// Channels, payment providers, door locks, government reporting.
-model Integration {
+/// A URL an Organization has asked Ranza to post chosen events to (blueprint 13
+/// Phase 5, ADR 0045). Written only by the functions in
+/// 20260916011200_an_organization_registers_a_webhook; the signing secret is in
+/// its own table and is readable by no application role.
+model WebhookEndpoint {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String    @map("organization_id") @db.Uuid
-  propertyId     String    @map("property_id") @db.Uuid
-  key            String
   name           String
-  category       String
-  status         String    @default("not_connected")
-  detail         String?
-  config         Json      @default("{}")
-  lastSyncAt     DateTime? @map("last_sync_at") @db.Timestamptz(6)
+  url            String
+  eventTypes     String[]  @map("event_types")
+  status         String    @default("active")
+  createdBy      String    @map("created_by") @db.Uuid
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  removedAt      DateTime? @map("removed_at") @db.Timestamptz(6)
 
-  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  property         Property          @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  failedOperations FailedOperation[]
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  creator      User                  @relation("WebhookEndpointCreator", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  secret       WebhookEndpointSecret?
+  deliveries   WebhookDelivery[]
+  failures     FailedOperation[]
 
-  @@unique([propertyId, key])
-  @@index([propertyId, status], map: "integrations_property_status_idx")
-  @@index([organizationId], map: "integrations_organization_idx")
-  @@map("integrations")
+  @@unique([id, organizationId])
+  @@unique([organizationId, url], map: "webhook_endpoints_one_active_url", where: { status: "active" })
+  @@index([organizationId, status], map: "webhook_endpoints_organization_idx")
+  @@map("webhook_endpoints")
 }
 
-/// Operationally visible failures from external integrations (Blueprint 5.16, INT-S1-*).
-/// Retries happen automatically or manually from the workspace.
+/// The key an endpoint's deliveries are signed with. No application role holds a
+/// grant on this table; only the worker's functions read it (ADR 0045).
+model WebhookEndpointSecret {
+  endpointId String   @id @map("endpoint_id") @db.Uuid
+  secret     String
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@map("webhook_endpoint_secrets")
+}
+
+/// One event owed to one endpoint, keyed by the outbox event it came from, so the
+/// same event is never delivered to the same endpoint twice (ADR 0045). A test
+/// event has no outbox event.
+model WebhookDelivery {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId      String    @map("organization_id") @db.Uuid
+  endpointId          String    @map("endpoint_id") @db.Uuid
+  propertyId          String    @map("property_id") @db.Uuid
+  eventId             String?   @map("event_id") @db.Uuid
+  eventType           String    @map("event_type")
+  body                Json
+  status              String    @default("pending")
+  attempts            Int       @default(0)
+  nextAttemptAt       DateTime? @map("next_attempt_at") @db.Timestamptz(6)
+  claimedUntil        DateTime? @map("claimed_until") @db.Timestamptz(6)
+  lastAttemptAt       DateTime? @map("last_attempt_at") @db.Timestamptz(6)
+  lastStatusCode      Int?      @map("last_status_code")
+  lastFailure         String?   @map("last_failure")
+  lastResponseExcerpt String?   @map("last_response_excerpt")
+  lastDurationMs      Int?      @map("last_duration_ms")
+  deliveredAt         DateTime? @map("delivered_at") @db.Timestamptz(6)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  endpoint     WebhookEndpoint @relation(fields: [endpointId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  property     Property        @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  failure      FailedOperation?
+
+  @@unique([id, organizationId])
+  @@unique([endpointId, eventId], map: "webhook_deliveries_one_per_event_key")
+  @@index([endpointId, status], map: "webhook_deliveries_endpoint_status_idx")
+  @@index([nextAttemptAt], map: "webhook_deliveries_due_idx", where: raw("status = ANY (ARRAY['pending'::text, 'retrying'::text])"))
+  @@map("webhook_deliveries")
+}
+
+/// What an operator is shown when a delivery to an external system did not
+/// arrive: one row per delivery, from its first failed attempt until it is
+/// delivered, cancelled or resolved by a person (blueprint 5.16, ADR 0045).
 model FailedOperation {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId  String   @map("organization_id") @db.Uuid
-  propertyId      String   @map("property_id") @db.Uuid
-  integrationId   String?  @map("integration_id") @db.Uuid
-  integrationName String   @map("integration_name")
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  propertyId      String    @map("property_id") @db.Uuid
+  endpointId      String?   @map("endpoint_id") @db.Uuid
+  deliveryId      String?   @map("delivery_id") @db.Uuid
+  integrationName String    @map("integration_name")
   operation       String
   error           String
-  status          String   @default("failed")
-  attempts        Int      @default(1)
-  payload         Json     @default("{}")
-  lastAttemptAt   DateTime @default(now()) @map("last_attempt_at") @db.Timestamptz(6)
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  status          String    @default("failed")
+  attempts        Int       @default(1)
+  nextAttemptAt   DateTime? @map("next_attempt_at") @db.Timestamptz(6)
+  lastAttemptAt   DateTime  @default(now()) @map("last_attempt_at") @db.Timestamptz(6)
+  closedBy        String?   @map("closed_by") @db.Uuid
+  closedAt        DateTime? @map("closed_at") @db.Timestamptz(6)
+  closedReason    String?   @map("closed_reason")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  property     Property     @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  integration  Integration? @relation(fields: [integrationId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  property     Property         @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  endpoint     WebhookEndpoint? @relation(fields: [endpointId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  delivery     WebhookDelivery? @relation(fields: [deliveryId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  closer       User?            @relation("FailedOperationCloser", fields: [closedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
+  @@unique([deliveryId, organizationId], map: "failed_operations_one_per_delivery_key")
   @@index([propertyId, status], map: "failed_operations_property_status_idx")
   @@index([organizationId], map: "failed_operations_organization_idx")
   @@map("failed_operations")

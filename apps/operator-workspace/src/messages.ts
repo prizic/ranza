@@ -618,50 +618,123 @@ export interface Messages {
     >;
   };
 
-  /** The Integrations screen (Blueprint 5.15, 5.16, Phase 5). */
+  /** The Integrations screen: webhook endpoints and failed deliveries (ADR 0045). */
   integrations: {
     subtitle: string;
-    connectedCount: string;
-    errorCount: string;
-    notConnectedCount: string;
-    activeIntegrations: string;
-    activeIntegrationsDescription: string;
+    endpointsCount: string;
+    deliveringCount: string;
+    failingCount: string;
+    openFailuresCount: string;
+    endpointsTitle: string;
+    endpointsDescription: string;
+    noEndpointsTitle: string;
+    noEndpointsDescription: string;
+    noEndpointsReadOnly: string;
+    readOnly: string;
+    addEndpoint: string;
+    addTitle: string;
+    addDescription: string;
+    nameLabel: string;
+    namePlaceholder: string;
+    urlLabel: string;
+    urlPlaceholder: string;
+    urlHint: string;
+    eventsLabel: string;
+    events: {
+      reservation_created: string;
+      reservation_cancelled: string;
+      reservation_no_show: string;
+      stay_checked_in: string;
+      stay_checked_out: string;
+      folio_line_posted: string;
+    };
+    register: string;
+    registering: string;
+    secretTitle: string;
+    secretWarning: string;
+    secretUse: string;
+    secretCopy: string;
+    secretCopied: string;
+    secretDone: string;
+    invalid: {
+      name: { empty: string; too_long: string };
+      url: {
+        invalid: string;
+        too_long: string;
+        not_https: string;
+        has_credentials: string;
+        blocked_host: string;
+      };
+      events: { none: string; unknown: string };
+    };
+    refused: {
+      not_permitted: string;
+      duplicate_url: string;
+      too_many_endpoints: string;
+      test_in_flight: string;
+      unavailable: string;
+    };
+    failed: string;
+    health: { delivering: string; failing: string; unused: string };
+    lastDelivered: string;
+    neverDelivered: string;
+    queued: string;
+    openFailures: string;
+    sends: string;
+    sendTest: string;
+    testEvent: string;
+    sendingTest: string;
+    testQueued: string;
+    remove: string;
+    removing: string;
+    removeTitle: string;
+    removeDescription: string;
+    removeConfirm: string;
+    dismiss: string;
     failedOperationsTitle: string;
     failedOperationsDescription: string;
     noFailedOperations: string;
-    noIntegrations: string;
-    retry: string;
-    retrying: string;
-    retrySuccess: string;
-    retryFailed: string;
-    operation: string;
-    integration: string;
-    error: string;
-    attempts: string;
-    lastAttempt: string;
-    status: string;
-    category: string;
-    lastSync: string;
-    neverSynced: string;
-    statuses: {
-      connected: string;
-      error: string;
-      not_connected: string;
+    columns: {
+      endpoint: string;
+      whatHappened: string;
+      attempts: string;
+      nextAttempt: string;
+      actions: string;
     };
+    lastAttemptAt: string;
     operationStatuses: {
       failed: string;
       retrying: string;
       resolved: string;
+      cancelled: string;
     };
-    categories: {
-      Distribution: string;
-      Payments: string;
-      Access: string;
-      Government: string;
-      Tax: string;
-      Messaging: string;
-      Other: string;
+    dueNow: string;
+    noMoreAttempts: string;
+    failures: {
+      http_error: string;
+      timeout: string;
+      connection_failed: string;
+      tls_failed: string;
+      blocked_address: string;
+      invalid_target: string;
+      redirect_refused: string;
     };
+    httpStatus: string;
+    receiverSaid: string;
+    retry: string;
+    retrying: string;
+    cancelOperation: string;
+    resolveOperation: string;
+    reasonLabel: string;
+    reasonPlaceholder: string;
+    reasonHint: string;
+    reasonInvalid: { reason_too_short: string; reason_too_long: string };
+    cancelTitle: string;
+    cancelDescription: string;
+    cancelConfirm: string;
+    resolveTitle: string;
+    resolveDescription: string;
+    resolveConfirm: string;
   };
 
   /**
@@ -1985,6 +2058,8 @@ export interface Messages {
     leave: Record<"approved" | "declined", string>;
     payroll_run: Record<"approved", string>;
     branding: Record<"changed" | "reset", string>;
+    webhook_endpoint: Record<"registered" | "removed" | "test_sent", string>;
+    failed_operation: Record<"retried" | "cancelled" | "resolved", string>;
   };
   auditSubject: Record<
     | "reservation"
@@ -2002,7 +2077,9 @@ export interface Messages {
     | "employee"
     | "leave_request"
     | "payroll_run"
-    | "organization_brand",
+    | "organization_brand"
+    | "webhook_endpoint"
+    | "failed_operation",
     string
   >;
 
@@ -3094,51 +3171,149 @@ export const messages: Record<SupportedLocale, Messages> = {
     },
     integrations: {
       subtitle:
-        "Kanal yöneticileri, kapı kilitleri, sanal POS ve resmi bildirim entegrasyonları.",
-      connectedCount: "Bağlı",
-      errorCount: "Hata",
-      notConnectedCount: "Bağlı Değil",
-      activeIntegrations: "Sistem Bağlantıları",
-      activeIntegrationsDescription:
-        "Tesis genelinde aktif çalışan veya yapılandırılmış dış servisler.",
-      failedOperationsTitle: "Başarısız İşlemler",
-      failedOperationsDescription:
-        "Dış sistemlere gönderilemeyen veya hata alan işlemler. Sistem otomatik dener veya buradan yeniden başlatılabilir.",
-      noFailedOperations:
-        "Kayıtlı başarısız işlem bulunmuyor. Tüm servisler senkronize.",
-      noIntegrations: "Bu tesiste yapılandırılmış entegrasyon bulunmuyor.",
-      retry: "Yeniden Dene",
-      retrying: "Deneniyor...",
-      retrySuccess: "İşlem başarıyla yeniden denendi ve tamamlandı.",
-      retryFailed: "Yeniden deneme başarısız oldu.",
-      operation: "İşlem",
-      integration: "Entegrasyon",
-      error: "Hata Detayı",
-      attempts: "Deneme",
-      lastAttempt: "Son Deneme",
-      status: "Durum",
-      category: "Kategori",
-      lastSync: "Son Eşitleme",
-      neverSynced: "Henüz eşitlenmedi",
-      statuses: {
-        connected: "Bağlı",
-        error: "Hata",
-        not_connected: "Bağlı Değil",
+        "{organization} olaylarını nereye gönderiyor ve nelerin ulaşmadığı.",
+      endpointsCount: "Uç nokta",
+      deliveringCount: "İletiyor",
+      failingCount: "Hata veriyor",
+      openFailuresCount: "Açık hata",
+      endpointsTitle: "Webhook uç noktaları",
+      endpointsDescription:
+        "Ranza seçtiğiniz olayları, gerçekleştikçe imzalayarak bu adreslere gönderir.",
+      noEndpointsTitle: "Henüz webhook uç noktası yok",
+      noEndpointsDescription:
+        "Bir HTTPS adresi ekleyin ve ona gönderilecek olayları seçin. Her gönderim imzalanır; her birine ne olduğu burada görünür.",
+      noEndpointsReadOnly: "Bu kuruluş için kayıtlı webhook uç noktası yok.",
+      readOnly:
+        "Bu uç noktaları görebilirsiniz. Eklemek, denemek ve kaldırmak için tüm kuruluşa erişimle birlikte integrations.manage yetkisi gerekir.",
+      addEndpoint: "Uç nokta ekle",
+      addTitle: "Webhook uç noktası ekle",
+      addDescription:
+        "Ranza seçtiğiniz her olayı bu adrese imzalı JSON olarak gönderecek.",
+      nameLabel: "Ad",
+      namePlaceholder: "Kanal yöneticisi",
+      urlLabel: "HTTPS adresi",
+      urlPlaceholder: "https://example.com/ranza/webhooks",
+      urlHint:
+        "https:// ile başlamalıdır. Özel ağlardaki ve bu makinedeki adresler reddedilir.",
+      eventsLabel: "Gönderilecek olaylar",
+      events: {
+        reservation_created: "Rezervasyon alınır",
+        reservation_cancelled: "Rezervasyon iptal edilir",
+        reservation_no_show: "Misafir gelmez",
+        stay_checked_in: "Misafir giriş yapar",
+        stay_checked_out: "Misafir çıkış yapar",
+        folio_line_posted: "Folyoya masraf veya ödeme işlenir",
       },
+      register: "Uç nokta ekle",
+      registering: "Ekleniyor...",
+      secretTitle: "İmza anahtarı",
+      secretWarning:
+        "Bu anahtarı şimdi kopyalayın. Yalnızca bir kez gösterilir ve bir daha okunamaz. Kaybederseniz uç noktayı kaldırıp yeniden ekleyin.",
+      secretUse:
+        "Her gönderim X-Ranza-Timestamp ve X-Ranza-Signature başlıklarını taşır. İmza, sha256= ifadesinin ardından zaman damgası, bir nokta ve ham istek gövdesinin bu anahtarla hesaplanan HMAC-SHA256 değeridir.",
+      secretCopy: "Anahtarı kopyala",
+      secretCopied: "Kopyalandı",
+      secretDone: "Kaydettim",
+      invalid: {
+        name: {
+          empty: "Uç noktaya bir ad verin.",
+          too_long: "Ad 80 karakteri geçmemeli.",
+        },
+        url: {
+          invalid: "Bu bir adres değil.",
+          too_long: "Adres 2.048 karakteri geçmemeli.",
+          not_https: "Adres https:// ile başlamalıdır.",
+          has_credentials: "Adres kullanıcı adı veya parola içermemelidir.",
+          blocked_host:
+            "Bu adres özel bir ağda veya bu makinede; Ranza oraya göndermez.",
+        },
+        events: {
+          none: "En az bir olay seçin.",
+          unknown: "Bu olaylardan biri gönderilemez.",
+        },
+      },
+      refused: {
+        not_permitted:
+          "Bunu burada yapamazsınız. Tüm kuruluşa erişimle birlikte integrations.manage yetkisi gerekir.",
+        duplicate_url: "Bu adreste zaten bir uç nokta var.",
+        too_many_endpoints: "Bir kuruluşun en fazla on uç noktası olabilir.",
+        test_in_flight: "Bu uç noktaya zaten bir deneme olayı gidiyor.",
+        unavailable: "Bu zaten kapatılmış ya da uç noktası kaldırılmış.",
+      },
+      failed: "Bu işlem yapılamadı ve bildirildi. Tekrar deneyin.",
+      health: {
+        delivering: "İletiyor",
+        failing: "Hata veriyor",
+        unused: "Henüz gönderim yok",
+      },
+      lastDelivered: "Son ulaşan",
+      neverDelivered: "Henüz hiçbir şey ulaşmadı",
+      queued: "Sırada",
+      openFailures: "Açık hata",
+      sends: "Gönderir",
+      sendTest: "Deneme olayı gönder",
+      testEvent: "Deneme olayı",
+      sendingTest: "Sıraya alınıyor...",
+      testQueued:
+        "Deneme olayı sıraya alındı. Birkaç saniye içinde gönderilir; sonuç burada görünür.",
+      remove: "Kaldır",
+      removing: "Kaldırılıyor...",
+      removeTitle: "Bu uç nokta kaldırılsın mı?",
+      removeDescription:
+        "{name} artık olay almaz ve yoldaki gönderimler iptal edilir. Geçmişi kalır.",
+      removeConfirm: "Uç noktayı kaldır",
+      dismiss: "Şimdi değil",
+      failedOperationsTitle: "Ulaşmayan gönderimler",
+      failedOperationsDescription:
+        "Başarısız bir gönderim 1 dakika, 5 dakika, 30 dakika, 2 saat ve 12 saat sonra yeniden denenir, sonra durur. Yeniden dene onu hemen tekrar gönderir.",
+      noFailedOperations:
+        "Hiçbir şey başarısız olmadı. Her gönderim ulaştı ya da yolda.",
+      columns: {
+        endpoint: "Uç nokta",
+        whatHappened: "Ne oldu",
+        attempts: "Deneme",
+        nextAttempt: "Sonraki deneme",
+        actions: "İşlemler",
+      },
+      lastAttemptAt: "Son: {when}",
       operationStatuses: {
-        failed: "Başarısız",
+        failed: "Durdu",
         retrying: "Deneniyor",
         resolved: "Çözüldü",
+        cancelled: "İptal edildi",
       },
-      categories: {
-        Distribution: "Kanal Dağıtımı",
-        Payments: "Ödemeler",
-        Access: "Erişim & Kilit",
-        Government: "Resmi Bildirim",
-        Tax: "Maliye & E-Fatura",
-        Messaging: "Mesajlaşma",
-        Other: "Diğer",
+      dueNow: "Şimdi",
+      noMoreAttempts: "Başka deneme yok",
+      failures: {
+        http_error: "Alıcı hata ile yanıt verdi",
+        timeout: "Alıcı 10 saniyede yanıt vermedi",
+        connection_failed: "Alıcıya bağlanılamadı",
+        tls_failed: "Alıcının sertifikası kabul edilmedi",
+        blocked_address: "Adres özel bir ağa veya bu makineye çıkıyor",
+        invalid_target: "Bu adrese gönderilemez",
+        redirect_refused: "Alıcı yönlendirdi; yönlendirmeler izlenmez",
       },
+      httpStatus: "HTTP {code}",
+      receiverSaid: "Yanıtı: {excerpt}",
+      retry: "Yeniden dene",
+      retrying: "Deneniyor...",
+      cancelOperation: "Denemeyi bırak",
+      resolveOperation: "Çözüldü olarak işaretle",
+      reasonLabel: "Neden",
+      reasonPlaceholder: "Ne olduğunu birkaç sözcükle yazın",
+      reasonHint: "En az 3 karakter. Adınızla birlikte kaydedilir.",
+      reasonInvalid: {
+        reason_too_short: "Nedenini en az 3 karakterle yazın.",
+        reason_too_long: "Neden 500 karakteri geçmemeli.",
+      },
+      cancelTitle: "Bu gönderimin denenmesi bırakılsın mı?",
+      cancelDescription:
+        "Başka deneme yapılmaz. Olay bu uç noktaya gönderilmez.",
+      cancelConfirm: "Denemeyi bırak",
+      resolveTitle: "Bu hata çözüldü olarak işaretlensin mi?",
+      resolveDescription:
+        "Gönderim başarısız kalır. Başka bir yolla halledildiğini kaydediyorsunuz.",
+      resolveConfirm: "Çözüldü olarak işaretle",
     },
     branding: {
       subtitle: "{organization} misafirlerine nasıl görünüyor",
@@ -4222,6 +4397,16 @@ export const messages: Record<SupportedLocale, Messages> = {
         changed: "Marka değiştirildi",
         reset: "Marka varsayılana döndürüldü",
       },
+      webhook_endpoint: {
+        registered: "Webhook uç noktası eklendi",
+        removed: "Webhook uç noktası kaldırıldı",
+        test_sent: "Deneme olayı gönderildi",
+      },
+      failed_operation: {
+        retried: "Başarısız gönderim yeniden denendi",
+        cancelled: "Başarısız gönderimin denenmesi bırakıldı",
+        resolved: "Başarısız gönderim çözüldü olarak işaretlendi",
+      },
     },
     auditSubject: {
       reservation: "Rezervasyon",
@@ -4240,6 +4425,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       leave_request: "İzin talebi",
       payroll_run: "Bordro",
       organization_brand: "Organizasyon markası",
+      webhook_endpoint: "Webhook uç noktası",
+      failed_operation: "Başarısız gönderim",
     },
     closeDay: {
       at: "Günün kapatıldığı tesis:",
@@ -5368,51 +5555,153 @@ export const messages: Record<SupportedLocale, Messages> = {
     },
     integrations: {
       subtitle:
-        "Channel managers, door locks, payment gateways, and government reporting.",
-      connectedCount: "Connected",
-      errorCount: "Error",
-      notConnectedCount: "Not Connected",
-      activeIntegrations: "System Integrations",
-      activeIntegrationsDescription:
-        "Configured third-party services and synchronization status.",
-      failedOperationsTitle: "Failed Operations",
-      failedOperationsDescription:
-        "Operations that failed during external dispatch. Operations retry automatically or can be retried manually.",
-      noFailedOperations:
-        "No failed operations recorded. All external services are in sync.",
-      noIntegrations: "No integrations configured for this property.",
-      retry: "Retry",
-      retrying: "Retrying...",
-      retrySuccess: "Operation successfully retried and resolved.",
-      retryFailed: "Retry failed.",
-      operation: "Operation",
-      integration: "Integration",
-      error: "Error Detail",
-      attempts: "Attempts",
-      lastAttempt: "Last Attempt",
-      status: "Status",
-      category: "Category",
-      lastSync: "Last Sync",
-      neverSynced: "Never synced",
-      statuses: {
-        connected: "Connected",
-        error: "Error",
-        not_connected: "Not Connected",
+        "Where {organization} sends its events, and what has failed to arrive.",
+      endpointsCount: "Endpoints",
+      deliveringCount: "Delivering",
+      failingCount: "Failing",
+      openFailuresCount: "Open failures",
+      endpointsTitle: "Webhook endpoints",
+      endpointsDescription:
+        "Ranza posts the events you choose to these addresses, signed, as they happen.",
+      noEndpointsTitle: "No webhook endpoint yet",
+      noEndpointsDescription:
+        "Add an HTTPS address and choose the events to send to it. Every delivery is signed, and what happened to each one is shown here.",
+      noEndpointsReadOnly:
+        "No webhook endpoint is registered for this Organization.",
+      readOnly:
+        "You can see these endpoints. Adding, testing and removing them needs integrations.manage with access to the whole Organization.",
+      addEndpoint: "Add endpoint",
+      addTitle: "Add a webhook endpoint",
+      addDescription:
+        "Ranza will send each event you choose to this address as signed JSON.",
+      nameLabel: "Name",
+      namePlaceholder: "Channel manager",
+      urlLabel: "HTTPS address",
+      urlPlaceholder: "https://example.com/ranza/webhooks",
+      urlHint:
+        "Must start with https://. Addresses on private networks and this machine are refused.",
+      eventsLabel: "Events to send",
+      events: {
+        reservation_created: "A booking is taken",
+        reservation_cancelled: "A booking is cancelled",
+        reservation_no_show: "A guest does not arrive",
+        stay_checked_in: "A guest checks in",
+        stay_checked_out: "A guest checks out",
+        folio_line_posted: "A charge or payment is posted to a folio",
       },
+      register: "Add endpoint",
+      registering: "Adding...",
+      secretTitle: "Signing secret",
+      secretWarning:
+        "Copy this secret now. It is shown only once and cannot be read again. If you lose it, remove this endpoint and add it again.",
+      secretUse:
+        "Each delivery carries X-Ranza-Timestamp and X-Ranza-Signature. The signature is sha256= followed by the HMAC-SHA256, keyed with this secret, of the timestamp, a full stop and the raw request body.",
+      secretCopy: "Copy secret",
+      secretCopied: "Copied",
+      secretDone: "I have saved it",
+      invalid: {
+        name: {
+          empty: "Give the endpoint a name.",
+          too_long: "Keep the name under 80 characters.",
+        },
+        url: {
+          invalid: "That is not an address.",
+          too_long: "Keep the address under 2,048 characters.",
+          not_https: "The address must start with https://.",
+          has_credentials:
+            "The address must not carry a user name or password.",
+          blocked_host:
+            "That address is on a private network or this machine, which Ranza will not send to.",
+        },
+        events: {
+          none: "Choose at least one event.",
+          unknown: "One of those events cannot be sent.",
+        },
+      },
+      refused: {
+        not_permitted:
+          "You cannot do that here. It needs integrations.manage with access to the whole Organization.",
+        duplicate_url: "An endpoint with that address already exists.",
+        too_many_endpoints: "An Organization can have ten endpoints.",
+        test_in_flight: "A test event is already on its way to this endpoint.",
+        unavailable: "That is already closed, or its endpoint was removed.",
+      },
+      failed: "That did not work and has been reported. Try again.",
+      health: {
+        delivering: "Delivering",
+        failing: "Failing",
+        unused: "No delivery yet",
+      },
+      lastDelivered: "Last delivered",
+      neverDelivered: "Nothing delivered yet",
+      queued: "Queued",
+      openFailures: "Open failures",
+      sends: "Sends",
+      sendTest: "Send test event",
+      testEvent: "Test event",
+      sendingTest: "Queuing...",
+      testQueued:
+        "Test event queued. It is sent within a few seconds; the result appears here.",
+      remove: "Remove",
+      removing: "Removing...",
+      removeTitle: "Remove this endpoint?",
+      removeDescription:
+        "{name} stops receiving events and deliveries still on their way are cancelled. Its history stays.",
+      removeConfirm: "Remove endpoint",
+      dismiss: "Not now",
+      failedOperationsTitle: "Deliveries that did not arrive",
+      failedOperationsDescription:
+        "A failed delivery is retried after 1 minute, 5 minutes, 30 minutes, 2 hours and 12 hours, and then stops. Retry sends it again now.",
+      noFailedOperations:
+        "Nothing has failed. Every delivery has arrived or is on its way.",
+      columns: {
+        endpoint: "Endpoint",
+        whatHappened: "What happened",
+        attempts: "Attempts",
+        nextAttempt: "Next attempt",
+        actions: "Actions",
+      },
+      lastAttemptAt: "Last {when}",
       operationStatuses: {
-        failed: "Failed",
+        failed: "Stopped",
         retrying: "Retrying",
         resolved: "Resolved",
+        cancelled: "Cancelled",
       },
-      categories: {
-        Distribution: "Distribution",
-        Payments: "Payments",
-        Access: "Access Control",
-        Government: "Government Reporting",
-        Tax: "Tax & Invoicing",
-        Messaging: "Messaging",
-        Other: "Other",
+      dueNow: "Due now",
+      noMoreAttempts: "No more attempts",
+      failures: {
+        http_error: "The receiver answered with an error",
+        timeout: "The receiver did not answer in 10 seconds",
+        connection_failed: "Could not connect to the receiver",
+        tls_failed: "The receiver's certificate was not accepted",
+        blocked_address:
+          "The address leads to a private network or this machine",
+        invalid_target: "The address cannot be sent to",
+        redirect_refused:
+          "The receiver redirected, and redirects are not followed",
       },
+      httpStatus: "HTTP {code}",
+      receiverSaid: "It said: {excerpt}",
+      retry: "Retry",
+      retrying: "Retrying...",
+      cancelOperation: "Stop retrying",
+      resolveOperation: "Mark resolved",
+      reasonLabel: "Reason",
+      reasonPlaceholder: "What happened, in a few words",
+      reasonHint: "At least 3 characters. It is recorded with your name.",
+      reasonInvalid: {
+        reason_too_short: "Say why, in at least 3 characters.",
+        reason_too_long: "Keep the reason under 500 characters.",
+      },
+      cancelTitle: "Stop retrying this delivery?",
+      cancelDescription:
+        "No further attempts are made. The event is not sent to this endpoint.",
+      cancelConfirm: "Stop retrying",
+      resolveTitle: "Mark this failure resolved?",
+      resolveDescription:
+        "The delivery stays failed. You are recording that it was dealt with another way.",
+      resolveConfirm: "Mark resolved",
     },
     branding: {
       subtitle: "How {organization} looks to its guests",
@@ -6489,6 +6778,16 @@ export const messages: Record<SupportedLocale, Messages> = {
         changed: "Brand changed",
         reset: "Brand reset to the default",
       },
+      webhook_endpoint: {
+        registered: "Webhook endpoint added",
+        removed: "Webhook endpoint removed",
+        test_sent: "Test event sent",
+      },
+      failed_operation: {
+        retried: "Failed delivery retried",
+        cancelled: "Failed delivery cancelled",
+        resolved: "Failed delivery marked resolved",
+      },
     },
     auditSubject: {
       reservation: "Reservation",
@@ -6507,6 +6806,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       leave_request: "Leave request",
       payroll_run: "Payroll run",
       organization_brand: "Organization brand",
+      webhook_endpoint: "Webhook endpoint",
+      failed_operation: "Failed delivery",
     },
     closeDay: {
       at: "Closing the day at",
@@ -7610,52 +7911,148 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
     },
     integrations: {
-      subtitle:
-        "مديرو القنوات، أقفال الأبواب، بوابات الدفع، والتقارير الحكومية.",
-      connectedCount: "متصل",
-      errorCount: "خطأ",
-      notConnectedCount: "غير متصل",
-      activeIntegrations: "تكاملات النظام",
-      activeIntegrationsDescription:
-        "الخدمات الخارجية التي تم تكوينها وحالة المزامنة.",
-      failedOperationsTitle: "العمليات الفاشلة",
+      subtitle: "إلى أين ترسل {organization} أحداثها، وما الذي لم يصل.",
+      endpointsCount: "نقاط الاستقبال",
+      deliveringCount: "تُسلِّم",
+      failingCount: "تفشل",
+      openFailuresCount: "إخفاقات مفتوحة",
+      endpointsTitle: "نقاط استقبال الويب هوك",
+      endpointsDescription:
+        "ترسل Ranza الأحداث التي تختارها إلى هذه العناوين موقَّعةً فور وقوعها.",
+      noEndpointsTitle: "لا توجد نقطة استقبال بعد",
+      noEndpointsDescription:
+        "أضف عنوان HTTPS واختر الأحداث التي تُرسل إليه. كل عملية إرسال موقَّعة، وما حدث لكل منها يظهر هنا.",
+      noEndpointsReadOnly: "لا توجد نقطة استقبال مسجَّلة لهذه المؤسسة.",
+      readOnly:
+        "يمكنك رؤية هذه النقاط. إضافتها واختبارها وإزالتها تتطلب صلاحية integrations.manage مع الوصول إلى المؤسسة كلها.",
+      addEndpoint: "إضافة نقطة استقبال",
+      addTitle: "إضافة نقطة استقبال ويب هوك",
+      addDescription:
+        "سترسل Ranza كل حدث تختاره إلى هذا العنوان بصيغة JSON موقَّعة.",
+      nameLabel: "الاسم",
+      namePlaceholder: "مدير القنوات",
+      urlLabel: "عنوان HTTPS",
+      urlPlaceholder: "https://example.com/ranza/webhooks",
+      urlHint:
+        "يجب أن يبدأ بـ https://‎. تُرفض العناوين الواقعة على شبكات خاصة أو على هذا الجهاز.",
+      eventsLabel: "الأحداث المراد إرسالها",
+      events: {
+        reservation_created: "يُؤخذ حجز",
+        reservation_cancelled: "يُلغى حجز",
+        reservation_no_show: "لا يصل الضيف",
+        stay_checked_in: "يسجّل الضيف دخوله",
+        stay_checked_out: "يسجّل الضيف مغادرته",
+        folio_line_posted: "يُسجَّل رسم أو دفعة على الفاتورة",
+      },
+      register: "إضافة نقطة استقبال",
+      registering: "جارٍ الإضافة...",
+      secretTitle: "مفتاح التوقيع",
+      secretWarning:
+        "انسخ هذا المفتاح الآن. يظهر مرة واحدة فقط ولا يمكن قراءته مجددًا. إن فقدته فأزل نقطة الاستقبال وأضفها من جديد.",
+      secretUse:
+        "تحمل كل عملية إرسال الترويستين X-Ranza-Timestamp وX-Ranza-Signature. التوقيع هو sha256= يليه HMAC-SHA256 للطابع الزمني ثم نقطة ثم نص الطلب الخام، بهذا المفتاح.",
+      secretCopy: "نسخ المفتاح",
+      secretCopied: "تم النسخ",
+      secretDone: "حفظته",
+      invalid: {
+        name: {
+          empty: "أعطِ نقطة الاستقبال اسمًا.",
+          too_long: "يجب ألا يتجاوز الاسم 80 حرفًا.",
+        },
+        url: {
+          invalid: "هذا ليس عنوانًا.",
+          too_long: "يجب ألا يتجاوز العنوان 2048 حرفًا.",
+          not_https: "يجب أن يبدأ العنوان بـ https://‎.",
+          has_credentials: "يجب ألا يحمل العنوان اسم مستخدم أو كلمة مرور.",
+          blocked_host:
+            "هذا العنوان على شبكة خاصة أو على هذا الجهاز، ولن ترسل Ranza إليه.",
+        },
+        events: {
+          none: "اختر حدثًا واحدًا على الأقل.",
+          unknown: "أحد هذه الأحداث لا يمكن إرساله.",
+        },
+      },
+      refused: {
+        not_permitted:
+          "لا يمكنك فعل ذلك هنا. يتطلب صلاحية integrations.manage مع الوصول إلى المؤسسة كلها.",
+        duplicate_url: "توجد نقطة استقبال بهذا العنوان بالفعل.",
+        too_many_endpoints: "يمكن للمؤسسة أن تملك عشر نقاط استقبال.",
+        test_in_flight: "هناك حدث اختبار في طريقه بالفعل إلى هذه النقطة.",
+        unavailable: "هذا مغلق بالفعل، أو أُزيلت نقطة استقباله.",
+      },
+      failed: "لم تنجح العملية وتم الإبلاغ عنها. حاول مرة أخرى.",
+      health: {
+        delivering: "تُسلِّم",
+        failing: "تفشل",
+        unused: "لا تسليم بعد",
+      },
+      lastDelivered: "آخر تسليم",
+      neverDelivered: "لم يصل شيء بعد",
+      queued: "في الانتظار",
+      openFailures: "إخفاقات مفتوحة",
+      sends: "ترسل",
+      sendTest: "إرسال حدث اختبار",
+      testEvent: "حدث اختبار",
+      sendingTest: "جارٍ الوضع في الانتظار...",
+      testQueued:
+        "وُضع حدث الاختبار في الانتظار. يُرسل خلال ثوانٍ وتظهر النتيجة هنا.",
+      remove: "إزالة",
+      removing: "جارٍ الإزالة...",
+      removeTitle: "إزالة نقطة الاستقبال هذه؟",
+      removeDescription:
+        "تتوقف {name} عن استقبال الأحداث وتُلغى عمليات الإرسال التي ما زالت في الطريق. يبقى سجلها.",
+      removeConfirm: "إزالة نقطة الاستقبال",
+      dismiss: "ليس الآن",
+      failedOperationsTitle: "عمليات إرسال لم تصل",
       failedOperationsDescription:
-        "العمليات التي فشلت أثناء الإرسال الخارجي. تتم إعادة المحاولة تلقائيًا أو يدويًا.",
-      noFailedOperations:
-        "لا توجد عمليات فاشلة مسجلة. جميع الأنظمة متزامنة تمامًا.",
-      noIntegrations: "لا توجد تكاملات مهيأة لهذا العقار.",
+        "تُعاد محاولة الإرسال الفاشل بعد دقيقة، ثم 5 دقائق، ثم 30 دقيقة، ثم ساعتين، ثم 12 ساعة، ثم تتوقف. تعيد «إعادة المحاولة» إرساله الآن.",
+      noFailedOperations: "لم يفشل شيء. كل عملية إرسال وصلت أو في طريقها.",
+      columns: {
+        endpoint: "نقطة الاستقبال",
+        whatHappened: "ما الذي حدث",
+        attempts: "المحاولات",
+        nextAttempt: "المحاولة التالية",
+        actions: "الإجراءات",
+      },
+      lastAttemptAt: "الأخيرة: {when}",
+      operationStatuses: {
+        failed: "توقفت",
+        retrying: "تُعاد المحاولة",
+        resolved: "تم الحل",
+        cancelled: "أُلغيت",
+      },
+      dueNow: "الآن",
+      noMoreAttempts: "لا محاولات أخرى",
+      failures: {
+        http_error: "ردّ المستقبِل بخطأ",
+        timeout: "لم يردّ المستقبِل خلال 10 ثوانٍ",
+        connection_failed: "تعذّر الاتصال بالمستقبِل",
+        tls_failed: "لم تُقبل شهادة المستقبِل",
+        blocked_address: "العنوان يؤدي إلى شبكة خاصة أو إلى هذا الجهاز",
+        invalid_target: "لا يمكن الإرسال إلى هذا العنوان",
+        redirect_refused: "أعاد المستقبِل التوجيه، ولا تُتَّبع إعادة التوجيه",
+      },
+      httpStatus: "HTTP {code}",
+      receiverSaid: "ردّه: {excerpt}",
       retry: "إعادة المحاولة",
       retrying: "جارٍ إعادة المحاولة...",
-      retrySuccess: "تمت إعادة محاولة العملية بنجاح وتسويتها.",
-      retryFailed: "فشلت إعادة المحاولة.",
-      operation: "العملية",
-      integration: "التكامل",
-      error: "تفاصيل الخطأ",
-      attempts: "المحاولات",
-      lastAttempt: "آخر محاولة",
-      status: "الحالة",
-      category: "الفئة",
-      lastSync: "آخر مزامنة",
-      neverSynced: "لم تتم المزامنة بعد",
-      statuses: {
-        connected: "متصل",
-        error: "خطأ",
-        not_connected: "غير متصل",
+      cancelOperation: "إيقاف المحاولات",
+      resolveOperation: "تعليم كمحلول",
+      reasonLabel: "السبب",
+      reasonPlaceholder: "ما الذي حدث، في كلمات قليلة",
+      reasonHint: "3 أحرف على الأقل. يُسجَّل باسمك.",
+      reasonInvalid: {
+        reason_too_short: "اذكر السبب في 3 أحرف على الأقل.",
+        reason_too_long: "يجب ألا يتجاوز السبب 500 حرف.",
       },
-      operationStatuses: {
-        failed: "فشل",
-        retrying: "جارٍ إعادة المحاولة",
-        resolved: "تم الحل",
-      },
-      categories: {
-        Distribution: "توزيع القنوات",
-        Payments: "المدفوعات",
-        Access: "التحكم بالدخول",
-        Government: "التقارير الحكومية",
-        Tax: "الضرائب والفواتير",
-        Messaging: "المراسلة",
-        Other: "أخرى",
-      },
+      cancelTitle: "إيقاف إعادة محاولة هذا الإرسال؟",
+      cancelDescription:
+        "لن تُجرى محاولات أخرى. لن يُرسل الحدث إلى نقطة الاستقبال هذه.",
+      cancelConfirm: "إيقاف المحاولات",
+      resolveTitle: "تعليم هذا الإخفاق كمحلول؟",
+      resolveDescription:
+        "يبقى الإرسال فاشلًا. أنت تسجّل أنه عولج بطريقة أخرى.",
+      resolveConfirm: "تعليم كمحلول",
     },
     branding: {
       subtitle: "كيف تظهر {organization} لضيوفها",
@@ -8725,6 +9122,16 @@ export const messages: Record<SupportedLocale, Messages> = {
         changed: "تغيّرت الهوية البصرية",
         reset: "أُعيدت الهوية البصرية إلى الافتراضي",
       },
+      webhook_endpoint: {
+        registered: "أُضيفت نقطة استقبال ويب هوك",
+        removed: "أُزيلت نقطة استقبال ويب هوك",
+        test_sent: "أُرسل حدث اختبار",
+      },
+      failed_operation: {
+        retried: "أُعيدت محاولة إرسال فاشل",
+        cancelled: "أُوقفت محاولات إرسال فاشل",
+        resolved: "عُلِّم إرسال فاشل كمحلول",
+      },
     },
     auditSubject: {
       reservation: "حجز",
@@ -8743,6 +9150,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       leave_request: "طلب إجازة",
       payroll_run: "كشف رواتب",
       organization_brand: "الهوية البصرية للمؤسسة",
+      webhook_endpoint: "نقطة استقبال ويب هوك",
+      failed_operation: "إرسال فاشل",
     },
     closeDay: {
       at: "إغلاق اليوم في",
