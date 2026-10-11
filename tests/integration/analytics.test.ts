@@ -1642,12 +1642,15 @@ describe("a month on the screen", () => {
       expect(report.state).toBe("open");
       expect(report.prior).toMatchObject({ month: M1, sameElapsedDays: true });
       const elapsed = report.daysClosed;
-      // The nights of M1 and what each earned net, by day of the month.
+      // Each occupied Unit-night of M1 and what it earned net, by day of the
+      // month: the 6th and 7th have two, S1 in A1 and S2 in A2.
       const nights: [day: number, net: number][] = [
         [1, 15000],
         [5, 0],
-        [6, 30000],
-        [7, 30000],
+        [6, 10000],
+        [6, 20000],
+        [7, 10000],
+        [7, 20000],
         [21, 0],
         [22, 0],
         [23, 0],

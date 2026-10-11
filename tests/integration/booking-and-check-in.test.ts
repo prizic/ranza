@@ -806,7 +806,8 @@ describe("who a booking names", () => {
       accommodationUnitId: unit,
     });
     const text = JSON.stringify(events[0]?.payload);
-    for (const detail of ["Private", "private-", "555"]) {
+    // Only fragments a UUID cannot contain: "555" alone matched a random id.
+    for (const detail of ["Private", "private-", "+90 555"]) {
       expect(text).not.toContain(detail);
     }
   });
