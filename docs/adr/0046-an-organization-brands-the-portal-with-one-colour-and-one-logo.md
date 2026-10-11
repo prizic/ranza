@@ -116,6 +116,8 @@ is the whole Organization's rather than shown a form whose every save would be
 refused (BR-S1-30).
 
 The logo's alt text is the Property's name until a brand name exists (BR-DEF-07).
-The tokens are set on the shell, so anything rendered outside it, as an overlay
-may be, is drawn in the theme's colour; none of the Portal's overlays has been
-checked for it.
+The tokens are set on the shell, so an overlay rendered outside it is drawn in
+the theme's colour. The Portal's only overlays, the account menu and the
+language switcher, read no `primary` token (checked by grep), so none shows the
+difference today; a later overlay that does would have to carry the tokens
+itself.
