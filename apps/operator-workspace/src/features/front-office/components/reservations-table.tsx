@@ -165,7 +165,10 @@ export function ReservationsTable({
           }}
           value={tab}
         >
-          <TabsList aria-label={t("reservationsViews")}>
+          <TabsList
+            aria-label={t("reservationsViews")}
+            className="max-w-full justify-start overflow-x-auto"
+          >
             {RESERVATION_TABS.map((name) => (
               <TabsTrigger key={name} value={name}>
                 {t(`reservationsTab.${name}`)}{" "}

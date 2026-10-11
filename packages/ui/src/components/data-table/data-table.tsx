@@ -52,7 +52,27 @@ const ROW_CARD = cn(
   "[&>td:first-child]:rounded-s-[2rem] [&>td:first-child]:border-s [&>td:first-child]:ps-5 md:[&>td:first-child]:ps-6",
   "[&>td:last-child]:rounded-e-[2rem] [&>td:last-child]:border-e [&>td:last-child]:pe-4 md:[&>td:last-child]:pe-6",
   "[&:hover>td]:border-black/10 [&:hover>td]:bg-secondary/40 data-[state=selected]:[&>td]:bg-secondary",
+  // A pinned cell sits over the cells scrolling beneath it, so its hover fill
+  // is the translucent one already laid over the card, not left translucent.
+  "[&:hover>td[data-pinned]]:bg-[color-mix(in_oklab,var(--color-secondary)_40%,var(--color-card))]",
 );
+
+/**
+ * Column `meta` a screen may set beside its `title`: `pinEnd` keeps the column
+ * at the logical end of the row while the rest scroll sideways.
+ *
+ * A row's menu is the one control every row has, and a table wider than its
+ * container — a 1280 px laptop, or any phone — scrolls it out of reach with
+ * the cells it sits beside. `end-0` is logical, so the pinned column stays at
+ * the right in English and Turkish and at the left in Arabic.
+ */
+const PINNED_END = "sticky end-0 z-10";
+
+function pinsToEnd(column: { columnDef: { meta?: unknown } }): boolean {
+  return (
+    (column.columnDef.meta as { pinEnd?: boolean } | undefined)?.pinEnd === true
+  );
+}
 
 export interface Facet {
   columnId: string;
@@ -410,7 +430,13 @@ export function DataTable<TData, TValue>({
                   })}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell
+                      className={
+                        pinsToEnd(cell.column) ? PINNED_END : undefined
+                      }
+                      data-pinned={pinsToEnd(cell.column) ? "end" : undefined}
+                      key={cell.id}
+                    >
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext(),

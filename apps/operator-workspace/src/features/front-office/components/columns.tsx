@@ -344,7 +344,7 @@ export function useArrivalColumns(
     },
     {
       id: "action",
-      meta: { title: t("action") },
+      meta: { title: t("action"), pinEnd: true },
       enableHiding: false,
       header: () => <span className="sr-only">{t("action")}</span>,
       cell: ({ row }) => {
@@ -566,7 +566,7 @@ export function useDepartureColumns(
     },
     {
       id: "action",
-      meta: { title: t("action") },
+      meta: { title: t("action"), pinEnd: true },
       enableHiding: false,
       header: () => <span className="sr-only">{t("action")}</span>,
       cell: ({ row }) => (
@@ -836,7 +836,7 @@ export function useReservationColumns(
     },
     {
       id: "action",
-      meta: { title: t("action") },
+      meta: { title: t("action"), pinEnd: true },
       enableHiding: false,
       header: () => <span className="sr-only">{t("action")}</span>,
       cell: ({ row }) => {

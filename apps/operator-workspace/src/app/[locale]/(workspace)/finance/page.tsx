@@ -98,6 +98,10 @@ export default async function FinancePage({
     const mayReversePayment = canReversePayment.some(
       (reachable) => reachable.propertyId === selected.propertyId,
     );
+    const folioProperty =
+      properties.find(
+        (candidate) => candidate.propertyId === selected.propertyId,
+      ) ?? property;
     return (
       <>
         <p className="text-sm text-muted-foreground">{property.propertyName}</p>
@@ -109,6 +113,7 @@ export default async function FinancePage({
           mayReverse={mayReverseCharge}
           mayReverseCharge={mayReverseCharge}
           mayReversePayment={mayReversePayment}
+          timeZone={folioProperty.timezone}
         />
       </>
     );

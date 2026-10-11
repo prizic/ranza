@@ -275,9 +275,12 @@ export function FolioPanel({
   mayReverseCharge,
   mayPostPayment = false,
   mayReversePayment = false,
+  timeZone,
 }: {
   folio: FolioDetail;
   locale: SupportedLocale;
+  /** The Property's own, so a line is dated by the clock at its front desk. */
+  timeZone: string;
   /** Backwards compatible alias for mayReverseCharge. */
   mayReverse?: boolean;
   mayPostCharge?: boolean;
@@ -380,6 +383,7 @@ export function FolioPanel({
                       // 24-hour in every language, as everywhere else.
                       hourCycle: "h23",
                       minute: "2-digit",
+                      timeZone,
                     })}
                   </time>
                 </TableCell>

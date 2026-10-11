@@ -339,7 +339,7 @@ export function MaintenanceBoard({
       <OutcomeMessage outcome={reported} />
 
       <Tabs defaultValue="requests">
-        <TabsList>
+        <TabsList className="max-w-full justify-start overflow-x-auto">
           <TabsTrigger value="requests">{t("requestsTab")}</TabsTrigger>
           <TabsTrigger value="equipment">{t("equipmentTab")}</TabsTrigger>
           <TabsTrigger value="plan">{t("planTab")}</TabsTrigger>

@@ -139,7 +139,7 @@ export function EquipmentRegisterPanel({
                 <TableHead>{t("lastServiced")}</TableHead>
                 <TableHead>{t("nextService")}</TableHead>
                 {mayChange ? (
-                  <TableHead className="text-end">
+                  <TableHead className="sticky end-0 bg-background text-end">
                     <span className="sr-only">{t("actions")}</span>
                   </TableHead>
                 ) : null}
@@ -207,7 +207,7 @@ export function EquipmentRegisterPanel({
                     )}
                   </TableCell>
                   {mayChange ? (
-                    <TableCell className="text-end">
+                    <TableCell className="sticky end-0 bg-background text-end">
                       <div className="flex justify-end gap-1">
                         {item.retired ? null : (
                           <Button

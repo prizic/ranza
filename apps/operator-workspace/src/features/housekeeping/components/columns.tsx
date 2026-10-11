@@ -173,6 +173,7 @@ export function useHousekeepingColumns({
     ...columns,
     {
       id: "actions",
+      meta: { pinEnd: true },
       enableHiding: false,
       enableSorting: false,
       header: () => <span className="sr-only">{t("actions")}</span>,

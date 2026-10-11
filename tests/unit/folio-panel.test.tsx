@@ -85,7 +85,12 @@ describe("a room night on a Folio", () => {
   it("a_room_night_reads_as_the_night_it_is_for", () => {
     render(
       <NextIntlClientProvider locale="en" messages={messages.en}>
-        <FolioPanel folio={FOLIO} locale="en" mayReverse />
+        <FolioPanel
+          timeZone="Europe/Istanbul"
+          folio={FOLIO}
+          locale="en"
+          mayReverse
+        />
       </NextIntlClientProvider>,
     );
     expect(screen.getByText("Room night · Sep 24, 2026")).toBeTruthy();
@@ -100,7 +105,12 @@ describe("a room night on a Folio", () => {
     it(`a_room_night_reads_in_every_locale: ${locale}`, () => {
       render(
         <NextIntlClientProvider locale={locale} messages={messages[locale]}>
-          <FolioPanel folio={FOLIO} locale={locale} mayReverse />
+          <FolioPanel
+            timeZone="Europe/Istanbul"
+            folio={FOLIO}
+            locale={locale}
+            mayReverse
+          />
         </NextIntlClientProvider>,
       );
       const word = messages[locale].roomNightLine.split(" · ")[0]!;
@@ -113,7 +123,12 @@ describe("closing a Folio (FO-S5-01)", () => {
   it("a Folio whose Guest is in house offers no close, and says why", () => {
     render(
       <NextIntlClientProvider locale="en" messages={messages.en}>
-        <FolioPanel folio={FOLIO} locale="en" mayReverse />
+        <FolioPanel
+          timeZone="Europe/Istanbul"
+          folio={FOLIO}
+          locale="en"
+          mayReverse
+        />
       </NextIntlClientProvider>,
     );
     expect(screen.queryByRole("button", { name: "Close folio" })).toBeNull();
@@ -124,6 +139,7 @@ describe("closing a Folio (FO-S5-01)", () => {
     render(
       <NextIntlClientProvider locale="en" messages={messages.en}>
         <FolioPanel
+          timeZone="Europe/Istanbul"
           folio={{ ...FOLIO, stayInHouse: false }}
           locale="en"
           mayReverse
@@ -157,6 +173,7 @@ function panel(
     <NextIntlClientProvider locale={locale} messages={messages[locale]}>
       <div dir={locale === "ar" ? "rtl" : "ltr"}>
         <FolioPanel
+          timeZone="Europe/Istanbul"
           folio={folio}
           locale={locale}
           mayPostCharge={mayPostCharge}
@@ -264,4 +281,58 @@ describe("money and direction at display (FO-S9-06)", () => {
     expect(times).toHaveLength(FOLIO.lines.length);
     expect(times.join(" ")).not.toMatch(/AM|PM/);
   });
+});
+
+describe("a line is dated by the Property's own clock", () => {
+  const LATE = new Date("2026-09-26T22:30:00Z");
+  const late: FolioDetail["lines"][number] = {
+    lineId: "d9000007-0000-4000-8000-000000000020",
+    lineType: "charge",
+    description: "Late minibar",
+    amountMinor: 5000,
+    paymentMethod: null,
+    reversesLineId: null,
+    reversed: false,
+    postedAt: LATE,
+    roomNightOf: null,
+  };
+  const stamp = (container: HTMLElement): string =>
+    container.querySelector(`time[datetime="${LATE.toISOString()}"]`)
+      ?.textContent ?? "";
+
+  it("a_line_posted_at_22_30_utc_is_the_next_day_in_istanbul", () => {
+    const { container } = panel({ ...FOLIO, lines: [late] });
+    expect(stamp(container)).toBe("Sep 27, 2026, 01:30");
+  });
+
+  it("a_line_is_dated_by_the_clock_it_is_given_not_the_machines", () => {
+    const { container } = render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <FolioPanel
+          folio={{ ...FOLIO, lines: [late] }}
+          locale="en"
+          mayReverse
+          timeZone="America/New_York"
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(stamp(container)).toBe("Sep 26, 2026, 18:30");
+  });
+
+  for (const locale of supportedLocales) {
+    it(`a_payment_line_is_dated_by_the_property_clock_in_every_locale: ${locale}`, () => {
+      const payment = {
+        ...late,
+        lineType: "payment" as const,
+        paymentMethod: "cash" as const,
+        description: "Cash at the desk",
+        amountMinor: -5000,
+      };
+      const { container } = panel({ ...FOLIO, lines: [payment] }, { locale });
+      // Digits only: the month is a word, and the digits may be Arabic-Indic.
+      const latin = stamp(container).replace(/[^\d]/g, "");
+      expect(latin).toMatch(/27/);
+      expect(latin).toMatch(/0130$/);
+    });
+  }
 });
