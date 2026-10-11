@@ -108,7 +108,7 @@ export function AuditTable({
                     {whenLabel(entry.occurredAt, locale, entry.timeZone)}
                   </time>
                 </TableCell>
-                <TableCell className="align-top">
+                <TableCell className="align-top whitespace-normal">
                   {/* Not prefetched: one row is one request, and all it would
                       fetch is the loading boundary — the row's own data is
                       read on the click. */}
@@ -144,7 +144,7 @@ export function AuditTable({
                     </span>
                   </Link>
                 </TableCell>
-                <TableCell className="align-top text-step--1">
+                <TableCell className="align-top whitespace-normal text-step--1">
                   {words.where(entry)}
                 </TableCell>
                 <TableCell className="align-top">
@@ -159,7 +159,7 @@ export function AuditTable({
                     {words.actor(entry.actorId)}
                   </span>
                 </TableCell>
-                <TableCell className="align-top">
+                <TableCell className="align-top whitespace-normal">
                   {entry.reason ? (
                     <span className="line-clamp-2 max-w-prose">
                       {entry.reason}
