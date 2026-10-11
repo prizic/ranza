@@ -410,6 +410,74 @@ test("INT-S1-45: Stop retrying asks for a reason and records who stopped it", as
   ).toBe("1");
 });
 
+test("INT-S1-48: Mark resolved asks for a reason, records who and why, and the delivery stays failed", async ({
+  page,
+}) => {
+  received.length = 0;
+  script.push({ status: 400, body: "bad shape" });
+
+  await signIn(page, MANAGER_EMAIL);
+  await page.goto(SCREEN);
+  const card = page.getByTestId("webhook-endpoint").filter({
+    hasText: ENDPOINT_NAME,
+  });
+  await card.getByRole("button", { name: "Send test event" }).click();
+  await expect(card.getByText(/Test event queued/)).toBeVisible();
+
+  const worker = startWorker({ WEBHOOK_ALLOW_LOOPBACK_HTTP: "true" });
+  await whileWorking(
+    worker,
+    expect
+      .poll(() => deliveryState(), { timeout: WORKER_BUDGET_MS })
+      .toBe("failed|1"),
+  );
+
+  // A 400 is not retried: the failure offers Mark resolved and not Stop retrying.
+  await page.reload();
+  const failure = page.getByTestId("failed-operation");
+  await expect(failure).toHaveCount(1);
+  await expect(failure).toContainText("Stopped");
+  await expect(failure).toContainText("HTTP 400");
+  await expect(
+    failure.getByRole("button", { name: "Stop retrying" }),
+  ).toHaveCount(0);
+  await failure.getByRole("button", { name: "Mark resolved" }).click();
+
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Mark resolved" }).click();
+  await expect(
+    dialog.getByText("Say why, in at least 3 characters."),
+  ).toBeVisible();
+  expect(
+    psql(
+      `select status from public.failed_operations where endpoint_id = '${endpointId()}' order by created_at desc limit 1`,
+    ),
+  ).toBe("failed");
+
+  await dialog.getByLabel("Reason").fill("Re-sent by hand from their portal");
+  await dialog.getByRole("button", { name: "Mark resolved" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByTestId("failed-operation")).toHaveCount(0);
+
+  expect(
+    psql(
+      `select f.status || '|' || f.closed_reason || '|' || u.email || '|' || d.status
+         from public.failed_operations f
+         join public.users u on u.id = f.closed_by
+         join public.webhook_deliveries d on d.id = f.delivery_id
+        where f.endpoint_id = '${endpointId()}' order by f.updated_at desc limit 1`,
+    ),
+  ).toBe(`resolved|Re-sent by hand from their portal|${MANAGER_EMAIL}|failed`);
+  expect(
+    psql(
+      `select count(*) from audit.records
+        where organization_id = '${ORGANIZATION}'
+          and action = 'failed_operation.resolved'
+          and reason = 'Re-sent by hand from their portal'`,
+    ),
+  ).toBe("1");
+});
+
 test("INT-S1-07: someone who may only view sees the endpoints and the failures and no command", async ({
   page,
 }) => {
