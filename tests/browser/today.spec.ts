@@ -213,6 +213,15 @@ test.describe("every number on Today opens the list that explains it", () => {
     expect(reported.get(page) ?? [], "the browser reported errors").toEqual([]);
   });
 
+  /**
+   * Another person at the same browser: leave the page first, so what is still
+   * polling on it does not read its first 401 as a failure of Today.
+   */
+  async function signOut(page: Page) {
+    await page.goto("about:blank");
+    await page.context().clearCookies();
+  }
+
   async function signInAs(page: Page, focus: keyof KnownDay["email"]) {
     const errors: string[] = [];
     reported.set(page, errors);
@@ -637,14 +646,14 @@ test.describe("every number on Today opens the list that explains it", () => {
 
     // The finance focus has it too; a front desk, which also holds
     // finance.manage_folio, does not (TD-S1-02), and nor does housekeeping.
-    await page.context().clearCookies();
+    await signOut(page);
     await signInAs(page, "finance");
     await openToday(page);
     await expect(
       page.getByRole("region", { name: "Charges today" }),
     ).toContainText("255.00");
     for (const focus of ["front_desk", "housekeeping"] as const) {
-      await page.context().clearCookies();
+      await signOut(page);
       await signInAs(page, focus);
       await openToday(page);
       await expect(
@@ -799,7 +808,7 @@ test.describe("every number on Today opens the list that explains it", () => {
           `${focus}: "${stray}" is a number on Today that opens nothing`,
         ).toBe(true);
       }
-      await page.context().clearCookies();
+      await signOut(page);
     }
   });
 
@@ -843,7 +852,7 @@ test.describe("every number on Today opens the list that explains it", () => {
 
     // The other half: departures have a button, arrivals none; and the way in
     // is still there on every row.
-    await page.context().clearCookies();
+    await signOut(page);
     await signInAs(page, "checks_out_only");
     await openToday(page);
     await expect(movementRow(page, day.guest.ready)).toBeVisible();
@@ -1020,13 +1029,16 @@ test.describe("every number on Today opens the list that explains it", () => {
       ),
     );
     await follow(page, first);
+    // The record itself opens, not the list: its id is the address, and the
+    // page is the audit log's.
+    await expect(page).toHaveURL(href);
     await expect(
-      page.getByRole("heading", { name: /Record|Details/i }).first(),
+      page.getByRole("heading", { name: "Audit log", level: 1 }),
     ).toBeVisible();
 
     // Nobody without audit.read is sent it.
     for (const focus of ["front_desk", "finance"] as const) {
-      await page.context().clearCookies();
+      await signOut(page);
       await signInAs(page, focus);
       await openToday(page);
       await expect(
