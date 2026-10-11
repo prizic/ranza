@@ -255,19 +255,25 @@ test("a check-out leaves the room dirty through the worker, and a cleaner takes 
         timeout: 45_000,
       })
       .toBe("1");
+    // This departure's own event, not the process's output: the worker
+    // delivers whatever else is waiting in the database too, and an event
+    // somebody else's fixture left failing is not this test's to report. It is
+    // published in a statement after the delivery commits, so it is awaited
+    // before the worker is stopped rather than read once.
+    await expect
+      .poll(
+        () =>
+          psql(
+            `select (published_at is not null)::text || '|' || coalesce(last_error, '')
+               from outbox.events where event_type = 'stay.checked_out'
+                and payload ->> 'stayId' = '${stayId}'`,
+          ),
+        { message: `the worker said:\n${worker.output()}`, timeout: 10_000 },
+      )
+      .toBe("true|");
   } finally {
     worker.stop();
   }
-  // This departure's own event, not the process's output: the worker delivers
-  // whatever else is waiting in the database too, and an event somebody else's
-  // fixture left failing is not this test's to report.
-  expect(
-    psql(
-      `select (published_at is not null)::text || '|' || coalesce(last_error, '')
-         from outbox.events where event_type = 'stay.checked_out'
-          and payload ->> 'stayId' = '${stayId}'`,
-    ),
-  ).toBe("true|");
   expect(stored()).toBe("dirty|true");
 
   // A cleaner, who reaches this Property and nothing else, finds it dirty.
