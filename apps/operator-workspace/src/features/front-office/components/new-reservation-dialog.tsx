@@ -283,7 +283,7 @@ export function NewReservationDialog({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-h-[90dvh] overflow-y-auto">
+      <DialogContent>
         <form className="grid gap-4" onSubmit={submitWithoutReset(act)}>
           <DialogHeader>
             <DialogTitle>{t("newReservation")}</DialogTitle>
