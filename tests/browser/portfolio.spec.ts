@@ -1,14 +1,20 @@
+import path from "node:path";
+
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { messages } from "../../apps/operator-workspace/src/messages";
+import { aComparedProperty } from "./compared-properties";
+import { aFreshProperty } from "./fresh-property";
 import {
   anArrivalToday,
   aPropertyTheViewerDoesNotReach,
+  aStaffMember,
   HOUSEKEEPER_EMAIL,
   portfolioProperty,
   signIn,
   testProperty,
 } from "./front-desk";
+import { assignToProperty } from "./reported-months";
 
 /**
  * All Properties in a browser (docs/features/portfolio, slice 2).
@@ -22,6 +28,7 @@ import {
  * sideways and Arabic mirrors.
  */
 
+const EVIDENCE = path.resolve(__dirname, "../../docs/evidence/m1/RANZ-43");
 const words = messages.en.portfolio;
 const PORTFOLIO_NAME = "E2E Test Property (portfolio)";
 
@@ -203,4 +210,281 @@ test("on a phone the cards stack and the page never scrolls sideways", async ({
       () => document.documentElement.scrollWidth - window.innerWidth,
     ),
   ).toBeLessThanOrEqual(0);
+});
+
+/**
+ * What Today says of one Property, read from its own screen: the figures the
+ * portfolio card claims to repeat. Arrivals and departures are "done / due" on
+ * Today and "still to come" on the card, so the card's figure is the
+ * difference.
+ */
+async function todayFiguresOf(page: Page, propertyId: string) {
+  await page.goto(`/en/today?property=${propertyId}`);
+  const main = page.locator("main");
+  await expect(main).toContainText(/In house\s*·\s*\d+ \/ \d+/i);
+  const text = await main.innerText();
+  const pair = (pattern: RegExp): [number, number] => {
+    const match = pattern.exec(text);
+    if (!match) throw new Error(`Today does not say ${pattern}:\n${text}`);
+    return [Number(match[1]), Number(match[2])];
+  };
+  const [occupied, sellable] = pair(/IN HOUSE · (\d+) \/ (\d+)/i);
+  const [arrived, arrivalsDue] = pair(/Arrivals\s+(\d+) \/ (\d+)/);
+  const [left, departuresDue] = pair(/Departures\s+(\d+) \/ (\d+)/);
+  const openRequests = Number(/Open requests\s+(\d+)/.exec(text)?.[1]);
+  const owed = /Leaves today · balance ([^\n]+)/.exec(text)?.[1] ?? null;
+  return {
+    occupied,
+    sellable,
+    arrivalsToCome: arrivalsDue - arrived,
+    departuresToCome: departuresDue - left,
+    openRequests,
+    owed,
+  };
+}
+
+/**
+ * Two Properties whose portfolio figures are known before the screen is asked.
+ * North, in lira: 6 rooms, 4 Guests in house (1 due out today), 2 arrivals
+ * still to come, 3 open maintenance requests (one done and one cancelled
+ * beside them, not counted), and 1,234.50 owed. South, in euros: 5 rooms, 1 in
+ * house (due out today), 1 arrival, 2 open requests, 80.00 owed.
+ */
+function northAndSouth() {
+  return {
+    north: aComparedProperty("north", {
+      currency: "TRY",
+      rooms: 6,
+      inHouse: 4,
+      dueOutToday: 1,
+      arrivalsToCome: 2,
+      openMaintenance: 3,
+      owedMinor: 123450,
+    }),
+    south: aComparedProperty("south", {
+      currency: "EUR",
+      rooms: 5,
+      inHouse: 1,
+      dueOutToday: 1,
+      arrivalsToCome: 1,
+      openMaintenance: 2,
+      owedMinor: 8000,
+    }),
+  };
+}
+
+test("an Owner sets two Properties side by side and every figure on a card is the one that Property's own Today shows", async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  const { north, south } = northAndSouth();
+  const owner = await aStaffMember(
+    request,
+    baseURL!,
+    north.propertyId,
+    "owner",
+  );
+  assignToProperty(south.propertyId, owner.email);
+  await signIn(page, owner.email);
+
+  await page.goto(portfolioUrl(north.propertyId));
+  await expect(
+    page.getByRole("heading", { exact: true, name: "All Properties" }),
+  ).toBeVisible();
+  // Offered, because this Owner reaches two Properties of one Organization.
+  await expect(
+    page.locator('aside a[href^="/en/portfolio"]').first(),
+  ).toBeVisible();
+
+  // Two cards in view at once, and no others: nothing was switched.
+  await expect(page.locator("main li[data-property-id]")).toHaveCount(2);
+  const northCard = card(page, north.name);
+  const southCard = card(page, south.name);
+  await expect(northCard).toBeVisible();
+  await expect(southCard).toBeVisible();
+
+  // The seeded truth, card by card.
+  await expect(northCard).toContainText("4 / 6");
+  await expect(northCard).toContainText("66.7%");
+  await expect(figure(northCard, words.arrivals)).toHaveText("2");
+  await expect(figure(northCard, words.departures)).toHaveText("1");
+  await expect(figure(northCard, words.maintenance)).toHaveText("3");
+  await expect(figure(northCard, words.moneyOwed)).toHaveText("TRY 1,234.50");
+  await expect(southCard).toContainText("1 / 5");
+  await expect(southCard).toContainText("20.0%");
+  await expect(figure(southCard, words.arrivals)).toHaveText("1");
+  await expect(figure(southCard, words.departures)).toHaveText("1");
+  await expect(figure(southCard, words.maintenance)).toHaveText("2");
+  await expect(figure(southCard, words.moneyOwed)).toHaveText("€80.00");
+
+  // The summary is the cards added up as counts: 5 of 11 units, 5 requests,
+  // and one line per currency, never one added figure.
+  const occupancySummary = page.getByRole("group", {
+    name: words.occupancyTitle,
+  });
+  await expect(occupancySummary).toContainText("5 / 11");
+  await expect(occupancySummary).toContainText("45.5%");
+  await expect(
+    page.getByRole("group", { name: words.maintenanceTitle }),
+  ).toContainText("5");
+  const owed = page.getByRole("group", { name: words.moneyOwedTitle });
+  await expect(owed.getByRole("listitem")).toHaveCount(2);
+  await expect(owed.locator('li[data-currency="TRY"]')).toHaveText(
+    "TRY 1,234.50",
+  );
+  await expect(owed.locator('li[data-currency="EUR"]')).toHaveText("€80.00");
+
+  await page.screenshot({ path: path.join(EVIDENCE, "01-two-properties.png") });
+
+  // Each Property's own screen says the same, so the comparison can be trusted
+  // without opening either.
+  for (const compared of [north, south]) {
+    const own = await todayFiguresOf(page, compared.propertyId);
+    expect(own.occupied).toBe(compared.inHouse);
+    expect(own.sellable).toBe(compared.rooms);
+    expect(own.arrivalsToCome).toBe(compared.arrivalsToCome);
+    expect(own.departuresToCome).toBe(compared.dueOutToday);
+    expect(own.openRequests).toBe(compared.openMaintenance);
+    expect(own.owed).not.toBeNull();
+
+    await page.goto(portfolioUrl(north.propertyId));
+    const shown = card(page, compared.name);
+    await expect(shown).toContainText(`${own.occupied} / ${own.sellable}`);
+    await expect(figure(shown, words.arrivals)).toHaveText(
+      String(own.arrivalsToCome),
+    );
+    await expect(figure(shown, words.departures)).toHaveText(
+      String(own.departuresToCome),
+    );
+    await expect(figure(shown, words.maintenance)).toHaveText(
+      String(own.openRequests),
+    );
+    await expect(figure(shown, words.moneyOwed)).toHaveText(own.owed!);
+  }
+});
+
+test("the same comparison in Arabic keeps each figure with its Property and mirrors", async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  const { north, south } = northAndSouth();
+  const owner = await aStaffMember(
+    request,
+    baseURL!,
+    north.propertyId,
+    "owner",
+  );
+  assignToProperty(south.propertyId, owner.email);
+  await signIn(page, owner.email);
+  await page.goto(portfolioUrl(north.propertyId, "ar"));
+
+  const ar = messages.ar.portfolio;
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  await expect(page.locator("main li[data-property-id]")).toHaveCount(2);
+  const northCard = card(page, north.name);
+  const southCard = card(page, south.name);
+  await expect(northCard).toContainText("4 / 6");
+  await expect(southCard).toContainText("1 / 5");
+  await expect(figure(northCard, ar.maintenance)).toHaveText("3");
+  await expect(figure(southCard, ar.maintenance)).toHaveText("2");
+  // Direction marks and no-break spaces are the formatter's, so compare the
+  // figure without them.
+  const plain = async (locator: Locator) =>
+    (await locator.innerText())
+      .replace(/[‎‏؜⁦-⁩]/g, "")
+      .replace(/[  \s]+/g, " ");
+  const northOwed = await plain(figure(northCard, ar.moneyOwed));
+  const southOwed = await plain(figure(southCard, ar.moneyOwed));
+  expect(northOwed).toContain("1,234.50");
+  expect(northOwed).toContain("TRY");
+  expect(southOwed).toContain("80.00");
+  expect(southOwed).toContain("€");
+
+  // The first card sits at the right edge, where a reader starts.
+  const first = await northCard.boundingBox();
+  const second = await southCard.boundingBox();
+  expect(first!.x).toBeGreaterThan(second!.x);
+
+  await page.screenshot({
+    path: path.join(EVIDENCE, "03-two-properties-arabic.png"),
+  });
+});
+
+test("a viewer who reaches one Property is not offered All Properties and is told there is nothing to compare", async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  const only = aComparedProperty("only", {
+    currency: "TRY",
+    rooms: 3,
+    inHouse: 1,
+    dueOutToday: 0,
+    arrivalsToCome: 1,
+    openMaintenance: 1,
+    owedMinor: 2500,
+  });
+  const manager = await aStaffMember(
+    request,
+    baseURL!,
+    only.propertyId,
+    "manager",
+  );
+  await signIn(page, manager.email);
+
+  await expect(
+    page.locator('aside a[href^="/en/today"]').first(),
+  ).toBeVisible();
+  await expect(page.locator('aside a[href^="/en/portfolio"]')).toHaveCount(0);
+
+  // The typed address is not a boundary the rail hides; it says what it is.
+  await page.goto(portfolioUrl(only.propertyId));
+  await expect(
+    page.getByRole("heading", { name: words.oneTitle }),
+  ).toBeVisible();
+  await expect(page.locator("main")).toContainText(only.name);
+  await expect(page.locator("main li[data-property-id]")).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: words.goToToday }),
+  ).toHaveAttribute("href", `/en/today?property=${only.propertyId}`);
+
+  await page.screenshot({ path: path.join(EVIDENCE, "02-one-property.png") });
+
+  // Given a second Property the same person is offered it.
+  const second = aFreshProperty("second", {
+    capabilities: ["today", "analytics"],
+  });
+  assignToProperty(second.propertyId, manager.email);
+  await page.goto(`/en/today?property=${only.propertyId}`);
+  await expect(
+    page.locator('aside a[href^="/en/portfolio"]').first(),
+  ).toBeVisible();
+});
+
+test("two Properties without Analytics are not offered All Properties either", async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  const first = aFreshProperty("no analytics one", { capabilities: ["today"] });
+  const second = aFreshProperty("no analytics two", {
+    capabilities: ["today"],
+  });
+  const manager = await aStaffMember(
+    request,
+    baseURL!,
+    first.propertyId,
+    "manager",
+  );
+  assignToProperty(second.propertyId, manager.email);
+  await signIn(page, manager.email);
+
+  await expect(page.locator('aside a[href^="/en/portfolio"]')).toHaveCount(0);
+  await page.goto(portfolioUrl(first.propertyId));
+  await expect(
+    page.getByRole("heading", { name: messages.en.notEntitledTitle }),
+  ).toBeVisible();
+  await expect(page.locator("main li[data-property-id]")).toHaveCount(0);
 });
