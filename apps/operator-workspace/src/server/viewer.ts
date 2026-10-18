@@ -22,6 +22,7 @@ import type {
   PropertySettings,
 } from "@ranza/core";
 import type { CloseTheDay } from "@ranza/business-day";
+import { LOCATION_HEADER, signInHref } from "../lib/return-path";
 import { gateOf, type ScreenGate } from "../lib/screens";
 import type { PriceList } from "@ranza/rates";
 import {
@@ -163,7 +164,7 @@ import type {
   SettingValues,
   UnitHold,
 } from "@ranza/maintenance";
-import { localizeHref, type SupportedLocale } from "@ranza/i18n";
+import type { SupportedLocale } from "@ranza/i18n";
 import {
   loginsWithoutEmployment,
   type UnregisteredStaffMember,
@@ -384,7 +385,14 @@ export const currentViewer = cache(async (): Promise<Viewer | null> => {
  */
 export async function requireViewer(locale: SupportedLocale): Promise<Viewer> {
   const viewer = await currentViewer();
-  if (!viewer) redirect(localizeHref(locale, "sign-in"));
+  if (!viewer) {
+    // Sent to sign in with where they were going, so signing in lands them
+    // there and not on Today (SIGN-02). The proxy writes the header; what it
+    // holds is still only a candidate, which `signInHref` checks.
+    redirect(
+      signInHref(locale, (await headers()).get(LOCATION_HEADER) ?? undefined),
+    );
+  }
   return viewer;
 }
 

@@ -2,7 +2,13 @@ import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { AccountMenu, AppShell, BrandMark, DropdownMenuItem } from "@ranza/ui";
+import {
+  AccountMenu,
+  AppShell,
+  BrandMark,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import {
   offersPortfolio,
@@ -26,6 +32,7 @@ import { QueryProvider } from "../../providers/query-provider";
 import { BillingNotice } from "./billing-notice";
 import { PropertyLink } from "./property-link";
 import { PropertySwitcher } from "./property-switcher";
+import { SignOutItem } from "./sign-out-item";
 import { WorkspaceLanguageSwitcher } from "./workspace-language-switcher";
 import { WorkspacePageBar } from "./workspace-page-bar";
 import { WorkspaceBottomNav, WorkspaceRail } from "./workspace-rail";
@@ -176,19 +183,28 @@ export default async function WorkspaceLayout({
   const root = localizeHref(locale, "today");
 
   const accountItems = (
-    <DropdownMenuItem asChild>
-      {/* Account security is not an entitled capability — it belongs to the
+    <>
+      <DropdownMenuItem asChild>
+        {/* Account security is not an entitled capability — it belongs to the
           person, not the Organization — so it is reached through the account
           rather than added to the rail, which lists only what was bought. */}
-      <PropertyLink
-        defaultProperty={first?.propertyId}
-        knownProperties={Object.keys(segmentsByProperty)}
-        href={localizeHref(locale, "security")}
-      >
-        <ShieldCheck aria-hidden="true" className="size-4" />
-        {t("security")}
-      </PropertyLink>
-    </DropdownMenuItem>
+        <PropertyLink
+          defaultProperty={first?.propertyId}
+          knownProperties={Object.keys(segmentsByProperty)}
+          href={localizeHref(locale, "security")}
+        >
+          <ShieldCheck aria-hidden="true" className="size-4" />
+          {t("security")}
+        </PropertyLink>
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <SignOutItem
+        failedLabel={t("signOutFailed")}
+        label={t("signOut")}
+        signInHref={localizeHref(locale, "sign-in")}
+        workingLabel={t("signingOut")}
+      />
+    </>
   );
 
   return (
@@ -232,7 +248,7 @@ export default async function WorkspaceLayout({
                 email={viewer.email}
                 label={t("account")}
                 locale={locale}
-                name={viewer.email}
+                name={viewer.name}
                 variant="compact"
               >
                 {accountItems}
@@ -252,7 +268,7 @@ export default async function WorkspaceLayout({
               email={viewer.email}
               label={t("account")}
               locale={locale}
-              name={viewer.email}
+              name={viewer.name}
             >
               {accountItems}
             </AccountMenu>

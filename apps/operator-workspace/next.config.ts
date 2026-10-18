@@ -26,12 +26,11 @@ const config: NextConfig = {
   // times that reach it and be told, instead of failing in transit.
   experimental: { serverActions: { bodySizeLimit: "4mb" } },
   // Every route is locale-prefixed and every locale opens on Today, so neither
-  // the bare origin nor a bare locale has a page of its own. "tr" is
-  // defaultLocale in @ranza/i18n; it is repeated rather than imported because
-  // this file is loaded before the workspace is compiled.
+  // the bare origin nor a bare locale has a page of its own. The bare origin is
+  // answered by the proxy, which opens it in the language last used, the
+  // browser's, or Turkish.
   async redirects() {
     return [
-      { source: "/", destination: "/tr/today", permanent: false },
       {
         source: "/:locale(tr|en|ar)",
         destination: "/:locale/today",
