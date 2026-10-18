@@ -50,7 +50,10 @@ export type StaffOutcome =
   | "roleRetired"
   | "refused";
 
-/** What an invitation leaves on the screen: a link somebody has to pass on. */
+/**
+ * What an invitation leaves on the screen: a link somebody has to pass on.
+ * A renewed link and a person added back leave the same thing.
+ */
 export interface InviteOutcome {
   state: StaffOutcome;
   /**
@@ -204,6 +207,62 @@ export async function revokeStaffMember(
       )
       .then(() => revalidateRoster(locale)),
   );
+}
+
+/**
+ * A new link for somebody invited who has not yet set a password. The old one
+ * stops working in the same transaction.
+ */
+export async function renewInvitationLink(
+  _previous: InviteOutcome,
+  form: FormData,
+): Promise<InviteOutcome> {
+  return linkCommand(form, (staff, viewer, organizationId, userId) =>
+    staff.reissueInvitation({ userId: viewer }, { organizationId, userId }),
+  );
+}
+
+/** Adds back somebody whose revoke is past the undo window, with a new link. */
+export async function addBackStaffMember(
+  _previous: InviteOutcome,
+  form: FormData,
+): Promise<InviteOutcome> {
+  return linkCommand(form, (staff, viewer, organizationId, userId) =>
+    staff.readd({ userId: viewer }, { organizationId, userId }),
+  );
+}
+
+async function linkCommand(
+  form: FormData,
+  command: (
+    staff: ReturnType<typeof getComposition>["staff"],
+    viewerId: string,
+    organizationId: string,
+    userId: string,
+  ) => Promise<{ token: string; expiresAt: string }>,
+): Promise<InviteOutcome> {
+  const viewer = await currentViewer();
+  if (!viewer) return { state: "refused" };
+
+  const locale = String(form.get("locale") ?? "");
+  if (!isSupportedLocale(locale)) return { state: "refused" };
+
+  try {
+    const issued = await command(
+      getComposition().staff,
+      viewer.userId,
+      String(form.get("organization") ?? ""),
+      String(form.get("member") ?? ""),
+    );
+    revalidateRoster(locale);
+    return {
+      state: "done",
+      token: issued.token,
+      expiresAt: issued.expiresAt,
+    };
+  } catch (error) {
+    return { state: outcomeFor(error) };
+  }
 }
 
 export async function undoStaffRevoke(

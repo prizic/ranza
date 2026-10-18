@@ -12,6 +12,7 @@ import {
   ROLE_NAME,
   StaffRefusedError,
   UNDO_REVOKE_WINDOW_HOURS,
+  type InvitationLink,
   type Invited,
   type NewRole,
   type Role,
@@ -273,10 +274,172 @@ export function createStaffModule(deps: StaffDeps) {
       // confirm which Organizations have invited which addresses.
       throw new StaffRefusedError("that invitation is no longer open");
     }
+    await recordAcceptance(accepted.organization_id, accepted.user_id);
     return {
       organizationId: accepted.organization_id,
       userId: accepted.user_id,
     };
+  }
+
+  /**
+   * Writes down that somebody accepted, as that person.
+   *
+   * Accepting runs without a request context, so the record cannot ride in its
+   * own transaction. The person it names is read from the invitation the
+   * database accepted, never from the caller, and they hold an active
+   * membership — so the audit policy admits them as the actor of their own
+   * acceptance and of nothing else.
+   */
+  async function recordAcceptance(
+    organizationId: string,
+    userId: string,
+  ): Promise<void> {
+    await withOrganizationContext(deps.db, { userId }, async (tx) => {
+      const membership = only(
+        await tx.$queryRawUnsafe<{ id: string }[]>(
+          `select id from public.organization_memberships
+            where organization_id = $1::uuid and user_id = $2::uuid`,
+          organizationId,
+          userId,
+        ),
+        "the accepted membership",
+      );
+      await recordWithin(tx, {
+        organizationId,
+        actorId: userId,
+        action: "staff.invitation_accepted",
+        subjectType: "membership",
+        subjectId: membership.id,
+        context: { userId },
+      });
+    });
+  }
+
+  /**
+   * What state a link is in, for the page behind it.
+   *
+   * Runs without a request context for the reason `accept` does: the person
+   * holding the link cannot sign in yet. Null means no invitation has this
+   * token, which is also what a mistyped link looks like.
+   */
+  async function invitationState(
+    token: string,
+  ): Promise<InvitationLink | null> {
+    const rows = await deps.db.$queryRawUnsafe<
+      {
+        state: InvitationLink["state"];
+        user_id: string;
+        email: string;
+        organization_name: string;
+        role_key: string;
+        role_scope_id: string;
+        role_name: string;
+        has_login: boolean;
+      }[]
+    >("select * from app.staff_invitation_state($1)", digest(token));
+
+    const link = rows[0];
+    if (!link) return null;
+    return {
+      state: link.state,
+      userId: link.user_id,
+      email: link.email,
+      organizationName: link.organization_name,
+      roleKey: link.role_key,
+      roleScopeId: link.role_scope_id,
+      roleName: link.role_name,
+      hasLogin: link.has_login,
+    };
+  }
+
+  /**
+   * Issues a new link to somebody who was invited and has not yet set a
+   * password — because the first link was lost, expired, or was withdrawn when
+   * they were revoked and brought back. The old link stops working in the same
+   * transaction: two live links for one person would be two credentials.
+   *
+   * It does not touch the membership, which is already active (SP-S1-01), and
+   * it refuses a person who has accepted: they have a password and need a link
+   * to nothing.
+   */
+  async function reissueInvitation(
+    context: { userId: string },
+    input: { organizationId: string; userId: string },
+  ): Promise<Invited> {
+    const token = randomBytes(32).toString("base64url");
+    const expiresAt = new Date(
+      Date.now() + INVITATION_LIFETIME_DAYS * 24 * 60 * 60 * 1000,
+    );
+
+    try {
+      return await withOrganizationContext(deps.db, context, async (tx) => {
+        const [membership] = await tx.$queryRawUnsafe<
+          { id: string; status: string; latest: string | null }[]
+        >(
+          `select membership.id, membership.status,
+                  (select invitation.status
+                     from public.staff_invitations as invitation
+                    where invitation.organization_id = membership.organization_id
+                      and invitation.user_id = membership.user_id
+                    order by invitation.created_at desc
+                    limit 1) as latest
+             from public.organization_memberships as membership
+            where membership.organization_id = $1::uuid
+              and membership.user_id = $2::uuid`,
+          input.organizationId,
+          input.userId,
+        );
+        if (
+          !membership ||
+          membership.status !== "active" ||
+          membership.latest === null ||
+          membership.latest === "accepted"
+        ) {
+          throw new StaffRefusedError("there is no invitation to renew");
+        }
+
+        await tx.$executeRawUnsafe(
+          `update public.staff_invitations
+              set status = 'withdrawn', updated_at = now()
+            where organization_id = $1::uuid and user_id = $2::uuid
+              and status = 'pending'`,
+          input.organizationId,
+          input.userId,
+        );
+        const invitation = only(
+          await tx.$queryRawUnsafe<{ id: string }[]>(
+            `insert into public.staff_invitations
+               (organization_id, user_id, token_hash, status, expires_at, invited_by)
+             values ($1::uuid, $2::uuid, $3, 'pending', $4::timestamptz, $5::uuid)
+             returning id`,
+            input.organizationId,
+            input.userId,
+            digest(token),
+            expiresAt.toISOString(),
+            context.userId,
+          ),
+          "the invitation",
+        );
+
+        await recordWithin(tx, {
+          organizationId: input.organizationId,
+          actorId: context.userId,
+          action: "staff.invitation_renewed",
+          subjectType: "membership",
+          subjectId: membership.id,
+          context: { userId: input.userId },
+        });
+
+        return {
+          membershipId: membership.id,
+          invitationId: invitation.id,
+          token,
+          expiresAt: expiresAt.toISOString(),
+        };
+      });
+    } catch (error) {
+      throw translate(error, "that invitation was refused");
+    }
   }
 
   /**
@@ -538,6 +701,78 @@ export function createStaffModule(deps: StaffDeps) {
   }
 
   /**
+   * Brings back somebody whose revoke can no longer be undone.
+   *
+   * The same membership row returns to active with the role it had, and a new
+   * invitation is written against it (SP-S1-16): one person has one membership
+   * per Organization, so this is not `invite`, which refuses a person who has
+   * one. Their Property assignments ended with the revoke and are not brought
+   * back — what somebody reaches after being away is a fresh decision, made on
+   * the roster, and the roster says they reach nothing until it is.
+   */
+  async function readd(
+    context: { userId: string },
+    input: { organizationId: string; userId: string },
+  ): Promise<Invited> {
+    const token = randomBytes(32).toString("base64url");
+    const expiresAt = new Date(
+      Date.now() + INVITATION_LIFETIME_DAYS * 24 * 60 * 60 * 1000,
+    );
+
+    try {
+      return await withOrganizationContext(deps.db, context, async (tx) => {
+        const restored = await tx.$queryRawUnsafe<{ id: string }[]>(
+          `update public.organization_memberships
+              set status = 'active', revoked_at = null, updated_at = now()
+            where organization_id = $1::uuid and user_id = $2::uuid
+              and status = 'revoked'
+            returning id`,
+          input.organizationId,
+          input.userId,
+        );
+        const membership = restored[0];
+        if (!membership) {
+          throw new StaffRefusedError("there is nobody revoked to add back");
+        }
+
+        const invitation = only(
+          await tx.$queryRawUnsafe<{ id: string }[]>(
+            `insert into public.staff_invitations
+               (organization_id, user_id, token_hash, status, expires_at, invited_by)
+             values ($1::uuid, $2::uuid, $3, 'pending', $4::timestamptz, $5::uuid)
+             returning id`,
+            input.organizationId,
+            input.userId,
+            digest(token),
+            expiresAt.toISOString(),
+            context.userId,
+          ),
+          "the invitation",
+        );
+
+        await announce(tx, input.organizationId, input.userId, "readded");
+        await recordWithin(tx, {
+          organizationId: input.organizationId,
+          actorId: context.userId,
+          action: "staff.readded",
+          subjectType: "membership",
+          subjectId: membership.id,
+          context: { userId: input.userId },
+        });
+
+        return {
+          membershipId: membership.id,
+          invitationId: invitation.id,
+          token,
+          expiresAt: expiresAt.toISOString(),
+        };
+      });
+    } catch (error) {
+      throw translate(error, "that change was refused");
+    }
+  }
+
+  /**
    * Everybody who works for this Organization, and where they reach.
    *
    * Organization-wide and no wider — the policy decides that, not the query
@@ -561,6 +796,7 @@ export function createStaffModule(deps: StaffDeps) {
           access_scope: string;
           status: string;
           accepted_at: Date | null;
+          revoked_at: Date | null;
           invitation: string | null;
           properties: { propertyId: string; propertyName: string }[] | null;
         }[]
@@ -575,6 +811,7 @@ export function createStaffModule(deps: StaffDeps) {
                 membership.access_scope  as access_scope,
                 membership.status        as status,
                 membership.accepted_at   as accepted_at,
+                membership.revoked_at    as revoked_at,
                 (
                   -- The most recent one. Re-inviting writes a fresh invitation
                   -- against the same membership, so "was this person invited"
@@ -624,6 +861,7 @@ export function createStaffModule(deps: StaffDeps) {
         status: row.status === "revoked" ? "revoked" : "active",
         invitation: (row.invitation as StaffMember["invitation"]) ?? null,
         acceptedAt: row.accepted_at ? row.accepted_at.toISOString() : null,
+        revokedAt: row.revoked_at ? row.revoked_at.toISOString() : null,
         properties: row.properties ?? [],
       }));
     });
@@ -970,11 +1208,14 @@ export function createStaffModule(deps: StaffDeps) {
   return {
     invite,
     accept,
+    invitationState,
+    reissueInvitation,
     changeRole,
     assignProperty,
     unassignProperty,
     revoke,
     undoRevoke,
+    readd,
     readRoster,
     readRoles,
     defineRole,

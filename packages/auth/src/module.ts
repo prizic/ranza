@@ -1,7 +1,13 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { twoFactor } from "better-auth/plugins";
-import { AUTH_ISSUER, TOTP_ISSUER, type LinkRanzaUserInput } from "./contracts";
+import {
+  AUTH_ISSUER,
+  InvitedUserLinkError,
+  TOTP_ISSUER,
+  type LinkInvitedUserInput,
+  type LinkRanzaUserInput,
+} from "./contracts";
 import type { AuthDeps } from "./ports";
 
 /**
@@ -116,7 +122,52 @@ export function createAuthModule(deps: AuthDeps) {
     }
   }
 
-  return { auth, resolveRanzaUserId, linkRanzaUser };
+  /**
+   * Gives a login to somebody an invitation already made a Ranza user for.
+   *
+   * `linkRanzaUser` cannot: it creates the user, and an invited address already
+   * has one. It also must not adopt an existing user by email, because anybody
+   * can sign up with any address and would then inherit the membership waiting
+   * for it. So adopting is a separate act, and it is narrow — the account has
+   * to carry that user's own address, and the user has to have no login yet.
+   *
+   * What it does not check is that the caller holds the invitation. That is the
+   * host's to prove before calling, and the only reason this is safe to export.
+   */
+  async function linkInvitedUser(input: LinkInvitedUserInput): Promise<void> {
+    const issuer = input.issuer ?? AUTH_ISSUER;
+
+    const account = await deps.db.authUser.findUnique({
+      where: { id: input.subject },
+      select: { email: true },
+    });
+    if (!account) throw new InvitedUserLinkError("no_account");
+
+    const user = await deps.db.user.findUnique({
+      where: { id: input.userId },
+      select: { email: true },
+    });
+    if (!user || user.email.toLowerCase() !== account.email.toLowerCase()) {
+      throw new InvitedUserLinkError("not_their_address");
+    }
+
+    const existing = await deps.db.authIdentity.findFirst({
+      where: { userId: input.userId, issuer },
+      select: { id: true },
+    });
+    if (existing) throw new InvitedUserLinkError("has_login");
+
+    try {
+      await deps.db.authIdentity.create({
+        data: { userId: input.userId, issuer, subject: input.subject },
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) throw new InvitedUserLinkError("has_login");
+      throw error;
+    }
+  }
+
+  return { auth, resolveRanzaUserId, linkRanzaUser, linkInvitedUser };
 }
 
 /** A unique violation as Prisma reports one: P2002, raised from Postgres' 23505. */

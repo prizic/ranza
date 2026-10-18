@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState, PageHeader } from "@ranza/ui";
@@ -6,10 +7,7 @@ import { DefineRoleDialog } from "../../../../features/staff/components/define-r
 import { InviteDialog } from "../../../../features/staff/components/invite-dialog";
 import { StaffScreen } from "../../../../features/staff/components/staff-screen";
 import { rolesWithinViewer } from "../../../../features/staff/acts-on";
-import {
-  PERMISSION_CATALOGUE,
-  shippedRoleOf,
-} from "../../../../features/staff/labels";
+import { shippedRoleOf } from "../../../../features/staff/labels";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import { readRoles, readRoster } from "../../../../server/staff";
 import {
@@ -84,6 +82,7 @@ export default async function PeoplePage({
     );
   const mayAdminister = await holds("staff.administer");
   const mayDefineRoles = await holds("staff.define_roles");
+  const mayViewHr = await holds("hr.view");
   // Sequential rather than parallel: both resolve the same session through
   // `currentViewer`, which is cached per request, and issuing them together
   // would only race to be the one that validates it.
@@ -106,12 +105,19 @@ export default async function PeoplePage({
               <DefineRoleDialog
                 locale={locale}
                 organizationId={organizationId}
+                roles={roles}
               />
             ) : null}
             {mayAdminister && invitableRoles.length > 0 ? (
               <InviteDialog
                 locale={locale}
                 organizationId={organizationId}
+                organizationWide={roster.some(
+                  (member) =>
+                    member.userId === viewer.userId &&
+                    member.status === "active" &&
+                    member.accessScope === "organization_wide",
+                )}
                 properties={properties
                   .filter(
                     (property) => property.organizationId === organizationId,
@@ -139,6 +145,17 @@ export default async function PeoplePage({
         <p className="mt-1 text-sm text-muted-foreground">
           {home.organizationName}
         </p>
+        {mayViewHr ? (
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t("staff.hrPointer")}{" "}
+            <Link
+              className="font-medium text-foreground underline underline-offset-2"
+              href={localizeHref(locale, `hr?property=${home.propertyId}`)}
+            >
+              {t("staff.hrPointerLink")}
+            </Link>
+          </p>
+        ) : null}
         {mayAdminister || mayDefineRoles ? null : (
           <p className="mt-3 text-sm text-muted-foreground">
             {t("staff.readOnly")}
@@ -157,7 +174,6 @@ export default async function PeoplePage({
           mayAdminister={mayAdminister}
           mayDefineRoles={mayDefineRoles}
           organizationId={organizationId}
-          permissions={PERMISSION_CATALOGUE}
           roles={roles}
           roster={roster}
           viewerUserId={viewer.userId}

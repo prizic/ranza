@@ -241,7 +241,102 @@ export interface Messages {
    * it is active and the person simply has not set a password yet. Calling it
    * pending on a screen would teach the wrong model of the thing.
    */
+  /** The page behind an invitation link (PEOPLE-01). */
+  acceptInvitation: {
+    /** `{organization}`, `{role}`. */
+    summary: string;
+    title: Record<"set_password" | "sign_in" | "accept", string>;
+    name: string;
+    passwordHint: string;
+    signInHint: string;
+    working: string;
+    goToSignIn: string;
+    submit: Record<"set_password" | "sign_in" | "accept", string>;
+    errors: Record<
+      | "weak_password"
+      | "throttled"
+      | "account_exists"
+      | "unavailable"
+      | "secondStep",
+      string
+    >;
+    refused: Record<
+      | "unknown"
+      | "expired"
+      | "accepted"
+      | "withdrawn"
+      | "membership_revoked"
+      | "other_account",
+      { title: string; body: string; next: string }
+    >;
+  };
   staff: {
+    search: string;
+    /** ICU plural on `count`. */
+    showRevoked: string;
+    /** `{query}`. */
+    noMatch: string;
+    showAll: string;
+    /** `{until}`: the time a revoke can be undone until. */
+    undoUntil: string;
+    /** `{hours}`. */
+    undoOver: string;
+    linkNoLonger: string;
+    renewLink: string;
+    addBack: string;
+    done: string;
+    chooseRole: string;
+    everyProperty: string;
+    reachesNothingWarning: string;
+    roleDescriptions: Record<
+      "owner" | "manager" | "front_desk" | "housekeeping" | "finance",
+      string
+    >;
+    copyLink: string;
+    linkCopied: string;
+    copyFailed: string;
+    linkNotSent: string;
+    showSection: string;
+    allSections: string;
+    sections: Record<
+      "frontDesk" | "money" | "rooms" | "guests" | "people" | "setup",
+      string
+    >;
+    revenueGateNote: string;
+    allowed: string;
+    notAllowed: string;
+    /** ICU plurals on `count` roles and `people`. */
+    unsavedRoles: string;
+    discardChanges: string;
+    saveChanges: string;
+    confirmSaveTitle: string;
+    /** `{roles}`. */
+    confirmSaveRoles: string;
+    confirmSaveNobody: string;
+    /** ICU plural on `people`. */
+    confirmSavePeople: string;
+    /** `{role}`. */
+    confirmRetireTitle: string;
+    retireBody: string;
+    /** `{role}`, ICU plural on `count`. */
+    retireHeld: string;
+    startFrom: string;
+    startFromPlaceholder: string;
+    /** `{permissions}`. */
+    confirmRoleGains: string;
+    confirmRoleLosses: string;
+    hrPointer: string;
+    hrPointerLink: string;
+    /** What each action on a membership says before it is done (PEOPLE-02). */
+    membership: {
+      revoke: Record<
+        "title" | "body" | "keeps" | "undo" | "self" | "confirm",
+        string
+      >;
+      restore: Record<"title" | "body" | "until" | "confirm", string>;
+      renew: Record<"title" | "body" | "done" | "confirm", string>;
+      readd: Record<"title" | "body" | "done" | "confirm", string>;
+    };
     rosterOf: string;
     screenSummary: string;
     readOnly: string;
@@ -2080,6 +2175,9 @@ export interface Messages {
     >;
     staff: Record<
       | "invited"
+      | "invitation_renewed"
+      | "invitation_accepted"
+      | "readded"
       | "role_changed"
       | "role_permissions_changed"
       | "property_assigned"
@@ -2507,7 +2605,163 @@ export const messages: Record<SupportedLocale, Messages> = {
     contactDetails: "İletişim bilgileri",
     financialDetails: "Ücret ve hesap bilgileri",
 
+    acceptInvitation: {
+      summary: "{organization} sizi {role} olarak davet etti.",
+      title: {
+        set_password: "Parolanızı belirleyin",
+        sign_in: "Kabul etmek için oturum açın",
+        accept: "Davetinizi kabul edin",
+      },
+      name: "Adınız",
+      passwordHint: "En az 8 karakter. Oturum açarken kullanacaksınız.",
+      signInHint: "Bu adres için zaten bir hesabınız var.",
+      working: "Bir saniye...",
+      goToSignIn: "Oturum açmaya git",
+      submit: {
+        set_password: "Parolayı belirle ve katıl",
+        sign_in: "Oturum aç ve kabul et",
+        accept: "Daveti kabul et",
+      },
+      errors: {
+        weak_password:
+          "Bu parola çok kısa ya da çok uzun. 8 ile 128 karakter kullanın.",
+        throttled: "Çok fazla deneme yapıldı. Biraz sonra tekrar deneyin.",
+        account_exists:
+          "Bu adres için zaten bir hesap var. Onun parolasıyla oturum açın.",
+        unavailable:
+          "Bu çalışmadı. Tekrar deneyin; sürerse sizi davet eden kişiye bildirin.",
+        secondStep: "Bu hesap burada yapılamayan bir ikinci adım istiyor.",
+      },
+      refused: {
+        unknown: {
+          title: "Bu bağlantı çalışmıyor",
+          body: "Eksik kopyalanmış olabilir ya da bir davet değil.",
+          next: "Sizi davet eden kişiden bağlantının tamamını yeniden göndermesini isteyin.",
+        },
+        expired: {
+          title: "Bu davetin süresi doldu",
+          body: "Davet bağlantısı yedi gün geçerlidir.",
+          next: "Sizi davet eden kişiden yeni bir bağlantı isteyin. Sizden başka bir şey gerekmez.",
+        },
+        accepted: {
+          title: "Bu davet zaten kullanıldı",
+          body: "Bir bağlantı yalnızca bir kez çalışır ve bu kullanıldı.",
+          next: "Kullanan sizseniz oturum açın. Siz değilseniz sizi davet eden kişiye bildirin.",
+        },
+        withdrawn: {
+          title: "Bu davet geri çekildi",
+          body: "Gönderen kişi daveti iptal etti ya da daha yeni bir bağlantı gönderdi.",
+          next: "Sizi davet eden kişiden güncel bir bağlantı isteyin.",
+        },
+        membership_revoked: {
+          title: "Bu erişim kaldırıldı",
+          body: "Bağlantıyı kullanmadan önce bu Kuruluştaki yeriniz kaldırıldı.",
+          next: "Kuruluşun bir yöneticisinden yerinizi geri vermesini ve yeni bir bağlantı göndermesini isteyin.",
+        },
+        other_account: {
+          title: "Bu davet başkası için",
+          body: "Davet edilen kişiden farklı biri olarak oturum açtınız.",
+          next: "Oturumu kapatın, sonra bağlantıyı yeniden açın.",
+        },
+      },
+    },
     staff: {
+      search: "Ekipte ara",
+      showRevoked: "Erişimi kaldırılan {count} kişiyi göster",
+      noMatch: "Listede “{query}” ile eşleşen kimse yok.",
+      showAll: "Herkesi göster",
+      undoUntil: "{until} saatine kadar geri alınabilir",
+      undoOver: "{hours} saatlik geri alma süresi doldu",
+      linkNoLonger: "Çalışan bağlantı yok",
+      renewLink: "Yeni davet bağlantısı",
+      addBack: "Yeniden ekle",
+      done: "Tamam",
+      chooseRole: "Bir rol seçin",
+      everyProperty: "Bu Kuruluştaki her Tesis, sonradan eklenenler dahil",
+      reachesNothingWarning:
+        "Bu kişi hiçbir Tesise ulaşamayacak. Oturum açabilir ama siz bir Tesis atayana kadar hiçbir şey göremez.",
+      roleDescriptions: {
+        owner:
+          "Her şey, Kuruluşun markası dahil. Özenle verin: bir Sahip herkesin rolünü değiştirebilir.",
+        manager:
+          "Bir Tesisi günlük yönetir: rezervasyonlar, odalar, fiyatlar, ekip, İK ve bordro, defter. Kuruluşun markasını değiştiremez.",
+        front_desk:
+          "Rezervasyonlar, giriş ve çıkış, ödeme alma ve günü kapatma. Bordro, defter ve ekip değişikliği yok.",
+        housekeeping:
+          "Oda durumunu günceller ve bakım bildirir. Başka bir şey yok.",
+        finance:
+          "Masraflar, ödemeler ve iptalleri, defter ve veri dışa aktarımları. Rezervasyon yok.",
+      },
+      copyLink: "Bağlantıyı kopyala",
+      linkCopied: "Kopyalandı",
+      copyFailed: "Kopyalanamadı. Bağlantıyı seçip elle kopyalayın.",
+      linkNotSent:
+        "E-posta gönderilmedi. Bağlantıyı kopyalayıp kişiye kendiniz iletin.",
+      showSection: "Bölümü göster",
+      allSections: "Tüm bölümler",
+      sections: {
+        frontDesk: "Ön büro",
+        money: "Para",
+        rooms: "Odalar ve kat hizmetleri",
+        guests: "Misafir hizmetleri",
+        people: "Kişiler ve İK",
+        setup: "Ayarlar ve kayıtlar",
+      },
+      revenueGateNote:
+        "Analitik, Bugün ve Portföy’de ciroyu ve bakiyeleri de gösterir.",
+      allowed: "İzinli",
+      notAllowed: "İzinli değil",
+      unsavedRoles:
+        "{count, plural, one {# rolde kaydedilmemiş değişiklik var} other {# rolde kaydedilmemiş değişiklik var}}. {people, plural, =0 {Bu rolleri kimse tutmuyor.} other {Kaydetmek # kişinin oturumunu kapatır.}}",
+      discardChanges: "Değişiklikleri at",
+      saveChanges: "Değişiklikleri kaydet",
+      confirmSaveTitle: "Bu rol değişiklikleri kaydedilsin mi?",
+      confirmSaveRoles: "{roles} rollerinin yapabileceklerini değiştirdiniz.",
+      confirmSaveNobody:
+        "Bu rolleri henüz kimse tutmuyor, kimsenin oturumu kapanmaz.",
+      confirmSavePeople:
+        "Bu rolleri {people} kişi tutuyor. Kaydetmek oturumlarını kapatır; yeni izinleri yeniden oturum açtıklarında alırlar.",
+      confirmRetireTitle: "{role} sunulmayı bıraksın mı?",
+      retireBody:
+        "{role} artık birini davet ederken ya da rol değiştirirken sunulmaz. Kimse tutmadığı için kimse etkilenmez. İstediğiniz zaman yeniden sunabilirsiniz.",
+      retireHeld:
+        "{role} rolünü {count} kişi tutuyor. Önce onlara başka bir rol verin, sonra sunmayı bırakın.",
+      startFrom: "Şundan başla",
+      startFromPlaceholder: "Boş bir rol",
+      confirmRoleGains: "Kazandıkları: {permissions}.",
+      confirmRoleLosses: "Kaybettikleri: {permissions}.",
+      hrPointer:
+        "Bu liste, kimin oturum açabildiği ve neler yapabildiğidir. Maaş, vardiya ve izinler şurada tutulur:",
+      hrPointerLink: "İK ve bordro",
+      membership: {
+        revoke: {
+          title: "{member} için erişim kaldırılsın mı?",
+          body: "{member} bu Kuruluşa erişimini hemen kaybeder. Tuttuğu her oturum, her cihazda bir anda sona erer.",
+          keeps:
+            "Hiçbir şey silinmez. Kişi bu listede erişimi kaldırılmış olarak durur, kaydettiği her şey geçmişte adıyla kalır ve kullanılmamış davet bağlantısı çalışmaz olur.",
+          undo: "Bunu {hours} saat boyunca geri alabilirsiniz. Sonrasında yalnızca yeni bir bağlantıyla yeniden eklenebilir ve siz bir Tesis atayana kadar hiçbir Tesise ulaşamaz.",
+          self: "Bu sizin kendi erişiminiz. Onayladığınız anda oturumunuz kapanır ve bunu kendiniz geri alamazsınız.",
+          confirm: "Erişimi kaldır",
+        },
+        restore: {
+          title: "{member} için erişim geri verilsin mi?",
+          body: "{member} sahip olduğu rolü ve Tesisleri geri alır. Erişim kaldırılırken oturumları kapandığı için yeniden oturum açmalıdır.",
+          until: "{until} saatine kadar geri verebilirsiniz.",
+          confirm: "Erişimi geri ver",
+        },
+        renew: {
+          title: "{member} için yeni bağlantı oluşturulsun mu?",
+          body: "Eski bağlantı hemen çalışmaz olur. E-posta gönderilmez: yeni bağlantıyı kopyalayıp kendiniz iletirsiniz.",
+          done: "Yeni bağlantı hazır. Eskisi artık çalışmıyor.",
+          confirm: "Yeni bağlantı oluştur",
+        },
+        readd: {
+          title: "{member} yeniden eklensin mi?",
+          body: "{member} eski rolüyle ({role}) ekibe yeniden katılır. Siz bir Tesis atayana kadar hiçbir Tesise ulaşamaz. Yeni bir bağlantı oluşturulur; e-posta gönderilmez.",
+          done: "Kişi ekibe geri döndü. Bağlantıyı iletin; henüz hiçbir Tesise ulaşamaz.",
+          confirm: "Yeniden ekle",
+        },
+      },
       rosterOf: "Ekip —",
       screenSummary:
         "Burada kimler çalışıyor, hangi tesislere erişiyorlar ve her rol ne yapabilir.",
@@ -2521,21 +2775,22 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{count, plural, =0 {kimse tutmuyor} one {# kişi} other {# kişi}}",
       shippedGroup: "Ranza’nın gönderdikleri",
       authoredGroup: "Sizin tanımladıklarınız",
-      invitationSent: "Davet gönderildi",
+      invitationSent: "Bağlantı henüz kullanılmadı",
       inviteNotice:
-        "Bağlantıyı siz iletirsiniz: henüz e-posta gönderen bir modül yok. Yedi gün sonra geçersiz olur ve yalnızca bir kez gösterilir.",
+        "E-posta gönderilmez. Bağlantıyı kopyalayıp kendiniz iletirsiniz. Bir kez çalışır ve yedi gün sonra geçerliliğini yitirir.",
       matrixNote:
-        "Ranza\u2019nın gönderdiği roller bir sürümle gelir ve değiştirilmez. Her değişiklik denetim kaydına yazılır ve yalnızca düğmeler gizlenerek değil, veritabanında uygulanır.",
-      cannotGrant: "Kendi rolünüzde olmayan bir yetkiyi veremezsiniz.",
+        "Ranza’nın getirdiği roller bir sürümle gelir ve düzenlenemez. Kendi rollerinizdeki değişiklikler birlikte kaydedilir ve veritabanı bunları uygular.",
+      cannotGrant:
+        "{roles} için kaydedilemedi: kendi rolünüzde olmayan bir yetkiyi veremezsiniz. Diğer roller kaydedildi.",
       invite: "Davet et",
       inviteTitle: "Ekibe birini davet et",
       inviteDescription:
         "Üyelik hemen açılır. Davet bağlantısı yalnızca parola belirlemek içindir.",
-      sendInvitation: "Daveti oluştur",
+      sendInvitation: "Davet bağlantısı oluştur",
       cancel: "Vazgeç",
-      linkToPassOn: "Bu bağlantıyı kendiniz iletin",
+      linkToPassOn: "Davet bağlantısı",
       linkExpires:
-        "Bağlantı yedi gün sonra geçersiz olur ve bir daha gösterilmez.",
+        "Bir kez çalışır, {date} tarihine kadar geçerlidir. Bu pencereyi kapatmak onu silmez: yenisi için listedeki “Yeni davet bağlantısı”nı kullanın.",
       email: "E-posta",
       role: "Rol",
       properties: "Tesisler",
@@ -2544,15 +2799,15 @@ export const messages: Record<SupportedLocale, Messages> = {
       aboveYou: "Rolü ya da erişimi sizinkinden geniş.",
       active: "Aktif",
       awaitingPassword: "Parola bekleniyor",
-      revoked: "Kaldırıldı",
-      revoke: "Kaldır",
-      undoRevoke: "Geri al",
+      revoked: "Erişim kaldırıldı",
+      revoke: "Erişimi kaldır",
+      undoRevoke: "Erişimi geri ver",
       reachesNothing: "Henüz bir tesis atanmadı",
       reachesEverywhere: "Tüm tesisler",
       alreadyAMember: "Bu kişinin bu organizasyonda zaten bir üyeliği var.",
       refused: "Bu işlem reddedildi.",
       lastAdministrator:
-        "Bir organizasyonda ekip yönetebilen en az bir kişi kalmalıdır.",
+        "Bir Kuruluşta ekip ekleyebilen biri kalmalı. Önce başka birine Sahip rolünü verin.",
       roleIsHeld: "Bu rolü tutan kişiler var; önce onları taşıyın.",
       confirmRoleTitle: "Bu rol değiştirilsin mi?",
       confirmRoleChange: "{member}, {from} rolünden {to} rolüne geçecek.",
@@ -2576,9 +2831,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       mayDo: "Yapabilecekleri",
       heldBy: "Tutan kişi",
       shipped: "Ranza",
-      retired: "Emekli",
-      retire: "Emekliye ayır",
-      reinstate: "Geri getir",
+      retired: "Artık sunulmuyor",
+      retire: "Sunmayı bırak",
+      reinstate: "Yeniden sun",
       noCommands: "Henüz bir yetki yok",
       permissions: {
         book: "Rezervasyon alma",
@@ -4479,6 +4734,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       staff: {
         invited: "Ekip üyesi davet edildi",
+        invitation_renewed: "Davet bağlantısı yenilendi",
+        invitation_accepted: "Davet kabul edildi",
+        readded: "Üye geri eklendi",
         role_changed: "Rol değiştirildi",
         role_permissions_changed: "Rol izinleri değiştirildi",
         property_assigned: "Tesise atandı",
@@ -4962,7 +5220,165 @@ export const messages: Record<SupportedLocale, Messages> = {
     contactDetails: "Contact details",
     financialDetails: "Billing & rate details",
 
+    acceptInvitation: {
+      summary: "{organization} has invited you to join as {role}.",
+      title: {
+        set_password: "Choose your password",
+        sign_in: "Sign in to accept",
+        accept: "Accept your invitation",
+      },
+      name: "Your name",
+      passwordHint: "At least 8 characters. You will use it to sign in.",
+      signInHint: "You already have an account for this address.",
+      working: "One moment...",
+      goToSignIn: "Go to sign in",
+      submit: {
+        set_password: "Set password and join",
+        sign_in: "Sign in and accept",
+        accept: "Accept invitation",
+      },
+      errors: {
+        weak_password:
+          "That password is too short or too long. Use 8 to 128 characters.",
+        throttled: "Too many attempts. Try again in a moment.",
+        account_exists:
+          "An account already exists for this address. Sign in with its password instead.",
+        unavailable:
+          "This did not work. Try again, and tell whoever invited you if it keeps failing.",
+        secondStep:
+          "This account asks for a second step that cannot be done here.",
+      },
+      refused: {
+        unknown: {
+          title: "This link does not work",
+          body: "It was copied incompletely or it is not an invitation.",
+          next: "Ask whoever invited you to send the whole link again.",
+        },
+        expired: {
+          title: "This invitation has expired",
+          body: "An invitation link stands for seven days.",
+          next: "Ask whoever invited you for a new link. Nothing else is needed from you.",
+        },
+        accepted: {
+          title: "This invitation was already used",
+          body: "A link works once, and this one has been used.",
+          next: "If that was you, sign in. If it was not, tell whoever invited you.",
+        },
+        withdrawn: {
+          title: "This invitation was withdrawn",
+          body: "The person who sent it cancelled it, or sent a newer link.",
+          next: "Ask whoever invited you for a current link.",
+        },
+        membership_revoked: {
+          title: "This access was removed",
+          body: "Your place in this Organization was removed before you used the link.",
+          next: "Ask an administrator of the Organization to restore it and send a new link.",
+        },
+        other_account: {
+          title: "This invitation is for someone else",
+          body: "You are signed in as a different person than the one invited.",
+          next: "Sign out, then open the link again.",
+        },
+      },
+    },
     staff: {
+      search: "Search the team",
+      showRevoked:
+        "{count, plural, one {Show # person whose access was removed} other {Show # people whose access was removed}}",
+      noMatch: "Nobody on the list matches “{query}”.",
+      showAll: "Show everyone",
+      undoUntil: "Can be undone until {until}",
+      undoOver: "The {hours}-hour undo window is over",
+      linkNoLonger: "No working link",
+      renewLink: "New invitation link",
+      addBack: "Add back",
+      done: "Done",
+      chooseRole: "Choose a role",
+      everyProperty:
+        "Every Property in this Organization, including ones added later",
+      reachesNothingWarning:
+        "This person will reach no Property. They can sign in, but they will see nothing until you assign one.",
+      roleDescriptions: {
+        owner:
+          "Everything, including the Organization’s brand. Give it sparingly: an Owner can change anyone’s role.",
+        manager:
+          "Runs a Property day to day: bookings, rooms, rates, staff, HR and payroll, and the ledger. Cannot change the Organization’s brand.",
+        front_desk:
+          "Bookings, check-in and check-out, taking payments and closing the day. No payroll, ledger or staff changes.",
+        housekeeping:
+          "Updates room status and reports maintenance. Nothing else.",
+        finance:
+          "Charges, payments and their reversals, the ledger and data exports. No bookings.",
+      },
+      copyLink: "Copy link",
+      linkCopied: "Copied",
+      copyFailed: "Could not copy. Select the link and copy it by hand.",
+      linkNotSent:
+        "No email was sent. Copy the link and send it to the person yourself.",
+      showSection: "Show section",
+      allSections: "All sections",
+      sections: {
+        frontDesk: "Front desk",
+        money: "Money",
+        rooms: "Rooms and housekeeping",
+        guests: "Guest services",
+        people: "People and HR",
+        setup: "Setup and records",
+      },
+      revenueGateNote:
+        "Also shows revenue and balances on Analytics, Today and Portfolio.",
+      allowed: "Allowed",
+      notAllowed: "Not allowed",
+      unsavedRoles:
+        "{count, plural, one {# role has unsaved changes} other {# roles have unsaved changes}}. {people, plural, =0 {Nobody holds them.} one {Saving signs out 1 person.} other {Saving signs out # people.}}",
+      discardChanges: "Discard changes",
+      saveChanges: "Save changes",
+      confirmSaveTitle: "Save these role changes?",
+      confirmSaveRoles: "You changed what {roles} may do.",
+      confirmSaveNobody: "Nobody holds them yet, so nobody is signed out.",
+      confirmSavePeople:
+        "{people, plural, one {1 person holds} other {# people hold}} them. Saving signs them out, and they get the new permissions when they sign in again.",
+      confirmRetireTitle: "Stop offering {role}?",
+      retireBody:
+        "{role} will no longer be offered when inviting someone or changing a role. Nobody holds it, so nobody is affected. You can offer it again at any time.",
+      retireHeld:
+        "{count, plural, one {1 person holds} other {# people hold}} {role}. Give them another role first, then stop offering it.",
+      startFrom: "Start from",
+      startFromPlaceholder: "A blank role",
+      confirmRoleGains: "They gain: {permissions}.",
+      confirmRoleLosses: "They lose: {permissions}.",
+      hrPointer:
+        "This list is who can sign in and what they may do. Pay, rota and leave are kept in",
+      hrPointerLink: "HR & payroll",
+      membership: {
+        revoke: {
+          title: "Remove access for {member}?",
+          body: "{member} loses access to this Organization now. Every session they hold ends at once, on every device.",
+          keeps:
+            "Nothing is deleted. They stay on this list as removed, anything they recorded stays in the history under their name, and an unused invitation link stops working.",
+          undo: "You can undo this for {hours} hours. After that they can only be added back with a new link, and they reach no Property until you assign one.",
+          self: "This is your own access. You will be signed out as soon as you confirm, and you cannot undo it yourself.",
+          confirm: "Remove access",
+        },
+        restore: {
+          title: "Restore access for {member}?",
+          body: "{member} gets back the role and the Properties they had. They must sign in again, because their sessions ended when access was removed.",
+          until: "You can restore until {until}.",
+          confirm: "Restore access",
+        },
+        renew: {
+          title: "Make a new link for {member}?",
+          body: "The old link stops working at once. Nothing is emailed: you copy the new link and pass it on yourself.",
+          done: "The new link is ready. The old one no longer works.",
+          confirm: "Make new link",
+        },
+        readd: {
+          title: "Add {member} back?",
+          body: "{member} joins the team again with their old role ({role}). They reach no Property until you assign one. A new link is made; nothing is emailed.",
+          done: "They are back on the team. Pass the link on; they reach no Property yet.",
+          confirm: "Add back",
+        },
+      },
       rosterOf: "The team at",
       screenSummary:
         "Who works here, which Properties they reach, and what each role may do.",
@@ -4975,20 +5391,22 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{count, plural, =0 {nobody holds it} one {# person} other {# people}}",
       shippedGroup: "Ranza ships these",
       authoredGroup: "You defined these",
-      invitationSent: "Invitation sent",
+      invitationSent: "Link not yet used",
       inviteNotice:
-        "You pass the link on yourself — nothing sends email yet. It lapses after seven days and is shown only once.",
+        "Nothing is emailed. You copy the link and pass it on yourself. It works once and lapses after seven days.",
       matrixNote:
-        "The roles Ranza ships arrive in a release and are not editable. Every change is written to the audit log and enforced by the database, not only by hiding buttons.",
-      cannotGrant: "You cannot grant a permission your own role does not hold.",
+        "The roles Ranza ships arrive in a release and cannot be edited. Changes to your own roles are saved together, and the database enforces them.",
+      cannotGrant:
+        "Not saved for {roles}: you cannot grant a permission your own role does not hold. The other roles were saved.",
       invite: "Invite",
       inviteTitle: "Invite somebody to the team",
       inviteDescription:
         "The membership opens immediately. The link is only the way to a password.",
-      sendInvitation: "Create the invitation",
+      sendInvitation: "Create invitation link",
       cancel: "Cancel",
-      linkToPassOn: "Pass this link on yourself",
-      linkExpires: "It lapses after seven days, and is never shown again.",
+      linkToPassOn: "Invitation link",
+      linkExpires:
+        "Works once, until {date}. Closing this window does not delete it: use “New invitation link” on the list to make another.",
       email: "Email",
       role: "Role",
       properties: "Properties",
@@ -4997,16 +5415,16 @@ export const messages: Record<SupportedLocale, Messages> = {
       aboveYou: "Their role or reach is above yours.",
       active: "Active",
       awaitingPassword: "Awaiting a password",
-      revoked: "Revoked",
-      revoke: "Revoke",
-      undoRevoke: "Undo",
+      revoked: "Access removed",
+      revoke: "Remove access",
+      undoRevoke: "Restore access",
       reachesNothing: "No Property yet",
       reachesEverywhere: "Every Property",
       alreadyAMember:
         "That person already has a membership in this Organization.",
       refused: "That was refused.",
       lastAdministrator:
-        "An Organization must keep somebody who can add staff.",
+        "An Organization must keep somebody who can add staff. Give another person the Owner role first.",
       roleIsHeld: "Somebody holds this role. Move them first.",
       confirmRoleTitle: "Change this role?",
       confirmRoleChange: "{member} will go from {from} to {to}.",
@@ -5030,9 +5448,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       mayDo: "May do",
       heldBy: "Held by",
       shipped: "Ranza",
-      retired: "Retired",
-      retire: "Retire",
-      reinstate: "Reinstate",
+      retired: "No longer offered",
+      retire: "Stop offering",
+      reinstate: "Offer again",
       noCommands: "Nothing yet",
       permissions: {
         book: "Take a booking",
@@ -6944,6 +7362,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       staff: {
         invited: "Staff Member invited",
+        invitation_renewed: "Invitation link renewed",
+        invitation_accepted: "Invitation accepted",
+        readded: "Staff Member added back",
         role_changed: "Role changed",
         role_permissions_changed: "Role permissions changed",
         property_assigned: "Assigned to a Property",
@@ -7420,7 +7841,160 @@ export const messages: Record<SupportedLocale, Messages> = {
     contactDetails: "بيانات الاتصال",
     financialDetails: "تفاصيل الفاتورة والأسعار",
 
+    acceptInvitation: {
+      summary: "دعتك {organization} للانضمام بدور {role}.",
+      title: {
+        set_password: "اختر كلمة المرور",
+        sign_in: "سجّل الدخول لقبول الدعوة",
+        accept: "اقبل دعوتك",
+      },
+      name: "اسمك",
+      passwordHint: "8 أحرف على الأقل. ستستخدمها لتسجيل الدخول.",
+      signInHint: "لديك حساب بالفعل لهذا العنوان.",
+      working: "لحظة...",
+      goToSignIn: "الذهاب إلى تسجيل الدخول",
+      submit: {
+        set_password: "تعيين كلمة المرور والانضمام",
+        sign_in: "تسجيل الدخول وقبول الدعوة",
+        accept: "قبول الدعوة",
+      },
+      errors: {
+        weak_password:
+          "كلمة المرور قصيرة جدًا أو طويلة جدًا. استخدم من 8 إلى 128 حرفًا.",
+        throttled: "محاولات كثيرة. أعد المحاولة بعد قليل.",
+        account_exists:
+          "يوجد حساب لهذا العنوان بالفعل. سجّل الدخول بكلمة مروره.",
+        unavailable: "لم ينجح ذلك. أعد المحاولة، وأخبر من دعاك إن استمر الفشل.",
+        secondStep: "يطلب هذا الحساب خطوة ثانية لا يمكن إجراؤها هنا.",
+      },
+      refused: {
+        unknown: {
+          title: "هذا الرابط لا يعمل",
+          body: "ربما نُسخ ناقصًا أو أنه ليس دعوة.",
+          next: "اطلب ممن دعاك إعادة إرسال الرابط كاملًا.",
+        },
+        expired: {
+          title: "انتهت صلاحية هذه الدعوة",
+          body: "يبقى رابط الدعوة صالحًا سبعة أيام.",
+          next: "اطلب ممن دعاك رابطًا جديدًا. لا يلزمك شيء آخر.",
+        },
+        accepted: {
+          title: "استُخدمت هذه الدعوة من قبل",
+          body: "يعمل الرابط مرة واحدة، وقد استُخدم هذا الرابط.",
+          next: "إن كنت أنت من استخدمه فسجّل الدخول. وإن لم تكن أنت فأخبر من دعاك.",
+        },
+        withdrawn: {
+          title: "سُحبت هذه الدعوة",
+          body: "ألغى مرسلها الدعوة أو أرسل رابطًا أحدث.",
+          next: "اطلب ممن دعاك رابطًا حاليًا.",
+        },
+        membership_revoked: {
+          title: "أُزيلت هذه الصلاحية",
+          body: "أُزيل مكانك في هذه المؤسسة قبل أن تستخدم الرابط.",
+          next: "اطلب من أحد مديري المؤسسة استعادته وإرسال رابط جديد.",
+        },
+        other_account: {
+          title: "هذه الدعوة لشخص آخر",
+          body: "سجّلت الدخول بصفة شخص غير المدعو.",
+          next: "سجّل الخروج ثم افتح الرابط مرة أخرى.",
+        },
+      },
+    },
     staff: {
+      search: "ابحث في الفريق",
+      showRevoked: "إظهار {count} ممن أُزيل وصولهم",
+      noMatch: "لا أحد في القائمة يطابق «{query}».",
+      showAll: "إظهار الجميع",
+      undoUntil: "يمكن التراجع حتى {until}",
+      undoOver: "انتهت مهلة التراجع البالغة {hours} ساعة",
+      linkNoLonger: "لا رابط صالح",
+      renewLink: "رابط دعوة جديد",
+      addBack: "إعادة الإضافة",
+      done: "تم",
+      chooseRole: "اختر دورًا",
+      everyProperty: "كل منشأة في هذه المؤسسة، بما فيها ما يُضاف لاحقًا",
+      reachesNothingWarning:
+        "لن يصل هذا الشخص إلى أي منشأة. يمكنه تسجيل الدخول لكنه لن يرى شيئًا حتى تعيّن له منشأة.",
+      roleDescriptions: {
+        owner:
+          "كل شيء، بما فيه هوية المؤسسة. امنحه بحذر: يستطيع المالك تغيير دور أي شخص.",
+        manager:
+          "يدير المنشأة يوميًا: الحجوزات والغرف والأسعار والفريق والموارد البشرية والرواتب ودفتر الحسابات. لا يغيّر هوية المؤسسة.",
+        front_desk:
+          "الحجوزات وتسجيل الوصول والمغادرة وقبض المدفوعات وإغلاق اليوم. بلا رواتب ولا دفتر حسابات ولا تغيير للفريق.",
+        housekeeping: "يحدّث حالة الغرف ويبلّغ عن الصيانة. لا شيء غير ذلك.",
+        finance:
+          "الرسوم والمدفوعات وعكسها ودفتر الحسابات وتصدير البيانات. بلا حجوزات.",
+      },
+      copyLink: "نسخ الرابط",
+      linkCopied: "تم النسخ",
+      copyFailed: "تعذّر النسخ. حدّد الرابط وانسخه يدويًا.",
+      linkNotSent:
+        "لم يُرسل أي بريد إلكتروني. انسخ الرابط وأرسله إلى الشخص بنفسك.",
+      showSection: "إظهار قسم",
+      allSections: "كل الأقسام",
+      sections: {
+        frontDesk: "الاستقبال",
+        money: "المال",
+        rooms: "الغرف والتدبير",
+        guests: "خدمات النزلاء",
+        people: "الأشخاص والموارد البشرية",
+        setup: "الإعداد والسجلات",
+      },
+      revenueGateNote:
+        "يُظهر أيضًا الإيرادات والأرصدة في التحليلات واليوم والمحفظة.",
+      allowed: "مسموح",
+      notAllowed: "غير مسموح",
+      unsavedRoles:
+        "{count, plural, one {دور واحد فيه تغييرات غير محفوظة} two {دوران فيهما تغييرات غير محفوظة} few {# أدوار فيها تغييرات غير محفوظة} many {# دورًا فيها تغييرات غير محفوظة} other {# دور فيها تغييرات غير محفوظة}}. {people, plural, =0 {لا أحد يحمل هذه الأدوار.} one {الحفظ يُنهي جلسة شخص واحد.} two {الحفظ يُنهي جلستي شخصين.} few {الحفظ يُنهي جلسات # أشخاص.} many {الحفظ يُنهي جلسات # شخصًا.} other {الحفظ يُنهي جلسات # شخص.}}",
+      discardChanges: "تجاهل التغييرات",
+      saveChanges: "حفظ التغييرات",
+      confirmSaveTitle: "حفظ تغييرات الأدوار هذه؟",
+      confirmSaveRoles: "غيّرت ما يمكن لـ {roles} فعله.",
+      confirmSaveNobody: "لا أحد يحمل هذه الأدوار بعد، فلا تنتهي جلسة أحد.",
+      confirmSavePeople:
+        "يحمل هذه الأدوار {people, plural, one {شخص واحد} two {شخصان} few {# أشخاص} many {# شخصًا} other {# شخص}}. الحفظ يُنهي جلساتهم ويحصلون على الصلاحيات الجديدة عند تسجيل الدخول مجددًا.",
+      confirmRetireTitle: "إيقاف عرض {role}؟",
+      retireBody:
+        "لن يُعرض {role} بعد الآن عند دعوة شخص أو تغيير دور. لا أحد يحمله فلا يتأثر أحد. يمكنك إعادة عرضه في أي وقت.",
+      retireHeld:
+        "يحمل {role} {count, plural, one {شخص واحد} two {شخصان} few {# أشخاص} many {# شخصًا} other {# شخص}}. أعطهم دورًا آخر أولًا ثم أوقف عرضه.",
+      startFrom: "ابدأ من",
+      startFromPlaceholder: "دور فارغ",
+      confirmRoleGains: "يكتسب: {permissions}.",
+      confirmRoleLosses: "يفقد: {permissions}.",
+      hrPointer:
+        "هذه القائمة هي من يستطيع تسجيل الدخول وما يحق له فعله. الرواتب والمناوبات والإجازات في",
+      hrPointerLink: "الموارد البشرية والرواتب",
+      membership: {
+        revoke: {
+          title: "إزالة الوصول عن {member}؟",
+          body: "يفقد {member} وصوله إلى هذه المؤسسة الآن. تنتهي كل جلسة يحملها فورًا على كل جهاز.",
+          keeps:
+            "لا يُحذف شيء. يبقى في هذه القائمة بصفة أُزيل وصوله، وكل ما سجّله يبقى في السجل باسمه، ويتوقف رابط الدعوة غير المستخدم عن العمل.",
+          undo: "يمكنك التراجع خلال {hours} ساعة. بعد ذلك لا يمكن إعادته إلا برابط جديد، ولا يصل إلى أي منشأة حتى تعيّن له واحدة.",
+          self: "هذا وصولك أنت. سيُنهى تسجيل دخولك فور التأكيد، ولا يمكنك التراجع عن ذلك بنفسك.",
+          confirm: "إزالة الوصول",
+        },
+        restore: {
+          title: "استعادة الوصول لـ {member}؟",
+          body: "يستعيد {member} دوره والمنشآت التي كان يصل إليها. عليه تسجيل الدخول من جديد لأن جلساته انتهت عند إزالة وصوله.",
+          until: "يمكنك الاستعادة حتى {until}.",
+          confirm: "استعادة الوصول",
+        },
+        renew: {
+          title: "إنشاء رابط جديد لـ {member}؟",
+          body: "يتوقف الرابط القديم عن العمل فورًا. لا يُرسل بريد إلكتروني: تنسخ الرابط الجديد وتمرره بنفسك.",
+          done: "الرابط الجديد جاهز. لم يعد القديم يعمل.",
+          confirm: "إنشاء رابط جديد",
+        },
+        readd: {
+          title: "إعادة إضافة {member}؟",
+          body: "يعود {member} إلى الفريق بدوره السابق ({role}). لا يصل إلى أي منشأة حتى تعيّن له واحدة. يُنشأ رابط جديد؛ لا يُرسل بريد إلكتروني.",
+          done: "عاد الشخص إلى الفريق. مرّر الرابط؛ لا يصل بعد إلى أي منشأة.",
+          confirm: "إعادة الإضافة",
+        },
+      },
       rosterOf: "فريق",
       screenSummary: "من يعمل هنا، وأي المنشآت يصلها، وما الذي يستطيعه كل دور.",
       readOnly: "يمكنك رؤية الفريق. يستطيع المالك أو المدير تغييره.",
@@ -7432,20 +8006,22 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{count, plural, =0 {لا أحد} one {شخص واحد} two {شخصان} few {# أشخاص} many {# شخصًا} other {# شخص}}",
       shippedGroup: "ترسلها رانزا",
       authoredGroup: "عرَّفتها أنت",
-      invitationSent: "أُرسلت الدعوة",
+      invitationSent: "لم يُستخدم الرابط بعد",
       inviteNotice:
-        "أنت من يمرّر الرابط: لا شيء يرسل البريد بعد. ينتهي بعد سبعة أيام ويُعرض مرة واحدة فقط.",
+        "لا يُرسل بريد إلكتروني. تنسخ الرابط وتمرره بنفسك. يعمل مرة واحدة وتنتهي صلاحيته بعد سبعة أيام.",
       matrixNote:
-        "الأدوار التي ترسلها رانزا تأتي مع الإصدار ولا تُعدَّل. كل تغيير يُكتب في سجل التدقيق وتفرضه قاعدة البيانات، لا إخفاء الأزرار.",
-      cannotGrant: "لا يمكنك منح صلاحية لا يحملها دورك.",
+        "الأدوار التي ترسلها رانزا تأتي مع الإصدار ولا تُعدَّل. تُحفظ تغييرات أدوارك معًا، وتفرضها قاعدة البيانات.",
+      cannotGrant:
+        "لم يُحفظ لـ {roles}: لا يمكنك منح صلاحية لا يحملها دورك. حُفظت الأدوار الأخرى.",
       invite: "دعوة",
       inviteTitle: "دعوة شخص إلى الفريق",
       inviteDescription:
         "تُفتح العضوية فورًا. الرابط ليس إلا وسيلة لتعيين كلمة المرور.",
-      sendInvitation: "إنشاء الدعوة",
+      sendInvitation: "إنشاء رابط الدعوة",
       cancel: "إلغاء",
-      linkToPassOn: "مرِّر هذا الرابط بنفسك",
-      linkExpires: "ينتهي بعد سبعة أيام، ولن يُعرض مرة أخرى.",
+      linkToPassOn: "رابط الدعوة",
+      linkExpires:
+        "يعمل مرة واحدة وحتى {date}. إغلاق هذه النافذة لا يحذفه: استخدم «رابط دعوة جديد» في القائمة لإنشاء آخر.",
       email: "البريد الإلكتروني",
       role: "الدور",
       properties: "المنشآت",
@@ -7454,14 +8030,15 @@ export const messages: Record<SupportedLocale, Messages> = {
       aboveYou: "دور هذا الشخص أو نطاق وصوله أوسع من صلاحياتك.",
       active: "نشط",
       awaitingPassword: "بانتظار كلمة المرور",
-      revoked: "مُلغى",
-      revoke: "إلغاء العضوية",
-      undoRevoke: "تراجع",
+      revoked: "أُزيل الوصول",
+      revoke: "إزالة الوصول",
+      undoRevoke: "استعادة الوصول",
       reachesNothing: "لا منشأة بعد",
       reachesEverywhere: "كل المنشآت",
       alreadyAMember: "لهذا الشخص عضوية في هذه المؤسسة بالفعل.",
       refused: "رُفض هذا الإجراء.",
-      lastAdministrator: "يجب أن يبقى في المؤسسة من يستطيع إدارة الفريق.",
+      lastAdministrator:
+        "يجب أن يبقى في المؤسسة من يستطيع إضافة الفريق. أعطِ شخصًا آخر دور المالك أولًا.",
       roleIsHeld: "هذا الدور يحمله أحدهم. انقلهم أولًا.",
       confirmRoleTitle: "تغيير هذا الدور؟",
       confirmRoleChange: "سينتقل {member} من {from} إلى {to}.",
@@ -7485,9 +8062,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       mayDo: "ما يستطيعه",
       heldBy: "يحمله",
       shipped: "رانزا",
-      retired: "متقاعد",
-      retire: "إحالة إلى التقاعد",
-      reinstate: "إعادة التفعيل",
+      retired: "لم يعد معروضًا",
+      retire: "إيقاف العرض",
+      reinstate: "إعادة العرض",
       noCommands: "لا شيء بعد",
       permissions: {
         book: "أخذ حجز",
@@ -9366,6 +9943,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       staff: {
         invited: "تمت دعوة عضو فريق",
+        invitation_renewed: "تم تجديد رابط الدعوة",
+        invitation_accepted: "تم قبول الدعوة",
+        readded: "أُعيد عضو الفريق",
         role_changed: "تم تغيير الدور",
         role_permissions_changed: "تم تغيير صلاحيات الدور",
         property_assigned: "تم التعيين في منشأة",

@@ -104,6 +104,7 @@ function member(
     status: "active",
     invitation: null,
     acceptedAt: null,
+    revokedAt: null,
     properties: [],
     ...overrides,
   };

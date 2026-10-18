@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@ranza/ui";
 import { changeStaffRole, type StaffOutcome } from "../../../server/staff";
+import { asPermission } from "../labels";
 import { heldRoleValue, roleNameOf } from "./role-options";
 
 /** A role change somebody has picked and has not yet confirmed. */
@@ -35,6 +36,10 @@ export interface RoleChangeProposal {
   selfLosesAccess: boolean;
   /** Predicted from the roster; the trigger stays the authority (SP-S1-47). */
   lastAdministrator: boolean;
+  /** What the person can do after that they cannot now (PEOPLE-10). */
+  gained: readonly string[];
+  /** What they can do now and will not be able to. */
+  lost: readonly string[];
 }
 
 /**
@@ -150,6 +155,10 @@ export function ConfirmRoleChange({
                     })}
                   </p>
                   <p>{t("staff.confirmRoleSessions")}</p>
+                  <PermissionDifference
+                    lost={proposal.lost}
+                    gained={proposal.gained}
+                  />
                   {proposal.self ? <p>{t("staff.confirmRoleSelf")}</p> : null}
                   {proposal.self && proposal.selfLosesAccess ? (
                     <p>
@@ -197,4 +206,53 @@ export function ConfirmRoleChange({
       </DialogContent>
     </Dialog>
   );
+}
+
+/**
+ * What a role change gives and takes, in the words of the roles grid.
+ *
+ * Going from Housekeeping to Manager reads as "a different job" until it is
+ * listed as payroll and the ledger. The money and staff items come first
+ * because they are the ones a person would want to have been told about.
+ */
+function PermissionDifference({
+  gained,
+  lost,
+}: {
+  gained: readonly string[];
+  lost: readonly string[];
+}) {
+  const t = useTranslations();
+  const named = (keys: readonly string[]): string =>
+    [...keys]
+      .sort((a, b) => weight(b) - weight(a))
+      .map((key) => {
+        const known = asPermission(key);
+        return known ? t(`staff.permissions.${known}`) : key;
+      })
+      .join(", ");
+
+  return (
+    <>
+      {gained.length > 0 ? (
+        <p data-testid="role-gains">
+          {t("staff.confirmRoleGains", { permissions: named(gained) })}
+        </p>
+      ) : null}
+      {lost.length > 0 ? (
+        <p data-testid="role-losses">
+          {t("staff.confirmRoleLosses", { permissions: named(lost) })}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+/** Money and staff first: 1 for those, 0 for the rest. */
+function weight(permission: string): number {
+  return permission.startsWith("finance.") ||
+    permission.startsWith("staff.") ||
+    permission.startsWith("hr.")
+    ? 1
+    : 0;
 }

@@ -527,8 +527,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  85,
-  'the definer sweep looked at 85 functions; change this number deliberately');
+  86,
+  'the definer sweep looked at 86 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -542,7 +542,7 @@ select is(
   29,
   'twenty-nine of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so an eighty-fourth definer is a red test
+-- Part B: the inventory itself, so an eighty-seventh definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
 -- four are housekeeping; two are maintenance; five are the audit log's reach;
@@ -634,6 +634,9 @@ select is(
 -- change_expected_arrival() is the only way a booking's expected time changes
 -- after it is taken, checked like amend_reservation() with the gates and
 -- front_desk.amend before it reads anything.
+-- An invitation link (20260916011900) brought one, and it writes nothing:
+-- staff_invitation_state() tells the page behind a link what state it is in,
+-- for somebody who cannot sign in yet, from the digest of a token alone.
 -- A brand (20260916011100) brought one, and it writes nothing:
 -- resident_organization_ids() is the Resident's counterpart of
 -- accessible_organization_ids() (ADR 0009, ADR 0046): the Organizations the
@@ -685,8 +688,8 @@ select set_eq(
         'read_data_export_file',
         'post_folio_line_to_ledger', 'change_expected_arrival',
         'hr_employee_is_reachable', 'hr_employee_is_manageable', 'hr_today',
-        'resident_organization_ids'],
-  'and they are exactly the eighty-five the design gives a reason for');
+        'resident_organization_ids', 'staff_invitation_state'],
+  'and they are exactly the eighty-six the design gives a reason for');
 
 -- ---------------------------------------------------------------------------
 -- Who asks the three-gate question (IG-14)

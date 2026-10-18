@@ -16,9 +16,19 @@ import {
   Field,
   FormError,
   Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@ranza/ui";
+import type { Role } from "@ranza/staff";
 import { defineRole, type StaffOutcome } from "../../../server/staff";
-import { PERMISSION_CATALOGUE, permissionMessageKey } from "../labels";
+import {
+  PERMISSION_SECTIONS,
+  permissionMessageKey,
+  shippedRoleOf,
+} from "../labels";
 
 /**
  * Composing a role.
@@ -32,12 +42,16 @@ import { PERMISSION_CATALOGUE, permissionMessageKey } from "../labels";
 export function DefineRoleDialog({
   locale,
   organizationId,
+  roles,
 }: {
   locale: string;
   organizationId: string;
+  /** What a new role can start from: every role there is, active or not. */
+  roles: readonly Role[];
 }) {
   const t = useTranslations();
   const [open, setOpen] = useState(false);
+  const [ticked, setTicked] = useState<readonly string[]>([]);
   const [outcome, act, pending] = useActionState<StaffOutcome, FormData>(
     defineRole,
     "idle",
@@ -49,6 +63,18 @@ export function DefineRoleDialog({
   useEffect(() => {
     if (outcome === "done") setOpen(false);
   }, [outcome]);
+
+  function roleName(role: Role): string {
+    const shipped = shippedRoleOf(role);
+    return shipped ? t(`staff.roles.${shipped}`) : role.name;
+  }
+
+  function startFrom(value: string): void {
+    const source = roles.find(
+      (role) => `${role.organizationId ?? ""}:${role.key}` === value,
+    );
+    if (source) setTicked(source.permissions);
+  }
 
   return (
     <Dialog onOpenChange={setOpen} open={open}>
@@ -73,18 +99,55 @@ export function DefineRoleDialog({
             <Input required id="role-name" maxLength={80} name="name" />
           </Field>
 
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium">{t("staff.mayDo")}</legend>
-            {PERMISSION_CATALOGUE.map((permission) => (
-              <label
-                className="flex items-center gap-2 text-sm"
-                key={permission}
-              >
-                <input name="permissions" type="checkbox" value={permission} />
-                {t(`staff.permissions.${permissionMessageKey(permission)}`)}
-              </label>
+          <Field htmlFor="role-start-from" label={t("staff.startFrom")}>
+            <Select onValueChange={startFrom}>
+              <SelectTrigger id="role-start-from">
+                <SelectValue placeholder={t("staff.startFromPlaceholder")} />
+              </SelectTrigger>
+              <SelectContent>
+                {roles.map((role) => (
+                  <SelectItem
+                    key={`${role.organizationId ?? ""}:${role.key}`}
+                    value={`${role.organizationId ?? ""}:${role.key}`}
+                  >
+                    {roleName(role)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+
+          <div className="space-y-4">
+            <p className="text-sm font-medium">{t("staff.mayDo")}</p>
+            {PERMISSION_SECTIONS.map((section) => (
+              <fieldset className="space-y-2" key={section.key}>
+                <legend className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                  {t(`staff.sections.${section.key}`)}
+                </legend>
+                {section.permissions.map((permission) => (
+                  <label
+                    className="flex items-center gap-2 text-sm"
+                    key={permission}
+                  >
+                    <input
+                      checked={ticked.includes(permission)}
+                      name="permissions"
+                      onChange={(event) =>
+                        setTicked(
+                          event.target.checked
+                            ? [...ticked, permission]
+                            : ticked.filter((key) => key !== permission),
+                        )
+                      }
+                      type="checkbox"
+                      value={permission}
+                    />
+                    {t(`staff.permissions.${permissionMessageKey(permission)}`)}
+                  </label>
+                ))}
+              </fieldset>
             ))}
-          </fieldset>
+          </div>
 
           {outcome === "refused" ? (
             <FormError>{t("staff.refused")}</FormError>

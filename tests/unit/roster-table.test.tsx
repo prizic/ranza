@@ -67,6 +67,7 @@ function member(overrides: Partial<StaffMember>): StaffMember {
     status: "active",
     invitation: null,
     acceptedAt: null,
+    revokedAt: null,
     properties: [],
     ...overrides,
   };

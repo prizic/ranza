@@ -14,6 +14,13 @@
  * list with the table.
  */
 
+/**
+ * How long a revoke can be undone, restated for the same reason: the screen
+ * words it and the module decides it. `tests/unit/permission-sections.test.ts`
+ * compares it with `UNDO_REVOKE_WINDOW_HOURS`.
+ */
+export const UNDO_WINDOW_HOURS = 24;
+
 const SHIPPED_ROLES = [
   "owner",
   "manager",
@@ -136,3 +143,81 @@ export function asPermission(key: string): PermissionMessageKey | null {
 export function permissionMessageKey(key: PermissionKey): PermissionMessageKey {
   return MESSAGE_KEYS[key];
 }
+
+/**
+ * The catalogue in the order a person asks about it, under a heading each.
+ *
+ * Thirty-two flat rows answer "who can see money?" only to somebody who reads
+ * all thirty-two. A section is also the unit of the grid's filter, so the money
+ * rows are one choice away (PEOPLE-06). Every permission sits in exactly one
+ * section, which `tests/unit/permission-sections.test.ts` holds to.
+ */
+export const PERMISSION_SECTIONS = [
+  {
+    key: "frontDesk",
+    permissions: [
+      "front_desk.book",
+      "front_desk.check_in",
+      "front_desk.check_out",
+      "front_desk.cancel",
+      "front_desk.amend",
+      "front_desk.close_day",
+    ],
+  },
+  {
+    key: "money",
+    permissions: [
+      "finance.manage_folio",
+      "finance.post_charge",
+      "finance.reverse_charge",
+      "finance.post_payment",
+      "finance.reverse_payment",
+      "finance.view_ledger",
+    ],
+  },
+  {
+    key: "rooms",
+    permissions: [
+      "accommodation.configure",
+      "housekeeping.update_status",
+      "maintenance.report",
+      "maintenance.manage",
+      "maintenance.take_out_of_order",
+      "maintenance.equipment",
+    ],
+  },
+  {
+    key: "guests",
+    permissions: [
+      "guest_services.create_request",
+      "guest_services.manage_requests",
+    ],
+  },
+  {
+    key: "people",
+    permissions: [
+      "staff.administer",
+      "staff.define_roles",
+      "hr.view",
+      "hr.manage",
+    ],
+  },
+  {
+    key: "setup",
+    permissions: [
+      "configuration.manage",
+      "rates.manage",
+      "branding.manage",
+      "integrations.view",
+      "integrations.manage",
+      "audit.read",
+      "data_export.read",
+      "data_export.create",
+    ],
+  },
+] as const satisfies readonly {
+  key: "frontDesk" | "money" | "rooms" | "guests" | "people" | "setup";
+  permissions: readonly PermissionKey[];
+}[];
+
+export type PermissionSectionKey = (typeof PERMISSION_SECTIONS)[number]["key"];

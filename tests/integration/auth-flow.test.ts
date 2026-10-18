@@ -8,7 +8,10 @@
  * runs all of them together, which is the only way to know the seam works.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createAuthModule } from "../../packages/auth/src";
+import {
+  createAuthModule,
+  InvitedUserLinkError,
+} from "../../packages/auth/src";
 import {
   createPrismaClient,
   withOrganizationContext,
@@ -23,11 +26,12 @@ const prisma = createPrismaClient(process.env.DATABASE_URL!);
 const owner = createPrismaClient(process.env.DIRECT_URL!);
 const authDb = createPrismaClient(process.env.AUTH_DATABASE_URL!);
 
-const { auth, linkRanzaUser, resolveRanzaUserId } = createAuthModule({
-  db: authDb,
-  secret:
-    process.env.BETTER_AUTH_SECRET ?? "test-secret-not-used-in-production",
-});
+const { auth, linkRanzaUser, linkInvitedUser, resolveRanzaUserId } =
+  createAuthModule({
+    db: authDb,
+    secret:
+      process.env.BETTER_AUTH_SECRET ?? "test-secret-not-used-in-production",
+  });
 
 let subject: string;
 let ranzaUserId: string;
@@ -181,5 +185,115 @@ describe("authentication to tenant isolation", () => {
     await expect(
       prisma.$queryRawUnsafe("select count(*) from public.auth_account"),
     ).rejects.toThrow(/permission denied/i);
+  });
+});
+
+/**
+ * Giving a login to somebody an invitation already made a Ranza user for
+ * (PEOPLE-01, ADR 0005).
+ *
+ * The danger is the shortcut: adopting the existing user by email, which would
+ * hand the membership waiting for that address to whoever signed up with it
+ * first. These hold the line the other way round — the sign-up alone gets
+ * nothing, and the link only takes an account carrying the user's own address.
+ */
+describe("a login for an invited person", () => {
+  const stamp = Date.now();
+  const made: { users: string[]; accounts: string[] } = {
+    users: [],
+    accounts: [],
+  };
+
+  async function anInvitedUser(): Promise<{ id: string; email: string }> {
+    const email = `invited-login-${stamp}-${made.users.length}@example.test`;
+    const [row] = await owner.$queryRawUnsafe<{ id: string }[]>(
+      "insert into public.users (email) values ($1) returning id",
+      email,
+    );
+    made.users.push(row!.id);
+    return { id: row!.id, email };
+  }
+
+  async function anAccount(email: string): Promise<string> {
+    const result = await auth.api.signUpEmail({
+      body: { email, password: PASSWORD, name: "Invited" },
+    });
+    made.accounts.push(email);
+    return result.user.id;
+  }
+
+  afterAll(async () => {
+    await owner.$executeRawUnsafe(
+      "delete from public.auth_identities where user_id = any($1::uuid[])",
+      made.users,
+    );
+    await owner.$executeRawUnsafe(
+      "delete from public.users where id = any($1::uuid[])",
+      made.users,
+    );
+    await owner.$executeRawUnsafe(
+      "delete from public.auth_user where email = any($1::text[])",
+      made.accounts,
+    );
+  });
+
+  it("ties the new account to the user the invitation made", async () => {
+    const invited = await anInvitedUser();
+    const subject = await anAccount(invited.email);
+
+    await linkInvitedUser({ subject, userId: invited.id });
+
+    await expect(resolveRanzaUserId(subject)).resolves.toBe(invited.id);
+  });
+
+  it("does not hand the invited user to whoever merely signs up with the address", async () => {
+    const invited = await anInvitedUser();
+    const subject = await anAccount(invited.email);
+
+    // The first request after signing up: it must not adopt the existing user.
+    await expect(
+      linkRanzaUser({ subject, email: invited.email }),
+    ).rejects.toBeDefined();
+    await expect(resolveRanzaUserId(subject)).resolves.toBeNull();
+  });
+
+  it("refuses an account that carries somebody else's address", async () => {
+    const invited = await anInvitedUser();
+    const stranger = await anAccount(
+      `stranger-${stamp}-${made.users.length}@example.test`,
+    );
+
+    await expect(
+      linkInvitedUser({ subject: stranger, userId: invited.id }),
+    ).rejects.toMatchObject({ reason: "not_their_address" });
+    await expect(resolveRanzaUserId(stranger)).resolves.toBeNull();
+  });
+
+  it("refuses a user who can already sign in", async () => {
+    const invited = await anInvitedUser();
+    const first = await anAccount(invited.email);
+    await linkInvitedUser({ subject: first, userId: invited.id });
+
+    // A second account for the same address cannot exist, so the second link
+    // is a second subject presented for a user who already has one.
+    const [other] = await owner.$queryRawUnsafe<{ id: string }[]>(
+      `insert into public.auth_user (id, name, email, "emailVerified", "createdAt", "updatedAt")
+       values ($1, 'Twin', $2, false, now(), now()) returning id`,
+      `twin-${stamp}`,
+      invited.email.toUpperCase(),
+    );
+    made.accounts.push(invited.email.toUpperCase());
+
+    await expect(
+      linkInvitedUser({ subject: other!.id, userId: invited.id }),
+    ).rejects.toBeInstanceOf(InvitedUserLinkError);
+    await expect(resolveRanzaUserId(other!.id)).resolves.toBeNull();
+  });
+
+  it("refuses an account that does not exist", async () => {
+    const invited = await anInvitedUser();
+    await expect(
+      linkInvitedUser({ subject: "no-such-subject", userId: invited.id }),
+    ).rejects.toMatchObject({ reason: "no_account" });
   });
 });

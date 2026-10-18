@@ -76,8 +76,36 @@ export interface StaffMember {
   invitation: InvitationStatus | null;
   /** When they set a password, for a membership that came from an invitation. */
   acceptedAt: string | null;
+  /**
+   * When the membership was revoked, or null while it is active. The undo
+   * window runs from here (SP-S1-22), and a roster that shows only the word
+   * "Revoked" leaves the person who did it guessing how long they have.
+   */
+  revokedAt: string | null;
   /** Empty is a normal state, not a half-finished one (SP-S1-06). */
   properties: readonly { propertyId: string; propertyName: string }[];
+}
+
+/**
+ * What an invitation link is, for the page behind it.
+ *
+ * `membership_revoked` is a pending link whose person was revoked before they
+ * used it; a link withdrawn by the revoke itself reads `withdrawn`.
+ */
+export type InvitationLinkState = InvitationStatus | "membership_revoked";
+
+/** Who a link is for and what it will give them, read before it is accepted. */
+export interface InvitationLink {
+  state: InvitationLinkState;
+  /** The Ranza user the link belongs to; only ever handed to the server. */
+  userId: string;
+  email: string;
+  organizationName: string;
+  roleKey: string;
+  roleScopeId: string;
+  roleName: string;
+  /** Whether that person can already sign in, so the page asks for no password. */
+  hasLogin: boolean;
 }
 
 /** What an invitation produced, including the link to hand over by hand. */

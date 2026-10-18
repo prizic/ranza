@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import type { SupportedLocale } from "@ranza/i18n";
 import { Card, Tabs, TabsContent, TabsList, TabsTrigger } from "@ranza/ui";
 import type { Role, StaffMember } from "@ranza/staff";
 import { membersAboveViewer, rolesWithinViewer } from "../acts-on";
@@ -26,18 +27,16 @@ export function StaffScreen({
   mayAdminister,
   mayDefineRoles,
   organizationId,
-  permissions,
   roles,
   roster,
   viewerUserId,
 }: {
-  locale: string;
+  locale: SupportedLocale;
   /** Holds staff.administer: may change a role, revoke, or undo a revoke. */
   mayAdminister: boolean;
   /** Holds staff.define_roles: may edit, retire or reinstate a role. */
   mayDefineRoles: boolean;
   organizationId: string;
-  permissions: readonly string[];
   roles: readonly Role[];
   roster: readonly StaffMember[];
   viewerUserId: string;
@@ -81,10 +80,15 @@ export function StaffScreen({
 
         <TabsContent className="min-w-0" value="roles">
           <PermissionMatrix
+            key={roles
+              .map(
+                (role) =>
+                  `${role.organizationId}:${role.key}:${role.status}:${role.permissions.join(",")}`,
+              )
+              .join("|")}
             locale={locale}
             mayDefineRoles={mayDefineRoles}
             organizationId={organizationId}
-            permissions={permissions}
             roles={roles}
           />
         </TabsContent>
