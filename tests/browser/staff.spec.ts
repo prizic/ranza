@@ -350,7 +350,9 @@ test("a Front desk Staff Member reads the roster and is offered nothing to chang
   ).toHaveCount(0);
   await expect(page.getByRole("combobox")).toHaveCount(0);
   await expect(
-    page.getByText("You can see the team. An Owner or Manager can change it."),
+    page.getByText(
+      "You can see the team. People who manage staff can change it.",
+    ),
   ).toBeVisible();
 });
 
@@ -367,7 +369,9 @@ test("an Owner is offered Invite and Define a role", async ({ page }) => {
     page.getByRole("button", { exact: true, name: "Define a role" }),
   ).toBeVisible();
   await expect(
-    page.getByText("You can see the team. An Owner or Manager can change it."),
+    page.getByText(
+      "You can see the team. People who manage staff can change it.",
+    ),
   ).toHaveCount(0);
 });
 

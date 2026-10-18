@@ -116,7 +116,7 @@ test("an invited colleague opens the link, sets a password and is signed in with
   await invitee.goto(`/en/people?property=${propertyId}`);
   await expect(
     invitee.getByText(
-      "You can see the team. An Owner or Manager can change it.",
+      "You can see the team. People who manage staff can change it.",
     ),
   ).toBeVisible();
   const mine = invitee.getByRole("row").filter({ hasText: email });

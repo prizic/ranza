@@ -72,6 +72,8 @@ export const KNOWN_ACTIONS = [
   "data_export.requested",
   "data_export.downloaded",
   "employee.registered",
+  "employee.updated",
+  "employee.wage_changed",
   "employee.terminated",
   "leave.approved",
   "leave.declined",

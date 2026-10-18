@@ -311,7 +311,7 @@ export function RosterTable({
                       roleNameOf(member, t)
                     )}
                   </TableCell>
-                  <TableCell className="text-muted-foreground max-md:col-span-2 max-md:p-0">
+                  <TableCell className="text-muted-foreground max-md:col-span-2 max-md:p-0 max-md:whitespace-normal">
                     {member.accessScope === "organization_wide"
                       ? t("staff.reachesEverywhere")
                       : member.properties.length === 0

@@ -1051,6 +1051,8 @@ export interface Messages {
   /** The Human Resources and Payroll screen (Blueprint 5.11, Phase 4). */
   hr: {
     heading: string;
+    peoplePointer: string;
+    peoplePointerLink: string;
     subtitle: string;
     tabs: {
       employees: string;
@@ -1059,6 +1061,47 @@ export interface Messages {
       payroll: string;
     };
     employees: {
+      filterDepartment: string;
+      person: string;
+      property: string;
+      actions: string;
+      search: string;
+      allDepartments: string;
+      /** ICU plurals on `employed` and `left`. */
+      counts: string;
+      /** ICU plural on `count`. */
+      showLeft: string;
+      noMatch: string;
+      allLeft: string;
+      showAll: string;
+      hasLogin: string;
+      wholeOrganization: string;
+      anotherProperty: string;
+      noEmployeesReadOnly: string;
+      startDate: string;
+      /** `{property}`. */
+      registersAt: string;
+      edit: string;
+      /** `{name}`. */
+      editTitle: string;
+      editDescription: string;
+      detailsSaved: string;
+      saveDetails: string;
+      ibanKeepHint: string;
+      payHeading: string;
+      /** `{amount}`. */
+      payNow: string;
+      /** `{month}`, `{amount}`. */
+      payFrom: string;
+      /** `{currency}`. */
+      newGrossPay: string;
+      effectiveFrom: string;
+      payHint: string;
+      changePay: string;
+      wageSaved: string;
+      /** `{amount}`, `{month}`. */
+      raiseFrom: string;
+      terminatePeople: string;
       title: string;
       register: string;
       registerTitle: string;
@@ -1111,6 +1154,15 @@ export interface Messages {
       terminating: string;
     };
     rota: {
+      previousWeek: string;
+      nextWeek: string;
+      thisWeek: string;
+      emptyTitle: string;
+      registerFirst: string;
+      nobodyHereTitle: string;
+      nobodyHere: string;
+      goToEmployees: string;
+      hintReadOnly: string;
       title: string;
       hint: string;
       staffMember: string;
@@ -1129,6 +1181,24 @@ export interface Messages {
       };
     };
     leave: {
+      incomplete: string;
+      chooseStaffMember: string;
+      nobodyHereToRequest: string;
+      registerFirstToRequest: string;
+      showRequests: string;
+      filterAll: string;
+      emptyTitle: string;
+      /** `{status}`. */
+      noneWithStatus: string;
+      showAll: string;
+      /** `{name}`. */
+      confirmApproveTitle: string;
+      confirmDeclineTitle: string;
+      /** `{type}`, `{from}`, `{to}`. */
+      confirmDates: string;
+      confirmApproveEffect: string;
+      confirmDeclineEffect: string;
+      confirmFinal: string;
       title: string;
       requestLeave: string;
       requestLeaveTitle: string;
@@ -1164,6 +1234,15 @@ export interface Messages {
       };
     };
     payroll: {
+      notApproved: string;
+      blockedBadge: Record<
+        "period_not_ended" | "no_employees" | "mixed_currency",
+        string
+      >;
+      goToEmployees: string;
+      confirmPlaceholders: string;
+      confirmUnderstood: string;
+      print: string;
       period: string;
       /** `{amount}` and `{total}`, already formatted in the run's currency. */
       summaryGrossNet: string;
@@ -1175,7 +1254,6 @@ export interface Messages {
       approve: string;
       approving: string;
       approved: string;
-      draft: string;
       previousPeriod: string;
       nextPeriod: string;
       /** `{period}`. */
@@ -1194,7 +1272,6 @@ export interface Messages {
       payslipTitle: string;
       paidTo: string;
       noBankAccount: string;
-      downloadPdf: string;
       actions: string;
       /** The deductions are not approved figures (HR-S1-28). */
       placeholderTitle: string;
@@ -1225,6 +1302,7 @@ export interface Messages {
         terminatedOn: string;
         shiftTime: string;
         request: string;
+        effectiveFrom: string;
       };
       refused: {
         not_permitted: string;
@@ -1238,6 +1316,7 @@ export interface Messages {
         payroll_no_employees: string;
         payroll_mixed_currency: string;
         payroll_draft_exists: string;
+        wage_period_approved: string;
         payroll_period_not_ended: string;
       };
       error: string;
@@ -2219,7 +2298,10 @@ export interface Messages {
       string
     >;
     maintenance_setting: Record<"changed", string>;
-    employee: Record<"registered" | "terminated", string>;
+    employee: Record<
+      "registered" | "updated" | "wage_changed" | "terminated",
+      string
+    >;
     leave: Record<"approved" | "declined", string>;
     payroll_run: Record<"approved", string>;
     branding: Record<"changed" | "reset", string>;
@@ -2766,7 +2848,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       screenSummary:
         "Burada kimler çalışıyor, hangi tesislere erişiyorlar ve her rol ne yapabilir.",
       readOnly:
-        "Ekibi görebilirsiniz. Bir sahip ya da yönetici değiştirebilir.",
+        "Ekibi görebilirsiniz. Ekibi yönetme yetkisi olanlar değiştirebilir.",
       peopleTab: "Kişiler",
       rolesTab: "Her rol ne yapabilir",
       person: "Kişi",
@@ -2841,15 +2923,16 @@ export const messages: Record<SupportedLocale, Messages> = {
         checkOut: "Çıkış yapma",
         cancel: "Rezervasyon iptali ve gelmedi kaydı",
         amend: "Rezervasyon ve konaklama değiştirme, oda taşıma",
-        closeDay: "Günü kapatma",
-        manageFolio: "Folyo açma ve kapatma",
+        closeDay: "Günü kapatma (iş günü sonu)",
+        manageFolio: "Folyo (misafir hesabı) açma ve kapatma",
         postCharge: "Folyoya ücret işleme",
         reverseCharge: "Folyodaki ücreti ters kaydetme",
         postPayment: "Ödeme kaydetme",
         reversePayment: "Folyodaki ödemeyi ters kaydetme",
         viewLedger: "Muhasebe defterini okuma",
-        administerStaff: "Ekibi yönetme",
-        defineRoles: "Rol tanımlama",
+        administerStaff:
+          "Ekibe kişi davet etme, rol ve erişimlerini değiştirme",
+        defineRoles: "Rol tanımlama ve düzenleme",
         configureAccommodation: "Odaları ve yatakları yapılandırma",
         updateHousekeeping: "Oda durumunu güncelleme",
         reportMaintenance: "Bakım sorunu bildirme",
@@ -2857,9 +2940,9 @@ export const messages: Record<SupportedLocale, Messages> = {
         takeOutOfOrder: "Odaları hizmet dışı bırakma ve geri alma",
         manageEquipment: "Ekipman kaydını yönetme",
         readAudit: "Denetim kaydını okuma",
-        manageConfiguration: "Ayarları yönetme",
+        manageConfiguration: "Tesis ve Kuruluş ayarlarını değiştirme",
         manageRates: "Gecelik fiyatları belirleme",
-        readDataExports: "Dışa aktarımları görme",
+        readDataExports: "Veri dışa aktarımlarını görme ve indirme",
         createDataExports: "Veri dışa aktarımı isteme",
         createServiceRequests: "Misafir talebi oluşturma",
         manageServiceRequests: "Misafir taleplerini yönetme",
@@ -3895,15 +3978,56 @@ export const messages: Record<SupportedLocale, Messages> = {
     },
     hr: {
       heading: "İnsan kaynakları ve bordro",
+      peoplePointer:
+        "İstihdam, vardiya, izin ve maaş burada tutulur. Kimin oturum açabildiği ve neler yapabildiği şurada:",
+      peoplePointerLink: "Kişiler",
       subtitle:
         "Personel sözleşmeleri, haftalık vardiya çizelgesi, izinler ve bordro.",
       tabs: {
         employees: "Personel",
-        rota: "Bu hafta",
+        rota: "Vardiya",
         leave: "İzinler",
         payroll: "Bordro",
       },
       employees: {
+        filterDepartment: "Departmana göre filtrele",
+        person: "Kişi",
+        property: "Tesis",
+        actions: "İşlemler",
+        search: "Ad, pozisyon veya departmana göre ara",
+        allDepartments: "Tüm departmanlar",
+        counts:
+          "{employed, plural, one {# kişi çalışıyor} other {# kişi çalışıyor}}{left, plural, =0 {} other {, # kişi ayrıldı}}",
+        showLeft: "Ayrılan {count} kişiyi göster",
+        noMatch: "Bu aramayla eşleşen kimse yok.",
+        allLeft: "Kayıtlı herkes ayrılmış.",
+        showAll: "Herkesi göster",
+        hasLogin: "Oturum açabilir",
+        wholeOrganization: "Tüm Kuruluş",
+        anotherProperty: "Başka bir Tesis",
+        noEmployeesReadOnly:
+          "Henüz kayıtlı personel yok. İK’yı yönetenler ekleyebilir.",
+        startDate: "Başlangıç tarihi",
+        registersAt: "{property} için kaydedilir.",
+        edit: "Düzenle",
+        editTitle: "{name} kaydını düzenle",
+        editDescription:
+          "Kim olduğunu ve ne iş yaptığını şimdi değiştirin. Maaş aşağıdan, bir aydan itibaren değiştirilir; böylece ödenmiş aylar olduğu gibi kalır.",
+        detailsSaved: "Bilgiler kaydedildi.",
+        saveDetails: "Bilgileri kaydet",
+        ibanKeepHint:
+          "Kayıttaki IBAN’ı korumak için boş bırakın. Yeni bir IBAN eskisinin yerine geçer.",
+        payHeading: "Maaş",
+        payNow: "Bu ay brüt {amount} ödeniyor.",
+        payFrom: "{month} itibarıyla: {amount}",
+        newGrossPay: "Yeni brüt maaş ({currency})",
+        effectiveFrom: "Başlangıç ayı",
+        payHint:
+          "Yeni maaş, o ayın ilk gününden itibaren geçerlidir. Önceki aylar ödendiği gibi kalır ve bordrosu onaylanmış bir ay değiştirilemez.",
+        changePay: "Maaşı değiştir",
+        wageSaved: "Maaş değişikliği kaydedildi.",
+        raiseFrom: "{month} itibarıyla {amount}",
+        terminatePeople: "Erişimini kaldırmak için Kişiler’i açın",
         title: "Personel listesi",
         register: "Personel ekle",
         registerTitle: "Yeni personel kaydı",
@@ -3947,14 +4071,24 @@ export const messages: Record<SupportedLocale, Messages> = {
         terminate: "İşten ayrılışı kaydet",
         terminateTitle: "{name} için işten ayrılışı kaydet",
         terminateDescription:
-          "Personel kaydı, vardiyaları, izinleri ve bordroları saklanır. İşten ayrılış, sisteme erişimi kaldırmaz; bunu Ekip ekranından değiştirin.",
+          "Kaydı, vardiyaları, izinleri ve bordroları kalır. İstihdamı bitirmek sisteme erişimini kaldırmaz.",
         terminateDate: "Son çalışma günü",
         terminateConfirm: "Ayrılışı kaydet",
         terminating: "Kaydediliyor...",
       },
       rota: {
+        previousWeek: "Önceki hafta",
+        nextWeek: "Sonraki hafta",
+        thisWeek: "Bu hafta",
+        emptyTitle: "Vardiya verilecek kimse yok",
+        registerFirst: "Önce personeli kaydedin, sonra buradan vardiya verin.",
+        nobodyHereTitle: "Bu Tesiste henüz kimse çalışmıyor",
+        nobodyHere:
+          "Kayıtlı kişiler başka Tesislerde çalışıyor. Tesisi olmayan personel her vardiya çizelgesinde görünür.",
+        goToEmployees: "Personele git",
+        hintReadOnly: "Vardiyaları İK’yı yönetenler belirler.",
         title: "Haftalık vardiya çizelgesi",
-        hint: "Vardiyayı değiştirmek için tıklayın. Resepsiyonda her sabah ve akşam en az bir personel bulunmalıdır.",
+        hint: "Her gün için bir vardiya seçin; seçtiğiniz anda kaydedilir. Ön büroda her sabah ve akşam en az bir kişi olmalı.",
         staffMember: "Personel",
         today: "bugün",
         shifts: {
@@ -3971,6 +4105,23 @@ export const messages: Record<SupportedLocale, Messages> = {
         },
       },
       leave: {
+        incomplete: "Kimin için olduğunu ve iki tarihi de seçin.",
+        chooseStaffMember: "Bir kişi seçin",
+        nobodyHereToRequest: "Burada henüz kimse çalışmıyor: Personele bakın",
+        registerFirstToRequest: "Önce bir personel kaydedin",
+        showRequests: "Talepleri göster",
+        filterAll: "Tümü",
+        emptyTitle: "Henüz izin talebi yok",
+        noneWithStatus: "{status} talep yok.",
+        showAll: "Tüm talepleri göster",
+        confirmApproveTitle: "{name} için izin onaylansın mı?",
+        confirmDeclineTitle: "{name} için izin reddedilsin mi?",
+        confirmDates: "{type}, {from} – {to}.",
+        confirmApproveEffect:
+          "Onaylamak bu izni onaylı olarak kaydeder. Kişi çalışmaya devam eder ve maaşı düşmez.",
+        confirmDeclineEffect: "Reddetmek talebi reddedilmiş olarak kaydeder.",
+        confirmFinal:
+          "Karar kesindir: sonradan değiştirilemez ve çalışana buradan bildirilmez; kendiniz haber verin.",
         title: "İzin talepleri",
         requestLeave: "İzin talebi oluştur",
         requestLeaveTitle: "Yeni izin talebi",
@@ -4007,6 +4158,18 @@ export const messages: Record<SupportedLocale, Messages> = {
         },
       },
       payroll: {
+        notApproved: "Henüz onaylanmadı",
+        blockedBadge: {
+          period_not_ended: "Ay bitmedi",
+          no_employees: "Ödenecek kimse yok",
+          mixed_currency: "İlgi gerekiyor",
+        },
+        goToEmployees: "Personele git",
+        confirmPlaceholders:
+          "Sosyal güvenlik, gelir vergisi ve damga vergisi tutarları kimsenin onaylamadığı yer tutuculardır. Kimseye ödeme yapmak için kullanılmamalı ve bu kilit kalıcıdır.",
+        confirmUnderstood:
+          "Kesintilerin onaylanmamış yer tutucular olduğunu ve bu bordroyu kilitlemenin kalıcı olduğunu anlıyorum.",
+        print: "Yazdır",
         period: "Dönem",
         summaryGrossNet: "Brüt {amount}, net {total}",
         gross: "Brüt",
@@ -4017,12 +4180,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         approve: "Bordroyu onayla",
         approving: "Onaylanıyor...",
         approved: "Onaylandı",
-        draft: "Taslak",
         previousPeriod: "Önceki dönem",
         nextPeriod: "Sonraki dönem",
         confirmTitle: "{period} bordrosu onaylansın mı?",
         confirmBody:
-          "{count, plural, one {# personel} other {# personel}} için {currency} cinsinden ödeme yapılacak: brüt {amount}, net {total}.",
+          "{count, plural, one {# çalışan} other {# çalışan}} için {currency} cinsinden bordro kaydedilecek: {amount} brüt ve {total} net. Buradan ödeme yapılmaz.",
         confirmLocked:
           "Onay bordroyu kilitler. Sonradan değiştirilemez; şimdilik geri alma ya da düzeltme yolu da yoktur.",
         confirm: "Onayla ve kilitle",
@@ -4035,7 +4197,6 @@ export const messages: Record<SupportedLocale, Messages> = {
         payslipTitle: "Maaş bordrosu",
         paidTo: "Ödeme hesabı",
         noBankAccount: "Kayıtlı banka hesabı yok",
-        downloadPdf: "PDF indir",
         actions: "İşlemler",
         placeholderTitle: "Geçici kesintiler",
         placeholderBody:
@@ -4050,11 +4211,13 @@ export const messages: Record<SupportedLocale, Messages> = {
             "Bu dönem henüz bitmedi, bu yüzden onaylanamaz. Bordro, ayın son gününden sonra onaylanır.",
           no_employees: "Bu dönem için ödeme yapılacak aktif personel yok.",
           mixed_currency:
-            "Personele birden fazla para biriminde ödeme yapılıyor; bir bordro tek para birimindedir. Bu dönem, sorun çözülene kadar onaylanamaz.",
+            "Çalışanlar birden fazla para biriminde ödeniyor, bir bordro ise tek para birimindedir. Farklı para biriminde ödenenler aşağıda listelenir: istihdamlarını bitirin ya da kayıtlarını düzelttirin, sonra dönün.",
         },
       },
       outcomes: {
         invalid: {
+          effectiveFrom:
+            "Ayı kontrol edin: maaş, kişinin işe başladığı aydan önce başlayamaz.",
           name: "Ad ve soyad girin.",
           department: "Bir departman girin.",
           position: "Bir görev girin.",
@@ -4064,13 +4227,16 @@ export const messages: Record<SupportedLocale, Messages> = {
           currency: "Bu para birimi tanınmıyor.",
           iban: "Bu IBAN geçerli görünmüyor.",
           period: "Bu bordro dönemi geçerli değil.",
-          dates: "Tarihleri kontrol edin: bitiş, başlangıçtan önce olamaz.",
+          dates:
+            "Tarihleri kontrol edin: bitiş başlangıçtan önce olamaz ve başlangıç gelecekte olamaz.",
           terminatedOn:
             "Son çalışma gününü kontrol edin: işe başladığı günden önce olamaz.",
           shiftTime: "Bu vardiya saati geçerli değil.",
           request: "İstek okunamadı. Sayfayı yenileyip tekrar deneyin.",
         },
         refused: {
+          wage_period_approved:
+            "O ayın bordrosu zaten onaylı; maaş o ayda ya da öncesinde başlayamaz. Daha sonraki bir ay seçin.",
           not_permitted:
             "Bunu burada yapamazsınız ya da sayfa yüklendikten sonra durum değişti.",
           employee_terminated:
@@ -4087,11 +4253,11 @@ export const messages: Record<SupportedLocale, Messages> = {
           payroll_no_employees:
             "Bu dönem için ödeme yapılacak aktif personel yok.",
           payroll_mixed_currency:
-            "Personele birden fazla para biriminde ödeme yapılıyor; bir bordro tek para birimindedir.",
+            "Çalışanlar birden fazla para biriminde ödeniyor, bir bordro ise tek para birimindedir. Kimin hangi para biriminde ödendiğini Bordro sekmesi listeler.",
           payroll_period_not_ended:
             "Bu dönem henüz bitmedi; henüz onaylanamaz.",
           payroll_draft_exists:
-            "Bu dönem için bir taslak zaten var; bir yöneticinin temizlemesi gerekiyor.",
+            "Bu dönem için bir taslak bordro var ve bu ekrandan silinemez. Onaylamadan önce Prizic desteğinden kaldırmasını isteyin.",
         },
         error:
           "Bir şeyler ters gitti ve bildirildi. Biraz sonra tekrar deneyin.",
@@ -4788,6 +4954,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       employee: {
         registered: "Personel kaydedildi",
+        updated: "Personel kaydı güncellendi",
+        wage_changed: "Maaş değişikliği kaydedildi",
         terminated: "İşten ayrılış kaydedildi",
       },
       leave: {
@@ -5382,7 +5550,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       rosterOf: "The team at",
       screenSummary:
         "Who works here, which Properties they reach, and what each role may do.",
-      readOnly: "You can see the team. An Owner or Manager can change it.",
+      readOnly: "You can see the team. People who manage staff can change it.",
       peopleTab: "People",
       rolesTab: "What each role can do",
       person: "Person",
@@ -5458,25 +5626,25 @@ export const messages: Record<SupportedLocale, Messages> = {
         checkOut: "Check somebody out",
         cancel: "Cancel a booking or record a no-show",
         amend: "Change bookings and stays, and move Guests",
-        closeDay: "Close the day",
-        manageFolio: "Open and close a Folio",
-        postCharge: "Post a charge",
-        reverseCharge: "Reverse a charge",
-        postPayment: "Record a payment",
-        reversePayment: "Reverse a payment",
+        closeDay: "Close the day (end of the business day)",
+        manageFolio: "Open and close a Folio (a guest’s bill)",
+        postCharge: "Post a charge to a Folio",
+        reverseCharge: "Reverse a charge on a Folio",
+        postPayment: "Record a payment on a Folio",
+        reversePayment: "Reverse a payment on a Folio",
         viewLedger: "Read the general ledger",
-        administerStaff: "Administer staff",
-        defineRoles: "Define roles",
+        administerStaff: "Invite staff and change their role or reach",
+        defineRoles: "Define and edit roles",
         configureAccommodation: "Configure rooms & beds",
         updateHousekeeping: "Update room status",
         reportMaintenance: "Report a maintenance problem",
         manageMaintenance: "Work maintenance requests",
         takeOutOfOrder: "Take rooms out of order and back",
         manageEquipment: "Keep the equipment register",
-        readAudit: "Reading the audit log",
-        manageConfiguration: "Manage configuration",
+        readAudit: "Read the audit log",
+        manageConfiguration: "Change Property and Organization settings",
         manageRates: "Set nightly rates",
-        readDataExports: "See data exports",
+        readDataExports: "See and download data exports",
         createDataExports: "Request a data export",
         createServiceRequests: "Raise a guest request",
         manageServiceRequests: "Manage guest requests",
@@ -6525,14 +6693,56 @@ export const messages: Record<SupportedLocale, Messages> = {
     },
     hr: {
       heading: "HR & Payroll",
+      peoplePointer:
+        "Employment, rota, leave and pay are kept here. Who can sign in, and what they may do, is on",
+      peoplePointerLink: "People",
       subtitle: "Staff contracts, the weekly rota, leave and monthly pay.",
       tabs: {
         employees: "Employees",
-        rota: "This week",
+        rota: "Rota",
         leave: "Leave",
         payroll: "Payroll",
       },
       employees: {
+        filterDepartment: "Filter by department",
+        person: "Person",
+        property: "Property",
+        actions: "Actions",
+        search: "Search by name, position or department",
+        allDepartments: "All departments",
+        counts:
+          "{employed, plural, one {# person employed} other {# people employed}}{left, plural, =0 {} other {, # left}}",
+        showLeft:
+          "{count, plural, one {Show # person who left} other {Show # people who left}}",
+        noMatch: "Nobody matches that search.",
+        allLeft: "Everyone on record has left.",
+        showAll: "Show everyone",
+        hasLogin: "Has a login",
+        wholeOrganization: "Whole Organization",
+        anotherProperty: "Another Property",
+        noEmployeesReadOnly:
+          "No employees are registered yet. People who manage HR can add them.",
+        startDate: "Start date",
+        registersAt: "Registers at {property}.",
+        edit: "Edit",
+        editTitle: "Edit {name}",
+        editDescription:
+          "Change who they are and what they do now. Pay is changed from a month on, below, so the months already paid stay as they were.",
+        detailsSaved: "Details saved.",
+        saveDetails: "Save details",
+        ibanKeepHint:
+          "Leave blank to keep the IBAN on record. A new one replaces it.",
+        payHeading: "Pay",
+        payNow: "Paid {amount} gross this month.",
+        payFrom: "From {month}: {amount}",
+        newGrossPay: "New gross pay ({currency})",
+        effectiveFrom: "From month",
+        payHint:
+          "The new pay applies from the first day of that month. Earlier months keep what they were paid, and a month whose payroll is already approved cannot be changed.",
+        changePay: "Change pay",
+        wageSaved: "Pay change saved.",
+        raiseFrom: "{amount} from {month}",
+        terminatePeople: "Open People to remove their access",
         title: "Employee Directory",
         register: "Add employee",
         registerTitle: "Register employee",
@@ -6576,14 +6786,24 @@ export const messages: Record<SupportedLocale, Messages> = {
         terminate: "End employment",
         terminateTitle: "End employment for {name}",
         terminateDescription:
-          "Their record, shifts, leave and payslips stay. Ending employment does not remove their access to the system: change that on the People screen.",
+          "Their record, shifts, leave and payslips stay. Ending employment does not remove their access to the system.",
         terminateDate: "Last day of employment",
         terminateConfirm: "End employment",
         terminating: "Ending...",
       },
       rota: {
+        previousWeek: "Previous week",
+        nextWeek: "Next week",
+        thisWeek: "This week",
+        emptyTitle: "Nobody to roster yet",
+        registerFirst: "Register employees first, then give them shifts here.",
+        nobodyHereTitle: "Nobody works at this Property yet",
+        nobodyHere:
+          "The people on record work at other Properties. Employees with no Property appear on every rota.",
+        goToEmployees: "Go to Employees",
+        hintReadOnly: "Shifts are set by people who manage HR.",
         title: "Weekly shift rota",
-        hint: "Click a shift to change it. Front desk needs at least one person on every morning and evening.",
+        hint: "Choose a shift for each day; it is saved as you choose. Front desk needs at least one person on every morning and evening.",
         staffMember: "Staff member",
         today: "today",
         shifts: {
@@ -6600,6 +6820,23 @@ export const messages: Record<SupportedLocale, Messages> = {
         },
       },
       leave: {
+        incomplete: "Choose who it is for and both dates.",
+        chooseStaffMember: "Choose a person",
+        nobodyHereToRequest: "Nobody works here yet: see Employees",
+        registerFirstToRequest: "Register an employee first",
+        showRequests: "Show requests",
+        filterAll: "All",
+        emptyTitle: "No leave requests yet",
+        noneWithStatus: "No {status} requests.",
+        showAll: "Show all requests",
+        confirmApproveTitle: "Approve leave for {name}?",
+        confirmDeclineTitle: "Decline leave for {name}?",
+        confirmDates: "{type}, {from} to {to}.",
+        confirmApproveEffect:
+          "Approving records this leave as approved. They stay employed and their pay is not reduced.",
+        confirmDeclineEffect: "Declining records the request as declined.",
+        confirmFinal:
+          "A decision is final: it cannot be changed afterwards, and the employee is not told from here, so tell them yourself.",
         title: "Leave requests",
         requestLeave: "Request leave",
         requestLeaveTitle: "Submit leave request",
@@ -6635,6 +6872,18 @@ export const messages: Record<SupportedLocale, Messages> = {
         },
       },
       payroll: {
+        notApproved: "Not approved yet",
+        blockedBadge: {
+          period_not_ended: "Month not ended",
+          no_employees: "Nobody to pay",
+          mixed_currency: "Needs attention",
+        },
+        goToEmployees: "Go to Employees",
+        confirmPlaceholders:
+          "The social security, income tax and stamp duty figures are placeholders that nobody has approved. They must not be used to pay anyone, and this lock is permanent.",
+        confirmUnderstood:
+          "I understand the deductions are unapproved placeholders and that locking this run is permanent.",
+        print: "Print",
         period: "Period",
         summaryGrossNet: "Gross {amount}, net {total}",
         gross: "Gross",
@@ -6645,12 +6894,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         approve: "Approve payroll",
         approving: "Approving...",
         approved: "Approved",
-        draft: "Draft",
         previousPeriod: "Previous period",
         nextPeriod: "Next period",
         confirmTitle: "Approve payroll for {period}?",
         confirmBody:
-          "{count, plural, one {# employee} other {# employees}} will be paid in {currency}: {amount} gross and {total} net.",
+          "{count, plural, one {# employee} other {# employees}} will be recorded as the payroll for {currency}: {amount} gross and {total} net. Nothing is paid from here.",
         confirmLocked:
           "Approving locks the run. It cannot be changed afterwards, and there is no way yet to reverse or revise it.",
         confirm: "Approve and lock",
@@ -6662,7 +6910,6 @@ export const messages: Record<SupportedLocale, Messages> = {
         payslipTitle: "Payslip",
         paidTo: "Paid to",
         noBankAccount: "No bank account on file",
-        downloadPdf: "Download PDF",
         actions: "Actions",
         placeholderTitle: "Placeholder deductions",
         placeholderBody:
@@ -6677,11 +6924,13 @@ export const messages: Record<SupportedLocale, Messages> = {
             "This period has not ended yet, so it cannot be approved. Payroll is approved after the last day of the month.",
           no_employees: "There are no active employees to pay in this period.",
           mixed_currency:
-            "Employees are paid in more than one currency, and a payroll run is in one. This period cannot be approved until that is resolved.",
+            "Employees are paid in more than one currency, and a payroll run is in one. Those paid in a different currency are listed below: end their employment or have their record corrected, then come back.",
         },
       },
       outcomes: {
         invalid: {
+          effectiveFrom:
+            "Check the month: pay cannot start before the month the person was hired.",
           name: "Enter a first and last name.",
           department: "Enter a department.",
           position: "Enter a position.",
@@ -6691,7 +6940,8 @@ export const messages: Record<SupportedLocale, Messages> = {
           currency: "That currency is not recognised.",
           iban: "That IBAN does not look right.",
           period: "That payroll period is not valid.",
-          dates: "Check the dates: the end cannot be before the start.",
+          dates:
+            "Check the dates: an end cannot be before the start, and a start cannot be in the future.",
           terminatedOn:
             "Check the last day: it cannot be before the day they started.",
           shiftTime: "That shift time is not valid.",
@@ -6699,6 +6949,8 @@ export const messages: Record<SupportedLocale, Messages> = {
             "That request could not be read. Reload the page and try again.",
         },
         refused: {
+          wage_period_approved:
+            "That month's payroll is already approved, so pay cannot start in it or before it. Choose a later month.",
           not_permitted:
             "You cannot do that here, or it has changed since this page loaded.",
           employee_terminated:
@@ -6715,11 +6967,11 @@ export const messages: Record<SupportedLocale, Messages> = {
           payroll_no_employees:
             "There are no active employees to pay in this period.",
           payroll_mixed_currency:
-            "Employees are paid in more than one currency, and a payroll run is in one.",
+            "Employees are paid in more than one currency, and a payroll run is in one. The Payroll tab lists who is paid in what.",
           payroll_period_not_ended:
             "That period has not ended, so it cannot be approved yet.",
           payroll_draft_exists:
-            "A draft for this period already exists and needs an administrator to clear it.",
+            "A draft run for this period already exists and cannot be cleared from this screen. Ask Prizic support to remove it before approving.",
         },
         error:
           "Something went wrong, and it has been reported. Try again in a moment.",
@@ -7416,6 +7668,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       employee: {
         registered: "Employee registered",
+        updated: "Employee record updated",
+        wage_changed: "Wage change recorded",
         terminated: "Employment ended",
       },
       leave: {
@@ -7997,7 +8251,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       rosterOf: "فريق",
       screenSummary: "من يعمل هنا، وأي المنشآت يصلها، وما الذي يستطيعه كل دور.",
-      readOnly: "يمكنك رؤية الفريق. يستطيع المالك أو المدير تغييره.",
+      readOnly: "يمكنك رؤية الفريق. يستطيع من يدير الفريق تغييره.",
       peopleTab: "الأشخاص",
       rolesTab: "ما يستطيعه كل دور",
       person: "الشخص",
@@ -8072,15 +8326,15 @@ export const messages: Record<SupportedLocale, Messages> = {
         checkOut: "تسجيل المغادرة",
         cancel: "إلغاء حجز أو تسجيل عدم الحضور",
         amend: "تعديل الحجوزات والإقامات ونقل النزلاء",
-        closeDay: "إغلاق اليوم",
-        manageFolio: "فتح وإغلاق الحساب",
+        closeDay: "إغلاق اليوم (نهاية يوم العمل)",
+        manageFolio: "فتح وإغلاق الحساب (فاتورة النزيل)",
         postCharge: "تسجيل رسم على الحساب",
         reverseCharge: "عكس رسم مسجَّل على الحساب",
         postPayment: "تسجيل دفعة على الحساب",
         reversePayment: "عكس دفعة مسجَّلة على الحساب",
         viewLedger: "قراءة دفتر الأستاذ العام",
-        administerStaff: "إدارة الفريق",
-        defineRoles: "تعريف الأدوار",
+        administerStaff: "دعوة الموظفين وتغيير دورهم ونطاق وصولهم",
+        defineRoles: "تعريف الأدوار وتعديلها",
         configureAccommodation: "تهيئة الغرف والأسرّة",
         updateHousekeeping: "تحديث حالة الغرف",
         reportMaintenance: "الإبلاغ عن مشكلة صيانة",
@@ -8088,9 +8342,9 @@ export const messages: Record<SupportedLocale, Messages> = {
         takeOutOfOrder: "إخراج الغرف من الخدمة وإعادتها",
         manageEquipment: "إدارة سجل المعدات",
         readAudit: "قراءة سجل التدقيق",
-        manageConfiguration: "إدارة الإعدادات",
+        manageConfiguration: "تغيير إعدادات المنشأة والمؤسسة",
         manageRates: "تحديد أسعار الليلة",
-        readDataExports: "عرض عمليات التصدير",
+        readDataExports: "عرض عمليات التصدير وتنزيلها",
         createDataExports: "طلب تصدير البيانات",
         createServiceRequests: "إنشاء طلب نزيل",
         manageServiceRequests: "إدارة طلبات النزلاء",
@@ -9113,15 +9367,56 @@ export const messages: Record<SupportedLocale, Messages> = {
     },
     hr: {
       heading: "الموارد البشرية والرواتب",
+      peoplePointer:
+        "التوظيف والمناوبات والإجازات والرواتب تُحفظ هنا. من يستطيع تسجيل الدخول وما يحق له فعله موجود في",
+      peoplePointerLink: "الأشخاص",
       subtitle:
         "عقود الموظفين وجدول الورديات الأسبوعي والإجازات والرواتب الشهرية.",
       tabs: {
         employees: "الموظفون",
-        rota: "هذا الأسبوع",
+        rota: "المناوبات",
         leave: "الإجازات",
         payroll: "الرواتب",
       },
       employees: {
+        filterDepartment: "التصفية حسب القسم",
+        person: "الشخص",
+        property: "المنشأة",
+        actions: "الإجراءات",
+        search: "ابحث بالاسم أو المنصب أو القسم",
+        allDepartments: "كل الأقسام",
+        counts:
+          "{employed, plural, one {موظف واحد} two {موظفان} few {# موظفين} many {# موظفًا} other {# موظف}} على رأس العمل{left, plural, =0 {} other {، وغادر #}}",
+        showLeft: "إظهار {count} ممن غادروا",
+        noMatch: "لا أحد يطابق هذا البحث.",
+        allLeft: "كل المسجلين غادروا.",
+        showAll: "إظهار الجميع",
+        hasLogin: "لديه حساب دخول",
+        wholeOrganization: "المؤسسة كلها",
+        anotherProperty: "منشأة أخرى",
+        noEmployeesReadOnly:
+          "لا موظفين مسجلين بعد. يستطيع من يدير الموارد البشرية إضافتهم.",
+        startDate: "تاريخ البدء",
+        registersAt: "يُسجَّل في {property}.",
+        edit: "تعديل",
+        editTitle: "تعديل {name}",
+        editDescription:
+          "غيّر من هو وما يعمله الآن. يُغيَّر الأجر من شهر معيّن فصاعدًا أدناه، فتبقى الأشهر المدفوعة كما كانت.",
+        detailsSaved: "حُفظت البيانات.",
+        saveDetails: "حفظ البيانات",
+        ibanKeepHint:
+          "اتركه فارغًا للإبقاء على رقم الآيبان المسجّل. الرقم الجديد يحل محله.",
+        payHeading: "الأجر",
+        payNow: "يُدفع {amount} إجماليًا هذا الشهر.",
+        payFrom: "ابتداءً من {month}: {amount}",
+        newGrossPay: "الأجر الإجمالي الجديد ({currency})",
+        effectiveFrom: "ابتداءً من شهر",
+        payHint:
+          "يسري الأجر الجديد من اليوم الأول من ذلك الشهر. تبقى الأشهر السابقة كما دُفعت، ولا يمكن تغيير شهر اعتُمدت رواتبه.",
+        changePay: "تغيير الأجر",
+        wageSaved: "حُفظ تغيير الأجر.",
+        raiseFrom: "{amount} ابتداءً من {month}",
+        terminatePeople: "افتح الأشخاص لإزالة وصوله",
         title: "دليل الموظفين",
         register: "إضافة موظف",
         registerTitle: "تسجيل موظف جديد",
@@ -9164,14 +9459,24 @@ export const messages: Record<SupportedLocale, Messages> = {
         terminate: "إنهاء الخدمة",
         terminateTitle: "إنهاء خدمة {name}",
         terminateDescription:
-          "يبقى سجله ووردياته وإجازاته وقسائم رواتبه. إنهاء الخدمة لا يسحب صلاحية دخوله إلى النظام: غيّر ذلك من شاشة الفريق.",
+          "يبقى سجله ومناوباته وإجازاته وكشوف رواتبه. إنهاء التوظيف لا يزيل وصوله إلى النظام.",
         terminateDate: "آخر يوم عمل",
         terminateConfirm: "إنهاء الخدمة",
         terminating: "جارٍ الإنهاء...",
       },
       rota: {
+        previousWeek: "الأسبوع السابق",
+        nextWeek: "الأسبوع التالي",
+        thisWeek: "هذا الأسبوع",
+        emptyTitle: "لا أحد لتوزيع المناوبات عليه بعد",
+        registerFirst: "سجّل الموظفين أولًا ثم أعطهم المناوبات هنا.",
+        nobodyHereTitle: "لا أحد يعمل في هذه المنشأة بعد",
+        nobodyHere:
+          "المسجلون يعملون في منشآت أخرى. الموظفون بلا منشأة يظهرون في كل جدول.",
+        goToEmployees: "الذهاب إلى الموظفين",
+        hintReadOnly: "يحدد المناوبات من يدير الموارد البشرية.",
         title: "جدول الورديات الأسبوعي",
-        hint: "انقر على الوردية لتغييرها. يحتاج مكتب الاستقبال إلى شخص واحد على الأقل كل صباح ومساء.",
+        hint: "اختر مناوبة لكل يوم؛ تُحفظ فور اختيارك. يحتاج الاستقبال إلى شخص واحد على الأقل في كل صباح ومساء.",
         staffMember: "الموظف",
         today: "اليوم",
         shifts: {
@@ -9188,6 +9493,23 @@ export const messages: Record<SupportedLocale, Messages> = {
         },
       },
       leave: {
+        incomplete: "اختر لمن الطلب والتاريخين.",
+        chooseStaffMember: "اختر شخصًا",
+        nobodyHereToRequest: "لا أحد يعمل هنا بعد: انظر الموظفين",
+        registerFirstToRequest: "سجّل موظفًا أولًا",
+        showRequests: "إظهار الطلبات",
+        filterAll: "الكل",
+        emptyTitle: "لا طلبات إجازة بعد",
+        noneWithStatus: "لا طلبات بحالة «{status}».",
+        showAll: "إظهار كل الطلبات",
+        confirmApproveTitle: "الموافقة على إجازة {name}؟",
+        confirmDeclineTitle: "رفض إجازة {name}؟",
+        confirmDates: "{type}، من {from} إلى {to}.",
+        confirmApproveEffect:
+          "تسجّل الموافقة هذه الإجازة معتمدة. يبقى الموظف على رأس عمله ولا يُخصم من أجره.",
+        confirmDeclineEffect: "يسجّل الرفض الطلب مرفوضًا.",
+        confirmFinal:
+          "القرار نهائي: لا يمكن تغييره لاحقًا، ولا يُبلَّغ الموظف من هنا، فأخبره بنفسك.",
         title: "طلبات الإجازة",
         requestLeave: "طلب إجازة",
         requestLeaveTitle: "تقديم طلب إجازة",
@@ -9223,6 +9545,18 @@ export const messages: Record<SupportedLocale, Messages> = {
         },
       },
       payroll: {
+        notApproved: "لم يُعتمد بعد",
+        blockedBadge: {
+          period_not_ended: "لم ينتهِ الشهر",
+          no_employees: "لا أحد للدفع له",
+          mixed_currency: "يحتاج إلى معالجة",
+        },
+        goToEmployees: "الذهاب إلى الموظفين",
+        confirmPlaceholders:
+          "مبالغ التأمينات الاجتماعية وضريبة الدخل ورسم الدمغة قيم مؤقتة لم يعتمدها أحد. يجب ألا تُستخدم لدفع أجر أي شخص، وهذا القفل دائم.",
+        confirmUnderstood:
+          "أفهم أن الاستقطاعات قيم مؤقتة غير معتمدة وأن قفل هذا الكشف دائم.",
+        print: "طباعة",
         period: "الفترة",
         summaryGrossNet: "الإجمالي {amount}، الصافي {total}",
         gross: "الإجمالي",
@@ -9233,12 +9567,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         approve: "اعتماد الرواتب",
         approving: "جارٍ الاعتماد...",
         approved: "معتمد",
-        draft: "مسودة",
         previousPeriod: "الفترة السابقة",
         nextPeriod: "الفترة التالية",
         confirmTitle: "اعتماد رواتب {period}؟",
         confirmBody:
-          "{count, plural, one {موظف واحد} two {موظفان} few {# موظفين} many {# موظفًا} other {# موظف}} سيُصرف لهم بعملة {currency}: الإجمالي {amount} والصافي {total}.",
+          "سيُسجَّل كشف رواتب لـ {count, plural, one {موظف واحد} two {موظفين} few {# موظفين} many {# موظفًا} other {# موظف}} بعملة {currency}: {amount} إجمالي و{total} صافي. لا يُدفع شيء من هنا.",
         confirmLocked:
           "يقفل الاعتماد الكشف: لا يمكن تعديله بعدها، ولا توجد حتى الآن طريقة لعكسه أو مراجعته.",
         confirm: "اعتماد وقفل",
@@ -9250,7 +9583,6 @@ export const messages: Record<SupportedLocale, Messages> = {
         payslipTitle: "قسيمة الراتب",
         paidTo: "مدفوع إلى",
         noBankAccount: "لا يوجد حساب مصرفي مسجل",
-        downloadPdf: "تحميل PDF",
         actions: "الإجراءات",
         placeholderTitle: "خصومات تجريبية",
         placeholderBody:
@@ -9266,11 +9598,13 @@ export const messages: Record<SupportedLocale, Messages> = {
           no_employees:
             "لا يوجد موظفون على رأس العمل ليُصرف لهم في هذه الفترة.",
           mixed_currency:
-            "يُصرف للموظفين بأكثر من عملة، وكشف الرواتب بعملة واحدة، لذا لا يمكن اعتماد هذه الفترة قبل معالجة ذلك.",
+            "يُدفع للموظفين بأكثر من عملة، والكشف بعملة واحدة. يُذكر أدناه من يُدفع له بعملة مختلفة: أنهِ توظيفه أو صحّح سجله ثم عد.",
         },
       },
       outcomes: {
         invalid: {
+          effectiveFrom:
+            "راجع الشهر: لا يمكن أن يبدأ الأجر قبل شهر تعيين الشخص.",
           name: "أدخل الاسم الأول واسم العائلة.",
           department: "أدخل القسم.",
           position: "أدخل المنصب.",
@@ -9280,12 +9614,15 @@ export const messages: Record<SupportedLocale, Messages> = {
           currency: "هذه العملة غير معروفة.",
           iban: "رقم الآيبان هذا يبدو غير صحيح.",
           period: "فترة الرواتب هذه غير صالحة.",
-          dates: "راجع التواريخ: لا يمكن أن ينتهي قبل أن يبدأ.",
+          dates:
+            "راجع التواريخ: لا يمكن أن تسبق النهاية البداية، ولا أن تكون البداية في المستقبل.",
           terminatedOn: "راجع آخر يوم عمل: لا يمكن أن يسبق يوم التحاقه.",
           shiftTime: "وقت الوردية هذا غير صالح.",
           request: "تعذّرت قراءة الطلب. أعد تحميل الصفحة وحاول مرة أخرى.",
         },
         refused: {
+          wage_period_approved:
+            "رواتب ذلك الشهر معتمدة بالفعل، فلا يمكن أن يبدأ الأجر فيه أو قبله. اختر شهرًا لاحقًا.",
           not_permitted:
             "لا يمكنك فعل ذلك هنا، أو تغيّر الوضع منذ تحميل الصفحة.",
           employee_terminated:
@@ -9301,11 +9638,11 @@ export const messages: Record<SupportedLocale, Messages> = {
           payroll_no_employees:
             "لا يوجد موظفون على رأس العمل ليُصرف لهم في هذه الفترة.",
           payroll_mixed_currency:
-            "يُصرف للموظفين بأكثر من عملة، وكشف الرواتب بعملة واحدة.",
+            "يُدفع للموظفين بأكثر من عملة، والكشف بعملة واحدة. يذكر تبويب الرواتب من يُدفع له بأي عملة.",
           payroll_period_not_ended:
             "لم تنتهِ هذه الفترة بعد، فلا يمكن اعتمادها الآن.",
           payroll_draft_exists:
-            "توجد مسودة لهذه الفترة بالفعل وتحتاج إلى مسؤول لإزالتها.",
+            "يوجد كشف مسودة لهذه الفترة ولا يمكن مسحه من هذه الشاشة. اطلب من دعم بريزيك إزالته قبل الاعتماد.",
         },
         error: "حدث خطأ ما وتم الإبلاغ عنه. حاول مرة أخرى بعد قليل.",
       },
@@ -9997,6 +10334,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       employee: {
         registered: "تم تسجيل موظف",
+        updated: "تم تحديث سجل الموظف",
+        wage_changed: "تم تسجيل تغيير الأجر",
         terminated: "انتهت خدمة الموظف",
       },
       leave: {
@@ -10173,7 +10512,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       inventory: "المخزون",
       finance: "المالية",
       people: "الفريق",
-      hr: "الموارد البشرية والرواتب",
+      hr: "الموارد البشرية",
       analytics: "التحليلات",
       portfolio: "كل المنشآت",
       configuration: "الإعدادات",
