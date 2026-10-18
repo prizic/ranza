@@ -231,7 +231,9 @@ describe("the Change booking dialog", () => {
     fireEvent.click(
       await screen.findByRole("combobox", { name: messages.en.unit }),
     );
-    fireEvent.click(await screen.findByText("Room · Booked · RXYZ789"));
+    fireEvent.click(
+      await screen.findByText("Room · Booked for these nights · RXYZ789"),
+    );
     expect(
       await screen.findByText(/Booking RXYZ789 holds some of those nights/),
     ).toBeInTheDocument();

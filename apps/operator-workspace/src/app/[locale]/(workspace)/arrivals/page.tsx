@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { EmptyState } from "@ranza/ui";
+import { Button, EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { LiveArrivals } from "../../../../features/front-office/components/live-arrivals";
 import { frontOfficeKeys } from "../../../../features/front-office/query-keys";
@@ -13,6 +15,17 @@ import {
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import { parseArrivalFilter } from "../../../../features/today/views";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isSupportedLocale(locale)) return {};
+  const t = await getTranslations({ locale });
+  return { title: `${t("navigation.arrivals")} · ${t("productName")}` };
+}
 
 /**
  * Arrivals: who is expected today at one Property, and the one action worth
@@ -82,15 +95,29 @@ export default async function ArrivalsPage({
 
   return (
     <>
-      <p className="text-sm text-muted-foreground">
-        {t("arrivalsAt")} {property.propertyName}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          {t("arrivalsAt")} {property.propertyName}
+        </p>
+        {/* A walk-in is booked on Reservations and checked in here: the entry
+            point is on this page so nobody has to know that (CI-S1-08). The
+            booking form's own permission still decides each booking. */}
+        <Button asChild size="sm" variant="outline">
+          <Link
+            href={`${localizeHref(locale, "reservations")}?property=${property.propertyId}&new=1`}
+            prefetch={false}
+          >
+            {t("newBooking")}
+          </Link>
+        </Button>
+      </div>
       <Hydrated client={client}>
         <LiveArrivals
           allHref={`${localizeHref(locale, "arrivals")}?property=${property.propertyId}`}
           filter={parseArrivalFilter(search.show)}
           locale={locale}
           scope={scope}
+          timeZone={property.timezone}
         />
       </Hydrated>
     </>

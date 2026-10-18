@@ -24,6 +24,32 @@ import {
 } from "../reservation-tabs";
 import { unitLabel } from "../unit-label";
 
+/** `2026-10-11` as `11.10.2026`, `11/10/2026`, `11.10` and `11/10`. */
+function typedDates(iso: string): string[] {
+  const [year, month, day] = iso.split("-");
+  return [
+    `${day}.${month}.${year}`,
+    `${day}/${month}/${year}`,
+    `${day}.${month}`,
+    `${day}/${month}`,
+  ];
+}
+
+/**
+ * A telephone's digits as a desk may type them: with the country code, without
+ * it, and with the leading zero a Turkish number is dialled with — so `+90 532`
+ * typed as `90532`, `0532` or `532` all find it. Digits only: the search box
+ * compares what was typed, and a number typed with spaces is not found here.
+ */
+function phoneForms(digits: string): string {
+  if (digits === "") return "";
+  const national = digits.startsWith("90") ? digits.slice(2) : digits;
+  const bare = national.replace(/^0+/, "");
+  return [...new Set([digits, national, bare, `0${bare}`, `90${bare}`])].join(
+    " ",
+  );
+}
+
 /** The row an action has just made or changed, so the desk can see it. */
 const JUST_CHANGED = "bg-primary/5 ring-1 ring-primary/30";
 
@@ -125,20 +151,17 @@ export function ReservationsTable({
               year: "numeric",
               timeZone: "UTC",
             });
-          const dateSearch = [
-            row.startsOn,
-            formatDay(row.startsOn),
-            row.endsOn ? `${row.endsOn} ${formatDay(row.endsOn)}` : "",
-          ]
+          // The forms a desk types a date in: the ISO one, the language's own,
+          // and day.month.year and day/month as a Turkish desk writes them.
+          const dateSearch = [row.startsOn, row.endsOn ?? ""]
             .filter(Boolean)
+            .flatMap((iso) => [iso, formatDay(iso), ...typedDates(iso)])
             .join(" ");
+          const digits = toAsciiDigits(row.guestPhone ?? "").replace(/\D/g, "");
 
           return {
             ...row,
-            guestPhoneDigits: toAsciiDigits(row.guestPhone ?? "").replace(
-              /\D/g,
-              "",
-            ),
+            guestPhoneDigits: phoneForms(digits),
             unitTypeLabel: t(`unitType.${row.unitType}`),
             statusLabel: t(`reservationStatus.${row.status}`),
             dateSearch,
@@ -179,7 +202,7 @@ export function ReservationsTable({
         >
           <TabsList
             aria-label={t("reservationsViews")}
-            className="max-w-full justify-start overflow-x-auto"
+            className="h-auto max-w-full flex-wrap justify-start"
           >
             {RESERVATION_TABS.map((name) => (
               <TabsTrigger key={name} value={name}>
@@ -209,7 +232,7 @@ export function ReservationsTable({
             />
           )
         }
-        labels={labels}
+        labels={{ ...labels, searchBy: () => t("searchReservations") }}
         getRowId={(row) => row.reservationId}
         onRowClick={(row) => setSelectedReservation(row)}
         rowClassName={(row) =>

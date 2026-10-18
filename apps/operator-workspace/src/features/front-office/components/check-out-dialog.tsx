@@ -200,19 +200,38 @@ export function CheckOutDialog({
             </Fact>
           </FactList>
 
+          {departure.overdue && departure.endsOn ? (
+            <p className="text-step--1">
+              {t("checkOutOverdue", {
+                count: departure.overdueDays,
+                date: day(departure.endsOn, locale),
+              })}
+            </p>
+          ) : null}
+
           {unpriced ? (
             <p className="text-step--1 text-muted-foreground">
               {t("checkOutUnpriced")}
             </p>
           ) : null}
 
+          {departure.roomWillBeDirty ? (
+            <p className="text-step--1 text-muted-foreground">
+              {t("checkOutRoomDirty")}
+            </p>
+          ) : null}
+
           {departure.folioId ? (
+            // A new tab when money is owed: the Folio is where it is settled,
+            // and leaving this one closes the dialog and forgets the reason
+            // already typed. The bill is checked again when it is confirmed.
             <Link
               className="text-step--1 underline underline-offset-4"
               href={`${localizeHref(locale, "finance")}?property=${propertyId}&folio=${departure.folioId}`}
               prefetch={false}
+              {...(owes ? { rel: "noopener", target: "_blank" } : {})}
             >
-              {t("reviewFolio")}
+              {owes ? t("reviewFolioNewTab") : t("reviewFolio")}
             </Link>
           ) : null}
 
@@ -257,6 +276,9 @@ export function CheckOutDialog({
 
           {owes ? (
             <>
+              <p className="text-step--1 font-medium">
+                {t("checkOutOwesFirst", { balance })}
+              </p>
               <Field
                 htmlFor={`balance-reason-${departure.stayId}`}
                 label={t("checkOutBalanceReason")}

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
@@ -22,6 +23,17 @@ const MANAGES_ROOMS = "accommodation.configure";
 /** Taking a booking (reservations_insert_front_desk). */
 const TAKES_BOOKINGS = "front_desk.book";
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isSupportedLocale(locale)) return {};
+  const t = await getTranslations({ locale });
+  return { title: `${t("navigation.reservations")} · ${t("productName")}` };
+}
+
 /**
  * Reservations: what is booked at this Property from today onwards, and the one
  * thing a front desk does that nothing else in the product could do — take a
@@ -44,6 +56,7 @@ export default async function ReservationsPage({
   searchParams: Promise<{
     property?: string;
     change?: string;
+    new?: string;
     open?: string;
   }>;
 }) {
@@ -108,6 +121,7 @@ export default async function ReservationsPage({
           <NewReservationDialog
             locale={locale}
             propertyId={property.propertyId}
+            startOpen={search.new === "1"}
             today={today}
             units={units}
           />

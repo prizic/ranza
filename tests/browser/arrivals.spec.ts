@@ -235,8 +235,7 @@ test("an_arrival_shows_its_expected_time_and_says_so_when_it_has_passed", async 
 
   await page.getByRole("searchbox").fill(unsaidName);
   const unsaid = page.getByRole("row").filter({ hasText: unsaidName });
-  await expect(unsaid.getByText("Expected \u2014")).toBeVisible();
-  await expect(unsaid.getByText("No expected time")).toBeAttached();
+  await expect(unsaid.getByText("No time given")).toBeVisible();
   await expect(unsaid.getByText("Past the expected time")).toBeHidden();
 });
 
@@ -332,5 +331,5 @@ test("an_expected_time_is_changed_from_change_booking_and_the_row_follows", asyn
   await again.getByLabel("Expected arrival").clear();
   await again.getByRole("button", { name: "Save change" }).click();
   await expect(again).toBeHidden();
-  await expect(row.getByText("Expected \u2014")).toBeVisible();
+  await expect(row.getByText("No time given")).toBeVisible();
 });

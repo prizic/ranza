@@ -399,14 +399,12 @@ export function ChangeBookingDialog({
                 {booking.reference}
               </span>
             </Fact>
-            {move ? null : (
-              <Fact label={t("unit")}>
-                <bdi className="tabular-nums">{booking.unitLabel}</bdi>
-              </Fact>
-            )}
           </FactList>
 
-          {move ? (
+          {move || (!unchanged && dates.from !== undefined) ? (
+            // Said for every change and not only a drag: what the booking is
+            // now and what it becomes, before the save (RES-12). The Unit is not
+            // repeated above it as a fact; the editable field below is it.
             <MoveSummary
               conflicts={known}
               from={{
@@ -520,22 +518,30 @@ export function ChangeBookingDialog({
               labels={unitLabels}
               name="unit"
               onValueChange={setUnitId}
-              options={(preview?.options ?? []).map((option) => ({
-                value: option.unitId,
-                label: unitLabel(option.roomName, option.unitName),
-                description: [
-                  t(`unitType.${option.unitType}`),
-                  !option.takesBookings
-                    ? t("changeBookingUnitNotTaking")
-                    : option.blocker === "booked"
-                      ? t("changeBookingUnitBooked", {
-                          reference: option.conflictReference ?? "",
-                        })
-                      : option.blocker === "occupied"
-                        ? t("changeBookingUnitOccupied")
-                        : t("changeBookingUnitFree"),
-                ].join(" · "),
-              }))}
+              options={[...(preview?.options ?? [])]
+                .sort((a, b) =>
+                  unitLabel(a.roomName, a.unitName).localeCompare(
+                    unitLabel(b.roomName, b.unitName),
+                    undefined,
+                    { numeric: true },
+                  ),
+                )
+                .map((option) => ({
+                  value: option.unitId,
+                  label: unitLabel(option.roomName, option.unitName),
+                  description: [
+                    t(`unitType.${option.unitType}`),
+                    !option.takesBookings
+                      ? t("changeBookingUnitNotTaking")
+                      : option.blocker === "booked"
+                        ? t("changeBookingUnitBooked", {
+                            reference: option.conflictReference ?? "",
+                          })
+                        : option.blocker === "occupied"
+                          ? t("changeBookingUnitOccupied")
+                          : t("changeBookingUnitFree"),
+                  ].join(" · "),
+                }))}
               required
               value={unitId}
             />
@@ -599,7 +605,7 @@ export function ChangeBookingDialog({
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline">
-                {t("keepAsItWas")}
+                {move ? t("keepAsItWas") : t("keepBooking")}
               </Button>
             </DialogClose>
             <Button disabled={pending || !canSave} type="submit">

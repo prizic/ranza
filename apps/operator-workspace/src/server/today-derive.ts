@@ -21,6 +21,7 @@ import {
   holdsTonight,
   inRoomFilter,
   isOwing,
+  owedMinor,
   isToCome,
   leavesTonight,
   overdueDays,
@@ -482,7 +483,7 @@ function departureRow(
     ...(money
       ? {
           balance: {
-            amountMinor: departure.balanceMinor,
+            amountMinor: owedMinor(departure),
             currency: departure.currency,
           },
           ...(departure.folioId ? { folioId: departure.folioId } : {}),
@@ -646,6 +647,10 @@ export function moneyFrom(
   businessDate: string,
 ): MoneyCard {
   const open = folios.filter((folio) => folio.status === "open");
+  const owedOf = (row: Departure) => ({
+    amountMinor: owedMinor(row),
+    currency: row.currency,
+  });
   const balanceOf = (row: { balanceMinor: number; currency: string }) => ({
     amountMinor: row.balanceMinor,
     currency: row.currency,
@@ -669,15 +674,14 @@ export function moneyFrom(
   const owingRows = departures.filter(isOwing);
   const overdueRows = owingRows.filter((departure) => departure.overdue);
   card.leaving = {
-    owed: totals(owingRows.map(balanceOf)),
+    owed: totals(owingRows.map(owedOf)),
     owing: owingRows.length,
     overdueOwing: overdueRows.length,
-    overdueBalance: totals(overdueRows.map(balanceOf)),
+    overdueBalance: totals(overdueRows.map(owedOf)),
     rows: [...owingRows]
       .sort(
         (a, b) =>
-          Number(b.overdue) - Number(a.overdue) ||
-          b.balanceMinor - a.balanceMinor,
+          Number(b.overdue) - Number(a.overdue) || owedMinor(b) - owedMinor(a),
       )
       .slice(0, LIST_LIMIT)
       .map((row) => departureRow(row, true, businessDate)),
@@ -931,7 +935,7 @@ export function attentionFrom(
     const balance = owing
       ? {
           balance: {
-            amountMinor: departure.balanceMinor,
+            amountMinor: owedMinor(departure),
             currency: departure.currency,
           },
           ...(departure.folioId ? { folioId: departure.folioId } : {}),

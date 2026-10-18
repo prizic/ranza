@@ -11,6 +11,7 @@ import {
   DoorOpen,
   MoreHorizontal,
   Receipt,
+  SprayCan,
   UserX,
 } from "lucide-react";
 import { isolate, localizeHref, type SupportedLocale } from "@ranza/i18n";
@@ -46,6 +47,8 @@ export interface EndableBooking {
   unitLabel: string;
   mayCancel: boolean;
   mayMarkNoShow: boolean;
+  /** The expected arrival, for the no-show dialog to say how early it is. */
+  expected?: { time: string; passed: boolean | null } | undefined;
   /** Present when the viewer may change its nights or Unit (AB-S1-27). */
   change?: ChangeableBooking | undefined;
 }
@@ -65,6 +68,7 @@ export function FrontDeskRowMenu({
   booking,
   folioId,
   guestName,
+  housekeeping = false,
   locale,
   propertyId,
   stay,
@@ -75,6 +79,8 @@ export function FrontDeskRowMenu({
   stay?: ChangeableStay | undefined;
   folioId: string | null;
   guestName: string;
+  /** The room is waiting to be cleaned or inspected: offers the way to its board. */
+  housekeeping?: boolean;
   locale: SupportedLocale;
   propertyId: string;
   unitId?: string | null | undefined;
@@ -120,6 +126,17 @@ export function FrontDeskRowMenu({
               <span>{t("showOnRoomMap")}</span>
             </Link>
           </DropdownMenuItem>
+          {housekeeping ? (
+            <DropdownMenuItem asChild>
+              <Link
+                href={`${localizeHref(locale, "housekeeping")}?property=${propertyId}`}
+                prefetch={false}
+              >
+                <SprayCan className="size-4" />
+                <span>{t("openInHousekeeping")}</span>
+              </Link>
+            </DropdownMenuItem>
+          ) : null}
           {bookingActions || stay ? <DropdownMenuSeparator /> : null}
           {stay ? (
             <DropdownMenuItem onSelect={() => setChangingDeparture(true)}>
@@ -158,6 +175,7 @@ export function FrontDeskRowMenu({
       </DropdownMenu>
       {booking && ending ? (
         <EndBookingDialog
+          expected={booking.expected}
           guestName={guestName}
           kind={ending}
           locale={locale}

@@ -105,6 +105,11 @@ export interface Arrival {
    */
   unitIsReady: boolean;
   /**
+   * Why housekeeping says the room is not ready: it has not been cleaned, or
+   * it is clean and waits for inspection. Null when it is ready.
+   */
+  unitNotReadyBecause: "dirty" | "awaiting_inspection" | null;
+  /**
    * Whether check-in would succeed, from the same conditions `checkIn` and the
    * triggers apply — asserted against the command in the integration suite.
    * The two drifted apart once already, and a button that raises when pressed
@@ -199,6 +204,11 @@ export interface DepartedStay {
   unitType: AccommodationUnitType;
   /** The moment they left, as an ISO instant. */
   departedAt: string;
+  /**
+   * Housekeeping's answer for the room now (ADR 0029): false while it waits to
+   * be cleaned, which is where a check-out leaves it.
+   */
+  unitIsReady: boolean;
 }
 
 export interface Departure {
@@ -224,6 +234,11 @@ export interface Departure {
   roomName: string | null;
   unitType: AccommodationUnitType;
   unitStatus: string;
+  /**
+   * Whether checking this Guest out marks their room dirty: only where the
+   * Property uses housekeeping (ADR 0029), so the dialog says it only then.
+   */
+  roomWillBeDirty: boolean;
   /** Past their planned departure and still here. */
   overdue: boolean;
   /**
@@ -669,6 +684,19 @@ export interface ReservationRow {
   stayNights: number | null;
   /** `stayNights` at the rate the booking was taken at; null when either is. */
   totalMinor: number | null;
+}
+
+/**
+ * A Guest already on file whose name or telephone matches what is being typed
+ * into a new booking, so the desk can see a returning person before a second
+ * record is made. A suggestion only: nothing here merges Guests, which
+ * blueprint 18.7 forbids, and the booking still matches on an exact email.
+ */
+export interface GuestMatch {
+  guestId: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
 }
 
 /**

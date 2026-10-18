@@ -112,26 +112,25 @@ function openMenu(row: HTMLElement) {
 
 afterEach(cleanup);
 
+// The button names the Guest it checks in ("Check in Grace Hopper"), so it is
+// found by the start of its name; an exact match would find none and make every
+// "offers none" assertion below pass for the wrong reason.
+const CHECK_IN = new RegExp(`^${messages.en.checkIn}`);
+
 describe("a Reservations row's actions", () => {
   it("a_confirmed_booking_can_be_checked_in_from_the_reservations_list: shows Check in when the row says it may", () => {
     const row = show({ ...BASE, mayCheckIn: true });
-    expect(
-      within(row).getByRole("button", { name: messages.en.checkIn }),
-    ).toBeVisible();
+    expect(within(row).getByRole("button", { name: CHECK_IN })).toBeVisible();
   });
 
   it("check_in_is_only_offered_on_a_confirmed_booking_that_has_arrived_to_a_viewer_who_may: offers none otherwise", () => {
     const row = show({ ...BASE, mayCheckIn: false });
-    expect(
-      within(row).queryByRole("button", { name: messages.en.checkIn }),
-    ).toBeNull();
+    expect(within(row).queryByRole("button", { name: CHECK_IN })).toBeNull();
   });
 
   it("a_checked_in_row_offers_the_folio_and_stay_changes: menu carries Open folio, Change departure and Move Guest", () => {
     const row = show({ ...IN_HOUSE, mayCancel: true, mayAmend: true });
-    expect(
-      within(row).queryByRole("button", { name: messages.en.checkIn }),
-    ).toBeNull();
+    expect(within(row).queryByRole("button", { name: CHECK_IN })).toBeNull();
     openMenu(row);
     const items = screen.getAllByRole("menuitem").map((i) => i.textContent);
     expect(items).toContain(messages.en.openFolio);
@@ -182,9 +181,7 @@ describe("a Reservations row's actions", () => {
       expect(
         within(row).getByText(messages.en.checkInBlocked[blocker]),
       ).toBeVisible();
-      expect(
-        within(row).queryByRole("button", { name: messages.en.checkIn }),
-      ).toBeNull();
+      expect(within(row).queryByRole("button", { name: CHECK_IN })).toBeNull();
       cleanup();
     }
     // Nothing in the way, and nothing due: neither a reason nor a button.

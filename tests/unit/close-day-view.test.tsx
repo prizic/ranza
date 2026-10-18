@@ -15,6 +15,7 @@ import {
   render,
   renderHook,
   screen,
+  within,
 } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -29,7 +30,16 @@ import {
 // drag in the composition root and a database connection.
 vi.mock("../../apps/operator-workspace/src/server/close-day", () => ({
   closeBusinessDay: vi.fn(),
+  closeWaitingDays: vi.fn(),
 }));
+// The in-place check-out reads the Departures list over the network; its own
+// behaviour is proven in the browser suite, here it is a button in its place.
+vi.mock(
+  "../../apps/operator-workspace/src/features/front-office/components/close-day-check-out",
+  () => ({
+    CloseDayCheckOut: () => <button type="button">Check out</button>,
+  }),
+);
 vi.mock("../../apps/operator-workspace/src/server/front-office", () => ({
   cancelBooking: vi.fn(),
   changeBooking: vi.fn(),
@@ -56,10 +66,12 @@ const { CloseDayView } =
 
 const DUE: CloseTheDay = {
   propertyId: "d9000005-0000-4000-8000-000000000001",
+  timezone: "Europe/Istanbul",
   today: "2026-09-24",
   cutoff: "04:00",
   dayToClose: "2026-09-23",
   waiting: 1,
+  waitingDays: [{ date: "2026-09-23", openItems: 0 }],
   checklistDay: "2026-09-23",
   notArrived: [],
   notDeparted: [],
@@ -74,7 +86,15 @@ function show(day: CloseTheDay, locale: SupportedLocale = "en") {
   cleanup();
   render(
     <NextIntlClientProvider locale={locale} messages={messages[locale]}>
-      <CloseDayView day={day} locale={locale} />
+      <CloseDayView
+        day={day}
+        locale={locale}
+        scope={{
+          organizationId: "org-1",
+          propertyId: day.propertyId,
+          userId: "user-1",
+        }}
+      />
     </NextIntlClientProvider>,
   );
 }
@@ -117,6 +137,8 @@ describe("room nights (ADR 0038)", () => {
       nightsNotCharged: [
         {
           stayId: "d9000005-0000-4000-8000-000000000030",
+          reservationId: null,
+          reference: null,
           guestName: "Kerem Yılmaz",
           unitName: "104",
           roomName: null,
@@ -144,6 +166,7 @@ describe("room nights (ADR 0038)", () => {
       ...DUE,
       dayToClose: null,
       waiting: 0,
+      waitingDays: [],
       checklistDay: "2026-09-24",
       nightsToCharge: null,
     });
@@ -167,6 +190,8 @@ describe("room nights (ADR 0038)", () => {
           ...DUE,
           nightsNotCharged: reasons.map((reason, n) => ({
             stayId: `d9000005-0000-4000-8000-00000000004${n}`,
+            reservationId: null,
+            reference: null,
             guestName: `Guest ${n}`,
             unitName: `10${n}`,
             roomName: null,
@@ -188,7 +213,13 @@ describe("room nights (ADR 0038)", () => {
 
 describe("a day still being worked", () => {
   it("a day still being worked says when it can close", () => {
-    show({ ...DUE, dayToClose: null, waiting: 0, checklistDay: "2026-09-24" });
+    show({
+      ...DUE,
+      dayToClose: null,
+      waiting: 0,
+      waitingDays: [],
+      checklistDay: "2026-09-24",
+    });
     expect(screen.getByText(/ is still open$/)).toBeTruthy();
     expect(screen.getByText(/can be closed after 04:00/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /^Close / })).toBeNull();
@@ -239,19 +270,24 @@ const ARRIVAL = {
   unitName: "101",
   roomName: null,
   arrivable: true,
+  expected: false,
   mayMarkNoShow: true,
   mayCancel: true,
 };
 
 const DEPARTURE = {
   stayId: "d9000005-0000-4000-8000-000000000011",
+  reservationId: null,
   reference: null,
   guestName: null,
   startsOn: "2026-09-20",
   endsOn: "2026-09-23",
   unitName: "103",
   roomName: null,
+  overdueDays: 1,
+  priced: false,
   mayAmend: false,
+  mayCheckOut: true,
 };
 
 /**
@@ -276,6 +312,11 @@ describe("what the day shows", () => {
       dayToClose: "2026-09-21",
       checklistDay: "2026-09-21",
       waiting: 3,
+      waitingDays: [
+        { date: "2026-09-21", openItems: 0 },
+        { date: "2026-09-22", openItems: 0 },
+        { date: "2026-09-23", openItems: 0 },
+      ],
     });
     expect(
       screen.getByText("Monday, September 21, 2026 is ready to close"),
@@ -283,7 +324,7 @@ describe("what the day shows", () => {
     expect(screen.getByText("3 days waiting")).toBeTruthy();
     expect(
       screen.getByText(
-        "3 days are waiting to be closed; the oldest comes first.",
+        /^3 days are waiting to be closed, Sep 21, 2026 to Sep 23, 2026\. The oldest, Sep 21, 2026, was 3 days ago and closes first\.$/,
       ),
     ).toBeTruthy();
   });
@@ -320,7 +361,10 @@ describe("what the day shows", () => {
         },
       ],
     });
-    const row = screen.getByText("Automatically").closest("tr");
+    // The table, not the cards the same closes become on a phone.
+    const row = within(screen.getByRole("table"))
+      .getByText("Automatically")
+      .closest("tr");
     const cells = Array.from(row?.querySelectorAll("td") ?? []).map(
       (cell) => cell.textContent,
     );
@@ -357,16 +401,30 @@ describe("what the day shows", () => {
 });
 
 describe("open items offer the commands that resolve them", () => {
-  it("links a booking still arriving to arrivals, and a Guest past departure to departures", () => {
+  it("links a booking still arriving to arrivals, and checks a Guest past departure out in place", () => {
     show({ ...DUE, notArrived: [ARRIVAL], notDeparted: [DEPARTURE] });
     expect(
       screen.getByRole("link", { name: "Open arrivals" }).getAttribute("href"),
     ).toBe(`/en/arrivals?property=${DUE.propertyId}`);
+    expect(screen.getByRole("button", { name: "Check out" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Open departures" })).toBeNull();
+  });
+
+  it("a_viewer_who_may_not_check_out_is_told_which_roles_may", () => {
+    show({
+      ...DUE,
+      notDeparted: [{ ...DEPARTURE, mayCheckOut: false, mayAmend: false }],
+    });
+    expect(screen.queryByRole("button", { name: "Check out" })).toBeNull();
     expect(
-      screen
-        .getByRole("link", { name: "Open departures" })
-        .getAttribute("href"),
-    ).toBe(`/en/departures?property=${DUE.propertyId}`);
+      screen.getByText(/Checking out needs the Front desk, Manager or Owner/),
+    ).toBeTruthy();
+  });
+
+  it("an_arrival_expected_today_is_not_late_and_offers_no_no_show", () => {
+    show({ ...DUE, notArrived: [{ ...ARRIVAL, expected: true }] });
+    expect(screen.getByText("Expected · not late yet")).toBeTruthy();
+    expect(menuFor("Ayşe")).not.toContain("Mark as no-show");
   });
 
   it("an_overdue_guest_is_extended_from_the_checklist, by someone who may", async () => {

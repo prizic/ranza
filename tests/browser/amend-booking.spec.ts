@@ -153,7 +153,7 @@ test("an_affected_booking_opens_in_change_booking, laid out from the right in Ar
   ).toBeVisible();
 
   // Closing it drops the link, so a refresh does not open it again.
-  await dialog.getByRole("button", { name: "إبقاؤه كما كان" }).click();
+  await dialog.getByRole("button", { name: "إبقاء الحجز" }).click();
   await expect(dialog).toBeHidden();
   await expect(page).not.toHaveURL(/change=/);
 });

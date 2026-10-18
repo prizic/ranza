@@ -168,10 +168,12 @@ describe("every catalogue parses", () => {
                 month: "x",
                 n: 2,
                 name: "x",
+                names: "x",
                 nights: 118,
                 number: 12,
                 occupied: 150,
                 of: 9,
+                others: 2,
                 organization: "x",
                 people: 3,
                 period: "2026-10",
@@ -201,6 +203,7 @@ describe("every catalogue parses", () => {
                 value: "x",
                 when: "16 Sep",
                 who: "x",
+                zone: "Europe/Istanbul",
               }),
             ).not.toThrow();
             return;

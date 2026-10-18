@@ -89,6 +89,9 @@ export interface Messages {
   noFinanceDescription: string;
   noArrivalsTitle: string;
   noArrivalsDescription: string;
+  arrivalsElsewhere: string;
+  newBooking: string;
+  arrivalNightsUntil: string;
   openEnded: string;
   checkIn: string;
   checkingIn: string;
@@ -97,6 +100,9 @@ export interface Messages {
   unitOccupied: string;
   unitNotInService: string;
   roomNotReady: string;
+  roomNotReadyDirty: string;
+  roomNotReadyInspection: string;
+  checkInFor: string;
   checkInAnyway: string;
   notNow: string;
   ready: string;
@@ -172,6 +178,14 @@ export interface Messages {
   cancelBookingSummary: string;
   noShowTitle: string;
   noShowSummary: string;
+  cancelReasonGuest: string;
+  cancelReasonUnconfirmed: string;
+  cancelReasonError: string;
+  cancelReasonDuplicate: string;
+  cancelReasonRoom: string;
+  noShowExpectedPassed: string;
+  noShowExpectedPending: string;
+  noShowExpectedGiven: string;
   markNoShow: string;
   keepBooking: string;
   saving: string;
@@ -182,6 +196,10 @@ export interface Messages {
   checkOutFor: string;
   checkOutTitle: string;
   checkOutSummary: string;
+  checkOutRoomDirty: string;
+  checkOutOverdue: string;
+  checkOutOwesFirst: string;
+  reviewFolioNewTab: string;
   confirmCheckOut: string;
   keepInHouse: string;
   plannedDeparture: string;
@@ -202,6 +220,7 @@ export interface Messages {
   checkOutBalanceReasonRequired: string;
   checkOutFolioChanged: string;
   departuresViews: string;
+  departuresFilters: string;
   inHouseAt: string;
   departuresDue: string;
   departuresInHouse: string;
@@ -212,6 +231,23 @@ export interface Messages {
   showOnRoomMap: string;
   noDeparturesTitle: string;
   noDeparturesDescription: string;
+  departuresFilteredEmptyTitle: string;
+  departuresFilteredEmptyHint: string;
+  departuresShowAll: string;
+  departuresChipAll: string;
+  departuresChipOwing: string;
+  departuresChipOverdueOwing: string;
+  viewOnlyDepartures: string;
+  viewOnlyArrivals: string;
+  listUpdatedAt: string;
+  listStale: string;
+  roomDirty: string;
+  roomAwaitingInspection: string;
+  roomNeedsCleaning: string;
+  openInHousekeeping: string;
+  roomRowHeading: string;
+  searchGuestRoomReference: string;
+  searchReservations: string;
   /** The departures screen's list of who has already gone today. */
   leftToday: string;
   leftAt: string;
@@ -227,6 +263,7 @@ export interface Messages {
   openFolio: string;
   leaves: string;
   overdueSince: string;
+  includesNights: string;
   wasDueOn: string;
   overdueDays: string;
   overdueNightsNote: string;
@@ -514,6 +551,13 @@ export interface Messages {
   takeBooking: string;
   takingBooking: string;
   discardBooking: string;
+  discardBookingAsk: string;
+  discardNow: string;
+  keepEditing: string;
+  guestLookupTitle: string;
+  guestLookupHint: string;
+  guestNoDetailsOnFile: string;
+  guestPhoneInvalid: string;
   bookingUnavailable: string;
   unitBookedThoseNights: string;
   unitOccupiedThoseNights: string;
@@ -527,6 +571,7 @@ export interface Messages {
   expectedAt: string;
   expectedArrivalHint: string;
   expectedArrivalNone: string;
+  expectedNoTime: string;
   expectedArrivalPassed: string;
   guestRequired: string;
   guestEmailInvalid: string;
@@ -2622,6 +2667,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     noArrivalsTitle: "Bugün giriş yok",
     noArrivalsDescription:
       "Bugün için bu tesiste bekleyen bir rezervasyon bulunmuyor.",
+    arrivalsElsewhere:
+      "Burada olmayan bir rezervasyon mu arıyorsunuz? Tüm rezervasyonlarda arayın.",
+    newBooking: "Yeni rezervasyon",
+    arrivalNightsUntil:
+      "{count, plural, one {# gece} other {# gece}}, {date} tarihine kadar",
     openEnded: "Açık uçlu",
     checkIn: "Giriş yap",
     checkingIn: "Yapılıyor",
@@ -2634,6 +2684,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     blockReasonPlaceholder: "Bakım ya da onarım",
     roomNotReady:
       "Bu oda henüz hazır değil: temizlenmedi ya da kontrol bekliyor.",
+    roomNotReadyDirty: "{room} henüz temizlenmedi.",
+    roomNotReadyInspection: "{room} temiz, kontrol bekliyor.",
+    checkInFor: "{guest} için giriş yap",
     checkInAnyway: "Yine de giriş yap",
     notNow: "Şimdi değil",
     ready: "Hazır",
@@ -2684,7 +2737,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Bu girişin yapıldığı iş günü kapatıldı, bu yüzden giriş geri alınamaz. Misafir kalmıyorsa çıkışını Çıkışlar ekranından yapın.",
     checkInMoved:
       "Misafir girişten sonra başka bir odaya taşındı, bu yüzden giriş geri alınamaz. Kalmıyorsa çıkışını Çıkışlar ekranından yapın.",
-    stayType: { guest: "Misafir", resident: "Sakin" },
+    stayType: { guest: "Misafir konaklaması", resident: "Sakin konaklaması" },
     unitType: {
       room: "Oda",
       bed: "Yatak",
@@ -2718,9 +2771,19 @@ export const messages: Record<SupportedLocale, Messages> = {
     cancelBooking: "Rezervasyonu iptal et",
     cancelBookingTitle: "Rezervasyonu iptal et",
     cancelBookingSummary:
-      "Geceler serbest kalır ve başkasına satılabilir. İptal geri alınamaz.",
+      "Geceler serbest kalır ve başkasına satılabilir. İptal ücret almaz, iade de yapmaz. Geri alınamaz: yeniden kurmak için yeni bir rezervasyon yapın; yeni bir referansı olur.",
     noShowTitle: "Gelmedi olarak işaretle",
-    noShowSummary: "Misafir gelmedi. Geceler serbest kalır; bu geri alınamaz.",
+    noShowSummary:
+      "Misafir gelmedi. Geceler serbest kalır ve ücret alınmaz. Geri alınamaz: rezervasyonu yeniden kurmak için yenisini yapın; yeni bir referansı olur.",
+    cancelReasonGuest: "Misafir iptal etmek istedi",
+    cancelReasonUnconfirmed: "Misafir onaylamadı",
+    cancelReasonError: "Hatalı rezervasyon",
+    cancelReasonDuplicate: "Mükerrer rezervasyon",
+    cancelReasonRoom: "Oda kullanılamıyor",
+    noShowExpectedPassed: "Beklenen varış saati ({time}) geçti.",
+    noShowExpectedPending:
+      "Saat {time} civarında geleceklerini söylediler; bu saat henüz geçmedi.",
+    noShowExpectedGiven: "Beklenen varış saati: {time}.",
     markNoShow: "Gelmedi olarak işaretle",
     keepBooking: "Rezervasyonu koru",
     saving: "Kaydediliyor…",
@@ -2733,7 +2796,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutFor: "{guest} için çıkış yap",
     checkOutTitle: "Çıkış yap",
     checkOutSummary:
-      "Misafir odadan ayrılır ve oda başkasına verilebilir. Çıkış geri alınamaz; önce hesabı kontrol edin.",
+      "Misafir ayrılır. Çıkış geri alınamaz; önce hesabı kontrol edin.",
+    checkOutRoomDirty:
+      "Oda kirli olarak işaretlenir; temizlik yapıldıktan sonra yeniden verilebilir.",
+    checkOutOverdue:
+      "Misafir {count, plural, one {# gün} other {# gün}} gecikmiş (planlanan çıkış {date}). Çıkış bugün olarak kaydedilir ve o günden bu yana geçen geceler hesaba işlenir.",
+    checkOutOwesFirst:
+      "{balance} borç var. Önce hesap üzerinden ödemeyi alın ya da bir gerekçeyle açık bırakın.",
+    reviewFolioNewTab: "Hesabı yeni sekmede aç",
     confirmCheckOut: "Çıkışı onayla",
     keepInHouse: "Konaklamaya devam",
     plannedDeparture: "Planlanan çıkış",
@@ -2757,6 +2827,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutFolioChanged:
       "Siz bakarken hesaba yeni bir kayıt eklendi. Hesabı yeniden kontrol edip tekrar deneyin.",
     departuresViews: "Çıkış listesi görünümleri",
+    departuresFilters: "Çıkış listesi filtreleri",
     inHouseAt: "Şu anda konaklayanlar:",
     departuresDue: "Bugün ve gecikenler",
     departuresInHouse: "Konaklayan herkes",
@@ -2769,6 +2840,26 @@ export const messages: Record<SupportedLocale, Messages> = {
     noDeparturesTitle: "Bugün çıkış yok",
     noDeparturesDescription:
       "Bu tesiste bugün ayrılması beklenen bir konaklama bulunmuyor.",
+    departuresFilteredEmptyTitle: "Bu listede bakiyesi olan kimse yok",
+    departuresFilteredEmptyHint:
+      "{others, plural, =0 {Bugün çıkacak başka kimse de yok.} one {Çıkışı gelmiş ya da geçmiş # misafir daha var.} other {Çıkışı gelmiş ya da geçmiş # misafir daha var.}}",
+    departuresShowAll: "Hepsini göster",
+    departuresChipAll: "Çıkışı gelenler",
+    departuresChipOwing: "Bakiyeli",
+    departuresChipOverdueOwing: "Gecikmiş ve bakiyeli",
+    viewOnlyDepartures:
+      "Kimin ayrılacağını görebilirsiniz. Çıkış yapmak için Ön büro, Yönetici ya da Sahip rolü gerekir.",
+    viewOnlyArrivals:
+      "Beklenen misafirleri görebilirsiniz. Giriş yapmak için Ön büro, Yönetici ya da Sahip rolü gerekir.",
+    listUpdatedAt: "Güncelleme: {time}",
+    listStale: "Liste yenilenemedi; gördükleriniz güncel olmayabilir.",
+    roomDirty: "Kirli",
+    roomAwaitingInspection: "Kontrol bekliyor",
+    roomNeedsCleaning: "Temizlik bekliyor",
+    openInHousekeeping: "Kat hizmetlerinde aç",
+    roomRowHeading: "Oda",
+    searchGuestRoomReference: "Misafir, oda veya rezervasyon ara",
+    searchReservations: "Misafir, oda, rezervasyon, telefon veya tarih ara",
     leftToday: "Bugün ayrılanlar",
     leftAt: "Ayrılış",
     nobodyLeftYet: "Bugün henüz ayrılan olmadı.",
@@ -2783,6 +2874,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     openFolio: "Folyoyu aç",
     leaves: "Çıkış",
     overdueSince: "{date} tarihinden beri gecikmiş",
+    includesNights:
+      "{count, plural, one {çıkışta ücretlendirilecek # gece dahil} other {çıkışta ücretlendirilecek # gece dahil}}",
     wasDueOn: "{date} tarihinde çıkacaktı",
     overdueDays: "Gecikmiş · {count, plural, one {# gün} other {# gün}}",
     overdueNightsNote:
@@ -2790,7 +2883,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     untilDate: "{date} tarihine kadar",
 
     reservations: "Rezervasyonlar",
-    reservationsAt: "Rezervasyonlar —",
+    reservationsAt: "Şu tesisteki rezervasyonlar:",
     copyReference: "Referansı kopyala",
     referenceCopied: "Kopyalandı",
     dueToday: "Bugün çıkış",
@@ -3131,6 +3224,15 @@ export const messages: Record<SupportedLocale, Messages> = {
     takeBooking: "Rezervasyon oluştur",
     takingBooking: "Oluşturuluyor",
     discardBooking: "Vazgeç",
+    discardBookingAsk: "Bu rezervasyon silinsin mi? Yazdıklarınız kaybolur.",
+    discardNow: "Sil",
+    keepEditing: "Düzenlemeye devam",
+    guestLookupTitle: "Kayıtlı misafirler",
+    guestLookupHint:
+      "Aynı kişi olabilir mi? Birini seçerseniz e-postası ve telefonu doldurulur ve rezervasyon aynı misafire eklenir. E-postası kayıtlı olmayan bir misafir otomatik eşleşmez.",
+    guestNoDetailsOnFile: "İletişim bilgisi kayıtlı değil",
+    guestPhoneInvalid:
+      "Telefon numarası yalnızca rakam, boşluk, + ( ) - ve . içerebilir.",
     bookingUnavailable: "Bu birim o geceler için zaten dolu.",
     unitBookedThoseNights: "Bu geceler dolu",
     unitOccupiedThoseNights: "Bu gecelerde konaklayan var",
@@ -3153,6 +3255,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     expectedArrivalHint:
       "İsteğe bağlı. Misafirin gelmeyi beklediği saat, tesisin saatine göre.",
     expectedArrivalNone: "Beklenen saat yok",
+    expectedNoTime: "Saat verilmedi",
     expectedArrivalPassed: "Beklenen saat geçti",
     bookingPriceChanged:
       "Bu birimin fiyatı siz rezervasyon yaparken değişti. Yeni fiyatı kontrol edip rezervasyonu yeniden alın.",
@@ -3163,9 +3266,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeBookingChecking: "O geceler kontrol ediliyor…",
     changeBookingLoadFailed:
       "O geceler kontrol edilemedi. Tarihleri yeniden seçin.",
-    changeBookingUnitFree: "Boş",
-    changeBookingUnitBooked: "Dolu · {reference}",
-    changeBookingUnitOccupied: "Konaklayan var",
+    changeBookingUnitFree: "Bu geceler boş",
+    changeBookingUnitBooked: "Bu geceler dolu · {reference}",
+    changeBookingUnitOccupied: "Bu gecelerde konaklayan var",
     changeBookingUnitNotTaking: "Şu anda rezervasyon almıyor",
     changeBookingCurrentNotTaking:
       "Bu birim hizmet dışı ya da yatak yatak kiralanıyor. Rezervasyonun tarihleri burada değişebilir; başka bir birime de taşınabilir.",
@@ -5426,6 +5529,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       "It appears here once your Organization's Subscription includes it and the Property has it enabled.",
     noArrivalsTitle: "No arrivals today",
     noArrivalsDescription: "Nobody is booked to arrive at this Property today.",
+    arrivalsElsewhere:
+      "Looking for a booking that is not here? Search all reservations.",
+    newBooking: "New booking",
+    arrivalNightsUntil:
+      "{count, plural, one {# night} other {# nights}}, until {date}",
     openEnded: "Open-ended",
     checkIn: "Check in",
     checkingIn: "Checking in",
@@ -5438,6 +5546,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     blockReasonPlaceholder: "Maintenance or repair",
     roomNotReady:
       "This room isn't ready yet — it hasn't been cleaned, or it's waiting for inspection.",
+    roomNotReadyDirty: "{room} has not been cleaned yet.",
+    roomNotReadyInspection: "{room} is clean and waiting for inspection.",
+    checkInFor: "Check in {guest}",
     checkInAnyway: "Check in anyway",
     notNow: "Not now",
     ready: "Ready",
@@ -5488,7 +5599,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "The business day this check-in was made on has been closed, so it can't be withdrawn. If the Guest is not staying, check them out on the departures screen.",
     checkInMoved:
       "The Guest has been moved to another room since they checked in, so it can't be withdrawn. If they are not staying, check them out on the departures screen.",
-    stayType: { guest: "Guest", resident: "Resident" },
+    stayType: { guest: "Guest stay", resident: "Resident stay" },
     unitType: {
       room: "Room",
       bed: "Bed",
@@ -5522,10 +5633,19 @@ export const messages: Record<SupportedLocale, Messages> = {
     cancelBooking: "Cancel booking",
     cancelBookingTitle: "Cancel this booking",
     cancelBookingSummary:
-      "The nights are freed and can be sold again. A cancellation cannot be taken back.",
+      "The nights are freed and can be sold again. Cancelling charges nothing and refunds nothing. It cannot be taken back: to restore it, make a new booking, which has a new reference.",
     noShowTitle: "Mark as a no-show",
     noShowSummary:
-      "The Guest did not come. The nights are freed, and this cannot be taken back.",
+      "The Guest did not come. The nights are freed and nothing is charged. This cannot be taken back: to restore the booking, make a new one, which has a new reference.",
+    cancelReasonGuest: "Guest asked to cancel",
+    cancelReasonUnconfirmed: "Guest did not confirm",
+    cancelReasonError: "Booked in error",
+    cancelReasonDuplicate: "Duplicate booking",
+    cancelReasonRoom: "Room not available",
+    noShowExpectedPassed: "Their expected arrival, {time}, has passed.",
+    noShowExpectedPending:
+      "They said they would arrive at {time}, which has not passed yet.",
+    noShowExpectedGiven: "Their expected arrival was {time}.",
     markNoShow: "Mark as no-show",
     keepBooking: "Keep the booking",
     saving: "Saving…",
@@ -5538,7 +5658,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutFor: "Check {guest} out",
     checkOutTitle: "Check out",
     checkOutSummary:
-      "The Guest leaves and the room can be let again. A check-out cannot be taken back, so review the bill first.",
+      "The Guest leaves. A check-out cannot be taken back, so review the bill first.",
+    checkOutRoomDirty:
+      "The room is marked dirty and can be let again once housekeeping has cleaned it.",
+    checkOutOverdue:
+      "This Guest is {count, plural, one {# day} other {# days}} overdue, since {date}. The departure is recorded as today, and the nights since then are charged to the bill.",
+    checkOutOwesFirst:
+      "{balance} is owed. Collect payment on the Folio first, or leave it open with a reason.",
+    reviewFolioNewTab: "Open the Folio in a new tab",
     confirmCheckOut: "Confirm check-out",
     keepInHouse: "Keep in house",
     plannedDeparture: "Planned departure",
@@ -5562,6 +5689,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutFolioChanged:
       "Something was posted to the bill while you were looking. Review it again and try once more.",
     departuresViews: "Departure views",
+    departuresFilters: "Departure filters",
     inHouseAt: "In house at",
     departuresDue: "Due and overdue",
     departuresInHouse: "Everybody in house",
@@ -5573,6 +5701,27 @@ export const messages: Record<SupportedLocale, Messages> = {
     showOnRoomMap: "Show on the room map",
     noDeparturesTitle: "No departures today",
     noDeparturesDescription: "Nobody is due to leave this Property today.",
+    departuresFilteredEmptyTitle: "Nobody on this list owes anything",
+    departuresFilteredEmptyHint:
+      "{others, plural, =0 {Nobody else is due out either.} one {# other Guest is due out or overdue.} other {# other Guests are due out or overdue.}}",
+    departuresShowAll: "Show all",
+    departuresChipAll: "Due and overdue",
+    departuresChipOwing: "Owing",
+    departuresChipOverdueOwing: "Overdue and owing",
+    viewOnlyDepartures:
+      "You can see who is leaving. Checking out needs the Front desk, Manager or Owner role.",
+    viewOnlyArrivals:
+      "You can see who is expected. Checking in needs the Front desk, Manager or Owner role.",
+    listUpdatedAt: "Updated {time}",
+    listStale:
+      "The list could not be refreshed, so what you see may be out of date.",
+    roomDirty: "Dirty",
+    roomAwaitingInspection: "Awaiting inspection",
+    roomNeedsCleaning: "Needs cleaning",
+    openInHousekeeping: "Open in Housekeeping",
+    roomRowHeading: "Room",
+    searchGuestRoomReference: "Search guest, room or reference",
+    searchReservations: "Search guest, room, reference, phone or date",
     leftToday: "Left today",
     leftAt: "Left at",
     nobodyLeftYet: "Nobody has left yet today.",
@@ -5587,6 +5736,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     openFolio: "Open folio",
     leaves: "Leaves",
     overdueSince: "Overdue since {date}",
+    includesNights:
+      "{count, plural, one {includes # night charged at check-out} other {includes # nights charged at check-out}}",
     wasDueOn: "Was due {date}",
     overdueDays: "Overdue · {count, plural, one {# day} other {# days}}",
     overdueNightsNote:
@@ -5936,6 +6087,16 @@ export const messages: Record<SupportedLocale, Messages> = {
     takeBooking: "Create reservation",
     takingBooking: "Creating",
     discardBooking: "Cancel",
+    discardBookingAsk:
+      "Discard this booking? What you have typed will be lost.",
+    discardNow: "Discard it",
+    keepEditing: "Keep editing",
+    guestLookupTitle: "Guests already on file",
+    guestLookupHint:
+      "Could this be the same person? Pick one to fill in their email and phone so the booking is added to the same Guest. A Guest with no email on file cannot be matched automatically.",
+    guestNoDetailsOnFile: "no contact details on file",
+    guestPhoneInvalid:
+      "A telephone number has only digits, spaces and + ( ) - .",
     bookingUnavailable: "That Unit is already booked for those nights.",
     unitBookedThoseNights: "Booked for these nights",
     unitOccupiedThoseNights: "Someone is staying then",
@@ -5958,6 +6119,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     expectedArrivalHint:
       "Optional. When the Guest expects to arrive, on the Property's clock.",
     expectedArrivalNone: "No expected time",
+    expectedNoTime: "No time given",
     expectedArrivalPassed: "Past the expected time",
     bookingPriceChanged:
       "The price for this Unit changed while you were booking. Check the new price and take the booking again.",
@@ -5968,9 +6130,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeBookingChecking: "Checking those nights…",
     changeBookingLoadFailed:
       "Those nights could not be checked. Choose the dates again.",
-    changeBookingUnitFree: "Free",
-    changeBookingUnitBooked: "Booked · {reference}",
-    changeBookingUnitOccupied: "Somebody is staying",
+    changeBookingUnitFree: "Free for these nights",
+    changeBookingUnitBooked: "Booked for these nights · {reference}",
+    changeBookingUnitOccupied: "Someone is staying then",
     changeBookingUnitNotTaking: "Not taking bookings now",
     changeBookingCurrentNotTaking:
       "This Unit is out of service or let by the bed. The booking's dates can still change here, or it can move to another Unit.",
@@ -8240,6 +8402,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       "تظهر هنا عندما يشملها اشتراك مؤسستك ويتم تفعيلها في المنشأة.",
     noArrivalsTitle: "لا يوجد وصول اليوم",
     noArrivalsDescription: "لا توجد حجوزات وصول لهذه المنشأة اليوم.",
+    arrivalsElsewhere: "تبحث عن حجز غير موجود هنا؟ ابحث في كل الحجوزات.",
+    newBooking: "حجز جديد",
+    arrivalNightsUntil:
+      "{count, plural, one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلة} other {# ليلة}}، حتى {date}",
     openEnded: "مفتوح المدة",
     checkIn: "تسجيل الوصول",
     checkingIn: "جارٍ التسجيل",
@@ -8252,6 +8418,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     blockReasonPlaceholder: "صيانة أو إصلاح",
     roomNotReady:
       "هذه الغرفة ليست جاهزة بعد — لم تُنظَّف أو أنها بانتظار الفحص.",
+    roomNotReadyDirty: "لم تُنظَّف {room} بعد.",
+    roomNotReadyInspection: "{room} نظيفة وبانتظار الفحص.",
+    checkInFor: "تسجيل وصول {guest}",
     checkInAnyway: "تسجيل الدخول على أي حال",
     notNow: "ليس الآن",
     ready: "جاهزة",
@@ -8301,7 +8470,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "أُغلق يوم العمل الذي سُجِّل فيه هذا الوصول، لذلك لا يمكن التراجع عنه. إن لم يكن الضيف مقيمًا، فسجّل مغادرته من شاشة المغادرة.",
     checkInMoved:
       "نُقل الضيف إلى غرفة أخرى بعد تسجيل وصوله، لذلك لا يمكن التراجع عنه. إن لم يكن مقيمًا، فسجّل مغادرته من شاشة المغادرة.",
-    stayType: { guest: "ضيف", resident: "مقيم" },
+    stayType: { guest: "إقامة ضيف", resident: "إقامة مقيم" },
     unitType: {
       room: "غرفة",
       bed: "سرير",
@@ -8335,9 +8504,19 @@ export const messages: Record<SupportedLocale, Messages> = {
     cancelBooking: "إلغاء الحجز",
     cancelBookingTitle: "إلغاء هذا الحجز",
     cancelBookingSummary:
-      "تتحرر الليالي ويمكن بيعها من جديد. لا يمكن التراجع عن الإلغاء.",
+      "تتحرر الليالي ويمكن بيعها من جديد. الإلغاء لا يحتسب شيئًا ولا يردّ شيئًا. ولا يمكن التراجع عنه: لاستعادته أنشئ حجزًا جديدًا برقم مرجعي جديد.",
     noShowTitle: "تسجيل عدم الحضور",
-    noShowSummary: "لم يحضر الضيف. تتحرر الليالي ولا يمكن التراجع عن ذلك.",
+    noShowSummary:
+      "لم يحضر الضيف. تتحرر الليالي ولا يُحتسب شيء. ولا يمكن التراجع عن ذلك: لاستعادة الحجز أنشئ حجزًا جديدًا برقم مرجعي جديد.",
+    cancelReasonGuest: "طلب الضيف الإلغاء",
+    cancelReasonUnconfirmed: "لم يؤكد الضيف",
+    cancelReasonError: "حُجز عن طريق الخطأ",
+    cancelReasonDuplicate: "حجز مكرر",
+    cancelReasonRoom: "الغرفة غير متاحة",
+    noShowExpectedPassed: "مرّ وقت الوصول المتوقع ({time}).",
+    noShowExpectedPending:
+      "قالوا إنهم سيصلون عند {time}، ولم يمرّ هذا الوقت بعد.",
+    noShowExpectedGiven: "وقت الوصول المتوقع: {time}.",
     markNoShow: "تسجيل عدم الحضور",
     keepBooking: "إبقاء الحجز",
     saving: "جارٍ الحفظ…",
@@ -8350,7 +8529,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutFor: "تسجيل مغادرة {guest}",
     checkOutTitle: "تسجيل المغادرة",
     checkOutSummary:
-      "يغادر الضيف ويمكن تأجير الغرفة من جديد. لا يمكن التراجع عن المغادرة، لذا راجع الحساب أولًا.",
+      "يغادر الضيف. لا يمكن التراجع عن المغادرة، لذا راجع الحساب أولًا.",
+    checkOutRoomDirty:
+      "تُعلَّم الغرفة كغرفة متسخة، ويمكن تأجيرها من جديد بعد أن تنظّفها خدمة الغرف.",
+    checkOutOverdue:
+      "تأخر هذا الضيف {count, plural, one {يومًا واحدًا} two {يومين} few {# أيام} many {# يومًا} other {# يوم}} عن موعد {date}. تُسجَّل المغادرة اليوم، وتُحتسب الليالي منذ ذلك الحين على الحساب.",
+    checkOutOwesFirst:
+      "هناك {balance} مستحق. حصّل الدفعة على الحساب أولًا، أو اتركه مفتوحًا مع ذكر السبب.",
+    reviewFolioNewTab: "فتح الحساب في تبويب جديد",
     confirmCheckOut: "تأكيد المغادرة",
     keepInHouse: "إبقاء الإقامة",
     plannedDeparture: "المغادرة المخططة",
@@ -8371,6 +8557,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutFolioChanged:
       "أُضيف قيد إلى الحساب أثناء مراجعتك. راجعه مرة أخرى ثم أعد المحاولة.",
     departuresViews: "عروض قائمة المغادرة",
+    departuresFilters: "مرشحات المغادرة",
     inHouseAt: "المقيمون حاليًا في",
     departuresDue: "المستحقة والمتأخرة",
     departuresInHouse: "جميع النزلاء المقيمين",
@@ -8381,6 +8568,26 @@ export const messages: Record<SupportedLocale, Messages> = {
     showOnRoomMap: "عرض على خريطة الغرف",
     noDeparturesTitle: "لا توجد مغادرات اليوم",
     noDeparturesDescription: "لا أحد من المقرر أن يغادر هذه المنشأة اليوم.",
+    departuresFilteredEmptyTitle: "لا أحد في هذه القائمة عليه مستحقات",
+    departuresFilteredEmptyHint:
+      "{others, plural, =0 {ولا أحد غيرهم مستحق المغادرة.} one {هناك ضيف آخر حان موعد مغادرته أو تأخر.} two {هناك ضيفان آخران حان موعد مغادرتهما أو تأخرا.} few {هناك # ضيوف آخرون حان موعد مغادرتهم أو تأخروا.} many {هناك # ضيفًا آخر حان موعد مغادرتهم أو تأخروا.} other {هناك # ضيف آخر حان موعد مغادرتهم أو تأخروا.}}",
+    departuresShowAll: "عرض الكل",
+    departuresChipAll: "المستحقون والمتأخرون",
+    departuresChipOwing: "عليهم مستحقات",
+    departuresChipOverdueOwing: "متأخرون وعليهم مستحقات",
+    viewOnlyDepartures:
+      "يمكنك رؤية من سيغادر. تسجيل المغادرة يتطلب دور مكتب الاستقبال أو المدير أو المالك.",
+    viewOnlyArrivals:
+      "يمكنك رؤية من هو متوقع. تسجيل الوصول يتطلب دور مكتب الاستقبال أو المدير أو المالك.",
+    listUpdatedAt: "آخر تحديث {time}",
+    listStale: "تعذّر تحديث القائمة، فقد لا يكون ما تراه محدّثًا.",
+    roomDirty: "متسخة",
+    roomAwaitingInspection: "بانتظار الفحص",
+    roomNeedsCleaning: "تحتاج تنظيفًا",
+    openInHousekeeping: "فتح في خدمة الغرف",
+    roomRowHeading: "الغرفة",
+    searchGuestRoomReference: "ابحث عن ضيف أو غرفة أو رقم حجز",
+    searchReservations: "ابحث عن ضيف أو غرفة أو رقم حجز أو هاتف أو تاريخ",
     leftToday: "غادروا اليوم",
     leftAt: "وقت المغادرة",
     nobodyLeftYet: "لم يغادر أحد بعد اليوم.",
@@ -8396,6 +8603,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     openFolio: "فتح الحساب",
     leaves: "المغادرة",
     overdueSince: "متأخر منذ {date}",
+    includesNights:
+      "{count, plural, one {يشمل ليلة واحدة تُحتسب عند المغادرة} two {يشمل ليلتين تُحتسبان عند المغادرة} few {يشمل # ليالٍ تُحتسب عند المغادرة} many {يشمل # ليلة تُحتسب عند المغادرة} other {يشمل # ليلة تُحتسب عند المغادرة}}",
     wasDueOn: "كان موعد المغادرة {date}",
     overdueDays:
       "متأخر · {count, plural, one {يوم واحد} two {يومان} few {# أيام} many {# يومًا} other {# يوم}}",
@@ -8737,6 +8946,15 @@ export const messages: Record<SupportedLocale, Messages> = {
     takeBooking: "إنشاء الحجز",
     takingBooking: "جارٍ الإنشاء",
     discardBooking: "إلغاء",
+    discardBookingAsk: "تجاهل هذا الحجز؟ سيضيع ما كتبته.",
+    discardNow: "تجاهله",
+    keepEditing: "متابعة التحرير",
+    guestLookupTitle: "ضيوف مسجلون من قبل",
+    guestLookupHint:
+      "هل قد يكون الشخص نفسه؟ اختر أحدهم لتعبئة بريده وهاتفه فيُضاف الحجز إلى الضيف نفسه. الضيف بلا بريد مسجل لا يمكن مطابقته تلقائيًا.",
+    guestNoDetailsOnFile: "لا بيانات تواصل مسجلة",
+    guestPhoneInvalid:
+      "يتكون رقم الهاتف من أرقام ومسافات والرموز + ( ) - . فقط.",
     bookingUnavailable: "هذه الوحدة محجوزة بالفعل لتلك الليالي.",
     unitBookedThoseNights: "محجوزة لهذه الليالي",
     unitOccupiedThoseNights: "يوجد نزيل مقيم في هذه الليالي",
@@ -8757,6 +8975,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     expectedArrivalHint:
       "اختياري. الوقت الذي يتوقع النزيل الوصول فيه، بتوقيت المنشأة.",
     expectedArrivalNone: "لا يوجد وقت متوقع",
+    expectedNoTime: "لم يُذكر وقت",
     expectedArrivalPassed: "تجاوز وقت الوصول المتوقع",
     bookingPriceChanged:
       "تغيّر سعر هذه الوحدة أثناء الحجز. راجع السعر الجديد ثم أعد أخذ الحجز.",
@@ -8767,9 +8986,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeBookingChecking: "جارٍ التحقق من تلك الليالي…",
     changeBookingLoadFailed:
       "تعذّر التحقق من تلك الليالي. اختر التواريخ مرة أخرى.",
-    changeBookingUnitFree: "متاحة",
-    changeBookingUnitBooked: "محجوزة · {reference}",
-    changeBookingUnitOccupied: "يقيم فيها نزيل",
+    changeBookingUnitFree: "متاحة لهذه الليالي",
+    changeBookingUnitBooked: "محجوزة لهذه الليالي · {reference}",
+    changeBookingUnitOccupied: "يوجد نزيل مقيم في هذه الليالي",
     changeBookingUnitNotTaking: "لا تستقبل حجوزات حاليًا",
     changeBookingCurrentNotTaking:
       "هذه الوحدة خارج الخدمة أو تُؤجَّر بالسرير. يمكن تغيير تواريخ الحجز هنا، أو نقله إلى وحدة أخرى.",

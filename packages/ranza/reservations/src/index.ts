@@ -41,6 +41,7 @@ export type {
   AmendedBooking,
   Arrival,
   BookableUnit,
+  GuestMatch,
   BookingChange,
   ChangedDeparture,
   DepartureChange,

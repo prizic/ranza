@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
@@ -17,6 +18,17 @@ import {
   requireViewer,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isSupportedLocale(locale)) return {};
+  const t = await getTranslations({ locale });
+  return { title: `${t("navigation.departures")} · ${t("productName")}` };
+}
 
 /**
  * Departures: who is due to leave, anyone who should already have gone, and —
@@ -130,6 +142,7 @@ export default async function DeparturesPage({
           filter={view === "due" ? parseDepartureFilter(search.show) : null}
           locale={locale}
           scope={scope}
+          timeZone={property.timezone}
           view={view}
         />
         {view === "due" ? (

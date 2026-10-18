@@ -162,6 +162,8 @@ function departure(overrides: Partial<Departure>): Departure {
     folioId: "f-1",
     folioVersion: 2,
     balanceMinor: 184_000,
+    pendingNights: 0,
+    pendingMinor: 0,
     currency: "TRY",
     mayCheckOut: true,
     ...overrides,

@@ -103,6 +103,7 @@ import type {
   Departure,
   DeparturePreview,
   DepartureView,
+  GuestMatch,
   MovePreview,
   ReservationRow,
   RoomCalendar as RoomCalendarRead,
@@ -733,6 +734,24 @@ export async function bookingDay(propertyId: string): Promise<string | null> {
   const viewer = await currentViewer();
   if (!viewer) return null;
   return getComposition().reservations.bookingDay(viewer.userId, propertyId);
+}
+
+/**
+ * Guests on file that what is being typed into a new booking may be the same
+ * person as: a prompt, and never a merge. Empty for anybody not signed in and
+ * for a viewer who may not take bookings.
+ */
+export async function guestLookup(
+  propertyId: string,
+  text: string,
+): Promise<readonly GuestMatch[]> {
+  const viewer = await currentViewer();
+  if (!viewer) return [];
+  return getComposition().reservations.findGuests(
+    viewer.userId,
+    propertyId,
+    text,
+  );
 }
 
 /**

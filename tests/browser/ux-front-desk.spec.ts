@@ -1,8 +1,9 @@
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { expect } from "@playwright/test";
 import { test } from "./hydration";
 import { psql } from "./local-database";
-import { signIn } from "./front-desk";
+import { aStaffMember, signIn } from "./front-desk";
 import {
   aBacklog,
   aBooking,
@@ -262,5 +263,496 @@ test.describe("a backlog held by one overdue Guest (RANZ-63)", () => {
     await page.screenshot({
       path: path.join(EVIDENCE, "RANZ-63", "backlog-held-by-one-guest-ar.png"),
     });
+  });
+});
+
+test.describe("departures say what a Guest owes and what check-out will do (RANZ-61)", () => {
+  test("a_filtered_departures_list_with_nobody_owing_says_so_and_never_that_nobody_leaves", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    anOverdueGuest(propertyId, { daysOverdue: 2 });
+    await signIn(page);
+
+    await page.goto(`/en/departures?property=${propertyId}&show=owing`);
+    await expect(
+      page.getByText("Nobody on this list owes anything"),
+    ).toBeVisible();
+    await expect(page.getByText("No departures today")).toHaveCount(0);
+    await expect(
+      page.getByText("1 other Guest is due out or overdue."),
+    ).toBeVisible();
+    await page.getByRole("link", { name: "Show all" }).first().click();
+    await expect(page).not.toHaveURL(/show=/);
+    await expect(
+      page.getByRole("link", { name: "Owing", exact: true }),
+    ).toBeVisible();
+  });
+
+  test("an_overdue_guest_owes_the_nights_check_out_will_charge_on_the_row_and_in_the_owing_filter", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty([
+      "today",
+      "front_desk",
+      "finance",
+      "housekeeping",
+    ]);
+    const overdue = anOverdueGuest(propertyId, {
+      daysOverdue: 3,
+      nightlyRateMinor: 10_000,
+      withFolio: true,
+    });
+    await signIn(page);
+    await page.setViewportSize({ width: 1440, height: 1000 });
+
+    await page.goto(`/en/departures?property=${propertyId}`);
+    const row = page.getByRole("row").filter({ hasText: overdue.guestName });
+    await expect(row).toContainText("Overdue · 3 days");
+    await expect(row).toContainText(
+      /includes \d+ nights? charged at check-out/,
+    );
+    const rowAmount = (await row.innerText()).match(/TRY\s?[\d.,]+/)?.[0];
+    expect(rowAmount, "the row shows an amount owing").toBeTruthy();
+    expect(rowAmount).not.toMatch(/TRY\s?0[.,]00/);
+
+    // The same Guest is in the owing filter, which asks the same question.
+    await page.getByRole("link", { name: "Owing", exact: true }).click();
+    await expect(page.getByTestId("list-filter-notice")).toBeVisible();
+    await expect(
+      page.getByRole("row").filter({ hasText: overdue.guestName }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("row")
+      .filter({ hasText: overdue.guestName })
+      .getByRole("button", { name: /^Check .* out$/ })
+      .click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toContainText("3 days overdue");
+    await expect(dialog).toContainText("marked dirty");
+    await expect(dialog).toContainText("Collect payment on the Folio first");
+    // The amount the dialog asks about is the amount the row showed.
+    await expect(dialog).toContainText(rowAmount!);
+    const folio = dialog.getByRole("link", {
+      name: "Open the Folio in a new tab",
+    });
+    await expect(folio).toHaveAttribute("target", "_blank");
+    await page.screenshot({
+      path: path.join(EVIDENCE, "RANZ-61", "overdue-check-out-owing.png"),
+    });
+
+    await dialog
+      .getByLabel("Why the balance stays open")
+      .fill("Guest will settle by transfer");
+    await dialog.getByRole("button", { name: "Confirm check-out" }).click();
+    await expect(dialog).toBeHidden();
+
+    // Where the room was left: dirty, said beside the Guest who left it.
+    const left = page.getByRole("row").filter({ hasText: overdue.guestName });
+    await expect(left).toContainText("Needs cleaning");
+  });
+});
+
+test.describe("Reservations take a booking and read one (RANZ-58)", () => {
+  test("a_returning_guest_typed_by_name_is_suggested_and_picking_one_fills_their_details", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    const email = `returning-${randomUUID().slice(0, 8)}@example.test`;
+    const number = String(
+      Math.floor(1_000_000_000 + Math.random() * 8_999_999_999),
+    );
+    const known = aBooking(propertyId, {
+      startsIn: 20,
+      nights: 2,
+      label: "Returning",
+      contact: { email, phone: `+90 ${number}` },
+    });
+    await signIn(page);
+
+    await page.goto(`/en/reservations?property=${propertyId}`);
+    await page.getByRole("button", { name: "New reservation" }).click();
+    const dialog = page.getByRole("dialog", { name: "New reservation" });
+    await dialog
+      .getByLabel("Guest", { exact: true })
+      .fill(known.guestName.slice(0, -3));
+    const suggestion = dialog.getByRole("button", {
+      name: new RegExp(known.guestName),
+    });
+    await expect(suggestion).toBeVisible();
+    await expect(suggestion).toContainText(email);
+    await suggestion.click();
+    await expect(dialog.getByLabel("Email")).toHaveValue(email);
+    await expect(dialog.getByLabel("Phone")).toHaveValue(`+90 ${number}`);
+
+    // A number of the same Guest, typed by its digits, finds them too.
+    await dialog.getByLabel("Guest", { exact: true }).fill(number);
+    await expect(
+      dialog.getByRole("button", { name: new RegExp(known.guestName) }),
+    ).toBeVisible();
+  });
+
+  test("a_half_filled_booking_asks_before_it_is_thrown_away", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    aBooking(propertyId, { startsIn: 20, nights: 2 });
+    await signIn(page);
+
+    await page.goto(`/en/reservations?property=${propertyId}`);
+    await page.getByRole("button", { name: "New reservation" }).click();
+    const dialog = page.getByRole("dialog", { name: "New reservation" });
+    const guest = dialog.getByLabel("Guest", { exact: true });
+    await guest.fill("Half Typed");
+
+    await page.keyboard.press("Escape");
+    await expect(dialog.getByText("Discard this booking?")).toBeVisible();
+    await dialog.getByRole("button", { name: "Keep editing" }).click();
+    await expect(guest).toHaveValue("Half Typed");
+
+    await page.keyboard.press("Escape");
+    await dialog
+      .getByRole("alert")
+      .getByRole("button", { name: "Discard it" })
+      .click();
+    await expect(dialog).toBeHidden();
+
+    await page.getByRole("button", { name: "New reservation" }).click();
+    await expect(
+      page
+        .getByRole("dialog", { name: "New reservation" })
+        .getByLabel("Guest", { exact: true }),
+    ).toHaveValue("");
+  });
+
+  test("a_telephone_number_with_letters_is_refused_in_our_words_and_an_unpriced_booking_is_a_warning", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    const unit = aBooking(propertyId, { startsIn: 40, nights: 1 });
+    await signIn(page);
+
+    await page.goto(`/en/reservations?property=${propertyId}`);
+    await page.getByRole("button", { name: "New reservation" }).click();
+    const dialog = page.getByRole("dialog", { name: "New reservation" });
+
+    const phone = dialog.getByLabel("Phone");
+    await phone.fill("abc");
+    expect(
+      await phone.evaluate((el: HTMLInputElement) => el.validationMessage),
+    ).toBe("A telephone number has only digits, spaces and + ( ) - .");
+    await phone.fill("+90 532 000 11 22");
+    expect(
+      await phone.evaluate((el: HTMLInputElement) => el.validationMessage),
+    ).toBe("");
+
+    // The stay dates come before the room, so availability can mark it.
+    const labels = await dialog.locator("label").allInnerTexts();
+    expect(labels.indexOf("Stay dates")).toBeLessThan(labels.indexOf("Unit"));
+
+    await dialog.getByLabel("Unit").click();
+    await page.getByRole("option", { name: new RegExp(unit.unitName) }).click();
+    const notice = dialog.locator("p", { hasText: /No price is set for/ });
+    await expect(notice).toBeVisible();
+    await expect(notice).toHaveClass(/warning/);
+  });
+
+  test("a_booking_is_found_by_the_dates_and_the_number_a_desk_types", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    const booking = aBooking(propertyId, {
+      startsIn: 12,
+      nights: 2,
+      label: "Findable",
+      contact: { phone: "+90 532 777 88 99" },
+    });
+    aBooking(propertyId, { startsIn: 30, nights: 2, label: "Other" });
+    const starts = psql(
+      `select to_char(starts_on, 'DD.MM.YYYY') || '|' || to_char(starts_on, 'DD/MM')
+         from public.reservations where reference = '${booking.reference}'`,
+    ).split("|");
+    await signIn(page);
+
+    await page.goto(`/en/reservations?property=${propertyId}`);
+    const search = page.getByRole("searchbox");
+    const listed = page.getByRole("row").filter({ hasText: booking.guestName });
+
+    // Placeholder: the whole sentence, not a cut-off list of column names.
+    await expect(search).toHaveAttribute(
+      "placeholder",
+      "Search guest, room, reference, phone or date",
+    );
+    for (const typed of [
+      starts[0]!,
+      starts[1]!,
+      "5327778899",
+      "05327778899",
+      "905327778899",
+    ]) {
+      await search.fill(typed);
+      await expect(listed, `typed ${typed}`).toBeVisible();
+    }
+    await search.fill("5327778898");
+    await expect(listed).toHaveCount(0);
+  });
+
+  test("change_booking_names_the_unit_once_and_keeps_the_booking_the_way_the_other_dialogs_do", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    const booking = aBooking(propertyId, {
+      startsIn: 9,
+      nights: 2,
+      label: "Change",
+    });
+    const id = psql(
+      `select id from public.reservations where reference = '${booking.reference}'`,
+    );
+    await signIn(page);
+
+    await page.goto(`/en/reservations?property=${propertyId}&change=${id}`);
+    const dialog = page.getByRole("dialog", { name: "Change booking" });
+    await expect(dialog).toBeVisible();
+    // The room is the editable field, not also a read-only block above it.
+    await expect(dialog.getByText("Unit", { exact: true })).toHaveCount(1);
+    await expect(
+      dialog.getByRole("button", { name: "Keep the booking" }),
+    ).toBeVisible();
+  });
+
+  test("a_booking_sheet_offers_the_actions_the_row_menu_does_and_cancelling_presets_reasons", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    const booking = aBooking(propertyId, {
+      startsIn: 15,
+      nights: 2,
+      label: "Sheet",
+    });
+    await signIn(page);
+
+    await page.goto(`/en/reservations?property=${propertyId}`);
+    await page.getByRole("searchbox").fill(booking.guestName);
+    await page
+      .getByRole("row")
+      .filter({ hasText: booking.guestName })
+      .getByText(booking.reference)
+      .click();
+    const sheet = page.getByRole("dialog");
+    await expect(sheet).toContainText(booking.guestName);
+    await sheet.getByRole("button", { name: /More actions/ }).click();
+    await expect(
+      page.getByRole("menuitem", { name: "Change booking" }),
+    ).toBeVisible();
+    await page.getByRole("menuitem", { name: "Cancel booking" }).click();
+
+    const cancel = page.getByRole("dialog", { name: "Cancel this booking" });
+    await expect(cancel).toContainText("which has a new reference");
+    await cancel.getByRole("button", { name: "Booked in error" }).click();
+    await expect(cancel.getByLabel("Reason")).toHaveValue("Booked in error");
+    await cancel.getByRole("button", { name: "Cancel booking" }).click();
+    await expect(cancel).toBeHidden();
+    expect(
+      psql(
+        `select status from public.reservations where reference = '${booking.reference}'`,
+      ),
+    ).toBe("cancelled");
+  });
+});
+
+test.describe("Arrivals work in the order a desk works them (RANZ-60)", () => {
+  test("arrivals_open_in_working_order_name_why_a_room_is_not_ready_and_offer_a_new_booking", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty([
+      "today",
+      "front_desk",
+      "finance",
+      "housekeeping",
+    ]);
+    const late = aBooking(propertyId, {
+      startsIn: -2,
+      nights: 5,
+      label: "Late",
+    });
+    const evening = aBooking(propertyId, {
+      startsIn: 0,
+      nights: 2,
+      label: "Evening",
+      expectedArrival: "18:00",
+    });
+    const morning = aBooking(propertyId, {
+      startsIn: 0,
+      nights: 2,
+      label: "Morning",
+      expectedArrival: "09:00",
+    });
+    const unsaid = aBooking(propertyId, {
+      startsIn: 0,
+      nights: 2,
+      label: "Unsaid",
+    });
+    const dirty = aDirtyRoomArrival(propertyId);
+    await signIn(page);
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    await page.goto(`/en/arrivals?property=${propertyId}`);
+    await expect(page).toHaveTitle(/^Arrivals · /);
+    const names = await page
+      .getByRole("row")
+      .evaluateAll((rows) =>
+        rows
+          .map((row) => row.textContent ?? "")
+          .filter((text) => text.includes("Test ")),
+      );
+    const order = [late, morning, evening, unsaid].map((booking) =>
+      names.findIndex((text) => text.includes(booking.guestName)),
+    );
+    expect(order, "late, then by expected time, nobody-said last").toEqual(
+      [...order].sort((a, b) => a - b),
+    );
+    expect(order.every((index) => index >= 0)).toBe(true);
+
+    // The cause is on the badge, and the menu leads to the board.
+    const dirtyRow = page.getByRole("row").filter({ hasText: dirty.guestName });
+    await expect(dirtyRow).toContainText("Dirty");
+    await dirtyRow.getByRole("button", { name: "Check in" }).click();
+    await expect(dirtyRow).toContainText(
+      `${dirty.unitName} has not been cleaned yet.`,
+    );
+    await dirtyRow.getByRole("button", { name: /More actions/ }).click();
+    await expect(
+      page.getByRole("menuitem", { name: "Open in Housekeeping" }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    // No time given is said in words; the list says when it was read.
+    await expect(
+      page.getByRole("row").filter({ hasText: unsaid.guestName }),
+    ).toContainText("No time given");
+    await expect(page.getByTestId("list-updated-at")).toBeVisible();
+
+    // A walk-in starts on this page and ends in the booking form, open.
+    await page.getByRole("link", { name: "New booking" }).click();
+    await expect(
+      page.getByRole("dialog", { name: "New reservation" }),
+    ).toBeVisible();
+    await expect(page).toHaveTitle(/^Reservations · /);
+  });
+
+  test("checking_a_guest_in_moves_focus_to_the_next_check_in_and_names_each_button_by_its_guest", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    const first = aBooking(propertyId, {
+      startsIn: 0,
+      nights: 2,
+      label: "One",
+    });
+    const second = aBooking(propertyId, {
+      startsIn: 0,
+      nights: 2,
+      label: "Two",
+    });
+    await signIn(page);
+
+    await page.goto(`/en/arrivals?property=${propertyId}`);
+    const buttons = page.getByRole("button", { name: /^Check in Test / });
+    await expect(buttons).toHaveCount(2);
+    const names = await buttons.evaluateAll((els) =>
+      els.map((el) => el.getAttribute("aria-label") ?? ""),
+    );
+    const leading = names[0]!.includes(first.guestName) ? first : second;
+    const following = leading === first ? second : first;
+    await page
+      .getByRole("button", { name: `Check in ${leading.guestName}` })
+      .click();
+    await expect(
+      page.getByRole("button", { name: `Check in ${following.guestName}` }),
+    ).toBeFocused();
+  });
+
+  test("a_list_that_could_not_be_refreshed_says_so_above_the_rows_that_are_left", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    const propertyId = aDeskProperty();
+    const booking = aBooking(propertyId, {
+      startsIn: 0,
+      nights: 2,
+      label: "Stale",
+    });
+    await signIn(page);
+
+    await page.goto(`/en/arrivals?property=${propertyId}`);
+    await expect(page.getByTestId("list-updated-at")).toBeVisible();
+    await page.route("**/api/front-office/arrivals*", (route) =>
+      route.fulfill({ status: 500 }),
+    );
+
+    // The next poll fails: the rows stay, and the page says they may be old.
+    await expect(
+      page.getByRole("alert").filter({ hasText: "could not be refreshed" }),
+    ).toBeVisible({ timeout: 90_000 });
+    await expect(
+      page.getByRole("row").filter({ hasText: booking.guestName }),
+    ).toBeVisible();
+  });
+
+  test("a_no_show_says_how_early_it_is_before_the_red_button", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    const booking = aBooking(propertyId, {
+      startsIn: 0,
+      nights: 2,
+      label: "Early",
+      expectedArrival: "23:59",
+    });
+    await signIn(page);
+
+    await page.goto(`/en/arrivals?property=${propertyId}`);
+    const row = page.getByRole("row").filter({ hasText: booking.guestName });
+    await row.getByRole("button", { name: /More actions/ }).click();
+    await page.getByRole("menuitem", { name: "Mark as no-show" }).click();
+    const dialog = page.getByRole("dialog", { name: "Mark as a no-show" });
+    // Before the Property's cutoff the business day is still yesterday's, so
+    // whether 23:59 has passed depends on when this runs: either is said.
+    await expect(dialog).toContainText(
+      /Their expected arrival, 23:59, has passed|which has not passed yet/,
+    );
+    await expect(dialog).toContainText("which has a new reference");
+  });
+
+  test("a_role_that_may_not_check_in_or_out_is_told_so_above_the_list", async ({
+    page,
+    request,
+    baseURL,
+  }) => {
+    const propertyId = aDeskProperty();
+    aBooking(propertyId, { startsIn: 0, nights: 2, label: "Seen" });
+    anOverdueGuest(propertyId, { daysOverdue: 1 });
+    const finance = await aStaffMember(
+      request,
+      baseURL!,
+      propertyId,
+      "finance",
+    );
+    await signIn(page, finance.email);
+
+    await page.goto(`/en/arrivals?property=${propertyId}`);
+    await expect(
+      page.getByText(
+        "You can see who is expected. Checking in needs the Front desk, Manager or Owner role.",
+      ),
+    ).toBeVisible();
+    await page.goto(`/en/departures?property=${propertyId}`);
+    await expect(
+      page.getByText(
+        "You can see who is leaving. Checking out needs the Front desk, Manager or Owner role.",
+      ),
+    ).toBeVisible();
   });
 });

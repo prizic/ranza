@@ -131,7 +131,7 @@ describe("taking a booking", () => {
 
     const lost = new Error("connection terminated unexpectedly");
     createReservation.mockRejectedValueOnce(lost);
-    expect(await actions.createReservation("idle", booking())).toBe("refused");
+    expect(await actions.createReservation("idle", booking())).toBe("failed");
     expect(logged).toHaveBeenCalledTimes(1);
     expect(logged.mock.calls[0]).toContain(lost);
   });
@@ -147,7 +147,7 @@ describe("checking in", () => {
 
     const lost = new Error("connection terminated unexpectedly");
     checkIn.mockRejectedValueOnce(lost);
-    expect(await actions.checkInReservation("idle", arrival())).toBe("refused");
+    expect(await actions.checkInReservation("idle", arrival())).toBe("failed");
     expect(logged).toHaveBeenCalledTimes(1);
     expect(logged.mock.calls[0]).toContain(lost);
   });

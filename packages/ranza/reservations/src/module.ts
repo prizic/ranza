@@ -65,6 +65,7 @@ import {
   type DepartedStay,
   type Departure,
   type DepartureView,
+  type GuestMatch,
   type NewReservation,
   type ReservationEnded,
   type ReservationRow,
@@ -473,6 +474,15 @@ export function createReservationsModule(deps: ReservationsDeps) {
           -- Housekeeping's answer (ADR 0029), not a blocker: a room that is
           -- not ready is asked about at check-in, never refused.
           app.unit_is_ready(accommodation_unit_id)    as "unitIsReady",
+          case
+            when app.unit_is_ready(accommodation_unit_id) then null
+            when exists (
+              select 1 from public.housekeeping_unit_status as held
+               where held.accommodation_unit_id
+                       = app.unit_status_holder(arriving.accommodation_unit_id)
+                 and held.status = 'dirty') then 'dirty'
+            else 'awaiting_inspection'
+          end                                         as "unitNotReadyBecause",
           -- What checkIn's update and the Stay triggers refuse, in the order a
           -- desk would fix them. Every clause mirrors one of them: the status
           -- and the dates are the update's predicate, the Unit's status is
@@ -955,7 +965,8 @@ export function createReservationsModule(deps: ReservationsDeps) {
           to_char(stay.starts_on, 'YYYY-MM-DD')     as "startsOn",
           to_char(stay.ends_on, 'YYYY-MM-DD')       as "endsOn",
           to_char(stay.departed_at at time zone 'UTC',
-                  'YYYY-MM-DD"T"HH24:MI:SS"Z"')     as "departedAt"
+                  'YYYY-MM-DD"T"HH24:MI:SS"Z"')     as "departedAt",
+          app.unit_is_ready(stay.accommodation_unit_id) as "unitIsReady"
         from public.stays as stay
         join public.properties as property
           on property.id = stay.property_id
@@ -1044,6 +1055,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
             then room.status
             else unit.status
           end                                         as "unitStatus",
+          app.capability_is_available(
+            stay.property_id, 'housekeeping', 'housekeeping')
+                                                      as "roomWillBeDirty",
           coalesce(stay.ends_on < today.day, false)   as "overdue",
           coalesce(greatest(today.day - stay.ends_on, 0), 0)::int
                                                       as "overdueDays",
@@ -3384,10 +3398,67 @@ export function createReservationsModule(deps: ReservationsDeps) {
     };
   }
 
+  /**
+   * Guests already on file whose name or telephone matches what is being typed
+   * into a new booking, for a desk that holds `front_desk.book` — the people the
+   * suggestion is for, and the only role that reads contact details here as part
+   * of taking a booking.
+   *
+   * Three characters of a name, or four digits of a number, before anything is
+   * looked up, and at most five answers: a prompt that something is on file, not
+   * a search of the Organization. Matched by position in the text and not by a
+   * pattern, so a `%` or `_` somebody types is just a character. Never a merge:
+   * a booking is added to an existing Guest only by an exact email
+   * (`identifyGuestWithin`, blueprint 18.7).
+   */
+  async function findGuests(
+    userId: string,
+    propertyId: string,
+    text: string,
+  ): Promise<GuestMatch[]> {
+    const needle = text.trim().toLowerCase();
+    const digits = needle.replace(/\D/g, "");
+    const byName = [...needle].length >= 3;
+    const byNumber = digits.length >= 4;
+    if (!byName && !byNumber) return [];
+
+    return withOrganizationContext(
+      deps.db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<GuestMatch[]>`
+        select guest.id          as "guestId",
+               guest.full_name   as "fullName",
+               guest.email       as "email",
+               guest.phone       as "phone"
+          from public.guests as guest
+          join public.properties as property
+            on property.organization_id = guest.organization_id
+         where property.id = ${propertyId}::uuid
+           and app.can_use_capability(
+             property.id,
+             ${FRONT_DESK_CAPABILITY.moduleKey},
+             ${FRONT_DESK_CAPABILITY.capabilityKey}
+           )
+           and app.has_organization_permission(
+             property.organization_id, 'front_desk.book')
+           and (
+             (${byName} and position(${needle} in lower(guest.full_name)) > 0)
+             or (${byNumber}
+                 and position(${digits} in
+                      regexp_replace(coalesce(guest.phone, ''), '[^0-9]', '', 'g')) > 0)
+           )
+         order by guest.full_name
+         limit 5
+      `,
+    );
+  }
+
   return {
     amendBooking,
     changeDeparture,
     createReservation,
+    findGuests,
     listArrivals,
     bookingDay,
     listBookableUnits,

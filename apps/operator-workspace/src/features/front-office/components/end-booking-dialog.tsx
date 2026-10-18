@@ -43,7 +43,16 @@ const REASON = { min: 3, max: 2000 };
 
 export type EndBookingKind = "cancel" | "no_show";
 
+const PRESET_REASONS = [
+  "cancelReasonGuest",
+  "cancelReasonUnconfirmed",
+  "cancelReasonError",
+  "cancelReasonDuplicate",
+  "cancelReasonRoom",
+] as const;
+
 export function EndBookingDialog({
+  expected,
   guestName,
   kind,
   locale,
@@ -53,6 +62,13 @@ export function EndBookingDialog({
   reservationId,
   unitLabel,
 }: {
+  /**
+   * What the booking said about the Guest's arrival, for a no-show: the time,
+   * and whether the Property's clock has passed it (null when the screen does
+   * not know). Said before the red button, because a no-show cannot be taken
+   * back and the desk should see how early it is.
+   */
+  expected?: { time: string; passed: boolean | null } | null | undefined;
   guestName: string;
   kind: EndBookingKind;
   locale: string;
@@ -121,20 +137,49 @@ export function EndBookingDialog({
           <input name="reservation" type="hidden" value={reservationId} />
           <input name="locale" type="hidden" value={locale} />
 
+          {kind === "no_show" && expected ? (
+            <p className="text-step--1 font-medium">
+              {t(
+                expected.passed === true
+                  ? "noShowExpectedPassed"
+                  : expected.passed === false
+                    ? "noShowExpectedPending"
+                    : "noShowExpectedGiven",
+                { time: expected.time },
+              )}
+            </p>
+          ) : null}
+
           {kind === "cancel" ? (
-            <Field htmlFor={`cancel-${reservationId}`} label={t("reason")}>
-              <Textarea
-                autoFocus
-                id={`cancel-${reservationId}`}
-                maxLength={REASON.max}
-                minLength={REASON.min}
-                name="reason"
-                onChange={(event) => setReason(event.target.value)}
-                required
-                rows={3}
-                value={reason}
-              />
-            </Field>
+            <div className="grid gap-2">
+              <Field htmlFor={`cancel-${reservationId}`} label={t("reason")}>
+                <Textarea
+                  autoFocus
+                  id={`cancel-${reservationId}`}
+                  maxLength={REASON.max}
+                  minLength={REASON.min}
+                  name="reason"
+                  onChange={(event) => setReason(event.target.value)}
+                  required
+                  rows={3}
+                  value={reason}
+                />
+              </Field>
+              {/* The reasons a desk gives most, one press to fill the box. */}
+              <div className="flex flex-wrap gap-1.5">
+                {PRESET_REASONS.map((preset) => (
+                  <Button
+                    key={preset}
+                    onClick={() => setReason(t(preset))}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    {t(preset)}
+                  </Button>
+                ))}
+              </div>
+            </div>
           ) : null}
 
           {message ? (

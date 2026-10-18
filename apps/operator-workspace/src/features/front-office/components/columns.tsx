@@ -22,6 +22,7 @@ import {
   type StatusTone,
 } from "@ranza/ui";
 import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
+import { owedMinor } from "../../today/views";
 import { useSortLabels } from "../../../lib/table-labels";
 import { CheckInAction } from "./check-in-action";
 import { CheckOutDialog } from "./check-out-dialog";
@@ -118,8 +119,9 @@ export const RESERVATION_ICON = {
 
 /**
  * When the Guest said they would arrive, under the reference, and a word when
- * the Property's clock has passed it. A dash that a screen reader names when
- * nobody said. Not shown once the Guest is in: the time is moot then.
+ * the Property's clock has passed it. Words when nobody said, never a dash
+ * that reads as "not loaded". Not shown once the Guest is in: the time is moot
+ * then.
  */
 function ExpectedArrival({
   arrival,
@@ -129,11 +131,11 @@ function ExpectedArrival({
   locale: SupportedLocale;
 }) {
   const t = useTranslations();
+  if (arrival.status === "checked_in") return null;
   if (arrival.expectedArrival === null) {
     return (
       <span className="block text-step--1 text-muted-foreground">
-        <span aria-hidden="true">{t("expectedAt", { time: "\u2014" })}</span>
-        <span className="sr-only">{t("expectedArrivalNone")}</span>
+        {t("expectedNoTime")}
       </span>
     );
   }
@@ -150,6 +152,14 @@ function ExpectedArrival({
         </span>
       ) : null}
     </>
+  );
+}
+
+/** Whole nights between two `YYYY-MM-DD` dates, counted in UTC. */
+function nightsBetween(from: string, to: string): number {
+  return Math.round(
+    (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) /
+      86_400_000,
   );
 }
 
@@ -182,10 +192,14 @@ export function useArrivalColumns(
               <bdi>{row.original.guestName}</bdi>
             </p>
             <p className="mt-1 text-step--1 text-muted-foreground">
-              {t(`stayType.${row.original.stayType}`)}
-              {", "}
               {row.original.endsOn
-                ? t("untilDate", { date: day(row.original.endsOn, locale) })
+                ? t("arrivalNightsUntil", {
+                    count: nightsBetween(
+                      row.original.startsOn,
+                      row.original.endsOn,
+                    ),
+                    date: day(row.original.endsOn, locale),
+                  })
                 : t("openEnded")}
             </p>
           </div>
@@ -215,9 +229,7 @@ export function useArrivalColumns(
               {t("daysLate", { n: row.original.daysLate })}
             </span>
           ) : null}
-          {row.original.status !== "checked_in" ? (
-            <ExpectedArrival arrival={row.original} locale={locale} />
-          ) : null}
+          <ExpectedArrival arrival={row.original} locale={locale} />
         </div>
       ),
     },
@@ -312,7 +324,13 @@ export function useArrivalColumns(
             ) : (
               <StatusBadge
                 icon={SprayCan}
-                label={t("notReady")}
+                label={
+                  arrival.unitNotReadyBecause === "awaiting_inspection"
+                    ? t("roomAwaitingInspection")
+                    : arrival.unitNotReadyBecause === "dirty"
+                      ? t("roomDirty")
+                      : t("notReady")
+                }
                 tone="warning"
               />
             );
@@ -354,8 +372,17 @@ export function useArrivalColumns(
           <div className="flex items-center justify-end gap-1">
             {arrival.canCheckIn && arrival.mayCheckIn ? (
               <CheckInAction
+                guestName={arrival.guestName}
                 locale={locale}
                 reservationId={arrival.reservationId}
+                room={
+                  arrival.unitIsReady
+                    ? undefined
+                    : {
+                        label,
+                        because: arrival.unitNotReadyBecause ?? "dirty",
+                      }
+                }
               />
             ) : arrival.stayId && arrival.mayCheckIn ? (
               <UndoCheckInDialog
@@ -387,6 +414,15 @@ export function useArrivalColumns(
                       // first night, so a confirmed one may be marked a no-show.
                       mayMarkNoShow:
                         arrival.mayCancel && arrival.status === "confirmed",
+                      expected: arrival.expectedArrival
+                        ? {
+                            time: expectedArrivalLabel(
+                              arrival.expectedArrival,
+                              locale,
+                            ),
+                            passed: arrival.expectedArrivalPassed,
+                          }
+                        : undefined,
                       // An early or late arrival is moved here: to today, or
                       // to the nights the Guest now wants (AB-S1-09).
                       change: arrival.mayAmend
@@ -405,6 +441,7 @@ export function useArrivalColumns(
               }
               folioId={arrival.folioId}
               guestName={arrival.guestName}
+              housekeeping={!arrival.unitIsReady}
               locale={locale}
               propertyId={propertyId}
               unitId={arrival.unitId}
@@ -549,7 +586,10 @@ export function useDepartureColumns(
     },
     {
       id: "balance",
-      accessorKey: "balanceMinor",
+      // What the check-out dialog asks about: the Folio plus the nights check-out
+      // will charge, so a row never reads zero over a bill the dialog demands a
+      // reason for.
+      accessorFn: (departure) => owedMinor(departure),
       meta: { title: t("balance") },
       header: ({ column }) => (
         <DataTableColumnHeader
@@ -560,11 +600,18 @@ export function useDepartureColumns(
       ),
       cell: ({ row }) =>
         row.original.folioId ? (
-          <Balance
-            currency={row.original.currency}
-            locale={locale}
-            minor={row.original.balanceMinor}
-          />
+          <div>
+            <Balance
+              currency={row.original.currency}
+              locale={locale}
+              minor={owedMinor(row.original)}
+            />
+            {row.original.pendingNights > 0 ? (
+              <span className="block text-step--1 text-muted-foreground">
+                {t("includesNights", { count: row.original.pendingNights })}
+              </span>
+            ) : null}
+          </div>
         ) : (
           <span className="text-muted-foreground">{t("noFolio")}</span>
         ),
@@ -606,6 +653,9 @@ export function useDepartureColumns(
                     ),
                     startsOn: row.original.startsOn,
                     endsOn: row.original.endsOn,
+                    unpriced:
+                      row.original.stayType === "guest" &&
+                      row.original.nightlyRateMinor === null,
                   }
                 : undefined
             }
@@ -628,6 +678,80 @@ export type ReservationListRow = ReservationRow & {
   statusLabel?: string;
   dateSearch?: string;
 };
+
+/**
+ * A booking's menu: what ending, changing or looking at it offers, shared by
+ * the row and by the sheet the row opens, so the two cannot disagree about what
+ * can be done to the same booking (RES-13).
+ */
+export function ReservationMenu({
+  booking,
+  locale,
+  propertyId,
+}: {
+  booking: ReservationListRow;
+  locale: SupportedLocale;
+  propertyId: string;
+}) {
+  const label = unitLabel(booking.roomName, booking.unitName);
+  const inHouse = booking.stayId !== null;
+  return (
+    <FrontDeskRowMenu
+      booking={
+        inHouse
+          ? undefined
+          : {
+              reservationId: booking.reservationId,
+              reference: booking.reference,
+              unitLabel: label,
+              mayCancel: booking.mayCancel,
+              // Here as well as on arrivals: a booking whose nights
+              // all passed unarrived is only on this list, and it is
+              // marked a no-show the morning after.
+              mayMarkNoShow: booking.mayMarkNoShow,
+              expected: booking.expectedArrival
+                ? {
+                    time: expectedArrivalLabel(booking.expectedArrival, locale),
+                    passed: null,
+                  }
+                : undefined,
+              change: booking.mayAmend
+                ? {
+                    reservationId: booking.reservationId,
+                    reference: booking.reference,
+                    guestName: booking.guestName,
+                    unitLabel: label,
+                    unitId: booking.unitId,
+                    startsOn: booking.startsOn,
+                    endsOn: booking.endsOn,
+                    expectedArrival: booking.expectedArrival,
+                  }
+                : undefined,
+            }
+      }
+      folioId={booking.folioId}
+      guestName={booking.guestName}
+      locale={locale}
+      propertyId={propertyId}
+      stay={
+        booking.stayId && booking.stayStartsOn && booking.mayChangeStay
+          ? {
+              stayId: booking.stayId,
+              reference: booking.reference,
+              guestName: booking.guestName,
+              unitLabel: label,
+              startsOn: booking.stayStartsOn,
+              endsOn: booking.endsOn,
+              unpriced:
+                booking.stayType === "guest" &&
+                booking.nightlyRateMinor === null,
+            }
+          : undefined
+      }
+      unitId={booking.unitId}
+    />
+  );
+}
 
 /**
  * The booking list.
@@ -714,7 +838,7 @@ export function useReservationColumns(
         const { endsOn, overdueDays, startsOn, stayStartsOn, status } =
           row.original;
         const inHouse = status === "checked_in";
-        const isDueToday = inHouse && overdueDays === 0 && endsOn === today;
+        const isDueToday = inHouse && !(overdueDays > 0) && endsOn === today;
 
         return (
           <div>
@@ -852,13 +976,13 @@ export function useReservationColumns(
       cell: ({ row }) => {
         const booking = row.original;
         const label = unitLabel(booking.roomName, booking.unitName);
-        const inHouse = booking.stayId !== null;
         const menu =
           booking.mayCancel || booking.mayAmend || booking.mayChangeStay;
         return (
           <div className="flex items-center justify-end gap-1 whitespace-nowrap">
             {booking.mayCheckIn ? (
               <CheckInAction
+                guestName={booking.guestName}
                 locale={locale}
                 reservationId={booking.reservationId}
               />
@@ -882,53 +1006,11 @@ export function useReservationColumns(
               />
             ) : null}
             {menu || booking.folioId || booking.unitId ? (
-              <FrontDeskRowMenu
+              <ReservationMenu
+                booking={booking}
                 key={booking.reservationId}
-                booking={
-                  inHouse
-                    ? undefined
-                    : {
-                        reservationId: booking.reservationId,
-                        reference: booking.reference,
-                        unitLabel: label,
-                        mayCancel: booking.mayCancel,
-                        // Here as well as on arrivals: a booking whose nights
-                        // all passed unarrived is only on this list, and it is
-                        // marked a no-show the morning after.
-                        mayMarkNoShow: booking.mayMarkNoShow,
-                        change: booking.mayAmend
-                          ? {
-                              reservationId: booking.reservationId,
-                              reference: booking.reference,
-                              guestName: booking.guestName,
-                              unitLabel: label,
-                              unitId: booking.unitId,
-                              startsOn: booking.startsOn,
-                              endsOn: booking.endsOn,
-                              expectedArrival: booking.expectedArrival,
-                            }
-                          : undefined,
-                      }
-                }
-                folioId={booking.folioId}
-                guestName={booking.guestName}
                 locale={locale}
                 propertyId={propertyId}
-                stay={
-                  booking.stayId &&
-                  booking.stayStartsOn &&
-                  booking.mayChangeStay
-                    ? {
-                        stayId: booking.stayId,
-                        reference: booking.reference,
-                        guestName: booking.guestName,
-                        unitLabel: label,
-                        startsOn: booking.stayStartsOn,
-                        endsOn: booking.endsOn,
-                      }
-                    : undefined
-                }
-                unitId={booking.unitId}
               />
             ) : null}
           </div>

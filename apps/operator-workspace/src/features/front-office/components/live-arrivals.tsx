@@ -1,12 +1,14 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import type { Arrival } from "@ranza/reservations";
 import type { SupportedLocale } from "@ranza/i18n";
 import { ListFilterNotice } from "../../today/components/list-filter-notice";
 import { inArrivalFilter, type ArrivalFilter } from "../../today/views";
 import { frontOfficeKeys, type Scope } from "../query-keys";
 import { ArrivalsTable } from "./arrivals-table";
+import { ListFreshness } from "./list-freshness";
 
 /**
  * Arrivals, on a screen that stays open.
@@ -42,6 +44,7 @@ export function LiveArrivals({
   filter,
   locale,
   scope,
+  timeZone,
 }: {
   /** This list unnarrowed, for the way back from a figure on Today. */
   allHref: string;
@@ -49,8 +52,11 @@ export function LiveArrivals({
   filter: ArrivalFilter | null;
   locale: SupportedLocale;
   scope: Scope;
+  /** The Property's own clock, which the freshness line is told in. */
+  timeZone: string;
 }) {
-  const { data } = useQuery({
+  const t = useTranslations();
+  const { data, dataUpdatedAt, error } = useQuery({
     // From the factory, never written inline. The prefix is the user, the
     // Organization and the Property, which is what stops a switch being
     // answered from the previous Property's rows.
@@ -68,8 +74,23 @@ export function LiveArrivals({
   const rows = (data ?? []).filter((arrival) =>
     inArrivalFilter(filter, arrival),
   );
+  // Nobody is offered a button they may not press: a viewer with the front desk
+  // but not check-in sees the whole list, and is told why it has no actions.
+  const viewOnly =
+    rows.length > 0 && rows.every((arrival) => !arrival.mayCheckIn);
   return (
     <>
+      <ListFreshness
+        error={error}
+        locale={locale}
+        timeZone={timeZone}
+        updatedAt={dataUpdatedAt}
+      />
+      {viewOnly ? (
+        <p className="mt-3 text-step--1 text-muted-foreground">
+          {t("viewOnlyArrivals")}
+        </p>
+      ) : null}
       {filter === null ? null : (
         <div className="mt-4">
           <ListFilterNotice

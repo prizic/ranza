@@ -353,7 +353,9 @@ test.describe("every number on Today opens the list that explains it", () => {
     await expect(page.getByText("Ready", { exact: true })).toHaveCount(
       arrivals.ready,
     );
-    await expect(page.getByText("Not ready", { exact: true })).toHaveCount(
+    // Arrivals names why: a room waiting to be cleaned is Dirty, one waiting
+    // for its inspection is Awaiting inspection (ARR-04).
+    await expect(page.getByText(/^(Dirty|Awaiting inspection)$/)).toHaveCount(
       arrivals.notReady,
     );
     await capture(page, "arrivals-to-come");
@@ -397,7 +399,7 @@ test.describe("every number on Today opens the list that explains it", () => {
     expect(await listed(page)).toBe(
       departures.due - departures.departed + departures.overdue,
     );
-    await expect(page.getByText(/^Overdue since /)).toHaveCount(
+    await expect(page.getByText(/^Overdue · \d+ days?$/)).toHaveCount(
       departures.overdue,
     );
     const leftToday = page.getByTestId("left-today-count");

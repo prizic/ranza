@@ -37,6 +37,7 @@ import { UndoCheckInDialog } from "./undo-check-in-dialog";
 import {
   RESERVATION_ICON,
   RESERVATION_TONE,
+  ReservationMenu,
   type ReservationListRow,
 } from "./columns";
 
@@ -289,16 +290,16 @@ export function ReservationDetailSheet({
                     : t("bookedUnpriced")}
                 </span>
               </div>
-              <div>
-                <span className="block text-step--2 text-muted-foreground">
-                  {t("stayNights", { count: nightsCount ?? 1 })}
-                </span>
-                <span className="font-semibold text-primary">
-                  {totalMinor !== null && rateCurrency !== null
-                    ? formatMoney(totalMinor, rateCurrency, locale)
-                    : "—"}
-                </span>
-              </div>
+              {totalMinor !== null && rateCurrency !== null ? (
+                <div>
+                  <span className="block text-step--2 text-muted-foreground">
+                    {t("stayNights", { count: nightsCount ?? 1 })}
+                  </span>
+                  <span className="font-semibold text-primary">
+                    {formatMoney(totalMinor, rateCurrency, locale)}
+                  </span>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -306,6 +307,7 @@ export function ReservationDetailSheet({
           <div className="flex flex-col gap-2 pt-2">
             {mayCheckIn ? (
               <CheckInAction
+                guestName={guestName}
                 locale={locale}
                 reservationId={reservation.reservationId}
               />
@@ -323,6 +325,15 @@ export function ReservationDetailSheet({
                 unitName={displayUnit}
               />
             ) : null}
+            {/* Everything the row's menu does, where the booking is being
+                read: change, no-show, cancel, the Folio and the room map. */}
+            <div className="flex justify-end">
+              <ReservationMenu
+                booking={reservation}
+                locale={locale}
+                propertyId={propertyId}
+              />
+            </div>
           </div>
         </div>
       </SheetContent>

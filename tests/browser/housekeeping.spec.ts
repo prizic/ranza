@@ -324,7 +324,7 @@ test("arrivals asks before checking a Guest into a room that is not ready", asyn
   page,
 }) => {
   const propertyId = testProperty();
-  const { guestName } = aRoomWithAnArrival(propertyId);
+  const { guestName, unitName } = aRoomWithAnArrival(propertyId);
 
   const ready = aRoomWithAnArrival(propertyId, "clean");
 
@@ -339,16 +339,16 @@ test("arrivals asks before checking a Guest into a room that is not ready", asyn
 
   await page.getByRole("searchbox").fill(guestName);
   const row = page.getByRole("row").filter({ hasText: guestName });
-  await expect(row).toContainText("Not ready");
+  await expect(row).toContainText("Dirty");
 
   await row.getByRole("button", { name: "Check in" }).click();
-  await expect(row).toContainText("isn't ready yet");
+  await expect(row).toContainText("has not been cleaned yet");
 
   // The whole warning, inside its cell, at a desk's usual width: the reason
   // is the part that was once cut off, after "it hasn't been clean".
   await page.setViewportSize({ width: 1440, height: 900 });
-  const warning = row.getByText("isn't ready yet");
-  await expect(warning).toContainText("waiting for inspection");
+  const warning = row.getByText("has not been cleaned yet");
+  await expect(warning).toContainText(unitName);
   expect(
     await warning.evaluate(
       (element) => element.scrollWidth - element.clientWidth,

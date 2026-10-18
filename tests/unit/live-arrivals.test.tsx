@@ -7,8 +7,10 @@
  * that stopped working for any reason goes red — not only a changed number.
  */
 import { act, cleanup, render } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { frontOfficeKeys } from "../../apps/operator-workspace/src/features/front-office/query-keys";
+import { messages } from "../../apps/operator-workspace/src/messages";
 
 // The table is what the rows are handed to; its own tests render it.
 vi.mock(
@@ -47,11 +49,19 @@ function renderArrivals(): void {
   const prefetched = requestQueryClient();
   prefetched.setQueryData(frontOfficeKeys.arrivals(scope), []);
   render(
-    <QueryProvider scope={scope.userId}>
-      <Hydrated client={prefetched}>
-        <LiveArrivals allHref="" filter={null} locale="en" scope={scope} />
-      </Hydrated>
-    </QueryProvider>,
+    <NextIntlClientProvider locale="en" messages={messages.en}>
+      <QueryProvider scope={scope.userId}>
+        <Hydrated client={prefetched}>
+          <LiveArrivals
+            allHref=""
+            filter={null}
+            locale="en"
+            scope={scope}
+            timeZone="Europe/Istanbul"
+          />
+        </Hydrated>
+      </QueryProvider>
+    </NextIntlClientProvider>,
   );
 }
 

@@ -81,14 +81,23 @@ export interface Housed {
  */
 export function anOverdueGuest(
   propertyId: string,
-  options: { daysOverdue: number; nightlyRateMinor?: number },
+  options: {
+    daysOverdue: number;
+    nightlyRateMinor?: number;
+    /** Opens the Folio check-in would have opened, so nights can be charged to it. */
+    withFolio?: boolean;
+  },
 ): Housed {
   const tag = randomUUID().slice(0, 8);
   const guestName = `Test Overdue ${tag}`;
   const unitName = `E2E-O-${tag}`;
   const rate = options.nightlyRateMinor;
+  // A price is stamped by the booking trigger from the price list, which a
+  // fixture has no reach to: a priced booking is written with the triggers
+  // lifted, and the reference the lifted trigger would have given.
   const [reference, stayId] = psql(
-    `with target as (
+    `${rate === undefined ? "" : "set session_replication_role = replica;"}
+     with target as (
        select id, organization_id from public.properties where id = '${propertyId}'
      ), unit as (
        insert into public.accommodation_units
@@ -103,12 +112,12 @@ export function anOverdueGuest(
        insert into public.reservations
          (organization_id, property_id, accommodation_unit_id, guest_id,
           stay_type, status, starts_on, ends_on
-          ${rate === undefined ? "" : ", nightly_rate_minor, rate_currency"})
+          ${rate === undefined ? "" : ", nightly_rate_minor, rate_currency, reference"})
        select unit.organization_id, unit.property_id, unit.id, guest.id,
               'guest', 'checked_in',
               app.property_today(unit.property_id) - ${options.daysOverdue + 3},
               app.property_today(unit.property_id) - ${options.daysOverdue}
-              ${rate === undefined ? "" : `, ${rate}, 'TRY'`}
+              ${rate === undefined ? "" : `, ${rate}, 'TRY', app.reservation_reference(nextval('public.reservation_reference_seq'))`}
        from unit, guest
        returning id, reference, organization_id, property_id, accommodation_unit_id, starts_on, ends_on
      ), stay as (
@@ -118,7 +127,12 @@ export function anOverdueGuest(
        select organization_id, property_id, accommodation_unit_id, id,
               'guest', 'in_house', starts_on, ends_on
        from booking
-       returning id
+       returning id, organization_id, property_id
+     ), folio as (
+       insert into public.folios (organization_id, property_id, stay_id, currency)
+       select stay.organization_id, stay.property_id, stay.id, 'TRY'
+       from stay
+       where ${options.withFolio === true}
      )
      select booking.reference || '|' || stay.id from booking, stay`,
   ).split("|");
@@ -139,6 +153,10 @@ export function aBooking(
     label?: string;
     nightlyRateMinor?: number;
     unitName?: string;
+    /** `HH:MM` the Guest said they would arrive. */
+    expectedArrival?: string;
+    /** Contact details on the Guest, for the lookup and the search. */
+    contact?: { email?: string; phone?: string };
   },
 ): { guestName: string; unitName: string; reference: string } {
   const tag = randomUUID().slice(0, 8);
@@ -160,16 +178,25 @@ export function aBooking(
      )
      insert into public.reservations
        (organization_id, property_id, accommodation_unit_id, guest_id,
-        stay_type, status, starts_on, ends_on
+        stay_type, status, starts_on, ends_on, expected_arrival_time
         ${rate === undefined ? "" : ", nightly_rate_minor, rate_currency"})
      select unit.organization_id, unit.property_id, unit.id, guest.id,
             'guest', 'confirmed',
             app.property_today(unit.property_id) + ${options.startsIn},
-            app.property_today(unit.property_id) + ${options.startsIn + options.nights}
+            app.property_today(unit.property_id) + ${options.startsIn + options.nights},
+            ${options.expectedArrival === undefined ? "null" : `'${options.expectedArrival}'::time`}
             ${rate === undefined ? "" : `, ${rate}, 'TRY'`}
      from unit, guest
      returning reference`,
   );
+  if (options.contact) {
+    psql(
+      `update public.guests
+          set email = ${options.contact.email ? `'${options.contact.email}'` : "email"},
+              phone = ${options.contact.phone ? `'${options.contact.phone}'` : "phone"}
+        where full_name = '${guestName}'`,
+    );
+  }
   return { guestName, unitName, reference };
 }
 

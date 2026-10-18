@@ -103,12 +103,11 @@ describe("writing a time of day", () => {
 });
 
 describe("the expected arrival on the row", () => {
-  it("the_row_says_nothing_is_known_with_a_dash_and_a_name_for_the_screen_reader", () => {
+  it("the_row_says_in_words_when_no_time_was_given", () => {
     show([arrival({ guestName: "Unsaid" })]);
-    expect(screen.getByText("Expected —")).toBeInTheDocument();
-    expect(screen.getByText(messages.en.expectedArrivalNone)).toHaveClass(
-      "sr-only",
-    );
+    expect(screen.getByText(messages.en.expectedNoTime)).toBeInTheDocument();
+    // Words, never a dash that reads as "not loaded" (ARR-03).
+    expect(screen.queryByText(/^Expected —$/)).toBeNull();
   });
 
   it("the_row_says_the_time_has_passed_only_when_the_row_says_so", () => {
