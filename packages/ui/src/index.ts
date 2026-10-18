@@ -38,6 +38,7 @@ export type { RowAction } from "./components/data-table/row-actions";
 export { ScrollCue } from "./components/data-table/scroll-cue";
 export { DataTableViewOptions } from "./components/data-table/view-options";
 export { markOverlayClosed, overlayJustClosed } from "./lib/menu-guard";
+export { useUnsavedChangesGuard } from "./lib/use-unsaved-changes-guard";
 export { brandVariables, defaultBrandVariables } from "./lib/brand-variables";
 export { fieldMatches, toAsciiDigits } from "./lib/search";
 export { Combobox, MultiCombobox } from "./components/combobox";

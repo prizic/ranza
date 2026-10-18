@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Lock } from "lucide-react";
-import { Button, FormError } from "@ranza/ui";
+import { Button, FormError, useUnsavedChangesGuard } from "@ranza/ui";
 import type { SettingsOutcome } from "../../../server/configuration";
 
 /**
@@ -38,6 +38,13 @@ export function SaveBar({
   readOnly: string;
 }) {
   const t = useTranslations("configuration");
+  const everywhere = useTranslations();
+  // Every card of the screen has one of these, so every draft is asked about
+  // before it is lost, whichever card it was typed into (CONFIG-03).
+  useUnsavedChangesGuard(
+    dirty && mayChange && !pending,
+    everywhere("unsavedChanges"),
+  );
 
   if (!mayChange) {
     return (

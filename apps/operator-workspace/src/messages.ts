@@ -1,4 +1,8 @@
 import type { SupportedLocale } from "@ranza/i18n";
+import {
+  errorBoundary,
+  type ErrorBoundaryMessages,
+} from "./error-boundary-copy";
 
 /**
  * Workspace copy in all three languages.
@@ -2436,6 +2440,37 @@ export interface Messages {
     openDescription: string;
     goToToday: string;
   };
+  /** 429 with the seconds Better Auth asked for in `X-Retry-After`. */
+  signInThrottledAfter: string;
+  /** Said above the sign-in form when they were sent here from somewhere. */
+  signInContinue: string;
+  /** The way back from the second-factor step to the password. */
+  useAnotherAccount: string;
+  /** Ends the session. */
+  signOut: string;
+  signingOut: string;
+  /** The server did not end the session; they are still signed in. */
+  signOutFailed: string;
+  /** A Security request that did not go through, whatever it was. */
+  requestUnavailable: string;
+  /** The `otpauth:` link that opens the authenticator app on a phone. */
+  openAuthenticator: string;
+  copyCodes: string;
+  copiedCodes: string;
+  copyFailed: string;
+  downloadCodes: string;
+  /** The tick that must be set before the code can be verified. */
+  codesSaved: string;
+  /** Asked before leaving enrolment with the backup codes not yet verified. */
+  backupCodesLeave: string;
+  twoFactorTurnedOn: string;
+  twoFactorTurnedOff: string;
+  /** Said before turning it off, so the click is not the first they hear of it. */
+  twoFactorOffConsequence: string;
+  /** Asked before leaving a form with edits that were not saved. */
+  unsavedChanges: string;
+  /** What the workspace-level error screen says when a page fails to render. */
+  errorBoundary: ErrorBoundaryMessages;
 }
 
 /** The searchable pickers' own strings; each field brings its placeholder. */
@@ -2509,7 +2544,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     hidePassword: "Parolayı gizle",
     signIn: "Oturum aç",
     signingIn: "Açılıyor",
-    signInFailed: "E-posta veya parola hatalı.",
+    signInFailed:
+      "E-posta veya parola hatalı. İkisini de kontrol edip yeniden deneyin. Parolanızı mı unuttunuz? Prizic desteğiyle iletişime geçin.",
     signInThrottled: "Çok fazla deneme yapıldı. Biraz sonra tekrar deneyin.",
     signInUnavailable: "Giriş şu anda yapılamıyor. Biraz sonra tekrar deneyin.",
 
@@ -5190,6 +5226,32 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Artık sizi engelleyen bir şey yok. Sayfayı yenileyin; yine açılmazsa Sahibinize veya bir Müdüre bildirin.",
       goToToday: "Bugün'e git",
     },
+    signInThrottledAfter:
+      "Çok fazla deneme yapıldı. {seconds} saniye sonra tekrar deneyin.",
+    signInContinue: "Kaldığınız yerden devam etmek için oturum açın.",
+    useAnotherAccount: "Başka bir hesap kullan",
+    signOut: "Oturumu kapat",
+    signingOut: "Oturum kapatılıyor",
+    signOutFailed: "Oturum kapatılamadı. Yeniden deneyin.",
+    requestUnavailable:
+      "İşlem tamamlanamadı. Bağlantınızı kontrol edip yeniden deneyin.",
+    openAuthenticator: "Kimlik doğrulama uygulamasında aç",
+    copyCodes: "Kodları kopyala",
+    copiedCodes: "Kopyalandı",
+    copyFailed: "Kopyalanamadı. Kodları elle seçin.",
+    downloadCodes: "Kodları indir",
+    codesSaved: "Bu kodları sakladım",
+    backupCodesLeave:
+      "Yedek kodlarınız henüz kaydedilmedi ve tekrar gösterilmeyecek. Yine de ayrılmak istiyor musunuz?",
+    twoFactorTurnedOn:
+      "İki adımlı doğrulama açık. Artık giriş yaparken kod istenecek.",
+    twoFactorTurnedOff:
+      "İki adımlı doğrulama kapalı. Giriş yaparken yalnızca parolanız istenir.",
+    twoFactorOffConsequence:
+      "Kapatırsanız parolanızı bilen herkes sizin adınıza giriş yapabilir.",
+    unsavedChanges:
+      "Kaydedilmemiş değişiklikleriniz var. Kaydetmeden ayrılmak istiyor musunuz?",
+    errorBoundary: errorBoundary.tr,
   },
   en: {
     productName: "Ranza",
@@ -5227,7 +5289,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     hidePassword: "Hide password",
     signIn: "Sign in",
     signingIn: "Signing in",
-    signInFailed: "That email and password did not match.",
+    signInFailed:
+      "That email and password did not match. Check both and try again. Forgotten your password? Contact Prizic support.",
     signInThrottled: "Too many attempts. Try again shortly.",
     signInUnavailable: "Signing in isn't working right now. Try again shortly.",
 
@@ -7918,6 +7981,32 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Nothing is blocking you any more. Reload the page; if it still doesn't open, tell your Owner or a Manager.",
       goToToday: "Go to Today",
     },
+    signInThrottledAfter:
+      "Too many attempts. Try again in {seconds, plural, one {# second} other {# seconds}}.",
+    signInContinue: "Sign in to carry on where you were.",
+    useAnotherAccount: "Use a different account",
+    signOut: "Sign out",
+    signingOut: "Signing out",
+    signOutFailed: "Couldn't sign out. Try again.",
+    requestUnavailable:
+      "That didn't go through. Check your connection and try again.",
+    openAuthenticator: "Open in your authenticator app",
+    copyCodes: "Copy codes",
+    copiedCodes: "Copied",
+    copyFailed: "Couldn't copy. Select the codes by hand.",
+    downloadCodes: "Download codes",
+    codesSaved: "I have saved these codes",
+    backupCodesLeave:
+      "Your backup codes are not saved yet and are not shown again. Leave anyway?",
+    twoFactorTurnedOn:
+      "Two-step verification is on. Signing in now asks for a code.",
+    twoFactorTurnedOff:
+      "Two-step verification is off. Signing in asks for your password only.",
+    twoFactorOffConsequence:
+      "Turning it off means anyone with your password can sign in as you.",
+    unsavedChanges:
+      "You have changes that are not saved. Leave without saving them?",
+    errorBoundary: errorBoundary.en,
   },
   ar: {
     productName: "Ranza",
@@ -7955,7 +8044,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     hidePassword: "إخفاء كلمة المرور",
     signIn: "تسجيل الدخول",
     signingIn: "جارٍ الدخول",
-    signInFailed: "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+    signInFailed:
+      "البريد الإلكتروني أو كلمة المرور غير صحيحة. تحقّق منهما وحاول مجددًا. نسيت كلمة المرور؟ تواصل مع دعم Prizic.",
     signInThrottled: "محاولات كثيرة جدًا. حاول مرة أخرى بعد قليل.",
     signInUnavailable: "تسجيل الدخول لا يعمل الآن. حاول مرة أخرى بعد قليل.",
 
@@ -10603,5 +10693,28 @@ export const messages: Record<SupportedLocale, Messages> = {
         "لم يعد هناك ما يمنعك. أعد تحميل الصفحة، وإن لم تُفتح فأبلغ المالك أو أحد المديرين.",
       goToToday: "الانتقال إلى اليوم",
     },
+    signInThrottledAfter:
+      "محاولات كثيرة جدًا. حاول مجددًا بعد {seconds, plural, one {ثانية واحدة} two {ثانيتين} few {# ثوانٍ} other {# ثانية}}.",
+    signInContinue: "سجّل الدخول لمتابعة ما كنت تفعله.",
+    useAnotherAccount: "استخدم حسابًا آخر",
+    signOut: "تسجيل الخروج",
+    signingOut: "جارٍ تسجيل الخروج",
+    signOutFailed: "تعذّر تسجيل الخروج. حاول مجددًا.",
+    requestUnavailable: "لم تكتمل العملية. تحقّق من اتصالك وحاول مجددًا.",
+    openAuthenticator: "افتح في تطبيق المصادقة",
+    copyCodes: "نسخ الرموز",
+    copiedCodes: "تم النسخ",
+    copyFailed: "تعذّر النسخ. حدّد الرموز يدويًا.",
+    downloadCodes: "تنزيل الرموز",
+    codesSaved: "لقد حفظت هذه الرموز",
+    backupCodesLeave:
+      "رموز النسخ الاحتياطي لم تُحفظ بعد ولن تُعرض مرة أخرى. هل تريد المغادرة؟",
+    twoFactorTurnedOn: "التحقق بخطوتين مفعّل. سيُطلب منك رمز عند تسجيل الدخول.",
+    twoFactorTurnedOff:
+      "التحقق بخطوتين متوقف. يُطلب منك كلمة المرور فقط عند تسجيل الدخول.",
+    twoFactorOffConsequence:
+      "إيقافه يعني أن أي شخص يعرف كلمة مرورك يستطيع الدخول باسمك.",
+    unsavedChanges: "لديك تغييرات غير محفوظة. هل تريد المغادرة دون حفظها؟",
+    errorBoundary: errorBoundary.ar,
   },
 };
