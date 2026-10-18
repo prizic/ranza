@@ -786,4 +786,16 @@ describe("the day, as the UX audit found it", () => {
       /Turkey|T[üu]rkiye/i,
     );
   });
+
+  it("no_two_tiles_name_the_same_list_over_different_numbers", () => {
+    view(frontDesk(), "en");
+    // "Checked in 7 / 18" opens Arrivals; "rooms ready for waiting arrivals"
+    // counts rooms, and says so: two tiles both titled Arrivals read as one
+    // figure shown twice.
+    expect(screen.getAllByText("Arrivals", { exact: true })).toHaveLength(1);
+    expect(screen.getAllByText("Arrival rooms")).toHaveLength(1);
+    cleanup();
+    view(housekeeping(), "en");
+    expect(screen.getAllByText("Arrival rooms")).toHaveLength(1);
+  });
 });

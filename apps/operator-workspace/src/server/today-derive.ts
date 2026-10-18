@@ -264,10 +264,12 @@ export interface AttentionRequest {
 
 /**
  * Why an arrival's room is not ready, as far as the housekeeping board says:
- * not cleaned yet, cleaned and waiting for somebody to inspect it, or still
- * holding the Guest who is in it. Null when the board was not read.
+ * not cleaned yet, cleaned and waiting for somebody to inspect it, still
+ * holding the Guest who is in it, or blocked or out of order altogether. Null
+ * when the board was not read.
  */
-export type NotReadyReason = "dirty" | "awaiting_inspection" | "occupied";
+export type NotReadyReason =
+  "dirty" | "awaiting_inspection" | "occupied" | "out_of_service";
 
 export interface AttentionItem {
   kind: AttentionKind;
@@ -745,6 +747,9 @@ function notReadyReason(
     (candidate) => candidate.name === roomNameOf(arrival),
   );
   if (!room) return null;
+  // A room somebody has blocked or taken out of order is not waiting on
+  // anybody to clean or inspect it.
+  if (room.outOfService) return "out_of_service";
   if (room.inHouse) return "occupied";
   return room.status === "dirty" ? "dirty" : "awaiting_inspection";
 }

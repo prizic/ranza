@@ -43,6 +43,7 @@ const NOT_READY = {
   dirty: "notReadyDirty",
   awaiting_inspection: "notReadyAwaitingInspection",
   occupied: "notReadyOccupied",
+  out_of_service: "notReadyOutOfService",
   unknown: "notReadyDetail",
 } as const;
 

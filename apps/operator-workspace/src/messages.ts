@@ -1331,6 +1331,7 @@ export interface Messages {
     notReadyDirty: string;
     notReadyAwaitingInspection: string;
     notReadyOccupied: string;
+    notReadyOutOfService: string;
     blocked: string;
     blockerNotConfirmed: string;
     blockerUnitBlocked: string;
@@ -3035,6 +3036,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       notReadyAwaitingInspection:
         "Bugün geliş var; oda temiz, kontrol bekliyor.",
       notReadyOccupied: "Bugün geliş var; odada hâlâ biri var.",
+      notReadyOutOfService: "Bugün geliş var; oda kapalı ya da hizmet dışı.",
       blocked: "Giriş yapılamaz",
       blockerNotConfirmed: "Rezervasyon henüz onaylanmadı.",
       blockerUnitBlocked: "Birim satışa kapalı.",
@@ -5492,6 +5494,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       notReadyAwaitingInspection:
         "Arriving today; the room is clean and waiting for inspection.",
       notReadyOccupied: "Arriving today; someone is still in the room.",
+      notReadyOutOfService:
+        "Arriving today; the room is blocked or out of service.",
       blocked: "Can't check in",
       blockerNotConfirmed: "The booking is not confirmed yet.",
       blockerUnitBlocked: "The unit is blocked.",
@@ -7934,6 +7938,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       notReadyDirty: "وصول اليوم؛ لم تُنظَّف الغرفة بعد.",
       notReadyAwaitingInspection: "وصول اليوم؛ الغرفة نظيفة وتنتظر الفحص.",
       notReadyOccupied: "وصول اليوم؛ ما زال أحدهم في الغرفة.",
+      notReadyOutOfService: "وصول اليوم؛ الغرفة محجوبة أو خارج الخدمة.",
       blocked: "لا يمكن تسجيل الدخول",
       blockerNotConfirmed: "الحجز غير مؤكد بعد.",
       blockerUnitBlocked: "الوحدة محجوبة.",
@@ -7971,7 +7976,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       leaveOverdue:
         "{count, plural, one {مغادرة واحدة متأخرة منذ {days, plural, zero {# يوم} one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}} two {مغادرتان متأخرتان، الأطول منذ {days, plural, zero {# يوم} one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}} few {# مغادرات متأخرة، الأطول منذ {days, plural, zero {# يوم} one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}} many {# مغادرة متأخرة، الأطول منذ {days, plural, zero {# يوم} one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}} other {# مغادرة متأخرة، الأطول منذ {days, plural, zero {# يوم} one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}}}",
       occupancy: "الإشغال",
-      inHouseOf: "المقيمون · {count} / {of}",
+      inHouseOf: "المقيمون · {count} من {of}",
       expectedTonight: "المتوقع الليلة {count} من {of} غرفة متاحة ({value})",
       ofSeparator: "من",
       noUnits: "لا وحدات للتأجير",

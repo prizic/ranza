@@ -1598,6 +1598,9 @@ describe("the day, as the UX audit found it", () => {
     expect(
       reasonOf([room({ name: "204", status: "dirty", inHouse: true })]),
     ).toBe("occupied");
+    expect(
+      reasonOf([room({ name: "204", status: "clean", outOfService: true })]),
+    ).toBe("out_of_service");
     // The board was not read for this viewer: no reason is invented.
     expect(reasonOf([])).toBeUndefined();
   });

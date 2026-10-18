@@ -56,7 +56,10 @@ slices ([`features/today-dashboard`](features/today-dashboard/edge-cases.csv)):
 the day at a Property shaped by the permissions held; check-in, check-out and
 marking a room from a row; the manager's recent activity, charges today, booked
 occupancy ahead and Organization strip; and every figure opening exactly the rows
-it counts, which a browser spec reads, follows and counts (TD-S5-*). Guest
+it counts, which a browser spec reads, follows and counts (TD-S5-_). The UX
+audit of 2026-10-11 reworked the day (TD-S7-_, with the room calendar's RC-S4-*,
+all proposed): tonight is one number on Today and the calendar, an overdue Guest
+holds their room and is counted in days, and "ready" means vacant. Guest
 requests on Today are proposed, not built (TD-S6-01).
 
 The next few slices, in the order decided by what each one unblocks:
