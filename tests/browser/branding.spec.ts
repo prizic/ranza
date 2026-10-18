@@ -16,6 +16,7 @@ import {
   signIn,
   testProperty,
 } from "./front-desk";
+import { messages } from "../../apps/operator-workspace/src/messages";
 import { psql } from "./local-database";
 import { png } from "../unit/branding-images";
 import {
@@ -334,7 +335,7 @@ test("BR-S1-29: a Staff Member without branding.manage does not see the Branding
 
   await page.goto(`/en/branding?property=${testProperty()}`);
   await expect(
-    page.getByText("This module is not in your Subscription"),
+    page.getByRole("heading", { name: messages.en.denied.noPermissionTitle }),
   ).toBeVisible();
   await expect(page.getByLabel("Colour (#rrggbb)")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Save" })).toHaveCount(0);

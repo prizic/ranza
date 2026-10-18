@@ -88,7 +88,8 @@ test("a session ended while the workspace is open goes to sign in on the next pa
     .locator(`aside a[href="/en/finance?property=${propertyId}"]`)
     .first()
     .click();
-  await expect(page).toHaveURL(/\/en\/sign-in$/);
+  // Sent to sign in with where they were going, so signing in comes back.
+  await expect(page).toHaveURL(/\/en\/sign-in\?next=%2Fen%2Ffinance/);
   // Reached by a client-side redirect, so the sign-in page sets its own locale
   // too; it used to fall back to Turkish here.
   await expect(

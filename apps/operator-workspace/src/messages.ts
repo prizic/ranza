@@ -10649,7 +10649,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       departures: "المغادرة",
       "close-day": "إغلاق اليوم",
       "guest-experience": "تجربة الضيف",
-      housekeeping: "خدمة الغرف",
+      housekeeping: "التدبير الفندقي",
       maintenance: "الصيانة",
       "food-and-beverage": "الأطعمة والمشروبات",
       inventory: "المخزون",

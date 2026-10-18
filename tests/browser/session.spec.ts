@@ -210,3 +210,22 @@ test("choosing a language is remembered by the next visit to the bare address", 
   await page.goto("/");
   await expect(page).toHaveURL(/\/ar\/(today|sign-in)/);
 });
+
+test("the language cookie is set when the language changes, not on every response", async ({
+  request,
+}) => {
+  // A Set-Cookie on every response made the router treat each server action as
+  // having changed state, and a dialog showing a refusal was redrawn away.
+  const first = await request.get("/en/sign-in");
+  expect(first.headers()["set-cookie"] ?? "").toContain("ranza_locale=en");
+
+  const again = await request.get("/en/sign-in", {
+    headers: { cookie: "ranza_locale=en" },
+  });
+  expect(again.headers()["set-cookie"] ?? "").not.toContain("ranza_locale");
+
+  const switched = await request.get("/ar/sign-in", {
+    headers: { cookie: "ranza_locale=en" },
+  });
+  expect(switched.headers()["set-cookie"] ?? "").toContain("ranza_locale=ar");
+});

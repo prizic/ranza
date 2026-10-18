@@ -232,3 +232,39 @@ test("the audit log on a phone folds its filters and shows who did it", async ({
   await expect(page.getByLabel("Search", { exact: true })).toBeVisible();
   await expect(first.getByText(/^Who:/)).toBeHidden();
 });
+
+test("the phone's bottom bar names every destination it offers, and Arabic names Housekeeping as the product does", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 375, height: 800 });
+  await signIn(page);
+  await page.goto(`/ar/today?property=${testProperty()}`);
+
+  const dock = page.locator("nav.glass-panel").last();
+  await expect(dock).toBeVisible();
+  const labels = dock.locator("a span.line-clamp-2");
+  await expect(labels.first()).toBeVisible();
+  for (const label of await labels.all()) {
+    const clipped = await label.evaluate(
+      (element) =>
+        element.scrollHeight > element.clientHeight + 1 ||
+        element.scrollWidth > element.clientWidth + 1,
+    );
+    expect(clipped, `${await label.innerText()} is cut off`).toBe(false);
+  }
+  await expect(dock).toContainText("التدبير الفندقي");
+  await expect(dock).not.toContainText("خدمة الغرف");
+  await page.screenshot({ path: path.join(EVIDENCE, "phone-dock-ar.png") });
+
+  await page.goto(`/en/today?property=${testProperty()}`);
+  for (const label of await dock.locator("a span.line-clamp-2").all()) {
+    const clipped = await label.evaluate(
+      (element) =>
+        element.scrollHeight > element.clientHeight + 1 ||
+        element.scrollWidth > element.clientWidth + 1,
+    );
+    expect(clipped, `${await label.innerText()} is cut off`).toBe(false);
+  }
+  await page.screenshot({ path: path.join(EVIDENCE, "phone-dock-en.png") });
+});

@@ -424,7 +424,7 @@ test.afterEach(() => {
   switchedOffForTheTest = undefined;
 });
 
-test("from a page with no Property named, the rail opens Housekeeping at the one the switcher names", async ({
+test("from a page with no Property named, the rail does not offer Housekeeping where the switcher's Property has it off, and its links carry that Property", async ({
   page,
 }) => {
   // Signing in lands on Today with no ?property=, and the switcher names its
@@ -455,24 +455,21 @@ test("from a page with no Property named, the rail opens Housekeeping at the one
   switchedOffForTheTest = named;
   await page.reload();
 
-  await page
-    .locator("aside")
-    .getByRole("link", { name: "Housekeeping" })
-    .click();
-  // Arrived and rendered before anything is asserted absent: an absence
-  // checked mid-navigation is true of the page being left.
-  await expect(page).toHaveURL(/\/en\/housekeeping/);
-  await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
-  await expect(page.locator("main").getByRole("heading").first()).toBeVisible();
+  // The rail lists what is open at the Property being worked in, so a page
+  // that Property has switched off is not offered there (RANZ-53); every link
+  // it does offer carries that Property, so none of them opens another one.
+  await expect(
+    page.locator("aside").getByRole("link", { name: "Housekeeping" }),
+  ).toHaveCount(0);
+  await expect(
+    page.locator("aside").getByRole("link", { name: "Maintenance" }),
+  ).toHaveAttribute("href", new RegExp(`property=${named}$`));
 
-  // HK-S1-24 through the everyday path: the rail once linked to the screen
-  // with no Property, and the screen then showed the board of the first
-  // Property that has housekeeping while the switcher still named this one.
+  // HK-S1-24 through the typed address: the screen is not on there, and the
+  // switcher still names this Property rather than the first that has it.
+  await page.goto(`/en/housekeeping?property=${named}`);
   await expect(page.getByRole("table")).toHaveCount(0);
   await expect(switcher).toContainText(name);
-  await expect(page).toHaveURL(
-    new RegExp(`/en/housekeeping\\?property=${named}$`),
-  );
 
   // The empty state's copy is the server's, and a page reached by in-app
   // navigation is rendered in the default locale — the audit evidence run's

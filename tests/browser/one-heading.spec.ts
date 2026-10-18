@@ -76,7 +76,7 @@ test("every rail destination has exactly one h1", async ({ page }) => {
     coincidence. */
 const EMPTY_STATE_TITLE: Record<string, string> = {
   housekeeping: messages.en.housekeeping.unavailableTitle,
-  maintenance: messages.en.notEntitledTitle,
+  maintenance: messages.en.denied.notReachableTitle,
   "room-calendar": messages.en.noFrontDeskTitle,
 };
 

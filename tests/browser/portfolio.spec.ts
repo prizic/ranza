@@ -169,7 +169,7 @@ test("a Property named in the URL that the viewer does not reach compares nothin
   await page.goto(portfolioUrl(unreached));
 
   await expect(
-    page.getByRole("heading", { name: messages.en.notEntitledTitle }),
+    page.getByRole("heading", { name: messages.en.denied.notReachableTitle }),
   ).toBeVisible();
   await expect(page.locator("main li[data-property-id]")).toHaveCount(0);
 });
@@ -484,7 +484,7 @@ test("two Properties without Analytics are not offered All Properties either", a
   await expect(page.locator('aside a[href^="/en/portfolio"]')).toHaveCount(0);
   await page.goto(portfolioUrl(first.propertyId));
   await expect(
-    page.getByRole("heading", { name: messages.en.notEntitledTitle }),
+    page.getByRole("heading", { name: messages.en.denied.notEnabledTitle }),
   ).toBeVisible();
   await expect(page.locator("main li[data-property-id]")).toHaveCount(0);
 });

@@ -649,11 +649,9 @@ test("INT-S1-79: someone with no integrations permission is told so, and a Prope
   await signIn(page, NO_ACCESS_EMAIL);
   await page.goto(SCREEN);
   await expect(
-    page.getByText("You do not have access to Integrations"),
+    page.getByRole("heading", { name: "Your role can't open this page" }),
   ).toBeVisible();
-  await expect(
-    page.getByText(/needs the integrations permission/),
-  ).toBeVisible();
+  await expect(page.getByText(/“See integrations”/)).toBeVisible();
   await expect(
     page.getByText("This module is not in your Subscription"),
   ).toHaveCount(0);
@@ -664,11 +662,15 @@ test("INT-S1-79: someone with no integrations permission is told so, and a Prope
   await page.context().clearCookies();
   await signIn(page, MANAGER_EMAIL);
   await page.goto(`/en/integrations?property=${PROPERTY_WITHOUT_THE_MODULE}`);
+  // The Organization has the module and this Property does not: said as that,
+  // not as the Subscription, and not as the person's role.
   await expect(
-    page.getByText("This module is not in your Subscription"),
+    page.getByRole("heading", {
+      name: "This module isn't switched on at this Property",
+    }),
   ).toBeVisible();
   await expect(
-    page.getByText("You do not have access to Integrations"),
+    page.getByRole("heading", { name: "Your role can't open this page" }),
   ).toHaveCount(0);
 });
 

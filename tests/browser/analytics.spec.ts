@@ -454,7 +454,7 @@ test("a Property that has not bought analytics is not offered and its address re
   await expect(page.locator('aside a[href^="/en/analytics"]')).toHaveCount(0);
   await page.goto(reportUrl(unbought.propertyId, null));
   await expect(
-    page.getByRole("heading", { name: messages.en.notEntitledTitle }),
+    page.getByRole("heading", { name: messages.en.denied.notEnabledTitle }),
   ).toBeVisible();
   await expect(page.locator("[data-figure]")).toHaveCount(0);
 });
@@ -474,7 +474,7 @@ test("a Property the viewer is not assigned to is not shown, and the one they ar
 
   await page.goto(reportUrl(elsewhere.propertyId, "2026-02"));
   await expect(
-    page.getByRole("heading", { name: messages.en.notEntitledTitle }),
+    page.getByRole("heading", { name: messages.en.denied.notReachableTitle }),
   ).toBeVisible();
   await expect(page.locator("[data-figure]")).toHaveCount(0);
 

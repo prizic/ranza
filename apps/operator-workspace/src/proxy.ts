@@ -13,7 +13,7 @@ import { LOCATION_HEADER } from "./lib/return-path";
  * a client sent is overwritten, and it is only ever read as a candidate
  * path that `safeReturnPath` still has to accept.
  *
- * And it remembers the language: every localized request sets a cookie, and the
+ * And it remembers the language: a localized request sets a cookie when the language changes, and the
  * bare address opens in that language, then the browser's, then Turkish
  * (SIGN-03).
  */
@@ -39,7 +39,13 @@ export function proxy(request: NextRequest): NextResponse {
   const response = NextResponse.next({ request: { headers } });
 
   const locale = pathname.split("/")[1];
-  if (isSupportedLocale(locale)) {
+  // Only when it changes. A Set-Cookie on every response made the router treat
+  // each server action as having changed state and redraw what it had open: a
+  // dialog showing a refusal was gone before it could be read.
+  if (
+    isSupportedLocale(locale) &&
+    request.cookies.get(LOCALE_COOKIE)?.value !== locale
+  ) {
     response.cookies.set(LOCALE_COOKIE, locale, {
       maxAge: 60 * 60 * 24 * 365,
       path: "/",

@@ -561,13 +561,13 @@ export function AppBottomNav({
           const active = isActive(href);
           return (
             <li
-              className="flex flex-1 min-w-[4.25rem] justify-center"
+              className="flex flex-1 min-w-[4.5rem] justify-center"
               key={href}
             >
               <Link
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative flex min-h-13 w-full flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium transition-colors",
+                  "relative flex min-h-14 w-full flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 text-[10px] font-medium transition-colors",
                   "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
                   active
                     ? "bg-primary text-primary-foreground shadow-md shadow-primary/15"
@@ -580,7 +580,9 @@ export function AppBottomNav({
                   className="size-5"
                   strokeWidth={active ? 2 : 1.5}
                 />
-                <span className="max-w-full truncate leading-none">
+                {/* Two lines, not a cut-off word: "Front Offi…" names no
+                    destination (TODAY-10). */}
+                <span className="line-clamp-2 max-w-full text-center leading-tight">
                   {itemLabel}
                 </span>
               </Link>
