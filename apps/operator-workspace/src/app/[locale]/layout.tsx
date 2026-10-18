@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { Geist, IBM_Plex_Sans_Arabic } from "next/font/google";
 import { notFound } from "next/navigation";
 import { directionFor, isSupportedLocale, supportedLocales } from "@ranza/i18n";
-import { DirectionProvider } from "@ranza/ui";
+import { DirectionProvider, OverlayLabelsProvider } from "@ranza/ui";
 import { NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
@@ -67,6 +67,7 @@ export default async function LocaleLayout({
   // Without it every page that reads a string becomes dynamic, and
   // generateStaticParams above would be prerendering nothing.
   setRequestLocale(locale);
+  const t = await getTranslations();
 
   return (
     <html
@@ -79,7 +80,9 @@ export default async function LocaleLayout({
             being handed to each client component as a `copy` prop. */}
         <NextIntlClientProvider>
           <DirectionProvider dir={directionFor(locale)}>
-            {children}
+            <OverlayLabelsProvider labels={{ close: t("closeDialog") }}>
+              {children}
+            </OverlayLabelsProvider>
           </DirectionProvider>
         </NextIntlClientProvider>
       </body>

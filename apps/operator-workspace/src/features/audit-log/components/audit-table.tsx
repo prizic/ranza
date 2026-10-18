@@ -7,6 +7,7 @@ import type { AuditPage } from "@ranza/core";
 import {
   Button,
   EmptyState,
+  ScrollCue,
   StatusBadge,
   Table,
   TableBody,
@@ -85,7 +86,7 @@ export function AuditTable({
         {t("auditMatching", { n: page.total })}
       </p>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <ScrollCue className="overflow-hidden rounded-lg border">
         <Table>
           <TableCaption className="sr-only">{t("auditLog")}</TableCaption>
           <TableHeader>
@@ -177,7 +178,7 @@ export function AuditTable({
             ))}
           </TableBody>
         </Table>
-      </div>
+      </ScrollCue>
 
       <p className="text-step--1 text-muted-foreground">
         {t("auditLocalTime")}

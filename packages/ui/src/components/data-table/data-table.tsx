@@ -36,6 +36,7 @@ import {
 } from "../ui/table";
 import { DataTableFacetedChips } from "./faceted-chips";
 import { DataTableFacetedFilter, type FacetOption } from "./faceted-filter";
+import { ScrollCue } from "./scroll-cue";
 import { DataTablePagination, type PaginationLabels } from "./pagination";
 import { DataTableViewOptions } from "./view-options";
 import { overlayJustClosed } from "../../lib/menu-guard";
@@ -66,7 +67,12 @@ const ROW_CARD = cn(
  * the cells it sits beside. `end-0` is logical, so the pinned column stays at
  * the right in English and Turkish and at the left in Arabic.
  */
-const PINNED_END = "sticky end-0 z-10";
+const PINNED_END = cn(
+  "sticky end-0 z-10",
+  // The cue that more of the row lies under it, drawn on the cell itself
+  // because the cell is what the rest of the row slides beneath.
+  "group-data-[cue-end=true]/scroll:shadow-[-10px_0_8px_-8px_rgb(0_0_0/0.18)] rtl:group-data-[cue-end=true]/scroll:shadow-[10px_0_8px_-8px_rgb(0_0_0/0.18)]",
+);
 
 function pinsToEnd(column: { columnDef: { meta?: unknown } }): boolean {
   return (
@@ -269,6 +275,9 @@ export function DataTable<TData, TValue>({
     initialState: { pagination: { pageSize: 10 } },
   });
 
+  const hasPinnedEnd = table
+    .getVisibleLeafColumns()
+    .some((column) => pinsToEnd(column));
   const isFiltered = table.getState().columnFilters.length > 0 || search !== "";
   const selectedRows = table.getSelectedRowModel().rows.map((r) => r.original);
 
@@ -361,7 +370,7 @@ export function DataTable<TData, TValue>({
       {/* Each row is its own white card, as in the Leaders lists. Separate
           borders rather than a wrapper, so the table stays a table to a screen
           reader and a row still means a row. */}
-      <div>
+      <ScrollCue pinnedEnd={hasPinnedEnd}>
         <Table className="-mt-2 border-separate border-spacing-y-2">
           <caption className="sr-only">{caption}</caption>
           <TableHeader className="[&_tr]:border-0">
@@ -463,7 +472,7 @@ export function DataTable<TData, TValue>({
             )}
           </TableBody>
         </Table>
-      </div>
+      </ScrollCue>
 
       <DataTablePagination
         labels={labels}

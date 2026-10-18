@@ -145,7 +145,7 @@ export function DataExportView({
         onValueChange={setActiveTab}
         className="space-y-4"
       >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <TabsList className="bg-muted/60 p-1">
             <TabsTrigger value="exports" className="text-sm gap-1.5">
               <Download className="size-4" />
@@ -157,7 +157,7 @@ export function DataExportView({
             </TabsTrigger>
           </TabsList>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               size="sm"
               variant={activeTab === "new" ? "default" : "outline"}

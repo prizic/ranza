@@ -2418,6 +2418,8 @@ export interface Messages {
   handoverLabel: string;
   notEntitledTitle: string;
   notEntitledDescription: string;
+  /** The name of the control that closes a dialog or a side sheet. */
+  closeDialog: string;
 }
 
 /** The searchable pickers' own strings; each field brings its placeholder. */
@@ -5156,6 +5158,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     notEntitledTitle: "Bu modül aboneliğinizde yok",
     notEntitledDescription:
       "Organizasyonunuz bu modüle abone olduğunda ve tesiste etkinleştirildiğinde burada görünür.",
+    closeDialog: "Kapat",
   },
   en: {
     productName: "Ranza",
@@ -7868,6 +7871,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     notEntitledTitle: "This module is not in your Subscription",
     notEntitledDescription:
       "It appears here once your Organization subscribes to it and the Property has it enabled.",
+    closeDialog: "Close",
   },
   ar: {
     productName: "Ranza",
@@ -10537,5 +10541,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     notEntitledTitle: "هذه الوحدة غير مشمولة في اشتراكك",
     notEntitledDescription:
       "تظهر هنا عندما تشترك مؤسستك فيها ويتم تفعيلها في المنشأة.",
+    closeDialog: "إغلاق",
   },
 };

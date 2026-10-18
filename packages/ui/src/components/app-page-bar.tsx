@@ -98,7 +98,10 @@ export function AppPageBar({
                     />
                   </li>
                 ))}
-                <li className="min-w-0 flex-1 truncate">{leaf}</li>
+                {/* The page's own name keeps its width and the levels above it
+                    give way, so a narrow bar never shows a trail that stops
+                    short of where the person is. */}
+                <li className="max-w-full min-w-0 shrink-0 truncate">{leaf}</li>
               </ol>
             </nav>
           ) : (

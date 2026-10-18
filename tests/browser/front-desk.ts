@@ -367,3 +367,16 @@ export async function signIn(page: Page, email = EMAIL): Promise<void> {
   // with Today nowhere stays on a bare one.
   await expect(page).toHaveURL(/\/en\/today(\?property=[0-9a-f-]+)?$/);
 }
+
+/** A Guest of this run's own, checked in through the Arrivals screen. */
+export async function aGuestInHouse(
+  page: Page,
+  propertyId: string,
+): Promise<void> {
+  const guestName = anArrivalToday(propertyId);
+  await page.goto(`/en/arrivals?property=${propertyId}`);
+  await page.getByRole("searchbox").fill(guestName);
+  const row = page.getByRole("row").filter({ hasText: guestName });
+  await row.getByRole("button", { name: "Check in" }).click();
+  await expect(row.getByText("Checked in")).toBeVisible();
+}

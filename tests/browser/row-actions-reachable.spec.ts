@@ -5,7 +5,7 @@ import { expect, type Page } from "@playwright/test";
 import { test } from "./hydration";
 
 import { psql } from "./local-database";
-import { anArrivalToday, signIn, testProperty } from "./front-desk";
+import { aGuestInHouse, signIn, testProperty } from "./front-desk";
 
 const EVIDENCE = path.resolve(__dirname, "../../docs/evidence/m1/RANZ-23");
 
@@ -63,6 +63,8 @@ const SCREENS: Screen[] = [
 
 const VIEWPORTS = [
   { width: 1280, height: 800 },
+  { width: 1024, height: 768 },
+  { width: 768, height: 1024 },
   { width: 390, height: 844 },
 ];
 
@@ -73,15 +75,6 @@ function anEquipmentItem(propertyId: string): void {
      select organization_id, id, 'E2E lift ${randomUUID().slice(0, 8)}', 'Plant', 'Roof'
        from public.properties where id = '${propertyId}'`,
   );
-}
-
-async function aGuestInHouse(page: Page, propertyId: string): Promise<void> {
-  const guestName = anArrivalToday(propertyId);
-  await page.goto(`/en/arrivals?property=${propertyId}`);
-  await page.getByRole("searchbox").fill(guestName);
-  const row = page.getByRole("row").filter({ hasText: guestName });
-  await row.getByRole("button", { name: "Check in" }).click();
-  await expect(row.getByText("Checked in")).toBeVisible();
 }
 
 /** How far the page itself scrolls sideways, which no screen should. */
