@@ -5641,7 +5641,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         manageMaintenance: "Work maintenance requests",
         takeOutOfOrder: "Take rooms out of order and back",
         manageEquipment: "Keep the equipment register",
-        readAudit: "Read the audit log",
+        readAudit: "Reading the audit log",
         manageConfiguration: "Change Property and Organization settings",
         manageRates: "Set nightly rates",
         readDataExports: "See and download data exports",
