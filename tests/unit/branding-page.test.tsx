@@ -16,6 +16,10 @@ import { messages } from "../../apps/operator-workspace/src/messages";
 
 const permittedProperties = vi.fn();
 const organizationBrand = vi.fn();
+// Which gate stopped them is proved against a database
+// (tests/integration/core-denial.test.ts); what the page does with the answer
+// is what is asserted here.
+const whyDenied = vi.fn(async () => ({ reason: "not_subscribed" as const }));
 
 const PROPERTY = {
   propertyId: "d9100001-0000-4000-8000-000000000001",
@@ -48,6 +52,7 @@ vi.mock("next-intl/server", () => ({
 vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
   organizationBrand,
   permittedProperties,
+  whyDenied,
   requireViewer: async () => ({
     userId: "d9100003-0000-4000-8000-000000000001",
   }),

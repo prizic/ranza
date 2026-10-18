@@ -1,14 +1,15 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { EmptyState } from "@ranza/ui";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { setRequestLocale } from "next-intl/server";
+import { gateOf } from "../../../../lib/screens";
+import { ScreenDenied } from "../screen-denied";
 import { HrView, type HrTab } from "../../../../features/hr/components/hr-view";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import {
-  entitledProperties,
-  HR_CAPABILITY,
   hrViewData,
   requireViewer,
+  screenProperties,
+  whyDenied,
 } from "../../../../server/viewer";
 
 export default async function HrPage({
@@ -28,8 +29,7 @@ export default async function HrPage({
   setRequestLocale(locale);
   await requireViewer(locale);
 
-  const t = await getTranslations();
-  const properties = await entitledProperties(HR_CAPABILITY);
+  const properties = await screenProperties(gateOf("hr"));
   const property = await frontDeskProperty(
     properties,
     await searchParams,
@@ -38,9 +38,9 @@ export default async function HrPage({
 
   if (!property) {
     return (
-      <EmptyState
-        description={t("notEntitledDescription")}
-        title={t("notEntitledTitle")}
+      <ScreenDenied
+        denial={await whyDenied(gateOf("hr"), (await searchParams).property)}
+        locale={locale}
       />
     );
   }
@@ -50,9 +50,9 @@ export default async function HrPage({
 
   if (!data) {
     return (
-      <EmptyState
-        description={t("notEntitledDescription")}
-        title={t("notEntitledTitle")}
+      <ScreenDenied
+        denial={await whyDenied(gateOf("hr"), (await searchParams).property)}
+        locale={locale}
       />
     );
   }

@@ -174,6 +174,7 @@ describe("every catalogue parses", () => {
                 organization: "x",
                 people: 3,
                 period: "2026-10",
+                permission: "x",
                 permissions: "x",
                 price: "₺1.500,00",
                 property: "x",

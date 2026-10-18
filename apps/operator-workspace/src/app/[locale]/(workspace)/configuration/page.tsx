@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { isolate, isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { EmptyState, PageHeader } from "@ranza/ui";
+import { PageHeader } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { ALL_SCREENS, gateOf } from "../../../../lib/screens";
+import { ScreenDenied } from "../screen-denied";
 import { InspectionSettings } from "../../../../features/housekeeping/components/inspection-settings";
 import { MaintenanceSettingsCard } from "../../../../features/maintenance/components/maintenance-settings";
 import { OrganizationCard } from "../../../../features/configuration/components/organization-card";
@@ -16,7 +18,6 @@ import {
   SectionNav,
   type Section,
 } from "../../../../features/configuration/components/section-nav";
-import { ALL_SCREENS } from "../../../../lib/screens";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import {
   CONFIGURATION_CAPABILITY,
@@ -28,6 +29,7 @@ import {
   propertySettings,
   requireViewer,
   timezoneNames,
+  whyDenied,
 } from "../../../../server/viewer";
 
 /**
@@ -83,9 +85,12 @@ export default async function ConfigurationPage({
 
   if (!property || !settings) {
     return (
-      <EmptyState
-        description={t("notEntitledDescription")}
-        title={t("notEntitledTitle")}
+      <ScreenDenied
+        denial={await whyDenied(
+          gateOf("configuration"),
+          (await searchParams).property,
+        )}
+        locale={locale}
       />
     );
   }

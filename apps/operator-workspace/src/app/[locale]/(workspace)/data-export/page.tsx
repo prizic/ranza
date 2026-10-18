@@ -1,14 +1,19 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { EmptyState } from "@ranza/ui";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { setRequestLocale } from "next-intl/server";
+import { gateOf } from "../../../../lib/screens";
+import { ScreenDenied } from "../screen-denied";
 import { DataExportView } from "../../../../features/data-export/components/data-export-view";
 import {
   listDataExports,
   listExportSchedules,
 } from "../../../../server/data-export";
 import { frontDeskProperty } from "../../../../server/front-desk";
-import { permittedProperties, requireViewer } from "../../../../server/viewer";
+import {
+  requireViewer,
+  screenProperties,
+  whyDenied,
+} from "../../../../server/viewer";
 
 export default async function DataExportPage({
   params,
@@ -22,9 +27,8 @@ export default async function DataExportPage({
   setRequestLocale(locale);
   await requireViewer(locale);
 
-  const t = await getTranslations();
   const search = await searchParams;
-  const properties = await permittedProperties("data_export.read");
+  const properties = await screenProperties(gateOf("data-export"));
   const property = await frontDeskProperty(
     properties,
     search,
@@ -33,9 +37,12 @@ export default async function DataExportPage({
 
   if (!property) {
     return (
-      <EmptyState
-        description={t("notEntitledDescription")}
-        title={t("notEntitledTitle")}
+      <ScreenDenied
+        denial={await whyDenied(
+          gateOf("data-export"),
+          (await searchParams).property,
+        )}
+        locale={locale}
       />
     );
   }

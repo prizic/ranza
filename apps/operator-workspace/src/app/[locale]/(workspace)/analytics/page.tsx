@@ -10,7 +10,8 @@ import {
   AnalyticsDashboard,
   MonthReportView,
 } from "../../../../features/analytics";
-import { screenFor } from "../../../../lib/screens";
+import { gateOf, screenFor } from "../../../../lib/screens";
+import { ScreenDenied } from "../screen-denied";
 import { resolveAnalyticsView } from "../../../../server/analytics";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import {
@@ -19,6 +20,7 @@ import {
   propertyDayDetail,
   propertyMonthReport,
   requireViewer,
+  whyDenied,
 } from "../../../../server/viewer";
 
 const SEGMENT = "analytics";
@@ -71,9 +73,12 @@ export default async function AnalyticsPage({
 
   if (!property) {
     return (
-      <EmptyState
-        description={t("notEntitledDescription")}
-        title={t("notEntitledTitle")}
+      <ScreenDenied
+        denial={await whyDenied(
+          gateOf("analytics"),
+          (await searchParams).property,
+        )}
+        locale={locale}
       />
     );
   }

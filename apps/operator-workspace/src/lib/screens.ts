@@ -58,21 +58,23 @@ export interface Screen {
   /** Route segment, locale-prefixed at render. */
   segment: string;
   /**
-   * Matched against `property_capabilities.capability_key` (gate 3), and the
-   * key the rail filters on. For an entry gated by `permission` it is that
-   * key alone and names no capability.
+   * Matched against `property_capabilities.capability_key` (gate 3). For an
+   * entry gated by `permission` alone it names no capability — `requires` does,
+   * where there is one. Two entries may share a key under different modules
+   * (People and HR), so nothing keys on it: the rail filters by `segment`.
    */
   capability: string;
   /**
-   * A staff permission that decides this entry instead of a capability — for
-   * the one destination no package selection may remove.
+   * A staff permission the role must hold, or any one of several. On its own it
+   * decides the entry instead of a capability, for a destination no package
+   * selection may remove; with `requires` it is asked in addition to it.
    */
-  permission?: string | undefined;
+  permission?: string | readonly string[] | undefined;
   /**
    * For an entry decided by `permission` that is an Organization's to
    * configure and not a baseline right: the capability, in `module`, a Property
    * must also have for the entry to be offered there (gates 1 to 3). The same
-   * three the write policies ask, so the rail and the policy agree.
+   * three the write policies ask, so the rail, the page and the policy agree.
    */
   requires?: string | undefined;
   /** Matched against `entitlements.module_key` (gate 2). */
@@ -235,7 +237,12 @@ export const SCREENS: Screen[] = [
   },
   {
     segment: "hr",
+    // Contracts and wages are stricter than the roster (blueprint 5.11): the
+    // module being bought is not enough, the role must hold `hr.view` too. Its
+    // capability key is People's, so the rail asks for it by segment.
     capability: "staff_administration",
+    permission: "hr.view",
+    requires: "staff_administration",
     module: "human_resources",
     icon: Users,
     blueprint: "5.11",
@@ -269,7 +276,10 @@ export const SCREENS: Screen[] = [
   {
     segment: "integrations",
     capability: "integrations",
-    permission: "integrations.view",
+    // To see them or to manage them: a role that may manage what it cannot see
+    // would otherwise be refused the screen it is to act on.
+    permission: ["integrations.view", "integrations.manage"],
+    requires: "integrations",
     module: "platform_core",
     icon: Boxes,
     blueprint: "5.15",
@@ -317,6 +327,39 @@ export const SCREENS: Screen[] = [
   },
 ];
 
+/**
+ * What a destination asks of a Property and of the person — the one gate the
+ * rail, the Property switcher and the page itself all read, so they cannot
+ * disagree about whether a page is open.
+ *
+ * `capability` is gates 1 to 3 (Subscription, Entitlement, Property); it is
+ * absent for a destination no package selection may remove. `permission` is
+ * what the role must hold in the Organization.
+ */
+export interface ScreenGate {
+  capability?: { moduleKey: string; capabilityKey: string } | undefined;
+  /** What the role must hold; any one of several is enough. */
+  permission?: string | readonly string[] | undefined;
+}
+
+/**
+ * Stable objects, built once: a server read keyed on a capability is cached
+ * per request by the identity of what it was asked, and a fresh object per
+ * call would defeat that.
+ */
+const GATES = new Map<string, ScreenGate>();
+
+function gateFor(screen: Screen): ScreenGate {
+  const capability =
+    screen.permission && !screen.requires
+      ? undefined
+      : {
+          moduleKey: screen.module,
+          capabilityKey: screen.requires ?? screen.capability,
+        };
+  return { capability, permission: screen.permission };
+}
+
 /** Every destination, flattened — what a page or a title lookup iterates. */
 export const ALL_SCREENS: Screen[] = SCREENS.flatMap((screen) =>
   screen.children ? [screen, ...screen.children] : [screen],
@@ -324,4 +367,22 @@ export const ALL_SCREENS: Screen[] = SCREENS.flatMap((screen) =>
 
 export function screenFor(segment: string): Screen | undefined {
   return ALL_SCREENS.find((screen) => screen.segment === segment);
+}
+
+/**
+ * The gate of one destination, by route segment. A segment with no gate — one
+ * that is not a destination, or one the shell offers by what the viewer reaches
+ * instead (`derived`) — is a mistake in the caller, so it is thrown rather than
+ * answered with a gate that opens everything or nothing.
+ */
+export function gateOf(segment: string): ScreenGate {
+  const known = GATES.get(segment);
+  if (known) return known;
+  const screen = screenFor(segment);
+  if (!screen || screen.derived) {
+    throw new Error(`"${segment}" is not a destination with a gate`);
+  }
+  const gate = gateFor(screen);
+  GATES.set(segment, gate);
+  return gate;
 }

@@ -1,9 +1,14 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale } from "@ranza/i18n";
-import { EmptyState, PlannedScreen } from "@ranza/ui";
+import { PlannedScreen } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { screenFor } from "../../../../lib/screens";
-import { entitledProperties, requireViewer } from "../../../../server/viewer";
+import { gateOf, screenFor } from "../../../../lib/screens";
+import { ScreenDenied } from "../screen-denied";
+import {
+  entitledProperties,
+  requireViewer,
+  whyDenied,
+} from "../../../../server/viewer";
 
 const SEGMENT = "inventory";
 
@@ -20,8 +25,10 @@ const SEGMENT = "inventory";
  */
 export default async function Page({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ property?: string }>;
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
@@ -42,9 +49,12 @@ export default async function Page({
 
   if (properties.length === 0) {
     return (
-      <EmptyState
-        description={t("notEntitledDescription")}
-        title={t("notEntitledTitle")}
+      <ScreenDenied
+        denial={await whyDenied(
+          gateOf("inventory"),
+          (await searchParams).property,
+        )}
+        locale={locale}
       />
     );
   }

@@ -2,12 +2,15 @@ import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { gateOf } from "../../../../lib/screens";
+import { ScreenDenied } from "../screen-denied";
 import { BrandingView } from "../../../../features/branding/components/branding-view";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import {
   organizationBrand,
   permittedProperties,
   requireViewer,
+  whyDenied,
 } from "../../../../server/viewer";
 
 /**
@@ -50,13 +53,16 @@ export default async function BrandingPage({
   // The Properties above are those where the permission and the Configuration
   // capability both hold, so a Subscription that has lapsed, an Entitlement
   // that is not there and a Property with Configuration off all leave nothing
-  // to open, and say what every unreachable screen says. `unavailable` is the
-  // same answer for the one that changes between the list and the read.
+  // to open, and `ScreenDenied` says which. `unavailable` is the same answer for
+  // the one that changes between the list and the read.
   if (!property || !settings || settings.reason === "unavailable") {
     return (
-      <EmptyState
-        description={t("notEntitledDescription")}
-        title={t("notEntitledTitle")}
+      <ScreenDenied
+        denial={await whyDenied(
+          gateOf("branding"),
+          (await searchParams).property,
+        )}
+        locale={locale}
       />
     );
   }

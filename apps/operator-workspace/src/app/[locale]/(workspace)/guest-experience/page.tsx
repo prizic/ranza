@@ -4,8 +4,9 @@ import {
   localizeHref,
   type SupportedLocale,
 } from "@ranza/i18n";
-import { EmptyState } from "@ranza/ui";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { setRequestLocale } from "next-intl/server";
+import { gateOf } from "../../../../lib/screens";
+import { ScreenDenied } from "../screen-denied";
 import { GuestExperienceView } from "../../../../features/guest-experience/components/guest-experience-view";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import {
@@ -14,6 +15,7 @@ import {
   propertyServiceRequests,
   requireViewer,
   rooms,
+  whyDenied,
 } from "../../../../server/viewer";
 
 /**
@@ -34,7 +36,6 @@ export default async function GuestExperiencePage({
   setRequestLocale(locale);
   await requireViewer(locale);
 
-  const t = await getTranslations();
   const properties = await entitledProperties(GUEST_SERVICES_CAPABILITY);
   const property = await frontDeskProperty(
     properties,
@@ -44,9 +45,12 @@ export default async function GuestExperiencePage({
 
   if (!property) {
     return (
-      <EmptyState
-        description={t("notEntitledDescription")}
-        title={t("notEntitledTitle")}
+      <ScreenDenied
+        denial={await whyDenied(
+          gateOf("guest-experience"),
+          (await searchParams).property,
+        )}
+        locale={locale}
       />
     );
   }

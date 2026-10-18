@@ -20,6 +20,8 @@ export type {
   BillingNotice,
   BusinessDatePreview,
   CapabilityProperties,
+  Denial,
+  DenialQuestion,
   ConfigurationField,
   OrganizationNameInput,
   PropertySettings,

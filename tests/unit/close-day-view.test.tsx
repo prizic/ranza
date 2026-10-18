@@ -446,9 +446,9 @@ describe("Arabic mirrors by construction", () => {
 });
 
 describe("where the screen lives", () => {
-  function railLinks(entitled: string[]): string[] {
+  function railLinks(reachable: string[]): string[] {
     const { result } = renderHook(
-      () => useWorkspaceNav("en", entitled, undefined),
+      () => useWorkspaceNav("en", reachable, undefined),
       {
         wrapper: ({ children }: { children: ReactNode }) => (
           <NextIntlClientProvider locale="en" messages={messages.en}>
@@ -467,7 +467,7 @@ describe("where the screen lives", () => {
   }
 
   it("close the day is in the rail where the front desk is, and absent where it is not", () => {
-    expect(railLinks(["today", "front_desk"])).toContain("/en/close-day");
+    expect(railLinks(["today", "close-day"])).toContain("/en/close-day");
     expect(railLinks(["today"])).not.toContain("/en/close-day");
   });
 });

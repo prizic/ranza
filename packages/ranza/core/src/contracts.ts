@@ -91,6 +91,34 @@ export interface BillingNotice {
   organizationName: string;
 }
 
+/**
+ * Why a destination is closed to the viewer, from the gate that stopped them
+ * first — Subscription and Entitlement, then the Property, then their role.
+ *
+ * `not_reachable` is a Property the URL names that the viewer does not reach:
+ * stale, forged, or one they were unassigned from. It stays one answer for all
+ * of those, so a Property that exists is not distinguishable from one that does
+ * not. `open` is the answer when nothing denies, which a page that refused
+ * moments ago can still be told if a gate changed in between.
+ */
+export type Denial =
+  | { reason: "no_property" }
+  | { reason: "not_reachable" }
+  | { reason: "not_subscribed" }
+  | { reason: "not_enabled" }
+  | { reason: "no_permission"; permission: string }
+  | { reason: "open" };
+
+/** What a destination asks of a Property and of the person, as `listPermittedProperties` does. */
+export interface DenialQuestion {
+  /** Gates 1 to 3. Absent for a destination no package selection may remove. */
+  capability?: CapabilityRef | undefined;
+  /** The permission a role must hold in the Organization; any one of several. */
+  permission?: string | readonly string[] | undefined;
+  /** The `?property=` the viewer arrived with, as typed. */
+  propertyId?: string | undefined;
+}
+
 /** A Property the acting Staff Member may use a capability in. */
 export interface EntitledProperty {
   propertyId: string;

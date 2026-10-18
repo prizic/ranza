@@ -10,11 +10,13 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { PortfolioView } from "../../../../features/portfolio";
 import { PORTFOLIO_GATE } from "../../../../lib/portfolio-offer";
 import { frontDeskProperty } from "../../../../server/front-desk";
+import { ScreenDenied } from "../screen-denied";
 import {
   entitledProperties,
   portfolio,
   PortfolioTooLargeError,
   requireViewer,
+  whyDenied,
 } from "../../../../server/viewer";
 
 const SEGMENT = "portfolio";
@@ -54,9 +56,12 @@ export default async function PortfolioPage({
     localizeHref(locale as SupportedLocale, SEGMENT),
   );
   const notAvailable = (
-    <EmptyState
-      description={t("notEntitledDescription")}
-      title={t("notEntitledTitle")}
+    <ScreenDenied
+      denial={await whyDenied(
+        { capability: PORTFOLIO_GATE },
+        (await searchParams).property,
+      )}
+      locale={locale}
     />
   );
   if (!property) return notAvailable;

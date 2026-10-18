@@ -845,8 +845,6 @@ export interface Messages {
       source_mismatch: string;
     };
     othersNotAvailable: string;
-    noPermissionTitle: string;
-    noPermissionDescription: string;
     addressPartHidden: string;
     /** ICU plural on `count`: deliveries due more than five minutes ago and not sent. */
     overdue: string;
@@ -2420,6 +2418,24 @@ export interface Messages {
   notEntitledDescription: string;
   /** The name of the control that closes a dialog or a side sheet. */
   closeDialog: string;
+  /**
+   * What a destination says when it is closed to the viewer, by the gate that
+   * stopped them first. `{permission}` is the name of the thing their role
+   * would have to allow, as the People screen words it.
+   */
+  denied: {
+    notReachableTitle: string;
+    notReachableDescription: string;
+    notSubscribedTitle: string;
+    notSubscribedDescription: string;
+    notEnabledTitle: string;
+    notEnabledDescription: string;
+    noPermissionTitle: string;
+    noPermissionDescription: string;
+    openTitle: string;
+    openDescription: string;
+    goToToday: string;
+  };
 }
 
 /** The searchable pickers' own strings; each field brings its placeholder. */
@@ -3770,9 +3786,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       othersNotAvailable:
         "Bugün kullanılabilen tek entegrasyon webhook'tur. Kanal yöneticileri, KBS bildirimi, e-fatura ve ödeme sağlayıcıları henüz kullanılamıyor.",
-      noPermissionTitle: "Entegrasyonlara erişiminiz yok",
-      noPermissionDescription:
-        "Entegrasyonlar için entegrasyon yetkisi gerekir. Kuruluşunuzda personel erişimini yöneten birinden bunu isteyin.",
       addressPartHidden: "Bu adresin bir kısmı sizden gizlidir.",
       overdue:
         "{count, plural, one {# gönderim 5 dakikadan uzun süredir gönderilmeyi bekliyor. Bu sürerse gönderim durmuş olabilir.} other {# gönderim 5 dakikadan uzun süredir gönderilmeyi bekliyor. Bu sürerse gönderim durmuş olabilir.}}",
@@ -5159,6 +5172,24 @@ export const messages: Record<SupportedLocale, Messages> = {
     notEntitledDescription:
       "Organizasyonunuz bu modüle abone olduğunda ve tesiste etkinleştirildiğinde burada görünür.",
     closeDialog: "Kapat",
+    denied: {
+      notReachableTitle: "Bu tesisi açamazsınız",
+      notReachableDescription:
+        "Bağlantıdaki tesis mevcut değil ya da artık erişiminiz yok. Üstteki tesis menüsünden birini seçin veya Bugün'e dönün.",
+      notSubscribedTitle: "Bu modül aboneliğinizde yok",
+      notSubscribedDescription:
+        "Organizasyonunuzun aboneliği bunu içermiyor, bu yüzden organizasyonda kimse açamaz. Eklenmesi için organizasyonunuzun Sahibi ile görüşün.",
+      notEnabledTitle: "Bu modül bu tesiste açık değil",
+      notEnabledDescription:
+        "Organizasyonunuzda var, ancak bu tesiste açılmamış. Üstteki menüden başka bir tesis seçin veya bu tesis için açtırmak üzere organizasyonunuzun Sahibi ile görüşün.",
+      noPermissionTitle: "Rolünüz bu sayfayı açamıyor",
+      noPermissionDescription:
+        "“{permission}” yetkisi gerekiyor ve rolünüzde yok. Organizasyonunuzda personeli yöneten birinden — Sahipler ve Müdürler yapabilir — bunu rolünüze eklemesini isteyin.",
+      openTitle: "Bu sayfa şu anda kullanılamıyor",
+      openDescription:
+        "Artık sizi engelleyen bir şey yok. Sayfayı yenileyin; yine açılmazsa Sahibinize veya bir Müdüre bildirin.",
+      goToToday: "Bugün'e git",
+    },
   },
   en: {
     productName: "Ranza",
@@ -6491,9 +6522,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       othersNotAvailable:
         "A webhook is the only integration available today. Channel managers, KBS reporting, e-invoicing and payment providers are not available yet.",
-      noPermissionTitle: "You do not have access to Integrations",
-      noPermissionDescription:
-        "Integrations needs the integrations permission. Ask someone who manages staff access in your Organization to give you it.",
       addressPartHidden: "Part of this address is hidden from you.",
       overdue:
         "{count, plural, one {# delivery has waited more than 5 minutes to be sent. If this stays, sending may have stopped.} other {# deliveries have waited more than 5 minutes to be sent. If this stays, sending may have stopped.}}",
@@ -7872,6 +7900,24 @@ export const messages: Record<SupportedLocale, Messages> = {
     notEntitledDescription:
       "It appears here once your Organization subscribes to it and the Property has it enabled.",
     closeDialog: "Close",
+    denied: {
+      notReachableTitle: "That Property isn't one you can open",
+      notReachableDescription:
+        "The link names a Property that doesn't exist or that you no longer have access to. Pick one from the Property menu at the top, or go back to Today.",
+      notSubscribedTitle: "This module is not in your Subscription",
+      notSubscribedDescription:
+        "Your Organization's Subscription doesn't include it, so nobody in the Organization can open it. Ask your Organization's Owner about adding it.",
+      notEnabledTitle: "This module isn't switched on at this Property",
+      notEnabledDescription:
+        "Your Organization has it, but this Property doesn't. Choose another Property from the menu at the top, or ask your Organization's Owner to request it for this Property.",
+      noPermissionTitle: "Your role can't open this page",
+      noPermissionDescription:
+        "It needs the permission “{permission}”, and your role doesn't include it. Ask someone who manages staff in your Organization — Owners and Managers can — to add it to your role.",
+      openTitle: "This page isn't available right now",
+      openDescription:
+        "Nothing is blocking you any more. Reload the page; if it still doesn't open, tell your Owner or a Manager.",
+      goToToday: "Go to Today",
+    },
   },
   ar: {
     productName: "Ranza",
@@ -9166,9 +9212,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       othersNotAvailable:
         "الويب هوك هو التكامل الوحيد المتاح اليوم. مديرو القنوات والإبلاغ عبر KBS والفوترة الإلكترونية ومزوّدو الدفع غير متاحين بعد.",
-      noPermissionTitle: "ليست لديك صلاحية الوصول إلى التكاملات",
-      noPermissionDescription:
-        "تتطلب التكاملات صلاحية التكاملات. اطلبها ممن يدير صلاحيات الموظفين في مؤسستك.",
       addressPartHidden: "جزء من هذا العنوان مخفي عنك.",
       overdue:
         "{count, plural, one {عملية إرسال واحدة تنتظر أكثر من 5 دقائق. إن استمر ذلك فقد يكون الإرسال توقف.} two {عمليتا إرسال تنتظران أكثر من 5 دقائق. إن استمر ذلك فقد يكون الإرسال توقف.} few {# عمليات إرسال تنتظر أكثر من 5 دقائق. إن استمر ذلك فقد يكون الإرسال توقف.} many {# عملية إرسال تنتظر أكثر من 5 دقائق. إن استمر ذلك فقد يكون الإرسال توقف.} other {# عملية إرسال تنتظر أكثر من 5 دقائق. إن استمر ذلك فقد يكون الإرسال توقف.}}",
@@ -10542,5 +10585,23 @@ export const messages: Record<SupportedLocale, Messages> = {
     notEntitledDescription:
       "تظهر هنا عندما تشترك مؤسستك فيها ويتم تفعيلها في المنشأة.",
     closeDialog: "إغلاق",
+    denied: {
+      notReachableTitle: "لا يمكنك فتح هذه المنشأة",
+      notReachableDescription:
+        "الرابط يشير إلى منشأة غير موجودة أو لم يعد لديك وصول إليها. اختر منشأة من قائمة المنشآت في الأعلى، أو ارجع إلى اليوم.",
+      notSubscribedTitle: "هذه الوحدة غير مشمولة في اشتراكك",
+      notSubscribedDescription:
+        "اشتراك مؤسستك لا يتضمنها، لذلك لا يستطيع أحد في المؤسسة فتحها. اطلب من مالك مؤسستك إضافتها.",
+      notEnabledTitle: "هذه الوحدة غير مفعّلة في هذه المنشأة",
+      notEnabledDescription:
+        "مؤسستك تملكها لكنها غير مفعّلة في هذه المنشأة. اختر منشأة أخرى من القائمة في الأعلى، أو اطلب من مالك مؤسستك طلب تفعيلها هنا.",
+      noPermissionTitle: "دورك لا يتيح فتح هذه الصفحة",
+      noPermissionDescription:
+        "تحتاج إلى صلاحية «{permission}» وليست ضمن دورك. اطلب ممن يدير الموظفين في مؤسستك — يستطيع ذلك المالك والمدير — أن يضيفها إلى دورك.",
+      openTitle: "هذه الصفحة غير متاحة الآن",
+      openDescription:
+        "لم يعد هناك ما يمنعك. أعد تحميل الصفحة، وإن لم تُفتح فأبلغ المالك أو أحد المديرين.",
+      goToToday: "الانتقال إلى اليوم",
+    },
   },
 };

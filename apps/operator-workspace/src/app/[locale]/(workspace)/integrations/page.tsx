@@ -1,16 +1,17 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { EmptyState } from "@ranza/ui";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { setRequestLocale } from "next-intl/server";
+import { gateOf } from "../../../../lib/screens";
+import { ScreenDenied } from "../screen-denied";
 import { IntegrationsView } from "../../../../features/integrations/components/integrations-view";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import {
-  entitledProperties,
-  INTEGRATIONS_CAPABILITY,
   INTEGRATIONS_PAGE_SIZE,
   permittedProperties,
   propertyIntegrations,
   requireViewer,
+  screenProperties,
+  whyDenied,
   type FailureView,
 } from "../../../../server/viewer";
 
@@ -39,24 +40,11 @@ export default async function IntegrationsPage({
   setRequestLocale(locale);
   await requireViewer(locale);
 
-  const t = await getTranslations();
   const search = await searchParams;
-  const [entitled, viewing, managing] = await Promise.all([
-    entitledProperties(INTEGRATIONS_CAPABILITY),
-    permittedProperties("integrations.view"),
-    permittedProperties("integrations.manage"),
-  ]);
-
-  // A Property is offered where it has the capability and the viewer holds a
-  // permission for it, and the two ways of having none are told apart: a
-  // Subscription that lacks the module is for the Organization to fix, and a
-  // missing permission is for whoever manages staff access.
-  const permitted = new Set(
-    [...viewing, ...managing].map((property) => property.propertyId),
-  );
-  const properties = entitled.filter((property) =>
-    permitted.has(property.propertyId),
-  );
+  // One gate for the rail and for this page: the Integrations capability at the
+  // Property, and a permission to see or to manage them (lib/screens.ts).
+  const properties = await screenProperties(gateOf("integrations"));
+  const managing = await permittedProperties("integrations.manage");
   const property = await frontDeskProperty(
     properties,
     search,
@@ -64,15 +52,10 @@ export default async function IntegrationsPage({
   );
 
   if (!property) {
-    return permitted.size === 0 ? (
-      <EmptyState
-        description={t("integrations.noPermissionDescription")}
-        title={t("integrations.noPermissionTitle")}
-      />
-    ) : (
-      <EmptyState
-        description={t("notEntitledDescription")}
-        title={t("notEntitledTitle")}
+    return (
+      <ScreenDenied
+        denial={await whyDenied(gateOf("integrations"), search.property)}
+        locale={locale}
       />
     );
   }

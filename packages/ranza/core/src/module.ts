@@ -22,6 +22,8 @@ import {
   type BillingNotice,
   type CapabilityProperties,
   type CapabilityRef,
+  type Denial,
+  type DenialQuestion,
   type EntitledProperty,
   type WorkingDay,
 } from "./contracts";
@@ -45,6 +47,8 @@ const SHIPPED_ROLE_SCOPE = "00000000-0000-0000-0000-000000000000";
 const AUDIT_PAGE_SIZE = 50;
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * A `YYYY-MM-DD` that names a real day Postgres accepts, or undefined — never
@@ -228,6 +232,91 @@ export function createCoreModule(deps: CoreDeps) {
   }
 
   /**
+   * Why a destination is closed to the viewer, from the first gate that stops
+   * them (`Denial`). Asked only after a page has found nothing to show, so the
+   * ordinary request pays nothing for it.
+   *
+   * The gates are read one at a time here, where `app.can_use_capability()`
+   * answers them together, because the answer is what the person is told:
+   * "not in your Subscription" and "not enabled at this Property" are different
+   * remedies. The tables are the ones the policies already let a member read —
+   * their own Organization's Subscription and Entitlements, and the capabilities
+   * of the Properties they reach — so nothing is widened to say it.
+   *
+   * With a Property named, only that one is weighed. With none, the answer is
+   * the furthest any Property the viewer reaches got.
+   */
+  async function explainDenial(
+    userId: string,
+    question: DenialQuestion,
+  ): Promise<Denial> {
+    const permissions =
+      typeof question.permission === "string"
+        ? [question.permission]
+        : [...(question.permission ?? [])];
+    const requested = question.propertyId?.trim();
+    if (requested && !UUID.test(requested)) return { reason: "not_reachable" };
+
+    const [row] = await withOrganizationContext(deps.db, { userId }, (tx) =>
+      tx.$queryRawUnsafe<
+        {
+          reached: number;
+          subscribed: boolean;
+          enabled: boolean;
+          permitted: boolean;
+        }[]
+      >(
+        `select count(*)::int                               as "reached",
+                coalesce(bool_or(subscribed), false)        as "subscribed",
+                coalesce(bool_or(subscribed and enabled), false)
+                                                            as "enabled",
+                coalesce(bool_or(subscribed and enabled and permitted), false)
+                                                            as "permitted"
+           from (
+             select
+               ($2::text is null or (
+                 exists (select 1 from public.subscriptions as subscription
+                          where subscription.organization_id = property.organization_id
+                            and subscription.status in ('trialing', 'active'))
+                 and exists (select 1 from public.entitlements as entitlement
+                              where entitlement.organization_id = property.organization_id
+                                and entitlement.module_key = $2
+                                and entitlement.status = 'active')
+               )) as subscribed,
+               ($3::text is null or exists (
+                 select 1 from public.property_capabilities as capability
+                  where capability.property_id = property.id
+                    and capability.capability_key = $3
+                    and capability.enabled
+               )) as enabled,
+               (cardinality($4::text[]) = 0 or exists (
+                 select 1 from unnest($4::text[]) as held
+                  where app.has_organization_permission(property.organization_id, held)
+               )) as permitted
+               from public.properties as property
+              where property.id in (select app.accessible_property_ids())
+                and ($1::uuid is null or property.id = $1::uuid)
+           ) as weighed`,
+        requested || null,
+        question.capability?.moduleKey ?? null,
+        question.capability?.capabilityKey ?? null,
+        permissions,
+      ),
+    );
+
+    if (!row || row.reached === 0) {
+      return { reason: requested ? "not_reachable" : "no_property" };
+    }
+    if (!row.subscribed) return { reason: "not_subscribed" };
+    if (!row.enabled) return { reason: "not_enabled" };
+    if (!row.permitted && permissions[0] !== undefined) {
+      // Named by the first, which is the one that opens the screen to look.
+      return { reason: "no_permission", permission: permissions[0] };
+    }
+    return { reason: "open" };
+  }
+
+  /**
    * Every Organization the viewer is an Owner of whose Subscription is in its
    * grace period (`past_due`, ADR 0040) — what the Workspace's billing notice
    * names. Empty for everybody else, which is most of the time.
@@ -407,6 +496,7 @@ export function createCoreModule(deps: CoreDeps) {
     listEntitledProperties,
     listEntitledPropertiesByCapability,
     listPermittedProperties,
+    explainDenial,
     billingNotices,
     workingDay,
     auditLog,

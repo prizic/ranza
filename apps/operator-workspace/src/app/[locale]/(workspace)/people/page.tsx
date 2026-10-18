@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState, PageHeader } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { gateOf } from "../../../../lib/screens";
+import { ScreenDenied } from "../screen-denied";
 import { DefineRoleDialog } from "../../../../features/staff/components/define-role-dialog";
 import { InviteDialog } from "../../../../features/staff/components/invite-dialog";
 import { StaffScreen } from "../../../../features/staff/components/staff-screen";
@@ -14,6 +16,7 @@ import {
   entitledProperties,
   permittedProperties,
   requireViewer,
+  whyDenied,
 } from "../../../../server/viewer";
 
 /**
@@ -68,9 +71,12 @@ export default async function PeoplePage({
 
   if (!home) {
     return (
-      <EmptyState
-        description={t("notEntitledDescription")}
-        title={t("notEntitledTitle")}
+      <ScreenDenied
+        denial={await whyDenied(
+          gateOf("people"),
+          (await searchParams).property,
+        )}
+        locale={locale}
       />
     );
   }

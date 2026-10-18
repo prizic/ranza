@@ -17,10 +17,12 @@ import type {
   BillingNotice,
   CapabilityProperties,
   CapabilityRef,
+  Denial,
   EntitledProperty,
   PropertySettings,
 } from "@ranza/core";
 import type { CloseTheDay } from "@ranza/business-day";
+import { gateOf, type ScreenGate } from "../lib/screens";
 import type { PriceList } from "@ranza/rates";
 import {
   FOLIO_CAPABILITY,
@@ -868,6 +870,62 @@ export const permittedProperties = cache(
 );
 
 /**
+ * Every Property the viewer may open a destination in, by its gate in
+ * `lib/screens.ts` — the question the rail asks of every destination at once,
+ * asked of one. A page that decides for itself what to ask is a page that can
+ * disagree with the rail about whether it is open.
+ */
+export async function screenProperties(
+  gate: ScreenGate,
+): Promise<readonly EntitledProperty[]> {
+  const permissions =
+    typeof gate.permission === "string"
+      ? [gate.permission]
+      : (gate.permission ?? []);
+  if (permissions.length > 0) {
+    // Any one of them opens it, so a Property is listed once however many the
+    // role holds there.
+    const answers = await Promise.all(
+      permissions.map((permission) =>
+        permittedProperties(
+          permission,
+          gate.capability?.moduleKey,
+          gate.capability?.capabilityKey,
+        ),
+      ),
+    );
+    return [
+      ...new Map(
+        answers.flat().map((property) => [property.propertyId, property]),
+      ).values(),
+    ].sort(
+      (a, b) =>
+        a.organizationName.localeCompare(b.organizationName) ||
+        a.propertyName.localeCompare(b.propertyName),
+    );
+  }
+  return gate.capability ? entitledProperties(gate.capability) : [];
+}
+
+/**
+ * Why a destination is closed to the viewer, for the page that has just found
+ * nothing to show. `property` is the `?property=` the viewer arrived with,
+ * unchecked.
+ */
+export async function whyDenied(
+  gate: ScreenGate,
+  property: string | undefined,
+): Promise<Denial> {
+  const viewer = await currentViewer();
+  if (!viewer) return { reason: "no_property" };
+  return getComposition().core.explainDenial(viewer.userId, {
+    capability: gate.capability,
+    permission: gate.permission,
+    propertyId: property,
+  });
+}
+
+/**
  * The Organizations whose Subscription is past due, for an Owner (ADR 0040).
  * Asked once per full load by the shell.
  */
@@ -1353,7 +1411,7 @@ export async function hrViewData(
   const viewer = await currentViewer();
   if (!viewer) return null;
 
-  const entitled = await entitledProperties(HR_CAPABILITY);
+  const entitled = await screenProperties(gateOf("hr"));
   const targetProperty = entitled.find((p) => p.propertyId === propertyId);
   if (!targetProperty) return null;
 
