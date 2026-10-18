@@ -708,6 +708,12 @@ export interface Messages {
   unblockingBed: string;
   blockReason: string;
   blockReasonHint: string;
+  blockRoom: string;
+  unblockRoom: string;
+  manageUnit: string;
+  unblockUnit: string;
+  blockNotifiesNobody: string;
+  reportInsteadOfBlock: string;
   blockReasonPlaceholder: string;
   statRooms: string;
   statBeds: string;
@@ -1811,6 +1817,28 @@ export interface Messages {
     notePlaceholder: string;
     reportTitle: string;
     reportDescription: string;
+    searchRequests: string;
+    searchPlaceholder: string;
+    mine: string;
+    assignToMe: string;
+    reportedAge: string;
+    movedAge: string;
+    doneReturnsRoom: string;
+    doneKeepsRoomOut: string;
+    doneHoldsRoom: string;
+    noMatchTitle: string;
+    noMatchDescription: string;
+    showAllRequests: string;
+    alreadyOpenForRoom: string;
+    saveForProperty: string;
+    saveForOrganization: string;
+    unsavedChanges: string;
+    discardChanges: string;
+    confirmOrgTitle: string;
+    orgChangeLine: string;
+    orgChangeNote: string;
+    confirmOrgChange: string;
+    keepEditing: string;
     whatIsWrong: string;
     whatPlaceholder: string;
     moreDetails: string;
@@ -2683,7 +2711,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Bu birimde hâlâ konaklayan biri var. Önce onun çıkışını yapın ya da misafiri başka bir birime alın.",
     unitNotInService:
       "Bu birim bloke ya da hizmet dışı. Blokeyi kaldırın ya da hizmete döndürün, veya misafiri başka bir birime alın.",
-    blockReasonPlaceholder: "Bakım ya da onarım",
+    blockReasonPlaceholder: "Örneğin: grup için ayrıldı",
     roomNotReady:
       "Bu oda henüz hazır değil: temizlenmedi ya da kontrol bekliyor.",
     roomNotReadyDirty: "{room} henüz temizlenmedi.",
@@ -3410,6 +3438,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     blockReason: "Kapatma nedeni",
     blockReasonHint:
       "Neden kapalı olduğunu belirten en az 3 karakterlik açıklama.",
+    blockRoom: "Odayı kapat",
+    unblockRoom: "Odayı aç",
+    manageUnit: "Bildir veya kapat",
+    unblockUnit: "Aç",
+    blockNotifiesNobody:
+      "Kapatmak yalnızca satışa çıkmasını engeller. Bakım talebi değildir; bakım ekibine haber verilmez.",
+    reportInsteadOfBlock:
+      "Bir şey mi bozuk? Bunun yerine sorun olarak bildirin: bakım ekibi haberdar olur ve aynı adımda odayı hizmet dışı bırakabilirsiniz.",
     statRooms: "Oda",
     statBeds: "Yatak",
     statOccupied: "Dolu",
@@ -4542,10 +4578,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       awaitingInspection: "Kontrol bekliyor",
     },
     maintenance: {
-      heading: "{property} bakım",
+      heading:
+        "Burada bildirilen sorunlar, odaları hizmet dışı bırakan talepler ve planlı bakımı yapılan ekipman.",
       newRequest: "Yeni talep",
       requestsTab: "Talepler",
-      settingsTab: "Ayarlar",
+      settingsTab: "Bakım ayarları",
       statOpen: "Açık",
       statUrgent: "Acil",
       statOutOfOrder: "Hizmet dışı",
@@ -4597,7 +4634,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       keep: "Vazgeç",
       takeOutOfOrder: "Odayı hizmet dışı bırak",
       takeOutHint:
-        "Ön büro, oda hizmete dönene kadar onu satamaz ve kimseyi giriş yaptıramaz.",
+        "Hizmete dönene kadar kimse bu odayı satamaz ya da bu odaya misafir yerleştiremez.",
       expectedBack: "Beklenen dönüş (isteğe bağlı)",
       returnToService: "Hizmete döndür",
       returnHint:
@@ -4606,7 +4643,34 @@ export const messages: Record<SupportedLocale, Messages> = {
       notePlaceholder: "Kontrol edildi, çalışıyor",
       reportTitle: "Sorun bildir",
       reportDescription:
-        "Tesisteki herkes bildirebilir. Bakım ekibi hemen görür.",
+        "Tesisteki herkes bildirebilir. Kimseye bildirim gitmez: talep bu panoda görünür ve panoya her dönüldüğünde yenilenir.",
+      searchRequests: "Talepleri ara",
+      searchPlaceholder: "Numara, başlık, oda veya kişi",
+      mine: "Bana atanan",
+      assignToMe: "Bana ata",
+      reportedAge: "Bildirildi: {age}",
+      movedAge: "Buraya taşındı: {age}",
+      doneReturnsRoom:
+        "Tamamlandı, {room} odasını da {state} olarak satışa geri verir.",
+      doneKeepsRoomOut:
+        "Tamamlandı, {room} odasını odaları hizmete döndürme yetkisi olan biri onaylayana kadar hizmet dışı bırakır.",
+      doneHoldsRoom:
+        "Tamamlandı, biri hizmete döndürene kadar {room} odasını hizmet dışı bırakır.",
+      noMatchTitle: "Eşleşen talep yok",
+      noMatchDescription: "Ayarladığınız filtrelere uyan bir şey yok.",
+      showAllRequests: "Tüm talepleri göster",
+      alreadyOpenForRoom: "Bu oda için zaten açık",
+      saveForProperty: "Bu tesis için kaydet",
+      saveForOrganization: "Tüm tesisler için kaydet",
+      unsavedChanges: "Henüz kaydedilmemiş değişiklikleriniz var.",
+      discardChanges: "Değişiklikleri at",
+      confirmOrgTitle: "Bunu tüm tesisler için değiştirelim mi?",
+      orgChangeLine:
+        "Bu, {setting} ayarını tüm tesisler için değiştirir: “{from}” yerine “{to}”.",
+      orgChangeNote:
+        "Kendi yanıtı olan bir tesis onu korur. Değişiklik bir sonraki harekete uygulanır; zaten hizmet dışı olan odalara asla uygulanmaz.",
+      confirmOrgChange: "Tüm tesisler için değiştir",
+      keepEditing: "Düzenlemeye devam et",
       whatIsWrong: "Sorun ne?",
       whatPlaceholder: "Duş gideri tıkalı",
       moreDetails: "Ayrıntılar (isteğe bağlı)",
@@ -4649,7 +4713,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Odayı hizmete döndürmek için odaları hizmet dışı bırakma yetkisi gerekir.",
       settingsTitle: "Burada bakım nasıl işler",
       settingsHint:
-        "Bir tesis, aksini belirtmedikçe organizasyonunu izler. Değişiklik bir sonraki işleme uygulanır, zaten hizmet dışı olana değil.",
+        "Bir tesis, aksini söylemedikçe Organizasyonunu izler. Kaydet'e basana kadar hiçbir şey değişmez; değişiklik bir sonraki harekete uygulanır, zaten hizmet dışı olana asla.",
       assigneeRequired: "İş başlamadan önce biri atanır",
       whenReturns: "Oda hizmete döner",
       onDone: "Talebi tamamlandığında",
@@ -5549,7 +5613,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Somebody is still staying in that Unit. Check them out first, or put this Guest in another Unit.",
     unitNotInService:
       "That Unit is blocked or out of order. Unblock it or return it to service, or put this Guest in another Unit.",
-    blockReasonPlaceholder: "Maintenance or repair",
+    blockReasonPlaceholder: "For example: held for a group",
     roomNotReady:
       "This room isn't ready yet — it hasn't been cleaned, or it's waiting for inspection.",
     roomNotReadyDirty: "{room} has not been cleaned yet.",
@@ -6280,6 +6344,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     blockReason: "Reason for block",
     blockReasonHint:
       "A brief reason (at least 3 characters) why this unit is unavailable.",
+    blockRoom: "Block room",
+    unblockRoom: "Unblock room",
+    manageUnit: "Report or block",
+    unblockUnit: "Unblock",
+    blockNotifiesNobody:
+      "Blocking only keeps it from being sold. It is not a maintenance request, and maintenance is not told.",
+    reportInsteadOfBlock:
+      "Something broken? Report it as a problem instead: maintenance is told, and you can hold the room out of order in the same step.",
     statRooms: "Rooms",
     statBeds: "Beds",
     statOccupied: "Occupied",
@@ -7422,7 +7494,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       awaitingInspection: "Waiting for inspection",
     },
     maintenance: {
-      heading: "Maintenance at {property}",
+      heading:
+        "Problems reported here, the rooms they hold out of order, and the equipment serviced on a plan.",
       newRequest: "New request",
       requestsTab: "Requests",
       settingsTab: "Settings",
@@ -7477,7 +7550,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       keep: "Keep it",
       takeOutOfOrder: "Take room out of order",
       takeOutHint:
-        "The front desk will not be able to sell it or check anyone into it until it returns to service.",
+        "Nobody will be able to sell it or check anyone into it until it returns to service.",
       expectedBack: "Expected back (optional)",
       returnToService: "Return to service",
       returnHint:
@@ -7486,7 +7559,33 @@ export const messages: Record<SupportedLocale, Messages> = {
       notePlaceholder: "Checked and working",
       reportTitle: "Report a problem",
       reportDescription:
-        "Anyone at the Property can report. The people who work on maintenance see it straight away.",
+        "Anyone at the Property can report. Nobody is notified: the request appears on this board, which refreshes whenever someone comes back to it.",
+      searchRequests: "Search requests",
+      searchPlaceholder: "Number, title, room or person",
+      mine: "Assigned to me",
+      assignToMe: "Assign to me",
+      reportedAge: "Reported {age}",
+      movedAge: "Moved here {age}",
+      doneReturnsRoom: "Done also puts {room} back on sale, as {state}.",
+      doneKeepsRoomOut:
+        "Done leaves {room} out of order until someone who may return rooms confirms it.",
+      doneHoldsRoom:
+        "Done leaves {room} out of order until someone returns it to service.",
+      noMatchTitle: "No request matches",
+      noMatchDescription: "Nothing fits the filters you set.",
+      showAllRequests: "Show all requests",
+      alreadyOpenForRoom: "Already open for this room",
+      saveForProperty: "Save for this Property",
+      saveForOrganization: "Save for every Property",
+      unsavedChanges: "You have changes that are not saved yet.",
+      discardChanges: "Discard changes",
+      confirmOrgTitle: "Change this for every Property?",
+      orgChangeLine:
+        "This changes {setting} for every Property: from “{from}” to “{to}”.",
+      orgChangeNote:
+        "A Property that has its own answer keeps it. A change applies to the next move, never to a room already out of order.",
+      confirmOrgChange: "Change for every Property",
+      keepEditing: "Keep editing",
       whatIsWrong: "What is wrong?",
       whatPlaceholder: "The shower drain is blocked",
       moreDetails: "Details (optional)",
@@ -7529,7 +7628,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Returning the room needs the permission to take rooms out of order.",
       settingsTitle: "How maintenance works here",
       settingsHint:
-        "A Property follows its Organization unless it says otherwise. A change applies to the next move, never to what is already out of order.",
+        "A Property follows its Organization unless it says otherwise. Nothing changes until you press Save, and a change applies to the next move, never to what is already out of order.",
       assigneeRequired: "Somebody is assigned before work starts",
       whenReturns: "A room comes back into service",
       onDone: "When its request is done",
@@ -8425,7 +8524,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "لا يزال هناك نزيل في هذه الوحدة. سجّل مغادرته أولًا أو ضع هذا الضيف في وحدة أخرى.",
     unitNotInService:
       "هذه الوحدة محظورة أو خارج الخدمة. ارفع الحظر أو أعدها إلى الخدمة، أو ضع هذا الضيف في وحدة أخرى.",
-    blockReasonPlaceholder: "صيانة أو إصلاح",
+    blockReasonPlaceholder: "مثال: محجوزة لمجموعة",
     roomNotReady:
       "هذه الغرفة ليست جاهزة بعد — لم تُنظَّف أو أنها بانتظار الفحص.",
     roomNotReadyDirty: "لم تُنظَّف {room} بعد.",
@@ -9134,6 +9233,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     unblockingBed: "جارٍ الفتح...",
     blockReason: "سبب الإغلاق",
     blockReasonHint: "سبب موجز (لا يقل عن 3 أحرف) لعدم توفر هذه الوحدة.",
+    blockRoom: "إغلاق الغرفة",
+    unblockRoom: "فتح الغرفة",
+    manageUnit: "إبلاغ أو إغلاق",
+    unblockUnit: "فتح",
+    blockNotifiesNobody:
+      "الإغلاق يمنع البيع فقط. وهو ليس طلب صيانة، ولا يُبلَّغ فريق الصيانة به.",
+    reportInsteadOfBlock:
+      "هل هناك عطل؟ بلّغ عنه كمشكلة بدلًا من ذلك: يُبلَّغ فريق الصيانة، ويمكنك إخراج الغرفة من الخدمة في الخطوة نفسها.",
     statRooms: "الغرف",
     statBeds: "الأسرّة",
     statOccupied: "مشغولة",
@@ -10255,10 +10362,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       awaitingInspection: "بانتظار الفحص",
     },
     maintenance: {
-      heading: "الصيانة في {property}",
+      heading:
+        "المشكلات المُبلَّغ عنها هنا، والغرف التي تُخرجها من الخدمة، والمعدات التي تُصان وفق خطة.",
       newRequest: "طلب جديد",
       requestsTab: "الطلبات",
-      settingsTab: "الإعدادات",
+      settingsTab: "إعدادات الصيانة",
       statOpen: "مفتوحة",
       statUrgent: "عاجلة",
       statOutOfOrder: "خارج الخدمة",
@@ -10310,7 +10418,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       keep: "الإبقاء عليه",
       takeOutOfOrder: "إخراج الغرفة من الخدمة",
       takeOutHint:
-        "لن يتمكن المكتب الأمامي من بيعها أو تسجيل دخول أي شخص إليها حتى تعود إلى الخدمة.",
+        "لن يتمكن أحد من بيعها أو تسجيل دخول أي نزيل إليها حتى تعود إلى الخدمة.",
       expectedBack: "العودة المتوقعة (اختياري)",
       returnToService: "إعادة إلى الخدمة",
       returnHint: "تصبح الغرفة متاحة مجددًا. ولا تعود أنظف مما كانت عليه.",
@@ -10318,7 +10426,33 @@ export const messages: Record<SupportedLocale, Messages> = {
       notePlaceholder: "تم الفحص ويعمل",
       reportTitle: "الإبلاغ عن مشكلة",
       reportDescription:
-        "يمكن لأي شخص في العقار الإبلاغ. يراه فريق الصيانة فورًا.",
+        "يمكن لأي شخص في المنشأة أن يبلّغ. لا يُرسَل إشعار لأحد: يظهر الطلب في هذه اللوحة، وتتحدّث اللوحة كلما عاد إليها أحد.",
+      searchRequests: "ابحث في الطلبات",
+      searchPlaceholder: "الرقم أو العنوان أو الغرفة أو الشخص",
+      mine: "المُسندة إليّ",
+      assignToMe: "أسندها إليّ",
+      reportedAge: "أُبلِغ عنه {age}",
+      movedAge: "نُقل إلى هنا {age}",
+      doneReturnsRoom:
+        "عند الإنجاز تعود {room} إلى البيع أيضًا، بحالة {state}.",
+      doneKeepsRoomOut:
+        "عند الإنجاز تبقى {room} خارج الخدمة حتى يؤكد ذلك من يملك صلاحية إعادة الغرف.",
+      doneHoldsRoom:
+        "عند الإنجاز تبقى {room} خارج الخدمة حتى يعيدها أحد إلى الخدمة.",
+      noMatchTitle: "لا يوجد طلب مطابق",
+      noMatchDescription: "لا شيء يطابق المرشحات التي حددتها.",
+      showAllRequests: "عرض كل الطلبات",
+      alreadyOpenForRoom: "مفتوح بالفعل لهذه الغرفة",
+      saveForProperty: "حفظ لهذه المنشأة",
+      saveForOrganization: "حفظ لكل المنشآت",
+      unsavedChanges: "لديك تغييرات لم تُحفظ بعد.",
+      discardChanges: "تجاهل التغييرات",
+      confirmOrgTitle: "هل تريد تغيير هذا لكل المنشآت؟",
+      orgChangeLine: "هذا يغيّر {setting} لكل المنشآت: من «{from}» إلى «{to}».",
+      orgChangeNote:
+        "المنشأة التي لها إجابتها الخاصة تحتفظ بها. يسري التغيير على الإجراء التالي فقط، ولا يسري أبدًا على غرفة خارج الخدمة بالفعل.",
+      confirmOrgChange: "تغيير لكل المنشآت",
+      keepEditing: "متابعة التعديل",
       whatIsWrong: "ما المشكلة؟",
       whatPlaceholder: "مصرف الدش مسدود",
       moreDetails: "التفاصيل (اختيارية)",
@@ -10359,7 +10493,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         "إعادة الغرفة إلى الخدمة تتطلب صلاحية إخراج الغرف من الخدمة.",
       settingsTitle: "كيف تعمل الصيانة هنا",
       settingsHint:
-        "يتبع العقار مؤسسته ما لم يحدد غير ذلك. ينطبق التغيير على الإجراء التالي، لا على ما هو خارج الخدمة بالفعل.",
+        "تتبع المنشأة مؤسستها ما لم تحدد غير ذلك. لا يتغير شيء حتى تضغط حفظ، ويسري التغيير على الإجراء التالي فقط، لا على ما هو خارج الخدمة بالفعل.",
       assigneeRequired: "يُسند الطلب إلى شخص قبل بدء العمل",
       whenReturns: "تعود الغرفة إلى الخدمة",
       onDone: "عند إنجاز طلبها",

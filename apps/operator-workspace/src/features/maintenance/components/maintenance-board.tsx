@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type {
   MaintenanceBoard as Board,
+  MaintenanceRequestCard,
   EquipmentRegister,
   MaintenanceSettings as Settings,
   Priority,
@@ -24,6 +25,7 @@ import {
   Button,
   Checkbox,
   EmptyState,
+  Input,
   Label,
   PageHeader,
   Select,
@@ -42,6 +44,7 @@ import {
   EquipmentRegisterPanel,
   type EquipmentLimits,
 } from "./equipment-register";
+import { staffName } from "../../../lib/staff-name";
 import { STATE_ICON } from "./look";
 import { MaintenanceSettingsCard } from "./maintenance-settings";
 import { OutcomeMessage } from "./outcome-message";
@@ -56,6 +59,47 @@ const COLUMNS: readonly RequestStatus[] = [
   "waiting_for_parts",
   "done",
 ];
+
+const PRIORITY_ORDER: Record<Priority, number> = {
+  urgent: 0,
+  this_week: 1,
+  can_wait: 2,
+};
+
+/** How soon the board looks again when somebody returns to it. */
+const REFRESH_AFTER_MS = 10_000;
+
+/**
+ * Open work in a column reads most urgent first, then longest waiting; what is
+ * finished or cancelled reads latest first, which is what somebody checking a
+ * fix wants (MAINT-04).
+ */
+function inColumnOrder(
+  state: RequestStatus,
+  cards: readonly MaintenanceRequestCard[],
+): MaintenanceRequestCard[] {
+  const finished = state === "done" || state === "cancelled";
+  return [...cards].sort((a, b) =>
+    finished
+      ? b.statusChangedAt.localeCompare(a.statusChangedAt)
+      : PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority] ||
+        a.reportedAt.localeCompare(b.reportedAt),
+  );
+}
+
+function matchesSearch(request: MaintenanceRequestCard, query: string) {
+  const needle = query.trim().toLocaleLowerCase();
+  if (needle === "") return true;
+  const haystack = [
+    `mt-${request.number}`,
+    request.title,
+    request.unit?.name,
+    request.unit?.roomName,
+    request.equipment?.name,
+    request.assignee?.email,
+  ];
+  return haystack.some((part) => part?.toLocaleLowerCase().includes(needle));
+}
 
 export interface MaintenanceLimits {
   title: number;
@@ -73,7 +117,9 @@ export interface MaintenanceLimits {
  *
  * Presentational: the board arrives through the server funnel, and every
  * change goes back through a server action whose writes the policies bound.
- * Filters are the reader's own and never leave the page (MT-S1-29).
+ * Priority, assignee, "out of order only" and "show cancelled" live in the
+ * address, so a filtered board can be linked and survives a reload
+ * (MT-S1-29, MAINT-06); the search is the reader's own and does not.
  */
 export function MaintenanceBoard({
   board,
@@ -86,6 +132,7 @@ export function MaintenanceBoard({
   timeZone,
   limits,
   reportUnitId,
+  viewerId,
 }: {
   board: Board;
   options: ReportOptions;
@@ -98,6 +145,7 @@ export function MaintenanceBoard({
   limits: MaintenanceLimits;
   /** A Unit to report about, when the reader arrived from Rooms. */
   reportUnitId: string | null;
+  viewerId: string;
 }) {
   const t = useTranslations("maintenance");
   const states = useTranslations("maintenance.states");
@@ -116,10 +164,63 @@ export function MaintenanceBoard({
   // starts again empty, or the next press would file the same problem twice.
   const [reportKey, setReportKey] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [priority, setPriority] = useState<Priority | "all">("all");
-  const [assignee, setAssignee] = useState<string>("all");
-  const [outOfOrderOnly, setOutOfOrderOnly] = useState(false);
-  const [showCancelled, setShowCancelled] = useState(false);
+  const [query, setQuery] = useState("");
+  const priorityParam = searchParams.get("priority");
+  const priority: Priority | "all" =
+    priorityParam === "urgent" ||
+    priorityParam === "this_week" ||
+    priorityParam === "can_wait"
+      ? priorityParam
+      : "all";
+  const assignee = searchParams.get("assignee") ?? "all";
+  const outOfOrderOnly = searchParams.get("outOfOrder") === "1";
+  const showCancelled = searchParams.get("cancelled") === "1";
+
+  // Written to the address in place: a filter is not worth a round trip to the
+  // server, which Next would make for `router.replace`.
+  const setFilter = useCallback(
+    (name: string, value: string | null) => {
+      const next = new URLSearchParams(window.location.search);
+      if (value === null) next.delete(name);
+      else next.set(name, value);
+      const search = next.toString();
+      window.history.replaceState(
+        null,
+        "",
+        search === "" ? pathname : `${pathname}?${search}`,
+      );
+    },
+    [pathname],
+  );
+  const hasFilter =
+    priority !== "all" ||
+    assignee !== "all" ||
+    outOfOrderOnly ||
+    query.trim() !== "";
+  const clearFilters = () => {
+    for (const name of ["priority", "assignee", "outOfOrder"]) {
+      setFilter(name, null);
+    }
+    setQuery("");
+  };
+
+  // Nobody is notified of a report (MAINT-02), so a board left open looks
+  // again when its reader comes back to the tab.
+  useEffect(() => {
+    let lastLooked = Date.now();
+    const onReturn = () => {
+      if (
+        document.visibilityState !== "visible" ||
+        Date.now() - lastLooked < REFRESH_AFTER_MS
+      ) {
+        return;
+      }
+      lastLooked = Date.now();
+      router.refresh();
+    };
+    document.addEventListener("visibilitychange", onReturn);
+    return () => document.removeEventListener("visibilitychange", onReturn);
+  }, [router]);
 
   const onReported = useCallback((outcome: MaintenanceOutcome) => {
     setReported(outcome);
@@ -139,18 +240,20 @@ export function MaintenanceBoard({
     [pathname, router, searchParams],
   );
 
+  const assigneeId = assignee === "me" ? viewerId : assignee;
   const visible = useMemo(
     () =>
       board.requests.filter(
         (request) =>
           (priority === "all" || request.priority === priority) &&
-          (assignee === "all" ||
-            (assignee === "none"
+          (assigneeId === "all" ||
+            (assigneeId === "none"
               ? request.assignee === null
-              : request.assignee?.userId === assignee)) &&
-          (!outOfOrderOnly || request.hold !== null),
+              : request.assignee?.userId === assigneeId)) &&
+          (!outOfOrderOnly || request.hold !== null) &&
+          matchesSearch(request, query),
       ),
-    [board.requests, priority, assignee, outOfOrderOnly],
+    [board.requests, priority, assigneeId, outOfOrderOnly, query],
   );
   const columns = showCancelled ? [...COLUMNS, "cancelled" as const] : COLUMNS;
   const selected =
@@ -196,7 +299,7 @@ export function MaintenanceBoard({
               <Label htmlFor="filter-priority">{t("filterPriority")}</Label>
               <Select
                 onValueChange={(value) =>
-                  setPriority(value as Priority | "all")
+                  setFilter("priority", value === "all" ? null : value)
                 }
                 value={priority}
               >
@@ -221,24 +324,35 @@ export function MaintenanceBoard({
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="filter-assignee">{t("filterAssignee")}</Label>
-              <Select onValueChange={setAssignee} value={assignee}>
+              <Select
+                onValueChange={(value) =>
+                  setFilter("assignee", value === "all" ? null : value)
+                }
+                value={assignee}
+              >
                 <SelectTrigger className="w-56" id="filter-assignee">
                   <SelectValue>
                     {assignee === "all"
                       ? t("everyone")
-                      : assignee === "none"
-                        ? t("unassigned")
-                        : (options.assignees.find(
-                            (person) => person.userId === assignee,
-                          )?.email ?? t("formerStaff"))}
+                      : assignee === "me"
+                        ? t("mine")
+                        : assignee === "none"
+                          ? t("unassigned")
+                          : staffName(
+                              options.assignees.find(
+                                (person) => person.userId === assignee,
+                              )?.email ?? null,
+                              t("formerStaff"),
+                            )}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t("everyone")}</SelectItem>
+                  <SelectItem value="me">{t("mine")}</SelectItem>
                   <SelectItem value="none">{t("unassigned")}</SelectItem>
                   {options.assignees.map((person) => (
                     <SelectItem key={person.userId} value={person.userId}>
-                      {person.email ?? t("formerStaff")}
+                      {staffName(person.email, t("formerStaff"))}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -248,15 +362,48 @@ export function MaintenanceBoard({
               checked={outOfOrderOnly}
               id="filter-out-of-order"
               label={t("outOfOrderOnly")}
-              onChange={setOutOfOrderOnly}
+              onChange={(checked) =>
+                setFilter("outOfOrder", checked ? "1" : null)
+              }
             />
             <Toggle
               checked={showCancelled}
               id="filter-cancelled"
               label={t("showCancelled")}
-              onChange={setShowCancelled}
+              onChange={(checked) =>
+                setFilter("cancelled", checked ? "1" : null)
+              }
             />
+            <div className="grid gap-1.5">
+              <Label htmlFor="filter-search">{t("searchRequests")}</Label>
+              <Input
+                autoComplete="off"
+                className="w-56"
+                id="filter-search"
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t("searchPlaceholder")}
+                type="search"
+                value={query}
+              />
+            </div>
           </div>
+
+          {visible.length === 0 && hasFilter ? (
+            <div
+              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed px-4 py-3"
+              role="status"
+            >
+              <p className="text-step--1">
+                <span className="font-medium">{t("noMatchTitle")}.</span>{" "}
+                <span className="text-muted-foreground">
+                  {t("noMatchDescription")}
+                </span>
+              </p>
+              <Button onClick={clearFilters} size="sm" variant="outline">
+                {t("showAllRequests")}
+              </Button>
+            </div>
+          ) : null}
 
           <div
             className={
@@ -266,8 +413,9 @@ export function MaintenanceBoard({
             }
           >
             {columns.map((state) => {
-              const cards = visible.filter(
-                (request) => request.status === state,
+              const cards = inColumnOrder(
+                state,
+                visible.filter((request) => request.status === state),
               );
               const Icon = STATE_ICON[state];
               return (
@@ -316,8 +464,8 @@ export function MaintenanceBoard({
     <div className="flex flex-col gap-6">
       <PageHeader aside={board.requests.length === 0 ? null : newRequest}>
         {/* h2: the page bar (AppPageBar) already sets this route's one h1. */}
-        <h2 className="text-step-2 font-semibold tracking-tight">
-          {t("heading", { property: propertyName })}
+        <h2 className="max-w-prose text-step-0 text-muted-foreground">
+          {t("heading")}
         </h2>
       </PageHeader>
 
@@ -385,6 +533,7 @@ export function MaintenanceBoard({
           onDone={onReported}
           onOpenChange={onReportingChange}
           open={reporting}
+          openRequests={board.requests}
           options={options}
           propertyId={propertyId}
           today={board.today}
@@ -407,6 +556,15 @@ export function MaintenanceBoard({
           request={selected}
           timeZone={timeZone}
           today={board.today}
+          viewerId={viewerId}
+          whenDone={
+            settings
+              ? {
+                  returnOnDone: settings.effective.returnOnDone,
+                  returnAs: settings.effective.returnAs,
+                }
+              : null
+          }
         />
       ) : null}
     </div>

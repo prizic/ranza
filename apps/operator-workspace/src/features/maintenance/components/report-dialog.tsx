@@ -2,11 +2,16 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import type { Priority, ReportOptions } from "@ranza/maintenance";
+import type {
+  MaintenanceRequestCard,
+  Priority,
+  ReportOptions,
+} from "@ranza/maintenance";
 import type { SupportedLocale } from "@ranza/i18n";
 import {
   Button,
   Checkbox,
+  Combobox,
   Dialog,
   DialogClose,
   DialogContent,
@@ -31,6 +36,8 @@ import {
 import { ImpactNotice } from "./impact-notice";
 import { PRIORITY_LOOK } from "./look";
 import { OutcomeMessage } from "./outcome-message";
+import { usePickerLabels } from "../../../lib/picker-labels";
+import { staffName } from "../../../lib/staff-name";
 import { submitWithoutReset } from "../../../lib/submit-without-reset";
 
 const PRIORITIES: readonly Priority[] = ["urgent", "this_week", "can_wait"];
@@ -60,6 +67,7 @@ export function ReportDialog({
   onOpenChange,
   initialUnitId,
   today,
+  openRequests,
   onDone,
 }: {
   locale: SupportedLocale;
@@ -72,11 +80,15 @@ export function ReportDialog({
   onOpenChange: (open: boolean) => void;
   initialUnitId: string | null;
   today: string;
+  /** The requests still open, so a room already reported says so. */
+  openRequests: readonly MaintenanceRequestCard[];
   /** What the board says once the dialog has closed on a success. */
   onDone: (outcome: MaintenanceOutcome) => void;
 }) {
   const t = useTranslations("maintenance");
   const priorities = useTranslations("maintenance.priorities");
+  const states = useTranslations("maintenance.states");
+  const unitLabels = usePickerLabels(t("chooseUnit"));
   const [outcome, act, pending] = useActionState<MaintenanceOutcome, FormData>(
     reportProblem,
     { status: "idle" },
@@ -116,6 +128,13 @@ export function ReportDialog({
     candidate.roomName === null
       ? candidate.name
       : t("bedInRoom", { bed: candidate.name, room: candidate.roomName });
+  const alreadyOpen = openRequests.filter(
+    (request) =>
+      unitId !== "" &&
+      request.unit?.unitId === unitId &&
+      request.status !== "done" &&
+      request.status !== "cancelled",
+  );
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
@@ -144,28 +163,43 @@ export function ReportDialog({
           ) : null}
 
           <Field htmlFor="report-unit" label={t("unit")}>
-            <Select
+            <Combobox
+              id="report-unit"
+              labels={unitLabels}
               onValueChange={(value) =>
                 setUnitId(value === "none" ? "" : value)
               }
-              value={unitId === "" ? "none" : unitId}
-            >
-              <SelectTrigger id="report-unit">
-                <SelectValue placeholder={t("chooseUnit")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">{t("noRoomChosen")}</SelectItem>
-                {options.units.map((candidate) => (
-                  <SelectItem key={candidate.unitId} value={candidate.unitId}>
-                    {unitLabel(candidate)}
-                    {candidate.status === "out_of_service"
-                      ? ` · ${t("alreadyOut")}`
-                      : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={[
+                { value: "none", label: t("noRoomChosen") },
+                ...options.units.map((candidate) => ({
+                  value: candidate.unitId,
+                  label:
+                    candidate.status === "out_of_service"
+                      ? `${unitLabel(candidate)} · ${t("alreadyOut")}`
+                      : unitLabel(candidate),
+                  keywords: [candidate.name, candidate.roomName ?? ""],
+                })),
+              ]}
+              value={unitId}
+            />
           </Field>
+
+          {alreadyOpen.length > 0 ? (
+            <div
+              className="grid gap-1 rounded-lg border bg-muted/40 px-3 py-2 text-step--1"
+              role="note"
+            >
+              <p className="font-medium">{t("alreadyOpenForRoom")}</p>
+              <ul className="grid gap-0.5 text-muted-foreground">
+                {alreadyOpen.map((request) => (
+                  <li key={request.requestId}>
+                    {t("reference", { number: request.number })} ·{" "}
+                    {request.title} · {states(request.status)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           {options.equipment.length > 0 ? (
             <Field htmlFor="report-equipment" label={t("equipment")}>
@@ -175,7 +209,7 @@ export function ReportDialog({
                 }
                 value={equipmentId === "" ? "none" : equipmentId}
               >
-                <SelectTrigger id="report-equipment">
+                <SelectTrigger className="w-full" id="report-equipment">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -198,6 +232,7 @@ export function ReportDialog({
           <Field htmlFor="report-title" label={t("whatIsWrong")}>
             <Input
               autoComplete="off"
+              autoFocus={initialUnitId !== null}
               id="report-title"
               maxLength={limits.title}
               minLength={3}
@@ -252,14 +287,14 @@ export function ReportDialog({
                 }
                 value={assigneeId === "" ? "later" : assigneeId}
               >
-                <SelectTrigger id="report-assignee">
+                <SelectTrigger className="w-full" id="report-assignee">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="later">{t("decideLater")}</SelectItem>
                   {options.assignees.map((person) => (
                     <SelectItem key={person.userId} value={person.userId}>
-                      {person.email ?? t("formerStaff")}
+                      {staffName(person.email, t("formerStaff"))}
                     </SelectItem>
                   ))}
                 </SelectContent>

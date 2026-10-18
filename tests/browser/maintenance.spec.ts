@@ -362,7 +362,7 @@ test("the board groups requests by state, hides cancelled ones behind a filter, 
   await page.getByRole("option", { name: "Any priority" }).click();
 
   await page.getByRole("combobox", { name: "Assignee" }).click();
-  await page.getByRole("option", { name: EMAIL }).click();
+  await page.getByRole("option", { name: "Deniz" }).click();
   await expect(card("Board in progress")).toBeVisible();
   await expect(card("Board new")).toHaveCount(0);
   await expect(count("In progress")).toHaveText("1");

@@ -460,6 +460,10 @@ export function RoomsView({
         open={blockDialogOpen}
         onOpenChange={setBlockDialogOpen}
         reportHref={selectedUnit ? reportHref(selectedUnit.unitId) : null}
+        roomName={
+          data.units.find((room) => room.unitId === selectedRoomId)?.name ??
+          null
+        }
         unit={selectedUnit}
       />
     </div>
@@ -473,9 +477,9 @@ function unitActionLabel(
   unit: UnitEntry,
   t: ReturnType<typeof useTranslations>,
 ): string {
-  if (unit.status === "blocked") return t("unblockBed");
+  if (unit.status === "blocked") return t("unblockUnit");
   if (unit.state?.kind === "out_of_service") return t("maintenance.outOfOrder");
-  return t("blockBed");
+  return t("manageUnit");
 }
 
 // A badge is one line by default. These carry a request number, an arrival and

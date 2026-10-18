@@ -28,15 +28,20 @@ import {
 import type { UnitEntry, UnitHold } from "../../../server/viewer";
 
 /**
- * One Unit, from Rooms: block or unblock it, report a problem about it
- * (MT-S1-24), or — out of order — see the request that holds it. Blocking is
- * not offered then: a Unit is blocked from available only (MT-S2-08).
+ * One Unit, from Rooms. Something wrong with it is a problem to report, which
+ * tells maintenance and can hold the room out of order in the same step
+ * (MT-S1-24); a block only keeps it from being sold and tells nobody
+ * (RANZ-66). So reporting comes first when the viewer may, and blocking says
+ * what it is. Out of order, the request that holds it is shown instead:
+ * blocking is not offered then, a Unit is blocked from available only
+ * (MT-S2-08).
  */
 export function BlockUnitDialog({
   locale,
   open,
   onOpenChange,
   unit,
+  roomName,
   hold,
   maintenanceHref,
   reportHref,
@@ -45,6 +50,8 @@ export function BlockUnitDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   unit: UnitEntry | null;
+  /** The room a bed belongs to; null when the Unit is a whole room. */
+  roomName: string | null;
   /** The request holding this Unit out of order, or its room. */
   hold: UnitHold | null;
   maintenanceHref: string;
@@ -74,28 +81,18 @@ export function BlockUnitDialog({
   const isBlocked = unit.status === "blocked";
   const isOutOfOrder = unit.state?.kind === "out_of_service";
   const state = unit.state;
-  const report = reportHref ? (
-    <Link
-      className={buttonVariants({ variant: "outline", size: "sm" })}
-      href={reportHref}
-      prefetch={false}
-    >
-      <Wrench aria-hidden="true" className="size-4" />
-      {t("maintenance.reportProblem")}
-    </Link>
-  ) : null;
+  const bed = roomName !== null;
+  const blockLabel = bed ? t("blockBed") : t("blockRoom");
+  const unblockLabel = bed ? t("unblockBed") : t("unblockRoom");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {unit.name} &mdash;{" "}
-            {isOutOfOrder
-              ? t("maintenance.outOfOrder")
-              : isBlocked
-                ? t("unblockBed")
-                : t("blockBed")}
+            {bed
+              ? t("maintenance.bedInRoom", { bed: unit.name, room: roomName })
+              : unit.name}
           </DialogTitle>
           <DialogDescription>
             {unit.building ? `${unit.building} • ` : ""}
@@ -160,66 +157,94 @@ export function BlockUnitDialog({
               </span>
             </div>
 
-            {report}
             <DialogFooter className="pt-2">
+              {reportHref ? (
+                <Link
+                  className={buttonVariants({ variant: "outline" })}
+                  href={reportHref}
+                  prefetch={false}
+                >
+                  <Wrench aria-hidden="true" className="size-4" />
+                  {t("maintenance.reportProblem")}
+                </Link>
+              ) : null}
               <DialogClose asChild>
                 <Button
                   type="button"
                   variant="outline"
                   disabled={unblockPending}
                 >
-                  {t("discardBooking")}
+                  {t("maintenance.close")}
                 </Button>
               </DialogClose>
               <Button type="submit" disabled={unblockPending}>
-                {unblockPending ? t("unblockingBed") : t("unblockBed")}
+                {unblockPending ? t("unblockingBed") : unblockLabel}
               </Button>
             </DialogFooter>
           </form>
         ) : (
-          <form action={blockAct} className="space-y-4">
-            <input type="hidden" name="locale" value={locale} />
-            <input type="hidden" name="unitId" value={unit.unitId} />
-
-            {blockOutcome.status !== "idle" &&
-              blockOutcome.status !== "done" && (
-                <FormError>
-                  {blockOutcome.message ?? t("chargeRefused")}
-                </FormError>
-              )}
-
-            <Field htmlFor="reason" label={t("blockReason")}>
-              <div>
-                <Input
-                  id="reason"
-                  name="reason"
-                  required
-                  minLength={3}
-                  maxLength={200}
-                  placeholder={t("blockReasonPlaceholder")}
-                />
-                <p className="text-xs text-muted-foreground pt-1">
-                  {t("blockReasonHint")}
+          <div className="space-y-5">
+            {reportHref ? (
+              <div className="grid gap-3 rounded-md border bg-muted/40 p-3 text-sm">
+                <p className="text-muted-foreground">
+                  {t("reportInsteadOfBlock")}
                 </p>
+                <Link
+                  className={buttonVariants({
+                    className: "justify-self-start",
+                  })}
+                  href={reportHref}
+                  prefetch={false}
+                >
+                  <Wrench aria-hidden="true" className="size-4" />
+                  {t("maintenance.reportProblem")}
+                </Link>
               </div>
-            </Field>
+            ) : null}
 
-            {report}
-            <DialogFooter className="pt-2">
-              <DialogClose asChild>
-                <Button type="button" variant="outline" disabled={blockPending}>
-                  {t("discardBooking")}
+            <form action={blockAct} className="space-y-4">
+              <input type="hidden" name="locale" value={locale} />
+              <input type="hidden" name="unitId" value={unit.unitId} />
+
+              {blockOutcome.status !== "idle" &&
+                blockOutcome.status !== "done" && (
+                  <FormError>
+                    {blockOutcome.message ?? t("chargeRefused")}
+                  </FormError>
+                )}
+
+              <Field htmlFor="reason" label={t("blockReason")}>
+                <div>
+                  <Input
+                    id="reason"
+                    name="reason"
+                    required
+                    minLength={3}
+                    maxLength={200}
+                    placeholder={t("blockReasonPlaceholder")}
+                  />
+                  <p className="text-xs text-muted-foreground pt-1">
+                    {t("blockReasonHint")} {t("blockNotifiesNobody")}
+                  </p>
+                </div>
+              </Field>
+
+              <DialogFooter className="pt-2">
+                <DialogClose asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={blockPending}
+                  >
+                    {t("maintenance.close")}
+                  </Button>
+                </DialogClose>
+                <Button type="submit" variant="outline" disabled={blockPending}>
+                  {blockPending ? t("blockingBed") : blockLabel}
                 </Button>
-              </DialogClose>
-              <Button
-                type="submit"
-                variant="destructive"
-                disabled={blockPending}
-              >
-                {blockPending ? t("blockingBed") : t("blockBed")}
-              </Button>
-            </DialogFooter>
-          </form>
+              </DialogFooter>
+            </form>
+          </div>
         )}
       </DialogContent>
     </Dialog>

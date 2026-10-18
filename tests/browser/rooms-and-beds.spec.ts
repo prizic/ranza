@@ -219,7 +219,9 @@ test("a shared room is sold by the bed, and a blocked bed cannot be let", async 
   await card(roomOne)
     .getByRole("button", { name: /^C Free/ })
     .click();
-  const blockDialog = page.getByRole("dialog", { name: /Block bed/ });
+  const blockDialog = page.getByRole("dialog", {
+    name: new RegExp(`^Bed C · ${roomOne}$`),
+  });
   await blockDialog.getByLabel("Reason for block").fill(reason);
   await blockDialog.getByRole("button", { name: "Block bed" }).click();
   await expect(blockDialog).toBeHidden();
@@ -288,7 +290,9 @@ test("a shared room is sold by the bed, and a blocked bed cannot be let", async 
   // RB-S3-08: unblocking gives the bed back to the form.
   await page.goto(`/en/rooms?property=${propertyId}`);
   await card(roomOne).getByRole("button", { name: /^C / }).click();
-  const unblockDialog = page.getByRole("dialog", { name: /Unblock bed/ });
+  const unblockDialog = page.getByRole("dialog", {
+    name: new RegExp(`^Bed C · ${roomOne}$`),
+  });
   await expect(unblockDialog).toContainText(reason);
   await unblockDialog.getByRole("button", { name: "Unblock bed" }).click();
   await expect(unblockDialog).toBeHidden();

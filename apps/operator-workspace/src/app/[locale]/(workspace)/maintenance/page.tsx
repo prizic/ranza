@@ -45,7 +45,7 @@ export default async function MaintenancePage({
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
   setRequestLocale(locale);
-  await requireViewer(locale);
+  const viewer = await requireViewer(locale);
 
   const query = await searchParams;
   const properties = await entitledProperties(MAINTENANCE_CAPABILITY);
@@ -105,6 +105,7 @@ export default async function MaintenancePage({
       reportUnitId={reportUnitId}
       settings={settings}
       timeZone={property.timezone}
+      viewerId={viewer.userId}
     />
   );
 }

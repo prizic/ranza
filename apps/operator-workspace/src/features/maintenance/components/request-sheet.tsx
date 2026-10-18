@@ -2,11 +2,12 @@
 
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { CalendarClock, RotateCcw, Wrench, X } from "lucide-react";
+import { CalendarClock, RotateCcw, UserRound, Wrench, X } from "lucide-react";
 import type {
   BoardState,
   MaintenanceRequestCard,
   ReportOptions,
+  ReturnAs,
 } from "@ranza/maintenance";
 import { isolate, type SupportedLocale } from "@ranza/i18n";
 import {
@@ -36,6 +37,7 @@ import {
   takeRoomOutOfOrder,
   type MaintenanceOutcome,
 } from "../../../server/maintenance";
+import { staffName } from "../../../lib/staff-name";
 import { ImpactNotice } from "./impact-notice";
 import {
   formatDay,
@@ -83,6 +85,8 @@ export function RequestSheet({
   limits,
   onOpenChange,
   propertyId,
+  viewerId,
+  whenDone,
 }: {
   request: MaintenanceRequestCard | null;
   locale: SupportedLocale;
@@ -96,10 +100,14 @@ export function RequestSheet({
   /** The Property the board is for, which links out of the sheet name. */
   propertyId: string;
   onOpenChange: (open: boolean) => void;
+  viewerId: string;
+  /** What moving a request to Done does to its room, per the setting. */
+  whenDone: { returnOnDone: boolean; returnAs: ReturnAs } | null;
 }) {
   const t = useTranslations("maintenance");
   const states = useTranslations("maintenance.states");
   const priorities = useTranslations("maintenance.priorities");
+  const returnAs = useTranslations("maintenance.returnAs");
 
   const byName: Record<Command, ReturnType<typeof useCommand>> = {
     move: useCommand(moveRequest, locale),
@@ -147,6 +155,16 @@ export function RequestSheet({
     .filter((part) => part !== null)
     .join(" · ");
   const base = { requestId: request.requestId };
+  // Done is one click among the others, so the click says what it does to a
+  // room it holds before it is made (MAINT-03).
+  const doneHint =
+    !holding || whenDone === null || !open || room === null
+      ? null
+      : !whenDone.returnOnDone
+        ? t("doneHoldsRoom", { room })
+        : mayTakeOutOfOrder
+          ? t("doneReturnsRoom", { room, state: returnAs(whenDone.returnAs) })
+          : t("doneKeepsRoomOut", { room });
 
   return (
     <Sheet onOpenChange={onOpenChange} open>
@@ -191,7 +209,9 @@ export function RequestSheet({
               })}
             >
               {t("reportedBy", {
-                who: isolate(request.reporter.email ?? t("formerStaff")),
+                who: isolate(
+                  staffName(request.reporter.email, t("formerStaff")),
+                ),
               })}
             </Fact>
             {request.cancelReason ? (
@@ -249,10 +269,15 @@ export function RequestSheet({
                   <SelectValue>
                     {request.assignee
                       ? request.assignee.reachesProperty
-                        ? isolate(request.assignee.email ?? t("formerStaff"))
+                        ? isolate(
+                            staffName(request.assignee.email, t("formerStaff")),
+                          )
                         : t("noLongerHere", {
                             name: isolate(
-                              request.assignee.email ?? t("formerStaff"),
+                              staffName(
+                                request.assignee.email,
+                                t("formerStaff"),
+                              ),
                             ),
                           })
                       : t("notAssigned")}
@@ -262,11 +287,28 @@ export function RequestSheet({
                   <SelectItem value="none">{t("notAssigned")}</SelectItem>
                   {assignees.map((person) => (
                     <SelectItem key={person.userId} value={person.userId}>
-                      {person.email ?? t("formerStaff")}
+                      {staffName(person.email, t("formerStaff"))}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {mayManage &&
+              request.status !== "cancelled" &&
+              request.assignee?.userId !== viewerId &&
+              assignees.some((person) => person.userId === viewerId) ? (
+                <Button
+                  className="justify-self-start"
+                  disabled={pending}
+                  onClick={() =>
+                    run("assign", { ...base, assigneeId: viewerId })
+                  }
+                  size="sm"
+                  variant="ghost"
+                >
+                  <UserRound aria-hidden="true" className="size-4" />
+                  {t("assignToMe")}
+                </Button>
+              ) : null}
             </Field>
 
             <Field htmlFor="sheet-priority" label={t("priority")}>
@@ -332,6 +374,9 @@ export function RequestSheet({
                   )
                 )}
               </div>
+              {doneHint ? (
+                <p className="text-step--1 text-muted-foreground">{doneHint}</p>
+              ) : null}
             </Section>
           ) : null}
 
