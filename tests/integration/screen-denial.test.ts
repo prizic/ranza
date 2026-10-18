@@ -30,6 +30,8 @@ const OWNER = "e5300001-0000-4000-8000-000000000001";
 const DESK = "e5300001-0000-4000-8000-000000000002";
 const LAPSED_OWNER = "e5300001-0000-4000-8000-000000000003";
 const NOBODY = "e5300001-0000-4000-8000-000000000004";
+const MANAGER_OF_INTEGRATIONS = "e5300001-0000-4000-8000-000000000005";
+const MANAGE_ONLY_ROLE = "manage_only_e53";
 const NEVER_ASSIGNED = "e5300004-0000-4000-8000-0000000000ff";
 
 const INTEGRATIONS: CapabilityRef = {
@@ -108,12 +110,30 @@ beforeAll(async () => {
     ORG,
     SUSPENDED_ORG,
   );
+  // A role an Organization wrote that may manage integrations and not see
+  // them: either permission opens the screen, so it is still shown it.
+  await owner.$executeRawUnsafe(
+    `insert into public.staff_roles
+       (scope_id, key, organization_id, name, permissions, status)
+     values ($1::uuid, $2, $1::uuid, 'Manage only E53', array['integrations.manage'], 'active')
+     on conflict (scope_id, key) do update
+       set permissions = array['integrations.manage'], status = 'active'`,
+    ORG,
+    MANAGE_ONLY_ROLE,
+  );
+  await owner.$executeRawUnsafe(
+    `insert into public.users (id, email) values
+       ($1,'denial-manage-only@example.test')
+     on conflict (id) do nothing`,
+    MANAGER_OF_INTEGRATIONS,
+  );
   await owner.$executeRawUnsafe(
     `insert into public.organization_memberships
        (organization_id, user_id, role, role_scope_id, access_scope) values
        ($1,$3,'owner','00000000-0000-0000-0000-000000000000','organization_wide'),
        ($1,$4,'front_desk','00000000-0000-0000-0000-000000000000','assigned_properties'),
-       ($2,$5,'owner','00000000-0000-0000-0000-000000000000','organization_wide')
+       ($2,$5,'owner','00000000-0000-0000-0000-000000000000','organization_wide'),
+       ($1,$6,$7,$1,'assigned_properties')
      on conflict (organization_id, user_id) do update
        set status = 'active', revoked_at = null`,
     ORG,
@@ -121,15 +141,18 @@ beforeAll(async () => {
     OWNER,
     DESK,
     LAPSED_OWNER,
+    MANAGER_OF_INTEGRATIONS,
+    MANAGE_ONLY_ROLE,
   );
   await owner.$executeRawUnsafe(
     `insert into public.property_assignments
-       (property_id, organization_id, user_id) values ($1,$2,$3)
+       (property_id, organization_id, user_id) values ($1,$2,$3), ($1,$2,$4)
      on conflict (property_id, user_id) do update
        set status = 'active', revoked_at = null`,
     BOUGHT,
     ORG,
     DESK,
+    MANAGER_OF_INTEGRATIONS,
   );
 });
 
@@ -212,6 +235,30 @@ describe("which gate stopped them", () => {
         permission: "hr.view",
       }),
     ).toEqual({ reason: "not_subscribed" });
+  });
+
+  it("DENY-08b: any one of several permissions opens it, and one alone is named when none is held", async () => {
+    const eitherWay = {
+      capability: INTEGRATIONS,
+      permission: ["integrations.view", "integrations.manage"],
+      propertyId: BOUGHT,
+    };
+    expect(
+      await core.explainDenial(MANAGER_OF_INTEGRATIONS, eitherWay),
+    ).toEqual({ reason: "open" });
+    // Asked for the one it does not hold, the same person is refused.
+    expect(
+      await core.explainDenial(MANAGER_OF_INTEGRATIONS, {
+        ...eitherWay,
+        permission: "integrations.view",
+      }),
+    ).toEqual({ reason: "no_permission", permission: "integrations.view" });
+    // Somebody holding neither is told the first, which is the one that opens
+    // the screen to look.
+    expect(await core.explainDenial(DESK, eitherWay)).toEqual({
+      reason: "no_permission",
+      permission: "integrations.view",
+    });
   });
 
   it("DENY-09: a destination no package selection removes asks only the permission", async () => {
