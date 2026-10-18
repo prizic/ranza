@@ -44,7 +44,9 @@ import {
   INTEGRATIONS_CAPABILITY,
   type EndpointHealth,
   type EndpointsView,
+  type FailedOperationPage,
   type FailedOperationRecord,
+  type FailureView,
   type OperationStatus,
   type WebhookEndpointRecord,
 } from "@ranza/integrations";
@@ -76,7 +78,9 @@ export {
   INTEGRATIONS_CAPABILITY,
   type EndpointHealth,
   type EndpointsView,
+  type FailedOperationPage,
   type FailedOperationRecord,
+  type FailureView,
   type OperationStatus,
   type WebhookEndpointRecord,
 };
@@ -1184,33 +1188,60 @@ export async function propertyServiceRequests(
 
 export interface IntegrationsViewData {
   endpoints: EndpointsView;
-  failedOperations: FailedOperationRecord[];
+  /** The failures on the page asked for. */
+  failures: FailedOperationPage;
+  /** How many failures at the Property are open, whichever view is shown. */
+  openTotal: number;
+  /** The signed-in user, so the screen can say "You" for what they closed. */
+  viewerId: string | null;
 }
 
+/** How many failures one page of the Integrations screen lists. */
+export const INTEGRATIONS_PAGE_SIZE = 25;
+
 /**
- * The Organization's webhook endpoints and the Property's open failures, for
- * the Integrations screen (ADR 0045). The endpoints are the Organization's and
- * the failures are the Property's, so both are asked for.
+ * The Organization's webhook endpoints and the Property's failures, for the
+ * Integrations screen (ADR 0045). The endpoints are the Organization's and the
+ * failures are the Property's, so both are asked for.
  */
 export async function propertyIntegrations(
   organizationId: string,
   propertyId: string,
+  view: FailureView,
+  page: number,
 ): Promise<IntegrationsViewData> {
   const viewer = await currentViewer();
   if (!viewer) {
     return {
       endpoints: { endpoints: [], mayManage: false },
-      failedOperations: [],
+      failures: { records: [], total: 0 },
+      openTotal: 0,
+      viewerId: null,
     };
   }
 
   const integrations = getComposition().integrations;
-  const [endpoints, failedOperations] = await Promise.all([
+  const shown = {
+    view,
+    limit: INTEGRATIONS_PAGE_SIZE,
+    offset: (page - 1) * INTEGRATIONS_PAGE_SIZE,
+  };
+  const [endpoints, failures] = await Promise.all([
     integrations.endpoints(viewer.userId, organizationId),
-    integrations.failedOperations(viewer.userId, propertyId),
+    integrations.failedOperations(viewer.userId, propertyId, shown),
   ]);
+  const openTotal =
+    view === "open"
+      ? failures.total
+      : (
+          await integrations.failedOperations(viewer.userId, propertyId, {
+            view: "open",
+            limit: 1,
+            offset: 0,
+          })
+        ).total;
 
-  return { endpoints, failedOperations };
+  return { endpoints, failures, openTotal, viewerId: viewer.userId };
 }
 
 export interface HrViewData {

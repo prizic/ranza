@@ -26,6 +26,8 @@ import { currentViewer, permittedProperties } from "./viewer";
 export type IntegrationsOutcome =
   | { status: "idle" }
   | { status: "done" }
+  /** How many stopped deliveries were put back in the queue. */
+  | { status: "retried"; count: number }
   /** The signing secret of a new endpoint. The only time anything returns it. */
   | { status: "registered"; secret: string }
   | { status: "invalid"; rejection: EndpointInputRejection }
@@ -173,6 +175,24 @@ export async function retryOperationAction(
     return { status: "done" };
   } catch (error) {
     return outcomeOf("retry_operation", { propertyId, operationId }, error);
+  }
+}
+
+export async function retryAllOperationsAction(
+  locale: string,
+  propertyId: string,
+): Promise<IntegrationsOutcome> {
+  const viewer = await actor(locale, propertyId);
+  if (!viewer) return REFUSED;
+  try {
+    const retried = await getComposition().integrations.retryAllOperations(
+      viewer.userId,
+      { propertyId },
+    );
+    revalidateIntegrations(locale, propertyId);
+    return { status: "retried", count: retried };
+  } catch (error) {
+    return outcomeOf("retry_all_operations", { propertyId }, error);
   }
 }
 

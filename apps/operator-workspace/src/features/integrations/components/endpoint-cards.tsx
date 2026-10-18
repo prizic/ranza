@@ -80,12 +80,20 @@ export function EndpointCards({
                   tone={health.tone}
                 />
               </div>
-              <code
-                className="block text-step--1 break-all text-muted-foreground"
-                dir="ltr"
-              >
-                {endpoint.url}
-              </code>
+              <div className="grid gap-0.5">
+                <code
+                  className="block text-step--1 break-all text-muted-foreground"
+                  dir="ltr"
+                >
+                  {endpoint.url}
+                  {endpoint.urlMasked ? "?…" : ""}
+                </code>
+                {endpoint.urlMasked ? (
+                  <span className="text-step--1 text-muted-foreground">
+                    {t("addressPartHidden")}
+                  </span>
+                ) : null}
+              </div>
             </CardHeader>
             <CardContent className="grid gap-4">
               <div className="grid gap-1.5">
@@ -122,6 +130,19 @@ export function EndpointCards({
                   <dd className="m-0 tabular-nums">{endpoint.openFailures}</dd>
                 </div>
               </dl>
+              {endpoint.overdue > 0 ? (
+                <p
+                  className="flex items-start gap-1.5 text-step--1 text-warning"
+                  data-testid="endpoint-overdue"
+                  role="status"
+                >
+                  <AlertTriangle
+                    aria-hidden="true"
+                    className="mt-0.5 size-3.5 shrink-0"
+                  />
+                  {t("overdue", { count: endpoint.overdue })}
+                </p>
+              ) : null}
               {view.mayManage ? (
                 <EndpointActions
                   endpointId={endpoint.id}

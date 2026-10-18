@@ -32,6 +32,7 @@ vi.mock("../../apps/operator-workspace/src/server/integrations", () => ({
   removeEndpointAction: vi.fn(),
   sendTestEventAction: vi.fn(),
   retryOperationAction: vi.fn(),
+  retryAllOperationsAction: vi.fn(),
   cancelOperationAction: vi.fn(),
   resolveOperationAction: vi.fn(),
 }));
@@ -50,8 +51,10 @@ const endpoints = (mayManage: boolean): EndpointsView => ({
       eventTypes: ["stay.checked_in", "folio.line_posted"],
       createdAt: new Date("2026-10-07T10:00:00Z"),
       health: "failing",
+      urlMasked: false,
       lastDeliveredAt: new Date("2026-10-07T11:45:00Z"),
       queued: 2,
+      overdue: 0,
       openFailures: 1,
     },
     {
@@ -62,8 +65,10 @@ const endpoints = (mayManage: boolean): EndpointsView => ({
       eventTypes: ["stay.checked_out"],
       createdAt: new Date("2026-10-07T10:00:00Z"),
       health: "delivering",
+      urlMasked: false,
       lastDeliveredAt: new Date("2026-10-07T12:00:00Z"),
       queued: 0,
+      overdue: 0,
       openFailures: 0,
     },
     {
@@ -74,8 +79,10 @@ const endpoints = (mayManage: boolean): EndpointsView => ({
       eventTypes: ["reservation.created"],
       createdAt: new Date("2026-10-07T10:00:00Z"),
       health: "unused",
+      urlMasked: false,
       lastDeliveredAt: null,
       queued: 0,
+      overdue: 0,
       openFailures: 0,
     },
   ],
@@ -96,6 +103,10 @@ const failures: FailedOperationRecord[] = [
     lastAttemptAt: new Date("2026-10-07T12:00:00Z"),
     lastStatusCode: 503,
     lastResponseExcerpt: "upstream unavailable",
+    retryable: true,
+    closedAt: null,
+    closedBy: null,
+    closedReason: null,
   },
   {
     id: "ff222222-2222-4222-8222-222222222222",
@@ -111,25 +122,76 @@ const failures: FailedOperationRecord[] = [
     lastAttemptAt: new Date("2026-10-07T12:30:00Z"),
     lastStatusCode: null,
     lastResponseExcerpt: null,
+    retryable: true,
+    closedAt: null,
+    closedBy: null,
+    closedReason: null,
   },
 ];
+
+const VIEWER = "11111111-1111-4111-8111-111111111111";
+
+const closedFailures: FailedOperationRecord[] = [
+  {
+    ...failures[0]!,
+    id: "ff333333-3333-4333-8333-333333333333",
+    status: "resolved",
+    nextAttemptAt: null,
+    closedAt: new Date("2026-10-07T13:00:00Z"),
+    closedBy: null,
+    closedReason: "delivered",
+  },
+  {
+    ...failures[1]!,
+    id: "ff444444-4444-4444-8444-444444444444",
+    status: "cancelled",
+    closedAt: new Date("2026-10-07T14:00:00Z"),
+    closedBy: VIEWER,
+    closedReason: "The receiver was switched off for good",
+  },
+  {
+    ...failures[1]!,
+    id: "ff555555-5555-4555-8555-555555555555",
+    status: "resolved",
+    closedAt: new Date("2026-10-07T15:00:00Z"),
+    closedBy: "22222222-2222-4222-8222-222222222222",
+    closedReason: "endpoint removed",
+  },
+];
+
+const HREFS = {
+  open: "/en/integrations?property=bb",
+  closed: "/en/integrations?property=bb&view=closed",
+};
 
 function renderView(
   locale: SupportedLocale,
   options: {
     view?: EndpointsView;
     failedOperations?: FailedOperationRecord[];
+    total?: number;
+    openTotal?: number;
     mayActOnFailures?: boolean;
+    shown?: "open" | "closed";
+    page?: number;
+    pageSize?: number;
   } = {},
 ) {
+  const records = options.failedOperations ?? failures;
   return render(
     <NextIntlClientProvider locale={locale} messages={messages[locale]}>
       <IntegrationsView
         endpoints={options.view ?? endpoints(true)}
-        failedOperations={options.failedOperations ?? failures}
+        failures={{ records, total: options.total ?? records.length }}
+        hrefs={HREFS}
         locale={locale}
         mayActOnFailures={options.mayActOnFailures ?? true}
+        openTotal={options.openTotal ?? failures.length}
+        page={options.page ?? 1}
+        pageSize={options.pageSize ?? 25}
         propertyId={PROPERTY}
+        view={options.shown ?? "open"}
+        viewerId={VIEWER}
       />
     </NextIntlClientProvider>,
   );
@@ -234,12 +296,10 @@ describe("IntegrationsView", () => {
   });
 
   it("INT-S1-12: says nothing has failed when nothing has", () => {
-    renderView("en", { failedOperations: [] });
+    renderView("en", { failedOperations: [], openTotal: 0 });
 
     expect(
-      screen.getByText(
-        "Nothing has failed. Every delivery has arrived or is on its way.",
-      ),
+      screen.getByText("Nothing has failed at this Property."),
     ).toBeInTheDocument();
     expect(screen.queryAllByTestId("failed-operation")).toHaveLength(0);
   });
@@ -302,6 +362,234 @@ describe("IntegrationsView", () => {
   });
 });
 
+describe("what a failure says and offers", () => {
+  afterEach(cleanup);
+
+  it("INT-S1-70: says what to do next, and keeps what the receiver said behind Technical details", () => {
+    renderView("en");
+
+    const [retrying] = screen.getAllByTestId("failed-operation");
+    expect(
+      within(retrying!).getByText(
+        "Look in the receiver's logs for why it refused, then Retry.",
+      ),
+    ).toBeInTheDocument();
+    const details = within(retrying!).getByText("Technical details");
+    expect(details.closest("details")).not.toHaveAttribute("open");
+    expect(details.closest("details")).toContainElement(
+      within(retrying!).getByText("It said: upstream unavailable"),
+    );
+  });
+
+  it("INT-S1-27: an event that did not match its record has no Retry, and says why", () => {
+    renderView("en", {
+      failedOperations: [
+        {
+          ...failures[1]!,
+          error: "source_mismatch",
+          attempts: 0,
+          retryable: false,
+          status: "failed",
+        },
+      ],
+    });
+
+    const [refused] = screen.getAllByTestId("failed-operation");
+    expect(
+      within(refused!).getByText(
+        "The event did not match the record it named, so it was not sent",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(refused!).getByText(
+        "Nothing to retry. Mark it resolved once you have looked into it.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(refused!).queryByRole("button", { name: "Retry" }),
+    ).toBeNull();
+    expect(
+      within(refused!).getByRole("button", { name: "Mark resolved" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("retry-all")).toBeNull();
+  });
+
+  it("INT-S1-71: Retry all is offered to someone who may act, when something has stopped, and to nobody else", () => {
+    renderView("en");
+    expect(screen.getByTestId("retry-all")).toHaveTextContent(
+      "Retry all stopped",
+    );
+    cleanup();
+
+    renderView("en", { mayActOnFailures: false });
+    expect(screen.queryByTestId("retry-all")).toBeNull();
+    cleanup();
+
+    renderView("en", { failedOperations: [failures[0]!] });
+    expect(screen.queryByTestId("retry-all")).toBeNull();
+  });
+
+  it("INT-S1-72: the closed list says when, how and why each was closed, and who in words", () => {
+    renderView("en", {
+      shown: "closed",
+      failedOperations: closedFailures,
+      openTotal: 2,
+    });
+
+    const [delivered, stopped, removed] =
+      screen.getAllByTestId("failed-operation");
+    expect(
+      within(delivered!).getByText(/Resolved · Automatic/),
+    ).toBeInTheDocument();
+    expect(
+      within(delivered!).getByText("It was delivered."),
+    ).toBeInTheDocument();
+    expect(within(stopped!).getByText(/Cancelled · You/)).toBeInTheDocument();
+    expect(
+      within(stopped!).getByText("The receiver was switched off for good"),
+    ).toBeInTheDocument();
+    expect(
+      within(removed!).getByText(/Resolved · A colleague/),
+    ).toBeInTheDocument();
+    expect(
+      within(removed!).getByText("The endpoint was removed."),
+    ).toBeInTheDocument();
+    // What to do next is for an open failure; and a failure that arrived says
+    // nothing of the answer it was finally given, which was a success.
+    expect(
+      within(delivered!).queryByText(/Look in the receiver's logs/),
+    ).toBeNull();
+    expect(within(delivered!).queryByText("HTTP 503")).toBeNull();
+    expect(within(delivered!).queryByText(/It said/)).toBeNull();
+    expect(
+      within(stopped!).queryByText(
+        /Look in the receiver's logs|Nothing to retry/,
+      ),
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+    expect(screen.getByTestId("failures-tab-open")).toHaveTextContent(
+      "Open (2)",
+    );
+    expect(screen.getByTestId("failures-tab-closed")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByTestId("failures-tab-open")).toHaveAttribute(
+      "href",
+      HREFS.open,
+    );
+  });
+
+  it("INT-S1-72: an empty closed list says no failure was closed, not that nothing failed", () => {
+    renderView("en", { shown: "closed", failedOperations: [], openTotal: 2 });
+    expect(
+      screen.getByText("No failure has been closed at this Property yet."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Nothing has failed at this Property."),
+    ).toBeNull();
+  });
+
+  it("INT-S1-73: a long list is paged, with where you are and a link each way", () => {
+    renderView("en", {
+      failedOperations: failures,
+      total: 61,
+      openTotal: 61,
+      page: 2,
+      pageSize: 25,
+    });
+    expect(screen.getByText("26–27 of 61")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Newer" })).toHaveAttribute(
+      "href",
+      HREFS.open,
+    );
+    expect(screen.getByRole("link", { name: "Older" })).toHaveAttribute(
+      "href",
+      `${HREFS.open}&page=3`,
+    );
+    expect(screen.getByTestId("failures-tab-open")).toHaveTextContent(
+      "Open (61)",
+    );
+  });
+
+  it("INT-S1-73: a list that fits on a page has no pager", () => {
+    renderView("en");
+    expect(screen.queryByRole("navigation", { name: "Pages" })).toBeNull();
+  });
+
+  it("INT-S1-78: the screen says what can be connected, and that the rest cannot yet", () => {
+    renderView("en", { view: { endpoints: [], mayManage: true } });
+    expect(screen.getByTestId("integrations-availability")).toHaveTextContent(
+      "A webhook is the only integration available today. Channel managers, KBS reporting, e-invoicing and payment providers are not available yet.",
+    );
+  });
+
+  it("INT-S1-67: an address with something cut from it says so, and offers no way to see it", () => {
+    const view = endpoints(false);
+    renderView("en", {
+      view: {
+        ...view,
+        endpoints: [
+          {
+            ...view.endpoints[0]!,
+            url: "https://hooks.example.test/channel-manager",
+            urlMasked: true,
+          },
+        ],
+      },
+    });
+    const [card] = screen.getAllByTestId("webhook-endpoint");
+    expect(
+      within(card!).getByText("https://hooks.example.test/channel-manager?…"),
+    ).toBeInTheDocument();
+    expect(
+      within(card!).getByText("Part of this address is hidden from you."),
+    ).toBeInTheDocument();
+  });
+
+  it("INT-S1-74: an endpoint with deliveries waiting too long says sending may have stopped", () => {
+    const view = endpoints(true);
+    renderView("en", {
+      view: {
+        ...view,
+        endpoints: [{ ...view.endpoints[1]!, queued: 3, overdue: 3 }],
+      },
+    });
+    expect(screen.getByTestId("endpoint-overdue")).toHaveTextContent(
+      "3 deliveries have waited more than 5 minutes to be sent. If this stays, sending may have stopped.",
+    );
+    cleanup();
+    renderView("en", {
+      view: {
+        ...view,
+        endpoints: [{ ...view.endpoints[1]!, queued: 1, overdue: 1 }],
+      },
+    });
+    expect(screen.getByTestId("endpoint-overdue")).toHaveTextContent(
+      "1 delivery has waited",
+    );
+    cleanup();
+    renderView("en", { view });
+    expect(screen.queryByTestId("endpoint-overdue")).toBeNull();
+  });
+
+  it.each(["tr", "ar"] as const)(
+    "INT-S1-14: the closed list and the pager render in %s",
+    (locale) => {
+      renderView(locale, {
+        shown: "closed",
+        failedOperations: closedFailures,
+        total: 61,
+        openTotal: 2,
+      });
+      expect(screen.getAllByTestId("failed-operation")).toHaveLength(3);
+      expect(
+        screen.getByText(messages[locale].integrations.closedFailuresTitle),
+      ).toBeInTheDocument();
+    },
+  );
+});
+
 describe("the screen's own list of events and failures", () => {
   it("INT-S1-26: is the module's, so a new event cannot reach the database and not the screen", () => {
     expect([...WEBHOOK_EVENT_TYPES]).toEqual([...MODULE_EVENT_TYPES]);
@@ -319,6 +607,7 @@ describe("the screen's own list of events and failures", () => {
       }
       for (const code of codes) {
         expect(words.failures[code], `${locale} ${code}`).toBeTruthy();
+        expect(words.failureAdvice[code], `${locale} ${code}`).toBeTruthy();
       }
     }
   });

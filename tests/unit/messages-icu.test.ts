@@ -76,6 +76,47 @@ describe("counted strings in three languages", () => {
   });
 });
 
+describe("the Integrations counts", () => {
+  it.each([0, 1, 2, 3, 11, 100])(
+    "say how many stopped deliveries were sent again, in every language, at %i",
+    (count) => {
+      for (const locale of supportedLocales) {
+        const say = t(locale, workspace[locale]);
+        expect(() => say("integrations.retriedAll", { count })).not.toThrow();
+      }
+    },
+  );
+
+  it.each([1, 2, 3, 11])(
+    "say how many deliveries have waited too long, in every language, at %i",
+    (count) => {
+      for (const locale of supportedLocales) {
+        expect(() =>
+          t(locale, workspace[locale])("integrations.overdue", { count }),
+        ).not.toThrow();
+      }
+    },
+  );
+
+  it("gives Arabic a different word at one, two and few", () => {
+    const ar = t("ar", workspace.ar);
+    const forms = [1, 2, 3, 11].map((count) =>
+      ar("integrations.retriedAll", { count }),
+    );
+    expect(new Set(forms).size).toBe(4);
+  });
+
+  it("never says '1 deliveries' in English", () => {
+    const en = t("en", workspace.en);
+    expect(en("integrations.retriedAll", { count: 1 })).toBe(
+      "1 stopped delivery was sent again.",
+    );
+    expect(en("integrations.overdue", { count: 1 })).toContain(
+      "1 delivery has",
+    );
+  });
+});
+
 /**
  * Every string in every language, formatted once. A catalogue entry with a
  * stray brace is a runtime error on the screen that reads it, and only the

@@ -30,6 +30,8 @@ interface OperationActionsProps {
   locale: string;
   operationId: string;
   propertyId: string;
+  /** Whether there is a delivery to send again; a refused event has none. */
+  retryable: boolean;
   status: OperationStatus;
 }
 
@@ -54,6 +56,7 @@ export function OperationActions({
   locale,
   operationId,
   propertyId,
+  retryable,
   status,
 }: OperationActionsProps) {
   const t = useTranslations("integrations");
@@ -103,21 +106,23 @@ export function OperationActions({
   }
 
   return (
-    <div className="grid justify-items-end gap-1.5">
-      <div className="flex flex-wrap justify-end gap-1.5">
-        <Button
-          disabled={pending}
-          onClick={retry}
-          size="sm"
-          type="button"
-          variant="outline"
-        >
-          <RefreshCw
-            aria-hidden="true"
-            className={`size-3.5 ${pending && closing === null ? "animate-spin" : ""}`}
-          />
-          {pending && closing === null ? t("retrying") : t("retry")}
-        </Button>
+    <div className="grid justify-items-start gap-1.5 sm:justify-items-end">
+      <div className="flex flex-wrap gap-1.5 sm:justify-end">
+        {retryable ? (
+          <Button
+            disabled={pending}
+            onClick={retry}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <RefreshCw
+              aria-hidden="true"
+              className={`size-3.5 ${pending && closing === null ? "animate-spin" : ""}`}
+            />
+            {pending && closing === null ? t("retrying") : t("retry")}
+          </Button>
+        ) : null}
         {status === "retrying" ? (
           <Button
             disabled={pending}

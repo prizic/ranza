@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Network, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Stat } from "@ranza/ui";
 import type {
   EndpointsView,
-  FailedOperationRecord,
+  FailedOperationPage,
+  FailureView,
 } from "../../../server/viewer";
 import { AddEndpointDialog } from "./add-endpoint-dialog";
 import { EndpointCards } from "./endpoint-cards";
@@ -13,19 +15,33 @@ import { FailedOperationsTable } from "./failed-operations-table";
 
 interface IntegrationsViewProps {
   endpoints: EndpointsView;
-  failedOperations: readonly FailedOperationRecord[];
+  failures: FailedOperationPage;
+  /** The two lists of failures, as the links that open them. */
+  hrefs: { open: string; closed: string };
   /** Whether the viewer holds integrations.manage at this Property. */
   mayActOnFailures: boolean;
   locale: string;
+  /** How many failures at the Property are open, whichever list is shown. */
+  openTotal: number;
+  page: number;
+  pageSize: number;
   propertyId: string;
+  view: FailureView;
+  viewerId: string | null;
 }
 
 export function IntegrationsView({
   endpoints,
-  failedOperations,
+  failures,
+  hrefs,
   mayActOnFailures,
   locale,
+  openTotal,
+  page,
+  pageSize,
   propertyId,
+  view,
+  viewerId,
 }: IntegrationsViewProps) {
   const t = useTranslations("integrations");
 
@@ -50,11 +66,7 @@ export function IntegrationsView({
           label={t("failingCount")}
           value={count("failing")}
         />
-        <Stat
-          icon={XCircle}
-          label={t("openFailuresCount")}
-          value={failedOperations.length}
-        />
+        <Stat icon={XCircle} label={t("openFailuresCount")} value={openTotal} />
       </div>
 
       <section
@@ -64,11 +76,38 @@ export function IntegrationsView({
         <h2 className="sr-only" id="failed-operations-heading">
           {t("failedOperationsTitle")}
         </h2>
+        <nav
+          aria-label={t("failuresViewLabel")}
+          className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-md bg-muted p-1"
+        >
+          {(["open", "closed"] as const).map((tab) => (
+            <Link
+              aria-current={view === tab ? "page" : undefined}
+              className={`flex min-h-9 shrink-0 items-center rounded-sm px-3 text-sm font-medium whitespace-nowrap transition-all ${
+                view === tab
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              data-testid={`failures-tab-${tab}`}
+              href={hrefs[tab]}
+              key={tab}
+            >
+              {tab === "open"
+                ? t("tabOpen", { count: openTotal })
+                : t("tabClosed")}
+            </Link>
+          ))}
+        </nav>
         <FailedOperationsTable
-          failedOperations={failedOperations}
+          failures={failures}
+          hrefs={hrefs}
           locale={locale}
           mayAct={mayActOnFailures}
+          page={page}
+          pageSize={pageSize}
           propertyId={propertyId}
+          view={view}
+          viewerId={viewerId}
         />
       </section>
 
@@ -87,6 +126,12 @@ export function IntegrationsView({
             </h2>
             <p className="mt-0.5 text-step--1 text-muted-foreground">
               {t("endpointsDescription")}
+            </p>
+            <p
+              className="mt-0.5 text-step--1 text-muted-foreground"
+              data-testid="integrations-availability"
+            >
+              {t("othersNotAvailable")}
             </p>
           </div>
           {endpoints.mayManage ? (

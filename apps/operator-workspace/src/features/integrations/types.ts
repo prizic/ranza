@@ -26,6 +26,7 @@ export const DELIVERY_FAILURES = [
   "blocked_address",
   "invalid_target",
   "redirect_refused",
+  "source_mismatch",
 ] as const;
 
 export type DeliveryFailureCode = (typeof DELIVERY_FAILURES)[number];

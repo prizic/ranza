@@ -40,11 +40,17 @@ import { startWorker, WORKER_BUDGET_MS, whileWorking } from "./worker";
 const SUFFIX = randomUUID().slice(0, 8);
 const MANAGER_EMAIL = `e2e-integrations-${SUFFIX}@example.test`;
 const VIEWER_EMAIL = `e2e-integrations-viewer-${SUFFIX}@example.test`;
+const NO_ACCESS_EMAIL = `e2e-integrations-none-${SUFFIX}@example.test`;
 const ORGANIZATION = randomUUID();
 const PROPERTY = randomUUID();
+const PROPERTY_WITHOUT_THE_MODULE = randomUUID();
 const ENDPOINT_NAME = `Channel manager ${SUFFIX}`;
 
 const EVIDENCE = path.resolve(__dirname, "../../docs/evidence/m1/RANZ-46");
+const AUDIT_EVIDENCE = path.resolve(
+  __dirname,
+  "../../docs/evidence/ux-audit/RANZ-72",
+);
 
 interface Received {
   headers: IncomingHttpHeaders;
@@ -86,7 +92,7 @@ test.beforeAll(async ({ playwright, baseURL }) => {
 
   // Made the way `db:seed:dev` makes a Staff Member: through the application's
   // own sign-up route (ADR 0005), a context of its own for each person.
-  for (const email of [MANAGER_EMAIL, VIEWER_EMAIL]) {
+  for (const email of [MANAGER_EMAIL, VIEWER_EMAIL, NO_ACCESS_EMAIL]) {
     const request = await playwright.request.newContext({ baseURL });
     const signedUp = await request.post("/api/auth/sign-up/email", {
       headers: { origin: new URL("/", baseURL).origin },
@@ -114,6 +120,9 @@ test.beforeAll(async ({ playwright, baseURL }) => {
      ), prop as (
        insert into public.properties (id, organization_id, name)
        select '${PROPERTY}', id, 'E2E Integrations Property ${SUFFIX}' from org returning id
+     ), bare as (
+       insert into public.properties (id, organization_id, name)
+       select '${PROPERTY_WITHOUT_THE_MODULE}', id, 'E2E Property without the module ${SUFFIX}' from org
      ), caps as (
        insert into public.property_capabilities (property_id, organization_id, capability_key, enabled)
        select '${PROPERTY}', id, 'integrations', true from org
@@ -125,12 +134,14 @@ test.beforeAll(async ({ playwright, baseURL }) => {
      insert into public.organization_memberships
        (organization_id, user_id, role, role_scope_id, access_scope)
      select org.id, person.id,
-            case person.email when '${MANAGER_EMAIL}' then 'owner' else 'integrations_viewer' end,
-            case when person.email = '${MANAGER_EMAIL}'
-                 then '00000000-0000-0000-0000-000000000000'::uuid else org.id end,
+            case person.email when '${MANAGER_EMAIL}' then 'owner'
+                              when '${NO_ACCESS_EMAIL}' then 'housekeeping'
+                              else 'integrations_viewer' end,
+            case when person.email = '${VIEWER_EMAIL}'
+                 then org.id else '00000000-0000-0000-0000-000000000000'::uuid end,
             'organization_wide'
        from org, public.users as person
-      where person.email in ('${MANAGER_EMAIL}', '${VIEWER_EMAIL}')`,
+      where person.email in ('${MANAGER_EMAIL}', '${VIEWER_EMAIL}', '${NO_ACCESS_EMAIL}')`,
   );
 });
 
@@ -165,10 +176,13 @@ test("INT-S1-51: an Owner adds an endpoint, sees the secret once, sends a test e
   // Nothing registered: the screen says what to do, and that nothing has failed.
   await expect(page.getByText("No webhook endpoint yet")).toBeVisible();
   await expect(
-    page.getByText(
-      "Nothing has failed. Every delivery has arrived or is on its way.",
-    ),
+    page.getByText("Nothing has failed at this Property."),
   ).toBeVisible();
+  // And says what can be connected here, and what cannot yet: no fake providers.
+  await expect(page.getByTestId("integrations-availability")).toContainText(
+    "A webhook is the only integration available today. Channel managers, KBS reporting, e-invoicing and payment providers are not available yet.",
+  );
+  await page.screenshot({ path: path.join(AUDIT_EVIDENCE, "empty-state.png") });
 
   await page.getByRole("button", { name: "Add endpoint" }).click();
   const dialog = page.getByRole("dialog");
@@ -305,14 +319,29 @@ test("INT-S1-08: a failing endpoint is on the screen with what happened and when
   await expect(failure).toContainText("The receiver answered with an error");
   await expect(failure).toContainText("HTTP 503");
   await expect(failure).toContainText(
-    "It said: upstream unavailable please wait",
+    "Look in the receiver's logs for why it refused, then Retry.",
   );
+  // What the receiver said is there for whoever runs it, behind a disclosure.
+  await expect(
+    failure.getByText("It said: upstream unavailable please wait"),
+  ).toBeHidden();
+  await failure.getByText("Technical details").click();
+  await expect(
+    failure.getByText("It said: upstream unavailable please wait"),
+  ).toBeVisible();
   await expect(failure).toContainText("Retrying");
   await expect(failure.getByRole("cell", { name: /^1 Last / })).toBeVisible();
   await expect(card).toContainText("Failing");
   await expect(
     page.getByText(/A failed delivery is retried after 1 minute, 5 minutes/),
   ).toBeVisible();
+  // The row's commands are on screen at a laptop's width, not past a scroll.
+  await expect(
+    failure.getByRole("button", { name: "Retry", exact: true }),
+  ).toBeInViewport();
+  await expect(
+    failure.getByRole("button", { name: "Stop retrying" }),
+  ).toBeInViewport();
   await page.screenshot({ path: path.join(EVIDENCE, "failure-visible.png") });
 
   // Retry puts it back in the queue, due now. It resolves nothing by itself.
@@ -476,6 +505,271 @@ test("INT-S1-48: Mark resolved asks for a reason, records who and why, and the d
           and reason = 'Re-sent by hand from their portal'`,
     ),
   ).toBe("1");
+});
+
+test("INT-S1-71: Retry all asks first, sends every stopped delivery again, and the closed list says how each ended", async ({
+  page,
+}) => {
+  received.length = 0;
+  script.push({ status: 400, body: "bad shape" }, { status: 400 });
+
+  await signIn(page, MANAGER_EMAIL);
+  await page.goto(SCREEN);
+  const card = page.getByTestId("webhook-endpoint").filter({
+    hasText: ENDPOINT_NAME,
+  });
+
+  for (let sent = 1; sent <= 2; sent += 1) {
+    await card.getByRole("button", { name: "Send test event" }).click();
+    await expect(card.getByText(/Test event queued/)).toBeVisible();
+    const worker = startWorker({ WEBHOOK_ALLOW_LOOPBACK_HTTP: "true" });
+    await whileWorking(
+      worker,
+      expect
+        .poll(
+          () =>
+            psql(
+              `select count(*) from public.failed_operations
+                where endpoint_id = '${endpointId()}' and status = 'failed'`,
+            ),
+          { timeout: WORKER_BUDGET_MS },
+        )
+        .toBe(String(sent)),
+    );
+    await page.reload();
+  }
+
+  await expect(page.getByTestId("failed-operation")).toHaveCount(2);
+  await expect(page.getByTestId("failures-tab-open")).toHaveText("Open (2)");
+
+  // At a phone's width each failure is a block of its own: its commands are in
+  // reach and the page does not scroll sideways.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  const first = page.getByTestId("failed-operation").first();
+  await first.scrollIntoViewIfNeeded();
+  await expect(
+    first.getByRole("button", { name: "Mark resolved" }),
+  ).toBeInViewport();
+  await expect(
+    first.getByRole("button", { name: "Retry", exact: true }),
+  ).toBeInViewport();
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    ),
+    "the page scrolls sideways at 390 px",
+  ).toBe(true);
+  await first.scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: path.join(AUDIT_EVIDENCE, "phone-failures.png"),
+  });
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.reload();
+
+  // Asked first, and the consequence is named before the click.
+  await page.getByTestId("retry-all").click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("Send every stopped delivery again?");
+  await expect(dialog).toContainText("Each retry is recorded with your name.");
+  await dialog.getByRole("button", { name: "Not now" }).click();
+  expect(
+    psql(
+      `select count(*) from public.failed_operations
+        where endpoint_id = '${endpointId()}' and status = 'retrying'`,
+    ),
+  ).toBe("0");
+
+  await page.getByTestId("retry-all").click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Retry all" })
+    .click();
+  await expect(
+    page.getByText("2 stopped deliveries were sent again."),
+  ).toBeVisible();
+  expect(
+    psql(
+      `select count(*) from public.failed_operations
+        where endpoint_id = '${endpointId()}' and status = 'retrying'`,
+    ),
+  ).toBe("2");
+  expect(
+    psql(
+      `select count(*) from audit.records
+        where organization_id = '${ORGANIZATION}' and action = 'failed_operation.retried'`,
+    ),
+    "one record for each delivery put back, including the one Retry did earlier",
+  ).toBe("3");
+
+  const worker = startWorker({ WEBHOOK_ALLOW_LOOPBACK_HTTP: "true" });
+  await whileWorking(
+    worker,
+    expect
+      .poll(
+        () =>
+          psql(
+            `select count(*) from public.failed_operations
+              where endpoint_id = '${endpointId()}' and status in ('failed', 'retrying')`,
+          ),
+        { timeout: WORKER_BUDGET_MS },
+      )
+      .toBe("0"),
+  );
+
+  // Nothing is open; the closed list says when, how and why, in words.
+  await page.goto(SCREEN);
+  await expect(page.getByTestId("failures-tab-open")).toHaveText("Open (0)");
+  await expect(
+    page.getByText("Nothing has failed at this Property."),
+  ).toBeVisible();
+  await page.getByTestId("failures-tab-closed").click();
+  await expect(page).toHaveURL(/view=closed/);
+  const rows = page.getByTestId("failed-operation");
+  await expect(rows.filter({ hasText: "Cancelled · You" })).toContainText(
+    "The receiver was switched off",
+  );
+  await expect(rows.filter({ hasText: "Resolved · You" })).toContainText(
+    "Re-sent by hand from their portal",
+  );
+  await expect(
+    rows.filter({ hasText: "Resolved · Automatic" }).first(),
+  ).toContainText("It was delivered.");
+  await expect(page.getByRole("button", { name: "Retry" })).toHaveCount(0);
+  await page.screenshot({
+    path: path.join(AUDIT_EVIDENCE, "closed-failures.png"),
+  });
+});
+
+test("INT-S1-79: someone with no integrations permission is told so, and a Property without the module is told that instead", async ({
+  page,
+}) => {
+  await signIn(page, NO_ACCESS_EMAIL);
+  await page.goto(SCREEN);
+  await expect(
+    page.getByText("You do not have access to Integrations"),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/needs the integrations permission/),
+  ).toBeVisible();
+  await expect(
+    page.getByText("This module is not in your Subscription"),
+  ).toHaveCount(0);
+  await page.screenshot({
+    path: path.join(AUDIT_EVIDENCE, "no-permission.png"),
+  });
+
+  await page.context().clearCookies();
+  await signIn(page, MANAGER_EMAIL);
+  await page.goto(`/en/integrations?property=${PROPERTY_WITHOUT_THE_MODULE}`);
+  await expect(
+    page.getByText("This module is not in your Subscription"),
+  ).toBeVisible();
+  await expect(
+    page.getByText("You do not have access to Integrations"),
+  ).toHaveCount(0);
+});
+
+test("INT-S1-67: someone who can only view reads an address without its query string, and the manager reads it whole", async ({
+  page,
+}) => {
+  const token = `s3cret-${SUFFIX}`;
+  psql(
+    `update public.webhook_endpoints set url = '${receiverUrl}?token=${token}#top'
+      where id = '${endpointId()}'`,
+  );
+
+  await signIn(page, VIEWER_EMAIL);
+  await page.goto(SCREEN);
+  const card = page.getByTestId("webhook-endpoint").filter({
+    hasText: ENDPOINT_NAME,
+  });
+  await expect(card).toContainText(`${receiverUrl}?…`);
+  await expect(card).toContainText("Part of this address is hidden from you.");
+  expect(await page.content()).not.toContain(token);
+
+  await page.context().clearCookies();
+  await signIn(page, MANAGER_EMAIL);
+  await page.goto(SCREEN);
+  await expect(card).toContainText(`${receiverUrl}?token=${token}#top`);
+  await expect(card).not.toContainText("Part of this address is hidden");
+
+  psql(
+    `update public.webhook_endpoints set url = '${receiverUrl}' where id = '${endpointId()}'`,
+  );
+});
+
+test("INT-S1-74: deliveries waiting too long are shown on their endpoint, because a stopped sender leaves no failure to show", async ({
+  page,
+}) => {
+  await signIn(page, MANAGER_EMAIL);
+  await page.goto(SCREEN);
+  const card = page.getByTestId("webhook-endpoint").filter({
+    hasText: ENDPOINT_NAME,
+  });
+  await expect(card.getByTestId("endpoint-overdue")).toHaveCount(0);
+
+  await card.getByRole("button", { name: "Send test event" }).click();
+  await expect(card.getByText(/Test event queued/)).toBeVisible();
+  psql(
+    `update public.webhook_deliveries set next_attempt_at = now() - interval '7 minutes'
+      where endpoint_id = '${endpointId()}' and status = 'pending'`,
+  );
+  await page.reload();
+  await expect(card.getByTestId("endpoint-overdue")).toContainText(
+    "1 delivery has waited more than 5 minutes to be sent.",
+  );
+
+  psql(
+    `update public.webhook_deliveries set status = 'cancelled', next_attempt_at = null
+      where endpoint_id = '${endpointId()}' and status = 'pending'`,
+  );
+  await page.reload();
+  await expect(card.getByTestId("endpoint-overdue")).toHaveCount(0);
+});
+
+test("INT-S1-73: a long list of failures is a page at a time, with a way to the rest", async ({
+  page,
+}) => {
+  psql(
+    `with made as (
+       insert into public.webhook_deliveries
+         (organization_id, endpoint_id, property_id, event_id, event_type, body, status, attempts, last_failure, last_attempt_at)
+       select '${ORGANIZATION}', '${endpointId()}', '${PROPERTY}', null, 'webhook.test', '{}'::jsonb,
+              'failed', 1, 'timeout', now() - make_interval(mins => n)
+         from generate_series(1, 27) as n
+       returning id, property_id, endpoint_id, organization_id, last_attempt_at
+     )
+     insert into public.failed_operations
+       (organization_id, property_id, endpoint_id, delivery_id, integration_name, operation, error, status, attempts, last_attempt_at)
+     select organization_id, property_id, endpoint_id, id, 'Paged', 'webhook.test', 'timeout', 'failed', 1, last_attempt_at
+       from made`,
+  );
+
+  await signIn(page, MANAGER_EMAIL);
+  await page.goto(SCREEN);
+  await expect(page.getByTestId("failures-tab-open")).toHaveText("Open (27)");
+  await expect(page.getByTestId("failed-operation")).toHaveCount(25);
+  await expect(page.getByText("1–25 of 27")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Newer" })).toHaveCount(0);
+
+  await page.getByRole("link", { name: "Older" }).click();
+  await expect(page).toHaveURL(/page=2/);
+  await expect(page.getByTestId("failed-operation")).toHaveCount(2);
+  await expect(page.getByText("26–27 of 27")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Older" })).toHaveCount(0);
+
+  // A page that no longer exists is the last one there is, not an empty list.
+  await page.goto(`${SCREEN}&page=9`);
+  await expect(page.getByTestId("failed-operation")).toHaveCount(2);
+
+  psql(
+    `update public.failed_operations
+        set status = 'cancelled', next_attempt_at = null, closed_at = now(), closed_reason = 'test cleanup'
+      where endpoint_id = '${endpointId()}' and integration_name = 'Paged'`,
+  );
 });
 
 test("INT-S1-07: someone who may only view sees the endpoints and the failures and no command", async ({

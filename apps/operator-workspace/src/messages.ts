@@ -673,6 +673,7 @@ export interface Messages {
       too_many_endpoints: string;
       test_in_flight: string;
       unavailable: string;
+      reason_required: string;
     };
     failed: string;
     health: { delivering: string; failing: string; unused: string };
@@ -700,6 +701,8 @@ export interface Messages {
       attempts: string;
       nextAttempt: string;
       actions: string;
+      closed: string;
+      reason: string;
     };
     lastAttemptAt: string;
     operationStatuses: {
@@ -718,6 +721,7 @@ export interface Messages {
       blocked_address: string;
       invalid_target: string;
       redirect_refused: string;
+      source_mismatch: string;
     };
     httpStatus: string;
     receiverSaid: string;
@@ -735,6 +739,46 @@ export interface Messages {
     resolveTitle: string;
     resolveDescription: string;
     resolveConfirm: string;
+    failureAdvice: {
+      http_error: string;
+      timeout: string;
+      connection_failed: string;
+      tls_failed: string;
+      blocked_address: string;
+      invalid_target: string;
+      redirect_refused: string;
+      source_mismatch: string;
+    };
+    othersNotAvailable: string;
+    noPermissionTitle: string;
+    noPermissionDescription: string;
+    addressPartHidden: string;
+    /** ICU plural on `count`: deliveries due more than five minutes ago and not sent. */
+    overdue: string;
+    technicalDetails: string;
+    closedFailuresTitle: string;
+    closedFailuresDescription: string;
+    noClosedFailures: string;
+    /** `{count}`: how many failures are open. */
+    tabOpen: string;
+    tabClosed: string;
+    failuresViewLabel: string;
+    pagesLabel: string;
+    /** `{from}`, `{to}` and `{total}`. */
+    showing: string;
+    newer: string;
+    older: string;
+    closedByRanza: string;
+    closedByYou: string;
+    closedByColleague: string;
+    closedReasonDelivered: string;
+    closedReasonEndpointRemoved: string;
+    retryAll: string;
+    retryAllTitle: string;
+    retryAllDescription: string;
+    retryAllConfirm: string;
+    /** ICU plural on `count`. */
+    retriedAll: string;
   };
 
   /**
@@ -3173,9 +3217,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       subtitle:
         "{organization} olaylarını nereye gönderiyor ve nelerin ulaşmadığı.",
       endpointsCount: "Uç nokta",
-      deliveringCount: "İletiyor",
-      failingCount: "Hata veriyor",
-      openFailuresCount: "Açık hata",
+      deliveringCount: "İleten uç nokta",
+      failingCount: "Hata veren uç nokta",
+      openFailuresCount: "Ulaşmayan gönderim",
       endpointsTitle: "Webhook uç noktaları",
       endpointsDescription:
         "Ranza seçtiğiniz olayları, gerçekleştikçe imzalayarak bu adreslere gönderir.",
@@ -3239,6 +3283,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         too_many_endpoints: "Bir kuruluşun en fazla on uç noktası olabilir.",
         test_in_flight: "Bu uç noktaya zaten bir deneme olayı gidiyor.",
         unavailable: "Bu zaten kapatılmış ya da uç noktası kaldırılmış.",
+        reason_required: "Nedenini en az 3 karakterle yazın.",
       },
       failed: "Bu işlem yapılamadı ve bildirildi. Tekrar deneyin.",
       health: {
@@ -3266,14 +3311,15 @@ export const messages: Record<SupportedLocale, Messages> = {
       failedOperationsTitle: "Ulaşmayan gönderimler",
       failedOperationsDescription:
         "Başarısız bir gönderim 1 dakika, 5 dakika, 30 dakika, 2 saat ve 12 saat sonra yeniden denenir, sonra durur. Yeniden dene onu hemen tekrar gönderir.",
-      noFailedOperations:
-        "Hiçbir şey başarısız olmadı. Her gönderim ulaştı ya da yolda.",
+      noFailedOperations: "Bu tesiste hiçbir şey başarısız olmadı.",
       columns: {
         endpoint: "Uç nokta",
         whatHappened: "Ne oldu",
         attempts: "Deneme",
         nextAttempt: "Sonraki deneme",
         actions: "İşlemler",
+        closed: "Kapatıldı",
+        reason: "Neden",
       },
       lastAttemptAt: "Son: {when}",
       operationStatuses: {
@@ -3292,6 +3338,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         blocked_address: "Adres özel bir ağa veya bu makineye çıkıyor",
         invalid_target: "Bu adrese gönderilemez",
         redirect_refused: "Alıcı yönlendirdi; yönlendirmeler izlenmez",
+        source_mismatch:
+          "Olay, adını verdiği kayıtla uyuşmadı; bu yüzden gönderilmedi",
       },
       httpStatus: "HTTP {code}",
       receiverSaid: "Yanıtı: {excerpt}",
@@ -3314,6 +3362,53 @@ export const messages: Record<SupportedLocale, Messages> = {
       resolveDescription:
         "Gönderim başarısız kalır. Başka bir yolla halledildiğini kaydediyorsunuz.",
       resolveConfirm: "Çözüldü olarak işaretle",
+      failureAdvice: {
+        http_error:
+          "Alıcının günlüklerinde reddetme nedenine bakın, sonra Yeniden dene.",
+        timeout:
+          "Alıcı yavaş ya da kapalı. Otomatik yeniden denenir; Yeniden dene şimdi dener.",
+        connection_failed: "Alıcıya internetten ulaşılabildiğini kontrol edin.",
+        tls_failed: "Alıcının HTTPS sertifikasını düzeltin ya da yenileyin.",
+        blocked_address:
+          "Bu uç noktayı kaldırın ve herkese açık bir adresle yenisini ekleyin.",
+        invalid_target:
+          "Bu uç noktayı kaldırın ve geçerli bir https:// adresiyle yenisini ekleyin.",
+        redirect_refused: "Yönlendirdiği adresi kaydedin.",
+        source_mismatch:
+          "Yeniden denenecek bir şey yok. İnceledikten sonra çözüldü olarak işaretleyin.",
+      },
+      othersNotAvailable:
+        "Bugün kullanılabilen tek entegrasyon webhook'tur. Kanal yöneticileri, KBS bildirimi, e-fatura ve ödeme sağlayıcıları henüz kullanılamıyor.",
+      noPermissionTitle: "Entegrasyonlara erişiminiz yok",
+      noPermissionDescription:
+        "Entegrasyonlar için entegrasyon yetkisi gerekir. Kuruluşunuzda personel erişimini yöneten birinden bunu isteyin.",
+      addressPartHidden: "Bu adresin bir kısmı sizden gizlidir.",
+      overdue:
+        "{count, plural, one {# gönderim 5 dakikadan uzun süredir gönderilmeyi bekliyor. Bu sürerse gönderim durmuş olabilir.} other {# gönderim 5 dakikadan uzun süredir gönderilmeyi bekliyor. Bu sürerse gönderim durmuş olabilir.}}",
+      technicalDetails: "Teknik ayrıntılar",
+      closedFailuresTitle: "Kapatılan hatalar",
+      closedFailuresDescription:
+        "Sonunda ulaşan, bir kişi tarafından durdurulan ya da çözüldü işaretlenen hatalar. En yenisi üstte.",
+      noClosedFailures: "Bu tesiste henüz kapatılmış hata yok.",
+      tabOpen: "Açık ({count})",
+      tabClosed: "Kapatılan",
+      failuresViewLabel: "Hangi hatalar",
+      pagesLabel: "Sayfalar",
+      showing: "{from}–{to} / {total}",
+      newer: "Daha yeni",
+      older: "Daha eski",
+      closedByRanza: "Otomatik",
+      closedByYou: "Siz",
+      closedByColleague: "Bir çalışma arkadaşı",
+      closedReasonDelivered: "Gönderim ulaştı.",
+      closedReasonEndpointRemoved: "Uç nokta kaldırıldı.",
+      retryAll: "Durananların hepsini yeniden dene",
+      retryAllTitle: "Durmuş tüm gönderimler yeniden gönderilsin mi?",
+      retryAllDescription:
+        "Bu tesiste durmuş her gönderim şimdi yeniden denenir. Yeniden başarısız olanlar olağan takvimi izler. Kaydıyla uyuşmadığı için gönderilmeyen olaylara dokunulmaz. Her yeniden deneme adınızla kaydedilir.",
+      retryAllConfirm: "Hepsini yeniden dene",
+      retriedAll:
+        "{count, plural, one {# durmuş gönderim yeniden gönderildi.} other {# durmuş gönderim yeniden gönderildi.}}",
     },
     branding: {
       subtitle: "{organization} misafirlerine nasıl görünüyor",
@@ -5557,9 +5652,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       subtitle:
         "Where {organization} sends its events, and what has failed to arrive.",
       endpointsCount: "Endpoints",
-      deliveringCount: "Delivering",
-      failingCount: "Failing",
-      openFailuresCount: "Open failures",
+      deliveringCount: "Endpoints delivering",
+      failingCount: "Endpoints failing",
+      openFailuresCount: "Deliveries not arrived",
       endpointsTitle: "Webhook endpoints",
       endpointsDescription:
         "Ranza posts the events you choose to these addresses, signed, as they happen.",
@@ -5625,6 +5720,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         too_many_endpoints: "An Organization can have ten endpoints.",
         test_in_flight: "A test event is already on its way to this endpoint.",
         unavailable: "That is already closed, or its endpoint was removed.",
+        reason_required: "Say why, in at least 3 characters.",
       },
       failed: "That did not work and has been reported. Try again.",
       health: {
@@ -5652,14 +5748,15 @@ export const messages: Record<SupportedLocale, Messages> = {
       failedOperationsTitle: "Deliveries that did not arrive",
       failedOperationsDescription:
         "A failed delivery is retried after 1 minute, 5 minutes, 30 minutes, 2 hours and 12 hours, and then stops. Retry sends it again now.",
-      noFailedOperations:
-        "Nothing has failed. Every delivery has arrived or is on its way.",
+      noFailedOperations: "Nothing has failed at this Property.",
       columns: {
         endpoint: "Endpoint",
         whatHappened: "What happened",
         attempts: "Attempts",
         nextAttempt: "Next attempt",
         actions: "Actions",
+        closed: "Closed",
+        reason: "Reason",
       },
       lastAttemptAt: "Last {when}",
       operationStatuses: {
@@ -5680,6 +5777,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         invalid_target: "The address cannot be sent to",
         redirect_refused:
           "The receiver redirected, and redirects are not followed",
+        source_mismatch:
+          "The event did not match the record it named, so it was not sent",
       },
       httpStatus: "HTTP {code}",
       receiverSaid: "It said: {excerpt}",
@@ -5702,6 +5801,54 @@ export const messages: Record<SupportedLocale, Messages> = {
       resolveDescription:
         "The delivery stays failed. You are recording that it was dealt with another way.",
       resolveConfirm: "Mark resolved",
+      failureAdvice: {
+        http_error:
+          "Look in the receiver's logs for why it refused, then Retry.",
+        timeout:
+          "The receiver is slow or down. It is retried automatically; Retry tries now.",
+        connection_failed:
+          "Check that the receiver is reachable from the internet.",
+        tls_failed: "Fix or renew the receiver's HTTPS certificate.",
+        blocked_address:
+          "Remove this endpoint and add one with a public address.",
+        invalid_target:
+          "Remove this endpoint and add one with a valid https:// address.",
+        redirect_refused: "Register the address it redirects to.",
+        source_mismatch:
+          "Nothing to retry. Mark it resolved once you have looked into it.",
+      },
+      othersNotAvailable:
+        "A webhook is the only integration available today. Channel managers, KBS reporting, e-invoicing and payment providers are not available yet.",
+      noPermissionTitle: "You do not have access to Integrations",
+      noPermissionDescription:
+        "Integrations needs the integrations permission. Ask someone who manages staff access in your Organization to give you it.",
+      addressPartHidden: "Part of this address is hidden from you.",
+      overdue:
+        "{count, plural, one {# delivery has waited more than 5 minutes to be sent. If this stays, sending may have stopped.} other {# deliveries have waited more than 5 minutes to be sent. If this stays, sending may have stopped.}}",
+      technicalDetails: "Technical details",
+      closedFailuresTitle: "Closed failures",
+      closedFailuresDescription:
+        "Failures that arrived after all, were stopped by a person, or were marked resolved. Newest first.",
+      noClosedFailures: "No failure has been closed at this Property yet.",
+      tabOpen: "Open ({count})",
+      tabClosed: "Closed",
+      failuresViewLabel: "Which failures",
+      pagesLabel: "Pages",
+      showing: "{from}–{to} of {total}",
+      newer: "Newer",
+      older: "Older",
+      closedByRanza: "Automatic",
+      closedByYou: "You",
+      closedByColleague: "A colleague",
+      closedReasonDelivered: "It was delivered.",
+      closedReasonEndpointRemoved: "The endpoint was removed.",
+      retryAll: "Retry all stopped",
+      retryAllTitle: "Send every stopped delivery again?",
+      retryAllDescription:
+        "Every delivery at this Property that has stopped is tried again now. Those that fail again follow the usual schedule. Events that were not sent because they did not match their record are left as they are. Each retry is recorded with your name.",
+      retryAllConfirm: "Retry all",
+      retriedAll:
+        "{count, plural, one {# stopped delivery was sent again.} other {# stopped deliveries were sent again.}}",
     },
     branding: {
       subtitle: "How {organization} looks to its guests",
@@ -7913,9 +8060,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     integrations: {
       subtitle: "إلى أين ترسل {organization} أحداثها، وما الذي لم يصل.",
       endpointsCount: "نقاط الاستقبال",
-      deliveringCount: "تُسلِّم",
-      failingCount: "تفشل",
-      openFailuresCount: "إخفاقات مفتوحة",
+      deliveringCount: "نقاط تُسلِّم",
+      failingCount: "نقاط تفشل",
+      openFailuresCount: "عمليات إرسال لم تصل",
       endpointsTitle: "نقاط استقبال الويب هوك",
       endpointsDescription:
         "ترسل Ranza الأحداث التي تختارها إلى هذه العناوين موقَّعةً فور وقوعها.",
@@ -7979,6 +8126,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         too_many_endpoints: "يمكن للمؤسسة أن تملك عشر نقاط استقبال.",
         test_in_flight: "هناك حدث اختبار في طريقه بالفعل إلى هذه النقطة.",
         unavailable: "هذا مغلق بالفعل، أو أُزيلت نقطة استقباله.",
+        reason_required: "اذكر السبب بثلاثة أحرف على الأقل.",
       },
       failed: "لم تنجح العملية وتم الإبلاغ عنها. حاول مرة أخرى.",
       health: {
@@ -8006,13 +8154,15 @@ export const messages: Record<SupportedLocale, Messages> = {
       failedOperationsTitle: "عمليات إرسال لم تصل",
       failedOperationsDescription:
         "تُعاد محاولة الإرسال الفاشل بعد دقيقة، ثم 5 دقائق، ثم 30 دقيقة، ثم ساعتين، ثم 12 ساعة، ثم تتوقف. تعيد «إعادة المحاولة» إرساله الآن.",
-      noFailedOperations: "لم يفشل شيء. كل عملية إرسال وصلت أو في طريقها.",
+      noFailedOperations: "لم يفشل شيء في هذه المنشأة.",
       columns: {
         endpoint: "نقطة الاستقبال",
         whatHappened: "ما الذي حدث",
         attempts: "المحاولات",
         nextAttempt: "المحاولة التالية",
         actions: "الإجراءات",
+        closed: "أُغلق",
+        reason: "السبب",
       },
       lastAttemptAt: "الأخيرة: {when}",
       operationStatuses: {
@@ -8031,6 +8181,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         blocked_address: "العنوان يؤدي إلى شبكة خاصة أو إلى هذا الجهاز",
         invalid_target: "لا يمكن الإرسال إلى هذا العنوان",
         redirect_refused: "أعاد المستقبِل التوجيه، ولا تُتَّبع إعادة التوجيه",
+        source_mismatch: "لم يطابق الحدث السجل الذي ذكره، فلم يُرسل",
       },
       httpStatus: "HTTP {code}",
       receiverSaid: "ردّه: {excerpt}",
@@ -8053,6 +8204,50 @@ export const messages: Record<SupportedLocale, Messages> = {
       resolveDescription:
         "يبقى الإرسال فاشلًا. أنت تسجّل أنه عولج بطريقة أخرى.",
       resolveConfirm: "تعليم كمحلول",
+      failureAdvice: {
+        http_error: "راجع سجلات المستقبِل لمعرفة سبب الرفض، ثم أعد المحاولة.",
+        timeout:
+          "المستقبِل بطيء أو متوقف. تُعاد المحاولة تلقائيًا، و«إعادة المحاولة» تجرّب الآن.",
+        connection_failed: "تأكد أن المستقبِل متاح من الإنترنت.",
+        tls_failed: "أصلح شهادة HTTPS للمستقبِل أو جدّدها.",
+        blocked_address: "أزل نقطة الاستقبال هذه وأضف أخرى بعنوان عام.",
+        invalid_target:
+          "أزل نقطة الاستقبال هذه وأضف أخرى بعنوان https:// صالح.",
+        redirect_refused: "سجّل العنوان الذي يعيد التوجيه إليه.",
+        source_mismatch: "لا شيء لإعادته. علّمه محلولًا بعد أن تراجعه.",
+      },
+      othersNotAvailable:
+        "الويب هوك هو التكامل الوحيد المتاح اليوم. مديرو القنوات والإبلاغ عبر KBS والفوترة الإلكترونية ومزوّدو الدفع غير متاحين بعد.",
+      noPermissionTitle: "ليست لديك صلاحية الوصول إلى التكاملات",
+      noPermissionDescription:
+        "تتطلب التكاملات صلاحية التكاملات. اطلبها ممن يدير صلاحيات الموظفين في مؤسستك.",
+      addressPartHidden: "جزء من هذا العنوان مخفي عنك.",
+      overdue:
+        "{count, plural, one {عملية إرسال واحدة تنتظر أكثر من 5 دقائق. إن استمر ذلك فقد يكون الإرسال توقف.} two {عمليتا إرسال تنتظران أكثر من 5 دقائق. إن استمر ذلك فقد يكون الإرسال توقف.} few {# عمليات إرسال تنتظر أكثر من 5 دقائق. إن استمر ذلك فقد يكون الإرسال توقف.} many {# عملية إرسال تنتظر أكثر من 5 دقائق. إن استمر ذلك فقد يكون الإرسال توقف.} other {# عملية إرسال تنتظر أكثر من 5 دقائق. إن استمر ذلك فقد يكون الإرسال توقف.}}",
+      technicalDetails: "تفاصيل تقنية",
+      closedFailuresTitle: "إخفاقات مغلقة",
+      closedFailuresDescription:
+        "إخفاقات وصلت في النهاية أو أوقفها شخص أو عُلِّمت كمحلولة. الأحدث أولًا.",
+      noClosedFailures: "لم يُغلق أي إخفاق في هذه المنشأة بعد.",
+      tabOpen: "مفتوحة ({count})",
+      tabClosed: "مغلقة",
+      failuresViewLabel: "أي الإخفاقات",
+      pagesLabel: "الصفحات",
+      showing: "{from}–{to} من {total}",
+      newer: "الأحدث",
+      older: "الأقدم",
+      closedByRanza: "تلقائيًا",
+      closedByYou: "أنت",
+      closedByColleague: "زميل",
+      closedReasonDelivered: "وصل الإرسال.",
+      closedReasonEndpointRemoved: "أُزيلت نقطة الاستقبال.",
+      retryAll: "إعادة محاولة كل ما توقف",
+      retryAllTitle: "إعادة إرسال كل ما توقف؟",
+      retryAllDescription:
+        "تُعاد الآن محاولة كل عملية إرسال متوقفة في هذه المنشأة. ما يفشل مجددًا يتبع الجدول المعتاد. والأحداث التي لم تُرسل لأنها لم تطابق سجلها تُترك كما هي. تُسجَّل كل إعادة باسمك.",
+      retryAllConfirm: "إعادة محاولة الكل",
+      retriedAll:
+        "{count, plural, zero {لم تُرسل أي عملية متوقفة.} one {أُعيد إرسال عملية متوقفة واحدة.} two {أُعيد إرسال عمليتين متوقفتين.} few {أُعيد إرسال # عمليات متوقفة.} many {أُعيد إرسال # عملية متوقفة.} other {أُعيد إرسال # عملية متوقفة.}}",
     },
     branding: {
       subtitle: "كيف تظهر {organization} لضيوفها",
