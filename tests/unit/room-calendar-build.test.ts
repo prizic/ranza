@@ -393,7 +393,11 @@ describe("rows", () => {
       row({
         bars: [
           bar({ reference: "RES-0042", expectedArrival: "15:30" }),
-          stay({ startsOn: addDays(TODAY, 4), endsOn: addDays(TODAY, 6) }),
+          stay({
+            startsOn: addDays(TODAY, 4),
+            endsOn: addDays(TODAY, 6),
+            reference: "RES-0099",
+          }),
         ],
       }),
     ]);
@@ -403,7 +407,9 @@ describe("rows", () => {
       reference: "RES-0042",
       expectedArrival: "15:30",
     });
-    expect(inHouse).not.toHaveProperty("reference");
+    // A Stay names its booking too (ROOMCAL-09), though it has no arrival time.
+    expect(inHouse).toMatchObject({ kind: "stay", reference: "RES-0099" });
+    expect(inHouse).not.toHaveProperty("expectedArrival");
   });
 
   it("RC-S1-49: a Stay with no Folio has no balance, never zero", () => {
