@@ -137,9 +137,10 @@ test("on a phone Today leads with the task and never scrolls sideways", async ({
     .filter({ hasText: "In house" });
   await expect(movements).toBeVisible();
   const top = async (locator: Locator) => (await locator.boundingBox())!.y;
-  // What needs somebody, then the list, then the figures (blueprint 18.8).
-  expect(await top(attention)).toBeLessThan(await top(movements));
-  expect(await top(movements)).toBeLessThan(await top(tile));
+  // What needs somebody, then the figures that say how the day is going, then
+  // the list: a figure 2,900 px down the page is not a figure.
+  expect(await top(attention)).toBeLessThan(await top(tile));
+  expect(await top(tile)).toBeLessThan(await top(movements));
   // Two across: the first two figures share a row.
   expect(Math.abs((await top(tile)) - (await top(occupancy)))).toBeLessThan(2);
 
@@ -361,7 +362,7 @@ test.describe("every number on Today opens the list that explains it", () => {
     await openToday(page);
     const movements = page.getByRole("region", { name: "Today's movements" });
     await expect(
-      movements.getByRole("button", { name: `Arrivals · ${arrivals.toCome}` }),
+      movements.getByRole("tab", { name: `Arrivals · ${arrivals.toCome}` }),
     ).toBeVisible();
     await follow(
       page,
@@ -379,15 +380,19 @@ test.describe("every number on Today opens the list that explains it", () => {
     await openToday(page);
     const { departures } = day.expected;
 
-    // "Checked out 1 / 3, 1 overdue": three still to go (one overdue) in the
-    // list, and the one who has gone in the list under it.
+    // "Checked out 1 / 3, 1 to leave, overdue 1 day": three still to go (one
+    // overdue) in the list, and the one who has gone in the list under it.
     const tile = figure(page, "departures", "Checked out");
     const text = await tile.innerText();
     expect(integers(text)).toEqual([
       departures.departed,
       departures.due,
       departures.overdue,
+      departures.overdueDays,
     ]);
+    expect(text).toContain(
+      `${departures.overdue} to leave, overdue ${departures.overdueDays} day`,
+    );
     await follow(page, tile);
     expect(await listed(page)).toBe(
       departures.due - departures.departed + departures.overdue,
@@ -407,7 +412,7 @@ test.describe("every number on Today opens the list that explains it", () => {
     const movements = page.getByRole("region", { name: "Today's movements" });
     const stillHere = departures.due - departures.departed + departures.overdue;
     await movements
-      .getByRole("button", { name: `Departures · ${stillHere}` })
+      .getByRole("tab", { name: `Departures · ${stillHere}` })
       .click();
     await follow(
       page,
@@ -449,7 +454,9 @@ test.describe("every number on Today opens the list that explains it", () => {
 
     const card = page.getByRole("region", { name: "Rooms", exact: true });
     const kinds = [
-      { row: "Ready", filter: "ready", expected: 2 },
+      // 101 and 103 are inspected, and 103 has a Guest in it: only 101 is a
+      // room a Guest can be put in tonight.
+      { row: "Ready", filter: "ready", expected: 1 },
       { row: "Clean, awaiting inspection", filter: "awaiting", expected: 5 },
       { row: "Dirty", filter: "dirty", expected: 2 },
       { row: "Out of service", filter: "out", expected: 2 },
@@ -466,10 +473,10 @@ test.describe("every number on Today opens the list that explains it", () => {
     // The ready-rooms figure: ready of the rooms in service.
     await openToday(page);
     const ready = figure(page, "housekeeping", "Ready rooms");
-    expect(integers(await ready.innerText()).slice(0, 2)).toEqual([2, 9]);
+    expect(integers(await ready.innerText()).slice(0, 2)).toEqual([1, 9]);
     await follow(page, ready);
     expect(await listed(page)).toBe(9);
-    expect((await notice(page)).text).toContain("2 ready");
+    expect((await notice(page)).text).toContain("1 ready");
     await capture(page, "housekeeping-in-service");
 
     // By floor: each floor's rooms, and how many of them are ready.
@@ -569,7 +576,7 @@ test.describe("every number on Today opens the list that explains it", () => {
     }
     await openToday(page);
     const ready = figure(page, "housekeeping", "Ready rooms");
-    expect(integers(await ready.innerText()).slice(0, 2)).toEqual([2, 9]);
+    expect(integers(await ready.innerText()).slice(0, 2)).toEqual([1, 9]);
 
     // The clean-first queue: its count and the link under it are the same rooms.
     await openToday(page);
@@ -844,7 +851,7 @@ test.describe("every number on Today opens the list that explains it", () => {
         name: "Check in",
       }),
     ).toBeVisible();
-    await page.getByRole("button", { name: /^Departures/ }).click();
+    await page.getByRole("tab", { name: /^Departures/ }).click();
     await expect(movementRow(page, day.guest.owing)).toBeVisible();
     await expect(
       movementRow(page, day.guest.owing).getByRole("button"),
@@ -862,7 +869,7 @@ test.describe("every number on Today opens the list that explains it", () => {
     await expect(
       movementRow(page, day.guest.ready).getByRole("link"),
     ).toHaveCount(1);
-    await page.getByRole("button", { name: /^Departures/ }).click();
+    await page.getByRole("tab", { name: /^Departures/ }).click();
     await expect(
       movementRow(page, day.guest.owing).getByRole("button", {
         name: CHECK_OUT,
@@ -961,7 +968,7 @@ test.describe("every number on Today opens the list that explains it", () => {
   }) => {
     await signInAs(page, "front_desk");
     await openToday(page);
-    await page.getByRole("button", { name: /^Departures/ }).click();
+    await page.getByRole("tab", { name: /^Departures/ }).click();
     const departedBefore = integers(
       await figure(page, "departures", "Checked out").innerText(),
     )[0]!;

@@ -39,6 +39,13 @@ const KIND: Record<
   out_of_service: { icon: Wrench, tone: "neutral", label: "outOfService" },
 };
 
+const NOT_READY = {
+  dirty: "notReadyDirty",
+  awaiting_inspection: "notReadyAwaitingInspection",
+  occupied: "notReadyOccupied",
+  unknown: "notReadyDetail",
+} as const;
+
 const BLOCKER = {
   not_confirmed: "blockerNotConfirmed",
   unit_blocked: "blockerUnitBlocked",
@@ -53,6 +60,7 @@ export function AttentionQueue({
   locale,
   propertyId,
   roomsBoard,
+  mayMark,
 }: {
   complete: boolean;
   currency: string;
@@ -61,6 +69,8 @@ export function AttentionQueue({
   propertyId: string;
   /** Whether the housekeeping board is open to the viewer here. */
   roomsBoard: boolean;
+  /** Whether the viewer may mark rooms there: the one tap that readies one. */
+  mayMark: boolean;
 }) {
   const t = useTranslations("dashboard");
   const [expanded, setExpanded] = useState(false);
@@ -94,12 +104,15 @@ export function AttentionQueue({
   function detail(item: AttentionItem): string | null {
     switch (item.kind) {
       case "not_ready":
-        return t("notReadyDetail");
+        return t(NOT_READY[item.notReady ?? "unknown"]);
       case "blocked":
         return item.blocker ? t(BLOCKER[item.blocker]) : t("blocked");
       case "overdue":
         return item.dueOn
-          ? t("overdueDetail", { date: shortDay(item.dueOn, locale) })
+          ? t("overdueDetail", {
+              days: item.overdueDays ?? 0,
+              date: shortDay(item.dueOn, locale),
+            })
           : t("overdue");
       case "balance":
         return t("leavesOwingDetail", {
@@ -126,11 +139,14 @@ export function AttentionQueue({
     }
     switch (item.kind) {
       case "not_ready":
-        // Somebody whose work is the room, not the Guest, is sent to the
-        // board where the room is marked (the item names no Guest for them).
-        if (roomsBoard && item.guestName === null) {
+        // Somebody who may mark the room goes to the board, where one tap
+        // readies it for the arrival; the desk without that permission goes
+        // to the arrivals, where the Guest is.
+        if (roomsBoard && (mayMark || item.guestName === null)) {
           return {
-            href: todayHref(locale, "housekeeping", propertyId),
+            href: todayHref(locale, "housekeeping", propertyId, {
+              show: "for_arrival",
+            }),
             label: t("openBoard"),
           };
         }

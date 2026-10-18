@@ -14,10 +14,16 @@ import type {
   RoomCalendar,
 } from "@ranza/reservations";
 import type { UnitCounts, UnitMap } from "@ranza/accommodation";
+import { displayName } from "./display-name";
 import {
+  availableUnits,
+  expectedTonight,
+  holdsTonight,
   inRoomFilter,
   isOwing,
   isToCome,
+  leavesTonight,
+  overdueDays,
   totals,
   type Money,
   type RoomFilter,
@@ -85,6 +91,8 @@ export interface DepartureRow {
   unit: UnitLabel;
   endsOn: string | null;
   overdue: boolean;
+  /** Whole days past the planned departure, on the Property's clock; 0 when not overdue. */
+  overdueDays: number;
   /** Whether the viewer holds front_desk.check_out (TD-S2-02, TD-S2-04). */
   mayCheckOut: boolean;
   /** Present only for a viewer holding finance.manage_folio. */
@@ -107,13 +115,20 @@ export interface DeparturesCard {
   due: number;
   departed: number;
   overdue: number;
+  /** How long the longest-overdue Guest has been past their date; 0 with none. */
+  longestOverdueDays: number;
   rows: readonly DepartureRow[];
 }
 
 export interface OccupancyCard {
   sellable: number;
+  /** Sellable, less those blocked or out of service: what tonight is counted of. */
+  available: number;
   inHouse: number;
-  /** In house, less departures still due, plus arrivals still to come. */
+  /**
+   * Rooms held tonight, of `available`: in house, less the Guests who leave
+   * today (an overdue Guest does not), plus the arrivals that hold a room.
+   */
   expectedTonight: number;
 }
 
@@ -195,8 +210,13 @@ export interface ActivityRow {
   action: string;
   subjectType: string;
   actorId: string;
-  /** The person's name as the log names them; null when it cannot. */
+  /**
+   * The person as a colleague would say it: the log's name for them, less the
+   * domain of an address, as the greeting does. Null when the log has none.
+   */
   actor: string | null;
+  /** What the record is about, named as the log names it: a Guest and room, a person. */
+  subject: string | null;
   /** When it happened, as an ISO instant. */
   at: string;
   /** The clock the time is read on: its own Property's. */
@@ -242,6 +262,13 @@ export interface AttentionRequest {
   equipmentName: string | null;
 }
 
+/**
+ * Why an arrival's room is not ready, as far as the housekeeping board says:
+ * not cleaned yet, cleaned and waiting for somebody to inspect it, or still
+ * holding the Guest who is in it. Null when the board was not read.
+ */
+export type NotReadyReason = "dirty" | "awaiting_inspection" | "occupied";
+
 export interface AttentionItem {
   kind: AttentionKind;
   /** Null only for an urgent repair to equipment that is in no room. */
@@ -255,6 +282,10 @@ export interface AttentionItem {
    * was due back, for a hold past its return.
    */
   dueOn: string | null;
+  /** Whole days an overdue Guest is past their date, on the Property's clock. */
+  overdueDays?: number;
+  /** For a room that is not ready: why, when the board says. */
+  notReady?: NotReadyReason;
   balance?: Money;
   folioId?: string;
   request?: AttentionRequest;
@@ -430,7 +461,11 @@ function arrivalState(arrival: Arrival): ArrivalState {
   return arrival.unitIsReady ? "ready" : "not_ready";
 }
 
-function departureRow(departure: Departure, money: boolean): DepartureRow {
+function departureRow(
+  departure: Departure,
+  money: boolean,
+  businessDate: string,
+): DepartureRow {
   return {
     stayId: departure.stayId,
     reference: departure.reference,
@@ -438,6 +473,9 @@ function departureRow(departure: Departure, money: boolean): DepartureRow {
     unit: unitOf(departure),
     endsOn: departure.endsOn,
     overdue: departure.overdue,
+    overdueDays: departure.overdue
+      ? overdueDays(departure.endsOn, businessDate)
+      : 0,
     mayCheckOut: departure.mayCheckOut,
     ...(money
       ? {
@@ -466,12 +504,15 @@ export function occupancyFrom(
   arrivals: readonly Arrival[],
   departures: readonly Departure[],
 ): OccupancyCard {
-  const toCome = arrivals.filter(isToCome).length;
-  const expected = counts.inHouse + toCome - departures.length;
   return {
     sellable: counts.sellable,
+    available: availableUnits(counts),
     inHouse: counts.inHouse,
-    expectedTonight: Math.min(counts.sellable, Math.max(0, expected)),
+    expectedTonight: expectedTonight(
+      counts,
+      arrivals.filter(holdsTonight).length,
+      departures.filter(leavesTonight).length,
+    ),
   };
 }
 
@@ -600,6 +641,7 @@ export function roomsFrom(
 export function moneyFrom(
   departures: readonly Departure[] | null,
   folios: readonly FolioSummary[],
+  businessDate: string,
 ): MoneyCard {
   const open = folios.filter((folio) => folio.status === "open");
   const balanceOf = (row: { balanceMinor: number; currency: string }) => ({
@@ -636,7 +678,7 @@ export function moneyFrom(
           b.balanceMinor - a.balanceMinor,
       )
       .slice(0, LIST_LIMIT)
-      .map((row) => departureRow(row, true)),
+      .map((row) => departureRow(row, true, businessDate)),
   };
   return card;
 }
@@ -644,8 +686,21 @@ export function moneyFrom(
 /** How many of the newest records Today shows (TD-S3-01). */
 export const ACTIVITY_LIMIT = 5;
 
+/**
+ * How far back Today looks for them: from the start of yesterday. "Latest"
+ * with no floor shows five records of any age, which on a quiet week is last
+ * week's news presented as this morning's.
+ */
+export const ACTIVITY_WINDOW_DAYS = 1;
+
 /** How many nights ahead the booked line covers (TD-S3-04). */
 export const BOOKED_AHEAD_NIGHTS = 14;
+
+/** A name from the log, with an address cut to the part before the @. */
+function readable(label: string | undefined): string | null {
+  if (label === undefined) return null;
+  return label.includes("@") ? displayName(null, label) : label;
+}
 
 export function activityFrom(page: AuditPage): ActivityCard {
   return {
@@ -654,7 +709,8 @@ export function activityFrom(page: AuditPage): ActivityCard {
       action: entry.action,
       subjectType: entry.subjectType,
       actorId: entry.actorId,
-      actor: page.labels[entry.actorId] ?? null,
+      actor: readable(page.labels[entry.actorId]),
+      subject: readable(page.labels[entry.subjectId]),
       at: entry.occurredAt.toISOString(),
       timeZone: entry.timeZone,
       propertyName: entry.propertyName,
@@ -679,6 +735,18 @@ export function bookedAheadFrom(calendar: RoomCalendar): BookedAheadCard {
       inUse: night.booked + night.free,
     })),
   };
+}
+
+function notReadyReason(
+  board: HousekeepingBoard | null,
+  arrival: Arrival,
+): NotReadyReason | null {
+  const room = board?.rooms.find(
+    (candidate) => candidate.name === roomNameOf(arrival),
+  );
+  if (!room) return null;
+  if (room.inHouse) return "occupied";
+  return room.status === "dirty" ? "dirty" : "awaiting_inspection";
 }
 
 const ATTENTION_ORDER: Record<AttentionKind, number> = {
@@ -804,6 +872,7 @@ export function attentionFrom(
   arrivals: readonly Arrival[],
   departures: readonly Departure[],
   units: UnitMap | null,
+  board: HousekeepingBoard | null,
   maintenance: TodayMaintenance | null,
   businessDate: string,
 ): AttentionItem[] {
@@ -816,6 +885,13 @@ export function attentionFrom(
     blocker: null,
     dueOn: null,
   };
+  // The clean-first queue already says, with its own action, which rooms a
+  // housekeeper has to turn round for an arrival; saying it twice is noise.
+  const queued = new Set(
+    !desk && board
+      ? cleanFirst(board, arrivals, departures).map((row) => row.name)
+      : [],
+  );
 
   for (const arrival of arrivals) {
     if (arrival.status === "checked_in") continue;
@@ -828,13 +904,19 @@ export function attentionFrom(
         reference: arrival.reference,
         blocker: arrival.checkInBlocker,
       });
-    } else if (rooms && !arrival.unitIsReady) {
+    } else if (
+      rooms &&
+      !arrival.unitIsReady &&
+      !queued.has(roomNameOf(arrival))
+    ) {
+      const reason = notReadyReason(board, arrival);
       items.push({
         ...base,
         kind: "not_ready",
         unit: unitOf(arrival),
         guestName: desk ? arrival.guestName : null,
         reference: desk ? arrival.reference : null,
+        ...(reason ? { notReady: reason } : {}),
       });
     }
   }
@@ -858,6 +940,7 @@ export function attentionFrom(
         guestName: departure.guestName,
         reference: departure.reference,
         dueOn: departure.endsOn,
+        overdueDays: overdueDays(departure.endsOn, businessDate),
         ...balance,
       });
     } else if (owing) {
@@ -954,6 +1037,7 @@ export function deriveToday(input: TodayInput): TodaySummary {
         arrivals,
         departures,
         units,
+        valueOf<HousekeepingBoard | null>(input.board, null),
         valueOf<TodayMaintenance | null>(input.maintenance, null),
         input.day.businessDate,
       ),
@@ -1000,7 +1084,15 @@ export function deriveToday(input: TodayInput): TodaySummary {
       due: departed + rows.length - overdue,
       departed,
       overdue,
-      rows: rows.slice(0, LIST_LIMIT).map((row) => departureRow(row, money)),
+      longestOverdueDays: Math.max(
+        0,
+        ...rows
+          .filter((row) => row.overdue)
+          .map((row) => overdueDays(row.endsOn, input.day.businessDate)),
+      ),
+      rows: rows
+        .slice(0, LIST_LIMIT)
+        .map((row) => departureRow(row, money, input.day.businessDate)),
     };
   });
   if (departuresCard && focus !== "housekeeping" && focus !== "finance") {
@@ -1037,6 +1129,7 @@ export function deriveToday(input: TodayInput): TodaySummary {
             data: moneyFrom(
               input.departures === undefined ? null : departures,
               valueOf(input.folios, []),
+              input.day.businessDate,
             ),
           };
   }

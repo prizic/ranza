@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowRight, type LucideIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "@ranza/ui";
 
 /**
@@ -35,7 +36,7 @@ export function StatTile({
   return (
     <Link
       className={cn(
-        "group flex min-h-40 flex-col rounded-[2rem] border border-slate-100 bg-card p-5 transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-slate-200 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+        "group flex min-h-32 flex-col rounded-[2rem] border border-slate-100 bg-card p-5 sm:min-h-40 transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-slate-200 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
         stale && "opacity-70",
       )}
       href={href}
@@ -89,12 +90,19 @@ export function StatTile({
   );
 }
 
-/** The numeral and a smaller "of" after it: 7 / 18. */
+/**
+ * The numeral and a smaller "of" after it: 7 / 18. The separator is a word in
+ * Arabic, where a slash between two numerals reads in either order.
+ */
 export function OfTotal({ of, value }: { of: string; value: string }) {
+  const t = useTranslations("dashboard");
   return (
     <>
       {value}
-      <span className="text-xl text-muted-foreground"> / {of}</span>
+      <span className="text-xl text-muted-foreground">
+        {" "}
+        {t("ofSeparator")} {of}
+      </span>
     </>
   );
 }

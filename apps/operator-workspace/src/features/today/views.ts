@@ -85,6 +85,92 @@ export function isToCome(arrival: Pick<Arrival, "status">): boolean {
   return arrival.status !== "checked_in";
 }
 
+/**
+ * A Guest who gives up their room at the close of this day: due out today and
+ * still here. An overdue Guest does not: they are still in the room, and ADR
+ * 0033 says an in-house Stay holds its Unit until somebody checks it out, so
+ * their room is occupied tonight (RANZ-51).
+ */
+export function leavesTonight(departure: Pick<Departure, "overdue">): boolean {
+  return !departure.overdue;
+}
+
+/**
+ * Whether an arrival still to come puts a Guest in a room of its own tonight,
+ * by the nights a booking holds. A request nobody confirmed holds nothing, a
+ * blocked or out-of-service Unit is not counted at all, and a Guest who stays
+ * on in the room (overdue, or leaving a later day) already holds it: those are
+ * one room, not two (ADR 0033). An occupant who leaves today hands the room
+ * to the arrival.
+ */
+export function holdsTonight(
+  arrival: Pick<Arrival, "status" | "checkInBlocker" | "occupantLeaves">,
+): boolean {
+  if (!isToCome(arrival) || arrival.status === "requested") return false;
+  switch (arrival.checkInBlocker) {
+    case null:
+      return true;
+    case "unit_occupied":
+      return arrival.occupantLeaves === "today";
+    case "not_confirmed":
+    case "unit_blocked":
+    case "unit_out_of_service":
+      return false;
+  }
+}
+
+/**
+ * The Units that can be let at all: not blocked, not out of service. The room
+ * calendar's nights are counted against exactly these, so a percentage of
+ * tonight means the same thing on both screens (RANZ-52).
+ */
+export function availableUnits(counts: {
+  sellable: number;
+  blocked: number;
+  outOfService: number;
+}): number {
+  return Math.max(0, counts.sellable - counts.blocked - counts.outOfService);
+}
+
+/**
+ * The Units held tonight, once the day is over: those in house, less the
+ * Guests who go today, plus the arrivals that put a Guest in a room of their
+ * own. The room calendar's first night counts the same rooms from its bars;
+ * an integration test holds the two to each other (RANZ-52).
+ */
+export function expectedTonight(
+  counts: {
+    sellable: number;
+    blocked: number;
+    outOfService: number;
+    inHouse: number;
+  },
+  arriving: number,
+  leaving: number,
+): number {
+  return Math.min(
+    availableUnits(counts),
+    Math.max(0, counts.inHouse + arriving - leaving),
+  );
+}
+
+/**
+ * Whole days a Guest is past their planned departure, counted on the
+ * Property's own business date; 0 on the day itself or before it.
+ */
+export function overdueDays(
+  endsOn: string | null,
+  businessDate: string,
+): number {
+  if (endsOn === null) return 0;
+  const days = Math.round(
+    (Date.parse(`${businessDate}T00:00:00Z`) -
+      Date.parse(`${endsOn}T00:00:00Z`)) /
+      86_400_000,
+  );
+  return Math.max(0, days);
+}
+
 /** A Guest leaving with something owing, as the departures list shows it. */
 export function isOwing(departure: Pick<Departure, "balanceMinor">): boolean {
   return departure.balanceMinor > 0;
@@ -121,11 +207,13 @@ export function inFolioFilter(
 /**
  * The room readiness the board's own columns say, for the filters that need no
  * other list. A room out of service is in none of them but `out_of_service`:
- * nobody cleans or lets it (TD-S1-17).
+ * nobody cleans or lets it (TD-S1-17). Ready means a Guest can be put in the
+ * room tonight, so housekeeping calling it ready is not enough: nobody may be
+ * in it (RANZ-57).
  */
 export function inRoomFilter(
   filter: Exclude<RoomFilter, "for_arrival" | "clean_first">,
-  room: Pick<HousekeepingRoom, "outOfService" | "ready" | "status">,
+  room: Pick<HousekeepingRoom, "inHouse" | "outOfService" | "ready" | "status">,
 ): boolean {
   if (filter === "out_of_service") return room.outOfService;
   if (room.outOfService) return false;
@@ -133,7 +221,7 @@ export function inRoomFilter(
     case "in_service":
       return true;
     case "ready":
-      return room.ready;
+      return room.ready && !room.inHouse;
     case "awaiting_inspection":
       return room.status === "clean" && !room.ready;
     case "dirty":

@@ -46,9 +46,12 @@ import {
   type TodayInput,
 } from "../../apps/operator-workspace/src/server/today-derive";
 import {
+  holdsTonight,
   inArrivalFilter,
   inDepartureFilter,
+  inRoomFilter,
   isToCome,
+  overdueDays,
   parseArrivalFilter,
   parseDepartureFilter,
   parseFloorFilter,
@@ -453,7 +456,12 @@ describe("the figures", () => {
         [arrival({}), arrival({ status: "checked_in" })],
         [departure({})],
       ),
-    ).toEqual({ sellable: 10, inHouse: 6, expectedTonight: 6 });
+    ).toEqual({
+      sellable: 10,
+      available: 10,
+      inHouse: 6,
+      expectedTonight: 6,
+    });
     expect(
       occupancyFrom(
         { ...COUNTS, inHouse: 9 },
@@ -467,7 +475,12 @@ describe("the figures", () => {
         [],
         [departure({})],
       ),
-    ).toEqual({ sellable: 0, inHouse: 0, expectedTonight: 0 });
+    ).toEqual({
+      sellable: 0,
+      available: 0,
+      inHouse: 0,
+      expectedTonight: 0,
+    });
   });
 
   it("the_day_is_the_property_business_date", () => {
@@ -1470,5 +1483,188 @@ describe("the greeting", () => {
       "deniz",
     );
     expect(displayName(null, "deniz@example.test")).toBe("deniz");
+  });
+});
+
+describe("the day, as the UX audit found it", () => {
+  const overdueGuest = departure({
+    stayId: "overdue",
+    overdue: true,
+    endsOn: "2026-09-15",
+    unitName: "102",
+  });
+
+  it("an_overdue_guest_still_holds_their_room_tonight", () => {
+    // One Guest in house, and they are ten days late: nobody is leaving, so
+    // the room is held tonight, as the room calendar's bar says it is.
+    const counts = { ...COUNTS, inHouse: 1 };
+    expect(occupancyFrom(counts, [], [overdueGuest]).expectedTonight).toBe(1);
+    // A Guest due out today does leave, and the overdue one still does not.
+    expect(
+      occupancyFrom(
+        { ...counts, inHouse: 2 },
+        [],
+        [overdueGuest, departure({ stayId: "today" })],
+      ).expectedTonight,
+    ).toBe(1);
+  });
+
+  it("tonight_is_counted_of_the_rooms_that_can_be_let", () => {
+    const counts = { ...COUNTS, sellable: 11, blocked: 1, outOfService: 1 };
+    const card = occupancyFrom(counts, [], []);
+    expect(card.available).toBe(9);
+    // Never more rooms held than there are rooms to hold.
+    expect(
+      occupancyFrom({ ...counts, inHouse: 11 }, [], []).expectedTonight,
+    ).toBe(9);
+  });
+
+  it("an_arrival_holds_a_room_only_when_a_booking_there_holds_nights", () => {
+    const holds = (overrides: Partial<Arrival>) =>
+      holdsTonight(arrival(overrides));
+    expect(holds({})).toBe(true);
+    expect(holds({ status: "checked_in" })).toBe(false);
+    expect(
+      holds({ status: "requested", checkInBlocker: "not_confirmed" }),
+    ).toBe(false);
+    expect(holds({ checkInBlocker: "unit_blocked" })).toBe(false);
+    expect(holds({ checkInBlocker: "unit_out_of_service" })).toBe(false);
+    // Somebody stays on in the room: one room, not two.
+    expect(
+      holds({ checkInBlocker: "unit_occupied", occupantLeaves: "overdue" }),
+    ).toBe(false);
+    expect(
+      holds({ checkInBlocker: "unit_occupied", occupantLeaves: "later" }),
+    ).toBe(false);
+    // The occupant goes today and hands the room over.
+    expect(
+      holds({ checkInBlocker: "unit_occupied", occupantLeaves: "today" }),
+    ).toBe(true);
+  });
+
+  it("ready_means_a_guest_can_be_put_in_the_room_tonight", () => {
+    const occupied = room({ unitId: "occupied", ready: true, inHouse: true });
+    const vacant = room({ unitId: "vacant", ready: true });
+    expect(inRoomFilter("ready", occupied)).toBe(false);
+    expect(inRoomFilter("ready", vacant)).toBe(true);
+    const card = roomsFrom(board([occupied, vacant]), [], []);
+    expect(card.ready).toBe(1);
+    expect(card.floors[0]).toMatchObject({ ready: 1, total: 2 });
+    expect(
+      roomsInFilter("ready", board([occupied, vacant]), [], []).map(
+        (found) => found.unitId,
+      ),
+    ).toEqual(["vacant"]);
+  });
+
+  it("an_overdue_departure_says_how_many_days_late_on_the_property_clock", () => {
+    expect(overdueDays("2026-09-15", "2026-09-25")).toBe(10);
+    expect(overdueDays("2026-09-25", "2026-09-25")).toBe(0);
+    expect(overdueDays(null, "2026-09-25")).toBe(0);
+    const summary = deriveToday(
+      input(FRONT_DESK, {
+        departures: ok([
+          overdueGuest,
+          departure({ stayId: "late", overdue: true, endsOn: "2026-09-23" }),
+        ]),
+      }),
+    );
+    expect(summary.departures).toMatchObject({
+      data: {
+        overdue: 2,
+        longestOverdueDays: 10,
+        rows: [{ overdueDays: 10 }, { overdueDays: 2 }],
+      },
+    });
+    expect(
+      summary.attention.items.filter((item) => item.kind === "overdue"),
+    ).toMatchObject([{ overdueDays: 10 }, { overdueDays: 2 }]);
+  });
+
+  it("a_room_not_ready_says_why_from_the_board", () => {
+    const reasonOf = (rooms: HousekeepingRoom[]) =>
+      deriveToday(
+        input(FRONT_DESK, {
+          arrivals: ok([arrival({ unitIsReady: false })]),
+          board: ok(board(rooms)),
+        }),
+      ).attention.items.find((item) => item.kind === "not_ready")?.notReady;
+    expect(
+      reasonOf([room({ name: "204", status: "dirty", ready: false })]),
+    ).toBe("dirty");
+    expect(
+      reasonOf([room({ name: "204", status: "clean", ready: false })]),
+    ).toBe("awaiting_inspection");
+    expect(
+      reasonOf([room({ name: "204", status: "dirty", inHouse: true })]),
+    ).toBe("occupied");
+    // The board was not read for this viewer: no reason is invented.
+    expect(reasonOf([])).toBeUndefined();
+  });
+
+  it("housekeeping_is_not_told_twice_about_a_room_the_clean_first_queue_lists", () => {
+    const rooms = [room({ name: "204", status: "dirty", ready: false })];
+    const summary = deriveToday(
+      input(HOUSEKEEPING, {
+        arrivals: ok([arrival({ unitIsReady: false })]),
+        board: ok(board(rooms)),
+      }),
+    );
+    expect(
+      summary.rooms?.status === "ok" && summary.rooms.data.cleanFirstTotal,
+    ).toBe(1);
+    expect(
+      summary.attention.items.filter((item) => item.kind === "not_ready"),
+    ).toEqual([]);
+    // A desk that cannot mark rooms has no queue, and keeps the warning.
+    expect(
+      deriveToday(
+        input(FRONT_DESK, {
+          arrivals: ok([arrival({ unitIsReady: false })]),
+          board: ok(board(rooms)),
+        }),
+      ).attention.items.map((item) => item.kind),
+    ).toContain("not_ready");
+  });
+
+  it("recent_activity_is_read_from_yesterday_and_names_what_it_is_about", async () => {
+    const entry = auditPage([{ id: "rec-0" }], {
+      "actor-1": "albaraa@prizic.com",
+      "s-1": "Ahmed · 102",
+    });
+    const read = vi.fn(async () => entry);
+    const reads = {
+      workingDay: vi.fn(async () => day(MANAGER)),
+      arrivals: vi.fn(async () => []),
+      departures: vi.fn(async () => []),
+      departedToday: vi.fn(async () => 0),
+      units: vi.fn(async () => map()),
+      board: vi.fn(async () => board([])),
+      folios: vi.fn(async () => []),
+      maintenance: vi.fn(async () => maintenance()),
+      activity: read,
+      charges: vi.fn(async () => []),
+      calendar: vi.fn(async () => calendarOf([])),
+    } satisfies TodayReads;
+    const summary = await readTodaySummary(
+      reads,
+      "p",
+      {
+        frontDesk: { moduleKey: "front_office", capabilityKey: "front_desk" },
+        housekeeping: {
+          moduleKey: "housekeeping",
+          capabilityKey: "housekeeping",
+        },
+        billing: { moduleKey: "billing_folios", capabilityKey: "finance" },
+        maintenance: { moduleKey: "maintenance", capabilityKey: "maintenance" },
+      },
+      vi.fn(),
+    );
+    // The business date is 2026-09-25: from the start of the day before.
+    expect(read).toHaveBeenCalledWith("p", "2026-09-24");
+    // A colleague, not an address; and the Guest and room it concerned.
+    expect(summary?.activity).toMatchObject({
+      data: { rows: [{ actor: "albaraa", subject: "Ahmed · 102" }] },
+    });
   });
 });

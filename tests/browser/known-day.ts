@@ -80,7 +80,13 @@ export interface KnownDay {
       notReady: number;
       blocked: number;
     };
-    departures: { due: number; departed: number; overdue: number };
+    departures: {
+      due: number;
+      departed: number;
+      overdue: number;
+      /** Days the overdue Guest is past their date. */
+      overdueDays: number;
+    };
     owing: { guests: number; overdueGuests: number };
     openFolios: number;
   };
@@ -393,7 +399,7 @@ export async function aKnownDay(
         notReady: 1,
         blocked: 1,
       },
-      departures: { due: 3, departed: 1, overdue: 1 },
+      departures: { due: 3, departed: 1, overdue: 1, overdueDays: 1 },
       owing: { guests: 2, overdueGuests: 1 },
       openFolios: 4,
     },

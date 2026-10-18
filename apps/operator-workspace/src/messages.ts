@@ -1313,6 +1313,9 @@ export interface Messages {
     attentionMore: string;
     notReady: string;
     notReadyDetail: string;
+    notReadyDirty: string;
+    notReadyAwaitingInspection: string;
+    notReadyOccupied: string;
     blocked: string;
     blockerNotConfirmed: string;
     blockerUnitBlocked: string;
@@ -1320,6 +1323,7 @@ export interface Messages {
     blockerUnitOccupied: string;
     overdue: string;
     overdueDetail: string;
+    overdueLabel: string;
     leavesOwing: string;
     leavesOwingDetail: string;
     outOfService: string;
@@ -1344,10 +1348,12 @@ export interface Messages {
     checkedIn: string;
     departures: string;
     checkedOut: string;
-    overdueCount: string;
+    leaveOverdue: string;
     occupancy: string;
     inHouseOf: string;
     expectedTonight: string;
+    /** Between a figure and the whole it is of: 3 / 9, or 3 من 9 where a slash reads either way. */
+    ofSeparator: string;
     noUnits: string;
     roomsReadyForArrivals: string;
     roomsNotReadyYet: string;
@@ -1355,6 +1361,7 @@ export interface Messages {
     awaitingInspection: string;
     readyRooms: string;
     arrivalsWaiting: string;
+    arrivalRooms: string;
     owedOnDepartures: string;
     guests: string;
     openFolios: string;
@@ -2990,13 +2997,18 @@ export const messages: Record<SupportedLocale, Messages> = {
       attentionMore: "{count, plural, one {# tane daha} other {# tane daha}}",
       notReady: "Oda hazır değil",
       notReadyDetail: "Bugün geliş var; oda henüz hazır değil.",
+      notReadyDirty: "Bugün geliş var; oda henüz temizlenmedi.",
+      notReadyAwaitingInspection:
+        "Bugün geliş var; oda temiz, kontrol bekliyor.",
+      notReadyOccupied: "Bugün geliş var; odada hâlâ biri var.",
       blocked: "Giriş yapılamaz",
       blockerNotConfirmed: "Rezervasyon henüz onaylanmadı.",
       blockerUnitBlocked: "Birim satışa kapalı.",
       blockerUnitOutOfService: "Birim hizmet dışı.",
       blockerUnitOccupied: "Birimde hâlâ bir konuk var.",
       overdue: "Gecikmiş çıkış",
-      overdueDetail: "{date} tarihinde ayrılacaktı.",
+      overdueDetail: "{days} gün gecikmiş · {date} tarihinde ayrılacaktı.",
+      overdueLabel: "Gecikmiş · {days} gün",
       leavesOwing: "Bakiyeyle ayrılıyor",
       leavesOwingDetail: "Bugün ayrılıyor · bakiye {balance}",
       outOfService: "Hizmet dışı",
@@ -3021,10 +3033,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       checkedIn: "Giriş yapıldı",
       departures: "Çıkışlar",
       checkedOut: "Çıkış yapıldı",
-      overdueCount: "{count, plural, one {# gecikmiş} other {# gecikmiş}}",
+      leaveOverdue:
+        "{count, plural, one {# kişi ayrılmadı, {days} gün gecikmiş} other {# kişi ayrılmadı, en uzun {days} gün gecikmiş}}",
       occupancy: "Doluluk",
       inHouseOf: "Konaklayan · {count} / {of}",
-      expectedTonight: "Bu gece beklenen {value}",
+      expectedTonight: "Bu gece beklenen {count} / {of} uygun oda ({value})",
+      ofSeparator: "/",
       noUnits: "Kiralanacak birim yok",
       roomsReadyForArrivals: "Bekleyen gelişe hazır oda",
       roomsNotReadyYet:
@@ -3033,6 +3047,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       awaitingInspection: "Kontrol bekliyor",
       readyRooms: "Hazır oda",
       arrivalsWaiting: "Oda bekleyen geliş",
+      arrivalRooms: "Geliş odaları",
       owedOnDepartures: "Bugün ayrılanlarda bakiye",
       guests: "{count, plural, one {# misafir} other {# misafir}}",
       openFolios: "Açık folyo",
@@ -3110,7 +3125,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       filterReadyCount: "{count, plural, one {# hazır} other {# hazır}}",
       roomOccupiedNoMark: "İçinde misafir var; ayrılınca temizlenir.",
       activityTitle: "Son hareketler",
-      activityEmpty: "Henüz bir kayıt yok.",
+      activityEmpty: "Dünden bu yana kayıt yok.",
       openAuditLog: "Denetim kaydını aç",
       chargesTitle: "Bugünkü ücretler",
       chargesNote: "Bugün işlenen ücretler, iadeler düşülmüş",
@@ -5419,13 +5434,19 @@ export const messages: Record<SupportedLocale, Messages> = {
       attentionMore: "{count, plural, one {# more} other {# more}}",
       notReady: "Room not ready",
       notReadyDetail: "Arriving today; the room is not ready yet.",
+      notReadyDirty: "Arriving today; the room has not been cleaned yet.",
+      notReadyAwaitingInspection:
+        "Arriving today; the room is clean and waiting for inspection.",
+      notReadyOccupied: "Arriving today; someone is still in the room.",
       blocked: "Can't check in",
       blockerNotConfirmed: "The booking is not confirmed yet.",
       blockerUnitBlocked: "The unit is blocked.",
       blockerUnitOutOfService: "The unit is out of service.",
       blockerUnitOccupied: "Someone is still in the unit.",
       overdue: "Overdue departure",
-      overdueDetail: "Was due to leave on {date}.",
+      overdueDetail:
+        "{days, plural, one {# day} other {# days}} overdue · was due to leave on {date}.",
+      overdueLabel: "Overdue · {days, plural, one {# day} other {# days}}",
       leavesOwing: "Leaving with a balance",
       leavesOwingDetail: "Leaves today · balance {balance}",
       outOfService: "Out of service",
@@ -5450,10 +5471,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       checkedIn: "Checked in",
       departures: "Departures",
       checkedOut: "Checked out",
-      overdueCount: "{count, plural, one {# overdue} other {# overdue}}",
+      leaveOverdue:
+        "{count, plural, one {# to leave, overdue {days, plural, one {# day} other {# days}}} other {# to leave, longest overdue {days, plural, one {# day} other {# days}}}}",
       occupancy: "Occupancy",
       inHouseOf: "In house · {count} / {of}",
-      expectedTonight: "Expected tonight {value}",
+      expectedTonight:
+        "Expected tonight {count} / {of} available rooms ({value})",
+      ofSeparator: "/",
       noUnits: "No units to let",
       roomsReadyForArrivals: "Rooms ready for waiting arrivals",
       roomsNotReadyYet:
@@ -5462,6 +5486,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       awaitingInspection: "Awaiting inspection",
       readyRooms: "Ready rooms",
       arrivalsWaiting: "Arrivals waiting on a room",
+      arrivalRooms: "Arrival rooms",
       owedOnDepartures: "Balance on today's departures",
       guests: "{count, plural, one {# Guest} other {# Guests}}",
       openFolios: "Open Folios",
@@ -5543,7 +5568,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       roomOccupiedNoMark:
         "A Guest is still in it; it is cleaned once they leave.",
       activityTitle: "Recent activity",
-      activityEmpty: "Nothing has been recorded yet.",
+      activityEmpty: "Nothing recorded since yesterday.",
       openAuditLog: "Open the audit log",
       chargesTitle: "Charges today",
       chargesNote: "Charges less reversals posted today",
@@ -7831,13 +7856,19 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{count, plural, zero {# أخرى} one {واحدة أخرى} two {اثنتان أخريان} few {# أخرى} many {# أخرى} other {# أخرى}}",
       notReady: "الغرفة غير جاهزة",
       notReadyDetail: "وصول اليوم؛ الغرفة ليست جاهزة بعد.",
+      notReadyDirty: "وصول اليوم؛ لم تُنظَّف الغرفة بعد.",
+      notReadyAwaitingInspection: "وصول اليوم؛ الغرفة نظيفة وتنتظر الفحص.",
+      notReadyOccupied: "وصول اليوم؛ ما زال أحدهم في الغرفة.",
       blocked: "لا يمكن تسجيل الدخول",
       blockerNotConfirmed: "الحجز غير مؤكد بعد.",
       blockerUnitBlocked: "الوحدة محجوبة.",
       blockerUnitOutOfService: "الوحدة خارج الخدمة.",
       blockerUnitOccupied: "ما زال أحدهم في الوحدة.",
       overdue: "مغادرة متأخرة",
-      overdueDetail: "كان موعد مغادرته {date}.",
+      overdueDetail:
+        "متأخر {days, plural, zero {# يوم} one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}} · كان موعد مغادرته {date}.",
+      overdueLabel:
+        "متأخر · {days, plural, zero {# يوم} one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}",
       leavesOwing: "يغادر برصيد",
       leavesOwingDetail: "يغادر اليوم · الرصيد {balance}",
       outOfService: "خارج الخدمة",
@@ -7862,11 +7893,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       checkedIn: "تم تسجيل الدخول",
       departures: "المغادرة",
       checkedOut: "تم تسجيل الخروج",
-      overdueCount:
-        "{count, plural, zero {لا متأخر} one {متأخر واحد} two {متأخران} few {# متأخرين} many {# متأخرًا} other {# متأخر}}",
+      leaveOverdue:
+        "{count, plural, one {مغادرة واحدة متأخرة منذ {days, plural, zero {# يوم} one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}} two {مغادرتان متأخرتان، الأطول منذ {days, plural, zero {# يوم} one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}} few {# مغادرات متأخرة، الأطول منذ {days, plural, zero {# يوم} one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}} many {# مغادرة متأخرة، الأطول منذ {days, plural, zero {# يوم} one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}} other {# مغادرة متأخرة، الأطول منذ {days, plural, zero {# يوم} one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}}}",
       occupancy: "الإشغال",
       inHouseOf: "المقيمون · {count} / {of}",
-      expectedTonight: "المتوقع الليلة {value}",
+      expectedTonight: "المتوقع الليلة {count} من {of} غرفة متاحة ({value})",
+      ofSeparator: "من",
       noUnits: "لا وحدات للتأجير",
       roomsReadyForArrivals: "غرف جاهزة للقادمين",
       roomsNotReadyYet:
@@ -7875,6 +7907,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       awaitingInspection: "بانتظار الفحص",
       readyRooms: "غرف جاهزة",
       arrivalsWaiting: "قادمون بانتظار غرفة",
+      arrivalRooms: "غرف الوصول",
       owedOnDepartures: "رصيد مغادري اليوم",
       guests:
         "{count, plural, zero {لا ضيوف} one {ضيف واحد} two {ضيفان} few {# ضيوف} many {# ضيفًا} other {# ضيف}}",
@@ -7915,7 +7948,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       awaiting: "نظيفة، بانتظار الفحص",
       dirty: "متسخة",
       roomsByFloor: "الغرف الجاهزة حسب الطابق",
-      floorReady: "{count} / {of}",
+      floorReady: "{count} من {of}",
       owing: "يغادرون برصيد",
       largestBalances: "أعلى الأرصدة المفتوحة",
       allFolios: "كل الفواتير",
@@ -7958,7 +7991,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{count, plural, zero {لا جاهزة} one {واحدة جاهزة} two {اثنتان جاهزتان} few {# جاهزة} many {# جاهزة} other {# جاهزة}}",
       roomOccupiedNoMark: "ما زال فيها ضيف؛ تُنظَّف بعد مغادرته.",
       activityTitle: "آخر النشاط",
-      activityEmpty: "لم يُسجَّل شيء بعد.",
+      activityEmpty: "لا شيء مسجَّل منذ أمس.",
       openAuditLog: "افتح سجل التدقيق",
       chargesTitle: "رسوم اليوم",
       chargesNote: "الرسوم المسجّلة اليوم بعد خصم عكوسها",

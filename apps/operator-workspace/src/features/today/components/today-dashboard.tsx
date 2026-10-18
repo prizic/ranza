@@ -1,7 +1,12 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useRef, type ReactNode } from "react";
+import { onlineManager, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useCallback,
+  useRef,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import {
   BedDouble,
   Clock,
@@ -100,6 +105,14 @@ export function TodayDashboard({
   if (summary && !query.isError && !partlyStale) {
     lastComplete.current = query.dataUpdatedAt;
   }
+  // A refresh the browser holds back while it is offline is not failing, so
+  // nothing reports it; but the figures on screen are going stale all the same.
+  const online = useSyncExternalStore(
+    onlineManager.subscribe.bind(onlineManager),
+    () => onlineManager.isOnline(),
+    () => true,
+  );
+  const paused = !online || query.fetchStatus === "paused";
   // Stable, because a row's command calls it from an effect that runs when
   // its own outcome lands and must not run again for a new function.
   const refetch = query.refetch;
@@ -130,7 +143,7 @@ export function TodayDashboard({
         locale={locale}
         mayBook={summary.mayBook}
         name={name}
-        stale={query.isError || partlyStale}
+        stale={query.isError || partlyStale || paused}
       />
 
       {summary.focus === "none" || noCards ? (
@@ -145,14 +158,18 @@ export function TodayDashboard({
             items={summary.attention.items}
             locale={locale}
             propertyId={propertyId}
+            mayMark={
+              summary.rooms?.status === "ok" && summary.rooms.data.mayMark
+            }
             roomsBoard={summary.rooms !== undefined}
           />
-          {/* A phone leads with the task, so the list comes before the
-              figures there and after them from md (blueprint 18.8). */}
-          <div className="order-3 md:order-2">
+          {/* The four figures answer "how is the day" and sit straight under
+              what needs somebody, on a phone as on a desk: the movements list
+              is long, and a figure 2,900 px down is not a figure. */}
+          <div className="order-2">
             <Tiles locale={locale} onRetry={retry} summary={summary} />
           </div>
-          <div className="order-2 md:order-3">
+          <div className="order-3">
             <MainRow
               locale={locale}
               onChanged={retry}
@@ -246,7 +263,14 @@ function Tiles({
           progress={{ done: data.due ? data.departed / data.due : 0 }}
           stale={stale}
           sub={
-            data.overdue > 0 ? t("overdueCount", { count: data.overdue }) : null
+            data.overdue > 0 ? (
+              <span className="font-medium text-danger">
+                {t("leaveOverdue", {
+                  count: data.overdue,
+                  days: data.longestOverdueDays,
+                })}
+              </span>
+            ) : null
           }
         >
           <OfTotal of={n(data.due)} value={n(data.departed)} />
@@ -259,7 +283,7 @@ function Tiles({
     <Tile key="occupancy" onRetry={onRetry} section={summary.occupancy}>
       {(data, stale) => {
         const now = percent(data.inHouse, data.sellable, locale);
-        const tonight = percent(data.expectedTonight, data.sellable, locale);
+        const tonight = percent(data.expectedTonight, data.available, locale);
         return (
           <StatTile
             accent
@@ -286,7 +310,13 @@ function Tiles({
             }
             stale={stale}
             sub={
-              tonight === null ? null : t("expectedTonight", { value: tonight })
+              tonight === null
+                ? null
+                : t("expectedTonight", {
+                    count: n(data.expectedTonight),
+                    of: n(data.available),
+                    value: tonight,
+                  })
             }
           >
             {now ?? "—"}
@@ -311,7 +341,7 @@ function Tiles({
               href={href("arrivals", { show: "to_come" })}
               icon={Sparkles}
               label={t("roomsReadyForArrivals")}
-              opens={t("arrivals")}
+              opens={t("arrivalRooms")}
               stale={stale}
               sub={
                 notReady > 0 ? t("roomsNotReadyYet", { count: notReady }) : null
@@ -379,7 +409,7 @@ function Tiles({
                 href={href("housekeeping", { show: "for_arrival" })}
                 icon={LogIn}
                 label={t("arrivalsWaiting")}
-                opens={t("rooms")}
+                opens={t("arrivalRooms")}
                 stale={stale}
               >
                 {n(rooms.arrivalsWaiting)}

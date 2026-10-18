@@ -127,6 +127,7 @@ function frontDesk(overrides: Partial<TodaySummary> = {}): TodaySummary {
         due: 12,
         departed: 9,
         overdue: 1,
+        longestOverdueDays: 3,
         rows: [
           {
             stayId: "s-1",
@@ -135,6 +136,7 @@ function frontDesk(overrides: Partial<TodaySummary> = {}): TodaySummary {
             unit: { unitName: "118", roomName: null },
             endsOn: "2026-09-25",
             overdue: false,
+            overdueDays: 0,
             balance: { amountMinor: 184_000, currency: "TRY" },
             folioId: "f-1",
           },
@@ -143,7 +145,7 @@ function frontDesk(overrides: Partial<TodaySummary> = {}): TodaySummary {
     },
     occupancy: {
       status: "ok",
-      data: { sellable: 96, inHouse: 79, expectedTonight: 85 },
+      data: { sellable: 96, available: 96, inHouse: 79, expectedTonight: 85 },
     },
     rooms: ROOMS,
     attention: {
@@ -224,7 +226,9 @@ describe("the front desk", () => {
     expect(screen.getByText("Selin")).toBeInTheDocument();
     expect(screen.getByText("Giriş yapıldı")).toBeInTheDocument();
     expect(screen.getByText("Çıkış yapıldı")).toBeInTheDocument();
-    expect(screen.getByText("1 gecikmiş")).toBeInTheDocument();
+    expect(
+      screen.getByText("1 kişi ayrılmadı, 3 gün gecikmiş"),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /Yeni rezervasyon/ }),
     ).toBeInTheDocument();
@@ -241,7 +245,7 @@ describe("the front desk", () => {
 
   it("a balance is shown in the Property's currency", () => {
     view(frontDesk());
-    fireEvent.click(screen.getByRole("button", { name: /Çıkışlar/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /Çıkışlar/ }));
     expect(screen.getByText(/1\.840/)).toBeInTheDocument();
   });
 });
@@ -252,7 +256,7 @@ describe("housekeeping", () => {
     const section = screen.getByRole("region", { name: /Dikkat gerekiyor/ });
     expect(within(section).getByRole("link")).toHaveAttribute(
       "href",
-      `/tr/housekeeping?property=${PROPERTY}`,
+      `/tr/housekeeping?property=${PROPERTY}&show=for_arrival`,
     );
   });
 
@@ -323,11 +327,33 @@ describe("where attention leads", () => {
         .getAllByRole("link")
         .map((link) => link.getAttribute("href")),
     ).toEqual([
-      at("arrivals"),
+      // A desk that may mark rooms goes where one tap readies the room.
+      at("housekeeping", "&show=for_arrival"),
       at("arrivals"),
       at("departures"),
       at("finance", "&folio=f-1"),
     ]);
+  });
+
+  it("a desk that may not mark rooms is sent to the arrival, where the Guest is", () => {
+    const summary = frontDesk({
+      attention: { items: [item({ kind: "not_ready" })], complete: true },
+    });
+    view(
+      {
+        ...summary,
+        rooms: summary.rooms && {
+          status: "ok",
+          data: { ...ROOMS.data, mayMark: false },
+        },
+      },
+      "en",
+    );
+    expect(
+      within(screen.getByRole("region", { name: /Needs attention/ })).getByRole(
+        "link",
+      ),
+    ).toHaveAttribute("href", `/en/arrivals?property=${PROPERTY}`);
   });
 
   it("out of service opens the board where there is one, and Rooms where not", () => {
@@ -547,7 +573,7 @@ describe("every locale", () => {
       // Intl separates with non-breaking spaces; the words are what matter.
       const text = () => (container.textContent ?? "").replace(/\s/g, " ");
       expect(text()).toContain(date);
-      fireEvent.click(screen.getAllByRole("button", { pressed: false })[0]!);
+      fireEvent.click(screen.getAllByRole("tab", { selected: false })[0]!);
       expect(text()).toContain(amount);
     },
   );
@@ -644,5 +670,120 @@ describe("maintenance", () => {
       expect.anything(),
     );
     expect(screen.getByText("Checked in")).toBeInTheDocument();
+  });
+});
+
+describe("the day, as the UX audit found it", () => {
+  afterEach(() => {
+    window.dispatchEvent(new Event("online"));
+  });
+
+  it("a_tab_gone_offline_says_its_figures_are_old_like_a_failed_refresh", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    view(frontDesk(), "en");
+    expect(screen.getByRole("status")).toHaveTextContent(/^Updated/);
+    await act(async () => {
+      window.dispatchEvent(new Event("offline"));
+      await vi.advanceTimersByTimeAsync(REFRESH_MS + 10);
+    });
+    // Nothing failed: the browser is holding the refresh back. The figures are
+    // going stale all the same.
+    expect(screen.getByRole("status")).toHaveTextContent(/Couldn't refresh/);
+  });
+
+  it("the_overdue_guest_is_a_number_of_days_on_the_tile_the_row_and_the_card", () => {
+    const summary = frontDesk();
+    view(
+      {
+        ...summary,
+        departures: summary.departures && {
+          status: "ok",
+          data: {
+            ...(summary.departures.status === "ok"
+              ? summary.departures.data
+              : { due: 0, departed: 0, overdue: 0, rows: [] }),
+            longestOverdueDays: 10,
+            rows: [
+              {
+                stayId: "s-late",
+                reference: "RZ-3",
+                guestName: "Jonas Weber",
+                unit: { unitName: "311", roomName: null },
+                endsOn: "2026-09-15",
+                overdue: true,
+                overdueDays: 10,
+                mayCheckOut: false,
+              },
+            ],
+          },
+        },
+        attention: {
+          items: [
+            item({
+              kind: "overdue",
+              dueOn: "2026-09-15",
+              overdueDays: 10,
+              unit: { unitName: "311", roomName: null },
+              guestName: "Jonas Weber",
+            }),
+          ],
+          complete: true,
+        },
+      },
+      "en",
+    );
+    expect(screen.getByText("1 to leave, overdue 10 days")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: /Departures/ }));
+    expect(screen.getByText("Overdue · 10 days")).toBeInTheDocument();
+    expect(
+      screen.getByText(/10 days overdue · was due to leave on Sep 15/),
+    ).toBeInTheDocument();
+  });
+
+  it("tonight_says_of_how_many_rooms_it_is_counted", () => {
+    view(
+      frontDesk({
+        occupancy: {
+          status: "ok",
+          data: { sellable: 11, available: 9, inHouse: 4, expectedTonight: 5 },
+        },
+      }),
+      "en",
+    );
+    expect(
+      screen.getByText("Expected tonight 5 / 9 available rooms (56%)"),
+    ).toBeInTheDocument();
+  });
+
+  it("movements_are_tabs_and_the_arrow_keys_move_between_them", () => {
+    view(frontDesk(), "en");
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs).toHaveLength(2);
+    expect(screen.getByRole("tablist")).toBeInTheDocument();
+    expect(tabs[0]).toHaveAttribute("aria-selected", "true");
+    expect(tabs[1]).toHaveAttribute("aria-selected", "false");
+    // Only the selected tab is in the tab order; the arrows reach the other.
+    expect(tabs[0]).toHaveAttribute("tabindex", "0");
+    expect(tabs[1]).toHaveAttribute("tabindex", "-1");
+    fireEvent.keyDown(tabs[0]!, { key: "ArrowRight" });
+    expect(tabs[1]).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tabpanel")).toHaveAccessibleName(/Departures/);
+  });
+
+  it("a_fraction_is_a_word_in_arabic_where_a_slash_reads_either_way", () => {
+    const { container } = view(frontDesk(), "ar");
+    expect(container.textContent).toMatch(/7\s*من\s*18/);
+    cleanup();
+    const english = view(frontDesk(), "en");
+    expect(english.container.textContent).toMatch(/7\s*\/\s*18/);
+  });
+
+  it("the_time_zone_is_named_not_spelled_as_its_identifier", () => {
+    const { container } = view(frontDesk(), "en");
+    expect(container.textContent).not.toContain("Europe/Istanbul");
+    expect(container.textContent).not.toContain("EUROPE/ISTANBUL");
+    expect(screen.getByTitle("Europe/Istanbul")).toHaveTextContent(
+      /Turkey|T[üu]rkiye/i,
+    );
   });
 });
