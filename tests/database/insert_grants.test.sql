@@ -527,8 +527,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  83,
-  'the definer sweep looked at 83 functions; change this number deliberately');
+  85,
+  'the definer sweep looked at 85 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -593,6 +593,14 @@ select is(
 -- and send_webhook_test() with reach to the whole Organization, and
 -- retry_failed_operation() and cancel_failed_operation() with reach to the
 -- failure's Property. resolve_failed_operation() asks the same.
+-- The review of the webhook added two readers to 20260916011200, and neither
+-- writes. app.webhook_event_source() reads the reservation, stay or folio line an
+-- outbox event names, whatever the worker's absent policies would show, because
+-- what is sent is built from that row and not from the event's payload; only
+-- app.enqueue_webhook_deliveries() calls it. app.webhook_endpoint_urls() hands
+-- back each endpoint's address in full to someone who manages endpoints and cut
+-- at the query string to anyone else, the column itself having no grant, and asks
+-- the same gates as the read policy before it answers.
 -- Data export (20260916010100) brought two lists for the worker,
 -- export_schedules_due() and pending_data_exports(), neither of which writes.
 -- Its second half (20260916010710) brought thirteen, and the worker is how every
@@ -668,6 +676,7 @@ select set_eq(
         'record_webhook_attempt', 'create_webhook_endpoint',
         'remove_webhook_endpoint', 'send_webhook_test',
         'retry_failed_operation', 'cancel_failed_operation',
+        'webhook_event_source', 'webhook_endpoint_urls',
         'export_schedules_due', 'pending_data_exports',
         'stalled_data_exports', 'expired_data_exports', 'claim_data_export',
         'export_guests', 'export_reservations', 'export_units',
@@ -677,7 +686,7 @@ select set_eq(
         'post_folio_line_to_ledger', 'change_expected_arrival',
         'hr_employee_is_reachable', 'hr_employee_is_manageable', 'hr_today',
         'resident_organization_ids'],
-  'and they are exactly the eighty-three the design gives a reason for');
+  'and they are exactly the eighty-five the design gives a reason for');
 
 -- ---------------------------------------------------------------------------
 -- Who asks the three-gate question (IG-14)
