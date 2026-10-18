@@ -54,16 +54,22 @@ export function SidebarProvider({
   const [collapsed, setCollapsedState] = useState(defaultCollapsed);
 
   useEffect(() => {
-    const narrow = window.matchMedia(`(max-width: ${collapseBelow - 1}px)`);
+    // Not every environment can say how wide the window is; a test renders
+    // the sidebar as the person left it, or open.
+    const narrow =
+      typeof window.matchMedia === "function"
+        ? window.matchMedia(`(max-width: ${collapseBelow - 1}px)`)
+        : null;
     // The person's own choice wins at every width. Without one, the width
     // decides, and turning a tablet to landscape opens the sidebar again.
     const settle = () =>
       setCollapsedState(
-        storedChoice(storageKey) ?? (narrow.matches || defaultCollapsed),
+        storedChoice(storageKey) ??
+          (narrow?.matches === true || defaultCollapsed),
       );
     settle();
-    narrow.addEventListener("change", settle);
-    return () => narrow.removeEventListener("change", settle);
+    narrow?.addEventListener("change", settle);
+    return () => narrow?.removeEventListener("change", settle);
   }, [collapseBelow, defaultCollapsed, storageKey]);
 
   const setCollapsed = (value: boolean) => {

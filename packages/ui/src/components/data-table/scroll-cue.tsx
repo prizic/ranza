@@ -49,14 +49,19 @@ export function ScrollCue({
 
     measure();
     scroller.addEventListener("scroll", measure, { passive: true });
-    const observer = new ResizeObserver(measure);
-    observer.observe(scroller);
+    // Every browser has one; a test environment may not, and then the cue is
+    // read once on mount and on scrolling, which is all it can know.
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(measure);
+    observer?.observe(scroller);
     if (scroller.firstElementChild) {
-      observer.observe(scroller.firstElementChild);
+      observer?.observe(scroller.firstElementChild);
     }
     return () => {
       scroller.removeEventListener("scroll", measure);
-      observer.disconnect();
+      observer?.disconnect();
     };
   }, []);
 

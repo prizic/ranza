@@ -7,15 +7,22 @@ export interface OverlayLabels {
   close: string;
 }
 
-const OverlayLabelsContext = createContext<OverlayLabels | null>(null);
+/**
+ * What a tree with no provider says: English, which is wrong on any other
+ * page. Every route of the Workspace sits under the provider in its root
+ * layout, so this is for a component rendered alone — a test, a sandbox.
+ */
+const WITHOUT_PROVIDER: OverlayLabels = { close: "Close" };
+
+const OverlayLabelsContext = createContext<OverlayLabels>(WITHOUT_PROVIDER);
 
 /**
  * The words a dialog or a sheet carries of its own, supplied once by the host.
  *
  * They cannot be a prop on every `DialogContent`: there are dozens, and the one
- * the close control sits in is the one a screen never writes. They cannot be
- * defaulted either — an English fallback is English on an Arabic page, which is
- * what a screen reader announced on every dialog until this existed.
+ * the close control sits in is the one a screen never writes. A fixed English
+ * word was English on an Arabic page, which is what a screen reader announced
+ * on every dialog until this existed.
  */
 export function OverlayLabelsProvider({
   children,
@@ -32,11 +39,5 @@ export function OverlayLabelsProvider({
 }
 
 export function useOverlayLabels(): OverlayLabels {
-  const labels = useContext(OverlayLabelsContext);
-  if (!labels) {
-    throw new Error(
-      "A dialog or sheet was rendered outside an OverlayLabelsProvider.",
-    );
-  }
-  return labels;
+  return useContext(OverlayLabelsContext);
 }
