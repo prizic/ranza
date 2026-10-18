@@ -11,6 +11,7 @@
  *   an overdue departure counted as leaving tonight          tonight_is_one_number
  *   a booking in a blocked Unit counted as held              tonight_is_one_number
  *   a room with somebody in it counted as ready              ready_is_vacant
+ *   the activity read without its floor                      activity_starts_from_yesterday
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -282,6 +283,35 @@ describe("tonight, on Today and on the room calendar", () => {
         status: "ok",
         data: { overdue: 1, longestOverdueDays: 10 },
       });
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "activity_starts_from_yesterday: a record from last week is not what happened today",
+    async () => {
+      const record = (daysAgo: number, action: string) =>
+        owner.$executeRawUnsafe(
+          `insert into audit.records
+             (organization_id, location_id, actor_id, action, subject_type,
+              subject_id, occurred_at)
+           values ($1::uuid, $2::uuid, $3::uuid, $4, 'reservation',
+                   gen_random_uuid(), now() - ($5 || ' days')::interval)`,
+          ORG,
+          PROPERTY,
+          MANAGER,
+          action,
+          String(daysAgo),
+        );
+      await record(5, "reservation.cancelled");
+      await record(0, "reservation.checked_in");
+
+      const summary = await today();
+      expect(summary?.activity?.status).toBe("ok");
+      if (summary?.activity?.status !== "ok") return;
+      const actions = summary.activity.data.rows.map((row) => row.action);
+      expect(actions).toContain("reservation.checked_in");
+      expect(actions).not.toContain("reservation.cancelled");
     },
     DATABASE_BUDGET_MS,
   );

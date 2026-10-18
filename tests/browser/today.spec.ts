@@ -778,6 +778,9 @@ test.describe("every number on Today opens the list that explains it", () => {
     /^\d{1,2}:\d{2}/,
     /\d{4}$/,
     /^Updated \d/,
+    // Between midnight and the cutoff, the sentence that says the working day is
+    // still yesterday's and when the Property moves on (TD-S1-09).
+    /^It is .+ on the clock; the Property moves to the new day at \d/,
     // How many items the "Needs attention" row below it holds; each one is a link.
     /^\d+$/,
   ];
