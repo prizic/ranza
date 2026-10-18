@@ -598,6 +598,7 @@ export interface Messages {
   /** Another kind of Unit: the old price and the new, per night. */
   changeBookingPriceChanges: string;
   changeBookingPriceNone: string;
+  changeBookingAlreadyUnpriced: string;
   changeBookingNote: string;
   changeBookingNoteHint: string;
   saveChange: string;
@@ -611,6 +612,7 @@ export interface Messages {
   /** Changing an in-house Guest's departure (amend-booking slice 2). */
   changeDeparture: string;
   changeDepartureSummary: string;
+  changeDepartureOverdue: string;
   extendUnpricedWarning: string;
   /** Extra nights, charged at the booking's own price as each one closes. */
   changeDepartureLonger: string;
@@ -3281,6 +3283,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeBookingPriceChanges: "Gecelik {from} → {to}",
     changeBookingPriceNone:
       "{type} için fiyat yok: rezervasyon fiyatsız kalır.",
+    changeBookingAlreadyUnpriced:
+      "{type} için fiyat tanımlı değil; bu rezervasyon zaten fiyatsız.",
     changeBookingNote: "Not (isteğe bağlı)",
     changeBookingNoteHint: "Değişiklik geçmişinde ve denetim kaydında görünür.",
     saveChange: "Değişikliği kaydet",
@@ -3294,6 +3298,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeDeparture: "Çıkışı değiştir",
     changeDepartureSummary:
       "Konaklamayı uzatın ya da kısaltın. Misafirin ek geceleri rezervasyonun kendi fiyatından ücretlendirilir; bugün ayrılmak bir çıkıştır.",
+    changeDepartureOverdue:
+      "Bu misafir {date} tarihinden beri {count, plural, one {# gün} other {# gün}} gecikmiş durumda. Şimdi ayrılacakları günü seçin; o günden bu yana geçen geceler rezervasyonun fiyatıyla kapanışta ya da çıkışta ücretlendirilir.",
     extendUnpricedWarning:
       "Bu rezervasyonun fiyatı yok; bu yüzden eklenen geceler ücretlendirilmez.",
     changeDepartureLonger:
@@ -6145,6 +6151,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeBookingPriceChanges: "{from} → {to} a night",
     changeBookingPriceNone:
       "{type} has no price: the booking will be unpriced.",
+    changeBookingAlreadyUnpriced:
+      "No rate is set for {type}; this booking is already unpriced.",
     changeBookingNote: "Note (optional)",
     changeBookingNoteHint: "Kept on the booking's history and the audit log.",
     saveChange: "Save change",
@@ -6159,6 +6167,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeDeparture: "Change departure",
     changeDepartureSummary:
       "Extend or shorten the stay. A Guest's extra nights are charged at the booking's own price; leaving today is a check-out.",
+    changeDepartureOverdue:
+      "This Guest is {count, plural, one {# day} other {# days}} past {date}. Pick the day they now leave. The nights since then are charged at the booking's price, at the close or at check-out.",
     extendUnpricedWarning:
       "This booking has no price, so the nights an extension adds will not be charged.",
     changeDepartureLonger:
@@ -9000,6 +9010,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeBookingPriceKept: "{price} لليلة، كما في الحجز",
     changeBookingPriceChanges: "{from} ← {to} لليلة",
     changeBookingPriceNone: "لا يوجد سعر لـ{type}: سيبقى الحجز بلا سعر.",
+    changeBookingAlreadyUnpriced:
+      "لا سعر مُحدَّد لـ{type}؛ هذا الحجز بلا سعر أصلًا.",
     changeBookingNote: "ملاحظة (اختيارية)",
     changeBookingNoteHint: "تُحفظ في سجل تعديلات الحجز وسجل التدقيق.",
     saveChange: "حفظ التعديل",
@@ -9012,6 +9024,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeDeparture: "تغيير موعد المغادرة",
     changeDepartureSummary:
       "مدّد الإقامة أو قصّرها. تُحتسب ليالي الضيف الإضافية بسعر الحجز نفسه؛ والمغادرة اليوم تسجيل مغادرة.",
+    changeDepartureOverdue:
+      "تجاوز هذا الضيف موعد {date} بـ{count, plural, one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}. اختر اليوم الذي سيغادر فيه الآن. تُحتسب الليالي منذ ذلك الحين بسعر الحجز عند الإغلاق أو عند المغادرة.",
     extendUnpricedWarning:
       "هذا الحجز بلا سعر، لذا لن تُحتسب الليالي التي يضيفها التمديد.",
     changeDepartureLonger:

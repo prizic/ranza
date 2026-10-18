@@ -452,6 +452,33 @@ describe("the Change booking dialog", () => {
     ).toBeInTheDocument();
   });
 
+  it("a_missing_rate_is_a_data_gap_and_not_a_consequence_of_nothing_changing", async () => {
+    const unpriced = (own: boolean) =>
+      preview({
+        nightlyRateMinor: own ? null : 150000,
+        rateCurrency: own ? null : "TRY",
+        options: preview().options.map((option) => ({
+          ...option,
+          nightlyRateMinor: null,
+          rateCurrency: null,
+        })),
+      });
+
+    // Already unpriced and nothing changing: no sentence about losing a price,
+    // and none beside "nothing to change" (ROOMCAL-06).
+    answering({ kind: "preview", preview: unpriced(true) });
+    open();
+    await screen.findByText(messages.en.changeBookingNothing);
+    expect(screen.queryByText(/will be unpriced/)).toBeNull();
+    expect(screen.queryByText(/already unpriced/)).toBeNull();
+    cleanup();
+
+    // A booking that has a price and would lose it is told so.
+    answering({ kind: "preview", preview: unpriced(false) });
+    open();
+    expect(await screen.findByText(/will be unpriced/)).toBeInTheDocument();
+  });
+
   it("stops a note at the length the revision will accept", async () => {
     answering({ kind: "preview", preview: preview() });
     open();

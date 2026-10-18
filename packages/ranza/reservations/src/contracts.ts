@@ -1163,6 +1163,8 @@ export interface RoomCalendarStayBar extends RoomCalendarBarBase {
   kind: "stay";
   stayId: string;
   reservationId: string | null;
+  /** The booking's reference, as the Move dialog names it; null without a booking. */
+  reference: string | null;
   /**
    * The stretch the Guest is in now. False on a stretch in a room they were
    * moved out of, which is drawn as history (AB-S3-06).

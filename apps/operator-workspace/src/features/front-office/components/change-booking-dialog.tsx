@@ -75,7 +75,16 @@ export interface ChangeableBooking {
 
 /** Where a drag or Move… proposes to put the booking, and what is known against it. */
 export interface ProposedMove {
-  to: { unitId: string; startsOn: string; endsOn: string | null };
+  to: {
+    unitId: string;
+    /**
+     * The proposed room's name, for the field to show while the rooms are still
+     * loading; without it the field stays empty rather than showing an id.
+     */
+    unitLabel?: string;
+    startsOn: string;
+    endsOn: string | null;
+  };
   /** The reasons the calendar already knows the booking cannot go there. */
   conflictsFor: (target: {
     unitId: string;
@@ -273,11 +282,15 @@ export function ChangeBookingDialog({
   const price = (() => {
     if (!preview || !chosen) return null;
     if (chosen.nightlyRateMinor === null || chosen.rateCurrency === null) {
-      return preview.stayType === "resident"
-        ? t("quoteResident")
-        : t("changeBookingPriceNone", {
-            type: t(`unitType.${chosen.unitType}`),
-          });
+      if (preview.stayType === "resident") return t("quoteResident");
+      const type = t(`unitType.${chosen.unitType}`);
+      // A data gap is not a consequence of the move: the booking losing a
+      // price is said as one, and a booking already unpriced is said to be,
+      // and only when something is changing (ROOMCAL-06).
+      if (preview.nightlyRateMinor !== null && preview.rateCurrency !== null) {
+        return t("changeBookingPriceNone", { type });
+      }
+      return unchanged ? null : t("changeBookingAlreadyUnpriced", { type });
     }
     const now = formatMoney(
       chosen.nightlyRateMinor,
@@ -375,6 +388,39 @@ export function ChangeBookingDialog({
     dates.from !== undefined &&
     (dates.to !== undefined || preview.stayType === "resident");
 
+  // The rooms, in order. Until the read arrives the proposed one stands alone
+  // under its own name when the caller gave it, and the field is empty when it
+  // did not: a raw id is never shown (ROOMCAL-05).
+  const unitOptions = [
+    ...(preview === null && move?.to.unitLabel
+      ? [{ value: unitId, label: move.to.unitLabel }]
+      : []),
+    ...[...(preview?.options ?? [])]
+      .sort((a, b) =>
+        unitLabel(a.roomName, a.unitName).localeCompare(
+          unitLabel(b.roomName, b.unitName),
+          undefined,
+          { numeric: true },
+        ),
+      )
+      .map((option) => ({
+        value: option.unitId,
+        label: unitLabel(option.roomName, option.unitName),
+        description: [
+          t(`unitType.${option.unitType}`),
+          !option.takesBookings
+            ? t("changeBookingUnitNotTaking")
+            : option.blocker === "booked"
+              ? t("changeBookingUnitBooked", {
+                  reference: option.conflictReference ?? "",
+                })
+              : option.blocker === "occupied"
+                ? t("changeBookingUnitOccupied")
+                : t("changeBookingUnitFree"),
+        ].join(" · "),
+      })),
+  ];
+
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
@@ -419,7 +465,7 @@ export function ChangeBookingDialog({
               to={{
                 place: chosen
                   ? unitLabel(chosen.roomName, chosen.unitName)
-                  : "—",
+                  : (move?.to.unitLabel ?? "—"),
                 period: dates.from
                   ? describePeriod(dates.from, dates.to ?? null, locale, words)
                   : null,
@@ -518,32 +564,9 @@ export function ChangeBookingDialog({
               labels={unitLabels}
               name="unit"
               onValueChange={setUnitId}
-              options={[...(preview?.options ?? [])]
-                .sort((a, b) =>
-                  unitLabel(a.roomName, a.unitName).localeCompare(
-                    unitLabel(b.roomName, b.unitName),
-                    undefined,
-                    { numeric: true },
-                  ),
-                )
-                .map((option) => ({
-                  value: option.unitId,
-                  label: unitLabel(option.roomName, option.unitName),
-                  description: [
-                    t(`unitType.${option.unitType}`),
-                    !option.takesBookings
-                      ? t("changeBookingUnitNotTaking")
-                      : option.blocker === "booked"
-                        ? t("changeBookingUnitBooked", {
-                            reference: option.conflictReference ?? "",
-                          })
-                        : option.blocker === "occupied"
-                          ? t("changeBookingUnitOccupied")
-                          : t("changeBookingUnitFree"),
-                  ].join(" · "),
-                }))}
+              options={unitOptions}
               required
-              value={unitId}
+              value={preview === null && !move?.to.unitLabel ? "" : unitId}
             />
           </Field>
 

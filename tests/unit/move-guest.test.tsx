@@ -170,7 +170,7 @@ describe("the Move Guest dialog", () => {
   it("a_guest_is_not_moved_into_an_occupied_room", async () => {
     answering(preview());
     open();
-    await chooseUnit(/Room · Somebody is staying/);
+    await chooseUnit(/Room · Someone is staying then/);
     await chooseReason(messages.en.moveReason.guest_request);
     expect(
       await screen.findByText(messages.en.changeBookingBlockedOccupied),
@@ -225,5 +225,44 @@ describe("the Move Guest dialog", () => {
     await waitFor(() => expect(submitted("version")).toBe("2"));
     expect(submitted("unit") ?? "").toBe("");
     await waitFor(() => expect(save()).toBeDisabled());
+  });
+
+  it("a_proposed_room_is_never_shown_as_an_id_while_the_rooms_load", async () => {
+    // A read that has not answered: the field is for the proposed room, which
+    // it names when it was given a name and leaves empty when it was not.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>(() => {})),
+    );
+    const proposed = "e2672279-687b-4589-b193-2825f44a24a8";
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <MoveGuestDialog
+          locale="en"
+          move={{ unitId: proposed, conflictsFor: () => [] }}
+          onOpenChange={() => {}}
+          open
+          stay={STAY}
+        />
+      </NextIntlClientProvider>,
+    );
+    const field = screen.getByRole("combobox", { name: messages.en.unit });
+    expect(field).not.toHaveTextContent(proposed);
+    cleanup();
+
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <MoveGuestDialog
+          locale="en"
+          move={{ unitId: proposed, unitLabel: "201", conflictsFor: () => [] }}
+          onOpenChange={() => {}}
+          open
+          stay={STAY}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(
+      screen.getByRole("combobox", { name: messages.en.unit }),
+    ).toHaveTextContent("201");
   });
 });

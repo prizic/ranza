@@ -2524,6 +2524,25 @@ describe("a Guest still in the room past their departure (RANZ-51)", () => {
     expect(departure).toMatchObject({ overdue: true, overdueDays: 2 });
   });
 
+  it("a_stay_bar_carries_its_bookings_reference (ROOMCAL-09)", async () => {
+    const [booking] = await owner.$queryRawUnsafe<{ reference: string }[]>(
+      `select reference from public.reservations where id = $1::uuid`,
+      reservation,
+    );
+    const calendar = await reservations.listRoomCalendar(MEMBER, PROPERTY, {
+      from: null,
+      days: 14,
+    });
+    const bar = calendar.units
+      .flatMap((unit) => [unit, ...unit.beds])
+      .flatMap((unit) => unit.bars)
+      .find(
+        (candidate) =>
+          candidate.kind === "stay" && candidate.reservationId === reservation,
+      );
+    expect(bar).toMatchObject({ kind: "stay", reference: booking!.reference });
+  });
+
   it("an_overdue_guest_stays_on_the_reservations_list_and_says_how_late: a Guest due today is not overdue", async () => {
     const dueToday = reservationId();
     const dueUnit = await aUnit();

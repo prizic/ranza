@@ -289,6 +289,25 @@ test.describe("departures say what a Guest owes and what check-out will do (RANZ
     ).toBeVisible();
   });
 
+  test("change_departure_for_an_overdue_guest_asks_for_the_day_they_now_leave_instead_of_opening_on_a_past_date", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    const overdue = anOverdueGuest(propertyId, { daysOverdue: 4 });
+    await signIn(page);
+
+    await page.goto(`/en/departures?property=${propertyId}`);
+    const row = page.getByRole("row").filter({ hasText: overdue.guestName });
+    await row.getByRole("button", { name: /More actions/ }).click();
+    await page.getByRole("menuitem", { name: "Change departure" }).click();
+    const dialog = page.getByRole("dialog", { name: "Change departure" });
+    await expect(dialog).toContainText("This Guest is 4 days past");
+    await expect(dialog).toContainText("Pick the day they now leave");
+    await expect(
+      dialog.getByRole("button", { name: "Save departure" }),
+    ).toBeDisabled();
+  });
+
   test("an_overdue_guest_owes_the_nights_check_out_will_charge_on_the_row_and_in_the_owing_filter", async ({
     page,
   }) => {
@@ -600,6 +619,8 @@ test.describe("Arrivals work in the order a desk works them (RANZ-60)", () => {
 
     await page.goto(`/en/arrivals?property=${propertyId}`);
     await expect(page).toHaveTitle(/^Arrivals · /);
+    // evaluateAll does not wait: the rows are there before they are read.
+    await expect(page.getByRole("row")).toHaveCount(6);
     const names = await page
       .getByRole("row")
       .evaluateAll((rows) =>

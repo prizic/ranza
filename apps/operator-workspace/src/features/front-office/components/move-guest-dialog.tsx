@@ -65,6 +65,11 @@ export interface MovableStay {
 /** Where a drag proposes to put the Guest, and what is known against it. */
 export interface ProposedGuestMove {
   unitId: string;
+  /**
+   * The proposed room's name, for the field to show while the rooms are still
+   * loading; without it the field stays empty rather than showing an id.
+   */
+  unitLabel?: string;
   /** The reasons the calendar already knows the Guest cannot go there. */
   conflictsFor: (unitId: string) => string[];
 }
@@ -245,6 +250,31 @@ export function MoveGuestDialog({
     reason !== "" &&
     !noteMissing;
 
+  // Until the read arrives the proposed room stands alone under its own name
+  // when the caller gave it, and the field is empty when it did not: a raw id
+  // is never shown (ROOMCAL-05).
+  const unitOptions = [
+    ...(preview === null && move?.unitLabel
+      ? [{ value: unitId, label: move.unitLabel }]
+      : []),
+    ...(preview?.options ?? []).map((option) => ({
+      value: option.unitId,
+      label: unitLabel(option.roomName, option.unitName),
+      description: [
+        t(`unitType.${option.unitType}`),
+        option.blocker === "booked"
+          ? t("changeBookingUnitBooked", {
+              reference: option.conflictReference ?? "",
+            })
+          : option.blocker === "occupied"
+            ? t("changeBookingUnitOccupied")
+            : !option.ready
+              ? t("moveGuestUnitNotReady")
+              : t("changeBookingUnitFree"),
+      ].join(" · "),
+    })),
+  ];
+
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
@@ -270,7 +300,7 @@ export function MoveGuestDialog({
               to={{
                 place: chosen
                   ? unitLabel(chosen.roomName, chosen.unitName)
-                  : "—",
+                  : (move?.unitLabel ?? "—"),
                 period: null,
               }}
             />
@@ -287,24 +317,9 @@ export function MoveGuestDialog({
               labels={unitLabels}
               name="unit"
               onValueChange={setUnitId}
-              options={(preview?.options ?? []).map((option) => ({
-                value: option.unitId,
-                label: unitLabel(option.roomName, option.unitName),
-                description: [
-                  t(`unitType.${option.unitType}`),
-                  option.blocker === "booked"
-                    ? t("changeBookingUnitBooked", {
-                        reference: option.conflictReference ?? "",
-                      })
-                    : option.blocker === "occupied"
-                      ? t("changeBookingUnitOccupied")
-                      : !option.ready
-                        ? t("moveGuestUnitNotReady")
-                        : t("changeBookingUnitFree"),
-                ].join(" · "),
-              }))}
+              options={unitOptions}
               required
-              value={unitId}
+              value={preview === null && !move?.unitLabel ? "" : unitId}
             />
           </Field>
 

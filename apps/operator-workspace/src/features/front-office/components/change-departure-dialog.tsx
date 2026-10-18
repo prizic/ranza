@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { formatMoney, type SupportedLocale } from "@ranza/i18n";
+import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
 import type { DeparturePreview } from "@ranza/reservations";
 import {
   Button,
@@ -25,6 +25,7 @@ import {
   type ChangeDepartureOutcome,
 } from "../../../server/front-office";
 import { submitWithoutReset } from "../../../lib/submit-without-reset";
+import { overdueDays } from "../../today/views";
 import { describePeriod, MoveSummary } from "./move-summary";
 import { refusalMessage } from "../refusal";
 
@@ -144,12 +145,14 @@ export function ChangeDepartureDialog({
     endsOn: string | null;
   } | null>(null);
   const [movedUnderneath, setMovedUnderneath] = useState(false);
+  // The planned departure an overdue Guest has gone past, kept to say so.
+  const [overdueSince, setOverdueSince] = useState<string | null>(null);
   // Known from the first read. A Guest's Stay always has a departure, so a
   // cleared end is asked about rather than previewed as open-ended.
   const [stayType, setStayType] = useState<DeparturePreview["stayType"] | null>(
     null,
   );
-  const needsEnd = stayType === "guest" && !endsOn;
+  const needsEnd = stayType === "guest" && !endsOn && overdueSince === null;
   const [resets, setResets] = useState(0);
   const [outcome, act, pending] = useActionState<
     ChangeDepartureOutcome,
@@ -192,6 +195,17 @@ export function ChangeDepartureDialog({
         if (pinnedRef.current === null && !stale) {
           pinnedRef.current = fresh.version;
           setPinned({ version: fresh.version, endsOn: fresh.endsOn });
+          // A Guest past their departure is asked for the day they now leave:
+          // the field does not open on a date already in the past, where Save
+          // could never be pressed and nothing said why (ROOMCAL-04).
+          if (
+            fresh.endsOn !== null &&
+            overdueDays(fresh.endsOn, fresh.today) > 0
+          ) {
+            setOverdueSince(fresh.endsOn);
+            setEndsOn(undefined);
+            setResets((n) => n + 1);
+          }
         }
         if (resetFromPreview.current || stale) {
           if (stale) setMovedUnderneath(true);
@@ -220,7 +234,7 @@ export function ChangeDepartureDialog({
 
   const effect = (() => {
     if (!preview || !pinned || unchanged || needsEnd) return null;
-    if (!endsOn) return t("changeDepartureOpen");
+    if (!endsOn) return overdueSince ? null : t("changeDepartureOpen");
     if (!was) return null;
     const delta = nightsBetween(was, endsOn);
     if (delta < 0) return t("changeDepartureShorter", { count: -delta });
@@ -294,6 +308,19 @@ export function ChangeDepartureDialog({
             <DialogTitle>{t("changeDeparture")}</DialogTitle>
             <DialogDescription>{t("changeDepartureSummary")}</DialogDescription>
           </DialogHeader>
+
+          {overdueSince && preview ? (
+            <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-step--1">
+              {t("changeDepartureOverdue", {
+                count: overdueDays(overdueSince, preview.today),
+                date: formatDate(
+                  new Date(`${overdueSince}T00:00:00Z`),
+                  locale,
+                  { month: "short", timeZone: "UTC" },
+                ),
+              })}
+            </p>
+          ) : null}
 
           {stay.unpriced ? (
             <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-step--1">

@@ -3296,7 +3296,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
             select
               'stay',
               stay.reservation_id,
-              null::text,
+              -- The booking's code, so the drawer can say which booking this
+              -- Guest is; null for a Stay that began without one.
+              reservation.reference::text,
               null::text,
               stay.id,
               (case when seg.is_last then stay.status else 'departed' end)::text,
