@@ -218,6 +218,9 @@ export interface Messages {
   openFolio: string;
   leaves: string;
   overdueSince: string;
+  wasDueOn: string;
+  overdueDays: string;
+  overdueNightsNote: string;
   untilDate: string;
 
   /**
@@ -2730,6 +2733,10 @@ export const messages: Record<SupportedLocale, Messages> = {
     openFolio: "Folyoyu aç",
     leaves: "Çıkış",
     overdueSince: "{date} tarihinden beri gecikmiş",
+    wasDueOn: "{date} tarihinde çıkacaktı",
+    overdueDays: "Gecikmiş · {count, plural, one {# gün} other {# gün}}",
+    overdueNightsNote:
+      "Bugüne kadarki geceler kapanışta ya da çıkışta hesaba işlenir; sonraki geceler de aynı şekilde.",
     untilDate: "{date} tarihine kadar",
 
     reservations: "Rezervasyonlar",
@@ -5476,6 +5483,10 @@ export const messages: Record<SupportedLocale, Messages> = {
     openFolio: "Open folio",
     leaves: "Leaves",
     overdueSince: "Overdue since {date}",
+    wasDueOn: "Was due {date}",
+    overdueDays: "Overdue · {count, plural, one {# day} other {# days}}",
+    overdueNightsNote:
+      "Nights up to now post at the close or at check-out, and so will the nights after.",
     untilDate: "until {date}",
 
     reservations: "Reservations",
@@ -8228,6 +8239,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     openFolio: "فتح الحساب",
     leaves: "المغادرة",
     overdueSince: "متأخر منذ {date}",
+    wasDueOn: "كان موعد المغادرة {date}",
+    overdueDays:
+      "متأخر · {count, plural, one {يوم واحد} two {يومان} few {# أيام} many {# يومًا} other {# يوم}}",
+    overdueNightsNote:
+      "تُرحَّل الليالي حتى الآن عند الإغلاق أو عند المغادرة، وكذلك الليالي التي بعدها.",
     untilDate: "حتى {date}",
 
     reservations: "الحجوزات",

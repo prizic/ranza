@@ -226,6 +226,11 @@ export interface Departure {
   unitStatus: string;
   /** Past their planned departure and still here. */
   overdue: boolean;
+  /**
+   * How many days past it, on the Property's own calendar; zero unless
+   * `overdue`. Counted by the database so every screen says the same number.
+   */
+  overdueDays: number;
   /** Leaving before their planned departure if they leave today. */
   early: boolean;
   /** The open Folio, or null when the Property does no billing. */
@@ -622,6 +627,11 @@ export interface ReservationRow {
   stayStartsOn: string | null;
   /** That Stay's open Folio; null before check-in or without billing. */
   folioId: string | null;
+  /**
+   * Days the in-house Stay is past its planned departure, on the Property's own
+   * calendar; zero for everything else. The same count Departures gives.
+   */
+  overdueDays: number;
   /**
    * Nights of the stay as it stands: the Stay's own dates once there is one,
    * because a late arrival or an early departure makes the booking's dates say

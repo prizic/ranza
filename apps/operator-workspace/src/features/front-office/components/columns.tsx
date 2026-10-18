@@ -509,7 +509,7 @@ export function useDepartureColumns(
         />
       ),
       cell: ({ row }) => {
-        const { endsOn, overdue, early } = row.original;
+        const { endsOn, overdue, overdueDays, early } = row.original;
         if (!endsOn) {
           return (
             <StatusBadge
@@ -521,11 +521,16 @@ export function useDepartureColumns(
         }
         if (overdue) {
           return (
-            <StatusBadge
-              icon={CalendarClock}
-              label={t("overdueSince", { date: day(endsOn, locale) })}
-              tone="warning"
-            />
+            <div>
+              <StatusBadge
+                icon={CalendarClock}
+                label={t("overdueDays", { count: overdueDays })}
+                tone="warning"
+              />
+              <span className="mt-1 block text-step--1 text-muted-foreground">
+                {t("wasDueOn", { date: day(endsOn, locale) })}
+              </span>
+            </div>
           );
         }
         if (early) {
@@ -706,10 +711,10 @@ export function useReservationColumns(
         />
       ),
       cell: ({ row }) => {
-        const { endsOn, startsOn, stayStartsOn, status } = row.original;
+        const { endsOn, overdueDays, startsOn, stayStartsOn, status } =
+          row.original;
         const inHouse = status === "checked_in";
-        const isDueToday = inHouse && today && endsOn === today;
-        const isOverdue = inHouse && today && endsOn && endsOn < today;
+        const isDueToday = inHouse && overdueDays === 0 && endsOn === today;
 
         return (
           <div>
@@ -734,11 +739,16 @@ export function useReservationColumns(
                 <CalendarClock className="size-3" />
                 {t("dueToday")}
               </span>
-            ) : isOverdue ? (
-              <span className="mt-0.5 inline-flex items-center gap-1 rounded-md bg-destructive/15 px-1.5 py-0.5 text-step--2 font-medium text-destructive">
-                <CalendarClock className="size-3" />
-                {t("overdueSince", { date: day(endsOn, locale) })}
-              </span>
+            ) : overdueDays > 0 && endsOn ? (
+              <>
+                <span className="mt-0.5 inline-flex items-center gap-1 rounded-md bg-destructive/15 px-1.5 py-0.5 text-step--2 font-medium text-destructive">
+                  <CalendarClock className="size-3" />
+                  {t("overdueDays", { count: overdueDays })}
+                </span>
+                <span className="block text-step--1 text-muted-foreground">
+                  {t("wasDueOn", { date: day(endsOn, locale) })}
+                </span>
+              </>
             ) : null}
           </div>
         );

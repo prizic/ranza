@@ -2496,3 +2496,45 @@ describe("the Reservations list's nights, total and telephone", () => {
     expect(await listed(ids.late)).toMatchObject({ guestPhone: null });
   });
 });
+
+describe("a Guest still in the room past their departure (RANZ-51)", () => {
+  const reservation = reservationId();
+  let unit: string;
+
+  beforeAll(async () => {
+    unit = await aUnit();
+    await reserve(reservation, PROPERTY, ORG, unit, "Overdue Olive", {
+      from: -6,
+      to: -2,
+    });
+    await arrived(reservation, unit, -6, -2);
+  });
+
+  it("an_overdue_guest_stays_on_the_reservations_list_and_says_how_late: the checked-in booking is listed with its days overdue", async () => {
+    const row = (await reservations.listReservations(MEMBER, PROPERTY)).find(
+      (candidate) => candidate.reservationId === reservation,
+    );
+    expect(row).toMatchObject({ status: "checked_in", overdueDays: 2 });
+  });
+
+  it("an_overdue_guest_stays_on_the_reservations_list_and_says_how_late: Departures counts the same days", async () => {
+    const departure = (
+      await reservations.listDepartures(MEMBER, PROPERTY)
+    ).find((candidate) => candidate.unitId === unit);
+    expect(departure).toMatchObject({ overdue: true, overdueDays: 2 });
+  });
+
+  it("an_overdue_guest_stays_on_the_reservations_list_and_says_how_late: a Guest due today is not overdue", async () => {
+    const dueToday = reservationId();
+    const dueUnit = await aUnit();
+    await reserve(dueToday, PROPERTY, ORG, dueUnit, "Due Dahlia", {
+      from: -3,
+      to: 0,
+    });
+    await arrived(dueToday, dueUnit, -3, 0);
+    const row = (await reservations.listReservations(MEMBER, PROPERTY)).find(
+      (candidate) => candidate.reservationId === dueToday,
+    );
+    expect(row).toMatchObject({ status: "checked_in", overdueDays: 0 });
+  });
+});

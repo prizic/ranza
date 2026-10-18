@@ -942,6 +942,8 @@ export function createReservationsModule(deps: ReservationsDeps) {
             else unit.status
           end                                         as "unitStatus",
           coalesce(stay.ends_on < today.day, false)   as "overdue",
+          coalesce(greatest(today.day - stay.ends_on, 0), 0)::int
+                                                      as "overdueDays",
           coalesce(stay.ends_on > today.day, false)   as "early",
           folio.id                                    as "folioId",
           case when folio.id is null then null
@@ -1569,6 +1571,13 @@ export function createReservationsModule(deps: ReservationsDeps) {
                then to_char(stay.starts_on, 'YYYY-MM-DD') end
                                                         as "stayStartsOn",
           folio.id                                      as "folioId",
+          -- Overdue is the Stay's, the same count Departures gives (ADR 0033):
+          -- in house, with a planned departure before the Property's today.
+          case when stay.status = 'in_house'
+                and stay.ends_on < today.day
+               then (today.day - stay.ends_on)::int
+               else 0
+          end                                           as "overdueDays",
           nights.count                                  as "stayNights",
           (nights.count * reservation.nightly_rate_minor)::text
                                                         as "totalMinor"
@@ -1616,9 +1625,12 @@ export function createReservationsModule(deps: ReservationsDeps) {
           -- A booking still open stays however old it is: one whose nights
           -- all passed unarrived is on no other screen, and has to be marked a
           -- no-show or cancelled from here rather than stay confirmed forever.
+          -- So does a Guest still in the room past their planned departure
+          -- (ADR 0033): they are in house until checked out, and the list that
+          -- says who is in house cannot lose them on the day they overstay.
           and (reservation.ends_on is null
                or reservation.ends_on >= today.day
-               or reservation.status in ('requested', 'confirmed'))
+               or reservation.status in ('requested', 'confirmed', 'checked_in'))
           and app.can_use_capability(
             reservation.property_id,
             ${FRONT_DESK_CAPABILITY.moduleKey},

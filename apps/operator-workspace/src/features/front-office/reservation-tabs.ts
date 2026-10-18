@@ -15,7 +15,10 @@ export const RESERVATION_TABS = [
 
 export type ReservationTab = (typeof RESERVATION_TABS)[number];
 
-type Placed = Pick<ReservationRow, "status" | "startsOn" | "endsOn">;
+type Placed = Pick<
+  ReservationRow,
+  "status" | "startsOn" | "endsOn" | "overdueDays"
+>;
 
 const NOT_ARRIVED = new Set(["requested", "confirmed"]);
 
@@ -37,7 +40,12 @@ export function inTab(
     case "inHouse":
       return row.status === "checked_in";
     case "departing":
-      return row.status === "checked_in" && row.endsOn === today;
+      // The same people Departures lists: due today, and anyone past it who
+      // is still in the room (ADR 0033).
+      return (
+        row.status === "checked_in" &&
+        (row.endsOn === today || row.overdueDays > 0)
+      );
     case "arriving":
       return (
         NOT_ARRIVED.has(row.status) &&

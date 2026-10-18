@@ -23,7 +23,12 @@ import {
   SheetTitle,
   StatusBadge,
 } from "@ranza/ui";
-import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
+import {
+  formatDate,
+  formatMoney,
+  localizeHref,
+  type SupportedLocale,
+} from "@ranza/i18n";
 import { expectedArrivalLabel } from "../expected-arrival";
 import { unitLabel } from "../unit-label";
 import { CopyReferenceButton } from "./copy-reference-button";
@@ -97,8 +102,8 @@ export function ReservationDetailSheet({
   } = reservation;
 
   const inHouse = status === "checked_in";
-  const isDueToday = inHouse && today && endsOn === today;
-  const isOverdue = inHouse && today && endsOn && endsOn < today;
+  const { overdueDays } = reservation;
+  const isDueToday = inHouse && overdueDays === 0 && endsOn === today;
   const displayUnit = unitLabel(roomName, unitName);
   const effectiveStart = stayStartsOn ?? startsOn;
   const nightsCount =
@@ -176,13 +181,14 @@ export function ReservationDetailSheet({
                 <CalendarClock className="size-3.5" />
                 <span>{t("dueToday")}</span>
               </div>
-            ) : isOverdue && endsOn ? (
-              <div className="mt-2.5 inline-flex items-center gap-1 rounded-md bg-destructive/15 px-2 py-0.5 text-step--2 font-medium text-destructive">
-                <CalendarClock className="size-3.5" />
-                <span>
-                  {t("overdueSince", {
-                    date: formatFullDate(endsOn, locale),
-                  })}
+            ) : overdueDays > 0 && endsOn ? (
+              <div className="mt-2.5 grid gap-1">
+                <span className="inline-flex w-fit items-center gap-1 rounded-md bg-destructive/15 px-2 py-0.5 text-step--2 font-medium text-destructive">
+                  <CalendarClock className="size-3.5" />
+                  {t("overdueDays", { count: overdueDays })}
+                </span>
+                <span className="text-step--1 text-muted-foreground">
+                  {t("wasDueOn", { date: formatFullDate(endsOn, locale) })}
                 </span>
               </div>
             ) : null}
@@ -264,7 +270,7 @@ export function ReservationDetailSheet({
                 <Button asChild size="sm" variant="outline">
                   <Link
                     className="flex items-center gap-1 text-xs"
-                    href={`/${locale}/folios?property=${encodeURIComponent(propertyId)}&folio=${encodeURIComponent(folioId)}`}
+                    href={`${localizeHref(locale, "finance")}?property=${encodeURIComponent(propertyId)}&folio=${encodeURIComponent(folioId)}`}
                   >
                     <span>{t("openFolio")}</span>
                     <ExternalLink className="size-3" />
