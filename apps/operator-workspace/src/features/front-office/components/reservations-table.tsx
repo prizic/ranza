@@ -42,6 +42,7 @@ const JUST_CHANGED = "bg-primary/5 ring-1 ring-primary/30";
 export function ReservationsTable({
   changing,
   locale,
+  opening,
   propertyId,
   reservations,
   today,
@@ -53,6 +54,12 @@ export function ReservationsTable({
    */
   changing: string | null;
   locale: SupportedLocale;
+  /**
+   * A booking to open in its detail sheet on arrival, from `?open=` — where a
+   * line elsewhere that names a booking links to it (CLOSE-05). Ignored unless
+   * it is on this list.
+   */
+  opening: string | null;
   reservations: readonly ReservationRow[];
   /** The Property the rows belong to, which links out of them name. */
   propertyId: string;
@@ -71,6 +78,7 @@ export function ReservationsTable({
   const [tab, setTab] = useState<ReservationTab>("all");
   const [selectedReservation, setSelectedReservation] =
     useState<ReservationListRow | null>(null);
+  const [openingDismissed, setOpeningDismissed] = useState(false);
   // The list is the only proof a booking or a check-in worked, and a tab can
   // narrow it to somewhere the result is not. So when a row appears or changes
   // status after an action, the list goes back to All and points at that row.
@@ -141,6 +149,10 @@ export function ReservationsTable({
   const linked = reservations.find(
     (row) => row.reservationId === changing && row.mayAmend,
   );
+
+  const linkedSheet = openingDismissed
+    ? undefined
+    : reservations.find((row) => row.reservationId === opening);
 
   // Closing it drops the parameter, so a refresh does not open it again.
   // Stable, because the dialog closes itself from an effect that lists it.
@@ -219,11 +231,26 @@ export function ReservationsTable({
       <ReservationDetailSheet
         locale={locale}
         onOpenChange={(open) => {
-          if (!open) setSelectedReservation(null);
+          if (open) return;
+          setSelectedReservation(null);
+          if (linkedSheet) {
+            setOpeningDismissed(true);
+            const next = new URLSearchParams(search);
+            next.delete("open");
+            router.replace(`${pathname}?${next}`, { scroll: false });
+          }
         }}
-        open={selectedReservation !== null}
+        open={selectedReservation !== null || linkedSheet !== undefined}
         propertyId={propertyId}
-        reservation={selectedReservation}
+        reservation={
+          selectedReservation ??
+          (linkedSheet
+            ? {
+                ...linkedSheet,
+                guestPhoneDigits: "",
+              }
+            : null)
+        }
         today={today}
       />
       {linked ? (

@@ -486,6 +486,59 @@ describe("the day to close", () => {
   });
 });
 
+describe("a backlog held by one Guest (CLOSE-01)", () => {
+  it("a_backlog_names_what_holds_each_day: one Stay holds every waiting day, a later booking only the days after its first night", async () => {
+    const property = await aProperty();
+    // Overdue since six days ago: open on every one of the four waiting days.
+    const { stay } = await aCheckIn(property, await aUnit(property), -9, -6);
+    // First night two days ago, nobody came: open from then on.
+    await aBooking(property, await aUnit(property), "confirmed", -2, 1);
+    // After the rows: nothing may start on a day already closed.
+    await history(property, [6, 5]);
+
+    const view = await days.getCloseTheDay(DESK, property);
+    expect(view?.waitingDays).toEqual([
+      { date: await day(property, -4), openItems: 1 },
+      { date: await day(property, -3), openItems: 1 },
+      { date: await day(property, -2), openItems: 2 },
+      { date: await day(property, -1), openItems: 2 },
+    ]);
+    expect(view?.notDeparted.find((row) => row.stayId === stay)).toMatchObject({
+      overdueDays: 6,
+      priced: false,
+      mayCheckOut: true,
+    });
+  });
+
+  it("a_backlog_names_what_holds_each_day: nothing waiting lists no days, and a first night today is expected", async () => {
+    const property = await aProperty();
+    const today = await aBooking(
+      property,
+      await aUnit(property),
+      "confirmed",
+      0,
+      2,
+    );
+    const yesterday = await aBooking(
+      property,
+      await aUnit(property),
+      "confirmed",
+      -1,
+      2,
+    );
+    await history(property, [1]);
+
+    const view = await days.getCloseTheDay(DESK, property);
+    expect(view?.waitingDays).toEqual([]);
+    expect(
+      view?.notArrived.find((r) => r.reservationId === today),
+    ).toMatchObject({ expected: true });
+    expect(
+      view?.notArrived.find((r) => r.reservationId === yesterday),
+    ).toMatchObject({ expected: false });
+  });
+});
+
 describe("what is open", () => {
   it("what the screen lists open is what the close records", async () => {
     const property = await aProperty();

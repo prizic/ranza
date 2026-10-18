@@ -212,3 +212,19 @@ export function aDirtyRoomArrival(propertyId: string): {
   );
   return { guestName, unitName };
 }
+
+/**
+ * A backlog of waiting business days: the last close was `closedDaysAgo` days
+ * ago, so `closedDaysAgo - 1` days wait. Written by the owner connection with
+ * the triggers lifted, as `close-the-day.spec.ts` does, because the close is
+ * what is under test and not how an earlier one came to be.
+ */
+export function aBacklog(propertyId: string, closedDaysAgo: number): void {
+  psql(
+    `set session_replication_role = replica;
+     insert into public.business_day_closes
+       (organization_id, property_id, business_date, closed_by_job)
+     select organization_id, id, app.property_today(id) - ${closedDaysAgo}, 'test.fixture'
+     from public.properties where id = '${propertyId}';`,
+  );
+}

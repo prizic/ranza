@@ -41,7 +41,11 @@ export default async function ReservationsPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ property?: string; change?: string }>;
+  searchParams: Promise<{
+    property?: string;
+    change?: string;
+    open?: string;
+  }>;
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
@@ -112,6 +116,7 @@ export default async function ReservationsPage({
       <ReservationsTable
         changing={search.change ?? null}
         locale={locale}
+        opening={search.open ?? null}
         propertyId={property.propertyId}
         reservations={await reservations(property.propertyId)}
         today={today}

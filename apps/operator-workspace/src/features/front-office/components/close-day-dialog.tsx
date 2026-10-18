@@ -20,6 +20,7 @@ import {
 } from "@ranza/ui";
 import {
   closeBusinessDay,
+  closeWaitingDays,
   type CloseDayOutcome,
 } from "../../../server/close-day";
 
@@ -52,6 +53,11 @@ const REASON = { min: 3, max: 2000 };
 export function CloseDayDialog(props: CloseDayFormProps) {
   const t = useTranslations();
   const router = useRouter();
+  const label = props.all
+    ? t("closeDay.closeAll", { n: props.all.count })
+    : props.waitingMany
+      ? t("closeDay.closeOnly", { date: props.dayLabel })
+      : t("closeDay.close", { date: props.dayLabel });
 
   return (
     <Dialog
@@ -61,9 +67,12 @@ export function CloseDayDialog(props: CloseDayFormProps) {
       }}
     >
       <DialogTrigger asChild>
-        <Button>
+        <Button
+          className="min-h-11 sm:min-h-9"
+          variant={props.all || !props.waitingMany ? "default" : "outline"}
+        >
           <CalendarCheck aria-hidden="true" />
-          {t("closeDay.close", { date: props.dayLabel })}
+          {label}
         </Button>
       </DialogTrigger>
 
@@ -75,16 +84,30 @@ export function CloseDayDialog(props: CloseDayFormProps) {
 }
 
 interface CloseDayFormProps {
+  /**
+   * Closing every waiting day with one reason, offered while the same items
+   * hold every one of them (CLOSE-01); absent for the oldest day on its own.
+   */
+  all?: { count: number; from: string; to: string } | undefined;
   businessDate: string;
   dayLabel: string;
+  /** What the close of this day will charge, as the room nights card says it. */
+  charges: string | null;
+  /** The items holding the day open, by name, so the reason can name them. */
+  items: readonly { name: string; detail: string }[];
   locale: string;
   openItems: number;
   propertyId: string;
+  /** More than one day waits, so this one is offered as "only" the oldest. */
+  waitingMany: boolean;
 }
 
 function CloseDayForm({
+  all,
   businessDate,
+  charges,
   dayLabel,
+  items,
   locale,
   openItems,
   propertyId,
@@ -92,11 +115,14 @@ function CloseDayForm({
   const t = useTranslations();
   const [reason, setReason] = useState("");
   const [outcome, act, pending] = useActionState<CloseDayOutcome, FormData>(
-    closeBusinessDay,
+    all ? closeWaitingDays : closeBusinessDay,
     "idle",
   );
 
-  const dayHasMovedOn = outcome === "alreadyClosed" || outcome === "refused";
+  const dayHasMovedOn =
+    outcome === "alreadyClosed" ||
+    outcome === "refused" ||
+    outcome === "partial";
 
   const message =
     outcome === "alreadyClosed"
@@ -107,22 +133,63 @@ function CloseDayForm({
           ? t("reasonTooShort", { min: REASON.min })
           : outcome === "reasonTooLong"
             ? t("reasonTooLong", { max: REASON.max })
-            : outcome === "refused"
-              ? t("closeDay.refused")
-              : null;
+            : outcome === "partial"
+              ? t("closeDay.partial")
+              : outcome === "failed"
+                ? t("refusalFailed")
+                : outcome === "refused"
+                  ? t("closeDay.refused")
+                  : null;
 
   return (
     <form action={act} className="grid gap-4">
       <DialogHeader>
         <DialogTitle>
-          {t("closeDay.dialogTitle", { date: dayLabel })}
+          {all
+            ? t("closeDay.dialogAllTitle", {
+                n: all.count,
+                from: all.from,
+                to: all.to,
+              })
+            : t("closeDay.dialogTitle", { date: dayLabel })}
         </DialogTitle>
         <DialogDescription>
-          {openItems > 0
-            ? t("closeDay.dialogOpen", { n: openItems })
-            : t("closeDay.dialogQuiet")}
+          {all
+            ? openItems > 0
+              ? t("closeDay.dialogAllOpen", { n: openItems })
+              : t("closeDay.dialogAllQuiet")
+            : openItems > 0
+              ? t("closeDay.dialogOpen", { n: openItems })
+              : t("closeDay.dialogQuiet")}
         </DialogDescription>
       </DialogHeader>
+
+      {items.length > 0 ? (
+        <div className="grid gap-1.5 text-step--1">
+          <p className="font-medium">{t("closeDay.dialogItems")}</p>
+          <ul className="grid gap-0.5">
+            {items.map((item) => (
+              <li key={`${item.name}:${item.detail}`}>
+                <bdi className="font-medium">{item.name}</bdi>
+                <span className="text-muted-foreground">
+                  {" · "}
+                  {item.detail}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      <p className="text-step--1">
+        {t("closeDay.dialogCharges")}
+        {charges ? (
+          <>
+            {" "}
+            <bdi className="font-medium tabular-nums">{charges}</bdi>
+          </>
+        ) : null}
+      </p>
 
       <input name="locale" type="hidden" value={locale} />
       <input name="property" type="hidden" value={propertyId} />
@@ -176,7 +243,9 @@ function CloseDayForm({
             <Button disabled={pending} type="submit">
               {pending
                 ? t("closeDay.closing")
-                : t("closeDay.close", { date: dayLabel })}
+                : all
+                  ? t("closeDay.closeAll", { n: all.count })
+                  : t("closeDay.close", { date: dayLabel })}
             </Button>
           </>
         )}

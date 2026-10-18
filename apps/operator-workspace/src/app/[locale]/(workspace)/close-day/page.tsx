@@ -32,7 +32,7 @@ export default async function CloseDayPage({
   setRequestLocale(locale);
 
   const t = await getTranslations();
-  await requireViewer(locale);
+  const viewer = await requireViewer(locale);
   const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
   const property = await frontDeskProperty(
     properties,
@@ -55,7 +55,15 @@ export default async function CloseDayPage({
       <p className="text-sm text-muted-foreground">
         {t("closeDay.at")} {property.propertyName}
       </p>
-      <CloseDayView day={day} locale={locale} />
+      <CloseDayView
+        day={day}
+        locale={locale}
+        scope={{
+          organizationId: property.organizationId,
+          propertyId: property.propertyId,
+          userId: viewer.userId,
+        }}
+      />
     </>
   );
 }

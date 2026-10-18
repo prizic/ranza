@@ -23,4 +23,5 @@ export type {
   NightsToCharge,
   OpenArrival,
   OpenDeparture,
+  WaitingDay,
 } from "./contracts";

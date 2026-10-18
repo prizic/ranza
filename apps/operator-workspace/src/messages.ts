@@ -566,6 +566,7 @@ export interface Messages {
   /** Changing an in-house Guest's departure (amend-booking slice 2). */
   changeDeparture: string;
   changeDepartureSummary: string;
+  extendUnpricedWarning: string;
   /** Extra nights, charged at the booking's own price as each one closes. */
   changeDepartureLonger: string;
   changeDepartureLongerUnpriced: string;
@@ -2356,6 +2357,25 @@ export interface Messages {
     dueDescription: string;
     waiting: string;
     waitingBadge: string;
+    businessDateNow: string;
+    oldestAgo: string;
+    holdsEveryDay: string;
+    holdsByDay: string;
+    dayOpen: string;
+    moreDays: string;
+    whatHolds: string;
+    closeAll: string;
+    closeOnly: string;
+    dialogAllTitle: string;
+    dialogAllQuiet: string;
+    dialogAllOpen: string;
+    dialogItems: string;
+    dialogCharges: string;
+    partial: string;
+    departuresViewOnly: string;
+    expectedToday: string;
+    openBooking: string;
+    unpricedNote: string;
     preparingTitle: string;
     preparingDescription: string;
     automatic: string;
@@ -3171,6 +3191,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeDeparture: "Çıkışı değiştir",
     changeDepartureSummary:
       "Konaklamayı uzatın ya da kısaltın. Misafirin ek geceleri rezervasyonun kendi fiyatından ücretlendirilir; bugün ayrılmak bir çıkıştır.",
+    extendUnpricedWarning:
+      "Bu rezervasyonun fiyatı yok; bu yüzden eklenen geceler ücretlendirilmez.",
     changeDepartureLonger:
       "{count, plural, other {# gece daha}}, gecelik {price} üzerinden",
     changeDepartureLongerUnpriced:
@@ -5096,18 +5118,49 @@ export const messages: Record<SupportedLocale, Messages> = {
       dueDescription:
         "Gün {time} saatinde bitti. Hâlâ açık olanları çözün ya da bir gerekçeyle kapatın.",
       waiting:
-        "{n, plural, one {Kapatılmayı bekleyen # gün var.} other {Kapatılmayı bekleyen # gün var; önce en eskisi kapatılır.}}",
+        "{n, plural, one {Kapatılmayı bekleyen # gün var.} other {Kapatılmayı bekleyen # gün var, {from} – {to}.}}",
       waitingBadge: "{n, plural, other {# gün bekliyor}}",
+      businessDateNow:
+        "İşletmenin iş günü tarihi {date} ({zone}). Bir gün {time} saatinde biter.",
+      oldestAgo:
+        "En eski gün, {date}, {n, plural, one {# gün} other {# gün}} önceydi ve ilk o kapatılır.",
+      holdsEveryDay:
+        "{n, plural, one {Bu günlerin hepsini aynı kayıt açık tutuyor:} other {Bu günlerin hepsini aynı # kayıt açık tutuyor:}} {names}",
+      holdsByDay: "Her günü açık tutan kayıtlar",
+      dayOpen:
+        "{date}: {n, plural, =0 {açık bir şey yok} other {# kayıt açık}}",
+      moreDays: "ve {n, plural, other {# gün daha}}",
+      whatHolds:
+        "Burada hiçbir şey kapatmayı engellemez. Hâlâ açık olan girişler ve çıkışlar için, kapanışla birlikte kaydedilen bir gerekçe gerekir. Oda geceleri ve folyolar için gerekçe gerekmez.",
+      closeAll: "{n} günün hepsini kapat",
+      closeOnly: "Yalnızca {date} gününü kapat",
+      dialogAllTitle: "{n} gün kapatılsın mı, {from} – {to}?",
+      dialogAllQuiet:
+        "Bu günlerin hiçbirinde açık bir şey yok. Her biri kendi başına, en eskiden başlayarak kapatılır.",
+      dialogAllOpen:
+        "{n, plural, one {Bu günlerin hepsinde # kayıt açık.} other {Bu günlerin hepsinde # kayıt açık.}} Her gün kendi başına, en eskiden başlayarak kapatılır ve gerekçeniz her birine kaydedilir.",
+      dialogItems: "Hâlâ açık olanlar:",
+      dialogCharges:
+        "Kapanış, rezervasyonu fiyatlı her misafirin gecesini ücretlendirir; fiyatsız rezervasyon ücretlendirilmez.",
+      partial:
+        "Bazı günler kapatıldı, sonra biri kapatılamadı. Tamam'a bastığınızda sayfa son durumu gösterecek.",
+      departuresViewOnly:
+        "Hâlâ konaklayanları görebilirsiniz. Çıkış yapmak için Ön büro, Yönetici ya da Sahip rolü gerekir.",
+      expectedToday: "Beklenen · henüz geç değil",
+      openBooking: "Rezervasyonu aç",
+      unpricedNote:
+        "Fiyatsız bir gece, günü kapandığında ücretlendirilmedi olarak kaydedilir; çıkışta da ücretlendirilmez.",
       preparingTitle: "{date} hâlâ açık",
       preparingDescription:
-        "{time} saatinden sonra kapatılabilir. Aşağıda açık kalan her şey kapatmayı bekletir.",
+        "{time} saatinden sonra kapatılabilir. Aşağıda açık kalan her şey için gün kapanırken bir gerekçe gerekir.",
       automatic:
         "Açık hiçbir şey kalmayan bir gün, bitişinden kısa süre sonra kendiliğinden kapanır.",
       notArrivedTitle: "Giriş yapmamış rezervasyonlar",
       notArrivedHelp:
         "Gelmedi olarak işaretleyin, rezervasyonu iptal edin ya da hâlâ geliyorlarsa girişlerini yapın.",
       notDepartedTitle: "Çıkış günü geçmiş konaklayanlar",
-      notDepartedHelp: "Çıkışlarını Çıkışlar ekranından yapın.",
+      notDepartedHelp:
+        "Çıkışlarını buradan yapın ya da hâlâ konaklıyorlarsa konaklamalarını uzatın.",
       roomNightsTitle: "Oda geceleri",
       roomNightsHelp:
         "Günü kapatmak, o gece konaklayan her misafire rezervasyonunun alındığı fiyatla bir gece ücreti işler. Ücretlendirilemeyen geceler burada listelenir ve kapatmayı bekletmez.",
@@ -5145,7 +5198,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       closing: "Kapatılıyor…",
       dialogTitle: "{date} kapatılsın mı?",
       dialogQuiet:
-        "Açık bir şey kalmadı. Kapanış, günün girişlerini, çıkışlarını ve dolu gecelerini kaydeder, rezervasyonu fiyatlı her misafirin gecesini ücretlendirir.",
+        "Açık bir şey kalmadı. Kapanış, günün girişlerini, çıkışlarını ve dolu gecelerini kaydeder.",
       dialogOpen:
         "{n, plural, one {# kayıt hâlâ açık. Gerekçenizle birlikte kapanışa kaydedilir.} other {# kayıt hâlâ açık. Gerekçenizle birlikte kapanışa kaydedilir.}}",
       final:
@@ -5155,7 +5208,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       reasonHint:
         "Günün neden açık kayıtlarla kapandığını yazın. Kapanışla birlikte saklanır.",
       noPermission:
-        "Bu günü görebilirsiniz; kapatmak için Günü kapatma yetkisi gerekir.",
+        "Bu günü görebilirsiniz; kapatmak için Günü kapatma yetkisi gerekir. Bu yetki Sahip, Yönetici ve Ön büro rollerinde var; onlardan birine başvurun.",
       alreadyClosed:
         "Bu gün zaten kapatıldı; başka bir masa ya da otomatik kapanış tarafından.",
       reasonRequired:
@@ -5944,6 +5997,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeDeparture: "Change departure",
     changeDepartureSummary:
       "Extend or shorten the stay. A Guest's extra nights are charged at the booking's own price; leaving today is a check-out.",
+    extendUnpricedWarning:
+      "This booking has no price, so the nights an extension adds will not be charged.",
     changeDepartureLonger:
       "{count, plural, one {# more night} other {# more nights}} at {price} each",
     changeDepartureLongerUnpriced:
@@ -7880,18 +7935,49 @@ export const messages: Record<SupportedLocale, Messages> = {
       dueDescription:
         "The day ended at {time}. Clear what is still open, or close it with a reason.",
       waiting:
-        "{n, plural, one {# day is waiting to be closed.} other {# days are waiting to be closed; the oldest comes first.}}",
+        "{n, plural, one {# day is waiting to be closed.} other {# days are waiting to be closed, {from} to {to}.}}",
       waitingBadge: "{n, plural, one {# day waiting} other {# days waiting}}",
+      businessDateNow:
+        "The Property's business date is {date} ({zone}). A day ends at {time}.",
+      oldestAgo:
+        "The oldest, {date}, was {n, plural, one {# day} other {# days}} ago and closes first.",
+      holdsEveryDay:
+        "{n, plural, one {The same item holds every one of these days:} other {The same # items hold every one of these days:}} {names}",
+      holdsByDay: "What holds each day",
+      dayOpen:
+        "{date}: {n, plural, =0 {nothing open} one {# item open} other {# items open}}",
+      moreDays: "and {n, plural, one {# more day} other {# more days}}",
+      whatHolds:
+        "Nothing here stops a close. Arrivals and departures still open need a reason, which is recorded with the close. Room nights and folios never need one.",
+      closeAll: "Close all {n} days",
+      closeOnly: "Close only {date}",
+      dialogAllTitle: "Close {n} days, {from} to {to}?",
+      dialogAllQuiet:
+        "Nothing is left open on any of these days. Each is closed on its own, oldest first.",
+      dialogAllOpen:
+        "{n, plural, one {# item is open on every one of these days.} other {# items are open on every one of these days.}} Each day is closed on its own, oldest first, with your reason recorded on each.",
+      dialogItems: "Still open:",
+      dialogCharges:
+        "The close charges the night of every Guest whose booking has a price; a booking with no price is not charged.",
+      partial:
+        "Some days were closed, and then one could not be. Press Done and the page shows where it stands.",
+      departuresViewOnly:
+        "You can see who is still in house. Checking out needs the Front desk, Manager or Owner role.",
+      expectedToday: "Expected · not late yet",
+      openBooking: "Open booking",
+      unpricedNote:
+        "A night with no price is recorded as not charged when its day closes, and it is not charged at check-out either.",
       preparingTitle: "{date} is still open",
       preparingDescription:
-        "It can be closed after {time}. Anything still open below will hold the close up.",
+        "It can be closed after {time}. Anything still open below will need a reason when the day closes.",
       automatic:
         "A day with nothing left open closes by itself shortly after it ends.",
       notArrivedTitle: "Arrivals not checked in",
       notArrivedHelp:
         "Mark a no-show, cancel the booking, or check them in if they are still coming.",
       notDepartedTitle: "Departures still in house",
-      notDepartedHelp: "Check them out on the departures screen.",
+      notDepartedHelp:
+        "Check them out here, or extend their stay if they are still staying.",
       roomNightsTitle: "Room nights",
       roomNightsHelp:
         "Closing the day charges every Guest in house that night at the price their booking was taken at. A night that cannot be charged is listed here and never holds the close up.",
@@ -7929,7 +8015,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       closing: "Closing…",
       dialogTitle: "Close {date}?",
       dialogQuiet:
-        "Nothing is left open. The close records the day's arrivals, departures and nights occupied, and charges the night of every Guest whose booking has a price.",
+        "Nothing is left open. The close records the day's arrivals, departures and nights occupied.",
       dialogOpen:
         "{n, plural, one {# item is still open. It is recorded with the close, with your reason.} other {# items are still open. They are recorded with the close, with your reason.}}",
       final:
@@ -7939,7 +8025,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       reasonHint:
         "Say why the day closes with items open. It is kept with the close.",
       noPermission:
-        "You can see this day, but closing it needs the Close the day permission.",
+        "You can see this day, but closing it needs the Close the day permission, which the Owner, Manager and Front desk roles hold. Ask one of them.",
       alreadyClosed:
         "This day has already been closed, by another desk or automatically.",
       reasonRequired: "Items are still open, so a reason is needed.",
@@ -8707,6 +8793,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeDeparture: "تغيير موعد المغادرة",
     changeDepartureSummary:
       "مدّد الإقامة أو قصّرها. تُحتسب ليالي الضيف الإضافية بسعر الحجز نفسه؛ والمغادرة اليوم تسجيل مغادرة.",
+    extendUnpricedWarning:
+      "هذا الحجز بلا سعر، لذا لن تُحتسب الليالي التي يضيفها التمديد.",
     changeDepartureLonger:
       "{count, plural, one {ليلة إضافية واحدة} two {ليلتان إضافيتان} few {# ليالٍ إضافية} many {# ليلة إضافية} other {# ليلة إضافية}} بسعر {price} لكل ليلة",
     changeDepartureLongerUnpriced:
@@ -10614,21 +10702,53 @@ export const messages: Record<SupportedLocale, Messages> = {
       at: "إغلاق اليوم في",
       dueTitle: "{date} جاهز للإغلاق",
       dueDescription:
-        "انتهى اليوم عند {time}. عالج ما زال مفتوحًا، أو أغلقه مع ذكر السبب.",
+        "انتهى اليوم عند {time}. عالج العناصر التي ما زالت مفتوحة، أو أغلقه مع ذكر السبب.",
       waiting:
-        "{n, plural, zero {لا أيام تنتظر الإغلاق.} one {يوم واحد ينتظر الإغلاق.} two {يومان ينتظران الإغلاق، ويُغلق الأقدم أولًا.} few {# أيام تنتظر الإغلاق، ويُغلق الأقدم أولًا.} many {# يومًا تنتظر الإغلاق، ويُغلق الأقدم أولًا.} other {# يوم تنتظر الإغلاق، ويُغلق الأقدم أولًا.}}",
+        "{n, plural, zero {لا أيام تنتظر الإغلاق.} one {يوم واحد ينتظر الإغلاق.} two {يومان ينتظران الإغلاق، من {from} إلى {to}.} few {# أيام تنتظر الإغلاق، من {from} إلى {to}.} many {# يومًا تنتظر الإغلاق، من {from} إلى {to}.} other {# يوم تنتظر الإغلاق، من {from} إلى {to}.}}",
       waitingBadge:
         "{n, plural, zero {لا أيام تنتظر} one {يوم واحد ينتظر} two {يومان ينتظران} few {# أيام تنتظر} many {# يومًا تنتظر} other {# يوم تنتظر}}",
+      businessDateNow:
+        "تاريخ يوم العمل في المنشأة هو {date} ({zone}). ينتهي اليوم عند {time}.",
+      oldestAgo:
+        "أقدمها، {date}، كان قبل {n, plural, one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}} ويُغلق أولًا.",
+      holdsEveryDay:
+        "{n, plural, one {العنصر نفسه يُبقي كل هذه الأيام مفتوحة:} two {العنصران نفسهما يُبقيان كل هذه الأيام مفتوحة:} few {العناصر الـ # نفسها تُبقي كل هذه الأيام مفتوحة:} many {العناصر الـ # نفسها تُبقي كل هذه الأيام مفتوحة:} other {العناصر الـ # نفسها تُبقي كل هذه الأيام مفتوحة:}} {names}",
+      holdsByDay: "ما يُبقي كل يوم مفتوحًا",
+      dayOpen:
+        "{date}: {n, plural, =0 {لا شيء مفتوح} one {عنصر واحد مفتوح} two {عنصران مفتوحان} few {# عناصر مفتوحة} many {# عنصرًا مفتوحًا} other {# عنصر مفتوح}}",
+      moreDays:
+        "و{n, plural, one {يوم آخر} two {يومان آخران} few {# أيام أخرى} many {# يومًا آخر} other {# يوم آخر}}",
+      whatHolds:
+        "لا شيء هنا يمنع الإغلاق. الوصول والمغادرة اللذان ما زالا مفتوحين يتطلبان سببًا يُسجَّل مع الإغلاق. أما ليالي الغرف والحسابات فلا تتطلب سببًا.",
+      closeAll: "إغلاق الأيام الـ {n} كلها",
+      closeOnly: "إغلاق {date} فقط",
+      dialogAllTitle: "إغلاق {n} يومًا، من {from} إلى {to}؟",
+      dialogAllQuiet:
+        "لا شيء مفتوح في أي من هذه الأيام. يُغلق كل يوم على حدة، بدءًا بالأقدم.",
+      dialogAllOpen:
+        "{n, plural, one {عنصر واحد مفتوح في كل هذه الأيام.} two {عنصران مفتوحان في كل هذه الأيام.} few {# عناصر مفتوحة في كل هذه الأيام.} many {# عنصرًا مفتوحًا في كل هذه الأيام.} other {# عنصر مفتوح في كل هذه الأيام.}} يُغلق كل يوم على حدة، بدءًا بالأقدم، ويُسجَّل سببك مع كل واحد.",
+      dialogItems: "ما زال مفتوحًا:",
+      dialogCharges:
+        "يحتسب الإغلاق ليلة كل ضيف لحجزه سعر؛ أما الحجز بلا سعر فلا تُحتسب ليلته.",
+      partial:
+        "أُغلق بعض الأيام ثم تعذّر إغلاق يوم. اضغط «تم» لتعرض الصفحة وضعها الحالي.",
+      departuresViewOnly:
+        "يمكنك رؤية من لا يزال مقيمًا. تسجيل المغادرة يتطلب دور مكتب الاستقبال أو المدير أو المالك.",
+      expectedToday: "متوقع · لم يتأخر بعد",
+      openBooking: "فتح الحجز",
+      unpricedNote:
+        "تُسجَّل الليلة بلا سعر على أنها لم تُحتسب عند إغلاق يومها، ولا تُحتسب عند المغادرة أيضًا.",
       preparingTitle: "{date} ما زال مفتوحًا",
       preparingDescription:
-        "يمكن إغلاقه بعد {time}. أي شيء ما زال مفتوحًا أدناه سيؤخر الإغلاق.",
+        "يمكن إغلاقه بعد {time}. أي شيء ما زال مفتوحًا أدناه سيتطلب سببًا عند إغلاق اليوم.",
       automatic:
         "اليوم الذي لم يبقَ فيه شيء مفتوح يُغلق تلقائيًا بعد انتهائه بقليل.",
       notArrivedTitle: "حجوزات لم يُسجَّل وصولها",
       notArrivedHelp:
         "سجّل عدم الحضور، أو ألغِ الحجز، أو سجّل وصولهم إن كانوا ما زالوا قادمين.",
       notDepartedTitle: "مغادرات ما زالت في المنشأة",
-      notDepartedHelp: "سجّل مغادرتهم من شاشة المغادرة.",
+      notDepartedHelp:
+        "سجّل مغادرتهم من هنا، أو مدّد إقامتهم إن كانوا لا يزالون مقيمين.",
       roomNightsTitle: "ليالي الغرف",
       roomNightsHelp:
         "يُحتسب عند إغلاق اليوم لكل ضيف أقام تلك الليلة ليلةٌ بالسعر الذي أُخذ به حجزه. الليالي التي لا يمكن احتسابها تُدرج هنا ولا تؤخر الإغلاق.",
@@ -10667,7 +10787,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       closing: "جارٍ الإغلاق…",
       dialogTitle: "إغلاق {date}؟",
       dialogQuiet:
-        "لم يبقَ شيء مفتوح. يسجّل الإغلاق حالات الوصول والمغادرة والليالي المشغولة في هذا اليوم، ويحتسب ليلة كل ضيف لحجزه سعر.",
+        "لم يبقَ شيء مفتوح. يسجّل الإغلاق حالات الوصول والمغادرة والليالي المشغولة في هذا اليوم.",
       dialogOpen:
         "{n, plural, zero {لا شيء مفتوح.} one {ما زال عنصر واحد مفتوحًا. سيُسجَّل مع الإغلاق مع سببك.} two {ما زال عنصران مفتوحين. سيُسجَّلان مع الإغلاق مع سببك.} few {ما زالت # عناصر مفتوحة. ستُسجَّل مع الإغلاق مع سببك.} many {ما زال # عنصرًا مفتوحًا. ستُسجَّل مع الإغلاق مع سببك.} other {ما زال # عنصر مفتوحًا. ستُسجَّل مع الإغلاق مع سببك.}}",
       final:
@@ -10677,7 +10797,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       reasonHint:
         "اذكر سبب إغلاق اليوم مع وجود عناصر مفتوحة. يُحفظ مع الإغلاق.",
       noPermission:
-        "يمكنك رؤية هذا اليوم، لكن إغلاقه يتطلب صلاحية إغلاق اليوم.",
+        "يمكنك رؤية هذا اليوم، لكن إغلاقه يتطلب صلاحية إغلاق اليوم، وهي لدى أدوار المالك والمدير ومكتب الاستقبال. اطلب من أحدهم.",
       alreadyClosed: "أُغلق هذا اليوم بالفعل، من مكتب آخر أو تلقائيًا.",
       reasonRequired: "ما زالت هناك عناصر مفتوحة، لذلك يلزم ذكر سبب.",
       refused:
@@ -10685,7 +10805,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       recentTitle: "أيام أُغلقت مؤخرًا",
       recentEmpty: "لم يُغلق أي يوم هنا بعد.",
       day: "اليوم",
-      closedBy: "أغلقه",
+      closedBy: "أُغلق بواسطة",
       automatically: "تلقائيًا",
       arrived: "الوصول",
       departed: "المغادرة",

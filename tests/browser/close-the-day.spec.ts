@@ -159,6 +159,10 @@ test("a day with items open asks for a reason, and what it promises is built", a
   await expect(
     page.getByText(/charges every Guest in house that night/),
   ).toBeVisible();
+  // One sentence says which things need a reason and which never do.
+  await expect(
+    page.getByText(/Nothing here stops a close\. Arrivals and departures/),
+  ).toBeVisible();
 
   // Nothing the product cannot do.
   const body = await page.locator("main").innerText();
@@ -198,14 +202,15 @@ test("a quiet day closes without a reason, and a backlog names how many wait", a
 
   await page.goto(`/en/close-day?property=${propertyId}`);
   await expect(
-    page.getByText("2 days are waiting to be closed; the oldest comes first."),
+    page.getByText(/2 days are waiting to be closed, .* to .*\./),
   ).toBeVisible();
   await expect(page.getByText("Nothing left open.").first()).toBeVisible();
   await expect(
     page.getByRole("row").filter({ hasText: "Automatically" }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: /^Close / }).click();
+  // Two days wait and nothing holds either, so both ways to close are offered.
+  await page.getByRole("button", { name: /^Close only / }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText(/Nothing is left open/)).toBeVisible();
   await expect(dialog.getByLabel("Reason")).toHaveCount(0);

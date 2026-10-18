@@ -39,6 +39,12 @@ export interface OpenArrival {
    * screen already decides, and a second copy of its rule would drift.
    */
   arrivable: boolean;
+  /**
+   * Its first night is the Property's today or later, so the Guest may still
+   * arrive: expected, not yet late. Only while the day cannot close yet — the
+   * checklist is then today's — because every day waiting to close has ended.
+   */
+  expected: boolean;
   /** Confirmed, and the viewer holds `front_desk.cancel`. */
   mayMarkNoShow: boolean;
   /** The viewer holds `front_desk.cancel`. */
@@ -48,6 +54,7 @@ export interface OpenArrival {
 /** A Guest in house whose departure was the day being closed or before. */
 export interface OpenDeparture {
   stayId: string;
+  reservationId: string | null;
   reference: string | null;
   guestName: string | null;
   /** The day they arrived, for extending the Stay from the checklist. */
@@ -55,11 +62,20 @@ export interface OpenDeparture {
   endsOn: string;
   unitName: string;
   roomName: string | null;
+  /** Days past their planned departure on the Property's calendar; zero when due today. */
+  overdueDays: number;
+  /**
+   * Whether the booking has a price (ADR 0038). A Guest's extra nights are
+   * charged at it, so extending an unpriced booking charges nothing.
+   */
+  priced: boolean;
   /**
    * Whether the viewer may extend them from here (AB-S2-05): a Stay on a
    * booking, and `front_desk.amend`.
    */
   mayAmend: boolean;
+  /** The viewer holds `front_desk.check_out`: the row may offer it. */
+  mayCheckOut: boolean;
 }
 
 /** A departed Guest whose Folio is still open. Reported, never blocking. */
@@ -81,6 +97,9 @@ export type NightNotChargedReason =
 /** A Guest in house the night being closed whose night will not be charged. */
 export interface NightNotCharged {
   stayId: string;
+  /** The booking, to open it from the list; null for a Stay that began without one. */
+  reservationId: string | null;
+  reference: string | null;
   guestName: string | null;
   unitName: string;
   roomName: string | null;
@@ -118,6 +137,12 @@ export interface ClosedDay {
   reason: string | null;
 }
 
+/** A day waiting to be closed, and how many items hold it open (the stamp's own count). */
+export interface WaitingDay {
+  date: string;
+  openItems: number;
+}
+
 /**
  * Everything the Close the day screen shows for one Property.
  *
@@ -128,12 +153,21 @@ export interface ClosedDay {
  */
 export interface CloseTheDay {
   propertyId: string;
+  /** The Property's IANA time zone, which its business date and cutoff are read in. */
+  timezone: string;
   today: string;
   /** `HH:MM`, the Property's local time the day ends at. */
   cutoff: string;
   dayToClose: string | null;
   /** How many days are waiting, the oldest being `dayToClose`. */
   waiting: number;
+  /**
+   * Each waiting day, oldest first, with how many items hold it open. Items
+   * only accumulate — a booking is open from its first night on, a Stay from
+   * its planned departure on — so the same count on the first and the last day
+   * means the same items hold every one of them.
+   */
+  waitingDays: WaitingDay[];
   checklistDay: string;
   notArrived: OpenArrival[];
   notDeparted: OpenDeparture[];

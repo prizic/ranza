@@ -16,6 +16,7 @@ import {
   type NightsToCharge,
   type OpenArrival,
   type OpenDeparture,
+  type WaitingDay,
 } from "./contracts";
 import type { BusinessDayDeps } from "./ports";
 
@@ -108,6 +109,7 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
       const [head] = await tx.$queryRaw<
         {
           today: string;
+          timezone: string;
           cutoff: string;
           dayToClose: string | null;
           waiting: number;
@@ -118,6 +120,7 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
         }[]
       >`
         select to_char(today.day, 'YYYY-MM-DD')                   as "today",
+               property.timezone                                  as "timezone",
                to_char(property.business_date_cutoff, 'HH24:MI')  as "cutoff",
                to_char(due.day, 'YYYY-MM-DD')                     as "dayToClose",
                coalesce(today.day - due.day, 0)::int              as "waiting",
@@ -156,6 +159,30 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
 
       const checklistDay = head.dayToClose ?? head.today;
 
+      // Every waiting day with the items that hold it, counted as the stamp
+      // counts them, so the screen can say what holds each day and whether it
+      // is one thing holding all of them.
+      const waitingDays = head.dayToClose
+        ? await tx.$queryRaw<WaitingDay[]>`
+            select to_char(waiting.day, 'YYYY-MM-DD') as "date",
+                   ((select count(*)
+                       from public.reservations as reservation
+                      where reservation.property_id = ${propertyId}::uuid
+                        and reservation.status in ('requested', 'confirmed')
+                        and reservation.starts_on <= waiting.day::date)
+                    + (select count(*)
+                         from public.stays as stay
+                        where stay.property_id = ${propertyId}::uuid
+                          and stay.status = 'in_house'
+                          and stay.ends_on <= waiting.day::date))::int
+                                                      as "openItems"
+              from generate_series(${head.dayToClose}::date,
+                                   ${head.today}::date - 1,
+                                   interval '1 day') as waiting(day)
+             order by waiting.day
+          `
+        : [];
+
       const arrivals = await tx.$queryRaw<
         Omit<OpenArrival, "mayMarkNoShow" | "mayCancel">[]
       >`
@@ -169,7 +196,8 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
                room.name                                   as "roomName",
                reservation.status = 'confirmed'
                  and (reservation.ends_on is null
-                      or reservation.ends_on > ${head.today}::date) as "arrivable"
+                      or reservation.ends_on > ${head.today}::date) as "arrivable",
+               reservation.starts_on >= ${head.today}::date        as "expected"
         from public.reservations as reservation
         join public.guests as guest on guest.id = reservation.guest_id
         join public.accommodation_units as unit
@@ -184,15 +212,21 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
 
       const departures = await tx.$queryRaw<OpenDeparture[]>`
         select stay.id                              as "stayId",
+               stay.reservation_id                  as "reservationId",
                reservation.reference                as "reference",
                guest.full_name                      as "guestName",
                to_char(stay.starts_on, 'YYYY-MM-DD') as "startsOn",
                to_char(stay.ends_on, 'YYYY-MM-DD')  as "endsOn",
                unit.name                            as "unitName",
                room.name                            as "roomName",
+               greatest(${head.today}::date - stay.ends_on, 0)::int
+                                                    as "overdueDays",
+               reservation.nightly_rate_minor is not null as "priced",
                stay.reservation_id is not null
                  and app.has_organization_permission(
-                       stay.organization_id, 'front_desk.amend') as "mayAmend"
+                       stay.organization_id, 'front_desk.amend') as "mayAmend",
+               app.has_organization_permission(
+                 stay.organization_id, 'front_desk.check_out') as "mayCheckOut"
         from public.stays as stay
         join public.accommodation_units as unit
           on unit.id = stay.accommodation_unit_id
@@ -262,6 +296,8 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
         };
         nightsNotCharged = await tx.$queryRaw<NightNotCharged[]>`
           select due.stay_id                           as "stayId",
+                 stay.reservation_id                   as "reservationId",
+                 reservation.reference                 as "reference",
                  guest.full_name                       as "guestName",
                  unit.name                             as "unitName",
                  room.name                             as "roomName",
@@ -313,10 +349,12 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
 
       return {
         propertyId,
+        timezone: head.timezone,
         today: head.today,
         cutoff: head.cutoff,
         dayToClose: head.dayToClose,
         waiting: head.waiting,
+        waitingDays,
         checklistDay,
         notArrived: arrivals.map((row) => ({
           ...row,

@@ -62,6 +62,11 @@ export interface ChangeableStay {
   unitLabel: string;
   startsOn: string;
   endsOn: string | null;
+  /**
+   * The booking has no price, so the nights an extension adds are not charged;
+   * said when the dialog opens, before any date is chosen.
+   */
+  unpriced?: boolean;
 }
 
 type PreviewAnswer =
@@ -289,6 +294,12 @@ export function ChangeDepartureDialog({
             <DialogTitle>{t("changeDeparture")}</DialogTitle>
             <DialogDescription>{t("changeDepartureSummary")}</DialogDescription>
           </DialogHeader>
+
+          {stay.unpriced ? (
+            <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-step--1">
+              {t("extendUnpricedWarning")}
+            </p>
+          ) : null}
 
           <FactList className="gap-4 pt-0">
             <Fact label={t("guest")}>
