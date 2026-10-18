@@ -584,7 +584,8 @@ select is(
     'hr_payslips.net_pay_minor:bigint',
     'hr_payslips.social_security_deduction_minor:bigint',
     'hr_payslips.stamp_duty_minor:bigint',
-    'hr_payslips.tax_deduction_minor:bigint'
+    'hr_payslips.tax_deduction_minor:bigint',
+    'hr_wage_changes.gross_pay_minor:bigint'
   ],
   'HR-S1-32: every amount is a bigint count of minor units'
 );

@@ -69,6 +69,18 @@ export function refusal(error: unknown): Error {
   if (raised(error, CHECK_VIOLATION) && says(error, "only once it has ended")) {
     return new HrRefusedError("payroll_period_not_ended", { cause: error });
   }
+  if (
+    raised(error, CHECK_VIOLATION) &&
+    says(error, "payroll is already approved")
+  ) {
+    return new HrRefusedError("wage_period_approved", { cause: error });
+  }
+  if (
+    raised(error, CHECK_VIOLATION) &&
+    says(error, "before the month the person")
+  ) {
+    return new HrInputError("effectiveFrom");
+  }
   if (raised(error, CHECK_VIOLATION) && says(error, "not ahead of it")) {
     return new HrInputError("terminatedOn");
   }

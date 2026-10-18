@@ -30,6 +30,10 @@ interface RegisterEmployeeDialogProps {
   currency: string;
   locale: SupportedLocale;
   propertyId: string;
+  /** Where the new record will work, said in the dialog (HR-02). */
+  propertyName: string;
+  /** The Property's own calendar date, `YYYY-MM-DD`: the default and last start date. */
+  today: string;
   /**
    * The sign-in the record is for, when it is registered from one: the new
    * record is linked to it and its email is where the form starts. The name is
@@ -49,6 +53,8 @@ export function RegisterEmployeeDialog({
   currency,
   locale,
   propertyId,
+  propertyName,
+  today,
   prefill,
 }: RegisterEmployeeDialogProps) {
   const t = useTranslations("hr.employees");
@@ -66,6 +72,7 @@ export function RegisterEmployeeDialog({
   const [email, setEmail] = useState(prefill?.email ?? "");
   const [phone, setPhone] = useState("");
   const [iban, setIban] = useState("");
+  const [hiredOn, setHiredOn] = useState(today);
 
   const resetForm = () => {
     setFirstName("");
@@ -77,6 +84,7 @@ export function RegisterEmployeeDialog({
     setEmail(prefill?.email ?? "");
     setPhone("");
     setIban("");
+    setHiredOn(today);
     setErrorMessage(null);
   };
 
@@ -95,6 +103,7 @@ export function RegisterEmployeeDialog({
         email: email.trim() || undefined,
         phone: phone.trim() || undefined,
         iban: iban.trim() || undefined,
+        hiredOn,
       });
 
       if (outcome.status === "done") {
@@ -131,7 +140,7 @@ export function RegisterEmployeeDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>{t("registerTitle")}</DialogTitle>
@@ -141,6 +150,10 @@ export function RegisterEmployeeDialog({
                 : t("registerDescription")}
             </DialogDescription>
           </DialogHeader>
+
+          <p className="mt-3 text-step--1 text-muted-foreground">
+            {propertyName ? t("registersAt", { property: propertyName }) : null}
+          </p>
 
           {errorMessage && (
             <div
@@ -219,6 +232,18 @@ export function RegisterEmployeeDialog({
                 required
                 value={grossPay}
                 onChange={(e) => setGrossPay(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="hiredOn">{t("startDate")} *</Label>
+              <Input
+                id="hiredOn"
+                max={today}
+                required
+                type="date"
+                value={hiredOn}
+                onChange={(e) => setHiredOn(e.target.value)}
               />
             </div>
 

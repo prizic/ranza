@@ -32,6 +32,7 @@ model User {
   assignments             PropertyAssignment[]
   stays                   Stay[]
   invitesSent             StaffInvitation[]        @relation("StaffInvitationAuthor")
+  wageChangesMade         HrWageChange[]           @relation("WageChangeAuthor")
   closedDays              BusinessDayClose[]
   ratesSet                PropertyRate[]
   bookingChanges          ReservationChange[]
@@ -1314,6 +1315,7 @@ model HrEmployee {
   shifts        HrShift[]
   leaveRequests HrLeaveRequest[]
   payslips      HrPayslip[]
+  wageChanges   HrWageChange[]
 
   @@unique([id, organizationId], map: "hr_employees_id_org_key")
   /// A login is one employee record in an Organization, and a record with no
@@ -1323,6 +1325,26 @@ model HrEmployee {
   @@index([propertyId], map: "hr_employees_property_idx")
   @@index([userId], map: "hr_employees_user_idx")
   @@map("hr_employees")
+}
+
+/// A dated wage change: the month a gross pay takes effect. Append-only; the
+/// newest row at or before a month is the wage for it, else the employee's own
+/// gross_pay_minor (HR-03).
+model HrWageChange {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  employeeId     String   @map("employee_id") @db.Uuid
+  effectiveFrom  DateTime @map("effective_from") @db.Date
+  grossPayMinor  BigInt   @map("gross_pay_minor")
+  createdBy      String   @map("created_by") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  employee HrEmployee @relation(fields: [employeeId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "hr_wage_changes_employee_fkey")
+  author   User       @relation("WageChangeAuthor", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "hr_wage_changes_created_by_fkey")
+
+  @@index([employeeId, effectiveFrom(sort: Desc), createdAt(sort: Desc)], map: "hr_wage_changes_employee_idx")
+  @@index([organizationId], map: "hr_wage_changes_organization_idx")
+  @@map("hr_wage_changes")
 }
 
 /// Weekly rota shifts per staff member (Blueprint 5.11, HR-S1-07).

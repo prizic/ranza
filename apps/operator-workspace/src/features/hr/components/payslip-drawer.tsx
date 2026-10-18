@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { formatMoney, type SupportedLocale } from "@ranza/i18n";
+import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
 import {
   Avatar,
   AvatarFallback,
@@ -13,7 +13,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@ranza/ui";
-import { Download, TriangleAlert } from "lucide-react";
+import { Printer, TriangleAlert } from "lucide-react";
 import type { PayslipRecord } from "../../../server/viewer";
 
 interface PayslipDrawerProps {
@@ -39,6 +39,12 @@ export function PayslipDrawer({
   const money = (amountMinor: number) =>
     formatMoney(amountMinor, currency, locale);
 
+  const monthName = formatDate(new Date(`${period}-01T00:00:00Z`), locale, {
+    day: undefined,
+    month: "long",
+    timeZone: "UTC",
+  });
+
   const initials = payslip.employeeName
     .split(" ")
     .map((n) => n[0])
@@ -52,7 +58,7 @@ export function PayslipDrawer({
         <div>
           <SheetHeader className="pb-4 border-b border-border">
             <SheetTitle className="text-step-1">
-              {t("payslipTitle")}, {period}
+              {t("payslipTitle")}, {monthName}
             </SheetTitle>
             <SheetDescription>{payslip.employeeName}</SheetDescription>
           </SheetHeader>
@@ -142,8 +148,8 @@ export function PayslipDrawer({
               window.print();
             }}
           >
-            <Download className="size-4" />
-            <span>{t("downloadPdf")}</span>
+            <Printer className="size-4" />
+            <span>{t("print")}</span>
           </Button>
         </div>
       </SheetContent>

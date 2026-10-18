@@ -18,6 +18,7 @@ export type HrField =
   | "period"
   | "dates"
   | "terminatedOn"
+  | "effectiveFrom"
   | "shiftTime";
 
 export class HrInputError extends Error {
@@ -52,7 +53,9 @@ export type HrRefusalReason =
   /** A run is locked once approved, so a period that is still running is not approved (HR-S1-45). */
   | "payroll_period_not_ended"
   /** A draft run is already open for the period, which only a hand-made row can cause. */
-  | "payroll_draft_exists";
+  | "payroll_draft_exists"
+  /** A wage cannot start in a month whose run is approved (ADR 0044, HR-DEF-10). */
+  | "wage_period_approved";
 
 export class HrRefusedError extends Error {
   constructor(

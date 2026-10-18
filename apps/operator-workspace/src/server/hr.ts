@@ -177,8 +177,11 @@ export async function registerEmployeeAction(
     /** As the person typed it, in the Property's currency. */
     grossPay: string;
     iban?: string | undefined;
+    /** `YYYY-MM-DD`; left out, it is today at the Property (HR-02). */
+    hiredOn?: string | undefined;
   },
 ): Promise<HrOutcome> {
+  const hiredOn = data.hiredOn ? calendarDate(data.hiredOn) : undefined;
   const loginIds = data.userId === undefined ? [] : [data.userId];
   return run(
     "register_employee",
@@ -199,6 +202,7 @@ export async function registerEmployeeAction(
       if (!workplace) throw new HrRefusedError("not_permitted");
       const grossPayMinor = toMinorUnits(data.grossPay, workplace.currency);
       if (grossPayMinor === null) throw new HrInputError("grossPay");
+      if (data.hiredOn && !hiredOn) throw new HrInputError("dates");
 
       await comp.hr.registerEmployee(scope.userId, {
         organizationId: scope.organizationId,
@@ -214,9 +218,86 @@ export async function registerEmployeeAction(
         grossPayMinor,
         currency: workplace.currency,
         iban: data.iban,
+        hiredOn: hiredOn ?? undefined,
       });
     },
   );
+}
+
+/**
+ * Edits an employee's record. Pay is not here: it is changed from a month on by
+ * `changeWageAction`, so an earlier month keeps what it paid (HR-03).
+ */
+export async function updateEmployeeAction(
+  locale: string,
+  propertyId: string,
+  employeeId: string,
+  data: {
+    firstName: string;
+    lastName: string;
+    department: string;
+    position: string;
+    contractType: ContractType;
+    phone?: string | undefined;
+    email?: string | undefined;
+    /** Left out to keep the IBAN on record. */
+    iban?: string | undefined;
+    hiredOn: string;
+  },
+): Promise<HrOutcome> {
+  const hiredOn = calendarDate(data.hiredOn);
+  return run(
+    "update_employee",
+    locale,
+    propertyId,
+    [employeeId],
+    async (scope) => {
+      if (!hiredOn) throw new HrInputError("dates");
+      await getComposition().hr.updateEmployee(scope.userId, {
+        organizationId: scope.organizationId,
+        employeeId,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        department: data.department,
+        position: data.position,
+        contractType: data.contractType,
+        phone: data.phone,
+        email: data.email,
+        iban: data.iban,
+        hiredOn,
+      });
+    },
+  );
+}
+
+/**
+ * A new gross pay from a month on. The amount is typed in the currency the
+ * employee is paid in, which is read here and never taken from the form
+ * (ADR 0015).
+ */
+export async function changeWageAction(
+  locale: string,
+  propertyId: string,
+  employeeId: string,
+  data: { effectiveFrom: string; grossPay: string },
+): Promise<HrOutcome> {
+  return run("change_wage", locale, propertyId, [employeeId], async (scope) => {
+    const comp = getComposition();
+    const employees = await comp.hr.employees(
+      scope.userId,
+      scope.organizationId,
+    );
+    const employee = employees.find((candidate) => candidate.id === employeeId);
+    if (!employee) throw new HrRefusedError("not_permitted");
+    const grossPayMinor = toMinorUnits(data.grossPay, employee.currency);
+    if (grossPayMinor === null) throw new HrInputError("grossPay");
+    await comp.hr.changeWage(scope.userId, {
+      organizationId: scope.organizationId,
+      employeeId,
+      effectiveFrom: data.effectiveFrom,
+      grossPayMinor,
+    });
+  });
 }
 
 export async function terminateEmployeeAction(

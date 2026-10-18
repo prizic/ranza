@@ -34,7 +34,10 @@ export interface EmployeeRecord {
   readonly position: string;
   readonly contractType: ContractType;
   readonly hiredOn: Date;
+  /** The wage in force this month: the newest dated change, else the first. */
   readonly grossPayMinor: number;
+  /** Every dated change, oldest first, so a raise still to come is visible. */
+  readonly wageChanges: readonly WageChange[];
   readonly currency: string;
   readonly status: EmploymentStatus;
   readonly terminatedOn: Date | null;
@@ -43,6 +46,13 @@ export interface EmployeeRecord {
   readonly ibanMasked: string | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
+}
+
+/** A wage that takes effect from the first day of a month (HR-03). */
+export interface WageChange {
+  /** `YYYY-MM`. */
+  readonly effectiveFrom: string;
+  readonly grossPayMinor: number;
 }
 
 export interface ShiftRecord {
@@ -124,6 +134,30 @@ export interface RegisterEmployeeInput {
   readonly currency: string;
   readonly bankName?: string | null | undefined;
   readonly iban?: string | null | undefined;
+}
+
+/** What editing an employee's record changes. Pay is not here: it is dated. */
+export interface UpdateEmployeeInput {
+  readonly organizationId: string;
+  readonly employeeId: string;
+  readonly firstName: string;
+  readonly lastName: string;
+  readonly department: string;
+  readonly position: string;
+  readonly contractType: ContractType;
+  readonly phone?: string | null | undefined;
+  readonly email?: string | null | undefined;
+  /** Left out to keep the one on record; a new one replaces it. */
+  readonly iban?: string | null | undefined;
+  readonly hiredOn: Date;
+}
+
+export interface ChangeWageInput {
+  readonly organizationId: string;
+  readonly employeeId: string;
+  /** `YYYY-MM`: the month the new pay starts. */
+  readonly effectiveFrom: string;
+  readonly grossPayMinor: number;
 }
 
 export interface TerminateEmployeeInput {

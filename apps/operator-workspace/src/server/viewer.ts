@@ -166,6 +166,7 @@ import {
   loginsWithoutEmployment,
   type UnregisteredStaffMember,
 } from "../lib/unregistered-staff";
+import { weekToShow } from "../lib/hr-week";
 import { getComposition } from "./composition";
 import { displayName } from "./display-name";
 import type { TodaySummary } from "./today-derive";
@@ -1289,6 +1290,10 @@ export interface HrViewData {
   currency: string;
   /** The Property's own calendar date, `YYYY-MM-DD`. */
   today: string;
+  /** The Organization's Properties the viewer may use HR at, for naming where somebody works. */
+  properties: readonly { propertyId: string; propertyName: string }[];
+  /** The rota's week, Monday to Sunday, on the Property's own calendar (HR-06). */
+  week: readonly string[];
   employees: readonly EmployeeRecord[];
   /**
    * Active Staff Members of the Organization with no employment record: they
@@ -1342,8 +1347,9 @@ async function unregisteredStaffOf(
  */
 export async function hrViewData(
   propertyId: string,
-  period?: string,
+  options: { period?: string | undefined; week?: string | undefined } = {},
 ): Promise<HrViewData | null> {
+  const { period, week: requestedWeek } = options;
   const viewer = await currentViewer();
   if (!viewer) return null;
 
@@ -1367,16 +1373,11 @@ export async function hrViewData(
           targetProperty.organizationId,
         );
 
-  const today = new Date();
-  const dayOfWeek = today.getDay();
-  const distanceToMonday = (dayOfWeek + 6) % 7;
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - distanceToMonday);
-  monday.setHours(0, 0, 0, 0);
-
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
+  // The Property's own calendar, not this server's and not the browser's: the
+  // week is counted from the date the Property says it is (HR-06).
+  const week = weekToShow(requestedWeek, workplace.today);
+  const monday = new Date(`${week[0]}T00:00:00Z`);
+  const sunday = new Date(`${week[6]}T00:00:00Z`);
 
   const [employees, shifts, leaveRequests, payroll] = await Promise.all([
     comp.hr.employees(viewer.userId, targetProperty.organizationId),
@@ -1408,6 +1409,10 @@ export async function hrViewData(
     propertyId,
     currency: workplace.currency,
     today: workplace.today,
+    properties: entitled
+      .filter((p) => p.organizationId === targetProperty.organizationId)
+      .map((p) => ({ propertyId: p.propertyId, propertyName: p.propertyName })),
+    week,
     employees,
     unregisteredStaff,
     shifts,

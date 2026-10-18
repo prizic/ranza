@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
-import type { SupportedLocale } from "@ranza/i18n";
+import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import {
   Button,
   Dialog,
@@ -94,7 +95,15 @@ export function TerminateEmployeeDialog({
             <DialogTitle>
               {t("terminateTitle", { name: employeeName })}
             </DialogTitle>
-            <DialogDescription>{t("terminateDescription")}</DialogDescription>
+            <DialogDescription>
+              {t("terminateDescription")}{" "}
+              <Link
+                className="font-medium text-foreground underline underline-offset-2"
+                href={localizeHref(locale, `people?property=${propertyId}`)}
+              >
+                {t("terminatePeople")}
+              </Link>
+            </DialogDescription>
           </DialogHeader>
 
           {errorMessage && (

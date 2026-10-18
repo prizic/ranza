@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { HrView } from "../../../../features/hr/components/hr-view";
+import { HrView, type HrTab } from "../../../../features/hr/components/hr-view";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import {
   entitledProperties,
@@ -16,7 +16,12 @@ export default async function HrPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ property?: string; period?: string }>;
+  searchParams: Promise<{
+    property?: string;
+    period?: string;
+    week?: string;
+    tab?: string;
+  }>;
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
@@ -40,8 +45,8 @@ export default async function HrPage({
     );
   }
 
-  const { period } = await searchParams;
-  const data = await hrViewData(property.propertyId, period);
+  const { period, week, tab } = await searchParams;
+  const data = await hrViewData(property.propertyId, { period, week });
 
   if (!data) {
     return (
@@ -53,6 +58,30 @@ export default async function HrPage({
   }
 
   return (
-    <HrView data={data} locale={locale} propertyId={property.propertyId} />
+    <HrView
+      data={data}
+      initialTab={openingTab(tab, period, week)}
+      locale={locale}
+      propertyId={property.propertyId}
+    />
   );
+}
+
+const TABS: readonly HrTab[] = ["employees", "rota", "leave", "payroll"];
+
+/**
+ * Where a link opens: the tab it names, else the one its other parameters
+ * belong to — a period is payroll's and a week is the rota's — else the list of
+ * people (HR-05).
+ */
+function openingTab(
+  tab: string | undefined,
+  period: string | undefined,
+  week: string | undefined,
+): HrTab {
+  const named = TABS.find((candidate) => candidate === tab);
+  if (named) return named;
+  if (period) return "payroll";
+  if (week) return "rota";
+  return "employees";
 }
