@@ -36,8 +36,12 @@ src/
       sign-in/
       (workspace)/           the authenticated shell: navigation, Property switcher
         today/
+        error.tsx            a page that cannot be drawn; the shell stays
     api/auth/[...all]/       Better Auth owns every route beneath this path
-  instrumentation.ts          runs once per server: refuses a privileged connection
+    global-error.tsx         the last boundary, when the root layout itself fails
+  proxy.ts                   writes where a request was going, remembers the language
+  instrumentation.ts          runs once per server: refuses a privileged connection,
+                             and records every failure it catches with its digest
   server/
     composition.ts           the composition root — three clients, three roles
     startup.ts               the refusal instrumentation.ts runs, and the exit

@@ -11,6 +11,13 @@ everything lands under Unreleased.
 
 ### Added
 
+- `explainDenial`, with `Denial` and `DenialQuestion`: why a destination is
+  closed to the viewer, from the first gate that stops them — no Property, a
+  Property that is not theirs, the Subscription, the Property's capability, or
+  the role's permission. Read only after a page has found nothing to show, and
+  agreeing with `listPermittedProperties` by construction
+  ([ADR 0047](../../../docs/adr/0047-a-destination-has-one-gate-and-the-proxy-tells-a-page-where-it-was-going.md)).
+
 - Configuration: `propertySettings`, `configureProperty`, `renameOrganization`,
   `businessDatePreview` and `timezoneNames`, with `CONFIGURATION_CAPABILITY`,
   `CONFIGURATION_MANAGE_PERMISSION` and an error per refusal. A Property's
