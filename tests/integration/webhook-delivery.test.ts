@@ -15,6 +15,10 @@
  * owner. That is the only thing done outside the product, and it is what the
  * tests' own allowance exists for.
  *
+ * What a webhook carries is built from the reservation an event names, so each
+ * event published here names a real one, and the ones that are forged are
+ * forged on purpose.
+ *
  * Each claim was checked by breaking it: sending without the signature header,
  * dropping the `Idempotency-Key`, treating a redirect as a success, queueing
  * the same event twice, and letting the strict pass connect to a private
@@ -57,6 +61,8 @@ const ORG = randomUUID();
 const PROPERTY = randomUUID();
 const MANAGER = randomUUID();
 const HOUSEKEEPER = randomUUID();
+const VIEWER = randomUUID();
+const GUEST = randomUUID();
 
 const prisma = createPrismaClient(process.env.DATABASE_URL!);
 const workerDb = createPrismaClient(process.env.WORKER_DATABASE_URL!);
@@ -82,10 +88,14 @@ interface Reply {
   status: number;
   headers?: Record<string, string>;
   body?: string;
+  /** The receiver does not answer until this settles. */
+  hold?: Promise<void>;
 }
 
 const received: Received[] = [];
 const script: Reply[] = [];
+let inFlight = 0;
+let mostInFlight = 0;
 let receiver: Server;
 let receiverOrigin: string;
 
@@ -100,8 +110,13 @@ function startReceiver(): Promise<void> {
         path: request.url ?? "",
       });
       const reply = script.shift() ?? { status: 200 };
-      response.writeHead(reply.status, reply.headers);
-      response.end(reply.body ?? "");
+      inFlight += 1;
+      mostInFlight = Math.max(mostInFlight, inFlight);
+      void (reply.hold ?? Promise.resolve()).then(() => {
+        inFlight -= 1;
+        response.writeHead(reply.status, reply.headers);
+        response.end(reply.body ?? "");
+      });
     });
   });
   return new Promise((resolve) => {
@@ -115,12 +130,14 @@ function startReceiver(): Promise<void> {
 
 async function seed(): Promise<void> {
   await owner.$executeRawUnsafe(
-    `insert into public.users (id, email) values ($1, $2), ($3, $4)
+    `insert into public.users (id, email) values ($1, $2), ($3, $4), ($5, $6)
      on conflict (id) do nothing`,
     MANAGER,
     `webhook-manager-${Date.now()}@ranza.test`,
     HOUSEKEEPER,
     `webhook-housekeeper-${Date.now()}@ranza.test`,
+    VIEWER,
+    `webhook-viewer-${Date.now()}@ranza.test`,
   );
   await owner.$executeRawUnsafe(
     `insert into public.organizations (id, name, status) values
@@ -154,14 +171,28 @@ async function seed(): Promise<void> {
     ORG,
   );
   await owner.$executeRawUnsafe(
+    `insert into public.staff_roles (scope_id, key, organization_id, name, permissions)
+       values ($1, 'webhook_viewer', $1, 'Webhook viewer', array['integrations.view'])
+     on conflict do nothing`,
+    ORG,
+  );
+  await owner.$executeRawUnsafe(
     `insert into public.organization_memberships
-       (organization_id, user_id, role, access_scope) values
-       ($1, $2, 'manager', 'organization_wide'),
-       ($1, $3, 'housekeeping', 'organization_wide')
+       (organization_id, user_id, role, role_scope_id, access_scope) values
+       ($1, $2, 'manager', '00000000-0000-0000-0000-000000000000', 'organization_wide'),
+       ($1, $3, 'housekeeping', '00000000-0000-0000-0000-000000000000', 'organization_wide'),
+       ($1, $4, 'webhook_viewer', $1, 'organization_wide')
      on conflict (organization_id, user_id) do nothing`,
     ORG,
     MANAGER,
     HOUSEKEEPER,
+    VIEWER,
+  );
+  await owner.$executeRawUnsafe(
+    `insert into public.guests (id, organization_id, full_name) values ($1, $2, 'Webhook Guest')
+     on conflict (id) do nothing`,
+    GUEST,
+    ORG,
   );
 }
 
@@ -185,24 +216,63 @@ async function endpointToReceiver(
   return registered;
 }
 
-/** Publishes a reservation fact the way the Reservations module does, in a transaction of its own. */
-async function publishReservation(): Promise<string> {
+interface BookedReservation {
+  reservationId: string;
+  unitId: string;
+}
+
+/** A reservation on a unit of its own, laid down by the owner as the Reservations module would have. */
+async function bookReservation(
+  status = "confirmed",
+): Promise<BookedReservation> {
+  const reservationId = randomUUID();
+  const unitId = randomUUID();
+  await owner.$executeRawUnsafe(
+    `insert into public.accommodation_units (id, property_id, organization_id, name, unit_type, capacity)
+     values ($1::uuid, $2::uuid, $3::uuid, $4, 'room', 2)`,
+    unitId,
+    PROPERTY,
+    ORG,
+    `WH-${unitId.slice(0, 8)}`,
+  );
+  await owner.$executeRawUnsafe(
+    `insert into public.reservations
+       (id, organization_id, property_id, accommodation_unit_id, guest_id, stay_type, status, starts_on, ends_on)
+     values ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::uuid, 'guest', $6,
+             app.property_today($3::uuid), app.property_today($3::uuid) + 2)`,
+    reservationId,
+    ORG,
+    PROPERTY,
+    unitId,
+    GUEST,
+    status,
+  );
+  return { reservationId, unitId };
+}
+
+/** Publishes an event with exactly the payload given: any member of the Organization can. */
+async function publishEvent(
+  eventType: string,
+  payload: Record<string, unknown>,
+): Promise<string> {
   return withOrganizationContext(prisma, { userId: MANAGER }, async (tx) => {
     const { eventId } = await publishWithin(
       tx as unknown as OutboxWriteClient,
-      {
-        organizationId: ORG,
-        eventType: "reservation.created",
-        payload: {
-          reservationId: randomUUID(),
-          guestId: randomUUID(),
-          propertyId: PROPERTY,
-          accommodationUnitId: randomUUID(),
-          description: "Mr Example asked for a quiet room",
-        },
-      },
+      { organizationId: ORG, eventType, payload },
     );
     return eventId;
+  });
+}
+
+/** Publishes a reservation fact the way the Reservations module does, in a transaction of its own. */
+async function publishReservation(): Promise<string> {
+  const { reservationId, unitId } = await bookReservation();
+  return publishEvent("reservation.created", {
+    reservationId,
+    guestId: GUEST,
+    propertyId: PROPERTY,
+    accommodationUnitId: unitId,
+    description: "Mr Example asked for a quiet room",
   });
 }
 
@@ -217,7 +287,7 @@ async function drainOutbox(): Promise<void> {
 async function makeDue(endpointId: string): Promise<void> {
   await owner.$executeRawUnsafe(
     `update public.webhook_deliveries
-        set next_attempt_at = now(), claimed_until = null
+        set next_attempt_at = now(), claimed_until = null, lease_id = null
       where endpoint_id = $1::uuid and status in ('pending', 'retrying')`,
     endpointId,
   );
@@ -254,8 +324,35 @@ async function settle(runner = delivery): Promise<DeliveryReport[]> {
   return reports;
 }
 
+/** The failures at the Property that are still being asked about, as the screen's first page. */
+async function openFailures() {
+  const { records } = await integrations.failedOperations(MANAGER, PROPERTY, {
+    view: "open",
+    limit: 100,
+    offset: 0,
+  });
+  return records;
+}
+
 function requestsTo(path: string): Received[] {
   return received.filter((request) => request.path === path);
+}
+
+/** A promise that settles when `release` is called, for a receiver that is slow to answer. */
+function gate(): { held: Promise<void>; release: () => void } {
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return { held, release };
+}
+
+async function until(condition: () => boolean, what: string): Promise<void> {
+  for (let waited = 0; waited < 10_000; waited += 20) {
+    if (condition()) return;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error(`still waiting for ${what}`);
 }
 
 beforeAll(async () => {
@@ -266,6 +363,8 @@ beforeAll(async () => {
 beforeEach(() => {
   received.length = 0;
   script.length = 0;
+  inFlight = 0;
+  mostInFlight = 0;
 });
 
 /**
@@ -283,7 +382,7 @@ afterEach(async () => {
   );
   await owner.$executeRawUnsafe(
     `update public.webhook_deliveries
-        set status = 'cancelled', next_attempt_at = null, claimed_until = null
+        set status = 'cancelled', next_attempt_at = null, claimed_until = null, lease_id = null
       where organization_id = $1::uuid and status in ('pending', 'retrying')`,
     ORG,
   );
@@ -565,7 +664,7 @@ describe("delivering an event", () => {
         ORG,
       );
       const [again] = await tx.$queryRawUnsafe<{ queued: number }[]>(
-        "select app.enqueue_webhook_deliveries($1::uuid) as queued",
+        "select queued_count as queued from app.enqueue_webhook_deliveries($1::uuid)",
         eventId,
       );
       expect(again?.queued).toBe(0);
@@ -596,7 +695,7 @@ describe("delivering an event", () => {
       lastStatusCode: 503,
       lastFailure: "http_error",
     });
-    const failures = await integrations.failedOperations(MANAGER, PROPERTY);
+    const failures = await openFailures();
     const failure = failures.find((item) => item.endpointId === endpointId);
     expect(failure).toMatchObject({
       status: "retrying",
@@ -624,7 +723,7 @@ describe("delivering an event", () => {
       status: "delivered",
       attempts: 2,
     });
-    const after = await integrations.failedOperations(MANAGER, PROPERTY);
+    const after = await openFailures();
     expect(
       after.find((item) => item.endpointId === endpointId),
     ).toBeUndefined();
@@ -650,9 +749,9 @@ describe("delivering an event", () => {
     await settle();
     expect(requestsTo("/strict")).toHaveLength(1);
 
-    const [failure] = (
-      await integrations.failedOperations(MANAGER, PROPERTY)
-    ).filter((item) => item.endpointId === endpointId);
+    const [failure] = (await openFailures()).filter(
+      (item) => item.endpointId === endpointId,
+    );
     expect(failure).toMatchObject({ status: "failed", nextAttemptAt: null });
 
     await integrations.retryOperation(MANAGER, { operationId: failure!.id });
@@ -662,9 +761,7 @@ describe("delivering an event", () => {
     });
     // Retry resolved nothing: the failure stands until a delivery arrives.
     expect(
-      (await integrations.failedOperations(MANAGER, PROPERTY)).filter(
-        (item) => item.endpointId === endpointId,
-      ),
+      (await openFailures()).filter((item) => item.endpointId === endpointId),
     ).toHaveLength(1);
 
     script.push({ status: 200 });
@@ -676,9 +773,7 @@ describe("delivering an event", () => {
       attempts: 2,
     });
     expect(
-      (await integrations.failedOperations(MANAGER, PROPERTY)).filter(
-        (item) => item.endpointId === endpointId,
-      ),
+      (await openFailures()).filter((item) => item.endpointId === endpointId),
     ).toEqual([]);
     const record = await latestRecord(
       owner,
@@ -698,9 +793,9 @@ describe("delivering an event", () => {
     await drainOutbox();
     script.push({ status: 404 });
     await settle();
-    const [failure] = (
-      await integrations.failedOperations(MANAGER, PROPERTY)
-    ).filter((item) => item.endpointId === endpointId);
+    const [failure] = (await openFailures()).filter(
+      (item) => item.endpointId === endpointId,
+    );
 
     await integrations.retryOperation(MANAGER, { operationId: failure!.id });
     script.push({ status: 404 });
@@ -710,9 +805,9 @@ describe("delivering an event", () => {
       status: "failed",
       attempts: 2,
     });
-    const [after] = (
-      await integrations.failedOperations(MANAGER, PROPERTY)
-    ).filter((item) => item.endpointId === endpointId);
+    const [after] = (await openFailures()).filter(
+      (item) => item.endpointId === endpointId,
+    );
     expect(after).toMatchObject({ status: "failed", attempts: 2 });
   });
 
@@ -727,9 +822,9 @@ describe("delivering an event", () => {
     await drainOutbox();
     script.push({ status: 503 }, { status: 400 });
     await settle();
-    const failures = (
-      await integrations.failedOperations(MANAGER, PROPERTY)
-    ).filter((item) => item.endpointId === endpointId);
+    const failures = (await openFailures()).filter(
+      (item) => item.endpointId === endpointId,
+    );
     const retrying = failures.find((item) => item.status === "retrying")!;
     const failed = failures.find((item) => item.status === "failed")!;
 
@@ -930,6 +1025,510 @@ describe("where a delivery may go", () => {
       lastStatusCode: 302,
       lastFailure: "redirect_refused",
     });
+  });
+});
+
+describe("what is sent is what happened", () => {
+  it("INT-S1-27: an event that does not match its source is never sent, is on the screen as a failure, and cannot be retried", async () => {
+    const { endpointId } = await endpointToReceiver(
+      "Forged",
+      ["reservation.created"],
+      "/forged",
+    );
+    const nothing = await publishEvent("reservation.created", {
+      reservationId: randomUUID(),
+      propertyId: PROPERTY,
+    });
+    const { reservationId } = await bookReservation();
+    const wrongProperty = await publishEvent("reservation.created", {
+      reservationId,
+      propertyId: randomUUID(),
+    });
+    await drainOutbox();
+    await settle();
+
+    expect(requestsTo("/forged")).toHaveLength(0);
+    for (const eventId of [nothing, wrongProperty]) {
+      expect(await deliveryOf(endpointId, eventId)).toMatchObject({
+        status: "failed",
+        attempts: 0,
+        lastFailure: "source_mismatch",
+      });
+      const [event] = await owner.$queryRawUnsafe<
+        { published: boolean; dead: boolean }[]
+      >(
+        `select published_at is not null as published, dead_at is not null as dead
+           from outbox.events where id = $1::uuid`,
+        eventId,
+      );
+      expect(event).toEqual({ published: true, dead: false });
+    }
+    const [bodies] = await owner.$queryRawUnsafe<{ empty: number }[]>(
+      `select count(*)::int as empty from public.webhook_deliveries
+        where endpoint_id = $1::uuid and body = '{}'::jsonb`,
+      endpointId,
+    );
+    expect(bodies?.empty).toBe(2);
+
+    const failures = (await openFailures()).filter(
+      (item) => item.endpointId === endpointId,
+    );
+    expect(failures).toHaveLength(2);
+    expect(failures).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          status: "failed",
+          error: "source_mismatch",
+          attempts: 0,
+          operation: "reservation.created",
+        }),
+      ]),
+    );
+
+    await expect(
+      integrations.retryOperation(MANAGER, { operationId: failures[0]!.id }),
+    ).rejects.toMatchObject({ reason: "unavailable" });
+    await integrations.resolveOperation(MANAGER, {
+      operationId: failures[0]!.id,
+      reason: "Looked into it; the event was a test",
+    });
+    expect(
+      (await openFailures()).filter((item) => item.endpointId === endpointId),
+    ).toHaveLength(1);
+
+    // A true event after the false ones is not held up by them.
+    const real = await publishReservation();
+    await drainOutbox();
+    await settle();
+    expect(requestsTo("/forged")).toHaveLength(1);
+    expect(await deliveryOf(endpointId, real)).toMatchObject({
+      status: "delivered",
+    });
+  });
+
+  it("INT-S1-63: the body carries the reservation as it is, not as the event described it", async () => {
+    await endpointToReceiver("Truthful", ["reservation.created"], "/truthful");
+    const { reservationId, unitId } = await bookReservation();
+    await publishEvent("reservation.created", {
+      reservationId,
+      propertyId: PROPERTY,
+      accommodationUnitId: randomUUID(),
+      guestId: GUEST,
+      description: "Mr Example asked for a quiet room",
+      amountMinor: 999999,
+    });
+    await drainOutbox();
+    await settle();
+
+    const [request] = requestsTo("/truthful");
+    const body = JSON.parse(request!.body) as {
+      propertyId: string;
+      data: Record<string, unknown>;
+    };
+    expect(body.propertyId).toBe(PROPERTY);
+    expect(body.data).toEqual({
+      reservationId,
+      propertyId: PROPERTY,
+      accommodationUnitId: unitId,
+    });
+    expect(request!.body).not.toContain("999999");
+  });
+
+  it("INT-S1-63: a cancellation of a reservation that is not cancelled is refused", async () => {
+    const { endpointId } = await endpointToReceiver(
+      "Cancellations",
+      ["reservation.cancelled"],
+      "/cancelled",
+    );
+    const standing = await bookReservation("confirmed");
+    const gone = await bookReservation("cancelled");
+    const forged = await publishEvent("reservation.cancelled", {
+      reservationId: standing.reservationId,
+      propertyId: PROPERTY,
+    });
+    const true_ = await publishEvent("reservation.cancelled", {
+      reservationId: gone.reservationId,
+      propertyId: PROPERTY,
+    });
+    await drainOutbox();
+    await settle();
+
+    expect(requestsTo("/cancelled")).toHaveLength(1);
+    expect(JSON.parse(requestsTo("/cancelled")[0]!.body)).toMatchObject({
+      id: true_,
+      type: "reservation.cancelled",
+    });
+    expect(await deliveryOf(endpointId, forged)).toMatchObject({
+      status: "failed",
+      lastFailure: "source_mismatch",
+    });
+  });
+});
+
+describe("one delivery on the wire per endpoint", () => {
+  it("INT-S1-76: a second pass sends nothing to an endpoint that is mid-request, and the endpoint receives its events oldest first", async () => {
+    const { endpointId } = await endpointToReceiver(
+      "Ordered",
+      ["reservation.created"],
+      "/ordered",
+    );
+    const first = await publishReservation();
+    await drainOutbox();
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    const second = await publishReservation();
+    await drainOutbox();
+
+    const held = gate();
+    script.push({ status: 200, hold: held.held });
+    const onePass = delivery.processDueDeliveries();
+    await until(() => received.length === 1, "the first request to arrive");
+
+    const otherReplica = createWebhookDelivery({
+      db: workerDb,
+      allowLoopbackHttp: true,
+    });
+    const meanwhile = await otherReplica.processDueDeliveries();
+    expect(meanwhile.outcomes).toEqual([]);
+    expect(received).toHaveLength(1);
+    expect(await deliveryOf(endpointId, second)).toMatchObject({
+      status: "pending",
+      attempts: 0,
+    });
+
+    held.release();
+    await onePass;
+    await settle();
+
+    expect(
+      received.map((request) => request.headers["x-ranza-event-id"]),
+    ).toEqual([first, second]);
+    expect(mostInFlight).toBe(1);
+  });
+
+  it("INT-S1-76: two replicas claiming two deliveries of one endpoint at the same moment end with one lease", async () => {
+    const { endpointId } = await endpointToReceiver(
+      "Contended",
+      ["reservation.created"],
+      "/contended",
+    );
+    const first = await publishReservation();
+    const second = await publishReservation();
+    await drainOutbox();
+
+    const claim = (deliveryId: string) =>
+      workerDb.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(
+          "select app.set_worker_context($1::uuid, 'integrations.test')",
+          ORG,
+        );
+        const rows = await tx.$queryRawUnsafe<{ leaseId: string }[]>(
+          `select lease_id as "leaseId" from app.claim_webhook_delivery($1::uuid)`,
+          deliveryId,
+        );
+        return rows.length;
+      });
+
+    const ids = [
+      (await deliveryOf(endpointId, first))!.id,
+      (await deliveryOf(endpointId, second))!.id,
+    ];
+    for (let round = 0; round < 30; round += 1) {
+      await owner.$executeRawUnsafe(
+        `update public.webhook_deliveries set claimed_until = null, lease_id = null
+          where endpoint_id = $1::uuid`,
+        endpointId,
+      );
+      const claimed = await Promise.all(ids.map(claim));
+      expect(claimed.reduce((sum, rows) => sum + rows, 0)).toBeLessThanOrEqual(
+        1,
+      );
+    }
+  }, 120_000);
+
+  it("INT-S1-77: an attempt that outlived its lease cannot record over the one that replaced it", async () => {
+    const { endpointId } = await endpointToReceiver(
+      "Lapsed",
+      ["reservation.created"],
+      "/lapsed",
+    );
+    const eventId = await publishReservation();
+    await drainOutbox();
+
+    const held = gate();
+    script.push({ status: 500, body: "too late", hold: held.held });
+    const slow = delivery.processDueDeliveries();
+    await until(() => received.length === 1, "the slow request to arrive");
+
+    await owner.$executeRawUnsafe(
+      `update public.webhook_deliveries
+          set claimed_until = now() - interval '1 minute'
+        where endpoint_id = $1::uuid`,
+      endpointId,
+    );
+    const replacement = await delivery.processDueDeliveries();
+    expect(replacement.outcomes.map((outcome) => outcome.status)).toEqual([
+      "delivered",
+    ]);
+
+    held.release();
+    const report = await slow;
+    expect(report.outcomes.map((outcome) => outcome.status)).toEqual([null]);
+
+    expect(await deliveryOf(endpointId, eventId)).toMatchObject({
+      status: "delivered",
+      attempts: 1,
+      lastStatusCode: 200,
+    });
+    expect(
+      (await openFailures()).filter((item) => item.endpointId === endpointId),
+    ).toEqual([]);
+  });
+});
+
+describe("a screenful of failures", () => {
+  it("INT-S1-71: Retry all puts every stopped delivery back, skips what cannot be sent, audits each, and refuses someone who may not", async () => {
+    const { endpointId } = await endpointToReceiver(
+      "Many stopped",
+      ["reservation.created"],
+      "/many",
+    );
+    const sent: string[] = [];
+    for (let n = 0; n < 3; n += 1) sent.push(await publishReservation());
+    await drainOutbox();
+    script.push({ status: 400 }, { status: 400 }, { status: 400 });
+    await settle();
+    await publishEvent("reservation.created", {
+      reservationId: randomUUID(),
+      propertyId: PROPERTY,
+    });
+    await drainOutbox();
+
+    const stopped = (
+      await integrations.failedOperations(MANAGER, PROPERTY, {
+        view: "open",
+        limit: 50,
+        offset: 0,
+      })
+    ).records.filter((item) => item.endpointId === endpointId);
+    expect(stopped.filter((item) => item.retryable)).toHaveLength(3);
+    expect(stopped.filter((item) => !item.retryable)).toHaveLength(1);
+
+    await expect(
+      integrations.retryAllOperations(VIEWER, { propertyId: PROPERTY }),
+    ).rejects.toMatchObject({ reason: "not_permitted" });
+    expect(await deliveryOf(endpointId, sent[0]!)).toMatchObject({
+      status: "failed",
+    });
+
+    expect(
+      await integrations.retryAllOperations(MANAGER, { propertyId: PROPERTY }),
+    ).toBe(3);
+    for (const eventId of sent) {
+      expect(await deliveryOf(endpointId, eventId)).toMatchObject({
+        status: "retrying",
+        attempts: 1,
+      });
+    }
+    const [audited] = await owner.$queryRawUnsafe<{ count: number }[]>(
+      `select count(*)::int as count from audit.records
+        where action = 'failed_operation.retried'
+          and subject_id = any ($1::uuid[])`,
+      stopped.filter((item) => item.retryable).map((item) => item.id),
+    );
+    expect(audited?.count).toBe(3);
+
+    await settle();
+    expect(requestsTo("/many")).toHaveLength(6);
+    expect(
+      (
+        await integrations.failedOperations(MANAGER, PROPERTY, {
+          view: "open",
+          limit: 50,
+          offset: 0,
+        })
+      ).records.filter((item) => item.endpointId === endpointId),
+    ).toHaveLength(1);
+    expect(
+      await integrations.retryAllOperations(MANAGER, { propertyId: PROPERTY }),
+    ).toBe(0);
+  });
+
+  it("INT-S1-73: failures come a page at a time with the total, the closed ones are their own list, and a closed one says who and why", async () => {
+    const { endpointId } = await endpointToReceiver(
+      "Paged",
+      ["reservation.created"],
+      "/paged",
+    );
+    for (let n = 0; n < 5; n += 1) await publishReservation();
+    await drainOutbox();
+    script.push(...Array.from({ length: 5 }, () => ({ status: 400 }) as Reply));
+    await settle();
+
+    const page = (view: "open" | "closed", offset: number) =>
+      integrations.failedOperations(MANAGER, PROPERTY, {
+        view,
+        limit: 2,
+        offset,
+      });
+    const first = await page("open", 0);
+    const second = await page("open", 2);
+    const third = await page("open", 4);
+    expect(first.total).toBe(5);
+    expect(first.records).toHaveLength(2);
+    expect(third.records).toHaveLength(1);
+    const ids = [...first.records, ...second.records, ...third.records].map(
+      (record) => record.id,
+    );
+    expect(new Set(ids).size).toBe(5);
+    expect((await page("open", 10)).records).toEqual([]);
+    const closedBefore = (await page("closed", 0)).total;
+
+    await integrations.resolveOperation(MANAGER, {
+      operationId: ids[0]!,
+      reason: "Re-sent by hand",
+    });
+    const closed = await page("closed", 0);
+    expect(closed.total).toBe(closedBefore + 1);
+    expect(closed.records[0]).toMatchObject({
+      id: ids[0],
+      status: "resolved",
+      closedBy: MANAGER,
+      closedReason: "Re-sent by hand",
+      endpointId,
+    });
+    expect(closed.records[0]!.closedAt).toBeInstanceOf(Date);
+    expect((await page("open", 0)).total).toBe(4);
+  });
+
+  it("INT-S1-74: a delivery that is due and not being sent is counted as overdue on its endpoint", async () => {
+    const { endpointId } = await endpointToReceiver(
+      "Stalled",
+      ["reservation.created"],
+      "/stalled",
+    );
+    await publishReservation();
+    await drainOutbox();
+    const find = async () =>
+      (await integrations.endpoints(MANAGER, ORG)).endpoints.find(
+        (endpoint) => endpoint.id === endpointId,
+      );
+    expect(await find()).toMatchObject({ queued: 1, overdue: 0 });
+
+    await owner.$executeRawUnsafe(
+      `update public.webhook_deliveries
+          set next_attempt_at = now() - interval '6 minutes'
+        where endpoint_id = $1::uuid`,
+      endpointId,
+    );
+    expect(await find()).toMatchObject({ queued: 1, overdue: 1 });
+
+    await settle();
+    expect(await find()).toMatchObject({ queued: 0, overdue: 0 });
+  });
+});
+
+describe("the ten-endpoint cap", () => {
+  it("INT-S1-21: two people registering the tenth endpoint at the same moment end with ten", async () => {
+    const register = (name: string) =>
+      integrations.registerEndpoint(MANAGER, {
+        organizationId: ORG,
+        name,
+        url: `https://hooks.example.test/${randomUUID()}`,
+        eventTypes: ["stay.checked_in"],
+      });
+
+    for (let round = 0; round < 3; round += 1) {
+      await owner.$executeRawUnsafe(
+        `update public.webhook_endpoints
+            set status = 'removed', removed_at = now()
+          where organization_id = $1::uuid and status = 'active'`,
+        ORG,
+      );
+      for (let n = 0; n < 9; n += 1) await register(`Filler ${n}`);
+
+      const outcomes = await Promise.allSettled([
+        register("Racer one"),
+        register("Racer two"),
+      ]);
+      expect(outcomes.filter((o) => o.status === "fulfilled")).toHaveLength(1);
+      const refused = outcomes.find((o) => o.status === "rejected");
+      expect((refused as PromiseRejectedResult).reason).toMatchObject({
+        reason: "too_many_endpoints",
+      });
+      const [count] = await owner.$queryRawUnsafe<{ active: number }[]>(
+        `select count(*)::int as active from public.webhook_endpoints
+          where organization_id = $1::uuid and status = 'active'`,
+        ORG,
+      );
+      expect(count?.active).toBe(10);
+    }
+  }, 120_000);
+});
+
+describe("what a viewer is shown", () => {
+  it("INT-S1-67: someone who can only view reads an address without its query string, and cannot read the column", async () => {
+    await integrations.registerEndpoint(MANAGER, {
+      organizationId: ORG,
+      name: "Tokened",
+      url: "https://hooks.example.test/tokened?token=s3cret-token#top",
+      eventTypes: ["stay.checked_in"],
+    });
+
+    const seen = await integrations.endpoints(VIEWER, ORG);
+    expect(seen.mayManage).toBe(false);
+    expect(seen.endpoints).toHaveLength(1);
+    expect(seen.endpoints[0]).toMatchObject({
+      url: "https://hooks.example.test/tokened",
+      urlMasked: true,
+    });
+    expect(JSON.stringify(seen)).not.toContain("s3cret-token");
+
+    const managed = await integrations.endpoints(MANAGER, ORG);
+    expect(managed.endpoints[0]).toMatchObject({
+      url: "https://hooks.example.test/tokened?token=s3cret-token#top",
+      urlMasked: false,
+    });
+
+    await expect(
+      withOrganizationContext(prisma, { userId: VIEWER }, (tx) =>
+        (tx as unknown as typeof prisma).$queryRawUnsafe(
+          "select url from public.webhook_endpoints",
+        ),
+      ),
+    ).rejects.toThrow(/permission denied|42501/);
+  });
+});
+
+describe("what the database refuses on its own", () => {
+  it("INT-S1-65: a missing reason is refused inside the function, and the refusal reaches the module as the SQLSTATE it is", async () => {
+    const { endpointId } = await endpointToReceiver(
+      "Reasonless",
+      ["reservation.created"],
+      "/reasonless",
+    );
+    await publishReservation();
+    await drainOutbox();
+    script.push({ status: 400 });
+    await settle();
+    const [failure] = (await openFailures()).filter(
+      (item) => item.endpointId === endpointId,
+    );
+
+    const error = await withOrganizationContext(
+      prisma,
+      { userId: MANAGER },
+      (tx) =>
+        (tx as unknown as typeof prisma).$queryRawUnsafe(
+          "select app.resolve_failed_operation($1::uuid, null)",
+          failure!.id,
+        ),
+    ).catch((caught: unknown) => caught);
+    expect(error).toMatchObject({
+      meta: { driverAdapterError: { cause: { originalCode: "23514" } } },
+    });
+    expect(
+      (await openFailures()).filter((item) => item.endpointId === endpointId),
+    ).toHaveLength(1);
   });
 });
 

@@ -1,5 +1,5 @@
 import {
-  lookup as resolveName,
+  lookup as systemResolve,
   type LookupAddress,
   type LookupOptions,
 } from "node:dns";
@@ -46,8 +46,7 @@ for (const [network, prefix] of [
   NOT_PUBLIC.addSubnet(network, prefix, "ipv4");
 }
 for (const [network, prefix] of [
-  ["::", 128],
-  ["::1", 128],
+  ["::", 96],
   ["64:ff9b::", 96],
   ["100::", 64],
   ["2001::", 32],
@@ -174,6 +173,24 @@ type LookupCallback = (
 ) => void;
 
 /**
+ * Answers every address a name has. The system's resolver in production; a test
+ * passes its own, which is the only way to prove that what a name resolves to
+ * is what gets refused, since a name that resolves to a private address cannot
+ * be registered on the public DNS for a test to use.
+ */
+export type NameResolver = (
+  hostname: string,
+  callback: (
+    error: NodeJS.ErrnoException | null,
+    addresses: readonly LookupAddress[],
+  ) => void,
+) => void;
+
+const resolveBySystem: NameResolver = (hostname, callback) => {
+  systemResolve(hostname, { all: true, verbatim: true }, callback);
+};
+
+/**
  * The `lookup` the HTTP client connects through. The address it returns is the
  * address connected to, so what is checked is what is used: resolving the name
  * first and connecting by name afterwards would let it answer twice. Every
@@ -184,13 +201,16 @@ type LookupCallback = (
  * An address literal in the URL never reaches a lookup, so the client checks
  * those before it connects (`checkTargetUrl` and `transport.ts`).
  */
-export function guardedLookup(policy: TargetPolicy) {
+export function guardedLookup(
+  policy: TargetPolicy,
+  resolveName: NameResolver = resolveBySystem,
+) {
   return (
     hostname: string,
     options: LookupOptions,
     callback: LookupCallback,
   ): void => {
-    resolveName(hostname, { all: true, verbatim: true }, (error, addresses) => {
+    resolveName(hostname, (error, addresses) => {
       if (error) {
         callback(error, "");
         return;
@@ -204,7 +224,7 @@ export function guardedLookup(policy: TargetPolicy) {
         return;
       }
       if (options.all) {
-        callback(null, addresses);
+        callback(null, [...addresses]);
         return;
       }
       callback(null, first.address, first.family);

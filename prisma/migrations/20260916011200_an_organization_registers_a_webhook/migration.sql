@@ -42,6 +42,21 @@
 -- sending, and records the outcome, each through a function that names
 -- app.worker_organization_id() first. The signing secret lives in a table no
 -- application role can read.
+--
+-- Four things a review of the first draft of this migration found, and where
+-- each is answered:
+--
+--   * what is sent is built from the reservation, stay or folio line an event
+--     names, never from the event's payload, which any member of the
+--     Organization can write (app.webhook_event_source);
+--   * every command writes its own audit record and refuses a missing reason
+--     inside the function, so the screen and the module are not the only
+--     things standing between a caller and either (app.record_webhook_audit);
+--   * an endpoint has one delivery on the wire at a time, and an attempt can
+--     only be recorded by the lease it was given (claim_webhook_delivery,
+--     record_webhook_attempt);
+--   * a failure from before this migration, which has no delivery, can still be
+--     closed.
 
 -- ---------------------------------------------------------------------------
 -- What goes
@@ -116,6 +131,7 @@ CREATE TABLE "webhook_deliveries" (
     "attempts" INTEGER NOT NULL DEFAULT 0,
     "next_attempt_at" TIMESTAMPTZ(6),
     "claimed_until" TIMESTAMPTZ(6),
+    "lease_id" UUID,
     "last_attempt_at" TIMESTAMPTZ(6),
     "last_status_code" INTEGER,
     "last_failure" TEXT,
@@ -319,7 +335,10 @@ alter table public.webhook_deliveries
     check (last_failure is null
            or last_failure in ('http_error', 'timeout', 'connection_failed',
                                'tls_failed', 'blocked_address', 'invalid_target',
-                               'redirect_refused')),
+                               'redirect_refused', 'source_mismatch')),
+  -- A lease is held for as long as the delivery is claimed and no longer.
+  add constraint webhook_deliveries_lease_check
+    check ((claimed_until is null) = (lease_id is null)),
   add constraint webhook_deliveries_status_code_check
     check (last_status_code is null or last_status_code between 100 and 599),
   add constraint webhook_deliveries_excerpt_check
@@ -333,15 +352,25 @@ create index webhook_deliveries_due_idx
 
 alter table public.failed_operations
   drop constraint failed_operations_status_check,
+  drop constraint failed_operations_attempts_check,
   add constraint failed_operations_status_check
     check (status in ('failed', 'retrying', 'resolved', 'cancelled')),
-  -- NOT VALID: a row from before this migration has no delivery and is left as
-  -- it was. Every row written from now on belongs to one.
+  -- A row from before this migration has no delivery and no endpoint, and a
+  -- person can still close it: the check is not VALID so it is not tested
+  -- against what is there, and it lets such a row be updated only into a
+  -- closed state, which is all that can be done to it. Every row written from
+  -- now on belongs to a delivery, because nothing but the functions below
+  -- writes one.
   add constraint failed_operations_has_a_delivery_check
-    check (delivery_id is not null and endpoint_id is not null) not valid,
+    check ((delivery_id is not null and endpoint_id is not null)
+           or closed_at is not null) not valid,
   add constraint failed_operations_closure_check
     check (delivery_id is null
            or (status in ('resolved', 'cancelled')) = (closed_at is not null)),
+  -- A delivery that was never sent (its event did not match its source) has
+  -- made no attempt.
+  add constraint failed_operations_attempts_check
+    check (attempts >= 0),
   add constraint failed_operations_closed_reason_check
     check (closed_reason is null or char_length(btrim(closed_reason)) between 3 and 500);
 
@@ -420,7 +449,10 @@ create policy failed_operations_read_app
 revoke all on public.webhook_endpoints, public.webhook_endpoint_secrets,
   public.webhook_deliveries from public, ranza_app, ranza_auth, ranza_worker;
 
-grant select (id, organization_id, name, url, event_types, status, created_by,
+-- Not `url`: the address can carry a token in its query string, and what a
+-- reader may see of it depends on whether they manage endpoints, which a column
+-- grant cannot say. app.webhook_endpoint_urls() answers that question.
+grant select (id, organization_id, name, event_types, status, created_by,
               created_at, updated_at, removed_at)
   on public.webhook_endpoints to ranza_app;
 
@@ -492,6 +524,62 @@ revoke execute on function app.failed_operation_is_managed_by_caller(uuid, uuid)
 -- The commands a Staff Member runs
 -- ---------------------------------------------------------------------------
 
+-- Every command below writes its own audit record, in the statement that makes
+-- the change, so there is no state in which the change happened and the record
+-- of who made it did not: the module that calls these cannot forget it, and a
+-- caller that is not the module cannot skip it. The actor is the signed-in
+-- user, never an argument.
+--
+-- A helper and not a copy in each function, so the five columns an audit record
+-- needs are spelled once. Invoker rights, executable by the owner alone: it is
+-- only ever reached from the definers below, where the invoker is the owner.
+create function app.record_webhook_audit(
+  target_organization_id uuid,
+  target_location_id uuid,
+  audit_action text,
+  audit_subject_type text,
+  audit_subject_id uuid,
+  audit_reason text,
+  audit_context jsonb
+)
+returns void
+language sql
+volatile
+set search_path = ''
+as $$
+  insert into audit.records
+    (organization_id, location_id, actor_id, action, subject_type, subject_id,
+     reason, context)
+  values
+    (target_organization_id, target_location_id, app.current_user_id(), audit_action,
+     audit_subject_type, audit_subject_id, audit_reason, coalesce(audit_context, '{}'::jsonb))
+$$;
+
+revoke execute on function app.record_webhook_audit(uuid, uuid, text, text, uuid, text, jsonb)
+  from public, ranza_app, ranza_auth, ranza_worker;
+
+-- Why a person closed a failure: three to five hundred characters once the ends
+-- are trimmed. Null is refused here, not left to the table's check, which
+-- passes a null; the screen and the module refuse it too, and this is the one
+-- that holds when they are not the caller.
+create function app.webhook_closure_reason(candidate text)
+returns text
+language plpgsql
+immutable
+set search_path = ''
+as $$
+begin
+  if candidate is null or char_length(btrim(candidate)) not between 3 and 500 then
+    raise exception 'a reason of three to five hundred characters is required'
+      using errcode = '23514';
+  end if;
+  return btrim(candidate);
+end;
+$$;
+
+revoke execute on function app.webhook_closure_reason(text)
+  from public, ranza_app, ranza_auth, ranza_worker;
+
 -- The secret is generated by the caller and passed in, and that is deliberate:
 -- the application shows it to the person once, so it has to hold it for that
 -- long anyway, and generating it here would only add an extension to the
@@ -500,6 +588,10 @@ revoke execute on function app.failed_operation_is_managed_by_caller(uuid, uuid)
 --
 -- One refusal message for every gate, so a caller learns nothing about which of
 -- them held them back.
+--
+-- The cap is counted under a lock on the Organization's endpoints: two people
+-- registering their tenth endpoint at the same moment would otherwise each
+-- count nine and both succeed.
 create function app.create_webhook_endpoint(
   target_organization_id uuid,
   endpoint_name text,
@@ -522,11 +614,22 @@ begin
       using errcode = '42501';
   end if;
 
+  perform pg_advisory_xact_lock(
+    hashtextextended('webhook_endpoints:' || target_organization_id::text, 0));
+
   if (select count(*) from public.webhook_endpoints as endpoint
        where endpoint.organization_id = target_organization_id
          and endpoint.status = 'active') >= 10 then
     raise exception 'an Organization registers at most ten webhook endpoints'
       using errcode = '54000';
+  end if;
+
+  if exists (select 1 from public.webhook_endpoints as endpoint
+              where endpoint.organization_id = target_organization_id
+                and endpoint.status = 'active'
+                and endpoint.url = endpoint_url) then
+    raise exception 'that address is already registered'
+      using errcode = '23505';
   end if;
 
   insert into public.webhook_endpoints
@@ -537,6 +640,15 @@ begin
 
   insert into public.webhook_endpoint_secrets (endpoint_id, secret)
   values (created_id, endpoint_secret);
+
+  -- The host and the events, and never the path or the query: a URL can carry
+  -- a token in either.
+  perform app.record_webhook_audit(
+    target_organization_id, null, 'webhook_endpoint.registered', 'webhook_endpoint',
+    created_id, null,
+    jsonb_build_object(
+      'host', substring(endpoint_url from '^https?://([^/?#:]+)'),
+      'eventTypes', to_jsonb(endpoint_events)));
 
   return created_id;
 end;
@@ -576,7 +688,8 @@ begin
   delete from public.webhook_endpoint_secrets where endpoint_id = target_endpoint_id;
 
   update public.webhook_deliveries
-     set status = 'cancelled', next_attempt_at = null, claimed_until = null, updated_at = now()
+     set status = 'cancelled', next_attempt_at = null, claimed_until = null,
+         lease_id = null, updated_at = now()
    where endpoint_id = target_endpoint_id
      and status in ('pending', 'retrying');
 
@@ -585,6 +698,10 @@ begin
          closed_at = now(), closed_reason = 'endpoint removed', updated_at = now()
    where endpoint_id = target_endpoint_id
      and status in ('failed', 'retrying');
+
+  perform app.record_webhook_audit(
+    endpoint_organization, null, 'webhook_endpoint.removed', 'webhook_endpoint',
+    target_endpoint_id, null, null);
 
   return true;
 end;
@@ -649,6 +766,10 @@ begin
       'data', '{}'::jsonb),
     now());
 
+  perform app.record_webhook_audit(
+    endpoint_organization, target_property_id, 'webhook_endpoint.test_sent',
+    'webhook_endpoint', target_endpoint_id, null, null);
+
   return delivery_id;
 end;
 $$;
@@ -656,6 +777,10 @@ $$;
 -- Retry is a delivery put back in the queue, due now. It does not touch the
 -- failure's attempts or resolve it: the worker's next attempt does both, and
 -- only a delivery that arrives resolves anything.
+--
+-- Not for a failure that has no delivery (one from before this migration has
+-- nothing to send), and not for one whose event did not match its source: its
+-- body is empty by design, and sending it again would be sending nothing.
 create function app.retry_failed_operation(target_operation_id uuid)
 returns text
 language plpgsql
@@ -668,7 +793,7 @@ declare
   operation record;
 begin
   select failure.id, failure.organization_id, failure.property_id,
-         failure.delivery_id, failure.status
+         failure.delivery_id, failure.status, failure.error
     into operation
     from public.failed_operations as failure
    where failure.id = target_operation_id
@@ -682,8 +807,10 @@ begin
       using errcode = '42501';
   end if;
 
-  if operation.delivery_id is null or operation.status not in ('failed', 'retrying') then
-    raise exception 'that failure is already closed'
+  if operation.delivery_id is null
+     or operation.status not in ('failed', 'retrying')
+     or operation.error = 'source_mismatch' then
+    raise exception 'that failure cannot be sent again'
       using errcode = '22023';
   end if;
 
@@ -703,12 +830,18 @@ begin
      set status = 'retrying', next_attempt_at = now(), updated_at = now()
    where id = operation.id;
 
+  perform app.record_webhook_audit(
+    operation.organization_id, operation.property_id, 'failed_operation.retried',
+    'failed_operation', operation.id, null, null);
+
   return 'retrying';
 end;
 $$;
 
 -- A person stops a delivery that is still being retried. Whoever did, and why,
--- stays on the failure.
+-- stays on the failure. A failure from before this migration has no delivery to
+-- stop and can be closed all the same, because it is the one thing a person can
+-- still do with it.
 create function app.cancel_failed_operation(target_operation_id uuid, cancel_reason text)
 returns text
 language plpgsql
@@ -719,6 +852,7 @@ as $$
 declare
   actor uuid := app.current_user_id();
   operation record;
+  stated_reason text;
 begin
   select failure.id, failure.organization_id, failure.property_id,
          failure.delivery_id, failure.status
@@ -735,20 +869,27 @@ begin
       using errcode = '42501';
   end if;
 
-  if operation.delivery_id is null or operation.status <> 'retrying' then
+  stated_reason := app.webhook_closure_reason(cancel_reason);
+
+  if operation.status <> 'retrying' then
     raise exception 'only a delivery that is still being retried can be cancelled'
       using errcode = '22023';
   end if;
 
   update public.webhook_deliveries
-     set status = 'cancelled', next_attempt_at = null, claimed_until = null, updated_at = now()
+     set status = 'cancelled', next_attempt_at = null, claimed_until = null,
+         lease_id = null, updated_at = now()
    where id = operation.delivery_id
      and status in ('pending', 'retrying');
 
   update public.failed_operations
      set status = 'cancelled', next_attempt_at = null, closed_by = actor,
-         closed_at = now(), closed_reason = btrim(cancel_reason), updated_at = now()
+         closed_at = now(), closed_reason = stated_reason, updated_at = now()
    where id = operation.id;
+
+  perform app.record_webhook_audit(
+    operation.organization_id, operation.property_id, 'failed_operation.cancelled',
+    'failed_operation', operation.id, stated_reason, null);
 
   return 'cancelled';
 end;
@@ -756,7 +897,9 @@ $$;
 
 -- A person accepts that a delivery which has run out of attempts is not going
 -- to arrive, because they dealt with it another way. The delivery stays
--- `failed` (it did fail); the failure stops being asked about.
+-- `failed` (it did fail); the failure stops being asked about. A failure from
+-- before this migration is closed the same way, whichever of its two old states
+-- it was in.
 create function app.resolve_failed_operation(target_operation_id uuid, resolve_reason text)
 returns text
 language plpgsql
@@ -767,6 +910,7 @@ as $$
 declare
   actor uuid := app.current_user_id();
   operation record;
+  stated_reason text;
 begin
   select failure.id, failure.organization_id, failure.property_id,
          failure.delivery_id, failure.status
@@ -783,18 +927,56 @@ begin
       using errcode = '42501';
   end if;
 
-  if operation.delivery_id is null or operation.status <> 'failed' then
+  stated_reason := app.webhook_closure_reason(resolve_reason);
+
+  if operation.status <> 'failed'
+     and not (operation.delivery_id is null and operation.status = 'retrying') then
     raise exception 'only a delivery that has stopped being retried can be marked resolved'
       using errcode = '22023';
   end if;
 
   update public.failed_operations
      set status = 'resolved', next_attempt_at = null, closed_by = actor,
-         closed_at = now(), closed_reason = btrim(resolve_reason), updated_at = now()
+         closed_at = now(), closed_reason = stated_reason, updated_at = now()
    where id = operation.id;
+
+  perform app.record_webhook_audit(
+    operation.organization_id, operation.property_id, 'failed_operation.resolved',
+    'failed_operation', operation.id, stated_reason, null);
 
   return 'resolved';
 end;
+$$;
+
+-- The address of each endpoint, as the caller is entitled to read it. A URL can
+-- carry a token in its query string (and a Staff Member who may only view the
+-- list has no use for it), so the full address is the managers', and everyone
+-- else reads it up to the `?` with a flag that says something was cut. The
+-- column itself has no grant for ranza_app: a masked address that could be read
+-- unmasked through the table would be a label and not a boundary.
+create function app.webhook_endpoint_urls(target_organization_id uuid)
+returns table (endpoint_id uuid, url text, url_masked boolean)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with caller as (
+    select app.webhook_endpoints_are_managed_by_caller(target_organization_id) as manages
+  )
+  select endpoint.id,
+         case when caller.manages then endpoint.url
+              else regexp_replace(endpoint.url, '[?#].*$', '') end,
+         (not caller.manages) and endpoint.url ~ '[?#]'
+    from public.webhook_endpoints as endpoint
+    cross join caller
+   where endpoint.organization_id = target_organization_id
+     and endpoint.status = 'active'
+     and target_organization_id in (select app.accessible_organization_ids())
+     and (app.has_organization_permission(target_organization_id, 'integrations.view')
+          or app.has_organization_permission(target_organization_id, 'integrations.manage'))
+     and app.can_use_capability_in_organization(
+           target_organization_id, 'platform_core', 'integrations')
 $$;
 
 revoke execute on function app.create_webhook_endpoint(uuid, text, text, text[], text)
@@ -809,31 +991,185 @@ revoke execute on function app.cancel_failed_operation(uuid, text)
   from public, ranza_auth, ranza_worker;
 revoke execute on function app.resolve_failed_operation(uuid, text)
   from public, ranza_auth, ranza_worker;
+revoke execute on function app.webhook_endpoint_urls(uuid)
+  from public, ranza_auth, ranza_worker;
 grant execute on function app.create_webhook_endpoint(uuid, text, text, text[], text) to ranza_app;
 grant execute on function app.remove_webhook_endpoint(uuid) to ranza_app;
 grant execute on function app.send_webhook_test(uuid, uuid) to ranza_app;
 grant execute on function app.retry_failed_operation(uuid) to ranza_app;
 grant execute on function app.cancel_failed_operation(uuid, text) to ranza_app;
 grant execute on function app.resolve_failed_operation(uuid, text) to ranza_app;
+grant execute on function app.webhook_endpoint_urls(uuid) to ranza_app;
 
 -- ---------------------------------------------------------------------------
 -- The worker's half
 -- ---------------------------------------------------------------------------
 
+-- What an event is about, read from the row it is about and not from what the
+-- event says.
+--
+-- The payload of an outbox event is writable by any member of the Organization
+-- (events_publish_own_scope), so it is a claim and never evidence. What goes
+-- out is built here from the reservation, the stay or the folio line the event
+-- names; the payload supplies only the id of that row and the identifiers it
+-- asserts around it, and those are compared with the row. No row, a row in
+-- another Organization, a row that is not in the state the event type says, or
+-- an identifier that disagrees with the row: no result, and the caller records
+-- that the event was not sent.
+--
+-- The identifiers compared are the ones that cannot change after the event is
+-- published (a Property, the Stay a Folio belongs to, a line's type). A Unit a
+-- Reservation sits in can be moved, so it is sent as it is now and not
+-- compared, or an event handled after a room move would be refused for being
+-- right.
+create function app.webhook_uuid(candidate text)
+returns uuid
+language sql
+immutable
+set search_path = ''
+as $$
+  select case
+    when candidate ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      then candidate::uuid
+  end
+$$;
+
+-- Whether every identifier the event asserted is the one the row has. A key
+-- the event does not carry, or carries as null, asserts nothing.
+create function app.webhook_claims_agree(claimed jsonb, actual jsonb)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select not exists (
+    select 1
+      from jsonb_each_text(actual) as fact
+     where claimed ->> fact.key is not null
+       and claimed ->> fact.key is distinct from fact.value)
+$$;
+
+create function app.webhook_event_source(
+  source_organization_id uuid,
+  source_event_type text,
+  source_payload jsonb
+)
+returns table (source_property_id uuid, source_data jsonb)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  claimed jsonb := case when jsonb_typeof(source_payload) = 'object'
+                        then source_payload else '{}'::jsonb end;
+begin
+  if source_event_type in ('reservation.created', 'reservation.cancelled', 'reservation.no_show') then
+    return query
+    select reservation.property_id,
+           jsonb_build_object(
+             'reservationId', reservation.id,
+             'propertyId', reservation.property_id,
+             'accommodationUnitId', reservation.accommodation_unit_id)
+      from public.reservations as reservation
+     where reservation.id = app.webhook_uuid(claimed ->> 'reservationId')
+       and reservation.organization_id = source_organization_id
+       and (source_event_type = 'reservation.created'
+            or reservation.status = case source_event_type
+                 when 'reservation.cancelled' then 'cancelled' else 'no_show' end)
+       and app.webhook_claims_agree(claimed,
+             jsonb_build_object('propertyId', reservation.property_id));
+
+  elsif source_event_type = 'stay.checked_in' then
+    return query
+    select stay.property_id,
+           jsonb_build_object(
+             'stayId', stay.id,
+             'reservationId', stay.reservation_id,
+             'propertyId', stay.property_id,
+             'accommodationUnitId', stay.accommodation_unit_id,
+             'folioId', folio.id)
+      from public.stays as stay
+      left join public.folios as folio
+        on folio.stay_id = stay.id and folio.organization_id = stay.organization_id
+     where stay.id = app.webhook_uuid(claimed ->> 'stayId')
+       and stay.organization_id = source_organization_id
+       and stay.status in ('in_house', 'departed')
+       and app.webhook_claims_agree(claimed,
+             jsonb_build_object('propertyId', stay.property_id,
+                                'reservationId', stay.reservation_id));
+
+  elsif source_event_type = 'stay.checked_out' then
+    return query
+    select stay.property_id,
+           jsonb_build_object(
+             'stayId', stay.id,
+             'accommodationUnitId', stay.accommodation_unit_id,
+             'departedOn', to_char(stay.ends_on, 'YYYY-MM-DD'),
+             'folioId', folio.id,
+             'folioClosed', coalesce(folio.status = 'closed', false))
+      from public.stays as stay
+      left join public.folios as folio
+        on folio.stay_id = stay.id and folio.organization_id = stay.organization_id
+     where stay.id = app.webhook_uuid(claimed ->> 'stayId')
+       and stay.organization_id = source_organization_id
+       and stay.status = 'departed'
+       and app.webhook_claims_agree(claimed,
+             jsonb_build_object('departedOn', to_char(stay.ends_on, 'YYYY-MM-DD'),
+                                'folioId', folio.id));
+
+  elsif source_event_type = 'folio.line_posted' then
+    return query
+    select line.property_id,
+           jsonb_build_object(
+             'lineId', line.id,
+             'propertyId', line.property_id,
+             'folioId', line.folio_id,
+             'lineType', line.line_type,
+             'amountMinor', line.amount_minor,
+             'currency', folio.currency::text,
+             'paymentMethod', line.payment_method,
+             'reversesLineId', line.reverses_line_id,
+             'source', line.source)
+      from public.folio_lines as line
+      join public.folios as folio
+        on folio.id = line.folio_id and folio.organization_id = line.organization_id
+     where line.id = app.webhook_uuid(claimed ->> 'lineId')
+       and line.organization_id = source_organization_id
+       and app.webhook_claims_agree(claimed,
+             jsonb_build_object('propertyId', line.property_id,
+                                'folioId', line.folio_id,
+                                'lineType', line.line_type));
+  end if;
+end;
+$$;
+
+revoke execute on function app.webhook_uuid(text)
+  from public, ranza_app, ranza_auth, ranza_worker;
+revoke execute on function app.webhook_claims_agree(jsonb, jsonb)
+  from public, ranza_app, ranza_auth, ranza_worker;
+revoke execute on function app.webhook_event_source(uuid, text, jsonb)
+  from public, ranza_app, ranza_auth, ranza_worker;
+
 -- Called by a handler inside the dispatcher's transaction, with the delivery
 -- record, so the deliveries it queues and the record that it queued them commit
--- or roll back together (ADR 0017). It takes the event, not the payload: the
--- payload of an event is writable by any member of the Organization
--- (events_publish_own_scope), so what is sent out is built from the keys the
--- catalogue lists and the values that pass the filter, and the Property is one
--- of the Organization's own, never one the payload merely names.
+-- or roll back together (ADR 0017). It takes the event, not the payload, and
+-- what it queues is built from the row the event is about
+-- (app.webhook_event_source), through the key and value filter above as a
+-- second line of defence.
 --
--- Loud where it matters: an event for an endpoint that names no Property of this
--- Organization raises, which the dispatcher records and retries, rather than
--- being quietly skipped. An event nothing subscribes to queues nothing and says
--- so.
+-- An event whose source does not check out is not sent. Each endpoint that
+-- would have received it gets a delivery that is already `failed` with the
+-- reason `source_mismatch` and an empty body, and the failure an operator is
+-- shown, so a forged or tampered event is a line on the screen and a row in the
+-- table and never a request to a third party. It is filed at the Property the
+-- event named when that is one of the Organization's, and otherwise at its
+-- oldest Property, because a failure has to be somewhere a person looks.
+--
+-- Returns how many deliveries were queued and how many were refused. An event
+-- nothing subscribes to queues nothing and says so.
 create function app.enqueue_webhook_deliveries(target_event_id uuid)
-returns integer
+returns table (queued_count integer, refused_count integer)
 language plpgsql
 volatile
 security definer
@@ -842,9 +1178,10 @@ as $$
 declare
   acting_organization uuid := app.worker_organization_id();
   source_event record;
-  event_payload jsonb;
-  event_property uuid;
+  built record;
+  filing_property uuid;
   queued integer;
+  refused integer;
 begin
   if acting_organization is null then
     raise exception 'queueing webhook deliveries requires a worker context'
@@ -871,42 +1208,70 @@ begin
                      where endpoint.organization_id = acting_organization
                        and endpoint.status = 'active'
                        and source_event.event_type = any (endpoint.event_types)) then
-    return 0;
+    return query select 0, 0;
+    return;
   end if;
 
-  event_payload := case when jsonb_typeof(source_event.payload) = 'object'
-                        then source_event.payload else '{}'::jsonb end;
+  select origin.source_property_id, origin.source_data
+    into built
+    from app.webhook_event_source(
+           acting_organization, source_event.event_type, source_event.payload) as origin;
 
-  select property.id
-    into event_property
-    from public.properties as property
-   where property.organization_id = acting_organization
-     and property.id = coalesce(
-           case when event_payload ->> 'propertyId' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-                then (event_payload ->> 'propertyId')::uuid end,
-           (select stay.property_id
-              from public.stays as stay
-             where stay.organization_id = acting_organization
-               and stay.id = case when event_payload ->> 'stayId' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-                                  then (event_payload ->> 'stayId')::uuid end));
+  if not found then
+    select property.id
+      into filing_property
+      from public.properties as property
+     where property.organization_id = acting_organization
+     order by coalesce(property.id = app.webhook_uuid(source_event.payload ->> 'propertyId'), false) desc,
+              property.created_at, property.id
+     limit 1;
 
-  if event_property is null then
-    raise exception 'event % names no Property of this Organization', target_event_id
-      using errcode = '22023';
+    if filing_property is null then
+      raise exception 'event % has no source and the Organization has no Property to file it at', target_event_id
+        using errcode = '22023';
+    end if;
+
+    insert into public.webhook_deliveries
+      (organization_id, endpoint_id, property_id, event_id, event_type, body,
+       status, last_failure, last_attempt_at)
+    select acting_organization, endpoint.id, filing_property, target_event_id,
+           source_event.event_type, '{}'::jsonb, 'failed', 'source_mismatch', now()
+      from public.webhook_endpoints as endpoint
+     where endpoint.organization_id = acting_organization
+       and endpoint.status = 'active'
+       and source_event.event_type = any (endpoint.event_types)
+    on conflict (endpoint_id, event_id) do nothing;
+
+    get diagnostics refused = row_count;
+
+    insert into public.failed_operations
+      (organization_id, property_id, endpoint_id, delivery_id, integration_name,
+       operation, error, status, attempts, last_attempt_at)
+    select acting_organization, delivery.property_id, delivery.endpoint_id, delivery.id,
+           endpoint.name, delivery.event_type, 'source_mismatch', 'failed', 0, now()
+      from public.webhook_deliveries as delivery
+      join public.webhook_endpoints as endpoint on endpoint.id = delivery.endpoint_id
+     where delivery.organization_id = acting_organization
+       and delivery.event_id = target_event_id
+       and delivery.last_failure = 'source_mismatch'
+    on conflict (delivery_id, organization_id) do nothing;
+
+    return query select 0, refused;
+    return;
   end if;
 
   insert into public.webhook_deliveries
     (organization_id, endpoint_id, property_id, event_id, event_type, body, next_attempt_at)
   select
-    acting_organization, endpoint.id, event_property, target_event_id,
+    acting_organization, endpoint.id, built.source_property_id, target_event_id,
     source_event.event_type,
     jsonb_build_object(
       'id', target_event_id,
       'type', source_event.event_type,
       'occurredAt', to_char(source_event.occurred_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
       'organizationId', acting_organization,
-      'propertyId', event_property,
-      'data', app.webhook_event_data(source_event.event_type, event_payload)),
+      'propertyId', built.source_property_id,
+      'data', app.webhook_event_data(source_event.event_type, built.source_data)),
     now()
     from public.webhook_endpoints as endpoint
    where endpoint.organization_id = acting_organization
@@ -915,7 +1280,7 @@ begin
   on conflict (endpoint_id, event_id) do nothing;
 
   get diagnostics queued = row_count;
-  return queued;
+  return query select queued, 0;
 end;
 $$;
 
@@ -924,6 +1289,12 @@ $$;
 -- because finding out which Organizations have work is what it is for (ADR
 -- 0018); it writes nothing and returns neither a target nor a body. The worker
 -- then sets context per delivery and claims it.
+--
+-- At most one per endpoint, and the oldest: an endpoint receives its deliveries
+-- one at a time, in the order they were queued, and none while another is on
+-- the wire. A delivery that is waiting for its next retry does not hold the
+-- ones behind it back; an endpoint that has been down for a day is not given a
+-- day of silence about everything else (ADR 0045).
 create function app.due_webhook_deliveries(batch_size integer)
 returns table (delivery_id uuid, organization_id uuid)
 language sql
@@ -931,28 +1302,50 @@ stable
 security definer
 set search_path = ''
 as $$
-  select delivery.id, delivery.organization_id
-    from public.webhook_deliveries as delivery
-    join public.webhook_endpoints as endpoint
-      on endpoint.id = delivery.endpoint_id and endpoint.status = 'active'
-   where delivery.status in ('pending', 'retrying')
-     and delivery.next_attempt_at <= now()
-     and (delivery.claimed_until is null or delivery.claimed_until < now())
-   order by delivery.next_attempt_at
+  select oldest.id, oldest.organization_id
+    from (
+      select distinct on (delivery.endpoint_id)
+             delivery.id, delivery.organization_id, delivery.next_attempt_at
+        from public.webhook_deliveries as delivery
+        join public.webhook_endpoints as endpoint
+          on endpoint.id = delivery.endpoint_id and endpoint.status = 'active'
+       where delivery.status in ('pending', 'retrying')
+         and delivery.next_attempt_at <= now()
+         and (delivery.claimed_until is null or delivery.claimed_until < now())
+         and not exists (select 1 from public.webhook_deliveries as other
+                          where other.endpoint_id = delivery.endpoint_id
+                            and other.claimed_until > now())
+       order by delivery.endpoint_id, delivery.created_at, delivery.id
+    ) as oldest
+   order by oldest.next_attempt_at
    limit least(greatest(batch_size, 1), 50)
 $$;
 
 -- Takes the lease on one due delivery, in its own Organization's context, for
 -- five minutes, and returns what is needed to send it: the target, the frozen
--- body and the number of the attempt about to be made. No row when another
--- replica holds it, or it is no longer due. Never the secret.
+-- body, the number of the attempt about to be made, and the lease. No row when
+-- another replica holds it, or holds another delivery of the same endpoint, or
+-- it is no longer due. Never the secret.
+--
+-- The endpoint's row is locked before the lease is looked for, and the check
+-- for a lease on a sibling delivery is made in a statement that starts after
+-- the lock is held: two replicas claiming two deliveries of one endpoint at the
+-- same moment would otherwise each find the other's lease not yet committed
+-- and both send. `no key update` so the deliveries being inserted against the
+-- endpoint (a foreign key takes `key share`) are not held up.
+--
+-- The lease is a token and not a time. The worker presents it to read the
+-- secret and to record the outcome, and a delivery that has been leased again
+-- since has a different one, so an attempt that outlived its lease cannot write
+-- over the one that replaced it.
 create function app.claim_webhook_delivery(target_delivery_id uuid)
 returns table (
   url text,
   event_id uuid,
   event_type text,
   body jsonb,
-  attempt integer
+  attempt integer,
+  lease_id uuid
 )
 language plpgsql
 volatile
@@ -961,43 +1354,74 @@ set search_path = ''
 as $$
 declare
   acting_organization uuid := app.worker_organization_id();
+  due_endpoint uuid;
 begin
   if acting_organization is null then
     raise exception 'claiming a webhook delivery requires a worker context'
       using errcode = '42501';
   end if;
 
+  select delivery.endpoint_id
+    into due_endpoint
+    from public.webhook_deliveries as delivery
+    join public.webhook_endpoints as endpoint
+      on endpoint.id = delivery.endpoint_id and endpoint.status = 'active'
+   where delivery.id = target_delivery_id
+     and delivery.organization_id = acting_organization
+     and delivery.status in ('pending', 'retrying')
+     and delivery.next_attempt_at <= now()
+     and (delivery.claimed_until is null or delivery.claimed_until < now());
+
+  if due_endpoint is null then
+    return;
+  end if;
+
+  perform 1
+     from public.webhook_endpoints as endpoint
+    where endpoint.id = due_endpoint
+      for no key update skip locked;
+
+  if not found then
+    return;
+  end if;
+
   return query
   with ready as (
     select delivery.id
       from public.webhook_deliveries as delivery
-      join public.webhook_endpoints as endpoint
-        on endpoint.id = delivery.endpoint_id and endpoint.status = 'active'
      where delivery.id = target_delivery_id
        and delivery.organization_id = acting_organization
        and delivery.status in ('pending', 'retrying')
        and delivery.next_attempt_at <= now()
        and (delivery.claimed_until is null or delivery.claimed_until < now())
+       and not exists (select 1 from public.webhook_deliveries as other
+                        where other.endpoint_id = delivery.endpoint_id
+                          and other.id <> delivery.id
+                          and other.claimed_until > now())
        for update of delivery skip locked
   ),
   claimed as (
     update public.webhook_deliveries as leased
-       set claimed_until = now() + interval '5 minutes', updated_at = now()
+       set claimed_until = now() + interval '5 minutes',
+           lease_id = gen_random_uuid(),
+           updated_at = now()
       from ready
      where leased.id = ready.id
     returning leased.endpoint_id, leased.event_id, leased.event_type,
-              leased.body, leased.attempts
+              leased.body, leased.attempts, leased.lease_id
   )
   select endpoint.url, claimed.event_id, claimed.event_type, claimed.body,
-         claimed.attempts + 1
+         claimed.attempts + 1, claimed.lease_id
     from claimed
     join public.webhook_endpoints as endpoint on endpoint.id = claimed.endpoint_id;
 end;
 $$;
 
 -- The key the delivery being sent is signed with, to the worker, for a delivery
--- it holds the lease on in its own Organization and no other.
-create function app.webhook_delivery_secret(target_delivery_id uuid)
+-- it holds the lease on in its own Organization and no other. Null for any
+-- other: an endpoint removed while the worker was on its way here is an
+-- ordinary event, not a fault, and the delivery has been cancelled.
+create function app.webhook_delivery_secret(target_delivery_id uuid, target_lease_id uuid)
 returns text
 language plpgsql
 stable
@@ -1020,12 +1444,9 @@ begin
    where delivery.id = target_delivery_id
      and delivery.organization_id = acting_organization
      and delivery.status in ('pending', 'retrying')
+     and delivery.lease_id = target_lease_id
      and delivery.claimed_until > now();
 
-  if signing_secret is null then
-    raise exception 'that delivery is not leased to this worker'
-      using errcode = '42501';
-  end if;
   return signing_secret;
 end;
 $$;
@@ -1034,14 +1455,17 @@ $$;
 -- retried on app.webhook_retry_delay(), or failed for good. A failure that is
 -- not delivered is written to failed_operations here, in the same transaction,
 -- so a delivery cannot be failing without the screen saying so. Returns the
--- delivery's new status, or null when it was closed (cancelled by a person,
--- say) while the attempt was in flight, which is not an error.
+-- delivery's new status, or null when the attempt no longer counts: the
+-- delivery was closed (cancelled by a person, say) while it was in flight, or
+-- it has been leased again since this attempt's lease was taken. Neither is an
+-- error; the newer state is the truth.
 --
 -- `failure` is a code from a fixed list and `response_excerpt` is at most 200
 -- characters the receiver sent back; neither is ever the exception text of the
 -- worker.
 create function app.record_webhook_attempt(
   target_delivery_id uuid,
+  target_lease_id uuid,
   attempt_outcome text,
   response_status integer,
   failure_code text,
@@ -1083,6 +1507,7 @@ begin
    where delivery.id = target_delivery_id
      and delivery.organization_id = acting_organization
      and delivery.status in ('pending', 'retrying')
+     and delivery.lease_id = target_lease_id
      for update;
 
   if not found then
@@ -1103,6 +1528,7 @@ begin
          attempts = attempt_number,
          next_attempt_at = case when next_status = 'retrying' then now() + delay end,
          claimed_until = null,
+         lease_id = null,
          last_attempt_at = now(),
          last_status_code = response_status,
          last_failure = case when next_status = 'delivered' then null else failure_code end,
@@ -1150,13 +1576,13 @@ revoke execute on function app.due_webhook_deliveries(integer)
   from public, ranza_app, ranza_auth;
 revoke execute on function app.claim_webhook_delivery(uuid)
   from public, ranza_app, ranza_auth;
-revoke execute on function app.webhook_delivery_secret(uuid)
+revoke execute on function app.webhook_delivery_secret(uuid, uuid)
   from public, ranza_app, ranza_auth;
-revoke execute on function app.record_webhook_attempt(uuid, text, integer, text, text, integer)
+revoke execute on function app.record_webhook_attempt(uuid, uuid, text, integer, text, text, integer)
   from public, ranza_app, ranza_auth;
 grant execute on function app.enqueue_webhook_deliveries(uuid) to ranza_worker;
 grant execute on function app.due_webhook_deliveries(integer) to ranza_worker;
 grant execute on function app.claim_webhook_delivery(uuid) to ranza_worker;
-grant execute on function app.webhook_delivery_secret(uuid) to ranza_worker;
-grant execute on function app.record_webhook_attempt(uuid, text, integer, text, text, integer)
+grant execute on function app.webhook_delivery_secret(uuid, uuid) to ranza_worker;
+grant execute on function app.record_webhook_attempt(uuid, uuid, text, integer, text, text, integer)
   to ranza_worker;

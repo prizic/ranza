@@ -1,15 +1,17 @@
 import { withOrganizationContext, type PrismaClient } from "@ranza/db";
-import { recordWithin } from "@ranza/platform-audit";
 import {
   WEBHOOK_EVENT_TYPES,
   type EndpointHealth,
   type EndpointsView,
+  type FailedOperationPage,
+  type FailedOperationQuery,
   type FailedOperationRecord,
   type OperationClosureInput,
   type OperationCommandInput,
   type OperationStatus,
   type RegisterEndpointInput,
   type RegisteredEndpoint,
+  type RetryAllInput,
   type SendTestInput,
   type WebhookEndpointRecord,
 } from "./contracts";
@@ -27,34 +29,36 @@ const NAME_MAX = 80;
 const REASON_MIN = 3;
 const REASON_MAX = 500;
 
-/** The SQLSTATEs the functions in 20260916011200 raise, and what each means here. */
-const REFUSALS: readonly [code: string, reason: RefusalReason][] = [
+/**
+ * The SQLSTATEs the functions in 20260916011200 raise, and what each means
+ * here. Matched on the code the database sent and on nothing else: the text of
+ * a message is not a contract, and a message that happens to contain five
+ * digits is not a refusal.
+ */
+const REFUSALS: readonly [sqlState: string, reason: RefusalReason][] = [
   ["42501", "not_permitted"],
   ["23505", "duplicate_url"],
+  ["23514", "reason_required"],
   ["54000", "too_many_endpoints"],
   ["55000", "test_in_flight"],
   ["22023", "unavailable"],
 ];
 
-function raised(error: unknown, code: string): boolean {
-  if (typeof error !== "object" || error === null) return false;
-  const { meta, message } = error as {
-    meta?: { driverAdapterError?: { cause?: { code?: unknown } } };
-    message?: unknown;
+/** The SQLSTATE of a statement that failed in the database, when it did. */
+function sqlStateOf(error: unknown): string | null {
+  if (typeof error !== "object" || error === null) return null;
+  const { meta } = error as {
+    meta?: { driverAdapterError?: { cause?: { originalCode?: unknown } } };
   };
-  return (
-    meta?.driverAdapterError?.cause?.code === code ||
-    (typeof message === "string" && message.includes(code))
-  );
+  const code = meta?.driverAdapterError?.cause?.originalCode;
+  return typeof code === "string" ? code : null;
 }
 
 /** A statement's failure as this module's refusal, or as it was for the host to report. */
 function refusal(error: unknown): Error {
-  for (const [code, reason] of REFUSALS) {
-    if (raised(error, code)) {
-      return new IntegrationsRefusedError(reason, { cause: error });
-    }
-  }
+  const sqlState = sqlStateOf(error);
+  const known = REFUSALS.find(([code]) => code === sqlState);
+  if (known) return new IntegrationsRefusedError(known[1], { cause: error });
   return error instanceof Error ? error : new Error(String(error));
 }
 
@@ -113,10 +117,12 @@ interface EndpointRow {
   organizationId: string;
   name: string;
   url: string;
+  urlMasked: boolean;
   eventTypes: string[];
   createdAt: Date;
   lastDeliveredAt: Date | null;
   queued: number;
+  overdue: number;
   openFailures: number;
 }
 
@@ -134,60 +140,51 @@ interface FailedOperationRow {
   lastAttemptAt: Date;
   lastStatusCode: number | null;
   lastResponseExcerpt: string | null;
+  retryable: boolean;
+  closedAt: Date | null;
+  closedBy: string | null;
+  closedReason: string | null;
 }
 
 /**
  * Outbound webhooks, and the failures an operator is shown (ADR 0045).
  *
  * Every command runs inside the acting user's request context (ADR 0007), and
- * the writes are functions that ask blueprint 3.5's gates themselves, so this
- * module checks no permission: it validates what the caller typed, calls the
- * function, and records who did it. Sending is the worker's, not this
- * module's; nothing here opens a connection to an endpoint.
+ * the writes are functions that ask blueprint 3.5's gates themselves and write
+ * their own audit record, so this module checks no permission and records
+ * nothing: it validates what the caller typed and calls the function. Sending
+ * is the worker's, not this module's; nothing here opens a connection to an
+ * endpoint.
  */
 export function createIntegrationsModule({ db }: IntegrationsDeps) {
-  async function operationScope(
-    tx: Parameters<typeof recordWithin>[0],
-    operationId: string,
-  ): Promise<{ organizationId: string; propertyId: string }> {
-    const [scope] = await tx.$queryRaw<
-      { organizationId: string; propertyId: string }[]
-    >`
-      select organization_id as "organizationId", property_id as "propertyId"
-        from public.failed_operations
-       where id = ${operationId}::uuid`;
-    if (!scope) throw new IntegrationsRefusedError("not_permitted");
-    return scope;
-  }
-
-  async function endpointOrganization(
-    tx: Parameters<typeof recordWithin>[0],
-    endpointId: string,
-  ): Promise<string> {
-    const [row] = await tx.$queryRaw<{ organizationId: string }[]>`
-      select organization_id as "organizationId"
-        from public.webhook_endpoints
-       where id = ${endpointId}::uuid`;
-    if (!row) throw new IntegrationsRefusedError("not_permitted");
-    return row.organizationId;
+  async function inContext<T>(
+    userId: string,
+    run: (client: PrismaClient) => Promise<T>,
+  ): Promise<T> {
+    return attempting(() =>
+      withOrganizationContext(db, { userId }, (tx) =>
+        run(tx as unknown as PrismaClient),
+      ),
+    );
   }
 
   return {
     /**
      * The Organization's active endpoints and how each is doing, as far as the
      * viewer reaches: the counts come from deliveries the policies let them
-     * read, so a Manager of one Property sees that Property's share.
+     * read, so a Manager of one Property sees that Property's share. The address
+     * is the database's answer to what this viewer may read of it.
      */
     async endpoints(
       userId: string,
       organizationId: string,
     ): Promise<EndpointsView> {
-      return withOrganizationContext(db, { userId }, async (tx) => {
-        const client = tx as unknown as PrismaClient;
+      return inContext(userId, async (client) => {
         const rows = await client.$queryRaw<EndpointRow[]>`
           select endpoint.id,
                  endpoint.organization_id as "organizationId",
-                 endpoint.name, endpoint.url,
+                 endpoint.name, address.url,
+                 address.url_masked as "urlMasked",
                  endpoint.event_types as "eventTypes",
                  endpoint.created_at as "createdAt",
                  (select max(delivery.delivered_at)
@@ -198,10 +195,17 @@ export function createIntegrationsModule({ db }: IntegrationsDeps) {
                    where delivery.endpoint_id = endpoint.id
                      and delivery.status in ('pending', 'retrying')) as queued,
                  (select count(*)::int
+                    from public.webhook_deliveries as delivery
+                   where delivery.endpoint_id = endpoint.id
+                     and delivery.status in ('pending', 'retrying')
+                     and delivery.next_attempt_at < now() - interval '5 minutes') as overdue,
+                 (select count(*)::int
                     from public.failed_operations as failure
                    where failure.endpoint_id = endpoint.id
                      and failure.status in ('failed', 'retrying')) as "openFailures"
             from public.webhook_endpoints as endpoint
+            join app.webhook_endpoint_urls(${organizationId}::uuid) as address
+              on address.endpoint_id = endpoint.id
            where endpoint.organization_id = ${organizationId}::uuid
              and endpoint.status = 'active'
            order by endpoint.created_at, endpoint.id`;
@@ -219,13 +223,18 @@ export function createIntegrationsModule({ db }: IntegrationsDeps) {
       });
     },
 
-    /** Deliveries at a Property that have not arrived and are still being asked about. */
+    /**
+     * Failures at a Property, a page at a time: the ones still being asked
+     * about, newest attempt first, or the ones that have been closed, newest
+     * closure first, with who closed them and why.
+     */
     async failedOperations(
       userId: string,
       propertyId: string,
-    ): Promise<FailedOperationRecord[]> {
-      return withOrganizationContext(db, { userId }, async (tx) => {
-        const client = tx as unknown as PrismaClient;
+      query: FailedOperationQuery,
+    ): Promise<FailedOperationPage> {
+      const closed = query.view === "closed";
+      return inContext(userId, async (client) => {
         const rows = await client.$queryRaw<FailedOperationRow[]>`
           select failure.id,
                  failure.property_id as "propertyId",
@@ -237,18 +246,32 @@ export function createIntegrationsModule({ db }: IntegrationsDeps) {
                  coalesce(failure.next_attempt_at <= now(), false) as due,
                  failure.last_attempt_at as "lastAttemptAt",
                  delivery.last_status_code as "lastStatusCode",
-                 delivery.last_response_excerpt as "lastResponseExcerpt"
+                 delivery.last_response_excerpt as "lastResponseExcerpt",
+                 (failure.delivery_id is not null
+                    and failure.error <> 'source_mismatch') as retryable,
+                 failure.closed_at as "closedAt",
+                 failure.closed_by as "closedBy",
+                 failure.closed_reason as "closedReason"
             from public.failed_operations as failure
             left join public.webhook_deliveries as delivery
               on delivery.id = failure.delivery_id
              and delivery.organization_id = failure.organization_id
            where failure.property_id = ${propertyId}::uuid
-             and failure.status in ('failed', 'retrying')
-           order by failure.last_attempt_at desc, failure.id`;
-        return rows.map((row) => ({
+             and (failure.status in ('resolved', 'cancelled')) = ${closed}
+           order by case when ${closed} then failure.closed_at
+                         else failure.last_attempt_at end desc nulls last,
+                    failure.id
+           limit ${query.limit}::int offset ${query.offset}::int`;
+        const records: FailedOperationRecord[] = rows.map((row) => ({
           ...row,
           status: row.status as OperationStatus,
         }));
+        const [counted] = await client.$queryRaw<{ total: number }[]>`
+          select count(*)::int as total
+            from public.failed_operations as failure
+           where failure.property_id = ${propertyId}::uuid
+             and (failure.status in ('resolved', 'cancelled')) = ${closed}`;
+        return { records, total: counted?.total ?? 0 };
       });
     },
 
@@ -267,69 +290,34 @@ export function createIntegrationsModule({ db }: IntegrationsDeps) {
       if (!target.ok) throw new EndpointInputError(target.rejection);
       const secret = generateSecret();
 
-      return attempting(() =>
-        withOrganizationContext(db, { userId }, async (tx) => {
-          const client = tx as unknown as PrismaClient;
-          const [created] = await client.$queryRaw<{ endpointId: string }[]>`
-            select app.create_webhook_endpoint(
-                     ${input.organizationId}::uuid, ${name},
-                     ${target.url.href}, ${eventTypes}::text[], ${secret}
-                   ) as "endpointId"`;
-          if (!created) throw new Error("the endpoint was not created");
-
-          await recordWithin(tx, {
-            organizationId: input.organizationId,
-            actorId: userId,
-            action: "webhook_endpoint.registered",
-            subjectType: "webhook_endpoint",
-            subjectId: created.endpointId,
-            context: { host: target.url.hostname, eventTypes },
-          });
-          return { endpointId: created.endpointId, secret };
-        }),
-      );
+      return inContext(userId, async (client) => {
+        const [created] = await client.$queryRaw<{ endpointId: string }[]>`
+          select app.create_webhook_endpoint(
+                   ${input.organizationId}::uuid, ${name},
+                   ${target.url.href}, ${eventTypes}::text[], ${secret}
+                 ) as "endpointId"`;
+        if (!created) throw new Error("the endpoint was not created");
+        return { endpointId: created.endpointId, secret };
+      });
     },
 
     /** Removes an endpoint: it stops receiving, and what was on its way is cancelled. */
     async removeEndpoint(userId: string, endpointId: string): Promise<void> {
-      await attempting(() =>
-        withOrganizationContext(db, { userId }, async (tx) => {
-          const client = tx as unknown as PrismaClient;
-          const organizationId = await endpointOrganization(tx, endpointId);
-          await client.$queryRaw`
-            select app.remove_webhook_endpoint(${endpointId}::uuid)`;
-          await recordWithin(tx, {
-            organizationId,
-            actorId: userId,
-            action: "webhook_endpoint.removed",
-            subjectType: "webhook_endpoint",
-            subjectId: endpointId,
-          });
-        }),
+      await inContext(
+        userId,
+        (client) =>
+          client.$queryRaw`select app.remove_webhook_endpoint(${endpointId}::uuid)`,
       );
     },
 
     /** Queues a test event; the worker sends it on its next pass. */
     async sendTestEvent(userId: string, input: SendTestInput): Promise<void> {
-      await attempting(() =>
-        withOrganizationContext(db, { userId }, async (tx) => {
-          const client = tx as unknown as PrismaClient;
-          const organizationId = await endpointOrganization(
-            tx,
-            input.endpointId,
-          );
-          await client.$queryRaw`
-            select app.send_webhook_test(
-                     ${input.endpointId}::uuid, ${input.propertyId}::uuid)`;
-          await recordWithin(tx, {
-            organizationId,
-            locationId: input.propertyId,
-            actorId: userId,
-            action: "webhook_endpoint.test_sent",
-            subjectType: "webhook_endpoint",
-            subjectId: input.endpointId,
-          });
-        }),
+      await inContext(
+        userId,
+        (client) =>
+          client.$queryRaw`
+          select app.send_webhook_test(
+                   ${input.endpointId}::uuid, ${input.propertyId}::uuid)`,
       );
     },
 
@@ -341,21 +329,11 @@ export function createIntegrationsModule({ db }: IntegrationsDeps) {
       userId: string,
       input: OperationCommandInput,
     ): Promise<void> {
-      await attempting(() =>
-        withOrganizationContext(db, { userId }, async (tx) => {
-          const client = tx as unknown as PrismaClient;
-          const scope = await operationScope(tx, input.operationId);
-          await client.$queryRaw`
-            select app.retry_failed_operation(${input.operationId}::uuid)`;
-          await recordWithin(tx, {
-            organizationId: scope.organizationId,
-            locationId: scope.propertyId,
-            actorId: userId,
-            action: "failed_operation.retried",
-            subjectType: "failed_operation",
-            subjectId: input.operationId,
-          });
-        }),
+      await inContext(
+        userId,
+        (client) =>
+          client.$queryRaw`
+          select app.retry_failed_operation(${input.operationId}::uuid)`,
       );
     },
 
@@ -365,23 +343,11 @@ export function createIntegrationsModule({ db }: IntegrationsDeps) {
       input: OperationClosureInput,
     ): Promise<void> {
       const reason = checkedReason(input.reason);
-      await attempting(() =>
-        withOrganizationContext(db, { userId }, async (tx) => {
-          const client = tx as unknown as PrismaClient;
-          const scope = await operationScope(tx, input.operationId);
-          await client.$queryRaw`
-            select app.cancel_failed_operation(
-                     ${input.operationId}::uuid, ${reason})`;
-          await recordWithin(tx, {
-            organizationId: scope.organizationId,
-            locationId: scope.propertyId,
-            actorId: userId,
-            action: "failed_operation.cancelled",
-            subjectType: "failed_operation",
-            subjectId: input.operationId,
-            reason,
-          });
-        }),
+      await inContext(
+        userId,
+        (client) =>
+          client.$queryRaw`
+          select app.cancel_failed_operation(${input.operationId}::uuid, ${reason})`,
       );
     },
 
@@ -391,24 +357,35 @@ export function createIntegrationsModule({ db }: IntegrationsDeps) {
       input: OperationClosureInput,
     ): Promise<void> {
       const reason = checkedReason(input.reason);
-      await attempting(() =>
-        withOrganizationContext(db, { userId }, async (tx) => {
-          const client = tx as unknown as PrismaClient;
-          const scope = await operationScope(tx, input.operationId);
-          await client.$queryRaw`
-            select app.resolve_failed_operation(
-                     ${input.operationId}::uuid, ${reason})`;
-          await recordWithin(tx, {
-            organizationId: scope.organizationId,
-            locationId: scope.propertyId,
-            actorId: userId,
-            action: "failed_operation.resolved",
-            subjectType: "failed_operation",
-            subjectId: input.operationId,
-            reason,
-          });
-        }),
+      await inContext(
+        userId,
+        (client) =>
+          client.$queryRaw`
+          select app.resolve_failed_operation(${input.operationId}::uuid, ${reason})`,
       );
+    },
+    /**
+     * Puts every failure at a Property that can be sent again back in the
+     * queue, in one transaction, and says how many. Each goes through the same
+     * function a single Retry does, so each is gated and audited on its own;
+     * one the person may not retry refuses the lot rather than skipping it
+     * quietly.
+     */
+    async retryAllOperations(
+      userId: string,
+      input: RetryAllInput,
+    ): Promise<number> {
+      return inContext(userId, async (client) => {
+        const retried = await client.$queryRaw<{ id: string }[]>`
+          select failure.id, app.retry_failed_operation(failure.id)
+            from public.failed_operations as failure
+           where failure.property_id = ${input.propertyId}::uuid
+             and failure.status = 'failed'
+             and failure.delivery_id is not null
+             and failure.error <> 'source_mismatch'
+           order by failure.last_attempt_at, failure.id`;
+        return retried.length;
+      });
     },
   };
 }

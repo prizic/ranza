@@ -16,6 +16,7 @@ import {
   guardedLookup,
   isBlockedAddress,
   STRICT_POLICY,
+  type NameResolver,
 } from "../../packages/ranza/integrations/src/target";
 import {
   attempt,
@@ -54,6 +55,10 @@ describe("an address a webhook may not be sent to", () => {
     "255.255.255.255",
     "::",
     "::1",
+    "::2",
+    "::7f00:1",
+    "::a00:1",
+    "::808:808",
     "::ffff:127.0.0.1",
     "::ffff:10.0.0.1",
     "::ffff:169.254.169.254",
@@ -194,6 +199,188 @@ describe("the lookup a connection is made through", () => {
     );
     expect(result.error).toBeNull();
     expect(Array.isArray(result.address)).toBe(true);
+  });
+});
+
+/** A resolver that answers a fixed list, whatever the name. */
+function answering(...addresses: string[]): NameResolver {
+  return (_hostname, callback) =>
+    callback(
+      null,
+      addresses.map((address) => ({
+        address,
+        family: address.includes(":") ? 6 : 4,
+      })),
+    );
+}
+
+function lookupWith(resolveName: NameResolver, all = true) {
+  return new Promise<{ error: unknown; address: unknown }>((resolve) => {
+    guardedLookup(STRICT_POLICY, resolveName)(
+      "hooks.example.test",
+      { all },
+      (error, address) => resolve({ error, address }),
+    );
+  });
+}
+
+describe("the connect-time guard", () => {
+  // The registration check reads the text of a URL; a name that looks public
+  // can resolve to anything, and these are the answers that must never be
+  // connected to, one by one.
+  it.each([
+    "127.0.0.1",
+    "127.1.2.3",
+    "10.0.0.5",
+    "172.16.0.9",
+    "172.31.255.254",
+    "192.168.1.1",
+    "169.254.169.254",
+    "100.64.0.1",
+    "0.0.0.0",
+    "192.0.0.8",
+    "198.18.0.1",
+    "224.0.0.251",
+    "255.255.255.255",
+    "::",
+    "::1",
+    "::7f00:1",
+    "fd00::1",
+    "fe80::1",
+    "ff02::1",
+    "::ffff:10.0.0.1",
+    "::ffff:169.254.169.254",
+    "64:ff9b::a9fe:a9fe",
+    "2002:a9fe:a9fe::1",
+  ])(
+    "INT-S1-54: a name that resolves to %s is refused when the connection is made",
+    async (address) => {
+      for (const all of [true, false]) {
+        const { error } = await lookupWith(answering(address), all);
+        expect(error).toBeInstanceOf(BlockedAddressError);
+      }
+    },
+  );
+
+  it("INT-S1-54: one private address among public ones refuses the whole answer", async () => {
+    const { error } = await lookupWith(answering("93.184.216.34", "10.0.0.5"));
+    expect(error).toBeInstanceOf(BlockedAddressError);
+    const reversed = await lookupWith(answering("10.0.0.5", "93.184.216.34"));
+    expect(reversed.error).toBeInstanceOf(BlockedAddressError);
+  });
+
+  it("INT-S1-54: an answer with no address at all is refused, not connected to", async () => {
+    const { error } = await lookupWith(answering());
+    expect(error).toBeInstanceOf(BlockedAddressError);
+  });
+
+  it("INT-S1-54: a name that resolves only to public addresses is let through, with the addresses it was given", async () => {
+    const wide = await lookupWith(
+      answering("93.184.216.34", "2606:2800:220:1:248:1893:25c8:1946"),
+    );
+    expect(wide.error).toBeNull();
+    expect(wide.address).toEqual([
+      { address: "93.184.216.34", family: 4 },
+      { address: "2606:2800:220:1:248:1893:25c8:1946", family: 6 },
+    ]);
+    const single = await lookupWith(answering("93.184.216.34"), false);
+    expect(single.error).toBeNull();
+    expect(single.address).toBe("93.184.216.34");
+  });
+
+  it("INT-S1-54: a resolver that fails is that failure, not a refusal and not an address", async () => {
+    const failure = Object.assign(new Error("not found"), {
+      code: "ENOTFOUND",
+    });
+    const { error } = await lookupWith((_hostname, callback) =>
+      callback(failure, []),
+    );
+    expect(error).toBe(failure);
+    expect(error).not.toBeInstanceOf(BlockedAddressError);
+  });
+
+  describe("through an attempt", () => {
+    let server: Server;
+    let port: number;
+    let connections = 0;
+
+    beforeAll(async () => {
+      server = createServer((_request, response) => response.end("ok"));
+      server.on("connection", () => {
+        connections += 1;
+      });
+      await new Promise<void>((resolve) =>
+        server.listen(0, "127.0.0.1", () => {
+          port = (server.address() as AddressInfo).port;
+          resolve();
+        }),
+      );
+    });
+
+    afterAll(async () => {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    });
+
+    it("INT-S1-54: a URL that passes the registration check is refused at connect time when its name resolves to a private address, and nothing is connected to", async () => {
+      const url = `https://hooks.example.test:${port}/hook`;
+      expect(checkTargetUrl(url).ok).toBe(true);
+
+      const asked: string[] = [];
+      const before = connections;
+      for (const address of [
+        "127.0.0.1",
+        "10.0.0.5",
+        "169.254.169.254",
+        "::1",
+      ]) {
+        const result = await attempt({
+          url,
+          body: "{}",
+          headers: {},
+          policy: STRICT_POLICY,
+          resolveName: (hostname, callback) => {
+            asked.push(hostname);
+            answering(address)(hostname, callback);
+          },
+        });
+        expect(result).toMatchObject({
+          outcome: "permanent",
+          failure: "blocked_address",
+          statusCode: null,
+        });
+      }
+      expect(asked).toEqual(Array(4).fill("hooks.example.test"));
+      expect(connections).toBe(before);
+    });
+
+    it("INT-S1-54: the guard is the resolver's answer and not the URL's text, so the same URL reaches a receiver once its name resolves to an address the test allowance permits", async () => {
+      const before = connections;
+      const result = await attempt({
+        url: `http://localhost:${port}/hook`,
+        body: "{}",
+        headers: {},
+        policy: LOOPBACK_POLICY,
+        resolveName: answering("127.0.0.1"),
+      });
+      expect(result).toMatchObject({ outcome: "delivered", statusCode: 200 });
+      expect(connections).toBe(before + 1);
+    });
+
+    it("INT-S1-69: an attempt never throws, even when the client library refuses before it opens a socket", async () => {
+      const result = await attempt({
+        url: `http://127.0.0.1:${port}/hook`,
+        body: "{}",
+        headers: { "X-Broken": "one\r\ntwo" },
+        policy: LOOPBACK_POLICY,
+      });
+      expect(result).toMatchObject({
+        outcome: "retryable",
+        failure: "connection_failed",
+        statusCode: null,
+        excerpt: null,
+      });
+    });
   });
 });
 

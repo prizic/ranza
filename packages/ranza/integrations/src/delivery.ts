@@ -19,9 +19,15 @@ import { attempt, type AttemptResult } from "./transport";
  * second as the first.
  */
 
-/** How many deliveries one pass leases, and how many are on the wire at once. */
+/**
+ * How many deliveries one round leases, how many are on the wire at once, and
+ * how many rounds a pass makes. A round sends at most one delivery to any
+ * endpoint (the database offers no more), so a burst for one endpoint is
+ * worked through a round at a time rather than waiting for the next tick.
+ */
 const BATCH_SIZE = 20;
 const CONCURRENCY = 5;
+const MAX_ROUNDS = 10;
 
 const JOB = "integrations.deliverWebhooks";
 
@@ -36,6 +42,7 @@ interface ClaimedDelivery {
   eventType: string;
   body: unknown;
   attempt: number;
+  leaseId: string;
 }
 
 export type DeliveryStatus = "delivered" | "retrying" | "failed";
@@ -92,7 +99,8 @@ export function createWebhookDelivery({
       organizationId,
       (tx) =>
         tx.$queryRaw<ClaimedDelivery[]>`
-          select url, event_id as "eventId", event_type as "eventType", body, attempt
+          select url, event_id as "eventId", event_type as "eventType", body,
+                 attempt, lease_id as "leaseId"
             from app.claim_webhook_delivery(${deliveryId}::uuid)`,
     );
     if (!claimed) return null;
@@ -100,10 +108,21 @@ export function createWebhookDelivery({
     const [row] = await inContext(
       organizationId,
       (tx) =>
-        tx.$queryRaw<{ secret: string }[]>`
-          select app.webhook_delivery_secret(${deliveryId}::uuid) as secret`,
+        tx.$queryRaw<{ secret: string | null }[]>`
+          select app.webhook_delivery_secret(
+                   ${deliveryId}::uuid, ${claimed.leaseId}::uuid) as secret`,
     );
-    if (!row) throw new Error("the signing secret was not returned");
+    if (!row?.secret) {
+      return {
+        deliveryId,
+        organizationId,
+        eventType: claimed.eventType,
+        attempt: claimed.attempt,
+        status: null,
+        statusCode: null,
+        failure: null,
+      };
+    }
 
     const body = JSON.stringify(claimed.body);
     const timestamp = String(Math.floor(Date.now() / 1000));
@@ -128,7 +147,7 @@ export function createWebhookDelivery({
       (tx) =>
         tx.$queryRaw<{ status: DeliveryStatus | null }[]>`
           select app.record_webhook_attempt(
-                   ${deliveryId}::uuid, ${result.outcome}::text,
+                   ${deliveryId}::uuid, ${claimed.leaseId}::uuid, ${result.outcome}::text,
                    ${result.statusCode}::int, ${result.failure}::text,
                    ${result.excerpt}::text, ${result.durationMs}::int) as status`,
     );
@@ -144,29 +163,36 @@ export function createWebhookDelivery({
     };
   }
 
-  /** Sends every delivery that is due, a few at a time. */
+  /** Sends every delivery that is due, a few at a time, a round after round. */
   async function processDueDeliveries(): Promise<DeliveryReport> {
-    const due = await db.$queryRaw<DueDelivery[]>`
-      select delivery_id as "deliveryId", organization_id as "organizationId"
-        from app.due_webhook_deliveries(${BATCH_SIZE}::int)`;
-
     const outcomes: DeliveryOutcome[] = [];
     const unrecorded: { deliveryId: string; error: unknown }[] = [];
+    let dueCount = 0;
 
-    for (let start = 0; start < due.length; start += CONCURRENCY) {
-      await Promise.all(
-        due.slice(start, start + CONCURRENCY).map(async (item) => {
-          try {
-            const outcome = await deliver(item);
-            if (outcome !== null) outcomes.push(outcome);
-          } catch (error: unknown) {
-            unrecorded.push({ deliveryId: item.deliveryId, error });
-          }
-        }),
-      );
+    for (let round = 0; round < MAX_ROUNDS; round += 1) {
+      const due = await db.$queryRaw<DueDelivery[]>`
+        select delivery_id as "deliveryId", organization_id as "organizationId"
+          from app.due_webhook_deliveries(${BATCH_SIZE}::int)`;
+      if (due.length === 0) break;
+      dueCount += due.length;
+
+      const sentBefore = outcomes.length + unrecorded.length;
+      for (let start = 0; start < due.length; start += CONCURRENCY) {
+        await Promise.all(
+          due.slice(start, start + CONCURRENCY).map(async (item) => {
+            try {
+              const outcome = await deliver(item);
+              if (outcome !== null) outcomes.push(outcome);
+            } catch (error: unknown) {
+              unrecorded.push({ deliveryId: item.deliveryId, error });
+            }
+          }),
+        );
+      }
+      if (outcomes.length + unrecorded.length === sentBefore) break;
     }
 
-    return { due: due.length, outcomes, unrecorded };
+    return { due: dueCount, outcomes, unrecorded };
   }
 
   return { processDueDeliveries };

@@ -5,6 +5,7 @@ import {
   BlockedAddressError,
   checkTargetUrl,
   guardedLookup,
+  type NameResolver,
   type TargetPolicy,
 } from "./target";
 
@@ -41,6 +42,8 @@ export interface AttemptRequest {
   readonly headers: Readonly<Record<string, string>>;
   readonly policy: TargetPolicy;
   readonly timeoutMs?: number;
+  /** Answers what a name resolves to. Only a test passes one. */
+  readonly resolveName?: NameResolver;
 }
 
 const RETRYABLE_STATUS = new Set([408, 429]);
@@ -119,15 +122,37 @@ function refused(failure: DeliveryFailure, startedAt: number): AttemptResult {
   };
 }
 
-/** Makes one attempt. Never throws: a failure is a result. */
-export function attempt({
-  url,
-  body,
-  headers,
-  policy,
-  timeoutMs = REQUEST_TIMEOUT_MS,
-}: AttemptRequest): Promise<AttemptResult> {
+/**
+ * Makes one attempt. Never throws: every outcome, including one the client
+ * library raises before a socket exists (a header it will not send, say), is a
+ * result, because the caller records a result and a throw is an attempt nobody
+ * wrote down.
+ */
+export async function attempt(request: AttemptRequest): Promise<AttemptResult> {
   const startedAt = Date.now();
+  try {
+    return await send(request, startedAt);
+  } catch (error: unknown) {
+    return {
+      ...classifyError(error),
+      statusCode: null,
+      excerpt: null,
+      durationMs: Date.now() - startedAt,
+    };
+  }
+}
+
+function send(
+  {
+    url,
+    body,
+    headers,
+    policy,
+    timeoutMs = REQUEST_TIMEOUT_MS,
+    resolveName,
+  }: AttemptRequest,
+  startedAt: number,
+): Promise<AttemptResult> {
   const checked = checkTargetUrl(url, policy);
   if (!checked.ok) {
     return Promise.resolve(
@@ -142,7 +167,7 @@ export function attempt({
 
   const target = checked.url;
 
-  const send = target.protocol === "https:" ? httpsRequest : httpRequest;
+  const open = target.protocol === "https:" ? httpsRequest : httpRequest;
 
   return new Promise<AttemptResult>((resolve) => {
     let settled = false;
@@ -153,7 +178,7 @@ export function attempt({
       resolve({ ...result, durationMs: Date.now() - startedAt });
     };
 
-    const request: ClientRequest = send(
+    const request: ClientRequest = open(
       target,
       {
         method: "POST",
@@ -162,7 +187,7 @@ export function attempt({
           "Content-Type": "application/json",
           "Content-Length": String(Buffer.byteLength(body)),
         },
-        lookup: guardedLookup(policy),
+        lookup: guardedLookup(policy, resolveName),
         agent: false,
       },
       (response) => {

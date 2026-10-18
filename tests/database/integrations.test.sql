@@ -5,12 +5,16 @@
 -- worker's functions wrote is read back as the owner (`set local role none`),
 -- because the worker holds no grant on any of these tables, which is the point.
 --
+-- What a webhook carries is built from the rows an event names, so the events
+-- below name real reservations, stays and folio lines (and a few that are
+-- forged). The sections that follow each fixture say which they use.
+--
 -- The request context is cleared before every worker call. An earlier version of
 -- this suite had the worker "record a failure" while the Manager's context from
 -- a few lines up was still set, so the call passed on the Manager's permission
 -- and said nothing about the worker.
 begin;
-select plan(127);
+select plan(179);
 
 -- ---------------------------------------------------------------------------
 -- Fixture: three Organizations, and one Staff Member who lacks each gate alone
@@ -86,21 +90,93 @@ insert into public.webhook_endpoint_secrets (endpoint_id, secret) values
   ('e5000000-0000-4000-8000-000000000002', 'whsec_endpoint_two_secret_0123456789abcdef'),
   ('e5000000-0000-4000-8000-000000000003', 'whsec_endpoint_three_secret_0123456789abcdef');
 
--- Outbox events the worker will be asked about. The payload carries a free-text
--- description, which a real folio.line_posted does, and which must not leave.
+-- The rows the events below are about. A third Organization's stay is there so
+-- an event can name a row that exists and is not this Organization's.
+--
+-- P1: unit U1 holds the checked-in reservation R1 and its Stay S1 (with a
+-- Folio); U3 and U4 hold a confirmed and a cancelled reservation; U5 holds S3,
+-- a Stay that has left, with a closed Folio. P2: unit U2 holds S2, whose Folio
+-- carries the charge L.
+insert into public.guests (id, organization_id, full_name) values
+  ('e7000000-0000-4000-8000-0000000000a1', 'e2000000-0000-4000-8000-000000000001', 'Webhook Guest');
+
+insert into public.accommodation_units (id, property_id, organization_id, name, unit_type, capacity) values
+  ('e7000000-0000-4000-8000-000000000003', 'e3000000-0000-4000-8000-000000000001', 'e2000000-0000-4000-8000-000000000001', 'WH-101', 'room', 2),
+  ('e7000000-0000-4000-8000-00000000000c', 'e3000000-0000-4000-8000-000000000002', 'e2000000-0000-4000-8000-000000000001', 'WH-201', 'room', 2),
+  ('e7000000-0000-4000-8000-00000000000d', 'e3000000-0000-4000-8000-000000000001', 'e2000000-0000-4000-8000-000000000001', 'WH-102', 'room', 2),
+  ('e7000000-0000-4000-8000-00000000000e', 'e3000000-0000-4000-8000-000000000001', 'e2000000-0000-4000-8000-000000000001', 'WH-103', 'room', 2),
+  ('e7000000-0000-4000-8000-00000000000f', 'e3000000-0000-4000-8000-000000000001', 'e2000000-0000-4000-8000-000000000001', 'WH-104', 'room', 2),
+  ('e7000000-0000-4000-8000-000000000010', 'e3000000-0000-4000-8000-000000000003', 'e2000000-0000-4000-8000-000000000002', 'OT-101', 'room', 2);
+
+insert into public.reservations
+  (id, organization_id, property_id, accommodation_unit_id, guest_id, stay_type, status, starts_on, ends_on) values
+  ('e7000000-0000-4000-8000-000000000002', 'e2000000-0000-4000-8000-000000000001', 'e3000000-0000-4000-8000-000000000001',
+   'e7000000-0000-4000-8000-000000000003', 'e7000000-0000-4000-8000-0000000000a1', 'guest', 'checked_in',
+   app.property_today('e3000000-0000-4000-8000-000000000001'), app.property_today('e3000000-0000-4000-8000-000000000001') + 2),
+  ('e7000000-0000-4000-8000-00000000000b', 'e2000000-0000-4000-8000-000000000001', 'e3000000-0000-4000-8000-000000000001',
+   'e7000000-0000-4000-8000-00000000000d', 'e7000000-0000-4000-8000-0000000000a1', 'guest', 'confirmed',
+   app.property_today('e3000000-0000-4000-8000-000000000001'), app.property_today('e3000000-0000-4000-8000-000000000001') + 2),
+  ('e7000000-0000-4000-8000-00000000000a', 'e2000000-0000-4000-8000-000000000001', 'e3000000-0000-4000-8000-000000000001',
+   'e7000000-0000-4000-8000-00000000000e', 'e7000000-0000-4000-8000-0000000000a1', 'guest', 'cancelled',
+   app.property_today('e3000000-0000-4000-8000-000000000001'), app.property_today('e3000000-0000-4000-8000-000000000001') + 2);
+
+insert into public.stays
+  (id, organization_id, property_id, accommodation_unit_id, reservation_id, stay_type, status, starts_on, ends_on) values
+  ('e7000000-0000-4000-8000-000000000001', 'e2000000-0000-4000-8000-000000000001', 'e3000000-0000-4000-8000-000000000001',
+   'e7000000-0000-4000-8000-000000000003', 'e7000000-0000-4000-8000-000000000002', 'guest', 'in_house',
+   app.property_today('e3000000-0000-4000-8000-000000000001'), app.property_today('e3000000-0000-4000-8000-000000000001') + 2),
+  ('e7000000-0000-4000-8000-000000000006', 'e2000000-0000-4000-8000-000000000001', 'e3000000-0000-4000-8000-000000000002',
+   'e7000000-0000-4000-8000-00000000000c', null, 'guest', 'in_house',
+   app.property_today('e3000000-0000-4000-8000-000000000002'), app.property_today('e3000000-0000-4000-8000-000000000002') + 2),
+  ('e7000000-0000-4000-8000-000000000007', 'e2000000-0000-4000-8000-000000000001', 'e3000000-0000-4000-8000-000000000001',
+   'e7000000-0000-4000-8000-00000000000f', null, 'guest', 'departed',
+   app.property_today('e3000000-0000-4000-8000-000000000001') - 2, app.property_today('e3000000-0000-4000-8000-000000000001')),
+  ('e7000000-0000-4000-8000-000000000008', 'e2000000-0000-4000-8000-000000000002', 'e3000000-0000-4000-8000-000000000003',
+   'e7000000-0000-4000-8000-000000000010', null, 'guest', 'in_house',
+   app.property_today('e3000000-0000-4000-8000-000000000003'), app.property_today('e3000000-0000-4000-8000-000000000003') + 2);
+
+insert into public.folios (id, organization_id, property_id, stay_id, currency, status, closed_at) values
+  ('e7000000-0000-4000-8000-000000000009', 'e2000000-0000-4000-8000-000000000001', 'e3000000-0000-4000-8000-000000000001',
+   'e7000000-0000-4000-8000-000000000001', 'USD', 'open', null),
+  ('e7000000-0000-4000-8000-000000000005', 'e2000000-0000-4000-8000-000000000001', 'e3000000-0000-4000-8000-000000000002',
+   'e7000000-0000-4000-8000-000000000006', 'USD', 'open', null),
+  ('e7000000-0000-4000-8000-000000000011', 'e2000000-0000-4000-8000-000000000001', 'e3000000-0000-4000-8000-000000000001',
+   'e7000000-0000-4000-8000-000000000007', 'USD', 'closed', now());
+
+insert into public.folio_lines
+  (id, organization_id, property_id, folio_id, line_type, description, amount_minor) values
+  ('e7000000-0000-4000-8000-000000000004', 'e2000000-0000-4000-8000-000000000001', 'e3000000-0000-4000-8000-000000000002',
+   'e7000000-0000-4000-8000-000000000005', 'charge', 'Minibar: two beers', 12500);
+
+-- Outbox events the worker will be asked about. Each payload is what an
+-- Organization member could write: it carries a free-text description, which a
+-- real folio.line_posted does and which must not leave, and some name rows
+-- that are not what they claim.
 insert into outbox.events (id, organization_id, event_type, payload) values
   ('e6000000-0000-4000-8000-000000000001', 'e2000000-0000-4000-8000-000000000001', 'stay.checked_in',
    '{"stayId":"e7000000-0000-4000-8000-000000000001","reservationId":"e7000000-0000-4000-8000-000000000002","propertyId":"e3000000-0000-4000-8000-000000000001","accommodationUnitId":"e7000000-0000-4000-8000-000000000003","folioId":null,"description":"Taxi to the airport for Mr Example"}'),
   ('e6000000-0000-4000-8000-000000000002', 'e2000000-0000-4000-8000-000000000001', 'folio.line_posted',
-   '{"lineId":"e7000000-0000-4000-8000-000000000004","propertyId":"e3000000-0000-4000-8000-000000000002","folioId":"e7000000-0000-4000-8000-000000000005","lineType":"charge","amountMinor":12500,"currency":"USD","description":"Minibar: two beers","paymentMethod":null,"source":"two words"}'),
+   '{"lineId":"e7000000-0000-4000-8000-000000000004","propertyId":"e3000000-0000-4000-8000-000000000002","folioId":"e7000000-0000-4000-8000-000000000005","lineType":"charge","amountMinor":1,"currency":"EUR","description":"Minibar: two beers","paymentMethod":null,"source":"two words"}'),
   ('e6000000-0000-4000-8000-000000000003', 'e2000000-0000-4000-8000-000000000001', 'staff.reach_changed',
    '{"userId":"e1000000-0000-4000-8000-000000000001"}'),
   ('e6000000-0000-4000-8000-000000000004', 'e2000000-0000-4000-8000-000000000001', 'stay.checked_in',
-   '{"stayId":"e7000000-0000-4000-8000-000000000001","propertyId":"e3000000-0000-4000-8000-000000000003"}'),
+   '{"stayId":"e7000000-0000-4000-8000-000000000008","propertyId":"e3000000-0000-4000-8000-000000000003"}'),
   ('e6000000-0000-4000-8000-000000000005', 'e2000000-0000-4000-8000-000000000002', 'stay.checked_in',
-   '{"stayId":"e7000000-0000-4000-8000-000000000001","propertyId":"e3000000-0000-4000-8000-000000000003"}'),
+   '{"stayId":"e7000000-0000-4000-8000-000000000008","propertyId":"e3000000-0000-4000-8000-000000000003"}'),
   ('e6000000-0000-4000-8000-000000000006', 'e2000000-0000-4000-8000-000000000001', 'reservation.created',
-   '{"reservationId":"e7000000-0000-4000-8000-000000000002","propertyId":"e3000000-0000-4000-8000-000000000001","accommodationUnitId":"e7000000-0000-4000-8000-000000000003"}');
+   '{"reservationId":"e7000000-0000-4000-8000-000000000002","propertyId":"e3000000-0000-4000-8000-000000000001","accommodationUnitId":"e7000000-0000-4000-8000-000000000003"}'),
+  ('e6000000-0000-4000-8000-000000000007', 'e2000000-0000-4000-8000-000000000001', 'reservation.cancelled',
+   '{"reservationId":"e7000000-0000-4000-8000-00000000000b","propertyId":"e3000000-0000-4000-8000-000000000001"}'),
+  ('e6000000-0000-4000-8000-000000000008', 'e2000000-0000-4000-8000-000000000001', 'reservation.cancelled',
+   '{"reservationId":"e7000000-0000-4000-8000-00000000000a","propertyId":"e3000000-0000-4000-8000-000000000001","accommodationUnitId":"e7000000-0000-4000-8000-000000000099"}'),
+  ('e6000000-0000-4000-8000-000000000009', 'e2000000-0000-4000-8000-000000000001', 'stay.checked_out',
+   '{"stayId":"e7000000-0000-4000-8000-000000000007","accommodationUnitId":"e7000000-0000-4000-8000-00000000000f","departedOn":null,"folioId":"e7000000-0000-4000-8000-000000000011","folioClosed":false}'),
+  ('e6000000-0000-4000-8000-00000000000a', 'e2000000-0000-4000-8000-000000000001', 'stay.checked_in',
+   '{"stayId":"e7000000-0000-4000-8000-000000000001","propertyId":"e3000000-0000-4000-8000-000000000002"}'),
+  ('e6000000-0000-4000-8000-00000000000b', 'e2000000-0000-4000-8000-000000000001', 'stay.checked_in',
+   '{"propertyId":"e3000000-0000-4000-8000-000000000001","description":"names no stay at all"}'),
+  ('e6000000-0000-4000-8000-00000000000c', 'e2000000-0000-4000-8000-000000000001', 'stay.checked_in',
+   '{"stayId":"e7000000-0000-4000-8000-000000000001","propertyId":"e3000000-0000-4000-8000-000000000001","reservationId":"e7000000-0000-4000-8000-00000000000b"}');
 
 -- ---------------------------------------------------------------------------
 -- Creating an endpoint: every gate denies on its own (ADR 0012)
@@ -118,8 +194,11 @@ select lives_ok(
   'INT-S1-10: a Manager with the whole Organization in reach registers an endpoint');
 
 select results_eq(
-  $$ select name, url, status, event_types::text from public.webhook_endpoints
-      where url = 'https://hooks.example.test/doors' $$,
+  $$ select endpoint.name, address.url, endpoint.status, endpoint.event_types::text
+       from public.webhook_endpoints as endpoint
+       join app.webhook_endpoint_urls('e2000000-0000-4000-8000-000000000001') as address
+         on address.endpoint_id = endpoint.id
+      where address.url = 'https://hooks.example.test/doors' $$,
   $$ values ('Door locks', 'https://hooks.example.test/doors', 'active', '{stay.checked_in}') $$,
   'INT-S1-10: the endpoint is stored trimmed, active, with the events asked for');
 
@@ -322,13 +401,15 @@ select throws_ok(
   'INT-S1-23: ranza_app cannot claim a delivery');
 
 select throws_ok(
-  $$ select app.webhook_delivery_secret('e6000000-0000-4000-8000-000000000001') $$,
+  $$ select app.webhook_delivery_secret(
+       'e6000000-0000-4000-8000-000000000001', 'e6000000-0000-4000-8000-000000000001') $$,
   '42501', null,
   'INT-S1-23: ranza_app cannot be handed a signing secret');
 
 select throws_ok(
   $$ select app.record_webhook_attempt(
-       'e6000000-0000-4000-8000-000000000001', 'delivered', 200, null, null, 1) $$,
+       'e6000000-0000-4000-8000-000000000001', 'e6000000-0000-4000-8000-000000000001',
+       'delivered', 200, null, null, 1) $$,
   '42501', null,
   'INT-S1-23: ranza_app cannot record the outcome of an attempt');
 
@@ -349,34 +430,29 @@ select throws_ok(
 select app.set_worker_context('e2000000-0000-4000-8000-000000000001', 'integrations.test');
 
 select is(
-  app.enqueue_webhook_deliveries('e6000000-0000-4000-8000-000000000001'),
+  (select queued_count from app.enqueue_webhook_deliveries('e6000000-0000-4000-8000-000000000001')),
   2,
   'INT-S1-04: a checked-in event is queued for the two endpoints that subscribed to it');
 
 select is(
-  app.enqueue_webhook_deliveries('e6000000-0000-4000-8000-000000000001'),
+  (select queued_count from app.enqueue_webhook_deliveries('e6000000-0000-4000-8000-000000000001')),
   0,
   'INT-S1-25: the same event is never queued twice for the same endpoint');
 
 select is(
-  app.enqueue_webhook_deliveries('e6000000-0000-4000-8000-000000000003'),
+  (select queued_count from app.enqueue_webhook_deliveries('e6000000-0000-4000-8000-000000000003')),
   0,
   'INT-S1-26: an event nobody can subscribe to queues nothing');
 
 select is(
-  app.enqueue_webhook_deliveries('e6000000-0000-4000-8000-000000000006'),
+  (select queued_count from app.enqueue_webhook_deliveries('e6000000-0000-4000-8000-000000000006')),
   1,
   'INT-S1-04: a reservation event is queued only for the endpoint that asked for it');
 
 select is(
-  app.enqueue_webhook_deliveries('e6000000-0000-4000-8000-000000000002'),
+  (select queued_count from app.enqueue_webhook_deliveries('e6000000-0000-4000-8000-000000000002')),
   1,
   'INT-S1-04: a folio line is queued for the one endpoint that listed it');
-
-select throws_ok(
-  $$ select app.enqueue_webhook_deliveries('e6000000-0000-4000-8000-000000000004') $$,
-  '22023', null,
-  'INT-S1-27: an event that names another Organization''s Property is refused loudly, not delivered');
 
 -- ---------------------------------------------------------------------------
 -- What leaves: ids and facts, never a sentence
@@ -388,14 +464,14 @@ select is(
   (select body -> 'data' from public.webhook_deliveries
     where event_id = 'e6000000-0000-4000-8000-000000000001'
       and endpoint_id = 'e5000000-0000-4000-8000-000000000001'),
-  '{"stayId":"e7000000-0000-4000-8000-000000000001","folioId":null,"propertyId":"e3000000-0000-4000-8000-000000000001","reservationId":"e7000000-0000-4000-8000-000000000002","accommodationUnitId":"e7000000-0000-4000-8000-000000000003"}'::jsonb,
-  'INT-S1-28: a body carries the listed ids and not the description the event also held');
+  '{"stayId":"e7000000-0000-4000-8000-000000000001","folioId":"e7000000-0000-4000-8000-000000000009","propertyId":"e3000000-0000-4000-8000-000000000001","reservationId":"e7000000-0000-4000-8000-000000000002","accommodationUnitId":"e7000000-0000-4000-8000-000000000003"}'::jsonb,
+  'INT-S1-28: a body carries the ids of the rows the event names, and not the description the event also held');
 
 select is(
   (select body -> 'data' from public.webhook_deliveries
     where event_id = 'e6000000-0000-4000-8000-000000000002'),
-  '{"lineId":"e7000000-0000-4000-8000-000000000004","folioId":"e7000000-0000-4000-8000-000000000005","currency":"USD","lineType":"charge","propertyId":"e3000000-0000-4000-8000-000000000002","amountMinor":12500,"paymentMethod":null}'::jsonb,
-  'INT-S1-28: a folio line leaves with its amount and no description, and a listed key holding a sentence is dropped');
+  '{"lineId":"e7000000-0000-4000-8000-000000000004","folioId":"e7000000-0000-4000-8000-000000000005","currency":"USD","lineType":"charge","propertyId":"e3000000-0000-4000-8000-000000000002","amountMinor":12500,"paymentMethod":null,"reversesLineId":null,"source":null}'::jsonb,
+  'INT-S1-75: a folio line leaves with the amount and currency of the row, not the ones the event claimed, and no description');
 
 select is(
   (select property_id from public.webhook_deliveries
@@ -438,23 +514,31 @@ select set_eq(
 
 -- One attempt made by the worker on a delivery that is due now, the way the
 -- delivery pass makes it: the lease first, then the outcome. Run as the owner,
--- who steps into the worker's role for the two calls and steps out again.
+-- who steps into the worker's role for the two calls and steps out again. Any
+-- lease an earlier step left on a delivery of the same endpoint is dropped
+-- first, because one delivery per endpoint is on the wire at a time and a
+-- leftover lease would make this claim nothing.
 create function pg_temp.worker_attempt(
   target uuid, outcome text, code integer, failure text
 ) returns text
 language plpgsql
 as $$
 declare
+  lease uuid;
   result text;
 begin
   update public.webhook_deliveries
-     set next_attempt_at = now(), claimed_until = null
+     set claimed_until = null, lease_id = null
+   where endpoint_id = (select endpoint_id from public.webhook_deliveries where id = target)
+     and claimed_until is not null;
+  update public.webhook_deliveries
+     set next_attempt_at = now()
    where id = target and status in ('pending', 'retrying');
   set local role ranza_worker;
   perform set_config('app.user_id', '', true);
   perform app.set_worker_context('e2000000-0000-4000-8000-000000000001', 'integrations.test');
-  perform 1 from app.claim_webhook_delivery(target);
-  result := app.record_webhook_attempt(target, outcome, code, failure, null, 5);
+  select claimed.lease_id into lease from app.claim_webhook_delivery(target) as claimed;
+  result := app.record_webhook_attempt(target, lease, outcome, code, failure, null, 5);
   set local role none;
   return result;
 end;
@@ -463,11 +547,13 @@ $$;
 set local role ranza_worker;
 select set_config('app.user_id', '', true);
 
+-- Two deliveries of the first endpoint (a: checked in, c: folio line), one of
+-- the second (b), one of the third (d). Oldest first within an endpoint.
 select is(
   (select count(*)::int from app.due_webhook_deliveries(50)
     where organization_id = 'e2000000-0000-4000-8000-000000000001'),
-  4,
-  'INT-S1-31: the worker lists the due deliveries, across Organizations, as ids');
+  3,
+  'INT-S1-31: the worker lists the due deliveries, across Organizations, as ids, one per endpoint');
 
 set local role none;
 
@@ -486,6 +572,15 @@ insert into named
   select 'd_reservation', id from public.webhook_deliveries
    where event_id = 'e6000000-0000-4000-8000-000000000006';
 
+create temporary table leases (label text primary key, lease uuid not null);
+grant select, insert on leases to public;
+
+-- Make the second delivery of the first endpoint younger than the first, so
+-- "oldest first" is the order they were queued in and not an accident.
+update public.webhook_deliveries
+   set created_at = now() + interval '1 second'
+ where id = (select id from named where label = 'c_folio_line');
+
 set local role ranza_worker;
 select set_config('app.user_id', '', true);
 select set_config('app.worker_organization_id', '', true);
@@ -502,49 +597,128 @@ select is(
   'INT-S1-31: a worker in another Organization''s context claims none of this one''s deliveries');
 
 select app.set_worker_context('e2000000-0000-4000-8000-000000000001', 'integrations.test');
+
+insert into leases
+  select 'a', claimed.lease_id
+    from app.claim_webhook_delivery((select id from named where label = 'a_checked_in_channel')) as claimed;
 select is(
-  (select count(*)::int from named cross join lateral app.claim_webhook_delivery(named.id)),
-  4,
-  'INT-S1-31: in its own Organization''s context the worker claims every due delivery');
+  (select count(*)::int from leases where label = 'a'),
+  1,
+  'INT-S1-31: in its own Organization''s context the worker claims a due delivery and is handed a lease');
 
 select is(
-  (select count(*)::int from named cross join lateral app.claim_webhook_delivery(named.id)),
+  (select count(*)::int from app.claim_webhook_delivery((select id from named where label = 'c_folio_line'))),
   0,
-  'INT-S1-31: a claimed delivery is leased, so a second replica gets none of them');
+  'INT-S1-76: while one delivery of an endpoint is on the wire its next one is not handed out');
 
 select is(
-  (select url from app.claim_webhook_delivery((select id from named where label = 'a_checked_in_channel'))),
-  null,
-  'INT-S1-31: and it is not handed the target again either');
+  (select count(*)::int from app.due_webhook_deliveries(50)
+    where delivery_id = (select id from named where label = 'c_folio_line')),
+  0,
+  'INT-S1-76: nor is it listed as due');
+
+insert into leases
+  select 'b', claimed.lease_id
+    from app.claim_webhook_delivery((select id from named where label = 'b_checked_in_doors')) as claimed;
+insert into leases
+  select 'd', claimed.lease_id
+    from app.claim_webhook_delivery((select id from named where label = 'd_reservation')) as claimed;
+select is(
+  (select count(*)::int from leases where label in ('b', 'd')),
+  2,
+  'INT-S1-76: deliveries to other endpoints are not held back by it');
+
+select is(
+  (select count(*)::int from app.claim_webhook_delivery((select id from named where label = 'a_checked_in_channel'))),
+  0,
+  'INT-S1-31: a claimed delivery is leased, so a second replica gets none of it');
 
 set local role ranza_worker;
 select set_config('app.user_id', '', true);
 select set_config('app.worker_organization_id', '', true);
 
 select throws_ok(
-  $$ select app.webhook_delivery_secret((select id from named where label = 'a_checked_in_channel')) $$,
+  $$ select app.webhook_delivery_secret(
+       (select id from named where label = 'a_checked_in_channel'),
+       (select lease from leases where label = 'a')) $$,
   '42501', null,
   'INT-S1-32: no secret without an Organization context');
 
 select app.set_worker_context('e2000000-0000-4000-8000-000000000002', 'integrations.test');
-select throws_ok(
-  $$ select app.webhook_delivery_secret((select id from named where label = 'a_checked_in_channel')) $$,
-  '42501', null,
+select is(
+  app.webhook_delivery_secret(
+    (select id from named where label = 'a_checked_in_channel'),
+    (select lease from leases where label = 'a')),
+  null,
   'INT-S1-32: no secret for another Organization''s delivery');
 
 select app.set_worker_context('e2000000-0000-4000-8000-000000000001', 'integrations.test');
 select is(
-  app.webhook_delivery_secret((select id from named where label = 'a_checked_in_channel')),
+  app.webhook_delivery_secret(
+    (select id from named where label = 'a_checked_in_channel'),
+    (select lease from leases where label = 'b')),
+  null,
+  'INT-S1-77: no secret on the strength of a lease taken for another delivery');
+select is(
+  app.webhook_delivery_secret(
+    (select id from named where label = 'a_checked_in_channel'),
+    (select lease from leases where label = 'a')),
   'whsec_endpoint_one_secret_0123456789abcdef',
   'INT-S1-32: the worker is handed the secret of the delivery it holds the lease on');
 
 select is(
   app.record_webhook_attempt((select id from named where label = 'a_checked_in_channel'),
+    (select lease from leases where label = 'b'),
+    'delivered', 200, null, null, 5),
+  null,
+  'INT-S1-77: an outcome presented with the wrong lease changes nothing');
+
+select is(
+  app.record_webhook_attempt((select id from named where label = 'a_checked_in_channel'),
+    (select lease from leases where label = 'a'),
     'retryable', 503, 'http_error', E'Service\nUnavailable', 120),
   'retrying',
   'INT-S1-33: a 503 leaves the delivery retrying');
 
+-- A lease that ran out, and a newer attempt that replaced it.
 set local role none;
+update public.webhook_deliveries
+   set claimed_until = now() - interval '1 minute'
+ where id = (select id from named where label = 'b_checked_in_doors');
+
+set local role ranza_worker;
+select set_config('app.user_id', '', true);
+select app.set_worker_context('e2000000-0000-4000-8000-000000000001', 'integrations.test');
+insert into leases
+  select 'b_again', claimed.lease_id
+    from app.claim_webhook_delivery((select id from named where label = 'b_checked_in_doors')) as claimed;
+
+select ok(
+  (select count(*) = 1 and bool_and(lease <> (select lease from leases where label = 'b'))
+     from leases where label = 'b_again'),
+  'INT-S1-77: a delivery whose lease ran out is leased again, under a new lease');
+
+select is(
+  app.record_webhook_attempt((select id from named where label = 'b_checked_in_doors'),
+    (select lease from leases where label = 'b'),
+    'delivered', 200, null, null, 5),
+  null,
+  'INT-S1-77: the attempt that outlived its lease cannot record over the newer one');
+
+select is(
+  app.webhook_delivery_secret(
+    (select id from named where label = 'b_checked_in_doors'),
+    (select lease from leases where label = 'b')),
+  null,
+  'INT-S1-77: and is not handed the secret again');
+
+set local role none;
+
+select results_eq(
+  $$ select status, attempts, delivered_at is null from public.webhook_deliveries
+      where id = (select id from named where label = 'b_checked_in_doors') $$,
+  $$ values ('pending', 0, true) $$,
+  'INT-S1-77: the newer attempt''s delivery is untouched by the stale outcome');
 
 select results_eq(
   $$ select status, attempts, last_status_code, last_failure, last_response_excerpt,
@@ -637,19 +811,19 @@ select set_config('app.user_id', '', true);
 select app.set_worker_context('e2000000-0000-4000-8000-000000000001', 'integrations.test');
 select is(
   app.record_webhook_attempt((select id from named where label = 'b_checked_in_doors'),
-    'delivered', 200, null, null, 5),
+    gen_random_uuid(), 'delivered', 200, null, null, 5),
   null,
   'INT-S1-39: recording an attempt for a delivery that is already closed changes nothing');
 
 select throws_ok(
   $$ select app.record_webhook_attempt((select id from named where label = 'd_reservation'),
-       'maybe', 200, null, null, 5) $$,
+       gen_random_uuid(), 'maybe', 200, null, null, 5) $$,
   '22023', null,
   'INT-S1-39: an outcome that is not delivered, retryable or permanent is refused');
 
 select throws_ok(
   $$ select app.record_webhook_attempt((select id from named where label = 'd_reservation'),
-       'retryable', 500, null, null, 5) $$,
+       gen_random_uuid(), 'retryable', 500, null, null, 5) $$,
   '22023', null,
   'INT-S1-39: an attempt that did not arrive must say why');
 
@@ -877,6 +1051,308 @@ select results_eq(
   'INT-S1-48: a resolution records who and why, and the delivery stays failed because it did fail');
 
 -- ---------------------------------------------------------------------------
+-- An event that does not match its source is not sent
+-- ---------------------------------------------------------------------------
+
+-- A fourth endpoint, laid down by the owner past the cap, so a departure has
+-- somebody to go to.
+insert into public.webhook_endpoints (id, organization_id, name, url, event_types, created_by) values
+  ('e5000000-0000-4000-8000-00000000000a', 'e2000000-0000-4000-8000-000000000001', 'Departures',
+   'https://hooks.example.test/departures', array['stay.checked_out'], 'e1000000-0000-4000-8000-000000000001');
+insert into public.webhook_endpoint_secrets (endpoint_id, secret) values
+  ('e5000000-0000-4000-8000-00000000000a', 'whsec_departures_secret_0123456789abcdef0');
+
+set local role ranza_worker;
+select set_config('app.user_id', '', true);
+select app.set_worker_context('e2000000-0000-4000-8000-000000000001', 'integrations.test');
+
+select results_eq(
+  $$ select queued_count, refused_count
+       from app.enqueue_webhook_deliveries('e6000000-0000-4000-8000-000000000004') $$,
+  $$ values (0, 2) $$,
+  'INT-S1-27: an event that names another Organization''s Stay is refused for each endpoint that wanted it, and queues nothing');
+
+select results_eq(
+  $$ select queued_count, refused_count
+       from app.enqueue_webhook_deliveries('e6000000-0000-4000-8000-000000000004') $$,
+  $$ values (0, 0) $$,
+  'INT-S1-27: and handling it again refuses nothing further');
+
+select results_eq(
+  $$ select queued_count, refused_count
+       from app.enqueue_webhook_deliveries('e6000000-0000-4000-8000-00000000000a') $$,
+  $$ values (0, 2) $$,
+  'INT-S1-62: an event whose Property is not the Property of the Stay it names is refused');
+
+select results_eq(
+  $$ select queued_count, refused_count
+       from app.enqueue_webhook_deliveries('e6000000-0000-4000-8000-00000000000b') $$,
+  $$ values (0, 2) $$,
+  'INT-S1-62: an event that names no Stay at all is refused');
+
+select results_eq(
+  $$ select queued_count, refused_count
+       from app.enqueue_webhook_deliveries('e6000000-0000-4000-8000-00000000000c') $$,
+  $$ values (0, 2) $$,
+  'INT-S1-62: an event whose Reservation is not the Reservation of the Stay it names is refused');
+
+select results_eq(
+  $$ select queued_count, refused_count
+       from app.enqueue_webhook_deliveries('e6000000-0000-4000-8000-000000000007') $$,
+  $$ values (0, 7) $$,
+  'INT-S1-63: a cancellation of a Reservation that has not been cancelled is refused');
+
+select results_eq(
+  $$ select queued_count, refused_count
+       from app.enqueue_webhook_deliveries('e6000000-0000-4000-8000-000000000008') $$,
+  $$ values (7, 0) $$,
+  'INT-S1-63: a cancellation of one that has is queued');
+
+select results_eq(
+  $$ select queued_count, refused_count
+       from app.enqueue_webhook_deliveries('e6000000-0000-4000-8000-000000000009') $$,
+  $$ values (1, 0) $$,
+  'INT-S1-64: a departure is queued for the endpoint that subscribed to it');
+
+set local role none;
+
+select results_eq(
+  $$ select d.status, d.last_failure, d.body, d.attempts, d.next_attempt_at is null, d.property_id
+       from public.webhook_deliveries d
+      where d.event_id = 'e6000000-0000-4000-8000-000000000004'
+        and d.endpoint_id = 'e5000000-0000-4000-8000-000000000001' $$,
+  $$ values ('failed', 'source_mismatch', '{}'::jsonb, 0, true, 'e3000000-0000-4000-8000-000000000001'::uuid) $$,
+  'INT-S1-27: a refused event is a failed delivery with an empty body, nothing scheduled, filed at the Organization''s oldest Property');
+
+select results_eq(
+  $$ select f.status, f.error, f.attempts, f.operation, f.integration_name
+       from public.failed_operations f
+       join public.webhook_deliveries d on d.id = f.delivery_id
+      where d.event_id = 'e6000000-0000-4000-8000-000000000004'
+        and d.endpoint_id = 'e5000000-0000-4000-8000-000000000001' $$,
+  $$ values ('failed', 'source_mismatch', 0, 'stay.checked_in', 'Channel manager') $$,
+  'INT-S1-27: and a failure an operator is shown, with no attempt made');
+
+select is(
+  (select count(*)::int from public.webhook_deliveries
+    where event_id in ('e6000000-0000-4000-8000-000000000004', 'e6000000-0000-4000-8000-00000000000a',
+                       'e6000000-0000-4000-8000-00000000000b', 'e6000000-0000-4000-8000-00000000000c',
+                       'e6000000-0000-4000-8000-000000000007')
+      and status <> 'failed'),
+  0,
+  'INT-S1-27: no refused event has a delivery that could ever be sent');
+
+select is(
+  (select property_id from public.webhook_deliveries
+    where event_id = 'e6000000-0000-4000-8000-00000000000a' limit 1),
+  'e3000000-0000-4000-8000-000000000002'::uuid,
+  'INT-S1-62: an event is filed at the Property it names when that is one of the Organization''s own');
+
+select is(
+  (select body -> 'data' from public.webhook_deliveries
+    where event_id = 'e6000000-0000-4000-8000-000000000008' limit 1),
+  '{"reservationId":"e7000000-0000-4000-8000-00000000000a","propertyId":"e3000000-0000-4000-8000-000000000001","accommodationUnitId":"e7000000-0000-4000-8000-00000000000e"}'::jsonb,
+  'INT-S1-63: a body carries the Unit the Reservation is in, not the one the event claimed');
+
+select is(
+  (select body -> 'data' from public.webhook_deliveries
+    where event_id = 'e6000000-0000-4000-8000-000000000009'),
+  jsonb_build_object(
+    'stayId', 'e7000000-0000-4000-8000-000000000007',
+    'folioId', 'e7000000-0000-4000-8000-000000000011',
+    'folioClosed', true,
+    'departedOn', to_char(app.property_today('e3000000-0000-4000-8000-000000000001'), 'YYYY-MM-DD'),
+    'accommodationUnitId', 'e7000000-0000-4000-8000-00000000000f'),
+  'INT-S1-64: a departure leaves with the day the Stay ended and whether its Folio closed, from the rows');
+
+create temporary table refused_failure as
+  select f.id
+    from public.failed_operations f
+    join public.webhook_deliveries d on d.id = f.delivery_id
+   where d.event_id = 'e6000000-0000-4000-8000-00000000000b'
+     and d.endpoint_id = 'e5000000-0000-4000-8000-000000000001';
+grant select on refused_failure to public;
+create temporary table refused_deliveries as
+  select id from public.webhook_deliveries where last_failure = 'source_mismatch';
+grant select on refused_deliveries to public;
+
+set local role ranza_worker;
+select set_config('app.user_id', '', true);
+select app.set_worker_context('e2000000-0000-4000-8000-000000000001', 'integrations.test');
+select is(
+  (select count(*)::int from app.due_webhook_deliveries(50)
+    where delivery_id in (select id from refused_deliveries)),
+  0,
+  'INT-S1-27: a refused delivery is never listed as due');
+
+set local role ranza_app;
+select app.set_request_context('e1000000-0000-4000-8000-000000000001');
+
+select throws_ok(
+  $$ select app.retry_failed_operation((select id from refused_failure)) $$,
+  '22023', null,
+  'INT-S1-27: Retry is refused for a delivery whose body was never built');
+
+select is(
+  app.resolve_failed_operation((select id from refused_failure), 'looked into it; the event was a test'),
+  'resolved',
+  'INT-S1-27: a person can say they have looked into it');
+
+-- ---------------------------------------------------------------------------
+-- A reason is required inside the function, whatever the caller checked
+-- ---------------------------------------------------------------------------
+
+select throws_ok(
+  $$ select app.cancel_failed_operation((select id from named_operation where label = 'retrying_at_second'), null) $$,
+  '23514', null,
+  'INT-S1-65: cancelling with no reason at all is refused inside the function');
+
+select throws_ok(
+  $$ select app.cancel_failed_operation((select id from named_operation where label = 'retrying_at_second'), '    ') $$,
+  '23514', null,
+  'INT-S1-65: and so is a reason of blanks');
+
+select throws_ok(
+  $$ select app.resolve_failed_operation(
+       (select f.id from public.failed_operations f join public.webhook_deliveries d on d.id = f.delivery_id
+         where d.event_id = 'e6000000-0000-4000-8000-00000000000a' and d.endpoint_id = 'e5000000-0000-4000-8000-000000000001'),
+       null) $$,
+  '23514', null,
+  'INT-S1-65: resolving with no reason at all is refused inside the function');
+
+select throws_ok(
+  $$ select app.resolve_failed_operation(
+       (select f.id from public.failed_operations f join public.webhook_deliveries d on d.id = f.delivery_id
+         where d.event_id = 'e6000000-0000-4000-8000-00000000000a' and d.endpoint_id = 'e5000000-0000-4000-8000-000000000001'),
+       repeat('x', 501)) $$,
+  '23514', null,
+  'INT-S1-65: and so is a reason of more than five hundred characters');
+
+set local role none;
+
+select results_eq(
+  $$ select f.status, f.closed_reason is null
+       from public.failed_operations f where f.id = (select id from named_operation where label = 'retrying_at_second') $$,
+  $$ values ('retrying', true) $$,
+  'INT-S1-65: a refused closing leaves the failure as it was');
+
+-- ---------------------------------------------------------------------------
+-- A failure from before deliveries existed can still be closed
+-- ---------------------------------------------------------------------------
+
+-- Rows of this shape exist wherever 20260916010000 ran: no delivery, no
+-- endpoint. The constraint that says a new row must have both is NOT VALID for
+-- that reason, and is lifted for the length of the insert here for the same one,
+-- then put back exactly as the catalogue holds it: this suite does not keep its
+-- own copy of the rule it is testing.
+do $$
+declare
+  definition text;
+begin
+  select pg_get_constraintdef(oid) into strict definition
+    from pg_constraint
+   where conrelid = 'public.failed_operations'::regclass
+     and conname = 'failed_operations_has_a_delivery_check';
+  alter table public.failed_operations drop constraint failed_operations_has_a_delivery_check;
+  insert into public.failed_operations
+    (id, organization_id, property_id, integration_name, operation, error, status, attempts) values
+    ('e9000000-0000-4000-8000-0000000000a1', 'e2000000-0000-4000-8000-000000000001', 'e3000000-0000-4000-8000-000000000001',
+     'Old POS', 'sync', 'connection refused', 'failed', 3),
+    ('e9000000-0000-4000-8000-0000000000a2', 'e2000000-0000-4000-8000-000000000001', 'e3000000-0000-4000-8000-000000000001',
+     'Old KBS', 'sync', 'token expired', 'retrying', 2);
+  execute format(
+    'alter table public.failed_operations add constraint failed_operations_has_a_delivery_check %s',
+    definition);
+end;
+$$;
+
+set local role ranza_app;
+select app.set_request_context('e1000000-0000-4000-8000-000000000001');
+
+select throws_ok(
+  $$ select app.retry_failed_operation('e9000000-0000-4000-8000-0000000000a1') $$,
+  '22023', null,
+  'INT-S1-66: a failure from before deliveries has nothing to send, so it cannot be retried');
+
+select is(
+  app.resolve_failed_operation('e9000000-0000-4000-8000-0000000000a1', 'moved to the new POS'),
+  'resolved',
+  'INT-S1-66: it can be marked resolved');
+
+select is(
+  app.resolve_failed_operation('e9000000-0000-4000-8000-0000000000a2', 'moved to the new KBS'),
+  'resolved',
+  'INT-S1-66: whichever of the two old states it was in');
+
+set local role none;
+
+select results_eq(
+  $$ select status, closed_by, closed_reason, closed_at is not null
+       from public.failed_operations where id = 'e9000000-0000-4000-8000-0000000000a1' $$,
+  $$ values ('resolved', 'e1000000-0000-4000-8000-000000000001'::uuid, 'moved to the new POS', true) $$,
+  'INT-S1-66: and who and why are kept on it');
+
+-- ---------------------------------------------------------------------------
+-- Who may read an address, and how much of it
+-- ---------------------------------------------------------------------------
+
+insert into public.webhook_endpoints (id, organization_id, name, url, event_types, created_by) values
+  ('e5000000-0000-4000-8000-00000000000b', 'e2000000-0000-4000-8000-000000000001', 'With a token',
+   'https://hooks.example.test/with?token=abc123#frag', array['stay.checked_in'], 'e1000000-0000-4000-8000-000000000001');
+
+set local role ranza_app;
+
+select app.set_request_context('e1000000-0000-4000-8000-000000000001');
+select results_eq(
+  $$ select url, url_masked from app.webhook_endpoint_urls('e2000000-0000-4000-8000-000000000001')
+      where endpoint_id = 'e5000000-0000-4000-8000-00000000000b' $$,
+  $$ values ('https://hooks.example.test/with?token=abc123#frag', false) $$,
+  'INT-S1-67: someone who manages endpoints reads an address in full');
+
+select app.set_request_context('e1000000-0000-4000-8000-000000000003');
+select results_eq(
+  $$ select url, url_masked from app.webhook_endpoint_urls('e2000000-0000-4000-8000-000000000001')
+      where endpoint_id = 'e5000000-0000-4000-8000-00000000000b' $$,
+  $$ values ('https://hooks.example.test/with', true) $$,
+  'INT-S1-67: someone who can only view reads it without its query string and fragment, and is told something was cut');
+
+select results_eq(
+  $$ select url, url_masked from app.webhook_endpoint_urls('e2000000-0000-4000-8000-000000000001')
+      where endpoint_id = 'e5000000-0000-4000-8000-000000000001' $$,
+  $$ values ('https://hooks.example.test/one', false) $$,
+  'INT-S1-67: an address with nothing to hide is shown whole, and not marked');
+
+select app.set_request_context('e1000000-0000-4000-8000-000000000002');
+select results_eq(
+  $$ select url_masked from app.webhook_endpoint_urls('e2000000-0000-4000-8000-000000000001')
+      where endpoint_id = 'e5000000-0000-4000-8000-00000000000b' $$,
+  $$ values (true) $$,
+  'INT-S1-67: nor does a Manager of one Property read the whole address of an Organization-wide endpoint');
+
+select throws_ok(
+  $$ select url from public.webhook_endpoints $$,
+  '42501', null,
+  'INT-S1-67: the address column cannot be read from the table at all');
+
+select app.set_request_context('e1000000-0000-4000-8000-000000000006');
+select is(
+  (select count(*)::int from app.webhook_endpoint_urls('e2000000-0000-4000-8000-000000000001')),
+  0,
+  'INT-S1-67: someone with neither integrations permission reads no address');
+
+select app.set_request_context('e1000000-0000-4000-8000-000000000004');
+select is(
+  (select count(*)::int from app.webhook_endpoint_urls('e2000000-0000-4000-8000-000000000001')),
+  0,
+  'INT-S1-67: nor does a Manager of another Organization');
+
+select app.set_request_context('e1000000-0000-4000-8000-000000000005');
+select is(
+  (select count(*)::int from app.webhook_endpoint_urls('e2000000-0000-4000-8000-000000000003')),
+  0,
+  'INT-S1-67: nor an Organization without the capability, of its own');
+
+-- ---------------------------------------------------------------------------
 -- Removing an endpoint
 -- ---------------------------------------------------------------------------
 
@@ -934,6 +1410,66 @@ select is(
   'INT-S1-11: its deliveries are history and stay');
 
 -- ---------------------------------------------------------------------------
+-- Every command writes its own audit record, and a refusal writes none
+-- ---------------------------------------------------------------------------
+
+select results_eq(
+  $$ select r.actor_id, r.location_id is null, r.reason is null,
+            r.context ->> 'host', r.context -> 'eventTypes'
+       from audit.records r
+      where r.action = 'webhook_endpoint.registered'
+        and r.subject_id = (select id from public.webhook_endpoints where name = 'Door locks') $$,
+  $$ values ('e1000000-0000-4000-8000-000000000001'::uuid, true, true,
+             'hooks.example.test', '["stay.checked_in"]'::jsonb) $$,
+  'INT-S1-52: registering is audited with who, which endpoint, the host and the events');
+
+select is(
+  (select count(*)::int from audit.records
+    where context::text like '%whsec%' or context::text like '%/doors%'),
+  0,
+  'INT-S1-52: no audit record holds a secret or the path of an address');
+
+select is(
+  (select count(*)::int from audit.records where action = 'webhook_endpoint.registered'),
+  8,
+  'INT-S1-52: eight endpoints were registered and eight records say so; the refused attempts left none');
+
+select results_eq(
+  $$ select r.actor_id, r.location_id, r.subject_type
+       from audit.records r where r.action = 'webhook_endpoint.test_sent' $$,
+  $$ values ('e1000000-0000-4000-8000-000000000001'::uuid,
+             'e3000000-0000-4000-8000-000000000002'::uuid, 'webhook_endpoint') $$,
+  'INT-S1-52: a test event is audited at the Property it was filed at');
+
+select is(
+  (select count(*)::int from audit.records where action = 'failed_operation.retried'),
+  2,
+  'INT-S1-52: two retries succeeded and two are on the record; the refused ones are not');
+
+select results_eq(
+  $$ select r.actor_id, r.reason, r.location_id
+       from audit.records r where r.action = 'failed_operation.cancelled' $$,
+  $$ values ('e1000000-0000-4000-8000-000000000001'::uuid, 'receiver retired',
+             'e3000000-0000-4000-8000-000000000001'::uuid) $$,
+  'INT-S1-45: a cancellation is audited with who, why and where');
+
+select results_eq(
+  $$ select r.actor_id, r.reason from audit.records r
+      where r.action = 'failed_operation.resolved' and r.reason = 'the hotel phoned them' $$,
+  $$ values ('e1000000-0000-4000-8000-000000000002'::uuid, 'the hotel phoned them') $$,
+  'INT-S1-48: a resolution is audited with who and why');
+
+select is(
+  (select count(*)::int from audit.records where action = 'failed_operation.resolved'),
+  4,
+  'INT-S1-66: four failures were resolved, the two from before deliveries among them, and four records say so');
+
+select results_eq(
+  $$ select r.actor_id, r.subject_id from audit.records r where r.action = 'webhook_endpoint.removed' $$,
+  $$ values ('e1000000-0000-4000-8000-000000000001'::uuid, 'e5000000-0000-4000-8000-000000000002'::uuid) $$,
+  'INT-S1-50: removing an endpoint is audited');
+
+-- ---------------------------------------------------------------------------
 -- The catalogue says what the tests above found
 -- ---------------------------------------------------------------------------
 
@@ -964,8 +1500,7 @@ select is(
       and p.proname in ('create_webhook_endpoint', 'remove_webhook_endpoint',
                         'send_webhook_test', 'retry_failed_operation',
                         'cancel_failed_operation', 'resolve_failed_operation',
-                        'webhook_endpoints_are_managed_by_caller',
-                        'failed_operation_is_managed_by_caller')
+                        'webhook_endpoint_urls')
       and acl.privilege_type = 'EXECUTE'
       and acl.grantee in (0, (select oid from pg_roles where rolname = 'ranza_worker'),
                              (select oid from pg_roles where rolname = 'ranza_auth'))),
@@ -978,11 +1513,30 @@ select is(
      join pg_namespace n on n.oid = p.pronamespace
      cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) acl
     where n.nspname = 'app'
-      and p.proname in ('webhook_endpoints_are_managed_by_caller', 'failed_operation_is_managed_by_caller')
+      and p.proname in ('create_webhook_endpoint', 'remove_webhook_endpoint',
+                        'send_webhook_test', 'retry_failed_operation',
+                        'cancel_failed_operation', 'resolve_failed_operation',
+                        'webhook_endpoint_urls')
       and acl.privilege_type = 'EXECUTE'
       and acl.grantee = (select oid from pg_roles where rolname = 'ranza_app')),
+  7,
+  'INT-S1-23: ranza_app may execute exactly the seven commands and reads');
+
+select is(
+  (select count(*)::int
+     from pg_proc p
+     join pg_namespace n on n.oid = p.pronamespace
+     cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) acl
+    where n.nspname = 'app'
+      and p.proname in ('webhook_endpoints_are_managed_by_caller', 'failed_operation_is_managed_by_caller',
+                        'record_webhook_audit', 'webhook_closure_reason', 'webhook_uuid',
+                        'webhook_claims_agree', 'webhook_event_source')
+      and acl.privilege_type = 'EXECUTE'
+      and acl.grantee in (0, (select oid from pg_roles where rolname = 'ranza_app'),
+                             (select oid from pg_roles where rolname = 'ranza_worker'),
+                             (select oid from pg_roles where rolname = 'ranza_auth'))),
   0,
-  'INT-S1-23: the gate helpers are executable by the owner alone');
+  'INT-S1-23: the gate helpers, the audit writer and the source reader are executable by the owner alone');
 
 select is(
   (select count(*)::int
@@ -993,10 +1547,19 @@ select is(
                         'claim_webhook_delivery', 'webhook_delivery_secret',
                         'record_webhook_attempt', 'create_webhook_endpoint', 'remove_webhook_endpoint',
                         'send_webhook_test', 'retry_failed_operation',
-                        'cancel_failed_operation', 'resolve_failed_operation')
+                        'cancel_failed_operation', 'resolve_failed_operation',
+                        'webhook_endpoint_urls', 'webhook_event_source')
       and p.proconfig @> array['search_path=""']),
-  11,
-  'INT-S1-23: all eleven definers pin an empty search_path');
+  13,
+  'INT-S1-23: all thirteen definers pin an empty search_path');
+
+select is(
+  (select count(*)::int
+     from information_schema.column_privileges
+    where table_schema = 'public' and table_name = 'webhook_endpoints'
+      and column_name = 'url' and grantee in ('ranza_app', 'ranza_worker', 'PUBLIC')),
+  0,
+  'INT-S1-67: no role but the owner holds any privilege on an endpoint''s address column');
 
 select is(
   (select count(*)::int

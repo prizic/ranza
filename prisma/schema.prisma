@@ -1168,6 +1168,7 @@ model WebhookDelivery {
   attempts            Int       @default(0)
   nextAttemptAt       DateTime? @map("next_attempt_at") @db.Timestamptz(6)
   claimedUntil        DateTime? @map("claimed_until") @db.Timestamptz(6)
+  leaseId             String?   @map("lease_id") @db.Uuid
   lastAttemptAt       DateTime? @map("last_attempt_at") @db.Timestamptz(6)
   lastStatusCode      Int?      @map("last_status_code")
   lastFailure         String?   @map("last_failure")

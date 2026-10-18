@@ -47,12 +47,36 @@ function sourcesOf(module: string): string[] {
     .map((file) => path.join(directory, file));
 }
 
-const written = new Set(
-  readdirSync(ranza, { withFileTypes: true })
+/**
+ * A security-definer function that writes its own audit record, in the
+ * statement that makes the change, calls `app.record_webhook_audit(` with the
+ * action as its third argument (ADR 0045). That is a fourth shape, and a
+ * migration is where it is read.
+ */
+const SQL_AUDIT_CALL =
+  /record_webhook_audit\(\s*[^,]+,\s*[^,]+,\s*'([a-z][a-z0-9_]*\.[a-z][a-z0-9_]*)'/g;
+
+function actionsWrittenBySql(): string[] {
+  const migrations = path.resolve(__dirname, "../../prisma/migrations");
+  return readdirSync(migrations, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap((entry) =>
+      [
+        ...readFileSync(
+          path.join(migrations, entry.name, "migration.sql"),
+          "utf8",
+        ).matchAll(SQL_AUDIT_CALL),
+      ].map((match) => match[1]!),
+    );
+}
+
+const written = new Set([
+  ...readdirSync(ranza, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .flatMap((entry) => sourcesOf(entry.name))
     .flatMap(actionsWrittenBy),
-);
+  ...actionsWrittenBySql(),
+]);
 
 describe("the modules and the screen agree on what is written", () => {
   it("finds the writers at all", () => {

@@ -27,10 +27,14 @@ function untouchedDb() {
   };
 }
 
-/** A client whose transaction fails the way a function in the database fails. */
+/**
+ * A client whose transaction fails the way a function in the database fails:
+ * the adapter puts the SQLSTATE the server sent in `originalCode`, and only some
+ * kinds of error also repeat it in `code` (a unique violation does not).
+ */
 function failingWith(sqlstate: string) {
   const error = Object.assign(new Error("raised"), {
-    meta: { driverAdapterError: { cause: { code: sqlstate } } },
+    meta: { driverAdapterError: { cause: { originalCode: sqlstate } } },
   });
   return { $transaction: vi.fn().mockRejectedValue(error) } as never;
 }
@@ -130,6 +134,7 @@ describe("what the database refuses", () => {
   it.each([
     ["42501", "not_permitted"],
     ["23505", "duplicate_url"],
+    ["23514", "reason_required"],
     ["54000", "too_many_endpoints"],
     ["55000", "test_in_flight"],
     ["22023", "unavailable"],
@@ -159,6 +164,20 @@ describe("what the database refuses", () => {
       const error = await command().catch((caught: unknown) => caught);
       expect(error).toBeInstanceOf(IntegrationsRefusedError);
       expect((error as IntegrationsRefusedError).reason).toBe(reason);
+    }
+  });
+
+  it("INT-S1-68: a refusal is read from the SQLSTATE and never from the words of a message", async () => {
+    const lookalike = Object.assign(
+      new Error("the connection to 10.42501.5.22023 was reset"),
+      { meta: { driverAdapterError: { cause: { originalCode: "08006" } } } },
+    );
+    const withoutCode = new Error("ERROR: 42501 permission denied");
+    for (const failure of [lookalike, withoutCode]) {
+      const db = { $transaction: vi.fn().mockRejectedValue(failure) } as never;
+      await expect(
+        createIntegrationsModule({ db }).removeEndpoint(USER, OPERATION),
+      ).rejects.toBe(failure);
     }
   });
 

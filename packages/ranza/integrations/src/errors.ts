@@ -42,6 +42,8 @@ export type RefusalReason =
   | "duplicate_url"
   | "too_many_endpoints"
   | "test_in_flight"
+  /** The database refused a missing or too-short reason, which the module's own check should have caught first. */
+  | "reason_required"
   /** The failure is closed, or its endpoint no longer takes deliveries. */
   | "unavailable";
 
