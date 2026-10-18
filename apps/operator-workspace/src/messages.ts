@@ -2471,6 +2471,8 @@ export interface Messages {
   unsavedChanges: string;
   /** What the workspace-level error screen says when a page fails to render. */
   errorBoundary: ErrorBoundaryMessages;
+  /** The button that opens the audit filters on a phone; `{count}` is how many are on. */
+  auditFiltersToggle: string;
 }
 
 /** The searchable pickers' own strings; each field brings its placeholder. */
@@ -5252,6 +5254,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     unsavedChanges:
       "Kaydedilmemiş değişiklikleriniz var. Kaydetmeden ayrılmak istiyor musunuz?",
     errorBoundary: errorBoundary.tr,
+    auditFiltersToggle:
+      "{count, plural, =0 {Filtreler} other {Filtreler ({count})}}",
   },
   en: {
     productName: "Ranza",
@@ -8007,6 +8011,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     unsavedChanges:
       "You have changes that are not saved. Leave without saving them?",
     errorBoundary: errorBoundary.en,
+    auditFiltersToggle:
+      "{count, plural, =0 {Filters} other {Filters ({count})}}",
   },
   ar: {
     productName: "Ranza",
@@ -10716,5 +10722,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "إيقافه يعني أن أي شخص يعرف كلمة مرورك يستطيع الدخول باسمك.",
     unsavedChanges: "لديك تغييرات غير محفوظة. هل تريد المغادرة دون حفظها؟",
     errorBoundary: errorBoundary.ar,
+    auditFiltersToggle:
+      "{count, plural, =0 {التصفية} other {التصفية ({count})}}",
   },
 };

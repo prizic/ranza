@@ -143,6 +143,12 @@ export function AuditTable({
                       {words.subjectType(entry.subjectType)} ·{" "}
                       {words.name(entry.subjectId)}
                     </span>
+                    {/* Who is the column a phone scrolls past before it is
+                        ever in view, and a log that says what happened and not
+                        who did it is half a log (AUDIT-06). */}
+                    <span className="block text-step--1 text-muted-foreground sm:hidden">
+                      {t("who")}: {words.actor(entry.actorId)}
+                    </span>
                   </Link>
                 </TableCell>
                 <TableCell className="align-top whitespace-normal text-step--1">

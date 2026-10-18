@@ -189,3 +189,46 @@ for (const locale of ["en", "tr", "ar"] as const) {
     expect(frame!.x + frame!.width).toBeLessThanOrEqual(390);
   });
 }
+
+test("the audit log on a phone folds its filters and shows who did it", async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+  const propertyId = testProperty();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page);
+  await aGuestInHouse(page, propertyId);
+  await page.goto(`/en/audit-log?property=${propertyId}`);
+
+  const filters = page.getByRole("button", { name: /^Filters/ });
+  await expect(filters).toBeVisible();
+  await expect(filters).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByLabel("Search", { exact: true })).toBeHidden();
+
+  // The first record is on the first screen, not under five fields.
+  const first = page.locator("tbody tr").first();
+  await expect(first).toBeVisible();
+  const row = await first.boundingBox();
+  expect(row!.y, "the first record starts on the first screen").toBeLessThan(
+    500,
+  );
+
+  // Who did it is in the row, in view, without scrolling it sideways.
+  const who = first.getByText(/^Who:/);
+  await expect(who).toBeVisible();
+  const where = await who.boundingBox();
+  expect(where!.x + where!.width).toBeLessThanOrEqual(390);
+  await page.screenshot({
+    path: path.join(EVIDENCE, "phone-audit-folded-filters.png"),
+  });
+
+  await filters.click();
+  await expect(filters).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByLabel("Search", { exact: true })).toBeVisible();
+
+  // On a laptop nothing is folded and nothing is said twice.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(filters).toBeHidden();
+  await expect(page.getByLabel("Search", { exact: true })).toBeVisible();
+  await expect(first.getByText(/^Who:/)).toBeHidden();
+});
