@@ -9,7 +9,8 @@ stateDiagram-v2
   }
 
   state "Delivery" as DV {
-    [*] --> Pending : queued from an event, or a test
+    [*] --> Pending : queued from an event whose row it matches, or a test
+    [*] --> Failed : the event did not match its row (source_mismatch), nothing sent
     Pending --> Delivered : 2xx
     Pending --> Retrying : 408, 429, 5xx, timeout or no connection, with attempts left
     Pending --> Failed : any other answer, or the last attempt failed
@@ -31,6 +32,7 @@ stateDiagram-v2
     FoRetrying --> FoResolved : a delivery arrives
     FoFailed --> FoResolved : a delivery arrives after Retry
     FoFailed --> FoResolved : Mark resolved, with who and why
+    [*] --> FoFailed : the event did not match its row, no attempt made, Retry refused
     FoRetrying --> FoCancelled : Stop retrying, with who and why
     FoRetrying --> FoCancelled : the endpoint is removed
     FoFailed --> FoCancelled : the endpoint is removed

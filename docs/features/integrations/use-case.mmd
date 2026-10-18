@@ -18,10 +18,11 @@ flowchart TD
     TEST(["Send test event"])
     REMOVE(["Remove endpoint"])
     LIST(["View endpoints and open failures<br/>state in words, what the receiver answered,<br/>attempts, next attempt"])
-    QUEUE(["Queue a delivery per subscribed endpoint<br/>ids and facts only, frozen body"])
+    QUEUE(["Queue a delivery per subscribed endpoint<br/>built from the row the event names, frozen body;<br/>an event that does not match its row is a failure, not a send"])
     SEND(["Send signed JSON<br/>no redirects, no private addresses"])
     RECORD(["Record the outcome<br/>delivered, retry on schedule, or failed"])
-    RETRY(["Retry now"])
+    RETRY(["Retry now, or Retry all stopped"])
+    CLOSED(["View closed failures, paged<br/>when, how, why and who in words"])
     CANCEL(["Stop retrying, with a reason"])
     RESOLVE(["Mark resolved, with a reason"])
   end
@@ -41,6 +42,8 @@ flowchart TD
   PROPERTY_MANAGER --> CANCEL
   PROPERTY_MANAGER --> RESOLVE
   VIEWER --> LIST
+  VIEWER --> CLOSED
+  PROPERTY_MANAGER --> CLOSED
 
   OUTBOX --> QUEUE
   TEST --> QUEUE

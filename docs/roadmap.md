@@ -145,13 +145,17 @@ with a host adapter, because a platform module may not name a Property or a Stay
 **Webhooks: done, proposed.** The first integration is an outbound webhook an
 Organization registers: an HTTPS address and chosen events, delivered signed by
 the worker on a bounded retry schedule, with what failed on the Integrations
-screen and Retry, Stop retrying and Mark resolved recording who and why
+screen and Retry, Retry all, Stop retrying and Mark resolved recording who and why
 (`packages/ranza/integrations`, `apps/worker/src/webhooks`,
 `20260916011200_an_organization_registers_a_webhook`,
 [ADR 0045](adr/0045-the-first-integration-is-a-signed-outbound-webhook-the-worker-sends-and-refuses-private-addresses.md),
 [`features/integrations/`](features/integrations/edge-cases.csv)). The choice of
 system, whole-Organization scope, plaintext secret storage and the six events are
-the owner's to confirm (INT-S1-60, INT-S1-61, INT-DEF-03, INT-DEF-04).
+the owner's to confirm (INT-S1-60, INT-S1-61, INT-DEF-03, INT-DEF-04), as are
+sending from the row an event names and not from its payload (INT-S1-27,
+INT-S1-62, INT-S1-63), one delivery on the wire per endpoint without strict
+order (INT-S1-76) and the address a viewer is shown (INT-S1-67). The screen was
+re-audited against UX findings INTEGRATIONS-01 to -12 (RANZ-72).
 
 Not started: External payments · Channel and distribution integrations (and KBS,
 e-Arşiv and messaging, which need a contract and credentials) · Door locks and

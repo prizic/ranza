@@ -88,15 +88,33 @@ is the worst case and no more.
 A handler in the dispatcher's transaction queues one `webhook_deliveries` row per
 subscribed endpoint with `on conflict do nothing` on that key, so the same event
 is never queued twice for the same endpoint however many times the handler runs.
-The body is frozen at that moment from the event's id and the keys the catalogue
-lists, never from the payload as a whole: any member of an Organization can
-publish an event with any payload for it (`events_publish_own_scope`), and
-`folio.line_posted` publishes the line's `description`. Only listed keys whose
-values are numbers, booleans, null or a short token without spaces leave. The
-Property is found from the payload only if it is one of the Organization's own,
-and from the Stay for `stay.checked_out`, which names no Property; an event
-that names none raises, so the dispatcher records it rather than the event being
-delivered unfiled or dropped.
+
+**What is sent is read from the row the event is about, not from the event.** Any
+member of an Organization can publish an event with any payload for it
+(`events_publish_own_scope`), so the payload is a claim and never evidence. The
+body is built at the moment of queueing (and frozen, so every attempt sends the
+same bytes) by `app.webhook_event_source()` from the reservation, stay or folio
+line the event names, as the ledger function reads the folio line and not the
+event (ADR 0042). The payload supplies the id of that row and the identifiers it
+asserts around it, and those are compared with the row: the Property of a
+reservation or stay, the reservation of a stay, the day and Folio of a departure,
+the Property, Folio and type of a folio line. Identifiers that can change after
+publication (the Unit a reservation sits in) are sent as they are now and not
+compared, or an event handled after a room move would be refused for being right.
+The body then goes through the key and value filter as a second line of defence:
+only listed keys whose values are numbers, booleans, null or a short token
+without spaces leave.
+
+**An event that does not match is not sent, and the refusal is a record.** No
+row, a row in another Organization, a row not in the state the type claims (a
+cancellation of a reservation that is not cancelled), or an identifier that
+disagrees: each endpoint that would have received it gets a delivery that is
+already `failed` with the reason `source_mismatch`, an empty body and no
+attempt, and the failure an operator is shown. It is filed at the Property the
+event named when that is one of the Organization's, and otherwise at its oldest.
+Nothing about it can be sent: Retry is refused for it, the due list never offers
+it, and a person can only mark it resolved. The worker logs the event id and the
+number of endpoints, never the payload.
 
 A **test event** is a delivery with no outbox event and the type `webhook.test`,
 filed at the Property the person is working in, one at a time per endpoint.
@@ -117,6 +135,21 @@ cannot be replayed under a fresh timestamp. Delivery is at least once: a worker
 that dies between the reply and recording it leaves a lease that expires, and the
 delivery is sent again with the same key.
 
+An endpoint has **one delivery on the wire at a time**, oldest first. Deliveries
+are listed one per endpoint and a claim is refused while a sibling holds a live
+lease, with the endpoint's row locked for the length of the claim so two replicas
+claiming two deliveries at the same moment end with one lease. A delivery waiting
+for its next retry does not hold the ones behind it back: strict ordering would
+give an endpoint that has been down for a day a day of silence about everything
+else, so order is the order of first attempt and `occurredAt` and the event id are
+what a receiver orders by. A pass works through a burst for one endpoint a round
+at a time rather than waiting for the next tick.
+
+The lease is a token, not a time. The worker presents it to read the secret and to
+record the outcome, and a delivery that has been leased again since has a
+different one, so an attempt that outlived its lease cannot record over the
+attempt that replaced it; its outcome is discarded, not an error.
+
 A 2xx delivers. 408, 429, any 5xx, a connection that does not complete and a
 reply that takes longer than ten seconds are retried after 1 minute, 5 minutes,
 30 minutes, 2 hours and 12 hours, after which the delivery is failed (six
@@ -131,8 +164,14 @@ connection refuses it on its address: the lookup the HTTP client connects throug
 returns the address that was checked, every address in the answer must be public,
 and the connection is made to that address, so a name cannot answer twice.
 Loopback, private, link-local (the cloud metadata address included), shared,
-documentation, multicast, reserved, unique-local, NAT64 and 6to4 ranges are
-blocked, and an IPv4-mapped address is judged as its IPv4 form.
+documentation, multicast, reserved, unique-local, NAT64, 6to4 and IPv4-compatible
+(`::/96`) ranges are blocked, and an IPv4-mapped address is judged as its IPv4
+form. The resolver is injectable, which is the only way to test the connection
+guard (a name that resolves to a private address cannot be registered on public
+DNS for a test), and `tests/unit/webhook-transport.test.ts` asserts that every
+private answer, one private address among public ones, and an empty answer are
+refused at connect time with nothing connected to. Removing the guard turns it
+red.
 
 The one exception is plain `http` to this machine, which a test needs to run a
 receiver. It is a flag the worker's composition root reads, and **a worker with
@@ -152,9 +191,32 @@ text, and no body or header.
 Retry puts the delivery back in the queue, due now. It resolves nothing: the
 worker's next attempt counts, and only a delivery that arrives resolves the
 failure. Cancel (only while retrying) and Resolve (only once failed) each need a
-reason of at least three characters and record who and when on the failure and in
-an audit record at the Property. Removing an endpoint cancels what was on its
+reason of three to five hundred characters and record who and when on the failure
+and in an audit record at the Property. **Every command writes its own audit
+record inside its function** (`app.record_webhook_audit`), in the statement that
+makes the change, and refuses a missing reason there: the module and the screen
+check too, and are not the only things standing between a caller and either. A
+failure from before deliveries existed, which has no delivery to stop, can still
+be closed; it cannot be retried. Removing an endpoint cancels what was on its
 way, by name, and keeps every row.
+
+### What a person who can only view is shown
+
+The address of an endpoint can carry a token in its query string. The `url`
+column has no grant for `ranza_app`: `app.webhook_endpoint_urls()` returns it in
+full to someone who manages endpoints and cut at the first `?` or `#`, with a flag
+that says so, to anyone else. A masked address that could be read unmasked through
+the table would be a label and not a boundary. A secret in the _path_ (Slack-style
+URLs) is not masked: the host and path are what identify the receiver, and hiding
+them would leave a viewer unable to tell which endpoint is which (see the owner
+list).
+
+The screen also says what a stopped sender would otherwise hide: a delivery due
+more than five minutes ago and not sent is counted on its endpoint, because a
+stopped worker writes no failure row. Failures are listed a page at a time with
+their total, the closed ones are a list of their own with when, how and why, and
+Retry all sends every stopped delivery at a Property again after saying what that
+does.
 
 ### What goes
 
@@ -205,3 +267,12 @@ restate), so removing one fails nothing. They stay, and the migration says why.
 5. Six attempts over about fifteen hours, then stopped.
 6. `public.integrations` and the seeded cards are gone.
 7. Delivery is not gated on the Subscription (INT-DEF-04).
+8. What is sent is read from the row an event names, and an event that does not
+   match it is a failed delivery nobody can retry, not a dropped event.
+9. An endpoint receives one delivery at a time, and a delivery waiting to retry
+   does not hold back the ones behind it (order is not strict).
+10. A viewer sees an address without its query string and fragment; a secret in
+    the path is not hidden.
+11. A webhook is the only integration the screen offers, and it says so, with
+    channel managers, KBS reporting, e-invoicing and payment providers listed as
+    not available yet.
