@@ -96,16 +96,25 @@ test("an invited colleague opens the link, sets a password and is signed in with
   await expect(invitee.getByLabel("Email")).toHaveJSProperty("readOnly", true);
   await invitee.screenshot({ path: path.join(EVIDENCE, "accept-page.png") });
 
-  // A password the sign-up will not take says so and keeps what was typed.
+  // A password the sign-up would not take is stopped before it is sent, and
+  // what was typed stays (the server's own refusal is tested without a browser).
   await invitee.getByLabel("Your name").fill("Nadia Night");
-  await invitee.getByLabel("Password", { exact: true }).fill("short");
+  const password = invitee.getByLabel("Password", { exact: true });
+  await password.fill("short");
+  const sent: string[] = [];
+  invitee.on("request", (request) => {
+    if (request.url().includes("/api/staff-invitation/accept")) {
+      sent.push(request.url());
+    }
+  });
   await invitee.getByRole("button", { name: "Set password and join" }).click();
-  await expect(
-    invitee.getByText("That password is too short or too long"),
-  ).toBeVisible();
-  await expect(invitee.getByLabel("Password", { exact: true })).toHaveValue(
-    "short",
-  );
+  expect(
+    await password.evaluate(
+      (input: HTMLInputElement) => input.validity.tooShort,
+    ),
+  ).toBe(true);
+  await expect(password).toHaveValue("short");
+  expect(sent).toEqual([]);
 
   await invitee.getByLabel("Password", { exact: true }).fill(NEW_PASSWORD);
   await invitee.getByRole("button", { name: "Set password and join" }).click();

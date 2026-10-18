@@ -175,7 +175,7 @@ test("the roster can be searched, and a search that finds nobody says so and off
   await signIn(page);
   await page.goto(`/en/people?property=${propertyId}`);
 
-  await page.getByTestId("staff-search").fill("e2e-findable");
+  await page.getByTestId("staff-search").fill(colleague);
   await expect(page.getByTestId("staff-row")).toHaveCount(1);
   await expect(page.getByTestId("staff-row")).toContainText(colleague);
 
@@ -305,7 +305,7 @@ test("role ticks are saved together, after saying who is signed out", async ({
   // A shipped role is a mark, not a pale disabled box.
   await expect(
     page
-      .getByRole("img", { name: "Manager: Open and close a Folio: Allowed" })
+      .getByRole("img", { name: /Manager: Open and close a Folio.*: Allowed/ })
       .first(),
   ).toBeVisible();
 
