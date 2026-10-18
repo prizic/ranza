@@ -159,7 +159,7 @@ const DROP = { x: 65, y: 15 };
 describe("RC-S3-10: only somebody who may amend is given a grip", () => {
   it("a viewer without front_desk.amend has no hint, no end grip, and a drag hands nothing on", () => {
     const bar = renderGrid(false);
-    expect(bar.getAttribute("title")).not.toMatch(/drag/i);
+    expect(bar).not.toHaveAttribute("title");
     expect(document.querySelector("[data-end-handle]")).toBeNull();
 
     press(bar, GRAB);

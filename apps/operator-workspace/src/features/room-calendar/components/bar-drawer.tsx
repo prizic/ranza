@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
@@ -194,6 +194,14 @@ function DrawerBody({
   // does, opening the same dialog with pickers on the nights and the Unit
   // (RC-S3-12).
   const [movingBooking, setMovingBooking] = useState<MoveRequest | null>(null);
+  // The buttons that open a dialog, so focus goes back to the one pressed when
+  // the dialog closes: the drawer stays open under it, and with no trigger to
+  // return to the browser would leave focus on the page's body.
+  const departureButton = useRef<HTMLButtonElement>(null);
+  const moveGuestButton = useRef<HTMLButtonElement>(null);
+  const moveBookingButton = useRef<HTMLButtonElement>(null);
+  const giveFocusBack = (button: { current: HTMLButtonElement | null }) =>
+    requestAnimationFrame(() => button.current?.focus());
   const departureChangeable =
     mayAmend &&
     bar.kind === "stay" &&
@@ -206,8 +214,21 @@ function DrawerBody({
   // own first night is the arrival, and its nights are counted from it.
   const arrivedOn = bar.kind === "stay" ? bar.arrivedOn : bar.startsOn;
   const moved = bar.kind === "stay" && bar.arrivedOn !== bar.startsOn;
+  const inHouse = bar.kind === "stay" && bar.status === "in_house";
+  // An overdue Guest is still in the room: their nights run through tonight,
+  // which is as far as the bar is drawn, not to the date they were due.
   const nights =
-    bar.endsOn === null ? null : daysBetween(arrivedOn, bar.endsOn);
+    bar.overdue && bar.heldUntil
+      ? daysBetween(arrivedOn, bar.heldUntil)
+      : bar.endsOn === null
+        ? null
+        : daysBetween(arrivedOn, bar.endsOn);
+  const daysLate =
+    bar.overdue && bar.endsOn ? daysBetween(bar.endsOn, today) : 0;
+  const readiness =
+    bar.kind === "reservation" && bar.holds && bar.startsOn <= today
+      ? calendar.readiness?.[(room ?? unit).unitId]
+      : undefined;
 
   return (
     <>
@@ -239,7 +260,10 @@ function DrawerBody({
         ) : null}
         {bar.overdue && bar.endsOn ? (
           <Notice tone="warning">
-            {t("overdueNote", { date: date(bar.endsOn, locale) })}
+            {t("overdueNote", {
+              date: date(bar.endsOn, locale),
+              days: daysLate,
+            })}
           </Notice>
         ) : null}
 
@@ -252,13 +276,20 @@ function DrawerBody({
           ) : null}
           <Fact
             label={
-              bar.kind === "stay" && bar.status === "departed"
-                ? t("left")
-                : t("leaves")
+              bar.overdue
+                ? t("wasDue")
+                : bar.kind === "stay" && bar.status === "departed"
+                  ? t("left")
+                  : t("leaves")
             }
           >
             {bar.endsOn ? date(bar.endsOn, locale) : t("noEndDate")}
           </Fact>
+          {bar.overdue ? (
+            <Fact label={t("overdue")}>
+              {t("daysLate", { days: daysLate })}
+            </Fact>
+          ) : null}
           {bar.kind === "stay" &&
           bar.bookedStartsOn &&
           (bar.bookedStartsOn !== bar.arrivedOn ||
@@ -272,20 +303,35 @@ function DrawerBody({
             </Fact>
           ) : null}
           {nights !== null ? (
-            <Fact label={t("nightsLabel")}>
+            <Fact label={t(bar.overdue ? "nightsSoFar" : "nightsLabel")}>
               {t("nights", { count: nights })}
             </Fact>
           ) : null}
-          <Fact label={t("stayType")}>
-            {bar.stayType === "resident" ? t("resident") : t("guest")}
-          </Fact>
+          {bar.kind === "reservation" ? (
+            <Fact label={t("reservationCode")}>
+              <bdi className="font-mono">{bar.reference}</bdi>
+            </Fact>
+          ) : null}
+          {readiness ? (
+            <Fact label={t("roomStatus")}>
+              {t(`roomReadiness.${readiness}`)}
+            </Fact>
+          ) : null}
+          {bar.stayType === "resident" ? (
+            <Fact label={t("stayType")}>{t("resident")}</Fact>
+          ) : null}
           {bar.kind === "stay" && bar.balance ? (
-            <Fact label={t("balance")}>
+            <Fact label={t(inHouse ? "balanceAsOfCharge" : "balance")}>
               {formatMoney(
                 bar.balance.balanceMinor,
                 bar.balance.currency,
                 locale,
               )}
+              {inHouse ? (
+                <span className="block text-xs text-muted-foreground">
+                  {t("laterNightsPost")}
+                </span>
+              ) : null}
               {bar.balance.closed ? (
                 <span className="block text-xs text-muted-foreground">
                   {t("folioClosed")}
@@ -295,97 +341,109 @@ function DrawerBody({
           ) : null}
         </FactList>
 
-        {departureChangeable && bar.kind === "stay" ? (
-          <>
-            <Button
-              className="w-full"
-              onClick={() => setChangingDeparture(true)}
-              type="button"
-              variant="outline"
-            >
-              {common("changeDeparture")}
-            </Button>
-            <Button
-              className="w-full"
-              onClick={() => setMoving(true)}
-              type="button"
-              variant="outline"
-            >
-              {common("moveGuest")}
-            </Button>
-            {moving ? (
-              <MoveGuestDialog
-                locale={locale}
-                onDone={onChanged}
-                onOpenChange={setMoving}
-                open
-                stay={{
-                  stayId: bar.stayId,
-                  guestName: bar.guestName ?? t("noGuestRecorded"),
-                  unitLabel: place,
-                }}
-              />
-            ) : null}
-            {changingDeparture ? (
-              <ChangeDepartureDialog
-                locale={locale}
-                onDone={onChanged}
-                onOpenChange={setChangingDeparture}
-                open
-                stay={{
-                  stayId: bar.stayId,
-                  reference: null,
-                  guestName: bar.guestName ?? t("noGuestRecorded"),
-                  unitLabel: place,
-                  startsOn: bar.arrivedOn,
-                  endsOn: bar.endsOn,
-                }}
-              />
-            ) : null}
-          </>
-        ) : null}
+        <div className="mt-4 space-y-2 border-t pt-4">
+          {departureChangeable && bar.kind === "stay" ? (
+            <>
+              <Button
+                className="w-full"
+                onClick={() => setChangingDeparture(true)}
+                ref={departureButton}
+                type="button"
+                variant="outline"
+              >
+                {common("changeDeparture")}
+              </Button>
+              <Button
+                className="w-full"
+                onClick={() => setMoving(true)}
+                ref={moveGuestButton}
+                type="button"
+                variant="outline"
+              >
+                {common("moveGuest")}
+              </Button>
+              {moving ? (
+                <MoveGuestDialog
+                  locale={locale}
+                  onDone={onChanged}
+                  onOpenChange={(open) => {
+                    setMoving(open);
+                    if (!open) giveFocusBack(moveGuestButton);
+                  }}
+                  open
+                  stay={{
+                    stayId: bar.stayId,
+                    guestName: bar.guestName ?? t("noGuestRecorded"),
+                    unitLabel: place,
+                  }}
+                />
+              ) : null}
+              {changingDeparture ? (
+                <ChangeDepartureDialog
+                  locale={locale}
+                  onDone={onChanged}
+                  onOpenChange={(open) => {
+                    setChangingDeparture(open);
+                    if (!open) giveFocusBack(departureButton);
+                  }}
+                  open
+                  stay={{
+                    stayId: bar.stayId,
+                    reference: null,
+                    guestName: bar.guestName ?? t("noGuestRecorded"),
+                    unitLabel: place,
+                    startsOn: bar.arrivedOn,
+                    endsOn: bar.endsOn,
+                  }}
+                />
+              ) : null}
+            </>
+          ) : null}
 
-        {mayAmend && bar.kind === "reservation" ? (
-          <Button
-            className="w-full"
-            onClick={() =>
-              setMovingBooking({
-                kind: "booking",
-                entry: { ...entry, bar },
-                target: {
-                  unitId: unit.unitId,
-                  startsOn: bar.startsOn,
-                  endsOn: bar.endsOn,
-                },
-              })
-            }
-            type="button"
-            variant="outline"
-          >
-            {t("moveAction")}
+          {mayAmend && bar.kind === "reservation" ? (
+            <Button
+              className="w-full"
+              onClick={() =>
+                setMovingBooking({
+                  kind: "booking",
+                  entry: { ...entry, bar },
+                  target: {
+                    unitId: unit.unitId,
+                    startsOn: bar.startsOn,
+                    endsOn: bar.endsOn,
+                  },
+                })
+              }
+              ref={moveBookingButton}
+              type="button"
+              variant="outline"
+            >
+              {t("moveAction")}
+            </Button>
+          ) : null}
+          {movingBooking ? (
+            <MoveDialogs
+              calendar={calendar}
+              locale={locale}
+              onClose={() => {
+                setMovingBooking(null);
+                onChanged();
+                giveFocusBack(moveBookingButton);
+              }}
+              request={movingBooking}
+            />
+          ) : null}
+
+          <Button asChild className="w-full">
+            {/* Not prefetched: one bar is one link, read on the click. */}
+            <Link
+              href={`${localizeHref(locale, target)}?property=${propertyId}`}
+              prefetch={false}
+            >
+              {t(`open.${target}`)}
+            </Link>
           </Button>
-        ) : null}
-        {movingBooking ? (
-          <MoveDialogs
-            calendar={calendar}
-            locale={locale}
-            onClose={() => {
-              setMovingBooking(null);
-              onChanged();
-            }}
-            request={movingBooking}
-          />
-        ) : null}
-
-        <Button asChild className="w-full">
-          {/* Not prefetched: one bar is one link, read on the click. */}
-          <Link
-            href={`${localizeHref(locale, target)}?property=${propertyId}`}
-            prefetch={false}
-          >
-            {t(`open.${target}`)}
-          </Link>
-        </Button>
+        </div>
       </div>
     </>
   );

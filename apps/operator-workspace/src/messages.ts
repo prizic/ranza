@@ -1175,12 +1175,12 @@ export interface Messages {
    * block in each language and `useTranslations("roomCalendar")` scopes it.
    */
   roomCalendar: {
-    title: string;
     subtitle: string;
     previous: string;
     next: string;
     today: string;
     goTo: string;
+    chosenDay: string;
     length: string;
     lengthOption: string;
     floorFilter: string;
@@ -1189,6 +1189,8 @@ export interface Messages {
     noFloor: string;
     noBuilding: string;
     search: string;
+    filters: string;
+    filtersCount: string;
     showRequested: string;
     showDeparted: string;
     collapseAll: string;
@@ -1214,6 +1216,8 @@ export interface Messages {
     collapse: string;
     bedsTakenLabel: string;
     barLabel: string;
+    barLabelOverdue: string;
+    barOverdueCard: string;
     noGuestRecorded: string;
     noEndDate: string;
     refreshFailed: string;
@@ -1244,14 +1248,25 @@ export interface Messages {
     /** The first night in this room, for a Guest moved into it (AB-S3-06). */
     inRoomSince: string;
     leaves: string;
+    wasDue: string;
+    daysLate: string;
     left: string;
     booked: string;
     nightsLabel: string;
+    nightsSoFar: string;
     nights: string;
     stayType: string;
+    reservationCode: string;
+    roomStatus: string;
+    roomReadiness: Record<
+      "ready" | "awaiting_inspection" | "dirty" | "occupied",
+      string
+    >;
     guest: string;
     resident: string;
     balance: string;
+    balanceAsOfCharge: string;
+    laterNightsPost: string;
     folioClosed: string;
     open: Record<"arrivals" | "departures" | "reservations", string>;
     /** The short word a bar carries beside a warning's icon, when it fits. */
@@ -2847,12 +2862,12 @@ export const messages: Record<SupportedLocale, Messages> = {
     outOfOrderBeds: "{count, number} hizmet dışı",
     blockedStatus: "Kapalı",
     roomCalendar: {
-      title: "{property} oda takvimi",
       subtitle: "Odalar ve yataklar, tesisin iş günlerine göre.",
-      previous: "Önceki hafta",
-      next: "Sonraki hafta",
+      previous: "Önceki 7 gün",
+      next: "Sonraki 7 gün",
       today: "Bugün",
       goTo: "Tarihe git",
+      chosenDay: "Seçtiğiniz tarih",
       length: "Gösterilen gün",
       lengthOption: "{days, plural, other {# gün}}",
       floorFilter: "Kat",
@@ -2861,8 +2876,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       noFloor: "Katsız",
       noBuilding: "Binasız",
       search: "Oda veya misafir ara",
-      showRequested: "Talep",
-      showDeparted: "Ayrılan",
+      filters: "Filtreler",
+      filtersCount: "Filtreler ({count})",
+      showRequested: "Göster: Talep",
+      showDeparted: "Göster: Ayrıldı",
       collapseAll: "Tüm yatakları daralt",
       expandAll: "Tüm yatakları göster",
       overlapCount: "{count, plural, other {# çakışma}}",
@@ -2887,6 +2904,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       collapse: "{room} yataklarını daralt",
       bedsTakenLabel: "{of, number} yatağın {n, number} tanesi dolu",
       barLabel: "{guest}, {status}, {from} – {to}",
+      barLabelOverdue:
+        "{guest}, gecikmiş, geliş {from}, planlanan çıkış {to}, bu gece hâlâ odada",
+      barOverdueCard: "Gecikmiş · bu geceye kadar odada (planlanan çıkış {to})",
       noGuestRecorded: "Kayıtlı misafir yok",
       noEndDate: "Bitiş tarihi yok",
       refreshFailed: "Yenilenemedi. Takvim {time} itibarıyla gösteriliyor.",
@@ -2920,19 +2940,33 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Bu aralık açılamadı. {time} itibarıyla önceki aralık gösteriliyor.",
       blockedNote:
         "Bu oda kullanım dışı ({reason}); serbest bırakılana kadar girişi reddedilir.",
-      overdueNote: "Gecikmiş: {date} tarihinde ayrılmaları gerekiyordu.",
+      overdueNote:
+        "Hâlâ odada: planlanan çıkış tarihi {date}, {days} gün geçti. Çıkış yapın ya da çıkış tarihini değiştirin.",
       arrives: "Geliş",
       arrived: "Geldi",
       inRoomSince: "Bu odada şu tarihten beri",
       leaves: "Ayrılış",
+      wasDue: "Planlanan çıkış",
+      daysLate: "{days} gün",
       left: "Ayrıldı",
       booked: "Rezervasyon",
       nightsLabel: "Gece",
+      nightsSoFar: "Bu geceye kadar geceler",
       nights: "{count, plural, other {# gece}}",
-      stayType: "Tür",
+      stayType: "Kayıt türü",
+      reservationCode: "Rezervasyon",
+      roomStatus: "Oda durumu",
+      roomReadiness: {
+        ready: "Hazır",
+        awaiting_inspection: "Temiz, kontrol bekliyor",
+        dirty: "Kirli",
+        occupied: "İçinde misafir var",
+      },
       guest: "Misafir",
       resident: "Sakin",
       balance: "Bakiye",
+      balanceAsOfCharge: "Son ücrete göre bakiye",
+      laterNightsPost: "Sonraki geceler gün kapanışında ya da çıkışta işlenir.",
       folioClosed: "Folyo kapalı",
       open: {
         arrivals: "Girişlerde aç",
@@ -5283,12 +5317,12 @@ export const messages: Record<SupportedLocale, Messages> = {
     outOfOrderBeds: "{count, number} out of order",
     blockedStatus: "Blocked",
     roomCalendar: {
-      title: "Room calendar at {property}",
       subtitle: "Rooms and beds against the Property's business days.",
-      previous: "Previous week",
-      next: "Next week",
+      previous: "Previous 7 days",
+      next: "Next 7 days",
       today: "Today",
       goTo: "Go to a date",
+      chosenDay: "The date you chose",
       length: "Days shown",
       lengthOption: "{days, plural, one {# day} other {# days}}",
       floorFilter: "Floor",
@@ -5297,8 +5331,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       noFloor: "No floor",
       noBuilding: "No building",
       search: "Search a room or Guest",
-      showRequested: "Requested",
-      showDeparted: "Departed",
+      filters: "Filters",
+      filtersCount: "Filters ({count})",
+      showRequested: "Show requested",
+      showDeparted: "Show departed",
       collapseAll: "Fold all beds",
       expandAll: "Show all beds",
       overlapCount: "{count, plural, one {# overlap} other {# overlaps}}",
@@ -5324,6 +5360,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       collapse: "Fold the beds of {room}",
       bedsTakenLabel: "{n, number} of {of, number} beds taken",
       barLabel: "{guest}, {status}, {from} to {to}",
+      barLabelOverdue:
+        "{guest}, in house and overdue, arrived {from}, was due to leave {to}, still in the room tonight",
+      barOverdueCard: "Overdue · in the room through tonight (was due {to})",
       noGuestRecorded: "No Guest recorded",
       noEndDate: "No end date",
       refreshFailed:
@@ -5358,19 +5397,34 @@ export const messages: Record<SupportedLocale, Messages> = {
         "That window couldn't be opened. Still showing the one before, as it was at {time}.",
       blockedNote:
         "This room is out of use ({reason}), so its check-in will be refused until it is released.",
-      overdueNote: "Overdue: they were due to leave on {date}.",
+      overdueNote:
+        "Still in the room: {days, plural, one {# day} other {# days}} past their date of {date}. Check them out, or change their departure.",
       arrives: "Arrives",
       arrived: "Arrived",
       inRoomSince: "In this room since",
       leaves: "Leaves",
+      wasDue: "Was due to leave",
+      daysLate: "{days, plural, one {# day} other {# days}}",
       left: "Left",
       booked: "Booked",
       nightsLabel: "Nights",
+      nightsSoFar: "Nights through tonight",
       nights: "{count, plural, one {# night} other {# nights}}",
-      stayType: "Type",
+      stayType: "Booked as",
+      reservationCode: "Reservation",
+      roomStatus: "Room status",
+      roomReadiness: {
+        ready: "Ready",
+        awaiting_inspection: "Clean, awaiting inspection",
+        dirty: "Dirty",
+        occupied: "A Guest is in it",
+      },
       guest: "Guest",
       resident: "Resident",
       balance: "Balance",
+      balanceAsOfCharge: "Balance as of the last charge",
+      laterNightsPost:
+        "Later nights post at the close of the day, or at check-out.",
       folioClosed: "Folio closed",
       open: {
         arrivals: "Open in Arrivals",
@@ -7706,12 +7760,12 @@ export const messages: Record<SupportedLocale, Messages> = {
     outOfOrderBeds: "{count, number} خارج الخدمة",
     blockedStatus: "مغلق",
     roomCalendar: {
-      title: "تقويم الغرف في {property}",
       subtitle: "الغرف والأسرّة مقابل أيام عمل المنشأة.",
-      previous: "الأسبوع السابق",
-      next: "الأسبوع التالي",
+      previous: "الأيام السبعة السابقة",
+      next: "الأيام السبعة التالية",
       today: "اليوم",
       goTo: "الانتقال إلى تاريخ",
+      chosenDay: "التاريخ الذي اخترته",
       length: "الأيام المعروضة",
       lengthOption:
         "{days, plural, zero {# يوم} one {يوم واحد} two {يومان} few {# أيام} many {# يومًا} other {# يوم}}",
@@ -7721,8 +7775,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       noFloor: "بلا طابق",
       noBuilding: "بلا مبنى",
       search: "ابحث عن غرفة أو ضيف",
-      showRequested: "مطلوبة",
-      showDeparted: "مغادِرة",
+      filters: "التصفية",
+      filtersCount: "التصفية ({count})",
+      showRequested: "إظهار: مطلوب",
+      showDeparted: "إظهار: غادر",
       collapseAll: "طيّ كل الأسرّة",
       expandAll: "إظهار كل الأسرّة",
       overlapCount:
@@ -7749,6 +7805,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       collapse: "طيّ أسرّة {room}",
       bedsTakenLabel: "{n, number} من {of, number} أسرّة مشغولة",
       barLabel: "{guest}، {status}، من {from} إلى {to}",
+      barLabelOverdue:
+        "{guest}، متأخر، وصل {from}، كان موعد مغادرته {to}، ما زال في الغرفة الليلة",
+      barOverdueCard: "متأخر · في الغرفة حتى الليلة (كان موعد مغادرته {to})",
       noGuestRecorded: "لا ضيف مسجّل",
       noEndDate: "بلا تاريخ انتهاء",
       refreshFailed: "تعذّر التحديث. يُعرض التقويم كما كان في {time}.",
@@ -7779,20 +7838,36 @@ export const messages: Record<SupportedLocale, Messages> = {
         "تعذّر فتح هذه الفترة. تُعرض الفترة السابقة كما كانت في {time}.",
       blockedNote:
         "هذه الغرفة خارج الاستخدام ({reason})، لذا سيُرفض تسجيل الوصول حتى تُحرَّر.",
-      overdueNote: "متأخر: كان موعد مغادرته {date}.",
+      overdueNote:
+        "ما زال في الغرفة: مرّ {days, plural, zero {# يوم} one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}} على موعد {date}. سجّل مغادرته أو غيّر موعد المغادرة.",
       arrives: "الوصول",
       arrived: "وصل",
       inRoomSince: "في هذه الغرفة منذ",
       leaves: "المغادرة",
+      wasDue: "كان موعد مغادرته",
+      daysLate:
+        "{days, plural, zero {# يوم} one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}",
       left: "غادر",
       booked: "الحجز",
       nightsLabel: "الليالي",
+      nightsSoFar: "الليالي حتى الليلة",
       nights:
         "{count, plural, zero {لا ليالٍ} one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلةً} other {# ليلة}}",
-      stayType: "النوع",
+      stayType: "نوع الحجز",
+      reservationCode: "الحجز",
+      roomStatus: "حالة الغرفة",
+      roomReadiness: {
+        ready: "جاهزة",
+        awaiting_inspection: "نظيفة، تنتظر الفحص",
+        dirty: "متسخة",
+        occupied: "فيها نزيل",
+      },
       guest: "ضيف",
       resident: "مقيم",
       balance: "الرصيد",
+      balanceAsOfCharge: "الرصيد حتى آخر رسم",
+      laterNightsPost:
+        "تُرحَّل الليالي اللاحقة عند إغلاق اليوم أو عند المغادرة.",
       folioClosed: "الفوليو مغلق",
       open: {
         arrivals: "فتح في الوصول",

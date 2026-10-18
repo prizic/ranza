@@ -142,7 +142,6 @@ function renderCalendar(
             }}
             lengths={[7, 14, 30]}
             locale={locale}
-            propertyName="Calendar Property"
             scope={scope}
           />
         </Hydrated>
@@ -162,7 +161,7 @@ describe("a window that cannot be opened", () => {
     const RANGE = "Sep 21, 2026 – Oct 4, 2026";
     expect(screen.getByText(RANGE)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Next week" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next 7 days" }));
     await letTimePass();
 
     expect(
@@ -190,7 +189,7 @@ describe("a window that cannot be opened", () => {
     // Found by the evidence run: the note outlived the outage that caused it
     // and sat over a calendar the next poll had already read.
     renderCalendar();
-    fireEvent.click(screen.getByRole("button", { name: "Next week" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next 7 days" }));
     await letTimePass();
     expect(
       await screen.findByText(/That window couldn't be opened/),

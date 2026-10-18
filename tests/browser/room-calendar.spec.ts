@@ -203,7 +203,7 @@ test("RC-S1-60: the next week is a link that opens the same week", async ({
   const today = psql(
     `select to_char(app.property_today('${fixture.propertyId}'), 'YYYY-MM-DD')`,
   );
-  await page.getByRole("button", { name: "Next week" }).click();
+  await page.getByRole("button", { name: "Next 7 days" }).click();
   await expect(page).toHaveURL(/from=\d{4}-\d{2}-\d{2}/);
   const from = new URL(page.url()).searchParams.get("from")!;
   // The default window starts three days before today; a week on is four after.

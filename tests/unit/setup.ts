@@ -10,3 +10,13 @@ window.matchMedia = (query: string) =>
     addEventListener: () => undefined,
     removeEventListener: () => undefined,
   }) as unknown as MediaQueryList;
+
+// Nor does jsdom measure anything, so a ResizeObserver never has a size to
+// report. One that never fires is the honest stand-in: a component that
+// watches its own width starts from what it read on mount.
+class NoResizeObserver implements ResizeObserver {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+window.ResizeObserver ??= NoResizeObserver;

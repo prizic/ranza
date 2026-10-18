@@ -10,7 +10,7 @@ import {
   localizeHref,
   type SupportedLocale,
 } from "@ranza/i18n";
-import { Button, EmptyState, PageHeader, Skeleton } from "@ranza/ui";
+import { Button, EmptyState, Skeleton } from "@ranza/ui";
 import type { RoomCalendar } from "../../../server/viewer";
 import { frontOfficeKeys, type Scope } from "../../front-office/query-keys";
 import { barKey, barsByKey, calendarRows, shiftDay } from "../layout";
@@ -72,18 +72,19 @@ export function LiveRoomCalendar({
   initialView,
   lengths,
   locale,
-  propertyName,
   scope,
 }: {
   defaultLength: number;
   initialView: RoomCalendarView;
   lengths: number[];
   locale: SupportedLocale;
-  propertyName: string;
   scope: Scope;
 }) {
   const t = useTranslations("roomCalendar");
   const [view, setView] = useState(initialView);
+  // The date the reader jumped to. The window opens three days before it, so
+  // without a mark it is one column among many.
+  const [markedDay, setMarkedDay] = useState<string | null>(null);
   // Kept after the drawer closes, so focus can go back to the bar it came from.
   const [selected, setSelected] = useState<{
     key: string;
@@ -139,12 +140,13 @@ export function LiveRoomCalendar({
     document.cookie = rememberedCookie(next);
   }
 
-  function update(change: Partial<RoomCalendarView>) {
+  function update(change: Partial<RoomCalendarView>, marked?: string) {
     // Every start the screen makes goes through the same check the URL's
     // does, so paging past the years the read takes stops rather than writing
     // a window the grid will not show.
     if (change.from && !isCalendarDay(change.from)) return;
     setWindowFailedAt(null);
+    setMarkedDay(marked ?? null);
     apply({ ...view, ...change });
   }
 
@@ -201,16 +203,12 @@ export function LiveRoomCalendar({
 
   return (
     <div className="space-y-5">
-      <PageHeader>
-        {/* h2: the page bar (AppPageBar) already sets this route's one h1. */}
-        <h2 className="text-2xl font-bold tracking-tight">
-          {t("title", { property: propertyName })}
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          {t("subtitle")}
-          {calendar.mayAmend ? ` ${t("moveHint")}` : null}
-        </p>
-      </PageHeader>
+      {/* The page bar already names the page and the Property; what is left
+          to say is how to use it, and a phone has no room to say it. */}
+      <p className="hidden text-sm text-muted-foreground md:block">
+        {t("subtitle")}
+        {calendar.mayAmend ? ` ${t("moveHint")}` : null}
+      </p>
 
       <CalendarToolbar
         calendar={calendar}
@@ -274,17 +272,10 @@ export function LiveRoomCalendar({
         />
       ) : (
         <>
-          {nothingBooked ? (
-            <p className="text-sm text-muted-foreground" role="status">
-              {t("nothingBooked", {
-                from: calendarDate(calendar.from, locale),
-                to: calendarDate(lastDay, locale),
-              })}
-            </p>
-          ) : null}
           <CalendarGrid
             calendar={calendar}
             locale={locale}
+            markedDay={markedDay}
             mayAmend={calendar.mayAmend}
             onDrop={setMoving}
             onOpen={(bar) => {
@@ -301,6 +292,15 @@ export function LiveRoomCalendar({
             rows={rows}
             updating={query.isPlaceholderData}
           />
+          {/* Under the grid, so paging to an empty window does not move it. */}
+          {nothingBooked ? (
+            <p className="text-sm text-muted-foreground" role="status">
+              {t("nothingBooked", {
+                from: calendarDate(calendar.from, locale),
+                to: calendarDate(lastDay, locale),
+              })}
+            </p>
+          ) : null}
           {filtered ? (
             <p className="text-xs text-muted-foreground">{t("filteredNote")}</p>
           ) : null}

@@ -95,7 +95,6 @@ export default async function RoomCalendarPage({
         initialView={view}
         lengths={[...ROOM_CALENDAR_LENGTHS]}
         locale={locale}
-        propertyName={property.propertyName}
         scope={scope}
       />
     </Hydrated>

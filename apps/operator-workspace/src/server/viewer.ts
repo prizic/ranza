@@ -102,7 +102,7 @@ import type {
   DepartureView,
   MovePreview,
   ReservationRow,
-  RoomCalendar,
+  RoomCalendar as RoomCalendarRead,
   RoomCalendarBar,
   RoomCalendarReservationBar,
   RoomCalendarStayBar,
@@ -302,7 +302,6 @@ export type {
   PriceList,
   PropertySettings,
   ReservationRow,
-  RoomCalendar,
   RoomCalendarBar,
   RoomCalendarReservationBar,
   RoomCalendarStayBar,
@@ -446,6 +445,25 @@ export async function arrivals(
   return getComposition().reservations.listArrivals(viewer.userId, propertyId);
 }
 
+/** What the room is to somebody about to put a Guest in it, from the board. */
+export type RoomReadiness =
+  "ready" | "awaiting_inspection" | "dirty" | "occupied";
+
+/**
+ * The calendar, and what housekeeping says of each room it draws, so a
+ * booking's details can say whether its room is ready for the Guest. Absent
+ * for a Property without housekeeping, and when the board could not be read.
+ */
+export type RoomCalendar = RoomCalendarRead & {
+  readiness?: Readonly<Record<string, RoomReadiness>>;
+};
+
+function readinessOf(room: HousekeepingRoom): RoomReadiness {
+  if (room.inHouse) return "occupied";
+  if (room.status === "dirty") return "dirty";
+  return room.ready ? "ready" : "awaiting_inspection";
+}
+
 /**
  * The room calendar for one Property over one window (RANZ-25).
  *
@@ -462,11 +480,31 @@ export async function roomCalendar(
 ): Promise<RoomCalendar | null> {
   const viewer = await currentViewer();
   if (!viewer) return null;
-  return getComposition().reservations.listRoomCalendar(
+  const { housekeeping, reservations } = getComposition();
+  const calendar = await reservations.listRoomCalendar(
     viewer.userId,
     propertyId,
     window,
   );
+  try {
+    const board = await housekeeping.board(viewer.userId, propertyId);
+    return {
+      ...calendar,
+      readiness: Object.fromEntries(
+        board.rooms
+          .filter((room) => !room.outOfService)
+          .map((room) => [room.unitId, readinessOf(room)]),
+      ),
+    };
+  } catch (error: unknown) {
+    // The calendar is whole without it; the drawer just does not say.
+    console.error("room_calendar.readiness_failed", {
+      propertyId,
+      userId: viewer.userId,
+      error,
+    });
+    return calendar;
+  }
 }
 
 /**
