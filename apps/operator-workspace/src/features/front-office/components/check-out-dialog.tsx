@@ -35,6 +35,7 @@ import {
   type CheckOutOutcome,
 } from "../../../server/front-office";
 import { unitLabel } from "../unit-label";
+import { refusalMessage } from "../refusal";
 
 /**
  * Checking a Guest out, from a review of their bill (CO-S1-12).
@@ -104,6 +105,7 @@ export function CheckOutDialog({
     departure.nightlyRateMinor === null &&
     departure.folioId !== null;
 
+  const refusal = refusalMessage(outcome);
   const message =
     outcome === "folioChanged"
       ? t("checkOutFolioChanged")
@@ -115,8 +117,8 @@ export function CheckOutDialog({
             ? t("reasonTooShort", { min: REASON.min })
             : outcome === "reasonTooLong"
               ? t("reasonTooLong", { max: REASON.max })
-              : outcome === "refused"
-                ? t("checkOutRefused")
+              : refusal
+                ? t(refusal)
                 : null;
 
   return (

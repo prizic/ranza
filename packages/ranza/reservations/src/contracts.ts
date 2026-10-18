@@ -313,6 +313,28 @@ export interface CheckedOut {
 }
 
 /**
+ * Why a command on a booking or a Stay was refused, when the module can say.
+ *
+ * `unreachable` is the one answer for everything the caller must not be able to
+ * tell apart: out of reach, another Organization's, never existed. Every other
+ * reason is given only when the caller can already read the row, so it confirms
+ * nothing they could not see — a front desk that is told "already checked in"
+ * about a Guest it is looking at learns nothing, and one told "cannot be
+ * checked in" can do nothing about it.
+ */
+export type RefusalReason =
+  | "unreachable"
+  | "not_permitted"
+  | "already_checked_in"
+  | "already_checked_out"
+  | "withdrawn"
+  | "not_confirmed"
+  | "nights_passed"
+  | "not_started"
+  | "day_closed"
+  | "booking_mismatch";
+
+/**
  * A check-in that did not happen.
  *
  * One type for every reason on purpose. "That Reservation is in another
@@ -321,7 +343,10 @@ export interface CheckedOut {
  * the first of them would otherwise confirm that a Reservation exists.
  */
 export class CheckInError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly reason: RefusalReason = "unreachable",
+  ) {
     super(message);
     this.name = "CheckInError";
   }
@@ -493,7 +518,10 @@ export class StayMovedError extends CheckInReversalError {
  * that a Stay the caller cannot see is there.
  */
 export class CheckOutError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly reason: RefusalReason = "unreachable",
+  ) {
     super(message);
     this.name = "CheckOutError";
   }
@@ -739,7 +767,10 @@ export const CANCELLATION_REASON = { min: 3, max: 2000 } as const;
  * exception, and it is `ReservationReasonError`.
  */
 export class ReservationEndError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly reason: RefusalReason = "unreachable",
+  ) {
     super(message);
     this.name = "ReservationEndError";
   }
@@ -981,7 +1012,10 @@ export interface AmendedBooking {
  * to a caller who could not see it.
  */
 export class BookingChangeError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly reason: RefusalReason = "unreachable",
+  ) {
     super(message);
     this.name = "BookingChangeError";
   }

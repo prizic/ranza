@@ -26,6 +26,7 @@ import {
 } from "../../../server/front-office";
 import { submitWithoutReset } from "../../../lib/submit-without-reset";
 import { describePeriod, MoveSummary } from "./move-summary";
+import { refusalMessage } from "../refusal";
 
 /**
  * Extending or shortening an in-house Guest's Stay, or giving an open-ended
@@ -257,6 +258,7 @@ export function ChangeDepartureDialog({
               })
             : null;
 
+  const refusal = refusalMessage(outcome);
   const outcomeMessage =
     outcome === "changed" || movedUnderneath
       ? t("changeBookingChanged")
@@ -266,8 +268,8 @@ export function ChangeDepartureDialog({
           ? t("bookingPeriodInvalid")
           : outcome === "invalidNote"
             ? t("changeBookingNoteInvalid")
-            : outcome === "refused"
-              ? t("changeDepartureRefused")
+            : refusal
+              ? t(refusal)
               : null;
 
   const canSave =

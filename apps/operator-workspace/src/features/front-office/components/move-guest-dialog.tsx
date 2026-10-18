@@ -29,6 +29,7 @@ import { moveGuest, type MoveGuestOutcome } from "../../../server/front-office";
 import { usePickerLabels } from "../../../lib/picker-labels";
 import { submitWithoutReset } from "../../../lib/submit-without-reset";
 import { unitLabel } from "../unit-label";
+import { refusalMessage } from "../refusal";
 import { MoveSummary } from "./move-summary";
 
 /**
@@ -216,6 +217,7 @@ export function MoveGuestDialog({
         ? t("moveGuestRefused")
         : null;
 
+  const refusal = refusalMessage(outcome);
   const outcomeMessage =
     outcome === "changed" || movedUnderneath
       ? t("changeBookingChanged")
@@ -229,8 +231,8 @@ export function MoveGuestDialog({
               ? t("changeBookingNotInService")
               : outcome === "invalidNote"
                 ? t("changeBookingNoteInvalid")
-                : outcome === "refused"
-                  ? t("moveGuestRefused")
+                : refusal
+                  ? t(refusal)
                   : null;
 
   const canSave =

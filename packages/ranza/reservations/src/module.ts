@@ -72,6 +72,7 @@ import {
   ROOM_CALENDAR_LEAD_DAYS,
   type RoomCalendar,
   type RoomCalendarWindow,
+  type RefusalReason,
 } from "./contracts";
 import type { ReservationsDeps } from "./ports";
 import {
@@ -208,6 +209,100 @@ function expectedArrivalOf(value: string | null): string | null {
     throw new ExpectedArrivalError("that is not a time of day");
   }
   return value;
+}
+
+/** What the standing of a booking is asked for: each command refuses on its own terms. */
+type BookingCommand = "check_in" | "amend" | "cancel" | "no_show";
+
+/**
+ * Why a command on a booking found nothing to do, told only to a caller who can
+ * read the booking (see `RefusalReason`).
+ *
+ * Read under the caller's own policies and gates, so a booking out of reach, in
+ * another Organization or never made answers `unreachable` and nothing else.
+ * Must run on a healthy transaction: after a statement has failed Postgres
+ * refuses every further one, and those paths already know their reason.
+ */
+async function bookingRefusal(
+  tx: AuditClient,
+  reservationId: string,
+  command: BookingCommand,
+): Promise<RefusalReason> {
+  const permission = {
+    check_in: "front_desk.check_in",
+    amend: "front_desk.amend",
+    cancel: "front_desk.cancel",
+    no_show: "front_desk.cancel",
+  }[command];
+  const [booking] = await tx.$queryRaw<
+    {
+      status: string;
+      started: boolean;
+      nightsPassed: boolean;
+      permitted: boolean;
+    }[]
+  >`
+    select reservation.status                                  as "status",
+           reservation.starts_on <= app.property_today(reservation.property_id)
+                                                               as "started",
+           coalesce(reservation.ends_on
+                      <= app.property_today(reservation.property_id), false)
+                                                               as "nightsPassed",
+           app.has_organization_permission(
+             reservation.organization_id, ${permission})      as "permitted"
+      from public.reservations as reservation
+     where reservation.id = ${reservationId}::uuid
+       and app.can_use_capability(
+         reservation.property_id,
+         ${FRONT_DESK_CAPABILITY.moduleKey},
+         ${FRONT_DESK_CAPABILITY.capabilityKey}
+       )
+  `;
+  if (!booking) return "unreachable";
+  if (!booking.permitted) return "not_permitted";
+  switch (booking.status) {
+    case "checked_in":
+      return "already_checked_in";
+    case "checked_out":
+      return "already_checked_out";
+    case "cancelled":
+    case "no_show":
+      return "withdrawn";
+  }
+  if (command === "check_in") {
+    if (booking.status === "requested") return "not_confirmed";
+    if (booking.nightsPassed) return "nights_passed";
+  }
+  if (command === "no_show" && !booking.started) return "not_started";
+  return "unreachable";
+}
+
+/**
+ * The same for a Stay: why a command on it found nothing in house to act on.
+ * Under the same conditions as `bookingRefusal`.
+ */
+async function stayRefusal(
+  tx: AuditClient,
+  stayId: string,
+  permission: "front_desk.check_out" | "front_desk.amend",
+): Promise<RefusalReason> {
+  const [stay] = await tx.$queryRaw<{ status: string; permitted: boolean }[]>`
+    select stay.status                                         as "status",
+           app.has_organization_permission(
+             stay.organization_id, ${permission})              as "permitted"
+      from public.stays as stay
+     where stay.id = ${stayId}::uuid
+       and app.can_use_capability(
+         stay.property_id,
+         ${FRONT_DESK_CAPABILITY.moduleKey},
+         ${FRONT_DESK_CAPABILITY.capabilityKey}
+       )
+  `;
+  if (!stay) return "unreachable";
+  if (!stay.permitted) return "not_permitted";
+  if (stay.status === "departed") return "already_checked_out";
+  if (stay.status === "cancelled") return "withdrawn";
+  return "unreachable";
 }
 
 interface MovedReservation {
@@ -534,10 +629,15 @@ export function createReservationsModule(deps: ReservationsDeps) {
               organization_id, 'front_desk.check_in')
         `;
         if (early) throw new CheckInTooEarlyError(early.startsOn);
-        // Out of reach, already checked in, cancelled, or never existed. One
-        // message for all four: telling them apart would confirm that a
-        // Reservation the caller cannot see is there.
-        throw new CheckInError("that Reservation cannot be checked in");
+        // Out of reach and never existed stay one answer: telling them apart
+        // would confirm that a Reservation the caller cannot see is there.
+        // For one they can read — already checked in, cancelled, not theirs to
+        // check in — the refusal says which, because a button that ends in "it
+        // cannot be done" leaves the desk nothing to do next.
+        throw new CheckInError(
+          "that Reservation cannot be checked in",
+          await bookingRefusal(tx, reservationId, "check_in"),
+        );
       }
 
       // Every value comes from the row the update returned, never from the
@@ -586,7 +686,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
         // Stay would begin on a finalized day. Pressing again is a new
         // transaction on the new day, which is the whole remedy.
         if (raised(error, BUSINESS_DAY_CLOSED)) {
-          throw new CheckInError("the business day closed during the check-in");
+          throw new CheckInError(
+            "the business day closed during the check-in",
+            "day_closed",
+          );
         }
         throw error;
       }
@@ -1125,10 +1228,12 @@ export function createReservationsModule(deps: ReservationsDeps) {
           and stay.status = 'in_house'
       `;
       if (!review) {
-        // Out of reach, already departed, withdrawn, or never existed. One
-        // message for all four: telling them apart would confirm that a Stay
-        // the caller cannot see is there.
-        throw new CheckOutError("that Stay cannot be checked out");
+        // Out of reach and never existed stay one answer, as for a check-in;
+        // a Stay the caller can read says why it cannot be checked out.
+        throw new CheckOutError(
+          "that Stay cannot be checked out",
+          await stayRefusal(tx, stayId, "front_desk.check_out"),
+        );
       }
 
       const reviewedVersion = review.folioId ? review.folioLines : null;
@@ -1150,7 +1255,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
         // they may not check this Guest out. The same message as every other
         // refusal.
         if (raised(error, INSUFFICIENT_PRIVILEGE)) {
-          throw new CheckOutError("that Stay cannot be checked out");
+          throw new CheckOutError(
+            "that Stay cannot be checked out",
+            "not_permitted",
+          );
         }
         throw error;
       }
@@ -1197,6 +1305,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
         if (raised(error, BUSINESS_DAY_CLOSED)) {
           throw new CheckOutError(
             "the business day closed during the check-out",
+            "day_closed",
           );
         }
         // Checked in house under the lock a moment ago, so reaching this means
@@ -1204,7 +1313,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
         // same message as every other refusal. Anything else is not a refusal
         // and is thrown as it is, so a real failure is not reported as one.
         if (error instanceof StayWriteError) {
-          throw new CheckOutError("that Stay cannot be checked out");
+          throw new CheckOutError(
+            "that Stay cannot be checked out",
+            "not_permitted",
+          );
         }
         throw error;
       }
@@ -1225,7 +1337,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
         if (ended.length === 0) {
           // The pair was already broken — a row written before the rule
           // existed. Reported, not repaired in passing (CO-S1-28).
-          throw new CheckOutError("that Stay's Reservation is not checked in");
+          throw new CheckOutError(
+            "that Stay's Reservation is not checked in",
+            "booking_mismatch",
+          );
         }
       }
 
@@ -1976,7 +2091,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
           )
       `;
       if (!booking) {
-        throw new BookingChangeError("that booking cannot be changed");
+        throw new BookingChangeError(
+          "that booking cannot be changed",
+          await bookingRefusal(tx, reservationId, "amend"),
+        );
       }
 
       const options = await tx.$queryRaw<
@@ -2164,7 +2282,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
          where reservation.id = ${change.reservationId}::uuid
       `;
       if (!current) {
-        throw new BookingChangeError("that booking cannot be changed");
+        throw new BookingChangeError(
+          "that booking cannot be changed",
+          await bookingRefusal(tx, change.reservationId, "amend"),
+        );
       }
 
       const nightsChange =
@@ -2242,7 +2363,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
           )
       `;
       if (!row) {
-        throw new BookingChangeError("that booking cannot be changed");
+        throw new BookingChangeError(
+          "that booking cannot be changed",
+          await bookingRefusal(tx, change.reservationId, "amend"),
+        );
       }
       amended = row;
     } catch (error: unknown) {
@@ -2268,7 +2392,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
         );
       }
       if (raised(error, INSUFFICIENT_PRIVILEGE)) {
-        throw new BookingChangeError("that booking cannot be changed");
+        throw new BookingChangeError(
+          "that booking cannot be changed",
+          "not_permitted",
+        );
       }
       throw error;
     }
@@ -2385,7 +2512,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
           )
       `;
       if (!row) {
-        throw new BookingChangeError("that booking cannot be changed");
+        throw new BookingChangeError(
+          "that booking cannot be changed",
+          await bookingRefusal(tx, change.reservationId, "amend"),
+        );
       }
       revised = row;
     } catch (error: unknown) {
@@ -2395,7 +2525,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
         throw new BookingChangedError();
       }
       if (raised(error, INSUFFICIENT_PRIVILEGE)) {
-        throw new BookingChangeError("that booking cannot be changed");
+        throw new BookingChangeError(
+          "that booking cannot be changed",
+          "not_permitted",
+        );
       }
       throw error;
     }
@@ -2494,7 +2627,12 @@ export function createReservationsModule(deps: ReservationsDeps) {
             ${FRONT_DESK_CAPABILITY.capabilityKey}
           )
       `;
-      if (!row) throw new BookingChangeError("that Stay cannot be changed");
+      if (!row) {
+        throw new BookingChangeError(
+          "that Stay cannot be changed",
+          await stayRefusal(tx, stayId, "front_desk.amend"),
+        );
+      }
       return {
         ...row,
         nightlyRateMinor:
@@ -2553,7 +2691,12 @@ export function createReservationsModule(deps: ReservationsDeps) {
               ${note}
             )
         `;
-        if (!row) throw new BookingChangeError("that Stay cannot be changed");
+        if (!row) {
+          throw new BookingChangeError(
+            "that Stay cannot be changed",
+            await stayRefusal(tx, change.stayId, "front_desk.amend"),
+          );
+        }
         changed = row;
       } catch (error: unknown) {
         if (raised(error, CHANGED_SINCE_READ)) throw new BookingChangedError();
@@ -2568,7 +2711,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
           );
         }
         if (raised(error, INSUFFICIENT_PRIVILEGE)) {
-          throw new BookingChangeError("that Stay cannot be changed");
+          throw new BookingChangeError(
+            "that Stay cannot be changed",
+            "not_permitted",
+          );
         }
         throw error;
       }
@@ -2662,7 +2808,12 @@ export function createReservationsModule(deps: ReservationsDeps) {
             ${FRONT_DESK_CAPABILITY.capabilityKey}
           )
       `;
-      if (!stay) throw new BookingChangeError("that Stay cannot be changed");
+      if (!stay) {
+        throw new BookingChangeError(
+          "that Stay cannot be changed",
+          await stayRefusal(tx, stayId, "front_desk.amend"),
+        );
+      }
 
       const options = await tx.$queryRaw<MoveOption[]>`
         with moving as (
@@ -2791,7 +2942,12 @@ export function createReservationsModule(deps: ReservationsDeps) {
               ${move.version}::int
             )
         `;
-        if (!row) throw new BookingChangeError("that Stay cannot be changed");
+        if (!row) {
+          throw new BookingChangeError(
+            "that Stay cannot be changed",
+            await stayRefusal(tx, move.stayId, "front_desk.amend"),
+          );
+        }
         moved = row;
       } catch (error: unknown) {
         if (raised(error, CHANGED_SINCE_READ)) throw new BookingChangedError();
@@ -2906,9 +3062,15 @@ export function createReservationsModule(deps: ReservationsDeps) {
                     accommodation_unit_id as "unitId"
         `;
       } catch (error: unknown) {
-        // A policy refusing the new status, or the transition trigger. Both
-        // are "you cannot", which is the one message this command gives.
-        if (raised(error, "42501") || raised(error, "23514")) {
+        // A policy refusing the new status is the caller's permission; the
+        // transition trigger is a state this command cannot say more about.
+        if (raised(error, "42501")) {
+          throw new ReservationEndError(
+            "that booking cannot be ended",
+            "not_permitted",
+          );
+        }
+        if (raised(error, "23514")) {
           throw new ReservationEndError("that booking cannot be ended");
         }
         throw error;
@@ -2916,7 +3078,14 @@ export function createReservationsModule(deps: ReservationsDeps) {
 
       const [row] = ended;
       if (!row) {
-        throw new ReservationEndError("that booking cannot be ended");
+        throw new ReservationEndError(
+          "that booking cannot be ended",
+          await bookingRefusal(
+            tx,
+            reservationId,
+            outcome === "cancelled" ? "cancel" : "no_show",
+          ),
+        );
       }
 
       // Ids only, like every event: the queue is read across Organizations.

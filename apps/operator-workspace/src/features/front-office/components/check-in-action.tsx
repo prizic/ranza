@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button, FormError } from "@ranza/ui";
 import { claimCheckInFocus } from "../check-in-focus";
+import { refusalMessage } from "../refusal";
 import {
   checkInReservation,
   type CheckInOutcome,
@@ -54,6 +55,7 @@ export function CheckInAction({
     if (outcome === "done") onDone?.();
   }, [outcome, onDone]);
 
+  const refusal = refusalMessage(outcome);
   const message =
     outcome === "unavailable"
       ? t("unitUnavailable")
@@ -63,8 +65,8 @@ export function CheckInAction({
           ? t("unitNotInService")
           : outcome === "tooEarly"
             ? t("checkInTooEarly")
-            : outcome === "refused"
-              ? t("checkInRefused")
+            : refusal
+              ? t(refusal)
               : null;
 
   return (

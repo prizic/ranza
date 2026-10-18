@@ -172,3 +172,43 @@ export function aBooking(
   );
   return { guestName, unitName, reference };
 }
+
+/**
+ * A booking arriving today into a room housekeeping has marked dirty, so the
+ * desk is asked before checking the Guest in (ADR 0029).
+ */
+export function aDirtyRoomArrival(propertyId: string): {
+  guestName: string;
+  unitName: string;
+} {
+  const tag = randomUUID().slice(0, 8);
+  const unitName = `E2E-D-${tag}`;
+  const guestName = `Test Dirty ${tag}`;
+  psql(
+    `with target as (
+       select id, organization_id from public.properties where id = '${propertyId}'
+     ), unit as (
+       insert into public.accommodation_units
+         (property_id, organization_id, name, unit_type, capacity)
+       select id, organization_id, '${unitName}', 'room', 2 from target
+       returning id, property_id, organization_id
+     ), dirty as (
+       insert into public.housekeeping_unit_status
+         (accommodation_unit_id, property_id, organization_id, status)
+       select id, property_id, organization_id, 'dirty' from unit
+     ), guest as (
+       insert into public.guests (organization_id, full_name)
+       select organization_id, '${guestName}' from target
+       returning id
+     )
+     insert into public.reservations
+       (organization_id, property_id, accommodation_unit_id, guest_id,
+        stay_type, status, starts_on, ends_on)
+     select unit.organization_id, unit.property_id, unit.id, guest.id,
+            'guest', 'confirmed',
+            app.property_today(unit.property_id),
+            app.property_today(unit.property_id) + 2
+     from unit, guest`,
+  );
+  return { guestName, unitName };
+}

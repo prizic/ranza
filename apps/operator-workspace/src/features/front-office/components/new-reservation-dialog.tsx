@@ -33,6 +33,7 @@ import {
 import { usePickerLabels } from "../../../lib/picker-labels";
 import { submitWithoutReset } from "../../../lib/submit-without-reset";
 import { unitLabel } from "../unit-label";
+import { refusalMessage } from "../refusal";
 
 /**
  * Taking a booking.
@@ -257,6 +258,7 @@ export function NewReservationDialog({
               : []),
           ].join(" · ");
 
+  const refusal = refusalMessage(outcome);
   const message =
     outcome === "unavailable"
       ? t("bookingUnavailable")
@@ -272,7 +274,9 @@ export function NewReservationDialog({
                 ? t("bookingPriceChanged")
                 : outcome === "refused"
                   ? t("bookingRefused")
-                  : null;
+                  : refusal
+                    ? t(refusal)
+                    : null;
 
   return (
     <Dialog onOpenChange={openChanged} open={open}>

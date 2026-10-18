@@ -101,7 +101,18 @@ export interface Messages {
   notNow: string;
   ready: string;
   notReady: string;
-  checkInRefused: string;
+  refusalUnreachable: string;
+  refusalNotPermitted: string;
+  refusalAlreadyCheckedIn: string;
+  refusalAlreadyCheckedOut: string;
+  refusalWithdrawn: string;
+  refusalNotConfirmed: string;
+  refusalNightsPassed: string;
+  refusalNotStarted: string;
+  refusalDayClosed: string;
+  refusalBookingMismatch: string;
+  refusalSignedOut: string;
+  refusalFailed: string;
   /** A booking whose first business date has not come (CI-S1-07). */
   checkInTooEarly: string;
 
@@ -152,7 +163,6 @@ export interface Messages {
   onTime: string;
   checkOut: string;
   checkingOut: string;
-  checkOutRefused: string;
   awaitingConfirmation: string;
   occupiedDueOut: string;
   occupied: string;
@@ -164,7 +174,6 @@ export interface Messages {
   noShowSummary: string;
   markNoShow: string;
   keepBooking: string;
-  endBookingRefused: string;
   saving: string;
   checkInBlocked: Record<
     "not_confirmed" | "unit_blocked" | "unit_out_of_service" | "unit_occupied",
@@ -2609,7 +2618,30 @@ export const messages: Record<SupportedLocale, Messages> = {
     notNow: "Şimdi değil",
     ready: "Hazır",
     notReady: "Hazır değil",
-    checkInRefused: "Bu rezervasyon için giriş yapılamıyor.",
+    refusalUnreachable:
+      "Bu artık size açık değil. Durumunu görmek için listeyi yenileyin.",
+    refusalNotPermitted:
+      "Rolünüz bu işlemi içermiyor. Bir yöneticiden isteyin ya da erişiminizi değiştirmesini isteyin.",
+    refusalAlreadyCheckedIn:
+      "Bu misafir zaten giriş yapmış. Konaklayanlar arasında görmek için listeyi yenileyin.",
+    refusalAlreadyCheckedOut:
+      "Bu misafir zaten çıkış yapmış. Listeyi yenileyin.",
+    refusalWithdrawn:
+      "Bu rezervasyon iptal edildi ya da gelmedi olarak işaretlendi; burada yapılacak bir şey yok. Listeyi yenileyin.",
+    refusalNotConfirmed:
+      "Bu rezervasyon henüz onaylanmadı; misafir şimdi giriş yapamaz. Önce bir yöneticiden onaylamasını isteyin.",
+    refusalNightsPassed:
+      "Bu rezervasyonun tüm geceleri geçti; misafir giriş yapamaz. Gelmedi olarak işaretleyin ya da hâlâ geliyorsa tarihleri değiştirin.",
+    refusalNotStarted:
+      "Bu rezervasyonun ilk gecesi gelmedi; gelmedi olarak işaretlenemez. Bunun yerine bir gerekçeyle iptal edin.",
+    refusalDayClosed:
+      "Siz işlemi yaparken iş günü kapandı ve hiçbir şey değişmedi. Yeni günde yapmak için düğmeye yeniden basın.",
+    refusalBookingMismatch:
+      "Bu konaklamanın arkasındaki rezervasyon giriş yapmış görünmüyor; çıkış buradan yapılamaz. Düzeltmesi için bir yöneticiye başvurun.",
+    refusalSignedOut:
+      "Oturumunuz sona erdi. Devam etmek için yeniden giriş yapın; hiçbir şey değişmedi.",
+    refusalFailed:
+      "Bizim tarafımızda bir sorun oluştu ve hiçbir şey değişmedi. Yeniden deneyin; sürerse bir yöneticiye bildirin.",
     checkInTooEarly:
       "Bu rezervasyon henüz başlamadı — ilk gecesi daha sonraki bir iş gününde. Misafirin girişini o gün yapın ya da rezervasyonu bugünden başlayacak şekilde değiştirin.",
     undoCheckIn: "Girişi geri al",
@@ -2659,7 +2691,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     onTime: "Bugün",
     checkOut: "Çıkış yap",
     checkingOut: "Yapılıyor",
-    checkOutRefused: "Bu konaklama için çıkış yapılamıyor.",
     awaitingConfirmation: "Onay bekliyor",
     occupiedDueOut: "Dolu — bugün çıkacak",
     occupied: "Dolu",
@@ -2672,7 +2703,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     noShowSummary: "Misafir gelmedi. Geceler serbest kalır; bu geri alınamaz.",
     markNoShow: "Gelmedi olarak işaretle",
     keepBooking: "Rezervasyonu koru",
-    endBookingRefused: "Bu rezervasyon artık sonlandırılamıyor.",
     saving: "Kaydediliyor…",
     checkInBlocked: {
       not_confirmed: "Önce rezervasyonun onaylanması gerekiyor.",
@@ -5359,7 +5389,30 @@ export const messages: Record<SupportedLocale, Messages> = {
     notNow: "Not now",
     ready: "Ready",
     notReady: "Not ready",
-    checkInRefused: "That Reservation cannot be checked in.",
+    refusalUnreachable:
+      "This is no longer available to you. Reload the list to see where it stands.",
+    refusalNotPermitted:
+      "Your role does not include this action. Ask a manager to do it, or to change your access.",
+    refusalAlreadyCheckedIn:
+      "This Guest is already checked in. Reload the list to see them in house.",
+    refusalAlreadyCheckedOut:
+      "This Guest has already checked out. Reload the list.",
+    refusalWithdrawn:
+      "This booking was cancelled or marked a no-show, so there is nothing to do here. Reload the list.",
+    refusalNotConfirmed:
+      "This booking has not been confirmed, so the Guest cannot be checked in yet. Ask a manager to confirm it first.",
+    refusalNightsPassed:
+      "Every night of this booking has passed, so the Guest cannot be checked in. Mark it a no-show, or change the dates if they are still coming.",
+    refusalNotStarted:
+      "This booking's first night has not come, so it cannot be marked a no-show. Cancel it with a reason instead.",
+    refusalDayClosed:
+      "The business day closed while you were doing this, and nothing was changed. Press the button again to do it on the new day.",
+    refusalBookingMismatch:
+      "The booking behind this stay is not checked in, so the stay cannot be checked out from here. Ask a manager to correct it.",
+    refusalSignedOut:
+      "Your session has ended. Sign in again to continue; nothing was changed.",
+    refusalFailed:
+      "Something went wrong on our side and nothing was changed. Try again; if it keeps happening, tell a manager.",
     checkInTooEarly:
       "This booking hasn't started yet — its first night is a later business day. Check the Guest in on that day, or change the booking to start today.",
     undoCheckIn: "Undo check-in",
@@ -5409,7 +5462,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     onTime: "Today",
     checkOut: "Check out",
     checkingOut: "Checking out",
-    checkOutRefused: "That Stay cannot be checked out.",
     awaitingConfirmation: "Awaiting confirmation",
     occupiedDueOut: "Occupied — due out today",
     occupied: "Occupied",
@@ -5423,7 +5475,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       "The Guest did not come. The nights are freed, and this cannot be taken back.",
     markNoShow: "Mark as no-show",
     keepBooking: "Keep the booking",
-    endBookingRefused: "That booking can no longer be ended.",
     saving: "Saving…",
     checkInBlocked: {
       not_confirmed: "The booking has to be confirmed first.",
@@ -8119,7 +8170,29 @@ export const messages: Record<SupportedLocale, Messages> = {
     notNow: "ليس الآن",
     ready: "جاهزة",
     notReady: "غير جاهزة",
-    checkInRefused: "لا يمكن تسجيل الوصول لهذا الحجز.",
+    refusalUnreachable:
+      "لم يعد هذا متاحًا لك. أعد تحميل القائمة لترى وضعه الحالي.",
+    refusalNotPermitted:
+      "دورك لا يتضمن هذا الإجراء. اطلب من مدير تنفيذه أو تغيير صلاحياتك.",
+    refusalAlreadyCheckedIn:
+      "هذا الضيف مسجَّل الوصول بالفعل. أعد تحميل القائمة لتراه بين المقيمين.",
+    refusalAlreadyCheckedOut: "غادر هذا الضيف بالفعل. أعد تحميل القائمة.",
+    refusalWithdrawn:
+      "أُلغي هذا الحجز أو سُجّل كعدم حضور، فلا شيء يُنفَّذ هنا. أعد تحميل القائمة.",
+    refusalNotConfirmed:
+      "لم يُؤكَّد هذا الحجز بعد، فلا يمكن تسجيل وصول الضيف الآن. اطلب من مدير تأكيده أولًا.",
+    refusalNightsPassed:
+      "مرّت كل ليالي هذا الحجز، فلا يمكن تسجيل وصول الضيف. سجّله كعدم حضور، أو غيّر التواريخ إن كان لا يزال قادمًا.",
+    refusalNotStarted:
+      "لم تحِن ليلة هذا الحجز الأولى، فلا يمكن تسجيله كعدم حضور. ألغِه مع ذكر السبب بدلًا من ذلك.",
+    refusalDayClosed:
+      "أُغلق يوم العمل أثناء تنفيذك هذا ولم يتغيّر شيء. اضغط الزر مجددًا لتنفيذه في اليوم الجديد.",
+    refusalBookingMismatch:
+      "الحجز الذي تعود إليه هذه الإقامة غير مسجَّل الوصول، فلا يمكن تسجيل المغادرة من هنا. اطلب من مدير تصحيحه.",
+    refusalSignedOut:
+      "انتهت جلستك. سجّل الدخول مجددًا للمتابعة؛ لم يتغيّر شيء.",
+    refusalFailed:
+      "حدث خلل من جانبنا ولم يتغيّر شيء. حاول مجددًا، وإن تكرر فأبلغ مديرًا.",
     checkInTooEarly:
       "لم يبدأ هذا الحجز بعد — ليلته الأولى في يوم عمل لاحق. سجّل وصول الضيف في ذلك اليوم، أو غيّر الحجز ليبدأ اليوم.",
     undoCheckIn: "التراجع عن تسجيل الوصول",
@@ -8169,7 +8242,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     onTime: "اليوم",
     checkOut: "تسجيل المغادرة",
     checkingOut: "جارٍ التسجيل",
-    checkOutRefused: "لا يمكن تسجيل مغادرة هذه الإقامة.",
     awaitingConfirmation: "بانتظار التأكيد",
     occupiedDueOut: "مشغولة — مغادرة اليوم",
     occupied: "مشغولة",
@@ -8182,7 +8254,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     noShowSummary: "لم يحضر الضيف. تتحرر الليالي ولا يمكن التراجع عن ذلك.",
     markNoShow: "تسجيل عدم الحضور",
     keepBooking: "إبقاء الحجز",
-    endBookingRefused: "لم يعد بالإمكان إنهاء هذا الحجز.",
     saving: "جارٍ الحفظ…",
     checkInBlocked: {
       not_confirmed: "يجب تأكيد الحجز أولًا.",

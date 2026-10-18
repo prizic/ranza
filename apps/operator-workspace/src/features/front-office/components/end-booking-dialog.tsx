@@ -22,6 +22,7 @@ import {
   markNoShow,
   type EndBookingOutcome,
 } from "../../../server/front-office";
+import { refusalMessage } from "../refusal";
 
 /**
  * Ending a booking that will never become a Stay: cancelled, or a no-show.
@@ -74,13 +75,14 @@ export function EndBookingDialog({
     if (outcome === "done") onOpenChange(false);
   }, [outcome, onOpenChange]);
 
+  const refusal = refusalMessage(outcome);
   const message =
     outcome === "reasonTooShort"
       ? t("reasonTooShort", { min: REASON.min })
       : outcome === "reasonTooLong"
         ? t("reasonTooLong", { max: REASON.max })
-        : outcome === "refused"
-          ? t("endBookingRefused")
+        : refusal
+          ? t(refusal)
           : null;
 
   return (

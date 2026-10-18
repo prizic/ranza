@@ -29,6 +29,7 @@ import {
 import { usePickerLabels } from "../../../lib/picker-labels";
 import { submitWithoutReset } from "../../../lib/submit-without-reset";
 import { unitLabel } from "../unit-label";
+import { refusalMessage } from "../refusal";
 import { describePeriod, MoveSummary } from "./move-summary";
 
 /**
@@ -334,6 +335,7 @@ export function ChangeBookingDialog({
 
   // Somebody else's change outranks the refusal that exposed it: the fields
   // now show what stands, and that is what the desk has to read first.
+  const refusal = refusalMessage(outcome);
   const outcomeMessage =
     outcome === "changed" || movedUnderneath
       ? t("changeBookingChanged")
@@ -351,8 +353,8 @@ export function ChangeBookingDialog({
                   ? t("bookingArrivalInvalid")
                   : outcome === "priceChanged"
                     ? t("bookingPriceChanged")
-                    : outcome === "refused"
-                      ? t("changeBookingRefused")
+                    : refusal
+                      ? t(refusal)
                       : null;
 
   // The booking's own Unit may have gone out of order or been split into beds
