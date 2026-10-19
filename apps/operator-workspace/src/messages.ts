@@ -713,6 +713,13 @@ export interface Messages {
   manageUnit: string;
   unblockUnit: string;
   blockNotifiesNobody: string;
+  unitStateInHouse: string;
+  unitStateReserved: string;
+  unitStateFree: string;
+  blockOccupied: string;
+  blockInvalid: string;
+  blockRefused: string;
+  unblockRefused: string;
   reportInsteadOfBlock: string;
   blockReasonPlaceholder: string;
   statRooms: string;
@@ -3473,6 +3480,16 @@ export const messages: Record<SupportedLocale, Messages> = {
     unblockUnit: "Aç",
     blockNotifiesNobody:
       "Kapatmak yalnızca satışa çıkmasını engeller. Bakım talebi değildir; bakım ekibine haber verilmez.",
+    unitStateInHouse: "{guest} bu gece bu odada.",
+    unitStateReserved: "Bir misafir {date} tarihinde buraya geliyor.",
+    unitStateFree: "Bu gece boş.",
+    blockOccupied:
+      "Odada biri var, bu yüzden kapatılamaz. Önce çıkışını yapın.",
+    blockInvalid:
+      "Bu kapatma geçerli değil. 3 ile 200 karakter arasında bir neden yazın.",
+    blockRefused:
+      "Reddedildi. Oda kapatma izniniz olmayabilir ya da oda değişmiş olabilir. Sayfa şimdi güncel durumu gösteriyor.",
+    unblockRefused: "Bu oda açılamadı. Sayfa şimdi güncel durumu gösteriyor.",
     reportInsteadOfBlock:
       "Bir şey mi bozuk? Bunun yerine sorun olarak bildirin: bakım ekibi haberdar olur ve aynı adımda odayı hizmet dışı bırakabilirsiniz.",
     statRooms: "Oda",
@@ -6418,6 +6435,17 @@ export const messages: Record<SupportedLocale, Messages> = {
     unblockUnit: "Unblock",
     blockNotifiesNobody:
       "Blocking only keeps it from being sold. It is not a maintenance request, and maintenance is not told.",
+    unitStateInHouse: "{guest} is in this room tonight.",
+    unitStateReserved: "A guest arrives here on {date}.",
+    unitStateFree: "Empty tonight.",
+    blockOccupied:
+      "Somebody is in this room, so it cannot be blocked. Check them out first.",
+    blockInvalid:
+      "That block is not valid. Give a reason of 3 to 200 characters.",
+    blockRefused:
+      "That was refused. You may not have permission to block rooms, or the room has changed. The page now shows what is true.",
+    unblockRefused:
+      "That room could not be unblocked. The page now shows what is true.",
     reportInsteadOfBlock:
       "Something broken? Report it as a problem instead: maintenance is told, and you can hold the room out of order in the same step.",
     statRooms: "Rooms",
@@ -9344,6 +9372,15 @@ export const messages: Record<SupportedLocale, Messages> = {
     unblockUnit: "فتح",
     blockNotifiesNobody:
       "الإغلاق يمنع البيع فقط. وهو ليس طلب صيانة، ولا يُبلَّغ فريق الصيانة به.",
+    unitStateInHouse: "{guest} في هذه الغرفة الليلة.",
+    unitStateReserved: "يصل نزيل إلى هنا في {date}.",
+    unitStateFree: "فارغة الليلة.",
+    blockOccupied:
+      "هناك شخص في هذه الغرفة، لذا لا يمكن إغلاقها. سجّل مغادرته أولًا.",
+    blockInvalid: "هذا الإغلاق غير صالح. اكتب سببًا من 3 إلى 200 حرف.",
+    blockRefused:
+      "تم الرفض. قد لا تملك صلاحية إغلاق الغرف، أو تغيّرت الغرفة. تعرض الصفحة الآن الوضع الحالي.",
+    unblockRefused: "تعذّر فتح هذه الغرفة. تعرض الصفحة الآن الوضع الحالي.",
     reportInsteadOfBlock:
       "هل هناك عطل؟ بلّغ عنه كمشكلة بدلًا من ذلك: يُبلَّغ فريق الصيانة، ويمكنك إخراج الغرفة من الخدمة في الخطوة نفسها.",
     statRooms: "الغرف",

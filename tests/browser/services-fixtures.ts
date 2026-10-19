@@ -89,3 +89,40 @@ export function assignToProperty(propertyId: string, email: string): void {
      on conflict do nothing`,
   );
 }
+
+/**
+ * Somebody in house in a room of this run's own, written by the owner
+ * connection in one statement so the check that a checked-in Reservation has
+ * a Stay in house sees both.
+ */
+export function guestInHouse(
+  propertyId: string,
+  roomName: string,
+  guestName: string,
+): void {
+  psql(
+    `with unit as (
+       select id, organization_id from public.accommodation_units
+        where property_id = '${propertyId}' and name = '${roomName}'
+     ), guest as (
+       insert into public.guests (organization_id, full_name)
+       select organization_id, '${guestName}' from unit returning id
+     ), booking as (
+       insert into public.reservations
+         (organization_id, property_id, accommodation_unit_id, guest_id,
+          stay_type, status, starts_on, ends_on)
+       select unit.organization_id, '${propertyId}', unit.id, guest.id,
+              'guest', 'checked_in', app.property_today('${propertyId}'),
+              app.property_today('${propertyId}') + 2
+         from unit, guest
+       returning id, organization_id, accommodation_unit_id
+     )
+     insert into public.stays
+       (organization_id, property_id, accommodation_unit_id, reservation_id,
+        stay_type, status, starts_on, ends_on)
+     select booking.organization_id, '${propertyId}', booking.accommodation_unit_id,
+            booking.id, 'guest', 'in_house', app.property_today('${propertyId}'),
+            app.property_today('${propertyId}') + 2
+       from booking`,
+  );
+}

@@ -5,7 +5,11 @@ import { test } from "./hydration";
 
 import { EMAIL, OWNER_EMAIL, signIn } from "./front-desk";
 import { psql } from "./local-database";
-import { aServicesProperty, archiveProperties } from "./services-fixtures";
+import {
+  aServicesProperty,
+  archiveProperties,
+  guestInHouse,
+} from "./services-fixtures";
 
 /**
  * The Maintenance and Rooms fixes of the 2026-10-11 UX audit (RANZ-66).
@@ -115,6 +119,35 @@ test("a room's dialog leads with reporting and says that a block tells maintenan
   await expect(
     form.getByRole("textbox", { name: "What is wrong?" }),
   ).toBeFocused();
+});
+
+test("a room says who is in it tonight, and a block of an occupied room is refused in words", async ({
+  page,
+}) => {
+  const { propertyId, roomName } = aProperty();
+  guestInHouse(propertyId, roomName, "Ada Occupant");
+  await signIn(page);
+  await page.goto(`/en/rooms?property=${propertyId}`);
+
+  await page
+    .locator('[data-slot="card"]')
+    .filter({ hasText: roomName })
+    .getByRole("button")
+    .first()
+    .click();
+  const dialog = page.getByRole("dialog", { name: roomName });
+  // ROOMS-07: the state comes before the two routes, so nobody blocks a
+  // room a guest is asleep in without having read that they are.
+  await expect(dialog).toContainText("Ada Occupant is in this room tonight.");
+  await dialog.getByLabel("Reason for block").fill("Held for a group");
+  await dialog.getByRole("button", { name: "Block room" }).click();
+  await expect(dialog).toContainText(
+    "Somebody is in this room, so it cannot be blocked. Check them out first.",
+  );
+  // The refusal keeps what was typed.
+  await expect(dialog.getByLabel("Reason for block")).toHaveValue(
+    "Held for a group",
+  );
 });
 
 test("a block names the room it blocks and gives it back by the same name", async ({

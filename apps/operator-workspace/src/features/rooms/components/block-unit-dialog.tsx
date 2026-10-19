@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { Wrench } from "lucide-react";
@@ -26,6 +26,7 @@ import {
   type BlockOutcome,
 } from "../../../server/accommodation";
 import type { UnitEntry, UnitHold } from "../../../server/viewer";
+import { submitWithoutReset } from "../../../lib/submit-without-reset";
 
 /**
  * One Unit, from Rooms. Something wrong with it is a problem to report, which
@@ -70,8 +71,13 @@ export function BlockUnitDialog({
     FormData
   >(unblockUnit, { status: "idle" });
 
+  // Kept by the dialog and not by the form: React empties an uncontrolled
+  // field after every answer, and a refused block must not lose its reason.
+  const [reason, setReason] = useState("");
+
   useEffect(() => {
     if (blockOutcome.status === "done" || unblockOutcome.status === "done") {
+      setReason("");
       onOpenChange(false);
     }
   }, [blockOutcome.status, unblockOutcome.status, onOpenChange]);
@@ -82,6 +88,31 @@ export function BlockUnitDialog({
   const isOutOfOrder = unit.state?.kind === "out_of_service";
   const state = unit.state;
   const bed = roomName !== null;
+  const refusal = (
+    outcome: BlockOutcome,
+    refused: "blockRefused" | "unblockRefused",
+  ) =>
+    outcome.status === "occupied"
+      ? t("blockOccupied")
+      : outcome.status === "invalid"
+        ? t("blockInvalid")
+        : t(refused);
+  const tonight = (() => {
+    const day = (iso: string) =>
+      isSupportedLocale(locale)
+        ? formatDate(new Date(`${iso}T12:00:00Z`), locale, { timeZone: "UTC" })
+        : iso;
+    switch (state?.kind) {
+      case "in_house":
+        return t("unitStateInHouse", { guest: state.guestName });
+      case "reserved":
+        return t("unitStateReserved", { date: day(state.arrivesOn) });
+      case "free":
+        return t("unitStateFree");
+      default:
+        return null;
+    }
+  })();
   const blockLabel = bed ? t("blockBed") : t("blockRoom");
   const unblockLabel = bed ? t("unblockBed") : t("unblockRoom");
 
@@ -144,7 +175,7 @@ export function BlockUnitDialog({
             {unblockOutcome.status !== "idle" &&
               unblockOutcome.status !== "done" && (
                 <FormError>
-                  {unblockOutcome.message ?? t("chargeRefused")}
+                  {refusal(unblockOutcome, "unblockRefused")}
                 </FormError>
               )}
 
@@ -184,6 +215,9 @@ export function BlockUnitDialog({
           </form>
         ) : (
           <div className="space-y-5">
+            {tonight ? (
+              <p className="text-sm font-medium text-foreground">{tonight}</p>
+            ) : null}
             {reportHref ? (
               <div className="grid gap-3 rounded-md border bg-muted/40 p-3 text-sm">
                 <p className="text-muted-foreground">
@@ -202,15 +236,13 @@ export function BlockUnitDialog({
               </div>
             ) : null}
 
-            <form action={blockAct} className="space-y-4">
+            <form className="space-y-4" onSubmit={submitWithoutReset(blockAct)}>
               <input type="hidden" name="locale" value={locale} />
               <input type="hidden" name="unitId" value={unit.unitId} />
 
               {blockOutcome.status !== "idle" &&
                 blockOutcome.status !== "done" && (
-                  <FormError>
-                    {blockOutcome.message ?? t("chargeRefused")}
-                  </FormError>
+                  <FormError>{refusal(blockOutcome, "blockRefused")}</FormError>
                 )}
 
               <Field htmlFor="reason" label={t("blockReason")}>
@@ -218,7 +250,9 @@ export function BlockUnitDialog({
                   <Input
                     id="reason"
                     name="reason"
+                    onChange={(event) => setReason(event.target.value)}
                     required
+                    value={reason}
                     minLength={3}
                     maxLength={200}
                     placeholder={t("blockReasonPlaceholder")}

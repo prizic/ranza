@@ -9,6 +9,7 @@ import {
   aServicesProperty,
   archiveProperties,
   assignToProperty,
+  guestInHouse,
 } from "./services-fixtures";
 
 /**
@@ -241,4 +242,26 @@ test("on a phone the queue is cards that fit the screen", async ({ page }) => {
   expect(widths[0]).toBeLessThanOrEqual(widths[1]!);
   await expect(page.getByRole("tab", { name: /All Requests/ })).toBeAttached();
   await page.screenshot({ path: path.join(EVIDENCE, "phone-cards.png") });
+});
+
+test("a request for a room is logged for the guest in it, and the form says so before it is sent", async ({
+  page,
+}) => {
+  const { propertyId, roomName } = aProperty();
+  guestInHouse(propertyId, roomName, "Ada Occupant");
+  await signIn(page);
+  await page.goto(`/en/guest-experience?property=${propertyId}`);
+
+  await page.getByRole("button", { name: "New Request" }).click();
+  const dialog = page.getByRole("dialog", { name: "Create Service Request" });
+  await dialog.getByLabel("Title").fill("GX extra pillows");
+  await dialog.getByRole("combobox", { name: "Room" }).click();
+  await page.getByRole("option", { name: new RegExp(roomName) }).click();
+  // GX-07: who is in the room, before the request is sent.
+  await expect(dialog).toContainText(
+    "In house: Ada Occupant. The request is logged for them.",
+  );
+  await dialog.getByRole("button", { name: "Log Request" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(row(page, "GX extra pillows")).toContainText("Ada Occupant");
 });
