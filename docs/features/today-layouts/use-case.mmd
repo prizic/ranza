@@ -1,0 +1,53 @@
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% The layouts read what Today already reads, plus who is in house and the days
+%% waiting to close; they own no record and move none. Check-in and check-out are
+%% the Arrivals and Departures commands, unchanged.
+%% Open question (TL-DEF-07): whether the night desk is entered by the person or
+%% by the hour. Drawn here as the person's choice, which is what is built.
+%% Open question (TL-S1-10): the night desk's dark surface departs from
+%% docs/design/visual-reference.md and needs the owner's decision.
+flowchart TD
+
+  SM["Staff Member<br/>at a Property they reach, with Today"]
+  FD["focus: front desk or manager<br/>the focuses that have a desk section"]
+  OTHER["focus: housekeeping, finance<br/>no desk section"]
+  SM --> FD & OTHER
+
+  OTHER --> OVR(["See the overview<br/>no switcher is offered"])
+
+  subgraph CHOOSE["choosing"]
+    DEF(["Open Today having never chosen<br/>the timeline"])
+    PICK(["Choose a layout from the switcher<br/>kept in a cookie of their own on this device"])
+    KEEP(["Open Today again<br/>the same layout, whoever else used the PC"])
+  end
+  FD --> DEF & PICK & KEEP
+
+  subgraph LAYOUTS["the layouts"]
+    TL(["Timeline<br/>arrivals on a line at their expected time, the present marked;<br/>due-out above it; a ranked list of what to do"])
+    HM(["House map<br/>every room by floor in colour, icon and words;<br/>a guest chosen rings their room and marks others that can take them"])
+    NU(["Next up<br/>the most urgent item and what blocks it;<br/>a ranked queue; three lanes"])
+    NT(["Night desk<br/>how the house moved, days waiting to close,<br/>the next seven nights, the hand-over list"])
+    OV(["Overview<br/>the cards, as before"])
+  end
+  PICK --> TL & HM & NU & NT & OV
+
+  subgraph ACT["acting from a layout"]
+    CI(["Check a Guest in<br/>only where their room is ready"])
+    CO(["Check a Guest out<br/>reviewing the bill first"])
+    GO(["Open the screen that settles it<br/>Arrivals, Departures, Housekeeping, Close the day, Finance"])
+  end
+  TL & HM & NU --> CI & CO & GO
+  NT --> GO
+
+  subgraph ALT["alternative flows"]
+    LATE(["A guest is late<br/>the overrun is drawn back to when they were due"])
+    NOTIME(["An arrival has no expected time<br/>named under the line, listed last in the plan"])
+    RISK(["An arrival's room is not ready<br/>check-in is not offered; housekeeping is, and other ready rooms of that type"])
+    OVERDUE(["A guest is past their day to leave<br/>first in the plan, with the bill"])
+    UNREAD(["The desk section could not be read<br/>the page says so, offers a retry and the overview"])
+    STALE(["A refresh fails<br/>the last good desk stays, marked stale"])
+    AR(["The language is Arabic<br/>every layout mirrors"])
+  end
+  TL --> LATE & NOTIME & RISK & OVERDUE
+  HM --> RISK
+  FD --> UNREAD & STALE & AR

@@ -1,0 +1,244 @@
+"use client";
+
+import Link from "next/link";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  BedDouble,
+  Check,
+  Droplet,
+  Eye,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
+import { useTranslations } from "next-intl";
+import { StatusBadge, cn, type StatusTone } from "@ranza/ui";
+import type { SupportedLocale } from "@ranza/i18n";
+import type {
+  ArrivalRow,
+  DepartureRow,
+  RoomState,
+  TodaySummary,
+} from "../../../server/today-derive";
+import type { DeskCard } from "../../../server/today-desk";
+import { CheckInAction } from "../../front-office/components/check-in-action";
+import { CheckOutDialog } from "../../front-office/components/check-out-dialog";
+import { fetchDepartures } from "../../front-office/queries";
+import { frontOfficeKeys } from "../../front-office/query-keys";
+import type { TodayScope } from "../query-keys";
+import { minutesAt, type Readiness } from "./model";
+
+/** What every desk layout is handed: one answer, and what to do when it moves. */
+export interface LayoutProps {
+  summary: TodaySummary;
+  desk: DeskCard;
+  locale: SupportedLocale;
+  scope: TodayScope;
+  /** The server's clock when the page was built, so the first paint agrees. */
+  nowMs: number;
+  /** Somebody was checked in or out: read the day again. */
+  onChanged: () => void;
+}
+
+const STATE_META: Record<Readiness, { icon: LucideIcon; tone: StatusTone }> = {
+  in_house: { icon: BedDouble, tone: "info" },
+  ready: { icon: Check, tone: "success" },
+  awaiting_inspection: { icon: Eye, tone: "warning" },
+  dirty: { icon: Droplet, tone: "danger" },
+  out_of_service: { icon: Wrench, tone: "neutral" },
+  blocked: { icon: AlertTriangle, tone: "danger" },
+};
+
+export function stateIcon(state: Readiness): LucideIcon {
+  return STATE_META[state].icon;
+}
+
+/** A room's state: colour, icon and words together (blueprint 18.5). */
+export function StateBadge({
+  className,
+  state,
+}: {
+  className?: string;
+  state: Readiness;
+}) {
+  const t = useTranslations("todayLayouts");
+  const meta = STATE_META[state];
+  return (
+    <StatusBadge
+      {...(className ? { className } : {})}
+      icon={meta.icon}
+      label={t(`state.${state}`)}
+      tone={meta.tone}
+    />
+  );
+}
+
+/** Minutes since midnight at the Property, ticking, first painted as the server did. */
+export function usePropertyMinutes(nowMs: number, timeZone: string): number {
+  const [instant, setInstant] = useState(nowMs);
+  useEffect(() => {
+    const tick = () => setInstant(Date.now());
+    tick();
+    const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
+  }, []);
+  return minutesAt(instant, timeZone);
+}
+
+/** The width of an element, for a layout that packs things by their size. */
+export function useElementWidth<T extends HTMLElement>(): [
+  (node: T | null) => void,
+  number,
+] {
+  const [width, setWidth] = useState(0);
+  const observer = useRef<ResizeObserver | null>(null);
+  useEffect(() => () => observer.current?.disconnect(), []);
+  const ref = useCallback((node: T | null) => {
+    observer.current?.disconnect();
+    if (!node) return;
+    setWidth(node.clientWidth);
+    observer.current = new ResizeObserver(() => setWidth(node.clientWidth));
+    observer.current.observe(node);
+  }, []);
+  return [ref, width];
+}
+
+/**
+ * The Departures screen's own rows, which the check-out dialog reviews: the
+ * bill under review is that screen's, not a copy Today derived, and Today's
+ * summary carries no balance for a viewer who may not see money (TD-S1-03).
+ */
+export function useCheckOutReviews(
+  scope: TodayScope,
+  departures: readonly DepartureRow[],
+  onChanged: () => void,
+) {
+  const client = useQueryClient();
+  const query = useQuery({
+    queryKey: frontOfficeKeys.departures(scope, "due"),
+    queryFn: () => fetchDepartures(scope.propertyId, "due"),
+    enabled: departures.some((row) => row.mayCheckOut),
+    refetchInterval: 60_000,
+  });
+  // A check-in or check-out moves a row on the screens beside this one too.
+  const changed = useCallback(() => {
+    void client.invalidateQueries({ queryKey: frontOfficeKeys.all(scope) });
+    onChanged();
+  }, [client, onChanged, scope]);
+  return { reviews: query.data ?? [], changed };
+}
+
+export type CheckOutReviews = ReturnType<typeof useCheckOutReviews>["reviews"];
+
+/** Check-in from a row, where the viewer may; nothing where they may not. */
+export function ArrivalCommand({
+  arrival,
+  locale,
+  onChanged,
+}: {
+  arrival: ArrivalRow;
+  locale: SupportedLocale;
+  onChanged: () => void;
+}) {
+  if (!arrival.mayCheckIn) return null;
+  return (
+    <CheckInAction
+      locale={locale}
+      onDone={onChanged}
+      reservationId={arrival.reservationId}
+    />
+  );
+}
+
+/** Check-out from a row, reviewing the bill first, where the viewer may. */
+export function DepartureCommand({
+  departure,
+  locale,
+  onChanged,
+  reviews,
+  scope,
+}: {
+  departure: DepartureRow;
+  locale: SupportedLocale;
+  onChanged: () => void;
+  reviews: CheckOutReviews;
+  scope: TodayScope;
+}) {
+  const review = departure.mayCheckOut
+    ? reviews.find((candidate) => candidate.stayId === departure.stayId)
+    : undefined;
+  if (!review) return null;
+  return (
+    <CheckOutDialog
+      departure={review}
+      locale={locale}
+      onDone={onChanged}
+      propertyId={scope.propertyId}
+    />
+  );
+}
+
+export function Panel({
+  children,
+  className,
+  labelledBy,
+}: {
+  children: ReactNode;
+  className?: string;
+  labelledBy?: string;
+}) {
+  return (
+    <section
+      {...(labelledBy ? { "aria-labelledby": labelledBy } : {})}
+      className={cn(
+        "rounded-[2rem] border border-slate-100 bg-card p-5 md:p-7",
+        className,
+      )}
+    >
+      {children}
+    </section>
+  );
+}
+
+export function Eyebrow({ children }: { children: ReactNode }) {
+  return (
+    <p className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase">
+      {children}
+    </p>
+  );
+}
+
+/** A figure's way into the list behind it. */
+export function OpenLink({
+  children,
+  href,
+}: {
+  children: ReactNode;
+  href: string;
+}) {
+  return (
+    <Link
+      className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+      href={href}
+    >
+      {children}
+      <ArrowRight aria-hidden="true" className="size-3.5 rtl:rotate-180" />
+    </Link>
+  );
+}
+
+export const STATE_ORDER: readonly RoomState[] = [
+  "in_house",
+  "ready",
+  "awaiting_inspection",
+  "dirty",
+  "out_of_service",
+];

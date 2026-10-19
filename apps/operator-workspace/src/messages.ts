@@ -4,6 +4,10 @@ import {
   errorBoundary,
   type ErrorBoundaryMessages,
 } from "./error-boundary-copy";
+import {
+  todayLayoutsMessages,
+  type TodayLayoutsMessages,
+} from "./features/today/layouts/messages";
 
 /**
  * Workspace copy in all three languages.
@@ -1724,6 +1728,8 @@ export interface Messages {
       string
     >;
   };
+  /** The desk layouts of Today (docs/features/today-layouts). */
+  todayLayouts: TodayLayoutsMessages;
   /** The Today dashboard (docs/features/today-dashboard). */
   dashboard: {
     /** Greeting before noon, followed by the name. */
@@ -3995,6 +4001,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
     },
 
+    todayLayouts: todayLayoutsMessages.tr,
     dashboard: {
       greetingMorning: "Günaydın,",
       greetingAfternoon: "İyi günler,",
@@ -7293,6 +7300,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
     },
 
+    todayLayouts: todayLayoutsMessages.en,
     dashboard: {
       greetingMorning: "Good morning,",
       greetingAfternoon: "Good afternoon,",
@@ -10566,6 +10574,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
     },
 
+    todayLayouts: todayLayoutsMessages.ar,
     dashboard: {
       greetingMorning: "صباح الخير،",
       greetingAfternoon: "طاب يومك،",

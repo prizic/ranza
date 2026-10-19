@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
+import {
+  layoutCookieName,
+  type TodayLayout,
+} from "../../apps/operator-workspace/src/features/today/layouts/model";
 import { psql } from "./local-database";
 
 /**
@@ -358,7 +362,37 @@ export async function aStaffMember(
   return { email, userId };
 }
 
-export async function signIn(page: Page, email = EMAIL): Promise<void> {
+/**
+ * Signs in and lands on Today.
+ *
+ * Today draws itself as the Staff Member last chose, from a cookie of their own
+ * (docs/features/today-layouts), and the specs written before that choice
+ * existed are about the cards, so by default the choice made here is the
+ * overview. A spec about a layout names it; `null` makes no choice, which is
+ * what a person who never opened the switcher has.
+ */
+export async function signIn(
+  page: Page,
+  email = EMAIL,
+  layout: TodayLayout | null = "overview",
+): Promise<void> {
+  if (layout) {
+    const userId = psql(
+      `select id from public.users where lower(email) = lower('${email}')`,
+    );
+    // A Staff Member who has never been in has no row yet, and no cookie to
+    // hold: the first sign-in makes it, and the default is theirs to keep.
+    if (userId) {
+      await page.context().addCookies([
+        {
+          name: layoutCookieName(userId),
+          value: layout,
+          domain: "localhost",
+          path: "/",
+        },
+      ]);
+    }
+  }
   await page.goto("/en/sign-in");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
