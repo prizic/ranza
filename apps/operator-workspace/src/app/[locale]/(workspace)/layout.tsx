@@ -279,6 +279,11 @@ export default async function WorkspaceLayout({
           segmentsByProperty={segmentsByProperty}
           labels={{
             collapse: t("collapse"),
+            sections: {
+              operations: t("navigationSections.operations"),
+              management: t("navigationSections.management"),
+              system: t("navigationSections.system"),
+            },
             expand: t("expand"),
             home: t("productName"),
             mainNavigation: t("mainNavigation"),

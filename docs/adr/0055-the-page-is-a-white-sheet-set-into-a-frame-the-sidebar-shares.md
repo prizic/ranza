@@ -70,8 +70,11 @@ static mockup in Ranza's own colours is
   is now the frame, and `branding.spec.ts` asserts the frame's colour and the
   text on it instead; with the shell's brand tokens removed, BR-S1-01 and
   BR-S1-12 go red on the default emerald.
-- Sidebar section headings are not part of this change. The sections are
-  separated by a rule, as before.
+- The sidebar names its groups of destinations — Operations, Management and
+  System — with a small heading drawn from each entry's `section`. Folded to
+  icons it shows a rule instead, and the list keeps its name for a screen
+  reader. A host that passes no headings, as the Portal does, gets the rule
+  alone.
 - This departs from the Leaders portal, which `visual-reference.md` names as
   the source of truth for the shell. The departure is recorded there, and
   becomes `Amended:` only when the owner accepts it.

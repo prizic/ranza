@@ -25,6 +25,12 @@ export interface Messages {
     description: string;
   };
   mainNavigation: string;
+  /** The headings of the sidebar's groups of destinations, by `section`. */
+  navigationSections: {
+    operations: string;
+    management: string;
+    system: string;
+  };
   sections: string;
   breadcrumb: string;
   back: string;
@@ -2888,6 +2894,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Çalışma alanı şimdilik her şeyiyle çalışmaya devam ediyor. Lütfen ödemeyi tamamlayın.",
     },
     mainNavigation: "Ana gezinme",
+    navigationSections: {
+      operations: "İşletme",
+      management: "Yönetim",
+      system: "Sistem",
+    },
     sections: "Bölümler",
     breadcrumb: "Konum",
     back: "Geri",
@@ -6177,6 +6188,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Everything in the Workspace keeps working for now. Please settle the payment.",
     },
     mainNavigation: "Main navigation",
+    navigationSections: {
+      operations: "Operations",
+      management: "Management",
+      system: "System",
+    },
     sections: "Sections",
     breadcrumb: "Breadcrumb",
     back: "Back",
@@ -9474,6 +9490,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         "تستمر مساحة العمل في العمل بالكامل في الوقت الحالي. يُرجى تسوية الدفعة.",
     },
     mainNavigation: "التنقل الرئيسي",
+    navigationSections: {
+      operations: "العمليات",
+      management: "الإدارة",
+      system: "النظام",
+    },
     sections: "الأقسام",
     breadcrumb: "مسار التنقل",
     back: "رجوع",

@@ -35,6 +35,9 @@ export interface RailLabels {
   /** The toggle that folds the sidebar to icons, and the one that opens it. */
   collapse: string;
   expand: string;
+  /** The heading of each group of destinations, by the entries' `section`. A
+      section with no heading here is set apart by a rule instead. */
+  sections?: Readonly<Record<string, string>> | undefined;
   /** Which application this is, under the product's name when there is no
       Organization to name instead. */
   badge?: string | undefined;
@@ -145,6 +148,8 @@ function AppSidebarInner({
   };
 
   const sections = groupNavEntries(entries);
+  const sectionLabel = (id: string | undefined) =>
+    id === undefined ? undefined : labels.sections?.[id];
 
   return (
     <aside
@@ -231,10 +236,18 @@ function AppSidebarInner({
               className="space-y-1 lg:space-y-2"
               key={section.id ?? `section-${secIdx}`}
             >
-              {/* A rule between the groups of destinations: there are no
-                  headings to keep them apart, and collapsed to icons no words
-                  either. */}
-              {secIdx > 0 ? (
+              {/* A heading names the group; collapsed to icons there is no room
+                  for words, and a section with no heading has none to show, so
+                  a rule keeps the groups apart instead. The list is named
+                  either way, for a reader who cannot see the heading. */}
+              {!collapsed && sectionLabel(section.id) ? (
+                <p
+                  aria-hidden="true"
+                  className="truncate px-3 pt-3 pb-1 text-[11px] font-semibold tracking-[0.1em] text-on-frame-muted uppercase"
+                >
+                  {sectionLabel(section.id)}
+                </p>
+              ) : secIdx > 0 ? (
                 <div
                   aria-hidden="true"
                   className={cn(
@@ -245,7 +258,11 @@ function AppSidebarInner({
               ) : null}
 
               {/* Entries in this section */}
-              <ul className="space-y-1 lg:space-y-2" role="list">
+              <ul
+                aria-label={sectionLabel(section.id)}
+                className="space-y-1 lg:space-y-2"
+                role="list"
+              >
                 {section.entries.map((entry) =>
                   isNavGroup(entry) ? (
                     <li key={entry.label}>
