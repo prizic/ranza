@@ -241,7 +241,7 @@ test("the phone's bottom bar names every destination it offers, and Arabic names
   await signIn(page);
   await page.goto(`/ar/today?property=${testProperty()}`);
 
-  const dock = page.locator("nav.glass-panel").last();
+  const dock = page.locator("nav.fixed").last();
   await expect(dock).toBeVisible();
   const labels = dock.locator("a span.line-clamp-2");
   await expect(labels.first()).toBeVisible();
@@ -278,7 +278,7 @@ test("the end of a phone page clears the bottom bar, whether its labels take one
   // Turkish wraps "Kat hizmetleri" onto two lines and so makes the bar taller.
   for (const locale of ["en", "tr"]) {
     await page.goto(`/${locale}/today?property=${testProperty()}`);
-    const dock = page.locator("nav.glass-panel").last();
+    const dock = page.locator("nav.fixed").last();
     await expect(dock).toBeVisible();
     await page.evaluate(() =>
       window.scrollTo(0, document.documentElement.scrollHeight),

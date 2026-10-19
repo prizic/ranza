@@ -1,0 +1,1125 @@
+<!doctype html>
+<html lang="tr" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Ranza — inset shell, proposal</title>
+    <style>
+      :root {
+        --canvas: #ffffff;
+        --canvas-deep: hsl(170 10% 96%);
+        --ink: hsl(170 60% 10%);
+        --ink-muted: hsl(170 5% 45%);
+        --accent: hsl(172 65% 20%);
+        --accent-soft: hsl(38 60% 95%);
+        --secondary: hsl(170 12% 95%);
+        --success: #176842;
+        --success-soft: #dcefe3;
+        --warning: #8a5a08;
+        --warning-soft: #f7e8c8;
+        --danger: #a33a35;
+        --danger-soft: #f5dfdd;
+        --info: #315f83;
+        --info-soft: #dfeaf2;
+        --line: hsl(170 10% 90%);
+        --line-strong: hsl(170 10% 80%);
+        --focus: hsl(172 65% 20%);
+        --shadow: 0 20px 60px rgba(0, 0, 0, 0.06);
+        --shadow-low: 0 4px 14px rgba(10, 41, 36, 0.04);
+        --font:
+          Geist, "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI",
+          sans-serif;
+
+        /* The one new decision: the colour of the frame and the sidebar, which
+           are the same surface. --accent is the saturated option; swap for
+           hsl(170 60% 10%) (--surface-strong) for the near-black option. */
+        --frame: var(--accent);
+        --on-frame: #ffffff;
+        --on-frame-muted: rgba(255, 255, 255, 0.74);
+        --on-frame-faint: rgba(255, 255, 255, 0.5);
+        --frame-line: rgba(255, 255, 255, 0.14);
+        --frame-hover: rgba(255, 255, 255, 0.08);
+        --frame-active: rgba(255, 255, 255, 0.15);
+        --sheet-radius: 28px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: var(--font);
+        color: var(--ink);
+        background: var(--canvas-deep);
+        font-size: 14px;
+        line-height: 1.45;
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      :focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: 2px;
+      }
+      .num {
+        font-variant-numeric: tabular-nums;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+      svg.i {
+        width: 1em;
+        height: 1em;
+        flex: none;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.75;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      [dir="rtl"] .flip {
+        transform: scaleX(-1);
+      }
+
+      /* ---------- Page furniture around the two frames ---------- */
+      .doc {
+        max-width: 1480px;
+        margin: 0 auto;
+        padding: 32px 24px 64px;
+      }
+      .doc > header h1 {
+        margin: 0 0 6px;
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .doc > header p {
+        margin: 0 0 6px;
+        max-width: 72ch;
+        color: var(--ink-muted);
+      }
+      .doc h2 {
+        margin: 40px 0 4px;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--ink-muted);
+      }
+      .doc .note {
+        margin: 0 0 14px;
+        max-width: 80ch;
+        color: var(--ink-muted);
+      }
+      .stage {
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--line);
+      }
+
+      /* ---------- The shell ---------- */
+      .app {
+        display: grid;
+        grid-template-columns: 272px minmax(0, 1fr);
+        height: 860px;
+        background: var(--frame);
+        color: var(--on-frame);
+      }
+
+      /* Sidebar: no panel, no border, no shadow. It is the frame. */
+      .sidebar {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        padding: 22px 14px 18px 18px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 8px 22px;
+      }
+      .brand-mark {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-weight: 700;
+        font-size: 18px;
+      }
+      .brand b {
+        display: block;
+        font-size: 16px;
+        letter-spacing: -0.01em;
+      }
+      .brand small {
+        display: block;
+        color: var(--on-frame-muted);
+        font-size: 12px;
+      }
+      .nav {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        scrollbar-width: none;
+      }
+      .nav-group-label {
+        margin: 18px 12px 6px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--on-frame-faint);
+      }
+      .nav-group-label:first-child {
+        margin-top: 0;
+      }
+      .nav a {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 40px;
+        padding: 0 12px;
+        border-radius: 12px;
+        color: var(--on-frame-muted);
+        font-size: 14px;
+      }
+      .nav a:hover {
+        background: var(--frame-hover);
+        color: var(--on-frame);
+      }
+      .nav a svg.i {
+        font-size: 18px;
+      }
+      .nav a[aria-current="page"] {
+        background: var(--frame-active);
+        color: var(--on-frame);
+        font-weight: 600;
+      }
+      .nav .chev {
+        margin-inline-start: auto;
+        font-size: 14px;
+        opacity: 0.7;
+      }
+      .nav .sub {
+        margin: 2px 0 4px;
+        padding-inline-start: 29px;
+      }
+      .nav .sub li {
+        border-inline-start: 1px solid var(--frame-line);
+        padding-inline-start: 8px;
+      }
+      .nav .sub a {
+        min-height: 34px;
+        font-size: 13.5px;
+      }
+      .account {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 12px;
+        padding: 12px 8px 0;
+        border-top: 1px solid var(--frame-line);
+      }
+      .avatar {
+        display: grid;
+        place-items: center;
+        flex: none;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .account b {
+        display: block;
+        font-size: 13px;
+        line-height: 1.25;
+      }
+      .account small {
+        color: var(--on-frame-muted);
+        font-size: 12px;
+      }
+
+      /* The sheet: the only white thing on the screen. */
+      .sheet {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        margin: 12px 12px 12px 0;
+        border-radius: var(--sheet-radius);
+        background: var(--canvas);
+        color: var(--ink);
+        overflow: hidden;
+      }
+      .bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex: none;
+        height: 64px;
+        padding: 0 28px;
+        border-bottom: 1px solid var(--line);
+      }
+      .crumbs {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--ink-muted);
+      }
+      .crumbs b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .bar-end {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .pill-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 36px;
+        padding: 0 14px;
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        background: var(--canvas);
+        font-size: 13px;
+      }
+      .bar .avatar {
+        background: var(--secondary);
+        color: var(--accent);
+        width: 36px;
+        height: 36px;
+      }
+      .page {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 28px 32px 36px;
+      }
+      .page h1 {
+        margin: 0;
+        font-size: 30px;
+        font-weight: 300;
+        letter-spacing: -0.02em;
+      }
+      .page h1 b {
+        font-weight: 600;
+      }
+      .page .sub-h {
+        margin: 4px 0 22px;
+        color: var(--ink-muted);
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-bottom: 18px;
+      }
+      .stat {
+        padding: 16px 18px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--canvas);
+        box-shadow: var(--shadow-low);
+      }
+      .stat.lead {
+        background: var(--accent-soft);
+        border-color: transparent;
+        box-shadow: none;
+      }
+      .eyebrow {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--ink-muted);
+      }
+      .stat .big {
+        margin-top: 8px;
+        font-size: 36px;
+        font-weight: 300;
+        letter-spacing: -0.03em;
+        line-height: 1;
+      }
+      .stat .big small {
+        font-size: 15px;
+        color: var(--ink-muted);
+        letter-spacing: 0;
+      }
+      .stat p {
+        margin: 8px 0 0;
+        font-size: 12.5px;
+        color: var(--ink-muted);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+        gap: 14px;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--canvas);
+        box-shadow: var(--shadow-low);
+        overflow: hidden;
+      }
+      .card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px 20px 12px;
+      }
+      .card-head h2 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0;
+        text-transform: none;
+        color: var(--ink);
+      }
+      .seg {
+        display: inline-flex;
+        padding: 3px;
+        border-radius: 999px;
+        background: var(--secondary);
+        font-size: 12.5px;
+      }
+      .seg a {
+        padding: 5px 12px;
+        border-radius: 999px;
+        color: var(--ink-muted);
+      }
+      .seg a[aria-current="page"] {
+        background: var(--canvas);
+        color: var(--ink);
+        font-weight: 600;
+        box-shadow: var(--shadow-low);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th {
+        padding: 8px 20px;
+        text-align: start;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--ink-muted);
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        background: var(--canvas-deep);
+      }
+      td {
+        padding: 12px 20px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: middle;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      .who {
+        display: block;
+        font-weight: 600;
+      }
+      .ref {
+        display: block;
+        font-size: 12px;
+        color: var(--ink-muted);
+      }
+      .st {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 10px 3px 8px;
+        border-radius: 999px;
+        font-size: 12.5px;
+        font-weight: 500;
+      }
+      .st.ok {
+        background: var(--success-soft);
+        color: var(--success);
+      }
+      .st.wait {
+        background: var(--warning-soft);
+        color: var(--warning);
+      }
+      .st.bad {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+      .act {
+        display: inline-flex;
+        align-items: center;
+        height: 32px;
+        padding: 0 14px;
+        border-radius: 999px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .act.quiet {
+        background: var(--canvas);
+        color: var(--ink);
+        border: 1px solid var(--line-strong);
+      }
+
+      .attention {
+        display: grid;
+        gap: 10px;
+        padding: 0 20px 18px;
+      }
+      .attention li {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: var(--secondary);
+      }
+      .attention svg.i {
+        margin-top: 2px;
+        font-size: 18px;
+      }
+      .attention b {
+        display: block;
+      }
+      .attention small {
+        color: var(--ink-muted);
+      }
+      .floors {
+        display: grid;
+        gap: 12px;
+        padding: 0 20px 20px;
+      }
+      .floor-row {
+        display: grid;
+        grid-template-columns: 56px 1fr 44px;
+        align-items: center;
+        gap: 12px;
+        font-size: 13px;
+      }
+      .meter {
+        display: flex;
+        height: 10px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: var(--secondary);
+      }
+      .meter i:nth-child(1) {
+        background: var(--success);
+      }
+      .meter i:nth-child(2) {
+        background: var(--info);
+      }
+      .meter i:nth-child(3) {
+        background: var(--warning);
+      }
+      .meter i:nth-child(4) {
+        background: var(--danger);
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+        padding: 0 20px 18px;
+        font-size: 12.5px;
+        color: var(--ink-muted);
+      }
+      .legend span::before {
+        content: "";
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        margin-inline-end: 6px;
+        border-radius: 2px;
+        background: currentColor;
+      }
+      .legend .c1 {
+        color: var(--success);
+      }
+      .legend .c2 {
+        color: var(--info);
+      }
+      .legend .c3 {
+        color: var(--warning);
+      }
+      .legend .c4 {
+        color: var(--danger);
+      }
+      .legend span {
+        color: var(--ink);
+      }
+      .legend span::before {
+        color: inherit;
+      }
+
+      /* ---------- Phone: no frame. The sheet is the page. ---------- */
+      .phone-wrap {
+        display: flex;
+        justify-content: center;
+        padding: 28px 0;
+        background: var(--canvas-deep);
+      }
+      .phone {
+        position: relative;
+        width: 390px;
+        height: 780px;
+        overflow: hidden;
+        border-radius: 36px;
+        border: 8px solid var(--ink);
+        background: var(--canvas);
+      }
+      .phone .bar {
+        height: 56px;
+        padding: 0 16px;
+      }
+      .phone .page {
+        height: calc(100% - 56px);
+        padding: 18px 16px 96px;
+      }
+      .phone h1 {
+        font-size: 24px;
+      }
+      .phone .stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .phone .stat .big {
+        font-size: 30px;
+      }
+      .phone .attention {
+        padding: 0 14px 14px;
+      }
+      .dock {
+        position: absolute;
+        inset-inline: 12px;
+        bottom: 12px;
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        padding: 6px;
+        border-radius: 22px;
+        background: var(--frame);
+        color: var(--on-frame-muted);
+      }
+      .dock a {
+        display: grid;
+        justify-items: center;
+        gap: 2px;
+        padding: 8px 0 6px;
+        border-radius: 16px;
+        font-size: 11px;
+      }
+      .dock a svg.i {
+        font-size: 20px;
+      }
+      .dock a[aria-current="page"] {
+        background: var(--frame-active);
+        color: var(--on-frame);
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <symbol id="i-house" viewBox="0 0 24 24">
+          <path d="M3 10.5 12 3l9 7.5M5 9.5V21h14V9.5M10 21v-6h4v6" />
+        </symbol>
+        <symbol id="i-hotel" viewBox="0 0 24 24">
+          <path
+            d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 10h4a1 1 0 0 1 1 1v10M2 21h20M8 8h3M8 12h3M8 16h3"
+          />
+        </symbol>
+        <symbol id="i-sparkles" viewBox="0 0 24 24">
+          <path
+            d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"
+          />
+        </symbol>
+        <symbol id="i-wrench" viewBox="0 0 24 24">
+          <path
+            d="M14.7 6.3a4 4 0 0 0-5 5L3 18l3 3 6.7-6.7a4 4 0 0 0 5-5l-2.4 2.4-2.6-.6-.6-2.6z"
+          />
+        </symbol>
+        <symbol id="i-wallet" viewBox="0 0 24 24">
+          <path
+            d="M3 7a2 2 0 0 1 2-2h13v4M3 7v11a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2zM16 14.5h.01"
+          />
+        </symbol>
+        <symbol id="i-chart" viewBox="0 0 24 24">
+          <path d="M4 20V4M4 20h16M8 16v-5M12 16V8M16 16v-8" />
+        </symbol>
+        <symbol id="i-people" viewBox="0 0 24 24">
+          <path
+            d="M16 20v-1.5a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V20M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM21 20v-1.5a4 4 0 0 0-3-3.9M15.5 4.2a3.5 3.5 0 0 1 0 6.6"
+          />
+        </symbol>
+        <symbol id="i-cog" viewBox="0 0 24 24">
+          <path
+            d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"
+          />
+        </symbol>
+        <symbol id="i-shield" viewBox="0 0 24 24">
+          <path
+            d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6zM9 12l2 2 4-4"
+          />
+        </symbol>
+        <symbol id="i-down" viewBox="0 0 24 24">
+          <path d="M6 9l6 6 6-6" />
+        </symbol>
+        <symbol id="i-arrow" viewBox="0 0 24 24">
+          <path d="M9 6l6 6-6 6" />
+        </symbol>
+        <symbol id="i-building" viewBox="0 0 24 24">
+          <path
+            d="M4 21V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v17M14 9h5a1 1 0 0 1 1 1v11M2 21h20M8 7h2M8 11h2M8 15h2"
+          />
+        </symbol>
+        <symbol id="i-globe" viewBox="0 0 24 24">
+          <path
+            d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"
+          />
+        </symbol>
+        <symbol id="i-alert" viewBox="0 0 24 24">
+          <path
+            d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"
+          />
+        </symbol>
+        <symbol id="i-check" viewBox="0 0 24 24">
+          <path d="M5 12.5l4.5 4.5L19 7.5" />
+        </symbol>
+        <symbol id="i-clock" viewBox="0 0 24 24">
+          <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2" />
+        </symbol>
+        <symbol id="i-card" viewBox="0 0 24 24">
+          <path
+            d="M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zM2 10h20"
+          />
+        </symbol>
+      </defs>
+    </svg>
+
+    <div class="doc">
+      <header>
+        <h1>Inset shell — proposal</h1>
+        <p>
+          The sidebar and the frame are one surface in the deep emerald
+          (<code>--accent</code>); the page is a single white sheet inset into
+          it. Palette, type, radii and vocabulary are unchanged. Only the
+          arrangement and the frame colour are new. Static mockup, fixture data
+          from <code>visual-reference.md</code>.
+        </p>
+        <p>
+          One line decides the frame colour:
+          <code>--frame: var(--accent)</code>. Set it to
+          <code>hsl(170 60% 10%)</code> for the near-black option.
+        </p>
+      </header>
+
+      <h2>Desktop · 1440 px</h2>
+      <p class="note">
+        No panel behind the sidebar, no floating page bar. The bar moves inside
+        the sheet, where the back button of ADR 0035 lives on inner pages.
+        Active item: translucent white pill, full-white text; inactive: 74%
+        white (about 7:1 on the emerald).
+      </p>
+      <div class="stage">
+        <div class="app">
+          <aside class="sidebar" aria-label="Main navigation">
+            <div class="brand">
+              <span class="brand-mark">R</span>
+              <span><b>Ranza</b><small>Boğaziçi Konukevleri</small></span>
+            </div>
+            <nav class="nav" aria-label="Ana gezinme">
+              <ul>
+                <li class="nav-group-label">İşletme</li>
+                <li>
+                  <a href="#" aria-current="page"
+                    ><svg class="i"><use href="#i-house" /></svg>Bugün</a
+                  >
+                </li>
+                <li>
+                  <a href="#"
+                    ><svg class="i"><use href="#i-hotel" /></svg>Ön büro<svg
+                      class="i chev"
+                    >
+                      <use href="#i-down" /></svg
+                  ></a>
+                  <ul class="sub">
+                    <li><a href="#">Rezervasyonlar</a></li>
+                    <li><a href="#">Oda takvimi</a></li>
+                    <li><a href="#">Gelişler</a></li>
+                    <li><a href="#">Çıkışlar</a></li>
+                    <li><a href="#">Gün sonu</a></li>
+                  </ul>
+                </li>
+                <li>
+                  <a href="#"
+                    ><svg class="i"><use href="#i-sparkles" /></svg>Kat
+                    hizmetleri</a
+                  >
+                </li>
+                <li>
+                  <a href="#"
+                    ><svg class="i"><use href="#i-wrench" /></svg>Bakım</a
+                  >
+                </li>
+                <li class="nav-group-label">Yönetim</li>
+                <li>
+                  <a href="#"
+                    ><svg class="i"><use href="#i-wallet" /></svg>Finans</a
+                  >
+                </li>
+                <li>
+                  <a href="#"
+                    ><svg class="i"><use href="#i-people" /></svg>Kişiler</a
+                  >
+                </li>
+                <li>
+                  <a href="#"
+                    ><svg class="i"><use href="#i-chart" /></svg>Analitik</a
+                  >
+                </li>
+                <li class="nav-group-label">Sistem</li>
+                <li>
+                  <a href="#"
+                    ><svg class="i"><use href="#i-cog" /></svg>Yapılandırma</a
+                  >
+                </li>
+                <li>
+                  <a href="#"
+                    ><svg class="i"><use href="#i-shield" /></svg>Denetim
+                    kaydı</a
+                  >
+                </li>
+              </ul>
+            </nav>
+            <div class="account">
+              <span class="avatar">DA</span>
+              <span><b>Deniz Arslan</b><small>Yönetici</small></span>
+            </div>
+          </aside>
+
+          <div class="sheet">
+            <header class="bar">
+              <div class="crumbs">
+                <span>Çalışma alanı</span>
+                <svg class="i flip"><use href="#i-arrow" /></svg>
+                <b>Bugün</b>
+              </div>
+              <div class="bar-end">
+                <span class="pill-btn"
+                  ><svg class="i"><use href="#i-building" /></svg>Galata
+                  Rezidans<svg class="i"><use href="#i-down" /></svg
+                ></span>
+                <span class="pill-btn"
+                  ><svg class="i"><use href="#i-globe" /></svg>TR</span
+                >
+                <span class="avatar">DA</span>
+              </div>
+            </header>
+
+            <main class="page">
+              <h1><span>İyi günler,</span> <b>Deniz</b></h1>
+              <p class="sub-h">Galata Rezidans · 16 Eyl 2026, Çarşamba</p>
+
+              <section class="stats" aria-label="Özet">
+                <div class="stat lead">
+                  <div class="eyebrow">Doluluk</div>
+                  <div class="big num">%81 <small>39 / 48 oda</small></div>
+                  <p>Dün %77</p>
+                </div>
+                <div class="stat">
+                  <div class="eyebrow">Bugünkü gelişler</div>
+                  <div class="big num">11</div>
+                  <p>3 oda henüz hazır değil</p>
+                </div>
+                <div class="stat">
+                  <div class="eyebrow">Bugünkü çıkışlar</div>
+                  <div class="big num">3</div>
+                  <p>1 çıkışta açık bakiye var</p>
+                </div>
+                <div class="stat">
+                  <div class="eyebrow">Açık bakiye</div>
+                  <div class="big num">₺18.420</div>
+                  <p>5 Konuk hesabında</p>
+                </div>
+              </section>
+
+              <div class="grid">
+                <section class="card" aria-labelledby="mov">
+                  <div class="card-head">
+                    <h2 id="mov">Bugünkü hareket</h2>
+                    <nav class="seg" aria-label="Hareket">
+                      <a href="#" aria-current="page">Gelişler · 11</a>
+                      <a href="#">Çıkışlar · 3</a>
+                    </nav>
+                  </div>
+                  <table>
+                    <caption class="sr-only">
+                      Bugün gelecek, henüz giriş yapmamış konuklar
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Konuk</th>
+                        <th scope="col">Oda</th>
+                        <th scope="col">Oda durumu</th>
+                        <th scope="col">Kalış</th>
+                        <th scope="col"><span class="sr-only">İşlem</span></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>
+                          <span class="who">Lina Haddad</span
+                          ><span class="ref">RZ-2609-0142 · Konuk</span>
+                        </td>
+                        <td class="num">204</td>
+                        <td>
+                          <span class="st bad"
+                            ><svg class="i"><use href="#i-alert" /></svg
+                            >Kirli</span
+                          >
+                        </td>
+                        <td class="num">3 gece</td>
+                        <td>
+                          <a class="act quiet" href="#">Yine de giriş…</a>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <span class="who">Mehmet Yıldız</span
+                          ><span class="ref">RZ-2609-0147 · Öğrenci</span>
+                        </td>
+                        <td class="num">311</td>
+                        <td>
+                          <span class="st ok"
+                            ><svg class="i"><use href="#i-check" /></svg
+                            >Hazır</span
+                          >
+                        </td>
+                        <td class="num">12 gece</td>
+                        <td><a class="act" href="#">Giriş yap</a></td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <span class="who">Aigerim Nurlan</span
+                          ><span class="ref">RZ-2609-0151 · Öğrenci</span>
+                        </td>
+                        <td class="num">118</td>
+                        <td>
+                          <span class="st wait"
+                            ><svg class="i"><use href="#i-clock" /></svg>Kontrol
+                            bekliyor</span
+                          >
+                        </td>
+                        <td class="num">30 gece</td>
+                        <td>
+                          <a class="act quiet" href="#">Yine de giriş…</a>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <span class="who">Ahmed Al-Sayed</span
+                          ><span class="ref">RZ-2609-0153 · Konuk</span>
+                        </td>
+                        <td class="num">207</td>
+                        <td>
+                          <span class="st ok"
+                            ><svg class="i"><use href="#i-check" /></svg
+                            >Hazır</span
+                          >
+                        </td>
+                        <td class="num">2 gece</td>
+                        <td><a class="act" href="#">Giriş yap</a></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </section>
+
+                <div style="display: grid; gap: 14px; align-content: start">
+                  <section class="card" aria-labelledby="att">
+                    <div class="card-head">
+                      <h2 id="att">Dikkat gerekiyor</h2>
+                    </div>
+                    <ul class="attention">
+                      <li>
+                        <svg class="i" style="color: var(--danger)">
+                          <use href="#i-alert" />
+                        </svg>
+                        <span
+                          ><b>204 numaralı oda kirli</b
+                          ><small>Lina Haddad 14:00'te geliyor</small></span
+                        >
+                      </li>
+                      <li>
+                        <svg class="i" style="color: var(--warning)">
+                          <use href="#i-card" />
+                        </svg>
+                        <span
+                          ><b>1 çıkışta açık bakiye</b
+                          ><small>₺2.140 · oda 305</small></span
+                        >
+                      </li>
+                    </ul>
+                  </section>
+                  <section class="card" aria-labelledby="flr">
+                    <div class="card-head"><h2 id="flr">Odalar</h2></div>
+                    <ul class="floors" aria-label="Katlara göre oda durumu">
+                      <li class="floor-row">
+                        <span>3. kat</span
+                        ><span
+                          class="meter"
+                          role="img"
+                          aria-label="12 odanın 9'u hazır, 1'i kontrol bekliyor, 2'si kirli"
+                          ><i style="flex: 9"></i><i style="flex: 1"></i
+                          ><i style="flex: 0"></i><i style="flex: 2"></i></span
+                        ><span class="num">9/12</span>
+                      </li>
+                      <li class="floor-row">
+                        <span>2. kat</span
+                        ><span
+                          class="meter"
+                          role="img"
+                          aria-label="12 odanın 8'i hazır, 2'si kontrol bekliyor, 2'si kirli"
+                          ><i style="flex: 8"></i><i style="flex: 2"></i
+                          ><i style="flex: 0"></i><i style="flex: 2"></i></span
+                        ><span class="num">8/12</span>
+                      </li>
+                      <li class="floor-row">
+                        <span>1. kat</span
+                        ><span
+                          class="meter"
+                          role="img"
+                          aria-label="12 odanın 8'i hazır, 3'ü kirli, 1'i hizmet dışı"
+                          ><i style="flex: 8"></i><i style="flex: 0"></i
+                          ><i style="flex: 1"></i><i style="flex: 3"></i></span
+                        ><span class="num">8/12</span>
+                      </li>
+                    </ul>
+                    <div class="legend">
+                      <span class="c1">Hazır</span
+                      ><span class="c2">Temiz, kontrol bekliyor</span
+                      ><span class="c3">Hizmet dışı</span
+                      ><span class="c4">Kirli</span>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+
+      <h2>Phone · 390 px</h2>
+      <p class="note">
+        Below <code>md</code> the frame is dropped: a full-bleed white page, so
+        no width is lost. The dock keeps the frame colour, so the identity
+        carries over, and floats at the foot as it does today.
+      </p>
+      <div class="stage">
+        <div class="phone-wrap">
+          <div class="phone">
+            <header class="bar">
+              <div class="crumbs"><b>Bugün</b></div>
+              <div class="bar-end">
+                <span class="pill-btn" style="height: 34px; padding: 0 12px"
+                  ><svg class="i"><use href="#i-building" /></svg>Galata<svg
+                    class="i"
+                  >
+                    <use href="#i-down" /></svg
+                ></span>
+                <span class="avatar">DA</span>
+              </div>
+            </header>
+            <main class="page">
+              <h1><span>İyi günler,</span> <b>Deniz</b></h1>
+              <p class="sub-h">16 Eyl 2026, Çarşamba</p>
+              <section class="stats" aria-label="Özet">
+                <div class="stat lead">
+                  <div class="eyebrow">Doluluk</div>
+                  <div class="big num">%81</div>
+                  <p>39 / 48 oda</p>
+                </div>
+                <div class="stat">
+                  <div class="eyebrow">Gelişler</div>
+                  <div class="big num">11</div>
+                  <p>3 oda hazır değil</p>
+                </div>
+              </section>
+              <section class="card" aria-labelledby="att-m">
+                <div class="card-head">
+                  <h2 id="att-m">Dikkat gerekiyor</h2>
+                </div>
+                <ul class="attention">
+                  <li>
+                    <svg class="i" style="color: var(--danger)">
+                      <use href="#i-alert" />
+                    </svg>
+                    <span
+                      ><b>204 numaralı oda kirli</b
+                      ><small>Lina Haddad 14:00'te geliyor</small></span
+                    >
+                  </li>
+                  <li>
+                    <svg class="i" style="color: var(--warning)">
+                      <use href="#i-card" />
+                    </svg>
+                    <span
+                      ><b>1 çıkışta açık bakiye</b
+                      ><small>₺2.140 · oda 305</small></span
+                    >
+                  </li>
+                </ul>
+              </section>
+            </main>
+            <nav class="dock" aria-label="Ana gezinme">
+              <a href="#" aria-current="page"
+                ><svg class="i"><use href="#i-house" /></svg>Bugün</a
+              >
+              <a href="#"
+                ><svg class="i"><use href="#i-hotel" /></svg>Ön büro</a
+              >
+              <a href="#"
+                ><svg class="i"><use href="#i-sparkles" /></svg>Kat hiz.</a
+              >
+              <a href="#"
+                ><svg class="i"><use href="#i-wallet" /></svg>Finans</a
+              >
+              <a href="#"
+                ><svg class="i"><use href="#i-cog" /></svg>Diğer</a
+              >
+            </nav>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

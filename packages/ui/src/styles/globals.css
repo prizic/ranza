@@ -48,6 +48,8 @@
 
   --radius: 1rem;
 
+  --sheet-radius: 1.75rem;
+
   /*
    * Geist, as Leaders sets it, for Turkish and English. Geist draws no Arabic,
    * so an Arabic page leads with IBM Plex Sans Arabic instead — its digits and
@@ -132,6 +134,41 @@
   --color-info-soft: var(--info-soft);
 
   --color-surface-strong: var(--surface-strong);
+
+  /*
+   * The frame: the sidebar and the margin around the page are one surface in
+   * the primary colour, and the page is a white sheet set into it. Drawn from
+   * `--primary` and `--primary-foreground` at the point of use rather than
+   * restated as tokens of their own, so an Organization's brand (ADR 0046),
+   * which sets those two on the shell, repaints the frame and keeps its text
+   * readable on a light brand colour. The tones are the foreground at three
+   * strengths because text and hover fills on this surface are drawn over it
+   * rather than chosen against it; at 74% white on the default emerald the
+   * muted tone is about 7:1.
+   */
+  --color-frame: var(--primary);
+  --color-on-frame: var(--primary-foreground);
+  --color-on-frame-muted: color-mix(
+    in srgb,
+    var(--primary-foreground) 74%,
+    transparent
+  );
+  --color-frame-line: color-mix(
+    in srgb,
+    var(--primary-foreground) 14%,
+    transparent
+  );
+  --color-frame-hover: color-mix(
+    in srgb,
+    var(--primary-foreground) 8%,
+    transparent
+  );
+  --color-frame-active: color-mix(
+    in srgb,
+    var(--primary-foreground) 15%,
+    transparent
+  );
+  --radius-sheet: var(--sheet-radius);
 
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
@@ -262,22 +299,9 @@
 
 /*
  * The surfaces the Leaders direction is built from. Utilities rather than
- * classes, so they compose with variants (`md:glass-panel`, `hover:`) like
+ * classes, so they compose with variants (`md:glass`, `hover:`) like
  * everything else and a component never names a bespoke class.
  */
-
-/* A floating panel: near-opaque white, a hairline you feel more than see, and
-   a long soft shadow that lifts it off the white canvas. Leaders' values. */
-@utility glass-panel {
-  background: rgb(255 255 255 / 85%);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgb(0 0 0 / 3%);
-  box-shadow:
-    0 4px 6px -1px rgb(0 0 0 / 2%),
-    0 2px 4px -1px rgb(0 0 0 / 2%),
-    0 20px 40px -8px rgb(0 0 0 / 4%);
-}
 
 /* A lighter translucent chip, for controls laid over a surface. */
 @utility glass {

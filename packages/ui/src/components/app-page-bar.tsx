@@ -10,13 +10,13 @@ export interface PageCrumb {
 }
 
 /**
- * The bar above every surface, and the page's title under it.
+ * The bar across the head of the page's sheet, and the page's title under it.
  *
- * Leaders' header (leaders-portal/src/components/layout/header.tsx): a floating
- * glass bar that carries the trail — a quiet uppercase root, then the levels
- * above, then the page — with the page's controls on its end edge; and the title
- * itself set light at the head of the content, where it reads as the page rather
- * than as chrome.
+ * The bar carries the trail — a quiet uppercase root, then the levels above,
+ * then the page — with the page's controls on its end edge, and is divided from
+ * the content by a hairline rather than floated above it. The title itself is
+ * set light at the head of the content, where it reads as the page rather than
+ * as chrome.
  *
  * A page whose content opens with its own display type (Today sets the weekday)
  * passes `display={false}`, and the bar's last crumb becomes the heading
@@ -27,7 +27,7 @@ export interface PageCrumb {
  * by the page's own display type — is left to assistive technology.
  *
  * `tabs` — the pages of the section this one belongs to — sit under the bar
- * rather than in it, where Leaders keeps nothing but the trail and its controls.
+ * rather than in it, where the bar keeps nothing but the trail and its controls.
  *
  * The title arrives as a prop rather than being resolved from the pathname here,
  * because the routes are locale-prefixed and this package deliberately knows
@@ -76,8 +76,8 @@ export function AppPageBar({
     <>
       <header
         className={cn(
-          "glass-panel mb-6 flex h-16 shrink-0 items-center justify-between gap-4 rounded-2xl pe-3 sm:pe-6",
-          back ? "ps-3 sm:ps-4" : "ps-4 sm:ps-6",
+          "flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border pe-4 md:pe-8",
+          back ? "ps-2 md:ps-6" : "ps-4 md:ps-8",
         )}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
@@ -119,13 +119,17 @@ export function AppPageBar({
         ) : null}
       </header>
 
-      {tabs}
+      {/* Present even when empty: its top padding is the space between the bar
+          and the content on a page with no title or tabs of its own. */}
+      <div className="px-4 pt-6 md:px-8">
+        {tabs}
 
-      {display ? (
-        <h1 className="mb-1.5 text-2xl leading-tight font-light tracking-tight text-foreground sm:text-3xl">
-          {title}
-        </h1>
-      ) : null}
+        {display ? (
+          <h1 className="mb-1.5 text-2xl leading-tight font-light tracking-tight text-foreground sm:text-3xl">
+            {title}
+          </h1>
+        ) : null}
+      </div>
     </>
   );
 }

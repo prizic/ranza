@@ -41,8 +41,9 @@ import {
  * Portal, in a browser context of its own.
  *
  * What a colour "carries" is asserted in computed style rather than in a
- * class name: the active navigation item is the one `bg-primary` element
- * every Portal page has, and the shell holds the two tokens a brand sets.
+ * class name: the frame around the page is the one surface every Portal page
+ * paints in the primary colour, and the shell holds the two tokens a brand
+ * sets.
  *
  * Every test starts from an Organization with no brand and brings a Resident
  * of its own, because a Stay is history that is never deleted.
@@ -65,16 +66,31 @@ async function aPortalPage(browser: Browser): Promise<Page> {
   return context.newPage();
 }
 
-/** What the active navigation item is painted in: the one `bg-primary` on every page. */
-async function activeItem(
+/**
+ * What the frame is painted in, and what is written on it: the first surface
+ * behind the sidebar that has a colour, and the colour of the active
+ * navigation item set on it.
+ */
+async function theFrame(
   page: Page,
 ): Promise<{ background: string; text: string }> {
-  const item = page.locator('aside a[aria-current="page"]');
-  await expect(item).toBeVisible();
-  return item.evaluate((element) => ({
-    background: getComputedStyle(element).backgroundColor,
-    text: getComputedStyle(element).color,
-  }));
+  const sidebar = page.locator("aside");
+  await expect(sidebar.locator('a[aria-current="page"]')).toBeVisible();
+  return sidebar.evaluate((element) => {
+    const item = element.querySelector('a[aria-current="page"]');
+    let surface: Element | null = element;
+    while (surface) {
+      const background = getComputedStyle(surface).backgroundColor;
+      if (background !== "rgba(0, 0, 0, 0)" && background !== "transparent") {
+        return {
+          background,
+          text: getComputedStyle(item ?? element).color,
+        };
+      }
+      surface = surface.parentElement;
+    }
+    throw new Error("nothing behind the sidebar has a colour");
+  });
 }
 
 /** A CSS colour as the browser computes it (`rgb(...)` or `#rrggbb`), against white. */
@@ -125,7 +141,7 @@ test("BR-S1-01: the Owner brands the Organization and the Resident's Portal carr
   const resident = await aResident(request);
   const portal = await aPortalPage(browser);
   await signInToThePortal(portal, resident.email);
-  const before = await activeItem(portal);
+  const before = await theFrame(portal);
   await expect(portal.locator("header img")).toHaveCount(0);
 
   await signIn(page, OWNER_EMAIL);
@@ -169,7 +185,7 @@ test("BR-S1-01: the Owner brands the Organization and the Resident's Portal carr
     .poll(() => logo.evaluate((image: HTMLImageElement) => image.naturalWidth))
     .toBeGreaterThan(0);
 
-  const after = await activeItem(portal);
+  const after = await theFrame(portal);
   expect(after).toEqual({ background: BURGUNDY_RGB, text: WHITE_RGB });
   expect(before.background).not.toBe(BURGUNDY_RGB);
   await expect
@@ -191,11 +207,11 @@ test("BR-S1-12: reset returns the Portal to the default theme", async ({
   const resident = await aResident(request);
   const portal = await aPortalPage(browser);
   await signInToThePortal(portal, resident.email);
-  const defaults = await activeItem(portal);
+  const defaults = await theFrame(portal);
 
   brandTheOrganization(theOrganization(), BURGUNDY, aLogo());
   await portal.reload();
-  expect((await activeItem(portal)).background).toBe(BURGUNDY_RGB);
+  expect((await theFrame(portal)).background).toBe(BURGUNDY_RGB);
   await expect(portal.locator("header img")).toBeVisible();
 
   await signIn(page, OWNER_EMAIL);
@@ -207,7 +223,7 @@ test("BR-S1-12: reset returns the Portal to the default theme", async ({
 
   await portal.reload();
   await expect(portal.locator("header img")).toHaveCount(0);
-  expect(await activeItem(portal)).toEqual(defaults);
+  expect(await theFrame(portal)).toEqual(defaults);
   await expect(shellOf(portal)).not.toHaveAttribute("style", /--primary/);
 });
 
@@ -266,7 +282,7 @@ test("BR-S1-04: a link in the Portal of an orange brand reads at 4.5:1 on white"
   await signInToThePortal(portal, resident.email);
 
   // Fills are the colour as it is.
-  expect((await activeItem(portal)).background).toBe("rgb(230, 126, 34)");
+  expect((await theFrame(portal)).background).toBe("rgb(230, 126, 34)");
 
   // The Portal has no link on its one page, so one is drawn where a link
   // would be, in the theme's own class for it, inside the branded shell.

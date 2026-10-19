@@ -103,6 +103,7 @@ for how components are organised.
 --line-strong: hsl(170 10% 80%);
 --focus: hsl(172 65% 20%);
 --radius: 1rem;
+--sheet-radius: 1.75rem; /* the page's white sheet, ADR 0055 (proposed) */
 --shadow: 0 20px 60px rgba(0, 0, 0, 0.06);
 --shadow-low: 0 4px 14px rgba(10, 41, 36, 0.04);
 font-family: Geist, "IBM Plex Sans Arabic", system-ui, sans-serif;
@@ -138,6 +139,14 @@ an entry is a bug.
   Ranza has no reset flow and a link to nowhere is worse than none. Its service
   row names the workspace's built screens, and in the Portal what the Stay
   page shows.
+- **The shell** (proposed, [ADR 0055](../adr/0055-the-page-is-a-white-sheet-set-into-a-frame-the-sidebar-shares.md),
+  awaiting the owner). Leaders floats a glass sidebar and a glass bar on a
+  white canvas. Ranza's sidebar and the margin around the page are one surface
+  in `--primary`, the page is a single white sheet set into it with the bar as
+  its head, and on a phone the frame is dropped. Text on the frame is
+  `--primary-foreground` at three strengths and its focus ring is white, so an
+  Organization's brand repaints it and stays legible. Static reference:
+  [`mockups/shell-inset.html`](mockups/shell-inset.html).
 - **Sidebar.** Ranza has destinations nested under a group (Front Office), and
   Leaders has no pattern for them, so a group opens as an indented list. The
   sidebar also folds to icons, which Leaders' does not, and tightens its rows
