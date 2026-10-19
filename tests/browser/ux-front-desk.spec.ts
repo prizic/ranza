@@ -401,6 +401,9 @@ test.describe("Reservations take a booking and read one (RANZ-58)", () => {
     });
     await expect(suggestion).toBeVisible();
     await expect(suggestion).toContainText(email);
+    await page.screenshot({
+      path: path.join(EVIDENCE, "RANZ-58", "returning-guest-suggested.png"),
+    });
     await suggestion.click();
     await expect(dialog.getByLabel("Email")).toHaveValue(email);
     await expect(dialog.getByLabel("Phone")).toHaveValue(`+90 ${number}`);
@@ -635,6 +638,10 @@ test.describe("Arrivals work in the order a desk works them (RANZ-60)", () => {
       [...order].sort((a, b) => a - b),
     );
     expect(order.every((index) => index >= 0)).toBe(true);
+
+    await page.screenshot({
+      path: path.join(EVIDENCE, "RANZ-60", "arrivals-in-working-order.png"),
+    });
 
     // The cause is on the badge, and the menu leads to the board.
     const dirtyRow = page.getByRole("row").filter({ hasText: dirty.guestName });

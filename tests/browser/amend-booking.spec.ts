@@ -118,7 +118,9 @@ test("change_actions_are_where_the_desk_works: a booking moves to other nights a
   const done = page.getByRole("button", { name: "Done" });
   if (await done.isVisible()) await done.click();
   await expect(
-    dialog.getByText("Room has no price: the booking will be unpriced."),
+    dialog.getByText(
+      "No rate is set for Room; this booking is already unpriced.",
+    ),
   ).toBeVisible();
   await dialog.getByLabel("Note (optional)").fill("The Guest asked");
   await dialog.getByRole("button", { name: "Save change" }).click();
