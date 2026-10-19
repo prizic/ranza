@@ -152,7 +152,9 @@ test("a typed address a role may not open says why, in English", async ({
   await expect(
     page.getByRole("heading", { name: "Your role can't open this page" }),
   ).toBeVisible();
-  await expect(page.locator("main")).toContainText("“See data exports”");
+  await expect(page.locator("main")).toContainText(
+    "“See and download data exports”",
+  );
   await expect(page.locator("main")).toContainText("Owners and Managers can");
   await expect(
     page.locator("main"),
@@ -245,7 +247,9 @@ test("a typed address says the same thing in Arabic, mirrored", async ({
   await expect(
     page.getByRole("heading", { name: "دورك لا يتيح فتح هذه الصفحة" }),
   ).toBeVisible();
-  await expect(page.locator("main")).toContainText("«عرض عمليات التصدير»");
+  await expect(page.locator("main")).toContainText(
+    "«عرض عمليات التصدير وتنزيلها»",
+  );
   expect(await page.locator("html").getAttribute("dir")).toBe("rtl");
   await page.screenshot({ path: path.join(EVIDENCE, "no-permission-ar.png") });
 
