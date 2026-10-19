@@ -255,3 +255,51 @@ export function aBacklog(propertyId: string, closedDaysAgo: number): void {
      from public.properties where id = '${propertyId}';`,
   );
 }
+
+/**
+ * A maintenance request holding a room out of order, the way Maintenance's
+ * "Take it out of order" writes one: the request, then its hold. Returns the
+ * request's number, which the desk reads as `MT-<number>`.
+ *
+ * The Property needs the `maintenance` capability, or nothing reads the hold.
+ */
+export function holdRoomOutOfOrder(
+  propertyId: string,
+  unitName: string,
+  expectedBackInDays: number | null,
+): number {
+  const number = psql(
+    `select set_config('app.user_id',
+            (select id::text from public.users
+              where lower(email) = lower('${EMAIL}')), true);
+     with member as (
+       select id from public.users where lower(email) = lower('${EMAIL}')
+     ), unit as (
+       select id, organization_id from public.accommodation_units
+        where property_id = '${propertyId}' and name = '${unitName}'
+     ), request as (
+       insert into public.maintenance_requests
+         (organization_id, property_id, number, title, accommodation_unit_id,
+          priority, status, reported_by)
+       select unit.organization_id, '${propertyId}',
+              coalesce((select max(number) from public.maintenance_requests
+                         where property_id = '${propertyId}'), 0) + 1,
+              'Broken lock', unit.id, 'urgent', 'new', member.id
+         from unit, member
+       returning id, organization_id, number
+     ), out as (
+       update public.accommodation_units
+          set status = 'out_of_service'
+        where property_id = '${propertyId}' and name = '${unitName}'
+     ), hold as (
+       insert into public.maintenance_unit_holds
+         (request_id, organization_id, property_id, taken_by, expected_back_on)
+       select request.id, request.organization_id, '${propertyId}',
+              (select id from member),
+              ${expectedBackInDays === null ? "null" : `app.property_today('${propertyId}') + ${expectedBackInDays}`}
+         from request
+     )
+     select number from request`,
+  );
+  return Number(number.split("\n").pop());
+}
