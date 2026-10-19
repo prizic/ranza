@@ -177,7 +177,7 @@ describe("Guest Services Unit Tests (GX-S1-01 to GX-S1-18)", () => {
         $transaction: vi.fn(async (run: (c: any) => Promise<any>) =>
           run(mockDb),
         ),
-        $queryRaw: vi.fn().mockResolvedValue([]),
+        $queryRaw: vi.fn().mockResolvedValue([{ id: "req-1" }]),
         serviceRequest: {
           findUnique: vi.fn().mockResolvedValue({
             id: "req-1",

@@ -140,6 +140,7 @@ describe("every catalogue parses", () => {
             // formatted by nothing else until a screen renders it.
             expect(() =>
               translate(path.join("."), {
+                age: "3 hr. ago",
                 amount: "₺3.000,00",
                 available: 200,
                 balance: "₺45,00",
@@ -191,6 +192,7 @@ describe("every catalogue parses", () => {
                 roles: "x",
                 room: "x",
                 seconds: 2,
+                setting: "x",
                 shade: "#a35200",
                 state: "x",
                 status: "x",
