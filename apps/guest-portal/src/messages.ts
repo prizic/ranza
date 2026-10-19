@@ -23,11 +23,26 @@ export interface Messages {
   account: string;
   stay: string;
 
-  property: string;
-  unit: string;
   arrival: string;
   departure: string;
   openEnded: string;
+  stayKind: string;
+  serviceRoom: string;
+  serviceProperty: string;
+  serviceDates: string;
+  signInHelp: string;
+  forgotPassword: string;
+  helpTitle: string;
+  helpBody: string;
+  backToSignIn: string;
+  notFoundTitle: string;
+  notFoundBody: string;
+  goToStay: string;
+  errorTitle: string;
+  errorBody: string;
+  tryAgain: string;
+  signInMissing: string;
+  codeMissing: string;
   sleeps: string;
 
   noStayTitle: string;
@@ -77,22 +92,39 @@ export const messages: Record<SupportedLocale, Messages> = {
     account: "Hesap",
     stay: "Konaklamam",
 
-    property: "Tesis",
-    unit: "Birim",
     arrival: "Giriş",
     departure: "Çıkış",
-    openEnded: "Süresiz",
+    openEnded: "Bitiş tarihi yok",
+    stayKind: "Konaklama türü",
+    serviceRoom: "Odanız",
+    serviceProperty: "Tesisiniz",
+    serviceDates: "Giriş ve çıkış",
+    signInHelp:
+      "Hesabınız yok ya da giriş yapamıyor musunuz? Tesisin resepsiyonuna danışın.",
+    forgotPassword: "Parolanızı mı unuttunuz?",
+    helpTitle: "Yeniden giriş yapma",
+    helpBody:
+      "Parolayı e-postayla sıfırlama henüz yok. Tesisin resepsiyonuna başvurun, oturum açmanıza yardımcı olurlar.",
+    backToSignIn: "Oturum açmaya dön",
+    notFoundTitle: "Bu sayfa yok",
+    notFoundBody: "Adresi kontrol edin ya da konaklamanıza dönün.",
+    goToStay: "Konaklamama git",
+    errorTitle: "Bir şeyler ters gitti",
+    errorBody:
+      "Bu sayfa gösterilemedi. Yeniden deneyin; sürerse resepsiyona başvurun.",
+    tryAgain: "Yeniden dene",
+    signInMissing: "E-postanızı ve parolanızı girin.",
+    codeMissing: "Kodu girin.",
     // Türkçe sayıdan sonra çoğul almaz, so one form covers every count.
     sleeps: "{count} kişilik",
 
-    noStayTitle: "Görüntülenecek bir konaklamanız yok",
-    noStayDescription:
-      "Bir tesis size konaklama tanımladığında ayrıntılar burada görünür.",
+    noStayTitle: "Şu anda bir konaklamanız yok",
+    noStayDescription: "Bir konaklama bekliyorsanız tesisle iletişime geçin.",
 
     signInSummary: "Konaklamanızı görmek için oturum açın.",
     authSlogan: "Huzurlu konaklama, dijital kolaylık.",
     authSubSlogan:
-      "Konaklamanızı, odanızı ve rezervasyon detaylarınızı zahmetsizce yönetin.",
+      "Odanızı, tesisinizi ve tarihlerinizi nerede olursanız olun görün.",
     welcomeBack: "Tekrar hoş geldiniz",
     email: "E-posta",
     password: "Parola",
@@ -136,21 +168,38 @@ export const messages: Record<SupportedLocale, Messages> = {
     account: "Account",
     stay: "My stay",
 
-    property: "Property",
-    unit: "Unit",
     arrival: "Arrival",
     departure: "Departure",
-    openEnded: "Open-ended",
+    openEnded: "No end date",
+    stayKind: "Stay type",
+    serviceRoom: "Your room",
+    serviceProperty: "Your property",
+    serviceDates: "Arrival and departure",
+    signInHelp:
+      "No account, or can't sign in? Ask the front desk at your property.",
+    forgotPassword: "Forgot your password?",
+    helpTitle: "Getting back in",
+    helpBody:
+      "Resetting a password by email is not available yet. Ask the front desk at your property and they will help you sign in.",
+    backToSignIn: "Back to sign in",
+    notFoundTitle: "This page doesn't exist",
+    notFoundBody: "Check the address, or go back to your stay.",
+    goToStay: "Go to my stay",
+    errorTitle: "Something went wrong",
+    errorBody:
+      "This page could not be shown. Try again; if it keeps happening, ask the front desk.",
+    tryAgain: "Try again",
+    signInMissing: "Enter your email and your password.",
+    codeMissing: "Enter the code.",
     sleeps: "Sleeps {count}",
 
-    noStayTitle: "You have no stay to show",
-    noStayDescription:
-      "Details appear here once a Property has set up your stay.",
+    noStayTitle: "You have no current stay",
+    noStayDescription: "If you expected one, contact the property.",
 
     signInSummary: "Sign in to see your stay.",
     authSlogan: "Your stay, elevated.",
     authSubSlogan:
-      "Access your residence details, accommodation unit, and stay history seamlessly.",
+      "See your room, your property and your dates, wherever you are.",
     welcomeBack: "Welcome back",
     email: "Email",
     password: "Password",
@@ -172,7 +221,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     stayType: { guest: "Guest", resident: "Resident" },
     stayStatus: {
       reserved: "Reserved",
-      in_house: "In house",
+      in_house: "Staying now",
       departed: "Departed",
       cancelled: "Cancelled",
     },
@@ -194,23 +243,40 @@ export const messages: Record<SupportedLocale, Messages> = {
     account: "الحساب",
     stay: "إقامتي",
 
-    property: "المنشأة",
-    unit: "الوحدة",
     arrival: "الوصول",
     departure: "المغادرة",
-    openEnded: "غير محددة",
+    openEnded: "بلا تاريخ انتهاء",
+    stayKind: "نوع الإقامة",
+    serviceRoom: "غرفتك",
+    serviceProperty: "منشأتك",
+    serviceDates: "الوصول والمغادرة",
+    signInHelp:
+      "ليس لديك حساب أو لا تستطيع الدخول؟ اطلب المساعدة من مكتب الاستقبال في منشأتك.",
+    forgotPassword: "نسيت كلمة المرور؟",
+    helpTitle: "العودة إلى حسابك",
+    helpBody:
+      "إعادة تعيين كلمة المرور عبر البريد الإلكتروني غير متاحة بعد. اطلب المساعدة من مكتب الاستقبال في منشأتك وسيساعدونك على تسجيل الدخول.",
+    backToSignIn: "العودة إلى تسجيل الدخول",
+    notFoundTitle: "هذه الصفحة غير موجودة",
+    notFoundBody: "تحقق من العنوان أو عد إلى إقامتك.",
+    goToStay: "اذهب إلى إقامتي",
+    errorTitle: "حدث خطأ ما",
+    errorBody:
+      "تعذّر عرض هذه الصفحة. حاول مرة أخرى؛ وإن استمرت المشكلة فاسأل مكتب الاستقبال.",
+    tryAgain: "حاول مرة أخرى",
+    signInMissing: "أدخل بريدك الإلكتروني وكلمة المرور.",
+    codeMissing: "أدخل الرمز.",
     // Arabic agrees with the number in six categories, which is the whole
     // reason this is ICU and not a label with a digit appended to it.
     sleeps:
       "{count, plural, one {تتسع لشخص واحد} two {تتسع لشخصين} few {تتسع لـ # أشخاص} many {تتسع لـ # شخصًا} other {تتسع لـ # شخص}}",
 
-    noStayTitle: "لا توجد إقامة لعرضها",
-    noStayDescription: "تظهر التفاصيل هنا بمجرد أن تُسجّل المنشأة إقامتك.",
+    noStayTitle: "لا توجد إقامة حالية",
+    noStayDescription: "إذا كنت تتوقع إقامة، فتواصل مع المنشأة.",
 
     signInSummary: "سجّل الدخول لعرض إقامتك.",
     authSlogan: "إقامتك بكل راحة واطمئنان.",
-    authSubSlogan:
-      "تابع تفاصيل إقامتك ووحدتك السكنية وسجل الحجوزات بكل سهولة ويسر.",
+    authSubSlogan: "اطّلع على غرفتك ومنشأتك وتواريخ إقامتك أينما كنت.",
     welcomeBack: "مرحبًا بك من جديد",
     email: "البريد الإلكتروني",
     password: "كلمة المرور",

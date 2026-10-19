@@ -108,7 +108,7 @@ export function LanguageSwitcher({
           return (
             <DropdownMenuItem
               asChild
-              className="relative cursor-pointer gap-2 ps-8"
+              className="relative cursor-pointer gap-2 ps-8 pointer-coarse:min-h-11"
               key={option.code}
             >
               <a

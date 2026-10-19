@@ -1,4 +1,6 @@
+import { Fragment } from "react";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import {
   formatDate,
   isSupportedLocale,
@@ -11,6 +13,7 @@ import {
   Fact,
   FactList,
   PageHeader,
+  Separator,
 } from "@ranza/ui";
 import { brandStyle } from "../../../../lib/brand-style";
 import { ownStays, stayBrands } from "../../../../server/viewer";
@@ -46,6 +49,32 @@ function formatStayDate(iso: string, locale: SupportedLocale): string {
   });
 }
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isSupportedLocale(locale)) return {};
+  const t = await getTranslations({ locale });
+  return { title: t("stay") };
+}
+
+/**
+ * Where the guest is now comes first: a Stay in house, then the ones still to
+ * come by their arrival, so a later booking is never drawn above the room they
+ * are sleeping in (GP-07).
+ */
+function nowFirst<T extends { status: string; startsOn: string }>(
+  stays: readonly T[],
+): T[] {
+  return [...stays].sort(
+    (a, b) =>
+      Number(b.status === "in_house") - Number(a.status === "in_house") ||
+      a.startsOn.localeCompare(b.startsOn),
+  );
+}
+
 export default async function StayPage({
   params,
 }: {
@@ -56,7 +85,8 @@ export default async function StayPage({
   setRequestLocale(locale);
 
   const t = await getTranslations();
-  const [stays, brands] = await Promise.all([ownStays(), stayBrands()]);
+  const [ownedStays, brands] = await Promise.all([ownStays(), stayBrands()]);
+  const stays = nowFirst(ownedStays);
 
   if (stays.length === 0) {
     return (
@@ -69,61 +99,68 @@ export default async function StayPage({
 
   return (
     <>
-      {stays.map((stay) => (
-        // Each Stay is drawn in its own Organization's brand, so a second
-        // Stay is not coloured by the first's (ADR 0046).
-        <section
-          key={stay.stayId}
-          style={
-            brandStyle(brands.find((entry) => entry.stayId === stay.stayId)) ??
-            defaultBrandVariables
-          }
-        >
-          <PageHeader
-            aside={
-              // The Unit takes the place the Workspace gives the clock: on a
-              // phone, in a corridor, the room number is the one fact worth
-              // reading at arm's length.
-              <p className="flex flex-col items-end text-end">
-                <span className="text-step-2 leading-none">
-                  {stay.unitName}
-                </span>
-                <span className="text-step--1 text-muted-foreground">
-                  {t(`unitType.${stay.unitType}`)} ·{" "}
-                  {t("sleeps", { count: stay.unitCapacity })}
-                </span>
-              </p>
+      {stays.map((stay, index) => (
+        <Fragment key={stay.stayId}>
+          {index > 0 ? (
+            <Separator className="my-10 h-0.5 bg-foreground/15" />
+          ) : null}
+          {/* Each Stay is drawn in its own Organization's brand, so a second
+            Stay is not coloured by the first's (ADR 0046). */}
+          <section
+            style={
+              brandStyle(
+                brands.find((entry) => entry.stayId === stay.stayId),
+              ) ?? defaultBrandVariables
             }
           >
-            {/* A Property name is not a weekday: several words, sometimes long,
+            <PageHeader
+              aside={
+                // The Unit takes the place the Workspace gives the clock: on a
+                // phone, in a corridor, the room number is the one fact worth
+                // reading at arm's length.
+                <p className="flex flex-col items-end text-end">
+                  <span className="text-step-2 leading-none">
+                    {stay.unitName}
+                  </span>
+                  <span className="text-step--1 text-muted-foreground">
+                    {t(`unitType.${stay.unitType}`)} ·{" "}
+                    {t("sleeps", { count: stay.unitCapacity })}
+                  </span>
+                </p>
+              }
+            >
+              {/* A Property name is not a weekday: several words, sometimes long,
                 read on a 390px screen. Same role as Today's heading, smaller
                 voice. */}
-            <h2 className="text-[clamp(1.75rem,6vw,2.75rem)] leading-[1.05] font-light">
-              {stay.propertyName}
-            </h2>
-            <p className="mt-2 text-muted-foreground">
-              {t(`stayStatus.${stay.status}`)}
-            </p>
-          </PageHeader>
+              <h2 className="text-[clamp(1.75rem,6vw,2.75rem)] leading-[1.05] font-light">
+                {stay.propertyName}
+              </h2>
+              <p className="mt-2 text-muted-foreground">
+                {t(`stayStatus.${stay.status}`)}
+              </p>
+            </PageHeader>
 
-          <FactList>
-            <Fact label={t("arrival")}>
-              <time dateTime={stay.startsOn}>
-                {formatStayDate(stay.startsOn, locale)}
-              </time>
-            </Fact>
-            <Fact label={t("departure")}>
-              {stay.endsOn ? (
-                <time dateTime={stay.endsOn}>
-                  {formatStayDate(stay.endsOn, locale)}
+            <FactList>
+              <Fact label={t("arrival")}>
+                <time dateTime={stay.startsOn}>
+                  {formatStayDate(stay.startsOn, locale)}
                 </time>
-              ) : (
-                t("openEnded")
-              )}
-            </Fact>
-            <Fact label={t("stay")}>{t(`stayType.${stay.stayType}`)}</Fact>
-          </FactList>
-        </section>
+              </Fact>
+              <Fact label={t("departure")}>
+                {stay.endsOn ? (
+                  <time dateTime={stay.endsOn}>
+                    {formatStayDate(stay.endsOn, locale)}
+                  </time>
+                ) : (
+                  t("openEnded")
+                )}
+              </Fact>
+              <Fact label={t("stayKind")}>
+                {t(`stayType.${stay.stayType}`)}
+              </Fact>
+            </FactList>
+          </section>
+        </Fragment>
       ))}
     </>
   );
