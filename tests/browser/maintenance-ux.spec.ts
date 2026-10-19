@@ -187,6 +187,9 @@ test("the board puts the urgent and the longest waiting first, finds a request, 
 
   // MAINT-04: urgent first, then by how long it has waited.
   const newColumn = page.locator('section[aria-labelledby="column-new"]');
+  await expect(
+    newColumn.getByRole("button", { name: /^Open MT-\d+$/ }),
+  ).toHaveCount(3);
   expect(await titles(newColumn)).toEqual([
     "UX urgent smoke",
     "UX this week paint",

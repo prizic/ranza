@@ -74,6 +74,7 @@ test("the queue puts the urgent first, a request is assigned, and mine can be fo
   await page.goto(`/en/guest-experience?property=${propertyId}`);
 
   // GX-04: urgent first, not whichever status sorts first alphabetically.
+  await expect(page.getByRole("row", { name: /GX/ })).toHaveCount(3);
   const titles = await page
     .locator("tbody tr td:nth-child(2) span.font-medium")
     .allTextContents();
