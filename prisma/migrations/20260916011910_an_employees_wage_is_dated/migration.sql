@@ -119,6 +119,14 @@ grant execute on function app.hr_payroll_approved_through(uuid) to ranza_app;
 -- When a wage may start
 -- ---------------------------------------------------------------------------
 
+-- Takes the Organization's payroll lock before it reads which month was last
+-- approved, and holds it to the end of the transaction. Approving a run takes the
+-- same lock before it reads the wages it will pay (`approvePayroll`), so a wage
+-- dated into a month and the approval of that month cannot both succeed: one of
+-- them waits for the other, and the second then sees what the first committed.
+-- Without it a wage could commit while its month was being approved, and the
+-- approved run would pay the old wage while the wage history said the raise
+-- started in that month.
 create function public.hr_wage_change_is_not_retroactive()
 returns trigger
 language plpgsql
@@ -126,8 +134,12 @@ as $$
 declare
   hired date;
   state text;
-  approved_through text := app.hr_payroll_approved_through(new.organization_id);
+  approved_through text;
 begin
+  perform pg_advisory_xact_lock(
+    hashtextextended('hr_payroll:' || new.organization_id::text, 0));
+  approved_through := app.hr_payroll_approved_through(new.organization_id);
+
   select employee.hired_on, employee.status
     into hired, state
     from public.hr_employees as employee

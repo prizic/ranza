@@ -322,6 +322,14 @@ export function createPayroll(deps: HrDeps) {
           hashtextextended(${`payroll:${organizationId}:${period}`}, 0))
       `;
 
+      // The Organization's payroll lock, before the wages are read: a wage dated
+      // into this month takes it too, so the two cannot both succeed and leave a
+      // run that paid the old wage under a history that says otherwise.
+      await tx.$executeRaw`
+        select pg_advisory_xact_lock(
+          hashtextextended(${`hr_payroll:${organizationId}`}, 0))
+      `;
+
       const access = await payrollAccess(tx, organizationId);
       if (!access.available || !access.manage) {
         throw new HrRefusedError("not_permitted");

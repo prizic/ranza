@@ -1547,6 +1547,58 @@ describe("an employee's record and wage can be changed", () => {
     expect(again?.status).toBe("approved");
   });
 
+  it("HR-S1-59: a wage dated into a month and that month's approval never both succeed with the old wage paid", async () => {
+    // Each round is an Organization of its own, because an approved run is
+    // history. Without the Organization's payroll lock a wage could commit while
+    // its month was being approved: the run paid the old wage, and the history
+    // said the raise started in that month.
+    const outcomes = { approvedFirst: 0, wageFirst: 0 };
+    for (let round = 0; round < 30; round += 1) {
+      const org = await seed(`race${round}`);
+      const person = await hr.registerEmployee(
+        org.manager,
+        anEmployee(org, { grossPayMinor: 1_000_000 }),
+      );
+      const settled = await Promise.allSettled([
+        hr.approvePayroll(org.manager, {
+          organizationId: org.organization,
+          period: "2025-06",
+        }),
+        hr.changeWage(org.manager, {
+          organizationId: org.organization,
+          employeeId: person.id,
+          effectiveFrom: "2025-06",
+          grossPayMinor: 2_000_000,
+        }),
+      ]);
+      const [approval, wage] = settled;
+      expect(approval?.status, `round ${round}: the approval`).toBe(
+        "fulfilled",
+      );
+      const paid =
+        approval?.status === "fulfilled"
+          ? approval.value.payslips.find(
+              (slip) => slip.employeeId === person.id,
+            )?.grossPayMinor
+          : undefined;
+      if (wage?.status === "fulfilled") {
+        // The raise was recorded for the month, so the run must have paid it.
+        expect(
+          paid,
+          `round ${round}: wage dated 2025-06 but run paid old pay`,
+        ).toBe(2_000_000);
+        outcomes.wageFirst += 1;
+      } else {
+        expect(wage?.reason).toMatchObject({ reason: "wage_period_approved" });
+        expect(paid).toBe(1_000_000);
+        outcomes.approvedFirst += 1;
+      }
+    }
+    // The race was actually run: both orders have to be possible, or the
+    // assertions above held for one order only.
+    expect(outcomes.approvedFirst + outcomes.wageFirst).toBe(30);
+  }, 120_000);
+
   it("HR-S1-60: a wage cannot start before the month somebody was hired", async () => {
     const person = await register({ hiredOn: new Date("2026-06-15") });
     await expect(raise(person.id, "2026-05", 1)).rejects.toBeInstanceOf(
