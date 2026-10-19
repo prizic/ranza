@@ -50,12 +50,12 @@ export function SplitAuthLayout({
     <div className="flex min-h-svh bg-background sm:p-4 lg:h-svh lg:overflow-hidden lg:p-6">
       <div className="mx-auto flex w-full max-w-[1440px] border-border bg-card shadow-sm sm:rounded-3xl sm:border lg:h-full lg:overflow-hidden">
         <div className="flex w-full flex-col px-4 py-8 sm:px-12 lg:h-full lg:w-1/2 lg:overflow-y-auto lg:px-16 lg:py-12 xl:px-20">
-          <div className="mb-auto flex flex-wrap items-center justify-between gap-4">
+          <header className="mb-auto flex flex-wrap items-center justify-between gap-4">
             <Wordmark badge={productBadge} name={productName} />
             {languageSwitcher}
-          </div>
+          </header>
 
-          <div className="my-auto w-full max-w-[440px] py-8 motion-safe:animate-rise">
+          <main className="my-auto w-full max-w-[440px] py-8 motion-safe:animate-rise">
             <h1 className="mb-2 text-[26px] leading-[1.1] font-semibold text-foreground sm:mb-3 sm:text-4xl lg:text-[40px] xl:text-[44px]">
               {title}
             </h1>
@@ -63,7 +63,7 @@ export function SplitAuthLayout({
               {subtitle}
             </p>
             {children}
-          </div>
+          </main>
         </div>
 
         <div className="hidden h-full w-1/2 p-2 lg:block">

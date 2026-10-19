@@ -603,8 +603,23 @@ describe("maintenance", () => {
     expect(links).toHaveLength(6);
     for (const link of links) {
       expect(link.getAttribute("href")).toMatch(
-        new RegExp(`/maintenance\\?property=${PROPERTY}$`),
+        new RegExp(`/maintenance\\?property=${PROPERTY}(&outOfOrder=1)?$`),
       );
+    }
+  });
+
+  it("the_rooms_out_of_order_figure_opens_the_board_narrowed_to_held_rooms: the statuses open it whole", () => {
+    view(manager(), "en");
+    const card = screen.getByRole("region", { name: "Maintenance" });
+    expect(
+      within(card)
+        .getByRole("link", { name: /Out of order/ })
+        .getAttribute("href"),
+    ).toBe(`/en/maintenance?property=${PROPERTY}&outOfOrder=1`);
+    for (const name of [/New/, /In progress/, /Waiting for parts/]) {
+      expect(
+        within(card).getByRole("link", { name }).getAttribute("href"),
+      ).toBe(`/en/maintenance?property=${PROPERTY}`);
     }
   });
 
