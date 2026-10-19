@@ -117,8 +117,13 @@ test("closing the tab with an unsaved edit uses the browser's own prompt", async
   await name.fill(`${await name.inputValue()} annex`);
 
   const prompted = page.waitForEvent("dialog");
+  const closed = page.waitForEvent("close");
   await page.close({ runBeforeUnload: true });
   const dialog = await prompted;
   expect(dialog.type()).toBe("beforeunload");
   await dialog.accept();
+  // `close` does not wait for the page to go once it has run `beforeunload`,
+  // and the hydration check that follows every test asks the page whether it
+  // is still there.
+  await closed;
 });

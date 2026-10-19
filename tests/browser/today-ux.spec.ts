@@ -196,6 +196,16 @@ test("a tab that goes offline says its figures are old, without waiting for a re
   await context.setOffline(false);
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await expect(page.getByRole("status").first()).toContainText(/^Updated/);
+  // A request the page had under way when the network went is reported by the
+  // browser as lost, which is what going offline does and not a fault of the
+  // page. Whether one was under way depends on the moment, so it is the one
+  // error this test caused itself and is not asked about.
+  reported.set(
+    page,
+    (reported.get(page) ?? []).filter(
+      (message) => !message.includes("ERR_INTERNET_DISCONNECTED"),
+    ),
+  );
 });
 
 test("arrivals and departures are tabs, and the arrow keys move between them", async ({
