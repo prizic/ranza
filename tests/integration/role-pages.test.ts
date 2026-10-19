@@ -51,7 +51,7 @@ const FRONT_OFFICE = [
 /** The pages each shipped role is offered, besides Today. */
 const OFFERED: Record<string, string[]> = {
   housekeeping: ["guest-experience", "housekeeping", "maintenance"],
-  finance: ["finance", "maintenance", "analytics", "data-export"],
+  finance: ["departures", "finance", "maintenance", "analytics", "data-export"],
   front_desk: [
     ...FRONT_OFFICE,
     "guest-experience",

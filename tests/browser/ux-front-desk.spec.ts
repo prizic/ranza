@@ -3,7 +3,7 @@ import path from "node:path";
 import { expect } from "@playwright/test";
 import { test } from "./hydration";
 import { psql } from "./local-database";
-import { aStaffMember, signIn } from "./front-desk";
+import { aStaffMemberHolding, signIn } from "./front-desk";
 import {
   aBacklog,
   aBooking,
@@ -762,13 +762,10 @@ test.describe("Arrivals work in the order a desk works them (RANZ-60)", () => {
     const propertyId = aDeskProperty();
     aBooking(propertyId, { startsIn: 0, nights: 2, label: "Seen" });
     anOverdueGuest(propertyId, { daysOverdue: 1 });
-    const finance = await aStaffMember(
-      request,
-      baseURL!,
-      propertyId,
-      "finance",
-    );
-    await signIn(page, finance.email);
+    const reader = await aStaffMemberHolding(request, baseURL!, propertyId, [
+      "front_desk.book",
+    ]);
+    await signIn(page, reader.email);
 
     await page.goto(`/en/arrivals?property=${propertyId}`);
     await expect(

@@ -101,7 +101,7 @@ export interface Screen {
  * What a role must hold to be offered a destination: any one of these. A role
  * reaches the pages of the work it does and no others — a Housekeeping Staff
  * Member is not offered Finance because the shell would otherwise show them
- * guest folios they have no job reading (ADR 0054, amending the approved
+ * guest folios they have no job reading (ADR 0056, amending the approved
  * read-only rows it names).
  *
  * The lists are the commands of the destination's own work, so a role gains a
@@ -117,6 +117,13 @@ const FRONT_DESK_WORK = [
 ] as const;
 
 const ROOM_WORK = [...FRONT_DESK_WORK, "accommodation.configure"] as const;
+
+/**
+ * Departures is also the page that says what each leaving Guest owes, which is
+ * why Today's finance focus links its balance figures to it: a role that
+ * manages Folios reads it, and checks nobody out for lack of `check_out`.
+ */
+const DEPARTURE_WORK = [...FRONT_DESK_WORK, "finance.manage_folio"] as const;
 
 const GUEST_SERVICES_WORK = [
   "guest_services.create_request",
@@ -212,7 +219,7 @@ export const SCREENS: Screen[] = [
       {
         segment: "departures",
         capability: "front_desk",
-        permission: FRONT_DESK_WORK,
+        permission: DEPARTURE_WORK,
         requires: "front_desk",
         module: "front_office",
         icon: LogOut,

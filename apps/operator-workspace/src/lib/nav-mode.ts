@@ -4,7 +4,7 @@
  * a sidebar is built for that many; within it a sidebar is a column that takes
  * the width of the page to list a handful of links.
  *
- * Six is where the shipped Finance role (five pages) fits one row on a laptop
+ * Six is where the shipped Finance role (six pages) fits one row on a laptop
  * with room to spare; a Front desk Staff Member, with eleven, keeps the sidebar.
  */
 export const TOP_NAV_MAX_PAGES = 6;

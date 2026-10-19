@@ -49,16 +49,29 @@ async function refusal(page: Page): Promise<string[]> {
   );
 }
 
-/** Every destination the sidebar offers, with its groups opened. */
+/**
+ * Every destination the role is offered, wherever the shell puts them: the
+ * sidebar, with its groups opened, or the chips in the page bar for a role with
+ * few enough pages to have no sidebar (ADR 0056).
+ */
 async function railLinks(page: Page): Promise<string[]> {
-  const rail = page.locator("aside nav");
-  await expect(rail).toBeVisible();
-  for (const group of await rail
+  const sidebar = page.locator("aside nav");
+  if ((await sidebar.count()) === 0) {
+    const chips = page.locator("header nav a[href]:visible");
+    await expect(chips.first()).toBeVisible();
+    return chips.evaluateAll((links) =>
+      links.map(
+        (link) => (link as HTMLAnchorElement).getAttribute("href") ?? "",
+      ),
+    );
+  }
+  await expect(sidebar).toBeVisible();
+  for (const group of await sidebar
     .locator('button[aria-expanded="false"]')
     .all()) {
     await group.click();
   }
-  return rail
+  return sidebar
     .locator("a[href]")
     .evaluateAll((links) =>
       links.map(
@@ -129,6 +142,46 @@ test("the rail lists what each role can open and nothing else", async ({
   expect(rails.front_desk).toEqual(
     expect.arrayContaining(["reservations", "arrivals", "departures"]),
   );
+});
+
+test("a role with few pages has chips in the bar and no sidebar, and a role with many keeps the sidebar (SP-S6-07)", async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  test.setTimeout(240_000);
+  const propertyId = testProperty();
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  const pages: Record<string, string[]> = {};
+  const sidebars: Record<string, number> = {};
+  for (const role of ["owner", "housekeeping"] as const) {
+    const { email } = await aStaffMember(request, baseURL!, propertyId, role);
+    await page.context().clearCookies();
+    await signIn(page, email);
+    await page.goto(`/en/today?property=${propertyId}`);
+    pages[role] = (await railLinks(page)).map((href) =>
+      href.replace(/^\/en\//, "").replace(/\?.*$/, ""),
+    );
+    sidebars[role] = await page.locator("aside").count();
+  }
+
+  expect(sidebars.owner).toBeGreaterThan(0);
+  expect(sidebars.housekeeping).toBe(0);
+  // Guest Experience is the role's too, but this Property has not switched it
+  // on, so the Property's capability withholds it as it always did.
+  expect(pages.housekeeping.sort()).toEqual(
+    ["housekeeping", "maintenance", "today"].sort(),
+  );
+  for (const closed of [
+    "finance",
+    "people",
+    "hr",
+    "analytics",
+    "configuration",
+  ]) {
+    expect(pages.housekeeping).not.toContain(closed);
+  }
 });
 
 test("a typed address a role may not open says why, in English", async ({

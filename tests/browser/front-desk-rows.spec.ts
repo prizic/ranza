@@ -5,7 +5,12 @@ import { test } from "./hydration";
 
 import { messages } from "../../apps/operator-workspace/src/messages";
 import { aFreshProperty } from "./fresh-property";
-import { anArrivalToday, aStaffMember, signIn } from "./front-desk";
+import {
+  anArrivalToday,
+  aStaffMember,
+  aStaffMemberHolding,
+  signIn,
+} from "./front-desk";
 import { psql } from "./local-database";
 
 /**
@@ -334,7 +339,7 @@ test("a departure row carries its balance and a menu, and checking out with mone
   ).toBe("in_house");
 });
 
-test("a Finance reader, who holds no front desk permission, sees the rows and has none of their actions", async ({
+test("a reader who may book and neither check in nor out sees the rows and has none of their actions", async ({
   page,
   request,
   baseURL,
@@ -348,12 +353,9 @@ test("a Finance reader, who holds no front desk permission, sees the rows and ha
     desk.propertyId,
     "manager",
   );
-  const finance = await aStaffMember(
-    request,
-    baseURL!,
-    desk.propertyId,
-    "finance",
-  );
+  const reader = await aStaffMemberHolding(request, baseURL!, desk.propertyId, [
+    "front_desk.book",
+  ]);
 
   await signIn(page, manager.email);
   const arriving = await openArrivals(page, desk.propertyId, guestName);
@@ -361,7 +363,7 @@ test("a Finance reader, who holds no front desk permission, sees the rows and ha
   await expect(arriving.getByText(words.checkedIn)).toBeVisible();
 
   await page.context().clearCookies();
-  await signIn(page, finance.email);
+  await signIn(page, reader.email);
 
   const row = await openArrivals(page, desk.propertyId, waiting);
   // The information is there: the time, the readiness, the nothing owed yet.

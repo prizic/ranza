@@ -409,7 +409,9 @@ test("a Property with housekeeping switched off shows the empty state, not anoth
   await expect(page.getByText(/Every room at/)).toHaveCount(0);
   await expect(page.getByRole("table")).toHaveCount(0);
   await expect(
-    page.getByText("Housekeeping is not on at this Property"),
+    page.getByRole("heading", {
+      name: "This module isn't switched on at this Property",
+    }),
   ).toBeVisible();
   // Reached, and off there — not a Property the viewer cannot reach at all.
   await expect(page.getByRole("button", { name: "Properties" })).toContainText(
@@ -489,7 +491,9 @@ test("from a page with no Property named, the rail does not offer Housekeeping w
   // F-2, fixed on its own branch — so it is read after a full load.
   await page.reload();
   await expect(
-    page.getByText("Housekeeping is not on at this Property"),
+    page.getByRole("heading", {
+      name: "This module isn't switched on at this Property",
+    }),
   ).toBeVisible();
 });
 
@@ -502,7 +506,7 @@ test("a Property the viewer does not reach shows the empty state under a switche
   await page.goto(`/en/housekeeping?property=${unreached}`);
 
   await expect(
-    page.getByText("Housekeeping is not on at this Property"),
+    page.getByRole("heading", { name: "That Property isn't one you can open" }),
   ).toBeVisible();
   // Not the viewer's first Property, where housekeeping is on: that would
   // contradict the page beneath it.

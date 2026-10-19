@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { cn } from "../lib/utils";
 
 /**
  * The frame: a sidebar down the start edge and the page as one white sheet set
@@ -6,7 +7,9 @@ import type { CSSProperties, ReactNode } from "react";
  * frame's colour, so the two read as one surface and the sheet is the only
  * white thing on the screen. On a phone the frame is dropped and the sheet is
  * the page; the rail is replaced by a dock at the foot, which is why `main`
- * reserves room for it.
+ * reserves room for it — and none when there is no dock. A frame with neither
+ * carries its navigation in the page bar, and the sheet is set in on every
+ * side because no sidebar supplies the start edge's margin.
  *
  * Every part is a slot. The rail needs the navigation tree, which carries icon
  * components and therefore cannot cross the server/client boundary; the page
@@ -45,11 +48,18 @@ export function AppShell({
 
         {rail}
 
-        <div className="min-w-0 flex-1 md:py-3 md:pe-3">
+        <div
+          className={cn("min-w-0 flex-1 md:py-3 md:pe-3", !rail && "md:ps-3")}
+        >
           <div className="flex min-h-svh flex-col bg-background md:min-h-[calc(100svh-1.5rem)] md:rounded-sheet">
             {pageBar}
             <main
-              className="w-full flex-1 px-4 pb-[calc(5.625rem+env(safe-area-inset-bottom))] focus:outline-none md:px-8 md:pb-12"
+              className={cn(
+                "w-full flex-1 px-4 focus:outline-none md:px-8 md:pb-12",
+                bottomNav
+                  ? "pb-[calc(5.625rem+env(safe-area-inset-bottom))]"
+                  : "pb-12",
+              )}
               id="main-content"
               tabIndex={-1}
             >

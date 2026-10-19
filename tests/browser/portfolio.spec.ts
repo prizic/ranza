@@ -9,11 +9,12 @@ import {
   anArrivalToday,
   aPropertyTheViewerDoesNotReach,
   aStaffMember,
-  HOUSEKEEPER_EMAIL,
+  aStaffMemberHolding,
   portfolioProperty,
   signIn,
   testProperty,
 } from "./front-desk";
+import { psql } from "./local-database";
 import { assignToProperty } from "./reported-months";
 
 /**
@@ -135,13 +136,32 @@ test("the back button leads to Today at the same Property", async ({
   await expect(page).toHaveURL(`/en/today?property=${propertyId}`);
 });
 
-test("a Housekeeping reader without finance.manage_folio sees money hidden, never zero", async ({
+test("a ledger reader without finance.manage_folio sees money hidden, never zero", async ({
   page,
+  request,
+  baseURL,
 }) => {
-  // The Housekeeping colleague reaches this Property and a demo one, not the
-  // browser tests' main Property (seed.setup.ts).
+  // Reads the ledger, so is offered All Properties, and does not manage Folios,
+  // so every money figure is withheld while the day's counts are still its own:
+  // no shipped role is that (ADR 0056). It reaches this Property and the
+  // browser tests' main one.
   const second = portfolioProperty();
-  await signIn(page, HOUSEKEEPER_EMAIL);
+  const reader = await aStaffMemberHolding(request, baseURL!, second, [
+    "finance.view_ledger",
+    "front_desk.check_in",
+    "housekeeping.update_status",
+    "maintenance.report",
+  ]);
+  assignToProperty(
+    psql(
+      `select id from public.properties
+        where name = 'Deniz Otel Kadıköy'
+          and organization_id = (
+            select organization_id from public.properties where id = '${second}')`,
+    ),
+    reader.email,
+  );
+  await signIn(page, reader.email);
   await page.goto(portfolioUrl(second));
 
   await expect(card(page, PORTFOLIO_NAME)).toBeVisible();
