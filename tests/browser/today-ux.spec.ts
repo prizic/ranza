@@ -315,17 +315,26 @@ test("on a phone the figures come straight after what needs attention", async ({
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await signInAs(page, "front_desk");
-  const attention = await page.locator("#today-attention").boundingBox();
+  const region = page.getByRole("region", { name: "Needs attention" });
+  await expect(region.getByRole("listitem").first()).toBeVisible();
+  // Folded, so the figures are not two thousand pixels down: four rooms
+  // before "more", and the one card for days waiting to be closed, which no
+  // fold hides.
+  const cards = region
+    .getByRole("listitem")
+    .filter({ hasNot: page.getByRole("button", { name: /^\d+ more$/ }) });
+  expect(await cards.count()).toBeLessThanOrEqual(4 + 1);
+  const attention = await region.boundingBox();
   const tile = await page
     .getByRole("link", { name: /Checked in/ })
     .boundingBox();
   const movements = await page
     .getByRole("heading", { name: "Today's movements" })
     .boundingBox();
-  expect(tile!.y).toBeGreaterThan(attention!.y);
+  // Straight after: nothing between the list and the first figure but the
+  // page's own gap of 1.5 rem.
+  expect(tile!.y - (attention!.y + attention!.height)).toBeCloseTo(24, 0);
   expect(tile!.y).toBeLessThan(movements!.y);
-  // Not two thousand pixels down.
-  expect(tile!.y).toBeLessThan(1_300);
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - window.innerWidth,
   );
