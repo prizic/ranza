@@ -19,6 +19,11 @@
 // parts see exactly what one run would. The seed project runs at the head of
 // every part and is safe to repeat.
 //
+// Each part writes into a directory of its own, because Playwright empties its
+// output directory as it starts: in one shared one, the trace of a test that
+// failed in the second part was gone by the end of the fourth, which is when
+// CI uploads them.
+//
 // Arguments are the way to run a few specs, and a few specs need no splitting:
 // `pnpm test:browser tests/browser/today.spec.ts` is one ordinary invocation.
 import { spawnSync } from "node:child_process";
@@ -34,6 +39,7 @@ const invocations =
     ? [[]]
     : Array.from({ length: PARTS }, (_, index) => [
         `--shard=${index + 1}/${PARTS}`,
+        `--output=test-results/part-${index + 1}`,
       ]);
 
 // Every part runs even when an earlier one failed: a red run should say
