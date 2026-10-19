@@ -45,6 +45,7 @@ for (const invocation of invocations) {
     ["exec", "playwright", "test", ...forwarded, ...invocation],
     { cwd: root, stdio: "inherit" },
   );
+  if (run.error) throw run.error;
   if (run.status !== 0) failed = true;
 }
 process.exit(failed ? 1 : 0);
