@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { expect } from "@playwright/test";
 import { test } from "./hydration";
-import { signIn } from "./front-desk";
+import { DESK_EMAIL, signIn, testProperty } from "./front-desk";
 import { PORTAL_URL } from "./portal";
 import { psql } from "./local-database";
 import {
@@ -385,5 +385,70 @@ test.describe("tables and sub-navigation on a phone (HK-02, HK-08, ROOMS-11)", (
     await page.screenshot({
       path: path.join(EVIDENCE, "rooms-sections-375.png"),
     });
+  });
+});
+
+test.describe("hand-offs from the Configuration and Audit log lane (CONFIG-07, AUDIT-03)", () => {
+  test("the_maintenance_settings_fit_a_375_px_screen_inside_configurations_own_card", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 800 });
+    await signIn(page);
+    await page.goto(`/en/configuration?property=${testProperty()}`);
+    const card = page.locator("#maintenance");
+    await expect(card).toBeVisible();
+    // One heading, the card's own: the settings no longer draw a second card.
+    await expect(card.getByText("How maintenance works here")).toHaveCount(1);
+    const triggers = card.getByRole("combobox");
+    expect(await triggers.count()).toBeGreaterThanOrEqual(6);
+    for (const trigger of await triggers.all()) {
+      const box = (await trigger.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(375);
+    }
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(375);
+    await page.screenshot({
+      path: path.join(EVIDENCE, "configuration-maintenance-375.png"),
+    });
+  });
+
+  test("a_booking_opens_its_history_for_a_viewer_who_may_read_the_audit_log_and_for_nobody_else", async ({
+    page,
+  }) => {
+    const withAudit = aDeskProperty(["today", "front_desk", "finance"]);
+    const audited = aBooking(withAudit, { startsIn: 3, nights: 2 });
+    const deskProperty = testProperty();
+    const unaudited = aBooking(deskProperty, { startsIn: 3, nights: 2 });
+    await signIn(page);
+
+    await page.goto(`/en/reservations?property=${withAudit}`);
+    await page.getByRole("row").filter({ hasText: audited.guestName }).click();
+    const history = page.getByRole("link", { name: "History" });
+    await expect(history).toBeVisible();
+    const reservationId = psql(
+      `select id from public.reservations where reference = '${audited.reference}'`,
+    );
+    await expect(history).toHaveAttribute(
+      "href",
+      new RegExp(
+        `/en/audit-log\\?property=${withAudit}&subject=${reservationId}$`,
+      ),
+    );
+    await history.click();
+    await expect(page).toHaveURL(new RegExp(`subject=${reservationId}`));
+
+    // A Front desk colleague has no audit.read: the booking opens, History is not offered.
+    await page.context().clearCookies();
+    await signIn(page, DESK_EMAIL);
+    await page.goto(`/en/reservations?property=${deskProperty}`);
+    await page.getByRole("searchbox").fill(unaudited.guestName);
+    await page
+      .getByRole("row")
+      .filter({ hasText: unaudited.guestName })
+      .click();
+    await expect(page.getByText("Reservation details")).toBeVisible();
+    await expect(page.getByRole("link", { name: "History" })).toHaveCount(0);
   });
 });

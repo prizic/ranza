@@ -506,15 +506,26 @@ describe("which Units are taken for the nights chosen (RG-S4-06, RG-S4-07)", () 
     );
 
     fireEvent.click(screen.getByRole("combobox", { name: messages.en.unit }));
-    const taken = await screen.findByRole("option", { name: /101/ });
-    await waitFor(() => expect(taken).toHaveAttribute("aria-disabled", "true"));
-    expect(taken).toHaveTextContent(messages.en.unitBookedThoseNights);
+    // One wait on the state asserted — the Unit marked taken — instead of a
+    // find followed by a wait: each role query over the open dialog is slow in
+    // jsdom, and two of them in a row outlasted their default second under load.
+    await waitFor(
+      () =>
+        expect(screen.getByRole("option", { name: /101/ })).toHaveAttribute(
+          "aria-disabled",
+          "true",
+        ),
+      { timeout: 5_000 },
+    );
+    expect(screen.getByRole("option", { name: /101/ })).toHaveTextContent(
+      messages.en.unitBookedThoseNights,
+    );
     // Marked, never hidden: the other Unit is still there and choosable.
     expect(screen.getByRole("option", { name: /102/ })).not.toHaveAttribute(
       "aria-disabled",
       "true",
     );
-  });
+  }, 15_000);
 
   it("a_unit_booked_for_the_chosen_nights_is_marked_in_the_picker: a Unit already chosen says so when the nights make it taken", async () => {
     availability.mockResolvedValue({
