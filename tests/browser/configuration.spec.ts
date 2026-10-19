@@ -278,8 +278,8 @@ test("the currency says it is chosen for good before it is chosen, and the modul
   ).toBeVisible();
   const modules = page.locator("#modules details");
   await expect(modules).not.toHaveAttribute("open", "");
+  await page.locator("#time").scrollIntoViewIfNeeded();
   await page.screenshot({
     path: path.join(SCREENSHOTS, "configuration-desktop.png"),
-    fullPage: true,
   });
 });
