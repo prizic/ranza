@@ -58,13 +58,27 @@ interface SummaryRow {
   folioId: string;
   propertyId: string;
   stayId: string;
+  reservationId: string | null;
+  reference: string | null;
+  stayType: "guest" | "resident";
   status: "open" | "closed";
   currency: string;
   guestName: string;
   unitName: string;
+  startsOn: string;
+  endsOn: string | null;
+  chargedMinor: string;
+  paidMinor: string;
   balanceMinor: string;
   lineCount: number;
+  lastPostedAt: Date | null;
+  roomNightLines: number;
   stayInHouse: boolean;
+  today: string;
+  lastClosedOn: string | null;
+  nightlyRateMinor: string | null;
+  pendingNights: number;
+  pendingMinor: string;
 }
 
 interface LineRow {
@@ -89,13 +103,28 @@ function toSummary(row: SummaryRow): FolioSummary {
     folioId: row.folioId,
     propertyId: row.propertyId,
     stayId: row.stayId,
+    reservationId: row.reservationId,
+    reference: row.reference,
+    stayType: row.stayType,
     status: row.status,
     currency: row.currency.trim(),
     guestName: row.guestName,
     unitName: row.unitName,
+    startsOn: row.startsOn,
+    endsOn: row.endsOn,
+    chargedMinor: Number(row.chargedMinor),
+    paidMinor: Number(row.paidMinor),
     balanceMinor: Number(row.balanceMinor),
     lineCount: row.lineCount,
+    lastPostedAt: row.lastPostedAt,
+    roomNightLines: row.roomNightLines,
     stayInHouse: row.stayInHouse,
+    today: row.today,
+    lastClosedOn: row.lastClosedOn,
+    nightlyRateMinor:
+      row.nightlyRateMinor === null ? null : Number(row.nightlyRateMinor),
+    pendingNights: row.pendingNights,
+    pendingMinor: Number(row.pendingMinor),
   };
 }
 
@@ -131,19 +160,50 @@ function toLine(row: LineRow): FolioLine {
  * impossible by construction: the sum is over exactly the rows the policy let
  * through, so the screen and the number cannot tell different stories.
  */
-function folioQuery(predicate: string, order = ""): string {
+function folioQuery(
+  predicate: string,
+  { pending = false }: { pending?: boolean } = {},
+): string {
   return `
     select
       folio.id                              as "folioId",
       folio.property_id                     as "propertyId",
       stay.id                               as "stayId",
+      reservation.id                        as "reservationId",
+      reservation.reference                 as "reference",
+      stay.stay_type                        as "stayType",
       folio.status                          as "status",
       folio.currency                        as "currency",
       coalesce(guest.full_name, '')         as "guestName",
       unit.name                             as "unitName",
+      to_char(stay.starts_on, 'YYYY-MM-DD') as "startsOn",
+      to_char(stay.ends_on, 'YYYY-MM-DD')   as "endsOn",
+      -- What was charged and what was paid, each net of its reversals, so the
+      -- two and the balance can be read off one bill (FIN-03). A reversal
+      -- belongs to the kind of line it cancels.
+      coalesce(sum(line.amount_minor) filter (
+        where line.line_type = 'charge'
+           or (line.line_type = 'reversal' and original.line_type = 'charge')
+      ), 0)::text                           as "chargedMinor",
+      coalesce(-sum(line.amount_minor) filter (
+        where line.line_type = 'payment'
+           or (line.line_type = 'reversal' and original.line_type = 'payment')
+      ), 0)::text                           as "paidMinor",
       coalesce(sum(line.amount_minor), 0)::text as "balanceMinor",
       count(line.id)::int                   as "lineCount",
-      stay.status = 'in_house'              as "stayInHouse"
+      max(line.posted_at)                   as "lastPostedAt",
+      (count(line.id) filter (
+        where line.line_type = 'charge' and line.source = 'room_night'
+      ))::int                               as "roomNightLines",
+      stay.status = 'in_house'              as "stayInHouse",
+      to_char(today.day, 'YYYY-MM-DD')      as "today",
+      (select to_char(max(close.business_date), 'YYYY-MM-DD')
+         from public.business_day_closes as close
+        where close.property_id = folio.property_id)
+                                            as "lastClosedOn",
+      reservation.nightly_rate_minor::text  as "nightlyRateMinor",
+      ${pending ? "pending.nights" : "0"}   as "pendingNights",
+      ${pending ? "pending.amount::text" : "'0'"} as "pendingMinor"
     from public.folios as folio
     join public.stays as stay
       on stay.id = folio.stay_id
@@ -157,11 +217,55 @@ function folioQuery(predicate: string, order = ""): string {
       on guest.id = reservation.guest_id
     left join public.folio_lines as line
       on line.folio_id = folio.id
+    left join public.folio_lines as original
+      on original.id = line.reverses_line_id
+    cross join lateral (
+      select app.property_today(folio.property_id) as day
+    ) as today
+    ${
+      pending
+        ? `cross join lateral (
+      -- What a check-out today would charge (ADR 0038): the nights before today
+      -- that can be charged and that no close has reached. The same function
+      -- the departures list and the check-out use, so the three cannot
+      -- disagree about what a night is.
+      select count(*)::int                      as nights,
+             coalesce(sum(due.amount_minor), 0) as amount
+        from app.room_nights_due(stay.property_id, stay.starts_on,
+                                 today.day - 1, stay.id) as due
+       where stay.status = 'in_house'
+         and due.reason is null
+         and not exists (
+           select 1 from public.business_day_closes as close
+            where close.property_id = stay.property_id
+              and close.business_date = due.business_date)
+    ) as pending`
+        : ""
+    }
     where ${predicate}
       and app.can_use_capability(folio.property_id, $2, $3)
-    group by folio.id, stay.id, unit.name, guest.full_name
-    ${order}`;
+    group by folio.id, stay.id, reservation.id, unit.name, guest.full_name,
+             today.day${pending ? ", pending.nights, pending.amount" : ""}`;
 }
+
+/** The most Folios one page of the Finance list carries. */
+const FOLIO_PAGE_LIMIT = 500;
+
+/** Which Folios of a Property a list asks for. */
+export type FolioShow = "all" | "open" | "closed" | "owing";
+
+/**
+ * Owing: something on the bill is unpaid, or the nights a check-out would
+ * still charge make it so. A closed Folio left with a balance is owing too —
+ * closing is not settling (FO-S5-01).
+ */
+const OWED = `(page."balanceMinor"::bigint + page."pendingMinor"::bigint)`;
+const SHOW_PREDICATES: Record<FolioShow, string> = {
+  all: "true",
+  open: `page."status" = 'open'`,
+  closed: `page."status" = 'closed'`,
+  owing: `${OWED} > 0`,
+};
 
 export function createFoliosModule(deps: FoliosDeps) {
   /**
@@ -171,6 +275,9 @@ export function createFoliosModule(deps: FoliosDeps) {
    * one whose Organization lost the Entitlement, and for a Property where
    * nobody has checked in yet. Those are different situations with
    * deliberately identical answers.
+   *
+   * Without the nights a check-out would still charge: a caller that only
+   * counts or filters Folios, as Today does, should not pay for them.
    */
   async function listFolios(
     userId: string,
@@ -178,18 +285,52 @@ export function createFoliosModule(deps: FoliosDeps) {
   ): Promise<FolioSummary[]> {
     const rows = await withOrganizationContext(deps.db, { userId }, (tx) =>
       tx.$queryRawUnsafe<SummaryRow[]>(
-        folioQuery(
-          "folio.property_id = $1::uuid",
-          // Not `order by folio.status`: status is text, and 'closed' sorts
-          // before 'open', which listed the finished Folios first (FO-S9-02).
-          `order by folio.status = 'open' desc, unit.name, folio.id`,
-        ),
+        `select page.*
+           from (${folioQuery("folio.property_id = $1::uuid")}) as page
+          -- Not \`order by status\`: status is text, and 'closed' sorts before
+          -- 'open', which listed the finished Folios first (FO-S9-02).
+          order by page."status" = 'open' desc, page."unitName", page."folioId"`,
         propertyId,
         FOLIO_CAPABILITY.moduleKey,
         FOLIO_CAPABILITY.capabilityKey,
       ),
     );
     return rows.map(toSummary);
+  }
+
+  /**
+   * One page of the Finance list: the Folios `show` asks for, the ones owing
+   * the most first, and how many there are in all so a screen can say it is
+   * showing some of them (FIN-02).
+   *
+   * Open Folios come before closed ones, then by what is owed — the bill on the
+   * Folio plus the nights a check-out would still charge (ADR 0038) — then by
+   * the latest line. The count is taken before the limit applies.
+   */
+  async function listFolioPage(
+    userId: string,
+    propertyId: string,
+    options: { show?: FolioShow; limit?: number } = {},
+  ): Promise<{ folios: FolioSummary[]; total: number }> {
+    const show = options.show ?? "all";
+    const limit = options.limit ?? FOLIO_PAGE_LIMIT;
+    const rows = await withOrganizationContext(deps.db, { userId }, (tx) =>
+      tx.$queryRawUnsafe<(SummaryRow & { total: number })[]>(
+        `select page.*, count(*) over ()::int as "total"
+           from (${folioQuery("folio.property_id = $1::uuid", { pending: true })}) as page
+          where ${SHOW_PREDICATES[show]}
+          order by page."status" = 'open' desc,
+                   ${OWED} desc,
+                   page."lastPostedAt" desc nulls last,
+                   page."unitName", page."folioId"
+          limit $4::int`,
+        propertyId,
+        FOLIO_CAPABILITY.moduleKey,
+        FOLIO_CAPABILITY.capabilityKey,
+        limit,
+      ),
+    );
+    return { folios: rows.map(toSummary), total: rows[0]?.total ?? 0 };
   }
 
   /**
@@ -285,7 +426,7 @@ export function createFoliosModule(deps: FoliosDeps) {
                 case when line.source = 'room_night'
                      then to_char(line.business_date, 'YYYY-MM-DD')
                 end                     as "roomNightOf"
-           from (${folioQuery("folio.id = $1::uuid")}) as summary
+           from (${folioQuery("folio.id = $1::uuid", { pending: true })}) as summary
            left join public.folio_lines as line
              on line.folio_id = summary."folioId"
           order by line.posted_at desc nulls last, line.id`,
@@ -536,6 +677,7 @@ export function createFoliosModule(deps: FoliosDeps) {
 
   return {
     listFolios,
+    listFolioPage,
     chargesPostedToday,
     folioDetail,
     postCharge,

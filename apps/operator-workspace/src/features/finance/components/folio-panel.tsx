@@ -1,22 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
+import Link from "next/link";
+import { Clock } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Undo2 } from "lucide-react";
 import type { FolioDetail } from "@ranza/folios";
 import {
-  Button,
   Fact,
   FactList,
-  Field,
-  FormError,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Separator,
+  StatusBadge,
   Table,
   TableBody,
   TableCaption,
@@ -25,17 +17,25 @@ import {
   TableHeader,
   TableRow,
 } from "@ranza/ui";
-import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
 import {
-  closeFolio,
-  postCharge,
-  postPayment,
-  reverseLine,
-  type FinanceOutcome,
-} from "../../../server/finance";
+  formatDate,
+  formatMoney,
+  isolate,
+  type SupportedLocale,
+} from "@ranza/i18n";
+import { owedMinor } from "../../today/views";
+import { cancelledLine, folioOverdueDays, nightsNote } from "../derive";
+import {
+  ChargeForm,
+  CloseDialog,
+  PaymentDialog,
+  ReverseDialog,
+  type FolioSubject,
+} from "./folio-forms";
 
 /**
- * One Folio: what it is, what is on it, and the two things that can be done.
+ * One Folio: whose it is, what has been charged and paid, what is on it, and
+ * the things that can be done.
  *
  * A plain table rather than the DataTable kit. A Folio's lines are a ledger —
  * they are read in posting order and the order carries meaning, so sorting,
@@ -50,237 +50,33 @@ import {
  * could only fail.
  */
 
-function outcomeMessage(
-  outcome: FinanceOutcome,
-  invalid: string,
-  refused: string,
-): string | null {
-  if (outcome === "invalid") return invalid;
-  if (outcome === "refused") return refused;
-  return null;
-}
-
-function ChargeForm({
-  currency,
-  folioId,
-  locale,
-}: {
-  currency: string;
-  folioId: string;
-  locale: string;
-}) {
-  const t = useTranslations();
-  const [outcome, act, pending] = useActionState<FinanceOutcome, FormData>(
-    postCharge,
-    "idle",
-  );
-  const message = outcomeMessage(
-    outcome,
-    t("amountInvalid"),
-    t("chargeRefused"),
-  );
-
-  return (
-    <form action={act} className="mt-6 grid gap-4">
-      <h3 className="text-step-0 font-medium">{t("addCharge")}</h3>
-      <input name="folio" type="hidden" value={folioId} />
-      <input name="locale" type="hidden" value={locale} />
-      <input name="currency" type="hidden" value={currency} />
-
-      <div className="grid gap-4 sm:grid-cols-[1fr_10rem_auto] sm:items-end">
-        <Field htmlFor="charge-description" label={t("description")}>
-          <Input
-            autoComplete="off"
-            id="charge-description"
-            maxLength={200}
-            name="description"
-            required
-          />
-        </Field>
-        <Field htmlFor="charge-amount" label={`${t("amount")} (${currency})`}>
-          {/* inputMode="decimal" rather than type="number": a number input
-              disagrees with itself about the decimal separator across locales,
-              and silently drops what it cannot parse. The server decides what
-              is an amount. */}
-          <Input
-            autoComplete="off"
-            className="text-end tabular-nums"
-            id="charge-amount"
-            inputMode="decimal"
-            name="amount"
-            required
-          />
-        </Field>
-        <Button disabled={pending} type="submit">
-          {pending ? t("posting") : t("post")}
-        </Button>
-      </div>
-
-      {message ? (
-        <div aria-live="polite">
-          <FormError>{message}</FormError>
-        </div>
-      ) : null}
-    </form>
-  );
-}
-
-function PaymentForm({
-  currency,
-  folioId,
-  locale,
-}: {
-  currency: string;
-  folioId: string;
-  locale: string;
-}) {
-  const t = useTranslations();
-  const [outcome, act, pending] = useActionState<FinanceOutcome, FormData>(
-    postPayment,
-    "idle",
-  );
-  const message = outcomeMessage(
-    outcome,
-    t("amountInvalid"),
-    t("paymentRefused"),
-  );
-
-  return (
-    <form action={act} className="mt-6 grid gap-4">
-      <h3 className="text-step-0 font-medium">{t("addPayment")}</h3>
-      <input name="folio" type="hidden" value={folioId} />
-      <input name="locale" type="hidden" value={locale} />
-      <input name="currency" type="hidden" value={currency} />
-
-      <div className="grid gap-4 sm:grid-cols-[1fr_12rem_10rem_auto] sm:items-end">
-        <Field htmlFor="payment-description" label={t("description")}>
-          <Input
-            autoComplete="off"
-            id="payment-description"
-            maxLength={200}
-            name="description"
-            required
-          />
-        </Field>
-        <Field htmlFor="payment-method" label={t("paymentMethod")}>
-          <Select defaultValue="card" name="paymentMethod">
-            <SelectTrigger id="payment-method">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="cash">{t("paymentMethods.cash")}</SelectItem>
-              <SelectItem value="card">{t("paymentMethods.card")}</SelectItem>
-              <SelectItem value="bank_transfer">
-                {t("paymentMethods.bank_transfer")}
-              </SelectItem>
-              <SelectItem value="other">{t("paymentMethods.other")}</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field htmlFor="payment-amount" label={`${t("amount")} (${currency})`}>
-          <Input
-            autoComplete="off"
-            className="text-end tabular-nums"
-            id="payment-amount"
-            inputMode="decimal"
-            name="amount"
-            required
-          />
-        </Field>
-        <Button disabled={pending} type="submit">
-          {pending ? t("posting") : t("post")}
-        </Button>
-      </div>
-
-      {message ? (
-        <div aria-live="polite">
-          <FormError>{message}</FormError>
-        </div>
-      ) : null}
-    </form>
-  );
-}
-
-function ReverseAction({ lineId, locale }: { lineId: string; locale: string }) {
-  const t = useTranslations();
-  const [outcome, act, pending] = useActionState<FinanceOutcome, FormData>(
-    reverseLine,
-    "idle",
-  );
-  const message = outcomeMessage(
-    outcome,
-    t("amountInvalid"),
-    t("reverseRefused"),
-  );
-
-  return (
-    <form action={act} className="grid justify-items-end gap-1.5">
-      <input name="line" type="hidden" value={lineId} />
-      <input name="locale" type="hidden" value={locale} />
-      <div className="flex items-center justify-end gap-2">
-        {/* The reason is required, not optional: taking money off a Guest's
-            account is the kind of action blueprint 4.4 says must be explained,
-            and the audit record keeps what is typed here. */}
-        <Input
-          aria-label={t("reverseReason")}
-          className="h-8 w-40 text-step--1"
-          maxLength={200}
-          minLength={3}
-          name="reason"
-          placeholder={t("reverseReason")}
-          required
-        />
-        <Button disabled={pending} size="sm" type="submit" variant="ghost">
-          <Undo2 aria-hidden="true" className="size-4" />
-          {pending ? t("reversing") : t("reverse")}
-        </Button>
-      </div>
-      {message ? (
-        <div aria-live="polite">
-          <FormError>{message}</FormError>
-        </div>
-      ) : null}
-    </form>
-  );
-}
-
-function CloseAction({ folioId, locale }: { folioId: string; locale: string }) {
-  const t = useTranslations();
-  const [outcome, act, pending] = useActionState<FinanceOutcome, FormData>(
-    closeFolio,
-    "idle",
-  );
-
-  return (
-    <form action={act} className="grid justify-items-end gap-1.5">
-      <input name="folio" type="hidden" value={folioId} />
-      <input name="locale" type="hidden" value={locale} />
-      <Button disabled={pending} type="submit" variant="secondary">
-        {pending ? t("closing") : t("closeFolio")}
-      </Button>
-      {outcome === "refused" ? (
-        <div aria-live="polite">
-          <FormError>{t("closeRefused")}</FormError>
-        </div>
-      ) : null}
-    </form>
-  );
+function day(iso: string, locale: SupportedLocale): string {
+  return formatDate(new Date(`${iso}T00:00:00Z`), locale, {
+    month: "short",
+    timeZone: "UTC",
+  });
 }
 
 export function FolioPanel({
   folio,
   locale,
+  mayOpenReservation = false,
   mayReverse,
   mayPostCharge = true,
   mayReverseCharge,
   mayPostPayment = false,
   mayReversePayment = false,
+  propertyId,
   timeZone,
 }: {
   folio: FolioDetail;
   locale: SupportedLocale;
+  /** The Property the Folio is at, for the link to its booking. */
+  propertyId?: string;
   /** The Property's own, so a line is dated by the clock at its front desk. */
   timeZone: string;
+  /** Whether the viewer reaches the Reservations screen at this Property. */
+  mayOpenReservation?: boolean;
   /** Backwards compatible alias for mayReverseCharge. */
   mayReverse?: boolean;
   mayPostCharge?: boolean;
@@ -289,9 +85,22 @@ export function FolioPanel({
   mayReversePayment?: boolean;
 }) {
   const t = useTranslations();
+  const f = useTranslations("finance");
   const open = folio.status === "open";
   const canReverseCharge = mayReverseCharge ?? mayReverse ?? false;
   const canReversePayment = mayReversePayment ?? false;
+
+  const money = (minor: number) => formatMoney(minor, folio.currency, locale);
+  const who = folio.guestName || folio.unitName;
+  const subject: FolioSubject = {
+    folioId: folio.folioId,
+    currency: folio.currency,
+    who,
+    unit: folio.unitName,
+  };
+  const owed = owedMinor(folio);
+  const overdue = folioOverdueDays(folio);
+  const note = nightsNote(folio);
 
   // A room night reads in the reader's language, for the night it is for,
   // rather than as the description the database wrote (ADR 0038) — and so
@@ -315,23 +124,108 @@ export function FolioPanel({
       : line.description;
   };
 
+  const reservationHref =
+    mayOpenReservation && propertyId && folio.reservationId
+      ? `/${locale}/reservations?${new URLSearchParams({ property: propertyId, open: folio.reservationId })}`
+      : null;
+
   return (
     <section className="mt-6">
-      <FactList className="pt-0">
-        <Fact label={t("guest")}>{folio.guestName || folio.unitName}</Fact>
-        <Fact label={t("unit")}>{folio.unitName}</Fact>
+      <h2 className="text-step-1 font-medium">
+        <bdi>{who}</bdi>
+        {folio.guestName ? (
+          <span className="text-muted-foreground">
+            {" · "}
+            <bdi>{folio.unitName}</bdi>
+          </span>
+        ) : null}
+      </h2>
+      <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-step--1 text-muted-foreground">
+        {folio.reference ? (
+          reservationHref ? (
+            <Link
+              className="font-medium text-primary hover:underline"
+              href={reservationHref}
+              prefetch={false}
+            >
+              {f("reservationLink", { reference: folio.reference })}
+            </Link>
+          ) : (
+            <span>
+              {t("reservation")} <bdi>{folio.reference}</bdi>
+            </span>
+          )
+        ) : null}
+        <span>
+          {folio.endsOn
+            ? f("stayDates", {
+                from: day(folio.startsOn, locale),
+                to: day(folio.endsOn, locale),
+              })
+            : f("stayFrom", { from: day(folio.startsOn, locale) })}
+        </span>
+        {overdue > 0 ? (
+          <StatusBadge
+            icon={Clock}
+            label={t("overdueDays", { count: overdue })}
+            tone="danger"
+          />
+        ) : null}
+      </p>
+
+      <FactList className="pt-6">
         <Fact label={t("status")}>{t(`folioStatus.${folio.status}`)}</Fact>
+        <Fact label={f("charged")}>
+          <span className="tabular-nums">{money(folio.chargedMinor)}</span>
+        </Fact>
+        <Fact label={f("paid")}>
+          <span className="tabular-nums">{money(folio.paidMinor)}</span>
+        </Fact>
         <Fact label={t("balance")}>
-          <span className="tabular-nums">
-            {formatMoney(folio.balanceMinor, folio.currency, locale)}
+          <span className="font-semibold tabular-nums">
+            {money(folio.balanceMinor)}
           </span>
         </Fact>
+        {folio.pendingNights > 0 ? (
+          <>
+            <Fact label={f("stillToCharge")}>
+              <span className="tabular-nums">
+                {f("pendingNights", {
+                  count: folio.pendingNights,
+                  amount: money(folio.pendingMinor),
+                })}
+              </span>
+            </Fact>
+            <Fact label={f("owesAtCheckOut")}>
+              <span className="font-semibold tabular-nums">{money(owed)}</span>
+            </Fact>
+          </>
+        ) : null}
       </FactList>
+
+      {note ? (
+        <p
+          className="mt-5 max-w-prose border-s-2 border-border ps-4 text-step--1 text-muted-foreground"
+          data-testid="nights-note"
+          role="status"
+        >
+          {note === "unpriced"
+            ? f("nightsUnpriced")
+            : note === "none_yet"
+              ? folio.lastClosedOn
+                ? f("nightsNoneYetSince", {
+                    closed: day(folio.lastClosedOn, locale),
+                  })
+                : f("nightsNoneYet")
+              : f("nightsSoFar", { charged: money(folio.chargedMinor) })}
+        </p>
+      ) : null}
 
       <Separator className="my-6" />
 
+      <h3 className="mb-2 text-step-0 font-medium">{t("folioLines")}</h3>
       <Table>
-        <TableCaption>{t("folioLines")}</TableCaption>
+        <TableCaption className="sr-only">{t("folioLines")}</TableCaption>
         <TableHeader>
           <TableRow>
             <TableHead>{t("description")}</TableHead>
@@ -350,75 +244,91 @@ export function FolioPanel({
               </TableCell>
             </TableRow>
           ) : (
-            folio.lines.map((line) => (
-              <TableRow key={line.lineId}>
-                <TableCell>
-                  <span
-                    className={
-                      line.reversed
-                        ? "text-muted-foreground line-through"
-                        : undefined
-                    }
-                  >
-                    {described(line)}
-                  </span>
-                  {line.paymentMethod ? (
-                    <span className="ms-2 rounded-xs border border-border px-1.5 py-0.5 text-step--2 text-muted-foreground">
-                      {t(`paymentMethods.${line.paymentMethod}`)}
+            folio.lines.map((line) => {
+              const cancelled = cancelledLine(line, folio.lines);
+              const label = cancelled
+                ? f("reversalOf", { description: described(cancelled) })
+                : described(line);
+              // A reversal of a room night copies its description, so its
+              // reason is not kept on the line; any other reversal's
+              // description is the reason that was typed.
+              const reason =
+                cancelled && !cancelled.roomNightOf ? line.description : null;
+              return (
+                <TableRow key={line.lineId}>
+                  <TableCell>
+                    <span
+                      className={
+                        line.reversed
+                          ? "text-muted-foreground line-through"
+                          : undefined
+                      }
+                    >
+                      {label}
                     </span>
-                  ) : null}
-                  {/* The word as well as the strike-through, because a line
-                      through text is the only carrier otherwise and it is
-                      invisible to a screen reader (blueprint 18.5). */}
-                  {line.reversed ? (
-                    <span className="ms-2 text-step--1 text-muted-foreground">
-                      {t("reversed")}
-                    </span>
-                  ) : null}
-                </TableCell>
-                <TableCell className="whitespace-nowrap text-step--1 text-muted-foreground">
-                  <time dateTime={line.postedAt.toISOString()}>
-                    {formatDate(line.postedAt, locale, {
-                      hour: "2-digit",
-                      // 24-hour in every language, as everywhere else.
-                      hourCycle: "h23",
-                      minute: "2-digit",
-                      timeZone,
-                    })}
-                  </time>
-                </TableCell>
-                <TableCell className="text-end tabular-nums">
-                  {formatMoney(line.amountMinor, folio.currency, locale)}
-                </TableCell>
-                <TableCell>
-                  {open &&
-                  !line.reversed &&
-                  ((line.lineType === "charge" && canReverseCharge) ||
-                    (line.lineType === "payment" && canReversePayment)) ? (
-                    <ReverseAction lineId={line.lineId} locale={locale} />
-                  ) : null}
-                </TableCell>
-              </TableRow>
-            ))
+                    {line.paymentMethod ? (
+                      <span className="ms-2 rounded-xs border border-border px-1.5 py-0.5 text-step--2 text-muted-foreground">
+                        {t(`paymentMethods.${line.paymentMethod}`)}
+                      </span>
+                    ) : null}
+                    {/* The word as well as the strike-through, because a line
+                        through text is the only carrier otherwise and it is
+                        invisible to a screen reader (blueprint 18.5). */}
+                    {line.reversed ? (
+                      <span className="ms-2 text-step--1 text-muted-foreground">
+                        {t("reversed")}
+                      </span>
+                    ) : null}
+                    {reason ? (
+                      <span className="block text-step--1 text-muted-foreground">
+                        {f("reversalReason", { reason: isolate(reason) })}
+                      </span>
+                    ) : null}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-step--1 text-muted-foreground">
+                    <time dateTime={line.postedAt.toISOString()}>
+                      {formatDate(line.postedAt, locale, {
+                        hour: "2-digit",
+                        // 24-hour in every language, as everywhere else.
+                        hourCycle: "h23",
+                        minute: "2-digit",
+                        timeZone,
+                      })}
+                    </time>
+                  </TableCell>
+                  <TableCell className="text-end tabular-nums">
+                    {money(line.amountMinor)}
+                  </TableCell>
+                  <TableCell className="text-end">
+                    {open &&
+                    !line.reversed &&
+                    ((line.lineType === "charge" && canReverseCharge) ||
+                      (line.lineType === "payment" && canReversePayment)) ? (
+                      <ReverseDialog
+                        describe={described(line)}
+                        folio={subject}
+                        line={line}
+                        locale={locale}
+                      />
+                    ) : null}
+                  </TableCell>
+                </TableRow>
+              );
+            })
           )}
         </TableBody>
       </Table>
+      <p className="mt-3 max-w-prose text-step--1 text-muted-foreground">
+        {f("correctionsNote")}
+      </p>
 
       {open ? (
         <>
           {mayPostCharge ? (
-            <ChargeForm
-              currency={folio.currency}
-              folioId={folio.folioId}
-              locale={locale}
-            />
+            <ChargeForm folio={subject} locale={locale} />
           ) : null}
           {mayPostPayment ? (
-            <PaymentForm
-              currency={folio.currency}
-              folioId={folio.folioId}
-              locale={locale}
-            />
+            <PaymentDialog folio={subject} locale={locale} owedMinor={owed} />
           ) : null}
           <Separator className="my-6" />
           {folio.stayInHouse ? (
@@ -428,7 +338,11 @@ export function FolioPanel({
               {t("folioInHouseNote")}
             </p>
           ) : (
-            <CloseAction folioId={folio.folioId} locale={locale} />
+            <CloseDialog
+              balanceMinor={folio.balanceMinor}
+              folio={subject}
+              locale={locale}
+            />
           )}
         </>
       ) : (

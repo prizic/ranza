@@ -306,6 +306,14 @@ afterAll(async () => {
   await owner.$executeRawUnsafe(
     `alter table public.folio_lines disable trigger folio_lines_append_only`,
   );
+  // A close is append-only by trigger, and the one the Finance list's test
+  // writes was written with triggers off; it goes the same way.
+  await owner.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`set local session_replication_role = replica`);
+    await tx.$executeRawUnsafe(
+      `delete from public.business_day_closes where organization_id in ('${ORG}','${OTHER_ORG}')`,
+    );
+  });
   for (const statement of [
     `delete from public.folio_lines where organization_id in ('${ORG}','${OTHER_ORG}')`,
     `delete from public.folios where organization_id in ('${ORG}','${OTHER_ORG}')`,
@@ -1375,5 +1383,248 @@ describe("the decision sheet's Folio rows", () => {
       folioId,
     );
     expect(opened?.count).toBe(0);
+  });
+});
+
+describe("the Finance list explains each Folio (FIN-02, FIN-03, FIN-09)", () => {
+  /**
+   * The Stay started `nightsAgo` nights ago, as one that has run some nights
+   * is, and the booking priced when a rate is given. Written with the triggers
+   * off, as the browser fixtures do: the booking trigger stamps a price from
+   * the price list, and a close refuses to be walked into.
+   */
+  async function runningFor(
+    folioId: string,
+    nightsAgo: number,
+    nightlyRateMinor: number | null = null,
+  ): Promise<void> {
+    await owner.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(
+        `set local session_replication_role = replica`,
+      );
+      if (nightlyRateMinor !== null) {
+        await tx.$executeRawUnsafe(
+          `update public.reservations
+              set nightly_rate_minor = $2::bigint, rate_currency = 'TRY'
+            where id = (select stay.reservation_id from public.stays as stay
+                          join public.folios as folio on folio.stay_id = stay.id
+                         where folio.id = $1::uuid)`,
+          folioId,
+          nightlyRateMinor,
+        );
+      }
+      await tx.$executeRawUnsafe(
+        `update public.stays
+            set starts_on = app.property_today(property_id) - $2::int
+          where id = (select stay_id from public.folios where id = $1::uuid)`,
+        folioId,
+        nightsAgo,
+      );
+    });
+  }
+
+  const summaryOf = async (folioId: string) =>
+    (await folios.listFolioPage(MEMBER, PROPERTY, { show: "all" })).folios.find(
+      (folio) => folio.folioId === folioId,
+    )!;
+
+  it("charged_and_paid_are_net_of_their_reversals_and_add_up_to_the_balance", async () => {
+    const folioId = await folioAt(await aBilledUnit(), "Charged And Paid");
+    await folios.postCharge(MEMBER, {
+      folioId,
+      description: "Minibar",
+      amountMinor: 10000,
+    });
+    const { lineId: spa } = await folios.postCharge(MEMBER, {
+      folioId,
+      description: "Spa",
+      amountMinor: 5000,
+    });
+    const { lineId: card } = await folios.postPayment(MEMBER, {
+      folioId,
+      description: "Deposit",
+      paymentMethod: "card",
+      amountMinor: 3000,
+    });
+    await folios.postPayment(MEMBER, {
+      folioId,
+      description: "Cash",
+      paymentMethod: "cash",
+      amountMinor: 2000,
+    });
+
+    let summary = await summaryOf(folioId);
+    expect(summary).toMatchObject({
+      chargedMinor: 15000,
+      paidMinor: 5000,
+      balanceMinor: 10000,
+    });
+
+    // A reversal belongs to the kind of line it cancels.
+    await folios.reverseLine(MEMBER, spa, "Charged to the wrong room");
+    await folios.reverseLine(MEMBER, card, "Card declined");
+    summary = await summaryOf(folioId);
+    expect(summary).toMatchObject({
+      chargedMinor: 10000,
+      paidMinor: 2000,
+      balanceMinor: 8000,
+    });
+    expect(summary.chargedMinor - summary.paidMinor).toBe(summary.balanceMinor);
+  });
+
+  it("the_summary_names_the_booking_the_stay_and_the_last_posting", async () => {
+    const folioId = await folioAt(await aBilledUnit(), "Named Booking");
+    const empty = await summaryOf(folioId);
+    expect(empty.reference).toMatch(/^R[0-9A-Z]{6}$/);
+    expect(empty.reservationId).not.toBeNull();
+    expect(empty.startsOn).toBe(empty.today);
+    expect(empty.endsOn).not.toBeNull();
+    expect(empty.lastPostedAt).toBeNull();
+    expect(empty.roomNightLines).toBe(0);
+    expect(empty.nightlyRateMinor).toBeNull();
+
+    await folios.postCharge(MEMBER, {
+      folioId,
+      description: "Minibar",
+      amountMinor: 100,
+    });
+    expect((await summaryOf(folioId)).lastPostedAt).toBeInstanceOf(Date);
+  });
+
+  it("pending_nights_are_the_ones_check_out_would_charge_and_no_close_has_reached", async () => {
+    const folioId = await folioAt(await aBilledUnit(), "Two Nights Behind");
+    await runningFor(folioId, 2, 12000);
+
+    const summary = await summaryOf(folioId);
+    expect(summary.nightlyRateMinor).toBe(12000);
+    expect(summary).toMatchObject({
+      pendingNights: 2,
+      pendingMinor: 24000,
+      balanceMinor: 0,
+    });
+
+    // A close that reaches the first of them takes it off what is pending.
+    await owner.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(
+        `set local session_replication_role = replica`,
+      );
+      await tx.$executeRawUnsafe(
+        `insert into public.business_day_closes
+           (organization_id, property_id, business_date, closed_by_job)
+         select organization_id, id, app.property_today(id) - 2, 'test.fixture'
+           from public.properties where id = $1::uuid`,
+        PROPERTY,
+      );
+    });
+    expect(await summaryOf(folioId)).toMatchObject({
+      pendingNights: 1,
+      pendingMinor: 12000,
+    });
+  });
+
+  it("a_booking_with_no_price_has_nothing_pending", async () => {
+    const folioId = await folioAt(await aBilledUnit(), "Unpriced");
+    await runningFor(folioId, 3);
+    expect(await summaryOf(folioId)).toMatchObject({
+      nightlyRateMinor: null,
+      pendingNights: 0,
+      pendingMinor: 0,
+    });
+  });
+
+  it("the_list_Today_reads_does_not_pay_for_pending_nights", async () => {
+    const folioId = await folioAt(await aBilledUnit(), "Lean Read");
+    await runningFor(folioId, 2, 12000);
+    const lean = (await folios.listFolios(MEMBER, PROPERTY)).find(
+      (folio) => folio.folioId === folioId,
+    )!;
+    expect(lean).toMatchObject({ pendingNights: 0, pendingMinor: 0 });
+  });
+
+  it("owing_holds_a_balance_or_nights_still_to_charge_and_nothing_settled", async () => {
+    const owes = await folioAt(await aBilledUnit(), "Owes Balance");
+    await folios.postCharge(MEMBER, {
+      folioId: owes,
+      description: "Minibar",
+      amountMinor: 700,
+    });
+    const behind = await folioAt(await aBilledUnit(), "Owes Nights");
+    await runningFor(behind, 1, 5000);
+    const settled = await folioAt(await aBilledUnit(), "Settled");
+    await folios.postCharge(MEMBER, {
+      folioId: settled,
+      description: "Minibar",
+      amountMinor: 300,
+    });
+    await folios.postPayment(MEMBER, {
+      folioId: settled,
+      description: "Cash",
+      paymentMethod: "cash",
+      amountMinor: 300,
+    });
+    const closedOwing = await folioAt(await aBilledUnit(), "Closed Owing");
+    await folios.postCharge(MEMBER, {
+      folioId: closedOwing,
+      description: "Minibar",
+      amountMinor: 900,
+    });
+    await hasLeft(closedOwing);
+    await folios.closeFolio(MEMBER, closedOwing);
+
+    const owing = (
+      await folios.listFolioPage(MEMBER, PROPERTY, { show: "owing" })
+    ).folios.map((folio) => folio.folioId);
+    expect(owing).toEqual(expect.arrayContaining([owes, behind, closedOwing]));
+    expect(owing).not.toContain(settled);
+
+    const open = (
+      await folios.listFolioPage(MEMBER, PROPERTY, { show: "open" })
+    ).folios.map((folio) => folio.folioId);
+    expect(open).toEqual(expect.arrayContaining([owes, settled]));
+    expect(open).not.toContain(closedOwing);
+
+    const closed = (
+      await folios.listFolioPage(MEMBER, PROPERTY, { show: "closed" })
+    ).folios.map((folio) => folio.folioId);
+    expect(closed).toContain(closedOwing);
+    expect(closed).not.toContain(owes);
+  });
+
+  it("open_folios_come_first_and_the_ones_owing_most_lead_them", async () => {
+    const small = await folioAt(await aBilledUnit(), "Owes A Little");
+    await folios.postCharge(MEMBER, {
+      folioId: small,
+      description: "Minibar",
+      amountMinor: 100,
+    });
+    const large = await folioAt(await aBilledUnit(), "Owes A Lot");
+    await folios.postCharge(MEMBER, {
+      folioId: large,
+      description: "Spa",
+      amountMinor: 99000000,
+    });
+    const rows = (await folios.listFolioPage(MEMBER, PROPERTY, { show: "all" }))
+      .folios;
+    const ids = rows.map((folio) => folio.folioId);
+    expect(ids.indexOf(large)).toBeLessThan(ids.indexOf(small));
+    const firstClosed = rows.findIndex((folio) => folio.status === "closed");
+    expect(
+      rows.slice(firstClosed < 0 ? rows.length : firstClosed),
+    ).not.toContainEqual(expect.objectContaining({ status: "open" }));
+  });
+
+  it("a_page_is_capped_and_says_how_many_there_are_in_all", async () => {
+    await folioAt(await aBilledUnit(), "One More");
+    const page = await folios.listFolioPage(MEMBER, PROPERTY, { limit: 2 });
+    expect(page.folios).toHaveLength(2);
+    expect(page.total).toBeGreaterThan(2);
+    const uncapped = await folios.listFolioPage(MEMBER, PROPERTY);
+    expect(uncapped.total).toBe(uncapped.folios.length);
+  });
+
+  it("a_viewer_who_does_not_reach_the_property_is_told_nothing", async () => {
+    await expect(
+      folios.listFolioPage(OUTSIDER, PROPERTY, { show: "owing" }),
+    ).resolves.toEqual({ folios: [], total: 0 });
   });
 });

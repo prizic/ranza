@@ -651,7 +651,6 @@ export interface Messages {
   folioStatus: Record<"open" | "closed", string>;
   folioLines: string;
   balance: string;
-  lines: string;
   amount: string;
   description: string;
   posted: string;
@@ -663,21 +662,98 @@ export interface Messages {
   addPayment: string;
   paymentMethod: string;
   paymentMethods: Record<"cash" | "card" | "bank_transfer" | "other", string>;
-  paymentRefused: string;
-  amountInvalid: string;
   reverse: string;
   reversing: string;
   reversed: string;
   /** A room night on a Folio (ADR 0038); `{date}` the night it is for. */
   roomNightLine: string;
   reverseReason: string;
-  reverseRefused: string;
   closeFolio: string;
   closing: string;
-  closeRefused: string;
   folioClosedNote: string;
   /** Why an open Folio offers no Close while its Guest is in house (FO-S5-01). */
   folioInHouseNote: string;
+
+  /** The Finance screen: the Folio list, a Folio, and the four things done to one. */
+  finance: {
+    cancel: string;
+    reload: string;
+    tabsLabel: string;
+    tabs: {
+      all: string;
+      owing: string;
+      open: string;
+      closed: string;
+    };
+    owingSummary: string;
+    showAll: string;
+    empty: {
+      owingTitle: string;
+      owingDescription: string;
+      openTitle: string;
+      openDescription: string;
+      closedTitle: string;
+      closedDescription: string;
+    };
+    stayDates: string;
+    stayFrom: string;
+    plusPending: string;
+    lastPosted: string;
+    nothingPosted: string;
+    reservationLink: string;
+    charged: string;
+    paid: string;
+    stillToCharge: string;
+    pendingNights: string;
+    owesAtCheckOut: string;
+    nightsUnpriced: string;
+    nightsNoneYet: string;
+    nightsNoneYetSince: string;
+    nightsSoFar: string;
+    reversalOf: string;
+    reversalReason: string;
+    correctionsNote: string;
+    chargeHint: string;
+    whatCharge: string;
+    whatPayment: string;
+    whatReverse: string;
+    whatClose: string;
+    refusedNext: string;
+    outcome: {
+      amountFormat: string;
+      amountDecimals: string;
+      amountSize: string;
+      amountZero: string;
+      descriptionRequired: string;
+      descriptionTooLong: string;
+      methodRequired: string;
+      reasonTooShort: string;
+      reasonTooLong: string;
+    };
+    paymentFor: string;
+    owesNow: string;
+    owesNothing: string;
+    chooseMethod: string;
+    paymentNote: string;
+    paymentNoteHint: string;
+    paymentDefaultDescription: string;
+    paymentSummary: string;
+    paymentSummaryIncomplete: string;
+    paymentRecord: string;
+    paymentExtra: string;
+    reversePaymentTitle: string;
+    reverseChargeTitle: string;
+    reversePaymentSummary: string;
+    reverseChargeSummary: string;
+    reversePaymentEffect: string;
+    reverseChargeEffect: string;
+    closeTitle: string;
+    closeSummary: string;
+    closeSettled: string;
+    closeOwing: string;
+    closeCredit: string;
+    closeFinal: string;
+  };
 
   rooms: string;
   roomsSubtitle: string;
@@ -2743,6 +2819,10 @@ export interface TableMessages {
   last: string;
   clearFilters: string;
   clearFilter: string;
+  /** What activating a sortable column header will do next. */
+  sortAscending: string;
+  sortDescending: string;
+  clearSort: string;
   columns: string;
   visibleColumns: string;
   search: string;
@@ -3511,7 +3591,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     folioStatus: { open: "Açık", closed: "Kapalı" },
     folioLines: "Folyo satırları",
     balance: "Bakiye",
-    lines: "Satır",
     amount: "Tutar",
     description: "Açıklama",
     posted: "İşlendi",
@@ -3520,7 +3599,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     post: "İşle",
     posting: "İşleniyor…",
     chargeRefused: "Bu ücret işlenemedi.",
-    addPayment: "Ödeme al",
+    addPayment: "Ödeme kaydet",
     paymentMethod: "Ödeme yöntemi",
     paymentMethods: {
       cash: "Nakit",
@@ -3528,22 +3607,122 @@ export const messages: Record<SupportedLocale, Messages> = {
       bank_transfer: "Banka havalesi",
       other: "Diğer",
     },
-    paymentRefused: "Bu ödeme kaydedilemedi.",
-    amountInvalid:
-      "Tutar, para biriminin izin verdiği ondalık basamakla pozitif bir sayı olmalıdır.",
     reverse: "Ters kaydet",
     reversing: "Kaydediliyor…",
     reversed: "ters kaydedildi",
     roomNightLine: "Oda gecesi · {date}",
     reverseReason: "Gerekçe",
-    reverseRefused: "Bu satır ters kaydedilemedi.",
     closeFolio: "Folyoyu kapat",
     closing: "Kapatılıyor…",
-    closeRefused: "Bu folyo kapatılamadı.",
     folioInHouseNote:
       "Misafir hâlâ konaklıyor, bu yüzden folyo açık kalır: kalan geceleri buraya ücretlendirilir. Çıkıştan sonra kapatılabilir.",
     folioClosedNote:
       "Bu folyo kapalı. Satırlar olduğu gibi kalır; kapalı bir folyoya yeni satır işlenemez.",
+    finance: {
+      cancel: "Vazgeç",
+      reload: "Yenile",
+      tabsLabel: "Gösterilen folyolar",
+      tabs: {
+        all: "Tümü",
+        owing: "Borçlu",
+        open: "Açık",
+        closed: "Kapalı",
+      },
+      owingSummary:
+        "{count, plural, one {# folyoda} other {# folyoda}} toplam {amount} ödenmemiş tutar var",
+      showAll: "Tümünü göster",
+      empty: {
+        owingTitle: "Kimsenin borcu yok",
+        owingDescription:
+          "Hiçbir folyoda bakiye yok ve konaklayan hiçbir misafirin henüz ücretlendirilmemiş gecesi yok. Ödenmiş folyolar Tümü sekmesinde.",
+        openTitle: "Açık folyo yok",
+        openDescription:
+          "Bu tesisteki tüm folyolar kapalı. Tümü sekmesinde görebilirsiniz.",
+        closedTitle: "Kapalı folyo yok",
+        closedDescription:
+          "Misafir çıkış yaptıktan sonra folyosu kapanır. Henüz kapanan olmadı.",
+      },
+      stayDates: "{from} – {to}",
+      stayFrom: "{from} tarihinden",
+      plusPending:
+        "+ çıkışta {count, plural, one {# gece} other {# gece}} için {amount}",
+      lastPosted: "Son işlem {date}",
+      nothingPosted: "Henüz bir şey işlenmedi",
+      reservationLink: "Rezervasyon {reference}",
+      charged: "Ücretlendirilen",
+      paid: "Ödenen",
+      stillToCharge: "Henüz ücretlendirilmedi",
+      pendingNights: "{count, plural, one {# gece} other {# gece}} · {amount}",
+      owesAtCheckOut: "Çıkışta borç",
+      nightsUnpriced:
+        "Bu rezervasyonun fiyatı yok, bu yüzden bu folyoya hiçbir gece ücretlendirilmez. Rezervasyonlar ekranından rezervasyona fiyat ekleyin.",
+      nightsNoneYet:
+        "Henüz hiçbir gece ücretlendirilmedi. Geceler her gün kapatıldığında ve çıkışta bu folyoya ücretlendirilir. Bu tesiste henüz kapatılmış bir gün yok.",
+      nightsNoneYetSince:
+        "Henüz hiçbir gece ücretlendirilmedi. Geceler her gün kapatıldığında ve çıkışta bu folyoya ücretlendirilir. Son kapatılan gün {closed}.",
+      nightsSoFar:
+        "Şimdiye kadar {charged} ücretlendirildi. Sonraki geceler her gün kapatıldığında ve çıkışta ücretlendirilir.",
+      reversalOf: "{description} ters kaydı",
+      reversalReason: "Gerekçe: {reason}",
+      correctionsNote:
+        "Düzeltme hiçbir satırı silmez. Asıl satır ters kaydedildi olarak işaretli kalır ve ardından ters tutarlı bir satır eklenir.",
+      chargeHint:
+        "{who} folyosuna ücret ekler. Bir ücret gerekçesiyle ters kaydedilebilir, silinemez.",
+      whatCharge: "Ücret ekleme",
+      whatPayment: "Ödeme kaydı",
+      whatReverse: "Ters kayıt",
+      whatClose: "Folyoyu kapatma",
+      refusedNext:
+        "{what} yapılamadı ve hiçbir şey kaydedilmedi. Folyo kapatılmış ya da satır başka biri tarafından ters kaydedilmiş olabilir. Son durumu görmek için yenileyin.",
+      outcome: {
+        amountFormat:
+          "Bu bir tutar değil. Rakamları ondalık virgülle yazın, örneğin 1.250,00 veya 450,50.",
+        amountDecimals:
+          "{currency} tutarında en fazla {digits, plural, one {# ondalık basamak} other {# ondalık basamak}} olabilir.",
+        amountSize: "Bu tutar çok büyük.",
+        amountZero:
+          "Tutar sıfırdan büyük olmalı. Para düşmek için bir satırı ters kaydedin.",
+        descriptionRequired: "Bunun ne için olduğunu yazın.",
+        descriptionTooLong: "Açıklama en fazla 200 karakter olabilir.",
+        methodRequired: "Ödemenin nasıl yapıldığını seçin.",
+        reasonTooShort:
+          "En az 3 karakterlik bir gerekçe yazın. Ters kayıtla birlikte saklanır.",
+        reasonTooLong: "Gerekçe en fazla 200 karakter olabilir.",
+      },
+      paymentFor: "{who}, {unit} için alınan parayı kaydedin.",
+      owesNow:
+        "Bu misafirin şu an {amount} borcu var; çıkışta ücretlendirilecek geceler dahil.",
+      owesNothing:
+        "Bu folyoda şu an borç yok. Buraya kaydedilen her tutar alacak olarak kalır.",
+      chooseMethod: "Ödeme yöntemini seçin",
+      paymentNote: "Referans veya not (isteğe bağlı)",
+      paymentNoteHint: "Makbuz numarası, kart fişi…",
+      paymentDefaultDescription: "Ödeme",
+      paymentSummary:
+        "{who}, {unit} için {method} ile ödenen {amount} kaydedilecek.",
+      paymentSummaryIncomplete:
+        "Kaydedilecek olanı görmek için tutarı yazın ve yöntemi seçin.",
+      paymentRecord:
+        "Bu, alınan paranın kaydıdır; karttan çekim yapılmaz. Yanlış ödeme gerekçesiyle ters kaydedilir, silinmez.",
+      paymentExtra:
+        "Bu, borç olan {owed} tutarından {extra} fazla. Fazlasını folyoda alacak olarak kaydet.",
+      reversePaymentTitle: "Bu ödeme ters kaydedilsin mi?",
+      reverseChargeTitle: "Bu ücret ters kaydedilsin mi?",
+      reversePaymentSummary: "{who}, {unit} için {method} ile ödenen {amount}.",
+      reverseChargeSummary:
+        "{who} folyosundaki ({unit}) {description} · {amount}.",
+      reversePaymentEffect:
+        "Ödeme folyoda ters kaydedildi olarak işaretli kalır ve {amount} tutarında bir satır eklenir: bakiye {amount} artar. Geri alınamaz.",
+      reverseChargeEffect:
+        "Ücret folyoda ters kaydedildi olarak işaretli kalır ve −{amount} tutarında bir satır eklenir: bakiye {amount} azalır. Geri alınamaz.",
+      closeTitle: "Bu folyo kapatılsın mı?",
+      closeSummary: "{who}, {unit}.",
+      closeSettled: "Bakiye sıfır.",
+      closeOwing: "{amount} hâlâ ödenmemiş ve folyoyu kapatmak bunu kapatmaz.",
+      closeCredit: "{amount} folyoda alacak olarak kalır.",
+      closeFinal:
+        "Satırlar olduğu gibi kalır, daha fazla satır işlenemez ve kapalı bir folyo yeniden açılamaz.",
+    },
 
     rooms: "Odalar ve yataklar",
     roomsSubtitle: "Bu tesisteki her oda ve yatak, ve her birinde kim kalıyor.",
@@ -5805,6 +5984,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       last: "Son sayfa",
       clearFilters: "Filtreleri temizle",
       clearFilter: "Filtreyi kaldır",
+      sortAscending: "Artan sırala",
+      sortDescending: "Azalan sırala",
+      clearSort: "Sıralamayı kaldır",
       columns: "Sütunlar",
       visibleColumns: "Görünen sütunlar",
       search: "Ara",
@@ -6665,7 +6847,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     folioStatus: { open: "Open", closed: "Closed" },
     folioLines: "Folio lines",
     balance: "Balance",
-    lines: "Lines",
     amount: "Amount",
     description: "Description",
     posted: "Posted",
@@ -6682,22 +6863,122 @@ export const messages: Record<SupportedLocale, Messages> = {
       bank_transfer: "Bank transfer",
       other: "Other",
     },
-    paymentRefused: "That payment could not be posted.",
-    amountInvalid:
-      "An amount must be a positive number with no more decimal places than the currency allows.",
     reverse: "Reverse",
     reversing: "Reversing…",
     reversed: "reversed",
     roomNightLine: "Room night · {date}",
     reverseReason: "Reason",
-    reverseRefused: "That line could not be reversed.",
     closeFolio: "Close folio",
     closing: "Closing…",
-    closeRefused: "That folio could not be closed.",
     folioInHouseNote:
       "The Guest is still in house, so the Folio stays open: their remaining nights are charged to it. It can be closed after check-out.",
     folioClosedNote:
       "This folio is closed. Its lines stay exactly as they are, and nothing further can be posted to it.",
+    finance: {
+      cancel: "Cancel",
+      reload: "Reload",
+      tabsLabel: "Folios shown",
+      tabs: {
+        all: "All",
+        owing: "Owing",
+        open: "Open",
+        closed: "Closed",
+      },
+      owingSummary:
+        "{count, plural, one {# folio owes} other {# folios owe}} {amount} in all",
+      showAll: "Show all",
+      empty: {
+        owingTitle: "Nobody owes anything",
+        owingDescription:
+          "No folio has a balance, and no Guest in house has nights still to be charged. Settled folios are under All.",
+        openTitle: "No open folios",
+        openDescription:
+          "Every folio at this Property is closed. They are under All.",
+        closedTitle: "No closed folios",
+        closedDescription:
+          "A folio closes after its Guest has checked out. None has yet.",
+      },
+      stayDates: "{from} – {to}",
+      stayFrom: "From {from}",
+      plusPending:
+        "+ {amount} for {count, plural, one {# night} other {# nights}} at check-out",
+      lastPosted: "Last posted {date}",
+      nothingPosted: "Nothing posted yet",
+      reservationLink: "Booking {reference}",
+      charged: "Charged",
+      paid: "Paid",
+      stillToCharge: "Still to charge",
+      pendingNights:
+        "{count, plural, one {# night} other {# nights}} · {amount}",
+      owesAtCheckOut: "Owes at check-out",
+      nightsUnpriced:
+        "This booking has no price, so no nights are charged to this folio. Add a price to the booking from the Reservations screen.",
+      nightsNoneYet:
+        "No nights charged yet. They are charged to this folio when each day is closed, and at check-out. No day has been closed at this Property yet.",
+      nightsNoneYetSince:
+        "No nights charged yet. They are charged to this folio when each day is closed, and at check-out. The last day closed was {closed}.",
+      nightsSoFar:
+        "{charged} charged so far. Later nights are charged when each day is closed, and at check-out.",
+      reversalOf: "Reversal of {description}",
+      reversalReason: "Reason: {reason}",
+      correctionsNote:
+        "A correction never removes a line. The original stays, marked reversed, and a line with the opposite amount is added after it.",
+      chargeHint:
+        "Adds a charge to the folio of {who}. A charge can be reversed with a reason, never deleted.",
+      whatCharge: "The charge",
+      whatPayment: "The payment",
+      whatReverse: "The reversal",
+      whatClose: "Closing the folio",
+      refusedNext:
+        "{what} did not go through and nothing was recorded. The folio may have been closed, or the line already reversed, by someone else. Reload to see how it stands now.",
+      outcome: {
+        amountFormat:
+          "That is not an amount. Type digits with a decimal point, for example 1,250.00 or 450.50.",
+        amountDecimals:
+          "A {currency} amount has at most {digits, plural, one {# decimal place} other {# decimal places}}.",
+        amountSize: "That amount is too large.",
+        amountZero:
+          "An amount must be more than zero. To take money off, reverse a line.",
+        descriptionRequired: "Say what this is for.",
+        descriptionTooLong: "Keep the description to 200 characters or fewer.",
+        methodRequired: "Choose how it was paid.",
+        reasonTooShort:
+          "Give a reason of at least 3 characters. It is kept with the reversal.",
+        reasonTooLong: "Keep the reason to 200 characters or fewer.",
+      },
+      paymentFor: "Record money received from {who}, {unit}.",
+      owesNow:
+        "This Guest owes {amount} now, counting the nights check-out will still charge.",
+      owesNothing:
+        "Nothing is owed on this folio now. Anything recorded here stays as a credit.",
+      chooseMethod: "Choose how it was paid",
+      paymentNote: "Reference or note (optional)",
+      paymentNoteHint: "Receipt number, card slip…",
+      paymentDefaultDescription: "Payment",
+      paymentSummary: "Records {amount} paid by {method} for {who}, {unit}.",
+      paymentSummaryIncomplete:
+        "Type the amount and choose the method to see what will be recorded.",
+      paymentRecord:
+        "It is a record of money received; no card is charged. A wrong payment is reversed with a reason, never deleted.",
+      paymentExtra:
+        "This is {extra} more than the {owed} owed. Record the extra as a credit on the folio.",
+      reversePaymentTitle: "Reverse this payment?",
+      reverseChargeTitle: "Reverse this charge?",
+      reversePaymentSummary: "{amount} paid by {method} for {who}, {unit}.",
+      reverseChargeSummary:
+        "{description} · {amount} on the folio of {who}, {unit}.",
+      reversePaymentEffect:
+        "The payment stays on the folio, marked reversed, and a line of {amount} is added: the balance goes up by {amount}. This cannot be undone.",
+      reverseChargeEffect:
+        "The charge stays on the folio, marked reversed, and a line of −{amount} is added: the balance goes down by {amount}. This cannot be undone.",
+      closeTitle: "Close this folio?",
+      closeSummary: "{who}, {unit}.",
+      closeSettled: "The balance is zero.",
+      closeOwing: "{amount} is still owed, and closing does not settle it.",
+      closeCredit: "{amount} is a credit left on the folio.",
+      closeFinal:
+        "Its lines stay exactly as they are, nothing more can be posted, and a closed folio cannot be reopened.",
+    },
 
     rooms: "Rooms & beds",
     roomsSubtitle:
@@ -8965,6 +9246,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       last: "Last page",
       clearFilters: "Clear filters",
       clearFilter: "Remove filter",
+      sortAscending: "Sort ascending",
+      sortDescending: "Sort descending",
+      clearSort: "Clear sort",
       columns: "Columns",
       visibleColumns: "Visible columns",
       search: "Search",
@@ -9801,7 +10085,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     folioStatus: { open: "مفتوح", closed: "مغلق" },
     folioLines: "بنود الحساب",
     balance: "الرصيد",
-    lines: "البنود",
     amount: "المبلغ",
     description: "الوصف",
     posted: "تاريخ القيد",
@@ -9818,22 +10101,120 @@ export const messages: Record<SupportedLocale, Messages> = {
       bank_transfer: "تحويل بنكي",
       other: "أخرى",
     },
-    paymentRefused: "تعذّر تسجيل هذه الدفعة.",
-    amountInvalid:
-      "يجب أن يكون المبلغ رقمًا موجبًا بعدد خانات عشرية لا يتجاوز ما تسمح به العملة.",
     reverse: "عكس القيد",
     reversing: "جارٍ العكس…",
     reversed: "معكوس",
     roomNightLine: "ليلة إقامة · {date}",
     reverseReason: "السبب",
-    reverseRefused: "تعذّر عكس هذا البند.",
     closeFolio: "إغلاق الحساب",
     closing: "جارٍ الإغلاق…",
-    closeRefused: "تعذّر إغلاق هذا الحساب.",
     folioInHouseNote:
       "الضيف ما زال في المنشأة، لذا يبقى الحساب مفتوحًا: تُحتسب عليه لياليه المتبقية. يمكن إغلاقه بعد المغادرة.",
     folioClosedNote:
       "هذا الحساب مغلق. تبقى بنوده كما هي، ولا يمكن قيد أي شيء جديد عليه.",
+    finance: {
+      cancel: "إلغاء",
+      reload: "إعادة التحميل",
+      tabsLabel: "الحسابات المعروضة",
+      tabs: {
+        all: "الكل",
+        owing: "عليها رصيد",
+        open: "مفتوحة",
+        closed: "مغلقة",
+      },
+      owingSummary:
+        "{count, plural, zero {لا حسابات} one {حساب واحد} two {حسابان} few {# حسابات} many {# حسابًا} other {# حساب}} عليها رصيد، مجموعه {amount}",
+      showAll: "اعرض الكل",
+      empty: {
+        owingTitle: "لا أحد مدين بشيء",
+        owingDescription:
+          "لا رصيد على أي حساب، ولا ليالي لم تُحتسب بعد على نزلاء الإقامة. الحسابات المسدَّدة في تبويب «الكل».",
+        openTitle: "لا حسابات مفتوحة",
+        openDescription: "كل حسابات هذه المنشأة مغلقة. تجدها في تبويب «الكل».",
+        closedTitle: "لا حسابات مغلقة",
+        closedDescription:
+          "يُغلق الحساب بعد مغادرة النزيل. لم يُغلق أي حساب بعد.",
+      },
+      stayDates: "{from} – {to}",
+      stayFrom: "من {from}",
+      plusPending:
+        "+ {amount} عن {count, plural, zero {لا ليالٍ} one {ليلة واحدة} two {ليلتين} few {# ليالٍ} many {# ليلة} other {# ليلة}} عند المغادرة",
+      lastPosted: "آخر قيد {date}",
+      nothingPosted: "لم يُقيَّد شيء بعد",
+      reservationLink: "الحجز {reference}",
+      charged: "المحتسب",
+      paid: "المدفوع",
+      stillToCharge: "لم يُحتسب بعد",
+      pendingNights:
+        "{count, plural, zero {لا ليالٍ} one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلة} other {# ليلة}} · {amount}",
+      owesAtCheckOut: "المستحق عند المغادرة",
+      nightsUnpriced:
+        "هذا الحجز بلا سعر، لذا لا تُحتسب أي ليلة على هذا الحساب. أضف سعرًا للحجز من شاشة الحجوزات.",
+      nightsNoneYet:
+        "لم تُحتسب أي ليلة بعد. تُحتسب الليالي على هذا الحساب عند إغلاق كل يوم وعند المغادرة. لم يُغلق أي يوم في هذه المنشأة بعد.",
+      nightsNoneYetSince:
+        "لم تُحتسب أي ليلة بعد. تُحتسب الليالي على هذا الحساب عند إغلاق كل يوم وعند المغادرة. آخر يوم أُغلق هو {closed}.",
+      nightsSoFar:
+        "احتُسب {charged} حتى الآن. تُحتسب الليالي اللاحقة عند إغلاق كل يوم وعند المغادرة.",
+      reversalOf: "عكس {description}",
+      reversalReason: "السبب: {reason}",
+      correctionsNote:
+        "التصحيح لا يحذف أي بند. يبقى البند الأصلي معلَّمًا بأنه معكوس، ويُضاف بعده بند بالمبلغ المقابل.",
+      chargeHint:
+        "يضيف رسمًا إلى حساب {who}. يمكن عكس الرسم بذكر السبب، ولا يُحذف.",
+      whatCharge: "إضافة الرسم",
+      whatPayment: "تسجيل الدفعة",
+      whatReverse: "عكس البند",
+      whatClose: "إغلاق الحساب",
+      refusedNext:
+        "تعذّر: {what}. لم يُسجَّل شيء. ربما أُغلق الحساب أو عُكس البند من قبل شخص آخر. أعد التحميل لترى حالته الآن.",
+      outcome: {
+        amountFormat:
+          "هذا ليس مبلغًا. اكتب أرقامًا مع فاصلة عشرية، مثل ١٬٢٥٠٫٠٠ أو ٤٥٠٫٥٠.",
+        amountDecimals:
+          "لمبلغ {currency} على الأكثر {digits, plural, zero {لا خانات عشرية} one {خانة عشرية واحدة} two {خانتان عشريتان} few {# خانات عشرية} many {# خانة عشرية} other {# خانة عشرية}}.",
+        amountSize: "هذا المبلغ كبير جدًا.",
+        amountZero: "يجب أن يكون المبلغ أكبر من صفر. لخصم مبلغ، اعكس بندًا.",
+        descriptionRequired: "اذكر سبب هذا القيد.",
+        descriptionTooLong: "اجعل الوصف 200 حرف أو أقل.",
+        methodRequired: "اختر طريقة الدفع.",
+        reasonTooShort: "اكتب سببًا من 3 أحرف على الأقل. يُحفظ مع العكس.",
+        reasonTooLong: "اجعل السبب 200 حرف أو أقل.",
+      },
+      paymentFor: "سجّل المبلغ المستلم من {who}، {unit}.",
+      owesNow:
+        "على هذا النزيل الآن {amount}، بما في ذلك الليالي التي ستُحتسب عند المغادرة.",
+      owesNothing:
+        "لا مستحقات على هذا الحساب الآن. أي مبلغ يُسجَّل هنا يبقى رصيدًا دائنًا.",
+      chooseMethod: "اختر طريقة الدفع",
+      paymentNote: "مرجع أو ملاحظة (اختياري)",
+      paymentNoteHint: "رقم الإيصال، إيصال البطاقة…",
+      paymentDefaultDescription: "دفعة",
+      paymentSummary:
+        "سيُسجَّل مبلغ {amount} من {who}، {unit} (طريقة الدفع: {method}).",
+      paymentSummaryIncomplete:
+        "اكتب المبلغ واختر طريقة الدفع لترى ما سيُسجَّل.",
+      paymentRecord:
+        "هذا تسجيل لمبلغ مستلم؛ لا يُخصم شيء من أي بطاقة. تُعكس الدفعة الخاطئة بذكر السبب ولا تُحذف.",
+      paymentExtra:
+        "هذا أكثر من المستحق {owed} بمقدار {extra}. سجّل الزيادة رصيدًا دائنًا على الحساب.",
+      reversePaymentTitle: "عكس هذه الدفعة؟",
+      reverseChargeTitle: "عكس هذا الرسم؟",
+      reversePaymentSummary:
+        "{amount} من {who}، {unit} (طريقة الدفع: {method}).",
+      reverseChargeSummary: "{description} · {amount} على حساب {who}، {unit}.",
+      reversePaymentEffect:
+        "تبقى الدفعة على الحساب معلَّمة بأنها معكوسة، ويُضاف بند بمبلغ {amount}: يزيد الرصيد بمقدار {amount}. لا يمكن التراجع عن هذا.",
+      reverseChargeEffect:
+        "يبقى الرسم على الحساب معلَّمًا بأنه معكوس، ويُضاف بند بمبلغ −{amount}: ينقص الرصيد بمقدار {amount}. لا يمكن التراجع عن هذا.",
+      closeTitle: "إغلاق هذا الحساب؟",
+      closeSummary: "{who}، {unit}.",
+      closeSettled: "الرصيد صفر.",
+      closeOwing: "ما زال {amount} مستحقًا، والإغلاق لا يسدّده.",
+      closeCredit: "{amount} رصيد دائن يبقى على الحساب.",
+      closeFinal:
+        "تبقى بنوده كما هي، ولا يمكن قيد أي شيء آخر عليه، ولا يمكن إعادة فتح الحساب بعد إغلاقه.",
+    },
 
     rooms: "الغرف والأسرّة",
     roomsSubtitle: "كل غرفة وسرير في هذا العقار، ومن يشغل كلًّا منها.",
@@ -12075,6 +12456,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       last: "الصفحة الأخيرة",
       clearFilters: "إزالة الفلاتر",
       clearFilter: "إزالة الفلتر",
+      sortAscending: "ترتيب تصاعدي",
+      sortDescending: "ترتيب تنازلي",
+      clearSort: "إلغاء الترتيب",
       columns: "الأعمدة",
       visibleColumns: "الأعمدة الظاهرة",
       search: "بحث",

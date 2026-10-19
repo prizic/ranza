@@ -3,7 +3,9 @@ import path from "node:path";
 import { expect } from "@playwright/test";
 import { test } from "./hydration";
 
-import { aStaffMember, signIn, testProperty } from "./front-desk";
+import { psql } from "./local-database";
+import { aStaffMember, signIn } from "./front-desk";
+import { aBooking, aDeskProperty, archiveMadeProperties } from "./ux-fixtures";
 
 const EVIDENCE = path.resolve(
   __dirname,
@@ -15,13 +17,33 @@ const EVIDENCE = path.resolve(
  * reference, and the failure is recorded (RANZ-76).
  *
  * Only four routes had a screen of their own; every other failure showed the
- * framework's blank page. The failure here is a real one: Finance reads a
- * `?folio=` that is not an id with no check, and the database refuses it. If
- * that page learns to validate it, this needs another way to fail — the screens
- * themselves are also proved without a browser in route-error.test.tsx.
+ * framework's blank page. The failure here is a real one: the Reservations
+ * list multiplies a booking's nightly price by its nights in a `bigint`, so a
+ * price near the top of the range makes the database refuse the read. Finance
+ * used to fail on a `?folio=` that was not an id; it now reads that as no
+ * Folio, so a record is the trigger. If the list learns to hold such a price,
+ * this needs another way to fail — the screens themselves are also proved
+ * without a browser in route-error.test.tsx.
  */
 const FAILING = (propertyId: string, locale: string) =>
-  `/${locale}/finance?property=${propertyId}&folio=not-an-id`;
+  `/${locale}/reservations?property=${propertyId}`;
+
+/** A Property of this run's own holding a booking whose total cannot be worked out. */
+function aPropertyThatCannotBeDrawn(): string {
+  const propertyId = aDeskProperty();
+  const { reference } = aBooking(propertyId, { startsIn: 2, nights: 3 });
+  // Written with the triggers off: the booking trigger stamps a price from the
+  // price list, which a fixture has no reach to.
+  psql(
+    `set session_replication_role = replica;
+     update public.reservations
+        set nightly_rate_minor = 9000000000000000000, rate_currency = 'TRY'
+      where reference = '${reference}'`,
+  );
+  return propertyId;
+}
+
+test.afterAll(() => archiveMadeProperties());
 
 for (const [locale, say] of [
   [
@@ -40,7 +62,7 @@ for (const [locale, say] of [
     baseURL,
   }) => {
     test.setTimeout(120_000);
-    const propertyId = testProperty();
+    const propertyId = aPropertyThatCannotBeDrawn();
     const { email } = await aStaffMember(
       request,
       baseURL!,

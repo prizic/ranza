@@ -1,5 +1,5 @@
 export { createFoliosModule } from "./module";
-export type { FoliosModule } from "./module";
+export type { FolioShow, FoliosModule } from "./module";
 export type { FoliosDeps } from "./ports";
 export {
   BILLING_MODULE,

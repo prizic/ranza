@@ -90,7 +90,7 @@ export {
   type OperationStatus,
   type WebhookEndpointRecord,
 };
-import type { FolioDetail, FolioSummary } from "@ranza/folios";
+import type { FolioDetail, FolioShow, FolioSummary } from "@ranza/folios";
 import {
   BookingChangeError,
   FRONT_DESK_CAPABILITY,
@@ -795,6 +795,24 @@ export async function folios(
   return getComposition().folios.listFolios(viewer.userId, propertyId);
 }
 
+const FOLIO_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * One page of the Finance list: the Folios the tab asks for, those owing the
+ * most first, with how many there are in all.
+ */
+export async function folioPage(
+  propertyId: string,
+  show: FolioShow,
+): Promise<{ folios: readonly FolioSummary[]; total: number }> {
+  const viewer = await currentViewer();
+  if (!viewer) return { folios: [], total: 0 };
+  return getComposition().folios.listFolioPage(viewer.userId, propertyId, {
+    show,
+  });
+}
+
 /**
  * One Folio and its lines.
  *
@@ -803,6 +821,9 @@ export async function folios(
  * indistinguishable from one that was never there.
  */
 export async function folio(folioId: string): Promise<FolioDetail | null> {
+  // Anything that is not an id is a Folio that is not there, not a query for
+  // the database to refuse and the page to fail on.
+  if (!FOLIO_ID.test(folioId)) return null;
   const viewer = await currentViewer();
   if (!viewer) return null;
   return getComposition().folios.folioDetail(viewer.userId, folioId);

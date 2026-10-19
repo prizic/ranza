@@ -125,6 +125,11 @@ export interface FolioSummary {
   /** The Property it is at — what a screen asks a permission about. */
   propertyId: string;
   stayId: string;
+  /** The booking the Stay came from; null for a Stay that began without one. */
+  reservationId: string | null;
+  /** The booking's reference as the desk says it aloud; null with no booking. */
+  reference: string | null;
+  stayType: "guest" | "resident";
   status: FolioStatus;
   /** ISO 4217, copied from the Property when the Folio opened. */
   currency: string;
@@ -135,13 +140,37 @@ export interface FolioSummary {
    */
   guestName: string;
   unitName: string;
+  /** The Stay's first and planned last night, `YYYY-MM-DD`; the end is null while open-ended. */
+  startsOn: string;
+  endsOn: string | null;
+  /** Net of reversals: the charges on the Folio, and what has been paid. */
+  chargedMinor: number;
+  paidMinor: number;
   balanceMinor: number;
   lineCount: number;
+  /** When the latest line was posted; null while nothing has been. */
+  lastPostedAt: Date | null;
+  /** Room nights posted to it, by a close or a check-out (ADR 0038). */
+  roomNightLines: number;
   /**
    * The Guest is still in house, so the Folio cannot be closed by anybody: its
    * nights are still being charged to it (FO-S5-01, ADR 0038).
    */
   stayInHouse: boolean;
+  /** The Property's own business date, which an overdue stay is counted against. */
+  today: string;
+  /** The Property's last closed business date, or null when no day has closed. */
+  lastClosedOn: string | null;
+  /** The booking's own price per night; null when it was taken unpriced. */
+  nightlyRateMinor: number | null;
+  /**
+   * Nights already slept that no close has charged yet, and what they come to:
+   * what a check-out today would add to the bill (ADR 0038), the same figure
+   * the departures list carries. Zero from a read that did not ask for it, and
+   * for a Stay that is not in house.
+   */
+  pendingNights: number;
+  pendingMinor: number;
 }
 
 /** One Folio and everything posted to it, newest first. */

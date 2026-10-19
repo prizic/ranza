@@ -1,0 +1,349 @@
+import path from "node:path";
+import { expect, type Page } from "@playwright/test";
+import { test } from "./hydration";
+import { psql } from "./local-database";
+import { signIn } from "./front-desk";
+import {
+  aDeskProperty,
+  anOverdueGuest,
+  archiveMadeProperties,
+  type Housed,
+} from "./ux-fixtures";
+
+/**
+ * The 2026-10-11 UX audit's money findings, walked through the real UI:
+ * Finance (RANZ-67), Analytics (RANZ-70) and All Properties (RANZ-71). Each
+ * test brings a Property of its own, because an overdue Guest holds a business
+ * day open for ever.
+ */
+
+const EVIDENCE = path.resolve(__dirname, "../../docs/evidence/ux-audit");
+const shot = (ticket: string, name: string) =>
+  path.join(EVIDENCE, ticket, `${name}.png`);
+
+test.afterAll(() => archiveMadeProperties());
+
+/** Text as a person reads it: without the isolates that keep a name in place, and with plain spaces. */
+const plain = (text: string | null): string =>
+  (text ?? "").replace(/[\u2066-\u2069]/g, "").replace(/\u00a0/g, " ");
+
+/** The Folio a Guest's stay opened. */
+function folioOf(guest: Housed): string {
+  return psql(`select id from public.folios where stay_id = '${guest.stayId}'`);
+}
+
+test.describe("Finance (RANZ-67)", () => {
+  test("the_list_finds_a_folio_by_room_and_booking_and_leads_with_who_owes_most", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    const behind = anOverdueGuest(propertyId, {
+      daysOverdue: 2,
+      nightlyRateMinor: 12000,
+      withFolio: true,
+    });
+    const settled = anOverdueGuest(propertyId, {
+      daysOverdue: 0,
+      withFolio: true,
+    });
+    await signIn(page);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`/en/finance?property=${propertyId}`);
+
+    const rows = page.getByRole("row");
+    await expect(rows.filter({ hasText: behind.guestName })).toBeVisible();
+    await expect(rows.filter({ hasText: behind.reference })).toBeVisible();
+    await expect(
+      rows.filter({ hasText: behind.guestName }).getByText("Overdue · 2 days"),
+    ).toBeVisible();
+
+    // What the desk says aloud finds the folio: a room, a booking code.
+    const search = page.getByRole("searchbox");
+    await search.fill(behind.unitName);
+    await expect(rows.filter({ hasText: behind.guestName })).toBeVisible();
+    await expect(rows.filter({ hasText: settled.guestName })).toHaveCount(0);
+    await search.fill(settled.reference);
+    await expect(rows.filter({ hasText: settled.guestName })).toBeVisible();
+    await search.fill("");
+
+    // Owing: the nights check-out will still charge count, the settled folio does not.
+    await page.getByRole("link", { name: "Owing" }).click();
+    await expect(page).toHaveURL(/show=owing/);
+    await expect(rows.filter({ hasText: behind.guestName })).toBeVisible();
+    await expect(rows.filter({ hasText: settled.guestName })).toHaveCount(0);
+    await expect(page.getByTestId("owing-summary")).toContainText(
+      /1 folio owes TRY\s600\.00/,
+    );
+
+    // A tab with nothing in it says so, and is not "no folios yet".
+    await page.getByRole("link", { name: "Closed" }).click();
+    await expect(page.getByText("No closed folios")).toBeVisible();
+    await expect(page.getByText("No folios yet")).toHaveCount(0);
+    await page.getByRole("link", { name: "Show all" }).click();
+    await expect(rows.filter({ hasText: behind.guestName })).toBeVisible();
+  });
+
+  test("a_folio_says_whose_it_is_what_it_has_come_to_and_why_nothing_is_charged_yet", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    const guest = anOverdueGuest(propertyId, {
+      daysOverdue: 2,
+      nightlyRateMinor: 12000,
+      withFolio: true,
+    });
+    const unpriced = anOverdueGuest(propertyId, {
+      daysOverdue: 1,
+      withFolio: true,
+    });
+    await signIn(page);
+    await page.setViewportSize({ width: 1280, height: 1000 });
+
+    await page.goto(
+      `/en/finance?property=${propertyId}&folio=${folioOf(guest)}`,
+    );
+    await expect(
+      page.getByRole("heading", {
+        level: 2,
+        name: new RegExp(guest.guestName),
+      }),
+    ).toContainText(guest.unitName);
+    await expect(
+      page.getByRole("link", { name: `Booking ${guest.reference}` }),
+    ).toBeVisible();
+    await expect(page.getByText("Overdue · 2 days")).toBeVisible();
+    const fact = (label: string) =>
+      page.locator("dt", { hasText: label }).locator("xpath=..");
+    await expect(fact("Charged")).toContainText("TRY 0.00");
+    await expect(fact("Still to charge")).toContainText(
+      "5 nights · TRY 600.00",
+    );
+    await expect(fact("Owes at check-out")).toContainText("TRY 600.00");
+    await expect(page.getByTestId("nights-note")).toContainText(
+      "No nights charged yet",
+    );
+    await expect(page.getByTestId("nights-note")).toContainText(
+      "No day has been closed at this Property yet",
+    );
+    await page.screenshot({ path: shot("RANZ-67", "folio-no-nights-yet") });
+
+    // The booking with no price says it will never charge a night.
+    await page.goto(
+      `/en/finance?property=${propertyId}&folio=${folioOf(unpriced)}`,
+    );
+    await expect(page.getByTestId("nights-note")).toContainText(
+      "no price, so no nights are charged",
+    );
+  });
+
+  test("a_malformed_folio_in_the_address_is_no_folio_and_not_a_failed_page", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    const guest = anOverdueGuest(propertyId, {
+      daysOverdue: 1,
+      withFolio: true,
+    });
+    await signIn(page);
+    await page.goto(`/en/finance?property=${propertyId}&folio=not-an-id`);
+    await expect(
+      page.getByRole("row").filter({ hasText: guest.guestName }),
+    ).toBeVisible();
+    await expect(page.getByText("Something went wrong")).toHaveCount(0);
+  });
+
+  test("a_charge_typed_with_grouping_posts_and_a_refused_one_keeps_what_was_typed", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    const guest = anOverdueGuest(propertyId, {
+      daysOverdue: 1,
+      withFolio: true,
+    });
+    await signIn(page);
+    const folio = folioOf(guest);
+
+    await page.goto(`/en/finance?property=${propertyId}&folio=${folio}`);
+    const description = page.locator("#charge-description");
+    const amount = page.locator("#charge-amount");
+    await description.fill("Minibar");
+    await amount.fill("12.505");
+    await page.getByRole("button", { name: "Post", exact: true }).click();
+    await expect(
+      page.getByText("A TRY amount has at most 2 decimal places."),
+    ).toBeVisible();
+    await expect(description).toHaveValue("Minibar");
+    await expect(amount).toHaveValue("12.505");
+
+    await amount.fill("1,250.00");
+    await page.getByRole("button", { name: "Post", exact: true }).click();
+    const line = page.getByRole("row").filter({ hasText: "Minibar" });
+    await expect(line).toContainText("TRY 1,250.00");
+    await expect(description).toHaveValue("");
+    await expect(amount).toHaveValue("");
+  });
+
+  test("a_payment_starts_from_what_is_owed_asks_for_the_method_and_says_what_it_records", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    const guest = anOverdueGuest(propertyId, {
+      daysOverdue: 2,
+      nightlyRateMinor: 12000,
+      withFolio: true,
+    });
+    await signIn(page);
+    await page.setViewportSize({ width: 1280, height: 1000 });
+    await page.goto(
+      `/en/finance?property=${propertyId}&folio=${folioOf(guest)}`,
+    );
+
+    await page.getByRole("button", { name: "Record payment" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByLabel(/Amount/)).toHaveValue("600.00");
+    await expect(dialog.getByRole("combobox")).toContainText(
+      "Choose how it was paid",
+    );
+    await expect(dialog.getByTestId("payment-summary")).toContainText(
+      "choose the method",
+    );
+
+    // No method is chosen for the clerk: skipping it is asked about, not recorded as a card.
+    await dialog.getByRole("button", { name: "Record payment" }).click();
+    await expect(dialog.getByText("Choose how it was paid.")).toBeVisible();
+    await expect(dialog.getByLabel(/Amount/)).toHaveValue("600.00");
+
+    // More than is owed needs the clerk to say so.
+    await dialog.getByLabel(/Amount/).fill("1,000.00");
+    const submit = dialog.getByRole("button", { name: "Record payment" });
+    await expect(submit).toBeDisabled();
+    await expect(dialog).toContainText(
+      "This is TRY 400.00 more than the TRY 600.00 owed",
+    );
+    await dialog.getByLabel(/Amount/).fill("600.00");
+    await expect(submit).toBeEnabled();
+
+    await dialog.getByRole("combobox").click();
+    await page.getByRole("option", { name: "Cash" }).click();
+    await expect
+      .poll(async () =>
+        plain(await dialog.getByTestId("payment-summary").textContent()),
+      )
+      .toContain(`Records TRY 600.00 paid by Cash for ${guest.guestName}`);
+    await page.screenshot({ path: shot("RANZ-67", "payment-confirm") });
+    await submit.click();
+
+    await expect(dialog).toHaveCount(0);
+    const line = page.getByRole("row").filter({ hasText: "Payment" });
+    await expect(line).toContainText("Cash");
+    await expect(line).toContainText("-TRY 600.00");
+  });
+
+  test("a_reversal_names_what_it_does_and_the_line_reads_as_a_correction", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    const guest = anOverdueGuest(propertyId, {
+      daysOverdue: 1,
+      withFolio: true,
+    });
+    await signIn(page);
+    await page.setViewportSize({ width: 1280, height: 1000 });
+    await page.goto(
+      `/en/finance?property=${propertyId}&folio=${folioOf(guest)}`,
+    );
+    await page.locator("#charge-description").fill("Late checkout fee");
+    await page.locator("#charge-amount").fill("300");
+    await page.getByRole("button", { name: "Post", exact: true }).click();
+    const row = page.getByRole("row").filter({ hasText: "Late checkout fee" });
+    await expect(row).toBeVisible();
+
+    await row.getByRole("button", { name: "Reverse" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toContainText("Reverse this charge?");
+    await expect(dialog).toContainText("Late checkout fee");
+    await expect(dialog).toContainText("stays on the folio, marked reversed");
+    await expect(dialog).toContainText("This cannot be undone");
+    await dialog.getByLabel("Reason").fill("ab");
+    await dialog.getByRole("button", { name: "Reverse" }).click();
+    await expect(dialog.getByLabel("Reason")).toBeFocused();
+    await dialog.getByLabel("Reason").fill("Charged to the wrong room");
+    await dialog.getByRole("button", { name: "Reverse" }).click();
+
+    await expect(dialog).toHaveCount(0);
+    await expect(
+      page
+        .getByRole("row")
+        .filter({ hasText: "Late checkout fee" })
+        .filter({ hasText: /^Late checkout fee/ }),
+    ).toContainText("reversed");
+    await expect(page.getByText("Reversal of Late checkout fee")).toBeVisible();
+    await expect
+      .poll(async () => plain(await page.getByText(/^Reason: /).textContent()))
+      .toBe("Reason: Charged to the wrong room");
+    await expect(
+      page.getByText(/A correction never removes a line/),
+    ).toBeVisible();
+  });
+
+  test("a_folio_reads_and_posts_in_arabic_and_turkish_with_the_grouping_of_each", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    const guest = anOverdueGuest(propertyId, {
+      daysOverdue: 2,
+      nightlyRateMinor: 12000,
+      withFolio: true,
+    });
+    await signIn(page);
+    await page.setViewportSize({ width: 1280, height: 1000 });
+    const folio = folioOf(guest);
+
+    await page.goto(`/tr/finance?property=${propertyId}&folio=${folio}`);
+    await page.locator("#charge-description").fill("Minibar");
+    await page.locator("#charge-amount").fill("1.250,00");
+    await page.getByRole("button", { name: "İşle", exact: true }).click();
+    await expect(
+      page.getByRole("row").filter({ hasText: "Minibar" }),
+    ).toContainText("1.250,00");
+    await expect(
+      page.getByRole("button", { name: "Ödeme kaydet" }),
+    ).toBeVisible();
+
+    await page.goto(`/ar/finance?property=${propertyId}&folio=${folio}`);
+    await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+    await page.locator("#charge-description").fill("خدمة الغرف");
+    await page.locator("#charge-amount").fill("٢٬٥٠٠٫٥٠");
+    await page.getByRole("button", { name: "قيد", exact: true }).click();
+    await expect(
+      page.getByRole("row").filter({ hasText: "خدمة الغرف" }),
+    ).toContainText("2,500.50");
+    await page.getByRole("button", { name: "تسجيل دفعة" }).click();
+    await expect(page.getByRole("dialog")).toContainText("طريقة الدفع");
+  });
+
+  test("on_a_phone_the_guest_and_the_balance_are_both_in_view_without_scrolling_sideways", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    const guest = anOverdueGuest(propertyId, {
+      daysOverdue: 1,
+      nightlyRateMinor: 12000,
+      withFolio: true,
+    });
+    await signIn(page);
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto(`/en/finance?property=${propertyId}`);
+    const row = page.getByRole("row").filter({ hasText: guest.guestName });
+    await expect(row).toBeVisible();
+    const balance = row.getByText(/at check-out/);
+    await expect(balance).toBeVisible();
+    const box = await balance.boundingBox();
+    expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+    await page.screenshot({ path: shot("RANZ-67", "list-phone") });
+  });
+});

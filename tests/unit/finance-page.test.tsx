@@ -13,7 +13,7 @@ import { messages } from "../../apps/operator-workspace/src/messages";
 
 const entitledProperties = vi.fn();
 const folio = vi.fn();
-const folios = vi.fn();
+const folioPage = vi.fn();
 const permittedProperties = vi.fn();
 
 vi.mock("../../apps/operator-workspace/node_modules/server-only", () => ({}));
@@ -47,9 +47,13 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
   POST_PAYMENT_PERMISSION: "finance.post_payment",
   REVERSE_CHARGE_PERMISSION: "finance.reverse_charge",
   REVERSE_PAYMENT_PERMISSION: "finance.reverse_payment",
+  FRONT_DESK_CAPABILITY: {
+    moduleKey: "front_office",
+    capabilityKey: "front_desk",
+  },
   entitledProperties,
   folio,
-  folios,
+  folioPage,
   permittedProperties,
   requireViewer: async () => ({
     userId: "d9100001-0000-4000-8000-000000000001",
@@ -79,7 +83,11 @@ const FORGED = "d9100004-0000-4000-8000-0000000000ff";
 const { default: FinancePage } =
   await import("../../apps/operator-workspace/src/app/[locale]/(workspace)/finance/page");
 
-async function show(search: { property?: string; folio?: string }) {
+async function show(search: {
+  property?: string;
+  folio?: string;
+  show?: string;
+}) {
   const page = await FinancePage({
     params: Promise.resolve({ locale: "en" }),
     searchParams: Promise.resolve(search),
@@ -96,14 +104,14 @@ function expectFinanceIsNotOn() {
   expect(screen.getByText(messages.en.noFinanceDescription)).toBeVisible();
   expect(screen.queryByTestId("folios-table")).toBeNull();
   expect(screen.queryByTestId("folio-panel")).toBeNull();
-  expect(folios).not.toHaveBeenCalled();
+  expect(folioPage).not.toHaveBeenCalled();
   expect(folio).not.toHaveBeenCalled();
 }
 
 beforeEach(() => {
   entitledProperties.mockReset().mockResolvedValue([PROPERTY]);
   folio.mockReset().mockResolvedValue(null);
-  folios.mockReset().mockResolvedValue([]);
+  folioPage.mockReset().mockResolvedValue({ folios: [], total: 0 });
   permittedProperties.mockReset().mockResolvedValue([]);
 });
 afterEach(cleanup);
@@ -139,6 +147,33 @@ describe("the Finance page where finance is not on", () => {
     await show({ property: PROPERTY.propertyId });
     expect(screen.getByTestId("folios-table")).toBeInTheDocument();
     expect(screen.queryByText(messages.en.noFinanceTitle)).toBeNull();
-    expect(folios).toHaveBeenCalledWith(PROPERTY.propertyId);
+    expect(folioPage).toHaveBeenCalledWith(PROPERTY.propertyId, "all");
+  });
+});
+
+describe("the Finance list's tabs (FIN-02)", () => {
+  it("asks the module for the tab named in the address, and for all when it names none the screen knows", async () => {
+    for (const [shown, asked] of [
+      ["owing", "owing"],
+      ["open", "open"],
+      ["closed", "closed"],
+      ["nonsense", "all"],
+      [undefined, "all"],
+    ] as const) {
+      folioPage.mockClear();
+      await show({ property: PROPERTY.propertyId, show: shown });
+      expect(folioPage).toHaveBeenCalledWith(PROPERTY.propertyId, asked);
+      cleanup();
+    }
+  });
+
+  it("marks the tab that is open", async () => {
+    await show({ property: PROPERTY.propertyId, show: "owing" });
+    expect(
+      screen.getByRole("link", { name: messages.en.finance.tabs.owing }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      screen.getByRole("link", { name: messages.en.finance.tabs.all }),
+    ).not.toHaveAttribute("aria-current");
   });
 });

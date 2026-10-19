@@ -56,7 +56,9 @@ export function useTableLabels(): DataTableLabels {
 }
 
 /**
- * A sortable column header's three strings.
+ * A sortable column header's three strings: what a click will do next. They
+ * were the pager's "Next" and "Previous", which a screen reader read out as
+ * "Guest, Next" (FIN-10).
  *
  * Here rather than in each feature folder because it was byte-identical in
  * two of them, and a column header does not belong to Front Office any more
@@ -65,8 +67,8 @@ export function useTableLabels(): DataTableLabels {
 export function useSortLabels(): ColumnHeaderLabels {
   const t = useTranslations("table");
   return {
-    clearSort: t("clearFilter"),
-    sortAscending: t("next"),
-    sortDescending: t("previous"),
+    clearSort: t("clearSort"),
+    sortAscending: t("sortAscending"),
+    sortDescending: t("sortDescending"),
   };
 }
