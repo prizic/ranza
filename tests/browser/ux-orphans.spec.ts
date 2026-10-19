@@ -8,6 +8,7 @@ import { psql } from "./local-database";
 import {
   aBooking,
   aDeskProperty,
+  aDirtyRoomArrival,
   anOverdueGuest,
   archiveMadeProperties,
   holdRoomOutOfOrder,
@@ -287,5 +288,94 @@ test.describe("the sign-in gate (GP-10)", () => {
       ).toBeVisible();
       await expect(page.getByRole("banner")).toHaveCount(1);
     }
+  });
+});
+
+test.describe("a room's state is worded and drawn as the board does (HK-07)", () => {
+  test("arrivals_say_dirty_and_awaiting_inspection_and_a_clean_room_is_not_drawn_with_the_spray_can", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty([
+      "today",
+      "front_desk",
+      "finance",
+      "housekeeping",
+    ]);
+    const dirty = aDirtyRoomArrival(propertyId);
+    const clean = aDirtyRoomArrival(propertyId, "clean");
+    await signIn(page);
+    await page.goto(`/en/arrivals?property=${propertyId}`);
+    const dirtyRow = page.getByRole("row").filter({ hasText: dirty.guestName });
+    const cleanRow = page.getByRole("row").filter({ hasText: clean.guestName });
+    await expect(dirtyRow).toContainText("Dirty");
+    await expect(dirtyRow.locator("svg.lucide-spray-can")).toHaveCount(1);
+    await expect(cleanRow).toContainText("Awaiting inspection");
+    await expect(cleanRow.locator("svg.lucide-spray-can")).toHaveCount(0);
+    await expect(cleanRow.locator("svg.lucide-sparkles")).toHaveCount(1);
+  });
+});
+
+test.describe("tables and sub-navigation on a phone (HK-02, HK-08, ROOMS-11)", () => {
+  test.use({
+    hasTouch: true,
+    isMobile: true,
+    viewport: { width: 375, height: 800 },
+  });
+
+  test("the_housekeeping_table_has_44_px_targets_and_a_bulk_bar_that_stays_in_view_and_the_section_pills_wrap", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty([
+      "today",
+      "front_desk",
+      "finance",
+      "housekeeping",
+    ]);
+    const room = aDirtyRoomArrival(propertyId);
+    await signIn(page);
+    await page.goto(`/en/housekeeping?property=${propertyId}`);
+    const row = page.getByRole("row").filter({ hasText: room.unitName });
+    const tick = row.getByRole("checkbox");
+    await expect(tick).toBeVisible();
+
+    // The tick is 16 px drawn, and answers a finger 20 px above its centre.
+    const box = (await tick.boundingBox())!;
+    const reached = await page.evaluate(
+      ({ x, y }) =>
+        document.elementFromPoint(x, y)?.closest('[data-slot="checkbox"]') !==
+        null,
+      { x: box.x + box.width / 2, y: box.y + box.height / 2 - 20 },
+    );
+    expect(reached).toBe(true);
+    for (const button of [
+      page.getByRole("button", { name: "Next", exact: true }),
+      row.locator('[aria-haspopup="menu"]'),
+    ]) {
+      const size = (await button.boundingBox())!;
+      expect(size.width).toBeGreaterThanOrEqual(44);
+      expect(size.height).toBeGreaterThanOrEqual(44);
+    }
+
+    await tick.click();
+    const bar = page.getByText("1 selected").locator("..");
+    await expect(bar).toBeVisible();
+    expect(await bar.evaluate((node) => getComputedStyle(node).position)).toBe(
+      "sticky",
+    );
+    await page.screenshot({
+      path: path.join(EVIDENCE, "housekeeping-bulk-bar-375.png"),
+    });
+
+    await page.goto(`/en/rooms?property=${propertyId}`);
+    const sections = page.getByRole("navigation", { name: "Sections" });
+    await expect(sections).toBeVisible();
+    for (const link of await sections.getByRole("link").all()) {
+      const size = (await link.boundingBox())!;
+      expect(size.x).toBeGreaterThanOrEqual(0);
+      expect(size.x + size.width).toBeLessThanOrEqual(375);
+    }
+    await page.screenshot({
+      path: path.join(EVIDENCE, "rooms-sections-375.png"),
+    });
   });
 });

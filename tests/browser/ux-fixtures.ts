@@ -204,7 +204,10 @@ export function aBooking(
  * A booking arriving today into a room housekeeping has marked dirty, so the
  * desk is asked before checking the Guest in (ADR 0029).
  */
-export function aDirtyRoomArrival(propertyId: string): {
+export function aDirtyRoomArrival(
+  propertyId: string,
+  status: "dirty" | "clean" = "dirty",
+): {
   guestName: string;
   unitName: string;
 } {
@@ -219,10 +222,17 @@ export function aDirtyRoomArrival(propertyId: string): {
          (property_id, organization_id, name, unit_type, capacity)
        select id, organization_id, '${unitName}', 'room', 2 from target
        returning id, property_id, organization_id
+     ), inspection as (
+       insert into public.housekeeping_settings
+         (organization_id, property_id, inspect_after_cleaning)
+       select organization_id, id, true from target
+        where '${status}' = 'clean'
+       on conflict (property_id) where property_id is not null
+       do update set inspect_after_cleaning = true
      ), dirty as (
        insert into public.housekeeping_unit_status
          (accommodation_unit_id, property_id, organization_id, status)
-       select id, property_id, organization_id, 'dirty' from unit
+       select id, property_id, organization_id, '${status}' from unit
      ), guest as (
        insert into public.guests (organization_id, full_name)
        select organization_id, '${guestName}' from target
