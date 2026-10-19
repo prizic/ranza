@@ -19,6 +19,40 @@ export type ExportResourceType = (typeof EXPORT_RESOURCE_TYPES)[number];
 
 export type ExportFormat = "csv" | "json";
 
+/**
+ * The limits an export is held to, restated for the screen that words them.
+ * `tests/unit/data-export-screen.test.ts` compares them with the module's.
+ */
+export const EXPORT_ROW_LIMIT = 100_000;
+export const EXPORT_FILE_LIMIT_MEGABYTES = 25;
+export const EXPORT_RETENTION_DAYS = 7;
+
+/** The datasets a range of dates cuts. Guests and rooms come whole. */
+export const RANGE_CUT_DATASETS: readonly ExportResourceType[] = [
+  "reservations_stays",
+  "folios_payments",
+  "audit_log",
+];
+
+/** Everything but the rooms: the datasets that are about people or what was done to them. */
+export const PERSONAL_DATASETS: readonly ExportResourceType[] = [
+  "residents_guests",
+  "reservations_stays",
+  "folios_payments",
+  "audit_log",
+];
+
+/** A calendar day, `YYYY-MM-DD`; either end of a range may be missing. */
+export interface ExportRange {
+  from: string | null;
+  to: string | null;
+}
+
+export interface ExportAbilities {
+  mayCreate: boolean;
+  datasets: Record<ExportResourceType, boolean>;
+}
+
 export type ExportStatus =
   "pending" | "processing" | "ready" | "failed" | "expired";
 
@@ -39,6 +73,7 @@ export interface DataExportRecord {
   requesterName: string;
   resourceTypes: ExportResourceType[];
   format: ExportFormat;
+  range: ExportRange | null;
   status: ExportStatus;
   triggerType: ExportTriggerType;
   scheduleId: string | null;
@@ -63,6 +98,7 @@ export interface ExportScheduleRecord {
   frequency: ScheduleFrequency;
   status: ScheduleStatus;
   lastRunAt: Date | null;
+  lastRunError: ExportFailureReason | null;
   nextRunAt: Date;
   createdAt: Date;
 }

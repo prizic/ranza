@@ -1015,15 +1015,27 @@ export interface Messages {
 
   /** The Data Export screen (Blueprint 7.5, Phase 1 data lifecycle). */
   dataExport: {
-    heading: string;
-    subtitle: string;
     tabs: {
       exports: string;
       schedules: string;
       newExport: string;
+      newSchedule: string;
     };
+    /** `{days}`: how long a ready file can be downloaded. */
+    unavailable: string;
+    exportsTitle: string;
+    /** `{organization}`, `{days}`. */
+    exportsDescription: string;
+    /** `{organization}`. */
+    noExports: string;
+    noExportsAction: string;
+    /** `{days}`. */
+    noExportsDescription: string;
     newExportTitle: string;
+    /** `{organization}`. */
     newExportDescription: string;
+    /** `{organization}`: what an export contains, before it is asked for. */
+    scope: string;
     datasetsTitle: string;
     datasetsDescription: string;
     datasets: {
@@ -1040,12 +1052,56 @@ export interface Messages {
       folios_payments: string;
       audit_log: string;
     };
+    /** `{permission}`: the permission's own name, as People says it. */
+    datasetNeeds: string;
+    datasetNeedsFrontDesk: string;
+    cannotRequest: string;
+    personalData: string;
+    /** `{days}`. */
+    whoCanDownload: string;
+    notIncluded: string;
+    rangeTitle: string;
+    rangeDescription: string;
+    rangeFrom: string;
+    rangeTo: string;
+    rangeEmptyFrom: string;
+    rangeEmptyTo: string;
+    rangePickFrom: string;
+    rangePickTo: string;
+    rangeClear: string;
+    rangeDone: string;
+    /** `{count}` days, both ends included. */
+    rangeSpan: string;
+    /** `{timezone}`: the zone whose clock the days are read on. */
+    rangeClock: string;
+    rangeMoot: string;
+    presetLast30: string;
+    presetThisMonth: string;
+    presetLastMonth: string;
+    presetThisYear: string;
     formatTitle: string;
     formatDescription: string;
+    formats: {
+      csv: { title: string };
+      json: { title: string; hint: string };
+    };
+    stackedWarning: string;
+    columnsNote: string;
     requestButton: string;
     requesting: string;
+    cancel: string;
     requestSuccess: string;
     requestFailed: string;
+    /** `{datasets}`: the datasets the role will not cover, named. */
+    refusedDatasets: string;
+    invalid: {
+      no_datasets: string;
+      unknown_dataset: string;
+      unknown_format: string;
+      range_not_a_day: string;
+      range_backwards: string;
+      name_missing: string;
+    };
     scheduleTitle: string;
     scheduleDescription: string;
     scheduleName: string;
@@ -1056,34 +1112,46 @@ export interface Messages {
       weekly: string;
       monthly: string;
     };
+    frequencyEvery: {
+      daily: string;
+      weekly: string;
+      monthly: string;
+    };
+    /** `{when}`: the first run's time; `{every}`: how often it repeats. */
+    firstRun: string;
+    /** `{days}`. */
+    scheduleKeeps: string;
+    scheduleNoRange: string;
     createScheduleButton: string;
     creatingSchedule: string;
     scheduleSuccess: string;
     scheduleFailed: string;
-    recentExportsTitle: string;
-    recentExportsDescription: string;
     schedulesTitle: string;
+    /** `{organization}`. */
     schedulesDescription: string;
-    noExports: string;
     noSchedules: string;
-    tableHeaders: {
-      requester: string;
-      datasets: string;
-      format: string;
-      status: string;
-      size: string;
-      records: string;
-      requestedAt: string;
-      actions: string;
-    };
+    noSchedulesDescription: string;
     scheduleHeaders: {
       name: string;
       datasets: string;
-      format: string;
-      frequency: string;
       status: string;
       nextRun: string;
-      actions: string;
+    };
+    scheduleStatuses: {
+      active: string;
+      paused: string;
+    };
+    /** `{name}`: who made the schedule. */
+    madeBy: string;
+    /** `{name}`: the creator, whose latest run was refused. */
+    pausedBecauseCreatorCannot: string;
+    pausedByHand: string;
+    pause: string;
+    resume: string;
+    tableHeaders: {
+      datasets: string;
+      status: string;
+      requestedAt: string;
     };
     statuses: {
       pending: string;
@@ -1092,30 +1160,28 @@ export interface Messages {
       failed: string;
       expired: string;
     };
-    scheduleStatuses: {
-      active: string;
-      paused: string;
-    };
-    download: string;
-    pause: string;
-    resume: string;
-    pausing: string;
-    resuming: string;
+    /** `{duration}`: "40 s", "3 min". */
+    waitingFor: string;
+    preparingFor: string;
+    slowNote: string;
     /** Why an export failed, by the code the database holds for it. */
     failures: {
       requester_not_permitted: string;
+      /** `{rows}`, `{megabytes}`: the limits. */
       too_large: string;
       worker_stopped: string;
       internal_error: string;
     };
-    formats: {
-      csv: { title: string; hint: string };
-      json: { title: string; hint: string };
-    };
+    requestAgain: string;
+    download: string;
     /** `{date}`: when a ready export stops being downloadable. */
     expiresOn: string;
-    requestRefused: string;
-    scheduleRefused: string;
+    personalBadge: string;
+    rangeBetween: string;
+    rangeSince: string;
+    rangeUntil: string;
+    /** `{count}` records of one dataset. */
+    recordCount: string;
     failedTitle: string;
     failedDescription: string;
     retry: string;
@@ -4207,118 +4273,188 @@ export const messages: Record<SupportedLocale, Messages> = {
       retry: "Yeniden dene",
     },
     dataExport: {
-      heading: "Veri Dışa Aktarma",
-      subtitle:
-        "İsteğe bağlı ve zamanlanmış veri dışa aktarma kayıtları ve dosya indirmeleri.",
       tabs: {
-        exports: "Dışa Aktarma Geçmişi",
-        schedules: "Zamanlanmış Görevler",
-        newExport: "Yeni Dışa Aktarma",
+        exports: "Geçmiş",
+        schedules: "Zamanlamalar",
+        newExport: "Dışa aktarma iste",
+        newSchedule: "Yeni zamanlama",
       },
-      newExportTitle: "Yeni Veri Dışa Aktarma Talebi",
+      unavailable:
+        "Bu dosya artık mevcut değil. Dosyalar {days} gün saklanır ve indirmek için rolünüzün içindeki verileri hâlâ kapsaması gerekir. Hâlâ gerekiyorsa yeniden isteyin.",
+      exportsTitle: "Son dışa aktarmalar",
+      exportsDescription:
+        "{organization} için son 50 talep, en yenisi başta. Hazır bir dosya {days} gün boyunca indirilebilir.",
+      noExports: "{organization} için henüz bir şey dışa aktarılmadı.",
+      noExportsAction: "Dışa aktarma iste",
+      noExportsDescription:
+        "Bir tane isteyin; hazırlanırken burada görünür, sonra {days} gün kalır.",
+      newExportTitle: "Dışa aktarma iste",
       newExportDescription:
-        "Dışa aktarmak istediğiniz veri setlerini ve dosya formatını seçin.",
-      datasetsTitle: "Veri Setleri",
-      datasetsDescription: "Dışa aktarılacak varlık ve operasyon kayıtları.",
+        "{organization} içinden neyi çıkaracağınızı ve dosya türünü seçin.",
+      scope:
+        "Dışa aktarma, seçilen veri setlerinde {organization} içinde okuyabildiğiniz her şeyi içerir: erişiminiz olan her tesis ve aşağıda bir aralık seçmediğiniz sürece her tarih.",
+      datasetsTitle: "Neler aktarılsın",
+      datasetsDescription: "En az bir veri seti seçin.",
       datasets: {
-        residents_guests: "Konuklar ve Sakinler",
-        reservations_stays: "Rezervasyonlar ve Konaklamalar",
-        rooms_beds: "Odalar ve Yataklar",
-        folios_payments: "Folyolar ve Ödemeler",
-        audit_log: "Denetim Günlüğü",
+        residents_guests: "Konuklar ve sakinler",
+        reservations_stays: "Rezervasyonlar ve konaklamalar",
+        rooms_beds: "Odalar ve yataklar",
+        folios_payments: "Folyolar ve ödemeler",
+        audit_log: "Denetim kaydı",
       },
       datasetDescriptions: {
         residents_guests: "Adlar, e-posta adresleri ve telefon numaraları",
-        reservations_stays: "Tarihler, durumlar ve oda eşleşmeleri",
-        rooms_beds: "Oda numaraları, katlar, tipler ve kapasite",
-        folios_payments: "Ücret satırları, ödemeler ve bakiye dökümleri",
-        audit_log: "Operasyonel eylemler, zaman damgaları ve kullanıcılar",
+        reservations_stays: "Rezervasyon tarihleri, durumları ve odalar",
+        rooms_beds: "Oda numaraları, katlar, türler ve kapasite",
+        folios_payments:
+          "Her folyodaki her ücret ve ödeme satırı. Tutarlar küçük birimle yazılır: 5000, 50,00 demektir",
+        audit_log: "Ne yapıldı, kim yaptı, nerede ve neden",
       },
-      formatTitle: "Dosya Formatı",
-      formatDescription: "Tablo (CSV) veya yapılandırılmış veri (JSON).",
-      requestButton: "Dışa Aktarmayı Başlat",
-      requesting: "Hazırlanıyor...",
-      requestSuccess: "Dışa aktarma talebi başarıyla oluşturuldu.",
-      requestFailed: "Dışa aktarma talebi oluşturulamadı.",
-      scheduleTitle: "Otomatik Zamanlama Oluştur",
+      datasetNeeds:
+        "Bunu dışa aktarmak için rolünüzün “{permission}” yetkisi gerekir.",
+      datasetNeedsFrontDesk:
+        "Bunu dışa aktarmak için rolünüzün “{permission}” gibi bir ön büro yetkisi olmalıdır.",
+      cannotRequest:
+        "Rolünüz dışa aktarmaları görebilir ama isteyemez. Rolleri yöneten kişiden “{permission}” yetkisini vermesini isteyin.",
+      personalData:
+        "Bu dosya kişisel veri içerecek: adlar, iletişim bilgileri, rezervasyonlar, ücretler veya denetim kaydındaki personel işlemleri. Kayıt defteri kadar özenle saklayın.",
+      whoCanDownload:
+        "Dosyayı {days} gün boyunca siz ve rolü her tesise erişen ve bu veri setlerini dışa aktarabilen çalışma arkadaşlarınız indirebilir. Her indirme denetim kaydına yazılır.",
+      notIncluded:
+        "Kapsam dışı: personel ve bordro, fiyatlar, yiyecek ve içecek, envanter, bakım talepleri, kat hizmetleri geçmişi ve konuk talepleri henüz dışa aktarılamaz. Modülü kapalı olan bir tesis ilgili veri setinin dışında kalır.",
+      rangeTitle: "Tarihler (isteğe bağlı)",
+      rangeDescription:
+        "Rezervasyonları ve konaklamaları, folyo satırlarını ve denetim kaydını bu günlere göre keser; iki uç gün de dahildir. Konuklar ve odalar listedir, her zaman bütün gelir. Her tarih için boş bırakın.",
+      rangeFrom: "Başlangıç",
+      rangeTo: "Bitiş",
+      rangeEmptyFrom: "En eski",
+      rangeEmptyTo: "En yeni",
+      rangePickFrom: "İlk günü seçin",
+      rangePickTo: "Son günü seçin",
+      rangeClear: "Temizle",
+      rangeDone: "Tamam",
+      rangeSpan: "{count, plural, one {# gün} other {# gün}}",
+      rangeClock: "Günler {timezone} saatine göre okunur.",
+      rangeMoot:
+        "Bu tarihler burada hiçbir şeyi kesmez: konuklar ve odalar tarihe göre hiçbir zaman kesilmez.",
+      presetLast30: "Son 30 gün",
+      presetThisMonth: "Bu ay",
+      presetLastMonth: "Geçen ay",
+      presetThisYear: "Bu yıl",
+      formatTitle: "Dosya türü",
+      formatDescription:
+        "CSV bir e-tabloda açılır. JSON her veri setini ayrı tutar, başka yazılımlar içindir.",
+      formats: {
+        csv: { title: "CSV (e-tablo)" },
+        json: {
+          title: "JSON (yapılandırılmış)",
+          hint: "Başka yazılımlar için",
+        },
+      },
+      stackedWarning:
+        "CSV’de birkaç veri seti tek dosyayı paylaşır: her biri “# dataset: ad” satırıyla başlar ve bir e-tablo hepsini tek sayfa olarak açar. Her veri seti için temiz bir tablo isterseniz tek tek isteyin ya da JSON seçin.",
+      columnsNote:
+        "Sütunlar sistemin kendi adlarını taşır. Tutarlar küçük birimle yazılır (5000, 50,00 demektir) ve saatler UTC’dir.",
+      requestButton: "Dışa aktarmayı iste",
+      requesting: "İsteniyor…",
+      cancel: "Vazgeç",
+      requestSuccess: "Dışa aktarma istendi. Hazırlanırken aşağıda görünür.",
+      requestFailed:
+        "İstek gönderilemedi ve hiçbir şey dışa aktarılmadı. Yeniden deneyin; sürerse yöneticinize söyleyin.",
+      refusedDatasets: "Rolünüz şunları dışa aktaramaz: {datasets}.",
+      invalid: {
+        no_datasets: "En az bir veri seti seçin.",
+        unknown_dataset: "Bu veri setlerinden biri sunulmuyor.",
+        unknown_format: "Bu dosya türü sunulmuyor.",
+        range_not_a_day: "Tarihlerden biri gerçek bir gün değil.",
+        range_backwards: "Son gün ilk günden önce.",
+        name_missing: "Zamanlamaya bir ad verin.",
+      },
+      scheduleTitle: "Yeni zamanlama",
       scheduleDescription:
-        "Düzenli aralıklarla otomatik olarak veri dışa aktarın.",
-      scheduleName: "Plan Adı",
-      scheduleNamePlaceholder: "Örn: Haftalık Finans Yedeklemesi",
-      frequencyTitle: "Sıklık",
+        "Bir dışa aktarmayı kendiliğinden tekrarlar. Her çalışma, çalıştığı andaki sizin yetkilerinize göre denetlenir: bir veri setine hakkınızı kaybederseniz zamanlama durur.",
+      scheduleName: "Ad",
+      scheduleNamePlaceholder: "Örn: Haftalık muhasebe dışa aktarması",
+      frequencyTitle: "Ne sıklıkla",
       frequencies: {
         daily: "Günlük",
         weekly: "Haftalık",
         monthly: "Aylık",
       },
-      createScheduleButton: "Planı Kaydet",
-      creatingSchedule: "Kaydediliyor...",
-      scheduleSuccess: "Zamanlanmış dışa aktarma planı oluşturuldu.",
-      scheduleFailed: "Plan oluşturulamadı.",
-      recentExportsTitle: "Son Dışa Aktarma Kayıtları",
-      recentExportsDescription:
-        "Talebi gönderilen ve indirilebilir durumda olan dışa aktarma dosyaları.",
-      schedulesTitle: "Aktif Zamanlama Planları",
-      schedulesDescription:
-        "Otomatik olarak çalışan periyodik dışa aktarma kuralları.",
-      noExports: "Henüz bir dışa aktarma kaydı bulunmuyor.",
-      noSchedules: "Yapılandırılmış zamanlanmış dışa aktarma bulunmuyor.",
-      tableHeaders: {
-        requester: "Talep Eden",
-        datasets: "Veri Setleri",
-        format: "Format",
-        status: "Durum",
-        size: "Boyut",
-        records: "Kayıt Sayısı",
-        requestedAt: "Talep Zamanı",
-        actions: "İşlem",
+      frequencyEvery: {
+        daily: "her gün",
+        weekly: "her hafta",
+        monthly: "her ay",
       },
+      firstRun:
+        "İlk çalışma yaklaşık {when} olacak, sonra {every} tekrarlanır.",
+      scheduleKeeps:
+        "Her çalışma Geçmiş’te görünür ve {days} gün kalır. Kimseye e-posta gitmez; birinin gelip indirmesi gerekir.",
+      scheduleNoRange:
+        "Zamanlama her tarihi dışa aktarır. Tarih aralığı yalnızca tek seferlik dışa aktarmalar içindir.",
+      createScheduleButton: "Zamanlamayı oluştur",
+      creatingSchedule: "Oluşturuluyor…",
+      scheduleSuccess: "Zamanlama oluşturuldu.",
+      scheduleFailed:
+        "Zamanlama kaydedilemedi. Yeniden deneyin; sürerse yöneticinize söyleyin.",
+      schedulesTitle: "Zamanlamalar",
+      schedulesDescription:
+        "{organization} için tekrarlanan dışa aktarmalar, çalışan ya da durdurulmuş. Zamanlama, onu oluşturan kişi olarak çalışır. Durdurulabilir ya da sürdürülebilir; başka bir şeyi değiştirmek için yenisini oluşturun.",
+      noSchedules: "Henüz zamanlama yok.",
+      noSchedulesDescription:
+        "Zamanlama bir dışa aktarmayı kendiliğinden tekrarlar; her çalışma Geçmiş’te görünür.",
       scheduleHeaders: {
-        name: "Plan Adı",
-        datasets: "Veri Setleri",
-        format: "Format",
-        frequency: "Sıklık",
+        name: "Ad",
+        datasets: "Veri setleri",
         status: "Durum",
-        nextRun: "Sonraki Çalışma",
-        actions: "İşlem",
+        nextRun: "Sonraki çalışma",
+      },
+      scheduleStatuses: {
+        active: "Etkin",
+        paused: "Durduruldu",
+      },
+      madeBy: "Oluşturan: {name}",
+      pausedBecauseCreatorCannot:
+        "{name} artık bu veri setlerini dışa aktaramadığı için durduruldu. O yapabilir hale gelince sürdürün ya da yapabilecek birinden yeniden oluşturmasını isteyin.",
+      pausedByHand: "Durduruldu. Yeniden çalıştırmak için sürdürün.",
+      pause: "Durdur",
+      resume: "Sürdür",
+      tableHeaders: {
+        datasets: "Veri setleri",
+        status: "Durum",
+        requestedAt: "Talep zamanı",
       },
       statuses: {
         pending: "Bekliyor",
-        processing: "İşleniyor",
+        processing: "Hazırlanıyor",
         ready: "Hazır",
-        failed: "Hata",
+        failed: "Başarısız",
         expired: "Süresi doldu",
       },
-      scheduleStatuses: {
-        active: "Aktif",
-        paused: "Duraklatıldı",
-      },
-      download: "İndir",
-      pause: "Duraklat",
-      resume: "Sürdür",
-      pausing: "Duraklatılıyor...",
-      resuming: "Başlatılıyor...",
+      waitingFor: "{duration} bekliyor",
+      preparingFor: "{duration} süredir hazırlanıyor",
+      slowNote:
+        "Bu her zamankinden uzun sürüyor. Birkaç dakika içinde değişmezse dışa aktarmaları hazırlayan hizmet durmuş olabilir: yöneticinize söyleyin.",
       failures: {
         requester_not_permitted:
-          "İsteyenin bu verileri dışa aktarma yetkisi artık yok.",
-        too_large: "Dışa aktarma izin verilen boyutu aşıyor.",
-        worker_stopped: "Dışa aktarma tamamlanamadan durdu.",
-        internal_error: "Dışa aktarma tamamlanamadı.",
+          "Talep eden artık bu veri setlerini dışa aktaramıyor.",
+        too_large:
+          "Dışa aktarılamayacak kadar büyük: bir veri setinde {rows} satırdan fazla var ya da dosya {megabytes} MB’ı aşıyor. Bir seferde daha az veri seti isteyin ya da bir tarih aralığı seçin.",
+        worker_stopped: "Bitmeden durdu. Yeniden isteyin.",
+        internal_error:
+          "Tamamlanamadı. Yeniden isteyin; yine olursa yöneticinize söyleyin.",
       },
-      formats: {
-        csv: { title: "CSV (e-tablo)", hint: "Excel, Numbers, Sheets" },
-        json: {
-          title: "JSON (yapılandırılmış)",
-          hint: "Geliştirici API'leri, yedekleme",
-        },
-      },
+      requestAgain: "Yeniden iste",
+      download: "İndir",
       expiresOn: "{date} tarihine kadar indirilebilir",
-      requestRefused:
-        "Bu veri kümelerinin dışa aktarılmasını isteme yetkiniz yok.",
-      scheduleRefused: "Bu zamanlamayı oluşturma yetkiniz yok.",
+      personalBadge: "Kişisel veri",
+      rangeBetween: "{from} – {to}",
+      rangeSince: "{from} tarihinden",
+      rangeUntil: "{to} tarihine kadar",
+      recordCount: "{count, plural, one {# kayıt} other {# kayıt}}",
       failedTitle: "Veri dışa aktarma açılamadı",
-      failedDescription: "Dışa aktarma kayıtları okunamadı. Tekrar deneyin.",
-      retry: "Tekrar dene",
+      failedDescription: "Dışa aktarmalar okunamadı. Yeniden deneyin.",
+      retry: "Yeniden dene",
     },
     hr: {
       heading: "İnsan kaynakları ve bordro",
@@ -7236,80 +7372,152 @@ export const messages: Record<SupportedLocale, Messages> = {
       retry: "Try again",
     },
     dataExport: {
-      heading: "Data Export",
-      subtitle:
-        "On-demand and scheduled data exports, records and file downloads.",
       tabs: {
-        exports: "Export History",
+        exports: "History",
         schedules: "Schedules",
-        newExport: "New Export",
+        newExport: "Request an export",
+        newSchedule: "New schedule",
       },
-      newExportTitle: "Request New Data Export",
+      unavailable:
+        "That file is no longer available. Files are kept for {days} days, and a download also needs your role to still cover the data in it. Request it again if you still need it.",
+      exportsTitle: "Recent exports",
+      exportsDescription:
+        "The 50 most recent requests for {organization}, newest first. A ready file can be downloaded for {days} days.",
+      noExports: "Nothing has been exported from {organization} yet.",
+      noExportsAction: "Request an export",
+      noExportsDescription:
+        "Request one and it appears here while it is prepared, then stays for {days} days.",
+      newExportTitle: "Request an export",
       newExportDescription:
-        "Select datasets and format to export from your organization.",
-      datasetsTitle: "Datasets",
-      datasetsDescription:
-        "Select the operational and entity records to export.",
+        "Choose what to take out of {organization}, and the kind of file.",
+      scope:
+        "An export holds everything in the chosen datasets that you can read in {organization}: every Property you reach, and every date unless you choose a range below.",
+      datasetsTitle: "What to export",
+      datasetsDescription: "Choose at least one dataset.",
       datasets: {
-        residents_guests: "Guests & Residents",
-        reservations_stays: "Reservations & Stays",
-        rooms_beds: "Rooms & Beds",
-        folios_payments: "Folios & Payments",
-        audit_log: "Audit Log",
+        residents_guests: "Guests and residents",
+        reservations_stays: "Reservations and stays",
+        rooms_beds: "Rooms and beds",
+        folios_payments: "Folios and payments",
+        audit_log: "Audit log",
       },
       datasetDescriptions: {
         residents_guests: "Names, email addresses and phone numbers",
-        reservations_stays: "Booking dates, statuses, and unit associations",
-        rooms_beds: "Unit numbers, floors, unit types, and capacities",
-        folios_payments: "Financial charges, payments, and balances",
-        audit_log: "Operational log entries, timestamps, and actors",
+        reservations_stays: "Booking dates, statuses and rooms",
+        rooms_beds: "Room numbers, floors, kinds and capacities",
+        folios_payments:
+          "Every charge and payment line on every Folio. Amounts are whole minor units: 5000 is 50.00",
+        audit_log: "What was done, by whom, where and why",
       },
-      formatTitle: "Export Format",
-      formatDescription: "Tabular spreadsheet (CSV) or structured JSON.",
-      requestButton: "Request Export",
-      requesting: "Requesting...",
-      requestSuccess: "Data export request created successfully.",
-      requestFailed: "Failed to create data export request.",
-      scheduleTitle: "Create Export Schedule",
-      scheduleDescription: "Set up automatic recurring exports on a schedule.",
-      scheduleName: "Schedule Name",
-      scheduleNamePlaceholder: "e.g. Weekly Financial Export",
-      frequencyTitle: "Frequency",
+      datasetNeeds: "Your role needs “{permission}” to export this.",
+      datasetNeedsFrontDesk:
+        "Your role needs a front-desk permission, such as “{permission}”, to export this.",
+      cannotRequest:
+        "Your role can see exports but not request them. Ask whoever manages roles to give it “{permission}”.",
+      personalData:
+        "This file will hold personal data: names, contact details, bookings, charges or the staff actions in the audit log. Keep it as carefully as the register itself.",
+      whoCanDownload:
+        "It can be downloaded for {days} days by you, and by colleagues whose role reaches every Property and may export these datasets. Every download is recorded in the audit log.",
+      notIncluded:
+        "Not included: staff and payroll, rates, food and beverage, inventory, maintenance requests, housekeeping history and guest requests cannot be exported yet. A Property whose module is switched off leaves that dataset out.",
+      rangeTitle: "Dates (optional)",
+      rangeDescription:
+        "Cuts reservations and stays, folio lines and the audit log to these days, both included. Guests and rooms are lists and always come whole. Leave it empty for every date.",
+      rangeFrom: "From",
+      rangeTo: "To",
+      rangeEmptyFrom: "Earliest",
+      rangeEmptyTo: "Latest",
+      rangePickFrom: "Choose the first day",
+      rangePickTo: "Choose the last day",
+      rangeClear: "Clear",
+      rangeDone: "Done",
+      rangeSpan: "{count, plural, one {# day} other {# days}}",
+      rangeClock: "Days are read on the clock of {timezone}.",
+      rangeMoot:
+        "These dates cut nothing here: guests and rooms are never cut by date.",
+      presetLast30: "Last 30 days",
+      presetThisMonth: "This month",
+      presetLastMonth: "Last month",
+      presetThisYear: "This year",
+      formatTitle: "File type",
+      formatDescription:
+        "CSV opens in a spreadsheet. JSON keeps each dataset apart, for other software.",
+      formats: {
+        csv: { title: "CSV (spreadsheet)" },
+        json: { title: "JSON (structured)", hint: "For other software" },
+      },
+      stackedWarning:
+        "In CSV, several datasets share one file: each starts under a “# dataset: name” line, and a spreadsheet opens them as a single sheet. For one clean table per dataset, request them one at a time, or choose JSON.",
+      columnsNote:
+        "Columns carry the system’s own names. Amounts are whole minor units (5000 is 50.00) and times are UTC.",
+      requestButton: "Request export",
+      requesting: "Requesting…",
+      cancel: "Cancel",
+      requestSuccess:
+        "Export requested. It appears below while it is prepared.",
+      requestFailed:
+        "The request could not be made, and nothing was exported. Try again; if it keeps failing, tell your administrator.",
+      refusedDatasets: "Your role cannot export: {datasets}.",
+      invalid: {
+        no_datasets: "Choose at least one dataset.",
+        unknown_dataset: "One of those datasets is not offered.",
+        unknown_format: "That file type is not offered.",
+        range_not_a_day: "One of the dates is not a real day.",
+        range_backwards: "The last day is before the first.",
+        name_missing: "Give the schedule a name.",
+      },
+      scheduleTitle: "New schedule",
+      scheduleDescription:
+        "Repeats an export on its own. Each run is checked as you are when it runs: if you lose the right to a dataset, the schedule pauses.",
+      scheduleName: "Name",
+      scheduleNamePlaceholder: "e.g. Weekly accounting export",
+      frequencyTitle: "How often",
       frequencies: {
         daily: "Daily",
         weekly: "Weekly",
         monthly: "Monthly",
       },
-      createScheduleButton: "Create Schedule",
-      creatingSchedule: "Creating...",
-      scheduleSuccess: "Export schedule created successfully.",
-      scheduleFailed: "Failed to create export schedule.",
-      recentExportsTitle: "Recent Export Records",
-      recentExportsDescription:
-        "All requested exports with their state, metrics, and download links.",
-      schedulesTitle: "Active Export Schedules",
-      schedulesDescription:
-        "Recurring exports evaluated and generated automatically by background workers.",
-      noExports: "No export records found for this organization.",
-      noSchedules: "No automated export schedules configured.",
-      tableHeaders: {
-        requester: "Requester",
-        datasets: "Datasets",
-        format: "Format",
-        status: "Status",
-        size: "Size",
-        records: "Records",
-        requestedAt: "Requested At",
-        actions: "Actions",
+      frequencyEvery: {
+        daily: "every day",
+        weekly: "every week",
+        monthly: "every month",
       },
+      firstRun: "The first run is about {when}, then it repeats {every}.",
+      scheduleKeeps:
+        "Each run appears under History and stays for {days} days. Nobody is emailed, so someone has to come and download it.",
+      scheduleNoRange:
+        "A schedule exports every date. A range of dates is only for a one-off export.",
+      createScheduleButton: "Create schedule",
+      creatingSchedule: "Creating…",
+      scheduleSuccess: "Schedule created.",
+      scheduleFailed:
+        "The schedule could not be saved. Try again; if it keeps failing, tell your administrator.",
+      schedulesTitle: "Schedules",
+      schedulesDescription:
+        "Repeating exports for {organization}, running or paused. A schedule runs as the person who made it. It can be paused or resumed; to change anything else, make a new one.",
+      noSchedules: "No schedules yet.",
+      noSchedulesDescription:
+        "A schedule repeats an export on its own, and each run appears under History.",
       scheduleHeaders: {
         name: "Name",
         datasets: "Datasets",
-        format: "Format",
-        frequency: "Frequency",
         status: "Status",
-        nextRun: "Next Run",
-        actions: "Actions",
+        nextRun: "Next run",
+      },
+      scheduleStatuses: {
+        active: "Active",
+        paused: "Paused",
+      },
+      madeBy: "Made by {name}",
+      pausedBecauseCreatorCannot:
+        "Paused because {name} can no longer export these datasets. Resume it once they can, or ask someone who can to make it again.",
+      pausedByHand: "Paused. Resume it to run it again.",
+      pause: "Pause",
+      resume: "Resume",
+      tableHeaders: {
+        datasets: "Datasets",
+        status: "Status",
+        requestedAt: "Requested",
       },
       statuses: {
         pending: "Pending",
@@ -7318,29 +7526,27 @@ export const messages: Record<SupportedLocale, Messages> = {
         failed: "Failed",
         expired: "Expired",
       },
-      scheduleStatuses: {
-        active: "Active",
-        paused: "Paused",
-      },
-      download: "Download",
-      pause: "Pause",
-      resume: "Resume",
-      pausing: "Pausing...",
-      resuming: "Resuming...",
+      waitingFor: "Waiting {duration}",
+      preparingFor: "Preparing for {duration}",
+      slowNote:
+        "This is taking longer than usual. If it does not change in a few minutes, the service that prepares exports may be stopped: tell your administrator.",
       failures: {
         requester_not_permitted:
           "The requester can no longer export these datasets.",
-        too_large: "Too large to export.",
-        worker_stopped: "Stopped before it finished.",
-        internal_error: "Could not be completed.",
+        too_large:
+          "Too large to export: a dataset has more than {rows} rows, or the file is over {megabytes} MB. Request fewer datasets at a time, or choose a range of dates.",
+        worker_stopped: "Stopped before it finished. Request it again.",
+        internal_error:
+          "Could not be completed. Request it again; if it fails again, tell your administrator.",
       },
-      formats: {
-        csv: { title: "CSV (spreadsheet)", hint: "Excel, Numbers, Sheets" },
-        json: { title: "JSON (structured)", hint: "Developer APIs, backup" },
-      },
+      requestAgain: "Request again",
+      download: "Download",
       expiresOn: "Available until {date}",
-      requestRefused: "You may not request an export of these datasets.",
-      scheduleRefused: "You may not set up this schedule.",
+      personalBadge: "Personal data",
+      rangeBetween: "{from} to {to}",
+      rangeSince: "From {from}",
+      rangeUntil: "Until {to}",
+      recordCount: "{count, plural, one {# record} other {# records}}",
       failedTitle: "The data export could not be opened",
       failedDescription: "The exports could not be read. Try again.",
       retry: "Try again",
@@ -10210,18 +10416,27 @@ export const messages: Record<SupportedLocale, Messages> = {
       retry: "حاول مرة أخرى",
     },
     dataExport: {
-      heading: "تصدير البيانات",
-      subtitle:
-        "تصدير البيانات عند الطلب ووفق جداول زمنية، وسجلات وتنزيل الملفات.",
       tabs: {
-        exports: "سجل التصدير",
+        exports: "السجل",
         schedules: "الجداول الزمنية",
-        newExport: "تصدير جديد",
+        newExport: "طلب تصدير",
+        newSchedule: "جدول جديد",
       },
-      newExportTitle: "طلب تصدير بيانات جديد",
-      newExportDescription: "حدد مجموعات البيانات والصيغة للتصدير من منشأتك.",
-      datasetsTitle: "مجموعات البيانات",
-      datasetsDescription: "اختر سجلات الكيانات والعمليات المراد تصديرها.",
+      unavailable:
+        "هذا الملف لم يعد متاحًا. تُحفظ الملفات {days} أيام، ويحتاج التنزيل أيضًا إلى أن يظل دورك شاملًا للبيانات التي فيه. اطلبه من جديد إن كنت ما زلت تحتاجه.",
+      exportsTitle: "أحدث عمليات التصدير",
+      exportsDescription:
+        "آخر ٥٠ طلبًا لـ {organization}، الأحدث أولًا. يمكن تنزيل الملف الجاهز لمدة {days} أيام.",
+      noExports: "لم يُصدَّر شيء من {organization} بعد.",
+      noExportsAction: "طلب تصدير",
+      noExportsDescription:
+        "اطلب واحدًا فيظهر هنا أثناء تجهيزه ثم يبقى {days} أيام.",
+      newExportTitle: "طلب تصدير",
+      newExportDescription: "اختر ما تريد إخراجه من {organization} ونوع الملف.",
+      scope:
+        "يضم التصدير كل ما تستطيع قراءته في {organization} ضمن مجموعات البيانات المختارة: كل عقار تصل إليه، وكل التواريخ ما لم تختر نطاقًا أدناه.",
+      datasetsTitle: "ما الذي يُصدَّر",
+      datasetsDescription: "اختر مجموعة بيانات واحدة على الأقل.",
       datasets: {
         residents_guests: "الضيوف والمقيمون",
         reservations_stays: "الحجوزات والإقامات",
@@ -10231,57 +10446,121 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       datasetDescriptions: {
         residents_guests: "الأسماء وعناوين البريد الإلكتروني وأرقام الهاتف",
-        reservations_stays: "تواريخ الحجز والحالات وتخصيص الوحدات",
-        rooms_beds: "أرقام الوحدات والطوابق والأنواع والسعة",
-        folios_payments: "الرسوم المالية والدفعات وتفاصيل الأرصدة",
-        audit_log: "إجراءات العمليات والطوابع الزمنية والمستخدمون",
+        reservations_stays: "تواريخ الحجز وحالاته والغرف",
+        rooms_beds: "أرقام الغرف والطوابق والأنواع والسعة",
+        folios_payments:
+          "كل بند رسوم ودفعة في كل حساب. المبالغ بأصغر وحدة: ٥٠٠٠ تعني ٥٠٫٠٠",
+        audit_log: "ما الذي جرى، ومن فعله، وأين، ولماذا",
       },
-      formatTitle: "صيغة التصدير",
-      formatDescription: "جدول بيانات (CSV) أو بيانات منظمة (JSON).",
-      requestButton: "بدء التصدير",
-      requesting: "جارٍ الطلب...",
-      requestSuccess: "تم إنشاء طلب تصدير البيانات بنجاح.",
-      requestFailed: "فشل إنشاء طلب تصدير البيانات.",
-      scheduleTitle: "إنشاء جدول زمني آلي",
-      scheduleDescription: "إعداد تصدير دوري آلي وفق جدول زمني محدد.",
-      scheduleName: "اسم الجدول",
-      scheduleNamePlaceholder: "مثال: تصدير مالي أسبوعي",
-      frequencyTitle: "التكرار",
+      datasetNeeds: "يحتاج دورك إلى صلاحية «{permission}» لتصدير هذا.",
+      datasetNeedsFrontDesk:
+        "يحتاج دورك إلى صلاحية من صلاحيات مكتب الاستقبال، مثل «{permission}»، لتصدير هذا.",
+      cannotRequest:
+        "يستطيع دورك رؤية عمليات التصدير لكنه لا يستطيع طلبها. اطلب ممن يدير الأدوار أن يمنحه صلاحية «{permission}».",
+      personalData:
+        "سيحتوي هذا الملف على بيانات شخصية: أسماء وبيانات اتصال وحجوزات ورسومًا أو إجراءات الموظفين في سجل التدقيق. احفظه بعناية السجل نفسه.",
+      whoCanDownload:
+        "يمكنك تنزيله لمدة {days} أيام، ويمكن لزملائك الذين يصل دورهم إلى كل العقارات ويجوز له تصدير مجموعات البيانات هذه تنزيله. يُسجَّل كل تنزيل في سجل التدقيق.",
+      notIncluded:
+        "غير مشمول: لا يمكن تصدير الموظفين والرواتب والأسعار والأغذية والمشروبات والمخزون وطلبات الصيانة وسجل التدبير المنزلي وطلبات الضيوف بعد. العقار الذي أُوقفت وحدته تُستثنى منه مجموعة البيانات المعنية.",
+      rangeTitle: "التواريخ (اختياري)",
+      rangeDescription:
+        "يقصر الحجوزات والإقامات وبنود الحسابات وسجل التدقيق على هذه الأيام، مع احتساب اليومين الأول والأخير. الضيوف والغرف قوائم وتأتي كاملة دائمًا. اتركه فارغًا لكل التواريخ.",
+      rangeFrom: "من",
+      rangeTo: "إلى",
+      rangeEmptyFrom: "الأقدم",
+      rangeEmptyTo: "الأحدث",
+      rangePickFrom: "اختر اليوم الأول",
+      rangePickTo: "اختر اليوم الأخير",
+      rangeClear: "مسح",
+      rangeDone: "تم",
+      rangeSpan:
+        "{count, plural, zero {# يوم} one {يوم} two {يومان} few {# أيام} many {# يومًا} other {# يوم}}",
+      rangeClock: "تُقرأ الأيام بتوقيت {timezone}.",
+      rangeMoot:
+        "هذه التواريخ لا تقصر شيئًا هنا: الضيوف والغرف لا تُقصر بالتاريخ أبدًا.",
+      presetLast30: "آخر ٣٠ يومًا",
+      presetThisMonth: "هذا الشهر",
+      presetLastMonth: "الشهر الماضي",
+      presetThisYear: "هذه السنة",
+      formatTitle: "نوع الملف",
+      formatDescription:
+        "يُفتح CSV في جدول بيانات. يُبقي JSON كل مجموعة بيانات على حدة لبرامج أخرى.",
+      formats: {
+        csv: { title: "CSV (جدول بيانات)" },
+        json: { title: "JSON (بيانات منظمة)", hint: "لبرامج أخرى" },
+      },
+      stackedWarning:
+        "في CSV تشترك عدة مجموعات بيانات في ملف واحد: تبدأ كل واحدة تحت سطر «# dataset: الاسم»، ويفتحها جدول البيانات كلها في ورقة واحدة. للحصول على جدول نظيف لكل مجموعة اطلبها كل واحدة على حدة أو اختر JSON.",
+      columnsNote:
+        "تحمل الأعمدة أسماء النظام نفسها. المبالغ بأصغر وحدة (٥٠٠٠ تعني ٥٠٫٠٠) والأوقات بتوقيت UTC.",
+      requestButton: "طلب التصدير",
+      requesting: "جارٍ الطلب…",
+      cancel: "إلغاء",
+      requestSuccess: "تم طلب التصدير. يظهر أدناه أثناء تجهيزه.",
+      requestFailed:
+        "تعذّر إرسال الطلب ولم يُصدَّر شيء. حاول مرة أخرى، وإن استمر الفشل فأخبر المسؤول.",
+      refusedDatasets: "لا يستطيع دورك تصدير: {datasets}.",
+      invalid: {
+        no_datasets: "اختر مجموعة بيانات واحدة على الأقل.",
+        unknown_dataset: "إحدى مجموعات البيانات هذه غير متاحة.",
+        unknown_format: "نوع الملف هذا غير متاح.",
+        range_not_a_day: "أحد التاريخين ليس يومًا حقيقيًا.",
+        range_backwards: "اليوم الأخير يسبق اليوم الأول.",
+        name_missing: "أعطِ الجدول اسمًا.",
+      },
+      scheduleTitle: "جدول جديد",
+      scheduleDescription:
+        "يكرّر تصديرًا من تلقاء نفسه. يُفحص كل تشغيل بصلاحياتك لحظة تشغيله: إن فقدت الحق في مجموعة بيانات يتوقف الجدول.",
+      scheduleName: "الاسم",
+      scheduleNamePlaceholder: "مثال: تصدير المحاسبة الأسبوعي",
+      frequencyTitle: "كل كم",
       frequencies: {
         daily: "يومي",
         weekly: "أسبوعي",
         monthly: "شهري",
       },
-      createScheduleButton: "حفظ الجدول",
-      creatingSchedule: "جارٍ الحفظ...",
-      scheduleSuccess: "تم إنشاء جدول التصدير بنجاح.",
-      scheduleFailed: "فشل إنشاء جدول التصدير.",
-      recentExportsTitle: "أحدث سجلات التصدير",
-      recentExportsDescription:
-        "كافة طلبات التصدير وحالاتها وقياساتها وروابط التنزيل.",
-      schedulesTitle: "جداول التصدير النشطة",
-      schedulesDescription:
-        "عمليات التصدير المتكررة التي يعالجها النظام آلياً في الخلفية.",
-      noExports: "لا توجد سجلات تصدير لهذه المنشأة.",
-      noSchedules: "لا توجد جداول تصدير آلية مجهزة.",
-      tableHeaders: {
-        requester: "مقدم الطلب",
-        datasets: "مجموعات البيانات",
-        format: "الصيغة",
-        status: "الحالة",
-        size: "الحجم",
-        records: "عدد السجلات",
-        requestedAt: "وقت الطلب",
-        actions: "الإجراءات",
+      frequencyEvery: {
+        daily: "كل يوم",
+        weekly: "كل أسبوع",
+        monthly: "كل شهر",
       },
+      firstRun: "التشغيل الأول نحو {when}، ثم يتكرر {every}.",
+      scheduleKeeps:
+        "يظهر كل تشغيل في السجل ويبقى {days} أيام. لا يُرسل بريد إلى أحد، فلا بد أن يأتي أحدهم وينزّله.",
+      scheduleNoRange:
+        "يصدّر الجدول كل التواريخ. نطاق التواريخ للتصدير لمرة واحدة فقط.",
+      createScheduleButton: "إنشاء الجدول",
+      creatingSchedule: "جارٍ الإنشاء…",
+      scheduleSuccess: "تم إنشاء الجدول.",
+      scheduleFailed:
+        "تعذّر حفظ الجدول. حاول مرة أخرى، وإن استمر الفشل فأخبر المسؤول.",
+      schedulesTitle: "الجداول الزمنية",
+      schedulesDescription:
+        "عمليات تصدير متكررة لـ {organization}، تعمل أو متوقفة. يعمل الجدول بصفة من أنشأه. يمكن إيقافه واستئنافه؛ ولتغيير أي شيء آخر أنشئ جدولًا جديدًا.",
+      noSchedules: "لا توجد جداول زمنية بعد.",
+      noSchedulesDescription:
+        "يكرّر الجدول تصديرًا من تلقاء نفسه، ويظهر كل تشغيل في السجل.",
       scheduleHeaders: {
-        name: "اسم الجدول",
+        name: "الاسم",
         datasets: "مجموعات البيانات",
-        format: "الصيغة",
-        frequency: "التكرار",
         status: "الحالة",
         nextRun: "التشغيل القادم",
-        actions: "الإجراءات",
+      },
+      scheduleStatuses: {
+        active: "نشط",
+        paused: "متوقف مؤقتاً",
+      },
+      madeBy: "أنشأه {name}",
+      pausedBecauseCreatorCannot:
+        "توقف لأن {name} لم يعد يستطيع تصدير مجموعات البيانات هذه. استأنفه حين يستطيع، أو اطلب ممن يستطيع أن ينشئه من جديد.",
+      pausedByHand: "متوقف. استأنفه ليعمل من جديد.",
+      pause: "إيقاف مؤقت",
+      resume: "استئناف",
+      tableHeaders: {
+        datasets: "مجموعات البيانات",
+        status: "الحالة",
+        requestedAt: "وقت الطلب",
       },
       statuses: {
         pending: "قيد الانتظار",
@@ -10290,35 +10569,31 @@ export const messages: Record<SupportedLocale, Messages> = {
         failed: "فشل",
         expired: "منتهي الصلاحية",
       },
-      scheduleStatuses: {
-        active: "نشط",
-        paused: "متوقف مؤقتاً",
-      },
-      download: "تنزيل",
-      pause: "إيقاف مؤقت",
-      resume: "استئناف",
-      pausing: "جارٍ الإيقاف...",
-      resuming: "جارٍ الاستئناف...",
+      waitingFor: "في الانتظار منذ {duration}",
+      preparingFor: "قيد التجهيز منذ {duration}",
+      slowNote:
+        "يستغرق هذا أطول من المعتاد. إن لم يتغير خلال دقائق فقد تكون الخدمة التي تجهّز عمليات التصدير متوقفة: أخبر المسؤول.",
       failures: {
         requester_not_permitted:
           "لم يعد لدى مقدّم الطلب صلاحية تصدير هذه البيانات.",
-        too_large: "حجم البيانات أكبر من أن يُصدَّر.",
-        worker_stopped: "توقّف التصدير قبل أن يكتمل.",
-        internal_error: "تعذّر إكمال التصدير.",
+        too_large:
+          "أكبر من أن يُصدَّر: في إحدى مجموعات البيانات أكثر من {rows} صف، أو أن الملف يتجاوز {megabytes} ميغابايت. اطلب مجموعات بيانات أقل في المرة الواحدة، أو اختر نطاقًا من التواريخ.",
+        worker_stopped: "توقّف قبل أن يكتمل. اطلبه من جديد.",
+        internal_error:
+          "تعذّر إكماله. اطلبه من جديد، وإن فشل ثانية فأخبر المسؤول.",
       },
-      formats: {
-        csv: { title: "CSV (جدول بيانات)", hint: "Excel وNumbers وSheets" },
-        json: {
-          title: "JSON (بيانات منظمة)",
-          hint: "واجهات المطورين والنسخ الاحتياطي",
-        },
-      },
+      requestAgain: "اطلبه من جديد",
+      download: "تنزيل",
       expiresOn: "متاح حتى {date}",
-      requestRefused: "لا يحق لك طلب تصدير هذه البيانات.",
-      scheduleRefused: "لا يحق لك إنشاء هذا الجدول.",
+      personalBadge: "بيانات شخصية",
+      rangeBetween: "{from} – {to}",
+      rangeSince: "من {from}",
+      rangeUntil: "حتى {to}",
+      recordCount:
+        "{count, plural, zero {# سجل} one {سجل واحد} two {سجلان} few {# سجلات} many {# سجلًا} other {# سجل}}",
       failedTitle: "تعذّر فتح تصدير البيانات",
-      failedDescription: "تعذّرت قراءة سجلات التصدير. حاول مرة أخرى.",
-      retry: "إعادة المحاولة",
+      failedDescription: "تعذّرت قراءة عمليات التصدير. حاول مرة أخرى.",
+      retry: "حاول مرة أخرى",
     },
     hr: {
       heading: "الموارد البشرية والرواتب",
