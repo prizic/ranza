@@ -121,8 +121,14 @@ test("a shared room is sold by the bed, and a blocked bed cannot be let", async 
   await addDialog.getByLabel("Number of rooms").fill("2");
   await addDialog.getByLabel("Capacity per room (guests)").fill("3");
   await addDialog.getByRole("checkbox", { name: "Let by the bed" }).click();
-  await addDialog.getByRole("button", { name: "Add rooms" }).click();
+  await expect(addDialog.getByTestId("add-rooms-preview")).toContainText(
+    `Adds 2 rooms: ${roomOne} to ${roomTwo}, floor 4, ${building}, 3 beds per room, A to C`,
+  );
+  await addDialog.getByRole("button", { name: "Add 2 rooms" }).click();
   await expect(addDialog).toBeHidden();
+  await expect(page.getByRole("status")).toContainText(
+    `Added 2 rooms: ${roomOne} to ${roomTwo}.`,
+  );
 
   // The bed map: both rooms under the building, three beds each, all free.
   const buildingHeading = page.getByRole("heading", { name: building });
@@ -250,7 +256,7 @@ test("a shared room is sold by the bed, and a blocked bed cannot be let", async 
   });
   await page
     .locator("p", { hasText: /^Blocked$/ })
-    .locator("xpath=ancestor::div[contains(@class,'grid-cols-2')][1]")
+    .locator("xpath=ancestor::div[contains(@class,'grid-cols-3')][1]")
     .screenshot({ path: path.join(EVIDENCE, "occupancy-counts.png") });
 
   // RB-S3-13, the direct attempt: the form that was already open still names

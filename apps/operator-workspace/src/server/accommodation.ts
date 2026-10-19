@@ -9,9 +9,10 @@ import {
   UnitRefusedError,
   type AccommodationUnitType,
   type NewUnits,
+  type UnitConfigurationField,
 } from "@ranza/accommodation";
 import { getComposition } from "./composition";
-import { currentViewer } from "./viewer";
+import { currentViewer, mayConfigureRooms } from "./viewer";
 
 /**
  * Server actions for Rooms & beds (RANZ-27).
@@ -21,10 +22,24 @@ import { currentViewer } from "./viewer";
  * and operational constraints (ADR 0012).
  */
 
-export interface AddRoomsOutcome {
-  status: "idle" | "done" | "taken" | "invalid" | "refused";
-  message?: string;
-}
+/**
+ * What an add came to. It carries facts, never sentences: the screen words
+ * each outcome in the viewer's language, and names the room or the input the
+ * person can change (ROOMS-03, ROOMS-04).
+ */
+export type AddRoomsOutcome =
+  | { status: "idle" }
+  | {
+      status: "done";
+      first: string;
+      last: string;
+      count: number;
+      bedCount: number;
+    }
+  | { status: "taken"; name: string }
+  | { status: "invalid"; field: UnitConfigurationField | null }
+  | { status: "notPermitted" }
+  | { status: "refused" };
 
 export interface BlockOutcome {
   status: "idle" | "done" | "occupied" | "invalid" | "refused";
@@ -72,14 +87,16 @@ export async function addRooms(
   form: FormData,
 ): Promise<AddRoomsOutcome> {
   const viewer = await currentViewer();
-  if (!viewer)
-    return { status: "refused", message: "those rooms cannot be added" };
+  if (!viewer) return { status: "refused" };
 
   const locale = String(form.get("locale") ?? "");
-  if (!isSupportedLocale(locale))
-    return { status: "refused", message: "those rooms cannot be added" };
+  if (!isSupportedLocale(locale)) return { status: "refused" };
 
   const propertyId = String(form.get("propertyId") ?? "");
+  if (!(await mayConfigureRooms(propertyId))) {
+    return { status: "notPermitted" };
+  }
+
   const building = String(form.get("building") ?? "").trim() || null;
   const floorRaw = form.get("floor");
   const floor = floorRaw !== null && floorRaw !== "" ? Number(floorRaw) : null;
@@ -105,18 +122,24 @@ export async function addRooms(
 
   try {
     const { accommodation } = getComposition();
-    await accommodation.addUnits(viewer.userId, input);
+    const added = await accommodation.addUnits(viewer.userId, input);
     revalidateRooms(locale);
-    return { status: "done" };
+    return {
+      status: "done",
+      first: added.names[0] ?? firstNumber,
+      last: added.names.at(-1) ?? firstNumber,
+      count: added.names.length,
+      bedCount: added.bedCount,
+    };
   } catch (error: unknown) {
     if (isUnitNameTakenError(error)) {
-      return { status: "taken", message: error.message };
+      return { status: "taken", name: error.unitName };
     }
     if (isUnitConfigurationError(error)) {
-      return { status: "invalid", message: error.message };
+      return { status: "invalid", field: error.field ?? null };
     }
     if (isUnitRefusedError(error)) {
-      return { status: "refused", message: error.message };
+      return { status: "refused" };
     }
     throw error;
   }

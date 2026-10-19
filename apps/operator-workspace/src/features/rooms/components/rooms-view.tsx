@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { formatDate, isSupportedLocale } from "@ranza/i18n";
 import {
@@ -12,8 +19,11 @@ import {
   DoorOpen,
   LayoutGrid,
   List,
+  RefreshCw,
+  Search,
   Users,
   Wrench,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -25,6 +35,7 @@ import {
   CardTitle,
   cn,
   EmptyState,
+  Input,
   StatusBadge,
   Table,
   TableBody,
@@ -33,33 +44,62 @@ import {
   TableHeader,
   TableRow,
 } from "@ranza/ui";
+import type { AddRoomsOutcome } from "../../../server/accommodation";
 import type {
   RoomsMaintenance,
   UnitEntry,
   UnitHold,
   UnitMap,
+  UnitState,
 } from "../../../server/viewer";
 import { AddRoomsDialog } from "./add-rooms-dialog";
 import { BlockUnitDialog } from "./block-unit-dialog";
+
+type StateKind = UnitState["kind"];
+
+const KIND_FILTERS: readonly StateKind[] = [
+  "free",
+  "reserved",
+  "in_house",
+  "blocked",
+  "out_of_service",
+];
+
+type AddedRooms = Extract<AddRoomsOutcome, { status: "done" }>;
+
+/** How often the page asks the server again while it is open and in view. */
+const REFRESH_MS = 30_000;
 
 export function RoomsView({
   locale,
   propertyId,
   data,
-  propertyName,
+  housekeepingHref,
+  initialView,
   maintenance,
+  mayConfigure,
   targetUnitId,
 }: {
   locale: string;
   propertyId: string;
   data: UnitMap;
-  propertyName: string;
+  /** The board that says which rooms are clean, for a viewer who has one. */
+  housekeepingHref: string | null;
+  initialView: "map" | "list";
   maintenance: RoomsMaintenance;
+  /** Whether the viewer holds `accommodation.configure` at this Property. */
+  mayConfigure: boolean;
   targetUnitId?: string | null | undefined;
 }) {
   const t = useTranslations();
+  const rp = useTranslations("roomsPage");
   const mt = useTranslations("maintenance");
-  const [viewMode, setViewMode] = useState<"map" | "list">("map");
+  const router = useRouter();
+  const [refreshing, startRefresh] = useTransition();
+  const [viewMode, setViewMode] = useState<"map" | "list">(initialView);
+  const [query, setQuery] = useState("");
+  const [kinds, setKinds] = useState<ReadonlySet<StateKind>>(new Set());
+  const [added, setAdded] = useState<AddedRooms | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<UnitEntry | null>(null);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
@@ -131,9 +171,73 @@ export function RoomsView({
     setBlockDialogOpen(true);
   }
 
+  const hasBeds = data.units.some((room) => room.beds.length > 0);
+
+  // The page is a server render, and a second desk that blocks a room or checks
+  // someone in changes it. Asking again while it is open and in view keeps a
+  // screen for "right now" honest; a refresh while a dialog is open is left for
+  // after it closes (ROOMS-15).
+  useEffect(() => {
+    const ask = () => {
+      if (document.visibilityState === "visible" && !blockDialogOpen) {
+        startRefresh(() => router.refresh());
+      }
+    };
+    const timer = setInterval(ask, REFRESH_MS);
+    document.addEventListener("visibilitychange", ask);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", ask);
+    };
+  }, [blockDialogOpen, router]);
+
+  function chooseView(next: "map" | "list") {
+    setViewMode(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", next);
+    window.history.replaceState(null, "", url);
+  }
+
+  const needle = query.trim().toLowerCase();
+  const filtered = needle !== "" || kinds.size > 0;
+  const visibleUnits = data.units.filter((room) => {
+    const leaves = room.beds.length > 0 ? room.beds : [room];
+    const named =
+      needle === "" ||
+      room.name.toLowerCase().includes(needle) ||
+      leaves.some(
+        (leaf) =>
+          leaf.state?.kind === "in_house" &&
+          leaf.state.guestName.toLowerCase().includes(needle),
+      );
+    const inState =
+      kinds.size === 0 ||
+      leaves.some((leaf) => leaf.state && kinds.has(leaf.state.kind));
+    return named && inState;
+  });
+
+  function clearFilters() {
+    setQuery("");
+    setKinds(new Set());
+  }
+
+  function toggleKind(kind: StateKind) {
+    const next = new Set(kinds);
+    if (!next.delete(kind)) next.add(kind);
+    setKinds(next);
+  }
+
+  const kindLabel: Record<StateKind, string> = {
+    free: t("freeTonight"),
+    reserved: t("reservedTonight"),
+    in_house: t("inHouseTonight"),
+    blocked: t("blockedStatus"),
+    out_of_service: mt("outOfOrder"),
+  };
+
   // Group top-level units by Building, then Floor
   const buildingsMap = new Map<string, Map<number | null, UnitEntry[]>>();
-  for (const room of data.units) {
+  for (const room of visibleUnits) {
     const buildingKey = room.building ?? "default";
     let floorsMap = buildingsMap.get(buildingKey);
     if (!floorsMap) {
@@ -145,77 +249,202 @@ export function RoomsView({
     floorsMap.set(room.floor, floorUnits);
   }
 
+  const addRooms = mayConfigure ? (
+    <AddRoomsDialog
+      locale={locale}
+      onAdded={setAdded}
+      propertyId={propertyId}
+    />
+  ) : null;
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-1">
-          <h2 className="text-sm font-medium text-muted-foreground">
-            {t("roomsAt", { property: propertyName })}
-          </h2>
-          <p className="text-sm text-muted-foreground">{t("roomsSubtitle")}</p>
-        </div>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <p className="text-sm text-muted-foreground">{t("roomsSubtitle")}</p>
 
-        <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-full border bg-card p-1 shadow-xs">
-            <Button
-              aria-pressed={viewMode === "map"}
-              size="sm"
-              variant={viewMode === "map" ? "default" : "ghost"}
-              onClick={() => setViewMode("map")}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            disabled={refreshing}
+            onClick={() => startRefresh(() => router.refresh())}
+            size="sm"
+            variant="ghost"
+          >
+            <RefreshCw
+              aria-hidden="true"
+              className={cn(refreshing && "animate-spin")}
+            />
+            {rp("refresh")}
+          </Button>
+
+          {data.units.length > 0 ? (
+            <div className="inline-flex rounded-full border bg-card p-1 shadow-xs">
+              <Button
+                aria-pressed={viewMode === "map"}
+                size="sm"
+                variant={viewMode === "map" ? "default" : "ghost"}
+                onClick={() => chooseView("map")}
+              >
+                <LayoutGrid aria-hidden="true" />
+                {t("bedMap")}
+              </Button>
+              <Button
+                aria-pressed={viewMode === "list"}
+                size="sm"
+                variant={viewMode === "list" ? "default" : "ghost"}
+                onClick={() => chooseView("list")}
+              >
+                <List aria-hidden="true" />
+                {t("bedList")}
+              </Button>
+            </div>
+          ) : null}
+
+          {data.units.length > 0 ? addRooms : null}
+        </div>
+      </div>
+
+      {added ? (
+        <p
+          className="flex items-center justify-between gap-3 rounded-2xl border border-success/30 bg-success-soft px-4 py-2.5 text-sm text-success"
+          role="status"
+        >
+          {rp("added", {
+            count: added.count,
+            first: added.first,
+            last: added.last,
+          })}
+          <button
+            aria-label={t("closeDialog")}
+            className="rounded-full p-1 hover:bg-success/10 focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={() => setAdded(null)}
+            type="button"
+          >
+            <X aria-hidden="true" className="size-4" />
+          </button>
+        </p>
+      ) : null}
+
+      {data.units.length > 0 ? (
+        <>
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 xl:grid-cols-6">
+            <StatTile icon={DoorOpen} label={t("statRooms")} tone="neutral">
+              {data.counts.rooms}
+            </StatTile>
+            {hasBeds ? (
+              <StatTile
+                icon={Bed}
+                label={t("statBeds")}
+                note={
+                  data.counts.outOfService > 0
+                    ? t("outOfOrderBeds", { count: data.counts.outOfService })
+                    : undefined
+                }
+                tone="neutral"
+              >
+                {data.counts.sellable}
+              </StatTile>
+            ) : null}
+            <StatTile icon={Users} label={t("statOccupied")} tone="info">
+              {data.counts.inHouse}
+            </StatTile>
+            <StatTile
+              icon={CalendarDays}
+              label={t("statReserved")}
+              tone="warning"
             >
-              <LayoutGrid aria-hidden="true" />
-              {t("bedMap")}
-            </Button>
-            <Button
-              aria-pressed={viewMode === "list"}
-              size="sm"
-              variant={viewMode === "list" ? "default" : "ghost"}
-              onClick={() => setViewMode("list")}
+              {data.counts.reserved}
+            </StatTile>
+            <StatTile
+              icon={CheckCircle2}
+              label={hasBeds ? t("statEmpty") : rp("statFree")}
+              note={
+                !hasBeds && data.counts.outOfService > 0
+                  ? t("outOfOrderBeds", { count: data.counts.outOfService })
+                  : undefined
+              }
+              tone="success"
             >
-              <List aria-hidden="true" />
-              {t("bedList")}
-            </Button>
+              {data.counts.free}
+            </StatTile>
+            <StatTile icon={Ban} label={t("statBlocked")} tone="danger">
+              {data.counts.blocked}
+            </StatTile>
           </div>
 
-          <AddRoomsDialog locale={locale} propertyId={propertyId} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
-        <StatTile icon={DoorOpen} label={t("statRooms")} tone="neutral">
-          {data.counts.rooms}
-        </StatTile>
-        <StatTile
-          icon={Bed}
-          label={t("statBeds")}
-          note={
-            data.counts.outOfService > 0
-              ? t("outOfOrderBeds", { count: data.counts.outOfService })
-              : undefined
-          }
-          tone="neutral"
-        >
-          {data.counts.sellable}
-        </StatTile>
-        <StatTile icon={Users} label={t("statOccupied")} tone="info">
-          {data.counts.inHouse}
-        </StatTile>
-        <StatTile icon={CalendarDays} label={t("statReserved")} tone="warning">
-          {data.counts.reserved}
-        </StatTile>
-        <StatTile icon={CheckCircle2} label={t("statEmpty")} tone="success">
-          {data.counts.free}
-        </StatTile>
-        <StatTile icon={Ban} label={t("statBlocked")} tone="danger">
-          {data.counts.blocked}
-        </StatTile>
-      </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[160px] flex-1 sm:flex-none">
+              <Search
+                aria-hidden="true"
+                className="pointer-events-none absolute start-3.5 top-3 size-4 text-muted-foreground"
+              />
+              <Input
+                aria-label={rp("findRoom")}
+                className="h-10 w-full rounded-2xl ps-10 pe-4 sm:w-[240px] [&::-webkit-search-cancel-button]:appearance-none"
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={rp("findRoom")}
+                type="search"
+                value={query}
+              />
+            </div>
+            <div
+              aria-label={rp("showStates")}
+              className="flex flex-wrap items-center gap-1.5"
+              role="group"
+            >
+              {KIND_FILTERS.map((kind) => (
+                <Button
+                  aria-pressed={kinds.has(kind)}
+                  className="min-h-11 md:min-h-0"
+                  key={kind}
+                  onClick={() => toggleKind(kind)}
+                  size="sm"
+                  variant={kinds.has(kind) ? "default" : "outline"}
+                >
+                  {kindLabel[kind]}
+                </Button>
+              ))}
+            </div>
+            {filtered && visibleUnits.length > 0 ? (
+              <Button onClick={clearFilters} size="sm" variant="ghost">
+                {rp("showAll")}
+                <X aria-hidden="true" />
+              </Button>
+            ) : null}
+            {housekeepingHref ? (
+              <Link
+                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline md:ms-auto"
+                href={housekeepingHref}
+                prefetch={false}
+              >
+                {rp("housekeepingLink")}
+              </Link>
+            ) : null}
+          </div>
+        </>
+      ) : null}
 
       {/* Main Content */}
       {data.units.length === 0 ? (
         <EmptyState
+          action={addRooms}
+          description={
+            mayConfigure
+              ? t("noRoomsDescription")
+              : rp("noRoomsReadOnly", {
+                  permission: t("staff.permissions.configureAccommodation"),
+                })
+          }
           title={t("noRoomsTitle")}
-          description={t("noRoomsDescription")}
+        />
+      ) : visibleUnits.length === 0 ? (
+        <EmptyState
+          action={
+            <Button onClick={clearFilters} size="sm" variant="outline">
+              {rp("showAll")}
+            </Button>
+          }
+          description={rp("noMatchDescription")}
+          title={rp("noMatchTitle")}
         />
       ) : viewMode === "map" ? (
         <div className="space-y-8">
@@ -234,11 +463,15 @@ export function RoomsView({
 
                 {Array.from(floorsMap.entries()).map(([floorNum, rooms]) => (
                   <div key={floorNum ?? "nofloor"} className="space-y-3">
-                    <h4 className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">
-                      {floorNum !== null
-                        ? t("floorNumber", { floor: floorNum })
-                        : t("noFloor")}
-                    </h4>
+                    {/* "No floor set" is a heading only beside floors that are
+                        set: over every room it reads as something wrong. */}
+                    {floorNum !== null || floorsMap.size > 1 ? (
+                      <h4 className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">
+                        {floorNum !== null
+                          ? t("floorNumber", { floor: floorNum })
+                          : t("noFloor")}
+                      </h4>
+                    ) : null}
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                       {rooms.map((room) => {
@@ -249,7 +482,7 @@ export function RoomsView({
                             key={room.unitId}
                             id={`room-${room.unitId}`}
                             className={cn(
-                              "justify-between gap-4 rounded-4xl transition-all duration-300",
+                              "relative justify-between gap-4 rounded-4xl transition-all duration-300",
                               room.unitId === targetRoomId &&
                                 "ring-2 ring-primary ring-offset-2",
                             )}
@@ -276,12 +509,21 @@ export function RoomsView({
                                     : t("sleeps", { count: room.capacity })}
                                 </span>
                               </div>
+                              {isLetByTheBed ? null : (
+                                <p className="text-xs text-muted-foreground">
+                                  {t(
+                                    `unitType.${room.unitType}` as Parameters<
+                                      typeof t
+                                    >[0],
+                                  )}
+                                </p>
+                              )}
                               {/* Not prefetched: one tile is one request, and
                                   all it would fetch is the loading boundary —
                                   the report form is read on the click. */}
                               {isLetByTheBed && reportHref(room.unitId) ? (
                                 <Link
-                                  className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                                  className="relative z-10 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                                   href={reportHref(room.unitId) ?? ""}
                                   prefetch={false}
                                 >
@@ -323,12 +565,16 @@ export function RoomsView({
                                 </div>
                               ) : (
                                 <div className="flex items-center justify-between">
+                                  {/* The whole tile is the target: the badge
+                                      stretches over it, so pressing the number
+                                      or the corner does what pressing the
+                                      status does (ROOMS-10). */}
                                   <button
                                     type="button"
                                     id={`unit-${room.unitId}`}
                                     onClick={() => handleSelectUnit(room)}
                                     className={cn(
-                                      "rounded-full focus-visible:ring-2 focus-visible:ring-ring",
+                                      "rounded-full text-start after:absolute after:inset-0 after:rounded-4xl after:content-[''] focus-visible:ring-2 focus-visible:ring-ring",
                                       room.unitId === targetUnitId &&
                                         "ring-2 ring-primary ring-offset-2",
                                     )}
@@ -360,9 +606,13 @@ export function RoomsView({
             <TableHeader>
               <TableRow>
                 <TableHead>{t("rooms")}</TableHead>
-                <TableHead>{t("buildingColumn")}</TableHead>
-                <TableHead>{t("floorColumn")}</TableHead>
-                <TableHead>{t("stayTypeLabel")}</TableHead>
+                <TableHead className="hidden md:table-cell">
+                  {t("buildingColumn")}
+                </TableHead>
+                <TableHead className="hidden md:table-cell">
+                  {t("floorColumn")}
+                </TableHead>
+                <TableHead>{rp("roomTypeLabel")}</TableHead>
                 <TableHead>{t("capacityPerRoom")}</TableHead>
                 <TableHead>{t("tonightColumn")}</TableHead>
                 <TableHead className="text-end">
@@ -371,7 +621,7 @@ export function RoomsView({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.units.map((room) => {
+              {visibleUnits.map((room) => {
                 if (room.beds.length > 0) {
                   return room.beds.map((bed) => (
                     <TableRow
@@ -385,8 +635,12 @@ export function RoomsView({
                       <TableCell className="font-medium">
                         {room.name} &mdash; {bed.name}
                       </TableCell>
-                      <TableCell>{room.building ?? "—"}</TableCell>
-                      <TableCell>{room.floor ?? "—"}</TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {room.building ?? "—"}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {room.floor ?? "—"}
+                      </TableCell>
                       <TableCell>{t("unitType.bed")}</TableCell>
                       <TableCell>1</TableCell>
                       <TableCell>
@@ -418,8 +672,12 @@ export function RoomsView({
                     )}
                   >
                     <TableCell className="font-medium">{room.name}</TableCell>
-                    <TableCell>{room.building ?? "—"}</TableCell>
-                    <TableCell>{room.floor ?? "—"}</TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {room.building ?? "—"}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {room.floor ?? "—"}
+                    </TableCell>
                     <TableCell>
                       {t(
                         `unitType.${room.unitType}` as Parameters<typeof t>[0],
@@ -575,25 +833,25 @@ function StatTile({
   tone: keyof typeof TILE_TONE;
 }) {
   return (
-    <div className="flex flex-col justify-between rounded-[2rem] border border-slate-100 bg-card p-5">
+    <div className="flex flex-col justify-between rounded-3xl border border-slate-100 bg-card p-3 sm:rounded-[2rem] sm:p-5">
       <span
         className={cn(
-          "inline-flex size-10 items-center justify-center rounded-2xl",
+          "inline-flex size-8 items-center justify-center rounded-xl sm:size-10 sm:rounded-2xl",
           TILE_TONE[tone],
         )}
       >
-        <Icon aria-hidden="true" className="size-5" />
+        <Icon aria-hidden="true" className="size-4 sm:size-5" />
       </span>
-      <div className="mt-6 space-y-1">
+      <div className="mt-3 space-y-1 sm:mt-6">
         <p className="flex items-baseline gap-2">
-          <span className="text-4xl font-light tracking-tight tabular-nums md:text-5xl">
+          <span className="text-3xl font-light tracking-tight tabular-nums sm:text-4xl md:text-5xl">
             {children}
           </span>
           {note ? (
             <span className="text-xs text-muted-foreground">{note}</span>
           ) : null}
         </p>
-        <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+        <p className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase sm:text-xs">
           {label}
         </p>
       </div>

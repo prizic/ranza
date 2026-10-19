@@ -23,6 +23,7 @@ export {
 } from "./contracts";
 export type {
   AccommodationUnitStatus,
+  UnitConfigurationField,
   AccommodationUnitType,
   NewUnits,
   UnitCounts,

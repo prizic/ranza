@@ -6,6 +6,8 @@ import { RoomsView } from "../../../../features/rooms/components/rooms-view";
 import {
   entitledProperties,
   FRONT_DESK_CAPABILITY,
+  HOUSEKEEPING_CAPABILITY,
+  mayConfigureRooms,
   requireViewer,
   rooms,
   roomsMaintenance,
@@ -23,7 +25,11 @@ export default async function RoomsPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ property?: string; unit?: string }>;
+  searchParams: Promise<{
+    property?: string;
+    unit?: string;
+    view?: string;
+  }>;
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
@@ -48,18 +54,29 @@ export default async function RoomsPage({
     );
   }
 
-  const [data, maintenance] = await Promise.all([
+  const [data, maintenance, mayConfigure, housekeeping] = await Promise.all([
     rooms(property.propertyId),
     roomsMaintenance(property.propertyId),
+    mayConfigureRooms(property.propertyId),
+    entitledProperties(HOUSEKEEPING_CAPABILITY),
   ]);
+  const hasHousekeeping = housekeeping.some(
+    (candidate) => candidate.propertyId === property.propertyId,
+  );
 
   return (
     <RoomsView
       data={data}
+      housekeepingHref={
+        hasHousekeeping
+          ? `${localizeHref(locale, "housekeeping")}?property=${property.propertyId}`
+          : null
+      }
+      initialView={search.view === "list" ? "list" : "map"}
       locale={locale}
       maintenance={maintenance}
+      mayConfigure={mayConfigure}
       propertyId={property.propertyId}
-      propertyName={property.propertyName}
       targetUnitId={search.unit ?? null}
     />
   );
