@@ -268,3 +268,34 @@ test("the phone's bottom bar names every destination it offers, and Arabic names
   }
   await page.screenshot({ path: path.join(EVIDENCE, "phone-dock-en.png") });
 });
+
+test("the end of a phone page clears the bottom bar, whether its labels take one line or two", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 375, height: 800 });
+  await signIn(page);
+  // Turkish wraps "Kat hizmetleri" onto two lines and so makes the bar taller.
+  for (const locale of ["en", "tr"]) {
+    await page.goto(`/${locale}/today?property=${testProperty()}`);
+    const dock = page.locator("nav.glass-panel").last();
+    await expect(dock).toBeVisible();
+    await page.evaluate(() =>
+      window.scrollTo(0, document.documentElement.scrollHeight),
+    );
+    const [dockTop, contentBottom] = await Promise.all([
+      dock.evaluate((element) => element.getBoundingClientRect().top),
+      page.evaluate(() =>
+        Math.max(
+          ...[...document.querySelectorAll("main *")].map(
+            (element) => element.getBoundingClientRect().bottom,
+          ),
+        ),
+      ),
+    ]);
+    expect(
+      contentBottom,
+      `the last thing on the page runs under the bottom bar in ${locale}`,
+    ).toBeLessThanOrEqual(dockTop);
+  }
+});

@@ -44,7 +44,7 @@ export function AppShell({
       <div className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-1 flex-col px-4 pt-4 md:px-8">
         {pageBar}
         <main
-          className="w-full flex-1 pb-[calc(4.75rem+env(safe-area-inset-bottom))] focus:outline-none md:pb-12"
+          className="w-full flex-1 pb-[calc(5.625rem+env(safe-area-inset-bottom))] focus:outline-none md:pb-12"
           id="main-content"
           tabIndex={-1}
         >

@@ -560,10 +560,7 @@ export function AppBottomNav({
         {items.map(({ href, icon: Icon, label: itemLabel }) => {
           const active = isActive(href);
           return (
-            <li
-              className="flex flex-1 min-w-[4.5rem] justify-center"
-              key={href}
-            >
+            <li className="flex min-w-[5rem] flex-1 justify-center" key={href}>
               <Link
                 aria-current={active ? "page" : undefined}
                 className={cn(
