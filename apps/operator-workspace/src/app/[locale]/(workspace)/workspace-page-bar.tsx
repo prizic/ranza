@@ -3,9 +3,17 @@
 import type { ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { AppPageBar, BackButton, navGroupFor, SectionTabs } from "@ranza/ui";
+import {
+  AppPageBar,
+  BackButton,
+  NavChips,
+  navGroupFor,
+  SectionTabs,
+  toChips,
+} from "@ranza/ui";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import { useWithProperty, useWorkspaceNav } from "../../../lib/nav";
+import type { NavMode } from "../../../lib/nav-mode";
 import {
   pageTitleFor,
   useWorkspacePageTitles,
@@ -23,15 +31,21 @@ const DETAIL_KEYS = ["record", "folio"] as const;
  */
 export function WorkspacePageBar({
   action,
+  brand,
   defaultProperty,
   locale,
+  mode,
   reachable,
   segmentsByProperty,
 }: {
   action?: ReactNode;
+  /** The product's mark, where `mode` is "chips" and there is no sidebar to carry it. */
+  brand?: ReactNode;
   /** The Property the switcher names when the URL names none. */
   defaultProperty: string | undefined;
   locale: SupportedLocale;
+  /** Whether the pages are a sidebar's, or chips in this bar (`navModeFor`). */
+  mode: NavMode;
   reachable: readonly string[];
   segmentsByProperty: Readonly<Record<string, readonly string[]>>;
 }) {
@@ -75,10 +89,16 @@ export function WorkspacePageBar({
     <BackButton href={upHref} label={t("back")} />
   ) : undefined;
 
+  const chips =
+    mode === "chips" ? (
+      <NavChips entries={toChips(entries)} label={t("mainNavigation")} />
+    ) : undefined;
+
   return (
     <AppPageBar
       {...(action === undefined ? {} : { action })}
       back={back}
+      {...(chips ? { chips, brand } : {})}
       breadcrumbLabel={t("breadcrumb")}
       crumbs={[
         {
@@ -88,7 +108,11 @@ export function WorkspacePageBar({
         ...(group ? [{ label: group.label }] : []),
       ]}
       display={match.display}
-      tabs={<SectionTabs entries={entries} label={t("sections")} />}
+      tabs={
+        chips ? undefined : (
+          <SectionTabs entries={entries} label={t("sections")} />
+        )
+      }
       title={match.title}
     />
   );

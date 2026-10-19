@@ -263,6 +263,7 @@ export {
   SERVICE_REQUEST_STATUSES,
 };
 export type {
+  EntitledProperty,
   ServiceRequestCategory,
   ServiceRequestItem,
   ServiceRequestPriority,
@@ -994,33 +995,40 @@ export const permittedProperties = cache(
 export async function screenProperties(
   gate: ScreenGate,
 ): Promise<readonly EntitledProperty[]> {
-  const permissions =
-    typeof gate.permission === "string"
-      ? [gate.permission]
-      : (gate.permission ?? []);
-  if (permissions.length > 0) {
-    // Any one of them opens it, so a Property is listed once however many the
-    // role holds there.
-    const answers = await Promise.all(
-      permissions.map((permission) =>
-        permittedProperties(
-          permission,
-          gate.capability?.moduleKey,
-          gate.capability?.capabilityKey,
-        ),
-      ),
-    );
-    return [
-      ...new Map(
-        answers.flat().map((property) => [property.propertyId, property]),
-      ).values(),
-    ].sort(
-      (a, b) =>
-        a.organizationName.localeCompare(b.organizationName) ||
-        a.propertyName.localeCompare(b.propertyName),
-    );
+  if (permissionsOf(gate).length > 0) {
+    const [properties] = await screenPropertiesByGate([gate]);
+    return properties ?? [];
   }
   return gate.capability ? entitledProperties(gate.capability) : [];
+}
+
+function permissionsOf(gate: ScreenGate): readonly string[] {
+  return typeof gate.permission === "string"
+    ? [gate.permission]
+    : (gate.permission ?? []);
+}
+
+/**
+ * `screenProperties` for several gated destinations, answered in one read and
+ * returned in the order asked — for the shell, which asks about every
+ * destination at once. Only gates that name a permission belong here; the rest
+ * are a capability question (`entitledPropertiesByCapability`).
+ *
+ * Any one of a gate's permissions opens it, so a Property is listed once
+ * however many the role holds there.
+ */
+export async function screenPropertiesByGate(
+  gates: readonly ScreenGate[],
+): Promise<readonly (readonly EntitledProperty[])[]> {
+  const viewer = await currentViewer();
+  if (!viewer) return gates.map(() => []);
+  return getComposition().core.listPermittedPropertiesByGate(
+    viewer.userId,
+    gates.map((gate) => ({
+      permissions: permissionsOf(gate),
+      capability: gate.capability,
+    })),
+  );
 }
 
 /**

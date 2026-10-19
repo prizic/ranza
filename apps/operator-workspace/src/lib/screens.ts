@@ -97,6 +97,59 @@ export interface Screen {
   derived?: boolean | undefined;
 }
 
+/**
+ * What a role must hold to be offered a destination: any one of these. A role
+ * reaches the pages of the work it does and no others — a Housekeeping Staff
+ * Member is not offered Finance because the shell would otherwise show them
+ * guest folios they have no job reading (ADR 0054, amending the approved
+ * read-only rows it names).
+ *
+ * The lists are the commands of the destination's own work, so a role gains a
+ * page by being given a command in it and loses it by losing the last one. The
+ * database still decides each command; this decides what is offered and opened.
+ */
+const FRONT_DESK_WORK = [
+  "front_desk.book",
+  "front_desk.check_in",
+  "front_desk.check_out",
+  "front_desk.cancel",
+  "front_desk.amend",
+] as const;
+
+const ROOM_WORK = [...FRONT_DESK_WORK, "accommodation.configure"] as const;
+
+const GUEST_SERVICES_WORK = [
+  "guest_services.create_request",
+  "guest_services.manage_requests",
+] as const;
+
+const MAINTENANCE_WORK = [
+  "maintenance.report",
+  "maintenance.manage",
+  "maintenance.take_out_of_order",
+  "maintenance.equipment",
+] as const;
+
+const FINANCE_WORK = [
+  "finance.manage_folio",
+  "finance.post_charge",
+  "finance.reverse_charge",
+  "finance.post_payment",
+  "finance.reverse_payment",
+  "finance.view_ledger",
+] as const;
+
+const STAFF_WORK = ["staff.administer", "staff.define_roles"] as const;
+
+const CONFIGURATION_WORK = [
+  "configuration.manage",
+  "accommodation.configure",
+  "rates.manage",
+] as const;
+
+/** Revenue, and the comparison of Properties by it: for a role that reads the ledger. */
+const REVENUE_READING = ["finance.view_ledger"] as const;
+
 export const SCREENS: Screen[] = [
   {
     segment: "today",
@@ -119,6 +172,8 @@ export const SCREENS: Screen[] = [
       {
         segment: "reservations",
         capability: "front_desk",
+        permission: FRONT_DESK_WORK,
+        requires: "front_desk",
         module: "front_office",
         icon: CalendarDays,
         blueprint: "5.3",
@@ -127,6 +182,8 @@ export const SCREENS: Screen[] = [
       {
         segment: "room-calendar",
         capability: "front_desk",
+        permission: FRONT_DESK_WORK,
+        requires: "front_desk",
         module: "front_office",
         icon: CalendarRange,
         blueprint: "18.6",
@@ -135,6 +192,8 @@ export const SCREENS: Screen[] = [
       {
         segment: "rooms",
         capability: "front_desk",
+        permission: ROOM_WORK,
+        requires: "front_desk",
         module: "front_office",
         icon: Bed,
         blueprint: "4.7",
@@ -143,6 +202,8 @@ export const SCREENS: Screen[] = [
       {
         segment: "arrivals",
         capability: "front_desk",
+        permission: FRONT_DESK_WORK,
+        requires: "front_desk",
         module: "front_office",
         icon: LogIn,
         blueprint: "5.3",
@@ -151,6 +212,8 @@ export const SCREENS: Screen[] = [
       {
         segment: "departures",
         capability: "front_desk",
+        permission: FRONT_DESK_WORK,
+        requires: "front_desk",
         module: "front_office",
         icon: LogOut,
         blueprint: "5.3",
@@ -159,6 +222,8 @@ export const SCREENS: Screen[] = [
       {
         segment: "close-day",
         capability: "front_desk",
+        permission: "front_desk.close_day",
+        requires: "front_desk",
         module: "front_office",
         icon: CalendarCheck,
         blueprint: "6.4",
@@ -169,6 +234,8 @@ export const SCREENS: Screen[] = [
   {
     segment: "guest-experience",
     capability: "guest_experience",
+    permission: GUEST_SERVICES_WORK,
+    requires: "guest_experience",
     module: "guest_services",
     icon: BellRing,
     blueprint: "5.5",
@@ -178,6 +245,8 @@ export const SCREENS: Screen[] = [
   {
     segment: "housekeeping",
     capability: "housekeeping",
+    permission: "housekeeping.update_status",
+    requires: "housekeeping",
     module: "housekeeping",
     icon: Sparkles,
     blueprint: "5.4",
@@ -190,6 +259,8 @@ export const SCREENS: Screen[] = [
   {
     segment: "maintenance",
     capability: "maintenance",
+    permission: MAINTENANCE_WORK,
+    requires: "maintenance",
     module: "maintenance",
     icon: Wrench,
     blueprint: "5.13",
@@ -199,6 +270,8 @@ export const SCREENS: Screen[] = [
   {
     segment: "food-and-beverage",
     capability: "food_and_beverage",
+    permission: "configuration.manage",
+    requires: "food_and_beverage",
     module: "food_and_beverage",
     icon: ChefHat,
     blueprint: "5.6",
@@ -208,6 +281,8 @@ export const SCREENS: Screen[] = [
   {
     segment: "inventory",
     capability: "inventory",
+    permission: "configuration.manage",
+    requires: "inventory",
     module: "inventory",
     icon: Boxes,
     blueprint: "5.7",
@@ -217,6 +292,8 @@ export const SCREENS: Screen[] = [
   {
     segment: "finance",
     capability: "finance",
+    permission: FINANCE_WORK,
+    requires: "finance",
     module: "billing_folios",
     icon: Wallet,
     blueprint: "5.9",
@@ -229,6 +306,8 @@ export const SCREENS: Screen[] = [
     // is part of the platform every Organization has (blueprint 7.2); Human
     // Resources (5.11) is contracts and wages and is a later destination.
     capability: "staff_administration",
+    permission: STAFF_WORK,
+    requires: "staff_administration",
     module: "platform_core",
     icon: Users,
     blueprint: "7.2",
@@ -252,6 +331,8 @@ export const SCREENS: Screen[] = [
   {
     segment: "analytics",
     capability: "analytics",
+    permission: REVENUE_READING,
+    requires: "analytics",
     module: "analytics",
     icon: BarChart3,
     blueprint: "5.14",
@@ -289,6 +370,8 @@ export const SCREENS: Screen[] = [
   {
     segment: "configuration",
     capability: "configuration",
+    permission: CONFIGURATION_WORK,
+    requires: "configuration",
     module: "platform_core",
     icon: Settings,
     blueprint: "5.1",

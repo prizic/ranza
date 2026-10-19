@@ -185,6 +185,17 @@ export interface CapabilityProperties {
 }
 
 /**
+ * What a destination asks of a Property and of the person, as
+ * `listPermittedPropertiesByGate` takes it: the role must hold any one of
+ * `permissions`, and where `capability` is named the Property must also have it
+ * (gates 1 to 3).
+ */
+export interface PermissionGate {
+  permissions: readonly string[];
+  capability?: CapabilityRef | undefined;
+}
+
+/**
  * Configuration (blueprint 5.1): Platform Core's own screen. Every Organization
  * holds Platform Core, so this capability is the switch a Property turns it on
  * with, not something an Organization buys separately (ADR 0036).

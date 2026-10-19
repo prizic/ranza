@@ -26,6 +26,12 @@ export interface PageCrumb {
  * and the account, and the page's name — set under the bar anyway, or opened
  * by the page's own display type — is left to assistive technology.
  *
+ * `chips` — every page the person reaches, for a role with so few that the frame
+ * has no sidebar (`NavChips`) — take the trail's place: the brand, the way up,
+ * and the chips, which wrap onto a row of their own below a tablet's width. The
+ * page's name is then left to assistive technology, as on a phone, because the
+ * chip that is lit names it.
+ *
  * `tabs` — the pages of the section this one belongs to — sit under the bar
  * rather than in it, where the bar keeps nothing but the trail and its controls.
  *
@@ -38,6 +44,7 @@ export function AppPageBar({
   back,
   brand,
   breadcrumbLabel,
+  chips,
   crumbs = [],
   display = true,
   tabs,
@@ -47,7 +54,7 @@ export function AppPageBar({
   action?: ReactNode;
   /** The way up from an inner page, at the leading edge. Absent on the root. */
   back?: ReactNode;
-  /** An Organization's logo, after the way up and before the title. */
+  /** A mark after the way up and before the title: an Organization's logo, or the product's where there is no sidebar to carry it. */
   brand?: ReactNode;
   /** Names the trail's landmark. Localized; required once there are crumbs. */
   breadcrumbLabel?: string | undefined;
@@ -55,35 +62,47 @@ export function AppPageBar({
       where `back` is the way up and the bar needs its width for the page's
       own controls. */
   crumbs?: readonly PageCrumb[];
+  /** Every reachable page as chips, in place of the trail. */
+  chips?: ReactNode;
   display?: boolean;
   tabs?: ReactNode;
   title: string;
 }) {
+  const leafClass = cn(
+    "truncate text-sm font-semibold tracking-tight text-foreground",
+    chips ? "sr-only" : "max-sm:sr-only",
+  );
   const leaf = display ? (
-    <span
-      aria-current="page"
-      className="truncate text-sm font-semibold tracking-tight text-foreground max-sm:sr-only"
-    >
+    <span aria-current="page" className={leafClass}>
       {title}
     </span>
   ) : (
-    <h1 className="truncate text-sm font-semibold tracking-tight text-foreground max-sm:sr-only">
-      {title}
-    </h1>
+    <h1 className={leafClass}>{title}</h1>
   );
 
   return (
     <>
       <header
         className={cn(
-          "flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border pe-4 md:pe-8",
+          "flex shrink-0 items-center justify-between gap-x-4 border-b border-border pe-4 md:pe-8",
+          chips ? "min-h-16 flex-wrap py-2 md:flex-nowrap" : "h-16",
           back ? "ps-2 md:ps-6" : "ps-4 md:ps-8",
         )}
       >
-        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+        <div
+          className={cn(
+            "flex min-w-0 items-center gap-2 sm:gap-3",
+            chips ? "md:flex-1" : "flex-1",
+          )}
+        >
           {back}
           {brand}
-          {crumbs.length > 0 ? (
+          {chips ? (
+            <>
+              {leaf}
+              <div className="hidden min-w-0 flex-1 md:block">{chips}</div>
+            </>
+          ) : crumbs.length > 0 ? (
             <nav aria-label={breadcrumbLabel} className="min-w-0 flex-1">
               <ol className="flex min-w-0 items-center gap-2">
                 {crumbs.map((crumb, index) => (
@@ -113,10 +132,16 @@ export function AppPageBar({
             server component, and as one item of a children array React
             validates it as a dynamic child and asks for a key it cannot have. */}
         {action ? (
-          <div className="ms-auto flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
+          <div
+            className={cn(
+              "ms-auto flex min-w-0 items-center gap-2 sm:gap-3",
+              chips ? "shrink" : "shrink-0",
+            )}
+          >
             {action}
           </div>
         ) : null}
+        {chips ? <div className="w-full min-w-0 md:hidden">{chips}</div> : null}
       </header>
 
       {/* Present even when empty: its top padding is the space between the bar

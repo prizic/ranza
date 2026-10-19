@@ -70,6 +70,16 @@ export function toMobileNav(entries: readonly NavEntry[]): NavLeaf[] {
   });
 }
 
+/**
+ * Every page as one flat row, for navigation with no room to nest: a category
+ * is not a chip of its own, its pages are, each under its own name.
+ */
+export function toChips(entries: readonly NavEntry[]): NavLeaf[] {
+  return entries.flatMap((entry) =>
+    isNavGroup(entry) ? entry.children : [entry],
+  );
+}
+
 export interface NavSection {
   id?: string | undefined;
   entries: NavEntry[];

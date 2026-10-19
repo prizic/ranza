@@ -10,11 +10,8 @@ import {
   DropdownMenuSeparator,
 } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import {
-  offersPortfolio,
-  PORTFOLIO_GATE,
-  PORTFOLIO_KEY,
-} from "../../../lib/portfolio-offer";
+import { offersPortfolio, PORTFOLIO_KEY } from "../../../lib/portfolio-offer";
+import { navModeFor } from "../../../lib/nav-mode";
 import { ALL_SCREENS, gateOf } from "../../../lib/screens";
 import {
   switchableProperties,
@@ -25,8 +22,9 @@ import {
   billingNotices,
   entitledPropertiesByCapability,
   requireViewer,
-  screenProperties,
+  screenPropertiesByGate,
   TODAY_CAPABILITY,
+  type EntitledProperty,
 } from "../../../server/viewer";
 import { QueryProvider } from "../../providers/query-provider";
 import { BillingNotice } from "./billing-notice";
@@ -88,10 +86,17 @@ export default async function WorkspaceLayout({
     segment: screen.segment,
     gate: gateOf(screen.segment),
   }));
+  // The destinations a role is not asked about by permission (Today) are a
+  // capability question; every other is one bulk read of reach, permission and
+  // capability together — a read each was a connection each.
+  const capabilityDestinations = destinations.filter(
+    ({ gate }) => !gate.permission,
+  );
+  const gatedDestinations = destinations.filter(({ gate }) => gate.permission);
   const capabilities = [
     ...new Map(
-      destinations.flatMap(({ gate }) =>
-        gate.capability && !gate.permission
+      capabilityDestinations.flatMap(({ gate }) =>
+        gate.capability
           ? [
               [
                 `${gate.capability.moduleKey}:${gate.capability.capabilityKey}`,
@@ -102,44 +107,37 @@ export default async function WorkspaceLayout({
       ),
     ).values(),
   ];
-  const [byCapability, byPermission, overdue] = await Promise.all([
+  const [byCapability, byGate, overdue] = await Promise.all([
     entitledPropertiesByCapability(capabilities),
-    Promise.all(
-      destinations.map(async ({ segment, gate }) => ({
-        segment,
-        reachable: gate.permission
-          ? await screenProperties(gate)
-          : ([] as const),
-      })),
-    ),
+    screenPropertiesByGate(gatedDestinations.map(({ gate }) => gate)),
     billingNotices(),
   ]);
 
-  const reachBySegment = new Map(
-    destinations.map(({ segment, gate }) => [
-      segment,
-      gate.permission
-        ? (byPermission.find((answer) => answer.segment === segment)
-            ?.reachable ?? [])
-        : (byCapability.find(
+  const reachBySegment = new Map<string, readonly EntitledProperty[]>([
+    ...gatedDestinations.map(
+      ({ segment }, index) => [segment, byGate[index] ?? []] as const,
+    ),
+    ...capabilityDestinations.map(
+      ({ segment, gate }) =>
+        [
+          segment,
+          byCapability.find(
             (answer) =>
               answer.capability.moduleKey === gate.capability?.moduleKey &&
               answer.capability.capabilityKey ===
                 gate.capability?.capabilityKey,
-          )?.properties ?? []),
-    ]),
-  );
+          )?.properties ?? [],
+        ] as const,
+    ),
+  ]);
 
   // All Properties is not a capability anybody switches on: it is offered
   // when the viewer reaches several Properties of one Organization and has
-  // analytics at one of them (`offersPortfolio`).
+  // Analytics at one of them (`offersPortfolio`) — Analytics as the role is
+  // offered it, so a role without it is not offered a comparison of revenue.
   const portfolioOffered = offersPortfolio(
     [...reachBySegment.values()].flat(),
-    byCapability.find(
-      (answer) =>
-        answer.capability.moduleKey === PORTFOLIO_GATE.moduleKey &&
-        answer.capability.capabilityKey === PORTFOLIO_GATE.capabilityKey,
-    )?.properties ?? [],
+    reachBySegment.get("analytics") ?? [],
   );
 
   // The destinations the rail lists: every one open at some Property the
@@ -182,6 +180,10 @@ export default async function WorkspaceLayout({
 
   const root = localizeHref(locale, "today");
 
+  // A role with a handful of pages is offered them across the top of the page,
+  // and the sidebar's column goes to the page instead (`navModeFor`).
+  const mode = navModeFor(reachable);
+
   const accountItems = (
     <>
       <DropdownMenuItem asChild>
@@ -210,17 +212,30 @@ export default async function WorkspaceLayout({
   return (
     <AppShell
       bottomNav={
-        <WorkspaceBottomNav
-          defaultProperty={first?.propertyId}
-          reachable={reachable}
-          segmentsByProperty={segmentsByProperty}
-          label={t("mainNavigation")}
-          locale={locale}
-          root={root}
-        />
+        mode === "sidebar" ? (
+          <WorkspaceBottomNav
+            defaultProperty={first?.propertyId}
+            reachable={reachable}
+            segmentsByProperty={segmentsByProperty}
+            label={t("mainNavigation")}
+            locale={locale}
+            root={root}
+          />
+        ) : undefined
       }
       pageBar={
         <WorkspacePageBar
+          brand={
+            <PropertyLink
+              aria-label={t("productName")}
+              className="hidden size-9 shrink-0 items-center justify-center rounded-xl sm:flex bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-transform duration-500 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              defaultProperty={first?.propertyId}
+              href={root}
+              knownProperties={Object.keys(segmentsByProperty)}
+            >
+              <BrandMark className="size-5" />
+            </PropertyLink>
+          }
           action={
             <>
               <div className="flex min-w-0 items-center gap-1">
@@ -259,46 +274,49 @@ export default async function WorkspaceLayout({
           reachable={reachable}
           segmentsByProperty={segmentsByProperty}
           locale={locale}
+          mode={mode}
         />
       }
       rail={
-        <WorkspaceRail
-          actions={
-            <AccountMenu
-              email={viewer.email}
-              label={t("account")}
-              locale={locale}
-              name={viewer.name}
-            >
-              {accountItems}
-            </AccountMenu>
-          }
-          brand={<BrandMark className="size-5" />}
-          defaultProperty={first?.propertyId}
-          reachable={reachable}
-          segmentsByProperty={segmentsByProperty}
-          labels={{
-            collapse: t("collapse"),
-            sections: {
-              operations: t("navigationSections.operations"),
-              management: t("navigationSections.management"),
-              system: t("navigationSections.system"),
-            },
-            expand: t("expand"),
-            home: t("productName"),
-            mainNavigation: t("mainNavigation"),
-            badge: t("workspaceBadge"),
-          }}
-          locale={locale}
-          {...(first ? { organization: first.organizationName } : {})}
-          organizations={Object.fromEntries(
-            switchable.map((property) => [
-              property.propertyId,
-              property.organizationName,
-            ]),
-          )}
-          root={root}
-        />
+        mode === "sidebar" ? (
+          <WorkspaceRail
+            actions={
+              <AccountMenu
+                email={viewer.email}
+                label={t("account")}
+                locale={locale}
+                name={viewer.name}
+              >
+                {accountItems}
+              </AccountMenu>
+            }
+            brand={<BrandMark className="size-5" />}
+            defaultProperty={first?.propertyId}
+            reachable={reachable}
+            segmentsByProperty={segmentsByProperty}
+            labels={{
+              collapse: t("collapse"),
+              sections: {
+                operations: t("navigationSections.operations"),
+                management: t("navigationSections.management"),
+                system: t("navigationSections.system"),
+              },
+              expand: t("expand"),
+              home: t("productName"),
+              mainNavigation: t("mainNavigation"),
+              badge: t("workspaceBadge"),
+            }}
+            locale={locale}
+            {...(first ? { organization: first.organizationName } : {})}
+            organizations={Object.fromEntries(
+              switchable.map((property) => [
+                property.propertyId,
+                property.organizationName,
+              ]),
+            )}
+            root={root}
+          />
+        ) : undefined
       }
       skipLabel={t("skip")}
     >

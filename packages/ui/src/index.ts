@@ -18,8 +18,10 @@ export {
   groupNavEntries,
   isNavGroup,
   navGroupFor,
+  toChips,
   toMobileNav,
 } from "./components/nav";
+export { NavChips } from "./components/nav-chips";
 export { SectionTabs } from "./components/section-tabs";
 export type { NavEntry, NavGroup, NavLeaf, NavSection } from "./components/nav";
 export { DataTable } from "./components/data-table/data-table";

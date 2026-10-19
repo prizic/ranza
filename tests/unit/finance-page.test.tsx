@@ -11,10 +11,11 @@ import { NextIntlClientProvider, createTranslator } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { messages } from "../../apps/operator-workspace/src/messages";
 
-const entitledProperties = vi.fn();
+const screenProperties = vi.fn();
 const folio = vi.fn();
 const folioPage = vi.fn();
 const permittedProperties = vi.fn();
+const whyDenied = vi.fn();
 
 vi.mock("../../apps/operator-workspace/node_modules/server-only", () => ({}));
 // Nothing remembered on this device (OA-S3-05).
@@ -52,10 +53,11 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
     moduleKey: "front_office",
     capabilityKey: "front_desk",
   },
-  entitledProperties,
+  screenProperties,
   folio,
   folioPage,
   permittedProperties,
+  whyDenied,
   requireViewer: async () => ({
     userId: "d9100001-0000-4000-8000-000000000001",
   }),
@@ -116,22 +118,28 @@ function expectFinanceIsNotOn() {
 }
 
 beforeEach(() => {
-  entitledProperties.mockReset().mockResolvedValue([PROPERTY]);
+  screenProperties.mockReset().mockResolvedValue([PROPERTY]);
   folio.mockReset().mockResolvedValue(null);
   folioPage.mockReset().mockResolvedValue({ folios: [], total: 0 });
   permittedProperties.mockReset().mockResolvedValue([]);
+  whyDenied.mockReset().mockResolvedValue({ reason: "not_reachable" });
   folioPanel.mockReset();
 });
 afterEach(cleanup);
 
 describe("the Finance page where finance is not on", () => {
   it("FO-S9-01: says finance is not on when the viewer may use it at no Property", async () => {
-    entitledProperties.mockResolvedValue([]);
+    screenProperties.mockResolvedValue([]);
     await show({});
     expectFinanceIsNotOn();
   });
 
-  it("FO-S9-01: answers a forged ?property= exactly as a switched-off one", async () => {
+  it("FO-S9-01: answers a forged ?property= exactly as a switched-off one, though the gate that stopped each differs", async () => {
+    whyDenied.mockImplementation(async (_gate: unknown, property?: string) =>
+      property === FORGED
+        ? { reason: "not_reachable" }
+        : { reason: "not_enabled" },
+    );
     const forged = (
       await show({
         property: FORGED,
@@ -149,6 +157,21 @@ describe("the Finance page where finance is not on", () => {
     ).container.innerHTML;
     expectFinanceIsNotOn();
     expect(forged).toBe(switchedOff);
+  });
+
+  it("SP-S6-11: tells a role without a finance permission which one it lacks, and does not claim the Subscription is the reason", async () => {
+    screenProperties.mockResolvedValue([]);
+    whyDenied.mockResolvedValue({
+      reason: "no_permission",
+      permission: "finance.manage_folio",
+    });
+    await show({});
+    expect(
+      screen.getByText(messages.en.denied.noPermissionTitle),
+    ).toBeVisible();
+    expect(screen.queryByText(messages.en.noFinanceTitle)).toBeNull();
+    expect(screen.queryByTestId("folios-table")).toBeNull();
+    expect(folioPage).not.toHaveBeenCalled();
   });
 
   it("and names the Property's folios where it is on, so the two above are about finance", async () => {
