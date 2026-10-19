@@ -245,8 +245,13 @@ test.describe("the Room calendar's details and move dialogs (ROOMCAL-05, ROOMCAL
       nights: 2,
       label: "Moving",
     });
+    // The rooms are held back until the test has looked at the dialog waiting.
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     await page.route("**/api/front-office/booking-change*", async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 2_500));
+      await held;
       await route.continue();
     });
     await page.setViewportSize({ width: 1280, height: 900 });
@@ -264,15 +269,15 @@ test.describe("the Room calendar's details and move dialogs (ROOMCAL-05, ROOMCAL
     await bar(booked.guestName).click();
     await drawer.getByRole("button", { name: "Move…" }).click();
     const dialog = page.getByRole("dialog").last();
-    await expect(dialog).toContainText(booked.unitName);
     // Still waiting for the rooms: the field names the room, never an id.
-    await expect(dialog.getByRole("combobox").first()).toContainText(
-      booked.unitName,
-    );
+    await expect(
+      dialog.getByRole("combobox").filter({ hasText: booked.unitName }),
+    ).toHaveCount(1);
     expect(await dialog.innerText()).not.toMatch(UUID);
     await page.screenshot({
       path: path.join(EVIDENCE, "move-dialog-loading.png"),
     });
+    release();
   });
 });
 
