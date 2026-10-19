@@ -2168,48 +2168,60 @@ export interface Messages {
   };
 
   analytics: {
-    heading: string;
-    subheading: string;
     rangeToday: string;
     range7d: string;
     range30d: string;
     rangeMonth: string;
     rangeSelectorLabel: string;
-    occupancyRate: string;
-    occupancyRateDesc: string;
-    sellableUnits: string;
-    occupiedNights: string;
-    availableNights: string;
-    roomRevenue: string;
-    roomRevenueDesc: string;
-    totalRevenue: string;
-    adr: string;
-    adrDesc: string;
-    revPar: string;
-    revParDesc: string;
-    netPayments: string;
-    netPaymentsDesc: string;
+    /** Said in place of the revenue figures to somebody who is not shown them. */
     financialsMaskedNotice: string;
-    dailyBreakdownTitle: string;
-    dailyBreakdownDesc: string;
-    dateCol: string;
-    occupiedUnitsCol: string;
-    availableUnitsCol: string;
-    occupancyCol: string;
-    roomRevenueCol: string;
-    paymentsBreakdownTitle: string;
     cash: string;
     card: string;
     bankTransfer: string;
     other: string;
+    /** A trailing window, named and explained as a month is (ANALYTICS-09). */
+    window: {
+      today: string;
+      "7d": string;
+      "30d": string;
+      /** `{from}` to `{to}`. */
+      span: string;
+      noActivityTitle: string;
+    };
     /** One month, explained (docs/features/analytics, slice 2). */
     month: {
       navigation: string;
       previousMonth: string;
       nextMonth: string;
-      /** `{closed}` of `{total}` business days have closed. */
+      /** A month not yet over: `{closed}` of `{total}` business days have closed. */
       monthToDate: string;
+      /** The same, for a window that is not a month. */
+      closedOf: string;
+      /** What a period that is not over rests on: which days each figure counts. */
       openNote: string;
+      openNoteNoMoney: string;
+      /** A month that is over with days never closed: `{unclosed}` of `{total}`. */
+      incompleteBadge: string;
+      incompleteNote: string;
+      incompleteNoteNoMoney: string;
+      /** ICU plural on `count`: days waiting for the front desk to close them. */
+      waiting: string;
+      noFiguresYet: string;
+      closeDayLink: string;
+      closeDayWho: string;
+      beforeOpening: string;
+      /** ICU plural on `count`: occupied nights with no charge, under a figure that rests on charges. */
+      understated: string;
+      seeUncharged: string;
+      /** ICU plural on `count`: the same, when it leaves no revenue to work out. */
+      revenueUnknown: string;
+      noClosedDays: string;
+      /** `{count}` days behind the button that opens the table on a phone. */
+      showDays: string;
+      hideDays: string;
+      /** `{reference}`: the booking a Stay in the day's drawer came from. */
+      openBooking: string;
+      unchargedAction: string;
       /** `{date}`: the Property's business date today. */
       asOf: string;
       /** `{month}`: the month's name. */
@@ -2236,6 +2248,7 @@ export interface Messages {
       pointsChange: string;
       /** `{month}`: the prior month, compared over the same elapsed days. */
       sameElapsedDays: string;
+      /** `{month}`: the prior month, which had no activity in the days compared. */
       noPrior: string;
       revenue: string;
       roomNightsCharged: string;
@@ -2285,7 +2298,7 @@ export interface Messages {
         | "not_yet_charged",
         string
       >;
-      /** One day opened from the table. `{date}`: the day, for the row's link. */
+      /** One day opened from the table. `{date}`: the day, in the row's link name after its visible date. */
       showDay: string;
       dayDescription: string;
       dayOpenNote: string;
@@ -5288,39 +5301,13 @@ export const messages: Record<SupportedLocale, Messages> = {
     },
 
     analytics: {
-      heading: "Analitik ve Raporlama",
-      subheading:
-        "Tesis doluluk, operasyonel hareketler ve finansal performans göstergeleri.",
       rangeToday: "Bugün",
       range7d: "Son 7 gün",
       range30d: "Son 30 gün",
       rangeMonth: "Ay",
       rangeSelectorLabel: "Zaman aralığı",
-      occupancyRate: "Doluluk Oranı",
-      occupancyRateDesc: "Satılabilir oda/yataklara göre gerçekleşen doluluk",
-      sellableUnits: "Satılabilir Birim",
-      occupiedNights: "Dolu Geceleme",
-      availableNights: "Mevcut Geceleme",
-      roomRevenue: "Oda Geliri",
-      roomRevenueDesc: "Gerçekleşen net konaklama ücretleri",
-      totalRevenue: "Toplam Gelir",
-      adr: "ADR (Ort. Günlük Fiyat)",
-      adrDesc: "Dolu oda/yatak başına ortalama konaklama geliri",
-      revPar: "RevPAR (Mevcut Oda Geliri)",
-      revParDesc: "Satılabilir tüm birimler başına ortalama konaklama geliri",
-      netPayments: "Tahsil Edilen Ödemeler",
-      netPaymentsDesc: "Dönem içinde tahsil edilen net ödeme tutarı",
       financialsMaskedNotice:
-        "Finansal göstergeleri görüntüleme yetkiniz (finance.manage_folio) bulunmamaktadır.",
-      dailyBreakdownTitle: "Günlük Performans Dağılımı",
-      dailyBreakdownDesc:
-        "Seçilen tarih aralığında gün bazlı doluluk ve konaklama geliri dökümü.",
-      dateCol: "Tarih",
-      occupiedUnitsCol: "Dolu Birim",
-      availableUnitsCol: "Mevcut Birim",
-      occupancyCol: "Doluluk",
-      roomRevenueCol: "Oda Geliri",
-      paymentsBreakdownTitle: "Ödeme Yöntemleri Dağılımı",
+        "Gelir rakamları yalnızca parayı yöneten personele gösterilir. İhtiyacınız varsa yöneticinize sorun.",
       cash: "Nakit",
       card: "Kredi Kartı",
       bankTransfer: "Havale / EFT",
@@ -5331,7 +5318,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         nextMonth: "Sonraki ay",
         monthToDate: "Ay başından bugüne · {total} günün {closed} günü kapandı",
         openNote:
-          "Tüm oran ve gelir rakamları yalnızca kapanmış günleri kapsar. Bugün hâlâ açık: geceleri gün kapanana kadar ücretlendirilmez, bu yüzden hiçbir orana dahil edilmez.",
+          "Doluluk, şimdiye kadarki her günü sayar. Gelir ve onu bölen oranlar yalnızca kapanan günleri kapsar: bir gece gün kapanınca ücretlendirilir, bugünküler henüz ücretlendirilmedi.",
         asOf: "{date} itibarıyla. Bir düzeltme, düzelttiği gecenin gününe yazılır; bu yüzden geçmiş bir ay da değişebilir.",
         noActivityTitle: "{month} ayında hiçbir şey olmadı",
         noActivityDescription:
@@ -5355,7 +5342,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         pointsChange: "{value} puan",
         sameElapsedDays:
           "{month} ayının aynı geçen günleriyle karşılaştırılır.",
-        noPrior: "Karşılaştırılacak önceki bir ay yok.",
+        noPrior:
+          "{month} ayında hiçbir şey olmadı, karşılaştırılacak bir şey yok.",
         revenue: "Gelir",
         roomNightsCharged: "Ücretlendirilen oda geceleri",
         corrections: "Düzeltmeler (iptal edilen geceler)",
@@ -5383,7 +5371,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         revenueCol: "Oda geliri",
         openDay: "Açık gün",
         notYetCharged: "Henüz ücretlendirilmedi",
-        monthTotal: "Kapanan günlerin toplamı",
+        monthTotal: "Toplam",
         unitTypes: "Birim türüne göre",
         unitTypeCol: "Birim türü",
         unitTypeNote:
@@ -5403,7 +5391,7 @@ export const messages: Record<SupportedLocale, Messages> = {
           currency: "Başka bir para biriminde fiyatlanmış",
           not_yet_charged: "Henüz ücretlendirilmedi",
         },
-        showDay: "{date} gününü göster",
+        showDay: "{date} ayrıntıları",
         dayDescription: "O gece bir birimi tutan konaklamalar.",
         dayOpenNote:
           "Bu gün henüz kapanmadı. Geceleri gün kapanınca ücretlendirilir.",
@@ -5417,6 +5405,40 @@ export const messages: Record<SupportedLocale, Messages> = {
         dayNavigation: "Gün",
         previousDay: "Önceki gün",
         nextDay: "Sonraki gün",
+        closedOf: "{total} günün {closed} günü kapandı",
+        openNoteNoMoney:
+          "Doluluk, kapanmış ya da kapanmamış, şimdiye kadarki her günü sayar.",
+        incompleteBadge:
+          "Eksik · {total} günün {unclosed} günü hiç kapatılmadı",
+        incompleteNote:
+          "Doluluk her günü sayar. Gelir ve onu bölen oranlar yalnızca kapanan günleri kapsar, bu yüzden olduğundan düşüktür.",
+        incompleteNoteNoMoney:
+          "Doluluk, hiç kapatılmayan günler dahil her günü sayar.",
+        waiting:
+          "{count, plural, one {# gün} other {# gün}} kapatılmayı bekliyor.",
+        noFiguresYet: "Henüz hiçbir gün kapanmadı, bu yüzden gelir rakamı yok.",
+        closeDayLink: "Günü kapat",
+        closeDayWho: "Ön büro ya da bir yönetici kapatır.",
+        beforeOpening: "Açılıştan önce",
+        understated:
+          "{count, plural, one {# dolu gece} other {# dolu gece}} ücretsiz kaldı, bu yüzden bu rakam olduğundan düşük.",
+        seeUncharged: "Ücretlendirilmeyen geceler",
+        revenueUnknown:
+          "{count, plural, one {# dolu gecenin} other {# dolu gecenin}} ücreti yok, bu yüzden hesaplanacak bir gelir yok.",
+        noClosedDays:
+          "Henüz hiçbir gün kapanmadı, bu yüzden gösterilecek gelir yok.",
+        showDays: "{count} günü göster",
+        hideDays: "Günleri gizle",
+        openBooking: "{reference} rezervasyonunu aç",
+        unchargedAction:
+          "Hangi rezervasyonlar olduğunu görmek için tablodan bir gün açın, sonra fiyatını eklemek için rezervasyonu açın.",
+      },
+      window: {
+        today: "Bugün",
+        "7d": "Son 7 gün",
+        "30d": "Son 30 gün",
+        span: "{from} – {to}",
+        noActivityTitle: "Bu dönemde hiçbir şey olmadı",
       },
     },
 
@@ -8553,39 +8575,13 @@ export const messages: Record<SupportedLocale, Messages> = {
     },
 
     analytics: {
-      heading: "Analytics & Reporting",
-      subheading:
-        "Property occupancy, operational volume, and commercial performance KPIs.",
       rangeToday: "Today",
       range7d: "Last 7 days",
       range30d: "Last 30 days",
       rangeMonth: "Month",
       rangeSelectorLabel: "Reporting period",
-      occupancyRate: "Occupancy Rate",
-      occupancyRateDesc: "Occupied share of sellable accommodation inventory",
-      sellableUnits: "Sellable Units",
-      occupiedNights: "Occupied Nights",
-      availableNights: "Available Nights",
-      roomRevenue: "Room Revenue",
-      roomRevenueDesc: "Net room night charges accrued in period",
-      totalRevenue: "Total Revenue",
-      adr: "ADR (Average Daily Rate)",
-      adrDesc: "Average room revenue per occupied room night",
-      revPar: "RevPAR (Revenue Per Available Room)",
-      revParDesc: "Average room revenue per available room night",
-      netPayments: "Payments Collected",
-      netPaymentsDesc: "Net payments collected during this period",
       financialsMaskedNotice:
-        "You do not hold permission to view financial metrics (finance.manage_folio).",
-      dailyBreakdownTitle: "Daily Performance Breakdown",
-      dailyBreakdownDesc:
-        "Day-by-day occupancy and room revenue across the selected period.",
-      dateCol: "Date",
-      occupiedUnitsCol: "Occupied Units",
-      availableUnitsCol: "Available Units",
-      occupancyCol: "Occupancy",
-      roomRevenueCol: "Room Revenue",
-      paymentsBreakdownTitle: "Payment Methods Breakdown",
+        "Revenue figures are shown only to staff who manage money. Ask your manager if you need them.",
       cash: "Cash",
       card: "Card",
       bankTransfer: "Bank Transfer",
@@ -8596,7 +8592,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         nextMonth: "Next month",
         monthToDate: "Month to date · {closed} of {total} days closed",
         openNote:
-          "Every rate and revenue figure covers the closed days only. Today is still open: its nights are not charged until the day closes, so it counts toward no rate.",
+          "Occupancy counts every day so far. Revenue and the rates that divide it cover the closed days only: a night is charged when its day closes, and today's has not.",
         asOf: "As of {date}. A correction counts on the night it corrects, so an earlier month can still change.",
         noActivityTitle: "Nothing happened in {month}",
         noActivityDescription:
@@ -8618,7 +8614,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         againstPrior: "vs {month}: {value}",
         pointsChange: "{value} points",
         sameElapsedDays: "Compared with the same elapsed days of {month}.",
-        noPrior: "There is no earlier month to compare with.",
+        noPrior:
+          "{month} had no activity, so there is nothing to compare with.",
         revenue: "Revenue",
         roomNightsCharged: "Room nights charged",
         corrections: "Corrections (reversed nights)",
@@ -8646,7 +8643,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         revenueCol: "Room revenue",
         openDay: "Open day",
         notYetCharged: "Not yet charged",
-        monthTotal: "Total of closed days",
+        monthTotal: "Total",
         unitTypes: "By unit type",
         unitTypeCol: "Unit type",
         unitTypeNote:
@@ -8666,7 +8663,7 @@ export const messages: Record<SupportedLocale, Messages> = {
           currency: "Priced in another currency",
           not_yet_charged: "Not charged yet",
         },
-        showDay: "Show {date}",
+        showDay: "Details for {date}",
         dayDescription: "The Stays that held a unit this night.",
         dayOpenNote:
           "This day has not closed. Its nights are charged when it does.",
@@ -8680,6 +8677,38 @@ export const messages: Record<SupportedLocale, Messages> = {
         dayNavigation: "Day",
         previousDay: "Previous day",
         nextDay: "Next day",
+        closedOf: "{closed} of {total} days closed",
+        openNoteNoMoney: "Occupancy counts every day so far, closed or not.",
+        incompleteBadge:
+          "Incomplete · {unclosed} of {total} days were never closed",
+        incompleteNote:
+          "Occupancy counts every day. Revenue and the rates that divide it cover only the days that closed, so they are understated.",
+        incompleteNoteNoMoney:
+          "Occupancy counts every day, including the days that were never closed.",
+        waiting:
+          "{count, plural, one {# day is} other {# days are}} waiting to be closed.",
+        noFiguresYet: "No day has closed yet, so there are no revenue figures.",
+        closeDayLink: "Close the day",
+        closeDayWho: "The front desk or a manager closes them.",
+        beforeOpening: "Before opening",
+        understated:
+          "{count, plural, one {# occupied night earned} other {# occupied nights earned}} no charge, so this is understated.",
+        seeUncharged: "Nights with no charge",
+        revenueUnknown:
+          "{count, plural, one {# occupied night has} other {# occupied nights have}} no charge, so there is no revenue to work out.",
+        noClosedDays: "No day has closed yet, so there is no revenue to show.",
+        showDays: "Show the {count} days",
+        hideDays: "Hide the days",
+        openBooking: "Open booking {reference}",
+        unchargedAction:
+          "Open a day from the table to see which bookings, then open a booking to add its price.",
+      },
+      window: {
+        today: "Today",
+        "7d": "Last 7 days",
+        "30d": "Last 30 days",
+        span: "{from} – {to}",
+        noActivityTitle: "Nothing happened in this period",
       },
     },
 
@@ -11761,40 +11790,13 @@ export const messages: Record<SupportedLocale, Messages> = {
     },
 
     analytics: {
-      heading: "التحليلات والتقارير",
-      subheading:
-        "مؤشرات نسبة الإشغال، والنشاط التشغيلي، والأداء المالي للمنشأة.",
       rangeToday: "اليوم",
       range7d: "آخر 7 أيام",
       range30d: "آخر 30 يومًا",
       rangeMonth: "الشهر",
       rangeSelectorLabel: "الفترة الزمنية",
-      occupancyRate: "نسبة الإشغال",
-      occupancyRateDesc:
-        "نسبة الوحدات المشغولة من إجمالي الوحدات القابلة للبيع",
-      sellableUnits: "الوحدات القابلة للبيع",
-      occupiedNights: "الليالي المشغولة",
-      availableNights: "الليالي المتاحة",
-      roomRevenue: "إيرادات الغرف",
-      roomRevenueDesc: "صافي إيرادات ليالي الإقامة المحققة خلال الفترة",
-      totalRevenue: "إجمالي الإيرادات",
-      adr: "متوسط السعر اليومي (ADR)",
-      adrDesc: "متوسط إيراد الغرفة لكل ليلة مشغولة",
-      revPar: "الإيراد لكل غرفة متاحة (RevPAR)",
-      revParDesc: "متوسط إيراد الغرف لكل ليلة متاحة",
-      netPayments: "المدفوعات المحصلة",
-      netPaymentsDesc: "صافي المدفوعات المستلمة خلال هذه الفترة",
       financialsMaskedNotice:
-        "ليس لديك صلاحية للاطلاع على المؤشرات المالية (finance.manage_folio).",
-      dailyBreakdownTitle: "تفصيل الأداء اليومي",
-      dailyBreakdownDesc:
-        "بيان يومي للإشغال وإيرادات الإقامة عبر الفترة المحددة.",
-      dateCol: "التاريخ",
-      occupiedUnitsCol: "الوحدات المشغولة",
-      availableUnitsCol: "الوحدات المتاحة",
-      occupancyCol: "نسبة الإشغال",
-      roomRevenueCol: "إيرادات الغرف",
-      paymentsBreakdownTitle: "تفصيل طرق الدفع",
+        "تُعرض أرقام الإيرادات فقط للموظفين الذين يديرون الأموال. اسأل مديرك إن احتجتَ إليها.",
       cash: "نقدًا",
       card: "بطاقة ائتمان",
       bankTransfer: "تحويل بنكي",
@@ -11806,7 +11808,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         monthToDate:
           "من بداية الشهر حتى اليوم · أُغلق {closed} من {total} يومًا",
         openNote:
-          "كل أرقام النِّسَب والإيرادات تشمل الأيام المغلقة فقط. اليوم لا يزال مفتوحًا: لا تُحتسب رسوم لياليه حتى يُغلق اليوم، لذا لا يدخل في أي نسبة.",
+          "يحتسب الإشغال كل يوم حتى الآن. الإيرادات والنِّسَب التي تقسمها تشمل الأيام المغلقة فقط: تُحتسب رسوم الليلة عند إغلاق يومها، ولم يُغلق يوم اليوم بعد.",
         asOf: "حتى {date}. يُحتسب التصحيح في الليلة التي يصحّحها، لذا قد يتغيّر شهر سابق.",
         noActivityTitle: "لم يحدث شيء في {month}",
         noActivityDescription:
@@ -11827,7 +11829,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         againstPrior: "مقابل {month}: {value}",
         pointsChange: "{value} نقطة",
         sameElapsedDays: "مقارنةً بالأيام المنقضية نفسها من {month}.",
-        noPrior: "لا يوجد شهر سابق للمقارنة معه.",
+        noPrior: "لم يحدث شيء في {month}، فلا شيء للمقارنة معه.",
         revenue: "الإيرادات",
         roomNightsCharged: "ليالي الغرف المحتسبة",
         corrections: "التصحيحات (ليالٍ مُلغاة)",
@@ -11855,7 +11857,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         revenueCol: "إيرادات الغرف",
         openDay: "يوم مفتوح",
         notYetCharged: "لم تُحتسب بعد",
-        monthTotal: "مجموع الأيام المغلقة",
+        monthTotal: "المجموع",
         unitTypes: "حسب نوع الوحدة",
         unitTypeCol: "نوع الوحدة",
         unitTypeNote:
@@ -11876,7 +11878,7 @@ export const messages: Record<SupportedLocale, Messages> = {
           currency: "مسعَّر بعملة أخرى",
           not_yet_charged: "لم تُحتسب بعد",
         },
-        showDay: "عرض {date}",
+        showDay: "تفاصيل {date}",
         dayDescription: "الإقامات التي شغلت وحدة في هذه الليلة.",
         dayOpenNote: "لم يُغلق هذا اليوم بعد. تُحتسب لياليه عند إغلاقه.",
         dayStays: "الإقامات",
@@ -11889,6 +11891,37 @@ export const messages: Record<SupportedLocale, Messages> = {
         dayNavigation: "اليوم",
         previousDay: "اليوم السابق",
         nextDay: "اليوم التالي",
+        closedOf: "أُغلق {closed} من {total} يومًا",
+        openNoteNoMoney: "يحتسب الإشغال كل يوم حتى الآن، أُغلق أم لم يُغلق.",
+        incompleteBadge: "ناقص · لم يُغلق {unclosed} من {total} يومًا قط",
+        incompleteNote:
+          "يحتسب الإشغال كل الأيام. الإيرادات والنِّسَب التي تقسمها تشمل الأيام المغلقة فقط، لذا فهي أقل من الواقع.",
+        incompleteNoteNoMoney:
+          "يحتسب الإشغال كل الأيام، بما فيها الأيام التي لم تُغلق قط.",
+        waiting:
+          "{count, plural, zero {لا أيام} one {يوم واحد} two {يومان} few {# أيام} many {# يومًا} other {# يوم}} بانتظار الإغلاق.",
+        noFiguresYet: "لم يُغلق أي يوم بعد، فلا أرقام إيرادات.",
+        closeDayLink: "إغلاق اليوم",
+        closeDayWho: "يغلقها المكتب الأمامي أو أحد المديرين.",
+        beforeOpening: "قبل الافتتاح",
+        understated:
+          "{count, plural, zero {لا ليالٍ مشغولة} one {ليلة مشغولة واحدة} two {ليلتان مشغولتان} few {# ليالٍ مشغولة} many {# ليلة مشغولة} other {# ليلة مشغولة}} بلا رسوم، لذا فهذا الرقم أقل من الواقع.",
+        seeUncharged: "ليالٍ بلا رسوم",
+        revenueUnknown:
+          "{count, plural, zero {لا ليالٍ مشغولة} one {ليلة مشغولة واحدة} two {ليلتان مشغولتان} few {# ليالٍ مشغولة} many {# ليلة مشغولة} other {# ليلة مشغولة}} بلا رسوم، فلا إيراد يمكن حسابه.",
+        noClosedDays: "لم يُغلق أي يوم بعد، فلا إيرادات لعرضها.",
+        showDays: "عرض الأيام ({count})",
+        hideDays: "إخفاء الأيام",
+        openBooking: "افتح الحجز {reference}",
+        unchargedAction:
+          "افتح يومًا من الجدول لترى أي الحجوزات، ثم افتح حجزًا لإضافة سعره.",
+      },
+      window: {
+        today: "اليوم",
+        "7d": "آخر 7 أيام",
+        "30d": "آخر 30 يومًا",
+        span: "{from} – {to}",
+        noActivityTitle: "لم يحدث شيء في هذه الفترة",
       },
     },
 

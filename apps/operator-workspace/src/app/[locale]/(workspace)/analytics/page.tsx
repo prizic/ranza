@@ -7,8 +7,8 @@ import {
 import { EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import {
-  AnalyticsDashboard,
   MonthReportView,
+  WindowReportView,
 } from "../../../../features/analytics";
 import { gateOf, screenFor } from "../../../../lib/screens";
 import { ScreenDenied } from "../screen-denied";
@@ -16,9 +16,10 @@ import { resolveAnalyticsView } from "../../../../server/analytics";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import {
   entitledProperties,
-  propertyAnalytics,
+  FRONT_DESK_CAPABILITY,
   propertyDayDetail,
   propertyMonthReport,
+  propertyWindowReport,
   requireViewer,
   whyDenied,
 } from "../../../../server/viewer";
@@ -29,14 +30,15 @@ const SEGMENT = "analytics";
  * Analytics — Property operational and financial reporting.
  *
  * Opens on a calendar month (`?month=YYYY-MM`, the current one by default),
- * explained from the Property's closed business days; `?range=today|7d|30d`
- * is the trailing-window view beside it (AN-S2-19). `?day=YYYY-MM-DD` opens
- * one day of the month shown and is ignored for any other (AN-S3-06).
+ * explained from the Property's business days; `?range=today|7d|30d` is the
+ * trailing-window view beside it, explained the same way (AN-S2-19,
+ * ANALYTICS-09). `?day=YYYY-MM-DD` opens one day of the month shown and is
+ * ignored for any other (AN-S3-06).
  *
- * Operational metrics (sellable inventory, occupied room nights, occupancy rate %)
- * are available to any staff member with Property access.
- * Commercial and financial figures (room revenue, other revenue, ADR, RevPAR,
- * and payments) are strictly gated by 'finance.manage_folio'.
+ * Operational metrics (occupied nights, occupancy rate %) are available to any
+ * staff member with Property access. Commercial and financial figures (room
+ * revenue, other revenue, ADR, RevPAR, and payments) are strictly gated by
+ * 'finance.manage_folio'.
  */
 export default async function AnalyticsPage({
   params,
@@ -101,24 +103,34 @@ export default async function AnalyticsPage({
     const detail = opened
       ? await propertyDayDetail(property.propertyId, opened.date)
       : null;
+    // A Stay is opened where its price is fixed, which is the Reservations
+    // screen: offered to a viewer who reaches it and to nobody else.
+    const reachesReservations = (
+      await entitledProperties(FRONT_DESK_CAPABILITY)
+    ).some((reachable) => reachable.propertyId === property.propertyId);
     return (
       <MonthReportView
         detail={detail}
         locale={locale as SupportedLocale}
         propertyName={property.propertyName}
         report={report}
+        reservationsHref={
+          reachesReservations
+            ? `${localizeHref(locale as SupportedLocale, "reservations")}?property=${property.propertyId}`
+            : null
+        }
       />
     );
   }
 
-  const data = await propertyAnalytics(property.propertyId, view.range);
-  if (!data) return unavailable;
+  const report = await propertyWindowReport(property.propertyId, view.range);
+  if (!report) return unavailable;
 
   return (
-    <AnalyticsDashboard
-      data={data}
+    <WindowReportView
       locale={locale as SupportedLocale}
-      property={property}
+      propertyName={property.propertyName}
+      report={report}
     />
   );
 }

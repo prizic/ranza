@@ -14,7 +14,13 @@
  *   the activity read without its floor                      activity_starts_from_yesterday
  */
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+// The month report is read on a transaction this suite opens, so the
+// application's composition is not needed, and cannot be imported here.
+vi.mock("../../apps/operator-workspace/src/server/composition", () => ({
+  getComposition: () => ({}),
+}));
 import { createPrismaClient } from "../../packages/db/src";
 import { createCoreModule } from "../../packages/ranza/core/src";
 import { createAccommodationModule } from "../../packages/ranza/accommodation/src";
@@ -29,6 +35,8 @@ import {
   readTodaySummary,
   todayReads,
 } from "../../apps/operator-workspace/src/server/today-summary";
+import { buildMonthReport } from "../../apps/operator-workspace/src/server/analytics";
+import { withOrganizationContext } from "../../packages/db/src";
 
 const ORG = randomUUID();
 const PROPERTY = randomUUID();
@@ -138,7 +146,7 @@ beforeAll(async () => {
     `insert into public.entitlements (organization_id, module_key, status)
      select $1::uuid, module_key, 'active'
        from unnest(array['platform_core', 'front_office', 'housekeeping',
-                         'billing_folios']) as module_key`,
+                         'billing_folios', 'analytics']) as module_key`,
     ORG,
   );
   await owner.$executeRawUnsafe(
@@ -151,7 +159,8 @@ beforeAll(async () => {
     `insert into public.property_capabilities
        (property_id, organization_id, capability_key, enabled)
      select $1::uuid, $2::uuid, capability_key, true
-       from unnest(array['today', 'front_desk', 'housekeeping', 'finance'])
+       from unnest(array['today', 'front_desk', 'housekeeping', 'finance',
+                         'analytics'])
          as capability_key`,
     PROPERTY,
     ORG,
@@ -244,6 +253,34 @@ describe("tonight, on Today and on the room calendar", () => {
         summary.booked?.status === "ok" && summary.booked.data.nights[0],
       ).toEqual({ day: calendar.today, booked: 3, inUse: 4 });
       expect(failures).toEqual([]);
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "tonight_is_one_number_in_the_month_table_too: the table's open day is Today's occupancy",
+    async () => {
+      const summary = await today();
+      expect(summary?.occupancy?.status).toBe("ok");
+      if (summary?.occupancy?.status !== "ok") return;
+      const card = summary.occupancy.data;
+      const report = await withOrganizationContext(
+        prisma,
+        { userId: MANAGER },
+        (tx) => buildMonthReport(tx, PROPERTY, null),
+      );
+      const row = report?.days.find((day) => day.date === report.today);
+      // Six rooms, one blocked and one out of order with nobody in them: four
+      // can be let, and one Guest is in house, as Today says.
+      expect(card.available).toBe(4);
+      expect(row).toMatchObject({
+        state: "open",
+        availableNights: card.available,
+        occupiedNights: card.inHouse,
+      });
+      expect(row?.occupancyPercent).toBe(
+        Math.round((card.inHouse / card.available) * 1000) / 10,
+      );
     },
     DATABASE_BUDGET_MS,
   );

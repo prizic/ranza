@@ -13,9 +13,11 @@
  *   place a business date is computed (ADR 0021) — and never by casting
  *   `posted_at` to a date, which uses the database session's zone and no
  *   cutoff (AN-S2-11, AN-S2-12).
- * - Only a closed day counts. A room night is charged when its day closes, so
- *   the open day pairs a night with no charge and would drag ADR and RevPAR
- *   down until the close ran (AN-S2-05).
+ * - Money counts only on a closed day. A room night is charged when its day
+ *   closes, so the open day pairs a night with no charge and would drag ADR and
+ *   RevPAR down until the close ran (AN-S2-05). Occupancy needs no charge, so
+ *   it counts every day that has happened, closed or not, and today's is the
+ *   figure Today shows (RANZ-52).
  * - Inventory is summed per day from the day each unit was created, never
  *   today's unit count times the days (AN-S2-08).
  * - A reversal of a room night belongs to the night it corrects; every other
@@ -44,12 +46,28 @@ export interface PropertyContext {
   today: string;
   currency: string;
   mayReadMoney: boolean;
+  /**
+   * How many business days wait for the front desk to close them, counted as
+   * the Close the day screen counts them: from the day after the last close,
+   * or just yesterday when none has ever been made.
+   */
+  daysWaiting: number;
+  /** Whether the viewer may close the day, which is where those days are cleared. */
+  mayCloseDay: boolean;
 }
 
 /** One business date's nights. Not money. */
 export interface NightsDay {
   date: string;
   state: DayState;
+  /** Units the Property had on that date, whatever state they are in. */
+  unitCount: number;
+  /**
+   * The units that can be let that night. For a day that has gone, every unit
+   * the Property then had; for today, those not blocked or out of order — the
+   * count Today's occupancy is made of (RANZ-52). Nothing records a block on a
+   * past date, so a past day is not told one it never had.
+   */
   availableNights: number;
   guestNights: number;
   residentNights: number;
@@ -75,14 +93,27 @@ export interface MoneyDay {
   collected: PaymentsByMethod;
 }
 
-export interface Totals {
-  daysClosed: number;
+/** The nights of some days, split by who slept them. */
+export interface NightTotals {
   availableNights: number;
   occupiedNights: number;
   guestNights: number;
   residentNights: number;
-  chargedGuestNights: number;
-  /** Null when the viewer may not read money. */
+}
+
+export interface Totals {
+  /** Days that have closed. */
+  daysClosed: number;
+  /** Days that have happened and not closed: today, and any the close has not reached. */
+  daysOpen: number;
+  /**
+   * Every day that has happened, closed or not: what occupancy is counted
+   * over, because a night slept is a night slept before anyone charges it.
+   */
+  elapsed: NightTotals;
+  /** The closed days alone: what a charge exists for, so what revenue is divided by. */
+  closed: NightTotals & { chargedGuestNights: number };
+  /** Over the closed days. Null when the viewer may not read money. */
   money: {
     roomGrossMinor: number;
     roomCorrectionsMinor: number;
@@ -99,6 +130,8 @@ interface ContextRow {
   currency: string;
   mayReadMoney: boolean;
   entitled: boolean;
+  daysWaiting: number;
+  mayCloseDay: boolean;
 }
 
 /**
@@ -118,7 +151,24 @@ export async function readContext(
            to_char(app.property_today(property.id), 'YYYY-MM-DD') as "today",
            trim(property.currency)::text as "currency",
            app.has_organization_permission(property.organization_id, 'finance.manage_folio') as "mayReadMoney",
-           app.can_use_capability(property.id, 'analytics', 'analytics') as "entitled"
+           app.can_use_capability(property.id, 'analytics', 'analytics') as "entitled",
+           -- The Close the day screen's own count (business-day module,
+           -- getCloseTheDay): the days after the last close, or yesterday when
+           -- nothing has ever closed. An integration test holds the two equal.
+           coalesce(
+             app.property_today(property.id) - (
+               select case
+                        when last_close.day is null
+                          then app.property_today(property.id) - 1
+                        when last_close.day + 1 < app.property_today(property.id)
+                          then last_close.day + 1
+                      end
+                 from (select max(close.business_date) as day
+                         from public.business_day_closes as close
+                        where close.property_id = property.id) as last_close),
+             0)::int as "daysWaiting",
+           app.can_use_capability(property.id, 'front_office', 'front_desk')
+             and app.has_organization_permission(property.organization_id, 'front_desk.close_day') as "mayCloseDay"
       from public.properties as property
      where property.id = ${propertyId}::uuid
   `;
@@ -129,12 +179,15 @@ export async function readContext(
     today: row.today,
     currency: row.currency,
     mayReadMoney: row.mayReadMoney,
+    daysWaiting: row.daysWaiting,
+    mayCloseDay: row.mayCloseDay,
   };
 }
 
 interface NightsRow {
   day: string;
   closed: boolean;
+  unitCount: number;
   availableNights: number;
   guestNights: number;
   residentNights: number;
@@ -170,8 +223,22 @@ export async function readNights(
     ),
     leaf as (
       select unit.id,
-             app.business_date(unit.created_at, prop.timezone, prop.cutoff) as since
+             app.business_date(unit.created_at, prop.timezone, prop.cutoff) as since,
+             -- Blocked or out of order tonight, with nobody in it: the room
+             -- is not one that can be let, as the Rooms read counts it (a
+             -- Guest in a blocked room still holds it, and a room out of
+             -- order covers its beds).
+             (
+               (unit.status in ('blocked', 'out_of_service')
+                or coalesce(room.status = 'out_of_service', false))
+               and not exists (
+                 select 1 from public.stays as occupant
+                  where occupant.accommodation_unit_id = unit.id
+                    and occupant.status = 'in_house'
+               )
+             ) as unavailable_now
         from public.accommodation_units as unit
+        left join public.accommodation_units as room on room.id = unit.parent_id
        cross join prop
        where unit.property_id = ${propertyId}::uuid
          and not exists (
@@ -203,6 +270,12 @@ export async function readNights(
            exists (select 1 from closed where closed.day = days.day) as "closed",
            case when days.day > ${today}::date then 0
                 else (select count(*) from leaf where leaf.since <= days.day)
+           end::int as "unitCount",
+           case when days.day > ${today}::date then 0
+                when days.day = ${today}::date
+                  then (select count(*) from leaf
+                         where leaf.since <= days.day and not leaf.unavailable_now)
+                else (select count(*) from leaf where leaf.since <= days.day)
            end::int as "availableNights",
            (select count(*) from held
              where held.day = days.day and held.stay_type = 'guest')::int as "guestNights",
@@ -225,6 +298,7 @@ export async function readNights(
   return rows.map((row) => ({
     date: row.day,
     state: row.closed ? "closed" : row.day <= today ? "open" : "future",
+    unitCount: row.unitCount,
     availableNights: row.availableNights,
     guestNights: row.guestNights,
     residentNights: row.residentNights,
@@ -375,9 +449,12 @@ export function roomNetOf(day: MoneyDay | undefined): number {
 }
 
 /**
- * The totals of the closed days among `days`. An open or future day adds
- * nothing to any figure — not its nights, not its revenue, not its payments —
- * so every ratio pairs nights with the charges that exist for them.
+ * The totals of `days`, in the two senses a figure needs.
+ *
+ * `elapsed` is every day that has happened. `closed`, and the money, are the
+ * closed days only: an open day adds no revenue and no charged night, so every
+ * ratio of money pairs a charge with the nights it could have come from. A day
+ * to come adds nothing to either.
  *
  * `money` is null for a viewer who may not read it, and so are the totals'.
  */
@@ -385,13 +462,24 @@ export function totalsOf(
   days: readonly NightsDay[],
   money: ReadonlyMap<string, MoneyDay> | null,
 ): Totals {
-  const totals: Totals = {
-    daysClosed: 0,
+  const nights = (): NightTotals => ({
     availableNights: 0,
     occupiedNights: 0,
     guestNights: 0,
     residentNights: 0,
-    chargedGuestNights: 0,
+  });
+  const add = (into: NightTotals, day: NightsDay): void => {
+    into.availableNights += day.availableNights;
+    into.guestNights += day.guestNights;
+    into.residentNights += day.residentNights;
+    into.occupiedNights += day.guestNights + day.residentNights;
+  };
+
+  const totals: Totals = {
+    daysClosed: 0,
+    daysOpen: 0,
+    elapsed: nights(),
+    closed: { ...nights(), chargedGuestNights: 0 },
     money: money
       ? {
           roomGrossMinor: 0,
@@ -405,13 +493,15 @@ export function totalsOf(
   };
 
   for (const day of days) {
-    if (day.state !== "closed") continue;
+    if (day.state === "future") continue;
+    add(totals.elapsed, day);
+    if (day.state !== "closed") {
+      totals.daysOpen += 1;
+      continue;
+    }
     totals.daysClosed += 1;
-    totals.availableNights += day.availableNights;
-    totals.guestNights += day.guestNights;
-    totals.residentNights += day.residentNights;
-    totals.occupiedNights += day.guestNights + day.residentNights;
-    totals.chargedGuestNights += day.chargedGuestNights;
+    add(totals.closed, day);
+    totals.closed.chargedGuestNights += day.chargedGuestNights;
 
     const dayMoney = money?.get(day.date);
     if (!totals.money || !dayMoney) continue;

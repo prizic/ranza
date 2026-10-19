@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { UnchargedNights } from "../../../server/analytics";
+import { UNCHARGED_ANCHOR } from "../problem";
 import { MonthSection } from "./month-section";
 
 export const REASON = {
@@ -27,10 +28,15 @@ export function UnchargedSection({
   const t = useTranslations("analytics.month");
 
   return (
-    <MonthSection title={t("uncharged")}>
+    <MonthSection id={UNCHARGED_ANCHOR} title={t("uncharged")}>
       <p className="mb-4 max-w-prose text-sm text-muted-foreground">
         {rows.length === 0 ? t("unchargedNone") : t("unchargedNote")}
       </p>
+      {rows.length === 0 ? null : (
+        <p className="mb-4 max-w-prose text-sm text-muted-foreground">
+          {t("unchargedAction")}
+        </p>
+      )}
       {rows.length === 0 ? null : (
         <dl>
           {rows.map(({ nights, reason }) => (

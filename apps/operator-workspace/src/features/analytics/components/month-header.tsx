@@ -1,19 +1,16 @@
 "use client";
 
-import { CalendarClock } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { StatusBadge } from "@ranza/ui";
-import { formatNumber, type SupportedLocale } from "@ranza/i18n";
+import type { SupportedLocale } from "@ranza/i18n";
 import type { MonthReport } from "../../../server/analytics";
-import { formatLongDate, formatMonthTitle } from "../format";
+import { formatMonthTitle } from "../format";
 import { MonthControl } from "./month-control";
+import { PeriodStatus } from "./period-status";
 import { RangeSelector } from "./range-selector";
 
 /**
- * Which month, at which Property, and how settled it is. An open month says
- * how many of its days have closed, because every figure below covers those
- * days only (AN-S2-04); a settled one says it is as of today, because a
- * correction can still move it (AN-S2-09).
+ * Which month, at which Property, and how settled it is. The status is one
+ * line; what it rests on is said under the figures, so the figures are what a
+ * small screen opens on (ANALYTICS-14).
  */
 export function MonthHeader({
   locale,
@@ -24,8 +21,6 @@ export function MonthHeader({
   propertyName: string;
   report: MonthReport;
 }) {
-  const t = useTranslations("analytics.month");
-
   return (
     <header className="grid gap-4">
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
@@ -43,27 +38,7 @@ export function MonthHeader({
           previousMonth={report.previousMonth}
         />
       </div>
-      {report.state === "open" ? (
-        <div className="grid gap-2">
-          <StatusBadge
-            className="w-fit"
-            icon={CalendarClock}
-            label={t("monthToDate", {
-              closed: formatNumber(report.daysClosed, locale),
-              total: formatNumber(report.daysInMonth, locale),
-            })}
-            tone="info"
-          />
-          <p className="max-w-prose text-sm text-muted-foreground">
-            {t("openNote")}
-          </p>
-        </div>
-      ) : null}
-      {report.state !== "no_activity" ? (
-        <p className="max-w-prose text-sm text-muted-foreground">
-          {t("asOf", { date: formatLongDate(report.today, locale) })}
-        </p>
-      ) : null}
+      <PeriodStatus locale={locale} report={report} />
       <div>
         <RangeSelector current="month" />
       </div>

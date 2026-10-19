@@ -91,8 +91,20 @@ export async function readTypeNights(
     ),
     leaf as (
       select unit.id, unit.unit_type,
-             app.business_date(unit.created_at, prop.timezone, prop.cutoff) as since
+             app.business_date(unit.created_at, prop.timezone, prop.cutoff) as since,
+             -- As in the engine: tonight, a room nobody is in that is blocked
+             -- or out of order is not one that can be let.
+             (
+               (unit.status in ('blocked', 'out_of_service')
+                or coalesce(room.status = 'out_of_service', false))
+               and not exists (
+                 select 1 from public.stays as occupant
+                  where occupant.accommodation_unit_id = unit.id
+                    and occupant.status = 'in_house'
+               )
+             ) as unavailable_now
         from public.accommodation_units as unit
+        left join public.accommodation_units as room on room.id = unit.parent_id
        cross join prop
        where unit.property_id = ${propertyId}::uuid
          and not exists (
@@ -131,6 +143,10 @@ export async function readTypeNights(
     select to_char(days.day, 'YYYY-MM-DD') as "date",
            types.unit_type as "unitType",
            case when days.day > ${today}::date then 0
+                when days.day = ${today}::date
+                  then (select count(*) from leaf
+                         where leaf.unit_type = types.unit_type
+                           and leaf.since <= days.day and not leaf.unavailable_now)
                 else (select count(*) from leaf
                        where leaf.unit_type = types.unit_type and leaf.since <= days.day)
            end::int as "availableNights",
@@ -236,24 +252,32 @@ export async function readTypeRoomMoney(
   }));
 }
 
-/** One unit type's nights and room revenue over the closed days of a month. */
+/**
+ * One unit type's nights over the days that have happened, and its room
+ * revenue over the closed ones.
+ */
 export interface UnitTypeTotals {
   unitType: UnitType;
+  /** Over every day that has happened, closed or not: what occupancy counts. */
   availableNights: number;
   guestNights: number;
   residentNights: number;
+  /** Over the closed days, where a charge can exist: ADR's denominator. */
   chargedGuestNights: number;
-  /** Net room revenue; null when the viewer may not read money. */
+  /** Net room revenue over the closed days; null when the viewer may not read money. */
   roomNetMinor: number | null;
 }
 
 /**
- * The closed days among `closedDates`, summed by unit type, in the order unit
- * types are listed. As in every month figure, an open or future day adds
- * nothing. A type with no inventory, no nights and no revenue over those days
- * has no row: a suite the Property bought after the month is not a zero.
+ * The days that have happened, summed by unit type, in the order unit types
+ * are listed. The nights are every day's, as the headline's occupancy is; the
+ * charges and the revenue are the closed days', as its revenue is, so the rows
+ * add up to the headline in both senses. A type with no inventory, no nights
+ * and no revenue over those days has no row: a suite the Property bought after
+ * the month is not a zero.
  */
 export function unitTypeTotalsOf(
+  elapsedDates: ReadonlySet<string>,
   closedDates: ReadonlySet<string>,
   nights: readonly TypeNightsRow[],
   money: readonly TypeRoomMoneyRow[] | null,
@@ -275,12 +299,14 @@ export function unitTypeTotalsOf(
   };
 
   for (const row of nights) {
-    if (!closedDates.has(row.date)) continue;
+    if (!elapsedDates.has(row.date)) continue;
     const total = totalFor(row.unitType);
     total.availableNights += row.availableNights;
     total.guestNights += row.guestNights;
     total.residentNights += row.residentNights;
-    total.chargedGuestNights += row.chargedGuestNights;
+    if (closedDates.has(row.date)) {
+      total.chargedGuestNights += row.chargedGuestNights;
+    }
   }
   for (const row of money ?? []) {
     if (!closedDates.has(row.date)) continue;
@@ -406,6 +432,9 @@ export type NightOutcome = "charged" | UnchargedReason;
 
 export interface DayStayRow {
   stayId: string;
+  /** The booking the Stay came from and its reference; null for a Stay that began without one. */
+  reservationId: string | null;
+  reference: string | null;
   unitName: string;
   /** The room a bed is in; null for a unit that is not inside another. */
   roomName: string | null;
@@ -438,6 +467,8 @@ export async function readDayStays(
   const { propertyId, today, mayReadMoney } = context;
   const rows = await tx.$queryRaw<DayStayQueryRow[]>`
     select stay.id::text as "stayId",
+           reservation.id::text as "reservationId",
+           reservation.reference::text as "reference",
            unit.name as "unitName",
            room.name as "roomName",
            unit.unit_type as "unitType",

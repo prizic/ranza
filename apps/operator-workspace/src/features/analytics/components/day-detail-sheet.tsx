@@ -40,12 +40,19 @@ export function DayDetailSheet({
   locale,
   nextDay,
   previousDay,
+  reservationsHref = null,
 }: {
   detail: DayDetail;
   locale: SupportedLocale;
   /** The day after, when it is in the month and has happened. */
   nextDay: string | null;
   previousDay: string | null;
+  /**
+   * The Reservations screen at this Property, ending where `&open=` takes a
+   * booking to its drawer. Null for a viewer who does not reach it, so nobody
+   * is sent to a screen that would turn them away.
+   */
+  reservationsHref?: string | null;
 }) {
   const t = useTranslations("analytics.month");
   const root = useTranslations();
@@ -204,6 +211,18 @@ export function DayDetailSheet({
                               : "—")}
                         </bdi>
                       </p>
+                      {reservationsHref && stay.reservationId ? (
+                        <Link
+                          className="mt-1 inline-block text-sm font-medium text-primary underline"
+                          data-booking-link
+                          href={`${reservationsHref}&open=${stay.reservationId}`}
+                          prefetch={false}
+                        >
+                          {t("openBooking", {
+                            reference: stay.reference ?? "",
+                          })}
+                        </Link>
+                      ) : null}
                     </div>
                     <div className="text-end">
                       <p

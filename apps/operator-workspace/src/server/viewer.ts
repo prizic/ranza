@@ -181,13 +181,11 @@ import { readTodaySummary, todayReads } from "./today-summary";
 import {
   getDayDetail,
   getMonthReport,
-  getPropertyAnalytics,
+  getWindowReport,
   type AnalyticsRange,
-  type DailyMetric,
   type DayDetail,
   type MonthReport,
-  type PaymentMethodBreakdown,
-  type PropertyAnalytics,
+  type WindowReport,
 } from "./analytics";
 import {
   getPortfolio,
@@ -199,13 +197,11 @@ import {
 export { PortfolioTooLargeError };
 export type {
   AnalyticsRange,
-  DailyMetric,
   DayDetail,
   MonthReport,
-  PaymentMethodBreakdown,
   Portfolio,
   PortfolioProperty,
-  PropertyAnalytics,
+  WindowReport,
 };
 
 /**
@@ -1287,16 +1283,17 @@ export async function equipmentRegister(
 }
 
 /**
- * Derives operational and financial analytics metrics for a Property.
- * Returns null if the viewer cannot reach the Property or lacks the analytics capability.
+ * A trailing window of a Property — today, 7 days or 30 — explained as a month
+ * is. Null if the viewer cannot reach the Property or lacks the analytics
+ * capability.
  */
-export async function propertyAnalytics(
+export async function propertyWindowReport(
   propertyId: string,
   range?: string | null,
-): Promise<PropertyAnalytics | null> {
+): Promise<WindowReport | null> {
   const viewer = await currentViewer();
   if (!viewer) return null;
-  return getPropertyAnalytics(viewer.userId, propertyId, range);
+  return getWindowReport(viewer.userId, propertyId, range);
 }
 
 /**

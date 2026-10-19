@@ -35,11 +35,13 @@ import type {
   MonthReport,
   PriorMonth,
   UnitTypeRow,
+  WindowReport,
 } from "../../apps/operator-workspace/src/server/analytics";
 
 const PROPERTY = "90c161fa-b6e7-4a42-8060-352e23f05a09";
 
 const navigation = vi.hoisted(() => ({
+  push: vi.fn(),
   replace: vi.fn(),
   search: "property=90c161fa-b6e7-4a42-8060-352e23f05a09",
 }));
@@ -47,7 +49,7 @@ const navigation = vi.hoisted(() => ({
 vi.mock("../../apps/operator-workspace/node_modules/next/navigation", () => ({
   usePathname: () => "/en/analytics",
   useSearchParams: () => new URLSearchParams(navigation.search),
-  useRouter: () => ({ replace: navigation.replace }),
+  useRouter: () => ({ replace: navigation.replace, push: navigation.push }),
 }));
 vi.mock("../../apps/operator-workspace/node_modules/next/link", () => ({
   default: ({
@@ -72,11 +74,14 @@ vi.mock("../../apps/operator-workspace/node_modules/next/link", () => ({
 
 const { MonthReportView } =
   await import("../../apps/operator-workspace/src/features/analytics/components/month-report-view");
+const { WindowReportView } =
+  await import("../../apps/operator-workspace/src/features/analytics/components/window-report-view");
 const { default: AnalyticsLoading } =
   await import("../../apps/operator-workspace/src/app/[locale]/(workspace)/analytics/loading");
 
 afterEach(() => {
   cleanup();
+  navigation.push.mockClear();
   navigation.replace.mockClear();
   navigation.search = `property=${PROPERTY}`;
 });
@@ -91,8 +96,12 @@ const CURRENT: Figures = {
   occupiedNights: 150,
   guestNights: 120,
   residentNights: 30,
-  chargedGuestNights: 118,
   occupancyPercent: 75,
+  closedAvailableNights: 200,
+  closedGuestNights: 120,
+  chargedGuestNights: 118,
+  unchargedGuestNights: 2,
+  roomRevenueUnknown: false,
   roomRevenue: {
     grossMinor: 600_000,
     correctionsMinor: -10_000,
@@ -134,6 +143,7 @@ function days(month: string, closed: number, total: number): DayRow[] {
       return {
         date,
         state: "closed" as const,
+        beforeOpening: false,
         occupiedNights: day === 4 ? 0 : 15,
         availableNights: 20,
         occupancyPercent: day === 4 ? 0 : 75,
@@ -144,6 +154,7 @@ function days(month: string, closed: number, total: number): DayRow[] {
       return {
         date,
         state: "open" as const,
+        beforeOpening: false,
         occupiedNights: 16,
         availableNights: 20,
         occupancyPercent: 80,
@@ -153,6 +164,7 @@ function days(month: string, closed: number, total: number): DayRow[] {
     return {
       date,
       state: "future" as const,
+      beforeOpening: false,
       occupiedNights: 0,
       availableNights: 20,
       occupancyPercent: null,
@@ -209,9 +221,13 @@ const OPEN: MonthReport = {
   mayReadMoney: true,
   today: "2026-09-11",
   month: "2026-09",
-  state: "open",
+  state: "in_progress",
   daysInMonth: 30,
+  daysCounted: 11,
   daysClosed: 10,
+  daysBeforeOpening: 0,
+  daysWaiting: 0,
+  mayCloseDay: true,
   closedThrough: "2026-09-10",
   figures: CURRENT,
   prior: PRIOR_MONTH,
@@ -230,6 +246,7 @@ const CLOSED: MonthReport = {
   month: "2026-08",
   state: "closed",
   daysInMonth: 31,
+  daysCounted: 31,
   daysClosed: 31,
   closedThrough: "2026-08-31",
   prior: { ...PRIOR_MONTH, month: "2026-07", sameElapsedDays: false },
@@ -243,6 +260,7 @@ const NO_ACTIVITY: MonthReport = {
   month: "2026-03",
   state: "no_activity",
   daysInMonth: 31,
+  daysCounted: 0,
   daysClosed: 0,
   closedThrough: null,
   figures: null,
@@ -306,6 +324,8 @@ const DAY: DayDetail = {
   stays: [
     {
       stayId: "11111111-1111-4111-8111-111111111111",
+      reservationId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      reference: "R96J74P",
       unitName: "101",
       roomName: null,
       unitType: "room",
@@ -316,6 +336,8 @@ const DAY: DayDetail = {
     },
     {
       stayId: "22222222-2222-4222-8222-222222222222",
+      reservationId: null,
+      reference: null,
       unitName: "B1",
       roomName: "Dorm",
       unitType: "bed",
@@ -344,6 +366,8 @@ const OTHER_DAY: DayDetail = {
   stays: [
     {
       stayId: "33333333-3333-4333-8333-333333333333",
+      reservationId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      reference: "RXYZ123",
       unitName: "205",
       roomName: null,
       unitType: "suite",
@@ -493,10 +517,13 @@ describe("month_screen_empty_loading_refused_and_rtl", () => {
   it("says month to date, and how many days have closed, in an open month", () => {
     show(OPEN);
     expect(
-      screen.getByText("Month to date · 10 of 30 days closed"),
+      screen.getByText("Month to date · 10 of 11 days closed"),
     ).toBeVisible();
+    expect(screen.getByText(/Occupancy counts every day so far/)).toBeVisible();
     expect(
-      screen.getByText(/Today is still open: its nights are not charged/),
+      screen.getByText(
+        /a night is charged when its day closes, and today's has not/,
+      ),
     ).toBeVisible();
   });
 
@@ -536,7 +563,9 @@ describe("month_screen_empty_loading_refused_and_rtl", () => {
       },
     });
     expect(
-      screen.getByText("There is no earlier month to compare with."),
+      screen.getByText(
+        "July 2026 had no activity, so there is nothing to compare with.",
+      ),
     ).toBeVisible();
     expect(document.body.textContent).not.toMatch(/\+5\.0 points/);
   });
@@ -670,11 +699,21 @@ describe("month_screen_empty_loading_refused_and_rtl", () => {
 
 const SRC = "apps/operator-workspace/src";
 
-const component = (name: string): string =>
-  readFileSync(`${SRC}/features/analytics/components/${name}.tsx`, "utf8");
+const component = (name: string): string => {
+  const base = `${SRC}/features/analytics/components/${name}`;
+  return readFileSync(
+    name.startsWith("../") ? `${base}.ts` : `${base}.tsx`,
+    "utf8",
+  );
+};
 
 const COMPONENTS = [
   "month-report-view",
+  "window-report-view",
+  "window-header",
+  "period-body",
+  "period-status",
+  "../problem",
   "unit-type-section",
   "uncharged-section",
   "day-detail-sheet",
@@ -757,7 +796,13 @@ describe("the month screen's copy, in three languages (AN-S2-21)", () => {
       const source = component(name);
       collect(
         source,
-        /useTranslations\("analytics\.month"\)/.test(source) ? "month." : "",
+        // A helper given the month's translator asks it, without opening one.
+        name.startsWith("../") ||
+          /useTranslations\("analytics\.month"\)/.test(source)
+          ? "month."
+          : /useTranslations\("analytics\.window"\)/.test(source)
+            ? "window."
+            : "",
       );
     }
     // The page asks the whole catalogue, so its analytics keys name themselves.
@@ -862,11 +907,13 @@ describe("a month explained (docs/features/analytics, slice 3)", () => {
 
   it("makes every day that has happened a link that opens it, and none of the days to come", () => {
     show(OPEN);
-    const links = screen.getAllByRole("link", { name: /^Show / });
+    const links = screen.getAllByRole("link", { name: /Details for / });
     // Ten closed days and the open one; nineteen days to come have no link.
     expect(links).toHaveLength(11);
     expect(
-      screen.getByRole("link", { name: /Show .*Sep 6/ }).getAttribute("href"),
+      screen
+        .getByRole("link", { name: /Details for .*Sep 6/ })
+        .getAttribute("href"),
     ).toBe(`/en/analytics?property=${PROPERTY}&month=2026-09&day=2026-09-06`);
     const future = document.querySelector('[data-date="2026-09-20"]');
     expect(future?.querySelector("a")).toBeNull();
@@ -1025,11 +1072,433 @@ describe("a month explained (docs/features/analytics, slice 3)", () => {
       // Behind a modal sheet the page is hidden from the accessibility tree,
       // so the sections are found by their headings.
       expect(screen.getByText(m.unitTypes)).toBeInTheDocument();
-      expect(
-        screen.getByText(m.uncharged).closest("section"),
-      ).toHaveTextContent(m.unchargedReason.resident);
+      // The same words are also the link a figure points to the section by.
+      const heading = screen
+        .getAllByText(m.uncharged)
+        .find((node) => node.tagName === "H3");
+      expect(heading?.closest("section")).toHaveTextContent(
+        m.unchargedReason.resident,
+      );
       expect(screen.getByRole("dialog")).toHaveTextContent(m.dayStays);
       cleanup();
     }
+  });
+});
+
+/** A month that is over, with days the Property never closed. */
+const INCOMPLETE: MonthReport = {
+  ...CLOSED,
+  month: "2026-08",
+  state: "incomplete",
+  daysCounted: 10,
+  daysClosed: 6,
+  daysBeforeOpening: 21,
+  prior: { ...PRIOR_MONTH, month: "2026-07", sameElapsedDays: false },
+};
+
+describe("how settled a period is, said where it can be read (ANALYTICS-03, 04)", () => {
+  it("says a month that is over with unclosed days is incomplete, and counts only the days since the Property opened", () => {
+    show(INCOMPLETE);
+    expect(
+      screen.getByText("Incomplete · 4 of 10 days were never closed"),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/Occupancy counts every day\. Revenue and the rates/),
+    ).toBeVisible();
+    // The sentence about today is for the month that has a today.
+    expect(screen.queryByText(/Month to date/)).toBeNull();
+    expect(screen.queryByText(/today's has not/)).toBeNull();
+    expect(screen.queryByTestId("days-waiting")).toBeNull();
+  });
+
+  it("says nothing of the sort about a month whose every day closed", () => {
+    show(CLOSED);
+    expect(screen.queryByText(/Incomplete/)).toBeNull();
+    expect(screen.queryByText(/days closed/)).toBeNull();
+  });
+
+  it("names the days waiting to be closed, and where that is done, to somebody who may close them", () => {
+    show({ ...OPEN, daysClosed: 0, daysWaiting: 10 });
+    const waiting = screen.getByTestId("days-waiting");
+    expect(waiting).toHaveTextContent("10 days are waiting to be closed.");
+    expect(waiting).toHaveTextContent(
+      "No day has closed yet, so there are no revenue figures.",
+    );
+    expect(
+      within(waiting).getByRole("link", { name: "Close the day" }),
+    ).toHaveAttribute("href", `/en/close-day?property=${PROPERTY}`);
+  });
+
+  it("names who closes the day when the viewer may not, and links nowhere", () => {
+    show({ ...OPEN, daysWaiting: 1, mayCloseDay: false });
+    const waiting = screen.getByTestId("days-waiting");
+    expect(waiting).toHaveTextContent("1 day is waiting to be closed.");
+    expect(waiting).toHaveTextContent(
+      "The front desk or a manager closes them.",
+    );
+    expect(within(waiting).queryByRole("link")).toBeNull();
+  });
+
+  it("says nothing of revenue figures to a viewer who is shown none", () => {
+    show(masked({ ...OPEN, daysClosed: 0, daysWaiting: 3 }));
+    const waiting = screen.getByTestId("days-waiting");
+    expect(waiting).toHaveTextContent("3 days are waiting to be closed.");
+    expect(waiting).not.toHaveTextContent("revenue");
+    expect(
+      screen.getByText(/Occupancy counts every day so far, closed or not/),
+    ).toBeVisible();
+    expect(document.body.textContent).not.toMatch(/Revenue and the rates/);
+  });
+
+  it("says nothing is waiting when nothing is", () => {
+    show(OPEN);
+    expect(screen.queryByTestId("days-waiting")).toBeNull();
+  });
+
+  it("reads a day before the Property had a unit as before opening, with no figure and no 'open day'", () => {
+    const before: DayRow = {
+      ...OPEN.days[0]!,
+      date: "2026-09-01",
+      state: "open",
+      beforeOpening: true,
+      occupiedNights: 0,
+      availableNights: 0,
+      occupancyPercent: null,
+      roomRevenueMinor: null,
+    };
+    show({ ...OPEN, days: [before, ...OPEN.days.slice(1)] });
+    const row = document.querySelector("[data-date='2026-09-01']")!;
+    expect(row).toHaveTextContent("Before opening");
+    expect(row).not.toHaveTextContent("Open day");
+    expect(row).not.toHaveTextContent("Not yet charged");
+    expect(row).not.toHaveTextContent("0.0%");
+  });
+
+  it("states the same words in every language", () => {
+    for (const locale of supportedLocales) {
+      show(INCOMPLETE, locale);
+      const m = messages[locale].analytics.month;
+      expect(
+        screen.getByText(
+          m.incompleteBadge
+            .replace("{unclosed}", count(4, locale))
+            .replace("{total}", count(10, locale)),
+        ),
+      ).toBeVisible();
+      cleanup();
+    }
+  });
+});
+
+describe("a figure that cannot be known is not a zero (ANALYTICS-02)", () => {
+  const NONE_CHARGED: Figures = {
+    ...CURRENT,
+    chargedGuestNights: 0,
+    unchargedGuestNights: 120,
+    roomRevenueUnknown: true,
+    roomRevenue: { grossMinor: 0, correctionsMinor: 0, netMinor: 0 },
+    otherRevenueMinor: 0,
+    totalRevenueMinor: 0,
+    adrMinor: null,
+    revParMinor: null,
+    revenueBookedMinor: 0,
+    differenceMinor: -500_000,
+  };
+  const row = (label: string) =>
+    screen.getByText(label).closest("[data-row]") as HTMLElement;
+
+  it("is a dash with its reason where nights were slept and none was charged", () => {
+    show({ ...CLOSED, figures: NONE_CHARGED });
+    for (const label of [
+      "Room nights charged",
+      "Net room revenue",
+      "Total revenue",
+      "Revenue booked",
+      "The change in what Guests owe",
+    ]) {
+      expect(row(label)).toHaveTextContent("—");
+      expect(row(label)).not.toHaveTextContent(money(0));
+    }
+    expect(figure("Revenue per available night (RevPAR)")).toHaveTextContent(
+      "—",
+    );
+    expect(figure("Revenue per available night (RevPAR)")).toHaveTextContent(
+      "120 occupied nights have no charge, so there is no revenue to work out.",
+    );
+    expect(figure("Average daily rate (ADR)")).toHaveTextContent(
+      "120 occupied nights have no charge",
+    );
+    expect(row("Net room revenue")).toHaveTextContent(/Nights with no charge/);
+    expect(document.body.textContent).not.toMatch(/Infinity|NaN/);
+  });
+
+  it("keeps money that really was collected, and other revenue that really was booked", () => {
+    show({
+      ...CLOSED,
+      figures: {
+        ...NONE_CHARGED,
+        otherRevenueMinor: 40_000,
+        totalRevenueMinor: 40_000,
+      },
+    });
+    expect(row("Total revenue")).toHaveTextContent(money(40_000));
+    expect(row("Money collected")).toHaveTextContent(money(500_000));
+  });
+
+  it("says a figure is understated, and links to the nights that explain it, when only some nights have no charge", () => {
+    show(CLOSED);
+    for (const label of ["Net room revenue", "Total revenue"]) {
+      const problem = within(row(label)).getByText(/earned no charge/);
+      expect(problem).toHaveTextContent(
+        "2 occupied nights earned no charge, so this is understated.",
+      );
+    }
+    const revPar = figure("Revenue per available night (RevPAR)");
+    expect(revPar).toHaveTextContent("2 occupied nights earned no charge");
+    expect(
+      within(revPar).getByRole("link", { name: "Nights with no charge" }),
+    ).toHaveAttribute("href", "#analytics-uncharged");
+    expect(document.getElementById("analytics-uncharged")).not.toBeNull();
+  });
+
+  it("says nothing of the sort when every night was charged", () => {
+    show({ ...CLOSED, figures: { ...CURRENT, unchargedGuestNights: 0 } });
+    expect(document.querySelector("[data-problem]")).toBeNull();
+  });
+
+  it("shows a dash, not zero, while no day has closed, and says why", () => {
+    const nothing: Figures = {
+      ...CURRENT,
+      closedAvailableNights: 0,
+      closedGuestNights: 0,
+      chargedGuestNights: 0,
+      unchargedGuestNights: 0,
+      roomRevenue: null,
+      otherRevenueMinor: null,
+      totalRevenueMinor: null,
+      adrMinor: null,
+      revParMinor: null,
+      collectedMinor: null,
+      payments: null,
+      revenueBookedMinor: null,
+      differenceMinor: null,
+    };
+    show({ ...OPEN, daysClosed: 0, figures: nothing });
+    expect(
+      screen.getAllByText(
+        "No day has closed yet, so there is no revenue to show.",
+      ),
+    ).toHaveLength(2);
+    expect(row("Net room revenue")).toHaveTextContent("—");
+    expect(row("Money collected")).toHaveTextContent("—");
+    expect(document.body.textContent).not.toContain(money(0));
+    // Occupancy needs no charge, and is still the figure of the days so far.
+    expect(figure("Occupancy")).toHaveTextContent("75.0%");
+  });
+});
+
+describe("a trailing window is a month with another span (ANALYTICS-09)", () => {
+  const WINDOW: WindowReport = {
+    ...OPEN,
+    range: "7d",
+    startDate: "2026-09-05",
+    endDate: "2026-09-11",
+    prior: undefined,
+  } as never;
+
+  const showWindow = (report: WindowReport, locale: SupportedLocale = "en") =>
+    render(
+      <NextIntlClientProvider locale={locale} messages={messages[locale]}>
+        <div dir={directionFor(locale)}>
+          <WindowReportView
+            locale={locale}
+            propertyName={NAME}
+            report={report}
+          />
+        </div>
+      </NextIntlClientProvider>,
+    );
+
+  it("says which window it is, with the days it spans and how many have closed", () => {
+    showWindow(WINDOW);
+    expect(screen.getByRole("heading", { name: "Last 7 days" })).toBeVisible();
+    expect(screen.getByText(/Saturday, Sep 5.*Friday, Sep 11/)).toBeVisible();
+    expect(screen.getByText("10 of 11 days closed")).toBeVisible();
+    expect(screen.queryByText(/Month to date/)).toBeNull();
+  });
+
+  it("uses the month's words and arithmetic, and none of the old window's", () => {
+    showWindow(WINDOW);
+    expect(figure("Occupancy")).toHaveTextContent(
+      `${count(150)} occupied ÷ ${count(200)} available nights`,
+    );
+    expect(figure("Average daily rate (ADR)")).toHaveTextContent(
+      `${money(590_000)} room revenue ÷ ${count(118)} charged Guest nights`,
+    );
+    expect(figure("Revenue per available night (RevPAR)")).toHaveTextContent(
+      `${money(590_000)} room revenue ÷ ${count(200)} available nights`,
+    );
+    const text = document.body.textContent ?? "";
+    for (const old of [
+      "Analytics & Reporting",
+      "Occupied Units",
+      "Available Units",
+      "Sellable Units",
+      "Revenue Per Available Room",
+    ]) {
+      expect(text).not.toContain(old);
+    }
+    expect(
+      screen.getByRole("region", { name: "By unit type" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Nights with no charge" }),
+    ).toBeInTheDocument();
+  });
+
+  it("has nothing to compare with and no month to step to", () => {
+    showWindow(WINDOW);
+    expect(screen.queryByText(/vs /)).toBeNull();
+    expect(screen.queryByRole("link", { name: /Previous month/ })).toBeNull();
+    expect(screen.queryByText(/same elapsed days/)).toBeNull();
+    expect(
+      within(
+        screen.getByRole("navigation", { name: "Reporting period" }),
+      ).getByText("Last 7 days"),
+    ).toHaveAttribute("aria-current", "page");
+  });
+
+  it("counts a day's occupancy the way the month does, open days included", () => {
+    showWindow(WINDOW);
+    const open = document.querySelector("[data-date='2026-09-11']")!;
+    expect(open).toHaveTextContent("80.0%");
+  });
+
+  it("says a window with no activity had none, and shows no rate", () => {
+    showWindow({ ...WINDOW, state: "no_activity", figures: null, days: [] });
+    expect(screen.getByText("Nothing happened in this period")).toBeVisible();
+    expect(document.body.textContent).not.toMatch(/%|ADR|RevPAR/);
+  });
+
+  it("is named in every language", () => {
+    for (const locale of supportedLocales) {
+      showWindow(WINDOW, locale);
+      expect(
+        screen.getByRole("heading", {
+          name: messages[locale].analytics.window["7d"],
+        }),
+      ).toBeVisible();
+      cleanup();
+    }
+  });
+
+  it("shows a viewer without money the nights and one sentence, and no revenue", () => {
+    const { container } = showWindow(
+      masked(WINDOW as unknown as MonthReport) as never,
+    );
+    expect(container.textContent).not.toMatch(/₺|TRY|RevPAR|ADR/);
+    expect(screen.getAllByRole("status")).toHaveLength(1);
+  });
+});
+
+describe("what a viewer without money is told (ANALYTICS-08)", () => {
+  it("never names a permission key, and says who to ask", () => {
+    for (const locale of supportedLocales) {
+      expect(messages[locale].analytics.financialsMaskedNotice).not.toMatch(
+        /finance\.manage_folio|\.manage_/,
+      );
+    }
+    show(masked(OPEN));
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Revenue figures are shown only to staff who manage money. Ask your manager if you need them.",
+    );
+  });
+});
+
+describe("a day can be opened where it is read (ANALYTICS-11, 12, 14)", () => {
+  it("gives the date link a name that contains the date the eye reads", () => {
+    show(OPEN);
+    const link = document.querySelector<HTMLElement>(
+      "[data-date='2026-09-06'] [data-day-link]",
+    )!;
+    expect(link.textContent).toMatch(/^6\s*Sun/);
+    expect(link).toHaveAccessibleName(/^6\s*Sun Details for Sunday, Sep 6/);
+    expect(screen.queryByRole("link", { name: /^Show / })).toBeNull();
+  });
+
+  it("opens a day from anywhere on its row, and from the link by itself", () => {
+    show(OPEN);
+    const row = document.querySelector("[data-date='2026-09-06']")!;
+    fireEvent.click(row.querySelectorAll("td")[1]!);
+    expect(navigation.push).toHaveBeenCalledWith(
+      `/en/analytics?property=${PROPERTY}&month=2026-09&day=2026-09-06`,
+      { scroll: false },
+    );
+    navigation.push.mockClear();
+    fireEvent.click(row.querySelector("a")!);
+    expect(navigation.push).not.toHaveBeenCalled();
+  });
+
+  it("marks the days that open, and not the days to come", () => {
+    show(OPEN);
+    const open = document.querySelector("[data-date='2026-09-06']")!;
+    expect(open.querySelector("svg")).not.toBeNull();
+    const future = document.querySelector("[data-date='2026-09-20']")!;
+    expect(future.querySelector("svg")).toBeNull();
+    expect(future.className).not.toContain("cursor-pointer");
+    fireEvent.click(future);
+    expect(navigation.push).not.toHaveBeenCalled();
+  });
+
+  it("opens the days behind a button on a small screen, and says how many", () => {
+    show(OPEN);
+    const button = screen.getByRole("button", { name: "Show the 30 days" });
+    const days = document.getElementById("analytics-days")!;
+    expect(button).toHaveAttribute("aria-expanded", "false");
+    expect(button).toHaveAttribute("aria-controls", "analytics-days");
+    expect(days.className).toContain("hidden");
+    expect(days.className).toContain("md:block");
+    fireEvent.click(button);
+    expect(
+      screen.getByRole("button", { name: "Hide the days" }),
+    ).toHaveAttribute("aria-expanded", "true");
+    expect(days.className).not.toMatch(/(^|\s)hidden(\s|$)/);
+  });
+
+  it("links a Stay in the day to its booking for a viewer who reaches Reservations", () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <MonthReportView
+          detail={DAY}
+          locale="en"
+          propertyName={NAME}
+          report={OPEN}
+          reservationsHref={`/en/reservations?property=${PROPERTY}`}
+        />
+      </NextIntlClientProvider>,
+    );
+    const dialog = screen.getByRole("dialog");
+    const links = dialog.querySelectorAll("[data-booking-link]");
+    // The Resident's Stay has no booking, so there is nothing to open.
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveTextContent("Open booking R96J74P");
+    expect(links[0]).toHaveAttribute(
+      "href",
+      `/en/reservations?property=${PROPERTY}&open=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa`,
+    );
+  });
+
+  it("offers no booking link to a viewer who does not reach Reservations", () => {
+    show(OPEN, "en", DAY);
+    expect(
+      screen.getByRole("dialog").querySelector("[data-booking-link]"),
+    ).toBeNull();
+  });
+
+  it("says what to do about a night with no charge", () => {
+    show(OPEN);
+    expect(
+      screen.getByText(/Open a day from the table to see which bookings/),
+    ).toBeVisible();
   });
 });

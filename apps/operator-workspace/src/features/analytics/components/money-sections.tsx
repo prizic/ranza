@@ -1,28 +1,34 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { cn } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
 import type {
   FigureChanges,
   Figures,
-  MonthReport,
+  PeriodReport,
+  PriorMonth,
 } from "../../../server/analytics";
 import {
   formatMinorMoney,
   formatMonthTitle,
   formatPercentChange,
 } from "../format";
+import { unchargedProblem, type Problem } from "../problem";
 import { MonthSection } from "./month-section";
 
 function Row({
   change,
   label,
+  problem,
   strong = false,
   value,
 }: {
   change?: { change: string; reference: string } | null;
   label: string;
+  /** Why the figure is not what it appears, with the way to see why. */
+  problem?: Problem | { text: string } | null;
   strong?: boolean;
   value: string;
 }) {
@@ -40,6 +46,19 @@ function Row({
       >
         <bdi>{value}</bdi>
       </dd>
+      {problem ? (
+        <dd className="col-span-2 text-end text-xs text-warning" data-problem>
+          {problem.text}
+          {"href" in problem ? (
+            <>
+              {" "}
+              <Link className="font-medium underline" href={problem.href}>
+                {problem.link}
+              </Link>
+            </>
+          ) : null}
+        </dd>
+      ) : null}
       {change ? (
         <dd className="col-span-2 text-end text-xs text-muted-foreground">
           <span className="font-medium text-foreground tabular-nums">
@@ -53,9 +72,12 @@ function Row({
 }
 
 /** What the prior month's figure was and how this one moved from it, when there is one. */
-function useComparison(report: MonthReport, locale: SupportedLocale) {
+function useComparison(
+  report: PeriodReport,
+  prior: PriorMonth | null,
+  locale: SupportedLocale,
+) {
   const t = useTranslations("analytics.month");
-  const prior = report.prior;
   const priorFigures: Figures | null = prior?.figures ?? null;
   return (
     pick: (changes: FigureChanges) => number | null,
@@ -87,42 +109,61 @@ function useComparison(report: MonthReport, locale: SupportedLocale) {
 export function RevenueSection({
   figures,
   locale,
+  prior,
   report,
 }: {
   figures: Figures;
   locale: SupportedLocale;
-  report: MonthReport;
+  prior: PriorMonth | null;
+  report: PeriodReport;
 }) {
   const t = useTranslations("analytics.month");
-  const comparison = useComparison(report, locale);
-  const money = (minor: number | null) =>
-    formatMinorMoney(minor, report.currency, locale);
+  const comparison = useComparison(report, prior, locale);
   const room = figures.roomRevenue;
+  const noClosedDays = report.daysClosed === 0;
+  // Nights were slept and none has a charge: there is no room revenue to
+  // speak of, which is not a revenue of zero (ANALYTICS-02).
+  const unknown = figures.roomRevenueUnknown;
+  const totalUnknown = unknown && (figures.otherRevenueMinor ?? 0) === 0;
+  const money = (minor: number | null, hide = false) =>
+    formatMinorMoney(hide ? null : minor, report.currency, locale);
+  const problem = unchargedProblem(figures, t);
+  const reason = {
+    text: t("revenueUnknown", { count: figures.unchargedGuestNights }),
+    link: t("seeUncharged"),
+    href: "#analytics-uncharged",
+  };
 
   return (
     <MonthSection title={t("revenue")}>
+      {noClosedDays ? (
+        <p className="mb-2 max-w-prose text-sm text-muted-foreground">
+          {t("noClosedDays")}
+        </p>
+      ) : null}
       <dl>
         <Row
           label={t("roomNightsCharged")}
-          value={money(room?.grossMinor ?? null)}
+          value={money(room?.grossMinor ?? null, unknown)}
         />
         <Row
           label={t("corrections")}
-          value={money(room?.correctionsMinor ?? null)}
+          value={money(room?.correctionsMinor ?? null, unknown)}
         />
         <Row
           change={comparison(
             (changes) => changes.roomRevenuePercent,
-            (prior) => prior.roomRevenue?.netMinor ?? null,
+            (priorFigures) => priorFigures.roomRevenue?.netMinor ?? null,
           )}
           label={t("netRoomRevenue")}
+          problem={unknown ? reason : problem}
           strong
-          value={money(room?.netMinor ?? null)}
+          value={money(room?.netMinor ?? null, unknown)}
         />
         <Row
           change={comparison(
             (changes) => changes.otherRevenuePercent,
-            (prior) => prior.otherRevenueMinor,
+            (priorFigures) => priorFigures.otherRevenueMinor,
           )}
           label={t("otherRevenue")}
           value={money(figures.otherRevenueMinor)}
@@ -130,11 +171,12 @@ export function RevenueSection({
         <Row
           change={comparison(
             (changes) => changes.totalRevenuePercent,
-            (prior) => prior.totalRevenueMinor,
+            (priorFigures) => priorFigures.totalRevenueMinor,
           )}
           label={t("totalRevenue")}
+          problem={totalUnknown ? reason : problem}
           strong
-          value={money(figures.totalRevenueMinor)}
+          value={money(figures.totalRevenueMinor, totalUnknown)}
         />
       </dl>
     </MonthSection>
@@ -149,17 +191,23 @@ export function RevenueSection({
 export function CollectedSection({
   figures,
   locale,
+  prior,
   report,
 }: {
   figures: Figures;
   locale: SupportedLocale;
-  report: MonthReport;
+  prior: PriorMonth | null;
+  report: PeriodReport;
 }) {
   const t = useTranslations("analytics.month");
   const tm = useTranslations("analytics");
-  const comparison = useComparison(report, locale);
+  const comparison = useComparison(report, prior, locale);
   const money = (minor: number | null) =>
     formatMinorMoney(minor, report.currency, locale);
+  // Booked is unknown when revenue is, and so is what Guests owe on it.
+  const bookedUnknown =
+    figures.roomRevenueUnknown && (figures.otherRevenueMinor ?? 0) === 0;
+  const noClosedDays = report.daysClosed === 0;
   const payments = figures.payments;
   const methods: { label: string; minor: number | null }[] = [
     { label: tm("cash"), minor: payments?.cashMinor ?? null },
@@ -170,15 +218,20 @@ export function CollectedSection({
 
   return (
     <MonthSection title={t("collected")}>
+      {noClosedDays ? (
+        <p className="mb-2 max-w-prose text-sm text-muted-foreground">
+          {t("noClosedDays")}
+        </p>
+      ) : null}
       <dl>
         <Row
           label={t("revenueBooked")}
-          value={money(figures.revenueBookedMinor)}
+          value={money(bookedUnknown ? null : figures.revenueBookedMinor)}
         />
         <Row
           change={comparison(
             (changes) => changes.collectedPercent,
-            (prior) => prior.collectedMinor,
+            (priorFigures) => priorFigures.collectedMinor,
           )}
           label={t("moneyCollected")}
           value={money(figures.collectedMinor)}
@@ -186,7 +239,7 @@ export function CollectedSection({
         <Row
           label={t("owedChange")}
           strong
-          value={money(figures.differenceMinor)}
+          value={money(bookedUnknown ? null : figures.differenceMinor)}
         />
       </dl>
       <p className="mt-2 text-sm text-muted-foreground">
