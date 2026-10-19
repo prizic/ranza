@@ -22,6 +22,9 @@ export async function register(): Promise<void> {
  * Next was doing for it. Next calls it for rendering, route handlers, server
  * actions and the proxy, so a failure that reaches a boundary or a bare 500
  * leaves a record either way. The error itself goes last, whole, for its stack.
+ *
+ * The path is logged without its query: a query can carry a credential (an
+ * invitation link is `?token=`), and a log is not a place for one.
  */
 export const onRequestError: Instrumentation.onRequestError = async (
   error,
@@ -36,7 +39,7 @@ export const onRequestError: Instrumentation.onRequestError = async (
           ? String(error.digest)
           : undefined,
       method: request.method,
-      path: request.path,
+      path: request.path.split("?")[0],
       routePath: context.routePath,
       routeType: context.routeType,
       renderSource: context.renderSource,
