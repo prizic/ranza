@@ -11,6 +11,7 @@ import {
   CircleDashed,
   DoorClosed,
   DoorOpen,
+  Sparkles,
   SprayCan,
 } from "lucide-react";
 import type { Arrival, Departure, ReservationRow } from "@ranza/reservations";
@@ -342,8 +343,14 @@ export function useArrivalColumns(
                 tone="success"
               />
             ) : (
+              // The icon is the board's for the same state: a clean room waiting
+              // for inspection is not drawn with the dirty room's spray-can.
               <StatusBadge
-                icon={SprayCan}
+                icon={
+                  arrival.unitNotReadyBecause === "awaiting_inspection"
+                    ? Sparkles
+                    : SprayCan
+                }
                 label={
                   arrival.unitNotReadyBecause === "awaiting_inspection"
                     ? t("roomAwaitingInspection")
