@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { isSupportedLocale } from "@ranza/i18n";
-import { GuestDetailsError } from "@ranza/guests";
+import type { GuestDetailsError } from "@ranza/guests";
 import {
   BALANCE_REASON,
   CANCELLATION_REASON,
@@ -429,8 +429,12 @@ export async function createReservation(
     if (isA(error, "UnitUnavailableError")) return "unavailable";
     if (isA(error, "UnitHasOccupantError")) return "occupied";
     if (isA(error, "ReservationPeriodError")) return "invalidPeriod";
-    if (error instanceof GuestDetailsError) {
-      return error.field === "email" ? "invalidEmail" : "invalidGuest";
+    // By name, like the rest: `instanceof` is false for an error thrown by a
+    // copy of the module that a dev server bundled apart from this file.
+    if (isA(error, "GuestDetailsError")) {
+      return (error as GuestDetailsError).field === "email"
+        ? "invalidEmail"
+        : "invalidGuest";
     }
     if (isA(error, "ExpectedArrivalError")) return "invalidArrival";
     // The dialog is read again with the price that stands now.
