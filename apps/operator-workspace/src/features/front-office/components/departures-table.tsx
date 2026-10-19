@@ -78,6 +78,7 @@ export function DeparturesTable({
           searchBy: () => t("searchGuestRoomReference"),
         }}
         getRowId={(row) => row.stayId}
+        pageSize={50}
         searchColumns={["guestName", "unitName", "roomName", "reference"]}
       />
     </div>

@@ -38,8 +38,8 @@ function typedDates(iso: string): string[] {
 /**
  * A telephone's digits as a desk may type them: with the country code, without
  * it, and with the leading zero a Turkish number is dialled with — so `+90 532`
- * typed as `90532`, `0532` or `532` all find it. Digits only: the search box
- * compares what was typed, and a number typed with spaces is not found here.
+ * typed as `90532`, `0532` or `532` all find it. The search reads what was typed
+ * by its digits too, so spaces, a plus sign and brackets do not hide a number.
  */
 function phoneForms(digits: string): string {
   if (digits === "") return "";
@@ -202,7 +202,7 @@ export function ReservationsTable({
         >
           <TabsList
             aria-label={t("reservationsViews")}
-            className="h-auto max-w-full flex-wrap justify-start"
+            className="max-w-full flex-wrap justify-start group-data-[orientation=horizontal]/tabs:h-auto"
           >
             {RESERVATION_TABS.map((name) => (
               <TabsTrigger key={name} value={name}>

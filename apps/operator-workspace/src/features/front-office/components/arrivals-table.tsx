@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import type { Arrival } from "@ranza/reservations";
 import { DataTable, EmptyState } from "@ranza/ui";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
+import type { ArrivalRow } from "../../../server/viewer";
 import { useTableLabels } from "../../../lib/table-labels";
 import { useArrivalColumns } from "./columns";
 
@@ -15,7 +16,7 @@ import { useArrivalColumns } from "./columns";
  * already in the room folded to the end, where they are a record and not work.
  * A sort the reader chooses replaces it; this is what the list opens on.
  */
-export function inWorkingOrder(arrivals: readonly Arrival[]): Arrival[] {
+export function inWorkingOrder<T extends Arrival>(arrivals: readonly T[]): T[] {
   const roomOf = (arrival: Arrival) => arrival.roomName ?? arrival.unitName;
   return [...arrivals].sort(
     (a, b) =>
@@ -41,7 +42,7 @@ export function ArrivalsTable({
   locale,
   propertyId,
 }: {
-  arrivals: readonly Arrival[];
+  arrivals: readonly ArrivalRow[];
   locale: SupportedLocale;
   /** The Property the rows belong to, which links out of them name. */
   propertyId: string;
@@ -75,6 +76,7 @@ export function ArrivalsTable({
           searchBy: () => t("searchGuestRoomReference"),
         }}
         getRowId={(row) => row.reservationId}
+        pageSize={50}
         searchColumns={["guestName", "unitName", "roomName", "reference"]}
       />
       <p className="mt-3 text-step--1 text-muted-foreground">

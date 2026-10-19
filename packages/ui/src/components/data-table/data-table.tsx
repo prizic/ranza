@@ -40,7 +40,7 @@ import { ScrollCue } from "./scroll-cue";
 import { DataTablePagination, type PaginationLabels } from "./pagination";
 import { DataTableViewOptions } from "./view-options";
 import { overlayJustClosed } from "../../lib/menu-guard";
-import { fieldMatches } from "../../lib/search";
+import { rowMatches } from "../../lib/search";
 import { cn } from "../../lib/utils";
 
 /**
@@ -130,6 +130,7 @@ export function DataTable<TData, TValue>({
   initialHidden = {},
   labels,
   onRowClick,
+  pageSize = 10,
   rowClassName,
   rowsInDatabase,
   searchColumns,
@@ -169,6 +170,12 @@ export function DataTable<TData, TValue>({
   labels: DataTableLabels;
   /** Makes rows openable. Clicks on a control inside a cell are left alone. */
   onRowClick?: (row: TData) => void;
+  /**
+   * Rows per page on first render, one of the sizes the footer offers (10, 20,
+   * 30, 50). A list worked down in one sitting, such as a day's arrivals, opens
+   * on a page long enough to hold the day rather than on ten.
+   */
+  pageSize?: number;
   /**
    * Extra classes for one row, for a screen that needs to point at it — the
    * booking the desk has just made or changed. Opt-in: no row is marked
@@ -258,13 +265,14 @@ export function DataTable<TData, TValue>({
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     // Ignores the column it is handed and tests every searchable column, so one
-    // box covers the Guest's name and the Reservation reference at once.
+    // box covers the Guest's name and the Reservation reference at once, and
+    // each word typed may be found in a different one.
     globalFilterFn: (row, _columnId, value: string) =>
-      (searchColumns ?? []).some((key) =>
-        fieldMatches(
+      rowMatches(
+        (searchColumns ?? []).map((key) =>
           String((row.original as Record<string, unknown>)[key] ?? ""),
-          value,
         ),
+        value,
       ),
     getCoreRowModel: getCoreRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
@@ -272,7 +280,7 @@ export function DataTable<TData, TValue>({
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    initialState: { pagination: { pageSize: 10 } },
+    initialState: { pagination: { pageSize } },
   });
 
   const hasPinnedEnd = table
