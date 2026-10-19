@@ -368,7 +368,7 @@ describe("the clock", () => {
 });
 
 describe("the reason", () => {
-  it("AL-S2-03: is held to a width of its own and two lines, so it is cut by the cell and not by the table's edge", () => {
+  it("AL-S2-11: is held to a width of its own and two lines, so it is cut by the cell and not by the table's edge", () => {
     show([entry({ reason: "A long reason ".repeat(30) })]);
     const reason = screen.getByText(/A long reason/);
     expect(reason).toHaveClass("line-clamp-2", "max-w-72");

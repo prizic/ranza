@@ -294,8 +294,9 @@ select set_eq(
   $$select column_name::text from information_schema.column_privileges
      where table_schema = 'public' and table_name = 'data_exports'
        and grantee = 'ranza_app' and privilege_type = 'INSERT'$$,
-  array['organization_id', 'requester_id', 'requester_name', 'resource_types', 'format'],
-  'EXP-S1-06: a request may say who, which datasets and which format, and nothing else');
+  array['organization_id', 'requester_id', 'requester_name', 'resource_types', 'format',
+        'range_from', 'range_to', 'range_timezone'],
+  'EXP-S1-06: a request may say who, which datasets, which format and which days, and nothing else');
 
 select is_empty(
   $$select column_name::text from information_schema.column_privileges
@@ -770,7 +771,7 @@ select results_eq(
   $$select status, file_name, file_size_bytes::int, file_content, completed_at is not null,
            expires_at > now() + interval '6 days 23 hours', expires_at <= now() + interval '7 days 1 minute'
       from public.data_exports where id = 'ece00000-0000-4000-8000-000000000001'$$,
-  $$values ('ready', 'export-ece00000.csv', 4, E'id\n1', true, true, true)$$,
+  $$select 'ready', 'export-organization-data-' || (now() at time zone 'utc')::date::text || '.csv', 4, E'id\n1', true, true, true$$,
   'EXP-S1-29: the file''s name, size and seven-day expiry are the database''s to set');
 
 select results_eq(
@@ -872,7 +873,7 @@ set local role none;
 select results_eq(
   $$select status, file_content is null, file_name, file_size_bytes::int
       from public.data_exports where id = 'ece00000-0000-4000-8000-000000000001'$$,
-  $$values ('expired', true, 'export-ece00000.csv', 4)$$,
+  $$select 'expired', true, 'export-organization-data-' || (now() at time zone 'utc')::date::text || '.csv', 4$$,
   'EXP-S1-31: an expired export keeps its name, size and history and loses its content');
 
 -- Four more exports finish, for the download section: the auditor's audit log,
@@ -980,7 +981,7 @@ set local role ranza_app;
 select app.set_request_context('ec100000-0000-4000-8000-000000000003');
 select results_eq(
   $$select file_name, format, file_content, resource_types from app.read_data_export_file('ece00000-0000-4000-8000-000000000002')$$,
-  $$values ('export-ece00000.json', 'json', '[]', array['audit_log'])$$,
+  $$select 'export-organization-audit-log-' || (now() at time zone 'utc')::date::text || '.json', 'json', '[]', array['audit_log']$$,
   'EXP-S1-37: the requester downloads their own export');
 
 select app.set_request_context('ec100000-0000-4000-8000-000000000001');

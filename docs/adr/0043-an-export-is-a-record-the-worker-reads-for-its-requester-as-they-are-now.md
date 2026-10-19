@@ -4,6 +4,13 @@ Date: 2026-10-09
 
 Status: Proposed
 
+Proposed amendment: a request may also name a first and a last day, which the
+readers of dated rows (reservations and stays, folio lines, the audit log)
+honour on the clock of the Property it was made from, and a ready file is named
+for the Organization, what it holds, the range and the day it was made (RANZ-74,
+migration `20260916012000`; EXP-S1-50 to EXP-S1-56). Guests and rooms are lists
+and are never cut. A schedule takes no range (EXP-DEF-05).
+
 Builds on [ADR 0012](0012-a-write-is-bounded-by-a-policy-not-a-check.md),
 [ADR 0018](0018-the-worker-has-its-own-role-and-its-own-context.md),
 [ADR 0026](0026-a-role-is-a-named-set-of-permissions-and-reach-is-taken-away-for-free.md),
