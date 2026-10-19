@@ -134,7 +134,6 @@ export function InspectionSettings({
       setPropertyDraft(null);
     }
     // The outcome is the trigger; what it was about is in the ref.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outcome]);
 
   const organizationValue = organizationDraft ?? savedOrganization;

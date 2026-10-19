@@ -203,6 +203,7 @@ describe("every catalogue parses", () => {
                 shade: "#a35200",
                 state: "x",
                 status: "x",
+                subject: "x",
                 time: "14:00",
                 timezone: "Europe/Istanbul",
                 to: "20 Sep",
