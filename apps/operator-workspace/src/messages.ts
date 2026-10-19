@@ -2321,7 +2321,7 @@ export interface Messages {
   portfolio: {
     /** `{organization}`. */
     subtitle: string;
-    /** `{time}`: when the figures were read, in the working Property's zone. */
+    /** `{when}`: the day and time the figures were read, and the zone, as the working Property keeps them. */
     asOf: string;
     listLabel: string;
     occupancyTitle: string;
@@ -2333,6 +2333,23 @@ export interface Messages {
     maintenanceTitle: string;
     maintenanceNote: string;
     cardOccupancy: string;
+    /** `{occupied}` of `{sellable}` units: the count a share is made of. */
+    unitsInUse: string;
+    /** The order the Properties can be put in, and how they are drawn. */
+    sort: {
+      label: string;
+      name: string;
+      occupancy: string;
+      money: string;
+      maintenance: string;
+      arrivals: string;
+    };
+    view: { label: string; cards: string; table: string };
+    refresh: string;
+    refreshing: string;
+    /** A figure that is a link: `{label}` at `{property}`. */
+    openList: string;
+    colProperty: string;
     /** `{date}`: the Property's own business date. */
     businessDate: string;
     noSellableUnits: string;
@@ -5444,7 +5461,7 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     portfolio: {
       subtitle: "{organization}: tüm Tesisler yan yana.",
-      asOf: "Rakamlar {time} itibarıyla",
+      asOf: "Rakamlar {when} itibarıyla",
       listLabel: "Yan yana Tesisler",
       occupancyTitle: "Tesisler genelinde doluluk",
       coverage: "{total} Tesisin {reporting} tanesinde sayıldı",
@@ -5453,7 +5470,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       moneyOwedNote: "Açık folyo bakiyeleri, para birimi başına bir satır",
       maintenanceTitle: "Açık bakım",
       maintenanceNote: "Henüz tamamlanmamış talepler",
-      cardOccupancy: "Dolu birimler",
+      cardOccupancy: "Doluluk",
       businessDate: "İş günü {date}",
       noSellableUnits: "Satılabilir birim yok",
       arrivals: "Bugün kalan girişler",
@@ -5469,7 +5486,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       open: "{property} Tesisini aç",
       oneTitle: "Karşılaştıracak bir şey yok",
       oneDescription:
-        "Tek bir Tesise erişiyorsunuz: {property}. Birden fazla Tesise eriştiğinizde burada yan yana görünürler.",
+        "Tek bir Tesisiniz var: {property}. Birden fazla Tesise atandığınızda burada yan yana görünürler. Başka bir Tesise atanmanız gerekiyorsa bir Sahip'e sorun.",
       noneTitle: "Gösterilecek Tesis yok",
       noneDescription: "Bu Organizasyonda erişebildiğiniz bir Tesis yok.",
       goToToday: "Bugün'e git",
@@ -5480,6 +5497,24 @@ export const messages: Record<SupportedLocale, Messages> = {
       failedDescription:
         "Tesisleriniz okunurken bir şeyler ters gitti. Tekrar deneyin; sürerse yöneticinize bildirin.",
       retry: "Tekrar dene",
+      sort: {
+        label: "Sırala",
+        name: "Ad",
+        occupancy: "En düşük doluluk",
+        money: "En çok tahsil edilecek",
+        maintenance: "En çok açık bakım",
+        arrivals: "En çok kalan giriş",
+      },
+      view: {
+        label: "Görünüm",
+        cards: "Kartlar",
+        table: "Tablo",
+      },
+      refresh: "Yenile",
+      refreshing: "Yenileniyor…",
+      unitsInUse: "{sellable} birimin {occupied} tanesi dolu",
+      openList: "{property} için {label}: listeyi aç",
+      colProperty: "Tesis",
     },
 
     guestExperience: {
@@ -8714,16 +8749,16 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     portfolio: {
       subtitle: "{organization}: every Property side by side.",
-      asOf: "Figures as of {time}",
+      asOf: "Figures as of {when}",
       listLabel: "Properties side by side",
       occupancyTitle: "Occupancy across Properties",
       coverage: "Counted at {reporting} of {total} Properties",
       notReporting: "Not available at any Property",
       moneyOwedTitle: "Money owed",
-      moneyOwedNote: "Open Folio balances, one line per currency",
+      moneyOwedNote: "Open folio balances, one line per currency",
       maintenanceTitle: "Open maintenance",
       maintenanceNote: "Requests not yet done",
-      cardOccupancy: "Units in use",
+      cardOccupancy: "Occupancy",
       businessDate: "Business date {date}",
       noSellableUnits: "No sellable units",
       arrivals: "Arrivals still to come",
@@ -8739,7 +8774,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       open: "Open {property}",
       oneTitle: "Nothing to compare yet",
       oneDescription:
-        "You reach one Property, {property}. Properties line up side by side here once you reach more than one.",
+        "You have one Property, {property}. Properties line up side by side here once you are assigned to more than one. Ask an Owner if you should be assigned to another.",
       noneTitle: "No Property to show",
       noneDescription: "You do not reach any Property in this Organization.",
       goToToday: "Go to Today",
@@ -8750,6 +8785,24 @@ export const messages: Record<SupportedLocale, Messages> = {
       failedDescription:
         "Something went wrong reading your Properties. Try again, and if it keeps happening tell your administrator.",
       retry: "Try again",
+      sort: {
+        label: "Sort by",
+        name: "Name",
+        occupancy: "Lowest occupancy",
+        money: "Most owed",
+        maintenance: "Most open maintenance",
+        arrivals: "Most arrivals to come",
+      },
+      view: {
+        label: "Show as",
+        cards: "Cards",
+        table: "Table",
+      },
+      refresh: "Refresh",
+      refreshing: "Refreshing…",
+      unitsInUse: "{occupied} of {sellable} units in use",
+      openList: "{label} at {property}: open the list",
+      colProperty: "Property",
     },
 
     guestExperience: {
@@ -11927,7 +11980,7 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     portfolio: {
       subtitle: "{organization}: كل المنشآت جنبًا إلى جنب.",
-      asOf: "الأرقام حتى {time}",
+      asOf: "الأرقام حتى {when}",
       listLabel: "المنشآت جنبًا إلى جنب",
       occupancyTitle: "الإشغال عبر المنشآت",
       coverage: "حُسبت في {reporting} من {total} منشآت",
@@ -11936,7 +11989,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       moneyOwedNote: "أرصدة الحسابات المفتوحة، سطر لكل عملة",
       maintenanceTitle: "الصيانة المفتوحة",
       maintenanceNote: "طلبات لم تُنجز بعد",
-      cardOccupancy: "الوحدات المشغولة",
+      cardOccupancy: "الإشغال",
       businessDate: "يوم العمل {date}",
       noSellableUnits: "لا وحدات قابلة للبيع",
       arrivals: "وصول متبقٍ اليوم",
@@ -11951,7 +12004,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       open: "افتح {property}",
       oneTitle: "لا شيء للمقارنة بعد",
       oneDescription:
-        "تصل إلى منشأة واحدة: {property}. تظهر المنشآت جنبًا إلى جنب هنا عندما تصل إلى أكثر من واحدة.",
+        "لديك منشأة واحدة: {property}. تظهر المنشآت جنبًا إلى جنب هنا عندما تُسند إليك أكثر من واحدة. اسأل المالك إن كان ينبغي إسناد منشأة أخرى إليك.",
       noneTitle: "لا منشأة للعرض",
       noneDescription: "لا تصل إلى أي منشأة في هذه المؤسسة.",
       goToToday: "اذهب إلى اليوم",
@@ -11962,6 +12015,24 @@ export const messages: Record<SupportedLocale, Messages> = {
       failedDescription:
         "حدث خطأ أثناء قراءة منشآتك. أعد المحاولة، وإن تكرر فأبلغ المسؤول.",
       retry: "أعد المحاولة",
+      sort: {
+        label: "ترتيب حسب",
+        name: "الاسم",
+        occupancy: "الأقل إشغالًا",
+        money: "الأكثر مستحقات",
+        maintenance: "الأكثر صيانة مفتوحة",
+        arrivals: "الأكثر وصولًا متبقيًا",
+      },
+      view: {
+        label: "العرض",
+        cards: "بطاقات",
+        table: "جدول",
+      },
+      refresh: "تحديث",
+      refreshing: "جارٍ التحديث…",
+      unitsInUse: "{occupied} من {sellable} وحدة مشغولة",
+      openList: "{label} في {property}: افتح القائمة",
+      colProperty: "المنشأة",
     },
 
     guestExperience: {

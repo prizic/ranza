@@ -305,13 +305,13 @@ test("an Owner sets two Properties side by side and every figure on a card is th
   await expect(southCard).toBeVisible();
 
   // The seeded truth, card by card.
-  await expect(northCard).toContainText("4 / 6");
+  await expect(northCard).toContainText("4 of 6 units in use");
   await expect(northCard).toContainText("66.7%");
   await expect(figure(northCard, words.arrivals)).toHaveText("2");
   await expect(figure(northCard, words.departures)).toHaveText("1");
   await expect(figure(northCard, words.maintenance)).toHaveText("3");
   await expect(figure(northCard, words.moneyOwed)).toHaveText("TRY 1,234.50");
-  await expect(southCard).toContainText("1 / 5");
+  await expect(southCard).toContainText("1 of 5 units in use");
   await expect(southCard).toContainText("20.0%");
   await expect(figure(southCard, words.arrivals)).toHaveText("1");
   await expect(figure(southCard, words.departures)).toHaveText("1");
@@ -350,7 +350,9 @@ test("an Owner sets two Properties side by side and every figure on a card is th
 
     await page.goto(portfolioUrl(north.propertyId));
     const shown = card(page, compared.name);
-    await expect(shown).toContainText(`${own.occupied} / ${own.sellable}`);
+    await expect(shown).toContainText(
+      `${own.occupied} of ${own.sellable} units in use`,
+    );
     await expect(figure(shown, words.arrivals)).toHaveText(
       String(own.arrivalsToCome),
     );
@@ -385,8 +387,8 @@ test("the same comparison in Arabic keeps each figure with its Property and mirr
   await expect(page.locator("main li[data-property-id]")).toHaveCount(2);
   const northCard = card(page, north.name);
   const southCard = card(page, south.name);
-  await expect(northCard).toContainText("4 / 6");
-  await expect(southCard).toContainText("1 / 5");
+  await expect(northCard).toContainText("4 من 6 وحدة مشغولة");
+  await expect(southCard).toContainText("1 من 5 وحدة مشغولة");
   await expect(figure(northCard, ar.maintenance)).toHaveText("3");
   await expect(figure(southCard, ar.maintenance)).toHaveText("2");
   // Direction marks and no-break spaces are the formatter's, so compare the

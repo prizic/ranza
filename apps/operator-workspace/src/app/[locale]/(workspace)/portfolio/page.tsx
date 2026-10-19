@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import {
-  formatTime,
+  formatDate,
   isSupportedLocale,
   localizeHref,
   type SupportedLocale,
@@ -8,6 +8,11 @@ import {
 import { EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { PortfolioView } from "../../../../features/portfolio";
+import { zoneName } from "../../../../features/today/format";
+import {
+  parsePortfolioSort,
+  parsePortfolioView,
+} from "../../../../features/portfolio/derive";
 import { PORTFOLIO_GATE } from "../../../../lib/portfolio-offer";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import { ScreenDenied } from "../screen-denied";
@@ -40,7 +45,7 @@ export default async function PortfolioPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ property?: string }>;
+  searchParams: Promise<{ property?: string; sort?: string; view?: string }>;
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
@@ -50,9 +55,10 @@ export default async function PortfolioPage({
   const t = await getTranslations();
   const properties = await entitledProperties(PORTFOLIO_GATE);
 
+  const search = await searchParams;
   const property = await frontDeskProperty(
     properties,
-    await searchParams,
+    search,
     localizeHref(locale as SupportedLocale, SEGMENT),
   );
   const notAvailable = (
@@ -89,15 +95,20 @@ export default async function PortfolioPage({
   return (
     <PortfolioView
       asOf={t("portfolio.asOf", {
-        time: formatTime(
-          new Date(data.asOf),
-          locale as SupportedLocale,
-          property.timezone,
-        ),
+        // The day as well as the hour, and the zone they are in: a tab left
+        // open overnight must not show yesterday's figures at a plausible time.
+        when: `${formatDate(new Date(data.asOf), locale as SupportedLocale, {
+          hour: "2-digit",
+          hourCycle: "h23",
+          minute: "2-digit",
+          timeZone: property.timezone,
+        })} · ${zoneName(property.timezone, locale as SupportedLocale)}`,
       })}
       data={data}
       locale={locale as SupportedLocale}
       organizationName={property.organizationName}
+      sort={parsePortfolioSort(search.sort)}
+      view={parsePortfolioView(search.view)}
     />
   );
 }

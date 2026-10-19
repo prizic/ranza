@@ -2,7 +2,13 @@ import path from "node:path";
 import { expect, type Page } from "@playwright/test";
 import { test } from "./hydration";
 import { psql } from "./local-database";
-import { aStaffMember, signIn } from "./front-desk";
+import {
+  anArrivalToday,
+  aStaffMember,
+  portfolioProperty,
+  signIn,
+  testProperty,
+} from "./front-desk";
 import {
   aBacklog,
   aDeskProperty,
@@ -492,5 +498,137 @@ test.describe("Analytics (RANZ-70)", () => {
       page.getByRole("heading", { name: "آخر 30 يومًا" }),
     ).toBeVisible();
     await expect(page.locator("[data-figure]").first()).toBeVisible();
+  });
+});
+
+test.describe("All Properties (RANZ-71)", () => {
+  const portfolioUrl = (propertyId: string, more = "") =>
+    `/en/portfolio?property=${propertyId}${more}`;
+  const cards = (page: Page) => page.locator("main li[data-property-id]");
+
+  /** The share each card leads with, in the order the cards are drawn. */
+  const shares = async (page: Page): Promise<(number | null)[]> =>
+    (await cards(page).locator("[data-share]").allInnerTexts()).map((text) =>
+      text.includes("—") ? null : Number.parseFloat(text.replace(",", ".")),
+    );
+
+  test("the_properties_can_be_put_in_order_and_a_figure_opens_the_list_behind_it", async ({
+    page,
+    context,
+  }) => {
+    const here = testProperty();
+    portfolioProperty();
+    await signIn(page);
+    await page.setViewportSize({ width: 1280, height: 1000 });
+    await page.goto(portfolioUrl(here));
+
+    await page.getByRole("link", { name: "Lowest occupancy" }).click();
+    await expect(page).toHaveURL(/sort=occupancy/);
+    await expect(page).toHaveURL(new RegExp(`property=${here}`));
+    // Lowest first, and a Property with no share last, not first.
+    await expect
+      .poll(async () => {
+        const ordered = await shares(page);
+        const known = ordered.filter(
+          (value): value is number => value !== null,
+        );
+        const unknownLast =
+          ordered.findIndex((value) => value === null) === -1 ||
+          ordered
+            .slice(ordered.findIndex((value) => value === null))
+            .every((value) => value === null);
+        return (
+          unknownLast &&
+          known.every(
+            (value, index) => index === 0 || known[index - 1]! <= value,
+          )
+        );
+      })
+      .toBe(true);
+    await page.screenshot({ path: shot("RANZ-71", "ordered-by-occupancy") });
+
+    // A figure is a link to the list behind it, at that Property.
+    const first = cards(page).first();
+    const id = await first.getAttribute("data-property-id");
+    await first
+      .getByRole("link", { name: /Arrivals still to come at/ })
+      .click();
+    await expect(page).toHaveURL(new RegExp(`/en/arrivals\\?property=${id}`));
+    const cookies = await context.cookies();
+    expect(
+      cookies.find((cookie) => cookie.name === "ranza_property")?.value,
+    ).toBe(id);
+  });
+
+  test("the_properties_can_be_read_as_a_table_with_the_same_figures", async ({
+    page,
+  }) => {
+    const here = testProperty();
+    portfolioProperty();
+    await signIn(page);
+    await page.setViewportSize({ width: 1280, height: 1000 });
+    await page.goto(portfolioUrl(here));
+    await expect(cards(page).first()).toBeVisible();
+    const count = await cards(page).count();
+
+    await page.getByRole("link", { name: "Table" }).click();
+    await expect(page).toHaveURL(/view=table/);
+    const table = page.getByRole("table", { name: "Properties side by side" });
+    await expect(table.locator("tbody tr")).toHaveCount(count);
+    await expect(
+      table
+        .locator("tbody tr")
+        .first()
+        .getByRole("link", { name: /^Open (?!maintenance)/ }),
+    ).toBeVisible();
+    await page.screenshot({ path: shot("RANZ-71", "table") });
+
+    await page.getByRole("link", { name: "Cards" }).click();
+    await expect(cards(page)).toHaveCount(count);
+  });
+
+  test("the_stamp_says_the_day_and_the_zone_and_refresh_reads_the_figures_again", async ({
+    page,
+  }) => {
+    const here = testProperty();
+    const second = portfolioProperty();
+    await signIn(page);
+    await page.goto(portfolioUrl(here));
+    await expect(page.getByText(/^Figures as of /)).toContainText(
+      /\d{4}.*\d{2}:\d{2}.*· /,
+    );
+
+    const arrivals = (name: string) =>
+      page
+        .locator("main li[data-property-id]")
+        .filter({ has: page.getByRole("heading", { exact: true, name }) })
+        .getByText("Arrivals still to come", { exact: true })
+        .locator("xpath=../dd");
+    const before = Number(
+      await arrivals("E2E Test Property (portfolio)").innerText(),
+    );
+    anArrivalToday(second);
+    await page.getByRole("button", { name: "Refresh" }).click();
+    await expect(arrivals("E2E Test Property (portfolio)")).toHaveText(
+      String(before + 1),
+    );
+  });
+
+  test("a_card_leads_with_the_share_and_says_occupancy_on_the_tile_and_the_card", async ({
+    page,
+  }) => {
+    const here = testProperty();
+    portfolioProperty();
+    await signIn(page);
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto(portfolioUrl(here));
+    const first = cards(page).first();
+    await expect(first.locator("[data-share]")).toBeVisible();
+    await expect(first.getByText("Occupancy", { exact: true })).toBeVisible();
+    await expect(page.locator("main")).not.toContainText("Units in use");
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
   });
 });

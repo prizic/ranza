@@ -13,6 +13,9 @@ import { describe, expect, it } from "vitest";
 import {
   isPartial,
   occupancyPercent,
+  parsePortfolioSort,
+  parsePortfolioView,
+  sortProperties,
   summarize,
 } from "../../apps/operator-workspace/src/features/portfolio/derive";
 import {
@@ -190,5 +193,92 @@ describe("portfolio_offer", () => {
     expect(screen?.derived).toBe(true);
     expect(screen?.capability).toBe(PORTFOLIO_KEY);
     expect(screen?.built).toBe(true);
+  });
+});
+
+describe("portfolio_money_coverage", () => {
+  it("counts the money at the Properties that have a balance, of all that are listed", () => {
+    const summary = summarize(
+      aPortfolio([
+        aProperty({ openFolioBalanceMinor: 100 }),
+        aProperty({ openFolioBalanceMinor: null }),
+        aProperty({ openFolioBalanceMinor: 0 }),
+      ]),
+    );
+    expect(summary.balancesCoverage).toEqual({ reporting: 2, total: 3 });
+    expect(isPartial(summary.balancesCoverage)).toBe(true);
+  });
+
+  it("is whole when every Property has one, a zero included", () => {
+    const summary = summarize(
+      aPortfolio([
+        aProperty({ openFolioBalanceMinor: 0 }),
+        aProperty({ openFolioBalanceMinor: 5 }),
+      ]),
+    );
+    expect(isPartial(summary.balancesCoverage)).toBe(false);
+  });
+});
+
+describe("portfolio_order", () => {
+  const names = (list: ReturnType<typeof sortProperties>) =>
+    list.map((property) => property.propertyName);
+  const P = (name: string, extra: Parameters<typeof aProperty>[0] = {}) =>
+    aProperty({ propertyName: name, ...extra });
+
+  it("reads an order and a shape from the address, and falls back to name and cards", () => {
+    expect(parsePortfolioSort("money")).toBe("money");
+    expect(parsePortfolioSort("colour")).toBe("name");
+    expect(parsePortfolioSort(undefined)).toBe("name");
+    expect(parsePortfolioView("table")).toBe("table");
+    expect(parsePortfolioView("wall")).toBe("cards");
+    expect(parsePortfolioView(undefined)).toBe("cards");
+  });
+
+  it("does not change the list it is given", () => {
+    const list = [P("B"), P("A")];
+    sortProperties(list, "name");
+    expect(names(list)).toEqual(["B", "A"]);
+  });
+
+  it("puts a Property with no figure last, in name order, whichever way the others go", () => {
+    const list = [
+      P("Zed", { occupiedUnits: null, sellableUnits: null }),
+      P("Mid", { occupiedUnits: 10, sellableUnits: 20 }),
+      P("Low", { occupiedUnits: 2, sellableUnits: 20 }),
+      P("Abe", { occupiedUnits: null, sellableUnits: null }),
+    ];
+    expect(names(sortProperties(list, "occupancy"))).toEqual([
+      "Low",
+      "Mid",
+      "Abe",
+      "Zed",
+    ]);
+  });
+
+  it("puts a Property with nothing sellable after the ones that have a share", () => {
+    const list = [
+      P("None", { occupiedUnits: 0, sellableUnits: 0 }),
+      P("Some", { occupiedUnits: 5, sellableUnits: 10 }),
+    ];
+    expect(names(sortProperties(list, "occupancy"))).toEqual(["Some", "None"]);
+  });
+
+  it("orders money within a currency and keeps the currencies apart", () => {
+    const list = [
+      P("Euro small", { currency: "EUR", openFolioBalanceMinor: 5 }),
+      P("Lira large", { currency: "TRY", openFolioBalanceMinor: 9_000_000 }),
+      P("Euro large", { currency: "EUR", openFolioBalanceMinor: 500 }),
+      P("Lira small", { currency: "TRY", openFolioBalanceMinor: 1 }),
+      P("Hidden", { currency: "EUR", openFolioBalanceMinor: null }),
+    ];
+    // 9,000,000 lira is not "more" than 500 euro-cents: no comparison across.
+    expect(names(sortProperties(list, "money"))).toEqual([
+      "Euro large",
+      "Euro small",
+      "Hidden",
+      "Lira large",
+      "Lira small",
+    ]);
   });
 });

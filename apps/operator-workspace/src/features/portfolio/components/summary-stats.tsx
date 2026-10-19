@@ -22,7 +22,7 @@ export function SummaryStats({
   summary: PortfolioSummary;
 }) {
   const t = useTranslations("portfolio");
-  const { occupancy, maintenance, balances } = summary;
+  const { occupancy, maintenance, balances, balancesCoverage } = summary;
 
   return (
     <section className="grid gap-4 md:grid-cols-3">
@@ -52,6 +52,7 @@ export function SummaryStats({
       </SummaryCard>
 
       <SummaryCard
+        coverage={balancesCoverage}
         locale={locale}
         note={t("moneyOwedNote")}
         title={t("moneyOwedTitle")}

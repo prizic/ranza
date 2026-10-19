@@ -81,10 +81,10 @@ function entitled(
 const KADIKOY = entitled("aa000000-0000-4000-8000-00000000000a", "org-1");
 const MODA = entitled("aa000000-0000-4000-8000-00000000000b", "org-2");
 
-const open = (property?: string) =>
+const open = (property?: string, more: { sort?: string; view?: string } = {}) =>
   PortfolioPage({
     params: Promise.resolve({ locale: "en" }),
-    searchParams: Promise.resolve(property ? { property } : {}),
+    searchParams: Promise.resolve(property ? { property, ...more } : more),
   }) as Promise<ReactElement<Record<string, unknown>>>;
 
 beforeEach(() => {
@@ -166,7 +166,25 @@ describe("all_properties_route", () => {
   it("the_figures_are_stamped_in_the_working_propertys_own_zone", async () => {
     viewer.portfolio.mockResolvedValue(aPortfolio([aProperty(), aProperty()]));
     const page = await open(KADIKOY.propertyId);
-    // 09:30Z is 12:30 in Istanbul.
-    expect(page.props.asOf).toBe('portfolio.asOf {"time":"12:30"}');
+    // 09:30Z is 12:30 in Istanbul, and the day and the zone are said with it:
+    // a tab left open overnight must not show yesterday at a plausible hour
+    // (PORTFOLIO-05).
+    expect(page.props.asOf).toMatch(
+      /^portfolio\.asOf \{"when":"Sep 16, 2026, 12:30 · [^"]+"\}$/,
+    );
+  });
+
+  it("passes the order and the shape asked for, and falls back to name and cards", async () => {
+    viewer.portfolio.mockResolvedValue(aPortfolio([aProperty(), aProperty()]));
+    const asked = await open(KADIKOY.propertyId, {
+      sort: "occupancy",
+      view: "table",
+    });
+    expect(asked.props).toMatchObject({ sort: "occupancy", view: "table" });
+    const nonsense = await open(KADIKOY.propertyId, {
+      sort: "colour",
+      view: "wall",
+    });
+    expect(nonsense.props).toMatchObject({ sort: "name", view: "cards" });
   });
 });
