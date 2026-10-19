@@ -56,6 +56,7 @@ export function HousekeepingBoard({
   markLimit,
   narrowed,
   propertyName,
+  reportHref,
   timeZone,
 }: {
   /** The board unnarrowed, for the way back from a figure on Today. */
@@ -78,6 +79,11 @@ export function HousekeepingBoard({
   /** The most rooms one mark may name; the module refuses more. */
   markLimit: number;
   propertyName: string;
+  /**
+   * The Maintenance report form up to the room's id, for somebody who may
+   * report; a string because a function cannot cross to the browser.
+   */
+  reportHref: string | null;
   timeZone: string;
 }) {
   const t = useTranslations("housekeeping");
@@ -109,6 +115,7 @@ export function HousekeepingBoard({
     days,
     mayMark: board.mayMark,
     pending,
+    reportHref,
     onMark: mark,
   });
 

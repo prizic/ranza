@@ -13,6 +13,7 @@ import {
   housekeepingInspection,
   MARK_BATCH,
   requireViewer,
+  roomsMaintenance,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import { boardByUrgency } from "../../../../server/housekeeping-day";
@@ -73,14 +74,14 @@ export default async function HousekeepingPage({
     );
   }
 
-  const [fullBoard, inspection, arrivalRows, departureRows] = await Promise.all(
-    [
+  const [fullBoard, inspection, arrivalRows, departureRows, maintenance] =
+    await Promise.all([
       housekeepingBoard(property.propertyId),
       housekeepingInspection(property.propertyId),
       arrivals(property.propertyId),
       departures(property.propertyId, "due"),
-    ],
-  );
+      roomsMaintenance(property.propertyId),
+    ]);
   const { rooms: roomsByUrgency, days } = boardByUrgency(
     fullBoard,
     arrivalRows,
@@ -132,6 +133,11 @@ export default async function HousekeepingPage({
         narrowed={narrowed}
         locale={locale}
         markLimit={MARK_BATCH.max}
+        reportHref={
+          maintenance.mayReport
+            ? `${localizeHref(locale, "maintenance")}?property=${property.propertyId}&report=`
+            : null
+        }
         propertyName={property.propertyName}
         timeZone={property.timezone}
       />

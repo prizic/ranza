@@ -22,7 +22,13 @@ export function aPropertyWithRooms(
   rooms: readonly RoomSpec[],
 ): { propertyId: string; name: string } {
   const property = aFreshProperty(label, {
-    capabilities: ["today", "front_desk", "finance", "housekeeping"],
+    capabilities: [
+      "today",
+      "front_desk",
+      "finance",
+      "housekeeping",
+      "maintenance",
+    ],
   });
   psql(
     `insert into public.property_assignments

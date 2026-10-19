@@ -87,6 +87,12 @@ test("a phone says a mark landed where it can be seen, and the stale-link page p
   await expect(first).toBeVisible();
   expect((await first.boundingBox())!.y).toBeLessThan(812);
 
+  // HK-01: the status is read without swiping the table sideways.
+  const status = first.getByText("Dirty").first();
+  await expect(status).toBeVisible();
+  const statusBox = (await status.boundingBox())!;
+  expect(statusBox.x + statusBox.width).toBeLessThanOrEqual(375);
+
   // HK-08: tick, mark, and the confirmation is in the window.
   await page.getByRole("checkbox", { name: "Select row" }).first().click();
   const markClean = page.getByRole("button", { name: "Mark clean" });
@@ -101,6 +107,14 @@ test("a phone says a mark landed where it can be seen, and the stale-link page p
   await page.screenshot({
     path: path.join(EVIDENCE, "confirmation-in-the-window-on-a-phone.png"),
   });
+
+  // MAINT-10: a problem is reported from the row, with the room already chosen.
+  await page
+    .getByRole("row", { name: /101/ })
+    .getByRole("link", { name: "Report a problem" })
+    .click();
+  await expect(page).toHaveURL(/\/en\/maintenance\?property=.*&report=/);
+  await expect(page.getByRole("dialog")).toContainText("101");
 
   // HK-12: a link naming a Property the viewer does not reach says what to do.
   await page.goto(

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
@@ -89,12 +90,26 @@ function changedAt(iso: string, locale: SupportedLocale, timeZone: string) {
   });
 }
 
+function DayBadge({ day }: { day: RoomDay | undefined }) {
+  const t = useTranslations("housekeeping");
+  if (!day) return null;
+  const look = DAY_LOOK[day];
+  return (
+    <StatusBadge
+      icon={look.icon}
+      label={t(look.label as "priorityArrival")}
+      tone={look.tone}
+    />
+  );
+}
+
 export function useHousekeepingColumns({
   locale,
   timeZone,
   days,
   mayMark,
   pending,
+  reportHref,
   onMark,
 }: {
   locale: SupportedLocale;
@@ -103,6 +118,8 @@ export function useHousekeepingColumns({
   days: Readonly<Record<string, RoomDay>>;
   mayMark: boolean;
   pending: boolean;
+  /** Where to report a problem in a room, up to its id; null if not allowed. */
+  reportHref: string | null;
   onMark: (unitIds: string[], status: HousekeepingStatus) => void;
 }): ColumnDef<HousekeepingRoom>[] {
   const t = useTranslations("housekeeping");
@@ -127,6 +144,21 @@ export function useHousekeepingColumns({
               {t("beds", { count: row.original.bedCount })}
             </span>
           ) : null}
+          {reportHref ? (
+            <Link
+              className="mt-1 block text-step--1 text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              href={`${reportHref}${row.original.unitId}`}
+              prefetch={false}
+            >
+              {t("reportProblem")}
+            </Link>
+          ) : null}
+          {/* On a phone the status column is a swipe away, and the status is
+              what this screen is for: it is said under the room as well. */}
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 md:hidden">
+            <HousekeepingStatusBadge status={row.original.status} />
+            <DayBadge day={days[row.original.unitId]} />
+          </div>
         </div>
       ),
     },
@@ -177,18 +209,12 @@ export function useHousekeepingColumns({
           title={t("todayColumn")}
         />
       ),
-      cell: ({ row }) => {
-        const day = days[row.original.unitId];
-        if (!day) return <span className="text-muted-foreground">—</span>;
-        const look = DAY_LOOK[day];
-        return (
-          <StatusBadge
-            icon={look.icon}
-            label={t(look.label as "priorityArrival")}
-            tone={look.tone}
-          />
-        );
-      },
+      cell: ({ row }) =>
+        days[row.original.unitId] ? (
+          <DayBadge day={days[row.original.unitId]} />
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
     },
     {
       accessorKey: "status",

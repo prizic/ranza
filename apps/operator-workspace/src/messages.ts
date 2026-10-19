@@ -1804,6 +1804,7 @@ export interface Messages {
     floorFilter: string;
     noFloor: string;
     neverMarked: string;
+    reportProblem: string;
   };
 
   /** The Maintenance screen (RANZ-33). */
@@ -4721,6 +4722,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       floorFilter: "Kat",
       noFloor: "Katsız",
       neverMarked: "Hiç işaretlenmedi",
+      reportProblem: "Sorun bildir",
     },
     maintenance: {
       heading:
@@ -7742,6 +7744,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       floorFilter: "Floor",
       noFloor: "No floor",
       neverMarked: "Never marked",
+      reportProblem: "Report a problem",
     },
     maintenance: {
       heading:
@@ -10710,6 +10713,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       floorFilter: "الطابق",
       noFloor: "بلا طابق",
       neverMarked: "لم تُعلَّم بعد",
+      reportProblem: "الإبلاغ عن مشكلة",
     },
     maintenance: {
       heading:

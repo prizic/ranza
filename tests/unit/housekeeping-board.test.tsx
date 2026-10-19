@@ -63,6 +63,7 @@ function screenOf(
   board: Board,
   locale: SupportedLocale,
   days: Record<string, RoomDay> = {},
+  reportHref: string | null = null,
 ) {
   return (
     <NextIntlClientProvider locale={locale} messages={messages[locale]}>
@@ -74,6 +75,7 @@ function screenOf(
         markLimit={60}
         narrowed={null}
         propertyName="Deniz Otel"
+        reportHref={reportHref}
         timeZone="Europe/Istanbul"
       />
     </NextIntlClientProvider>
@@ -86,9 +88,10 @@ function show(
   board: Board,
   locale: SupportedLocale = "en",
   days: Record<string, RoomDay> = {},
+  reportHref: string | null = null,
 ) {
   cleanup();
-  rerenderScreen = render(screenOf(board, locale, days)).rerender;
+  rerenderScreen = render(screenOf(board, locale, days, reportHref)).rerender;
 }
 
 /** The same mounted board, handed new props — what a revalidation does. */
@@ -388,5 +391,20 @@ describe("the housekeeping board", () => {
       "Never marked",
     );
     expect(screen.getByRole("row", { name: /102/ })).toHaveTextContent("2019");
+  });
+
+  it("offers a report-a-problem link on the room's row to somebody who may report (MAINT-10)", () => {
+    show(boardOf([room({})], false), "en", {}, "/en/maintenance?report=");
+    expect(
+      screen.getByRole("link", { name: "Report a problem" }),
+    ).toHaveAttribute(
+      "href",
+      "/en/maintenance?report=dd000004-0000-4000-8000-000000000001",
+    );
+
+    show(boardOf([room({})], true));
+    expect(
+      screen.queryByRole("link", { name: "Report a problem" }),
+    ).not.toBeInTheDocument();
   });
 });
