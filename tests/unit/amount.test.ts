@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  parseAmount,
   toMinorUnits,
   toTypedAmount,
 } from "../../apps/operator-workspace/src/lib/amount";
@@ -42,6 +43,51 @@ describe("toMinorUnits", () => {
   ])("refuses %j %s", (typed, currency) => {
     expect(toMinorUnits(typed, currency)).toBeNull();
   });
+});
+
+/**
+ * FIN-04: the grouping a person types is the grouping of the language of the
+ * screen, and a lone separator is read by that language.
+ */
+describe("toMinorUnits in the language of the screen", () => {
+  it.each([
+    ["1,250.00", "TRY", "en", 125000],
+    ["1,250", "TRY", "en", 125000],
+    ["1,250,000.5", "TRY", "en", 125000050],
+    ["1.250,00", "TRY", "tr", 125000],
+    ["1.250", "TRY", "tr", 125000],
+    ["1.250.000,5", "TRY", "tr", 125000050],
+    ["12,5", "TRY", "tr", 1250],
+    ["12.5", "TRY", "tr", 1250],
+    ["1,250.00", "TRY", "tr", 125000],
+    ["١٬٢٥٠٫٠٠", "TRY", "ar", 125000],
+    ["١٬٢٥٠", "TRY", "ar", 125000],
+    ["1,250", "TRY", "ar", 125000],
+    ["١٢,٥٠", "TRY", "ar", 1250],
+    ["1 250,00", "TRY", "tr", 125000],
+    ["12.345", "KWD", "en", 12345],
+    ["1.250", "KWD", "ar", 1250],
+  ])("reads %j %s typed in %s as %i", (typed, currency, locale, minor) => {
+    expect(toMinorUnits(typed, currency, locale)).toBe(minor);
+  });
+
+  it.each([
+    ["12.505", "TRY", "en", "decimals"],
+    ["12,505", "TRY", "tr", "decimals"],
+    ["1,2,3", "TRY", "en", "format"],
+    ["1,25,000", "TRY", "en", "format"],
+    ["12abc", "TRY", "en", "format"],
+    ["", "TRY", "en", "format"],
+    ["9999999999999", "TRY", "en", "size"],
+  ] as const)(
+    "refuses %j %s typed in %s because of its %s",
+    (typed, currency, locale, fault) => {
+      expect(parseAmount(typed, currency, locale)).toEqual({
+        ok: false,
+        fault,
+      });
+    },
+  );
 });
 
 describe("toTypedAmount", () => {
