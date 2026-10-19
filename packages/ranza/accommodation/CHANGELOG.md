@@ -15,5 +15,9 @@ everything lands under Unreleased.
   with a composite foreign key making a Unit in another Organization's Property
   unrepresentable.
 - `AccommodationUnitType`, mirroring the check constraint the module owns.
+- `UnitConfigurationError.field`, naming the input an add refused, so a screen
+  can point at it in its own words, and `@ranza/accommodation/numbering`, the
+  pure function that names a batch of rooms, which the Add rooms form previews
+  with.
 
 No query yet — nothing reads a Unit except through a Stay.

@@ -17,3 +17,9 @@ everything lands under Unreleased.
 - `markUnits`: marking one room or many, audited per room.
 - The inspection setting: an Organization default and a Property override,
   in `housekeeping_settings`, audited as `housekeeping.inspection_set`.
+
+### Removed
+
+- `HousekeepingCounts.ready`. It counted a room nobody can be put in, a room
+  somebody is in, so "Ready to let" on the board disagreed with Today's figure.
+  The screens count with `inRoomFilter("ready")`, the one definition.

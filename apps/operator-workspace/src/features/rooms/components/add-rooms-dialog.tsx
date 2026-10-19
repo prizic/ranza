@@ -110,7 +110,7 @@ export function AddRoomsDialog({
   return (
     <Dialog open={open} onOpenChange={requestOpenChange}>
       <DialogTrigger asChild>
-        <Button className="gap-2" size="sm">
+        <Button className="gap-2" data-testid="add-rooms-open" size="sm">
           <Plus aria-hidden="true" className="size-4" />
           {all("addRooms")}
         </Button>

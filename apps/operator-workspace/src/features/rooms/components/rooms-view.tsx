@@ -388,13 +388,13 @@ export function RoomsView({
             </div>
             <div
               aria-label={rp("showStates")}
-              className="flex flex-wrap items-center gap-1.5"
+              className="flex max-w-full items-center gap-1.5 overflow-x-auto scrollbar-none sm:flex-wrap"
               role="group"
             >
               {KIND_FILTERS.map((kind) => (
                 <Button
                   aria-pressed={kinds.has(kind)}
-                  className="min-h-11 md:min-h-0"
+                  className="min-h-11 shrink-0 md:min-h-0"
                   key={kind}
                   onClick={() => toggleKind(kind)}
                   size="sm"
@@ -836,13 +836,13 @@ function StatTile({
     <div className="flex flex-col justify-between rounded-3xl border border-slate-100 bg-card p-3 sm:rounded-[2rem] sm:p-5">
       <span
         className={cn(
-          "inline-flex size-8 items-center justify-center rounded-xl sm:size-10 sm:rounded-2xl",
+          "hidden size-10 items-center justify-center rounded-2xl sm:inline-flex",
           TILE_TONE[tone],
         )}
       >
-        <Icon aria-hidden="true" className="size-4 sm:size-5" />
+        <Icon aria-hidden="true" className="size-5" />
       </span>
-      <div className="mt-3 space-y-1 sm:mt-6">
+      <div className="space-y-1 sm:mt-6">
         <p className="flex items-baseline gap-2">
           <span className="text-3xl font-light tracking-tight tabular-nums sm:text-4xl md:text-5xl">
             {children}
