@@ -212,8 +212,12 @@ export function ChangeDepartureDialog({
           resetFromPreview.current = false;
           pinnedRef.current = fresh.version;
           setPinned({ version: fresh.version, endsOn: fresh.endsOn });
-          setEndsOn(fresh.endsOn ?? undefined);
-          setResets((n) => n + 1);
+          // The field is drawn again only for a day it does not show yet:
+          // drawing it again takes the focus the dialog gave it on opening.
+          if ((fresh.endsOn ?? undefined) !== endsOn) {
+            setEndsOn(fresh.endsOn ?? undefined);
+            setResets((n) => n + 1);
+          }
         }
         setRead({ state: "ready", preview: fresh });
       })

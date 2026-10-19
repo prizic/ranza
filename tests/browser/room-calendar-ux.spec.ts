@@ -513,7 +513,9 @@ test("closing a dialog opened from the details puts focus back on the button tha
   await change.click();
   const departure = page.getByRole("dialog", { name: "Change departure" });
   await expect(departure).toBeVisible();
-  // Escape goes to whatever holds focus: let the dialog take it first.
+  // The dialog gives its first field focus and keeps it there once the Stay's
+  // current dates have been read, rather than drawing the field again under it.
+  await expect(departure.getByText("Checking those nights…")).toBeHidden();
   await expect(departure.locator(":focus")).toHaveCount(1);
   await page.keyboard.press("Escape");
   await expect(departure).toBeHidden();
