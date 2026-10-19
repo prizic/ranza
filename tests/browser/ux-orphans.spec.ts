@@ -374,11 +374,14 @@ test.describe("tables and sub-navigation on a phone (HK-02, HK-08, ROOMS-11)", (
     await page.goto(`/en/rooms?property=${propertyId}`);
     const sections = page.getByRole("navigation", { name: "Sections" });
     await expect(sections).toBeVisible();
-    for (const link of await sections.getByRole("link").all()) {
-      const size = (await link.boundingBox())!;
-      expect(size.x).toBeGreaterThanOrEqual(0);
-      expect(size.x + size.width).toBeLessThanOrEqual(375);
-    }
+    // Six pages do not fit 375 px: the strip scrolls, says it has more to the
+    // end, and has the current page in view.
+    await expect(sections).toHaveAttribute("data-fade-end", "true");
+    const current = (await sections
+      .locator('[aria-current="page"]')
+      .boundingBox())!;
+    expect(current.x).toBeGreaterThanOrEqual(0);
+    expect(current.x + current.width).toBeLessThanOrEqual(375);
     await page.screenshot({
       path: path.join(EVIDENCE, "rooms-sections-375.png"),
     });
