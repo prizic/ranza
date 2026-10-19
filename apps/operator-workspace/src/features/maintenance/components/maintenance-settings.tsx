@@ -48,12 +48,17 @@ const RETURN_AS: readonly ReturnAs[] = ["dirty", "clean", "inspected"];
  * all of them; saving this Property's own answers changes this Property only,
  * and the button says so. Controls the reader may not use are disabled with
  * the reason beside them, never hidden: the answer is what their board obeys.
+ *
+ * `embedded` is for a screen that draws its own card around it (Configuration):
+ * the title and hint are then that card's.
  */
 export function MaintenanceSettingsCard({
+  embedded = false,
   locale,
   propertyId,
   settings,
 }: {
+  embedded?: boolean;
   locale: SupportedLocale;
   propertyId: string;
   settings: Settings;
@@ -133,17 +138,8 @@ export function MaintenanceSettingsCard({
     returnAs: t("returnsAs"),
   };
 
-  return (
-    <Card className="grid gap-5 p-5">
-      <div className="grid gap-1">
-        {/* h3: this card is one of the Maintenance board's own tabs, under
-            the board's h2 (one-h1-per-page: patterns.tsx). */}
-        <h3 className="text-step-0 font-semibold">{t("settingsTitle")}</h3>
-        <p className="max-w-prose text-step--1 text-muted-foreground">
-          {t("settingsHint")}
-        </p>
-      </div>
-
+  const body = (
+    <>
       {QUESTIONS.map((question) => {
         const own = propertyDraft[question];
         const inherited = organizationDraft[question];
@@ -159,7 +155,7 @@ export function MaintenanceSettingsCard({
               {labels[question]}
             </legend>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-1.5">
+              <div className="grid min-w-0 gap-1.5">
                 <Label htmlFor={`${question}-organization`}>
                   {t("organizationDefault")}
                 </Label>
@@ -174,10 +170,14 @@ export function MaintenanceSettingsCard({
                   value={encode(inherited)}
                 >
                   <SelectTrigger
-                    className="w-full"
+                    className="w-full min-w-0"
                     id={`${question}-organization`}
                   >
-                    <SelectValue>{word(question, inherited)}</SelectValue>
+                    <SelectValue>
+                      <span className="truncate">
+                        {word(question, inherited)}
+                      </span>
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {choices(question).map((choice) => (
@@ -188,7 +188,7 @@ export function MaintenanceSettingsCard({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid gap-1.5">
+              <div className="grid min-w-0 gap-1.5">
                 <Label htmlFor={`${question}-property`}>
                   {t("thisProperty")}
                 </Label>
@@ -203,9 +203,14 @@ export function MaintenanceSettingsCard({
                   }
                   value={encode(own)}
                 >
-                  <SelectTrigger className="w-full" id={`${question}-property`}>
+                  <SelectTrigger
+                    className="w-full min-w-0"
+                    id={`${question}-property`}
+                  >
                     <SelectValue>
-                      {own === null ? inheritLabel : word(question, own)}
+                      <span className="truncate">
+                        {own === null ? inheritLabel : word(question, own)}
+                      </span>
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -307,6 +312,22 @@ export function MaintenanceSettingsCard({
             : save.outcome
         }
       />
+    </>
+  );
+
+  if (embedded) return <div className="grid gap-5">{body}</div>;
+
+  return (
+    <Card className="grid gap-5 p-5">
+      <div className="grid gap-1">
+        {/* h3: this card is one of the Maintenance board's own tabs, under
+            the board's h2 (one-h1-per-page: patterns.tsx). */}
+        <h3 className="text-step-0 font-semibold">{t("settingsTitle")}</h3>
+        <p className="max-w-prose text-step--1 text-muted-foreground">
+          {t("settingsHint")}
+        </p>
+      </div>
+      {body}
     </Card>
   );
 }

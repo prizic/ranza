@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { isolate, isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Wrench } from "lucide-react";
 import { PageHeader } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ALL_SCREENS, gateOf } from "../../../../lib/screens";
@@ -215,13 +215,19 @@ export default async function ConfigurationPage({
             </SettingsCard>
           ) : null}
           {maintenance ? (
-            <section className="scroll-mt-24" id="maintenance">
+            <SettingsCard
+              hint={t("maintenance.settingsHint")}
+              icon={Wrench}
+              id="maintenance"
+              title={t("maintenance.settingsTitle")}
+            >
               <MaintenanceSettingsCard
+                embedded
                 locale={locale}
                 propertyId={property.propertyId}
                 settings={maintenance}
               />
-            </section>
+            </SettingsCard>
           ) : null}
           {switchedOn.length > 0 ? (
             <SwitchedOnCard screens={switchedOn} />

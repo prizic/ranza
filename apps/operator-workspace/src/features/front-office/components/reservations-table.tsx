@@ -68,6 +68,7 @@ const JUST_CHANGED = "bg-primary/5 ring-1 ring-primary/30";
 export function ReservationsTable({
   changing,
   locale,
+  mayReadHistory,
   opening,
   propertyId,
   reservations,
@@ -80,6 +81,8 @@ export function ReservationsTable({
    */
   changing: string | null;
   locale: SupportedLocale;
+  /** Whether the viewer may open the Audit log at this Property (AUDIT-03). */
+  mayReadHistory: boolean;
   /**
    * A booking to open in its detail sheet on arrival, from `?open=` — where a
    * line elsewhere that names a booking links to it (CLOSE-05). Ignored unless
@@ -253,6 +256,7 @@ export function ReservationsTable({
       />
       <ReservationDetailSheet
         locale={locale}
+        mayReadHistory={mayReadHistory}
         onOpenChange={(open) => {
           if (open) return;
           setSelectedReservation(null);

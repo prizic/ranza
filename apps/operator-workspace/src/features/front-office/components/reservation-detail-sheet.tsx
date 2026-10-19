@@ -8,6 +8,7 @@ import {
   CalendarClock,
   Clock,
   ExternalLink,
+  History,
   Mail,
   MapPin,
   Phone,
@@ -59,6 +60,7 @@ function nightsBetween(from: string, to: string): number {
 
 export function ReservationDetailSheet({
   locale,
+  mayReadHistory,
   onOpenChange,
   open,
   propertyId,
@@ -66,6 +68,8 @@ export function ReservationDetailSheet({
   today,
 }: {
   locale: SupportedLocale;
+  /** Whether the viewer may open the Audit log here, where History leads. */
+  mayReadHistory: boolean;
   onOpenChange: (open: boolean) => void;
   open: boolean;
   propertyId: string;
@@ -324,6 +328,18 @@ export function ReservationDetailSheet({
                 stayId={stayId}
                 unitName={displayUnit}
               />
+            ) : null}
+            {mayReadHistory ? (
+              <Button asChild size="sm" variant="outline">
+                <Link
+                  className="flex items-center gap-1.5"
+                  href={`${localizeHref(locale, "audit-log")}?property=${encodeURIComponent(propertyId)}&subject=${encodeURIComponent(reservation.reservationId)}`}
+                  prefetch={false}
+                >
+                  <History aria-hidden="true" className="size-4" />
+                  {t("reservationHistory")}
+                </Link>
+              </Button>
             ) : null}
             {/* Everything the row's menu does, where the booking is being
                 read: change, no-show, cancel, the Folio and the room map. */}

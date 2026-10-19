@@ -14,7 +14,9 @@ import {
   permittedProperties,
   requireViewer,
   reservations,
+  screenProperties,
 } from "../../../../server/viewer";
+import { gateOf } from "../../../../lib/screens";
 import { frontDeskProperty } from "../../../../server/front-desk";
 
 /** Adding, blocking and splitting rooms (accommodation_units' write policies). */
@@ -103,6 +105,10 @@ export default async function ReservationsPage({
       ? `${localizeHref(locale, "rooms")}?property=${property.propertyId}`
       : null;
 
+  const mayReadHistory = (await screenProperties(gateOf("audit-log"))).some(
+    (permitted) => permitted.propertyId === property.propertyId,
+  );
+
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -130,6 +136,7 @@ export default async function ReservationsPage({
       <ReservationsTable
         changing={search.change ?? null}
         locale={locale}
+        mayReadHistory={mayReadHistory}
         opening={search.open ?? null}
         propertyId={property.propertyId}
         reservations={await reservations(property.propertyId)}

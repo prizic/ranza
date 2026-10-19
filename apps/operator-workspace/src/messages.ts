@@ -285,6 +285,7 @@ export interface Messages {
   dueToday: string;
   viewDetails: string;
   reservationDetails: string;
+  reservationHistory: string;
   stayTimeline: string;
   contactDetails: string;
   financialDetails: string;
@@ -1953,7 +1954,6 @@ export interface Messages {
     saved: string;
     settingRefused: string;
     defaultNeedsReach: string;
-    settingReadOnly: string;
     awaitingInspection: string;
     inspectionReadOnlyOn: string;
     inspectionReadOnlyOff: string;
@@ -3174,6 +3174,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     dueToday: "Bugün çıkış",
     viewDetails: "Ayrıntıları görüntüle",
     reservationDetails: "Rezervasyon ayrıntıları",
+    reservationHistory: "Geçmiş",
     stayTimeline: "Konaklama zaman çizelgesi",
     contactDetails: "İletişim bilgileri",
     financialDetails: "Ücret ve hesap bilgileri",
@@ -5067,7 +5068,6 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Bu ayar değiştirilemedi. Şu an gördüğünüz, geçerli olandır.",
       defaultNeedsReach:
         "Organizasyon ayarını yalnızca tüm tesislere erişimi olan biri değiştirebilir.",
-      settingReadOnly: "Bunu bir yönetici değiştirebilir.",
       awaitingInspection: "Kontrol bekliyor",
       inspectionReadOnlyOn:
         "Bu tesiste temizlenen bir oda, satışa hazır sayılmadan önce kontrol bekler. Bunu bir yönetici değiştirebilir.",
@@ -6457,6 +6457,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     dueToday: "Due today",
     viewDetails: "View details",
     reservationDetails: "Reservation details",
+    reservationHistory: "History",
     stayTimeline: "Stay timeline",
     contactDetails: "Contact details",
     financialDetails: "Billing & rate details",
@@ -8363,7 +8364,6 @@ export const messages: Record<SupportedLocale, Messages> = {
         "That setting couldn't be changed. What you see now is what applies.",
       defaultNeedsReach:
         "Only someone who reaches every Property can change the Organization's setting.",
-      settingReadOnly: "A manager can change this.",
       awaitingInspection: "Awaiting inspection",
       inspectionReadOnlyOn:
         "A cleaned room at this Property waits for an inspection before it is ready to let. A manager can change this.",
@@ -9742,6 +9742,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     dueToday: "مغادرة اليوم",
     viewDetails: "عرض التفاصيل",
     reservationDetails: "تفاصيل الحجز",
+    reservationHistory: "السجل",
     stayTimeline: "الجدول الزمني للإقامة",
     contactDetails: "بيانات الاتصال",
     financialDetails: "تفاصيل الفاتورة والأسعار",
@@ -11604,7 +11605,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       settingRefused: "تعذّر تغيير هذا الإعداد. ما تراه الآن هو المطبَّق.",
       defaultNeedsReach:
         "لا يمكن تغيير إعداد المؤسسة إلا لمن يصل إلى جميع العقارات.",
-      settingReadOnly: "يمكن للمدير تغيير هذا.",
       awaitingInspection: "بانتظار الفحص",
       inspectionReadOnlyOn:
         "الغرفة المنظَّفة في هذا العقار تنتظر الفحص قبل أن تصبح جاهزة للتأجير. يمكن للمدير تغيير هذا.",
