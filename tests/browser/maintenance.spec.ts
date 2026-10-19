@@ -339,7 +339,7 @@ test("the board groups requests by state, hides cancelled ones behind a filter, 
   await expect(progress).toContainText("Board in progress");
   await expect(progress).toContainText(unitName);
   await expect(progress).toContainText("This week");
-  await expect(progress).toContainText(EMAIL);
+  await expect(progress).toContainText("Deniz");
   await expect(card("Board new")).toContainText("Urgent");
   await expect(card("Board new")).toContainText("Not assigned");
 
@@ -755,7 +755,10 @@ test("the board reads right to left in Arabic", async ({ page }) => {
   // board's own heading sits under it.
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(
-    page.getByRole("heading", { level: 2, name: /^الصيانة في/ }),
+    page.getByRole("heading", {
+      level: 2,
+      name: /^المشكلات المُبلَّغ عنها هنا/,
+    }),
   ).toBeVisible();
 
   // And the board inside the tabs mirrors too: a Radix primitive takes its
