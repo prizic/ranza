@@ -76,7 +76,7 @@ export function PortfolioView({
   const summary = summarize(data);
   const ordered = sortProperties(properties, sort);
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <PageHeader
         aside={<p className="text-sm text-muted-foreground">{asOf}</p>}
       >
@@ -104,7 +104,7 @@ export function PortfolioView({
       ) : (
         <ul
           aria-label={t("listLabel")}
-          className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+          className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
         >
           {ordered.map((property) => (
             <PropertyCard
