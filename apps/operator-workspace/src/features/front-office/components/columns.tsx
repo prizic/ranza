@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
@@ -20,6 +20,7 @@ import {
   AvatarFallback,
   DataTableColumnHeader,
   StatusBadge,
+  type ColumnHeaderLabels,
   type StatusTone,
 } from "@ranza/ui";
 import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
@@ -165,12 +166,34 @@ function nightsBetween(from: string, to: string): number {
   );
 }
 
+type Translate = ReturnType<typeof useTranslations<never>>;
+
+/*
+ * Each list's columns are built once per locale and Property, not once per
+ * render. A cell renderer is a component to React, so a new function on every
+ * render is a new component: each reading of a list — every thirty seconds,
+ * and after every check-in — mounted every row's controls afresh, taking the
+ * desk's focus and any question a row was asking with it.
+ */
+
 export function useArrivalColumns(
   locale: SupportedLocale,
   propertyId: string,
 ): ColumnDef<ArrivalRow, unknown>[] {
   const t = useTranslations();
   const sort = useSortLabels();
+  return useMemo(
+    () => arrivalColumns(t, sort, locale, propertyId),
+    [t, sort, locale, propertyId],
+  );
+}
+
+function arrivalColumns(
+  t: Translate,
+  sort: ColumnHeaderLabels,
+  locale: SupportedLocale,
+  propertyId: string,
+): ColumnDef<ArrivalRow, unknown>[] {
   return [
     {
       accessorKey: "guestName",
@@ -486,6 +509,18 @@ export function useDepartureColumns(
 ): ColumnDef<Departure, unknown>[] {
   const t = useTranslations();
   const sort = useSortLabels();
+  return useMemo(
+    () => departureColumns(t, sort, locale, propertyId),
+    [t, sort, locale, propertyId],
+  );
+}
+
+function departureColumns(
+  t: Translate,
+  sort: ColumnHeaderLabels,
+  locale: SupportedLocale,
+  propertyId: string,
+): ColumnDef<Departure, unknown>[] {
   return [
     {
       accessorKey: "guestName",
@@ -798,6 +833,19 @@ export function useReservationColumns(
 ): ColumnDef<ReservationListRow, unknown>[] {
   const t = useTranslations();
   const sort = useSortLabels();
+  return useMemo(
+    () => reservationColumns(t, sort, locale, propertyId, today),
+    [t, sort, locale, propertyId, today],
+  );
+}
+
+function reservationColumns(
+  t: Translate,
+  sort: ColumnHeaderLabels,
+  locale: SupportedLocale,
+  propertyId: string,
+  today: string | null | undefined,
+): ColumnDef<ReservationListRow, unknown>[] {
   return [
     {
       accessorKey: "guestName",

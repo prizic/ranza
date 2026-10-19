@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import type { ColumnHeaderLabels, DataTableLabels } from "@ranza/ui";
 
@@ -67,9 +68,13 @@ export function useTableLabels(): DataTableLabels {
  */
 export function useSortLabels(): ColumnHeaderLabels {
   const t = useTranslations("table");
-  return {
-    clearSort: t("clearSort"),
-    sortAscending: t("sortAscending"),
-    sortDescending: t("sortDescending"),
-  };
+  // The same object while the locale holds: column hooks memoize on it.
+  return useMemo(
+    () => ({
+      clearSort: t("clearSort"),
+      sortAscending: t("sortAscending"),
+      sortDescending: t("sortDescending"),
+    }),
+    [t],
+  );
 }
