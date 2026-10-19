@@ -1,10 +1,3 @@
-import {
-  CheckInDayClosedError,
-  CheckInReversalError,
-  StayHasChargesError,
-  StayMovedError,
-} from "@ranza/reservations";
-
 /**
  * What withdrawing a check-in can come back as.
  *
@@ -29,6 +22,23 @@ export type ReverseCheckInOutcome =
   | "refused";
 
 /**
+ * The module's refusals by the name each sets on itself: the specific ones are
+ * `CheckInReversalError`s, and a name is exact where `instanceof` would need
+ * them asked in the right order. By name and not by class because a Server
+ * Action is bundled apart from the page that built the module, so one class is
+ * two and `instanceof` says no about an error that plainly is one.
+ */
+const REFUSALS: ReadonlyMap<
+  string,
+  "charges" | "dayClosed" | "moved" | "refused"
+> = new Map([
+  ["StayHasChargesError", "charges"],
+  ["CheckInDayClosedError", "dayClosed"],
+  ["StayMovedError", "moved"],
+  ["CheckInReversalError", "refused"],
+]);
+
+/**
  * Which refusal an error is — and `null` when it is not a refusal at all.
  *
  * A pure function, and null rather than `refused` for the failure that matters:
@@ -49,11 +59,6 @@ export type ReverseCheckInOutcome =
 export function undoOutcomeFor(
   error: unknown,
 ): "charges" | "dayClosed" | "moved" | "refused" | null {
-  // Order matters: both specific errors extend CheckInReversalError, so they
-  // have to be asked first or they are answered as the general one.
-  if (error instanceof StayHasChargesError) return "charges";
-  if (error instanceof CheckInDayClosedError) return "dayClosed";
-  if (error instanceof StayMovedError) return "moved";
-  if (error instanceof CheckInReversalError) return "refused";
-  return null;
+  if (!(error instanceof Error)) return null;
+  return REFUSALS.get(error.name) ?? null;
 }

@@ -1,12 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import {
-  FolioAmountError,
-  FolioWriteError,
-  PAYMENT_METHODS,
-  type PaymentMethod,
-} from "@ranza/folios";
+import { PAYMENT_METHODS, type PaymentMethod } from "@ranza/folios";
 import { isSupportedLocale } from "@ranza/i18n";
 import { parseAmount, type AmountFault } from "../lib/amount";
 import { getComposition } from "./composition";
@@ -71,10 +66,11 @@ function failed(
   subject: Record<string, string>,
   error: unknown,
 ): FinanceOutcome {
-  if (
-    !(error instanceof FolioWriteError) ||
-    error instanceof FolioAmountError
-  ) {
+  // By name and not by class: a Server Action is bundled apart from the page
+  // that built the module, so the same class can be two and `instanceof` says
+  // no about a refusal that plainly is one. `FolioAmountError` has a name of
+  // its own, which is how it stays the one recorded.
+  if (!(error instanceof Error) || error.name !== "FolioWriteError") {
     console.error(`${command} failed unexpectedly`, subject, error);
   }
   return "refused";

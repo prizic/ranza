@@ -43,6 +43,28 @@ describe("the refusals this screen knows", () => {
   });
 });
 
+describe("a refusal thrown by another copy of the module", () => {
+  // A dev server can bundle the module apart from the file that asks, so the
+  // class that threw is not the class imported here and `instanceof` says no.
+  function copyOf(name: string): Error {
+    const copy = new Error("thrown by the other copy");
+    copy.name = name;
+    return copy;
+  }
+
+  it("is still the refusal its name says", () => {
+    expect(undoOutcomeFor(copyOf("StayHasChargesError"))).toBe("charges");
+    expect(undoOutcomeFor(copyOf("CheckInDayClosedError"))).toBe("dayClosed");
+    expect(undoOutcomeFor(copyOf("StayMovedError"))).toBe("moved");
+    expect(undoOutcomeFor(copyOf("CheckInReversalError"))).toBe("refused");
+  });
+
+  it("is not made one by a name that only happens to be an object's own", () => {
+    expect(undoOutcomeFor(copyOf("constructor"))).toBeNull();
+    expect(undoOutcomeFor(copyOf("toString"))).toBeNull();
+  });
+});
+
 describe("an error this module never raised", () => {
   // Each of these is a real shape: a driver error, a rejection with no error in
   // it, and a rejection with nothing at all.
