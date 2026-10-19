@@ -473,6 +473,13 @@ test("from a page with no Property named, the rail does not offer Housekeeping w
 
   // HK-S1-24 through the typed address: the screen is not on there, and the
   // switcher still names this Property rather than the first that has it.
+  //
+  // Typed from a blank page, as an address is. Left from Today, the request
+  // makes the development server compile, Today's Fast Refresh client hears
+  // it and navigates Today again, and that cancels this navigation with
+  // ERR_ABORTED — in CI's trace, 24 ms after it started. Only a page left
+  // mid-compile does this, and only under `next dev`.
+  await page.goto("about:blank");
   await page.goto(`/en/housekeeping?property=${named}`);
   await expect(page.getByRole("table")).toHaveCount(0);
   await expect(switcher).toContainText(name);
