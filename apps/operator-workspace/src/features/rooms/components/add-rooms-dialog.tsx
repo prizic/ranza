@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
-import { bedLetters, roomNumbers } from "@ranza/accommodation/numbering";
+import { bedLetters, roomNumbers } from "../../../server/room-numbers";
 import {
   Button,
   Checkbox,
