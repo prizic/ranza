@@ -1,6 +1,7 @@
 import { withOrganizationContext } from "@ranza/db";
 import { recordWithin, type AuditClient } from "@ranza/platform-audit";
 import {
+  DATA_EXPORT_CREATE_PERMISSION,
   DataExportInputError,
   DataExportRefusedError,
   EXPORT_FORMATS,
@@ -8,6 +9,8 @@ import {
   SCHEDULE_NAME,
   type CreateScheduleInput,
   type DataExportRecord,
+  type ExportAbilities,
+  type ExportRange,
   type ExportFailureReason,
   type ExportFile,
   type ExportFormat,
@@ -59,6 +62,8 @@ interface RawDataExport {
   requester_name: string;
   resource_types: string[];
   format: string;
+  range_from: string | null;
+  range_to: string | null;
   status: string;
   trigger_type: string;
   schedule_id: string | null;
@@ -83,6 +88,7 @@ interface RawExportSchedule {
   frequency: string;
   status: string;
   last_run_at: Date | null;
+  last_run_error: string | null;
   next_run_at: Date;
   created_at: Date;
 }
@@ -95,6 +101,10 @@ function mapDataExport(row: RawDataExport): DataExportRecord {
     requesterName: row.requester_name,
     resourceTypes: row.resource_types as ExportResourceType[],
     format: row.format as ExportFormat,
+    range:
+      row.range_from === null && row.range_to === null
+        ? null
+        : { from: row.range_from, to: row.range_to },
     status: row.status as ExportStatus,
     triggerType: row.trigger_type as ExportTriggerType,
     scheduleId: row.schedule_id,
@@ -125,6 +135,7 @@ function mapExportSchedule(row: RawExportSchedule): ExportScheduleRecord {
     frequency: row.frequency as ScheduleFrequency,
     status: row.status as ScheduleStatus,
     lastRunAt: row.last_run_at,
+    lastRunError: row.last_run_error as ExportFailureReason | null,
     nextRunAt: row.next_run_at,
     createdAt: row.created_at,
   };
@@ -133,7 +144,10 @@ function mapExportSchedule(row: RawExportSchedule): ExportScheduleRecord {
 /** Datasets and format as the database would hold them, or the reason it would not. */
 function assertRequest(resourceTypes: readonly string[], format: string): void {
   if (resourceTypes.length === 0) {
-    throw new DataExportInputError("at least one dataset must be chosen");
+    throw new DataExportInputError(
+      "at least one dataset must be chosen",
+      "no_datasets",
+    );
   }
   const known: readonly string[] = EXPORT_RESOURCE_TYPES;
   if (
@@ -142,11 +156,51 @@ function assertRequest(resourceTypes: readonly string[], format: string): void {
   ) {
     throw new DataExportInputError(
       "the datasets chosen are not a set of known ones",
+      "unknown_dataset",
     );
   }
   if (!(EXPORT_FORMATS as readonly string[]).includes(format)) {
-    throw new DataExportInputError("that format is not offered");
+    throw new DataExportInputError(
+      "that format is not offered",
+      "unknown_format",
+    );
   }
+}
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Whether `YYYY-MM-DD` names a day that exists, which `2026-02-30` does not. */
+function isDay(value: string): boolean {
+  if (!DAY.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return (
+    !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value)
+  );
+}
+
+/**
+ * The days a request names, as the database would hold them: real days, the
+ * first not after the last, and none at all when neither is given.
+ */
+function assertRange(
+  range: ExportRange | null | undefined,
+): ExportRange | null {
+  const from = range?.from || null;
+  const to = range?.to || null;
+  if (from === null && to === null) return null;
+  if ((from !== null && !isDay(from)) || (to !== null && !isDay(to))) {
+    throw new DataExportInputError(
+      "a range is made of days",
+      "range_not_a_day",
+    );
+  }
+  if (from !== null && to !== null && from > to) {
+    throw new DataExportInputError(
+      "a range cannot end before it starts",
+      "range_backwards",
+    );
+  }
+  return { from, to };
 }
 
 /** The Organization of a Property the acting Staff Member reaches, or a refusal. */
@@ -159,6 +213,36 @@ async function organizationOf(
      where id = ${propertyId}::uuid`;
   if (!property) throw new DataExportRefusedError();
   return property.organization_id;
+}
+
+/**
+ * What the acting Staff Member may ask for in an Organization, from the same
+ * functions the insert policy asks (`app.has_organization_permission`,
+ * `app.may_export`): so that a refusal can name what it will not cover, and a
+ * form can say so before it is pressed. The policy still decides every request;
+ * this decides nothing.
+ */
+async function abilitiesWithin(
+  tx: AuditClient,
+  organizationId: string,
+): Promise<ExportAbilities> {
+  const rows = await tx.$queryRaw<{ resource: string; allowed: boolean }[]>`
+    select resource, app.may_export(${organizationId}::uuid, array[resource]) as allowed
+      from unnest(${[...EXPORT_RESOURCE_TYPES]}::text[]) as resource`;
+  const [create] = await tx.$queryRaw<{ allowed: boolean }[]>`
+    select app.has_organization_permission(
+             ${organizationId}::uuid, ${DATA_EXPORT_CREATE_PERMISSION}) as allowed`;
+  const mayCreate = create?.allowed === true;
+  const allowedBy = new Map(rows.map((row) => [row.resource, row.allowed]));
+  return {
+    mayCreate,
+    datasets: Object.fromEntries(
+      EXPORT_RESOURCE_TYPES.map((type) => [
+        type,
+        mayCreate && allowedBy.get(type) === true,
+      ]),
+    ) as ExportAbilities["datasets"],
+  };
 }
 
 async function emailOf(tx: AuditClient, userId: string): Promise<string> {
@@ -182,7 +266,8 @@ export function createDataExportModule({ db }: DataExportDeps) {
       return withOrganizationContext(db, { userId }, async (tx) => {
         const rows = await tx.$queryRaw<RawDataExport[]>`
           select id, organization_id, requester_id, requester_name, resource_types,
-                 format, status, trigger_type, schedule_id, file_name,
+                 format, range_from::text as range_from, range_to::text as range_to,
+                 status, trigger_type, schedule_id, file_name,
                  file_size_bytes, record_counts, error, expires_at,
                  requested_at, completed_at, created_at
             from public.data_exports
@@ -195,6 +280,20 @@ export function createDataExportModule({ db }: DataExportDeps) {
       });
     },
 
+    /**
+     * What the acting Staff Member may ask for from this Property: asked of the
+     * same functions the insert policy asks, so a form can say which datasets
+     * it will refuse before anybody presses it.
+     */
+    async exportAbilities(
+      userId: string,
+      propertyId: string,
+    ): Promise<ExportAbilities> {
+      return withOrganizationContext(db, { userId }, async (tx) =>
+        abilitiesWithin(tx, await organizationOf(tx, propertyId)),
+      );
+    },
+
     /** One export, without its file. */
     async getExport(
       userId: string,
@@ -203,7 +302,8 @@ export function createDataExportModule({ db }: DataExportDeps) {
       return withOrganizationContext(db, { userId }, async (tx) => {
         const [row] = await tx.$queryRaw<RawDataExport[]>`
           select id, organization_id, requester_id, requester_name, resource_types,
-                 format, status, trigger_type, schedule_id, file_name,
+                 format, range_from::text as range_from, range_to::text as range_to,
+                 status, trigger_type, schedule_id, file_name,
                  file_size_bytes, record_counts, error, expires_at,
                  requested_at, completed_at, created_at
             from public.data_exports
@@ -224,6 +324,7 @@ export function createDataExportModule({ db }: DataExportDeps) {
       input: RequestExportInput,
     ): Promise<DataExportRecord> {
       assertRequest(input.resourceTypes, input.format);
+      const range = assertRange(input.range);
       return withOrganizationContext(db, { userId }, async (tx) => {
         const organizationId = await organizationOf(tx, propertyId);
         const requesterName = requesterLabel(
@@ -231,18 +332,39 @@ export function createDataExportModule({ db }: DataExportDeps) {
           await emailOf(tx, userId),
         );
 
+        // Asked before the insert, because a refused insert aborts the
+        // transaction and leaves nothing to ask afterwards. The policy below
+        // still decides; this only learns what to say.
+        const abilities = await abilitiesWithin(tx, organizationId);
+        const uncovered = input.resourceTypes.filter(
+          (type) => !abilities.datasets[type],
+        );
+        if (uncovered.length > 0) throw new DataExportRefusedError(uncovered);
+
+        // The days mean the clock of the Property the request is made from,
+        // as the audit screen's date filter does.
+        const [property] = range
+          ? await tx.$queryRaw<{ timezone: string }[]>`
+              select timezone from public.properties
+               where id = ${propertyId}::uuid`
+          : [];
+
         let created: RawDataExport | undefined;
         try {
           [created] = await tx.$queryRaw<RawDataExport[]>`
             insert into public.data_exports
-              (organization_id, requester_id, requester_name, resource_types, format)
+              (organization_id, requester_id, requester_name, resource_types,
+               format, range_from, range_to, range_timezone)
             values
               (${organizationId}::uuid, ${userId}::uuid, ${requesterName},
-               ${input.resourceTypes}::text[], ${input.format})
+               ${input.resourceTypes}::text[], ${input.format},
+               ${range?.from ?? null}::date, ${range?.to ?? null}::date,
+               ${range ? (property?.timezone ?? "UTC") : null})
             returning id, organization_id, requester_id, requester_name,
-                      resource_types, format, status, trigger_type, schedule_id,
-                      file_name, file_size_bytes, record_counts, error,
-                      expires_at, requested_at, completed_at, created_at`;
+                      resource_types, format, range_from::text as range_from,
+                      range_to::text as range_to, status, trigger_type,
+                      schedule_id, file_name, file_size_bytes, record_counts,
+                      error, expires_at, requested_at, completed_at, created_at`;
         } catch (error) {
           if (raised(error, INSUFFICIENT_PRIVILEGE)) {
             throw new DataExportRefusedError();
@@ -260,6 +382,8 @@ export function createDataExportModule({ db }: DataExportDeps) {
           context: {
             resourceTypes: input.resourceTypes,
             format: input.format,
+            ...(range?.from ? { rangeFrom: range.from } : {}),
+            ...(range?.to ? { rangeTo: range.to } : {}),
           },
         });
         return mapDataExport(created);
@@ -317,14 +441,21 @@ export function createDataExportModule({ db }: DataExportDeps) {
     ): Promise<ExportScheduleRecord[]> {
       return withOrganizationContext(db, { userId }, async (tx) => {
         const rows = await tx.$queryRaw<RawExportSchedule[]>`
-          select id, organization_id, created_by, created_by_name, name,
-                 resource_types, format, frequency, status, last_run_at,
-                 next_run_at, created_at
-            from public.export_schedules
-           where organization_id = (
+          select schedule.id, schedule.organization_id, schedule.created_by,
+                 schedule.created_by_name, schedule.name, schedule.resource_types,
+                 schedule.format, schedule.frequency, schedule.status,
+                 schedule.last_run_at,
+                 (select run.error
+                    from public.data_exports as run
+                   where run.schedule_id = schedule.id
+                   order by run.requested_at desc, run.id
+                   limit 1) as last_run_error,
+                 schedule.next_run_at, schedule.created_at
+            from public.export_schedules as schedule
+           where schedule.organization_id = (
                    select organization_id from public.properties
                     where id = ${propertyId}::uuid)
-           order by created_at desc, id`;
+           order by schedule.created_at desc, schedule.id`;
         return rows.map(mapExportSchedule);
       });
     },
@@ -342,7 +473,10 @@ export function createDataExportModule({ db }: DataExportDeps) {
       assertRequest(input.resourceTypes, input.format);
       const name = input.name.trim();
       if (name.length < SCHEDULE_NAME.min || name.length > SCHEDULE_NAME.max) {
-        throw new DataExportInputError("a schedule needs a name");
+        throw new DataExportInputError(
+          "a schedule needs a name",
+          "name_missing",
+        );
       }
       return withOrganizationContext(db, { userId }, async (tx) => {
         const organizationId = await organizationOf(tx, propertyId);
@@ -350,6 +484,12 @@ export function createDataExportModule({ db }: DataExportDeps) {
           input.creatorName,
           await emailOf(tx, userId),
         );
+
+        const abilities = await abilitiesWithin(tx, organizationId);
+        const uncovered = input.resourceTypes.filter(
+          (type) => !abilities.datasets[type],
+        );
+        if (uncovered.length > 0) throw new DataExportRefusedError(uncovered);
 
         let created: RawExportSchedule | undefined;
         try {

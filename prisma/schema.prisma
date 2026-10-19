@@ -1234,6 +1234,11 @@ model DataExport {
   requesterName  String    @map("requester_name")
   resourceTypes  String[]  @map("resource_types")
   format         String    @default("csv")
+  /// The first and last day the dated datasets are cut to, in `rangeTimezone`.
+  /// Either may be missing; the clock is present exactly when a day is.
+  rangeFrom      DateTime? @map("range_from") @db.Date
+  rangeTo        DateTime? @map("range_to") @db.Date
+  rangeTimezone  String?   @map("range_timezone")
   status         String    @default("pending")
   triggerType    String    @default("on_demand") @map("trigger_type")
   scheduleId     String?   @map("schedule_id") @db.Uuid

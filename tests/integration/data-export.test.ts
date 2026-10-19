@@ -24,6 +24,7 @@ import { createPrismaClient } from "../../packages/db/src";
 import {
   createDataExportModule,
   createExportRunner,
+  DataExportInputError,
   DataExportRefusedError,
   type ExportFormat,
   type ExportResourceType,
@@ -234,6 +235,15 @@ async function produce(
   return requested.id;
 }
 
+/** The day a file is named for: today in UTC, as the database says it. */
+async function today(): Promise<string> {
+  return (
+    await row<{ day: string }>(
+      `select (now() at time zone 'utc')::date::text as day`,
+    )
+  ).day;
+}
+
 async function statusOf(exportId: string) {
   return row<{ status: string; error: string | null; contentIsNull: boolean }>(
     `select status, error, file_content is null as "contentIsNull"
@@ -266,7 +276,8 @@ describe("a request becomes a file", () => {
     const ready = await exports.getExport(OWNER, id);
     expect(ready).toMatchObject({
       status: "ready",
-      fileName: `export-${id.slice(0, 8)}.csv`,
+      fileName: `export-integration-guests-rooms-${await today()}.csv`,
+      range: null,
     });
     expect(ready!.recordCounts).toMatchObject({ rooms_beds: 2 });
     expect(ready!.expiresAt!.getTime()).toBeGreaterThan(
@@ -275,7 +286,9 @@ describe("a request becomes a file", () => {
 
     const file = await exports.downloadExport(OWNER, id);
     expect(file).not.toBeNull();
-    expect(file!.fileName).toBe(`export-${id.slice(0, 8)}.csv`);
+    expect(file!.fileName).toBe(
+      `export-integration-guests-rooms-${await today()}.csv`,
+    );
     expect(
       file!.content.startsWith("\uFEFF# dataset: residents_guests\r\n"),
     ).toBe(true);
@@ -306,7 +319,9 @@ describe("a request becomes a file", () => {
     await runner.processPendingExports();
 
     const file = (await exports.downloadExport(OWNER, id))!;
-    expect(file.fileName).toBe(`export-${id.slice(0, 8)}.json`);
+    expect(file.fileName).toBe(
+      `export-integration-folios-${await today()}.json`,
+    );
     const parsed = JSON.parse(file.content) as {
       folios_payments: {
         amount_minor: number;
@@ -374,6 +389,143 @@ describe("what the requester could read", () => {
       contentIsNull: true,
     });
     expect(await exports.downloadExport(AUDITOR, id)).toBeNull();
+  });
+});
+
+describe("a request that names a range", () => {
+  /** A day, as `YYYY-MM-DD`, this many days from the Property's own today. */
+  async function dayFromToday(offset: number): Promise<string> {
+    return (
+      await row<{ day: string }>(
+        `select (app.property_today($1::uuid) + $2::int)::text as day`,
+        P1,
+        offset,
+      )
+    ).day;
+  }
+
+  it("EXP-S1-50: is recorded with its days and its clock, audited, and read back", async () => {
+    const from = await dayFromToday(-3);
+    const to = await dayFromToday(3);
+    const requested = await exports.requestExport(OWNER, P1, {
+      resourceTypes: ["folios_payments"],
+      format: "csv",
+      range: { from, to },
+      requesterName: null,
+    });
+
+    expect(requested.range).toEqual({ from, to });
+    expect(
+      await row<{ range_timezone: string }>(
+        `select range_timezone from public.data_exports where id = $1::uuid`,
+        requested.id,
+      ),
+    ).toEqual({ range_timezone: "Europe/Istanbul" });
+    expect((await exports.getExport(OWNER, requested.id))!.range).toEqual({
+      from,
+      to,
+    });
+    expect(
+      (
+        await row<{ context: Record<string, unknown> }>(
+          `select context from audit.records
+            where action = 'data_export.requested' and subject_id = $1::uuid`,
+          requested.id,
+        )
+      ).context,
+    ).toMatchObject({ rangeFrom: from, rangeTo: to });
+  });
+
+  it("EXP-S1-52: cuts the dated datasets to the days, and the file says which", async () => {
+    const around = await exports.requestExport(OWNER, P1, {
+      resourceTypes: ["folios_payments"],
+      format: "csv",
+      range: { from: await dayFromToday(-1), to: await dayFromToday(1) },
+      requesterName: null,
+    });
+    const before = await exports.requestExport(OWNER, P1, {
+      resourceTypes: ["folios_payments"],
+      format: "csv",
+      range: { from: await dayFromToday(-30), to: await dayFromToday(-10) },
+      requesterName: null,
+    });
+    await runner.processPendingExports();
+
+    const inside = (await exports.downloadExport(OWNER, around.id))!;
+    expect(inside.content).toContain('-Minibar, ""late"" night');
+    expect(inside.fileName).toBe(
+      `export-integration-folios-${await dayFromToday(-1)}-to-${await dayFromToday(1)}-${await today()}.csv`,
+    );
+
+    const outside = (await exports.downloadExport(OWNER, before.id))!;
+    expect(outside.content).not.toContain("Minibar");
+    expect((await exports.getExport(OWNER, before.id))!.recordCounts).toEqual({
+      folios_payments: 0,
+    });
+  });
+
+  it("EXP-S1-50: a range that is not made of days, or ends before it starts, is told apart from a refusal", async () => {
+    await expect(
+      exports.requestExport(OWNER, P1, {
+        resourceTypes: ["audit_log"],
+        format: "csv",
+        range: { from: "2026-02-30", to: null },
+        requesterName: null,
+      }),
+    ).rejects.toMatchObject({
+      name: "DataExportInputError",
+      problem: "range_not_a_day",
+    });
+    await expect(
+      exports.requestExport(OWNER, P1, {
+        resourceTypes: ["audit_log"],
+        format: "csv",
+        range: { from: "2026-05-02", to: "2026-05-01" },
+        requesterName: null,
+      }),
+    ).rejects.toBeInstanceOf(DataExportInputError);
+    await expect(
+      exports.requestExport(OWNER, P1, {
+        resourceTypes: ["audit_log"],
+        format: "csv",
+        range: { from: "", to: "" },
+        requesterName: null,
+      }),
+    ).resolves.toMatchObject({ range: null });
+  });
+});
+
+describe("what the form may offer", () => {
+  it("EXP-S1-57: says which datasets a role will cover, the same answer the request would get", async () => {
+    expect(await exports.exportAbilities(ONE, P1)).toEqual({
+      mayCreate: true,
+      datasets: {
+        residents_guests: true,
+        reservations_stays: true,
+        rooms_beds: true,
+        folios_payments: true,
+        audit_log: false,
+      },
+    });
+    expect(
+      (await exports.exportAbilities(SCHEDULER, P1)).datasets,
+    ).toMatchObject({
+      audit_log: true,
+      folios_payments: false,
+      residents_guests: false,
+    });
+    await expect(exports.exportAbilities(STRANGER, P1)).rejects.toBeInstanceOf(
+      DataExportRefusedError,
+    );
+  });
+
+  it("EXP-S1-57: a refusal names the datasets the role would not cover, and only those", async () => {
+    await expect(
+      produce(ONE, ["residents_guests", "audit_log"]),
+    ).rejects.toMatchObject({
+      name: "DataExportRefusedError",
+      datasets: ["audit_log"],
+    });
   });
 });
 
