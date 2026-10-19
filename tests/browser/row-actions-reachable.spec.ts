@@ -117,10 +117,25 @@ for (const locale of ["en", "ar"] as const) {
           `${screen.name} scrolls the page sideways`,
         ).toBeLessThanOrEqual(0);
 
-        // A table with nothing to press in its rows scrolls sideways on a
-        // phone by design, and nothing in it is out of reach. At a laptop
-        // its last column must still be whole in the window.
-        if (screen.trigger === null && viewport.width < 768) continue;
+        // A table with nothing to press in its rows may scroll sideways
+        // below a laptop's width, and nothing in it is out of reach — but it
+        // must say that it does. At a laptop its last column must still be
+        // whole in the window.
+        if (screen.trigger === null && viewport.width < 1280) {
+          const scroller = page
+            .locator('[data-slot="table-container"]')
+            .first();
+          const overflows = await scroller.evaluate(
+            (element) => element.scrollWidth > element.clientWidth + 1,
+          );
+          if (overflows) {
+            await expect(
+              scroller.locator(".."),
+              `${screen.name} scrolls sideways and does not say so`,
+            ).toHaveAttribute("data-cue-end", "true");
+          }
+          continue;
+        }
 
         let measured = 0;
         for (const row of await rows.all()) {
