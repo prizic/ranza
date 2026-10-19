@@ -287,6 +287,28 @@ test.describe("every number on Today opens the list that explains it", () => {
     return count;
   }
 
+  /** The Finance list's tab for the Folios still open: the figure's own list. */
+  function openTab(page: Page): Locator {
+    return page
+      .getByRole("navigation", { name: "Folios shown" })
+      .getByRole("link", { name: "Open", exact: true });
+  }
+
+  /** The balances the Finance list shows, added: what the Today figure totals. */
+  async function balancesListed(page: Page): Promise<number> {
+    const table = page.locator("table").first();
+    const heads = await table.locator("thead th").allInnerTexts();
+    const column = heads.findIndex((head) => /balance/i.test(head));
+    expect(column, "the list has a Balance column").toBeGreaterThanOrEqual(0);
+    const cells = await table
+      .locator(`tbody tr td:nth-child(${column + 1})`)
+      .allInnerTexts();
+    return cells.reduce((sum, cell) => {
+      const amount = /(-?[\d,]+\.\d{2})/.exec(cell.split("\n")[0] ?? "");
+      return sum + Number(amount?.[1]?.replace(/,/g, "") ?? 0);
+    }, 0);
+  }
+
   /** The notice a narrowed list opens with, as numbers. */
   async function notice(page: Page): Promise<{ count: number; text: string }> {
     const element = page.getByTestId("list-filter-notice");
@@ -625,13 +647,14 @@ test.describe("every number on Today opens the list that explains it", () => {
     expect(integers(await folios.innerText())[0]).toBe(openFolios);
     await follow(page, folios);
     expect(await listed(page)).toBe(openFolios);
-    expect((await notice(page)).count).toBe(openFolios);
+    await expect(openTab(page)).toHaveAttribute("aria-current", "page");
 
     await openToday(page);
     const balance = figure(page, "finance", "Balance across open Folios");
     await follow(page, balance);
     expect(await listed(page)).toBe(openFolios);
-    expect((await notice(page)).text).toContain("255");
+    await expect(openTab(page)).toHaveAttribute("aria-current", "page");
+    expect(await balancesListed(page)).toBe(255);
   });
 
   test("the Organization strip is absent with a single Property", async ({

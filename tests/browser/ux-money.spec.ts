@@ -433,6 +433,8 @@ test.describe("Analytics (RANZ-70)", () => {
     const figures = page.locator("[data-figure]");
     await expect(figures).toHaveCount(3);
     for (let index = 0; index < 3; index++) {
+      // Streamed in: counted before it is laid out.
+      await expect(figures.nth(index)).toBeVisible();
       const box = await figures.nth(index).boundingBox();
       expect(
         box!.y + box!.height,
@@ -440,6 +442,7 @@ test.describe("Analytics (RANZ-70)", () => {
       ).toBeLessThanOrEqual(800);
     }
     // The notes come after the figures they explain.
+    await expect(page.getByTestId("days-waiting")).toBeVisible();
     const notes = await page.getByTestId("days-waiting").boundingBox();
     const last = await figures.nth(2).boundingBox();
     expect(notes!.y).toBeGreaterThan(last!.y);

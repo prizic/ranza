@@ -143,7 +143,14 @@ test("the board carries no sentence heading beside its title, and reads in Arabi
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Housekeeping",
   );
-  await expect(page.getByRole("heading", { level: 2 })).toHaveCount(0);
+  // The inspection setting under the board is a section of its own, with a
+  // heading of its own; nothing else on the page is headed.
+  await expect(page.getByRole("table")).toBeVisible();
+  await expect(
+    page
+      .getByRole("heading", { level: 2 })
+      .filter({ hasNotText: "Check rooms after cleaning" }),
+  ).toHaveCount(0);
 
   await page.goto(`/ar/housekeeping?property=${propertyId}`);
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");

@@ -4,6 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { psql } from "./local-database";
 import { signIn, testProperty } from "./front-desk";
+import { aDeskProperty, archiveMadeProperties } from "./ux-fixtures";
 
 /**
  * The room calendar, as the UX audit of 2026-10-11 found it (RANZ-59, with the
@@ -22,8 +23,10 @@ interface Scene {
   rooms: Record<string, Room>;
 }
 
-function aSetOfRooms(suffixes: readonly string[]): Scene {
-  const propertyId = testProperty();
+function aSetOfRooms(
+  suffixes: readonly string[],
+  propertyId = testProperty(),
+): Scene {
   const tag = `UX-${randomUUID().slice(0, 6)}`;
   const values = suffixes.map((suffix) => `('${tag}-${suffix}')`).join(", ");
   const found = psql(
@@ -151,6 +154,8 @@ async function capture(page: Page, name: string): Promise<void> {
     caret: "initial",
   });
 }
+
+test.afterAll(archiveMadeProperties);
 
 test("an overdue Guest's bar and details say they are still in the room tonight", async ({
   page,
@@ -437,7 +442,9 @@ test("the toolbar names its steps, keeps its two toggles on one line, and marks 
 test("a window with nothing booked says so under the grid, so the grid does not jump", async ({
   page,
 }) => {
-  const scene = aSetOfRooms(["A"]);
+  // The note is about the whole Property's window, and the shared test
+  // Property is booked open-endedly by other specs: it needs one of its own.
+  const scene = aSetOfRooms(["A"], aDeskProperty());
   aBooking(scene.rooms.A!, `Soon ${scene.tag}`, { from: 1, to: 3 });
   await page.setViewportSize({ width: 1200, height: 900 });
   await signIn(page);
@@ -504,9 +511,11 @@ test("closing a dialog opened from the details puts focus back on the button tha
 
   const change = drawer.getByRole("button", { name: "Change departure" });
   await change.click();
-  await expect(
-    page.getByRole("dialog", { name: "Change departure" }),
-  ).toBeVisible();
+  const departure = page.getByRole("dialog", { name: "Change departure" });
+  await expect(departure).toBeVisible();
+  // Escape goes to whatever holds focus: let the dialog take it first.
+  await expect(departure.locator(":focus")).toHaveCount(1);
   await page.keyboard.press("Escape");
+  await expect(departure).toBeHidden();
   await expect(change).toBeFocused();
 });
