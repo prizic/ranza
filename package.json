@@ -28,7 +28,7 @@
     "lint:boundaries": "depcruise --config .dependency-cruiser.cjs packages apps",
     "test": "pnpm test:unit && pnpm test:boundaries && pnpm check:docs && pnpm check:edge-cases",
     "test:boundaries": "node scripts/dependency-boundaries.mjs",
-    "test:browser": "playwright test",
+    "test:browser": "node scripts/test-browser.mjs",
     "test:integration": "vitest run --config vitest.integration.mts",
     "test:unit": "vitest run",
     "typecheck": "turbo run typecheck",
