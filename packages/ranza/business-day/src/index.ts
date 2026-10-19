@@ -17,6 +17,7 @@ export type {
   ClosedDay,
   CloseTheDay,
   DayCloserReport,
+  DaysWaiting,
   FolioLeftOpen,
   NightNotCharged,
   NightNotChargedReason,

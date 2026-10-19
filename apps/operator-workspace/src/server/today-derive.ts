@@ -1,3 +1,4 @@
+import type { DaysWaiting } from "@ranza/business-day";
 import type { AuditPage, WorkingDay } from "@ranza/core";
 import type { ChargesPosted, FolioSummary } from "@ranza/folios";
 import type {
@@ -247,6 +248,7 @@ export interface BookedAheadCard {
 }
 
 export type AttentionKind =
+  | "days_waiting"
   | "not_ready"
   | "blocked"
   | "urgent_repair"
@@ -274,7 +276,10 @@ export type NotReadyReason =
 
 export interface AttentionItem {
   kind: AttentionKind;
-  /** Null only for an urgent repair to equipment that is in no room. */
+  /**
+   * Null for an urgent repair to equipment that is in no room, and for days
+   * waiting to be closed, which are the whole Property's.
+   */
   unit: UnitLabel | null;
   guestName: string | null;
   /** The reservation or Stay the item opens at, when there is one. */
@@ -282,9 +287,12 @@ export interface AttentionItem {
   blocker: CheckInBlocker | null;
   /**
    * When the Guest was due to leave, for an overdue departure; when the room
-   * was due back, for a hold past its return.
+   * was due back, for a hold past its return; the oldest day still open, for
+   * days waiting to be closed.
    */
   dueOn: string | null;
+  /** How many days are waiting to be closed. */
+  waiting?: number;
   /** Whole days an overdue Guest is past their date, on the Property's clock. */
   overdueDays?: number;
   /** For a room that is not ready: why, when the board says. */
@@ -393,6 +401,8 @@ export interface Needs {
   charges: boolean;
   /** Booked occupancy ahead, from the room calendar (TD-S3-04). */
   calendar: boolean;
+  /** How many days wait to be closed: the desk's to close (TD-S7-11). */
+  closeDay: boolean;
 }
 
 export interface Capabilities {
@@ -425,6 +435,7 @@ export function needsFor(grants: Grants, capabilities: Capabilities): Needs {
     // that merely holds finance.manage_folio.
     charges: money && (focus === "manager" || focus === "finance"),
     calendar: capabilities.frontDesk && focus === "manager",
+    closeDay: capabilities.frontDesk && desk,
   };
 }
 
@@ -444,6 +455,7 @@ export interface TodayInput {
   activity?: Read<AuditPage>;
   charges?: Read<readonly ChargesPosted[]>;
   calendar?: Read<RoomCalendar>;
+  daysWaiting?: Read<DaysWaiting | null>;
 }
 
 /** Rows the clean-first queue and the movements list show, at most. */
@@ -759,13 +771,14 @@ function notReadyReason(
 }
 
 const ATTENTION_ORDER: Record<AttentionKind, number> = {
-  not_ready: 0,
-  blocked: 1,
-  urgent_repair: 2,
-  overdue: 3,
-  balance: 4,
-  overdue_return: 5,
-  out_of_service: 6,
+  days_waiting: 0,
+  not_ready: 1,
+  blocked: 2,
+  urgent_repair: 3,
+  overdue: 4,
+  balance: 5,
+  overdue_return: 6,
+  out_of_service: 7,
 };
 
 type Hold = TodayMaintenance["holds"][number];
@@ -873,7 +886,8 @@ function maintenanceAttention(
 /**
  * What needs somebody, across everything the viewer's permissions touch
  * (TD-S1-13 to TD-S1-17), ordered by urgency. A departure both overdue and
- * owing is one item, not two.
+ * owing is one item, not two. Days waiting to be closed lead (TD-S7-11): they
+ * are the night's work left undone, and the screen never folds them away.
  */
 export function attentionFrom(
   grants: Grants,
@@ -884,6 +898,7 @@ export function attentionFrom(
   board: HousekeepingBoard | null,
   maintenance: TodayMaintenance | null,
   businessDate: string,
+  daysWaiting: DaysWaiting | null,
 ): AttentionItem[] {
   const items: AttentionItem[] = [];
   const desk = grants.frontDesk || grants.manager;
@@ -894,6 +909,16 @@ export function attentionFrom(
     blocker: null,
     dueOn: null,
   };
+
+  if (daysWaiting) {
+    items.push({
+      ...base,
+      kind: "days_waiting",
+      unit: null,
+      dueOn: daysWaiting.oldest,
+      waiting: daysWaiting.count,
+    });
+  }
   // The clean-first queue already says, with its own action, which rooms a
   // housekeeper has to turn round for an arrival; saying it twice is noise.
   const queued = new Set(
@@ -1049,6 +1074,7 @@ export function deriveToday(input: TodayInput): TodaySummary {
         valueOf<HousekeepingBoard | null>(input.board, null),
         valueOf<TodayMaintenance | null>(input.maintenance, null),
         input.day.businessDate,
+        valueOf<DaysWaiting | null>(input.daysWaiting, null),
       ),
       // Only the reads attention is built from; how many have already gone
       // is not one of them.
@@ -1057,6 +1083,7 @@ export function deriveToday(input: TodayInput): TodaySummary {
         input.departures,
         input.units,
         input.maintenance,
+        input.daysWaiting,
       ].some(failed),
     },
   };

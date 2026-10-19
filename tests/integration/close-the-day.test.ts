@@ -486,6 +486,36 @@ describe("the day to close", () => {
   });
 });
 
+describe("the days waiting, as Today asks (CLOSE-06)", () => {
+  it("days_waiting_are_counted_from_the_day_after_the_last_close: yesterday where nothing was ever closed, the oldest of a backlog, and nothing once caught up", async () => {
+    const fresh = await aProperty();
+    expect(await days.daysWaiting(DESK, fresh)).toEqual({
+      oldest: await day(fresh, -1),
+      count: 1,
+    });
+
+    const behind = await aProperty();
+    await history(behind, [6, 5]);
+    expect(await days.daysWaiting(DESK, behind)).toEqual({
+      oldest: await day(behind, -4),
+      count: 4,
+    });
+
+    await days.closeDay(DESK, fresh, await day(fresh, -1), null);
+    expect(await days.daysWaiting(DESK, fresh)).toBeNull();
+  });
+
+  it("is nothing for a Property the viewer cannot reach with the front desk", async () => {
+    const property = await aProperty();
+    await owner.$executeRawUnsafe(
+      `update public.property_capabilities set enabled = false
+        where property_id = $1::uuid and capability_key = 'front_desk'`,
+      property,
+    );
+    expect(await days.daysWaiting(DESK, property)).toBeNull();
+  });
+});
+
 describe("a backlog held by one Guest (CLOSE-01)", () => {
   it("a_backlog_names_what_holds_each_day: one Stay holds every waiting day, a later booking only the days after its first night", async () => {
     const property = await aProperty();

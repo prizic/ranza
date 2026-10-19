@@ -1,4 +1,4 @@
-import { withOrganizationContext } from "@ranza/db";
+import { withOrganizationContext, type PrismaClient } from "@ranza/db";
 import { recordWithin } from "@ranza/platform-audit";
 import { publishWithin } from "@ranza/platform-outbox";
 import { FRONT_DESK_CAPABILITY } from "@ranza/reservations";
@@ -11,6 +11,7 @@ import {
   type BusinessDayClosed,
   type ClosedDay,
   type CloseTheDay,
+  type DaysWaiting,
   type FolioLeftOpen,
   type NightNotCharged,
   type NightsToCharge,
@@ -85,16 +86,79 @@ function calendarDay(value: string): string | null {
   return parsed.toISOString().slice(0, 10) === value ? value : null;
 }
 
+interface Backlog {
+  today: string;
+  dayToClose: string | null;
+  waiting: number;
+}
+
+/**
+ * The days waiting to be closed at one Property, or null when the viewer cannot
+ * reach it with the front desk.
+ *
+ * The day to close is the oldest one waiting: the day after the last close, or
+ * yesterday when nothing has been closed yet. Close the day and Today both ask
+ * this one query, so the two screens cannot count the backlog differently.
+ */
+async function backlogIn(
+  tx: Pick<PrismaClient, "$queryRaw">,
+  propertyId: string,
+): Promise<Backlog | null> {
+  const [row] = await tx.$queryRaw<Backlog[]>`
+    select to_char(today.day, 'YYYY-MM-DD')      as "today",
+           to_char(due.day, 'YYYY-MM-DD')        as "dayToClose",
+           coalesce(today.day - due.day, 0)::int as "waiting"
+    from public.properties as property
+    cross join lateral (
+      select app.property_today(property.id) as day
+    ) as today
+    cross join lateral (
+      select max(close.business_date) as day
+      from public.business_day_closes as close
+      where close.property_id = property.id
+    ) as last_close
+    cross join lateral (
+      select case
+               when last_close.day is null then today.day - 1
+               when last_close.day + 1 < today.day then last_close.day + 1
+             end as day
+    ) as due
+    where property.id = ${propertyId}::uuid
+      and app.can_use_capability(
+        property.id,
+        ${FRONT_DESK_CAPABILITY.moduleKey},
+        ${FRONT_DESK_CAPABILITY.capabilityKey}
+      )
+  `;
+  return row ?? null;
+}
+
 export function createBusinessDayModule(deps: BusinessDayDeps) {
+  /**
+   * The oldest day waiting to be closed and how many wait, or null when none
+   * does or the viewer cannot reach the Property with the front desk: Today's
+   * reminder, without the checklist it would take to say what holds them.
+   */
+  async function daysWaiting(
+    userId: string,
+    propertyId: string,
+  ): Promise<DaysWaiting | null> {
+    const backlog = await withOrganizationContext(deps.db, { userId }, (tx) =>
+      backlogIn(tx, propertyId),
+    );
+    return backlog?.dayToClose
+      ? { oldest: backlog.dayToClose, count: backlog.waiting }
+      : null;
+  }
+
   /**
    * The Close the day screen for one Property, or null when the viewer cannot
    * reach it with the front desk — the same answer for a Property that does not
    * exist, a lapsed Subscription, and one the viewer is not assigned to.
    *
-   * The day to close is the oldest one waiting: the day after the last close,
-   * or yesterday when nothing has been closed yet. The checklist is for that
-   * day, or for today while nothing waits, so the night shift can clear what
-   * would otherwise hold the close up at the cutoff.
+   * The checklist is for the day to close (`backlogIn`), or for today while
+   * nothing waits, so the night shift can clear what would otherwise hold the
+   * close up at the cutoff.
    *
    * What is open mirrors the stamp exactly — a booking whose first night has
    * come and nobody arrived, a Guest in house past their departure — so what the
@@ -106,24 +170,21 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
     propertyId: string,
   ): Promise<CloseTheDay | null> {
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
-      const [head] = await tx.$queryRaw<
+      const backlog = await backlogIn(tx, propertyId);
+      if (!backlog) return null;
+
+      const [property] = await tx.$queryRaw<
         {
-          today: string;
           timezone: string;
           cutoff: string;
-          dayToClose: string | null;
-          waiting: number;
           mayClose: boolean;
           mayCancel: boolean;
           mayReadMoney: boolean;
           currency: string;
         }[]
       >`
-        select to_char(today.day, 'YYYY-MM-DD')                   as "today",
-               property.timezone                                  as "timezone",
+        select property.timezone                                  as "timezone",
                to_char(property.business_date_cutoff, 'HH24:MI')  as "cutoff",
-               to_char(due.day, 'YYYY-MM-DD')                     as "dayToClose",
-               coalesce(today.day - due.day, 0)::int              as "waiting",
                app.has_organization_permission(
                  property.organization_id, 'front_desk.close_day') as "mayClose",
                app.has_organization_permission(
@@ -134,28 +195,10 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
                  property.organization_id, 'finance.manage_folio') as "mayReadMoney",
                trim(property.currency)                            as "currency"
         from public.properties as property
-        cross join lateral (
-          select app.property_today(property.id) as day
-        ) as today
-        cross join lateral (
-          select max(close.business_date) as day
-          from public.business_day_closes as close
-          where close.property_id = property.id
-        ) as last_close
-        cross join lateral (
-          select case
-                   when last_close.day is null then today.day - 1
-                   when last_close.day + 1 < today.day then last_close.day + 1
-                 end as day
-        ) as due
         where property.id = ${propertyId}::uuid
-          and app.can_use_capability(
-            property.id,
-            ${FRONT_DESK_CAPABILITY.moduleKey},
-            ${FRONT_DESK_CAPABILITY.capabilityKey}
-          )
       `;
-      if (!head) return null;
+      if (!property) return null;
+      const head = { ...backlog, ...property };
 
       const checklistDay = head.dayToClose ?? head.today;
 
@@ -502,7 +545,7 @@ export function createBusinessDayModule(deps: BusinessDayDeps) {
     });
   }
 
-  return { getCloseTheDay, closeDay };
+  return { daysWaiting, getCloseTheDay, closeDay };
 }
 
 export type BusinessDayModule = ReturnType<typeof createBusinessDayModule>;

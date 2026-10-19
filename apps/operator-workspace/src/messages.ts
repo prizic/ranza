@@ -1763,6 +1763,10 @@ export interface Messages {
     dueBackDetail: string;
     requestReference: string;
     openMaintenance: string;
+    daysWaiting: string;
+    daysWaitingCount: string;
+    daysWaitingDetail: string;
+    openCloseDay: string;
     maintenanceTitle: string;
     openRequests: string;
     statusNew: string;
@@ -4021,6 +4025,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       dueBackDetail: "{date} tarihinde dönmesi gerekiyordu.",
       requestReference: "MT-{number}",
       openMaintenance: "Bakımı aç",
+      daysWaiting: "Kapatılmamış günler",
+      daysWaitingCount: "{count} gün kapatılmayı bekliyor",
+      daysWaitingDetail:
+        "En eskisi {date}. Bir günün geceleri, gün kapatılınca ücretlendirilir.",
+      openCloseDay: "Günü kapatmayı aç",
       maintenanceTitle: "Bakım",
       openRequests: "Açık talepler",
       statusNew: "Yeni",
@@ -7313,6 +7322,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       dueBackDetail: "Was due back on {date}.",
       requestReference: "MT-{number}",
       openMaintenance: "Open maintenance",
+      daysWaiting: "Days not closed",
+      daysWaitingCount:
+        "{count, plural, one {# day} other {# days}} waiting to be closed",
+      daysWaitingDetail:
+        "The oldest is {date}. A day's nights are charged when it is closed.",
+      openCloseDay: "Open Close the day",
       maintenanceTitle: "Maintenance",
       openRequests: "Open requests",
       statusNew: "New",
@@ -9653,7 +9668,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutSummary:
       "يغادر الضيف. لا يمكن التراجع عن المغادرة، لذا راجع الحساب أولًا.",
     checkOutRoomDirty:
-      "تُعلَّم الغرفة كغرفة متسخة، ويمكن تأجيرها من جديد بعد أن تنظّفها خدمة الغرف.",
+      "تُعلَّم الغرفة كغرفة متسخة، ويمكن تأجيرها من جديد بعد أن ينظّفها التدبير الفندقي.",
     checkOutOverdue:
       "تأخر هذا الضيف {count, plural, one {يومًا واحدًا} two {يومين} few {# أيام} many {# يومًا} other {# يوم}} عن موعد {date}. تُسجَّل المغادرة اليوم، وتُحتسب الليالي منذ ذلك الحين على الحساب.",
     checkOutOwesFirst:
@@ -9706,7 +9721,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     roomDirty: "متسخة",
     roomAwaitingInspection: "بانتظار الفحص",
     roomNeedsCleaning: "تحتاج تنظيفًا",
-    openInHousekeeping: "فتح في خدمة الغرف",
+    openInHousekeeping: "فتح في التدبير الفندقي",
     roomRowHeading: "الغرفة",
     searchGuestRoomReference: "ابحث عن ضيف أو غرفة أو رقم حجز",
     searchReservations: "ابحث عن ضيف أو غرفة أو رقم حجز أو هاتف أو تاريخ",
@@ -10575,6 +10590,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       dueBackDetail: "كان موعد العودة {date}.",
       requestReference: "MT-{number}",
       openMaintenance: "افتح الصيانة",
+      daysWaiting: "أيام لم تُغلق",
+      daysWaitingCount:
+        "{count, plural, zero {لا أيام} one {يوم واحد} two {يومان} few {# أيام} many {# يومًا} other {# يوم}} بانتظار الإغلاق",
+      daysWaitingDetail: "أقدمها {date}. تُحتسب ليالي اليوم عند إغلاقه.",
+      openCloseDay: "افتح إغلاق اليوم",
       maintenanceTitle: "الصيانة",
       openRequests: "الطلبات المفتوحة",
       statusNew: "جديد",
@@ -12081,7 +12101,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       resolvedAt: "وقت الإنجاز",
       actions: "الإجراءات",
       categories: {
-        housekeeping: "خدمة الغرف",
+        housekeeping: "التدبير الفندقي",
         maintenance: "الصيانة",
         amenities: "مستلزمات الغرفة",
         front_desk: "الاستقبال",

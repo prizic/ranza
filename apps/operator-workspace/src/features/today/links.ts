@@ -9,6 +9,7 @@ export function todayHref(
   locale: SupportedLocale,
   segment:
     | "arrivals"
+    | "close-day"
     | "departures"
     | "housekeeping"
     | "maintenance"

@@ -143,6 +143,13 @@ export interface WaitingDay {
   openItems: number;
 }
 
+/** How far behind the closes are at one Property: Today's reminder. */
+export interface DaysWaiting {
+  /** The oldest day waiting, the one a close would be accepted for. */
+  oldest: string;
+  count: number;
+}
+
 /**
  * Everything the Close the day screen shows for one Property.
  *

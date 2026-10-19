@@ -109,6 +109,44 @@ test("the overdue Guest is days late on the tile, the row and the card", async (
   await capture(page, "front-desk-overdue-guest");
 });
 
+test("days waiting to be closed lead what needs attention and open Close the day (CLOSE-06)", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 1100 });
+  await signInAs(page, "front_desk");
+
+  const card = page
+    .getByRole("region", { name: "Needs attention" })
+    .getByRole("listitem")
+    .first()
+    .getByRole("link");
+  await expect(card).toContainText("Days not closed");
+  const waiting = /(\d+) days? waiting to be closed/.exec(
+    await card.innerText(),
+  )?.[1];
+  expect(waiting, "the card says how many days wait").toBeDefined();
+  await capture(page, "days-waiting-to-be-closed");
+
+  // The same number the screen that closes them counts.
+  await card.click();
+  await expect(page).toHaveURL(
+    new RegExp(`/en/close-day\\?property=${day.propertyId}`),
+  );
+  await expect(page.locator("main")).toContainText(
+    new RegExp(`\\b${waiting} days? waiting`),
+  );
+});
+
+test("housekeeping is not told about days waiting to be closed", async ({
+  page,
+}) => {
+  await signInAs(page, "housekeeping");
+  await expect(
+    page.getByRole("region", { name: "Needs attention" }),
+  ).toBeVisible();
+  await expect(page.getByText("Days not closed")).toHaveCount(0);
+});
+
 test("a room not ready says why, and a desk that may mark rooms is sent to the board", async ({
   page,
 }) => {

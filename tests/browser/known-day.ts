@@ -4,6 +4,7 @@ import { expect, type APIRequestContext } from "@playwright/test";
 
 import { PASSWORD } from "./front-desk";
 import { psql } from "./local-database";
+import { aBacklog } from "./ux-fixtures";
 
 /**
  * A Property whose day is known exactly, in an Organization of its own.
@@ -408,7 +409,8 @@ export async function aKnownDay(
 
 /**
  * A second Property in the same Organization, with nothing in it: no Units, no
- * bookings, nobody in house. What Today says when every figure is zero.
+ * bookings, nobody in house, and yesterday closed, so no day waits either.
+ * What Today says when every figure is zero.
  */
 export function aQuietProperty(day: KnownDay): string {
   const propertyId = randomUUID();
@@ -426,5 +428,6 @@ export function aQuietProperty(day: KnownDay): string {
       from public.property_assignments as assignment
      where assignment.property_id = '${day.propertyId}';
   `);
+  aBacklog(propertyId, 1);
   return propertyId;
 }

@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   ArrowRight,
   BedDouble,
+  CalendarClock,
   CheckCircle2,
   Clock,
   Wallet,
@@ -30,6 +31,7 @@ const KIND: Record<
   AttentionKind,
   { icon: LucideIcon; tone: StatusTone; label: string }
 > = {
+  days_waiting: { icon: CalendarClock, tone: "warning", label: "daysWaiting" },
   not_ready: { icon: AlertTriangle, tone: "danger", label: "notReady" },
   blocked: { icon: BedDouble, tone: "info", label: "blocked" },
   urgent_repair: { icon: Wrench, tone: "danger", label: "urgentRepair" },
@@ -99,11 +101,22 @@ export function AttentionQueue({
     );
   }
 
-  const shown = expanded ? items : items.slice(0, ATTENTION_SHOWN);
+  // Days waiting to be closed are the whole Property's and never folded, and
+  // they never take one of the places a room's item would have (TD-S7-11).
+  const backlog = items.filter((item) => item.kind === "days_waiting");
+  const rooms = items.filter((item) => item.kind !== "days_waiting");
+  const shown = [
+    ...backlog,
+    ...(expanded ? rooms : rooms.slice(0, ATTENTION_SHOWN)),
+  ];
   const hidden = items.length - shown.length;
 
   function detail(item: AttentionItem): string | null {
     switch (item.kind) {
+      case "days_waiting":
+        return item.dueOn
+          ? t("daysWaitingDetail", { date: shortDay(item.dueOn, locale) })
+          : null;
       case "not_ready":
         return t(NOT_READY[item.notReady ?? "unknown"]);
       case "blocked":
@@ -139,6 +152,11 @@ export function AttentionQueue({
       };
     }
     switch (item.kind) {
+      case "days_waiting":
+        return {
+          href: todayHref(locale, "close-day", propertyId),
+          label: t("openCloseDay"),
+        };
       case "not_ready":
         // Somebody who may mark the room goes to the board, where one tap
         // readies it for the arrival; the desk without that permission goes
@@ -210,9 +228,12 @@ export function AttentionQueue({
         {shown.map((item, index) => {
           const kind = KIND[item.kind];
           const target = way(item);
-          const subject = item.unit
-            ? unitLabel(item.unit.roomName, item.unit.unitName)
-            : (item.request?.equipmentName ?? null);
+          const subject =
+            item.kind === "days_waiting"
+              ? t("daysWaitingCount", { count: item.waiting ?? 0 })
+              : item.unit
+                ? unitLabel(item.unit.roomName, item.unit.unitName)
+                : (item.request?.equipmentName ?? null);
           const said = detail(item);
           return (
             <li

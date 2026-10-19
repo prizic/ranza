@@ -1,3 +1,4 @@
+import type { BusinessDayModule, DaysWaiting } from "@ranza/business-day";
 import type {
   AuditPage,
   CapabilityRef,
@@ -55,6 +56,7 @@ export interface TodayReads {
   charges: (propertyId: string) => Promise<readonly ChargesPosted[]>;
   /** From the business date, the nights ahead. */
   calendar: (propertyId: string, from: string) => Promise<RoomCalendar>;
+  daysWaiting: (propertyId: string) => Promise<DaysWaiting | null>;
 }
 
 export interface TodayModules {
@@ -64,6 +66,7 @@ export interface TodayModules {
   housekeeping: HousekeepingModule;
   folios: FoliosModule;
   maintenance: MaintenanceModule;
+  businessDay: BusinessDayModule;
 }
 
 export function todayReads(modules: TodayModules, userId: string): TodayReads {
@@ -90,6 +93,8 @@ export function todayReads(modules: TodayModules, userId: string): TodayReads {
         from,
         days: BOOKED_AHEAD_NIGHTS,
       }),
+    daysWaiting: (propertyId) =>
+      modules.businessDay.daysWaiting(userId, propertyId),
   };
 }
 
@@ -212,6 +217,13 @@ export async function readTodaySummary(
     input.calendar = await attempt(
       "calendar",
       () => reads.calendar(propertyId, day.businessDate),
+      report,
+    );
+  }
+  if (needs.closeDay) {
+    input.daysWaiting = await attempt(
+      "daysWaiting",
+      () => reads.daysWaiting(propertyId),
       report,
     );
   }

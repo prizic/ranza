@@ -1036,6 +1036,7 @@ describe("reading it", () => {
       activity: vi.fn(async () => auditPage([])),
       charges: vi.fn(async () => [] as ChargesPosted[]),
       calendar: vi.fn(async () => calendarOf([])),
+      daysWaiting: vi.fn(async () => null),
       ...overrides,
     };
   }
@@ -1182,6 +1183,67 @@ describe("reading it", () => {
       "charges",
       "calendar",
     ]);
+  });
+
+  it("days_waiting_to_be_closed_lead_the_desks_attention_list: the oldest day and how many, ahead of every room", async () => {
+    const summary = await readTodaySummary(
+      reads({
+        arrivals: vi.fn(async () => [arrival({ unitIsReady: false })]),
+        daysWaiting: vi.fn(async () => ({ oldest: "2026-09-15", count: 10 })),
+      }),
+      "p",
+      CAPS,
+      vi.fn(),
+    );
+    const [first, ...rest] = summary?.attention.items ?? [];
+    expect(first).toMatchObject({
+      kind: "days_waiting",
+      unit: null,
+      dueOn: "2026-09-15",
+      waiting: 10,
+    });
+    expect(rest.map((item) => item.kind)).toContain("not_ready");
+    expect(summary?.attention.complete).toBe(true);
+  });
+
+  it("nothing waiting to be closed lists nothing", async () => {
+    const summary = await readTodaySummary(reads(), "p", CAPS, vi.fn());
+    expect(
+      summary?.attention.items.some((item) => item.kind === "days_waiting"),
+    ).toBe(false);
+  });
+
+  it("only the desk is asked how many days wait, and only where there is a front desk", async () => {
+    for (const permissions of [HOUSEKEEPING, FINANCE]) {
+      const r = reads({ workingDay: vi.fn(async () => day(permissions)) });
+      await readTodaySummary(r, "p", CAPS, vi.fn());
+      expect(r.daysWaiting).not.toHaveBeenCalled();
+    }
+    for (const permissions of [FRONT_DESK, MANAGER]) {
+      const r = reads({ workingDay: vi.fn(async () => day(permissions)) });
+      await readTodaySummary(r, "p", CAPS, vi.fn());
+      expect(r.daysWaiting).toHaveBeenCalledWith("p");
+    }
+    const noFrontDesk = reads({
+      workingDay: vi.fn(async () =>
+        day(MANAGER, { capabilities: [false, true, true] }),
+      ),
+    });
+    await readTodaySummary(noFrontDesk, "p", CAPS, vi.fn());
+    expect(noFrontDesk.daysWaiting).not.toHaveBeenCalled();
+  });
+
+  it("a backlog that could not be read leaves attention incomplete and is reported", async () => {
+    const report = vi.fn();
+    const failure = new Error("connection reset");
+    const summary = await readTodaySummary(
+      reads({ daysWaiting: vi.fn(async () => Promise.reject(failure)) }),
+      "p",
+      CAPS,
+      report,
+    );
+    expect(summary?.attention.complete).toBe(false);
+    expect(report).toHaveBeenCalledWith("daysWaiting", failure);
   });
 });
 
@@ -1652,6 +1714,7 @@ describe("the day, as the UX audit found it", () => {
       activity: read,
       charges: vi.fn(async () => []),
       calendar: vi.fn(async () => calendarOf([])),
+      daysWaiting: vi.fn(async () => null),
     } satisfies TodayReads;
     const summary = await readTodaySummary(
       reads,
