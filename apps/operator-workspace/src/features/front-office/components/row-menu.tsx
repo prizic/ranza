@@ -99,6 +99,7 @@ export function FrontDeskRowMenu({
         <DropdownMenuTrigger asChild>
           <Button
             aria-label={t("moreActionsFor", { guest: isolate(guestName) })}
+            className="pointer-coarse:size-11"
             size="icon-sm"
             variant="ghost"
           >

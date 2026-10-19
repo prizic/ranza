@@ -80,6 +80,9 @@ function pinsToEnd(column: { columnDef: { meta?: unknown } }): boolean {
   );
 }
 
+/** A finger needs 44 px: the tick's invisible hit area grows to it on touch. */
+const TOUCH_TICK = "pointer-coarse:after:-inset-3.5";
+
 export interface Facet {
   columnId: string;
   title: string;
@@ -104,6 +107,8 @@ export interface DataTableLabels extends PaginationLabels {
   selectRow: string;
   selectedCount: (n: number) => string;
   clearSelection: string;
+  /** "Select all 42 in this filter" — the rows beyond the page the ticks cover. */
+  selectAllInFilter: (n: number) => string;
   noMatches: string;
   noRows: string;
   facet: { clear: string; noResults: string; selected: (n: number) => string };
@@ -225,6 +230,7 @@ export function DataTable<TData, TValue>({
         header: ({ table }) => (
           <Checkbox
             aria-label={labels.selectAllRows}
+            className={TOUCH_TICK}
             // Indeterminate when the page is partly ticked, so "select all"
             // never claims more than it did.
             checked={
@@ -239,6 +245,7 @@ export function DataTable<TData, TValue>({
         cell: ({ row }) => (
           <Checkbox
             aria-label={labels.selectRow}
+            className={TOUCH_TICK}
             checked={row.getIsSelected()}
             onCheckedChange={(value) => row.toggleSelected(Boolean(value))}
           />
@@ -288,6 +295,10 @@ export function DataTable<TData, TValue>({
     .some((column) => pinsToEnd(column));
   const isFiltered = table.getState().columnFilters.length > 0 || search !== "";
   const selectedRows = table.getSelectedRowModel().rows.map((r) => r.original);
+  const filteredRows = table.getFilteredRowModel().rows;
+  // Ticks reach only the page on screen, so a longer filter offers the rest.
+  const moreInFilter =
+    filteredRows.length > table.getFilteredSelectedRowModel().rows.length;
 
   return (
     <div className="space-y-3">
@@ -356,11 +367,27 @@ export function DataTable<TData, TValue>({
 
       {bulkActions && selectedRows.length > 0 ? (
         // Above the table rather than floating over it: staff are reading rows
-        // while deciding, and a bar that covers them is a bar in the way.
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-primary/20 bg-secondary px-4 py-2.5">
+        // while deciding, and a bar that covers them is a bar in the way. It
+        // stays at the top of the screen while the rows scroll under it, so a
+        // long page never takes the buttons out of reach (HK-08).
+        <div className="sticky top-2 z-20 flex flex-wrap items-center gap-2 rounded-2xl border border-primary/20 bg-secondary px-4 py-2.5 shadow-sm">
           <span className="text-sm font-medium tabular-nums">
             {labels.selectedCount(selectedRows.length)}
           </span>
+          {moreInFilter ? (
+            <Button
+              className="pointer-coarse:min-h-11"
+              onClick={() =>
+                setRowSelection(
+                  Object.fromEntries(filteredRows.map((row) => [row.id, true])),
+                )
+              }
+              size="sm"
+              variant="link"
+            >
+              {labels.selectAllInFilter(filteredRows.length)}
+            </Button>
+          ) : null}
           <div className="flex flex-wrap items-center gap-2">
             {bulkActions(selectedRows, () => setRowSelection({}))}
           </div>

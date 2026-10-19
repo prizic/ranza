@@ -48,6 +48,7 @@ export function useTableLabels(): DataTableLabels {
     // business, but `Intl.ListFormat` reads as prose ("a, b and c") where this
     // is a column enumeration in a placeholder.
     searchBy: (columns) => t("searchBy", { columns: columns.join(" / ") }),
+    selectAllInFilter: (n) => t("selectAllInFilter", { n }),
     selectAllRows: t("selectAllRows"),
     selectedCount: (n) => t("selectedCount", { n }),
     selectRow: t("selectRow"),

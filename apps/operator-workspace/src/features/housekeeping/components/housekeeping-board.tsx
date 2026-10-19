@@ -245,7 +245,11 @@ export function HousekeepingBoard({
             : []),
         ]}
         initialHidden={{ floor: false }}
-        labels={labels}
+        labels={{
+          ...labels,
+          selectAllInFilter: (count) => t("selectAllRooms", { count }),
+        }}
+        pageSize={50}
         searchColumns={["name", "building"]}
       />
     </div>

@@ -42,7 +42,7 @@ export function DataTableRowActions({
       <DropdownMenuTrigger asChild>
         <Button
           aria-label={label}
-          className="size-8 text-muted-foreground data-[state=open]:bg-muted"
+          className="size-8 text-muted-foreground pointer-coarse:size-11 data-[state=open]:bg-muted"
           size="icon"
           variant="ghost"
         >

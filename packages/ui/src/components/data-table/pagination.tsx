@@ -98,7 +98,7 @@ export function DataTablePagination<TData>({
         <div className="flex items-center gap-1">
           <Button
             aria-label={labels.first}
-            className="hidden size-8 sm:inline-flex"
+            className="hidden size-8 pointer-coarse:size-11 sm:inline-flex"
             disabled={!table.getCanPreviousPage()}
             onClick={() => table.setPageIndex(0)}
             size="icon"
@@ -108,7 +108,7 @@ export function DataTablePagination<TData>({
           </Button>
           <Button
             aria-label={labels.previous}
-            className="size-8"
+            className="size-8 pointer-coarse:size-11"
             disabled={!table.getCanPreviousPage()}
             onClick={() => table.previousPage()}
             size="icon"
@@ -118,7 +118,7 @@ export function DataTablePagination<TData>({
           </Button>
           <Button
             aria-label={labels.next}
-            className="size-8"
+            className="size-8 pointer-coarse:size-11"
             disabled={!table.getCanNextPage()}
             onClick={() => table.nextPage()}
             size="icon"
@@ -128,7 +128,7 @@ export function DataTablePagination<TData>({
           </Button>
           <Button
             aria-label={labels.last}
-            className="hidden size-8 sm:inline-flex"
+            className="hidden size-8 pointer-coarse:size-11 sm:inline-flex"
             disabled={!table.getCanNextPage()}
             onClick={() => table.setPageIndex(table.getPageCount() - 1)}
             size="icon"

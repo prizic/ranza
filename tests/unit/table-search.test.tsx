@@ -84,8 +84,9 @@ const LABELS: DataTableLabels = {
   results: (count) => `${count} results`,
   search: "Search",
   searchBy: () => "Search names",
+  selectAllInFilter: (count) => `Select all ${count} in this filter`,
   selectAllRows: "All",
-  selectedCount: () => "",
+  selectedCount: (count) => `${count} selected`,
   selectRow: "Row",
   visibleColumns: "Visible",
 };
@@ -95,9 +96,10 @@ const PEOPLE: Person[] = Array.from({ length: 12 }, (_, index) => ({
   name: `Guest ${index + 1}`,
 }));
 
-function table(pageSize?: number) {
+function table(pageSize?: number, ticking = false) {
   render(
     <DataTable
+      {...(ticking ? { bulkActions: () => null } : {})}
       caption="People"
       columns={COLUMNS}
       data={PEOPLE}
@@ -136,5 +138,33 @@ describe("a table's page size", () => {
       target: { value: "guset 3" },
     });
     expect(screen.getByText("1 results")).toBeInTheDocument();
+  });
+});
+
+describe("selecting beyond the page", () => {
+  it("ticking_a_page_offers_every_row_the_filter_holds_and_one_press_takes_them", () => {
+    table(5, true);
+    fireEvent.click(screen.getByRole("checkbox", { name: "All" }));
+    expect(screen.getByText("5 selected")).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Select all 12 in this filter" }),
+    );
+    expect(screen.getByText("12 selected")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Select all 12/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("the_offer_counts_the_filtered_rows_not_the_whole_table", () => {
+    table(5, true);
+    fireEvent.change(screen.getByRole("searchbox"), {
+      target: { value: "guest 1" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: "All" }));
+    // Guest 1, 10, 11 and 12: all four fit one page, so nothing is left to offer.
+    expect(screen.getByText("4 selected")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Select all/ }),
+    ).not.toBeInTheDocument();
   });
 });

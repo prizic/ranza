@@ -13,7 +13,8 @@ import { cn } from "../lib/utils";
  * pages. Below it the dock at the foot opens a section on its first page, so
  * without this strip a phone could not reach the others at all. Drawn as the
  * Leaders tab list — a muted track with the current page lifted out in white —
- * and scrolled sideways when a phone is narrower than the section.
+ * and wrapped onto a second row when a phone is narrower than the section, so
+ * no page is left behind an edge nobody sees.
  *
  * They are links to routes, not tabs over one: each has its own URL, can be
  * bookmarked, and is what the rail's second level already offers.
@@ -35,7 +36,7 @@ export function SectionTabs({
   return (
     <nav
       aria-label={label}
-      className="mb-6 flex w-fit max-w-full gap-1 overflow-x-auto rounded-md bg-muted p-1 scrollbar-none md:hidden"
+      className="mb-6 flex w-fit max-w-full flex-wrap gap-1 rounded-md bg-muted p-1 md:hidden"
     >
       {group.children.map(({ href, label: child }) => {
         const active = pathname === hrefPath(href);

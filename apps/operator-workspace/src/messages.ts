@@ -1963,6 +1963,7 @@ export interface Messages {
     priorityInspect: string;
     priorityLeaving: string;
     floorFilter: string;
+    selectAllRooms: string;
     noFloor: string;
     neverMarked: string;
     reportProblem: string;
@@ -2864,6 +2865,7 @@ export interface TableMessages {
   selectRow: string;
   selectedCount: string;
   clearSelection: string;
+  selectAllInFilter: string;
   noMatches: string;
   noRows: string;
 }
@@ -5078,6 +5080,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       priorityInspect: "Geliş · kontrol",
       priorityLeaving: "Bugün boşalıyor",
       floorFilter: "Kat",
+      selectAllRooms: "Bu filtredeki tüm {count, number} odayı seç",
       noFloor: "Katsız",
       neverMarked: "Hiç işaretlenmedi",
       reportProblem: "Sorun bildir",
@@ -6057,6 +6060,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       selectRow: "Satırı seç",
       selectedCount: "{n, plural, other {# seçili}}",
       clearSelection: "Seçimi kaldır",
+      selectAllInFilter: "Bu filtredeki tüm {n, number} satırı seç",
       noMatches: "Filtrelerle eşleşen sonuç yok.",
       noRows: "Henüz kayıt yok.",
     },
@@ -8372,6 +8376,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       priorityInspect: "Arrival · inspect",
       priorityLeaving: "Leaving today",
       floorFilter: "Floor",
+      selectAllRooms:
+        "Select all {count, plural, one {# room} other {# rooms}} in this filter",
       noFloor: "No floor",
       neverMarked: "Never marked",
       reportProblem: "Report a problem",
@@ -9346,6 +9352,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       selectRow: "Select row",
       selectedCount: "{n, plural, other {# selected}}",
       clearSelection: "Clear selection",
+      selectAllInFilter: "Select all {n, number} in this filter",
       noMatches: "Nothing matches these filters.",
       noRows: "Nothing here yet.",
     },
@@ -11610,6 +11617,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       priorityInspect: "وصول · فحص",
       priorityLeaving: "تُخلى اليوم",
       floorFilter: "الطابق",
+      selectAllRooms: "تحديد جميع الغرف ({count, number}) في هذا الفلتر",
       noFloor: "بلا طابق",
       neverMarked: "لم تُعلَّم بعد",
       reportProblem: "الإبلاغ عن مشكلة",
@@ -12581,6 +12589,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       selectedCount:
         "{n, plural, zero {لا شيء محدد} one {واحدة محددة} two {اثنتان محددتان} few {# محددة} many {# محددة} other {# محددة}}",
       clearSelection: "إلغاء التحديد",
+      selectAllInFilter: "تحديد كل الصفوف ({n, number}) في هذا الفلتر",
       noMatches: "لا نتائج مطابقة للفلاتر.",
       noRows: "لا توجد بيانات بعد.",
     },
