@@ -378,16 +378,22 @@ test("a manager switches inspection on for one Property and sees what it means",
   await page.getByRole("combobox", { name: "For this Property" }).click();
   await page.getByRole("option", { name: "On", exact: true }).click();
 
-  await expect(page.getByText("Saved")).toBeVisible();
+  // The flow shows what the choice would do before anything is written; the
+  // choice is saved when a Save is pressed (CONFIG-02).
   await expect(flow).toContainText("Inspected");
+  await expect(page.getByText("Not saved yet.")).toBeVisible();
+  await page.getByRole("button", { name: "Save for this Property" }).click();
+  await expect(page.getByText("Saved")).toBeVisible();
 
   await page.getByRole("combobox", { name: "For this Property" }).click();
   await page
     .getByRole("option", { name: /Use the Organization's setting/ })
     .click();
+  await page.getByRole("button", { name: "Save for this Property" }).click();
   await expect(
     page.getByRole("combobox", { name: "For this Property" }),
   ).toContainText("Use the Organization's setting");
+  await expect(page.getByText("Saved")).toBeVisible();
 });
 
 test("a Property with housekeeping switched off shows the empty state, not another Property's rooms", async ({

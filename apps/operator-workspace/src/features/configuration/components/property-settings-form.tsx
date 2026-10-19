@@ -6,6 +6,7 @@ import { Building2, CalendarClock, Lock } from "lucide-react";
 import {
   formatCurrencyName,
   formatDate,
+  formatTimeZoneOffset,
   type SupportedLocale,
 } from "@ranza/i18n";
 import {
@@ -26,8 +27,8 @@ import type { PropertySettings } from "../../../server/viewer";
 import {
   currencyOptions,
   cutoffOptions,
+  timezoneLabel,
   timezoneOptions,
-  zoneCity,
 } from "../options";
 import { SaveBar } from "./save-bar";
 import { SearchablePicker } from "./searchable-picker";
@@ -105,6 +106,7 @@ export function PropertySettingsForm({
   timezones: readonly string[];
 }) {
   const t = useTranslations("configuration");
+  const permissions = useTranslations("staff.permissions");
   const [identity, setIdentity] = useState<IdentityDraft | null>(null);
   const [clock, setClock] = useState<ClockDraft | null>(null);
   const [outcomes, setOutcomes] = useState<Record<Card, SettingsOutcome>>({
@@ -211,7 +213,9 @@ export function PropertySettingsForm({
             onSave={() => save("identity")}
             outcome={outcomes.identity}
             pending={saving === "identity"}
-            readOnly={t("readOnly")}
+            readOnly={t("readOnly", {
+              permission: permissions("manageConfiguration"),
+            })}
           />
         }
         hint={t("propertyHint")}
@@ -279,6 +283,13 @@ export function PropertySettingsForm({
               <p className="text-step--1 text-destructive">
                 {t("invalidCurrency")}
               </p>
+            ) : editable ? (
+              // Said where it is decided: the choice is permanent once the
+              // first folio or priced booking exists (ADR 0036), and nobody
+              // finds that out after the lock (CONFIG-04).
+              <p className="text-step--1 text-muted-foreground">
+                {t("currencyChoice")}
+              </p>
             ) : null}
           </div>
         </div>
@@ -294,7 +305,9 @@ export function PropertySettingsForm({
             onSave={() => save("clock")}
             outcome={outcomes.clock}
             pending={saving === "clock"}
-            readOnly={t("readOnly")}
+            readOnly={t("readOnly", {
+              permission: permissions("manageConfiguration"),
+            })}
           />
         }
         hint={t("timeHint")}
@@ -327,7 +340,7 @@ export function PropertySettingsForm({
                     )
                   }
                   search={t("searchTimezone")}
-                  selectedLabel={`${zoneCity(shown.timezone)} (${shown.timezone})`}
+                  selectedLabel={`${timezoneLabel(shown.timezone, locale)} · ${formatTimeZoneOffset(shown.timezone, locale)}`}
                   value={shown.timezone}
                 />
               </Field>

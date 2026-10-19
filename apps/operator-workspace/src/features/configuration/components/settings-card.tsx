@@ -1,5 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 import {
+  cn,
   Card,
   CardContent,
   CardDescription,
@@ -22,6 +23,7 @@ export function SettingsCard({
   icon: Icon,
   id,
   title,
+  tone,
 }: {
   children: ReactNode;
   footer?: ReactNode;
@@ -29,14 +31,23 @@ export function SettingsCard({
   icon: ComponentType<{ className?: string }>;
   id: string;
   title: string;
+  /** `warning` when something here is left undone that the Property needs. */
+  tone?: "warning" | undefined;
 }) {
   return (
     <section aria-labelledby={`${id}-title`} className="scroll-mt-24" id={id}>
-      <Card className="gap-0 py-0">
+      <Card
+        className={cn("gap-0 py-0", tone === "warning" && "border-warning/40")}
+      >
         <CardHeader className="flex items-start gap-4 border-b py-5">
           <span
             aria-hidden="true"
-            className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+            className={cn(
+              "flex size-10 shrink-0 items-center justify-center rounded-xl",
+              tone === "warning"
+                ? "bg-warning-soft text-warning"
+                : "bg-primary/10 text-primary",
+            )}
           >
             <Icon className="size-5" />
           </span>

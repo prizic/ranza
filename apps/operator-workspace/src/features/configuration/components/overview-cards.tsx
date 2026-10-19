@@ -32,19 +32,29 @@ export function SwitchedOnCard({
       id="modules"
       title={t("configuration.modulesTitle")}
     >
-      <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-        {screens.map(({ icon: Icon, segment }) => (
-          <li
-            className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5"
-            key={segment}
-          >
-            <Icon aria-hidden="true" className="size-4 shrink-0 text-primary" />
-            <span className="text-step--1 font-medium">
-              {t(`navigation.${segment}`)}
-            </span>
-          </li>
-        ))}
-      </ul>
+      {/* Closed to begin with: nothing here can be switched, and the same list
+          is the sidebar, eleven rows long on a phone (CONFIG-11). */}
+      <details className="group">
+        <summary className="cursor-pointer text-step--1 font-medium text-muted-foreground hover:text-foreground">
+          {t("configuration.modulesCount", { count: screens.length })}
+        </summary>
+        <ul className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          {screens.map(({ icon: Icon, segment }) => (
+            <li
+              className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5"
+              key={segment}
+            >
+              <Icon
+                aria-hidden="true"
+                className="size-4 shrink-0 text-primary"
+              />
+              <span className="text-step--1 font-medium">
+                {t(`navigation.${segment}`)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </details>
     </SettingsCard>
   );
 }

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { isolate, isSupportedLocale, localizeHref } from "@ranza/i18n";
+import { Sparkles } from "lucide-react";
 import { PageHeader } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ALL_SCREENS, gateOf } from "../../../../lib/screens";
@@ -14,6 +15,8 @@ import {
 } from "../../../../features/configuration/components/overview-cards";
 import { PropertySettingsForm } from "../../../../features/configuration/components/property-settings-form";
 import { RatesCard } from "../../../../features/configuration/components/rates-card";
+import { unpricedKinds } from "../../../../features/configuration/unpriced";
+import { SettingsCard } from "../../../../features/configuration/components/settings-card";
 import {
   SectionNav,
   type Section,
@@ -129,7 +132,21 @@ export default async function ConfigurationPage({
     { id: "organization", label: t("configuration.organizationTitle") },
     { id: "property", label: t("configuration.propertyTitle") },
     { id: "time", label: t("configuration.timeTitle") },
-    ...(prices ? [{ id: "rates" as const, label: t("rates.title") }] : []),
+    ...(prices
+      ? [
+          {
+            id: "rates" as const,
+            label: t("rates.title"),
+            ...(unpricedKinds(prices).length > 0
+              ? {
+                  note: t("rates.unpricedCount", {
+                    count: unpricedKinds(prices).length,
+                  }),
+                }
+              : {}),
+          },
+        ]
+      : []),
     ...(inspection
       ? [
           {
@@ -183,13 +200,19 @@ export default async function ConfigurationPage({
             />
           ) : null}
           {inspection ? (
-            <section className="scroll-mt-24" id="housekeeping">
+            <SettingsCard
+              hint={t("housekeeping.inspectionHint")}
+              icon={Sparkles}
+              id="housekeeping"
+              title={t("housekeeping.inspectionTitle")}
+            >
               <InspectionSettings
+                embedded
                 locale={locale}
                 propertyId={property.propertyId}
                 settings={inspection}
               />
-            </section>
+            </SettingsCard>
           ) : null}
           {maintenance ? (
             <section className="scroll-mt-24" id="maintenance">

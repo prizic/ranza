@@ -28,6 +28,7 @@ export function OrganizationCard({
   settings: PropertySettings;
 }) {
   const t = useTranslations("configuration");
+  const permissions = useTranslations("staff.permissions");
   const organization = settings.organization;
   const [draft, setDraft] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<SettingsOutcome>(IDLE);
@@ -81,7 +82,11 @@ export function OrganizationCard({
           outcome={outcome}
           pending={pending}
           readOnly={
-            settings.mayConfigure ? t("organizationNeedsReach") : t("readOnly")
+            settings.mayConfigure
+              ? t("organizationNeedsReach")
+              : t("readOnly", {
+                  permission: permissions("manageConfiguration"),
+                })
           }
         />
       }

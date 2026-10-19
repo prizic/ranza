@@ -749,6 +749,7 @@ export interface Messages {
     propertyName: string;
     currency: string;
     currencyFixed: string;
+    currencyChoice: string;
     searchCurrency: string;
     noCurrency: string;
     timeTitle: string;
@@ -764,12 +765,23 @@ export interface Messages {
     housekeepingTitle: string;
     modulesTitle: string;
     modulesHint: string;
+    /** `{count}` screens switched on at this Property. */
+    modulesCount: string;
     elsewhereTitle: string;
     elsewhereHint: string;
     roomsHint: string;
     peopleHint: string;
     save: string;
     discard: string;
+    saveForProperty: string;
+    saveForOrganization: string;
+    discardChanges: string;
+    draftNote: string;
+    confirmOrgTitle: string;
+    /** `{setting}`, `{from}`, `{to}`: what changes for every Property. */
+    orgChangeLine: string;
+    confirmOrgChange: string;
+    keepEditing: string;
     saving: string;
     saved: string;
     unchanged: string;
@@ -782,6 +794,7 @@ export interface Messages {
     invalidTimezone: string;
     invalidCurrency: string;
     invalidCutoff: string;
+    /** `{permission}`: the permission that would let this reader change it. */
     readOnly: string;
     fields: Record<
       "name" | "timezone" | "currency" | "businessDateCutoff",
@@ -1475,11 +1488,13 @@ export interface Messages {
     units: string;
     noPrice: string;
     unpricedHint: string;
+    /** `{count}` kinds of Unit that have Units here and no price. */
+    unpricedCount: string;
+    noUnitsHint: string;
     /** `{currency}` the price was set in, `{property}` what the Property trades in now. */
     stale: string;
     /** `{currency}`: what a price is typed in. */
     invalid: string;
-    readOnly: string;
     /** `{type}`: the kind of Unit, for the field's accessible name. */
     priceFor: string;
   };
@@ -3924,11 +3939,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       noPrice: "Fiyat yok",
       unpricedHint:
         "Bu türdeki rezervasyonlar fiyatsız alınır ve geceleri ücretlendirilmez.",
+      unpricedCount: "{count, plural, one {# fiyatsız} other {# fiyatsız}}",
+      noUnitsHint:
+        "Burada henüz yok. Şimdi girilen fiyat, eklediğiniz ilk birimden itibaren geçerli olur.",
       stale:
         "{currency} olarak girildi. Tesis artık {property} kullanıyor; bu fiyat yeniden kaydedilene kadar hiçbir rezervasyona uygulanmaz.",
       invalid: "Bu, {currency} cinsinden geçerli bir fiyat değil.",
-      readOnly:
-        "Fiyatları fiyat belirleme yetkisi olanlar değiştirir. Siz burada görebilirsiniz.",
       priceFor: "{type} için gecelik fiyat",
     },
     configuration: {
@@ -3945,16 +3961,18 @@ export const messages: Record<SupportedLocale, Messages> = {
       propertyName: "Tesis adı",
       currency: "Para birimi",
       currencyFixed:
-        "Bu tesiste bir folyo açıldığından ya da fiyatlı bir rezervasyon alındığından beri sabit. Her folyo ve rezervasyon kendi para birimini korur.",
+        "Burada bir folyo açıldığından ya da fiyatlı bir rezervasyon alındığından beri sabit; değiştirilemez. Her folyo ve rezervasyon, yapıldığı para birimini korur; başka bir para birimi için ayrı bir tesis gerekir.",
+      currencyChoice:
+        "İşlem yapmadan önce seçin. Burada bir folyo açıldığında ya da fiyatlı bir rezervasyon alındığında para birimi kalıcı olarak sabitlenir ve her folyo ve rezervasyon yapıldığı para birimini korur.",
       searchCurrency: "Para birimi ara",
       noCurrency: "Eşleşen para birimi yok.",
       timeTitle: "Saat ve iş günü",
       timeHint:
-        "Tesisin hangi saate göre çalıştığı ve iş gününün ne zaman bittiği. Bitişten önceki gece vardiyası hâlâ önceki günde çalışır.",
+        "Bu tesisin hangi saate göre çalıştığı ve gününün ne zaman değiştiği. Bitiş saatinden önceki her şey hâlâ dünün sayılır: gelişler, çıkışlar, günün kapatılması ve gecelik oda ücreti buna uyar.",
       timezone: "Saat dilimi",
       searchTimezone: "Saat dilimi ara",
       noTimezone: "Eşleşen saat dilimi yok.",
-      cutoff: "İş günü şu saatte biter",
+      cutoff: "Bugün şu saatte değişir",
       businessDateNow: "Şu anki iş günü",
       businessDateAfter: "Kaydettikten sonra",
       businessDateForward: "Bugün {date} tarihine ilerler.",
@@ -3963,6 +3981,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       housekeepingTitle: "Kat hizmetleri",
       modulesTitle: "Bu tesiste açık olanlar",
       modulesHint: "Ekibinizin bu tesiste kullanabildikleri.",
+      modulesCount:
+        "{count, plural, one {# ekran kullanımda} other {# ekran kullanımda}}",
       elsewhereTitle: "Kendi ekranlarında yönetilenler",
       elsewhereHint: "Bu ayarların her birinin tek bir yeri var.",
       roomsHint: "Oda ve yatak ekleyin, bir birimi gerekçesiyle kapatın.",
@@ -3970,6 +3990,15 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Personel davet edin, rollerini ve erişecekleri tesisleri seçin.",
       save: "Değişiklikleri kaydet",
       discard: "Vazgeç",
+      saveForProperty: "Bu tesis için kaydet",
+      saveForOrganization: "Tüm tesisler için kaydet",
+      discardChanges: "Değişiklikleri at",
+      draftNote: "Henüz kaydedilmedi.",
+      confirmOrgTitle: "Bu, tüm tesisler için değiştirilsin mi?",
+      orgChangeLine:
+        "Bu, {setting} ayarını tüm tesisler için değiştirir: “{from}” iken “{to}” olur.",
+      confirmOrgChange: "Tüm tesisler için değiştir",
+      keepEditing: "Düzenlemeye devam et",
       saving: "Kaydediliyor…",
       saved: "Kaydedildi",
       unchanged: "Kaydedilecek bir değişiklik yok.",
@@ -3986,7 +4015,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       invalidCurrency: "Listeden bir para birimi seçin.",
       invalidCutoff: "03:00 ile 11:45 arasında bir saat seçin.",
       readOnly:
-        "Bu ayarları görebilirsiniz. Bir sahip ya da yönetici değiştirebilir.",
+        "Bu ayarları görebilirsiniz. Değiştirmek için rolünüzün “{permission}” yetkisi gerekir.",
       fields: {
         name: "Ad",
         timezone: "Saat dilimi",
@@ -7074,11 +7103,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       noPrice: "No price",
       unpricedHint:
         "Bookings of this kind are taken without a price, and their nights are not charged.",
+      unpricedCount: "{count, plural, one {# unpriced} other {# unpriced}}",
+      noUnitsHint:
+        "None here yet. A price set now applies from the first one you add.",
       stale:
         "Set in {currency}. This Property now trades in {property}, so this price applies to no booking until it is saved again.",
       invalid: "That is not a price in {currency}.",
-      readOnly:
-        "Prices are changed by whoever may set rates. You can see them here.",
       priceFor: "Price per night for {type}",
     },
     configuration: {
@@ -7096,16 +7126,18 @@ export const messages: Record<SupportedLocale, Messages> = {
       propertyName: "Property name",
       currency: "Currency",
       currencyFixed:
-        "Fixed since a folio was opened or a priced booking was taken here. Every folio and booking keeps the currency it was made in.",
+        "Fixed since a folio was opened or a priced booking was taken here, and it cannot be changed. Every folio and booking keeps the currency it was made in; a different currency needs a Property of its own.",
+      currencyChoice:
+        "Choose it before you trade. Once a folio is opened or a priced booking is taken here the currency is fixed for good, and every folio and booking keeps the one it was made in.",
       searchCurrency: "Search currencies",
       noCurrency: "No currency matches.",
       timeTitle: "Time and the business day",
       timeHint:
-        "Which clock this Property runs on, and when its working day ends. A night shift before the cutoff is still working the day before.",
+        "Which clock this Property runs on, and when its day rolls over. Anything before the end time still counts to yesterday: arrivals, departures, closing the day and the nightly room charge all follow it.",
       timezone: "Time zone",
       searchTimezone: "Search time zones",
       noTimezone: "No time zone matches.",
-      cutoff: "Business day ends at",
+      cutoff: "Today rolls over at",
       businessDateNow: "Business date now",
       businessDateAfter: "After saving",
       businessDateForward: "Today moves forward to {date}.",
@@ -7114,6 +7146,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       housekeepingTitle: "Housekeeping",
       modulesTitle: "Switched on here",
       modulesHint: "What your team can use at this Property.",
+      modulesCount:
+        "{count, plural, one {# screen in use} other {# screens in use}}",
       elsewhereTitle: "Managed on their own screens",
       elsewhereHint: "Each of these settings has one home.",
       roomsHint: "Add rooms and beds, and block a unit with a reason.",
@@ -7121,6 +7155,15 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Invite staff, and choose their roles and the Properties they reach.",
       save: "Save changes",
       discard: "Discard",
+      saveForProperty: "Save for this Property",
+      saveForOrganization: "Save for every Property",
+      discardChanges: "Discard changes",
+      draftNote: "Not saved yet.",
+      confirmOrgTitle: "Change this for every Property?",
+      orgChangeLine:
+        "This changes {setting} for every Property: from “{from}” to “{to}”.",
+      confirmOrgChange: "Change for every Property",
+      keepEditing: "Keep editing",
       saving: "Saving…",
       saved: "Saved",
       unchanged: "Nothing to save — these are already the settings.",
@@ -7138,7 +7181,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       invalidCurrency: "Choose a currency from the list.",
       invalidCutoff: "Choose a time between 03:00 and 11:45.",
       readOnly:
-        "You can see these settings. An Owner or Manager can change them.",
+        "You can see these settings. To change them, your role needs “{permission}”.",
       fields: {
         name: "Name",
         timezone: "Time zone",
@@ -10192,11 +10235,13 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{count, plural, =0 {لا يوجد بعد في هذه المنشأة} one {وحدة واحدة} two {وحدتان} few {# وحدات} many {# وحدة} other {# وحدة}}",
       noPrice: "بلا سعر",
       unpricedHint: "تُؤخذ حجوزات هذا النوع بلا سعر، ولا تُحتسب لياليها.",
+      unpricedCount:
+        "{count, plural, zero {# بلا سعر} one {واحد بلا سعر} two {اثنان بلا سعر} few {# بلا سعر} many {# بلا سعر} other {# بلا سعر}}",
+      noUnitsHint:
+        "لا يوجد هنا بعد. السعر المحدَّد الآن يسري من أول واحدة تضيفها.",
       stale:
         "حُدِّد بعملة {currency}. تتعامل هذه المنشأة الآن بعملة {property}، لذا لا يُطبَّق هذا السعر على أي حجز حتى يُحفظ من جديد.",
       invalid: "هذا ليس سعرًا صالحًا بعملة {currency}.",
-      readOnly:
-        "يغيّر الأسعارَ من يملك صلاحية تحديدها. يمكنك الاطلاع عليها هنا.",
       priceFor: "سعر الليلة لـ{type}",
     },
     configuration: {
@@ -10212,16 +10257,18 @@ export const messages: Record<SupportedLocale, Messages> = {
       propertyName: "اسم المنشأة",
       currency: "العملة",
       currencyFixed:
-        "ثابتة منذ فتح فوليو أو أخذ حجز مسعَّر هنا. يحتفظ كل فوليو وكل حجز بالعملة التي أُنشئ بها.",
+        "ثابتة منذ فُتح فوليو أو أُخذ حجز مسعَّر هنا، ولا يمكن تغييرها. يحتفظ كل فوليو وكل حجز بالعملة التي أُنشئ بها؛ وعملة أخرى تحتاج إلى منشأة خاصة بها.",
+      currencyChoice:
+        "اخترها قبل أن تبدأ التعامل. متى فُتح فوليو أو أُخذ حجز مسعَّر هنا تثبت العملة نهائيًا، ويحتفظ كل فوليو وكل حجز بالعملة التي أُنشئ بها.",
       searchCurrency: "ابحث عن عملة",
       noCurrency: "لا توجد عملة مطابقة.",
       timeTitle: "الوقت ويوم العمل",
       timeHint:
-        "الساعة التي تعمل بها هذه المنشأة، ومتى ينتهي يوم عملها. المناوبة الليلية قبل وقت الانتهاء لا تزال تعمل في اليوم السابق.",
+        "بأي ساعة تعمل هذه المنشأة، ومتى ينقلب يومها. كل ما يقع قبل وقت الانتهاء يُحسب على الأمس: الوصول والمغادرة وإغلاق اليوم ورسم الغرفة الليلي كلها تتبعه.",
       timezone: "المنطقة الزمنية",
       searchTimezone: "ابحث عن منطقة زمنية",
       noTimezone: "لا توجد منطقة زمنية مطابقة.",
-      cutoff: "ينتهي يوم العمل عند",
+      cutoff: "ينقلب اليوم عند",
       businessDateNow: "تاريخ العمل الآن",
       businessDateAfter: "بعد الحفظ",
       businessDateForward: "يتقدم اليوم إلى {date}.",
@@ -10230,12 +10277,22 @@ export const messages: Record<SupportedLocale, Messages> = {
       housekeepingTitle: "التدبير الفندقي",
       modulesTitle: "المفعّل هنا",
       modulesHint: "ما يستطيع فريقك استخدامه في هذه المنشأة.",
+      modulesCount:
+        "{count, plural, zero {# شاشة قيد الاستخدام} one {شاشة واحدة قيد الاستخدام} two {شاشتان قيد الاستخدام} few {# شاشات قيد الاستخدام} many {# شاشة قيد الاستخدام} other {# شاشة قيد الاستخدام}}",
       elsewhereTitle: "تُدار في شاشاتها الخاصة",
       elsewhereHint: "لكل من هذه الإعدادات مكان واحد.",
       roomsHint: "أضف الغرف والأسرّة، وأوقف وحدة مع ذكر السبب.",
       peopleHint: "ادعُ الموظفين، واختر أدوارهم والمنشآت التي يصلون إليها.",
       save: "حفظ التغييرات",
       discard: "تجاهل",
+      saveForProperty: "حفظ لهذه المنشأة",
+      saveForOrganization: "حفظ لكل المنشآت",
+      discardChanges: "تجاهل التغييرات",
+      draftNote: "لم يُحفظ بعد.",
+      confirmOrgTitle: "تغيير هذا لكل المنشآت؟",
+      orgChangeLine: "يغيّر هذا {setting} لكل المنشآت: من «{from}» إلى «{to}».",
+      confirmOrgChange: "التغيير لكل المنشآت",
+      keepEditing: "متابعة التحرير",
       saving: "جارٍ الحفظ…",
       saved: "تم الحفظ",
       unchanged: "لا شيء للحفظ — هذه هي الإعدادات الحالية.",
@@ -10251,7 +10308,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       invalidTimezone: "اختر منطقة زمنية من القائمة.",
       invalidCurrency: "اختر عملة من القائمة.",
       invalidCutoff: "اختر وقتًا بين 03:00 و11:45.",
-      readOnly: "يمكنك رؤية هذه الإعدادات. يستطيع المالك أو المدير تغييرها.",
+      readOnly:
+        "يمكنك رؤية هذه الإعدادات. لتغييرها يحتاج دورك إلى صلاحية «{permission}».",
       fields: {
         name: "الاسم",
         timezone: "المنطقة الزمنية",
