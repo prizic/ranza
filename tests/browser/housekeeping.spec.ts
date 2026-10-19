@@ -295,13 +295,13 @@ test("a check-out leaves the room dirty through the worker, and a cleaner takes 
     await cleanerPage.getByRole("menuitem", { name: "Mark clean" }).click();
     await expect(cleanerPage.getByText("1 room updated")).toBeVisible();
     await expect(row).toContainText("Clean");
-    await expect(row).toContainText("Waiting for inspection");
+    await expect(row).toContainText("Awaiting inspection");
 
     // Clean to inspected, which is.
     await row.getByRole("button", { name: `Actions for ${unitName}` }).click();
     await cleanerPage.getByRole("menuitem", { name: "Mark inspected" }).click();
     await expect(row).toContainText("Inspected");
-    await expect(row).not.toContainText("Waiting for inspection");
+    await expect(row).not.toContainText("Awaiting inspection");
     await cleanerPage.screenshot({
       path: path.join(EVIDENCE, "cleaner-marks-the-room-inspected.png"),
     });
@@ -400,7 +400,7 @@ test("a Property with housekeeping switched off shows the empty state, not anoth
 
   // HK-S1-24: the board of the first Property with housekeeping, under this
   // one's name in the switcher, is what this once showed.
-  await expect(page.getByText(/Which rooms need cleaning at/)).toHaveCount(0);
+  await expect(page.getByText(/Every room at/)).toHaveCount(0);
   await expect(page.getByRole("table")).toHaveCount(0);
   await expect(
     page.getByText("Housekeeping is not on at this Property"),

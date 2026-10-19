@@ -67,7 +67,6 @@ export interface HousekeepingCounts {
   dirty: number;
   clean: number;
   inspected: number;
-  ready: number;
 }
 
 export interface HousekeepingBoard {

@@ -77,11 +77,23 @@ describe("the inspection setting", () => {
     ).toBeEnabled();
   });
 
-  it("leaves a reader without the permission both values and no control", () => {
+  it("tells a reader without the permission what applies in a sentence, with no control to try (HK-S3-12)", () => {
     show({ ...manager, mayConfigure: false, mayConfigureDefault: false });
-    for (const name of ["For the whole Organization", "For this Property"]) {
-      expect(screen.getByRole("combobox", { name })).toBeDisabled();
-    }
-    expect(screen.getAllByText("A manager can change this.")).toHaveLength(2);
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/waits for an inspection before it is ready to let/),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/A manager can change this/)).toHaveLength(1);
+
+    show({
+      ...manager,
+      organizationDefault: false,
+      effective: false,
+      mayConfigure: false,
+      mayConfigureDefault: false,
+    });
+    expect(
+      screen.getByText(/is ready to let without an inspection/),
+    ).toBeInTheDocument();
   });
 });

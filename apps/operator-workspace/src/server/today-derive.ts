@@ -454,7 +454,7 @@ function unitOf(row: { unitName: string; roomName: string | null }): UnitLabel {
 }
 
 /** The room a Unit is, or is a bed in: what the board lists. */
-function roomNameOf(row: { unitName: string; roomName: string | null }) {
+export function roomNameOf(row: { unitName: string; roomName: string | null }) {
   return row.roomName ?? row.unitName;
 }
 

@@ -68,7 +68,6 @@ function countsOf(rooms: readonly HousekeepingRoom[]): HousekeepingCounts {
     dirty: rooms.filter((room) => room.status === "dirty").length,
     clean: rooms.filter((room) => room.status === "clean").length,
     inspected: rooms.filter((room) => room.status === "inspected").length,
-    ready: rooms.filter((room) => room.ready).length,
   };
 }
 

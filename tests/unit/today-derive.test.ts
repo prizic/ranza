@@ -190,7 +190,7 @@ function room(overrides: Partial<HousekeepingRoom>): HousekeepingRoom {
 function board(rooms: HousekeepingRoom[]): HousekeepingBoard {
   return {
     rooms,
-    counts: { rooms: rooms.length, dirty: 0, clean: 0, inspected: 0, ready: 0 },
+    counts: { rooms: rooms.length, dirty: 0, clean: 0, inspected: 0 },
     mayMark: true,
   };
 }

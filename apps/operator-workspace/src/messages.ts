@@ -679,14 +679,12 @@ export interface Messages {
   folioInHouseNote: string;
 
   rooms: string;
-  roomsAt: string;
   roomsSubtitle: string;
   noRoomsTitle: string;
   noRoomsDescription: string;
   addRooms: string;
   addingRooms: string;
   firstNumber: string;
-  firstNumberHint: string;
   roomCount: string;
   capacityPerRoom: string;
   building: string;
@@ -1712,6 +1710,40 @@ export interface Messages {
     allOwing: string;
   };
   /** The Housekeeping screen (RANZ-28). */
+  /** The Rooms & beds screen's own words, beyond the shared room labels. */
+  roomsPage: {
+    addDescription: string;
+    roomTypeLabel: string;
+    firstNumberHint: string;
+    previewRange: string;
+    previewFloor: string;
+    previewSleeps: string;
+    previewBeds: string;
+    previewIncomplete: string;
+    addCount: string;
+    firstNumberInvalid: string;
+    countInvalid: string;
+    capacityInvalid: string;
+    floorInvalid: string;
+    buildingInvalid: string;
+    taken: string;
+    notPermitted: string;
+    refused: string;
+    bedsOnlyRoom: string;
+    invalidGeneric: string;
+    discardDraft: string;
+    added: string;
+    statFree: string;
+    findRoom: string;
+    showStates: string;
+    showAll: string;
+    noMatchTitle: string;
+    noMatchDescription: string;
+    noRoomsReadOnly: string;
+    housekeepingLink: string;
+    refresh: string;
+  };
+
   housekeeping: {
     subtitle: string;
     /** No Property the viewer may use housekeeping at, or not the one named. */
@@ -1762,6 +1794,16 @@ export interface Messages {
     defaultNeedsReach: string;
     settingReadOnly: string;
     awaitingInspection: string;
+    inspectionReadOnlyOn: string;
+    inspectionReadOnlyOff: string;
+    unavailablePick: string;
+    todayColumn: string;
+    priorityArrival: string;
+    priorityInspect: string;
+    priorityLeaving: string;
+    floorFilter: string;
+    noFloor: string;
+    neverMarked: string;
   };
 
   /** The Maintenance screen (RANZ-33). */
@@ -3443,7 +3485,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Bu folyo kapalı. Satırlar olduğu gibi kalır; kapalı bir folyoya yeni satır işlenemez.",
 
     rooms: "Odalar ve yataklar",
-    roomsAt: "{property} odaları ve yatakları",
     roomsSubtitle: "Bu tesisteki her oda ve yatak, ve her birinde kim kalıyor.",
     noRoomsTitle: "Henüz oda yok",
     noRoomsDescription:
@@ -3451,7 +3492,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     addRooms: "Oda ekle",
     addingRooms: "Ekleniyor...",
     firstNumber: "İlk oda numarası",
-    firstNumberHint: "Odalar bu numaradan başlayarak sırayla numaralandırılır.",
     roomCount: "Oda sayısı",
     capacityPerRoom: "Oda kapasitesi (kişi)",
     building: "Bina (isteğe bağlı)",
@@ -4566,8 +4606,54 @@ export const messages: Record<SupportedLocale, Messages> = {
           "Bir şeyler ters gitti ve bildirildi. Biraz sonra tekrar deneyin.",
       },
     },
+    roomsPage: {
+      addDescription:
+        "Odaları tek seferde oluşturun. Sırayla numaralandırılırlar.",
+      roomTypeLabel: "Oda türü",
+      firstNumberHint:
+        "Yalnızca rakam, en çok 8 hane, örneğin 101. Odalar bu numaradan başlayarak sırayla numaralandırılır.",
+      previewRange:
+        "{count, plural, one {{first} numaralı oda eklenir} other {# oda eklenir: {first} – {last}}}",
+      previewFloor: "{floor}. kat",
+      previewSleeps: "{count} kişilik",
+      previewBeds:
+        "{count, plural, one {odada 1 yatak} other {odada # yatak, A – {last}}}",
+      previewIncomplete:
+        "Ne oluşturulacağını görmek için ilk oda numarasını girin.",
+      addCount: "{count, plural, other {# oda ekle}}",
+      firstNumberInvalid:
+        "Yalnızca rakam kullanın (en çok 8 hane), örneğin 101. Harf ve tire kabul edilmez.",
+      countInvalid: "Eklenecek oda sayısını girin, 1 ile 60 arasında.",
+      capacityInvalid: "1 ile {max} arasında bir sayı girin.",
+      floorInvalid: "-20 ile 200 arasında bir kat girin ya da boş bırakın.",
+      buildingInvalid: "En fazla 60 karakter kullanın.",
+      taken:
+        "{name} numaralı oda bu tesiste zaten var, bu yüzden hiçbir oda eklenmedi. Hiçbir numara tekrar etmesin diye ilk numarayı veya eklenecek oda sayısını değiştirin.",
+      notPermitted:
+        "Oda eklemek “{permission}” iznini gerektirir ve rolünüzde bu izin yok. Organizasyonunuzda personeli yöneten birinden — Sahipler ve Yöneticiler yapabilir — rolünüze eklemesini isteyin.",
+      refused:
+        "Bu odalar şu anda eklenemiyor. Sayfayı yenileyin; sorun sürerse Sahibinize veya bir Yöneticiye söyleyin.",
+      bedsOnlyRoom:
+        "Yalnızca bir oda yatak yatak kiralanabilir. Tür olarak Oda seçin.",
+      invalidGeneric: "Sayıları kontrol edip yeniden deneyin.",
+      discardDraft: "Eklemek üzere olduğunuz odalardan vazgeçilsin mi?",
+      added:
+        "{count, plural, one {{first} numaralı oda eklendi.} other {# oda eklendi: {first} – {last}.}}",
+      statFree: "Bu gece boş",
+      findRoom: "Oda veya misafir bul",
+      showStates: "Şu durumdaki odaları göster",
+      showAll: "Tüm odaları göster",
+      noMatchTitle: "Eşleşen oda yok",
+      noMatchDescription:
+        "Bu arama ve bu filtrelerle eşleşen oda yok. Tesisinizin odaları yerinde duruyor.",
+      noRoomsReadOnly:
+        "Bu tesise henüz oda eklenmedi. Rolünde “{permission}” bulunan biri ekleyebilir.",
+      housekeepingLink:
+        "Hangileri temiz, hangileri kirli? Kat hizmetlerine bakın",
+      refresh: "Yenile",
+    },
     housekeeping: {
-      subtitle: "{property} — temizlik bekleyen odalar",
+      subtitle: "{property} — tüm odalar",
       unavailableTitle: "Kat hizmetleri bu tesiste açık değil",
       unavailableDescription:
         "Kat hizmetleri, organizasyonunuzun aboneliğinde yer aldığında ve tesiste etkinleştirildiğinde burada görünür.",
@@ -4622,6 +4708,19 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Organizasyon ayarını yalnızca tüm tesislere erişimi olan biri değiştirebilir.",
       settingReadOnly: "Bunu bir yönetici değiştirebilir.",
       awaitingInspection: "Kontrol bekliyor",
+      inspectionReadOnlyOn:
+        "Bu tesiste temizlenen bir oda, satışa hazır sayılmadan önce kontrol bekler. Bunu bir yönetici değiştirebilir.",
+      inspectionReadOnlyOff:
+        "Bu tesiste temizlenen bir oda, kontrol edilmeden satışa hazır sayılır. Bunu bir yönetici değiştirebilir.",
+      unavailablePick:
+        "Başka bir tesisin odalarını görmek için yukarıdaki çubuktan o tesisi seçin.",
+      todayColumn: "Bugün",
+      priorityArrival: "Bugün geliş",
+      priorityInspect: "Geliş · kontrol",
+      priorityLeaving: "Bugün boşalıyor",
+      floorFilter: "Kat",
+      noFloor: "Katsız",
+      neverMarked: "Hiç işaretlenmedi",
     },
     maintenance: {
       heading:
@@ -6398,7 +6497,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       "This folio is closed. Its lines stay exactly as they are, and nothing further can be posted to it.",
 
     rooms: "Rooms & beds",
-    roomsAt: "Rooms & beds at {property}",
     roomsSubtitle:
       "Every room and bed at this Property, and who is in each one.",
     noRoomsTitle: "No rooms yet",
@@ -6407,7 +6505,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     addRooms: "Add rooms",
     addingRooms: "Adding...",
     firstNumber: "First room number",
-    firstNumberHint: "Rooms are numbered in sequence starting from here.",
     roomCount: "Number of rooms",
     capacityPerRoom: "Capacity per room (guests)",
     building: "Building (optional)",
@@ -7532,8 +7629,52 @@ export const messages: Record<SupportedLocale, Messages> = {
           "Something went wrong, and it has been reported. Try again in a moment.",
       },
     },
+    roomsPage: {
+      addDescription: "Create rooms in one go. They are numbered in sequence.",
+      roomTypeLabel: "Room type",
+      firstNumberHint:
+        "Digits only, 1 to 8 of them, for example 101. Rooms are numbered in sequence from here.",
+      previewRange:
+        "{count, plural, one {Adds room {first}} other {Adds # rooms: {first} to {last}}}",
+      previewFloor: "floor {floor}",
+      previewSleeps: "sleeps {count}",
+      previewBeds:
+        "{count, plural, one {1 bed per room} other {# beds per room, A to {last}}}",
+      previewIncomplete:
+        "Enter the first room number to see what will be created.",
+      addCount: "{count, plural, one {Add # room} other {Add # rooms}}",
+      firstNumberInvalid:
+        "Use digits only, 1 to 8 of them, for example 101. Letters and dashes are not accepted.",
+      countInvalid: "Enter how many rooms to add, from 1 to 60.",
+      capacityInvalid: "Enter a number from 1 to {max}.",
+      floorInvalid: "Enter a floor from -20 to 200, or leave it empty.",
+      buildingInvalid: "Use at most 60 characters.",
+      taken:
+        "Room {name} already exists at this Property, so no rooms were added. Change the first number or how many to add so that no number repeats.",
+      notPermitted:
+        "Adding rooms needs the permission “{permission}”, and your role doesn't include it. Ask someone who manages staff in your Organization — Owners and Managers can — to add it to your role.",
+      refused:
+        "Those rooms can't be added right now. Reload the page; if it keeps happening, tell your Owner or a Manager.",
+      bedsOnlyRoom:
+        "Only a room can be let by the bed. Choose Room as the type.",
+      invalidGeneric: "Check the numbers and try again.",
+      discardDraft: "Discard the rooms you were about to add?",
+      added:
+        "{count, plural, one {Added room {first}.} other {Added # rooms: {first} to {last}.}}",
+      statFree: "Free tonight",
+      findRoom: "Find a room or a guest",
+      showStates: "Show rooms that are",
+      showAll: "Show all rooms",
+      noMatchTitle: "No rooms match",
+      noMatchDescription:
+        "No room matches this search with these filters. Your Property still has its rooms.",
+      noRoomsReadOnly:
+        "No rooms have been added to this Property yet. Someone whose role holds “{permission}” can add them.",
+      housekeepingLink: "Which are clean or dirty? See Housekeeping",
+      refresh: "Refresh",
+    },
     housekeeping: {
-      subtitle: "Which rooms need cleaning at {property}",
+      subtitle: "Every room at {property}",
       unavailableTitle: "Housekeeping is not on at this Property",
       unavailableDescription:
         "It appears here once your Organization's Subscription includes it and the Property has it enabled.",
@@ -7587,7 +7728,20 @@ export const messages: Record<SupportedLocale, Messages> = {
       defaultNeedsReach:
         "Only someone who reaches every Property can change the Organization's setting.",
       settingReadOnly: "A manager can change this.",
-      awaitingInspection: "Waiting for inspection",
+      awaitingInspection: "Awaiting inspection",
+      inspectionReadOnlyOn:
+        "A cleaned room at this Property waits for an inspection before it is ready to let. A manager can change this.",
+      inspectionReadOnlyOff:
+        "A cleaned room at this Property is ready to let without an inspection. A manager can change this.",
+      unavailablePick:
+        "To see another Property's rooms, choose it from the Property control in the bar above.",
+      todayColumn: "Today",
+      priorityArrival: "Arrival today",
+      priorityInspect: "Arrival · inspect",
+      priorityLeaving: "Leaving today",
+      floorFilter: "Floor",
+      noFloor: "No floor",
+      neverMarked: "Never marked",
     },
     maintenance: {
       heading:
@@ -9336,7 +9490,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       "هذا الحساب مغلق. تبقى بنوده كما هي، ولا يمكن قيد أي شيء جديد عليه.",
 
     rooms: "الغرف والأسرّة",
-    roomsAt: "الغرف والأسرّة في {property}",
     roomsSubtitle: "كل غرفة وسرير في هذا العقار، ومن يشغل كلًّا منها.",
     noRoomsTitle: "لا توجد غرف بعد",
     noRoomsDescription:
@@ -9344,7 +9497,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     addRooms: "إضافة غرف",
     addingRooms: "جارٍ الإضافة...",
     firstNumber: "رقم الغرفة الأولى",
-    firstNumberHint: "يتم ترقيم الغرف بالتسلسل بدءاً من هذا الرقم.",
     roomCount: "عدد الغرف",
     capacityPerRoom: "سعة الغرفة (أشخاص)",
     building: "المبنى (اختياري)",
@@ -10447,8 +10599,51 @@ export const messages: Record<SupportedLocale, Messages> = {
         error: "حدث خطأ ما وتم الإبلاغ عنه. حاول مرة أخرى بعد قليل.",
       },
     },
+    roomsPage: {
+      addDescription: "أنشئ الغرف دفعة واحدة. تُرقَّم بالتسلسل.",
+      roomTypeLabel: "نوع الغرفة",
+      firstNumberHint:
+        "أرقام فقط، من 1 إلى 8 خانات، مثل 101. تُرقَّم الغرف بالتسلسل بدءًا من هذا الرقم.",
+      previewRange:
+        "{count, plural, one {تُضاف الغرفة {first}} two {تُضاف غرفتان: {first} إلى {last}} few {تُضاف # غرف: {first} إلى {last}} many {تُضاف # غرفة: {first} إلى {last}} other {تُضاف # غرفة: {first} إلى {last}}}",
+      previewFloor: "الطابق {floor}",
+      previewSleeps: "تتسع لـ {count}",
+      previewBeds:
+        "{count, plural, one {سرير واحد في كل غرفة} two {سريران في كل غرفة} few {# أسرّة في كل غرفة، من A إلى {last}} many {# سريرًا في كل غرفة، من A إلى {last}} other {# سرير في كل غرفة، من A إلى {last}}}",
+      previewIncomplete: "أدخل رقم أول غرفة لترى ما سيُنشأ.",
+      addCount:
+        "{count, plural, one {إضافة غرفة} two {إضافة غرفتين} few {إضافة # غرف} many {إضافة # غرفة} other {إضافة # غرفة}}",
+      firstNumberInvalid:
+        "استخدم أرقامًا فقط، من 1 إلى 8 خانات، مثل 101. لا تُقبل الحروف ولا الشرطات.",
+      countInvalid: "أدخل عدد الغرف المراد إضافتها، من 1 إلى 60.",
+      capacityInvalid: "أدخل رقمًا من 1 إلى {max}.",
+      floorInvalid: "أدخل طابقًا من -20 إلى 200، أو اتركه فارغًا.",
+      buildingInvalid: "استخدم 60 حرفًا على الأكثر.",
+      taken:
+        "الغرفة {name} موجودة بالفعل في هذا العقار، لذلك لم تُضف أي غرفة. غيّر الرقم الأول أو عدد الغرف حتى لا يتكرر أي رقم.",
+      notPermitted:
+        "إضافة الغرف تتطلب الصلاحية «{permission}» ودورك لا يتضمنها. اطلب ممن يدير الموظفين في مؤسستك — المالكون والمديرون يستطيعون — إضافتها إلى دورك.",
+      refused:
+        "تعذّرت إضافة هذه الغرف الآن. أعد تحميل الصفحة؛ وإن تكرر ذلك فأخبر المالك أو أحد المديرين.",
+      bedsOnlyRoom: "الغرفة وحدها هي ما يُؤجَّر بالسرير. اختر «غرفة» نوعًا.",
+      invalidGeneric: "تحقق من الأرقام وحاول مجددًا.",
+      discardDraft: "هل تريد تجاهل الغرف التي كنت على وشك إضافتها؟",
+      added:
+        "{count, plural, one {أُضيفت الغرفة {first}.} two {أُضيفت غرفتان: {first} إلى {last}.} few {أُضيفت # غرف: {first} إلى {last}.} many {أُضيفت # غرفة: {first} إلى {last}.} other {أُضيفت # غرفة: {first} إلى {last}.}}",
+      statFree: "شاغرة الليلة",
+      findRoom: "ابحث عن غرفة أو نزيل",
+      showStates: "أظهر الغرف التي حالتها",
+      showAll: "إظهار كل الغرف",
+      noMatchTitle: "لا توجد غرف مطابقة",
+      noMatchDescription:
+        "لا توجد غرفة تطابق هذا البحث مع هذه المرشحات. غرف عقارك ما زالت موجودة.",
+      noRoomsReadOnly:
+        "لم تُضف أي غرف إلى هذا العقار بعد. يستطيع إضافتها من يحمل دوره الصلاحية «{permission}».",
+      housekeepingLink: "أيها نظيفة وأيها متسخة؟ افتح التدبير الفندقي",
+      refresh: "تحديث",
+    },
     housekeeping: {
-      subtitle: "الغرف التي تحتاج إلى تنظيف في {property}",
+      subtitle: "كل الغرف في {property}",
       unavailableTitle: "التدبير الفندقي غير مفعّل في هذه المنشأة",
       unavailableDescription:
         "يظهر هنا عندما يشمله اشتراك مؤسستك ويتم تفعيله في المنشأة.",
@@ -10502,6 +10697,19 @@ export const messages: Record<SupportedLocale, Messages> = {
         "لا يمكن تغيير إعداد المؤسسة إلا لمن يصل إلى جميع العقارات.",
       settingReadOnly: "يمكن للمدير تغيير هذا.",
       awaitingInspection: "بانتظار الفحص",
+      inspectionReadOnlyOn:
+        "الغرفة المنظَّفة في هذا العقار تنتظر الفحص قبل أن تصبح جاهزة للتأجير. يمكن للمدير تغيير هذا.",
+      inspectionReadOnlyOff:
+        "الغرفة المنظَّفة في هذا العقار جاهزة للتأجير دون فحص. يمكن للمدير تغيير هذا.",
+      unavailablePick:
+        "لعرض غرف عقار آخر، اختره من عنصر اختيار العقار في الشريط أعلاه.",
+      todayColumn: "اليوم",
+      priorityArrival: "وصول اليوم",
+      priorityInspect: "وصول · فحص",
+      priorityLeaving: "تُخلى اليوم",
+      floorFilter: "الطابق",
+      noFloor: "بلا طابق",
+      neverMarked: "لم تُعلَّم بعد",
     },
     maintenance: {
       heading:

@@ -848,7 +848,7 @@ export async function housekeepingBoard(
   if (!viewer) {
     return {
       rooms: [],
-      counts: { rooms: 0, dirty: 0, clean: 0, inspected: 0, ready: 0 },
+      counts: { rooms: 0, dirty: 0, clean: 0, inspected: 0 },
       mayMark: false,
     };
   }
@@ -1222,6 +1222,21 @@ export async function roomsMaintenance(
   const viewer = await currentViewer();
   if (!viewer) return { holds: [], mayReport: false };
   return getComposition().maintenance.roomsView(viewer.userId, propertyId);
+}
+
+/**
+ * Whether the viewer may add rooms at this Property: the permission, held where
+ * the front desk capability is on. The insert policy decides the same thing
+ * (ADR 0012); asking first is what lets the screen say which it is, since the
+ * module answers every kind of refusal alike (RB-S2-03, ROOMS-01).
+ */
+export async function mayConfigureRooms(propertyId: string): Promise<boolean> {
+  const permitted = await permittedProperties(
+    "accommodation.configure",
+    ROOMS_CAPABILITY.moduleKey,
+    ROOMS_CAPABILITY.capabilityKey,
+  );
+  return permitted.some((property) => property.propertyId === propertyId);
 }
 
 /**

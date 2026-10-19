@@ -31,9 +31,9 @@ import { HousekeepingStatusBadge } from "./status";
  * change, because a setting with a separate save button is a setting somebody
  * leaves half-changed.
  *
- * Controls the reader may not use are shown disabled with the reason beside
- * them, rather than hidden: the value still matters to them, it is what their
- * board obeys.
+ * A reader who may change one of the two sees both, the other disabled with
+ * the reason beside it: the value still matters to them, it is what their board
+ * obeys. A reader who may change neither is told what applies in a sentence.
  */
 export function InspectionSettings({
   locale,
@@ -79,6 +79,21 @@ export function InspectionSettings({
       );
       dispatch(form);
     });
+  }
+
+  // Two controls nobody here can use are a screen of nothing on a phone: the
+  // answer that applies, and who can change it, say the same in a sentence.
+  if (!settings.mayConfigure && !settings.mayConfigureDefault) {
+    return (
+      <Card className="grid gap-1 p-5">
+        <h2 className="text-step-0 font-semibold">{t("inspectionTitle")}</h2>
+        <p className="max-w-prose text-step--1 text-muted-foreground">
+          {settings.effective
+            ? t("inspectionReadOnlyOn")
+            : t("inspectionReadOnlyOff")}
+        </p>
+      </Card>
+    );
   }
 
   const onOff = (value: boolean) => (value ? t("on") : t("off"));
