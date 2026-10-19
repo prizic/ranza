@@ -16,6 +16,7 @@ const bookableUnits = vi.fn();
 const bookingDay = vi.fn();
 const permittedProperties = vi.fn();
 const reservations = vi.fn();
+const screenProperties = vi.fn();
 
 vi.mock("../../apps/operator-workspace/node_modules/server-only", () => ({}));
 // Nothing remembered on this device (OA-S3-05): the page resolves its
@@ -58,6 +59,7 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
     userId: "d9000001-0000-4000-8000-000000000001",
   }),
   reservations,
+  screenProperties,
 }));
 // The dialog is tested on its own in new-reservation.test.tsx; here only the
 // day it is handed matters.
@@ -117,10 +119,18 @@ beforeEach(() => {
     .mockReset()
     .mockImplementation(async (permission: string) => held[permission] ?? []);
   reservations.mockReset().mockResolvedValue([]);
+  screenProperties.mockReset().mockResolvedValue([]);
 });
 afterEach(cleanup);
 
 describe("the Reservations page", () => {
+  it("a_booking_opens_its_history_for_a_viewer_who_may_read_the_audit_log_and_for_nobody_else: the page asks the Audit log's own gate", async () => {
+    await show();
+    expect(screenProperties).toHaveBeenCalledWith(
+      expect.objectContaining({ permission: "audit.read" }),
+    );
+  });
+
   it("RG-S3-03: says nothing is booked ahead when the list is empty", async () => {
     await show();
     expect(screen.getByText(messages.en.noReservationsTitle)).toBeVisible();
