@@ -186,3 +186,27 @@ database answers.
 Traefik's dashboard on the host, `http://46.225.168.54:8080`, lists the
 routers; a hostname that is not there is a label problem, not an application
 one.
+
+## A busy hotel to look at
+
+`scripts/demo-hotel.sql` fills one Property with about forty rooms, guests in
+house, arrivals and departures today, an overdue departure, bookings ahead,
+finished stays, Folios with charges and payments, a mixed housekeeping board,
+repairs and guest requests, all dated from that Property's business date. It was
+run on Prizic Demo's Demo Otel İstanbul on 2026-10-19.
+
+```sh
+ssh root@46.225.168.54 'docker exec -i ranza-db psql -U ranza -d ranza -1 \
+  -v ON_ERROR_STOP=1 -v org=<organization id> -v property=<property id>' \
+  < scripts/demo-hotel.sql
+```
+
+Take a dump first (`docker exec ranza-db pg_dump -U ranza -Fc ranza`), and
+rehearse a change to the script on a local database, because folio lines are
+append-only and a run cannot be taken back with a delete. It runs in one
+transaction, so a failure leaves nothing; it refuses to run twice; and it never
+starts a booking on or before a closed day, because the schema refuses that.
+
+It writes what the application would have written through its commands, so
+there is no audit record and no ledger posting for any of it. Every guest it
+makes has an address ending `@demo-hotel.test`, which is how to find what it made.
