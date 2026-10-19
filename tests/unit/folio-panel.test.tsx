@@ -431,6 +431,26 @@ describe("who the Folio is, and what it has come to (FIN-03, FIN-13)", () => {
     );
   });
 
+  it("links the folio's own history only when it is given where to", () => {
+    const { container } = panel(FOLIO);
+    expect(container.querySelector("[data-history-link]")).toBeNull();
+    cleanup();
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <FolioPanel
+          auditHref="/en/audit-log?property=p&subject=f"
+          folio={FOLIO}
+          locale="en"
+          timeZone="Europe/Istanbul"
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByRole("link", { name: "History" })).toHaveAttribute(
+      "href",
+      "/en/audit-log?property=p&subject=f",
+    );
+  });
+
   it("says an in-house Guest is overdue, in days on the Property's clock", () => {
     panel({ ...FOLIO, endsOn: "2026-09-24", today: "2026-09-27" });
     expect(screen.getByText("Overdue · 3 days")).toBeTruthy();
@@ -555,6 +575,11 @@ describe("recording a payment states what it records (FIN-05, FIN-06)", () => {
     );
     return screen.getByRole("dialog");
   };
+
+  it("prefills_payment_amount_to_unsettled_balance", () => {
+    const dialog = open({ ...FOLIO, balanceMinor: 45_000 });
+    expect(within(dialog).getByLabelText(/Amount/)).toHaveValue("450.00");
+  });
 
   it("starts from what the Guest owes, with no payment method chosen", () => {
     const dialog = open();

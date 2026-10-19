@@ -58,6 +58,7 @@ function day(iso: string, locale: SupportedLocale): string {
 }
 
 export function FolioPanel({
+  auditHref = null,
   folio,
   locale,
   mayOpenReservation = false,
@@ -69,6 +70,12 @@ export function FolioPanel({
   propertyId,
   timeZone,
 }: {
+  /**
+   * The Audit log narrowed to this Folio, for a viewer who may read it and
+   * null for one who may not, so nobody is sent to a screen that turns them
+   * away (AUDIT-03).
+   */
+  auditHref?: string | null;
   folio: FolioDetail;
   locale: SupportedLocale;
   /** The Property the Folio is at, for the link to its booking. */
@@ -155,6 +162,16 @@ export function FolioPanel({
               {t("reservation")} <bdi>{folio.reference}</bdi>
             </span>
           )
+        ) : null}
+        {auditHref ? (
+          <Link
+            className="font-medium text-primary hover:underline"
+            data-history-link
+            href={auditHref}
+            prefetch={false}
+          >
+            {f("history")}
+          </Link>
         ) : null}
         <span>
           {folio.endsOn

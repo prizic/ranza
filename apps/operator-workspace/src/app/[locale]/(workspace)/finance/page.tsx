@@ -5,6 +5,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { FoliosTable } from "../../../../features/finance/components/folios-table";
 import { FolioPanel } from "../../../../features/finance/components/folio-panel";
 import {
+  AUDIT_READ_PERMISSION,
   entitledProperties,
   folio,
   FOLIO_CAPABILITY,
@@ -99,6 +100,11 @@ export default async function FinancePage({
       properties.find(
         (candidate) => candidate.propertyId === selected.propertyId,
       ) ?? property;
+    // The folio's own history, where the Audit log narrows to it: offered to a
+    // viewer who may read the log at its Property and to nobody else.
+    const mayReadHistory = (
+      await permittedProperties(AUDIT_READ_PERMISSION)
+    ).some((reachable) => reachable.propertyId === selected.propertyId);
     const mayOpenReservation = (
       await entitledProperties(FRONT_DESK_CAPABILITY)
     ).some((reachable) => reachable.propertyId === selected.propertyId);
@@ -106,6 +112,11 @@ export default async function FinancePage({
       <>
         <p className="text-sm text-muted-foreground">{property.propertyName}</p>
         <FolioPanel
+          auditHref={
+            mayReadHistory
+              ? `${localizeHref(locale, "audit-log")}?${new URLSearchParams({ property: selected.propertyId, subject: selected.folioId })}`
+              : null
+          }
           folio={selected}
           locale={locale}
           mayOpenReservation={mayOpenReservation}

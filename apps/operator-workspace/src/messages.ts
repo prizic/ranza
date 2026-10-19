@@ -676,6 +676,8 @@ export interface Messages {
 
   /** The Finance screen: the Folio list, a Folio, and the four things done to one. */
   finance: {
+    /** The link to this folio's own records in the Audit log. */
+    history: string;
     cancel: string;
     reload: string;
     tabsLabel: string;
@@ -3752,6 +3754,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       closeCredit: "{amount} folyoda alacak olarak kalır.",
       closeFinal:
         "Satırlar olduğu gibi kalır, daha fazla satır işlenemez ve kapalı bir folyo yeniden açılamaz.",
+      history: "Geçmiş",
     },
 
     rooms: "Odalar ve yataklar",
@@ -7035,6 +7038,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       closeCredit: "{amount} is a credit left on the folio.",
       closeFinal:
         "Its lines stay exactly as they are, nothing more can be posted, and a closed folio cannot be reopened.",
+      history: "History",
     },
 
     rooms: "Rooms & beds",
@@ -10296,6 +10300,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       closeCredit: "{amount} رصيد دائن يبقى على الحساب.",
       closeFinal:
         "تبقى بنوده كما هي، ولا يمكن قيد أي شيء آخر عليه، ولا يمكن إعادة فتح الحساب بعد إغلاقه.",
+      history: "السجل",
     },
 
     rooms: "الغرف والأسرّة",

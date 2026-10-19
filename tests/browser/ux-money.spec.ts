@@ -143,6 +143,24 @@ test.describe("Finance (RANZ-67)", () => {
     );
   });
 
+  test("a_folio_links_its_own_history_in_the_audit_log", async ({ page }) => {
+    const propertyId = aDeskProperty();
+    const guest = anOverdueGuest(propertyId, {
+      daysOverdue: 1,
+      withFolio: true,
+    });
+    await signIn(page);
+    const folio = folioOf(guest);
+    await page.goto(`/en/finance?property=${propertyId}&folio=${folio}`);
+    await page.getByRole("link", { name: "History" }).click();
+    await expect(page).toHaveURL(
+      new RegExp(`/en/audit-log\\?property=${propertyId}&subject=${folio}`),
+    );
+    await expect(page.locator("main")).not.toContainText(
+      "Something went wrong",
+    );
+  });
+
   test("a_malformed_folio_in_the_address_is_no_folio_and_not_a_failed_page", async ({
     page,
   }) => {

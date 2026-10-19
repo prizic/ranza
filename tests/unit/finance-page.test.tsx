@@ -47,6 +47,7 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
   POST_PAYMENT_PERMISSION: "finance.post_payment",
   REVERSE_CHARGE_PERMISSION: "finance.reverse_charge",
   REVERSE_PAYMENT_PERMISSION: "finance.reverse_payment",
+  AUDIT_READ_PERMISSION: "audit.read",
   FRONT_DESK_CAPABILITY: {
     moduleKey: "front_office",
     capabilityKey: "front_desk",
@@ -64,9 +65,15 @@ vi.mock(
   "../../apps/operator-workspace/src/features/finance/components/folios-table",
   () => ({ FoliosTable: () => <p data-testid="folios-table" /> }),
 );
+const folioPanel = vi.fn();
 vi.mock(
   "../../apps/operator-workspace/src/features/finance/components/folio-panel",
-  () => ({ FolioPanel: () => <p data-testid="folio-panel" /> }),
+  () => ({
+    FolioPanel: (props: unknown) => {
+      folioPanel(props);
+      return <p data-testid="folio-panel" />;
+    },
+  }),
 );
 
 const PROPERTY = {
@@ -113,6 +120,7 @@ beforeEach(() => {
   folio.mockReset().mockResolvedValue(null);
   folioPage.mockReset().mockResolvedValue({ folios: [], total: 0 });
   permittedProperties.mockReset().mockResolvedValue([]);
+  folioPanel.mockReset();
 });
 afterEach(cleanup);
 
@@ -175,5 +183,33 @@ describe("the Finance list's tabs (FIN-02)", () => {
     expect(
       screen.getByRole("link", { name: messages.en.finance.tabs.all }),
     ).not.toHaveAttribute("aria-current");
+  });
+});
+
+describe("a folio's history (AUDIT-03)", () => {
+  const FOLIO = {
+    folioId: "d9100005-0000-4000-8000-000000000001",
+    propertyId: PROPERTY.propertyId,
+  };
+  const history = () =>
+    (folioPanel.mock.calls.at(-1)?.[0] as { auditHref: string | null })
+      .auditHref;
+
+  it("links the Audit log narrowed to the folio, with the Property kept, for a viewer who may read it", async () => {
+    folio.mockResolvedValue(FOLIO);
+    permittedProperties.mockImplementation(async (permission: string) =>
+      permission === "audit.read" ? [PROPERTY] : [],
+    );
+    await show({ property: PROPERTY.propertyId, folio: FOLIO.folioId });
+    expect(history()).toBe(
+      `/en/audit-log?property=${PROPERTY.propertyId}&subject=${FOLIO.folioId}`,
+    );
+  });
+
+  it("offers no link to a viewer who may not read the Audit log", async () => {
+    folio.mockResolvedValue(FOLIO);
+    permittedProperties.mockResolvedValue([]);
+    await show({ property: PROPERTY.propertyId, folio: FOLIO.folioId });
+    expect(history()).toBeNull();
   });
 });
