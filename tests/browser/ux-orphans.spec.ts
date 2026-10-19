@@ -409,6 +409,7 @@ test.describe("hand-offs from the Configuration and Audit log lane (CONFIG-07, A
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
     ).toBeLessThanOrEqual(375);
+    await card.scrollIntoViewIfNeeded();
     await page.screenshot({
       path: path.join(EVIDENCE, "configuration-maintenance-375.png"),
     });
