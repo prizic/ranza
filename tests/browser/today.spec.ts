@@ -444,7 +444,12 @@ test.describe("every number on Today opens the list that explains it", () => {
         .filter({ hasText: /^\D*\d+\D*$/ })
         .last();
     expect(integers(await stat("Occupied").innerText())[0]).toBe(inHouse);
-    expect(integers(await stat("Beds").innerText())[0]).toBe(sellable);
+    // What can be let is counted by the tile that carries it: Beds where a
+    // room is let by the bed, Rooms where none is (the Beds tile is then hidden).
+    const letTile = (await page.getByText("Beds", { exact: true }).count())
+      ? "Beds"
+      : "Rooms";
+    expect(integers(await stat(letTile).innerText())[0]).toBe(sellable);
     expect(inHouse).toBe(4);
   });
 
