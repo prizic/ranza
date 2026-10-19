@@ -594,6 +594,14 @@ describe("working the board", { timeout: DATABASE_BUDGET_MS }, () => {
     expect(record?.context).toMatchObject({ from: null, to: DESK });
   });
 
+  it("offers as assignees only the staff who may manage requests (MT-S1-18)", async () => {
+    const { assignees } = await maintenance.reportOptions(MANAGER, PROPERTY);
+    const offered = assignees.map((assignee) => assignee.userId);
+    expect(offered).toEqual(expect.arrayContaining([MANAGER, TECHNICIAN]));
+    expect(offered).not.toContain(DESK);
+    expect(offered).not.toContain(FINANCE);
+  });
+
   it("marks an assignee whose reach was taken away (MT-S1-20)", async () => {
     const { requestId } = await report(DESK, ROOM);
     await maintenance.assign(MANAGER, { requestId, assigneeId: FINANCE });

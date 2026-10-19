@@ -171,3 +171,23 @@ test("a Guest sees the stay they are in first, read in plain words, and a finish
   ).toBeVisible();
   await expect(page.getByText(/set up your stay/)).toHaveCount(0);
 });
+
+test("on a touch screen every language in the menu is a touch target", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    hasTouch: true,
+    isMobile: true,
+    viewport: { width: 390, height: 800 },
+  });
+  const page = await context.newPage();
+  await page.goto(`${PORTAL_URL}/en/sign-in`);
+  await page.getByRole("button", { name: /English/ }).click();
+  const items = page.getByRole("menuitem");
+  await expect(items).toHaveCount(3);
+  for (const item of await items.all()) {
+    const box = await item.boundingBox();
+    expect(box!.height).toBeGreaterThanOrEqual(44);
+  }
+  await context.close();
+});
