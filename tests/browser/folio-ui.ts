@@ -72,5 +72,13 @@ export async function reverseLine(
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Reason").fill(reason);
   await dialog.getByRole("button", { name: "Reverse" }).click();
-  await expect(row.getByText("reversed")).toBeVisible();
+  // The correction is a line of its own that names the original, so the
+  // original is the row that is not the reversal.
+  await expect(
+    page
+      .getByRole("row")
+      .filter({ hasText: description })
+      .filter({ hasNotText: "Reversal of" })
+      .getByText("reversed"),
+  ).toBeVisible();
 }
