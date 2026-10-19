@@ -2709,7 +2709,7 @@ export const messages: Record<SupportedLocale, Messages> = {
           "Bu parola çok kısa ya da çok uzun. 8 ile 128 karakter kullanın.",
         throttled: "Çok fazla deneme yapıldı. Biraz sonra tekrar deneyin.",
         account_exists:
-          "Bu adres için zaten bir hesap var. Onun parolasıyla oturum açın.",
+          "Bu adres için zaten bir hesap var. Onun için seçtiğiniz parolayı girin.",
         unavailable:
           "Bu çalışmadı. Tekrar deneyin; sürerse sizi davet eden kişiye bildirin.",
         secondStep: "Bu hesap burada yapılamayan bir ikinci adım istiyor.",
@@ -5410,7 +5410,7 @@ export const messages: Record<SupportedLocale, Messages> = {
           "That password is too short or too long. Use 8 to 128 characters.",
         throttled: "Too many attempts. Try again in a moment.",
         account_exists:
-          "An account already exists for this address. Sign in with its password instead.",
+          "An account with this address already exists. Enter the password you chose for it.",
         unavailable:
           "This did not work. Try again, and tell whoever invited you if it keeps failing.",
         secondStep:
@@ -8117,7 +8117,7 @@ export const messages: Record<SupportedLocale, Messages> = {
           "كلمة المرور قصيرة جدًا أو طويلة جدًا. استخدم من 8 إلى 128 حرفًا.",
         throttled: "محاولات كثيرة. أعد المحاولة بعد قليل.",
         account_exists:
-          "يوجد حساب لهذا العنوان بالفعل. سجّل الدخول بكلمة مروره.",
+          "يوجد حساب بهذا العنوان بالفعل. أدخل كلمة المرور التي اخترتها له.",
         unavailable: "لم ينجح ذلك. أعد المحاولة، وأخبر من دعاك إن استمر الفشل.",
         secondStep: "يطلب هذا الحساب خطوة ثانية لا يمكن إجراؤها هنا.",
       },

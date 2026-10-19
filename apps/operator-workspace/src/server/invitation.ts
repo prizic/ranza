@@ -240,23 +240,52 @@ async function createLoginAndAccept(
   headers.set("content-type", "application/json");
   headers.delete("content-length");
   headers.delete("cookie");
-
-  const signUp = await auth.handler(
-    new Request(new URL("/api/auth/sign-up/email", request.url), {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        email: link.email,
-        password: body.password,
-        name: nameFor(body.name, link.email),
+  const toAuth = (path: string, payload: unknown): Promise<Response> =>
+    auth.handler(
+      new Request(new URL(path, request.url), {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
       }),
-    }),
-  );
+    );
 
-  const refused = await signUpRefusal(signUp.clone());
-  if (refused) return refusal(refused);
+  let session = await toAuth("/api/auth/sign-up/email", {
+    email: link.email,
+    password: body.password,
+    name: nameFor(body.name, link.email),
+  });
+  // Set when the account was already there and the password proved it is theirs.
+  let resumed = false;
 
-  const created: unknown = await signUp
+  const refused = await signUpRefusal(session.clone());
+  if (refused === "account_exists") {
+    // An earlier attempt may have made the account and then failed to tie it to
+    // the invited user (a fault between the two steps). The invited user has no
+    // login, so an account for this address that the submitted password opens is
+    // that attempt's, and the link finishes it. Anything else — another
+    // password, a second factor, a refusal — is an account that is not ours to
+    // touch, and stays "an account already exists".
+    session = await toAuth("/api/auth/sign-in/email", {
+      email: link.email,
+      password: body.password,
+    });
+    if (session.status === 429) return refusal("throttled");
+    const answer: unknown = await session
+      .clone()
+      .json()
+      .catch(() => null);
+    const challenged =
+      typeof answer === "object" &&
+      answer !== null &&
+      "twoFactorRedirect" in answer &&
+      answer.twoFactorRedirect === true;
+    if (!session.ok || challenged) return refusal("account_exists");
+    resumed = true;
+  } else if (refused) {
+    return refusal(refused);
+  }
+
+  const created: unknown = await session
     .clone()
     .json()
     .catch(() => null);
@@ -276,11 +305,17 @@ async function createLoginAndAccept(
     if (!(error instanceof InvitedUserLinkError)) {
       console.error("staff.invitation_accept_failed", link.userId, error);
     }
-    return refusal("unavailable");
+    // A resumed account that cannot be tied (its subject already has a Ranza
+    // user of its own) is somebody else's account, not a fault of ours.
+    return refusal(
+      resumed && error instanceof InvitedUserLinkError
+        ? "account_exists"
+        : "unavailable",
+    );
   }
 
   const reply = Response.json({ ok: true } satisfies AcceptResult);
-  for (const cookie of signUp.headers.getSetCookie()) {
+  for (const cookie of session.headers.getSetCookie()) {
     reply.headers.append("set-cookie", cookie);
   }
   reply.headers.append("set-cookie", FORGET_PROPERTY);

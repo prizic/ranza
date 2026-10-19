@@ -161,6 +161,96 @@ describe("choosing a password from the link", () => {
     expect(accept).not.toHaveBeenCalled();
   });
 
+  const exists = () =>
+    Response.json(
+      { code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL" },
+      { status: 422 },
+    );
+  const signedIn = (subject = "orphan-subject") => {
+    const response = Response.json({ user: { id: subject } });
+    response.headers.append("set-cookie", "session=resumed; Path=/");
+    return response;
+  };
+
+  it("SP-S1-72: an account an earlier attempt left unlinked is finished by the password that opens it, and its session is the one handed over", async () => {
+    handler.mockResolvedValueOnce(exists()).mockResolvedValueOnce(signedIn());
+    const response = await acceptInvitation(
+      post({ token: "t", password: "the-password-they-chose" }),
+    );
+    expect(response.status).toBe(200);
+    const calls = handler.mock.calls.map(
+      ([sent]) => new URL((sent as Request).url).pathname,
+    );
+    expect(calls).toEqual([
+      "/api/auth/sign-up/email",
+      "/api/auth/sign-in/email",
+    ]);
+    const signInBody = (await (
+      handler.mock.calls[1]![0] as Request
+    ).json()) as {
+      email: string;
+      password: string;
+    };
+    expect(signInBody).toEqual({
+      email: "invited@hotel.test",
+      password: "the-password-they-chose",
+    });
+    expect(linkInvitedUser).toHaveBeenCalledWith({
+      subject: "orphan-subject",
+      userId: INVITED,
+    });
+    expect(accept).toHaveBeenCalledWith("t");
+    expect(response.headers.getSetCookie().join(";")).toContain(
+      "session=resumed",
+    );
+  });
+
+  it("SP-S1-72: another password, a second factor or a rate limit finishes nothing", async () => {
+    handler
+      .mockResolvedValueOnce(exists())
+      .mockResolvedValueOnce(
+        Response.json({ code: "INVALID_EMAIL_OR_PASSWORD" }, { status: 401 }),
+      );
+    expect(
+      await (
+        await acceptInvitation(post({ token: "t", password: "not-theirs-1" }))
+      ).json(),
+    ).toEqual({ ok: false, reason: "account_exists" });
+
+    handler
+      .mockResolvedValueOnce(exists())
+      .mockResolvedValueOnce(Response.json({ twoFactorRedirect: true }));
+    expect(
+      await (
+        await acceptInvitation(post({ token: "t", password: "not-theirs-2" }))
+      ).json(),
+    ).toEqual({ ok: false, reason: "account_exists" });
+
+    handler
+      .mockResolvedValueOnce(exists())
+      .mockResolvedValueOnce(new Response(null, { status: 429 }));
+    const limited = await acceptInvitation(
+      post({ token: "t", password: "not-theirs-3" }),
+    );
+    expect(limited.status).toBe(429);
+    expect(linkInvitedUser).not.toHaveBeenCalled();
+    expect(accept).not.toHaveBeenCalled();
+  });
+
+  it("SP-S1-72: an account whose subject cannot be tied stays somebody else's, with no session", async () => {
+    handler.mockResolvedValueOnce(exists()).mockResolvedValueOnce(signedIn());
+    linkInvitedUser.mockRejectedValue(new InvitedUserLinkError("has_login"));
+    const response = await acceptInvitation(
+      post({ token: "t", password: "the-password-they-chose" }),
+    );
+    expect(await response.json()).toEqual({
+      ok: false,
+      reason: "account_exists",
+    });
+    expect(response.headers.getSetCookie()).toEqual([]);
+    expect(accept).not.toHaveBeenCalled();
+  });
+
   it("SP-S1-56: when the link to the user is refused no session is handed over", async () => {
     handler.mockResolvedValue(signedUp());
     linkInvitedUser.mockRejectedValue(new InvitedUserLinkError("has_login"));

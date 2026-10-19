@@ -57,9 +57,13 @@ without a request context.
 
 ## Consequences
 
-- An unlinked Better Auth account that already holds the invited address blocks
-  acceptance with its own message. Nothing here deletes or takes over an
-  account: that is a support decision, not something a link may do.
+- Sign-up and linking are two steps, so a fault between them leaves an account
+  for the invited address that no Ranza user owns. A retry signs in with the
+  submitted password and, if that opens the account, finishes the attempt: the
+  password proves the account is the person's. Anything else — another
+  password, a second factor, an identity that already belongs to another Ranza
+  user — is "an account with this address already exists", and nothing is
+  deleted, moved or taken over: that is a support decision.
 - A lost or expired link is renewed from the roster (`reissueInvitation`), which
   withdraws the old one in the same transaction; somebody revoked past the undo
   window is added back with the same membership and a new link (SP-S1-16).
