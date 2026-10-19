@@ -59,11 +59,33 @@ export function aServicesProperty(label: string): {
   return { propertyId, roomName };
 }
 
-/** Takes the Properties a run made out of the switcher. */
+/**
+ * Takes the Properties a run made out of the switcher, and the Staff Members
+ * it let work at them out of their reach: the seed's own checks count the
+ * Properties a colleague reaches.
+ */
 export function archiveProperties(propertyIds: readonly string[]): void {
   if (propertyIds.length === 0) return;
   psql(
+    `delete from public.property_assignments
+      where property_id in (${propertyIds.map((id) => `'${id}'`).join(",")})`,
+  );
+  psql(
     `update public.properties set status = 'archived', updated_at = now()
       where id in (${propertyIds.map((id) => `'${id}'`).join(",")})`,
+  );
+}
+
+/** Lets another Staff Member of the seeded Organization work at a Property of this run's own. */
+export function assignToProperty(propertyId: string, email: string): void {
+  psql(
+    `insert into public.property_assignments
+       (property_id, organization_id, user_id)
+     select property.id, property.organization_id, member.id
+       from public.properties as property,
+            public.users as member
+      where property.id = '${propertyId}'
+        and lower(member.email) = lower('${email}')
+     on conflict do nothing`,
   );
 }

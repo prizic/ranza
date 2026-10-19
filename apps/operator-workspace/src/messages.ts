@@ -2148,6 +2148,12 @@ export interface Messages {
     allRequests: string;
     openRequests: string;
     resolvedRequests: string;
+    cancelRequest: string;
+    keepRequest: string;
+    close: string;
+    cancelConsequence: string;
+    resolveConsequence: string;
+    searchPlaceholder: string;
     title: string;
     details: string;
     category: string;
@@ -2168,7 +2174,6 @@ export interface Messages {
     statuses: Record<"new" | "in_progress" | "resolved" | "cancelled", string>;
     markInProgress: string;
     resolve: string;
-    cancel: string;
     reopen: string;
     cancelReason: string;
     cancelReasonPlaceholder: string;
@@ -2186,6 +2191,30 @@ export interface Messages {
     cancelling: string;
     saving: string;
     emptyTitle: string;
+    nothingOpenTitle: string;
+    nothingOpenDesc: string;
+    showClosed: string;
+    noMatchTitle: string;
+    noMatchDesc: string;
+    showAll: string;
+    filterAssignee: string;
+    filterCategory: string;
+    everyone: string;
+    mine: string;
+    allCategories: string;
+    urgentOpen: string;
+    urgentFilterOn: string;
+    assignTo: string;
+    assignToMe: string;
+    invalidRequest: string;
+    refusedRequest: string;
+    unavailableRequest: string;
+    resolvedCannotCancel: string;
+    cancelledReopensToNew: string;
+    manageNotice: string;
+    viewOnlyNotice: string;
+    occupantInRoom: string;
+    roomEmptyNow: string;
     emptyDesc: string;
   };
 
@@ -4691,7 +4720,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       impactInHouseOpen: "{guest}, {unit} biriminde kalıyor.",
       impactBooking: "{guest}, {from} tarihinden itibaren {unit} için rezerve.",
       impactChangeBooking: "Rezervasyonu değiştir",
-      aGuest: "Bir konuk",
+      aGuest: "Bir misafir",
       impactHint:
         "Hiçbir şey iptal edilmez ya da taşınmaz. Ön büronun onları taşıması gerekecek.",
       confirmOutOfOrder: "Yine de hizmet dışı bırak",
@@ -4780,8 +4809,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       chargeTitle: "Konuğa ücret yansıt",
       chargeHint:
         "Konuğun folyosuna bir satır. Hata olursa folyoda iptal edilir.",
-      guest: "Konuk",
-      chooseGuest: "Konuk seçin",
+      guest: "Misafir",
+      chooseGuest: "Misafir seçin",
       amount: "Tutar",
       charge: "Yansıt",
       noChargeable: "Bu odada kalan kimsenin açık folyosu yok.",
@@ -4789,7 +4818,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       inHouseNow: "konaklıyor",
       leftOn: "{date} tarihinde ayrıldı",
       loading: "Yükleniyor…",
-      chargeUnavailable: "Konuklar şu anda yüklenemedi. Tekrar deneyin.",
+      chargeUnavailable: "Misafirler şu anda yüklenemedi. Tekrar deneyin.",
       actions: "İşlemler",
       change: "Değiştir",
       conditions: {
@@ -4993,11 +5022,19 @@ export const messages: Record<SupportedLocale, Messages> = {
     guestExperience: {
       heading: "Misafir Deneyimi ve Talepler",
       subheading:
-        "Misafir ve konaklayan hizmet talepleri, önceliklendirme ve operasyonel takip.",
+        "Misafir ve konaklayanlardan gelen talepler: kimde olduğu, ne kadar acil olduğu ve ne kadardır beklediği.",
       newRequest: "Yeni Talep",
       allRequests: "Tüm Talepler",
       openRequests: "Açık Talepler",
-      resolvedRequests: "Çözümlenenler",
+      resolvedRequests: "Kapanan",
+      cancelRequest: "Talebi iptal et",
+      keepRequest: "Talebi koru",
+      close: "Kapat",
+      cancelConsequence:
+        "Talep bu gerekçeyle iptal edilmiş olarak kapatılır. Misafire hiçbir şey gönderilmez. Daha sonra yeniden açılabilir.",
+      resolveConsequence:
+        "Talep çözümlenmiş olarak kapatılır. Misafire hiçbir şey gönderilmez. Daha sonra yeniden açılabilir.",
+      searchPlaceholder: "Numara, başlık, oda veya misafir ara",
       title: "Başlık",
       details: "Açıklama",
       category: "Kategori",
@@ -5031,7 +5068,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       markInProgress: "İşleme Al",
       resolve: "Çözümle",
-      cancel: "İptal Et",
       reopen: "Yeniden Aç",
       cancelReason: "İptal Gerekçesi",
       cancelReasonPlaceholder: "Neden iptal edildiğini belirtin...",
@@ -5050,6 +5086,38 @@ export const messages: Record<SupportedLocale, Messages> = {
       cancelling: "İptal ediliyor...",
       saving: "Kaydediliyor...",
       emptyTitle: "Henüz talep yok",
+      nothingOpenTitle: "Açık talep yok",
+      nothingOpenDesc:
+        "{count, plural, one {# talep çözümlendi ya da iptal edildi} other {# talep çözümlendi ya da iptal edildi}}.",
+      showClosed: "Kapanan talepleri göster",
+      noMatchTitle: "Eşleşen talep yok",
+      noMatchDesc: "Girdiğiniz arama ve filtrelere uyan bir şey yok.",
+      showAll: "Tüm talepleri göster",
+      filterAssignee: "Atanan",
+      filterCategory: "Kategori",
+      everyone: "Herkes",
+      mine: "Bana atanan",
+      allCategories: "Tüm kategoriler",
+      urgentOpen: "Acil, açık",
+      urgentFilterOn:
+        "Yalnızca acil talepler gösteriliyor. Tümünü görmek için yeniden seçin.",
+      assignTo: "Ata",
+      assignToMe: "Bana ata",
+      invalidRequest:
+        "Formda bir sorun var. Başlık ya da gerekçe en az 3 karakter olmalı.",
+      refusedRequest: "Burada bunu yapma izniniz yok.",
+      unavailableRequest:
+        "Bu talep değişti ya da artık erişiminizde değil. Liste şimdi güncel durumu gösteriyor.",
+      resolvedCannotCancel:
+        "Çözümlenmiş bir talep iptal edilemez. Önce yeniden açın.",
+      cancelledReopensToNew:
+        "İptal edilmiş bir talep yalnızca Yeni olarak yeniden açılabilir.",
+      manageNotice:
+        "Burada yeni talep kaydedebilirsiniz. Talepler üzerinde çalışmak (işleme almak, atamak, çözümlemek ya da iptal etmek) misafir taleplerini yönetme izni gerektirir.",
+      viewOnlyNotice:
+        "Misafir taleplerini burada görebilirsiniz ancak kaydedemez ya da işleyemezsiniz.",
+      occupantInRoom: "Odada: {guest}. Talep onun için kaydedilir.",
+      roomEmptyNow: "Şu anda bu odada konaklayan yok.",
       emptyDesc: "Bu tesis için kayıtlı herhangi bir hizmet talebi bulunmuyor.",
     },
 
@@ -5438,7 +5506,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       arrivals: "Girişler",
       departures: "Çıkışlar",
       "close-day": "Günü kapat",
-      "guest-experience": "Konuk deneyimi",
+      "guest-experience": "Misafir deneyimi",
       housekeeping: "Kat hizmetleri",
       maintenance: "Bakım",
       "food-and-beverage": "Yiyecek içecek",
@@ -7907,11 +7975,19 @@ export const messages: Record<SupportedLocale, Messages> = {
     guestExperience: {
       heading: "Guest Experience & Requests",
       subheading:
-        "Guest and resident service requests, priority tracking, and resolution queue.",
+        "Requests from guests and residents: who has them, how urgent they are and how long they have waited.",
       newRequest: "New Request",
       allRequests: "All Requests",
       openRequests: "Open Requests",
-      resolvedRequests: "Resolved",
+      resolvedRequests: "Closed",
+      cancelRequest: "Cancel request",
+      keepRequest: "Keep request",
+      close: "Close",
+      cancelConsequence:
+        "The request is closed as cancelled, with this reason. Nothing is sent to the guest. It can be reopened later.",
+      resolveConsequence:
+        "The request is closed as resolved. Nothing is sent to the guest. It can be reopened later.",
+      searchPlaceholder: "Search number, title, room or guest",
       title: "Title",
       details: "Details",
       category: "Category",
@@ -7945,7 +8021,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       markInProgress: "Start Working",
       resolve: "Resolve",
-      cancel: "Cancel",
       reopen: "Reopen",
       cancelReason: "Cancellation Reason",
       cancelReasonPlaceholder: "Provide a reason for cancellation...",
@@ -7963,7 +8038,37 @@ export const messages: Record<SupportedLocale, Messages> = {
       submit: "Log Request",
       cancelling: "Cancelling...",
       saving: "Saving...",
-      emptyTitle: "No requests found",
+      emptyTitle: "No requests yet",
+      nothingOpenTitle: "Nothing is open",
+      nothingOpenDesc:
+        "{count, plural, one {# request is} other {# requests are}} resolved or cancelled.",
+      showClosed: "Show closed requests",
+      noMatchTitle: "No request matches",
+      noMatchDesc: "Nothing fits the search and filters you set.",
+      showAll: "Show all requests",
+      filterAssignee: "Assigned to",
+      filterCategory: "Category",
+      everyone: "Anyone",
+      mine: "Assigned to me",
+      allCategories: "Any category",
+      urgentOpen: "Urgent, open",
+      urgentFilterOn: "Showing urgent requests only. Select again to show all.",
+      assignTo: "Assign to",
+      assignToMe: "Assign to me",
+      invalidRequest:
+        "Something in the form is not right. A title or a reason needs at least 3 characters.",
+      refusedRequest: "You don't have permission to do that here.",
+      unavailableRequest:
+        "This request has changed or is no longer open to you. The list now shows what is true.",
+      resolvedCannotCancel:
+        "A resolved request cannot be cancelled. Reopen it first.",
+      cancelledReopensToNew: "A cancelled request can only be reopened to New.",
+      manageNotice:
+        "You can log new requests here. Working on them — starting, assigning, resolving or cancelling — needs the permission to manage guest requests.",
+      viewOnlyNotice:
+        "You can see guest requests here but not log or work on them.",
+      occupantInRoom: "In house: {guest}. The request is logged for them.",
+      roomEmptyNow: "Nobody is in house in this room now.",
       emptyDesc:
         "No guest service requests have been logged for this property.",
     },
@@ -10772,11 +10877,19 @@ export const messages: Record<SupportedLocale, Messages> = {
     guestExperience: {
       heading: "تجربة وطلبات الضيوف",
       subheading:
-        "طلبات خدمة الضيوف والمقيمين، ومتابعة الأولويات وسير إنجاز المهام.",
+        "طلبات الضيوف والمقيمين: من يتولاها، ومدى استعجالها، ومنذ متى تنتظر.",
       newRequest: "طلب جديد",
       allRequests: "كل الطلبات",
       openRequests: "الطلبات المفتوحة",
-      resolvedRequests: "المنجزة",
+      resolvedRequests: "المغلقة",
+      cancelRequest: "إلغاء الطلب",
+      keepRequest: "إبقاء الطلب",
+      close: "إغلاق",
+      cancelConsequence:
+        "يُغلق الطلب كملغى بهذا السبب. لا يُرسل شيء إلى الضيف. يمكن إعادة فتحه لاحقًا.",
+      resolveConsequence:
+        "يُغلق الطلب كمحلول. لا يُرسل شيء إلى الضيف. يمكن إعادة فتحه لاحقًا.",
+      searchPlaceholder: "ابحث بالرقم أو العنوان أو الغرفة أو الضيف",
       title: "العنوان",
       details: "التفاصيل",
       category: "الفئة",
@@ -10810,7 +10923,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       markInProgress: "بدء المعالجة",
       resolve: "إنجاز الطلب",
-      cancel: "إلغاء الطلب",
       reopen: "إعادة فتح",
       cancelReason: "سبب الإلغاء",
       cancelReasonPlaceholder: "وضح سبب إلغاء الطلب...",
@@ -10827,7 +10939,36 @@ export const messages: Record<SupportedLocale, Messages> = {
       submit: "حفظ الطلب",
       cancelling: "جارٍ الإلغاء...",
       saving: "جارٍ الحفظ...",
-      emptyTitle: "لا توجد طلبات",
+      emptyTitle: "لا توجد طلبات بعد",
+      nothingOpenTitle: "لا يوجد طلب مفتوح",
+      nothingOpenDesc:
+        "{count, plural, zero {لا توجد طلبات محلولة أو ملغاة} one {طلب واحد محلول أو ملغى} two {طلبان محلولان أو ملغيان} few {# طلبات محلولة أو ملغاة} many {# طلبًا محلولًا أو ملغى} other {# طلب محلول أو ملغى}}.",
+      showClosed: "عرض الطلبات المغلقة",
+      noMatchTitle: "لا يوجد طلب مطابق",
+      noMatchDesc: "لا شيء يطابق البحث والمرشحات التي حددتها.",
+      showAll: "عرض كل الطلبات",
+      filterAssignee: "المُسندة إلى",
+      filterCategory: "الفئة",
+      everyone: "أي شخص",
+      mine: "المُسندة إليّ",
+      allCategories: "كل الفئات",
+      urgentOpen: "عاجلة ومفتوحة",
+      urgentFilterOn: "تُعرض الطلبات العاجلة فقط. اخترها مرة أخرى لعرض الكل.",
+      assignTo: "إسناد إلى",
+      assignToMe: "أسندها إليّ",
+      invalidRequest:
+        "هناك خطأ في النموذج. يجب ألا يقل العنوان أو السبب عن 3 أحرف.",
+      refusedRequest: "ليست لديك صلاحية لفعل ذلك هنا.",
+      unavailableRequest:
+        "تغيّر هذا الطلب أو لم يعد متاحًا لك. تعرض القائمة الآن الوضع الحالي.",
+      resolvedCannotCancel: "لا يمكن إلغاء طلب محلول. أعد فتحه أولًا.",
+      cancelledReopensToNew: "لا يمكن إعادة فتح الطلب الملغى إلا كطلب جديد.",
+      manageNotice:
+        "يمكنك تسجيل طلبات جديدة هنا. العمل عليها — البدء بها أو إسنادها أو حلّها أو إلغاؤها — يتطلب صلاحية إدارة طلبات الضيوف.",
+      viewOnlyNotice:
+        "يمكنك الاطلاع على طلبات الضيوف هنا ولكن لا يمكنك تسجيلها أو العمل عليها.",
+      occupantInRoom: "النزيل الحالي: {guest}. يُسجَّل الطلب باسمه.",
+      roomEmptyNow: "لا أحد مقيم في هذه الغرفة الآن.",
       emptyDesc: "لم يتم تسجيل أي طلبات خدمة لهذه المنشأة حتى الآن.",
     },
 

@@ -6,9 +6,11 @@ import { Loader2, Plus } from "lucide-react";
 import type {
   ServiceRequestCategory,
   ServiceRequestPriority,
+  ServiceRequestUnit,
 } from "@ranza/guest-services";
 import {
   Button,
+  Combobox,
   Dialog,
   DialogClose,
   DialogContent,
@@ -17,7 +19,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  FormError,
   Input,
   Label,
   Select,
@@ -31,6 +32,9 @@ import {
   createServiceRequest,
   type ServiceRequestOutcome,
 } from "../../../server/guest-services";
+import { usePickerLabels } from "../../../lib/picker-labels";
+import { submitWithoutReset } from "../../../lib/submit-without-reset";
+import { RequestOutcome } from "./request-outcome";
 
 const CATEGORIES: readonly ServiceRequestCategory[] = [
   "housekeeping",
@@ -50,7 +54,7 @@ const PRIORITIES: readonly ServiceRequestPriority[] = [
 export interface CreateRequestDialogProps {
   locale: string;
   propertyId: string;
-  units?: readonly { unitId: string; name: string }[];
+  units?: readonly ServiceRequestUnit[];
 }
 
 export function CreateRequestDialog({
@@ -59,6 +63,7 @@ export function CreateRequestDialog({
   units = [],
 }: CreateRequestDialogProps) {
   const t = useTranslations("guestExperience");
+  const roomLabels = usePickerLabels(t("selectRoom"));
   const [open, setOpen] = useState(false);
 
   const boundAction = createServiceRequest.bind(null, locale, propertyId);
@@ -69,14 +74,19 @@ export function CreateRequestDialog({
 
   const [category, setCategory] = useState<ServiceRequestCategory>("other");
   const [priority, setPriority] = useState<ServiceRequestPriority>("normal");
-  const [unitId, setUnitId] = useState<string>("none");
+  const [unitId, setUnitId] = useState<string>("");
+  const [title, setTitle] = useState("");
+  const [details, setDetails] = useState("");
+  const occupant = units.find((unit) => unit.unitId === unitId)?.occupant;
 
   useEffect(() => {
     if (state.status === "done") {
       setOpen(false);
       setCategory("other");
       setPriority("normal");
-      setUnitId("none");
+      setUnitId("");
+      setTitle("");
+      setDetails("");
     }
   }, [state]);
 
@@ -90,24 +100,22 @@ export function CreateRequestDialog({
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-lg">
-        <form action={formAction} className="grid gap-4">
+        <form className="grid gap-4" onSubmit={submitWithoutReset(formAction)}>
           <DialogHeader>
             <DialogTitle>{t("createDialogTitle")}</DialogTitle>
             <DialogDescription>{t("createDialogDesc")}</DialogDescription>
           </DialogHeader>
 
-          {state.status === "refused" && (
-            <FormError>
-              {t("status")} - {t("cancel")}
-            </FormError>
-          )}
+          <RequestOutcome status={state.status} />
 
           <div className="grid gap-2">
             <Label htmlFor="req-title">{t("title")}</Label>
             <Input
               id="req-title"
               name="title"
+              onChange={(event) => setTitle(event.target.value)}
               placeholder={t("titlePlaceholder")}
+              value={title}
               required
               minLength={3}
               maxLength={200}
@@ -161,25 +169,31 @@ export function CreateRequestDialog({
           </div>
 
           <div className="grid gap-2">
-            <Label>{t("room")}</Label>
-            <Select value={unitId} onValueChange={setUnitId}>
-              <SelectTrigger>
-                <SelectValue placeholder={t("selectRoom")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">{t("noRoom")}</SelectItem>
-                {units.map((u) => (
-                  <SelectItem key={u.unitId} value={u.unitId}>
-                    {u.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <input
-              type="hidden"
-              name="accommodationUnitId"
-              value={unitId === "none" ? "" : unitId}
+            <Label htmlFor="req-room">{t("room")}</Label>
+            <Combobox
+              id="req-room"
+              labels={roomLabels}
+              onValueChange={(value) =>
+                setUnitId(value === "none" ? "" : value)
+              }
+              options={[
+                { value: "none", label: t("noRoom") },
+                ...units.map((unit) => ({
+                  value: unit.unitId,
+                  label: unit.name,
+                  ...(unit.occupant ? { description: unit.occupant } : {}),
+                })),
+              ]}
+              value={unitId}
             />
+            {unitId === "" ? null : (
+              <p className="text-step--1 text-muted-foreground">
+                {occupant
+                  ? t("occupantInRoom", { guest: occupant })
+                  : t("roomEmptyNow")}
+              </p>
+            )}
+            <input type="hidden" name="accommodationUnitId" value={unitId} />
           </div>
 
           <div className="grid gap-2">
@@ -187,7 +201,9 @@ export function CreateRequestDialog({
             <Textarea
               id="req-details"
               name="details"
+              onChange={(event) => setDetails(event.target.value)}
               placeholder={t("detailsPlaceholder")}
+              value={details}
               rows={3}
               maxLength={2000}
             />
@@ -196,7 +212,7 @@ export function CreateRequestDialog({
           <DialogFooter className="gap-2 sm:gap-0">
             <DialogClose asChild>
               <Button type="button" variant="outline" disabled={isPending}>
-                {t("cancel")}
+                {t("close")}
               </Button>
             </DialogClose>
             <Button type="submit" disabled={isPending} className="gap-1.5">

@@ -38,9 +38,11 @@ import {
   SERVICE_REQUEST_CATEGORIES,
   SERVICE_REQUEST_PRIORITIES,
   SERVICE_REQUEST_STATUSES,
+  type ServiceRequestAccess,
   type ServiceRequestCategory,
   type ServiceRequestItem,
   type ServiceRequestPriority,
+  type ServiceRequestStaff,
   type ServiceRequestStatus,
 } from "@ranza/guest-services";
 import {
@@ -1308,6 +1310,24 @@ export async function propertyServiceRequests(
   if (!viewer) return [];
 
   return getComposition().guestServices.requests(viewer.userId, propertyId);
+}
+
+/** What the viewer may do with guest service requests at a Property. */
+export async function serviceRequestAccess(
+  propertyId: string,
+): Promise<ServiceRequestAccess> {
+  const viewer = await currentViewer();
+  if (!viewer) return { mayCreate: false, mayManage: false };
+  return getComposition().guestServices.access(viewer.userId, propertyId);
+}
+
+/** Who a guest service request at a Property can be assigned to. */
+export async function serviceRequestAssignees(
+  propertyId: string,
+): Promise<ServiceRequestStaff[]> {
+  const viewer = await currentViewer();
+  if (!viewer) return [];
+  return getComposition().guestServices.assignees(viewer.userId, propertyId);
 }
 
 export interface IntegrationsViewData {
