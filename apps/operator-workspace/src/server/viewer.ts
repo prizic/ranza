@@ -451,10 +451,68 @@ export async function entitledPropertiesByCapability(
  */
 export async function arrivals(
   propertyId: string,
-): Promise<readonly Arrival[]> {
+): Promise<readonly ArrivalRow[]> {
   const viewer = await currentViewer();
   if (!viewer) return [];
-  return getComposition().reservations.listArrivals(viewer.userId, propertyId);
+  const list = await getComposition().reservations.listArrivals(
+    viewer.userId,
+    propertyId,
+  );
+  // The request is asked about only when a room on the list is out of order.
+  if (!list.some((row) => row.checkInBlocker === "unit_out_of_service")) {
+    return list;
+  }
+  const holds = await roomHolds(viewer.userId, propertyId);
+  return list.map((row) => {
+    const hold = holds[row.unitId];
+    return row.checkInBlocker === "unit_out_of_service" && hold
+      ? { ...row, hold }
+      : row;
+  });
+}
+
+/**
+ * The maintenance request holding a room out of order and when the room is
+ * expected back (MAINT-17), so the desk can answer a Guest who asks "when?"
+ * without opening Rooms.
+ */
+export interface RoomHold {
+  number: number;
+  expectedBackOn: string | null;
+}
+
+/**
+ * An arrival, with the request that holds its room out of order when one does.
+ * A bed under a room held out of order is held by the room's request, which is
+ * not found from the bed, so its row says out of order and no more.
+ */
+export type ArrivalRow = Arrival & { hold?: RoomHold };
+
+/**
+ * Every room a request holds out of order at a Property, by Unit. Where two
+ * requests hold one room the later number is shown, as Rooms does. Empty where
+ * maintenance is not available or could not be read: the badge then says out
+ * of order without a request, which is still true.
+ */
+async function roomHolds(
+  userId: string,
+  propertyId: string,
+): Promise<Readonly<Record<string, RoomHold>>> {
+  try {
+    const { holds } = await getComposition().maintenance.roomsView(
+      userId,
+      propertyId,
+    );
+    return Object.fromEntries(
+      holds.map((hold) => [
+        hold.unitId,
+        { number: hold.number, expectedBackOn: hold.expectedBackOn },
+      ]),
+    );
+  } catch (error: unknown) {
+    console.error("room_holds.read_failed", { propertyId, userId, error });
+    return {};
+  }
 }
 
 /** What the room is to somebody about to put a Guest in it, from the board. */
@@ -468,6 +526,8 @@ export type RoomReadiness =
  */
 export type RoomCalendar = RoomCalendarRead & {
   readiness?: Readonly<Record<string, RoomReadiness>>;
+  /** The request holding each room out of order, by Unit (MAINT-17). */
+  holds?: Readonly<Record<string, RoomHold>>;
 };
 
 function readinessOf(room: HousekeepingRoom): RoomReadiness {
@@ -498,10 +558,18 @@ export async function roomCalendar(
     propertyId,
     window,
   );
+  const anyOutOfOrder = calendar.units.some(
+    (unit) =>
+      unit.status === "out_of_service" ||
+      unit.beds.some((bed) => bed.status === "out_of_service"),
+  );
+  const withHolds = anyOutOfOrder
+    ? { ...calendar, holds: await roomHolds(viewer.userId, propertyId) }
+    : calendar;
   try {
     const board = await housekeeping.board(viewer.userId, propertyId);
     return {
-      ...calendar,
+      ...withHolds,
       readiness: Object.fromEntries(
         board.rooms
           .filter((room) => !room.outOfService)
@@ -515,7 +583,7 @@ export async function roomCalendar(
       userId: viewer.userId,
       error,
     });
-    return calendar;
+    return withHolds;
   }
 }
 

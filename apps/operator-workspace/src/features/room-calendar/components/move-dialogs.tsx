@@ -67,6 +67,14 @@ export function useConflictText(): (conflict: MoveConflict) => string {
 }
 
 /**
+ * The proposed room's name for a dialog to show while its rooms load. Spread
+ * into the proposal so that a room the calendar does not know sets nothing.
+ */
+function labelled(place: string | null): { unitLabel?: string } {
+  return place === null ? {} : { unitLabel: place };
+}
+
+/**
  * The dialog a drop, or Move…, opens: the command's own, started on what was
  * proposed and showing what the calendar already knows against it. Nothing is
  * written until that dialog's save, and the database still decides then
@@ -109,7 +117,10 @@ export function MoveDialogs({
           }}
           locale={locale}
           move={{
-            to: request.target,
+            to: {
+              ...request.target,
+              ...labelled(placeOfUnit(calendar, request.target.unitId)),
+            },
             conflictsFor: (target) =>
               bookingConflicts(calendar, bar, target).map(text),
           }}
@@ -125,6 +136,7 @@ export function MoveDialogs({
           locale={locale}
           move={{
             unitId: request.unitId,
+            ...labelled(placeOfUnit(calendar, request.unitId)),
             conflictsFor: (unitId) =>
               guestConflicts(calendar, bar, unitId).map(text),
           }}

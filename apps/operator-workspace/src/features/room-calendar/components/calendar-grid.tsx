@@ -27,6 +27,7 @@ import {
   type PlacedEntry,
 } from "../layout";
 import { ghostOf, hasEndHandle, type Ghost, type MoveRequest } from "../move";
+import { useHoldText } from "./hold-text";
 import { useBarDrag } from "./use-bar-drag";
 import {
   BAR_ICON,
@@ -516,6 +517,14 @@ function UnitRow({
   const { placed, lanes } = placeBars(unit.bars, calendar.from, calendar.days);
   const outOfUse =
     unit.status === "blocked" || unit.status === "out_of_service";
+  const holdText = useHoldText(locale);
+  // A bed under a room held out of order is held by the room's request.
+  const hold =
+    unit.status === "out_of_service"
+      ? (calendar.holds?.[unit.unitId] ??
+        (room ? calendar.holds?.[room.unitId] : undefined))
+      : undefined;
+  const heldBy = hold ? holdText(hold) : null;
   const taken = collapsed ? bedsTaken(unit, nights) : null;
 
   return (
@@ -559,15 +568,20 @@ function UnitRow({
         {outOfUse ? (
           <span
             className="ms-auto inline-flex items-center gap-1 text-xs text-warning"
-            title={unit.statusReason ?? undefined}
+            title={
+              [unit.statusReason, heldBy?.full].filter(Boolean).join(" · ") ||
+              undefined
+            }
           >
             <Lock aria-hidden="true" className="size-3" />
             <span className="sr-only md:not-sr-only">
               {unit.status === "blocked" ? t("blocked") : t("outOfService")}
+              {heldBy ? ` · ${heldBy.reference}` : null}
             </span>
             {unit.statusReason ? (
               <span className="sr-only">: {unit.statusReason}</span>
             ) : null}
+            {heldBy ? <span className="sr-only">: {heldBy.full}</span> : null}
           </span>
         ) : null}
       </div>

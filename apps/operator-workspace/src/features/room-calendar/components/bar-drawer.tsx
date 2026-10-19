@@ -29,6 +29,7 @@ import { MoveGuestDialog } from "../../front-office/components/move-guest-dialog
 import { daysBetween, type PlacedEntry } from "../layout";
 import type { MoveRequest } from "../move";
 import { BAR_ICON, barLook, type BarLook } from "./bar-style";
+import { useHoldText } from "./hold-text";
 import { MoveDialogs } from "./move-dialogs";
 
 const TONE: Record<BarLook, StatusTone> = {
@@ -187,6 +188,7 @@ function DrawerBody({
 }) {
   const t = useTranslations("roomCalendar");
   const common = useTranslations();
+  const holdText = useHoldText(locale);
   const { bar, unit, room } = entry;
   const [changingDeparture, setChangingDeparture] = useState(false);
   const [moving, setMoving] = useState(false);
@@ -225,6 +227,11 @@ function DrawerBody({
         : daysBetween(arrivedOn, bar.endsOn);
   const daysLate =
     bar.overdue && bar.endsOn ? daysBetween(bar.endsOn, today) : 0;
+  const hold =
+    unit.status === "out_of_service"
+      ? (calendar.holds?.[unit.unitId] ??
+        (room ? calendar.holds?.[room.unitId] : undefined))
+      : undefined;
   const readiness =
     bar.kind === "reservation" && bar.holds && bar.startsOn <= today
       ? calendar.readiness?.[(room ?? unit).unitId]
@@ -252,9 +259,13 @@ function DrawerBody({
         {bar.bookedWhileBlocked ? (
           <Notice tone="warning">
             {t("blockedNote", {
-              reason:
+              reason: [
                 unit.statusReason ??
-                t(unit.status === "blocked" ? "blocked" : "outOfService"),
+                  t(unit.status === "blocked" ? "blocked" : "outOfService"),
+                hold ? holdText(hold).full : null,
+              ]
+                .filter(Boolean)
+                .join(" · "),
             })}
           </Notice>
         ) : null}
@@ -307,7 +318,7 @@ function DrawerBody({
               {t("nights", { count: nights })}
             </Fact>
           ) : null}
-          {bar.kind === "reservation" ? (
+          {bar.reference ? (
             <Fact label={t("reservationCode")}>
               <bdi className="font-mono">{bar.reference}</bdi>
             </Fact>

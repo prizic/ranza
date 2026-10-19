@@ -22,6 +22,7 @@ import {
   type StatusTone,
 } from "@ranza/ui";
 import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
+import type { ArrivalRow } from "../../../server/viewer";
 import { owedMinor } from "../../today/views";
 import { useSortLabels } from "../../../lib/table-labels";
 import { CheckInAction } from "./check-in-action";
@@ -166,7 +167,7 @@ function nightsBetween(from: string, to: string): number {
 export function useArrivalColumns(
   locale: SupportedLocale,
   propertyId: string,
-): ColumnDef<Arrival, unknown>[] {
+): ColumnDef<ArrivalRow, unknown>[] {
   const t = useTranslations();
   const sort = useSortLabels();
   return [
@@ -304,7 +305,26 @@ export function useArrivalColumns(
             );
           case "unit_out_of_service":
             return (
-              <StatusBadge icon={Ban} label={t("outOfOrder")} tone="danger" />
+              <div className="space-y-1">
+                <StatusBadge
+                  icon={Ban}
+                  label={
+                    arrival.hold
+                      ? `${t("outOfOrder")} · ${t("maintenance.reference", { number: arrival.hold.number })}`
+                      : t("outOfOrder")
+                  }
+                  tone="danger"
+                />
+                {arrival.hold ? (
+                  <span className="block text-step--1 text-muted-foreground">
+                    {arrival.hold.expectedBackOn
+                      ? t("maintenance.backOn", {
+                          date: day(arrival.hold.expectedBackOn, locale),
+                        })
+                      : t("outOfOrderNoReturnDate")}
+                  </span>
+                ) : null}
+              </div>
             );
           case "not_confirmed":
             return (

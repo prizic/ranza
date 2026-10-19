@@ -2,8 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import type { Arrival } from "@ranza/reservations";
 import type { SupportedLocale } from "@ranza/i18n";
+import type { ArrivalRow } from "../../../server/viewer";
 import { ListFilterNotice } from "../../today/components/list-filter-notice";
 import { inArrivalFilter, type ArrivalFilter } from "../../today/views";
 import { frontOfficeKeys, type Scope } from "../query-keys";
@@ -22,7 +22,9 @@ import { ListFreshness } from "./list-freshness";
  * shape it has to take: the rows still come from `src/server/` through a route
  * handler, the policies still decide them, and nothing here is authorization.
  */
-async function fetchArrivals(propertyId: string): Promise<readonly Arrival[]> {
+async function fetchArrivals(
+  propertyId: string,
+): Promise<readonly ArrivalRow[]> {
   const response = await fetch(
     `/api/front-office/arrivals?property=${encodeURIComponent(propertyId)}`,
     // The cache that matters is this one. Letting the browser serve a stale
@@ -35,7 +37,7 @@ async function fetchArrivals(propertyId: string): Promise<readonly Arrival[]> {
       status: response.status,
     });
   }
-  const body = (await response.json()) as { arrivals: readonly Arrival[] };
+  const body = (await response.json()) as { arrivals: readonly ArrivalRow[] };
   return body.arrivals;
 }
 

@@ -258,6 +258,7 @@ export interface Messages {
   roomAndBed: string;
   notAssigned: string;
   outOfOrder: string;
+  outOfOrderNoReturnDate: string;
   daysLate: string;
   credit: string;
   moreActionsFor: string;
@@ -3149,6 +3150,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     roomAndBed: "Oda ve yatak",
     notAssigned: "Atanmadı",
     outOfOrder: "Hizmet dışı",
+    outOfOrderNoReturnDate: "Dönüş tarihi belirlenmedi",
     daysLate: "{n} gün gecikmiş",
     credit: "alacak",
     moreActionsFor: "{guest} için diğer işlemler",
@@ -6351,7 +6353,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkInBlocked: {
       not_confirmed: "The booking has to be confirmed first.",
       unit_blocked: "The Unit is blocked. Unblock it or choose another.",
-      unit_out_of_service: "The Unit is out of service. Choose another.",
+      unit_out_of_service: "The Unit is out of order. Choose another.",
       unit_occupied: "Somebody is still in the room. Check them out first.",
     },
     checkOutFor: "Check {guest} out",
@@ -6429,6 +6431,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     roomAndBed: "Room and bed",
     notAssigned: "Not assigned",
     outOfOrder: "Out of order",
+    outOfOrderNoReturnDate: "No return date set",
     daysLate: "{n, plural, one {# day late} other {# days late}}",
     credit: "credit",
     moreActionsFor: "More actions for {guest}",
@@ -7138,7 +7141,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       clashes: "Clashes with a booking",
       bookedWhileBlocked: "Booked while blocked",
       blocked: "Blocked",
-      outOfService: "Out of service",
+      outOfService: "Out of order",
       gridLabel: "Rooms and beds by night",
       roomColumn: "Room",
       freeRow: "Free",
@@ -7232,7 +7235,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         available: "Available",
         occupied: "Occupied",
         blocked: "Blocked",
-        out_of_service: "Out of service",
+        out_of_service: "Out of order",
       },
       moveHint:
         "Drag a booking to another room or day to move it; nothing is saved until you confirm.",
@@ -7251,7 +7254,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         past: "The arrival must be today or later.",
         notSellable: "{unit} is let by the bed: choose one of its beds.",
         blocked: "{unit} is blocked for some of those nights.",
-        outOfService: "{unit} is out of service for some of those nights.",
+        outOfService: "{unit} is out of order for some of those nights.",
         booked: "{guest} has booked some of those nights.",
         occupied: "{guest} is staying in that Unit for some of those nights.",
         leavesToday: "Leaving today is a check-out. Choose tomorrow or later.",
@@ -9524,7 +9527,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkedIn: "تم تسجيل الوصول",
     unitUnavailable: "هذه الوحدة محجوزة في تلك الليالي.",
     unitOccupied:
-      "لا يزال هناك نزيل في هذه الوحدة. سجّل مغادرته أولًا أو ضع هذا الضيف في وحدة أخرى.",
+      "لا يزال هناك ضيف في هذه الوحدة. سجّل مغادرته أولًا أو ضع هذا الضيف في وحدة أخرى.",
     unitNotInService:
       "هذه الوحدة محظورة أو خارج الخدمة. ارفع الحظر أو أعدها إلى الخدمة، أو ضع هذا الضيف في وحدة أخرى.",
     blockReasonPlaceholder: "مثال: محجوزة لمجموعة",
@@ -9636,7 +9639,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       not_confirmed: "يجب تأكيد الحجز أولًا.",
       unit_blocked: "الوحدة محظورة. ارفع الحظر أو اختر وحدة أخرى.",
       unit_out_of_service: "الوحدة خارج الخدمة. اختر وحدة أخرى.",
-      unit_occupied: "لا يزال هناك نزيل في الغرفة. سجّل مغادرته أولًا.",
+      unit_occupied: "لا يزال هناك ضيف في الغرفة. سجّل مغادرته أولًا.",
     },
     checkOutFor: "تسجيل مغادرة {guest}",
     checkOutTitle: "تسجيل المغادرة",
@@ -9672,7 +9675,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     departuresFilters: "مرشحات المغادرة",
     inHouseAt: "المقيمون حاليًا في",
     departuresDue: "المستحقة والمتأخرة",
-    departuresInHouse: "جميع النزلاء المقيمين",
+    departuresInHouse: "جميع الضيوف المقيمين",
     nobodyInHouseTitle: "لا يوجد نزلاء مقيمون",
     nobodyInHouseDescription: "لا يوجد ضيف مسجَّل الوصول في هذا العقار حاليًا.",
     noGuestRecorded: "لا يوجد ضيف مسجَّل",
@@ -9708,6 +9711,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     roomAndBed: "الغرفة والسرير",
     notAssigned: "غير محدد",
     outOfOrder: "خارج الخدمة",
+    outOfOrderNoReturnDate: "لم يُحدَّد تاريخ العودة",
     daysLate:
       "{n, plural, one {متأخر يوم واحد} two {متأخر يومان} few {متأخر # أيام} many {متأخر # يوماً} other {متأخر # يوم}}",
     credit: "رصيد دائن",
@@ -10069,15 +10073,15 @@ export const messages: Record<SupportedLocale, Messages> = {
       "يتكون رقم الهاتف من أرقام ومسافات والرموز + ( ) - . فقط.",
     bookingUnavailable: "هذه الوحدة محجوزة بالفعل لتلك الليالي.",
     unitBookedThoseNights: "محجوزة لهذه الليالي",
-    unitOccupiedThoseNights: "يوجد نزيل مقيم في هذه الليالي",
+    unitOccupiedThoseNights: "يوجد ضيف مقيم في هذه الليالي",
     chosenUnitTakenThoseNights:
       "هذه الوحدة غير متاحة لليالي التي اخترتها. اختر وحدة أخرى أو تواريخ أخرى.",
     bookingAvailabilityUnknown:
       "تعذر التحقق من الوحدات المتاحة لهذه الليالي. يمكنك الاختيار، وسيُرفض الحفظ عند وجود تعارض.",
-    bookingOverOccupant: "هناك نزيل يقيم في هذه الوحدة خلال بعض تلك الليالي.",
+    bookingOverOccupant: "هناك ضيف يقيم في هذه الوحدة خلال بعض تلك الليالي.",
     bookingPeriodInvalid:
       "هذه التواريخ ليست مدة صالحة. يغطي الحجز ليلة واحدة على الأقل ولا يبدأ قبل اليوم.",
-    guestRequired: "أدخل اسم النزيل.",
+    guestRequired: "أدخل اسم الضيف.",
     guestEmailInvalid:
       "أدخل بريدًا إلكترونيًا صالحًا مثل name@example.com، أو اتركه فارغًا.",
     bookingGuestInvalid: "تحقق من اسم الضيف وبريده الإلكتروني وهاتفه.",
@@ -10085,7 +10089,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     expectedArrival: "الوصول المتوقع",
     expectedAt: "المتوقع {time}",
     expectedArrivalHint:
-      "اختياري. الوقت الذي يتوقع النزيل الوصول فيه، بتوقيت المنشأة.",
+      "اختياري. الوقت الذي يتوقع الضيف الوصول فيه، بتوقيت المنشأة.",
     expectedArrivalNone: "لا يوجد وقت متوقع",
     expectedNoTime: "لم يُذكر وقت",
     expectedArrivalPassed: "تجاوز وقت الوصول المتوقع",
@@ -10100,14 +10104,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       "تعذّر التحقق من تلك الليالي. اختر التواريخ مرة أخرى.",
     changeBookingUnitFree: "متاحة لهذه الليالي",
     changeBookingUnitBooked: "محجوزة لهذه الليالي · {reference}",
-    changeBookingUnitOccupied: "يوجد نزيل مقيم في هذه الليالي",
+    changeBookingUnitOccupied: "يوجد ضيف مقيم في هذه الليالي",
     changeBookingUnitNotTaking: "لا تستقبل حجوزات حاليًا",
     changeBookingCurrentNotTaking:
       "هذه الوحدة خارج الخدمة أو تُؤجَّر بالسرير. يمكن تغيير تواريخ الحجز هنا، أو نقله إلى وحدة أخرى.",
     changeBookingBlockedBooked:
       "الحجز {reference} يشغل بعض تلك الليالي. لتبديل حجزين، انقل أحدهما إلى وحدة متاحة أولًا.",
     changeBookingBlockedOccupied:
-      "هناك نزيل يقيم في هذه الوحدة خلال بعض تلك الليالي.",
+      "هناك ضيف يقيم في هذه الوحدة خلال بعض تلك الليالي.",
     changeBookingBeforeToday: "يجب أن يكون الوصول اليوم أو بعده.",
     changeBookingPriceKept: "{price} لليلة، كما في الحجز",
     changeBookingPriceChanges: "{from} ← {to} لليلة",
@@ -10142,19 +10146,19 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeDepartureNeedsEnd:
       "تحتاج إقامة الضيف إلى موعد مغادرة؛ الإقامة المفتوحة للمقيم وحده.",
     changeDepartureBlocked:
-      "الحجز {reference} يشغل بعض تلك الليالي. انقل النزيل أو ذلك الحجز أولًا.",
+      "الحجز {reference} يشغل بعض تلك الليالي. انقل الضيف أو ذلك الحجز أولًا.",
     changeDepartureNothing: "هذا هو موعد المغادرة بالفعل.",
     changeDepartureRefused: "لا يمكن تعديل هذه الإقامة.",
     saveDeparture: "حفظ موعد المغادرة",
     extendStay: "تمديد",
-    moveGuest: "نقل النزيل",
+    moveGuest: "نقل الضيف",
     moveGuestSummary:
       "انقله إلى وحدة أخرى بدءًا من الليلة. تنتقل معه الإقامة وحسابها وسعرها؛ وتُعلَّم الغرفة التي غادرها للتنظيف.",
     moveGuestReason: "السبب",
     moveReason: {
       fault: "في الغرفة عطل",
       upgrade: "ترقية",
-      guest_request: "طلب النزيل",
+      guest_request: "طلب الضيف",
       other: "سبب آخر",
     },
     moveGuestUnitNotReady: "غير جاهزة",
@@ -10162,12 +10166,12 @@ export const messages: Record<SupportedLocale, Messages> = {
     moveGuestUnpriced: "الحجز بلا سعر؛ والنقل لا يغيّر ذلك.",
     moveGuestNoteRequired: "لسبب آخر، اذكره في الملاحظة.",
     moveGuestNotReady: "هذه الوحدة ليست جاهزة بعد. اختر غيرها أو نظّفها أولًا.",
-    moveGuestRefused: "لا يمكن نقل هذا النزيل.",
+    moveGuestRefused: "لا يمكن نقل هذا الضيف.",
     folios: "الحسابات",
     foliosAt: "الحسابات في",
     noFoliosTitle: "لا توجد حسابات بعد",
     noFoliosDescription:
-      "لم يُفتح أي حساب في هذه المنشأة. يُفتح الحساب عند تسجيل دخول نزيل.",
+      "لم يُفتح أي حساب في هذه المنشأة. يُفتح الحساب عند تسجيل دخول ضيف.",
     folioStatus: { open: "مفتوح", closed: "مغلق" },
     folioLines: "بنود الحساب",
     balance: "الرصيد",
@@ -10464,7 +10468,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         ready: "جاهزة",
         awaiting_inspection: "نظيفة، تنتظر الفحص",
         dirty: "متسخة",
-        occupied: "فيها نزيل",
+        occupied: "فيها ضيف",
       },
       guest: "ضيف",
       resident: "مقيم",
