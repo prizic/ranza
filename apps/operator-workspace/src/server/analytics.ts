@@ -474,7 +474,9 @@ async function readPeriod(
   const [typeNights, typeMoney, uncharged] = hasActivity
     ? [
         await readTypeNights(tx, context, start, end),
-        context.mayReadMoney
+        // No day closed: no night has been charged, and a revenue of zero by
+        // unit type would be the same unknown shown as zero (ANALYTICS-02).
+        context.mayReadMoney && closedDays.length > 0
           ? await readTypeRoomMoney(tx, context, start, end)
           : null,
         await readUnchargedNights(tx, context, start, end),

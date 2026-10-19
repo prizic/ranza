@@ -1266,6 +1266,20 @@ describe("a figure that cannot be known is not a zero (ANALYTICS-02)", () => {
     expect(document.querySelector("[data-problem]")).toBeNull();
   });
 
+  it("shows the unit type rows' revenue as a dash too when no night has a charge", () => {
+    show({
+      ...CLOSED,
+      figures: NONE_CHARGED,
+      byUnitType: UNIT_TYPES.map((row) => ({ ...row, roomRevenueMinor: 0 })),
+    });
+    const rows = within(
+      screen.getByRole("region", { name: "By unit type" }),
+    ).getAllByRole("row");
+    for (const row of rows.slice(1)) {
+      expect(row).not.toHaveTextContent(money(0));
+    }
+  });
+
   it("shows a dash, not zero, while no day has closed, and says why", () => {
     const nothing: Figures = {
       ...CURRENT,

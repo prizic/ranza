@@ -2,8 +2,9 @@ import path from "node:path";
 import { expect, type Page } from "@playwright/test";
 import { test } from "./hydration";
 import { psql } from "./local-database";
-import { signIn } from "./front-desk";
+import { aStaffMember, signIn } from "./front-desk";
 import {
+  aBacklog,
   aDeskProperty,
   anOverdueGuest,
   archiveMadeProperties,
@@ -345,5 +346,151 @@ test.describe("Finance (RANZ-67)", () => {
     );
     expect(overflow).toBeLessThanOrEqual(0);
     await page.screenshot({ path: shot("RANZ-67", "list-phone") });
+  });
+});
+
+const ANALYTICS = ["today", "front_desk", "finance", "analytics"];
+
+test.describe("Analytics (RANZ-70)", () => {
+  test("a_window_reads_as_a_month_does_and_names_the_days_waiting_with_the_way_to_close_them", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty(ANALYTICS);
+    anOverdueGuest(propertyId, {
+      daysOverdue: 2,
+      nightlyRateMinor: 12000,
+      withFolio: true,
+    });
+    aBacklog(propertyId, 11);
+    await signIn(page);
+    await page.setViewportSize({ width: 1280, height: 1000 });
+    await page.goto(`/en/analytics?property=${propertyId}&range=7d`);
+
+    await expect(
+      page.getByRole("heading", { name: "Last 7 days" }),
+    ).toBeVisible();
+    // The month's words, not the old window's.
+    await expect(page.locator("main")).toContainText(
+      "Revenue per available night (RevPAR)",
+    );
+    await expect(page.locator("main")).not.toContainText("Occupied Units");
+    await expect(page.locator("main")).not.toContainText(
+      "Analytics & Reporting",
+    );
+
+    // Nothing has closed in the window, so there is no revenue and nothing is
+    // shown as zero; the days waiting are named, with where to clear them.
+    const waiting = page.getByTestId("days-waiting");
+    await expect(waiting).toContainText("10 days are waiting to be closed.");
+    await expect(waiting).toContainText(
+      "No day has closed yet, so there are no revenue figures.",
+    );
+    await expect(page.locator("main")).not.toContainText("TRY 0.00");
+    await page.screenshot({ path: shot("RANZ-70", "window-days-waiting") });
+
+    await waiting.getByRole("link", { name: "Close the day" }).click();
+    await expect(page).toHaveURL(/\/en\/close-day\?property=/);
+  });
+
+  test("on_a_phone_the_three_headline_figures_are_read_together_before_any_note", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty(ANALYTICS);
+    anOverdueGuest(propertyId, {
+      daysOverdue: 1,
+      nightlyRateMinor: 12000,
+      withFolio: true,
+    });
+    aBacklog(propertyId, 3);
+    await signIn(page);
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto(`/en/analytics?property=${propertyId}`);
+
+    const figures = page.locator("[data-figure]");
+    await expect(figures).toHaveCount(3);
+    for (let index = 0; index < 3; index++) {
+      const box = await figures.nth(index).boundingBox();
+      expect(
+        box!.y + box!.height,
+        `figure ${index} is below the fold`,
+      ).toBeLessThanOrEqual(800);
+    }
+    // The notes come after the figures they explain.
+    const notes = await page.getByTestId("days-waiting").boundingBox();
+    const last = await figures.nth(2).boundingBox();
+    expect(notes!.y).toBeGreaterThan(last!.y);
+    await page.screenshot({ path: shot("RANZ-70", "phone-headline") });
+
+    // The days are one press away, not a page of cards.
+    await expect(page.locator("tr[data-date]").first()).toBeHidden();
+    await page.getByRole("button", { name: /^Show the \d+ days$/ }).click();
+    await expect(page.locator("tr[data-date]").first()).toBeVisible();
+  });
+
+  test("a_day_opens_from_anywhere_on_its_row_and_its_stay_opens_its_booking", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty(ANALYTICS);
+    const guest = anOverdueGuest(propertyId, {
+      daysOverdue: 0,
+      nightlyRateMinor: 12000,
+      withFolio: true,
+    });
+    await signIn(page);
+    await page.setViewportSize({ width: 1280, height: 1000 });
+    await page.goto(`/en/analytics?property=${propertyId}`);
+
+    // The row, and not only its date, is the target.
+    // Days nobody has closed are open too: today is the last of them.
+    const today = page.locator("tr[data-day-state='open']").last();
+    await today.locator("td").nth(1).click();
+    await expect(page).toHaveURL(/day=\d{4}-\d{2}-\d{2}/);
+    const dialog = page.getByRole("dialog");
+    const link = dialog.getByRole("link", {
+      name: `Open booking ${guest.reference}`,
+    });
+    await expect(link).toBeVisible();
+    await link.click();
+    await expect(page).toHaveURL(
+      /\/en\/reservations\?property=.*&open=[0-9a-f-]{36}/,
+    );
+  });
+
+  test("a_reader_without_money_is_told_in_words_and_who_to_ask_and_is_not_told_what_revenue_covers", async ({
+    page,
+    request,
+    baseURL,
+  }) => {
+    const propertyId = aDeskProperty(ANALYTICS);
+    anOverdueGuest(propertyId, { daysOverdue: 1, withFolio: true });
+    const { email } = await aStaffMember(
+      request,
+      baseURL!,
+      propertyId,
+      "housekeeping",
+    );
+    await signIn(page, email);
+    await page.goto(`/en/analytics?property=${propertyId}`);
+    const main = page.locator("main");
+    await expect(main).toContainText(
+      "Revenue figures are shown only to staff who manage money. Ask your manager if you need them.",
+    );
+    await expect(main).not.toContainText("finance.manage_folio");
+    await expect(main).not.toContainText("Revenue and the rates");
+    await expect(main).toContainText("Occupancy counts every day so far");
+  });
+
+  test("the_window_in_arabic_mirrors_and_keeps_its_figures", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty(ANALYTICS);
+    anOverdueGuest(propertyId, { daysOverdue: 1, withFolio: true });
+    await signIn(page);
+    await page.goto(`/ar/analytics?property=${propertyId}&range=30d`);
+    await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+    await expect(
+      page.getByRole("heading", { name: "آخر 30 يومًا" }),
+    ).toBeVisible();
+    await expect(page.locator("[data-figure]").first()).toBeVisible();
   });
 });
