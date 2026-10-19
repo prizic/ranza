@@ -7,6 +7,7 @@ import {
   AUDIT_READ_PERMISSION,
   CONFIGURATION_CAPABILITY,
   MIN_SEARCH_LENGTH,
+  SEARCH_MATCH_LIMIT,
   TODAY_CAPABILITY,
 } from "@ranza/core";
 import type {
@@ -233,6 +234,7 @@ export {
   AUDIT_READ_PERMISSION,
   CONFIGURATION_CAPABILITY,
   MIN_SEARCH_LENGTH,
+  SEARCH_MATCH_LIMIT,
   TODAY_CAPABILITY,
   FRONT_DESK_CAPABILITY,
   FOLIO_CAPABILITY,
@@ -1069,6 +1071,8 @@ const NO_AUDIT: AuditPage = {
   entries: [],
   total: 0,
   nextCursor: null,
+  searchCapped: false,
+  subjectSpan: null,
   labels: {},
   locations: {},
   roles: {},

@@ -50,9 +50,11 @@ vi.mock("next-intl/server", () => ({
 vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
   AUDIT_READ_PERMISSION: "audit.read",
   MIN_SEARCH_LENGTH: 2,
+  SEARCH_MATCH_LIMIT: 200,
   auditLog,
   auditRecord: vi.fn(),
   permittedProperties,
+  screenProperties: async () => [],
   requireViewer: async () => ({
     userId: "d9000001-0000-4000-8000-000000000001",
   }),
@@ -159,6 +161,8 @@ describe("the audit log page", () => {
       entries: [],
       total: 0,
       nextCursor: null,
+      searchCapped: false,
+      subjectSpan: null,
       labels: {},
       locations: {},
       roles: {},

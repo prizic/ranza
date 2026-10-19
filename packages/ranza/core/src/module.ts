@@ -10,6 +10,8 @@ import {
   dayRange,
   MIN_SEARCH_LENGTH,
   namesFor,
+  isUuid,
+  relatedSubjectIds,
   searchIds,
   type AuditNames,
   type AuditScope,
@@ -428,6 +430,8 @@ export function createCoreModule(deps: CoreDeps) {
       entries: [],
       total: 0,
       nextCursor: null,
+      searchCapped: false,
+      subjectSpan: null,
       labels: {},
       locations: {},
       roles: {},
@@ -435,6 +439,10 @@ export function createCoreModule(deps: CoreDeps) {
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
       const scope = await auditScope(tx, propertyId);
       if (!scope) return empty;
+      // The history of something that is not an id is the history of nothing.
+      if (filters.subjectId !== undefined && !isUuid(filters.subjectId)) {
+        return empty;
+      }
 
       const range = await dayRange(
         tx,
@@ -447,6 +455,14 @@ export function createCoreModule(deps: CoreDeps) {
       const found = searching
         ? await searchIds(tx, scope.organizationId, text)
         : undefined;
+      const history =
+        filters.subjectId === undefined
+          ? undefined
+          : await relatedSubjectIds(
+              tx,
+              scope.organizationId,
+              filters.subjectId,
+            );
 
       const page = await recentWithin(tx, scope.organizationId, {
         limit: AUDIT_PAGE_SIZE,
@@ -455,8 +471,14 @@ export function createCoreModule(deps: CoreDeps) {
         from: range.from,
         to: range.to,
         cursor: filters.cursor,
+        ...(history ? { onlySubjectIds: history } : {}),
         ...(searching && found
-          ? { text, actorIds: found.actorIds, subjectIds: found.subjectIds }
+          ? {
+              text,
+              actorIds: found.actorIds,
+              subjectIds: found.subjectIds,
+              textActions: filters.textActions,
+            }
           : {}),
       });
       const names = await namesFor(tx, scope.organizationId, page.records);
@@ -465,6 +487,8 @@ export function createCoreModule(deps: CoreDeps) {
         entries: page.records.map((record) => located(record, names, scope)),
         total: page.total,
         nextCursor: page.nextCursor,
+        searchCapped: found?.capped ?? false,
+        subjectSpan: history ? history.length : null,
       };
     });
   }

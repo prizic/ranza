@@ -1,15 +1,19 @@
 import Link from "next/link";
+import { Download } from "lucide-react";
 import { notFound } from "next/navigation";
 import { calendarDay, isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { Button, EmptyState } from "@ranza/ui";
+import { Button, EmptyState, fieldMatches } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { ANY } from "../../../../features/audit-log/actions";
+import { actionsNamedBy, ANY } from "../../../../features/audit-log/actions";
+import type { SubjectReach } from "../../../../features/audit-log/links";
+import { SubjectBanner } from "../../../../features/audit-log/components/subject-banner";
 import {
   AuditFilters,
   type AuditFilterValues,
 } from "../../../../features/audit-log/components/audit-filters";
 import { AuditTable } from "../../../../features/audit-log/components/audit-table";
 import { RecordPanel } from "../../../../features/audit-log/components/record-panel";
+import { gateOf } from "../../../../lib/screens";
 import {
   AUDIT_READ_PERMISSION,
   auditLog,
@@ -17,6 +21,8 @@ import {
   MIN_SEARCH_LENGTH,
   permittedProperties,
   requireViewer,
+  screenProperties,
+  SEARCH_MATCH_LIMIT,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
 
@@ -121,7 +127,7 @@ export default async function AuditLogPage({
   }
 
   const route = localizeHref(locale, "audit-log");
-  const folioHref = `${localizeHref(locale, "finance")}?property=${property.propertyId}`;
+  const reach = await subjectReach(property.propertyId);
 
   const recordId = one(search, "record");
   if (recordId) {
@@ -134,9 +140,10 @@ export default async function AuditLogPage({
         {found ? (
           <RecordPanel
             entry={found.entry}
-            folioHref={folioHref}
             locale={locale}
             names={found}
+            propertyId={property.propertyId}
+            reach={reach}
             viewerId={viewer.userId}
           />
         ) : (
@@ -155,6 +162,7 @@ export default async function AuditLogPage({
 
   const values: AuditFilterValues = {
     action: one(search, "action"),
+    subject: one(search, "subject"),
     at: one(search, "at"),
     from: one(search, "from"),
     to: one(search, "to"),
@@ -166,14 +174,31 @@ export default async function AuditLogPage({
   const searchTooShort =
     values.q !== undefined && values.q.trim().length < MIN_SEARCH_LENGTH;
 
-  const page = await auditLog(property.propertyId, {
-    actions: values.action ? [values.action] : undefined,
-    propertyId: values.at,
-    from: values.from,
-    to: values.to,
-    q: values.q,
-    cursor,
-  });
+  // The words for what was done that the text could be: "rate" is "Nightly
+  // rates changed". Only this side knows what the screen calls an action.
+  const textActions =
+    values.q !== undefined && !searchTooShort
+      ? actionsNamedBy(
+          values.q,
+          (action) => t(`auditAction.${action}`),
+          fieldMatches,
+        )
+      : undefined;
+
+  // Text too short to search is not searched: the list that would answer it is
+  // everything, which reads as a result.
+  const page = searchTooShort
+    ? null
+    : await auditLog(property.propertyId, {
+        actions: values.action ? [values.action] : undefined,
+        propertyId: values.at,
+        from: values.from,
+        to: values.to,
+        q: values.q,
+        textActions,
+        subjectId: values.subject,
+        cursor,
+      });
 
   // Every link on the page carries the filters, so paging and opening a
   // record never silently drop what the reader narrowed to.
@@ -182,8 +207,27 @@ export default async function AuditLogPage({
     if (value) filtersQuery.set(key, value);
   }
   const filteredHref = `${route}?${filtersQuery.toString()}`;
-  const olderHref = page.nextCursor
+  const olderHref = page?.nextCursor
     ? `${filteredHref}&cursor=${encodeURIComponent(page.nextCursor)}`
+    : null;
+  const withoutSubject = new URLSearchParams(filtersQuery);
+  withoutSubject.delete("subject");
+
+  // The audit log can be taken out as a file, from the screen that does it;
+  // the days being looked at go with the link (AUDIT-12).
+  const [exportScreen, mayAskForExports] = await Promise.all([
+    screenProperties(gateOf("data-export")),
+    permittedProperties("data_export.create"),
+  ]);
+  const exportHref = [exportScreen, mayAskForExports].every((list) =>
+    list.some((candidate) => candidate.propertyId === property.propertyId),
+  )
+    ? `${localizeHref(locale, "data-export")}?${new URLSearchParams({
+        property: property.propertyId,
+        dataset: "audit_log",
+        ...(values.from ? { from: values.from } : {}),
+        ...(values.to ? { to: values.to } : {}),
+      }).toString()}`
     : null;
 
   const organizationProperties = properties
@@ -202,23 +246,63 @@ export default async function AuditLogPage({
         actionHref={route}
         properties={organizationProperties}
         propertyId={property.propertyId}
+        searchProblem={searchTooShort ? t("auditSearchTooShort") : undefined}
         today={calendarDay(property.timezone)}
         values={values}
       />
-      {searchTooShort ? (
-        <p className="mt-2 text-step--1 text-muted-foreground" role="status">
-          {t("auditSearchTooShort")}
+      {exportHref ? (
+        <div className="mt-2">
+          <Button asChild size="sm" variant="ghost">
+            <Link href={exportHref} prefetch={false}>
+              <Download aria-hidden="true" />
+              {t("auditExportLink")}
+            </Link>
+          </Button>
+        </div>
+      ) : null}
+      {page && values.subject ? (
+        <SubjectBanner
+          allHref={`${route}?${withoutSubject.toString()}`}
+          names={page}
+          span={page.subjectSpan}
+          subjectId={values.subject}
+        />
+      ) : null}
+      {page?.searchCapped ? (
+        <p className="mt-2 text-step--1 text-warning" role="status">
+          {t("auditSearchCapped", { max: SEARCH_MATCH_LIMIT })}
         </p>
       ) : null}
-      <AuditTable
-        filtered={Object.values(values).some(Boolean)}
-        locale={locale}
-        newestHref={cursor ? filteredHref : null}
-        olderHref={olderHref}
-        page={page}
-        recordHref={filteredHref}
-        viewerId={viewer.userId}
-      />
+      {page ? (
+        <AuditTable
+          filtered={Object.values(values).some(Boolean)}
+          locale={locale}
+          newestHref={cursor ? filteredHref : null}
+          olderHref={olderHref}
+          page={page}
+          propertyId={property.propertyId}
+          reach={reach}
+          recordHref={filteredHref}
+          viewerId={viewer.userId}
+        />
+      ) : null}
     </>
   );
+}
+
+/** Which of the screens a record's subject opens in the viewer may open at this Property. */
+async function subjectReach(propertyId: string): Promise<SubjectReach> {
+  const [finance, rooms, configuration, dataExport] = await Promise.all(
+    ["finance", "rooms", "configuration", "data-export"].map((segment) =>
+      screenProperties(gateOf(segment)),
+    ),
+  );
+  const opensHere = (list: readonly { propertyId: string }[] | undefined) =>
+    list?.some((candidate) => candidate.propertyId === propertyId) ?? false;
+  return {
+    finance: opensHere(finance),
+    rooms: opensHere(rooms),
+    configuration: opensHere(configuration),
+    dataExport: opensHere(dataExport),
+  };
 }

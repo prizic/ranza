@@ -13,10 +13,12 @@ import {
   Input,
 } from "@ranza/ui";
 import { usePickerLabels } from "../../../lib/picker-labels";
-import { ANY, KNOWN_ACTIONS } from "../actions";
+import { ANY, areaOf, KNOWN_ACTIONS } from "../actions";
 
 export interface AuditFilterValues {
   action?: string | undefined;
+  /** The one thing the log is narrowed to the history of. */
+  subject?: string | undefined;
   at?: string | undefined;
   from?: string | undefined;
   to?: string | undefined;
@@ -47,6 +49,7 @@ export function AuditFilters({
   actionHref,
   properties,
   propertyId,
+  searchProblem,
   today,
   values,
 }: {
@@ -54,6 +57,8 @@ export function AuditFilters({
   actionHref: string;
   properties: readonly { id: string; name: string }[];
   propertyId: string;
+  /** Said under the search field when what was typed cannot be searched. */
+  searchProblem?: string | undefined;
   /** The opened Property's day, `YYYY-MM-DD`: the clock the server reads
       `from` and `to` in, so the presets must count from it too. */
   today: string;
@@ -82,7 +87,7 @@ export function AuditFilters({
   const filtered = applied > 0;
   // On a phone the five filters were a screen of their own above the first
   // record (AUDIT-06): folded behind one button, which says how many are on.
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(Boolean(searchProblem));
 
   return (
     <>
@@ -105,6 +110,9 @@ export function AuditFilters({
         method="get"
       >
         <input name="property" type="hidden" value={propertyId} />
+        {values.subject ? (
+          <input name="subject" type="hidden" value={values.subject} />
+        ) : null}
 
         <Field htmlFor="audit-action" label={t("auditActionFilter")}>
           <Combobox
@@ -117,6 +125,10 @@ export function AuditFilters({
               ...KNOWN_ACTIONS.map((action) => ({
                 value: action,
                 label: t(`auditAction.${action}`),
+                // Fifty-odd choices in one list are found by the word for
+                // what happened; under a heading they are found by the thing
+                // it happened to (AUDIT-04).
+                group: t(`auditArea.${areaOf(action)}`),
               })),
             ]}
           />
@@ -163,14 +175,29 @@ export function AuditFilters({
         </Field>
 
         <Field htmlFor="audit-q" label={t("auditSearch")}>
-          <Input
-            defaultValue={values.q}
-            id="audit-q"
-            maxLength={100}
-            name="q"
-            placeholder={t("auditSearchHint")}
-            type="search"
-          />
+          <div className="grid gap-1">
+            <Input
+              aria-describedby={searchProblem ? "audit-q-problem" : undefined}
+              aria-invalid={searchProblem ? true : undefined}
+              defaultValue={values.q}
+              id="audit-q"
+              maxLength={100}
+              name="q"
+              placeholder={t("auditSearchHint")}
+              type="search"
+            />
+            {searchProblem ? (
+              // In the field it is about, not between it and a list that still
+              // looks like its answer (AUDIT-07).
+              <p
+                className="text-step--1 text-destructive"
+                id="audit-q-problem"
+                role="status"
+              >
+                {searchProblem}
+              </p>
+            ) : null}
+          </div>
         </Field>
 
         <div className="flex items-center gap-2">

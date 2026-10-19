@@ -1,4 +1,5 @@
 import type { SupportedLocale } from "@ranza/i18n";
+import type { ContextKey } from "./features/audit-log/context-keys";
 import {
   errorBoundary,
   type ErrorBoundaryMessages,
@@ -2404,6 +2405,32 @@ export interface Messages {
   auditYes: string;
   auditNo: string;
   auditNone: string;
+  /** A fact the record carries as nothing: "no departure before". */
+  auditNotSet: string;
+  /** `{from}` → `{to}`, the arrow turned the way the language reads. */
+  auditFromTo: string;
+  /** `{max}`: how many of each kind a search looks at. */
+  auditSearchCapped: string;
+  /** `{subject}`: what the history is of. */
+  auditSubjectOnly: string;
+  auditSubjectAlso: string;
+  auditShowAll: string;
+  auditHistoryLink: string;
+  auditExportLink: string;
+  /** `{timezone}`: the one clock every time in the list is on. */
+  auditWhenIn: string;
+  auditWhenEach: string;
+  /** The headings the action filter's choices are listed under. */
+  auditArea: Record<
+    | "bookings"
+    | "money"
+    | "rooms"
+    | "maintenance"
+    | "staff"
+    | "hr"
+    | "settings",
+    string
+  >;
   /** Read aloud between a setting's old value and its new one. */
   auditChangedTo: string;
   /**
@@ -2416,55 +2443,7 @@ export interface Messages {
    * What each context fact is called. Keyed on what the modules write, which
    * is why the keys are camelCase; a key this does not know shows as itself.
    */
-  auditContext: Record<
-    | "amountMinor"
-    | "balanceMinor"
-    | "totalGrossMinor"
-    | "totalNetMinor"
-    | "employeeId"
-    | "leaveFrom"
-    | "leaveTo"
-    | "contractType"
-    | "hasSystemAccess"
-    | "terminatedOn"
-    | "period"
-    | "employeeCount"
-    | "description"
-    | "lineId"
-    | "reversedLineId"
-    | "reversalLineId"
-    | "stayId"
-    | "folioId"
-    | "accommodationUnitId"
-    | "guestId"
-    | "guestCreated"
-    | "startsOn"
-    | "endsOn"
-    | "from"
-    | "to"
-    | "role"
-    | "added"
-    | "removed"
-    | "permissions"
-    | "propertyIds"
-    | "properties"
-    | "propertyId"
-    | "userId"
-    | "name"
-    | "names"
-    | "key"
-    | "holders"
-    | "unitIds"
-    | "unitType"
-    | "capacity"
-    | "building"
-    | "floor"
-    | "letByTheBed"
-    | "hadBeenBlockedFor"
-    | "status"
-    | "previousStatus",
-    string
-  >;
+  auditContext: Record<ContextKey, string>;
   /**
    * What each recorded action is called, nested noun → verb rather than keyed
    * on the dotted name the modules write: next-intl splits a key on `.`, so a
@@ -5416,7 +5395,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditPresetLast30: "Son 30 gün",
     auditPresetThisMonth: "Bu ay",
     auditSearch: "Ara",
-    auditSearchHint: "Misafir, oda, ekip arkadaşı veya gerekçeden bir kelime",
+    auditSearchHint: "Misafir, oda, ekip arkadaşı, gerekçe veya yapılan işlem",
     auditSearchTooShort: "Aramak için en az iki karakter yazın.",
     auditApply: "Uygula",
     auditClearFilters: "Filtreleri temizle",
@@ -5425,7 +5404,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditMatching: "{n, plural, other {# kayıt}}",
     auditNoMatchesTitle: "Bu filtrelere uyan kayıt yok",
     auditNoMatchesDescription:
-      "Tarih aralığını genişletin, başka bir işlem seçin veya filtreleri temizleyin.",
+      "Tarih aralığını genişletin, başka bir işlem seçin veya filtreleri temizleyin. Arama misafirleri, odaları, ekip arkadaşlarını, gerekçeleri ve yapılan işlemin adını bulur.",
     auditRecordMissingTitle: "Bu kayıt açılamıyor",
     auditRecordMissingDescription:
       "Kayıt yok ya da okuma yetkiniz olan bir kayıt değil.",
@@ -5434,6 +5413,17 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditYes: "Evet",
     auditNo: "Hayır",
     auditNone: "Yok",
+    auditNotSet: "Ayarlanmamış",
+    auditFromTo: "{from} → {to}",
+    auditSearchCapped:
+      "Aramanız {max} kişiden, odadan veya ekip arkadaşından fazlasını adlandırıyor; bu yüzden geri kalanlarla ilgili kayıtlar gösterilmiyor. Bulacağınızdan emin olmak için daha belirli bir şey arayın.",
+    auditSubjectOnly: "{subject} ile ilgili her kayıt gösteriliyor",
+    auditSubjectAlso: "ve birlikte olduğu rezervasyon, konaklama ve folyo.",
+    auditShowAll: "Tüm kayıtları göster",
+    auditHistoryLink: "Buna ait tüm kayıtlar",
+    auditExportLink: "Denetim kaydını dışa aktar",
+    auditWhenIn: "Zaman ({timezone})",
+    auditWhenEach: "Zaman (her yerin kendi saati)",
     auditChangedTo: "yeni değer",
     auditInspectionFollowsOrganization: "Organizasyonun ayarı",
     auditContext: {
@@ -5483,6 +5473,43 @@ export const messages: Record<SupportedLocale, Messages> = {
       hadBeenBlockedFor: "Kapatılma gerekçesi",
       status: "Durum",
       previousStatus: "Önceki durum",
+      assigneeId: "Atanan",
+      bedCount: "Yatak sayısı",
+      businessDate: "İş günü",
+      bytes: "Dosya boyutu",
+      earlyDeparture: "Planlanan günden önce ayrıldı",
+      effectiveFrom: "Geçerlilik başlangıcı",
+      equipmentId: "Ekipman",
+      expectedBackOn: "Dönmesi beklenen gün",
+      fields: "Değişen alanlar",
+      folioClosed: "Folyo kapatıldı",
+      format: "Dosya türü",
+      fromAmountMinor: "Önceki fiyat",
+      fromStartsOn: "Önceki giriş",
+      toStartsOn: "Yeni giriş",
+      fromEndsOn: "Önceki çıkış",
+      toEndsOn: "Yeni çıkış",
+      fromUnitId: "Önceki oda",
+      toUnitId: "Yeni oda",
+      fromTime: "Önceki beklenen varış",
+      toTime: "Yeni beklenen varış",
+      grossPayMinor: "Brüt ücret",
+      kind: "Tür",
+      number: "Numara",
+      paymentMethod: "Ödeme yöntemi",
+      plannedEndsOn: "Planlanan çıkış",
+      priority: "Öncelik",
+      rangeFrom: "Tarih aralığı başı",
+      rangeTo: "Tarih aralığı sonu",
+      reasonKind: "Gerekçe türü",
+      reservationId: "Rezervasyon",
+      resourceTypes: "Veri setleri",
+      returnAs: "Odanın dönüş durumu",
+      roomNightsNotCharged: "Ücretlendirilmeyen oda geceleri",
+      servicedOn: "Bakım günü",
+      title: "Başlık",
+      unitId: "Oda",
+      unitName: "Oda adı",
     },
     auditAction: {
       reservation: {
@@ -5521,17 +5548,17 @@ export const messages: Record<SupportedLocale, Messages> = {
         role_reinstated: "Rol geri getirildi",
       },
       unit: {
-        added: "Birim eklendi",
-        blocked: "Birim kapatıldı",
-        unblocked: "Birim açıldı",
-        taken_out_of_order: "Hizmet dışı bırakıldı",
-        returned_to_service: "Hizmete döndü",
+        added: "Oda veya yatak eklendi",
+        blocked: "Oda veya yatak kapatıldı",
+        unblocked: "Oda veya yatak açıldı",
+        taken_out_of_order: "Oda hizmet dışı bırakıldı",
+        returned_to_service: "Oda hizmete döndü",
       },
       housekeeping: {
         status_changed: "Oda durumu değiştirildi",
         inspection_set: "Temizlik sonrası kontrol ayarı değiştirildi",
       },
-      business_day: { closed: "İş günü kapatıldı" },
+      business_day: { closed: "Gün kapatıldı" },
       property: { configured: "Tesis ayarları değiştirildi" },
       organization: { configured: "Organizasyon yeniden adlandırıldı" },
       price_list: { changed: "Gecelik fiyatlar değiştirildi" },
@@ -5587,6 +5614,15 @@ export const messages: Record<SupportedLocale, Messages> = {
         resolved: "Başarısız gönderim çözüldü olarak işaretlendi",
       },
     },
+    auditArea: {
+      bookings: "Rezervasyonlar ve konaklamalar",
+      money: "Folyolar ve fiyatlar",
+      rooms: "Odalar ve kat hizmetleri",
+      maintenance: "Bakım",
+      staff: "Ekip ve roller",
+      hr: "İK ve bordro",
+      settings: "Ayarlar ve sistem",
+    },
     auditSubject: {
       reservation: "Rezervasyon",
       stay: "Konaklama",
@@ -5594,7 +5630,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       membership: "Üyelik",
       role: "Rol",
       property: "Tesis",
-      accommodation_unit: "Konaklama birimi",
+      accommodation_unit: "Oda veya yatak",
       organization: "Organizasyon",
       maintenance_request: "Bakım talebi",
       maintenance_equipment: "Ekipman",
@@ -8505,7 +8541,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditPresetLast30: "Last 30 days",
     auditPresetThisMonth: "This month",
     auditSearch: "Search",
-    auditSearchHint: "Guest, room, colleague or words from a reason",
+    auditSearchHint: "Guest, room, colleague, reason or what was done",
     auditSearchTooShort: "Type at least two characters to search.",
     auditApply: "Apply",
     auditClearFilters: "Clear filters",
@@ -8514,7 +8550,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditMatching: "{n, plural, one {# record} other {# records}}",
     auditNoMatchesTitle: "Nothing matches these filters",
     auditNoMatchesDescription:
-      "Widen the dates, choose another action, or clear the filters.",
+      "Widen the dates, choose another action, or clear the filters. Search finds Guests, rooms, colleagues, reasons and the words for what was done.",
     auditRecordMissingTitle: "That record cannot be opened",
     auditRecordMissingDescription:
       "It does not exist, or it is not one you may read.",
@@ -8523,6 +8559,18 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditYes: "Yes",
     auditNo: "No",
     auditNone: "None",
+    auditNotSet: "Not set",
+    auditFromTo: "{from} → {to}",
+    auditSearchCapped:
+      "Your search names more than {max} Guests, rooms or colleagues, so records about the rest are not shown. Search for something more specific to be sure of finding one.",
+    auditSubjectOnly: "Showing every record about {subject}",
+    auditSubjectAlso:
+      "and the reservation, stay and folio that belong with it.",
+    auditShowAll: "Show every record",
+    auditHistoryLink: "Every record about this",
+    auditExportLink: "Export the audit log",
+    auditWhenIn: "When ({timezone})",
+    auditWhenEach: "When (each place’s own clock)",
     auditChangedTo: "changed to",
     auditInspectionFollowsOrganization: "The Organization's setting",
     auditContext: {
@@ -8572,15 +8620,52 @@ export const messages: Record<SupportedLocale, Messages> = {
       hadBeenBlockedFor: "Had been blocked for",
       status: "Status",
       previousStatus: "Previous status",
+      assigneeId: "Assigned to",
+      bedCount: "Beds",
+      businessDate: "Business day",
+      bytes: "File size",
+      earlyDeparture: "Left before the planned day",
+      effectiveFrom: "Effective from",
+      equipmentId: "Equipment",
+      expectedBackOn: "Expected back",
+      fields: "Fields changed",
+      folioClosed: "Folio closed",
+      format: "File type",
+      fromAmountMinor: "Price before",
+      fromStartsOn: "Arrival before",
+      toStartsOn: "Arrival after",
+      fromEndsOn: "Departure before",
+      toEndsOn: "Departure after",
+      fromUnitId: "Room before",
+      toUnitId: "Room after",
+      fromTime: "Expected arrival before",
+      toTime: "Expected arrival after",
+      grossPayMinor: "Gross pay",
+      kind: "Kind",
+      number: "Number",
+      paymentMethod: "Payment method",
+      plannedEndsOn: "Planned departure",
+      priority: "Priority",
+      rangeFrom: "Dates from",
+      rangeTo: "Dates to",
+      reasonKind: "Kind of reason",
+      reservationId: "Reservation",
+      resourceTypes: "Datasets",
+      returnAs: "Room returns as",
+      roomNightsNotCharged: "Room nights not charged",
+      servicedOn: "Serviced on",
+      title: "Title",
+      unitId: "Room",
+      unitName: "Room name",
     },
     auditAction: {
       reservation: {
         created: "Reservation taken",
         checked_in: "Checked in",
         check_in_reversed: "Check-in withdrawn",
-        cancelled: "Booking cancelled",
+        cancelled: "Reservation cancelled",
         no_show: "Marked as a no-show",
-        amended: "Booking changed",
+        amended: "Reservation changed",
         arrival_time_changed: "Expected arrival time changed",
       },
       stay: {
@@ -8610,17 +8695,17 @@ export const messages: Record<SupportedLocale, Messages> = {
         role_reinstated: "Role reinstated",
       },
       unit: {
-        added: "Unit added",
-        blocked: "Unit blocked",
-        unblocked: "Unit unblocked",
-        taken_out_of_order: "Taken out of order",
-        returned_to_service: "Returned to service",
+        added: "Room or bed added",
+        blocked: "Room or bed blocked",
+        unblocked: "Room or bed unblocked",
+        taken_out_of_order: "Room taken out of order",
+        returned_to_service: "Room returned to service",
       },
       housekeeping: {
         status_changed: "Room status changed",
         inspection_set: "Room check after cleaning changed",
       },
-      business_day: { closed: "Business day closed" },
+      business_day: { closed: "Day closed" },
       property: { configured: "Property settings changed" },
       organization: { configured: "Organization renamed" },
       price_list: { changed: "Nightly rates changed" },
@@ -8676,6 +8761,15 @@ export const messages: Record<SupportedLocale, Messages> = {
         resolved: "Failed delivery marked resolved",
       },
     },
+    auditArea: {
+      bookings: "Bookings and stays",
+      money: "Folios and rates",
+      rooms: "Rooms and housekeeping",
+      maintenance: "Maintenance",
+      staff: "Staff and roles",
+      hr: "HR and payroll",
+      settings: "Settings and system",
+    },
     auditSubject: {
       reservation: "Reservation",
       stay: "Stay",
@@ -8683,7 +8777,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       membership: "Membership",
       role: "Role",
       property: "Property",
-      accommodation_unit: "Accommodation unit",
+      accommodation_unit: "Room or bed",
       organization: "Organization",
       maintenance_request: "Maintenance request",
       maintenance_equipment: "Equipment",
@@ -11538,7 +11632,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditPresetLast30: "آخر 30 يومًا",
     auditPresetThisMonth: "هذا الشهر",
     auditSearch: "بحث",
-    auditSearchHint: "ضيف أو غرفة أو زميل أو كلمات من سبب",
+    auditSearchHint: "ضيف أو غرفة أو زميل أو سبب أو ما جرى",
     auditSearchTooShort: "اكتب حرفين على الأقل للبحث.",
     auditApply: "تطبيق",
     auditClearFilters: "مسح الفلاتر",
@@ -11548,7 +11642,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "{n, plural, zero {لا سجلات} one {سجل واحد} two {سجلان} few {# سجلات} many {# سجلًا} other {# سجل}}",
     auditNoMatchesTitle: "لا شيء يطابق هذه الفلاتر",
     auditNoMatchesDescription:
-      "وسّع نطاق التواريخ أو اختر إجراءً آخر أو امسح الفلاتر.",
+      "وسّع نطاق التواريخ أو اختر إجراءً آخر أو امسح الفلاتر. يجد البحث الضيوف والغرف والزملاء والأسباب وأسماء ما جرى.",
     auditRecordMissingTitle: "لا يمكن فتح هذا السجل",
     auditRecordMissingDescription:
       "إما أنه غير موجود أو أنه ليس سجلًا يحق لك قراءته.",
@@ -11557,6 +11651,17 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditYes: "نعم",
     auditNo: "لا",
     auditNone: "لا يوجد",
+    auditNotSet: "غير محدد",
+    auditFromTo: "{from} ← {to}",
+    auditSearchCapped:
+      "يذكر بحثك أكثر من {max} ضيفًا أو غرفة أو زميلًا، فلا تظهر السجلات الخاصة بالبقية. ابحث بشيء أدق لتتأكد من العثور على ما تريد.",
+    auditSubjectOnly: "عرض كل سجل يخص {subject}",
+    auditSubjectAlso: "والحجز والإقامة والفوليو التي ترتبط به.",
+    auditShowAll: "عرض كل السجلات",
+    auditHistoryLink: "كل السجلات الخاصة بهذا",
+    auditExportLink: "تصدير سجل التدقيق",
+    auditWhenIn: "الوقت ({timezone})",
+    auditWhenEach: "الوقت (بتوقيت كل مكان)",
     auditChangedTo: "تغيّر إلى",
     auditInspectionFollowsOrganization: "إعداد المؤسسة",
     auditContext: {
@@ -11606,6 +11711,43 @@ export const messages: Record<SupportedLocale, Messages> = {
       hadBeenBlockedFor: "سبب الإغلاق السابق",
       status: "الحالة",
       previousStatus: "الحالة السابقة",
+      assigneeId: "المُسنَد إليه",
+      bedCount: "عدد الأسرة",
+      businessDate: "يوم العمل",
+      bytes: "حجم الملف",
+      earlyDeparture: "غادر قبل اليوم المخطط",
+      effectiveFrom: "ساري من",
+      equipmentId: "المعدات",
+      expectedBackOn: "العودة المتوقعة",
+      fields: "الحقول المتغيرة",
+      folioClosed: "أُغلق الفوليو",
+      format: "نوع الملف",
+      fromAmountMinor: "السعر السابق",
+      fromStartsOn: "الوصول السابق",
+      toStartsOn: "الوصول الجديد",
+      fromEndsOn: "المغادرة السابقة",
+      toEndsOn: "المغادرة الجديدة",
+      fromUnitId: "الغرفة السابقة",
+      toUnitId: "الغرفة الجديدة",
+      fromTime: "وقت الوصول المتوقع السابق",
+      toTime: "وقت الوصول المتوقع الجديد",
+      grossPayMinor: "الأجر الإجمالي",
+      kind: "النوع",
+      number: "الرقم",
+      paymentMethod: "طريقة الدفع",
+      plannedEndsOn: "المغادرة المخططة",
+      priority: "الأولوية",
+      rangeFrom: "التواريخ من",
+      rangeTo: "التواريخ إلى",
+      reasonKind: "نوع السبب",
+      reservationId: "الحجز",
+      resourceTypes: "مجموعات البيانات",
+      returnAs: "حالة الغرفة عند إعادتها",
+      roomNightsNotCharged: "ليالي الغرف غير المحاسَب عليها",
+      servicedOn: "تاريخ الصيانة",
+      title: "العنوان",
+      unitId: "الغرفة",
+      unitName: "اسم الغرفة",
     },
     auditAction: {
       reservation: {
@@ -11644,17 +11786,17 @@ export const messages: Record<SupportedLocale, Messages> = {
         role_reinstated: "تمت إعادة الدور",
       },
       unit: {
-        added: "تمت إضافة وحدة",
-        blocked: "تم إغلاق الوحدة",
-        unblocked: "تم فتح الوحدة",
-        taken_out_of_order: "أُخرجت من الخدمة",
-        returned_to_service: "أُعيدت إلى الخدمة",
+        added: "تمت إضافة غرفة أو سرير",
+        blocked: "تم إغلاق الغرفة أو السرير",
+        unblocked: "تم فتح الغرفة أو السرير",
+        taken_out_of_order: "أُخرجت الغرفة من الخدمة",
+        returned_to_service: "أُعيدت الغرفة إلى الخدمة",
       },
       housekeeping: {
         status_changed: "تم تغيير حالة الغرفة",
         inspection_set: "تم تغيير إعداد الفحص بعد التنظيف",
       },
-      business_day: { closed: "أُغلق يوم العمل" },
+      business_day: { closed: "أُغلق اليوم" },
       property: { configured: "تم تغيير إعدادات المنشأة" },
       organization: { configured: "تمت إعادة تسمية المؤسسة" },
       price_list: { changed: "تم تغيير أسعار الليلة" },
@@ -11710,6 +11852,15 @@ export const messages: Record<SupportedLocale, Messages> = {
         resolved: "عُلِّم إرسال فاشل كمحلول",
       },
     },
+    auditArea: {
+      bookings: "الحجوزات والإقامات",
+      money: "الحسابات والأسعار",
+      rooms: "الغرف والتدبير المنزلي",
+      maintenance: "الصيانة",
+      staff: "الفريق والأدوار",
+      hr: "الموارد البشرية والرواتب",
+      settings: "الإعدادات والنظام",
+    },
     auditSubject: {
       reservation: "حجز",
       stay: "إقامة",
@@ -11717,7 +11868,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       membership: "عضوية",
       role: "دور",
       property: "منشأة",
-      accommodation_unit: "وحدة إقامة",
+      accommodation_unit: "غرفة أو سرير",
       organization: "المؤسسة",
       maintenance_request: "طلب صيانة",
       maintenance_equipment: "المعدات",

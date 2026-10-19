@@ -75,6 +75,7 @@ test("a submitted search finds a record by its reason, and the defaults narrow n
     .getByRole("row")
     .filter({ hasText: reason })
     .getByRole("link")
+    .first()
     .click();
   await expect(page).toHaveURL(/record=/);
   await expect(page.getByText(reason)).toBeVisible();
@@ -262,7 +263,7 @@ test("a correction is traced to the person who made it and the reason they gave"
     const cases = [
       { action: "Line reversed", reason: reasons.reversal },
       { action: "Check-in withdrawn", reason: reasons.withdrawal },
-      { action: "Booking cancelled", reason: reasons.cancellation },
+      { action: "Reservation cancelled", reason: reasons.cancellation },
     ];
     for (const { action, reason } of cases) {
       await filterByAction(reader, action);
@@ -295,6 +296,7 @@ test("a correction is traced to the person who made it and the reason they gave"
       .getByRole("row")
       .filter({ hasText: reasons.reversal })
       .getByRole("link")
+      .first()
       .click();
     await expect(reader).toHaveURL(/record=/);
     await expect(reader.getByText(reasons.reversal)).toBeVisible();
@@ -419,7 +421,7 @@ test("a correction reads in Arabic with its actor and its reason as they were wr
     path: path.join(EVIDENCE, "correction-in-arabic.png"),
   });
 
-  await row.getByRole("link").click();
+  await row.getByRole("link").first().click();
   await expect(page).toHaveURL(/record=/);
   // Inside the record, and the whole text of one element: the reason is also
   // the search box's value, and a page that failed to hydrate quotes it again
@@ -427,4 +429,307 @@ test("a correction reads in Arabic with its actor and its reason as they were wr
   const record = page.getByRole("main").locator("section");
   await expect(record.getByText(reason, { exact: true })).toBeVisible();
   await expect(record.getByText(EMAIL, { exact: true })).toBeVisible();
+});
+
+const SCREENSHOTS = path.resolve(
+  __dirname,
+  "../../docs/evidence/ux-audit/RANZ-75",
+);
+
+/**
+ * A record written as the table owner at the tests' own Property, in the Owner
+ * seeded for the browser tests' name, with its context as JSON.
+ */
+function writeContextRecord(
+  propertyId: string,
+  record: {
+    action: string;
+    subjectType: string;
+    subjectId: string;
+    reason?: string;
+    context?: Record<string, unknown>;
+  },
+): void {
+  psql(
+    `insert into audit.records
+       (organization_id, location_id, actor_id, action, subject_type,
+        subject_id, reason, context)
+     select property.organization_id, property.id, member.id,
+            '${record.action}', '${record.subjectType}', '${record.subjectId}',
+            ${record.reason ? `'${record.reason}'` : "null"},
+            '${JSON.stringify(record.context ?? {}).replaceAll("'", "''")}'::jsonb
+       from public.properties as property, public.users as member
+      where property.id = '${propertyId}' and lower(member.email) = lower('${OWNER_EMAIL}')`,
+  );
+}
+
+test("a setting changed seven times says to what in the list, a stay's departure reads as dates, and the record names every fact", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const tag = randomUUID().slice(0, 8);
+  const stay = randomUUID();
+  const reason = `ux75 ${tag} the Guest stays a night longer`;
+
+  for (const [from, to] of [
+    ["off", "on"],
+    ["on", "off"],
+    ["off", "on"],
+  ] as const) {
+    writeContextRecord(propertyId, {
+      action: "housekeeping.inspection_set",
+      subjectType: "property",
+      subjectId: propertyId,
+      reason: `ux75 ${tag} switched`,
+      context: { from, to },
+    });
+  }
+  writeContextRecord(propertyId, {
+    action: "stay.departure_changed",
+    subjectType: "stay",
+    subjectId: stay,
+    reason,
+    context: {
+      changeId: randomUUID(),
+      reservationId: randomUUID(),
+      fromEndsOn: null,
+      toEndsOn: "2031-10-05",
+    },
+  });
+
+  await signIn(page, OWNER_EMAIL);
+  await page.goto(`/en/audit-log?property=${propertyId}&q=ux75+${tag}`);
+  await expect(page.getByText("4 records", { exact: true })).toBeVisible();
+
+  // Three records of one setting are told apart by what they changed.
+  await expect(page.getByText("Off → On")).toHaveCount(2);
+  await expect(page.getByText("On → Off")).toHaveCount(1);
+  // The departure is two days, the first of them not set.
+  const departure = page.getByRole("row").filter({ hasText: reason });
+  await expect(departure).toContainText("Not set → ");
+  await expect(departure).toContainText("2031");
+
+  // The record has a name for each fact, none of the database's own, and the
+  // table's caption is for a screen reader and not a line of text.
+  await departure.getByRole("link").first().click();
+  await expect(page).toHaveURL(/record=/);
+  await expect(page.getByText("Departure before")).toBeVisible();
+  await expect(page.getByText("Departure after")).toBeVisible();
+  await expect(page.getByText("Not set")).toBeVisible();
+  await expect(page.getByText("toEndsOn")).toHaveCount(0);
+  await expect(page.getByText("changeId")).toHaveCount(0);
+  await expect(page.locator("caption", { hasText: "Details" })).toHaveClass(
+    /sr-only/,
+  );
+  await page.screenshot({ path: path.join(SCREENSHOTS, "record-facts.png") });
+});
+
+test("a subject opens where it can be opened, a booking's history spans its stay and folio, and the way back is one press", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const tag = randomUUID().slice(0, 8);
+  const room = randomUUID();
+  const reservation = randomUUID();
+  const other = randomUUID();
+
+  writeContextRecord(propertyId, {
+    action: "unit.blocked",
+    subjectType: "accommodation_unit",
+    subjectId: room,
+    reason: `ux75 ${tag} a pipe burst`,
+  });
+  writeContextRecord(propertyId, {
+    action: "reservation.amended",
+    subjectType: "reservation",
+    subjectId: reservation,
+    reason: `ux75 ${tag} dates changed`,
+  });
+  writeContextRecord(propertyId, {
+    action: "reservation.amended",
+    subjectType: "reservation",
+    subjectId: other,
+    reason: `ux75 ${tag} another booking altogether`,
+  });
+
+  await signIn(page, OWNER_EMAIL);
+  await page.goto(`/en/audit-log?property=${propertyId}&q=ux75+${tag}`);
+  await expect(page.getByText("3 records", { exact: true })).toBeVisible();
+
+  // A room opens Rooms, keeping the Property.
+  const roomRow = page.getByRole("row").filter({ hasText: "a pipe burst" });
+  await expect(
+    roomRow.getByRole("link", { name: /^Room or bed · / }),
+  ).toHaveAttribute("href", `/en/rooms?property=${propertyId}&unit=${room}`);
+
+  // A booking, which no screen shows alone, opens its history in the log.
+  const bookingRow = page.getByRole("row").filter({ hasText: "dates changed" });
+  await bookingRow.getByRole("link", { name: /^Reservation · / }).click();
+  await expect(page).toHaveURL(new RegExp(`subject=${reservation}`));
+  await expect(
+    page.getByRole("status").filter({ hasText: "Showing every record about" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("row").filter({ hasText: "dates changed" }),
+  ).toHaveCount(1);
+  await expect(
+    page.getByRole("row").filter({ hasText: "another booking altogether" }),
+  ).toHaveCount(0);
+  await page.screenshot({
+    path: path.join(SCREENSHOTS, "booking-history.png"),
+  });
+
+  // The record offers the same, and the banner's way back shows everything.
+  await page.getByRole("link", { name: "Show every record" }).click();
+  await expect(page).not.toHaveURL(/subject=/);
+  await expect(
+    page.getByRole("row").filter({ hasText: "another booking altogether" }),
+  ).toHaveCount(1);
+});
+
+test("a word on the screen finds the action it names, the actions are listed under headings, and text too short to search says so in its field", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const tag = randomUUID().slice(0, 8);
+
+  writeContextRecord(propertyId, {
+    action: "price_list.changed",
+    subjectType: "property",
+    subjectId: propertyId,
+    context: {
+      changes: [
+        {
+          unitType: "room",
+          from: null,
+          to: { amountMinor: 250000, currency: "TRY" },
+        },
+      ],
+    },
+  });
+
+  await signIn(page, OWNER_EMAIL);
+  await page.goto(`/en/audit-log?property=${propertyId}`);
+  await page.getByRole("searchbox", { name: "Search" }).fill("nightly rates");
+  await page.getByRole("button", { name: "Apply" }).click();
+  await expect(page).toHaveURL(/q=nightly\+rates/);
+  const rates = page
+    .getByRole("row")
+    .filter({ hasText: "Nightly rates changed" });
+  await expect(rates.first()).toBeVisible();
+  await expect(rates.first()).toContainText("Room: No price → ");
+
+  // The fifty-odd actions are found under the thing they happened to.
+  await page.goto(`/en/audit-log?property=${propertyId}`);
+  await page.getByRole("combobox", { name: "Action" }).click();
+  for (const heading of [
+    "Bookings and stays",
+    "Folios and rates",
+    "Rooms and housekeeping",
+    "Maintenance",
+    "Staff and roles",
+    "HR and payroll",
+    "Settings and system",
+  ]) {
+    await expect(
+      page.locator("[cmdk-group-heading]", { hasText: heading }),
+    ).toBeVisible();
+  }
+  await page.keyboard.press("Escape");
+
+  // One character is not searched, and the message is in the field, with no
+  // list under it that looks like its answer.
+  await page.goto(`/en/audit-log?property=${propertyId}&q=${tag[0]}`);
+  await expect(
+    page.getByText("Type at least two characters to search."),
+  ).toBeVisible();
+  await expect(page.getByRole("row")).toHaveCount(0);
+  await expect(page.getByText(/\d+ records?/)).toHaveCount(0);
+});
+
+test("the reason is cut by its own cell, the time says which clock it is on, and the log points to the export", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const tag = randomUUID().slice(0, 8);
+  const longReason = `ux75 ${tag} ${"the Guest asked for a quieter room on a higher floor ".repeat(6)}`;
+  writeContextRecord(propertyId, {
+    action: "folio.line_reversed",
+    subjectType: "folio",
+    subjectId: randomUUID(),
+    reason: longReason,
+  });
+
+  await signIn(page, OWNER_EMAIL);
+  for (const width of [1280, 768]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`/en/audit-log?property=${propertyId}&q=ux75+${tag}`);
+    const reason = page.getByText(/the Guest asked for a quieter room/).first();
+    await expect(reason).toBeVisible();
+    const box = await reason.boundingBox();
+    expect(
+      box!.width,
+      `the reason is ${box!.width}px wide at ${width}px`,
+    ).toBeLessThanOrEqual(300);
+    // Two lines, then cut by the cell, not mid-word at the edge of the table.
+    const clamped = await reason.evaluate((element) => ({
+      lines: Math.round(
+        element.getBoundingClientRect().height /
+          parseFloat(getComputedStyle(element).lineHeight),
+      ),
+    }));
+    expect(clamped.lines).toBeLessThanOrEqual(2);
+  }
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(
+    page.getByRole("columnheader", { name: /^When \(Europe\/Istanbul\)$/ }),
+  ).toBeVisible();
+
+  // The export is one link away, carrying the days being looked at.
+  await page.goto(
+    `/en/audit-log?property=${propertyId}&from=2026-01-01&to=2026-01-31`,
+  );
+  await page.getByRole("link", { name: "Export the audit log" }).click();
+  await expect(page).toHaveURL(
+    /data-export.*dataset=audit_log&from=2026-01-01&to=2026-01-31/,
+  );
+  await expect(page.getByRole("checkbox", { name: /Audit log/ })).toBeChecked();
+  await expect(page.getByRole("button", { name: /^From/ })).toContainText(
+    "Jan 1",
+  );
+  await page.screenshot({
+    path: path.join(SCREENSHOTS, "export-from-the-log.png"),
+  });
+});
+
+test("a phone reads who did what on the list, and the Arabic list turns its arrow the way it reads", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const tag = randomUUID().slice(0, 8);
+  writeContextRecord(propertyId, {
+    action: "housekeeping.inspection_set",
+    subjectType: "property",
+    subjectId: propertyId,
+    reason: `ux75 ${tag} one`,
+    context: { from: "off", to: "on" },
+  });
+
+  await signIn(page, OWNER_EMAIL);
+  await page.setViewportSize({ width: 375, height: 800 });
+  await page.goto(`/en/audit-log?property=${propertyId}&q=ux75+${tag}`);
+  await expect(page.getByText("Off → On")).toBeVisible();
+  await expect(page.getByText(/^Who: /)).toBeVisible();
+  const fits = await page.evaluate(
+    () => document.documentElement.scrollWidth <= window.innerWidth,
+  );
+  expect(fits).toBe(true);
+
+  await page.goto(`/ar/audit-log?property=${propertyId}&q=ux75+${tag}`);
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  await expect(page.getByText(/←/)).toBeVisible();
+  await page.screenshot({
+    path: path.join(SCREENSHOTS, "list-arabic-375.png"),
+  });
 });

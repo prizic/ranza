@@ -61,6 +61,18 @@ export interface AuditFilters {
   to?: string | undefined;
   /** A Guest, a room, a colleague's address, or words from a reason. */
   q?: string | undefined;
+  /**
+   * Actions that `q` is a word for on the screen ("rate" is "Nightly rates
+   * changed"). Only the host knows what an action is called, so it names them;
+   * a record of one of them matches `q` as one about a Guest it names does.
+   */
+  textActions?: readonly string[] | undefined;
+  /**
+   * The history of one thing: a Reservation, a Stay or a Folio and the others
+   * of the three that belong to it, or any other subject by itself. Narrows,
+   * unlike `q`, which only finds.
+   */
+  subjectId?: string | undefined;
   /** From a previous page's `nextCursor`. */
   cursor?: string | undefined;
 }
@@ -79,6 +91,18 @@ export interface AuditPage extends AuditNames {
   /** Records matching the filters, across every page. */
   total: number;
   nextCursor: string | null;
+  /**
+   * The search named more Guests, rooms or colleagues than it looks at, so the
+   * records about the rest are not among these. Said on the screen: "nothing
+   * matched" and "that was too broad" must not look alike (AUDIT-11).
+   */
+  searchCapped: boolean;
+  /**
+   * What `subjectId` stood for, when it was given: how many subjects its
+   * history spans (a booking's, its stays' and their folios'), so the screen
+   * can say it shows more than one.
+   */
+  subjectSpan: number | null;
 }
 
 /**

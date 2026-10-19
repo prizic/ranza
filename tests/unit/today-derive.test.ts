@@ -1343,6 +1343,8 @@ function auditPage(
     })) as AuditPage["entries"],
     total: entries.length,
     nextCursor: null,
+    searchCapped: false,
+    subjectSpan: null,
     labels,
     locations: {},
     roles: {},

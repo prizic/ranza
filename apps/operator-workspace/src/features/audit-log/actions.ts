@@ -90,6 +90,51 @@ export const KNOWN_ACTIONS = [
 
 export type KnownAction = (typeof KNOWN_ACTIONS)[number];
 
+/**
+ * The headings the action filter groups its fifty-odd choices under, by what a
+ * person is thinking of when they look for one: a booking, a bill, a room, a
+ * repair, a colleague, a payslip, or how the system is set up (AUDIT-04).
+ */
+export const AUDIT_AREAS = [
+  "bookings",
+  "money",
+  "rooms",
+  "maintenance",
+  "staff",
+  "hr",
+  "settings",
+] as const;
+
+export type AuditArea = (typeof AUDIT_AREAS)[number];
+
+const AREA_OF_NOUN: Record<string, AuditArea> = {
+  reservation: "bookings",
+  stay: "bookings",
+  business_day: "bookings",
+  folio: "money",
+  price_list: "money",
+  unit: "rooms",
+  housekeeping: "rooms",
+  maintenance_request: "maintenance",
+  maintenance_setting: "maintenance",
+  maintenance_equipment: "maintenance",
+  staff: "staff",
+  employee: "hr",
+  leave: "hr",
+  payroll_run: "hr",
+  property: "settings",
+  organization: "settings",
+  data_export: "settings",
+  branding: "settings",
+  webhook_endpoint: "settings",
+  failed_operation: "settings",
+};
+
+/** Which heading an action is listed under; the system's own when it has no other. */
+export function areaOf(action: string): AuditArea {
+  return AREA_OF_NOUN[action.split(".")[0] ?? ""] ?? "settings";
+}
+
 export const KNOWN_SUBJECTS = [
   "reservation",
   "stay",
@@ -165,4 +210,18 @@ export function isCorrection(action: string): boolean {
  */
 export function shortId(id: string): string {
   return id.slice(0, 8);
+}
+
+/**
+ * The actions a search text is a word for: "rate" is "Nightly rates changed",
+ * "export" is two. Matched against the names the screen shows, in the reader's
+ * language and spelling, because that is what they type; the module cannot, as
+ * it only knows the names it stores (AUDIT-04).
+ */
+export function actionsNamedBy(
+  text: string,
+  nameOf: (action: KnownAction) => string,
+  matches: (name: string, text: string) => boolean,
+): KnownAction[] {
+  return KNOWN_ACTIONS.filter((action) => matches(nameOf(action), text));
 }

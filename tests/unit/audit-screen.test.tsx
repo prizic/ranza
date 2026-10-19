@@ -43,6 +43,13 @@ function entry(overrides: Partial<AuditEntry>): AuditEntry {
   };
 }
 
+const REACH = {
+  finance: true,
+  rooms: true,
+  configuration: true,
+  dataExport: true,
+};
+
 function pageOf(
   entries: AuditEntry[],
   roles: AuditPage["roles"] = {},
@@ -51,6 +58,8 @@ function pageOf(
     entries,
     total: entries.length,
     nextCursor: null,
+    searchCapped: false,
+    subjectSpan: null,
     labels: { [COLLEAGUE]: "ayse@example.test", [ROOM]: "204" },
     locations: {},
     roles,
@@ -67,6 +76,8 @@ function show(entries: AuditEntry[]) {
         newestHref={null}
         olderHref={null}
         page={pageOf(entries)}
+        propertyId="x"
+        reach={REACH}
         recordHref="/en/audit-log?property=x"
         viewerId={VIEWER}
       />
@@ -84,9 +95,10 @@ function open(
     <NextIntlClientProvider locale={locale} messages={messages[locale]}>
       <RecordPanel
         entry={record}
-        folioHref={`/${locale}/finance?property=x`}
         locale={locale}
         names={pageOf([record], roles)}
+        propertyId="x"
+        reach={REACH}
         viewerId={VIEWER}
       />
     </NextIntlClientProvider>,
@@ -184,6 +196,8 @@ describe("what a row says", () => {
           newestHref={null}
           olderHref={null}
           page={pageOf([])}
+          propertyId="x"
+          reach={REACH}
           recordHref="/en/audit-log?property=x"
           viewerId={VIEWER}
         />

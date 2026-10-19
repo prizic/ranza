@@ -43,6 +43,8 @@ const BOTH = "d5100001-0000-4000-8000-000000000006";
 const GUEST = "d5100005-0000-4000-8000-000000000001";
 const UNIT = "d5100006-0000-4000-8000-000000000001";
 const RESERVATION = "d5100007-0000-4000-8000-000000000001";
+const STAY = "d5100008-0000-4000-8000-000000000001";
+const FOLIO = "d5100009-0000-4000-8000-000000000001";
 const NIGHT_AUDIT_ROLE = "night_audit_d51";
 const REASON = "posted to the wrong Stay, moving it to the right one";
 
@@ -191,6 +193,38 @@ beforeAll(async () => {
     GUEST,
   );
 
+  // The Reservation's Stay and the Stay's Folio, so a history can be asked for
+  // from any of the three; and enough Guests with one name in common that a
+  // search for it names more than the search looks at.
+  await owner.$executeRawUnsafe(
+    `insert into public.stays
+       (id, organization_id, property_id, accommodation_unit_id, reservation_id,
+        stay_type, status, starts_on, ends_on)
+     values ($1,$2,$3,$4,$5,'guest','reserved', current_date + 400, current_date + 403)
+     on conflict (id) do nothing`,
+    STAY,
+    ORG,
+    PROPERTY_A,
+    UNIT,
+    RESERVATION,
+  );
+  await owner.$executeRawUnsafe(
+    `insert into public.folios (id, organization_id, property_id, stay_id, currency)
+     values ($1,$2,$3,$4,'TRY') on conflict (id) do nothing`,
+    FOLIO,
+    ORG,
+    PROPERTY_A,
+    STAY,
+  );
+  await owner.$executeRawUnsafe(
+    `insert into public.guests (id, organization_id, full_name)
+     select ('d5100099-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, $1::uuid,
+            'Capzz Guest ' || n
+       from generate_series(1, 205) as n
+     on conflict (id) do nothing`,
+    ORG,
+  );
+
   await owner.$executeRawUnsafe(
     `update public.properties set status = 'active' where id = $1`,
     ARCHIVED,
@@ -247,6 +281,28 @@ beforeAll(async () => {
     subjectType: "reservation",
     subjectId: RESERVATION,
     context: { guestId: GUEST, accommodationUnitId: UNIT },
+  });
+  await write(MANAGER, {
+    organizationId: ORG,
+    locationId: PROPERTY_A,
+    action: "reservation.amended",
+    subjectType: "reservation",
+    subjectId: RESERVATION,
+    context: { toEndsOn: "2026-10-05" },
+  });
+  await write(MANAGER, {
+    organizationId: ORG,
+    locationId: PROPERTY_A,
+    action: "stay.moved",
+    subjectType: "stay",
+    subjectId: STAY,
+  });
+  await write(MANAGER, {
+    organizationId: ORG,
+    locationId: PROPERTY_A,
+    action: "folio.payment_posted",
+    subjectType: "folio",
+    subjectId: FOLIO,
   });
   await write(OUTSIDER, {
     organizationId: OTHER_ORG,
@@ -609,6 +665,88 @@ describe("filters run on the server, over every record", () => {
     await expect(
       core.auditLog(OWNER, PROPERTY_A, { q: "mini\u0000bar" }),
     ).resolves.toMatchObject({ total: expect.any(Number) });
+  });
+});
+
+describe("the history of one thing, the words for an action, and a search that was too broad", () => {
+  const history = async (subjectId: string, user = OWNER) =>
+    core.auditLog(user, PROPERTY_A, { subjectId });
+
+  it("AL-S2-04: a booking's history is its own records and its stay's and its folio's", async () => {
+    for (const from of [RESERVATION, STAY, FOLIO]) {
+      const page = await history(from);
+      expect(new Set(subjects(page))).toEqual(
+        new Set([RESERVATION, STAY, FOLIO]),
+      );
+      expect(page.subjectSpan).toBe(3);
+      expect(page.total).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("AL-S2-04: asked of a thing with no relations it is that thing alone, and narrows rather than finds", async () => {
+    const page = await core.auditLog(OWNER, PROPERTY_A, {
+      subjectId: run.chargeAtA,
+      // A text that finds other records must not widen a history.
+      q: "ayşe denetim",
+    });
+    expect(subjects(page)).toEqual([]);
+    const alone = await history(run.chargeAtA);
+    expect(subjects(alone)).toEqual([run.chargeAtA]);
+    expect(alone.subjectSpan).toBe(1);
+  });
+
+  it("AL-S2-04: another Organization's folio, and an id that is not one, have no history here", async () => {
+    await expect(history(run.elsewhere)).resolves.toMatchObject({
+      entries: [],
+      total: 0,
+    });
+    await expect(history("not-a-uuid")).resolves.toMatchObject({
+      entries: [],
+      total: 0,
+    });
+  });
+
+  it("AL-S2-04: the history stays inside the reader's reach", async () => {
+    // The Manager may read Property A, where all of it happened.
+    expect((await history(FOLIO, MANAGER)).total).toBeGreaterThanOrEqual(3);
+    // The Outsider reaches another Organization and is told nothing of this one.
+    await expect(
+      core.auditLog(OUTSIDER, PROPERTY_A, { subjectId: FOLIO }),
+    ).resolves.toMatchObject({ entries: [], total: 0 });
+  });
+
+  it("AL-S2-07: an action the host names is found by the text that names it", async () => {
+    const plain = await core.auditLog(OWNER, PROPERTY_A, { q: "reversed" });
+    expect(subjects(plain)).not.toContain(run.reversalAtA);
+    const named = await core.auditLog(OWNER, PROPERTY_A, {
+      q: "reversed",
+      textActions: ["folio.line_reversed"],
+    });
+    expect(subjects(named)).toContain(run.reversalAtA);
+    // Only those actions: a record of another is not found by the same text.
+    expect(subjects(named)).not.toContain(run.chargeAtA);
+  });
+
+  it("AL-S2-07: and still narrows to the dates it was given", async () => {
+    const named = await core.auditLog(OWNER, PROPERTY_A, {
+      q: "reversed",
+      textActions: ["folio.line_reversed"],
+      from: "2020-01-01",
+      to: "2020-01-02",
+    });
+    expect(named.total).toBe(0);
+  });
+
+  it("AL-S2-10: a search that names more Guests than it looks at says so, and one that does not, does not", async () => {
+    const broad = await core.auditLog(OWNER, PROPERTY_A, { q: "capzz" });
+    expect(broad.searchCapped).toBe(true);
+    const narrow = await core.auditLog(OWNER, PROPERTY_A, {
+      q: "ayşe denetim",
+    });
+    expect(narrow.searchCapped).toBe(false);
+    expect(subjects(narrow)).toContain(RESERVATION);
+    // No search, no cap.
+    expect((await core.auditLog(OWNER, PROPERTY_A)).searchCapped).toBe(false);
   });
 });
 
