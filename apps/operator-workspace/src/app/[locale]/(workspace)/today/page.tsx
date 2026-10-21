@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { formatTime, isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
@@ -10,6 +11,10 @@ import {
 } from "../../../../server/viewer";
 import { TodayDashboard } from "../../../../features/today/components/today-dashboard";
 import type { Greeting } from "../../../../features/today/components/today-header";
+import {
+  layoutCookieName,
+  parseLayout,
+} from "../../../../features/today/layouts/model";
 import { todayKeys } from "../../../../features/today/query-keys";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import { Hydrated, requestQueryClient } from "../../../providers/hydrate";
@@ -98,8 +103,12 @@ export default async function TodayPage({
       <TodayDashboard
         clock={formatTime(now, locale, property.timezone)}
         greeting={greetingAt(hour)}
+        initialLayout={parseLayout(
+          (await cookies()).get(layoutCookieName(viewer.userId))?.value,
+        )}
         locale={locale}
         name={viewer.name}
+        nowMs={now.getTime()}
         properties={properties
           .filter((other) => other.organizationId === property.organizationId)
           .map((other) => ({

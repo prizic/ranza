@@ -44,6 +44,8 @@ export interface TodayReads {
   arrivals: (propertyId: string) => Promise<readonly Arrival[]>;
   departures: (propertyId: string) => Promise<readonly Departure[]>;
   departedToday: (propertyId: string) => Promise<number>;
+  /** Everybody in house, whenever they are due to leave. */
+  inHouse: (propertyId: string) => Promise<readonly Departure[]>;
   units: (propertyId: string) => Promise<UnitMap>;
   board: (propertyId: string) => Promise<HousekeepingBoard>;
   folios: (propertyId: string) => Promise<readonly FolioSummary[]>;
@@ -79,6 +81,8 @@ export function todayReads(modules: TodayModules, userId: string): TodayReads {
       modules.reservations.listDepartures(userId, propertyId, "due"),
     departedToday: async (propertyId) =>
       (await modules.reservations.listDepartedToday(userId, propertyId)).length,
+    inHouse: (propertyId) =>
+      modules.reservations.listDepartures(userId, propertyId, "in_house"),
     units: (propertyId) => modules.accommodation.listUnits(userId, propertyId),
     board: (propertyId) => modules.housekeeping.board(userId, propertyId),
     folios: (propertyId) => modules.folios.listFolios(userId, propertyId),
@@ -176,6 +180,13 @@ export async function readTodaySummary(
     input.departedToday = await attempt(
       "departedToday",
       () => reads.departedToday(propertyId),
+      report,
+    );
+  }
+  if (needs.inHouse) {
+    input.inHouse = await attempt(
+      "inHouse",
+      () => reads.inHouse(propertyId),
       report,
     );
   }
