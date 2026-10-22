@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 
 import { psql } from "./local-database";
-import { signIn, testProperty } from "./front-desk";
+import { pickUnit, signIn, testProperty } from "./front-desk";
 
 /**
  * Changing a booking through the screen (ADR 0039, amend-booking slice 1).
@@ -107,10 +107,7 @@ test("change_actions_are_where_the_desk_works: a booking moves to other nights a
     dialog.getByRole("button", { name: "Save change" }),
   ).toBeDisabled();
 
-  await dialog.getByLabel("Unit").click();
-  await page
-    .getByRole("option", { name: new RegExp(`${booking.second}.*Free`) })
-    .click();
+  await pickUnit(dialog, booking.second, "Free");
   await dialog.getByRole("button", { name: /^Arrival/ }).click();
   await pickDay(page, propertyDay(11));
   await pickDay(page, propertyDay(13));
@@ -122,7 +119,7 @@ test("change_actions_are_where_the_desk_works: a booking moves to other nights a
       "No rate is set for Room; this booking is already unpriced.",
     ),
   ).toBeVisible();
-  await dialog.getByLabel("Note (optional)").fill("The Guest asked");
+  await dialog.getByLabel("Note", { exact: true }).fill("The Guest asked");
   await dialog.getByRole("button", { name: "Save change" }).click();
 
   await expect(dialog).toBeHidden();
@@ -271,10 +268,8 @@ test("a_guest_is_moved_to_another_room from Departures", async ({ page }) => {
   await page.getByRole("menuitem", { name: "Move Guest" }).click();
 
   const dialog = page.getByRole("dialog", { name: "Move Guest" });
-  await dialog.getByLabel("Unit").click();
-  await page.getByRole("option", { name: new RegExp(`${to}.*Free`) }).click();
-  await dialog.getByRole("combobox", { name: "Reason" }).click();
-  await page.getByRole("option", { name: "The room has a fault" }).click();
+  await pickUnit(dialog, to, "Free");
+  await dialog.getByText("The room has a fault", { exact: true }).click();
   await expect(
     dialog.getByText(
       /a move does not change the price|The booking has no price/,
@@ -350,10 +345,8 @@ test("change_actions_are_where_the_desk_works: a Guest is moved from the room ca
   await drawer.getByRole("button", { name: "Move Guest" }).click();
 
   const dialog = page.getByRole("dialog", { name: "Move Guest" });
-  await dialog.getByLabel("Unit").click();
-  await page.getByRole("option", { name: new RegExp(`${to}.*Free`) }).click();
-  await dialog.getByRole("combobox", { name: "Reason" }).click();
-  await page.getByRole("option", { name: "The Guest asked" }).click();
+  await pickUnit(dialog, to, "Free");
+  await dialog.getByText("The Guest asked", { exact: true }).click();
   await dialog.getByRole("button", { name: "Move Guest" }).click();
   await expect(dialog).toBeHidden();
 

@@ -5,30 +5,25 @@ import { useTranslations } from "next-intl";
 import { formatMoney, type SupportedLocale } from "@ranza/i18n";
 import type { MovePreview } from "@ranza/reservations";
 import {
-  Button,
-  cn,
-  Combobox,
+  ArrowButton,
+  CancelButton,
+  ChoiceGroup,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogTicket,
-  Field,
+  DialogMasthead,
+  DialogSection,
+  dialogFrameClassName,
   FormError,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  OptionList,
+  type OptionListItem,
   Textarea,
-  ticketBodyClassName,
-  ticketDialogWideClassName,
-  ticketFooterClassName,
-  ticketWideFormClassName,
+  textareaClassName,
 } from "@ranza/ui";
 import { moveGuest, type MoveGuestOutcome } from "../../../server/front-office";
-import { usePickerLabels } from "../../../lib/picker-labels";
 import { submitWithoutReset } from "../../../lib/submit-without-reset";
 import { unitLabel } from "../unit-label";
 import { refusalMessage } from "../refusal";
@@ -118,7 +113,6 @@ export function MoveGuestDialog({
   stay: MovableStay;
 }) {
   const t = useTranslations();
-  const unitLabels = usePickerLabels(t("chooseUnit"));
   const [unitId, setUnitId] = useState(move?.unitId ?? "");
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
@@ -253,158 +247,167 @@ export function MoveGuestDialog({
     !noteMissing;
 
   // Until the read arrives the proposed room stands alone under its own name
-  // when the caller gave it, and the field is empty when it did not: a raw id
+  // when the caller gave it, and the list is empty when it did not: a raw id
   // is never shown (ROOMCAL-05).
-  const unitOptions = [
+  const unitItems: OptionListItem[] = [
     ...(preview === null && move?.unitLabel
-      ? [{ value: unitId, label: move.unitLabel }]
+      ? [{ value: unitId, title: move.unitLabel }]
       : []),
     ...(preview?.options ?? []).map((option) => ({
       value: option.unitId,
-      label: unitLabel(option.roomName, option.unitName),
-      description: [
-        t(`unitType.${option.unitType}`),
+      title: unitLabel(option.roomName, option.unitName),
+      description: t(`unitType.${option.unitType}`),
+      chip:
         option.blocker === "booked"
-          ? t("changeBookingUnitBooked", {
+          ? t("unitChipBooked", {
               reference: option.conflictReference ?? "",
             })
           : option.blocker === "occupied"
-            ? t("changeBookingUnitOccupied")
+            ? t("unitChipOccupied")
             : !option.ready
               ? t("moveGuestUnitNotReady")
-              : t("changeBookingUnitFree"),
-      ].join(" · "),
+              : t("unitChipFree"),
+      chipMuted: option.blocker !== null || !option.ready,
     })),
   ];
 
+  const missing =
+    chosen === undefined
+      ? t("moveGuestHintUnit")
+      : reason === ""
+        ? t("moveGuestHintReason")
+        : noteMissing
+          ? t("moveGuestHintNote")
+          : null;
+
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className={cn(ticketDialogWideClassName, "max-h-[90dvh]")}>
-        <form
-          className={ticketWideFormClassName}
-          onSubmit={submitWithoutReset(act)}
-        >
-          <DialogTicket
+      <DialogContent className={dialogFrameClassName("medium")}>
+        <form className="grid" onSubmit={submitWithoutReset(act)}>
+          <DialogMasthead
             art="/illustrations/dialogs/move-guest.svg"
             eyebrow={t("moveGuest")}
+            facts={`${t("unit")} ${stay.unitLabel}`}
             heading={stay.guestName}
-            stub={[{ label: t("unit"), value: <bdi>{stay.unitLabel}</bdi> }]}
           />
 
-          <div className={cn(ticketBodyClassName, "md:pt-14")}>
-            <DialogDescription>{t("moveGuestSummary")}</DialogDescription>
+          <DialogBody>
+            <DialogDescription className="sr-only">
+              {t("moveGuestSummary")}
+            </DialogDescription>
 
             {move ? (
-              <MoveSummary
-                conflicts={known}
-                from={{ place: stay.unitLabel, period: null }}
-                to={{
-                  place: chosen
-                    ? unitLabel(chosen.roomName, chosen.unitName)
-                    : (move?.unitLabel ?? "—"),
-                  period: null,
-                }}
-              />
+              <div className="py-5">
+                <MoveSummary
+                  conflicts={known}
+                  from={{ place: stay.unitLabel, period: null }}
+                  to={{
+                    place: chosen
+                      ? unitLabel(chosen.roomName, chosen.unitName)
+                      : (move?.unitLabel ?? "—"),
+                    period: null,
+                  }}
+                />
+              </div>
             ) : null}
 
             <input name="stay" type="hidden" value={stay.stayId} />
             <input name="locale" type="hidden" value={locale} />
             <input name="version" type="hidden" value={pinned ?? ""} />
 
-            <Field htmlFor={`move-unit-${stay.stayId}`} label={t("unit")}>
-              <Combobox
+            <DialogSection
+              hint={
+                price && !blocked && !readMessage ? <bdi>{price}</bdi> : null
+              }
+              tag={{ label: t("dialogTagRequired"), required: true }}
+              title={t("moveGuestWhichUnit")}
+            >
+              <OptionList
                 disabled={preview === null}
-                id={`move-unit-${stay.stayId}`}
-                labels={unitLabels}
+                emptyLabel={t("unitNoMatches")}
+                items={unitItems}
+                moreLabel={(count) => t("unitMore", { count })}
                 name="unit"
-                onValueChange={setUnitId}
-                options={unitOptions}
+                onChange={setUnitId}
                 required
+                searchLabel={t("unitSearch")}
                 value={preview === null && !move?.unitLabel ? "" : unitId}
               />
-            </Field>
+              <div aria-live="polite" className="grid gap-2">
+                {read.state === "loading" ? (
+                  <p className="m-0 text-step--1 text-muted-foreground">
+                    {t("changeBookingChecking")}
+                  </p>
+                ) : null}
+                {readMessage ? <FormError>{readMessage}</FormError> : null}
+                {blocked ? <FormError>{blocked}</FormError> : null}
+              </div>
+            </DialogSection>
 
-            <Field
-              htmlFor={`move-reason-${stay.stayId}`}
-              label={t("moveGuestReason")}
+            <DialogSection
+              tag={{ label: t("dialogTagRequired"), required: true }}
+              title={t("moveGuestWhy")}
+              titleId={`move-why-${stay.stayId}`}
             >
-              <Select
+              <ChoiceGroup
+                labelledBy={`move-why-${stay.stayId}`}
                 name="reason"
-                onValueChange={setReason}
+                onChange={setReason}
+                options={REASONS.map((key) => ({
+                  label: t(`moveReason.${key}`),
+                  value: key,
+                }))}
                 required
                 value={reason}
-              >
-                <SelectTrigger
-                  className="w-full"
-                  id={`move-reason-${stay.stayId}`}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {REASONS.map((key) => (
-                    <SelectItem key={key} value={key}>
-                      {t(`moveReason.${key}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
+              />
+            </DialogSection>
 
-            <div className="grid gap-1.5">
-              <Field
-                htmlFor={`move-note-${stay.stayId}`}
-                label={t("changeBookingNote")}
-              >
-                <Textarea
-                  id={`move-note-${stay.stayId}`}
-                  maxLength={NOTE.max}
-                  minLength={NOTE.min}
-                  name="note"
-                  onChange={(event) => setNote(event.target.value)}
-                  required={reason === "other"}
-                  rows={2}
-                  value={note}
-                />
-              </Field>
-              <p className="text-step--1 text-muted-foreground">
-                {noteMissing
+            <DialogSection
+              hint={
+                noteMissing
                   ? t("moveGuestNoteRequired")
-                  : t("changeBookingNoteHint")}
-              </p>
-            </div>
-
-            <div aria-live="polite" className="grid gap-2">
-              {read.state === "loading" ? (
-                <p className="text-step--1 text-muted-foreground">
-                  {t("changeBookingChecking")}
-                </p>
-              ) : null}
-              {readMessage ? <FormError>{readMessage}</FormError> : null}
-              {blocked ? <FormError>{blocked}</FormError> : null}
-              {price && !blocked && !readMessage ? (
-                <p className="rounded-lg border bg-muted/40 px-3 py-2 text-step--1">
-                  <bdi>{price}</bdi>
-                </p>
-              ) : null}
-            </div>
+                  : t("changeBookingNoteHint")
+              }
+              labelFor={`move-note-${stay.stayId}`}
+              tag={{
+                label:
+                  reason === "other"
+                    ? t("dialogTagRequired")
+                    : t("dialogTagOptional"),
+                required: reason === "other",
+              }}
+              title={t("dialogNoteTitle")}
+            >
+              <Textarea
+                className={textareaClassName}
+                aria-describedby={`move-note-${stay.stayId}-hint`}
+                id={`move-note-${stay.stayId}`}
+                maxLength={NOTE.max}
+                minLength={NOTE.min}
+                name="note"
+                onChange={(event) => setNote(event.target.value)}
+                placeholder={t("moveGuestNotePlaceholder")}
+                required={reason === "other"}
+                rows={2}
+                value={note}
+              />
+            </DialogSection>
 
             {outcomeMessage ? (
-              <div aria-live="polite">
+              <div aria-live="polite" className="py-5">
                 <FormError>{outcomeMessage}</FormError>
               </div>
             ) : null}
-          </div>
+          </DialogBody>
 
-          <DialogFooter className={ticketFooterClassName}>
+          <DialogActions hint={missing}>
             <DialogClose asChild>
-              <Button type="button" variant="outline">
-                {t("keepAsItWas")}
-              </Button>
+              <CancelButton type="button">{t("keepAsItWas")}</CancelButton>
             </DialogClose>
-            <Button disabled={pending || !canSave} type="submit">
+            <ArrowButton disabled={pending || !canSave} type="submit">
               {pending ? t("saving") : t("moveGuest")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </form>
       </DialogContent>
     </Dialog>

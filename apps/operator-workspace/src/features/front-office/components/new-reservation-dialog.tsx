@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import { useTranslations } from "next-intl";
-import { Plus } from "lucide-react";
+import { CircleAlert, Plus } from "lucide-react";
 import { formatMoney, type SupportedLocale } from "@ranza/i18n";
 import type {
   BookableUnit,
@@ -16,33 +16,31 @@ import type {
   GuestMatch,
 } from "@ranza/reservations";
 import {
+  ArrowButton,
   Button,
-  cn,
-  Combobox,
+  CancelButton,
+  ChoiceGroup,
+  DateRangeField,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogTicket,
+  DialogMasthead,
+  DialogNotice,
+  DialogSection,
+  dialogFrameClassName,
   DialogTrigger,
-  DateRangeField,
-  Field,
+  fieldClassName,
   FormError,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  ticketBodyClassName,
-  ticketDialogWideClassName,
-  ticketFooterClassName,
+  OptionList,
+  type OptionListItem,
 } from "@ranza/ui";
 import {
   createReservation,
   type CreateReservationOutcome,
 } from "../../../server/front-office";
-import { usePickerLabels } from "../../../lib/picker-labels";
 import { submitWithoutReset } from "../../../lib/submit-without-reset";
 import { unitLabel } from "../unit-label";
 import { refusalMessage } from "../refusal";
@@ -171,7 +169,6 @@ export function NewReservationDialog({
   units: readonly BookableUnit[];
 }) {
   const t = useTranslations();
-  const unitLabels = usePickerLabels(t("chooseUnit"));
   const [open, setOpen] = useState(startOpen);
   const [unitId, setUnitId] = useState("");
   const [stayType, setStayType] = useState("guest");
@@ -383,6 +380,25 @@ export function NewReservationDialog({
                     ? t(refusal)
                     : null;
 
+  const unitItems: OptionListItem[] = units.map((unit) => {
+    const blocker = taken.get(unit.unitId);
+    return {
+      value: unit.unitId,
+      title: unitLabel(unit.roomName, unit.unitName),
+      description: t(`unitType.${unit.unitType}`),
+      chip:
+        blocker === undefined
+          ? t("unitChipFree")
+          : blocker === "booked"
+            ? t("unitBookedThoseNights")
+            : t("unitOccupiedThoseNights"),
+      chipMuted: blocker !== undefined,
+      disabled: blocker !== undefined,
+    };
+  });
+  const complete =
+    lookup.trim() !== "" && asking && unitId !== "" && !taken.has(unitId);
+
   return (
     <Dialog onOpenChange={openChanged} open={open}>
       <DialogTrigger asChild>
@@ -392,33 +408,32 @@ export function NewReservationDialog({
         </Button>
       </DialogTrigger>
 
-      <DialogContent
-        className={cn(
-          ticketDialogWideClassName,
-          "max-h-[90dvh] md:max-w-[min(64rem,calc(100%-2rem))]",
-        )}
-      >
+      <DialogContent className={dialogFrameClassName("large")}>
         <form
-          className="grid md:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] md:grid-rows-[1fr_auto] md:[&>:first-child]:row-span-2"
+          className="grid"
           onChange={() => setStarted(true)}
           onSubmit={submitWithoutReset(act)}
         >
-          <DialogTicket
+          <DialogMasthead
             art="/illustrations/dialogs/new-booking.svg"
             eyebrow={t("newReservation")}
+            heading={t("newReservationQuestion")}
+            large
           />
 
-          <div className={cn(ticketBodyClassName, "md:pt-14")}>
-            <DialogDescription>{t("newReservationSummary")}</DialogDescription>
+          <DialogBody simple>
+            <DialogDescription className="sr-only">
+              {t("newReservationSummary")}
+            </DialogDescription>
 
             {/* At the top, where the dialog opens: below the fields it was
               scrolled out of sight, and Escape looked like it did nothing. */}
             {askingDiscard ? (
               <div
-                className="grid gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-step--1"
+                className="grid gap-2 rounded-2xl border border-destructive/40 bg-destructive/5 px-4 py-3 text-step--1"
                 role="alert"
               >
-                <p className="font-medium">{t("discardBookingAsk")}</p>
+                <p className="m-0 font-medium">{t("discardBookingAsk")}</p>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     autoFocus
@@ -470,18 +485,40 @@ export function NewReservationDialog({
               }
             />
 
-            <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
-              <div className="grid content-start gap-4">
-                {/* First in the form on purpose: a blocked submit focuses the first
-              problem field in document order, and the desk is asked for the
-              Guest's name before the Unit and the dates (RG-S4-19). */}
-                <Field htmlFor="booking-guest" label={t("guest")}>
+            <div className="grid gap-x-9 md:grid-cols-2">
+              <div className="grid content-start divide-y">
+                <DialogSection
+                  title={t("stayTypeLabel")}
+                  titleId="booking-stay-type"
+                >
+                  <ChoiceGroup
+                    labelledBy="booking-stay-type"
+                    name="stayType"
+                    onChange={setStayType}
+                    options={[
+                      { label: t("stayType.guest"), value: "guest" },
+                      { label: t("stayType.resident"), value: "resident" },
+                    ]}
+                    value={stayType}
+                  />
+                </DialogSection>
+
+                {/* First text field in the form on purpose: a blocked submit
+                  focuses the first problem field in document order, and the
+                  desk is asked for the Guest's name before the Unit and the
+                  dates (RG-S4-19). */}
+                <DialogSection
+                  labelFor="booking-guest"
+                  tag={{ label: t("dialogTagRequired"), required: true }}
+                  title={t("guestNameTitle")}
+                >
                   <Input
                     aria-describedby={
                       guestMissing ? "booking-guest-missing" : undefined
                     }
                     aria-invalid={guestMissing || undefined}
                     autoComplete="off"
+                    className={fieldClassName}
                     id="booking-guest"
                     maxLength={GUEST.name}
                     ref={guestField}
@@ -500,107 +537,74 @@ export function NewReservationDialog({
                       event.currentTarget.setCustomValidity(t("guestRequired"));
                       setGuestMissing(true);
                     }}
+                    placeholder={t("guestNamePlaceholder")}
                     required
                   />
-                  {matches.length > 0 ? (
-                    <div
-                      className="grid gap-1.5 rounded-lg border bg-muted/40 p-3 text-step--1"
-                      role="group"
-                      aria-label={t("guestLookupTitle")}
-                    >
-                      <p className="font-medium">{t("guestLookupTitle")}</p>
-                      <p className="text-muted-foreground">
-                        {t("guestLookupHint")}
-                      </p>
-                      <ul className="grid gap-1">
-                        {matches.map((match) => (
-                          <li key={match.guestId}>
-                            <Button
-                              className="h-auto w-full justify-start whitespace-normal py-1.5 text-start"
-                              onClick={() => pickMatch(match)}
-                              type="button"
-                              variant="outline"
-                            >
-                              <bdi className="font-medium">
-                                {match.fullName}
-                              </bdi>
-                              <span className="text-muted-foreground">
-                                {" · "}
-                                <bdi>
-                                  {[match.email, match.phone]
-                                    .filter(Boolean)
-                                    .join(" · ") || t("guestNoDetailsOnFile")}
-                                </bdi>
-                              </span>
-                            </Button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
                   {guestMissing ? (
                     <p
-                      className="text-step--1 text-destructive"
+                      className="m-0 text-step--1 text-destructive"
                       id="booking-guest-missing"
                     >
                       {t("guestRequired")}
                     </p>
                   ) : null}
-                </Field>
+                </DialogSection>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="grid gap-1.5">
-                    <Field htmlFor="booking-email" label={t("guestEmail")}>
-                      <Input
-                        aria-describedby={
-                          emailRejected
-                            ? "booking-email-invalid"
-                            : "booking-email-hint"
-                        }
-                        aria-invalid={emailRejected || undefined}
-                        autoComplete="off"
-                        id="booking-email"
-                        maxLength={GUEST.email}
-                        minLength={GUEST.emailMin}
-                        name="guestEmail"
-                        onChange={(event) => {
-                          event.currentTarget.setCustomValidity("");
-                          setEmailRejected(false);
-                        }}
-                        // In our words, like the Guest's name beside it, and without
-                        // cancelling the event so the browser still decides focus.
-                        onInvalid={(event) => {
-                          event.currentTarget.setCustomValidity(
-                            t("guestEmailInvalid"),
-                          );
-                          setEmailRejected(true);
-                        }}
-                        ref={emailField}
-                        type="email"
-                      />
-                    </Field>
+                <div className="grid gap-x-4 sm:grid-cols-2">
+                  <DialogSection
+                    labelFor="booking-email"
+                    tag={{ label: t("dialogTagOptional") }}
+                    title={t("guestEmail")}
+                  >
+                    <Input
+                      aria-describedby={
+                        emailRejected
+                          ? "booking-email-invalid"
+                          : "booking-email-hint"
+                      }
+                      aria-invalid={emailRejected || undefined}
+                      autoComplete="off"
+                      className={fieldClassName}
+                      id="booking-email"
+                      maxLength={GUEST.email}
+                      minLength={GUEST.emailMin}
+                      name="guestEmail"
+                      onChange={(event) => {
+                        event.currentTarget.setCustomValidity("");
+                        setEmailRejected(false);
+                      }}
+                      // In our words, like the Guest's name above, and without
+                      // cancelling the event so the browser still decides focus.
+                      onInvalid={(event) => {
+                        event.currentTarget.setCustomValidity(
+                          t("guestEmailInvalid"),
+                        );
+                        setEmailRejected(true);
+                      }}
+                      placeholder={t("guestEmailPlaceholder")}
+                      ref={emailField}
+                      type="email"
+                    />
                     {emailRejected ? (
                       <p
-                        className="text-step--1 text-destructive"
+                        className="m-0 text-step--1 text-destructive"
                         id="booking-email-invalid"
                       >
                         {t("guestEmailInvalid")}
                       </p>
-                    ) : (
-                      <p
-                        className="text-step--1 text-muted-foreground"
-                        id="booking-email-hint"
-                      >
-                        {t("guestEmailHint")}
-                      </p>
-                    )}
-                  </div>
-                  <Field htmlFor="booking-phone" label={t("guestPhone")}>
+                    ) : null}
+                  </DialogSection>
+                  <DialogSection
+                    labelFor="booking-phone"
+                    tag={{ label: t("dialogTagOptional") }}
+                    title={t("guestPhone")}
+                  >
                     {/* type="tel", so a telephone keypad appears and nothing is
-                  parsed: a number with a country code, a space or a dash is
-                  still the number somebody was given. */}
+                      parsed: a number with a country code, a space or a dash is
+                      still the number somebody was given. */}
                     <Input
                       autoComplete="off"
+                      className={fieldClassName}
                       id="booking-phone"
                       maxLength={GUEST.phone}
                       name="guestPhone"
@@ -613,145 +617,161 @@ export function NewReservationDialog({
                             : t("guestPhoneInvalid"),
                         )
                       }
+                      placeholder={t("guestPhonePlaceholder")}
                       ref={phoneField}
                       type="tel"
                     />
-                  </Field>
+                  </DialogSection>
                 </div>
+                <p
+                  className="m-0 py-4 text-step--1 text-muted-foreground"
+                  id="booking-email-hint"
+                >
+                  {t("guestEmailHint")}
+                </p>
+
+                {matches.length > 0 ? (
+                  <DialogSection
+                    hint={t("guestLookupHint")}
+                    title={t("guestLookupTitle")}
+                  >
+                    <div
+                      aria-label={t("guestLookupTitle")}
+                      className="grid gap-2"
+                      role="group"
+                    >
+                      {matches.map((match) => (
+                        <Button
+                          className="h-auto w-full justify-start rounded-2xl border-[1.5px] border-foreground/15 px-4 py-3 text-start whitespace-normal"
+                          key={match.guestId}
+                          onClick={() => pickMatch(match)}
+                          type="button"
+                          variant="outline"
+                        >
+                          <bdi className="font-semibold">{match.fullName}</bdi>
+                          <span className="font-normal text-muted-foreground">
+                            {" · "}
+                            <bdi>
+                              {[match.email, match.phone]
+                                .filter(Boolean)
+                                .join(" · ") || t("guestNoDetailsOnFile")}
+                            </bdi>
+                          </span>
+                        </Button>
+                      ))}
+                    </div>
+                  </DialogSection>
+                ) : null}
               </div>
 
-              <div className="grid content-start gap-4">
-                <div className="sm:max-w-48">
-                  <Field htmlFor="booking-stay-type" label={t("stayTypeLabel")}>
-                    <Select
-                      defaultValue="guest"
-                      name="stayType"
-                      onValueChange={setStayType}
-                    >
-                      <SelectTrigger className="w-full" id="booking-stay-type">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="guest">
-                          {t("stayType.guest")}
-                        </SelectItem>
-                        <SelectItem value="resident">
-                          {t("stayType.resident")}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                </div>
-
-                <div className="grid gap-1.5">
-                  <Field htmlFor="booking-dates" label={t("stayDates")}>
-                    <DateRangeField
-                      earliestFrom={today}
-                      id="booking-dates"
-                      labels={{
-                        from: t("arrival"),
-                        to: t("departure"),
-                        emptyFrom: t("bookingAddDate"),
-                        emptyTo: departureRequired
-                          ? t("bookingAddDate")
-                          : t("bookingOpenEnded"),
-                        pickFrom: t("bookingPickArrival"),
-                        pickTo: departureRequired
-                          ? t("bookingPickDepartureRequired")
-                          : t("bookingPickDeparture"),
-                        clear: t("dateRangeClear"),
-                        done: t("dateRangeDone"),
-                        span: (nights) => t("stayNights", { count: nights }),
-                      }}
-                      locale={locale}
-                      // A departure is a later night: a booking cannot end on the
-                      // day it starts.
-                      minSpan={1}
-                      names={{ from: "startsOn", to: "endsOn" }}
-                      onChange={setDates}
-                      required
-                      requiredTo={departureRequired}
-                      today={today}
-                    />
-                  </Field>
-                  <p className="text-step--1 text-muted-foreground">
-                    {departureRequired
+              <div className="grid content-start divide-y">
+                <DialogSection
+                  hint={
+                    departureRequired
                       ? t("departureRequiredHint")
-                      : t("departureHint")}
-                  </p>
+                      : t("departureHint")
+                  }
+                  labelFor="booking-dates"
+                  tag={{ label: t("dialogTagRequired"), required: true }}
+                  title={t("stayDates")}
+                >
+                  <DateRangeField
+                    earliestFrom={today}
+                    id="booking-dates"
+                    labels={{
+                      from: t("arrival"),
+                      to: t("departure"),
+                      emptyFrom: t("bookingAddDate"),
+                      emptyTo: departureRequired
+                        ? t("bookingAddDate")
+                        : t("bookingOpenEnded"),
+                      pickFrom: t("bookingPickArrival"),
+                      pickTo: departureRequired
+                        ? t("bookingPickDepartureRequired")
+                        : t("bookingPickDeparture"),
+                      clear: t("dateRangeClear"),
+                      done: t("dateRangeDone"),
+                      span: (nights) => t("stayNights", { count: nights }),
+                    }}
+                    locale={locale}
+                    // A departure is a later night: a booking cannot end on the
+                    // day it starts.
+                    minSpan={1}
+                    names={{ from: "startsOn", to: "endsOn" }}
+                    onChange={setDates}
+                    required
+                    requiredTo={departureRequired}
+                    today={today}
+                  />
                   {availabilityUnknown ? (
                     <p
-                      className="text-step--1 text-muted-foreground"
+                      className="m-0 text-step--1 text-muted-foreground"
                       role="status"
                     >
                       {t("bookingAvailabilityUnknown")}
                     </p>
                   ) : null}
-                </div>
+                </DialogSection>
 
                 {/* After the dates and never before the Guest: the field order is
-              pinned (RG-S4-19). Optional, and a clock time on the Property's
-              own day of arrival, so it takes no timezone of its own. */}
-                <div className="grid gap-1.5 sm:max-w-48">
-                  <Field
-                    htmlFor="booking-expected-arrival"
-                    label={t("expectedArrival")}
-                  >
-                    <Input
-                      aria-describedby="booking-expected-arrival-hint"
-                      id="booking-expected-arrival"
-                      name="expectedArrival"
-                      type="time"
-                    />
-                  </Field>
-                  <p
-                    className="text-step--1 text-muted-foreground"
-                    id="booking-expected-arrival-hint"
-                  >
-                    {t("expectedArrivalHint")}
-                  </p>
-                </div>
-
-                <Field htmlFor="booking-unit" label={t("unit")}>
-                  <Combobox
-                    id="booking-unit"
-                    labels={unitLabels}
-                    name="unit"
-                    onValueChange={setUnitId}
-                    options={units.map((unit) => {
-                      const blocker = taken.get(unit.unitId);
-                      const type = t(`unitType.${unit.unitType}`);
-                      return {
-                        value: unit.unitId,
-                        label: unitLabel(unit.roomName, unit.unitName),
-                        description: blocker
-                          ? `${type} · ${t(blocker === "booked" ? "unitBookedThoseNights" : "unitOccupiedThoseNights")}`
-                          : type,
-                        disabled: blocker !== undefined,
-                      };
-                    })}
-                    required
+                  pinned (RG-S4-19). Optional, and a clock time on the Property's
+                  own day of arrival, so it takes no timezone of its own. */}
+                <DialogSection
+                  hint={t("expectedArrivalHint")}
+                  labelFor="booking-expected-arrival"
+                  tag={{ label: t("dialogTagOptional") }}
+                  title={t("expectedArrival")}
+                >
+                  <Input
+                    className={`${fieldClassName} sm:max-w-48`}
+                    aria-describedby="booking-expected-arrival-hint"
+                    id="booking-expected-arrival"
+                    name="expectedArrival"
+                    type="time"
                   />
+                </DialogSection>
+
+                <DialogSection
+                  tag={{ label: t("dialogTagRequired"), required: true }}
+                  title={t("changeBookingWhichUnit")}
+                >
+                  {asking ? (
+                    <OptionList
+                      emptyLabel={t("unitNoMatches")}
+                      items={unitItems}
+                      moreLabel={(count) => t("unitMore", { count })}
+                      name="unit"
+                      onChange={setUnitId}
+                      required
+                      searchLabel={t("unitSearch")}
+                      value={unitId}
+                    />
+                  ) : (
+                    <p className="m-0 rounded-2xl border-[1.5px] border-dashed border-foreground/25 px-4 py-3.5 text-muted-foreground">
+                      {t("bookingChooseDatesFirst")}
+                    </p>
+                  )}
                   {unitId && taken.has(unitId) ? (
-                    <p className="text-step--1 text-warning" role="status">
+                    <p className="m-0 text-step--1 text-warning" role="status">
                       {t("chosenUnitTakenThoseNights")}
                     </p>
                   ) : null}
-                </Field>
+                </DialogSection>
 
                 {quote ? (
                   // Polite: it changes as the Unit, the kind of stay and the dates
                   // do, and each change is detail rather than an interruption.
-                  <p
-                    aria-live="polite"
-                    className={
-                      unpricedWarning
-                        ? "rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-step--1 font-medium"
-                        : "rounded-lg border bg-muted/40 px-3 py-2 text-step--1"
-                    }
-                  >
-                    <bdi>{quote}</bdi>
-                  </p>
+                  <div aria-live="polite" className="py-5">
+                    {unpricedWarning ? (
+                      <DialogNotice icon={CircleAlert}>
+                        <bdi>{quote}</bdi>
+                      </DialogNotice>
+                    ) : (
+                      <p className="m-0 text-sm font-medium">
+                        <bdi>{quote}</bdi>
+                      </p>
+                    )}
+                  </div>
                 ) : null}
               </div>
             </div>
@@ -763,20 +783,18 @@ export function NewReservationDialog({
                 <FormError>{message}</FormError>
               </div>
             ) : null}
-          </div>
+          </DialogBody>
 
-          <DialogFooter className={ticketFooterClassName}>
-            <Button
-              onClick={() => openChanged(false)}
-              type="button"
-              variant="outline"
-            >
+          <DialogActions
+            hint={complete ? null : t("newReservationHintMissing")}
+          >
+            <CancelButton onClick={() => openChanged(false)} type="button">
               {t("discardBooking")}
-            </Button>
-            <Button disabled={pending} type="submit">
+            </CancelButton>
+            <ArrowButton disabled={pending || !complete} type="submit">
               {pending ? t("takingBooking") : t("takeBooking")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </form>
       </DialogContent>
     </Dialog>
