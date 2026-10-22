@@ -179,6 +179,9 @@ test("a refusal from the server is shown, and the page that was out of date says
   await row(page, "GX stale")
     .getByRole("button", { name: "Start Working" })
     .click();
+  // The refresh that follows takes the cancelled request out of Open; what the
+  // page says about the press has to still be there once it has.
+  await expect(row(page, "GX stale")).toHaveCount(0);
   // GX-03, GX-08: the reason, not silence and not "Status - Cancel".
   await expect(
     page.getByText("A cancelled request can only be reopened to New."),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useTranslations } from "next-intl";
 import type {
   ServiceRequestItem,
@@ -20,7 +20,6 @@ import {
   type ServiceRequestOutcome,
 } from "../../../server/guest-services";
 import { staffName } from "../../../lib/staff-name";
-import { RequestOutcome } from "./request-outcome";
 
 /**
  * Who has a request. A reader who may manage requests chooses from the staff
@@ -29,6 +28,7 @@ import { RequestOutcome } from "./request-outcome";
  */
 export function RequestAssignee({
   locale,
+  onOutcome,
   propertyId,
   request,
   staff,
@@ -36,6 +36,8 @@ export function RequestAssignee({
   mayManage,
 }: {
   locale: string;
+  /** Told what every command came to, so a refusal outlives a row that leaves. */
+  onOutcome: (status: ServiceRequestOutcome["status"]) => void;
   propertyId: string;
   request: ServiceRequestItem;
   staff: readonly ServiceRequestStaff[];
@@ -44,7 +46,6 @@ export function RequestAssignee({
 }) {
   const t = useTranslations("guestExperience");
   const [pending, startTransition] = useTransition();
-  const [status, setStatus] = useState<ServiceRequestOutcome["status"]>("idle");
 
   const closed =
     request.status === "resolved" || request.status === "cancelled";
@@ -72,7 +73,7 @@ export function RequestAssignee({
         request.id,
         userId,
       );
-      setStatus(outcome.status);
+      onOutcome(outcome.status);
     });
   const canTake =
     request.assignedToUserId !== viewerId &&
@@ -112,7 +113,6 @@ export function RequestAssignee({
           {t("assignToMe")}
         </Button>
       ) : null}
-      <RequestOutcome status={status} />
     </div>
   );
 }
