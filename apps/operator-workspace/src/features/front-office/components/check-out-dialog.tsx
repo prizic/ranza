@@ -155,7 +155,7 @@ export function CheckOutDialog({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="gap-0 p-0 sm:max-w-lg md:max-w-[min(56rem,calc(100%-2rem))]">
+      <DialogContent className="gap-0 bg-accent-soft p-0 sm:max-w-lg md:max-w-[min(56rem,calc(100%-2rem))]">
         <form
           action={act}
           className="grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]"
@@ -367,7 +367,7 @@ export function CheckOutDialog({
             </DialogDescription>
           </div>
 
-          <DialogFooter className="bottom-0 mx-0 mb-0 border-t px-6 py-4 md:col-span-2">
+          <DialogFooter className="bottom-0 mx-0 mb-0 border-t bg-accent-soft px-6 py-4 md:col-span-2">
             <DialogClose asChild>
               <Button type="button" variant="outline">
                 {t("keepInHouse")}

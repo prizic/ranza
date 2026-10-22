@@ -66,7 +66,7 @@ export function DepartureTicket({
   unitLabel: string;
 }) {
   return (
-    <div className="relative flex flex-col overflow-hidden bg-accent-soft">
+    <div className="relative flex flex-col overflow-hidden bg-warning-soft/60">
       <div className="flex flex-1 items-start gap-4 px-6 pt-4 pb-6">
         <div className="grid min-w-0 flex-1 gap-3">
           <div className="flex min-h-8 items-center pe-10">
@@ -83,8 +83,8 @@ export function DepartureTicket({
 
       <div aria-hidden="true" className="relative">
         <div className="mx-6 border-t-2 border-dashed border-foreground/15" />
-        <span className="absolute start-0 top-0 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full bg-popover rtl:translate-x-1/2" />
-        <span className="absolute end-0 top-0 size-6 translate-x-1/2 -translate-y-1/2 rounded-full bg-popover rtl:-translate-x-1/2" />
+        <span className="absolute start-0 top-0 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent-soft rtl:translate-x-1/2" />
+        <span className="absolute end-0 top-0 size-6 translate-x-1/2 -translate-y-1/2 rounded-full bg-accent-soft rtl:-translate-x-1/2" />
       </div>
 
       <dl className="m-0 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 px-6 pt-5 pb-5">
