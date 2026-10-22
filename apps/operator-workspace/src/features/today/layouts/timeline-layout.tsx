@@ -2,7 +2,6 @@
 
 import { useId, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { formatNumber, type SupportedLocale } from "@ranza/i18n";
 import { cn } from "@ranza/ui";
@@ -16,6 +15,7 @@ import {
   ArrivalCommand,
   DepartureCommand,
   Eyebrow,
+  FoldToggle,
   Panel,
   StateBadge,
   useCheckOutReviews,
@@ -660,24 +660,12 @@ function DueOut({
             ))}
           </div>
           {collapsible ? (
-            <button
-              aria-controls={listId}
-              aria-expanded={expanded}
-              className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-primary hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              onClick={toggle}
-              type="button"
-            >
-              {expanded
-                ? t("flow.showFewer")
-                : t("flow.showMore", {
-                    count: departures.length - DUE_OUT_COLLAPSED,
-                  })}
-              {expanded ? (
-                <ChevronUp aria-hidden="true" className="size-4" />
-              ) : (
-                <ChevronDown aria-hidden="true" className="size-4" />
-              )}
-            </button>
+            <FoldToggle
+              controls={listId}
+              expanded={expanded}
+              hidden={departures.length - DUE_OUT_COLLAPSED}
+              onToggle={toggle}
+            />
           ) : null}
         </div>
       )}

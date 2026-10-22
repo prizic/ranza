@@ -14,6 +14,8 @@ import {
   ArrowRight,
   BedDouble,
   Check,
+  ChevronDown,
+  ChevronUp,
   Droplet,
   Eye,
   Wrench,
@@ -158,6 +160,13 @@ export function ArrivalCommand({
   );
 }
 
+/** The bill a check-out would review, where the viewer may check out. */
+export function reviewFor(departure: DepartureRow, reviews: CheckOutReviews) {
+  return departure.mayCheckOut
+    ? reviews.find((candidate) => candidate.stayId === departure.stayId)
+    : undefined;
+}
+
 /** Check-out from a row, reviewing the bill first, where the viewer may. */
 export function DepartureCommand({
   departure,
@@ -172,9 +181,7 @@ export function DepartureCommand({
   reviews: CheckOutReviews;
   scope: TodayScope;
 }) {
-  const review = departure.mayCheckOut
-    ? reviews.find((candidate) => candidate.stayId === departure.stayId)
-    : undefined;
+  const review = reviewFor(departure, reviews);
   if (!review) return null;
   return (
     <CheckOutDialog
@@ -183,6 +190,35 @@ export function DepartureCommand({
       onDone={onChanged}
       propertyId={scope.propertyId}
     />
+  );
+}
+
+/** Opens and folds a list that shows only its most urgent rows at first. */
+export function FoldToggle({
+  controls,
+  expanded,
+  hidden,
+  onToggle,
+}: {
+  controls: string;
+  expanded: boolean;
+  /** How many rows a folded list leaves out. */
+  hidden: number;
+  onToggle: () => void;
+}) {
+  const t = useTranslations("todayLayouts");
+  const Chevron = expanded ? ChevronUp : ChevronDown;
+  return (
+    <button
+      aria-controls={controls}
+      aria-expanded={expanded}
+      className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-primary hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      onClick={onToggle}
+      type="button"
+    >
+      {expanded ? t("flow.showFewer") : t("flow.showMore", { count: hidden })}
+      <Chevron aria-hidden="true" className="size-4" />
+    </button>
   );
 }
 
