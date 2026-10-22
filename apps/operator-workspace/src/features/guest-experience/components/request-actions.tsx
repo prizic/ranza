@@ -31,6 +31,8 @@ const REASON_MIN = 3;
 
 export interface RequestActionsProps {
   locale: string;
+  /** Told what every command came to, so a refusal outlives a row that leaves. */
+  onOutcome: (status: ServiceRequestOutcome["status"]) => void;
   propertyId: string;
   request: ServiceRequestItem;
 }
@@ -43,6 +45,7 @@ export interface RequestActionsProps {
  */
 export function RequestActions({
   locale,
+  onOutcome,
   propertyId,
   request,
 }: RequestActionsProps) {
@@ -71,6 +74,7 @@ export function RequestActions({
         notes,
       );
       setOutcome(result.status);
+      onOutcome(result.status);
       if (result.status === "done") onDone();
     });
 
@@ -80,7 +84,6 @@ export function RequestActions({
     setCancelOpen(false);
     setCancelReason("");
   };
-  const dialogOpen = resolveOpen || cancelOpen;
   const reasonValid = cancelReason.trim().length >= REASON_MIN;
   const reopenTo = request.status === "cancelled" ? "new" : "in_progress";
 
@@ -147,13 +150,14 @@ export function RequestActions({
           </Button>
         )}
       </div>
-      {dialogOpen ? null : <RequestOutcome status={outcome} />}
-
       <Dialog
         open={resolveOpen}
         onOpenChange={(open) => {
           setResolveOpen(open);
-          if (!open) setOutcome("idle");
+          if (!open) {
+            setOutcome("idle");
+            onOutcome("idle");
+          }
         }}
       >
         <DialogContent className="sm:max-w-md">
@@ -206,7 +210,10 @@ export function RequestActions({
         open={cancelOpen}
         onOpenChange={(open) => {
           setCancelOpen(open);
-          if (!open) setOutcome("idle");
+          if (!open) {
+            setOutcome("idle");
+            onOutcome("idle");
+          }
         }}
       >
         <DialogContent className="sm:max-w-md">
