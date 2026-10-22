@@ -155,7 +155,7 @@ export function CheckOutDialog({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="gap-0 bg-accent-soft p-0 sm:max-w-lg md:max-w-[min(56rem,calc(100%-2rem))]">
+      <DialogContent className="gap-0 p-0 sm:max-w-lg md:max-w-[min(56rem,calc(100%-2rem))] [&>[data-slot=dialog-close]]:bg-primary/10">
         <form
           action={act}
           className="grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]"
@@ -299,7 +299,7 @@ export function CheckOutDialog({
 
             {departure.early && departure.endsOn ? (
               <Label
-                className="flex cursor-pointer items-center gap-3 rounded-xl border border-warning/30 bg-warning-soft/40 px-4 py-3 leading-snug"
+                className="flex cursor-pointer items-center gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 leading-snug"
                 htmlFor={`early-${departure.stayId}`}
               >
                 <Checkbox
@@ -322,7 +322,7 @@ export function CheckOutDialog({
             ) : null}
 
             {owes ? (
-              <div className="grid gap-3 rounded-xl border border-warning/30 bg-warning-soft/40 p-4">
+              <div className="grid gap-3 rounded-xl border border-primary/25 bg-primary/5 p-4">
                 <p className="m-0 text-step--1 font-medium">
                   {t("checkOutOwesFirst", { balance })}
                 </p>
@@ -367,7 +367,7 @@ export function CheckOutDialog({
             </DialogDescription>
           </div>
 
-          <DialogFooter className="bottom-0 mx-0 mb-0 border-t bg-accent-soft px-6 py-4 md:col-span-2">
+          <DialogFooter className="bottom-0 mx-0 mb-0 border-t px-6 py-4 md:col-span-2">
             <DialogClose asChild>
               <Button type="button" variant="outline">
                 {t("keepInHouse")}
