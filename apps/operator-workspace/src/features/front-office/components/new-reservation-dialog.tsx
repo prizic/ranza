@@ -399,7 +399,7 @@ export function NewReservationDialog({
         )}
       >
         <form
-          className="grid md:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]"
+          className="grid md:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] md:grid-rows-[1fr_auto] md:[&>:first-child]:row-span-2"
           onChange={() => setStarted(true)}
           onSubmit={submitWithoutReset(act)}
         >
@@ -765,7 +765,7 @@ export function NewReservationDialog({
             ) : null}
           </div>
 
-          <DialogFooter className={cn(ticketFooterClassName, "md:col-span-2")}>
+          <DialogFooter className={ticketFooterClassName}>
             <Button
               onClick={() => openChanged(false)}
               type="button"

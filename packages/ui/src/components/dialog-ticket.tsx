@@ -28,13 +28,16 @@ const EYEBROW =
  */
 export const ticketDialogClassName =
   "gap-0 p-0 sm:max-w-lg [&>[data-slot=dialog-close]]:bg-primary/10";
-/** From tablet width the ticket takes the start side and the work the other. */
+/**
+ * From tablet width the ticket takes the start side, for the dialog's whole
+ * height, and the work and its footer stack on the other.
+ */
 export const ticketDialogWideClassName = cn(
   ticketDialogClassName,
   "md:max-w-[min(56rem,calc(100%-2rem))]",
 );
 export const ticketWideFormClassName =
-  "grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]";
+  "grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:grid-rows-[1fr_auto] md:[&>:first-child]:row-span-2";
 export const ticketBodyClassName = "grid content-start gap-4 p-6";
 export const ticketFooterClassName = "bottom-0 mx-0 mb-0 border-t px-6 py-4";
 

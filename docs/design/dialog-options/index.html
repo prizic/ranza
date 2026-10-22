@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dialog design options</title><style>
+:root{--ink:#0b3d33;--primary:#12544b;--accent:#0f6e56;--mint:#dbe5e3;--mint-2:#edf3f1;--line:#d7dfdc;--mute:#5d6f6a;--bg:#eef1f0;--paper:#f4f7f6;--warn-bg:#fdf0d4;--warn:#8a5a00}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+.page{max-width:1000px;margin:0 auto;padding:56px 24px 96px}
+h1{font-size:clamp(2.2rem,5vw,3.4rem);line-height:1.05;font-weight:500;letter-spacing:-.03em;margin:0 0 14px}
+.intro{max-width:62ch;color:var(--mute);margin:0 0 28px}
+.pick{border-left:3px solid var(--primary);padding:4px 0 4px 16px;margin:0 0 40px;max-width:70ch}
+.pick b{display:block;font-weight:600}
+nav.tabs{position:static;top:0;z-index:2;display:flex;gap:8px;padding:12px 0;background:var(--bg);flex-wrap:wrap}
+nav.tabs a{padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink);text-decoration:none;font-weight:500}
+nav.tabs a:hover{border-color:var(--primary)}
+section.opt{padding:56px 0 0}
+.opt-head{display:grid;gap:6px;margin-bottom:24px}
+.opt-head .tag{font:500 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--primary)}
+.opt-head h2{margin:0;font-size:2rem;font-weight:500;letter-spacing:-.02em}
+.opt-head .tagline{font-size:1.15rem}
+.opt-head p{margin:0;max-width:70ch;color:var(--mute)}
+.opt-head p strong{color:var(--ink);font-weight:600}
+.shots{display:grid;gap:28px}
+.shot{overflow-x:auto;padding:20px 0}
+.shot figcaption{font:500 12px/1 ui-monospace,Menlo,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin:0 0 12px}
+.stage{background:#c9d3d0;border-radius:20px;padding:36px;display:flex;justify-content:center}
+.stage.sheet{padding:0;justify-content:flex-end;min-height:740px}
+.sheet-stage{display:flex;width:100%;justify-content:flex-end}
+.dlg{background:#fff;border-radius:20px;box-shadow:0 1px 2px rgba(11,61,51,.08),0 24px 60px -12px rgba(11,61,51,.28);position:relative;overflow:hidden;flex:none}
+.eyebrow{font:500 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--primary)}
+.x{display:grid;place-items:center;width:32px;height:32px;border-radius:999px;background:var(--mint-2);color:var(--ink);flex:none}
+.sub{margin:4px 0 0;color:var(--mute);font-size:14px}.sub b{color:var(--ink);font-weight:600}
+h3{margin:0;font-weight:500;letter-spacing:-.02em}
+.num{font-weight:300;letter-spacing:-.03em;font-variant-numeric:tabular-nums}.num small{font-size:.5em;color:var(--mute)}
+.cap{font-size:13px;color:var(--mute);display:flex;align-items:center;gap:8px}
+.chip{font-style:normal;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px}.chip.warn{background:var(--warn-bg);color:var(--warn)}
+.field{display:grid;gap:6px}.lbl{font-weight:500;font-size:14px}
+.hint{margin:0;font-size:13px;color:var(--mute)}
+.input{display:flex;align-items:center;justify-content:space-between;gap:8px;height:42px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.input.muted{color:var(--mute)}.input.area{height:76px}
+.check{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:14px}
+.box{flex:none;width:18px;height:18px;border-radius:5px;border:1.5px solid var(--primary);margin-top:2px}
+.note{margin:0;padding:10px 14px;border-radius:12px;background:var(--mint-2);font-size:13px;color:var(--mute)}
+.link{display:inline-flex;align-items:center;gap:4px;font-weight:500;font-size:14px;color:var(--accent);text-decoration:underline;text-underline-offset:4px}
+.foot{display:flex;gap:10px;justify-content:flex-end;padding:16px 24px;border-top:1px solid var(--line);background:#fff}
+.btn{display:inline-flex;align-items:center;height:42px;padding:0 20px;border-radius:999px;font-weight:500;font-size:14px}
+.btn.ghost{border:1px solid var(--line);background:#fff}.btn.primary{background:var(--primary);color:#fff}
+
+.a-top{display:flex;justify-content:space-between;align-items:center;padding:22px 24px 0}
+.a-who{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 24px 0}
+.a-who h3{font-size:30px;line-height:1.1}
+.a-figure{margin:22px 24px 0;padding:20px 0 6px;border-top:1px solid var(--line);display:grid;gap:6px}
+.a-figure .num{font-size:60px;line-height:1}
+.a-lines{margin:14px 24px 0;display:grid;gap:0}
+.a-lines div{display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
+.a-lines dt{color:var(--mute)}.a-lines dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums}
+.a .link{margin:6px 24px 0}
+.a-body{display:grid;gap:16px;padding:20px 24px 24px}
+
+.b{display:grid;grid-template-columns:5fr 7fr}
+.b aside{background:#0b3d33;color:#eaf3f0;padding:28px;display:flex;flex-direction:column;gap:14px;min-height:560px}
+.b aside .eyebrow{color:#9fd3c3}
+.b aside h3{font-size:44px;line-height:1.02;font-weight:400;margin-top:6px}
+.b aside dl{margin:18px 0 0;display:grid;gap:0}
+.b aside dl div{display:flex;justify-content:space-between;padding:12px 0;border-top:1px solid rgba(255,255,255,.16);font-size:14px}
+.b aside dt{color:#9fc4b9}.b aside dd{margin:0;font-weight:500}
+.b-total{margin-top:auto;display:grid;gap:6px;padding-top:20px;border-top:1px solid rgba(255,255,255,.16)}
+.b-total .cap{color:#9fc4b9}.b-total .num{font-size:52px;line-height:1;color:#fff}.b-total .num small{color:#9fc4b9}
+.b-foot{margin:auto 0 0;color:#9fc4b9;font-size:14px}
+.b section{display:flex;flex-direction:column;gap:16px;padding:64px 0 0}
+.b section>*:not(.x):not(.foot){margin:0 28px}
+.b section .x{position:absolute;top:18px;right:18px}
+.b section .foot{margin:auto 0 0;padding:16px 28px}
+.b .lead{color:var(--mute)}
+
+.c{width:440px;height:740px;border-radius:20px 0 0 20px;display:flex;flex-direction:column}
+.c-top{display:flex;justify-content:space-between;align-items:center;padding:22px 24px 0}
+.c-who{display:flex;gap:14px;align-items:center;padding:18px 24px 0}
+.avatar{display:grid;place-items:center;width:52px;height:52px;border-radius:999px;background:var(--mint);color:var(--ink);font-weight:600}
+.c-who h3{font-size:26px}
+.c-track{margin:22px 24px 0;padding:18px 16px 16px;border-radius:16px;background:var(--paper)}
+.rail{display:flex;align-items:center}
+.rail .n{width:14px;height:14px;border-radius:999px;border:2px solid var(--primary);background:#fff;flex:none}
+.rail .n.done{background:var(--primary)}.rail .n.now{background:var(--primary);box-shadow:0 0 0 5px rgba(18,84,75,.16)}
+.rail .seg{flex:1;height:2px;background:var(--line)}.rail .seg.done{background:var(--primary)}
+.marks{display:flex;justify-content:space-between;margin-top:10px;font-size:12px;color:var(--mute)}
+.marks span{display:grid;gap:1px}.marks b{color:var(--ink);font-size:13px}.marks .mid{text-align:center}.marks .end{text-align:end}
+.early{margin:12px 0 0;font-size:13px;font-weight:600;color:var(--warn)}
+.c-bill{margin:14px 24px 0;display:grid}
+.c-bill .row{display:flex;justify-content:space-between;padding:9px 0;font-size:14px;border-top:1px solid var(--line)}
+.c-bill .row span{color:var(--mute)}.c-bill .row b{font-variant-numeric:tabular-nums}
+.c-bill .total{border-top:2px solid var(--ink);font-size:16px}.c-bill .total span{color:var(--ink);font-weight:600}
+.c-body{display:grid;gap:14px;padding:18px 24px;flex:1;align-content:start;overflow:hidden}
+.c .foot{margin-top:auto}
+
+.d-top{display:flex;justify-content:space-between;align-items:flex-start;padding:22px 24px 0}
+.d-top h3{font-size:30px;margin-top:10px}
+.d-paper{margin:18px 24px 0;padding:18px 20px;border-radius:14px;background:var(--paper);border:1px solid #e1e8e5;display:grid;gap:10px}
+.d-head{display:flex;justify-content:space-between;font:500 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);padding-bottom:10px;border-bottom:1px solid var(--line)}
+.lead-row{display:flex;align-items:baseline;gap:8px;font-size:14px}
+.lead-row i{flex:1;border-bottom:2px dotted #b6c4c0;transform:translateY(-3px)}
+.lead-row b{font-variant-numeric:tabular-nums}
+.lead-row.total{margin-top:6px;padding-top:10px;border-top:3px double var(--ink);font-size:18px;font-weight:600}
+.lead-row.total b{font-size:22px}
+.d .link{justify-self:start}
+.d-body{display:grid;gap:14px;padding:18px 24px 22px}
+</style></head>
+<body><div class="page">
+<h1>Four designs for the Ranza dialogs</h1>
+<p class="intro">Each is shown on the two dialogs that stress it most: check-out, which has a bill and a decision, and move guest, which is a plain form. Green and white only. Names and figures are sample data. Nothing here is built yet; this is a choice.</p>
+<div class="pick"><b>My pick: A, Ledger.</b>It is the sleekest, it is the only one that works unchanged for every dialog from a two-field cancel to the new-booking form, and the amount reading as a large light numeral is what the reference designs do. Second is B for the big dialogs. I would not choose D, and C only for check-out and change departure.</div>
+<nav class="tabs"><a href="#a">A · Ledger</a><a href="#b">B · Editorial split</a><a href="#c">C · Timeline sheet</a><a href="#d">D · Statement</a></nav>
+
+<section class="opt" id="a">
+  <div class="opt-head">
+    <span class="tag">Option</span>
+    <h2>A · Ledger</h2>
+    <span class="tagline">The amount is the headline.</span>
+    <p>One narrow column. Who it is, then the one figure that matters in large light numerals, then what is asked of the desk. The same skeleton fits every dialog: subject, one fact or figure, fields, footer.</p>
+    <p><strong>Trade-off.</strong> Fastest to read and the easiest to roll out to all 36 dialogs. Gives up the big illustration (kept small, at the end of the subject line).</p>
+  </div>
+  <div class="shots">
+    <figure class="shot" style="margin:0"><figcaption>Check out — Guest leaving early, money owed</figcaption><div class="stage">
+<div class="dlg a" style="width:480px">
+  <header class="a-top"><span class="eyebrow">Check out</span><span class="x"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span></header>
+  <div class="a-who">
+    <div><h3>Mei Lin</h3><p class="sub">Unit <b>204</b> · planned departure <b>Oct 24</b></p></div>
+    <img src="../../../apps/operator-workspace/public/illustrations/check-out/key.svg" alt="" width="56" height="56">
+  </div>
+  <div class="a-figure">
+    <span class="cap">Due at check-out <i class="chip warn">Owes</i></span>
+    <span class="num">₺2,400<small>.00</small></span>
+  </div>
+  <dl class="a-lines">
+    <div><dt>Balance on folio</dt><dd>₺0.00</dd></div>
+    <div><dt>2 nights to charge now</dt><dd>₺2,400.00</dd></div>
+  </dl>
+  <a class="link">Review folio <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M8 7h9v9"/></svg></a>
+  <div class="a-body"><div class="check"><span class="box"></span><span>The Guest leaves before Oct 24. I know the remaining nights are not charged.</span></div><label class="field"><span class="lbl">Why is money left on the folio?</span><span class="input area"></span><p class="hint">Kept with the check-out and the audit log.</p></label></div>
+  <div class="foot"><span class="btn ghost">Keep in house</span><span class="btn primary">Check out</span></div>
+</div></div></figure>
+    <figure class="shot" style="margin:0"><figcaption>Move guest — a plain form</figcaption><div class="stage">
+<div class="dlg a" style="width:480px">
+  <header class="a-top"><span class="eyebrow">Move guest</span><span class="x"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span></header>
+  <div class="a-who">
+    <div><h3>Derya Polat</h3><p class="sub">Now in unit <b>103</b> · moves from tonight</p></div>
+    <img src="../../../apps/operator-workspace/public/illustrations/dialogs/move-guest.svg" alt="" width="56" height="56">
+  </div>
+  <div class="a-body">
+    <label class="field"><span class="lbl">Move to</span><span class="input select muted"><span>Choose a Unit</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10l5 5 5-5"/></svg></span></label>
+    <label class="field"><span class="lbl">Reason</span><span class="input select"><span>The room has a fault</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10l5 5 5-5"/></svg></span></label>
+    <label class="field"><span class="lbl">Note (optional)</span><span class="input area"></span><p class="hint">Kept on the booking's history and the audit log.</p></label>
+    <p class="note">The booking has no price; a move does not change that.</p>
+  </div>
+  <div class="foot"><span class="btn ghost">Keep as it was</span><span class="btn primary">Move guest</span></div>
+</div></div></figure>
+  </div>
+</section>
+<section class="opt" id="b">
+  <div class="opt-head">
+    <span class="tag">Option</span>
+    <h2>B · Editorial split</h2>
+    <span class="tagline">Type on deep green, work on white.</span>
+    <p>A near-black emerald panel carries the subject in large type and the facts in a short list; the work sits on white beside it. No drawings: the typography is the design.</p>
+    <p><strong>Trade-off.</strong> The most striking and the most premium. Needs width, so it is for the larger dialogs only; small confirms would keep a single column.</p>
+  </div>
+  <div class="shots">
+    <figure class="shot" style="margin:0"><figcaption>Check out — Guest leaving early, money owed</figcaption><div class="stage">
+<div class="dlg b" style="width:880px">
+  <aside>
+    <span class="eyebrow">Check out</span>
+    <h3>Mei Lin</h3>
+    <dl>
+      <div><dt>Unit</dt><dd>204</dd></div>
+      <div><dt>Planned departure</dt><dd>Oct 24</dd></div>
+      <div><dt>Nights to charge</dt><dd>2</dd></div>
+    </dl>
+    <div class="b-total"><span class="cap">Due at check-out</span><span class="num">₺2,400<small>.00</small></span></div>
+  </aside>
+  <section>
+    <span class="x"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+    <p class="lead">Check them out and free the room. This cannot be taken back.</p>
+    <div class="check"><span class="box"></span><span>The Guest leaves before Oct 24. I know the remaining nights are not charged.</span></div>
+    <label class="field"><span class="lbl">Why is money left on the folio?</span><span class="input area"></span><p class="hint">Kept with the check-out and the audit log.</p></label>
+    <a class="link">Review folio <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M8 7h9v9"/></svg></a>
+    <div class="foot"><span class="btn ghost">Keep in house</span><span class="btn primary">Check out</span></div>
+  </section>
+</div></div></figure>
+    <figure class="shot" style="margin:0"><figcaption>Move guest — a plain form</figcaption><div class="stage">
+<div class="dlg b" style="width:880px">
+  <aside>
+    <span class="eyebrow">Move guest</span>
+    <h3>Derya Polat</h3>
+    <dl>
+      <div><dt>Now in unit</dt><dd>103</dd></div>
+      <div><dt>Moves</dt><dd>From tonight</dd></div>
+    </dl>
+    <p class="b-foot">The stay, its folio and its price go with them. The room left is marked for cleaning.</p>
+  </aside>
+  <section>
+    <span class="x"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+    <label class="field"><span class="lbl">Move to</span><span class="input select muted"><span>Choose a Unit</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10l5 5 5-5"/></svg></span></label>
+    <label class="field"><span class="lbl">Reason</span><span class="input select"><span>The room has a fault</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10l5 5 5-5"/></svg></span></label>
+    <label class="field"><span class="lbl">Note (optional)</span><span class="input area"></span><p class="hint">Kept on the booking's history and the audit log.</p></label>
+    <p class="note">The booking has no price; a move does not change that.</p>
+    <div class="foot"><span class="btn ghost">Keep as it was</span><span class="btn primary">Move guest</span></div>
+  </section>
+</div></div></figure>
+  </div>
+</section>
+<section class="opt" id="c">
+  <div class="opt-head">
+    <span class="tag">Option</span>
+    <h2>C · Timeline sheet</h2>
+    <span class="tagline">A side sheet that shows where they are in the stay.</span>
+    <p>A sheet from the edge instead of a centred modal. The stay is drawn as a track (arrived, today, planned departure), so leaving early is seen, not read. Avatar initials identify the Guest.</p>
+    <p><strong>Trade-off.</strong> The most useful for check-out and change departure. Wrong for tiny confirms (cancel, undo), and it changes how dialogs feel across the app.</p>
+  </div>
+  <div class="shots">
+    <figure class="shot" style="margin:0"><figcaption>Check out — Guest leaving early, money owed</figcaption><div class="stage sheet">
+<div class="sheet-stage"><div class="dlg c">
+  <header class="c-top"><span class="eyebrow">Check out</span><span class="x"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span></header>
+  <div class="c-who"><span class="avatar">ML</span><div><h3>Mei Lin</h3><p class="sub">Unit <b>204</b></p></div></div>
+  <div class="c-track">
+    <div class="rail"><i class="n done"></i><i class="seg done"></i><i class="n now"></i><i class="seg"></i><i class="n"></i></div>
+    <div class="marks"><span><b>Oct 20</b>Arrived</span><span class="mid"><b>Today</b>Oct 22</span><span class="end"><b>Oct 24</b>Planned</span></div>
+    <p class="early">Leaving 2 days early</p>
+  </div>
+  <div class="c-bill">
+    <div class="row"><span>Balance on folio</span><b>₺0.00</b></div>
+    <div class="row"><span>2 nights to charge</span><b>₺2,400.00</b></div>
+    <div class="row total"><span>Due at check-out</span><b>₺2,400.00</b></div>
+  </div>
+  <div class="c-body"><div class="check"><span class="box"></span><span>The Guest leaves before Oct 24. I know the remaining nights are not charged.</span></div><label class="field"><span class="lbl">Why is money left on the folio?</span><span class="input area"></span><p class="hint">Kept with the check-out and the audit log.</p></label></div>
+  <div class="foot"><span class="btn ghost">Keep in house</span><span class="btn primary">Check out</span></div>
+</div></div></div></figure>
+    <figure class="shot" style="margin:0"><figcaption>Move guest — a plain form</figcaption><div class="stage sheet">
+<div class="sheet-stage"><div class="dlg c">
+  <header class="c-top"><span class="eyebrow">Move guest</span><span class="x"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span></header>
+  <div class="c-who"><span class="avatar">DP</span><div><h3>Derya Polat</h3><p class="sub">Now in unit <b>103</b></p></div></div>
+  <div class="c-body">
+    <label class="field"><span class="lbl">Move to</span><span class="input select muted"><span>Choose a Unit</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10l5 5 5-5"/></svg></span></label>
+    <label class="field"><span class="lbl">Reason</span><span class="input select"><span>The room has a fault</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10l5 5 5-5"/></svg></span></label>
+    <label class="field"><span class="lbl">Note (optional)</span><span class="input area"></span><p class="hint">Kept on the booking's history and the audit log.</p></label>
+    <p class="note">The booking has no price; a move does not change that.</p>
+  </div>
+  <div class="foot"><span class="btn ghost">Keep as it was</span><span class="btn primary">Move guest</span></div>
+</div></div></div></figure>
+  </div>
+</section>
+<section class="opt" id="d">
+  <div class="opt-head">
+    <span class="tag">Option</span>
+    <h2>D · Statement</h2>
+    <span class="tagline">The bill as a statement, with dotted leaders.</span>
+    <p>A pale panel holds the figures as a printed statement: label, dotted leader, amount, a total under a double rule. The form sits beneath, on white.</p>
+    <p><strong>Trade-off.</strong> Distinctive and fitting for money. It is check-out specific: the move dialog has little to put on a statement, which the second mock shows.</p>
+  </div>
+  <div class="shots">
+    <figure class="shot" style="margin:0"><figcaption>Check out — Guest leaving early, money owed</figcaption><div class="stage">
+<div class="dlg d" style="width:520px">
+  <header class="d-top"><div><span class="eyebrow">Check out</span><h3>Mei Lin</h3></div><span class="x"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span></header>
+  <div class="d-paper">
+    <div class="d-head"><span>Folio statement</span><span>Unit 204 · Oct 20 – Oct 24</span></div>
+    <div class="lead-row"><span>Nights already charged</span><i></i><b>₺0.00</b></div>
+    <div class="lead-row"><span>Nights to charge now (2)</span><i></i><b>₺2,400.00</b></div>
+    <div class="lead-row total"><span>Due at check-out</span><i></i><b>₺2,400.00</b></div>
+    <a class="link">Review folio <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M8 7h9v9"/></svg></a>
+  </div>
+  <div class="d-body"><div class="check"><span class="box"></span><span>The Guest leaves before Oct 24. I know the remaining nights are not charged.</span></div><label class="field"><span class="lbl">Why is money left on the folio?</span><span class="input area"></span><p class="hint">Kept with the check-out and the audit log.</p></label></div>
+  <div class="foot"><span class="btn ghost">Keep in house</span><span class="btn primary">Check out</span></div>
+</div></div></figure>
+    <figure class="shot" style="margin:0"><figcaption>Move guest — a plain form</figcaption><div class="stage">
+<div class="dlg d" style="width:520px">
+  <header class="d-top"><div><span class="eyebrow">Move guest</span><h3>Derya Polat</h3></div><span class="x"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span></header>
+  <div class="d-paper">
+    <div class="d-head"><span>Move</span><span>From tonight</span></div>
+    <div class="lead-row"><span>Now in</span><i></i><b>Unit 103</b></div>
+    <div class="lead-row"><span>Price</span><i></i><b>Goes with them</b></div>
+  </div>
+  <div class="d-body">
+    <label class="field"><span class="lbl">Move to</span><span class="input select muted"><span>Choose a Unit</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10l5 5 5-5"/></svg></span></label>
+    <label class="field"><span class="lbl">Reason</span><span class="input select"><span>The room has a fault</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10l5 5 5-5"/></svg></span></label>
+    <label class="field"><span class="lbl">Note (optional)</span><span class="input area"></span></label>
+  </div>
+  <div class="foot"><span class="btn ghost">Keep as it was</span><span class="btn primary">Move guest</span></div>
+</div></div></figure>
+  </div>
+</section>
+</div></body></html>

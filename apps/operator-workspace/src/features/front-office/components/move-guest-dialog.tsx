@@ -395,7 +395,7 @@ export function MoveGuestDialog({
             ) : null}
           </div>
 
-          <DialogFooter className={cn(ticketFooterClassName, "md:col-span-2")}>
+          <DialogFooter className={ticketFooterClassName}>
             <DialogClose asChild>
               <Button type="button" variant="outline">
                 {t("keepAsItWas")}
