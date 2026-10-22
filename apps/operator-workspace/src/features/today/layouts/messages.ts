@@ -88,6 +88,12 @@ const en = {
     title: "Do these in order",
     sub: "Most urgent first.",
     empty: "Nothing is waiting on you.",
+    group: {
+      overdue_departure: "Overdue departures",
+      late_arrival: "Late arrivals",
+      room_at_risk: "Rooms at risk",
+      no_time: "No expected time",
+    },
   },
   detail: {
     overdueDeparture: "Was due to leave {date}.",
@@ -328,6 +334,12 @@ const tr: TodayLayoutsMessages = {
     title: "Sırayla şunları yapın",
     sub: "En acil olan başta.",
     empty: "Sizi bekleyen bir iş yok.",
+    group: {
+      overdue_departure: "Gecikmiş çıkışlar",
+      late_arrival: "Geciken gelişler",
+      room_at_risk: "Risk altındaki odalar",
+      no_time: "Beklenen saati olmayanlar",
+    },
   },
   detail: {
     overdueDeparture: "{date} tarihinde ayrılması gerekiyordu.",
@@ -562,6 +574,12 @@ const ar: TodayLayoutsMessages = {
     title: "افعل هذا بالترتيب",
     sub: "الأكثر إلحاحًا أولًا.",
     empty: "لا شيء ينتظرك.",
+    group: {
+      overdue_departure: "مغادرات متأخرة",
+      late_arrival: "وصول متأخر",
+      room_at_risk: "غرف معرّضة للتأخر",
+      no_time: "بلا وقت متوقع",
+    },
   },
   detail: {
     overdueDeparture: "كان مطلوبًا مغادرته في {date}.",

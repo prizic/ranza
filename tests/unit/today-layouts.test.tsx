@@ -39,11 +39,21 @@ import { todayKeys } from "../../apps/operator-workspace/src/features/today/quer
 vi.mock("../../apps/operator-workspace/src/server/housekeeping", () => ({
   markRooms: vi.fn(),
 }));
+vi.mock(
+  "../../apps/operator-workspace/src/features/front-office/queries",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("../../apps/operator-workspace/src/features/front-office/queries")
+    >()),
+    fetchDepartures: vi.fn(async () => reviews),
+  }),
+);
 vi.mock("../../apps/operator-workspace/src/server/front-office", () => ({
   checkInReservation: vi.fn(),
   checkOutStay: vi.fn(),
 }));
 
+const reviews = vi.hoisted((): unknown[] => []);
 const PROPERTY = "d0000003-0000-4000-8000-000000000001";
 const SCOPE = { userId: "u-1", organizationId: "o", propertyId: PROPERTY };
 /** 14:32 at the Property, which is UTC+3. */
@@ -408,6 +418,93 @@ describe("the timeline", () => {
     expect(titles[0]).toContain("Kaya");
     expect(titles[1]).toContain("Costa");
     expect(titles.join("|")).toContain("Petrov");
+  });
+
+  describe("the_plan_folds_to_five_and_opens_into_groups_by_kind", () => {
+    function crowdedPlan(overdue: number) {
+      const base = summary();
+      if (base.desk?.status !== "ok") throw new Error("fixture has a desk");
+      const rows = Array.from({ length: overdue }, (_, i) =>
+        leaving(`Late ${i}`, `4${String(i).padStart(2, "0")}`, true),
+      );
+      return summary({
+        desk: { status: "ok", data: { ...base.desk.data, departures: rows } },
+      });
+    }
+
+    it("shows_the_five_most_urgent_and_says_how_many_are_left", () => {
+      view(crowdedPlan(7));
+      const plan = screen.getByRole("region", { name: "Do these in order" });
+      expect(within(plan).getAllByRole("heading", { level: 3 })).toHaveLength(
+        5,
+      );
+      expect(
+        within(plan).getByRole("button", { name: "Show 6 more" }),
+      ).toHaveAttribute("aria-expanded", "false");
+      expect(within(plan).queryByText(/Overdue departures ·/)).toBeNull();
+    });
+
+    it("opens_into_a_group_for_each_kind_in_the_same_order", () => {
+      view(crowdedPlan(7));
+      const plan = screen.getByRole("region", { name: "Do these in order" });
+      fireEvent.click(
+        within(plan).getByRole("button", { name: "Show 6 more" }),
+      );
+      const labels = within(plan)
+        .getAllByText(/ · \d+$/)
+        .map((node) => node.textContent);
+      expect(labels).toEqual([
+        "Overdue departures · 7",
+        "Late arrivals · 1",
+        "Rooms at risk · 2",
+        "No expected time · 1",
+      ]);
+      expect(within(plan).getAllByRole("heading", { level: 3 })).toHaveLength(
+        11,
+      );
+    });
+
+    it("a_short_plan_is_shown_whole_with_nothing_to_open", () => {
+      view(summary());
+      const plan = screen.getByRole("region", { name: "Do these in order" });
+      expect(within(plan).queryByRole("button", { name: /Show/ })).toBeNull();
+    });
+  });
+
+  it("a_row_has_a_link_in_only_when_it_has_no_command_of_its_own", async () => {
+    const base = summary();
+    if (base.desk?.status !== "ok") throw new Error("fixture has a desk");
+    const mayLeave = { ...leaving("Kaya", "103", true), mayCheckOut: true };
+    const mayNot = { ...leaving("Aydın", "104", true), mayCheckOut: false };
+    reviews.splice(0, reviews.length, {
+      stayId: mayLeave.stayId,
+      guestName: "Kaya",
+      roomName: null,
+      unitName: "103",
+      balanceMinor: 0,
+      pendingMinor: 0,
+      currency: "TRY",
+      stayType: "guest",
+      nightlyRateMinor: 1000,
+      folioId: "f",
+    });
+    view(
+      summary({
+        desk: {
+          status: "ok",
+          data: { ...base.desk.data, departures: [mayLeave, mayNot] },
+        },
+      }),
+    );
+    const plan = screen.getByRole("region", { name: "Do these in order" });
+    expect(
+      await within(plan).findByRole("button", { name: /Check .*Kaya.* out/ }),
+    ).toBeInTheDocument();
+    // Kaya can be checked out from the row; Aydın's viewer is sent to the screen.
+    expect(
+      within(plan).getAllByRole("link", { name: "Open Departures" }),
+    ).toHaveLength(1);
+    reviews.length = 0;
   });
 
   it("an_empty_day_says_nothing_is_waiting", () => {
