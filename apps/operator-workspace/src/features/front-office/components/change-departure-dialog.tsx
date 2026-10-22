@@ -2,23 +2,27 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { AlarmClock, CircleAlert } from "lucide-react";
 import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
 import type { DeparturePreview } from "@ranza/reservations";
 import {
   Button,
+  cn,
   DateRangeField,
   Dialog,
   DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Fact,
-  FactList,
+  DialogTicket,
   Field,
   FormError,
   Textarea,
+  TicketNotice,
+  ticketBodyClassName,
+  ticketDialogWideClassName,
+  ticketFooterClassName,
+  ticketWideFormClassName,
 } from "@ranza/ui";
 import {
   changeDeparture,
@@ -306,146 +310,153 @@ export function ChangeDepartureDialog({
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto">
-        <form className="grid gap-4" onSubmit={submitWithoutReset(act)}>
-          <DialogHeader>
-            <DialogTitle>{t("changeDeparture")}</DialogTitle>
+      <DialogContent className={cn(ticketDialogWideClassName, "max-h-[90dvh]")}>
+        <form
+          className={ticketWideFormClassName}
+          onSubmit={submitWithoutReset(act)}
+        >
+          <DialogTicket
+            art="/illustrations/dialogs/change-departure.svg"
+            eyebrow={t("changeDeparture")}
+            heading={stay.guestName}
+            stub={[
+              ...(stay.reference
+                ? [
+                    {
+                      label: t("reservation"),
+                      value: (
+                        <span className="font-mono">{stay.reference}</span>
+                      ),
+                    },
+                  ]
+                : []),
+              { label: t("unit"), value: <bdi>{stay.unitLabel}</bdi> },
+            ]}
+          >
+            {overdueSince && preview ? (
+              <TicketNotice icon={AlarmClock} tone="warning">
+                {t("changeDepartureOverdue", {
+                  count: overdueDays(overdueSince, preview.today),
+                  date: formatDate(
+                    new Date(`${overdueSince}T00:00:00Z`),
+                    locale,
+                    { month: "short", timeZone: "UTC" },
+                  ),
+                })}
+              </TicketNotice>
+            ) : null}
+
+            {stay.unpriced ? (
+              <TicketNotice icon={CircleAlert} tone="warning">
+                {t("extendUnpricedWarning")}
+              </TicketNotice>
+            ) : null}
+          </DialogTicket>
+
+          <div className={cn(ticketBodyClassName, "md:pt-14")}>
             <DialogDescription>{t("changeDepartureSummary")}</DialogDescription>
-          </DialogHeader>
 
-          {overdueSince && preview ? (
-            <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-step--1">
-              {t("changeDepartureOverdue", {
-                count: overdueDays(overdueSince, preview.today),
-                date: formatDate(
-                  new Date(`${overdueSince}T00:00:00Z`),
-                  locale,
-                  { month: "short", timeZone: "UTC" },
-                ),
-              })}
-            </p>
-          ) : null}
-
-          {stay.unpriced ? (
-            <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-step--1">
-              {t("extendUnpricedWarning")}
-            </p>
-          ) : null}
-
-          <FactList className="gap-4 pt-0">
-            <Fact label={t("guest")}>
-              <bdi>{stay.guestName}</bdi>
-            </Fact>
-            {stay.reference ? (
-              <Fact label={t("reservation")}>
-                <span className="font-mono tabular-nums">{stay.reference}</span>
-              </Fact>
+            {move ? (
+              <MoveSummary
+                conflicts={known}
+                from={{
+                  place: stay.unitLabel,
+                  period: describePeriod(
+                    stay.startsOn,
+                    stay.endsOn,
+                    locale,
+                    words,
+                  ),
+                }}
+                to={{
+                  place: stay.unitLabel,
+                  period: describePeriod(
+                    stay.startsOn,
+                    endsOn ?? null,
+                    locale,
+                    words,
+                  ),
+                }}
+              />
             ) : null}
-            <Fact label={t("unit")}>
-              <bdi className="tabular-nums">{stay.unitLabel}</bdi>
-            </Fact>
-          </FactList>
 
-          {move ? (
-            <MoveSummary
-              conflicts={known}
-              from={{
-                place: stay.unitLabel,
-                period: describePeriod(
-                  stay.startsOn,
-                  stay.endsOn,
-                  locale,
-                  words,
-                ),
-              }}
-              to={{
-                place: stay.unitLabel,
-                period: describePeriod(
-                  stay.startsOn,
-                  endsOn ?? null,
-                  locale,
-                  words,
-                ),
-              }}
-            />
-          ) : null}
+            <input name="stay" type="hidden" value={stay.stayId} />
+            <input name="locale" type="hidden" value={locale} />
+            <input name="version" type="hidden" value={pinned?.version ?? ""} />
 
-          <input name="stay" type="hidden" value={stay.stayId} />
-          <input name="locale" type="hidden" value={locale} />
-          <input name="version" type="hidden" value={pinned?.version ?? ""} />
-
-          <Field htmlFor={`departure-${stay.stayId}`} label={t("stayDates")}>
-            <DateRangeField
-              defaultValue={{ from: stay.startsOn, to: endsOn }}
-              earliestTo={preview ? tomorrowOf(preview.today) : undefined}
-              id={`departure-${stay.stayId}`}
-              key={resets}
-              labels={{
-                from: t("arrival"),
-                to: t("departure"),
-                emptyFrom: t("bookingAddDate"),
-                emptyTo: t("bookingOpenEnded"),
-                pickFrom: t("bookingPickArrival"),
-                pickTo: t("bookingPickDeparture"),
-                clear: t("dateRangeClear"),
-                done: t("dateRangeDone"),
-                span: (nights) => t("stayNights", { count: nights }),
-              }}
-              locale={locale}
-              lockFrom
-              minSpan={1}
-              names={{ from: "startsOn", to: "endsOn" }}
-              onChange={(range) => setEndsOn(range.to)}
-              today={preview?.today}
-            />
-          </Field>
-
-          <div aria-live="polite" className="grid gap-2">
-            {read.state === "loading" ? (
-              <p className="text-step--1 text-muted-foreground">
-                {t("changeBookingChecking")}
-              </p>
-            ) : null}
-            {readMessage ? <FormError>{readMessage}</FormError> : null}
-            {effect && !readMessage ? (
-              <p className="rounded-lg border bg-muted/40 px-3 py-2 text-step--1">
-                <bdi>{effect}</bdi>
-              </p>
-            ) : null}
-            {unchanged ? (
-              <p className="text-step--1 text-muted-foreground">
-                {t("changeDepartureNothing")}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="grid gap-1.5">
-            <Field
-              htmlFor={`departure-note-${stay.stayId}`}
-              label={t("changeBookingNote")}
-            >
-              <Textarea
-                id={`departure-note-${stay.stayId}`}
-                maxLength={NOTE.max}
-                minLength={NOTE.min}
-                name="note"
-                onChange={(event) => setNote(event.target.value)}
-                rows={2}
-                value={note}
+            <Field htmlFor={`departure-${stay.stayId}`} label={t("stayDates")}>
+              <DateRangeField
+                defaultValue={{ from: stay.startsOn, to: endsOn }}
+                earliestTo={preview ? tomorrowOf(preview.today) : undefined}
+                id={`departure-${stay.stayId}`}
+                key={resets}
+                labels={{
+                  from: t("arrival"),
+                  to: t("departure"),
+                  emptyFrom: t("bookingAddDate"),
+                  emptyTo: t("bookingOpenEnded"),
+                  pickFrom: t("bookingPickArrival"),
+                  pickTo: t("bookingPickDeparture"),
+                  clear: t("dateRangeClear"),
+                  done: t("dateRangeDone"),
+                  span: (nights) => t("stayNights", { count: nights }),
+                }}
+                locale={locale}
+                lockFrom
+                minSpan={1}
+                names={{ from: "startsOn", to: "endsOn" }}
+                onChange={(range) => setEndsOn(range.to)}
+                today={preview?.today}
               />
             </Field>
-            <p className="text-step--1 text-muted-foreground">
-              {t("changeBookingNoteHint")}
-            </p>
+
+            <div aria-live="polite" className="grid gap-2">
+              {read.state === "loading" ? (
+                <p className="text-step--1 text-muted-foreground">
+                  {t("changeBookingChecking")}
+                </p>
+              ) : null}
+              {readMessage ? <FormError>{readMessage}</FormError> : null}
+              {effect && !readMessage ? (
+                <p className="rounded-lg border bg-muted/40 px-3 py-2 text-step--1">
+                  <bdi>{effect}</bdi>
+                </p>
+              ) : null}
+              {unchanged ? (
+                <p className="text-step--1 text-muted-foreground">
+                  {t("changeDepartureNothing")}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="grid gap-1.5">
+              <Field
+                htmlFor={`departure-note-${stay.stayId}`}
+                label={t("changeBookingNote")}
+              >
+                <Textarea
+                  id={`departure-note-${stay.stayId}`}
+                  maxLength={NOTE.max}
+                  minLength={NOTE.min}
+                  name="note"
+                  onChange={(event) => setNote(event.target.value)}
+                  rows={2}
+                  value={note}
+                />
+              </Field>
+              <p className="text-step--1 text-muted-foreground">
+                {t("changeBookingNoteHint")}
+              </p>
+            </div>
+
+            {outcomeMessage ? (
+              <div aria-live="polite">
+                <FormError>{outcomeMessage}</FormError>
+              </div>
+            ) : null}
           </div>
 
-          {outcomeMessage ? (
-            <div aria-live="polite">
-              <FormError>{outcomeMessage}</FormError>
-            </div>
-          ) : null}
-
-          <DialogFooter>
+          <DialogFooter className={cn(ticketFooterClassName, "md:col-span-2")}>
             <DialogClose asChild>
               <Button type="button" variant="outline">
                 {t("keepAsItWas")}

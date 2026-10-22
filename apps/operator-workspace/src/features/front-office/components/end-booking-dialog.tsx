@@ -9,13 +9,13 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Fact,
-  FactList,
+  DialogTicket,
   Field,
   FormError,
   Textarea,
+  ticketBodyClassName,
+  ticketDialogClassName,
+  ticketFooterClassName,
 } from "@ranza/ui";
 import {
   cancelBooking,
@@ -109,86 +109,86 @@ export function EndBookingDialog({
       }}
       open={open}
     >
-      <DialogContent>
-        <form action={act} className="grid gap-4">
-          <DialogHeader>
-            <DialogTitle>
-              {kind === "cancel" ? t("cancelBookingTitle") : t("noShowTitle")}
-            </DialogTitle>
+      <DialogContent className={ticketDialogClassName}>
+        <form action={act} className="grid">
+          <DialogTicket
+            art={`/illustrations/dialogs/${kind === "cancel" ? "cancel-booking" : "no-show"}.svg`}
+            eyebrow={
+              kind === "cancel" ? t("cancelBookingTitle") : t("noShowTitle")
+            }
+            heading={guestName}
+            stub={[
+              {
+                label: t("reservation"),
+                value: <span className="font-mono">{reference}</span>,
+              },
+              { label: t("unit"), value: <bdi>{unitLabel}</bdi> },
+            ]}
+          />
+
+          <div className={ticketBodyClassName}>
             <DialogDescription>
               {kind === "cancel"
                 ? t("cancelBookingSummary")
                 : t("noShowSummary")}
             </DialogDescription>
-          </DialogHeader>
 
-          <FactList className="gap-4 pt-0">
-            <Fact label={t("guest")}>
-              <bdi>{guestName}</bdi>
-            </Fact>
-            <Fact label={t("reservation")}>
-              <span className="font-mono tabular-nums">{reference}</span>
-            </Fact>
-            <Fact label={t("unit")}>
-              <bdi className="tabular-nums">{unitLabel}</bdi>
-            </Fact>
-          </FactList>
+            <input name="reservation" type="hidden" value={reservationId} />
+            <input name="locale" type="hidden" value={locale} />
 
-          <input name="reservation" type="hidden" value={reservationId} />
-          <input name="locale" type="hidden" value={locale} />
+            {kind === "no_show" && expected ? (
+              <p className="text-step--1 font-medium">
+                {t(
+                  expected.passed === true
+                    ? "noShowExpectedPassed"
+                    : expected.passed === false
+                      ? "noShowExpectedPending"
+                      : "noShowExpectedGiven",
+                  { time: expected.time },
+                )}
+              </p>
+            ) : null}
 
-          {kind === "no_show" && expected ? (
-            <p className="text-step--1 font-medium">
-              {t(
-                expected.passed === true
-                  ? "noShowExpectedPassed"
-                  : expected.passed === false
-                    ? "noShowExpectedPending"
-                    : "noShowExpectedGiven",
-                { time: expected.time },
-              )}
-            </p>
-          ) : null}
-
-          {kind === "cancel" ? (
-            <div className="grid gap-2">
-              <Field htmlFor={`cancel-${reservationId}`} label={t("reason")}>
-                <Textarea
-                  autoFocus
-                  id={`cancel-${reservationId}`}
-                  maxLength={REASON.max}
-                  minLength={REASON.min}
-                  name="reason"
-                  onChange={(event) => setReason(event.target.value)}
-                  required
-                  rows={3}
-                  value={reason}
-                />
-              </Field>
-              {/* The reasons a desk gives most, one press to fill the box. */}
-              <div className="flex flex-wrap gap-1.5">
-                {PRESET_REASONS.map((preset) => (
-                  <Button
-                    key={preset}
-                    onClick={() => setReason(t(preset))}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    {t(preset)}
-                  </Button>
-                ))}
+            {kind === "cancel" ? (
+              <div className="grid gap-2">
+                <Field htmlFor={`cancel-${reservationId}`} label={t("reason")}>
+                  <Textarea
+                    autoFocus
+                    id={`cancel-${reservationId}`}
+                    maxLength={REASON.max}
+                    minLength={REASON.min}
+                    name="reason"
+                    onChange={(event) => setReason(event.target.value)}
+                    required
+                    rows={3}
+                    value={reason}
+                  />
+                </Field>
+                {/* The reasons a desk gives most, one press to fill the box. */}
+                <div className="flex flex-wrap gap-1.5">
+                  {PRESET_REASONS.map((preset) => (
+                    <Button
+                      key={preset}
+                      onClick={() => setReason(t(preset))}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      {t(preset)}
+                    </Button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : null}
+            ) : null}
 
-          {message ? (
-            <div aria-live="polite">
-              <FormError>{message}</FormError>
-            </div>
-          ) : null}
+            {message ? (
+              <div aria-live="polite">
+                <FormError>{message}</FormError>
+              </div>
+            ) : null}
+          </div>
 
-          <DialogFooter>
+          <DialogFooter className={ticketFooterClassName}>
             <DialogClose asChild>
               <Button type="button" variant="outline">
                 {t("keepBooking")}

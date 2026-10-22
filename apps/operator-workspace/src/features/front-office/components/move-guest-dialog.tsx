@@ -6,16 +6,14 @@ import { formatMoney, type SupportedLocale } from "@ranza/i18n";
 import type { MovePreview } from "@ranza/reservations";
 import {
   Button,
+  cn,
   Combobox,
   Dialog,
   DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Fact,
-  FactList,
+  DialogTicket,
   Field,
   FormError,
   Select,
@@ -24,6 +22,10 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea,
+  ticketBodyClassName,
+  ticketDialogWideClassName,
+  ticketFooterClassName,
+  ticketWideFormClassName,
 } from "@ranza/ui";
 import { moveGuest, type MoveGuestOutcome } from "../../../server/front-office";
 import { usePickerLabels } from "../../../lib/picker-labels";
@@ -277,123 +279,123 @@ export function MoveGuestDialog({
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto">
-        <form className="grid gap-4" onSubmit={submitWithoutReset(act)}>
-          <DialogHeader>
-            <DialogTitle>{t("moveGuest")}</DialogTitle>
+      <DialogContent className={cn(ticketDialogWideClassName, "max-h-[90dvh]")}>
+        <form
+          className={ticketWideFormClassName}
+          onSubmit={submitWithoutReset(act)}
+        >
+          <DialogTicket
+            art="/illustrations/dialogs/move-guest.svg"
+            eyebrow={t("moveGuest")}
+            heading={stay.guestName}
+            stub={[{ label: t("unit"), value: <bdi>{stay.unitLabel}</bdi> }]}
+          />
+
+          <div className={cn(ticketBodyClassName, "md:pt-14")}>
             <DialogDescription>{t("moveGuestSummary")}</DialogDescription>
-          </DialogHeader>
 
-          <FactList className="gap-4 pt-0">
-            <Fact label={t("guest")}>
-              <bdi>{stay.guestName}</bdi>
-            </Fact>
-            <Fact label={t("unit")}>
-              <bdi className="tabular-nums">{stay.unitLabel}</bdi>
-            </Fact>
-          </FactList>
+            {move ? (
+              <MoveSummary
+                conflicts={known}
+                from={{ place: stay.unitLabel, period: null }}
+                to={{
+                  place: chosen
+                    ? unitLabel(chosen.roomName, chosen.unitName)
+                    : (move?.unitLabel ?? "—"),
+                  period: null,
+                }}
+              />
+            ) : null}
 
-          {move ? (
-            <MoveSummary
-              conflicts={known}
-              from={{ place: stay.unitLabel, period: null }}
-              to={{
-                place: chosen
-                  ? unitLabel(chosen.roomName, chosen.unitName)
-                  : (move?.unitLabel ?? "—"),
-                period: null,
-              }}
-            />
-          ) : null}
+            <input name="stay" type="hidden" value={stay.stayId} />
+            <input name="locale" type="hidden" value={locale} />
+            <input name="version" type="hidden" value={pinned ?? ""} />
 
-          <input name="stay" type="hidden" value={stay.stayId} />
-          <input name="locale" type="hidden" value={locale} />
-          <input name="version" type="hidden" value={pinned ?? ""} />
-
-          <Field htmlFor={`move-unit-${stay.stayId}`} label={t("unit")}>
-            <Combobox
-              disabled={preview === null}
-              id={`move-unit-${stay.stayId}`}
-              labels={unitLabels}
-              name="unit"
-              onValueChange={setUnitId}
-              options={unitOptions}
-              required
-              value={preview === null && !move?.unitLabel ? "" : unitId}
-            />
-          </Field>
-
-          <Field
-            htmlFor={`move-reason-${stay.stayId}`}
-            label={t("moveGuestReason")}
-          >
-            <Select
-              name="reason"
-              onValueChange={setReason}
-              required
-              value={reason}
-            >
-              <SelectTrigger
-                className="w-full"
-                id={`move-reason-${stay.stayId}`}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {REASONS.map((key) => (
-                  <SelectItem key={key} value={key}>
-                    {t(`moveReason.${key}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-
-          <div className="grid gap-1.5">
-            <Field
-              htmlFor={`move-note-${stay.stayId}`}
-              label={t("changeBookingNote")}
-            >
-              <Textarea
-                id={`move-note-${stay.stayId}`}
-                maxLength={NOTE.max}
-                minLength={NOTE.min}
-                name="note"
-                onChange={(event) => setNote(event.target.value)}
-                required={reason === "other"}
-                rows={2}
-                value={note}
+            <Field htmlFor={`move-unit-${stay.stayId}`} label={t("unit")}>
+              <Combobox
+                disabled={preview === null}
+                id={`move-unit-${stay.stayId}`}
+                labels={unitLabels}
+                name="unit"
+                onValueChange={setUnitId}
+                options={unitOptions}
+                required
+                value={preview === null && !move?.unitLabel ? "" : unitId}
               />
             </Field>
-            <p className="text-step--1 text-muted-foreground">
-              {noteMissing
-                ? t("moveGuestNoteRequired")
-                : t("changeBookingNoteHint")}
-            </p>
-          </div>
 
-          <div aria-live="polite" className="grid gap-2">
-            {read.state === "loading" ? (
+            <Field
+              htmlFor={`move-reason-${stay.stayId}`}
+              label={t("moveGuestReason")}
+            >
+              <Select
+                name="reason"
+                onValueChange={setReason}
+                required
+                value={reason}
+              >
+                <SelectTrigger
+                  className="w-full"
+                  id={`move-reason-${stay.stayId}`}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {REASONS.map((key) => (
+                    <SelectItem key={key} value={key}>
+                      {t(`moveReason.${key}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <div className="grid gap-1.5">
+              <Field
+                htmlFor={`move-note-${stay.stayId}`}
+                label={t("changeBookingNote")}
+              >
+                <Textarea
+                  id={`move-note-${stay.stayId}`}
+                  maxLength={NOTE.max}
+                  minLength={NOTE.min}
+                  name="note"
+                  onChange={(event) => setNote(event.target.value)}
+                  required={reason === "other"}
+                  rows={2}
+                  value={note}
+                />
+              </Field>
               <p className="text-step--1 text-muted-foreground">
-                {t("changeBookingChecking")}
+                {noteMissing
+                  ? t("moveGuestNoteRequired")
+                  : t("changeBookingNoteHint")}
               </p>
-            ) : null}
-            {readMessage ? <FormError>{readMessage}</FormError> : null}
-            {blocked ? <FormError>{blocked}</FormError> : null}
-            {price && !blocked && !readMessage ? (
-              <p className="rounded-lg border bg-muted/40 px-3 py-2 text-step--1">
-                <bdi>{price}</bdi>
-              </p>
+            </div>
+
+            <div aria-live="polite" className="grid gap-2">
+              {read.state === "loading" ? (
+                <p className="text-step--1 text-muted-foreground">
+                  {t("changeBookingChecking")}
+                </p>
+              ) : null}
+              {readMessage ? <FormError>{readMessage}</FormError> : null}
+              {blocked ? <FormError>{blocked}</FormError> : null}
+              {price && !blocked && !readMessage ? (
+                <p className="rounded-lg border bg-muted/40 px-3 py-2 text-step--1">
+                  <bdi>{price}</bdi>
+                </p>
+              ) : null}
+            </div>
+
+            {outcomeMessage ? (
+              <div aria-live="polite">
+                <FormError>{outcomeMessage}</FormError>
+              </div>
             ) : null}
           </div>
 
-          {outcomeMessage ? (
-            <div aria-live="polite">
-              <FormError>{outcomeMessage}</FormError>
-            </div>
-          ) : null}
-
-          <DialogFooter>
+          <DialogFooter className={cn(ticketFooterClassName, "md:col-span-2")}>
             <DialogClose asChild>
               <Button type="button" variant="outline">
                 {t("keepAsItWas")}

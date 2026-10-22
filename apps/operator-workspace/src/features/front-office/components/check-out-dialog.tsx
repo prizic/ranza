@@ -23,17 +23,24 @@ import {
 import {
   Button,
   Checkbox,
+  cn,
   Dialog,
   DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogTicket,
   DialogTrigger,
   Field,
   FormError,
   Label,
   StatusBadge,
   Textarea,
+  TicketNotice,
+  ticketBodyClassName,
+  ticketDialogWideClassName,
+  ticketFooterClassName,
+  ticketWideFormClassName,
 } from "@ranza/ui";
 import {
   checkOutStay,
@@ -41,14 +48,7 @@ import {
 } from "../../../server/front-office";
 import { unitLabel } from "../unit-label";
 import { refusalMessage } from "../refusal";
-import {
-  BillCard,
-  BillLine,
-  DepartureTicket,
-  FolioLink,
-  Illustration,
-  Notice,
-} from "./check-out-parts";
+import { BillCard, BillLine, FolioLink, Illustration } from "./check-out-parts";
 
 /**
  * Checking a Guest out, from a review of their bill (CO-S1-12).
@@ -155,23 +155,12 @@ export function CheckOutDialog({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="gap-0 p-0 sm:max-w-lg md:max-w-[min(56rem,calc(100%-2rem))] [&>[data-slot=dialog-close]]:bg-primary/10">
-        <form
-          action={act}
-          className="grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]"
-        >
-          <DepartureTicket
-            departure={
-              departure.endsOn ? (
-                <time dateTime={departure.endsOn}>
-                  {day(departure.endsOn, locale)}
-                </time>
-              ) : (
-                t("openEnded")
-              )
-            }
-            departureLabel={t("plannedDeparture")}
-            guest={name}
+      <DialogContent className={ticketDialogWideClassName}>
+        <form action={act} className={ticketWideFormClassName}>
+          <DialogTicket
+            art="/illustrations/check-out/key.svg"
+            eyebrow={t("checkOutTitle")}
+            heading={name}
             status={
               departure.overdue ? (
                 <StatusBadge
@@ -193,31 +182,43 @@ export function CheckOutDialog({
                 />
               )
             }
-            title={t("checkOutTitle")}
-            unit={room}
-            unitLabel={t("unit")}
+            stub={[
+              { label: t("unit"), value: <bdi>{room}</bdi> },
+              {
+                label: t("plannedDeparture"),
+                value: departure.endsOn ? (
+                  <time dateTime={departure.endsOn}>
+                    {day(departure.endsOn, locale)}
+                  </time>
+                ) : (
+                  t("openEnded")
+                ),
+              },
+            ]}
           >
             {departure.overdue && departure.endsOn ? (
-              <Notice icon={AlarmClock} tone="warning">
+              <TicketNotice icon={AlarmClock} tone="warning">
                 {t("checkOutOverdue", {
                   count: departure.overdueDays,
                   date: day(departure.endsOn, locale),
                 })}
-              </Notice>
+              </TicketNotice>
             ) : null}
 
             {unpriced ? (
-              <Notice icon={Info} tone="info">
+              <TicketNotice icon={Info} tone="info">
                 {t("checkOutUnpriced")}
-              </Notice>
+              </TicketNotice>
             ) : null}
 
             {departure.roomWillBeDirty ? (
-              <Notice art="housekeeping">{t("checkOutRoomDirty")}</Notice>
+              <TicketNotice art="/illustrations/check-out/housekeeping.svg">
+                {t("checkOutRoomDirty")}
+              </TicketNotice>
             ) : null}
-          </DepartureTicket>
+          </DialogTicket>
 
-          <div className="grid content-start gap-4 p-6 md:pt-14">
+          <div className={cn(ticketBodyClassName, "md:pt-14")}>
             <BillCard
               amount={
                 departure.folioId ? (
@@ -367,7 +368,7 @@ export function CheckOutDialog({
             </DialogDescription>
           </div>
 
-          <DialogFooter className="bottom-0 mx-0 mb-0 border-t px-6 py-4 md:col-span-2">
+          <DialogFooter className={cn(ticketFooterClassName, "md:col-span-2")}>
             <DialogClose asChild>
               <Button type="button" variant="outline">
                 {t("keepInHouse")}
