@@ -209,6 +209,20 @@ export function houseFlow(desk: DeskCard, occupancy: OccupancyCard): HouseFlow {
   };
 }
 
+/**
+ * What the guests due out owe in all, or null when the viewer may not see
+ * balances (TD-S2-04): a total of nothing must not read as "nobody owes".
+ */
+export function owedByDepartures(
+  departures: readonly DepartureRow[],
+): number | null {
+  const balances = departures.flatMap((d) =>
+    d.balance ? [d.balance.amountMinor] : [],
+  );
+  if (balances.length === 0) return null;
+  return balances.reduce((sum, amount) => sum + Math.max(0, amount), 0);
+}
+
 export function countsByState(
   rooms: readonly DeskRoom[],
 ): Record<RoomState, number> {

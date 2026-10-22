@@ -289,6 +289,92 @@ describe("the timeline", () => {
     expect(within(flow).getByText("Due out today")).toBeInTheDocument();
   });
 
+  describe("a_long_due_out_list_shows_the_most_urgent_few_and_opens_into_groups", () => {
+    function crowded(overdue: number, leavingToday: number) {
+      const base = summary();
+      if (base.desk?.status !== "ok") throw new Error("fixture has a desk");
+      const rows = [
+        ...Array.from({ length: overdue }, (_, i) =>
+          leaving(`Late ${i}`, `4${String(i).padStart(2, "0")}`, true),
+        ),
+        ...Array.from({ length: leavingToday }, (_, i) =>
+          leaving(`Today ${i}`, `5${String(i).padStart(2, "0")}`, false),
+        ),
+      ];
+      return summary({
+        desk: {
+          status: "ok",
+          data: { ...base.desk.data, departures: rows },
+        },
+      });
+    }
+
+    it("folds_to_six_rows_and_still_counts_everybody", () => {
+      view(crowded(7, 3));
+      const flow = screen.getByRole("region", { name: "Today's flow" });
+      expect(within(flow).getAllByText(/^Overdue since/)).toHaveLength(6);
+      expect(within(flow).queryByText("Today 0")).toBeNull();
+      expect(within(flow).getByText("7 overdue")).toBeInTheDocument();
+      expect(within(flow).getByText(/3 leave today/)).toBeInTheDocument();
+      expect(
+        within(flow).getByRole("button", { name: "Show 4 more" }),
+      ).toHaveAttribute("aria-expanded", "false");
+    });
+
+    it("opens_into_overdue_and_leaving_today_and_folds_back", () => {
+      view(crowded(7, 3));
+      const flow = screen.getByRole("region", { name: "Today's flow" });
+      fireEvent.click(
+        within(flow).getByRole("button", { name: "Show 4 more" }),
+      );
+      expect(within(flow).getAllByText(/^Overdue since/)).toHaveLength(7);
+      expect(within(flow).getByText("Today 2")).toBeInTheDocument();
+      expect(
+        within(flow).getByRole("heading", { name: "Overdue · 7" }),
+      ).toBeInTheDocument();
+      expect(
+        within(flow).getByRole("heading", { name: "Leaves today · 3" }),
+      ).toBeInTheDocument();
+      fireEvent.click(within(flow).getByRole("button", { name: "Show fewer" }));
+      expect(within(flow).queryByText("Today 2")).toBeNull();
+    });
+
+    it("shows_what_a_guest_owes_beside_the_name_and_a_total_only_with_balances", () => {
+      const base = summary();
+      if (base.desk?.status !== "ok") throw new Error("fixture has a desk");
+      const withBalance = {
+        ...leaving("Kaya", "103", true),
+        balance: { amountMinor: 733000, currency: "TRY" },
+      };
+      view(
+        summary({
+          desk: {
+            status: "ok",
+            data: { ...base.desk.data, departures: [withBalance] },
+          },
+        }),
+      );
+      const flow = screen.getByRole("region", { name: "Today's flow" });
+      expect(within(flow).getByText("TRY 7,330.00")).toBeInTheDocument();
+      expect(within(flow).getByText(/TRY 7,330.00 owed/)).toBeInTheDocument();
+      cleanup();
+
+      view(summary());
+      expect(
+        within(
+          screen.getByRole("region", { name: "Today's flow" }),
+        ).queryByText(/owed/),
+      ).toBeNull();
+    });
+
+    it("a_short_list_is_shown_whole_with_nothing_to_open", () => {
+      view(crowded(4, 2));
+      const flow = screen.getByRole("region", { name: "Today's flow" });
+      expect(within(flow).getByText("Today 1")).toBeInTheDocument();
+      expect(within(flow).queryByRole("button", { name: /Show/ })).toBeNull();
+    });
+  });
+
   it("offers_check_in_only_where_the_room_is_ready_and_the_viewer_may", () => {
     view(summary());
     const flow = screen.getByRole("region", { name: "Today's flow" });

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 import Link from "next/link";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { formatNumber, type SupportedLocale } from "@ranza/i18n";
 import { cn } from "@ranza/ui";
@@ -28,6 +29,7 @@ import {
   countsByState,
   houseFlow,
   isToCome,
+  owedByDepartures,
   readinessOf,
   roomsByName,
   toMinutes,
@@ -545,6 +547,16 @@ function ArrivalChip({
   );
 }
 
+/** Departures shown before "show more": the most urgent, on one glance. */
+const DUE_OUT_COLLAPSED = 6;
+
+/**
+ * Who is due out, as rows rather than cards: a day can end with a dozen
+ * guests past their day to leave, and a card each, with a button each, pushed
+ * the timeline off the screen. Collapsed it is the most urgent few and a line
+ * that still counts the rest; expanded it is everybody, overdue apart from
+ * those leaving today.
+ */
 function DueOut({
   changed,
   currency,
@@ -561,62 +573,179 @@ function DueOut({
   scope: LayoutProps["scope"];
 }) {
   const t = useTranslations("todayLayouts");
+  const [expanded, setExpanded] = useState(false);
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const listId = useId();
+
+  const overdue = departures.filter((d) => d.overdue);
+  const leavingToday = departures.filter((d) => !d.overdue);
+  const owed = owedByDepartures(departures);
+  const collapsible = departures.length > DUE_OUT_COLLAPSED;
+  const showAll = expanded || !collapsible;
+  const n = (value: number) => formatNumber(value, locale);
+
+  const toggle = () => {
+    setExpanded((open) => !open);
+    // Folding a long list lifts its own button out from under the pointer.
+    if (expanded) sectionRef.current?.scrollIntoView({ block: "nearest" });
+  };
+
+  const rowProps = { changed, currency, locale, reviews, scope };
+  const groups =
+    showAll && overdue.length > 0 && leavingToday.length > 0
+      ? [
+          { key: "overdue", label: t("flow.overdueGroup"), rows: overdue },
+          { key: "today", label: t("flow.leavesToday"), rows: leavingToday },
+        ]
+      : [
+          {
+            key: "all",
+            label: null,
+            rows: showAll ? departures : departures.slice(0, DUE_OUT_COLLAPSED),
+          },
+        ];
+
   return (
-    <div>
-      <div className="mb-3 flex flex-wrap items-baseline gap-x-3">
-        <Eyebrow>{t("flow.dueOut")}</Eyebrow>
-        <span className="text-xs text-muted-foreground">
-          {t("flow.dueOutHint")}
-        </span>
+    <div ref={sectionRef}>
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+        <div className="flex flex-wrap items-baseline gap-x-3">
+          <Eyebrow>{t("flow.dueOut")}</Eyebrow>
+          <span className="text-xs text-muted-foreground">
+            {t("flow.dueOutHint")}
+          </span>
+        </div>
+        {departures.length > 0 ? (
+          <p className="text-xs text-muted-foreground">
+            {overdue.length > 0 ? (
+              <span className="font-semibold text-danger">
+                {t("flow.summary.overdue", { count: overdue.length })}
+              </span>
+            ) : null}
+            {overdue.length > 0 && leavingToday.length > 0 ? " · " : null}
+            {leavingToday.length > 0
+              ? t("flow.summary.leavingToday", { count: leavingToday.length })
+              : null}
+            {owed !== null && owed > 0
+              ? ` · ${t("flow.summary.owed", { amount: money([{ amountMinor: owed, currency }], currency, locale) })}`
+              : null}
+          </p>
+        ) : null}
       </div>
       {departures.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("flow.nobodyDue")}</p>
       ) : (
-        <ul className="flex flex-wrap gap-3">
-          {departures.map((departure) => (
-            <li
-              className={cn(
-                "flex min-w-56 flex-col gap-1.5 rounded-xl border border-border border-s-4 bg-card px-3 py-2 shadow-xs",
-                departure.overdue ? "border-s-danger" : "border-s-primary",
-              )}
-              key={departure.stayId}
-            >
-              <span className="flex items-baseline justify-between gap-3">
-                <bdi className="text-sm font-semibold">
-                  {departure.guestName}
-                </bdi>
-                <bdi className="text-xs text-muted-foreground">
-                  {unitLabel(departure.unit.roomName, departure.unit.unitName)}
-                </bdi>
-              </span>
-              <span
-                className={cn(
-                  "text-xs",
-                  departure.overdue
-                    ? "font-semibold text-danger"
-                    : "text-muted-foreground",
-                )}
+        <div className="@container">
+          <div id={listId}>
+            {groups.map((group) => (
+              <section
+                aria-label={group.label ?? t("flow.dueOut")}
+                className="mb-3 last:mb-0"
+                key={group.key}
               >
-                {departure.overdue && departure.endsOn
-                  ? t("flow.overdueSince", {
-                      date: shortDay(departure.endsOn, locale),
-                    })
-                  : t("flow.leavesToday")}
-                {departure.balance && departure.balance.amountMinor !== 0
-                  ? ` · ${t("flow.owes", { amount: money([departure.balance], currency, locale) })}`
-                  : null}
-              </span>
-              <DepartureCommand
-                departure={departure}
-                locale={locale}
-                onChanged={changed}
-                reviews={reviews}
-                scope={scope}
-              />
-            </li>
-          ))}
-        </ul>
+                {group.label ? (
+                  <h3 className="mt-4 mb-1 text-xs font-semibold text-muted-foreground first:mt-0">
+                    {group.label} · {n(group.rows.length)}
+                  </h3>
+                ) : null}
+                <ul className="grid gap-x-8 @2xl:grid-cols-2">
+                  {group.rows.map((departure) => (
+                    <DueOutRow
+                      departure={departure}
+                      key={departure.stayId}
+                      {...rowProps}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+          {collapsible ? (
+            <button
+              aria-controls={listId}
+              aria-expanded={expanded}
+              className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-primary hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              onClick={toggle}
+              type="button"
+            >
+              {expanded
+                ? t("flow.showFewer")
+                : t("flow.showMore", {
+                    count: departures.length - DUE_OUT_COLLAPSED,
+                  })}
+              {expanded ? (
+                <ChevronUp aria-hidden="true" className="size-4" />
+              ) : (
+                <ChevronDown aria-hidden="true" className="size-4" />
+              )}
+            </button>
+          ) : null}
+        </div>
       )}
     </div>
+  );
+}
+
+function DueOutRow({
+  changed,
+  currency,
+  departure,
+  locale,
+  reviews,
+  scope,
+}: {
+  changed: () => void;
+  currency: string;
+  departure: DepartureRow;
+  locale: SupportedLocale;
+  reviews: CheckOutReviews;
+  scope: LayoutProps["scope"];
+}) {
+  const t = useTranslations("todayLayouts");
+  const room = unitLabel(departure.unit.roomName, departure.unit.unitName);
+  const owed =
+    departure.balance && departure.balance.amountMinor > 0
+      ? money([departure.balance], currency, locale)
+      : null;
+  const status =
+    departure.overdue && departure.endsOn
+      ? t("flow.overdueSince", { date: shortDay(departure.endsOn, locale) })
+      : t("flow.leavesToday");
+  return (
+    <li className="@container/row grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-x-3 border-t border-line py-2.5">
+      <bdi
+        className="truncate font-mono text-sm text-muted-foreground"
+        title={room}
+      >
+        {room}
+      </bdi>
+      <div className="grid min-w-0 gap-x-3 @min-[26rem]/row:grid-cols-[minmax(0,1fr)_auto]">
+        <bdi className="min-w-0 truncate text-sm font-semibold">
+          {departure.guestName}
+        </bdi>
+        <span
+          className={cn(
+            "text-xs text-balance @min-[26rem]/row:col-span-2",
+            departure.overdue
+              ? "font-semibold text-danger"
+              : "text-muted-foreground",
+          )}
+        >
+          {status}
+        </span>
+        {owed ? (
+          <span className="text-sm font-medium tabular-nums @min-[26rem]/row:col-start-2 @min-[26rem]/row:row-start-1">
+            <span className="sr-only">{t("flow.owes", { amount: owed })}</span>
+            <span aria-hidden="true">{owed}</span>
+          </span>
+        ) : null}
+      </div>
+      <DepartureCommand
+        departure={departure}
+        locale={locale}
+        onChanged={changed}
+        reviews={reviews}
+        scope={scope}
+      />
+    </li>
   );
 }
