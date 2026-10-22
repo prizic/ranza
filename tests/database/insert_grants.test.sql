@@ -722,7 +722,7 @@ select set_eq(
        and regexp_replace(p.prosrc, '--[^\n]*', '', 'g') ~ 'capability_is_available\s*\('
        and not (n.nspname = 'app' and p.proname = 'capability_is_available')$$,
   array['app.can_use_capability', 'app.resident_can_use_capability',
-        'app.unit_is_ready', 'app.mark_unit_dirty_after_check_out',
+        'app.status_is_ready', 'app.mark_unit_dirty_after_check_out',
         'app.mark_unit_returned_to_service', 'app.mark_unit_dirty_after_move',
         'app.properties_due_for_close', 'app.close_business_day_automatically',
         'app.room_nights_due',

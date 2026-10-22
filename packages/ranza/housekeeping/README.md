@@ -41,9 +41,12 @@ await housekeeping.markUnits(userId, { unitIds, status: "clean" });
   is refused whole. Every room it reaches gets its own audit record,
   `housekeeping.status_changed`, carrying the status it replaced.
 
-"Ready" is `app.unit_is_ready()` in the database, read by the board, the
-arrivals list and check-in alike, so no screen can disagree with another about
-it.
+"Ready" is decided in the database, once: `app.housekeeping_states()` says what a
+set of rooms' status is and `app.status_is_ready()` says whether that status may
+be let. The board applies them to every room in one statement;
+`app.unit_is_ready()`, read by the arrivals list and check-in, applies them to
+one Unit. They are the same two functions, so no screen can disagree with
+another about it.
 
 ## What it does not do
 
