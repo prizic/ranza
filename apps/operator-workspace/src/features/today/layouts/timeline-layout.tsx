@@ -192,11 +192,11 @@ function Figures({
     <ul className="grid grid-cols-2 border-y border-line lg:grid-cols-4">
       {items.map((item) => (
         <li
-          className="border-s border-line first:border-s-0 max-lg:odd:border-s-0"
+          className="border-s border-line first:border-s-0 max-lg:odd:border-s-0 [&:first-child>a]:ps-0 max-lg:[&:nth-child(odd)>a]:ps-0"
           key={item.label}
         >
           <Link
-            className="block px-5 py-6 first:ps-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="block px-5 py-6 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             href={item.href}
           >
             <Eyebrow>{item.label}</Eyebrow>
