@@ -6,6 +6,7 @@ import { formatMoney, type SupportedLocale } from "@ranza/i18n";
 import type { ChangeOption, ChangePreview } from "@ranza/reservations";
 import {
   Button,
+  cn,
   Combobox,
   DateRangeField,
   Dialog,
@@ -13,14 +14,15 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Fact,
-  FactList,
+  DialogTicket,
   Field,
   FormError,
   Input,
   Textarea,
+  ticketBodyClassName,
+  ticketDialogWideClassName,
+  ticketFooterClassName,
+  ticketWideFormClassName,
 } from "@ranza/ui";
 import {
   changeBooking,
@@ -423,209 +425,215 @@ export function ChangeBookingDialog({
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto">
-        <form className="grid gap-4" onSubmit={submitWithoutReset(act)}>
-          <DialogHeader>
-            <DialogTitle>
-              {move ? t("roomCalendar.moveBooking") : t("changeBooking")}
-            </DialogTitle>
+      <DialogContent className={cn(ticketDialogWideClassName, "max-h-[90dvh]")}>
+        <form
+          className={ticketWideFormClassName}
+          onSubmit={submitWithoutReset(act)}
+        >
+          <DialogTicket
+            art="/illustrations/dialogs/change-booking.svg"
+            eyebrow={move ? t("roomCalendar.moveBooking") : t("changeBooking")}
+            heading={booking.guestName}
+            stub={[
+              {
+                label: t("reservation"),
+                value: <span className="font-mono">{booking.reference}</span>,
+              },
+            ]}
+          />
+
+          <div className={cn(ticketBodyClassName, "md:pt-14")}>
             <DialogDescription>
               {move
                 ? t("roomCalendar.moveBookingSummary")
                 : t("changeBookingSummary")}
             </DialogDescription>
-          </DialogHeader>
 
-          <FactList className="gap-4 pt-0">
-            <Fact label={t("guest")}>
-              <bdi>{booking.guestName}</bdi>
-            </Fact>
-            <Fact label={t("reservation")}>
-              <span className="font-mono tabular-nums">
-                {booking.reference}
-              </span>
-            </Fact>
-          </FactList>
-
-          {move || (!unchanged && dates.from !== undefined) ? (
-            // Said for every change and not only a drag: what the booking is
-            // now and what it becomes, before the save (RES-12). The Unit is not
-            // repeated above it as a fact; the editable field below is it.
-            <MoveSummary
-              conflicts={known}
-              from={{
-                place: booking.unitLabel,
-                period: describePeriod(
-                  booking.startsOn,
-                  booking.endsOn,
-                  locale,
-                  words,
-                ),
-              }}
-              to={{
-                place: chosen
-                  ? unitLabel(chosen.roomName, chosen.unitName)
-                  : (move?.to.unitLabel ?? "—"),
-                period: dates.from
-                  ? describePeriod(dates.from, dates.to ?? null, locale, words)
-                  : null,
-              }}
-            />
-          ) : null}
-
-          <input
-            name="reservation"
-            type="hidden"
-            value={booking.reservationId}
-          />
-          <input name="locale" type="hidden" value={locale} />
-          <input name="version" type="hidden" value={pinned ?? ""} />
-          <input
-            name="quotedRateMinor"
-            type="hidden"
-            value={chosen?.nightlyRateMinor ?? ""}
-          />
-          <input
-            name="quotedCurrency"
-            type="hidden"
-            value={
-              chosen?.nightlyRateMinor != null
-                ? (chosen.rateCurrency ?? "")
-                : ""
-            }
-          />
-
-          <div className="grid gap-1.5">
-            <Field
-              htmlFor={`change-dates-${booking.reservationId}`}
-              label={t("stayDates")}
-            >
-              <DateRangeField
-                key={resets}
-                defaultValue={dates}
-                id={`change-dates-${booking.reservationId}`}
-                labels={{
-                  from: t("arrival"),
-                  to: t("departure"),
-                  emptyFrom: t("bookingAddDate"),
-                  emptyTo: t("bookingOpenEnded"),
-                  pickFrom: t("bookingPickArrival"),
-                  pickTo: t("bookingPickDeparture"),
-                  clear: t("dateRangeClear"),
-                  done: t("dateRangeDone"),
-                  span: (nights) => t("stayNights", { count: nights }),
+            {move || (!unchanged && dates.from !== undefined) ? (
+              // Said for every change and not only a drag: what the booking is
+              // now and what it becomes, before the save (RES-12). The Unit is not
+              // repeated above it as a fact; the editable field below is it.
+              <MoveSummary
+                conflicts={known}
+                from={{
+                  place: booking.unitLabel,
+                  period: describePeriod(
+                    booking.startsOn,
+                    booking.endsOn,
+                    locale,
+                    words,
+                  ),
                 }}
-                locale={locale}
-                minSpan={1}
-                names={{ from: "startsOn", to: "endsOn" }}
-                onChange={setDates}
+                to={{
+                  place: chosen
+                    ? unitLabel(chosen.roomName, chosen.unitName)
+                    : (move?.to.unitLabel ?? "—"),
+                  period: dates.from
+                    ? describePeriod(
+                        dates.from,
+                        dates.to ?? null,
+                        locale,
+                        words,
+                      )
+                    : null,
+                }}
+              />
+            ) : null}
+
+            <input
+              name="reservation"
+              type="hidden"
+              value={booking.reservationId}
+            />
+            <input name="locale" type="hidden" value={locale} />
+            <input name="version" type="hidden" value={pinned ?? ""} />
+            <input
+              name="quotedRateMinor"
+              type="hidden"
+              value={chosen?.nightlyRateMinor ?? ""}
+            />
+            <input
+              name="quotedCurrency"
+              type="hidden"
+              value={
+                chosen?.nightlyRateMinor != null
+                  ? (chosen.rateCurrency ?? "")
+                  : ""
+              }
+            />
+
+            <div className="grid gap-1.5">
+              <Field
+                htmlFor={`change-dates-${booking.reservationId}`}
+                label={t("stayDates")}
+              >
+                <DateRangeField
+                  key={resets}
+                  defaultValue={dates}
+                  id={`change-dates-${booking.reservationId}`}
+                  labels={{
+                    from: t("arrival"),
+                    to: t("departure"),
+                    emptyFrom: t("bookingAddDate"),
+                    emptyTo: t("bookingOpenEnded"),
+                    pickFrom: t("bookingPickArrival"),
+                    pickTo: t("bookingPickDeparture"),
+                    clear: t("dateRangeClear"),
+                    done: t("dateRangeDone"),
+                    span: (nights) => t("stayNights", { count: nights }),
+                  }}
+                  locale={locale}
+                  minSpan={1}
+                  names={{ from: "startsOn", to: "endsOn" }}
+                  onChange={setDates}
+                  required
+                  today={preview?.today}
+                />
+              </Field>
+              {beforeToday && known.length === 0 ? (
+                <p className="text-step--1 text-destructive">
+                  {t("changeBookingBeforeToday")}
+                </p>
+              ) : null}
+            </div>
+
+            {move ? null : (
+              <div className="grid gap-1.5 sm:max-w-48">
+                <Field
+                  htmlFor={`change-arrival-${booking.reservationId}`}
+                  label={t("expectedArrival")}
+                >
+                  <Input
+                    aria-describedby={`change-arrival-hint-${booking.reservationId}`}
+                    id={`change-arrival-${booking.reservationId}`}
+                    name="expectedArrival"
+                    onChange={(event) => setArrival(event.target.value)}
+                    type="time"
+                    value={arrival}
+                  />
+                </Field>
+                <p
+                  className="text-step--1 text-muted-foreground"
+                  id={`change-arrival-hint-${booking.reservationId}`}
+                >
+                  {t("expectedArrivalHint")}
+                </p>
+              </div>
+            )}
+
+            <Field
+              htmlFor={`change-unit-${booking.reservationId}`}
+              label={t("unit")}
+            >
+              <Combobox
+                disabled={preview === null}
+                id={`change-unit-${booking.reservationId}`}
+                labels={unitLabels}
+                name="unit"
+                onValueChange={setUnitId}
+                options={unitOptions}
                 required
-                today={preview?.today}
+                value={preview === null && !move?.to.unitLabel ? "" : unitId}
               />
             </Field>
-            {beforeToday && known.length === 0 ? (
-              <p className="text-step--1 text-destructive">
-                {t("changeBookingBeforeToday")}
-              </p>
-            ) : null}
-          </div>
 
-          {move ? null : (
-            <div className="grid gap-1.5 sm:max-w-48">
+            <div aria-live="polite" className="grid gap-2">
+              {read.state === "loading" ? (
+                <p className="text-step--1 text-muted-foreground">
+                  {t("changeBookingChecking")}
+                </p>
+              ) : null}
+              {readMessage ? <FormError>{readMessage}</FormError> : null}
+              {blocked ? <FormError>{blocked}</FormError> : null}
+              {currentNotTaking ? (
+                <p className="text-step--1 text-muted-foreground">
+                  {t("changeBookingCurrentNotTaking")}
+                </p>
+              ) : null}
+              {price && !blocked ? (
+                <p className="rounded-lg border bg-muted/40 px-3 py-2 text-step--1">
+                  <bdi>{price}</bdi>
+                </p>
+              ) : null}
+              {unchanged ? (
+                <p className="text-step--1 text-muted-foreground">
+                  {t("changeBookingNothing")}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="grid gap-1.5">
               <Field
-                htmlFor={`change-arrival-${booking.reservationId}`}
-                label={t("expectedArrival")}
+                htmlFor={`change-note-${booking.reservationId}`}
+                label={t("changeBookingNote")}
               >
-                <Input
-                  aria-describedby={`change-arrival-hint-${booking.reservationId}`}
-                  id={`change-arrival-${booking.reservationId}`}
-                  name="expectedArrival"
-                  onChange={(event) => setArrival(event.target.value)}
-                  type="time"
-                  value={arrival}
+                <Textarea
+                  aria-describedby={`change-note-hint-${booking.reservationId}`}
+                  id={`change-note-${booking.reservationId}`}
+                  maxLength={NOTE.max}
+                  minLength={NOTE.min}
+                  name="note"
+                  onChange={(event) => setNote(event.target.value)}
+                  rows={2}
+                  value={note}
                 />
               </Field>
               <p
                 className="text-step--1 text-muted-foreground"
-                id={`change-arrival-hint-${booking.reservationId}`}
+                id={`change-note-hint-${booking.reservationId}`}
               >
-                {t("expectedArrivalHint")}
+                {t("changeBookingNoteHint")}
               </p>
             </div>
-          )}
 
-          <Field
-            htmlFor={`change-unit-${booking.reservationId}`}
-            label={t("unit")}
-          >
-            <Combobox
-              disabled={preview === null}
-              id={`change-unit-${booking.reservationId}`}
-              labels={unitLabels}
-              name="unit"
-              onValueChange={setUnitId}
-              options={unitOptions}
-              required
-              value={preview === null && !move?.to.unitLabel ? "" : unitId}
-            />
-          </Field>
-
-          <div aria-live="polite" className="grid gap-2">
-            {read.state === "loading" ? (
-              <p className="text-step--1 text-muted-foreground">
-                {t("changeBookingChecking")}
-              </p>
-            ) : null}
-            {readMessage ? <FormError>{readMessage}</FormError> : null}
-            {blocked ? <FormError>{blocked}</FormError> : null}
-            {currentNotTaking ? (
-              <p className="text-step--1 text-muted-foreground">
-                {t("changeBookingCurrentNotTaking")}
-              </p>
-            ) : null}
-            {price && !blocked ? (
-              <p className="rounded-lg border bg-muted/40 px-3 py-2 text-step--1">
-                <bdi>{price}</bdi>
-              </p>
-            ) : null}
-            {unchanged ? (
-              <p className="text-step--1 text-muted-foreground">
-                {t("changeBookingNothing")}
-              </p>
+            {outcomeMessage ? (
+              <div aria-live="polite">
+                <FormError>{outcomeMessage}</FormError>
+              </div>
             ) : null}
           </div>
 
-          <div className="grid gap-1.5">
-            <Field
-              htmlFor={`change-note-${booking.reservationId}`}
-              label={t("changeBookingNote")}
-            >
-              <Textarea
-                aria-describedby={`change-note-hint-${booking.reservationId}`}
-                id={`change-note-${booking.reservationId}`}
-                maxLength={NOTE.max}
-                minLength={NOTE.min}
-                name="note"
-                onChange={(event) => setNote(event.target.value)}
-                rows={2}
-                value={note}
-              />
-            </Field>
-            <p
-              className="text-step--1 text-muted-foreground"
-              id={`change-note-hint-${booking.reservationId}`}
-            >
-              {t("changeBookingNoteHint")}
-            </p>
-          </div>
-
-          {outcomeMessage ? (
-            <div aria-live="polite">
-              <FormError>{outcomeMessage}</FormError>
-            </div>
-          ) : null}
-
-          <DialogFooter>
+          <DialogFooter className={cn(ticketFooterClassName, "md:col-span-2")}>
             <DialogClose asChild>
               <Button type="button" variant="outline">
                 {move ? t("keepAsItWas") : t("keepBooking")}

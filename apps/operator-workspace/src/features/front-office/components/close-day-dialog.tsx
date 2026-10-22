@@ -11,12 +11,14 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogTicket,
   DialogTrigger,
   Field,
   FormError,
   Textarea,
+  ticketBodyClassName,
+  ticketDialogClassName,
+  ticketFooterClassName,
 } from "@ranza/ui";
 import {
   closeBusinessDay,
@@ -76,7 +78,7 @@ export function CloseDayDialog(props: CloseDayFormProps) {
         </Button>
       </DialogTrigger>
 
-      <DialogContent>
+      <DialogContent className={ticketDialogClassName}>
         <CloseDayForm {...props} />
       </DialogContent>
     </Dialog>
@@ -142,17 +144,21 @@ function CloseDayForm({
                   : null;
 
   return (
-    <form action={act} className="grid gap-4">
-      <DialogHeader>
-        <DialogTitle>
-          {all
+    <form action={act} className="grid">
+      <DialogTicket
+        art="/illustrations/dialogs/close-day.svg"
+        eyebrow={
+          all
             ? t("closeDay.dialogAllTitle", {
                 n: all.count,
                 from: all.from,
                 to: all.to,
               })
-            : t("closeDay.dialogTitle", { date: dayLabel })}
-        </DialogTitle>
+            : t("closeDay.dialogTitle", { date: dayLabel })
+        }
+      />
+
+      <div className={ticketBodyClassName}>
         <DialogDescription>
           {all
             ? openItems > 0
@@ -162,69 +168,69 @@ function CloseDayForm({
               ? t("closeDay.dialogOpen", { n: openItems })
               : t("closeDay.dialogQuiet")}
         </DialogDescription>
-      </DialogHeader>
 
-      {items.length > 0 ? (
-        <div className="grid gap-1.5 text-step--1">
-          <p className="font-medium">{t("closeDay.dialogItems")}</p>
-          <ul className="grid gap-0.5">
-            {items.map((item) => (
-              <li key={`${item.name}:${item.detail}`}>
-                <bdi className="font-medium">{item.name}</bdi>
-                <span className="text-muted-foreground">
-                  {" · "}
-                  {item.detail}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+        {items.length > 0 ? (
+          <div className="grid gap-1.5 text-step--1">
+            <p className="font-medium">{t("closeDay.dialogItems")}</p>
+            <ul className="grid gap-0.5">
+              {items.map((item) => (
+                <li key={`${item.name}:${item.detail}`}>
+                  <bdi className="font-medium">{item.name}</bdi>
+                  <span className="text-muted-foreground">
+                    {" · "}
+                    {item.detail}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
-      <p className="text-step--1">
-        {t("closeDay.dialogCharges")}
-        {charges ? (
+        <p className="text-step--1">
+          {t("closeDay.dialogCharges")}
+          {charges ? (
+            <>
+              {" "}
+              <bdi className="font-medium tabular-nums">{charges}</bdi>
+            </>
+          ) : null}
+        </p>
+
+        <input name="locale" type="hidden" value={locale} />
+        <input name="property" type="hidden" value={propertyId} />
+        <input name="day" type="hidden" value={businessDate} />
+
+        {openItems > 0 ? (
           <>
-            {" "}
-            <bdi className="font-medium tabular-nums">{charges}</bdi>
+            <Field htmlFor="close-day-reason" label={t("reason")}>
+              <Textarea
+                aria-describedby="close-day-reason-hint"
+                autoFocus
+                id="close-day-reason"
+                maxLength={REASON.max}
+                minLength={REASON.min}
+                name="reason"
+                onChange={(event) => setReason(event.target.value)}
+                required
+                rows={3}
+                value={reason}
+              />
+            </Field>
+            <p
+              className="text-step--1 text-muted-foreground"
+              id="close-day-reason-hint"
+            >
+              {t("closeDay.reasonHint")}
+            </p>
           </>
         ) : null}
-      </p>
 
-      <input name="locale" type="hidden" value={locale} />
-      <input name="property" type="hidden" value={propertyId} />
-      <input name="day" type="hidden" value={businessDate} />
+        <p className="text-step--1">{t("closeDay.final")}</p>
 
-      {openItems > 0 ? (
-        <>
-          <Field htmlFor="close-day-reason" label={t("reason")}>
-            <Textarea
-              aria-describedby="close-day-reason-hint"
-              autoFocus
-              id="close-day-reason"
-              maxLength={REASON.max}
-              minLength={REASON.min}
-              name="reason"
-              onChange={(event) => setReason(event.target.value)}
-              required
-              rows={3}
-              value={reason}
-            />
-          </Field>
-          <p
-            className="text-step--1 text-muted-foreground"
-            id="close-day-reason-hint"
-          >
-            {t("closeDay.reasonHint")}
-          </p>
-        </>
-      ) : null}
+        {message ? <FormError>{message}</FormError> : null}
+      </div>
 
-      <p className="text-step--1">{t("closeDay.final")}</p>
-
-      {message ? <FormError>{message}</FormError> : null}
-
-      <DialogFooter>
+      <DialogFooter className={ticketFooterClassName}>
         {dayHasMovedOn ? (
           // The day this was about is closed, or no longer the one waiting:
           // pressing it again could only be refused again, so the only thing

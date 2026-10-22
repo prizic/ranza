@@ -11,14 +11,14 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogTicket,
   DialogTrigger,
-  Fact,
-  FactList,
   Field,
   FormError,
   Textarea,
+  ticketBodyClassName,
+  ticketDialogClassName,
+  ticketFooterClassName,
 } from "@ranza/ui";
 import {
   reverseCheckIn,
@@ -134,7 +134,7 @@ export function UndoCheckInDialog({
         </Button>
       </DialogTrigger>
 
-      <DialogContent>
+      <DialogContent className={ticketDialogClassName}>
         <form
           action={(data) => {
             // Before the write, for the reason above. Nothing is focused yet —
@@ -142,52 +142,46 @@ export function UndoCheckInDialog({
             focusCheckInFor(reservationId);
             act(data);
           }}
-          className="grid gap-4"
+          className="grid"
         >
-          <DialogHeader>
-            <DialogTitle>{t("undoCheckInTitle")}</DialogTitle>
+          <DialogTicket
+            art="/illustrations/dialogs/undo-check-in.svg"
+            eyebrow={t("undoCheckInTitle")}
+            heading={guestName}
+            stub={[{ label: t("unit"), value: <bdi>{unitName}</bdi> }]}
+          />
+
+          <div className={ticketBodyClassName}>
             <DialogDescription>{t("undoCheckInSummary")}</DialogDescription>
-          </DialogHeader>
 
-          {/* Beside the sentence rather than inside it: a name in a template is
-              a name inside another language's grammar, which Turkish and Arabic
-              both inflect and a placeholder cannot. */}
-          <FactList className="gap-4 pt-0">
-            <Fact label={t("guest")}>
-              <bdi>{guestName}</bdi>
-            </Fact>
-            <Fact label={t("unit")}>
-              <bdi className="tabular-nums">{unitName}</bdi>
-            </Fact>
-          </FactList>
+            <input name="stay" type="hidden" value={stayId} />
+            <input name="locale" type="hidden" value={locale} />
 
-          <input name="stay" type="hidden" value={stayId} />
-          <input name="locale" type="hidden" value={locale} />
+            <Field htmlFor={`reason-${stayId}`} label={t("reason")}>
+              <Textarea
+                aria-describedby={`reason-hint-${stayId}`}
+                autoFocus
+                id={`reason-${stayId}`}
+                maxLength={REASON.max}
+                minLength={REASON.min}
+                name="reason"
+                onChange={(event) => setReason(event.target.value)}
+                required
+                rows={3}
+                value={reason}
+              />
+            </Field>
+            <p
+              className="text-step--1 text-muted-foreground"
+              id={`reason-hint-${stayId}`}
+            >
+              {t("reasonHint")}
+            </p>
 
-          <Field htmlFor={`reason-${stayId}`} label={t("reason")}>
-            <Textarea
-              aria-describedby={`reason-hint-${stayId}`}
-              autoFocus
-              id={`reason-${stayId}`}
-              maxLength={REASON.max}
-              minLength={REASON.min}
-              name="reason"
-              onChange={(event) => setReason(event.target.value)}
-              required
-              rows={3}
-              value={reason}
-            />
-          </Field>
-          <p
-            className="text-step--1 text-muted-foreground"
-            id={`reason-hint-${stayId}`}
-          >
-            {t("reasonHint")}
-          </p>
+            {message ? <FormError>{message}</FormError> : null}
+          </div>
 
-          {message ? <FormError>{message}</FormError> : null}
-
-          <DialogFooter>
+          <DialogFooter className={ticketFooterClassName}>
             <DialogClose asChild>
               <Button type="button" variant="outline">
                 {t("keepCheckIn")}
