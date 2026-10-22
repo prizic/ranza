@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Children, type ReactNode } from "react";
 import Link from "next/link";
 import { ArrowUpRight, type LucideIcon } from "lucide-react";
 import { cn, DialogTitle } from "@ranza/ui";
@@ -42,9 +42,12 @@ const STUB_LABEL = "text-step--1 text-foreground/70";
 /**
  * Who is leaving, from which Unit, and when they were due, on a ticket with a
  * perforated stub. The notches are clipped by the ticket itself, so the shape
- * holds at any width and mirrors in Arabic.
+ * holds at any width and mirrors in Arabic. What else is true of this
+ * check-out is set under the stub as `children`, so the ticket is the whole of
+ * the Guest's side of the dialog and the bill has the other.
  */
 export function DepartureTicket({
+  children,
   departure,
   guest,
   status,
@@ -53,6 +56,7 @@ export function DepartureTicket({
   unitLabel,
   departureLabel,
 }: {
+  children?: ReactNode;
   departure: ReactNode;
   departureLabel: string;
   guest: string;
@@ -62,8 +66,8 @@ export function DepartureTicket({
   unitLabel: string;
 }) {
   return (
-    <div className="relative overflow-hidden bg-accent-soft">
-      <div className="flex items-start gap-4 px-6 pt-4 pb-6">
+    <div className="relative flex flex-col overflow-hidden bg-warning-soft/60">
+      <div className="flex flex-1 items-start gap-4 px-6 pt-4 pb-6">
         <div className="grid min-w-0 flex-1 gap-3">
           <div className="flex min-h-8 items-center pe-10">
             <DialogTitle className="text-step--1 font-medium tracking-widest text-primary-text uppercase rtl:tracking-normal">
@@ -79,8 +83,8 @@ export function DepartureTicket({
 
       <div aria-hidden="true" className="relative">
         <div className="mx-6 border-t-2 border-dashed border-foreground/15" />
-        <span className="absolute start-0 top-0 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full bg-popover rtl:translate-x-1/2" />
-        <span className="absolute end-0 top-0 size-6 translate-x-1/2 -translate-y-1/2 rounded-full bg-popover rtl:-translate-x-1/2" />
+        <span className="absolute start-0 top-0 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent-soft rtl:translate-x-1/2" />
+        <span className="absolute end-0 top-0 size-6 translate-x-1/2 -translate-y-1/2 rounded-full bg-accent-soft rtl:-translate-x-1/2" />
       </div>
 
       <dl className="m-0 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 px-6 pt-5 pb-5">
@@ -96,6 +100,10 @@ export function DepartureTicket({
         </div>
         <div>{status}</div>
       </dl>
+
+      {Children.toArray(children).length > 0 ? (
+        <div className="grid gap-3 px-6 pb-6">{children}</div>
+      ) : null}
     </div>
   );
 }
@@ -185,7 +193,10 @@ const NOTICE_TONE = {
   warning: "bg-warning-soft text-warning",
 } as const;
 
-/** A fact about this check-out that is not a figure: a short row, then its words. */
+/**
+ * A fact about this check-out that is not a figure: a short row, then its
+ * words. It sits on the ticket, so it is a lighter card than the ticket.
+ */
 export function Notice({
   art,
   children,
@@ -198,7 +209,7 @@ export function Notice({
   tone?: keyof typeof NOTICE_TONE;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl bg-muted px-3.5 py-2.5">
+    <div className="flex items-center gap-3 rounded-xl bg-card/70 px-3.5 py-2.5">
       {art ? (
         <Illustration art={art} className="size-9" />
       ) : Icon && tone ? (
