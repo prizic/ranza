@@ -206,6 +206,10 @@ export interface Messages {
   checkOutRoomDirty: string;
   checkOutOverdue: string;
   checkOutOwesFirst: string;
+  checkOutStatusEarly: string;
+  checkOutStatusOnSchedule: string;
+  checkOutStatusOwed: string;
+  checkOutStatusSettled: string;
   reviewFolioNewTab: string;
   confirmCheckOut: string;
   keepInHouse: string;
@@ -3102,6 +3106,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Misafir {count, plural, one {# gün} other {# gün}} gecikmiş (planlanan çıkış {date}). Çıkış bugün olarak kaydedilir ve o günden bu yana geçen geceler hesaba işlenir.",
     checkOutOwesFirst:
       "{balance} borç var. Önce hesap üzerinden ödemeyi alın ya da bir gerekçeyle açık bırakın.",
+    checkOutStatusEarly: "Erken ayrılıyor",
+    checkOutStatusOnSchedule: "Planlandığı gibi",
+    checkOutStatusOwed: "Borç var",
+    checkOutStatusSettled: "Borç yok",
     reviewFolioNewTab: "Hesabı yeni sekmede aç",
     confirmCheckOut: "Çıkışı onayla",
     keepInHouse: "Konaklamaya devam",
@@ -6395,6 +6403,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       "This Guest is {count, plural, one {# day} other {# days}} overdue, since {date}. The departure is recorded as today, and the nights since then are charged to the bill.",
     checkOutOwesFirst:
       "{balance} is owed. Collect payment on the Folio first, or leave it open with a reason.",
+    checkOutStatusEarly: "Leaving early",
+    checkOutStatusOnSchedule: "On schedule",
+    checkOutStatusOwed: "Owed",
+    checkOutStatusSettled: "Nothing owed",
     reviewFolioNewTab: "Open the Folio in a new tab",
     confirmCheckOut: "Confirm check-out",
     keepInHouse: "Keep in house",
@@ -9694,6 +9706,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       "تأخر هذا الضيف {count, plural, one {يومًا واحدًا} two {يومين} few {# أيام} many {# يومًا} other {# يوم}} عن موعد {date}. تُسجَّل المغادرة اليوم، وتُحتسب الليالي منذ ذلك الحين على الحساب.",
     checkOutOwesFirst:
       "هناك {balance} مستحق. حصّل الدفعة على الحساب أولًا، أو اتركه مفتوحًا مع ذكر السبب.",
+    checkOutStatusEarly: "مغادرة مبكرة",
+    checkOutStatusOnSchedule: "حسب الموعد",
+    checkOutStatusOwed: "مستحق",
+    checkOutStatusSettled: "لا مبالغ مستحقة",
     reviewFolioNewTab: "فتح الحساب في تبويب جديد",
     confirmCheckOut: "تأكيد المغادرة",
     keepInHouse: "إبقاء الإقامة",
