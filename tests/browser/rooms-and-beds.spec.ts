@@ -4,7 +4,7 @@ import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { psql } from "./local-database";
-import { signIn, testProperty } from "./front-desk";
+import { pickUnit, signIn, testProperty } from "./front-desk";
 
 /**
  * Rooms & beds through the screens a front desk actually uses (RANZ-27).
@@ -68,8 +68,8 @@ async function pickDay(page: Page, iso: string) {
 }
 
 /**
- * The booking form, filled down to the bed and the nights, not yet submitted.
- * Returns the dialog and the Unit picker so the caller can read what it offers.
+ * The booking form, filled as far as the nights: the units are listed only once
+ * the dates are known, so the bed is chosen after this. Returns the dialog.
  */
 async function openBookingForm(
   page: Page,
@@ -80,15 +80,18 @@ async function openBookingForm(
   await page.getByRole("button", { name: "New reservation" }).click();
   const dialog = page.getByRole("dialog", { name: "New reservation" });
   await expect(dialog).toBeVisible();
-  await dialog.getByLabel("Guest", { exact: true }).fill(guestName);
-  await dialog.getByLabel("Unit").click();
-  return dialog;
-}
-
-async function chooseNights(page: Page, dialog: Locator, propertyId: string) {
+  await dialog.getByLabel("Guest name").fill(guestName);
   await dialog.getByRole("button", { name: /^Arrival/ }).click();
   await pickDay(page, propertyDay(propertyId, 0));
   await pickDay(page, propertyDay(propertyId, 2));
+  return dialog;
+}
+
+/** Narrows the unit list the way the desk does: by typing what it looks for. */
+async function searchUnits(dialog: Locator, text: string) {
+  await dialog
+    .getByRole("searchbox", { name: "Search by unit number or type" })
+    .fill(text);
 }
 
 test("a shared room is sold by the bed, and a blocked bed cannot be let", async ({
@@ -161,17 +164,15 @@ test("a shared room is sold by the bed, and a blocked bed cannot be let", async 
   // RB-S3-13: the parent is not sellable. The form offers each bed, named by
   // its room, and no option is the room itself.
   const form = await openBookingForm(page, propertyId, guestA);
-  await page.keyboard.type(roomOne);
+  await searchUnits(form, roomOne);
   for (const bed of ["A", "B", "C"]) {
     await expect(
-      page.getByRole("option", { name: new RegExp(`^${roomOne} · ${bed}`) }),
+      form.getByRole("radio", { name: new RegExp(`^${roomOne} · ${bed}`) }),
     ).toBeVisible();
   }
   await expect(
-    page.getByRole("option", { name: new RegExp(`^${roomOne}(?! ·)`) }),
+    form.getByRole("radio", { name: new RegExp(`^${roomOne}(?! ·)`) }),
   ).toHaveCount(0);
-  await page.keyboard.press("Escape");
-  await form.getByRole("button", { name: "Cancel", exact: true }).click();
 
   // RB-S2-02: two Guests, two beds of one room, the same nights. Both succeed.
   for (const [guest, bed] of [
@@ -179,11 +180,7 @@ test("a shared room is sold by the bed, and a blocked bed cannot be let", async 
     [guestB, "B"],
   ] as const) {
     const booking = await openBookingForm(page, propertyId, guest);
-    await page.keyboard.type(`${roomOne} · ${bed}`);
-    await page
-      .getByRole("option", { name: new RegExp(`^${roomOne} · ${bed}`) })
-      .click();
-    await chooseNights(page, booking, propertyId);
+    await pickUnit(booking, `${roomOne} · ${bed}`);
     await booking.getByRole("button", { name: "Create reservation" }).click();
     await expect(booking).toBeHidden();
     await page.getByRole("searchbox").fill(guest);
@@ -215,11 +212,7 @@ test("a shared room is sold by the bed, and a blocked bed cannot be let", async 
   // A booking form opened now, with bed C still on offer, and kept open.
   const stale = await context.newPage();
   const staleForm = await openBookingForm(stale, propertyId, guestC);
-  await stale.keyboard.type(`${roomOne} · C`);
-  await stale
-    .getByRole("option", { name: new RegExp(`^${roomOne} · C`) })
-    .click();
-  await chooseNights(stale, staleForm, propertyId);
+  await pickUnit(staleForm, `${roomOne} · C`);
 
   // RB-S3-01: bed C is blocked from the map, with a reason.
   await card(roomOne)
@@ -277,21 +270,19 @@ test("a shared room is sold by the bed, and a blocked bed cannot be let", async 
   // And a form opened afterwards does not offer it: bed A and the other room's
   // beds are there, bed C and the room are not.
   const fresh = await openBookingForm(page, propertyId, guestC);
-  await page.keyboard.type(roomOne);
+  await searchUnits(fresh, roomOne);
   await expect(
-    page.getByRole("option", { name: new RegExp(`^${roomOne} · A`) }),
+    fresh.getByRole("radio", { name: new RegExp(`^${roomOne} · A`) }),
   ).toBeVisible();
   await expect(
-    page.getByRole("option", { name: new RegExp(`^${roomOne} · C`) }),
+    fresh.getByRole("radio", { name: new RegExp(`^${roomOne} · C`) }),
   ).toHaveCount(0);
   await expect(
-    page.getByRole("option", { name: new RegExp(`^${roomOne}(?! ·)`) }),
+    fresh.getByRole("radio", { name: new RegExp(`^${roomOne}(?! ·)`) }),
   ).toHaveCount(0);
   await page.screenshot({
     path: path.join(EVIDENCE, "booking-form-does-not-offer-bed-c.png"),
   });
-  await page.keyboard.press("Escape");
-  await fresh.getByRole("button", { name: "Cancel", exact: true }).click();
 
   // RB-S3-08: unblocking gives the bed back to the form.
   await page.goto(`/en/rooms?property=${propertyId}`);
@@ -306,9 +297,9 @@ test("a shared room is sold by the bed, and a blocked bed cannot be let", async 
     card(roomOne).getByRole("button", { name: /^C / }),
   ).toContainText("Free");
 
-  await openBookingForm(page, propertyId, guestC);
-  await page.keyboard.type(`${roomOne} · C`);
+  const reopened = await openBookingForm(page, propertyId, guestC);
+  await searchUnits(reopened, `${roomOne} · C`);
   await expect(
-    page.getByRole("option", { name: new RegExp(`^${roomOne} · C`) }),
+    reopened.getByRole("radio", { name: new RegExp(`^${roomOne} · C`) }),
   ).toBeVisible();
 });

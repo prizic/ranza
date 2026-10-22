@@ -6,23 +6,24 @@ import { AlarmClock, CircleAlert } from "lucide-react";
 import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
 import type { DeparturePreview } from "@ranza/reservations";
 import {
-  Button,
-  cn,
+  ArrowButton,
+  CancelButton,
   DateRangeField,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogTicket,
-  Field,
+  DialogFacts,
+  DialogMasthead,
+  DialogNotice,
+  DialogSection,
+  dialogFrameClassName,
   FormError,
+  StayRuler,
   Textarea,
-  TicketNotice,
-  ticketBodyClassName,
-  ticketDialogWideClassName,
-  ticketFooterClassName,
-  ticketWideFormClassName,
+  textareaClassName,
 } from "@ranza/ui";
 import {
   changeDeparture,
@@ -308,83 +309,100 @@ export function ChangeDepartureDialog({
     (endsOn !== undefined || preview.stayType === "resident") &&
     (endsOn === undefined || endsOn > preview.today);
 
+  const shortDay = (iso: string) =>
+    formatDate(new Date(`${iso}T00:00:00Z`), locale, {
+      month: "short",
+      timeZone: "UTC",
+      year: undefined,
+    });
+  const rulerEnd = pinned?.endsOn ?? stay.endsOn;
+
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className={cn(ticketDialogWideClassName, "max-h-[90dvh]")}>
-        <form
-          className={ticketWideFormClassName}
-          onSubmit={submitWithoutReset(act)}
-        >
-          <DialogTicket
+      <DialogContent className={dialogFrameClassName("medium")}>
+        <form className="grid" onSubmit={submitWithoutReset(act)}>
+          <DialogMasthead
             art="/illustrations/dialogs/change-departure.svg"
             eyebrow={t("changeDeparture")}
+            facts={[stay.reference, `${t("unit")} ${stay.unitLabel}`]
+              .filter(Boolean)
+              .join(" · ")}
             heading={stay.guestName}
-            stub={[
-              ...(stay.reference
-                ? [
-                    {
-                      label: t("reservation"),
-                      value: (
-                        <span className="font-mono">{stay.reference}</span>
-                      ),
-                    },
-                  ]
-                : []),
-              { label: t("unit"), value: <bdi>{stay.unitLabel}</bdi> },
-            ]}
-          >
+          />
+
+          <DialogBody>
+            <DialogDescription className="sr-only">
+              {t("changeDepartureSummary")}
+            </DialogDescription>
+
             {overdueSince && preview ? (
-              <TicketNotice icon={AlarmClock} tone="warning">
-                {t("changeDepartureOverdue", {
-                  count: overdueDays(overdueSince, preview.today),
-                  date: formatDate(
-                    new Date(`${overdueSince}T00:00:00Z`),
-                    locale,
-                    { month: "short", timeZone: "UTC" },
-                  ),
-                })}
-              </TicketNotice>
+              <div className="py-5">
+                <DialogNotice icon={AlarmClock}>
+                  {t("changeDepartureOverdue", {
+                    count: overdueDays(overdueSince, preview.today),
+                    date: shortDay(overdueSince),
+                  })}
+                </DialogNotice>
+              </div>
             ) : null}
-
-            {stay.unpriced ? (
-              <TicketNotice icon={CircleAlert} tone="warning">
-                {t("extendUnpricedWarning")}
-              </TicketNotice>
-            ) : null}
-          </DialogTicket>
-
-          <div className={cn(ticketBodyClassName, "md:pt-14")}>
-            <DialogDescription>{t("changeDepartureSummary")}</DialogDescription>
 
             {move ? (
-              <MoveSummary
-                conflicts={known}
-                from={{
-                  place: stay.unitLabel,
-                  period: describePeriod(
-                    stay.startsOn,
-                    stay.endsOn,
-                    locale,
-                    words,
-                  ),
-                }}
-                to={{
-                  place: stay.unitLabel,
-                  period: describePeriod(
-                    stay.startsOn,
-                    endsOn ?? null,
-                    locale,
-                    words,
-                  ),
-                }}
-              />
+              <div className="py-5">
+                <MoveSummary
+                  conflicts={known}
+                  from={{
+                    place: stay.unitLabel,
+                    period: describePeriod(
+                      stay.startsOn,
+                      stay.endsOn,
+                      locale,
+                      words,
+                    ),
+                  }}
+                  to={{
+                    place: stay.unitLabel,
+                    period: describePeriod(
+                      stay.startsOn,
+                      endsOn ?? null,
+                      locale,
+                      words,
+                    ),
+                  }}
+                />
+              </div>
             ) : null}
 
             <input name="stay" type="hidden" value={stay.stayId} />
             <input name="locale" type="hidden" value={locale} />
             <input name="version" type="hidden" value={pinned?.version ?? ""} />
 
-            <Field htmlFor={`departure-${stay.stayId}`} label={t("stayDates")}>
+            {rulerEnd && preview ? (
+              <DialogSection
+                hint={t("changeDepartureRulerHint", {
+                  date: shortDay(rulerEnd),
+                  today: shortDay(preview.today),
+                })}
+                title={t("changeDepartureStayTitle")}
+              >
+                <StayRuler
+                  end={rulerEnd}
+                  format={shortDay}
+                  label={t("changeDepartureRulerLabel", {
+                    from: shortDay(stay.startsOn),
+                    to: shortDay(rulerEnd),
+                  })}
+                  start={stay.startsOn}
+                  today={preview.today}
+                  todayLabel={t("changeDepartureTodayMark")}
+                />
+              </DialogSection>
+            ) : null}
+
+            <DialogSection
+              labelFor={`departure-${stay.stayId}`}
+              tag={{ label: t("dialogTagRequired"), required: true }}
+              title={t("changeDepartureNewTitle")}
+            >
               <DateRangeField
                 defaultValue={{ from: stay.startsOn, to: endsOn }}
                 earliestTo={preview ? tomorrowOf(preview.today) : undefined}
@@ -408,64 +426,85 @@ export function ChangeDepartureDialog({
                 onChange={(range) => setEndsOn(range.to)}
                 today={preview?.today}
               />
-            </Field>
+              <div aria-live="polite" className="grid gap-2">
+                {read.state === "loading" ? (
+                  <p className="m-0 text-step--1 text-muted-foreground">
+                    {t("changeBookingChecking")}
+                  </p>
+                ) : null}
+                {readMessage ? <FormError>{readMessage}</FormError> : null}
+                {unchanged ? (
+                  <p className="m-0 text-step--1 text-muted-foreground">
+                    {t("changeDepartureNothing")}
+                  </p>
+                ) : null}
+              </div>
+            </DialogSection>
 
-            <div aria-live="polite" className="grid gap-2">
-              {read.state === "loading" ? (
-                <p className="text-step--1 text-muted-foreground">
-                  {t("changeBookingChecking")}
-                </p>
-              ) : null}
-              {readMessage ? <FormError>{readMessage}</FormError> : null}
-              {effect && !readMessage ? (
-                <p className="rounded-lg border bg-muted/40 px-3 py-2 text-step--1">
-                  <bdi>{effect}</bdi>
-                </p>
-              ) : null}
-              {unchanged ? (
-                <p className="text-step--1 text-muted-foreground">
-                  {t("changeDepartureNothing")}
-                </p>
-              ) : null}
-            </div>
-
-            <div className="grid gap-1.5">
-              <Field
-                htmlFor={`departure-note-${stay.stayId}`}
-                label={t("changeBookingNote")}
-              >
-                <Textarea
-                  id={`departure-note-${stay.stayId}`}
-                  maxLength={NOTE.max}
-                  minLength={NOTE.min}
-                  name="note"
-                  onChange={(event) => setNote(event.target.value)}
-                  rows={2}
-                  value={note}
+            {effect && !readMessage ? (
+              <div className="py-4">
+                <DialogFacts
+                  rows={[
+                    [
+                      t("changeDepartureCurrent"),
+                      was ? shortDay(was) : t("bookingOpenEnded"),
+                    ],
+                    [
+                      t("changeDepartureNewTitle"),
+                      endsOn ? shortDay(endsOn) : t("bookingOpenEnded"),
+                    ],
+                    [
+                      t("changeDepartureChange"),
+                      <bdi key="effect">{effect}</bdi>,
+                    ],
+                  ]}
                 />
-              </Field>
-              <p className="text-step--1 text-muted-foreground">
-                {t("changeBookingNoteHint")}
-              </p>
-            </div>
+              </div>
+            ) : null}
+
+            {stay.unpriced ? (
+              <div className="py-5">
+                <DialogNotice icon={CircleAlert}>
+                  {t("extendUnpricedWarning")}
+                </DialogNotice>
+              </div>
+            ) : null}
+
+            <DialogSection
+              hint={t("changeBookingNoteHint")}
+              labelFor={`departure-note-${stay.stayId}`}
+              tag={{ label: t("dialogTagOptional") }}
+              title={t("dialogNoteTitle")}
+            >
+              <Textarea
+                className={textareaClassName}
+                aria-describedby={`departure-note-${stay.stayId}-hint`}
+                id={`departure-note-${stay.stayId}`}
+                maxLength={NOTE.max}
+                minLength={NOTE.min}
+                name="note"
+                onChange={(event) => setNote(event.target.value)}
+                placeholder={t("moveGuestNotePlaceholder")}
+                rows={2}
+                value={note}
+              />
+            </DialogSection>
 
             {outcomeMessage ? (
-              <div aria-live="polite">
+              <div aria-live="polite" className="py-5">
                 <FormError>{outcomeMessage}</FormError>
               </div>
             ) : null}
-          </div>
+          </DialogBody>
 
-          <DialogFooter className={cn(ticketFooterClassName, "md:col-span-2")}>
+          <DialogActions hint={unchanged ? t("changeDepartureHintDate") : null}>
             <DialogClose asChild>
-              <Button type="button" variant="outline">
-                {t("keepAsItWas")}
-              </Button>
+              <CancelButton type="button">{t("keepAsItWas")}</CancelButton>
             </DialogClose>
-            <Button disabled={pending || !canSave} type="submit">
+            <ArrowButton disabled={pending || !canSave} type="submit">
               {pending ? t("saving") : t("saveDeparture")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </form>
       </DialogContent>
     </Dialog>

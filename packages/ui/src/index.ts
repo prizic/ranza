@@ -57,18 +57,27 @@ export type {
   DateRangePreset,
 } from "./components/date-range-field";
 export {
-  DialogTicket,
-  TicketNotice,
-  ticketBodyClassName,
-  ticketDialogClassName,
-  ticketDialogWideClassName,
-  ticketFooterClassName,
-  ticketWideFormClassName,
-} from "./components/dialog-ticket";
-export type {
-  DialogTicketFact,
-  DialogTicketProps,
-} from "./components/dialog-ticket";
+  ArrowButton,
+  CancelButton,
+  ChoiceGroup,
+  DialogActions,
+  DialogBody,
+  DialogFacts,
+  DialogFigure,
+  DialogMasthead,
+  DialogNotice,
+  DialogSection,
+  DialogSettled,
+  DialogTag,
+  SuggestionRow,
+  TickRow,
+  dialogFrameClassName,
+  fieldClassName,
+  OptionList,
+  StayRuler,
+  textareaClassName,
+} from "./components/dialog-frame";
+export type { DialogTagProps, OptionListItem } from "./components/dialog-frame";
 export { StatusBadge } from "./components/status-badge";
 export type { StatusBadgeProps, StatusTone } from "./components/status-badge";
 export { BrandMark } from "./components/brand-mark";

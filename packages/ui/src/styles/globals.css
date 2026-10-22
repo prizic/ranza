@@ -57,6 +57,9 @@
    * for the Arabic a Latin page still shows, such as a language's own name.
    */
   --font-stack: var(--font-geist), var(--font-plex), system-ui, sans-serif;
+  /* The display face of a dialog's masthead; see DialogMasthead. */
+  --font-display-stack:
+    var(--font-newsreader), "Iowan Old Style", Georgia, serif;
 
   --shadow: 0 20px 60px rgba(0, 0, 0, 0.06);
   --shadow-low: 0 4px 14px rgba(10, 41, 36, 0.04);
@@ -90,6 +93,7 @@
 /* Arabic leads with the face that draws it; see --font-stack. */
 :root:lang(ar) {
   --font-stack: var(--font-plex), system-ui, sans-serif;
+  --font-display-stack: var(--font-plex), system-ui, sans-serif;
 }
 
 /* Which way "from the start edge" is, for the entrance keyframes below. */
@@ -197,6 +201,7 @@
   --text-step-3: 1.953rem;
 
   --font-sans: var(--font-stack);
+  --font-display: var(--font-display-stack);
 }
 
 /*

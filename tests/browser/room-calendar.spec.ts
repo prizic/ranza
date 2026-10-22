@@ -9,7 +9,7 @@ import {
 } from "@playwright/test";
 
 import { psql } from "./local-database";
-import { PASSWORD, signIn, testProperty } from "./front-desk";
+import { PASSWORD, pickUnit, signIn, testProperty } from "./front-desk";
 
 /**
  * The room calendar in a browser (RANZ-25).
@@ -843,10 +843,7 @@ for (const viewport of [
 
     // The conflict: the reason is told and the confirm is visibly disabled,
     // in the viewport without scrolling for it.
-    await dialog.getByLabel("Unit").click();
-    await page
-      .getByRole("option", { name: new RegExp(`${rooms.C!.name}.*Booked`) })
-      .click();
+    await pickUnit(dialog, rooms.C!.name, "Booked");
     await expect(
       dialog.getByText(`Holder ${tag} has booked some of those nights.`),
     ).toBeVisible();
@@ -860,10 +857,7 @@ for (const viewport of [
     }
 
     // Cleared, the same button is enabled and a click reaches it.
-    await dialog.getByLabel("Unit").click();
-    await page
-      .getByRole("option", { name: new RegExp(`${rooms.B!.name}.*Free`) })
-      .click();
+    await pickUnit(dialog, rooms.B!.name, "Free");
     await expect(confirm).toBeEnabled();
     await confirm.scrollIntoViewIfNeeded();
     await expect(confirm).toBeInViewport();
@@ -904,10 +898,7 @@ test("RC-S3-12: Move… on a booking's details does the same without a pointer",
     dialog.getByRole("button", { name: "Move booking" }),
   ).toBeDisabled();
 
-  await dialog.getByLabel("Unit").click();
-  await page
-    .getByRole("option", { name: new RegExp(`${rooms.B!.name}.*Free`) })
-    .click();
+  await pickUnit(dialog, rooms.B!.name, "Free");
   const confirm = dialog.getByRole("button", { name: "Move booking" });
   await expect(confirm).toBeEnabled();
   await confirm.focus();
@@ -940,8 +931,7 @@ test("RC-S3-07: a Guest in house dragged to another room is moved, with a reason
   const confirm = dialog.getByRole("button", { name: "Move Guest" });
   // The command needs a reason, and asks for it here.
   await expect(confirm).toBeDisabled();
-  await dialog.getByRole("combobox", { name: "Reason" }).click();
-  await page.getByRole("option", { name: "An upgrade" }).click();
+  await dialog.getByText("An upgrade", { exact: true }).click();
   await expect(confirm).toBeEnabled();
   await evidence(page, "move-in-house-with-reason");
   await confirm.click();

@@ -222,6 +222,7 @@ describe("every catalogue parses", () => {
                 timezone: "Europe/Istanbul",
                 to: "20 Sep",
                 tonight: 13,
+                today: "16 Sep",
                 total: "₺3.000,00",
                 type: "x",
                 unclosed: 3,

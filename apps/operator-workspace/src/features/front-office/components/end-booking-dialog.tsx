@@ -2,20 +2,24 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { Info } from "lucide-react";
 import {
-  Button,
+  ArrowButton,
+  CancelButton,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogTicket,
-  Field,
+  DialogMasthead,
+  DialogNotice,
+  DialogSection,
+  dialogFrameClassName,
   FormError,
+  SuggestionRow,
   Textarea,
-  ticketBodyClassName,
-  ticketDialogClassName,
-  ticketFooterClassName,
+  textareaClassName,
 } from "@ranza/ui";
 import {
   cancelBooking,
@@ -101,6 +105,9 @@ export function EndBookingDialog({
           ? t(refusal)
           : null;
 
+  const cancelling = kind === "cancel";
+  const needsReason = cancelling && reason.trim().length < REASON.min;
+
   return (
     <Dialog
       onOpenChange={(next) => {
@@ -109,35 +116,29 @@ export function EndBookingDialog({
       }}
       open={open}
     >
-      <DialogContent className={ticketDialogClassName}>
+      <DialogContent className={dialogFrameClassName("small")}>
         <form action={act} className="grid">
-          <DialogTicket
-            art={`/illustrations/dialogs/${kind === "cancel" ? "cancel-booking" : "no-show"}.svg`}
-            eyebrow={
-              kind === "cancel" ? t("cancelBookingTitle") : t("noShowTitle")
-            }
+          <DialogMasthead
+            art={`/illustrations/dialogs/${cancelling ? "cancel-booking" : "no-show"}.svg`}
+            eyebrow={cancelling ? t("cancelBookingTitle") : t("noShowTitle")}
+            facts={`${reference} · ${t("unit")} ${unitLabel}`}
             heading={guestName}
-            stub={[
-              {
-                label: t("reservation"),
-                value: <span className="font-mono">{reference}</span>,
-              },
-              { label: t("unit"), value: <bdi>{unitLabel}</bdi> },
-            ]}
           />
 
-          <div className={ticketBodyClassName}>
-            <DialogDescription>
-              {kind === "cancel"
-                ? t("cancelBookingSummary")
-                : t("noShowSummary")}
+          <DialogBody simple>
+            <DialogDescription className="sr-only">
+              {cancelling ? t("cancelBookingSummary") : t("noShowSummary")}
             </DialogDescription>
+
+            <DialogNotice icon={Info}>
+              {cancelling ? t("cancelBookingSummary") : t("noShowSummary")}
+            </DialogNotice>
 
             <input name="reservation" type="hidden" value={reservationId} />
             <input name="locale" type="hidden" value={locale} />
 
-            {kind === "no_show" && expected ? (
-              <p className="text-step--1 font-medium">
+            {!cancelling && expected ? (
+              <p className="m-0 text-step--1 font-medium">
                 {t(
                   expected.passed === true
                     ? "noShowExpectedPassed"
@@ -149,36 +150,33 @@ export function EndBookingDialog({
               </p>
             ) : null}
 
-            {kind === "cancel" ? (
-              <div className="grid gap-2">
-                <Field htmlFor={`cancel-${reservationId}`} label={t("reason")}>
-                  <Textarea
-                    autoFocus
-                    id={`cancel-${reservationId}`}
-                    maxLength={REASON.max}
-                    minLength={REASON.min}
-                    name="reason"
-                    onChange={(event) => setReason(event.target.value)}
-                    required
-                    rows={3}
-                    value={reason}
-                  />
-                </Field>
-                {/* The reasons a desk gives most, one press to fill the box. */}
-                <div className="flex flex-wrap gap-1.5">
-                  {PRESET_REASONS.map((preset) => (
-                    <Button
-                      key={preset}
-                      onClick={() => setReason(t(preset))}
-                      size="sm"
-                      type="button"
-                      variant="outline"
-                    >
-                      {t(preset)}
-                    </Button>
-                  ))}
-                </div>
-              </div>
+            {cancelling ? (
+              <DialogSection
+                hint={t("endBookingReasonHint")}
+                labelFor={`cancel-${reservationId}`}
+                tag={{ label: t("dialogTagRequired"), required: true }}
+                title={t("reason")}
+              >
+                <Textarea
+                  autoFocus
+                  className={textareaClassName}
+                  aria-describedby={`cancel-${reservationId}-hint`}
+                  id={`cancel-${reservationId}`}
+                  maxLength={REASON.max}
+                  minLength={REASON.min}
+                  name="reason"
+                  onChange={(event) => setReason(event.target.value)}
+                  placeholder={t("cancelReasonExample")}
+                  required
+                  rows={3}
+                  value={reason}
+                />
+                <SuggestionRow
+                  items={PRESET_REASONS.map((preset) => t(preset))}
+                  label={t("dialogQuickPicks")}
+                  onPick={setReason}
+                />
+              </DialogSection>
             ) : null}
 
             {message ? (
@@ -186,22 +184,24 @@ export function EndBookingDialog({
                 <FormError>{message}</FormError>
               </div>
             ) : null}
-          </div>
+          </DialogBody>
 
-          <DialogFooter className={ticketFooterClassName}>
+          <DialogActions hint={needsReason ? t("dialogHintReason") : null}>
             <DialogClose asChild>
-              <Button type="button" variant="outline">
-                {t("keepBooking")}
-              </Button>
+              <CancelButton type="button">{t("keepBooking")}</CancelButton>
             </DialogClose>
-            <Button disabled={pending} type="submit" variant="destructive">
+            <ArrowButton
+              disabled={pending || needsReason}
+              tone="danger"
+              type="submit"
+            >
               {pending
                 ? t("saving")
-                : kind === "cancel"
+                : cancelling
                   ? t("cancelBooking")
                   : t("markNoShow")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </form>
       </DialogContent>
     </Dialog>

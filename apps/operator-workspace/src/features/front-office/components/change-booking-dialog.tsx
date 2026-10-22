@@ -5,30 +5,30 @@ import { useTranslations } from "next-intl";
 import { formatMoney, type SupportedLocale } from "@ranza/i18n";
 import type { ChangeOption, ChangePreview } from "@ranza/reservations";
 import {
-  Button,
-  cn,
-  Combobox,
+  ArrowButton,
+  CancelButton,
   DateRangeField,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogTicket,
-  Field,
+  DialogMasthead,
+  DialogSection,
+  dialogFrameClassName,
+  fieldClassName,
   FormError,
   Input,
+  OptionList,
+  type OptionListItem,
   Textarea,
-  ticketBodyClassName,
-  ticketDialogWideClassName,
-  ticketFooterClassName,
-  ticketWideFormClassName,
+  textareaClassName,
 } from "@ranza/ui";
 import {
   changeBooking,
   type ChangeBookingOutcome,
 } from "../../../server/front-office";
-import { usePickerLabels } from "../../../lib/picker-labels";
 import { submitWithoutReset } from "../../../lib/submit-without-reset";
 import { unitLabel } from "../unit-label";
 import { refusalMessage } from "../refusal";
@@ -151,7 +151,6 @@ export function ChangeBookingDialog({
   open: boolean;
 }) {
   const t = useTranslations();
-  const unitLabels = usePickerLabels(t("chooseUnit"));
   const start = move?.to ?? booking;
   const [dates, setDates] = useState<{ from?: string; to?: string }>({
     from: start.startsOn,
@@ -391,11 +390,11 @@ export function ChangeBookingDialog({
     (dates.to !== undefined || preview.stayType === "resident");
 
   // The rooms, in order. Until the read arrives the proposed one stands alone
-  // under its own name when the caller gave it, and the field is empty when it
+  // under its own name when the caller gave it, and the list is empty when it
   // did not: a raw id is never shown (ROOMCAL-05).
-  const unitOptions = [
+  const unitItems: OptionListItem[] = [
     ...(preview === null && move?.to.unitLabel
-      ? [{ value: unitId, label: move.to.unitLabel }]
+      ? [{ value: unitId, title: move.to.unitLabel }]
       : []),
     ...[...(preview?.options ?? [])]
       .sort((a, b) =>
@@ -407,43 +406,32 @@ export function ChangeBookingDialog({
       )
       .map((option) => ({
         value: option.unitId,
-        label: unitLabel(option.roomName, option.unitName),
-        description: [
-          t(`unitType.${option.unitType}`),
-          !option.takesBookings
-            ? t("changeBookingUnitNotTaking")
-            : option.blocker === "booked"
-              ? t("changeBookingUnitBooked", {
-                  reference: option.conflictReference ?? "",
-                })
-              : option.blocker === "occupied"
-                ? t("changeBookingUnitOccupied")
-                : t("changeBookingUnitFree"),
-        ].join(" · "),
+        title: unitLabel(option.roomName, option.unitName),
+        description: t(`unitType.${option.unitType}`),
+        chip: !option.takesBookings
+          ? t("changeBookingUnitNotTaking")
+          : option.blocker === "booked"
+            ? t("unitChipBooked", { reference: option.conflictReference ?? "" })
+            : option.blocker === "occupied"
+              ? t("unitChipOccupied")
+              : t("unitChipFree"),
+        chipMuted: !option.takesBookings || option.blocker !== null,
       })),
   ];
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className={cn(ticketDialogWideClassName, "max-h-[90dvh]")}>
-        <form
-          className={ticketWideFormClassName}
-          onSubmit={submitWithoutReset(act)}
-        >
-          <DialogTicket
+      <DialogContent className={dialogFrameClassName("medium")}>
+        <form className="grid" onSubmit={submitWithoutReset(act)}>
+          <DialogMasthead
             art="/illustrations/dialogs/change-booking.svg"
             eyebrow={move ? t("roomCalendar.moveBooking") : t("changeBooking")}
+            facts={`${booking.reference} · ${t("unit")} ${booking.unitLabel}`}
             heading={booking.guestName}
-            stub={[
-              {
-                label: t("reservation"),
-                value: <span className="font-mono">{booking.reference}</span>,
-              },
-            ]}
           />
 
-          <div className={cn(ticketBodyClassName, "md:pt-14")}>
-            <DialogDescription>
+          <DialogBody>
+            <DialogDescription className="sr-only">
               {move
                 ? t("roomCalendar.moveBookingSummary")
                 : t("changeBookingSummary")}
@@ -453,31 +441,33 @@ export function ChangeBookingDialog({
               // Said for every change and not only a drag: what the booking is
               // now and what it becomes, before the save (RES-12). The Unit is not
               // repeated above it as a fact; the editable field below is it.
-              <MoveSummary
-                conflicts={known}
-                from={{
-                  place: booking.unitLabel,
-                  period: describePeriod(
-                    booking.startsOn,
-                    booking.endsOn,
-                    locale,
-                    words,
-                  ),
-                }}
-                to={{
-                  place: chosen
-                    ? unitLabel(chosen.roomName, chosen.unitName)
-                    : (move?.to.unitLabel ?? "—"),
-                  period: dates.from
-                    ? describePeriod(
-                        dates.from,
-                        dates.to ?? null,
-                        locale,
-                        words,
-                      )
-                    : null,
-                }}
-              />
+              <div className="py-5">
+                <MoveSummary
+                  conflicts={known}
+                  from={{
+                    place: booking.unitLabel,
+                    period: describePeriod(
+                      booking.startsOn,
+                      booking.endsOn,
+                      locale,
+                      words,
+                    ),
+                  }}
+                  to={{
+                    place: chosen
+                      ? unitLabel(chosen.roomName, chosen.unitName)
+                      : (move?.to.unitLabel ?? "—"),
+                    period: dates.from
+                      ? describePeriod(
+                          dates.from,
+                          dates.to ?? null,
+                          locale,
+                          words,
+                        )
+                      : null,
+                  }}
+                />
+              </div>
             ) : null}
 
             <input
@@ -502,151 +492,141 @@ export function ChangeBookingDialog({
               }
             />
 
-            <div className="grid gap-1.5">
-              <Field
-                htmlFor={`change-dates-${booking.reservationId}`}
-                label={t("stayDates")}
-              >
-                <DateRangeField
-                  key={resets}
-                  defaultValue={dates}
-                  id={`change-dates-${booking.reservationId}`}
-                  labels={{
-                    from: t("arrival"),
-                    to: t("departure"),
-                    emptyFrom: t("bookingAddDate"),
-                    emptyTo: t("bookingOpenEnded"),
-                    pickFrom: t("bookingPickArrival"),
-                    pickTo: t("bookingPickDeparture"),
-                    clear: t("dateRangeClear"),
-                    done: t("dateRangeDone"),
-                    span: (nights) => t("stayNights", { count: nights }),
-                  }}
-                  locale={locale}
-                  minSpan={1}
-                  names={{ from: "startsOn", to: "endsOn" }}
-                  onChange={setDates}
-                  required
-                  today={preview?.today}
-                />
-              </Field>
+            <DialogSection
+              labelFor={`change-dates-${booking.reservationId}`}
+              tag={{ label: t("dialogTagRequired"), required: true }}
+              title={t("stayDates")}
+            >
+              <DateRangeField
+                key={resets}
+                defaultValue={dates}
+                id={`change-dates-${booking.reservationId}`}
+                labels={{
+                  from: t("arrival"),
+                  to: t("departure"),
+                  emptyFrom: t("bookingAddDate"),
+                  emptyTo: t("bookingOpenEnded"),
+                  pickFrom: t("bookingPickArrival"),
+                  pickTo: t("bookingPickDeparture"),
+                  clear: t("dateRangeClear"),
+                  done: t("dateRangeDone"),
+                  span: (nights) => t("stayNights", { count: nights }),
+                }}
+                locale={locale}
+                minSpan={1}
+                names={{ from: "startsOn", to: "endsOn" }}
+                onChange={setDates}
+                required
+                today={preview?.today}
+              />
               {beforeToday && known.length === 0 ? (
-                <p className="text-step--1 text-destructive">
+                <p className="m-0 text-step--1 text-destructive">
                   {t("changeBookingBeforeToday")}
                 </p>
               ) : null}
-            </div>
+            </DialogSection>
 
             {move ? null : (
-              <div className="grid gap-1.5 sm:max-w-48">
-                <Field
-                  htmlFor={`change-arrival-${booking.reservationId}`}
-                  label={t("expectedArrival")}
-                >
-                  <Input
-                    aria-describedby={`change-arrival-hint-${booking.reservationId}`}
-                    id={`change-arrival-${booking.reservationId}`}
-                    name="expectedArrival"
-                    onChange={(event) => setArrival(event.target.value)}
-                    type="time"
-                    value={arrival}
-                  />
-                </Field>
-                <p
-                  className="text-step--1 text-muted-foreground"
-                  id={`change-arrival-hint-${booking.reservationId}`}
-                >
-                  {t("expectedArrivalHint")}
-                </p>
-              </div>
+              <DialogSection
+                hint={t("expectedArrivalHint")}
+                labelFor={`change-arrival-${booking.reservationId}`}
+                tag={{ label: t("dialogTagOptional") }}
+                title={t("expectedArrival")}
+              >
+                <Input
+                  className={`${fieldClassName} sm:max-w-48`}
+                  aria-describedby={`change-arrival-${booking.reservationId}-hint`}
+                  id={`change-arrival-${booking.reservationId}`}
+                  name="expectedArrival"
+                  onChange={(event) => setArrival(event.target.value)}
+                  type="time"
+                  value={arrival}
+                />
+              </DialogSection>
             )}
 
-            <Field
-              htmlFor={`change-unit-${booking.reservationId}`}
-              label={t("unit")}
+            <DialogSection
+              hint={price && !blocked ? <bdi>{price}</bdi> : null}
+              tag={{ label: t("dialogTagRequired"), required: true }}
+              title={t("changeBookingWhichUnit")}
             >
-              <Combobox
+              <OptionList
                 disabled={preview === null}
-                id={`change-unit-${booking.reservationId}`}
-                labels={unitLabels}
+                emptyLabel={t("unitNoMatches")}
+                items={unitItems}
+                moreLabel={(count) => t("unitMore", { count })}
                 name="unit"
-                onValueChange={setUnitId}
-                options={unitOptions}
+                onChange={setUnitId}
                 required
+                searchLabel={t("unitSearch")}
                 value={preview === null && !move?.to.unitLabel ? "" : unitId}
               />
-            </Field>
+              <div aria-live="polite" className="grid gap-2">
+                {read.state === "loading" ? (
+                  <p className="m-0 text-step--1 text-muted-foreground">
+                    {t("changeBookingChecking")}
+                  </p>
+                ) : null}
+                {readMessage ? <FormError>{readMessage}</FormError> : null}
+                {blocked ? <FormError>{blocked}</FormError> : null}
+                {currentNotTaking ? (
+                  <p className="m-0 text-step--1 text-muted-foreground">
+                    {t("changeBookingCurrentNotTaking")}
+                  </p>
+                ) : null}
+                {unchanged ? (
+                  <p className="m-0 text-step--1 text-muted-foreground">
+                    {t("changeBookingNothing")}
+                  </p>
+                ) : null}
+              </div>
+            </DialogSection>
 
-            <div aria-live="polite" className="grid gap-2">
-              {read.state === "loading" ? (
-                <p className="text-step--1 text-muted-foreground">
-                  {t("changeBookingChecking")}
-                </p>
-              ) : null}
-              {readMessage ? <FormError>{readMessage}</FormError> : null}
-              {blocked ? <FormError>{blocked}</FormError> : null}
-              {currentNotTaking ? (
-                <p className="text-step--1 text-muted-foreground">
-                  {t("changeBookingCurrentNotTaking")}
-                </p>
-              ) : null}
-              {price && !blocked ? (
-                <p className="rounded-lg border bg-muted/40 px-3 py-2 text-step--1">
-                  <bdi>{price}</bdi>
-                </p>
-              ) : null}
-              {unchanged ? (
-                <p className="text-step--1 text-muted-foreground">
-                  {t("changeBookingNothing")}
-                </p>
-              ) : null}
-            </div>
-
-            <div className="grid gap-1.5">
-              <Field
-                htmlFor={`change-note-${booking.reservationId}`}
-                label={t("changeBookingNote")}
-              >
-                <Textarea
-                  aria-describedby={`change-note-hint-${booking.reservationId}`}
-                  id={`change-note-${booking.reservationId}`}
-                  maxLength={NOTE.max}
-                  minLength={NOTE.min}
-                  name="note"
-                  onChange={(event) => setNote(event.target.value)}
-                  rows={2}
-                  value={note}
-                />
-              </Field>
-              <p
-                className="text-step--1 text-muted-foreground"
-                id={`change-note-hint-${booking.reservationId}`}
-              >
-                {t("changeBookingNoteHint")}
-              </p>
-            </div>
+            <DialogSection
+              hint={t("changeBookingNoteHint")}
+              labelFor={`change-note-${booking.reservationId}`}
+              tag={{ label: t("dialogTagOptional") }}
+              title={t("dialogNoteTitle")}
+            >
+              <Textarea
+                className={textareaClassName}
+                aria-describedby={`change-note-${booking.reservationId}-hint`}
+                id={`change-note-${booking.reservationId}`}
+                maxLength={NOTE.max}
+                minLength={NOTE.min}
+                name="note"
+                onChange={(event) => setNote(event.target.value)}
+                placeholder={t("moveGuestNotePlaceholder")}
+                rows={2}
+                value={note}
+              />
+            </DialogSection>
 
             {outcomeMessage ? (
-              <div aria-live="polite">
+              <div aria-live="polite" className="py-5">
                 <FormError>{outcomeMessage}</FormError>
               </div>
             ) : null}
-          </div>
+          </DialogBody>
 
-          <DialogFooter className={cn(ticketFooterClassName, "md:col-span-2")}>
+          <DialogActions
+            hint={
+              blocked || known.length > 0 ? t("changeBookingHintUnit") : null
+            }
+          >
             <DialogClose asChild>
-              <Button type="button" variant="outline">
+              <CancelButton type="button">
                 {move ? t("keepAsItWas") : t("keepBooking")}
-              </Button>
+              </CancelButton>
             </DialogClose>
-            <Button disabled={pending || !canSave} type="submit">
+            <ArrowButton disabled={pending || !canSave} type="submit">
               {pending
                 ? t("saving")
                 : move
                   ? t("roomCalendar.confirmMove")
                   : t("saveChange")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </form>
       </DialogContent>
     </Dialog>
