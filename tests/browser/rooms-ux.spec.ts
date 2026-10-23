@@ -49,7 +49,9 @@ test("a front desk colleague is not offered Add rooms, and a manager sees what a
   await expect(
     dialog.getByText("Create rooms in one go. They are numbered in sequence."),
   ).toBeVisible();
-  await expect(dialog.getByLabel("Room type")).toBeVisible();
+  await expect(
+    dialog.getByRole("radiogroup", { name: "What are they?" }),
+  ).toBeVisible();
 
   // ROOMS-02: a line says what one press creates.
   await dialog.getByLabel("Building (optional)").fill("Block A");
@@ -109,7 +111,9 @@ for (const language of [
 
     // ROOMS-04: the browser's own bubble for "4O1" says this screen's words.
     await dialog.locator("#firstNumber").fill("4O1");
-    await dialog.locator("button[type=submit]").click();
+    await dialog.locator("form").evaluate((form: HTMLFormElement) => {
+      form.requestSubmit();
+    });
     const bubble = await dialog
       .locator("#firstNumber")
       .evaluate((input: HTMLInputElement) => input.validationMessage);

@@ -9,7 +9,7 @@ import {
 } from "@playwright/test";
 
 import { psql } from "./local-database";
-import { PASSWORD, signIn, testProperty } from "./front-desk";
+import { PASSWORD, pickUnit, signIn, testProperty } from "./front-desk";
 
 /**
  * The room calendar in a browser (RANZ-25).
@@ -178,9 +178,7 @@ test("RC-S1-58 and RC-S1-64: a bar opens its drawer, which points to where the c
   await bar.focus();
   await page.keyboard.press("Enter");
   const drawer = page.getByRole("dialog");
-  await expect(
-    drawer.getByRole("heading", { name: fixture.inHouse }),
-  ).toBeVisible();
+  await expect(drawer.getByText(fixture.inHouse).first()).toBeVisible();
   await expect(
     drawer.getByText("Another booking holds some of these nights"),
   ).toBeVisible();
@@ -835,7 +833,7 @@ for (const viewport of [
       .getByRole("button", { name: new RegExp(`^${guest}, Confirmed`) })
       .click();
     await page
-      .getByRole("dialog", { name: guest })
+      .getByRole("dialog", { name: "Reservation details" })
       .getByRole("button", { name: "Move…" })
       .click();
     const dialog = page.getByRole("dialog", { name: "Move booking" });
@@ -843,10 +841,7 @@ for (const viewport of [
 
     // The conflict: the reason is told and the confirm is visibly disabled,
     // in the viewport without scrolling for it.
-    await dialog.getByLabel("Unit").click();
-    await page
-      .getByRole("option", { name: new RegExp(`${rooms.C!.name}.*Booked`) })
-      .click();
+    await pickUnit(dialog, rooms.C!.name, "Booked");
     await expect(
       dialog.getByText(`Holder ${tag} has booked some of those nights.`),
     ).toBeVisible();
@@ -860,10 +855,7 @@ for (const viewport of [
     }
 
     // Cleared, the same button is enabled and a click reaches it.
-    await dialog.getByLabel("Unit").click();
-    await page
-      .getByRole("option", { name: new RegExp(`${rooms.B!.name}.*Free`) })
-      .click();
+    await pickUnit(dialog, rooms.B!.name, "Free");
     await expect(confirm).toBeEnabled();
     await confirm.scrollIntoViewIfNeeded();
     await expect(confirm).toBeInViewport();
@@ -889,7 +881,7 @@ test("RC-S3-12: Move… on a booking's details does the same without a pointer",
   });
   await bar.focus();
   await page.keyboard.press("Enter");
-  const drawer = page.getByRole("dialog", { name: guest });
+  const drawer = page.getByRole("dialog", { name: "Reservation details" });
   await drawer.getByRole("button", { name: "Move…" }).focus();
   await page.keyboard.press("Enter");
 
@@ -904,10 +896,7 @@ test("RC-S3-12: Move… on a booking's details does the same without a pointer",
     dialog.getByRole("button", { name: "Move booking" }),
   ).toBeDisabled();
 
-  await dialog.getByLabel("Unit").click();
-  await page
-    .getByRole("option", { name: new RegExp(`${rooms.B!.name}.*Free`) })
-    .click();
+  await pickUnit(dialog, rooms.B!.name, "Free");
   const confirm = dialog.getByRole("button", { name: "Move booking" });
   await expect(confirm).toBeEnabled();
   await confirm.focus();
@@ -940,8 +929,7 @@ test("RC-S3-07: a Guest in house dragged to another room is moved, with a reason
   const confirm = dialog.getByRole("button", { name: "Move Guest" });
   // The command needs a reason, and asks for it here.
   await expect(confirm).toBeDisabled();
-  await dialog.getByRole("combobox", { name: "Reason" }).click();
-  await page.getByRole("option", { name: "An upgrade" }).click();
+  await dialog.getByText("An upgrade", { exact: true }).click();
   await expect(confirm).toBeEnabled();
   await evidence(page, "move-in-house-with-reason");
   await confirm.click();
@@ -985,6 +973,26 @@ test("RC-S3-08: pulling the end of a Guest in house previews the new departure, 
   aBookingOn(rooms.A!, `Next ${tag}`, { from: 4, to: 6 });
   await page.reload();
   await expect(page.locator('[data-end-handle^="stay:"]')).toBeVisible();
+
+  // A grip shows while its own bar is hovered, and only that bar's: each of
+  // the two in the row is hovered, whichever of them comes first.
+  const row = page.locator(`[data-unit-id="${rooms.A!.id}"]`);
+  const unpainted = "rgba(0, 0, 0, 0)";
+  for (const [hovered, other] of [
+    ["stay", "reservation"],
+    ["reservation", "stay"],
+  ]) {
+    await row.locator(`[data-bar-key^="${hovered}:"]`).hover();
+    await expect(row.locator(`[data-end-handle^="${hovered}:"]`)).not.toHaveCSS(
+      "background-color",
+      unpainted,
+    );
+    await expect(row.locator(`[data-end-handle^="${other}:"]`)).toHaveCSS(
+      "background-color",
+      unpainted,
+    );
+  }
+
   await pullEnd(page, rooms.A!, propertyDay(propertyId, 5), "stay");
   const blocked = page.getByRole("dialog", { name: "Change departure" });
   await expect(
@@ -1040,7 +1048,9 @@ test("RC-S3-16: Escape drops a drag in progress, and a plain click still opens t
   await page
     .getByRole("button", { name: new RegExp(`^${guest}, Confirmed`) })
     .click();
-  await expect(page.getByRole("dialog", { name: guest })).toBeVisible();
+  await expect(
+    page.getByRole("dialog", { name: "Reservation details" }),
+  ).toBeVisible();
 });
 
 test("RC-S3-11: in Arabic the drag follows the pointer to the left and the dates are the right ones", async ({
@@ -1157,7 +1167,7 @@ test("RC-S3-10: without front_desk.amend a bar has no grip, no end handle, no Mo
 
   // The drawer, opened by a click, offers no Move… either.
   await bar.click();
-  const drawer = page.getByRole("dialog", { name: guest });
+  const drawer = page.getByRole("dialog", { name: "Reservation details" });
   await expect(drawer).toBeVisible();
   await expect(drawer.getByRole("button", { name: "Move…" })).toHaveCount(0);
 });

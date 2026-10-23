@@ -248,11 +248,10 @@ test("cancelling needs a reason, a booking that has since arrived cannot be mark
     .click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Reason").fill("   ");
-  await dialog.getByRole("button", { name: words.cancelBooking }).click();
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText(
-    /A reason of at least \d+ characters? is needed/,
-  );
+  await expect(
+    dialog.getByRole("button", { name: words.cancelBooking }),
+  ).toBeDisabled();
+  await expect(dialog).toContainText(words.dialogHintReason);
   expect(reservationStatusOf(cancelled)).toBe("confirmed");
   await dialog.getByRole("button", { name: words.keepBooking }).click();
   await expect(dialog).toBeHidden();
@@ -322,8 +321,10 @@ test("a departure row carries its balance and a menu, and checking out with mone
   await expect(dialog.getByText("TRY 45.00").first()).toBeVisible();
   // Acknowledged but with no reason: held back, and the Guest is still in.
   await dialog.getByRole("checkbox").click();
-  await dialog.getByRole("button", { name: words.confirmCheckOut }).click();
-  await expect(dialog).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: words.checkOut, exact: true }),
+  ).toBeDisabled();
+  await expect(dialog).toContainText(words.dialogHintReason);
   expect(
     psql(
       `select stay.status from public.stays as stay

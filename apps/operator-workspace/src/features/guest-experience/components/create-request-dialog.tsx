@@ -2,31 +2,31 @@
 
 import { useEffect, useState, useActionState } from "react";
 import { useTranslations } from "next-intl";
-import { Loader2, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import type {
   ServiceRequestCategory,
   ServiceRequestPriority,
   ServiceRequestUnit,
 } from "@ranza/guest-services";
 import {
+  ArrowButton,
   Button,
+  CancelButton,
+  ChoiceGroup,
   Combobox,
   Dialog,
-  DialogClose,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
+  DialogSection,
   DialogTrigger,
   Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Textarea,
+  dialogFrameClassName,
+  fieldClassName,
+  textareaClassName,
 } from "@ranza/ui";
 import {
   createServiceRequest,
@@ -63,6 +63,7 @@ export function CreateRequestDialog({
   units = [],
 }: CreateRequestDialogProps) {
   const t = useTranslations("guestExperience");
+  const all = useTranslations();
   const roomLabels = usePickerLabels(t("selectRoom"));
   const [open, setOpen] = useState(false);
 
@@ -99,127 +100,138 @@ export function CreateRequestDialog({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-lg">
-        <form className="grid gap-4" onSubmit={submitWithoutReset(formAction)}>
-          <DialogHeader>
-            <DialogTitle>{t("createDialogTitle")}</DialogTitle>
-            <DialogDescription>{t("createDialogDesc")}</DialogDescription>
-          </DialogHeader>
+      <DialogContent className={dialogFrameClassName("medium")}>
+        <form className="grid" onSubmit={submitWithoutReset(formAction)}>
+          <DialogMasthead
+            art="/illustrations/dialogs/bell.svg"
+            eyebrow={t("createDialogTitle")}
+            heading={t("createHeading")}
+            large
+          />
+          <input name="accommodationUnitId" type="hidden" value={unitId} />
 
-          <RequestOutcome status={state.status} />
+          <DialogBody>
+            <DialogDescription className="m-0 py-5 text-sm">
+              {t("createDialogDesc")}
+            </DialogDescription>
 
-          <div className="grid gap-2">
-            <Label htmlFor="req-title">{t("title")}</Label>
-            <Input
-              id="req-title"
-              name="title"
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder={t("titlePlaceholder")}
-              value={title}
-              required
-              minLength={3}
-              maxLength={200}
-            />
-          </div>
+            <DialogSection
+              labelFor="req-title"
+              tag={{ label: all("dialogTagRequired"), required: true }}
+              title={t("title")}
+            >
+              <Input
+                className={fieldClassName}
+                id="req-title"
+                maxLength={200}
+                minLength={3}
+                name="title"
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder={t("titlePlaceholder")}
+                required
+                value={title}
+              />
+            </DialogSection>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label>{t("category")}</Label>
-              <Select
+            <DialogSection title={t("category")} titleId="req-category">
+              <ChoiceGroup
+                labelledBy="req-category"
+                name="category"
+                onChange={(value) =>
+                  setCategory(value as ServiceRequestCategory)
+                }
+                options={CATEGORIES.map((cat) => ({
+                  label: t(`categories.${cat}`),
+                  value: cat,
+                }))}
                 value={category}
-                onValueChange={(val) =>
-                  setCategory(val as ServiceRequestCategory)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t("selectCategory")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {t(`categories.${cat}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <input type="hidden" name="category" value={category} />
-            </div>
+              />
+            </DialogSection>
 
-            <div className="grid gap-2">
-              <Label>{t("priority")}</Label>
-              <Select
+            <DialogSection title={t("priority")} titleId="req-priority">
+              <ChoiceGroup
+                labelledBy="req-priority"
+                name="priority"
+                onChange={(value) =>
+                  setPriority(value as ServiceRequestPriority)
+                }
+                options={PRIORITIES.map((p) => ({
+                  label: t(`priorities.${p}`),
+                  value: p,
+                }))}
                 value={priority}
-                onValueChange={(val) =>
-                  setPriority(val as ServiceRequestPriority)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t("selectPriority")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {PRIORITIES.map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {t(`priorities.${p}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <input type="hidden" name="priority" value={priority} />
-            </div>
-          </div>
+              />
+            </DialogSection>
 
-          <div className="grid gap-2">
-            <Label htmlFor="req-room">{t("room")}</Label>
-            <Combobox
-              id="req-room"
-              labels={roomLabels}
-              onValueChange={(value) =>
-                setUnitId(value === "none" ? "" : value)
+            <DialogSection
+              hint={
+                unitId === ""
+                  ? null
+                  : occupant
+                    ? t("occupantInRoom", { guest: occupant })
+                    : t("roomEmptyNow")
               }
-              options={[
-                { value: "none", label: t("noRoom") },
-                ...units.map((unit) => ({
-                  value: unit.unitId,
-                  label: unit.name,
-                  ...(unit.occupant ? { description: unit.occupant } : {}),
-                })),
-              ]}
-              value={unitId}
-            />
-            {unitId === "" ? null : (
-              <p className="text-step--1 text-muted-foreground">
-                {occupant
-                  ? t("occupantInRoom", { guest: occupant })
-                  : t("roomEmptyNow")}
-              </p>
-            )}
-            <input type="hidden" name="accommodationUnitId" value={unitId} />
-          </div>
+              labelFor="req-room"
+              tag={{ label: all("dialogTagOptional"), required: false }}
+              title={t("room")}
+            >
+              <Combobox
+                id="req-room"
+                labels={roomLabels}
+                onValueChange={(value) =>
+                  setUnitId(value === "none" ? "" : value)
+                }
+                options={[
+                  { value: "none", label: t("noRoom") },
+                  ...units.map((unit) => ({
+                    value: unit.unitId,
+                    label: unit.name,
+                    ...(unit.occupant ? { description: unit.occupant } : {}),
+                  })),
+                ]}
+                value={unitId}
+              />
+            </DialogSection>
 
-          <div className="grid gap-2">
-            <Label htmlFor="req-details">{t("details")}</Label>
-            <Textarea
-              id="req-details"
-              name="details"
-              onChange={(event) => setDetails(event.target.value)}
-              placeholder={t("detailsPlaceholder")}
-              value={details}
-              rows={3}
-              maxLength={2000}
-            />
-          </div>
+            <DialogSection
+              labelFor="req-details"
+              tag={{ label: all("dialogTagOptional"), required: false }}
+              title={t("details")}
+            >
+              <Textarea
+                className={textareaClassName}
+                id="req-details"
+                maxLength={2000}
+                name="details"
+                onChange={(event) => setDetails(event.target.value)}
+                placeholder={t("detailsPlaceholder")}
+                rows={3}
+                value={details}
+              />
+            </DialogSection>
 
-          <DialogFooter className="gap-2 sm:gap-0">
-            <DialogClose asChild>
-              <Button type="button" variant="outline" disabled={isPending}>
-                {t("close")}
-              </Button>
-            </DialogClose>
-            <Button type="submit" disabled={isPending} className="gap-1.5">
-              {isPending && <Loader2 className="size-3.5 animate-spin" />}
+            <div aria-live="polite" className="py-5 empty:hidden">
+              <RequestOutcome status={state.status} />
+            </div>
+          </DialogBody>
+
+          <DialogActions
+            hint={title.trim().length >= 3 ? null : t("createHintMissing")}
+          >
+            <CancelButton
+              disabled={isPending}
+              onClick={() => setOpen(false)}
+              type="button"
+            >
+              {t("close")}
+            </CancelButton>
+            <ArrowButton
+              disabled={isPending || title.trim().length < 3}
+              type="submit"
+            >
               {isPending ? t("saving") : t("submit")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </form>
       </DialogContent>
     </Dialog>

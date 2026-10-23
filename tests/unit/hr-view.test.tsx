@@ -535,7 +535,9 @@ describe("payroll", () => {
     expect(lock).toBeDisabled();
     fireEvent.click(lock);
     expect(approvePayrollAction).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByTestId("understood-placeholders"));
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /unapproved placeholders/ }),
+    );
     expect(lock).toBeEnabled();
     fireEvent.click(lock);
     await vi.waitFor(() =>
@@ -565,7 +567,9 @@ describe("payroll", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Bordroyu onayla" }));
-    fireEvent.click(await screen.findByTestId("understood-placeholders"));
+    fireEvent.click(
+      await screen.findByRole("checkbox", { name: /yer tutucu/ }),
+    );
     fireEvent.click(
       await screen.findByRole("button", { name: "Onayla ve kilitle" }),
     );
@@ -969,7 +973,9 @@ describe("what an empty screen says, and to whom", () => {
     expect(
       screen.getByRole("button", { name: "Approve and lock" }),
     ).toBeDisabled();
-    fireEvent.click(screen.getByTestId("understood-placeholders"));
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /unapproved placeholders/ }),
+    );
     expect(
       screen.getByRole("button", { name: "Approve and lock" }),
     ).toBeEnabled();

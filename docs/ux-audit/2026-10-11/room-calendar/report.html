@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UX audit: Room calendar (2026-10-11)</title>
+<style>
+  :root { --ink:#1b2a26; --muted:#5d6b66; --line:#d9dfdc; --bg:#fff; --soft:#f5f7f6; --warn:#8a5a00; --bad:#a3271f; }
+  * { box-sizing: border-box; }
+  body { font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); margin: 0; padding: 24px 16px 64px; }
+  main { max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 20px; margin: 40px 0 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+  p, li { max-width: 78ch; }
+  .meta { color: var(--muted); margin: 0 0 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: var(--soft); }
+  .scroll { overflow-x: auto; }
+  .sev-blocks { color: var(--bad); font-weight: 600; }
+  .sev-errors { color: var(--bad); }
+  .sev-slows { color: var(--warn); }
+  .sev-polish { color: var(--muted); }
+  .tag { font-size: 12px; padding: 1px 6px; border: 1px solid var(--line); border-radius: 10px; white-space: nowrap; }
+  img { max-width: 100%; border: 1px solid var(--line); }
+  .shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .shots figure { margin: 0; }
+  .shots figcaption { font-size: 12px; color: var(--muted); }
+  code { background: var(--soft); padding: 0 4px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Room calendar: UX audit</h1>
+<p class="meta">Route <code>/en/room-calendar</code> and the booking drawer and dialogs it opens. Staging <code>ranza.46-225-168-54.nip.io</code>, code at <code>main</code> 4b15c30. Audited 2026-10-11 as Front Desk (primary), Housekeeping and Manager, at 1200, 768 and 375 px, in English, Turkish and Arabic. Mode: audit only. Nothing was saved: I stopped at the confirm step of Move booking and Change departure and pressed neither.</p>
+
+<h2>0. What I could and could not see</h2>
+<ul>
+  <li><b>Data state found (verified):</b> Demo Otel İstanbul has 3 rooms (101, 102, 201), one floor-less group, no beds, no blocked or out-of-service rooms, no requested or departed bars, no overlaps, and two bars in the default window: an overdue stay (102) and one confirmed booking for tonight (201). Everything after Oct 12 is empty.</li>
+  <li>The brief asks about 30+ rooms by 14+ days. <b>I could not see that.</b> Findings about volume (vertical scroll, tab stops, space taken by the toolbar) are marked <em>inferred</em> and come from the code (<code>calendar-grid.tsx</code>: grid is <code>max-h-[70vh]</code>, header rows are <code>sticky top-0</code>, room column is <code>sticky start-0</code>) and from measurements on the 3-room grid.</li>
+  <li>Blocked, out-of-service, overlap, requested and departed looks were not on screen. I judged them from the legend and <code>edge-cases.csv</code> only.</li>
+  <li>I did not perform a pointer drag. A drag only opens the same dialogs I opened with Move… and Change departure, and RC-S3-* rows are still <code>proposed</code>. Drag is <em>inferred</em> from code and docs.</li>
+  <li>Seconds in the jobs table are my estimate from the run, not a stopwatch. Page load times are measured (Navigation Timing).</li>
+  <li>Console: no errors or warnings on the calendar page (verified).</li>
+</ul>
+
+<h2>1. Verdict</h2>
+<ul>
+  <li><b>Could the supervisor use it unaided on a desktop? Yes, for scanning a small Property.</b> The Free-per-night row, the tinted today column, the icon-plus-word legend and the drawer all work and need no explanation.</li>
+  <li><b>Biggest risk: reading dates and names wrongly.</b> The 30-day header is single letters with no month marker (<code>T F S S M T W</code>, then <code>S31 S1</code>), Turkish is worse (<code>P C C P</code>), and short bars show <code>mahn…</code> or just <code>m</code>.</li>
+  <li><b>Second risk: an overdue guest looks cheap and short.</b> The drawer says 2 nights and TRY 0.00 for a guest who is physically in the room 10 nights past departure, while the bar runs to tonight.</li>
+  <li><b>On a phone it is not usable as shipped:</b> at 375 px the first screen has no grid at all (about 760 px of header, filters and legend come first) and only two days fit beside the room column.</li>
+  <li>Two things the persona asked for do not exist: unassigned bookings (every booking is tied to a room by the schema) and overbooking warnings (the database now refuses them, so there is nothing to warn about).</li>
+</ul>
+
+<h2>2. Findings</h2>
+<p>Severity: <span class="sev-blocks">blocks work</span> / <span class="sev-errors">causes errors</span> / <span class="sev-slows">slows me down</span> / <span class="sev-polish">polish</span>. "Reproduced" means I saw it more than once or in more than one context.</p>
+<div class="scroll">
+<table>
+<thead><tr><th>ID</th><th>Severity</th><th>Where</th><th>What happened</th><th>Expected</th><th>Suggested fix</th><th>Effort</th><th>Evidence</th><th>Basis</th></tr></thead>
+<tbody>
+<tr><td>ROOMCAL-01</td><td class="sev-slows">slows me down (blocks on a phone)</td><td>/en/room-calendar, Front Desk, 375 px</td><td>First screen is page title, a duplicate heading, a 3-line description, date controls, three filters, search, two checkboxes and a 4-row legend. The grid starts about 760 px down, partly under the bottom nav. The room column is 11rem, so only about two days are visible beside it.</td><td>The grid is the first thing I see; filters and legend tuck away; more than two days show.</td><td>On narrow screens: collapse filters and legend behind one button, drop the second heading and the description, shrink the room column to about 4rem.</td><td>M</td><td>13, 14 (reproduced at 768: 15)</td><td>verified</td></tr>
+<tr><td>ROOMCAL-02</td><td class="sev-errors">causes errors</td><td>30-day view, English and Turkish, Front Desk</td><td>Day headers are one letter plus a number: <code>T F S S M T W T F S S M T</code>. Thursday and Tuesday are both T, Saturday and Sunday both S. Turkish is P C C P (Pazartesi and Pazar are both P; Cuma and Cumartesi both C). The month change has no marker: the header reads <code>S31</code> then <code>S1</code> with no label.</td><td>I can tell which day and which month a column is without counting from the highlighted today column.</td><td>Use a two-letter or short weekday at 30 days, with Sat/Sun columns tinted, and a month label (Nov) over the first day of each month.</td><td>S</td><td>10, 20 (reproduced in two locales)</td><td>verified</td></tr>
+<tr><td>ROOMCAL-03</td><td class="sev-slows">slows me down</td><td>14 and 30 days, all roles; also Arabic</td><td>A one-night booking cannot show its Guest: <code>mahn…</code> at 14 days, <code>m</code> at 30 days. After scrolling sideways a bar that started left of the pinned room column shows only a stub (<code>ahn…</code>). In Arabic the truncation cuts the front: <code>…noor</code>. The only way to read the name is the native tooltip delay or opening the drawer.</td><td>I can tell who is in 201 without opening anything.</td><td>Put the name beside or above a short bar, or show the name in a hover card with no delay; keep the label visible when the bar is partly under the sticky column.</td><td>M</td><td>01, 02, 10, 16</td><td>verified</td></tr>
+<tr><td>ROOMCAL-04</td><td class="sev-errors">causes errors</td><td>Drawer of an overdue stay (102, ahmed), Front Desk, Housekeeping</td><td>The bar runs to tonight, but the drawer says Arrived Sep 29, Leaves Oct 1, Booked Sep 27 to Oct 1, Nights 2, Balance TRY 0.00. The Guest is in the room 10 nights past the date shown, and nothing says nights since Oct 1 are not counted or not charged. The bar's screen-reader name says "Sep 29 to Oct 1", so it never says the Guest is still in the room. Change departure then opens on a departure date already 10 days in the past.</td><td>The drawer says "still in the room tonight, 12 nights so far, due to leave Oct 1" and states whether the extra nights are charged.</td><td>Show nights up to tonight, an "overdue since" count, and the balance as of tonight (or say it excludes overdue nights); put "in house through tonight" in the bar's accessible name.</td><td>M</td><td>08, 09, 19</td><td>verified (what it shows); whether the nights are charged is <em>unknown</em></td></tr>
+<tr><td>ROOMCAL-05</td><td class="sev-slows">slows me down</td><td>Move booking dialog, Front Desk, first 1 to 2 seconds</td><td>While the dialog loads, the Unit field shows a raw id (<code>e2672279-687b-4589-b193-2825f44a24a8</code>) and the "To" side shows a dash. It resolves to <code>201</code> a moment later.</td><td>Show the room number, or a placeholder, from the first frame.</td><td>Resolve the label from the already-loaded rows before first paint.</td><td>S</td><td>04 (single run, I did not reproduce it a second time); settled state 05</td><td>verified once</td></tr>
+<tr><td>ROOMCAL-06</td><td class="sev-slows">slows me down</td><td>Move booking dialog, 201 Suite to 201 and to 101</td><td>A notice reads "Suite has no price: the booking will be unpriced." even when nothing is changing (same Unit). For 101 it reads "Room has no price: the booking will be unpriced." It reads as a consequence of my move, but it is a data gap (no rate on the unit type), and the sentence also appears next to "there is nothing to change".</td><td>A setup gap and a move consequence are worded differently, and nothing about price appears when I change nothing.</td><td>Say "No rate is set for Suite; this booking is already unpriced" and show only when the booking is priced now and would lose its price.</td><td>S</td><td>05, 07</td><td>verified</td></tr>
+<tr><td>ROOMCAL-07</td><td class="sev-slows">slows me down</td><td>Keyboard: drawer, then Move…, then Escape</td><td>After Escape closes the Move dialog, focus goes to <code>BODY</code> while the drawer is still open. The keyboard user has to Tab from the top of the page. (Escape on the drawer itself correctly returns focus to the bar.)</td><td>Focus returns to the Move… button.</td><td>Restore focus to the opener when a dialog closes over a drawer.</td><td>S</td><td>no screenshot (script-measured: <code>activeElement</code> was BODY); one run</td><td>verified once</td></tr>
+<tr><td>ROOMCAL-08</td><td class="sev-slows">slows me down</td><td>Toolbar, English, Turkish, Arabic</td><td>The 14-day grid at 1200 px with the sidebar open shows 10 days; the last 4 are off to the right with no scroll cue (scroll width 1184, visible 894). At 768 px only 4 days show.</td><td>"14 days" fits, or I can see there is more.</td><td>Narrower day cells at 14 days, and an edge fade or arrow when the grid scrolls.</td><td>M</td><td>01, 02, 15</td><td>verified</td></tr>
+<tr><td>ROOMCAL-09</td><td class="sev-slows">slows me down</td><td>Drawer, all roles</td><td>The drawer shows Type: "Guest" (meaningless to staff), no Reservation code (RJY1FR2 appears only in the Move dialog), and nothing about room readiness, although Today flags 201 as not ready for this same arrival. The action buttons sit flush under the last fact row with no gap.</td><td>Reservation code, room status and a real stay type; normal spacing.</td><td>Add code and room status to the drawer; drop or rename Type; add 16 px between facts and actions.</td><td>S to M</td><td>03, 08, 19</td><td>verified</td></tr>
+<tr><td>ROOMCAL-10</td><td class="sev-polish">polish</td><td>Toolbar</td><td>The checkboxes "Requested" and "Departed" do not say they show or hide those bars; the second wraps alone onto its own line. In Turkish they read "Talep" and "Ayrılan" while the legend says "Ayrıldı", a different word for the same state.</td><td>"Show requested" and "Show departed", one word per state.</td><td>Rename; keep the pair on one line.</td><td>S</td><td>01, 20</td><td>verified</td></tr>
+<tr><td>ROOMCAL-11</td><td class="sev-polish">polish</td><td>Toolbar</td><td>The Previous and Next buttons are named "week" and step 7 days, also in the 14- and 30-day views (Oct 8 to Oct 15 on a 14-day window). The jump-to-date field puts the chosen day in the 4th column without marking it, and its placeholder is the browser's <code>dd.mm.yyyy</code> even in English and Arabic, next to a header that reads "Oct 8, 2026".</td><td>A step of one window, or labels that say 7 days; the chosen day is marked; one date format.</td><td>Mark the jumped-to column; label the arrows with the step; use a locale-formatted placeholder.</td><td>S</td><td>11, 17 (placeholder: browser-dependent, so <em>inferred</em> for other browsers)</td><td>verified (steps and marking)</td></tr>
+<tr><td>ROOMCAL-12</td><td class="sev-polish">polish</td><td>Empty window</td><td>Moving to a window with no bookings inserts "Nothing is booked from … to …" above the grid and pushes it down about 65 px, so the grid jumps while I page.</td><td>The grid stays put.</td><td>Reserve the line's space or place it under the grid.</td><td>S</td><td>11</td><td>verified</td></tr>
+<tr><td>ROOMCAL-13</td><td class="sev-slows">slows me down</td><td>30+ rooms, 1366x768 to 1440x900 screens</td><td>Above the grid sit the app header, two headings, a one-line description, two toolbar rows, a filter row and a 2-line legend: about 330 px at 1200x832, and the grid is capped at 70% of the window height. On a 832 px window that is room for roughly 10 to 12 rows before the grid scrolls inside itself, and a second scroll area (page plus grid) appears. The Free row and date headers stay pinned, which helps.</td><td>As many rooms as the screen can hold.</td><td>Make the legend collapsible, drop the duplicate heading, let the grid fill the remaining height instead of 70vh.</td><td>M</td><td>01 (measured on 3 rooms)</td><td>inferred for 30+ rooms</td></tr>
+<tr><td>ROOMCAL-14</td><td class="sev-slows">slows me down</td><td>Keyboard, all roles</td><td>Every bar is a tab stop and the first bar is the 40th stop on the page (about 25 sidebar and header stops come first; a "Skip to content" link exists). I found no arrow-key movement between cells.</td><td>One tab stop for the grid, arrows between rooms and days.</td><td>Roving tabindex over the grid.</td><td>M</td><td>script count (41 tab stops, 2 bars)</td><td>verified on 2 bars, inferred at 30+</td></tr>
+<tr><td>ROOMCAL-15</td><td class="sev-polish">polish (owner decision)</td><td>Drawer, Housekeeping</td><td>Housekeeping sees Guest names, the stay balance (TRY 0.00) and an "Open in Departures" link. The code that builds the drawer has no finance check on the balance (grep of <code>bar-drawer.tsx</code> and the route found none). Hiding names by role is deferred (RC-DEF-07); the balance is not mentioned there.</td><td>A decision on whether housekeeping should see money.</td><td>Gate the balance on the folio permission as the Finance screens do, or record the decision.</td><td>S</td><td>19</td><td>verified (shown); intent <em>unknown</em></td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>3. Jobs</h2>
+<p>Pass/fail tests were written before the attempt. Seconds are estimates; clicks are counted. "Stopped" means the confirm step was reached and not pressed.</p>
+<div class="scroll">
+<table>
+<thead><tr><th>#</th><th>Job</th><th>Pass test (written first)</th><th>Result</th><th>Seconds</th><th>Clicks</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Spot gaps in the next two weeks</td><td>Within 30 s I can say which nights have free rooms and the first night with none, without opening a booking.</td><td>Pass for the 3-room data. The Free row gives it. At 1200 px the last 4 days needed one sideways scroll (ROOMCAL-08).</td><td>about 15</td><td>0 (1 scroll)</td></tr>
+<tr><td>2</td><td>Find an overbooking</td><td>A double booking is marked on both bars and counted, and I can filter to those rooms.</td><td>Not testable: none exist on staging and #60 made the database refuse new ones. Legend and filter exist (<em>inferred</em>).</td><td>n/a</td><td>n/a</td></tr>
+<tr><td>3</td><td>Find bookings with no room</td><td>A list or row of unassigned bookings is on the page.</td><td>Fail, and not a UX defect: every booking requires a room in the schema (see section 6).</td><td>n/a</td><td>n/a</td></tr>
+<tr><td>4</td><td>Find a guest's room by name</td><td>Typing a name leaves only that room; a name that is not there says so and offers a way out.</td><td>No-match half passed ("No rooms match", Clear filters). The positive match was not run; it is described in RC-S1-41 (<em>inferred</em>).</td><td>about 10</td><td>1</td></tr>
+<tr><td>5</td><td>Jump two weeks ahead</td><td>I reach a given date in one action and can tell which column it is.</td><td>Passed with caveat: typing 25.10.2026 moved to Oct 22 to Nov 4; the chosen day is not marked (ROOMCAL-11).</td><td>about 15</td><td>2 (plus typing)</td></tr>
+<tr><td>6</td><td>Move a booking to another room</td><td>I can pick another room, see the result and conflicts, and reach a confirm button with the booking unchanged until I press it.</td><td>Passed to the confirm step. 201 to 101 enabled Move booking. Stopped, not persisted. Friction: ROOMCAL-05, 06, 07.</td><td>about 30</td><td>4 clicks, 2 keys</td></tr>
+<tr><td>7</td><td>Under pressure: a guest is 10 days overdue, fix their stay</td><td>From the bar I reach a way to set a new departure in 3 clicks or fewer, and the page tells me what that does to charges.</td><td>Reached Change departure in 2 clicks; the page does not say what happens to nights since Oct 1 (ROOMCAL-04). Stopped, not persisted.</td><td>about 20</td><td>2</td></tr>
+<tr><td>8</td><td>Use it on a phone</td><td>At 375 px I see the grid and today's column without scrolling past controls.</td><td>Fail. The grid starts about 760 px down; two days visible.</td><td>about 25</td><td>0 (3 scrolls)</td></tr>
+<tr><td>9</td><td>See what other roles get</td><td>Each role sees only the actions it may take.</td><td>Passed. Housekeeping: no Move buttons and the drag hint line is gone. Manager: same as Front Desk. Balance shown to Housekeeping (ROOMCAL-15).</td><td>about 60</td><td>about 12</td></tr>
+</tbody>
+</table>
+</div>
+<p>Load time (verified, Front Desk, 3 rooms): first load 1.5 s to DOMContentLoaded, 0.5 s to first byte; a later load 1.0 s. Volume at 30+ rooms is <em>unknown</em>; the read is bounded to 7, 14 or 30 days by code (RC-S1-06).</p>
+
+<h2>4. Top changes, ranked by time saved x frequency</h2>
+<ol>
+  <li>I can tell which day and month every column is, in any language. (ROOMCAL-02)</li>
+  <li>I can read who is in each room without opening it. (ROOMCAL-03)</li>
+  <li>More rooms fit on my screen, because the legend and headings stop taking a third of it. (ROOMCAL-13)</li>
+  <li>I see the calendar first on a phone. (ROOMCAL-01)</li>
+  <li>An overdue guest shows how long they have really stayed and whether those nights are charged. (ROOMCAL-04)</li>
+  <li>The drawer shows the reservation code and whether the room is ready, so I do not hop to Arrivals to find them. (ROOMCAL-09)</li>
+  <li>All 14 days fit on a laptop, or I can see there is more to the right. (ROOMCAL-08)</li>
+  <li>The Move dialog does not flash an id and does not warn about prices when I change nothing. (ROOMCAL-05, 06)</li>
+  <li>I can move through the grid with arrow keys, and focus comes back where I was. (ROOMCAL-14, 07)</li>
+  <li>The arrows step by the window I am viewing. (ROOMCAL-11)</li>
+</ol>
+
+<h2>5. Inconsistencies</h2>
+<ul>
+  <li><b>Room vs Unit.</b> The page, rail and Today say "room" ("Room calendar", "Rooms & beds", "1 room not ready"). The filters and dialogs say "Unit", "Unit type", "Unit state" and "the Unit is of another kind". One word should win; the CLAUDE.md vocabulary table is silent on this one. <em>verified</em></li>
+  <li><b>Three names for moving.</b> Drawer button "Move…", dialog "Move booking", and for in-house stays "Move Guest". <em>verified</em></li>
+  <li><b>Departed, Ayrıldı, Ayrılan.</b> Legend and checkbox disagree in Turkish (ROOMCAL-10). <em>verified</em></li>
+  <li><b>Dates.</b> Header shows "Oct 8, 2026"; the jump field shows <code>dd.mm.yyyy</code> in all three languages. <em>verified</em></li>
+  <li><b>Today does the "booked ahead" read better.</b> Its Booked-ahead table gives per night "2 of 3, 67%"; the calendar's Free row gives only "1" and keeps "of 3" in an accessible label. A supervisor reading the strip cannot see the denominator. <em>verified</em></li>
+  <li><b>Today flags 201 "Room not ready", the calendar shows nothing about it.</b> (ROOMCAL-09) <em>verified</em></li>
+  <li><b>Housekeeping's rail shows Reservations, Arrivals, Departures and Close the day</b> under Front Office. That is another screen's decision, but it is where "Open in Departures" leads from this drawer. <em>verified</em></li>
+</ul>
+
+<h2>6. Not built / needs backend work</h2>
+<ul>
+  <li><b>Unassigned bookings.</b> <code>Reservation.accommodationUnitId</code> is required (<code>prisma/schema.prisma</code>, model Reservation), so a booking cannot exist without a room and the calendar has no pool to draw. A supervisor who wants a "to be assigned" row needs a room-type booking concept first. Not in the edge-cases file at all.</li>
+  <li><b>Overbooking warnings.</b> Since #60 the database refuses overlaps (RC-S1-67), so the Overlap marker only covers rows written earlier or the overdue-into-booked-night case (RC-S1-26). Nothing to build; the persona's worry is answered by the database.</li>
+  <li><b>Blocked and out-of-order with dates:</b> RC-DEF-03, deferred to Maintenance. Today the hatch runs from today with no end.</li>
+  <li><b>Saved views (RC-DEF-02), act from the drawer (RC-DEF-04), group by category (RC-DEF-06), hide Guest names by role (RC-DEF-07), longer windows (RC-DEF-08), scroll while dragging (RC-DEF-12), finger drag (RC-DEF-11), pull a booking's start (RC-DEF-10):</b> all deferred, each with its reason in <code>docs/features/room-calendar/edge-cases.csv</code>.</li>
+  <li><b>A client error reporter:</b> RC-DEF-09, deferred for the whole workspace.</li>
+  <li>Drag and its outline (RC-S3-01 to 17) are <code>proposed</code>, not approved; I did not exercise them.</li>
+</ul>
+
+<h2>7. What already works well and must not regress</h2>
+<ul>
+  <li>The Free-rooms-per-night row and the day headers stay pinned; the room column is pinned at the start edge, so it also pins at the right in Arabic. <em>verified</em> (scrolling) and code.</li>
+  <li>Today is tinted, bold and carries <code>aria-current="date"</code>. <em>verified</em></li>
+  <li>The legend pairs every state with an icon and a word, not colour alone (dashed for requested, a clock for overdue, a prohibition sign for booked while blocked). <em>verified</em></li>
+  <li>Arabic mirrors correctly: days run right to left, the room column and drawer move to the right, the previous and next arrows flip, and numerals and ICU text are present. Turkish is fully translated. <em>verified</em></li>
+  <li>The page has a Back arrow to Today (ADR 0035) and a breadcrumb. <em>verified</em></li>
+  <li>The view is in the URL (<code>from</code>, <code>days</code>, <code>q</code>); a bad value falls back to the default instead of erroring. <em>verified</em> for a valid and a no-match search; the fall-back is <em>inferred</em> from RC-S1-07 and RC-S1-60.</li>
+  <li>The empty search result says "No rooms match" with a Clear filters button. <em>verified</em></li>
+  <li>Drawer focus: opens on its first action, Escape closes it and returns focus to the bar. <em>verified</em></li>
+  <li>Role gating is clear: Housekeeping gets no Move buttons and the drag hint sentence is removed; Manager matches Front Desk. <em>verified</em></li>
+  <li>Move booking cannot be pressed when nothing changes and says why ("The dates and the Unit are the same: there is nothing to change"); Change departure says "That is already the departure." <em>verified</em></li>
+  <li>No console errors; first load about 1.5 s on this data. <em>verified</em></li>
+</ul>
+
+<h2>Screenshots</h2>
+<div class="shots">
+  <figure><a href="01-default-14d.png"><img src="01-default-14d.png" alt="Default 14-day view"></a><figcaption>01 Default 14 days, Front Desk</figcaption></figure>
+  <figure><a href="02-scrolled-right.png"><img src="02-scrolled-right.png" alt="Scrolled right"></a><figcaption>02 Scrolled right: bars clipped under the room column</figcaption></figure>
+  <figure><a href="03-drawer-confirmed.png"><img src="03-drawer-confirmed.png" alt="Drawer for a confirmed booking"></a><figcaption>03 Drawer, confirmed booking</figcaption></figure>
+  <figure><a href="04-move-dialog.png"><img src="04-move-dialog.png" alt="Move dialog with a raw id"></a><figcaption>04 Move dialog, raw id while loading</figcaption></figure>
+  <figure><a href="05-move-dialog-settled.png"><img src="05-move-dialog-settled.png" alt="Move dialog settled"></a><figcaption>05 Move dialog, settled, no-price notice</figcaption></figure>
+  <figure><a href="06-move-unit-picker.png"><img src="06-move-unit-picker.png" alt="Unit picker"></a><figcaption>06 Unit picker</figcaption></figure>
+  <figure><a href="07-move-preview-101.png"><img src="07-move-preview-101.png" alt="Move preview to 101"></a><figcaption>07 Confirm step to 101 (stopped, not pressed)</figcaption></figure>
+  <figure><a href="08-drawer-overdue.png"><img src="08-drawer-overdue.png" alt="Overdue drawer"></a><figcaption>08 Drawer, overdue stay</figcaption></figure>
+  <figure><a href="09-change-departure.png"><img src="09-change-departure.png" alt="Change departure dialog"></a><figcaption>09 Change departure (stopped, not saved)</figcaption></figure>
+  <figure><a href="10-30-days.png"><img src="10-30-days.png" alt="30-day view"></a><figcaption>10 30 days, single-letter headers</figcaption></figure>
+  <figure><a href="11-next-week-empty.png"><img src="11-next-week-empty.png" alt="Empty window"></a><figcaption>11 Empty window, line above the grid</figcaption></figure>
+  <figure><a href="12-search-no-match.png"><img src="12-search-no-match.png" alt="No rooms match"></a><figcaption>12 Search with no match</figcaption></figure>
+  <figure><a href="13-narrow-375.png"><img src="13-narrow-375.png" alt="375 px full page"></a><figcaption>13 375 px, full page (the floating bottom nav is a capture artefact)</figcaption></figure>
+  <figure><a href="14-narrow-375-first-screen.png"><img src="14-narrow-375-first-screen.png" alt="375 px first screen"></a><figcaption>14 375 px, first screen: no grid</figcaption></figure>
+  <figure><a href="15-narrow-768.png"><img src="15-narrow-768.png" alt="768 px"></a><figcaption>15 768 px: four days</figcaption></figure>
+  <figure><a href="16-rtl-arabic.png"><img src="16-rtl-arabic.png" alt="Arabic"></a><figcaption>16 Arabic, mirrored</figcaption></figure>
+  <figure><a href="17-jump-to-date.png"><img src="17-jump-to-date.png" alt="Jump to date"></a><figcaption>17 Jump to 25.10.2026</figcaption></figure>
+  <figure><a href="18-housekeeping-direct.png"><img src="18-housekeeping-direct.png" alt="Housekeeping view"></a><figcaption>18 Housekeeping, no drag hint</figcaption></figure>
+  <figure><a href="19-housekeeping-drawer.png"><img src="19-housekeeping-drawer.png" alt="Housekeeping drawer"></a><figcaption>19 Housekeeping drawer: balance shown</figcaption></figure>
+  <figure><a href="20-turkish-30d.png"><img src="20-turkish-30d.png" alt="Turkish 30 days"></a><figcaption>20 Turkish 30 days: P C C P</figcaption></figure>
+</div>
+</main>
+</body>
+</html>

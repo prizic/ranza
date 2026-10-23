@@ -10,17 +10,19 @@ import type {
 } from "@ranza/maintenance";
 import { isolate, type SupportedLocale } from "@ranza/i18n";
 import {
+  ArrowButton,
   Button,
+  CancelButton,
   Checkbox,
+  ChoiceGroup,
   Dialog,
-  DialogClose,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
+  DialogSection,
   EmptyState,
-  Field,
   Input,
   Label,
   Select,
@@ -35,6 +37,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  dialogFrameClassName,
+  fieldClassName,
 } from "@ranza/ui";
 import {
   saveEquipment,
@@ -306,6 +310,7 @@ function EquipmentDialog({
   onSaved: (outcome: MaintenanceOutcome) => void;
 }) {
   const t = useTranslations("maintenance");
+  const all = useTranslations();
   const [outcome, act, pending] = useActionState<MaintenanceOutcome, FormData>(
     saveEquipment,
     { status: "idle" },
@@ -332,6 +337,13 @@ function EquipmentDialog({
 
   const placed = where === "room" ? unitId !== "" : location.trim() !== "";
 
+  const ready = name.trim() !== "" && category.trim() !== "" && placed;
+  const required = { label: all("dialogTagRequired"), required: true } as const;
+  const optional = {
+    label: all("dialogTagOptional"),
+    required: false,
+  } as const;
+
   return (
     <Dialog
       onOpenChange={(open) => {
@@ -339,15 +351,14 @@ function EquipmentDialog({
       }}
       open
     >
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>
-            {item ? t("editEquipment") : t("addEquipment")}
-          </DialogTitle>
-          <DialogDescription>{t("noEquipmentDescription")}</DialogDescription>
-        </DialogHeader>
-
-        <form className="grid gap-4" onSubmit={submitWithoutReset(act)}>
+      <DialogContent className={dialogFrameClassName("medium")}>
+        <form className="grid" onSubmit={submitWithoutReset(act)}>
+          <DialogMasthead
+            art="/illustrations/dialogs/equipment.svg"
+            eyebrow={item ? t("editEquipment") : t("addEquipment")}
+            heading={item ? item.name : t("equipmentHeading")}
+            large={item === null}
+          />
           <input name="locale" type="hidden" value={locale} />
           <input name="propertyId" type="hidden" value={propertyId} />
           {item ? (
@@ -364,13 +375,21 @@ function EquipmentDialog({
               />
             </>
           ) : null}
-          <input name="where" type="hidden" value={where} />
           <input name="unitId" type="hidden" value={unitId} />
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field htmlFor="equipment-name" label={t("equipmentName")}>
+          <DialogBody>
+            <DialogDescription className="sr-only">
+              {t("noEquipmentDescription")}
+            </DialogDescription>
+
+            <DialogSection
+              labelFor="equipment-name"
+              tag={required}
+              title={t("equipmentName")}
+            >
               <Input
                 autoComplete="off"
+                className={fieldClassName}
                 id="equipment-name"
                 maxLength={limits.name}
                 name="name"
@@ -379,10 +398,16 @@ function EquipmentDialog({
                 required
                 value={name}
               />
-            </Field>
-            <Field htmlFor="equipment-category" label={t("category")}>
+            </DialogSection>
+
+            <DialogSection
+              labelFor="equipment-category"
+              tag={required}
+              title={t("category")}
+            >
               <Input
                 autoComplete="off"
+                className={fieldClassName}
                 id="equipment-category"
                 maxLength={limits.category}
                 name="category"
@@ -391,62 +416,69 @@ function EquipmentDialog({
                 required
                 value={category}
               />
-            </Field>
-          </div>
+            </DialogSection>
 
-          <fieldset className="grid gap-2">
-            <legend className="mb-1.5 text-step--1 font-medium">
-              {t("whereIs")}
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              {(["room", "place"] as const).map((value) => (
-                <Button
-                  aria-pressed={where === value}
-                  key={value}
-                  onClick={() => setWhere(value)}
-                  size="sm"
-                  type="button"
-                  variant={where === value ? "default" : "outline"}
-                >
-                  {value === "room" ? t("atRoom") : t("atPlace")}
-                </Button>
-              ))}
-            </div>
-            {where === "room" ? (
-              <Select onValueChange={setUnitId} value={unitId}>
-                <SelectTrigger aria-label={t("unit")} id="equipment-unit">
-                  <SelectValue placeholder={t("chooseUnit")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {units.map((unit) => (
-                    <SelectItem key={unit.unitId} value={unit.unitId}>
-                      {unit.roomName === null
-                        ? unit.name
-                        : t("bedInRoom", {
-                            bed: unit.name,
-                            room: unit.roomName,
-                          })}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <Input
-                aria-label={t("place")}
-                autoComplete="off"
-                id="equipment-location"
-                maxLength={limits.location}
-                name="location"
-                onChange={(event) => setLocation(event.target.value)}
-                placeholder={t("placePlaceholder")}
-                value={location}
+            <DialogSection
+              tag={required}
+              title={t("whereIs")}
+              titleId="equipment-where"
+            >
+              <ChoiceGroup
+                labelledBy="equipment-where"
+                name="where"
+                onChange={(value) => setWhere(value as "room" | "place")}
+                options={[
+                  { label: t("atRoom"), value: "room" },
+                  { label: t("atPlace"), value: "place" },
+                ]}
+                value={where}
               />
-            )}
-          </fieldset>
+              {where === "room" ? (
+                <Select onValueChange={setUnitId} value={unitId}>
+                  <SelectTrigger
+                    aria-label={t("unit")}
+                    className="w-full"
+                    id="equipment-unit"
+                  >
+                    <SelectValue placeholder={t("chooseUnit")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {units.map((unit) => (
+                      <SelectItem key={unit.unitId} value={unit.unitId}>
+                        {unit.roomName === null
+                          ? unit.name
+                          : t("bedInRoom", {
+                              bed: unit.name,
+                              room: unit.roomName,
+                            })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  aria-label={t("place")}
+                  autoComplete="off"
+                  className={fieldClassName}
+                  id="equipment-location"
+                  maxLength={limits.location}
+                  name="location"
+                  onChange={(event) => setLocation(event.target.value)}
+                  placeholder={t("placePlaceholder")}
+                  value={location}
+                />
+              )}
+            </DialogSection>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field htmlFor="equipment-interval" label={t("interval")}>
+            <DialogSection
+              hint={t("intervalHint")}
+              labelFor="equipment-interval"
+              tag={optional}
+              title={t("interval")}
+            >
               <Input
+                aria-describedby="equipment-interval-hint"
+                className={fieldClassName}
                 id="equipment-interval"
                 inputMode="numeric"
                 max={limits.interval}
@@ -456,9 +488,15 @@ function EquipmentDialog({
                 type="number"
                 value={months}
               />
-            </Field>
-            <Field htmlFor="equipment-last" label={t("lastServiced")}>
+            </DialogSection>
+
+            <DialogSection
+              labelFor="equipment-last"
+              tag={optional}
+              title={t("lastServiced")}
+            >
               <Input
+                className={fieldClassName}
                 id="equipment-last"
                 max={today}
                 name="lastServicedOn"
@@ -466,32 +504,21 @@ function EquipmentDialog({
                 type="date"
                 value={lastServicedOn}
               />
-            </Field>
-          </div>
-          <p className="-mt-2 text-step--1 text-muted-foreground">
-            {t("intervalHint")}
-          </p>
+            </DialogSection>
 
-          <OutcomeMessage outcome={outcome} />
+            <div aria-live="polite" className="py-5 empty:hidden">
+              <OutcomeMessage outcome={outcome} />
+            </div>
+          </DialogBody>
 
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline">
-                {t("close")}
-              </Button>
-            </DialogClose>
-            <Button
-              disabled={
-                pending ||
-                name.trim() === "" ||
-                category.trim() === "" ||
-                !placed
-              }
-              type="submit"
-            >
+          <DialogActions hint={ready ? null : t("equipmentHintMissing")}>
+            <CancelButton onClick={onClose} type="button">
+              {t("close")}
+            </CancelButton>
+            <ArrowButton disabled={pending || !ready} type="submit">
               {pending ? t("saving") : t("save")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </form>
       </DialogContent>
     </Dialog>

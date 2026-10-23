@@ -213,7 +213,9 @@ test("a correction is traced to the person who made it and the reason they gave"
       .getByRole("button", { name: /Undo check-in for/ })
       .click();
     const withdrawal = actor.getByRole("dialog");
-    await withdrawal.getByLabel("Reason").fill(reasons.withdrawal);
+    await withdrawal
+      .getByLabel("Why is it being undone?")
+      .fill(reasons.withdrawal);
     await withdrawal.getByRole("button", { name: "Undo check-in" }).click();
     await expect(
       withdrawnRow.getByRole("button", { name: "Check in" }),
@@ -583,7 +585,9 @@ test("a subject opens where it can be opened, a booking's history spans its stay
   await page.getByRole("link", { name: "Show every record" }).click();
   await expect(page).not.toHaveURL(/subject=/);
   await expect(
-    page.getByRole("row").filter({ hasText: "another booking altogether" }),
+    page
+      .getByRole("row")
+      .filter({ hasText: `${tag} another booking altogether` }),
   ).toHaveCount(1);
 });
 

@@ -5,20 +5,23 @@ import { useTranslations } from "next-intl";
 import { Undo2 } from "lucide-react";
 import { isolate } from "@ranza/i18n";
 import {
+  ArrowButton,
   Button,
+  CancelButton,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
+  DialogNotice,
+  DialogSection,
+  dialogFrameClassName,
   DialogTrigger,
-  Fact,
-  FactList,
-  Field,
   FormError,
   Textarea,
+  textareaClassName,
 } from "@ranza/ui";
 import {
   reverseCheckIn,
@@ -99,20 +102,25 @@ export function UndoCheckInDialog({
     }
   }, [outcome, reservationId]);
 
-  const message =
+  // Answers the desk cannot act on by editing: the check-in stays as it is,
+  // and the dialog says why instead of asking again.
+  const final =
     outcome === "charges"
       ? t("stayHasCharges")
       : outcome === "dayClosed"
         ? t("checkInDayClosed")
         : outcome === "moved"
           ? t("checkInMoved")
-          : outcome === "reasonTooShort"
-            ? t("reasonTooShort", { min: REASON.min })
-            : outcome === "reasonTooLong"
-              ? t("reasonTooLong", { max: REASON.max })
-              : outcome === "refused"
-                ? t("undoCheckInRefused")
-                : null;
+          : outcome === "refused"
+            ? t("undoCheckInRefused")
+            : null;
+  const message =
+    outcome === "reasonTooShort"
+      ? t("reasonTooShort", { min: REASON.min })
+      : outcome === "reasonTooLong"
+        ? t("reasonTooLong", { max: REASON.max })
+        : null;
+  const needsReason = reason.trim().length < REASON.min;
 
   return (
     <Dialog onOpenChange={(open) => !open && setReason("")}>
@@ -134,7 +142,7 @@ export function UndoCheckInDialog({
         </Button>
       </DialogTrigger>
 
-      <DialogContent>
+      <DialogContent className={dialogFrameClassName("small")}>
         <form
           action={(data) => {
             // Before the write, for the reason above. Nothing is focused yet —
@@ -142,61 +150,73 @@ export function UndoCheckInDialog({
             focusCheckInFor(reservationId);
             act(data);
           }}
-          className="grid gap-4"
+          className="grid"
         >
-          <DialogHeader>
-            <DialogTitle>{t("undoCheckInTitle")}</DialogTitle>
-            <DialogDescription>{t("undoCheckInSummary")}</DialogDescription>
-          </DialogHeader>
+          <DialogMasthead
+            art="/illustrations/dialogs/undo-check-in.svg"
+            eyebrow={t("undoCheckInTitle")}
+            facts={`${t("unit")} ${unitName}`}
+            heading={guestName}
+          />
 
-          {/* Beside the sentence rather than inside it: a name in a template is
-              a name inside another language's grammar, which Turkish and Arabic
-              both inflect and a placeholder cannot. */}
-          <FactList className="gap-4 pt-0">
-            <Fact label={t("guest")}>
-              <bdi>{guestName}</bdi>
-            </Fact>
-            <Fact label={t("unit")}>
-              <bdi className="tabular-nums">{unitName}</bdi>
-            </Fact>
-          </FactList>
+          <DialogBody simple>
+            <DialogDescription className="sr-only">
+              {t("undoCheckInSummary")}
+            </DialogDescription>
 
-          <input name="stay" type="hidden" value={stayId} />
-          <input name="locale" type="hidden" value={locale} />
+            <input name="stay" type="hidden" value={stayId} />
+            <input name="locale" type="hidden" value={locale} />
 
-          <Field htmlFor={`reason-${stayId}`} label={t("reason")}>
-            <Textarea
-              aria-describedby={`reason-hint-${stayId}`}
-              autoFocus
-              id={`reason-${stayId}`}
-              maxLength={REASON.max}
-              minLength={REASON.min}
-              name="reason"
-              onChange={(event) => setReason(event.target.value)}
-              required
-              rows={3}
-              value={reason}
-            />
-          </Field>
-          <p
-            className="text-step--1 text-muted-foreground"
-            id={`reason-hint-${stayId}`}
+            {final ? (
+              <div role="alert">
+                <DialogNotice>{final}</DialogNotice>
+              </div>
+            ) : (
+              <>
+                <DialogNotice>{t("undoCheckInSummary")}</DialogNotice>
+                <DialogSection
+                  hint={t("reasonHint")}
+                  labelFor={`reason-${stayId}`}
+                  tag={{ label: t("dialogTagRequired"), required: true }}
+                  title={t("undoCheckInWhy")}
+                >
+                  <Textarea
+                    autoFocus
+                    className={textareaClassName}
+                    aria-describedby={`reason-${stayId}-hint`}
+                    id={`reason-${stayId}`}
+                    maxLength={REASON.max}
+                    minLength={REASON.min}
+                    name="reason"
+                    onChange={(event) => setReason(event.target.value)}
+                    placeholder={t("undoCheckInReasonExample")}
+                    required
+                    rows={3}
+                    value={reason}
+                  />
+                </DialogSection>
+              </>
+            )}
+
+            {message ? <FormError>{message}</FormError> : null}
+          </DialogBody>
+
+          <DialogActions
+            hint={final || !needsReason ? null : t("dialogHintReason")}
           >
-            {t("reasonHint")}
-          </p>
-
-          {message ? <FormError>{message}</FormError> : null}
-
-          <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="outline">
-                {t("keepCheckIn")}
-              </Button>
+              <CancelButton type="button">{t("keepCheckIn")}</CancelButton>
             </DialogClose>
-            <Button disabled={pending} type="submit" variant="destructive">
-              {pending ? t("undoingCheckIn") : t("undoCheckIn")}
-            </Button>
-          </DialogFooter>
+            {final ? null : (
+              <ArrowButton
+                disabled={pending || needsReason}
+                tone="danger"
+                type="submit"
+              >
+                {pending ? t("undoingCheckIn") : t("undoCheckIn")}
+              </ArrowButton>
+            )}
+          </DialogActions>
         </form>
       </DialogContent>
     </Dialog>

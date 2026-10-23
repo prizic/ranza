@@ -407,7 +407,9 @@ test("INT-S1-45: Stop retrying asks for a reason and records who stopped it", as
   await failure.getByRole("button", { name: "Stop retrying" }).click();
 
   const dialog = page.getByRole("dialog");
-  await dialog.getByRole("button", { name: "Stop retrying" }).click();
+  await expect(
+    dialog.getByRole("button", { name: "Stop retrying" }),
+  ).toBeDisabled();
   await expect(
     dialog.getByText("Say why, in at least 3 characters."),
   ).toBeVisible();
@@ -473,7 +475,9 @@ test("INT-S1-48: Mark resolved asks for a reason, records who and why, and the d
   await failure.getByRole("button", { name: "Mark resolved" }).click();
 
   const dialog = page.getByRole("dialog");
-  await dialog.getByRole("button", { name: "Mark resolved" }).click();
+  await expect(
+    dialog.getByRole("button", { name: "Mark resolved" }),
+  ).toBeDisabled();
   await expect(
     dialog.getByText("Say why, in at least 3 characters."),
   ).toBeVisible();

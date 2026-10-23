@@ -10,6 +10,7 @@ import type {
 import { formatMoney, isolate, type SupportedLocale } from "@ranza/i18n";
 import {
   Button,
+  DialogSection,
   Field,
   Input,
   Select,
@@ -24,7 +25,7 @@ import {
   loadChargeableStays,
   recordRepairCost,
 } from "../../../server/maintenance";
-import { formatDay, Section } from "./look";
+import { formatDay } from "./look";
 import { OutcomeMessage } from "./outcome-message";
 import { useCommand } from "./use-command";
 
@@ -121,15 +122,15 @@ export function RequestMoney({
 
   if (!mayManage && !mayChargeHere) {
     return request.costMinor === null ? null : (
-      <Section title={t("costTitle")}>
+      <DialogSection title={t("costTitle")}>
         <p className="text-step--1">{summary}</p>
-      </Section>
+      </DialogSection>
     );
   }
 
   return (
     <>
-      <Section title={t("costTitle")}>
+      <DialogSection title={t("costTitle")}>
         {mayManage ? (
           <div className="grid gap-3">
             <div className="grid gap-3 sm:grid-cols-2">
@@ -177,10 +178,10 @@ export function RequestMoney({
         ) : (
           <p className="text-step--1">{summary}</p>
         )}
-      </Section>
+      </DialogSection>
 
       {mayChargeHere ? (
-        <Section title={t("chargeTitle")}>
+        <DialogSection title={t("chargeTitle")}>
           {request.charges.length > 0 ? (
             <ul className="grid gap-1 text-step--1">
               {request.charges.map((line) => (
@@ -267,7 +268,7 @@ export function RequestMoney({
             </div>
           )}
           <OutcomeMessage outcome={charge.outcome} />
-        </Section>
+        </DialogSection>
       ) : null}
     </>
   );

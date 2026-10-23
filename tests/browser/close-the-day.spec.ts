@@ -170,13 +170,15 @@ test("a day with items open asks for a reason, and what it promises is built", a
 
   await page.getByRole("button", { name: /^Close / }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByText(/1 item is still open/)).toBeVisible();
+  await expect(
+    dialog.getByRole("heading", { name: /1 item is still open/ }),
+  ).toBeVisible();
   await expect(dialog.getByText(/not available yet/)).toBeVisible();
-  // Required: the browser holds the close back until a reason is written.
-  await dialog.getByRole("button", { name: /^Close / }).click();
-  await expect(dialog).toBeVisible();
+  // Required: the button is muted, and says why, until a reason is written.
+  await expect(dialog.getByRole("button", { name: /^Close / })).toBeDisabled();
+  await expect(dialog.getByText("Add a reason to continue")).toBeVisible();
   await dialog
-    .getByLabel("Reason")
+    .getByLabel("Why close with items open?")
     .fill("Guest rang, arriving tonight instead");
   await dialog.getByRole("button", { name: /^Close / }).click();
 
@@ -212,7 +214,7 @@ test("a quiet day closes without a reason, and a backlog names how many wait", a
   // Two days wait and nothing holds either, so both ways to close are offered.
   await page.getByRole("button", { name: /^Close only / }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByText(/Nothing is left open/)).toBeVisible();
+  await expect(dialog.getByText(/Nothing is left open/).first()).toBeVisible();
   await expect(dialog.getByLabel("Reason")).toHaveCount(0);
   await dialog.getByRole("button", { name: /^Close / }).click();
 

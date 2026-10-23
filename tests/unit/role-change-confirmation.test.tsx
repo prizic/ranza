@@ -162,7 +162,7 @@ describe("choosing a role in the roster", () => {
     pick("desk@example.test", "Housekeeping");
 
     const dialog = screen.getByRole("dialog");
-    expect(dialog).toHaveTextContent(en.confirmRoleTitle);
+    expect(dialog).toHaveTextContent(en.confirmRoleConfirm);
     expect(dialog).toHaveTextContent("desk@example.test");
     expect(dialog).toHaveTextContent("Front desk");
     expect(dialog).toHaveTextContent("Housekeeping");
@@ -437,7 +437,9 @@ describe("the confirmation as a keyboard and screen-reader user meets it", () =>
       );
 
       const dialog = screen.getByRole("dialog");
-      expect(dialog).toHaveTextContent(messages[locale].staff.confirmRoleTitle);
+      expect(dialog).toHaveTextContent(
+        messages[locale].staff.confirmRoleConfirm,
+      );
       expect(dialog).toHaveTextContent(messages[locale].staff.roles.front_desk);
       expect(dialog).toHaveTextContent(
         messages[locale].staff.roles.housekeeping,
