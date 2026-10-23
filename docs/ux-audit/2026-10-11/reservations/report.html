@@ -1,311 +1,1222 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UX audit: Reservations (2026-10-11)</title>
-<style>
-  :root { --ink:#1b2420; --muted:#5b6761; --line:#d9dfdb; --bg:#fbfbf9; --card:#fff; --bad:#9b2c1f; --warn:#8a5a00; --ok:#1f6b4a; }
-  * { box-sizing: border-box; }
-  body { font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); margin: 0; padding: 24px 16px 64px; }
-  main { max-width: 1180px; margin: 0 auto; }
-  h1 { font-size: 26px; margin: 0 0 4px; }
-  h2 { font-size: 20px; margin: 40px 0 10px; padding-top: 14px; border-top: 1px solid var(--line); }
-  h3 { font-size: 16px; margin: 18px 0 6px; }
-  p, li { max-width: 78ch; }
-  .meta { color: var(--muted); margin: 0 0 18px; }
-  table { border-collapse: collapse; width: 100%; background: var(--card); font-size: 13.5px; }
-  th, td { border: 1px solid var(--line); padding: 7px 9px; text-align: left; vertical-align: top; }
-  th { background: #f1f3f1; font-weight: 600; }
-  .scroll { overflow-x: auto; }
-  .sev { font-weight: 600; white-space: nowrap; }
-  .sev.blocks { color: var(--bad); }
-  .sev.errors { color: var(--bad); }
-  .sev.slows { color: var(--warn); }
-  .sev.polish { color: var(--muted); }
-  .tag { display: inline-block; padding: 0 6px; border: 1px solid var(--line); border-radius: 4px; font-size: 12px; background: #f6f7f6; }
-  .pass { color: var(--ok); font-weight: 600; }
-  .fail { color: var(--bad); font-weight: 600; }
-  .part { color: var(--warn); font-weight: 600; }
-  figure { margin: 12px 0; }
-  figure img { max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
-  figcaption { color: var(--muted); font-size: 13px; margin-top: 4px; }
-  .shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
-  code { background: #eef0ee; padding: 0 4px; border-radius: 3px; font-size: 13px; }
-  .note { background: #fff8e6; border: 1px solid #ecd9a0; padding: 8px 12px; border-radius: 6px; max-width: 90ch; }
-  @media (max-width: 640px) { body { padding: 16px; } }
-</style>
-</head>
-<body>
-<main>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UX audit: Reservations (2026-10-11)</title>
+    <style>
+      :root {
+        --ink: #1b2420;
+        --muted: #5b6761;
+        --line: #d9dfdb;
+        --bg: #fbfbf9;
+        --card: #fff;
+        --bad: #9b2c1f;
+        --warn: #8a5a00;
+        --ok: #1f6b4a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+        color: var(--ink);
+        background: var(--bg);
+        margin: 0;
+        padding: 24px 16px 64px;
+      }
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 26px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 20px;
+        margin: 40px 0 10px;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+      }
+      h3 {
+        font-size: 16px;
+        margin: 18px 0 6px;
+      }
+      p,
+      li {
+        max-width: 78ch;
+      }
+      .meta {
+        color: var(--muted);
+        margin: 0 0 18px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        background: var(--card);
+        font-size: 13.5px;
+      }
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 7px 9px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: #f1f3f1;
+        font-weight: 600;
+      }
+      .scroll {
+        overflow-x: auto;
+      }
+      .sev {
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .sev.blocks {
+        color: var(--bad);
+      }
+      .sev.errors {
+        color: var(--bad);
+      }
+      .sev.slows {
+        color: var(--warn);
+      }
+      .sev.polish {
+        color: var(--muted);
+      }
+      .tag {
+        display: inline-block;
+        padding: 0 6px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        font-size: 12px;
+        background: #f6f7f6;
+      }
+      .pass {
+        color: var(--ok);
+        font-weight: 600;
+      }
+      .fail {
+        color: var(--bad);
+        font-weight: 600;
+      }
+      .part {
+        color: var(--warn);
+        font-weight: 600;
+      }
+      figure {
+        margin: 12px 0;
+      }
+      figure img {
+        max-width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+      }
+      figcaption {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 4px;
+      }
+      .shots {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 14px;
+      }
+      code {
+        background: #eef0ee;
+        padding: 0 4px;
+        border-radius: 3px;
+        font-size: 13px;
+      }
+      .note {
+        background: #fff8e6;
+        border: 1px solid #ecd9a0;
+        padding: 8px 12px;
+        border-radius: 6px;
+        max-width: 90ch;
+      }
+      @media (max-width: 640px) {
+        body {
+          padding: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>UX audit: Reservations</h1>
+      <p class="meta">
+        Route <code>/en/reservations</code> (no sub-routes exist: booking detail
+        is a side sheet, new booking / change / cancel / no-show are dialogs)
+        &middot; hosted staging, <code>main</code> 4b15c30 &middot; audited
+        2026-10-11 &middot; persona: front-desk agent on the phone, 40+ bookings
+        a day &middot; roles checked: Front Desk (primary), Housekeeping,
+        Finance &middot; mode: AUDIT ONLY, nothing was saved.
+      </p>
 
-<h1>UX audit: Reservations</h1>
-<p class="meta">Route <code>/en/reservations</code> (no sub-routes exist: booking detail is a side sheet, new booking / change / cancel / no-show are dialogs) &middot; hosted staging, <code>main</code> 4b15c30 &middot; audited 2026-10-11 &middot; persona: front-desk agent on the phone, 40+ bookings a day &middot; roles checked: Front Desk (primary), Housekeeping, Finance &middot; mode: AUDIT ONLY, nothing was saved.</p>
+      <div class="note">
+        <strong>Data state found:</strong> one booking in the whole Property
+        (reference RJY1FR2, one night, Suite 201, status Confirmed, arriving
+        today, no price), three Units (101, 102 Rooms; 201 Suite), and no price
+        set for either unit type. One more guest (ahmed, Room 102) is in house
+        and overdue, visible only on the Room calendar. "Empty" and "very large"
+        states were not reachable and are labelled <em>inferred</em> from code.
+        The screenshots show the demo guest's contact details because they are
+        on screen; none are repeated in this text. <br /><strong
+          >Seconds:</strong
+        >
+        I did not time tasks with a stopwatch; tool latency would dominate and
+        mean nothing. Clicks and keystrokes are counted instead.
+      </div>
 
-<div class="note">
-<strong>Data state found:</strong> one booking in the whole Property (reference RJY1FR2, one night, Suite 201, status Confirmed, arriving today, no price), three Units (101, 102 Rooms; 201 Suite), and no price set for either unit type. One more guest (ahmed, Room 102) is in house and overdue, visible only on the Room calendar. "Empty" and "very large" states were not reachable and are labelled <em>inferred</em> from code. The screenshots show the demo guest's contact details because they are on screen; none are repeated in this text.
-<br><strong>Seconds:</strong> I did not time tasks with a stopwatch; tool latency would dominate and mean nothing. Clicks and keystrokes are counted instead.
-</div>
+      <h2>1. Verdict</h2>
+      <ul>
+        <li>
+          <strong
+            >Could the persona use it unaided? Mostly yes for taking and
+            changing a booking, no for finding every booking.</strong
+          >
+          The dialogs are clear, availability is marked on the Unit list,
+          conflicts disable Save with a reason, and cancel/no-show name their
+          consequences.
+        </li>
+        <li>
+          <strong>Biggest risk (RES-01):</strong> a guest who is in house past
+          their departure date (here: ahmed, Room 102, due out Oct 1) is not on
+          the Reservations list at all, and the "In house" tab says 0. The Unit
+          picker still says "Someone is staying then" for that room, so the desk
+          is told about a guest the list cannot show. Verified.
+        </li>
+        <li>
+          <strong>Second risk (RES-02):</strong> at a 1200 px window with the
+          sidebar open, Check in and the row menu are pushed off-screen; at 768
+          and 375 px the whole page overflows sideways. The primary daily action
+          is hidden on a common laptop width. Verified.
+        </li>
+        <li>
+          <strong>Third risk (RES-05/RES-06):</strong> a returning guest is only
+          recognised by an exact email, so a phone-in with a name and number
+          creates a duplicate guest with no warning, and with no price set every
+          booking is silently "not charged" behind a small grey note.
+        </li>
+        <li>
+          <strong
+            >Search is good for name, reference, unit and "Oct 11" but fails on
+            a phone number typed with spaces or +90 and on dd.mm.yyyy
+            dates</strong
+          >, which contradicts the feature doc (RG-S4-16).
+        </li>
+      </ul>
 
-<h2>1. Verdict</h2>
-<ul>
-  <li><strong>Could the persona use it unaided? Mostly yes for taking and changing a booking, no for finding every booking.</strong> The dialogs are clear, availability is marked on the Unit list, conflicts disable Save with a reason, and cancel/no-show name their consequences.</li>
-  <li><strong>Biggest risk (RES-01):</strong> a guest who is in house past their departure date (here: ahmed, Room 102, due out Oct 1) is not on the Reservations list at all, and the "In house" tab says 0. The Unit picker still says "Someone is staying then" for that room, so the desk is told about a guest the list cannot show. Verified.</li>
-  <li><strong>Second risk (RES-02):</strong> at a 1200 px window with the sidebar open, Check in and the row menu are pushed off-screen; at 768 and 375 px the whole page overflows sideways. The primary daily action is hidden on a common laptop width. Verified.</li>
-  <li><strong>Third risk (RES-05/RES-06):</strong> a returning guest is only recognised by an exact email, so a phone-in with a name and number creates a duplicate guest with no warning, and with no price set every booking is silently "not charged" behind a small grey note.</li>
-  <li><strong>Search is good for name, reference, unit and "Oct 11" but fails on a phone number typed with spaces or +90 and on dd.mm.yyyy dates</strong>, which contradicts the feature doc (RG-S4-16).</li>
-</ul>
+      <h2>2. Findings</h2>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Severity</th>
+              <th>Where</th>
+              <th>What happened</th>
+              <th>What I expected</th>
+              <th>Suggested fix</th>
+              <th>Effort</th>
+              <th>Evidence</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>RES-01</td>
+              <td class="sev blocks">blocks work</td>
+              <td>/en/reservations, Front Desk, one in-house overdue guest</td>
+              <td>
+                ahmed is in house in Room 102 and overdue (arrived Sep 29, due
+                out Oct 1; Room calendar drawer says "Overdue: they were due to
+                leave on Oct 1, 2026"). Reservations shows 1 row (a different
+                guest) and the tab "In house" shows 0. The new-booking Unit list
+                marks 102 "Someone is staying then".
+              </td>
+              <td>
+                Every guest who is physically in house is on the list under "In
+                house", especially an overdue one, who is the one who needs an
+                extend or a check-out.
+              </td>
+              <td>
+                Make the list query keep checked-in / in-house bookings whatever
+                their end date. The filter keeps a booking when
+                <code>ends_on &gt;= today</code> or status is
+                requested/confirmed, so a checked-in booking with a past end
+                date drops out (<code>listReservations</code> in
+                <code>packages/ranza/reservations/src/module.ts</code>).
+              </td>
+              <td>S</td>
+              <td>
+                <a href="29-room-calendar-102.png">29</a>,
+                <a href="01-list.png">01</a>,
+                <a href="07-unit-availability.png">07</a>. Reproduced Y
+                (repeated list read after reload)
+              </td>
+              <td>verified (symptom), inferred (cause)</td>
+            </tr>
 
-<h2>2. Findings</h2>
-<div class="scroll">
-<table>
-<thead><tr><th>ID</th><th>Severity</th><th>Where</th><th>What happened</th><th>What I expected</th><th>Suggested fix</th><th>Effort</th><th>Evidence</th><th>Status</th></tr></thead>
-<tbody>
+            <tr>
+              <td>RES-02</td>
+              <td class="sev slows">slows me down</td>
+              <td>
+                /en/reservations, Front Desk, 1200 px window, sidebar open, 1
+                row
+              </td>
+              <td>
+                The table is 1048 px wide inside a 896 px area. On load the
+                Status column is the last visible one;
+                <strong
+                  >Check in and the "..." menu are off the right edge</strong
+                >
+                until you scroll the table sideways. Opening the row menu
+                scrolls the table and pushes the Guest column out of view. At
+                1440 px it fits. A longer email or name would widen it further
+                (column widths are content-driven).
+              </td>
+              <td>
+                The row action is always visible at the laptop widths a desk
+                actually uses (1280-1366).
+              </td>
+              <td>
+                Pin the Action column at the trailing edge (sticky), or default
+                the sidebar to collapsed under ~1400 px, or drop the
+                Price/Status columns into the Columns menu below a width.
+              </td>
+              <td>M</td>
+              <td>
+                <a href="01-list.png">01</a> (no Check in visible),
+                <a href="10-row-menu.png">10</a> (scrolled),
+                <a href="11-width-1440.png">11</a> (fits). Y
+              </td>
+              <td>verified</td>
+            </tr>
 
-<tr><td>RES-01</td><td class="sev blocks">blocks work</td>
-<td>/en/reservations, Front Desk, one in-house overdue guest</td>
-<td>ahmed is in house in Room 102 and overdue (arrived Sep 29, due out Oct 1; Room calendar drawer says "Overdue: they were due to leave on Oct 1, 2026"). Reservations shows 1 row (a different guest) and the tab "In house" shows 0. The new-booking Unit list marks 102 "Someone is staying then".</td>
-<td>Every guest who is physically in house is on the list under "In house", especially an overdue one, who is the one who needs an extend or a check-out.</td>
-<td>Make the list query keep checked-in / in-house bookings whatever their end date. The filter keeps a booking when <code>ends_on &gt;= today</code> or status is requested/confirmed, so a checked-in booking with a past end date drops out (<code>listReservations</code> in <code>packages/ranza/reservations/src/module.ts</code>).</td>
-<td>S</td>
-<td><a href="29-room-calendar-102.png">29</a>, <a href="01-list.png">01</a>, <a href="07-unit-availability.png">07</a>. Reproduced Y (repeated list read after reload)</td>
-<td>verified (symptom), inferred (cause)</td></tr>
+            <tr>
+              <td>RES-03</td>
+              <td class="sev slows">slows me down</td>
+              <td>
+                /en/reservations, Front Desk, 768 px and 375 px (emulated)
+              </td>
+              <td>
+                768 px: the sidebar stays open, the page itself scrolls sideways
+                (document 829 px), the status tabs are clipped ("Upcon"), the
+                breadcrumb truncates to "W( &gt; F..", and
+                Unit/Price/Status/Action are off-screen. 375 px (emulated
+                mobile): the layout viewport grows to 573 px, the tab strip and
+                table are cut off, and the New reservation dialog is wider than
+                the screen so the close button and the Create button are
+                off-screen.
+              </td>
+              <td>
+                A card-style row on a phone with the status and the primary
+                action visible, and a dialog that fits the screen.
+              </td>
+              <td>
+                Under ~768 px render each booking as a stacked card (guest,
+                dates, unit, status, action); make the dialog
+                <code>max-w-[calc(100vw-2rem)]</code>; collapse the sidebar by
+                default under 1024 px.
+              </td>
+              <td>L</td>
+              <td>
+                <a href="21-width-768.png">21</a>,
+                <a href="22-width-375.png">22</a>,
+                <a href="23-dialog-375.png">23</a>. Y
+              </td>
+              <td>
+                verified in emulation. A real phone may differ in how the
+                viewport expands, so treat the exact 573 px as
+                emulator-specific.
+              </td>
+            </tr>
 
-<tr><td>RES-02</td><td class="sev slows">slows me down</td>
-<td>/en/reservations, Front Desk, 1200 px window, sidebar open, 1 row</td>
-<td>The table is 1048 px wide inside a 896 px area. On load the Status column is the last visible one; <strong>Check in and the "..." menu are off the right edge</strong> until you scroll the table sideways. Opening the row menu scrolls the table and pushes the Guest column out of view. At 1440 px it fits. A longer email or name would widen it further (column widths are content-driven).</td>
-<td>The row action is always visible at the laptop widths a desk actually uses (1280-1366).</td>
-<td>Pin the Action column at the trailing edge (sticky), or default the sidebar to collapsed under ~1400 px, or drop the Price/Status columns into the Columns menu below a width.</td>
-<td>M</td>
-<td><a href="01-list.png">01</a> (no Check in visible), <a href="10-row-menu.png">10</a> (scrolled), <a href="11-width-1440.png">11</a> (fits). Y</td>
-<td>verified</td></tr>
+            <tr>
+              <td>RES-04</td>
+              <td class="sev slows">slows me down</td>
+              <td>/en/reservations search, Front Desk, one row</td>
+              <td>
+                Works: reference (any case, partial), guest name (partial),
+                unit, unit type, status word, "oct 11", "11 oct", "2026-10-11",
+                phone typed as one digit run.
+                <strong>Fails (0 results)</strong>: the same phone typed with
+                spaces or with +90, a partial phone with a space, "11.10.2026",
+                "11/10" (the formats a Turkish desk types), two words from
+                different fields ("guest-name email-domain"), and a one-letter
+                typo in the name.
+              </td>
+              <td>
+                Feature doc RG-S4-16: "the digits find the booking though the
+                number was written with spaces". A phone number read out loud is
+                typed in whatever format the caller says it.
+              </td>
+              <td>
+                Normalise the typed query the same way the stored phone is
+                (strip spaces, +, leading 0/90), parse dd.mm.yyyy and dd/mm, and
+                match every word of a multi-word query against the row instead
+                of the whole string against one field.
+              </td>
+              <td>S-M</td>
+              <td>
+                <a href="12-search-phone-format-miss.png">12</a>. Y (ran all
+                queries in one session, results consistent)
+              </td>
+              <td>
+                verified. The doc contradiction is inferred from RG-S4-16
+                (status "proposed").
+              </td>
+            </tr>
 
-<tr><td>RES-03</td><td class="sev slows">slows me down</td>
-<td>/en/reservations, Front Desk, 768 px and 375 px (emulated)</td>
-<td>768 px: the sidebar stays open, the page itself scrolls sideways (document 829 px), the status tabs are clipped ("Upcon"), the breadcrumb truncates to "W( &gt; F..", and Unit/Price/Status/Action are off-screen. 375 px (emulated mobile): the layout viewport grows to 573 px, the tab strip and table are cut off, and the New reservation dialog is wider than the screen so the close button and the Create button are off-screen.</td>
-<td>A card-style row on a phone with the status and the primary action visible, and a dialog that fits the screen.</td>
-<td>Under ~768 px render each booking as a stacked card (guest, dates, unit, status, action); make the dialog <code>max-w-[calc(100vw-2rem)]</code>; collapse the sidebar by default under 1024 px.</td>
-<td>L</td>
-<td><a href="21-width-768.png">21</a>, <a href="22-width-375.png">22</a>, <a href="23-dialog-375.png">23</a>. Y</td>
-<td>verified in emulation. A real phone may differ in how the viewport expands, so treat the exact 573 px as emulator-specific.</td></tr>
+            <tr>
+              <td>RES-05</td>
+              <td class="sev errors">causes errors</td>
+              <td>New reservation dialog, Front Desk</td>
+              <td>
+                There is no guest search. Typing the exact name of an existing
+                guest shows nothing. The only de-duplication is an exact email
+                match ("An address already on file books that same Guest
+                again"). A returning guest who phones in with a name and number
+                but no email becomes a second guest record, silently.
+              </td>
+              <td>
+                While typing the name or phone, a suggestion "Existing guest:
+                use this one?" so a repeat guest is reused.
+              </td>
+              <td>
+                Add a lookup on name and phone as they are typed, shown as a
+                suggestion list, never an automatic merge (blueprint 18.7
+                forbids that). The duplicate-review screen is deferred
+                (RG-DEF-05), so a lookup at booking time is the cheap
+                prevention.
+              </td>
+              <td>M</td>
+              <td>
+                Typed an existing guest's name, no listbox appeared (checked the
+                dialog DOM). Y
+              </td>
+              <td>
+                verified. The matching rule is by design: RG-S1-18 (approved)
+                says exact email only.
+              </td>
+            </tr>
 
-<tr><td>RES-04</td><td class="sev slows">slows me down</td>
-<td>/en/reservations search, Front Desk, one row</td>
-<td>Works: reference (any case, partial), guest name (partial), unit, unit type, status word, "oct 11", "11 oct", "2026-10-11", phone typed as one digit run. <strong>Fails (0 results)</strong>: the same phone typed with spaces or with +90, a partial phone with a space, "11.10.2026", "11/10" (the formats a Turkish desk types), two words from different fields ("guest-name email-domain"), and a one-letter typo in the name.</td>
-<td>Feature doc RG-S4-16: "the digits find the booking though the number was written with spaces". A phone number read out loud is typed in whatever format the caller says it.</td>
-<td>Normalise the typed query the same way the stored phone is (strip spaces, +, leading 0/90), parse dd.mm.yyyy and dd/mm, and match every word of a multi-word query against the row instead of the whole string against one field.</td>
-<td>S-M</td>
-<td><a href="12-search-phone-format-miss.png">12</a>. Y (ran all queries in one session, results consistent)</td>
-<td>verified. The doc contradiction is inferred from RG-S4-16 (status "proposed").</td></tr>
+            <tr>
+              <td>RES-06</td>
+              <td class="sev errors">causes errors</td>
+              <td>
+                New reservation dialog and Change booking, Front Desk, no rate
+                set for the unit type
+              </td>
+              <td>
+                After choosing a unit the dialog shows a small grey box: "No
+                price is set for Room here, so this booking is taken without one
+                and its nights are not charged." Nothing stops or colours it as
+                a warning. On staging no unit type has a price, so every booking
+                taken today would be uncharged. Detail sheet then shows Price
+                "No price" and "1 night: --". The priced path (per-night rate
+                and stay total) exists in code but I could not see it.
+              </td>
+              <td>
+                A visible warning (amber, with an icon) when the booking will
+                not earn revenue, and for a desk without rate permission a way
+                to tell the manager.
+              </td>
+              <td>
+                Style the unpriced notice as a warning and repeat it in the
+                confirmation row; consider a Property-level "bookings need a
+                price" setting.
+              </td>
+              <td>S</td>
+              <td>
+                <a href="08-valid-up-to-submit.png">08</a>,
+                <a href="09-detail-sheet.png">09</a>,
+                <a href="13-change-booking.png">13</a>. Y
+              </td>
+              <td>
+                verified (notice), inferred (revenue consequence, RT-S3-01
+                charges nights at the close; priced state not seen)
+              </td>
+            </tr>
 
-<tr><td>RES-05</td><td class="sev errors">causes errors</td>
-<td>New reservation dialog, Front Desk</td>
-<td>There is no guest search. Typing the exact name of an existing guest shows nothing. The only de-duplication is an exact email match ("An address already on file books that same Guest again"). A returning guest who phones in with a name and number but no email becomes a second guest record, silently.</td>
-<td>While typing the name or phone, a suggestion "Existing guest: use this one?" so a repeat guest is reused.</td>
-<td>Add a lookup on name and phone as they are typed, shown as a suggestion list, never an automatic merge (blueprint 18.7 forbids that). The duplicate-review screen is deferred (RG-DEF-05), so a lookup at booking time is the cheap prevention.</td>
-<td>M</td>
-<td>Typed an existing guest's name, no listbox appeared (checked the dialog DOM). Y</td>
-<td>verified. The matching rule is by design: RG-S1-18 (approved) says exact email only.</td></tr>
+            <tr>
+              <td>RES-07</td>
+              <td class="sev slows">slows me down</td>
+              <td>New reservation dialog, invalid input, Front Desk</td>
+              <td>
+                (a) Empty submit: the browser's own bubble "Please fill out this
+                field." (in the browser's language, not the product's) pops over
+                the product's inline message "Enter the Guest's name." and hides
+                it; same for a bad email, where the product's line "Enter a
+                valid email address, such as name@example.com, or leave it
+                empty." is partly covered. (b) With no Unit and no dates only
+                the name/Unit get inline errors;
+                <strong>Stay dates shows no error</strong>, only the grey hint.
+                (c) Telephone accepts "abc".
+              </td>
+              <td>
+                One message per problem, in the product's language, on every
+                invalid field including dates; a phone field that rejects
+                letters (this also feeds search, RES-04).
+              </td>
+              <td>
+                Add <code>noValidate</code> on the form and rely on the inline
+                messages, add the missing dates message, validate phone
+                characters.
+              </td>
+              <td>S</td>
+              <td>
+                <a href="03-empty-submit.png">03</a>,
+                <a href="20-bad-email-phone.png">20</a>. Y
+              </td>
+              <td>
+                verified (RG-S4-19 expects several problems at once; only two of
+                three were shown)
+              </td>
+            </tr>
 
-<tr><td>RES-06</td><td class="sev errors">causes errors</td>
-<td>New reservation dialog and Change booking, Front Desk, no rate set for the unit type</td>
-<td>After choosing a unit the dialog shows a small grey box: "No price is set for Room here, so this booking is taken without one and its nights are not charged." Nothing stops or colours it as a warning. On staging no unit type has a price, so every booking taken today would be uncharged. Detail sheet then shows Price "No price" and "1 night: --". The priced path (per-night rate and stay total) exists in code but I could not see it.</td>
-<td>A visible warning (amber, with an icon) when the booking will not earn revenue, and for a desk without rate permission a way to tell the manager.</td>
-<td>Style the unpriced notice as a warning and repeat it in the confirmation row; consider a Property-level "bookings need a price" setting.</td>
-<td>S</td>
-<td><a href="08-valid-up-to-submit.png">08</a>, <a href="09-detail-sheet.png">09</a>, <a href="13-change-booking.png">13</a>. Y</td>
-<td>verified (notice), inferred (revenue consequence, RT-S3-01 charges nights at the close; priced state not seen)</td></tr>
+            <tr>
+              <td>RES-08</td>
+              <td class="sev errors">causes errors</td>
+              <td>New reservation dialog, Front Desk</td>
+              <td>
+                Pressing Escape on a half-filled booking closes the dialog with
+                no warning and the next open is blank (typed name, email, phone
+                lost). Clicking outside was not tested.
+              </td>
+              <td>
+                A phone call gets interrupted; the form either keeps its draft
+                or asks "Discard this booking?".
+              </td>
+              <td>
+                Keep the draft in state until Create/Cancel, or confirm the
+                discard when the form is dirty.
+              </td>
+              <td>S</td>
+              <td>Escape then reopen, guest field empty (DOM check). Y</td>
+              <td>verified (Escape); outside click <em>unknown</em></td>
+            </tr>
 
-<tr><td>RES-07</td><td class="sev slows">slows me down</td>
-<td>New reservation dialog, invalid input, Front Desk</td>
-<td>(a) Empty submit: the browser's own bubble "Please fill out this field." (in the browser's language, not the product's) pops over the product's inline message "Enter the Guest's name." and hides it; same for a bad email, where the product's line "Enter a valid email address, such as name@example.com, or leave it empty." is partly covered. (b) With no Unit and no dates only the name/Unit get inline errors; <strong>Stay dates shows no error</strong>, only the grey hint. (c) Telephone accepts "abc".</td>
-<td>One message per problem, in the product's language, on every invalid field including dates; a phone field that rejects letters (this also feeds search, RES-04).</td>
-<td>Add <code>noValidate</code> on the form and rely on the inline messages, add the missing dates message, validate phone characters.</td>
-<td>S</td>
-<td><a href="03-empty-submit.png">03</a>, <a href="20-bad-email-phone.png">20</a>. Y</td>
-<td>verified (RG-S4-19 expects several problems at once; only two of three were shown)</td></tr>
+            <tr>
+              <td>RES-09</td>
+              <td class="sev errors">causes errors</td>
+              <td>
+                Row menu &rarr; Mark as no-show, Front Desk, a Confirmed booking
+                arriving today
+              </td>
+              <td>
+                The menu offers it as soon as the arrival day starts. The dialog
+                states "The Guest did not come. The nights are freed, and this
+                cannot be taken back." as a fact, takes no reason, and the red
+                button commits in one click. Focus starts on "Keep the booking",
+                which is the right safe default.
+              </td>
+              <td>
+                On the arrival day before the Property's cutoff, the guest may
+                simply be late; the wording should not assert they did not come,
+                or the action should wait for the cutoff / ask for a reason.
+              </td>
+              <td>
+                Offer no-show only after the expected arrival time or cutoff, or
+                add a required one-line reason like Cancel has.
+              </td>
+              <td>S</td>
+              <td>
+                <a href="19-noshow-dialog.png">19</a>. Stopped before submit,
+                not persisted.
+              </td>
+              <td>
+                verified (dialog), inferred (the SQL
+                <code>mayMarkNoShow</code> has only
+                <code>starts_on &lt;= today</code>)
+              </td>
+            </tr>
 
-<tr><td>RES-08</td><td class="sev errors">causes errors</td>
-<td>New reservation dialog, Front Desk</td>
-<td>Pressing Escape on a half-filled booking closes the dialog with no warning and the next open is blank (typed name, email, phone lost). Clicking outside was not tested.</td>
-<td>A phone call gets interrupted; the form either keeps its draft or asks "Discard this booking?".</td>
-<td>Keep the draft in state until Create/Cancel, or confirm the discard when the form is dirty.</td>
-<td>S</td>
-<td>Escape then reopen, guest field empty (DOM check). Y</td>
-<td>verified (Escape); outside click <em>unknown</em></td></tr>
+            <tr>
+              <td>RES-10</td>
+              <td class="sev slows">slows me down</td>
+              <td>Row menu &rarr; Cancel booking, Front Desk</td>
+              <td>
+                Reason is a required free-text box (minimum 3 characters,
+                enforced by the browser's own tooltip "Please fill out this
+                field."). No placeholder, no common reasons to pick. The dialog
+                says "A cancellation cannot be taken back" but does not say what
+                happens to a price or fee (none exists yet) or that rebooking
+                means a fresh booking with a new reference.
+              </td>
+              <td>
+                40 bookings a day means many cancellations; a quick pick ("Guest
+                cancelled", "Duplicate", "Wrong dates", "Other...") plus the
+                free text.
+              </td>
+              <td>
+                Preset reasons as chips that fill the box; name "to restore it
+                you must make a new booking".
+              </td>
+              <td>S</td>
+              <td>
+                <a href="17-cancel-dialog.png">17</a>,
+                <a href="18-cancel-empty-reason.png">18</a>. Stopped before
+                submit (form was invalid, so the click could not submit).
+              </td>
+              <td>verified</td>
+            </tr>
 
-<tr><td>RES-09</td><td class="sev errors">causes errors</td>
-<td>Row menu &rarr; Mark as no-show, Front Desk, a Confirmed booking arriving today</td>
-<td>The menu offers it as soon as the arrival day starts. The dialog states "The Guest did not come. The nights are freed, and this cannot be taken back." as a fact, takes no reason, and the red button commits in one click. Focus starts on "Keep the booking", which is the right safe default.</td>
-<td>On the arrival day before the Property's cutoff, the guest may simply be late; the wording should not assert they did not come, or the action should wait for the cutoff / ask for a reason.</td>
-<td>Offer no-show only after the expected arrival time or cutoff, or add a required one-line reason like Cancel has.</td>
-<td>S</td>
-<td><a href="19-noshow-dialog.png">19</a>. Stopped before submit, not persisted.</td>
-<td>verified (dialog), inferred (the SQL <code>mayMarkNoShow</code> has only <code>starts_on &lt;= today</code>)</td></tr>
+            <tr>
+              <td>RES-11</td>
+              <td class="sev slows">slows me down</td>
+              <td>New reservation dialog, Front Desk, phone-in flow</td>
+              <td>
+                Field order is Guest, Email, Phone, <strong>Unit</strong>, Stay
+                type, <strong>Dates</strong>. A caller asks "do you have a room
+                for the 20th to the 22nd?", but availability only appears
+                <em>after</em> dates are chosen, and the Unit you picked first
+                can then turn into "taken for the nights you chose". No count of
+                nights or stay total is shown while no price exists. The date
+                picker covers the dialog title while open.
+              </td>
+              <td>
+                Dates first, then only the free Units (with prices), then the
+                guest.
+              </td>
+              <td>
+                Put Stay dates before Unit, and show "N nights" next to the
+                dates always.
+              </td>
+              <td>M</td>
+              <td>
+                <a href="02-new-dialog.png">02</a>,
+                <a href="05-date-picker.png">05</a>,
+                <a href="06-range-chosen.png">06</a>. Y
+              </td>
+              <td>verified</td>
+            </tr>
 
-<tr><td>RES-10</td><td class="sev slows">slows me down</td>
-<td>Row menu &rarr; Cancel booking, Front Desk</td>
-<td>Reason is a required free-text box (minimum 3 characters, enforced by the browser's own tooltip "Please fill out this field."). No placeholder, no common reasons to pick. The dialog says "A cancellation cannot be taken back" but does not say what happens to a price or fee (none exists yet) or that rebooking means a fresh booking with a new reference.</td>
-<td>40 bookings a day means many cancellations; a quick pick ("Guest cancelled", "Duplicate", "Wrong dates", "Other...") plus the free text.</td>
-<td>Preset reasons as chips that fill the box; name "to restore it you must make a new booking".</td>
-<td>S</td>
-<td><a href="17-cancel-dialog.png">17</a>, <a href="18-cancel-empty-reason.png">18</a>. Stopped before submit (form was invalid, so the click could not submit).</td>
-<td>verified</td></tr>
+            <tr>
+              <td>RES-12</td>
+              <td class="sev polish">polish</td>
+              <td>Change booking dialog, Front Desk</td>
+              <td>
+                (a) Unit appears twice: as a read-only block "Unit 201" near the
+                top and again as the editable "Unit" field. (b) Guest and
+                Reservation are large read-only blocks that push the real fields
+                down (Note box clipped at 900 px height until scrolled). (c)
+                Extending 1 to 2 nights shows no "from / to" summary or night
+                count before Save. (d) The conflict line "Somebody is staying in
+                that Unit for some of those nights." does not name who or from
+                when. (e) Unit list order is 201, 101, 102 (not sorted). (f)
+                Cancel button reads "Keep as it was".
+              </td>
+              <td>
+                One compact header (guest, reference), the change summarised
+                ("Oct 11 - Oct 13, 2 nights, no price change"), conflict names
+                the guest and dates.
+              </td>
+              <td>
+                Remove the duplicate Unit block, add a change summary line, sort
+                Units.
+              </td>
+              <td>S-M</td>
+              <td>
+                <a href="13-change-booking.png">13</a>,
+                <a href="14-change-extend-preview.png">14</a>,
+                <a href="15-change-unit-options.png">15</a>,
+                <a href="16-change-conflict.png">16</a>. Y
+              </td>
+              <td>verified</td>
+            </tr>
 
-<tr><td>RES-11</td><td class="sev slows">slows me down</td>
-<td>New reservation dialog, Front Desk, phone-in flow</td>
-<td>Field order is Guest, Email, Phone, <strong>Unit</strong>, Stay type, <strong>Dates</strong>. A caller asks "do you have a room for the 20th to the 22nd?", but availability only appears <em>after</em> dates are chosen, and the Unit you picked first can then turn into "taken for the nights you chose". No count of nights or stay total is shown while no price exists. The date picker covers the dialog title while open.</td>
-<td>Dates first, then only the free Units (with prices), then the guest.</td>
-<td>Put Stay dates before Unit, and show "N nights" next to the dates always.</td>
-<td>M</td>
-<td><a href="02-new-dialog.png">02</a>, <a href="05-date-picker.png">05</a>, <a href="06-range-chosen.png">06</a>. Y</td>
-<td>verified</td></tr>
+            <tr>
+              <td>RES-13</td>
+              <td class="sev slows">slows me down</td>
+              <td>Booking detail side sheet, Front Desk</td>
+              <td>
+                Clicking a row opens a sheet that shows dates, unit, contact and
+                price, but its only action is "Check in". Change booking, Mark
+                as no-show and Cancel exist only in the row's "..." menu. After
+                reading a booking you close the sheet and find the menu. The
+                subtitle "Guest &middot; Reservation details" shows the stay
+                type as "Guest", which reads like a label for the person.
+                Billing card shows "1 night" over a bare dash.
+              </td>
+              <td>From the detail view, the same actions as the row.</td>
+              <td>
+                Add the row menu actions to the sheet footer; hide or fill the
+                empty billing line.
+              </td>
+              <td>S</td>
+              <td><a href="09-detail-sheet.png">09</a>. Y</td>
+              <td>verified</td>
+            </tr>
 
-<tr><td>RES-12</td><td class="sev polish">polish</td>
-<td>Change booking dialog, Front Desk</td>
-<td>(a) Unit appears twice: as a read-only block "Unit 201" near the top and again as the editable "Unit" field. (b) Guest and Reservation are large read-only blocks that push the real fields down (Note box clipped at 900 px height until scrolled). (c) Extending 1 to 2 nights shows no "from / to" summary or night count before Save. (d) The conflict line "Somebody is staying in that Unit for some of those nights." does not name who or from when. (e) Unit list order is 201, 101, 102 (not sorted). (f) Cancel button reads "Keep as it was".</td>
-<td>One compact header (guest, reference), the change summarised ("Oct 11 - Oct 13, 2 nights, no price change"), conflict names the guest and dates.</td>
-<td>Remove the duplicate Unit block, add a change summary line, sort Units.</td>
-<td>S-M</td>
-<td><a href="13-change-booking.png">13</a>, <a href="14-change-extend-preview.png">14</a>, <a href="15-change-unit-options.png">15</a>, <a href="16-change-conflict.png">16</a>. Y</td>
-<td>verified</td></tr>
+            <tr>
+              <td>RES-14</td>
+              <td class="sev errors">causes errors (data exposure)</td>
+              <td>/en/reservations, Housekeeping and Finance</td>
+              <td>
+                Neither role is denied. Both get the full page: the same list
+                with each guest's email and phone and the Price column, no New
+                reservation button, no row actions, and
+                <strong>no sentence saying the page is read-only</strong>. The
+                sidebar for Housekeeping shows every module (Finance, People,
+                HR, Analytics, Configuration). The empty "Action" column header
+                remains. The brief expected the page to be absent or denied.
+              </td>
+              <td>
+                A housekeeper has no need for guest phone numbers and emails; if
+                the view is intentional it should say "View only".
+              </td>
+              <td>
+                Owner decision: either gate the page (or the contact column) by
+                permission, or mask contact details for non-front-desk roles,
+                and show a "View only" note.
+              </td>
+              <td>M</td>
+              <td>
+                <a href="27-housekeeping-reservations.png">27</a>,
+                <a href="28-finance-reservations.png">28</a>. Y
+              </td>
+              <td>
+                verified. Intent unknown: RG-S3-02 (approved) says each row
+                carries the guest's email for "the viewer", with no role split.
+              </td>
+            </tr>
 
-<tr><td>RES-13</td><td class="sev slows">slows me down</td>
-<td>Booking detail side sheet, Front Desk</td>
-<td>Clicking a row opens a sheet that shows dates, unit, contact and price, but its only action is "Check in". Change booking, Mark as no-show and Cancel exist only in the row's "..." menu. After reading a booking you close the sheet and find the menu. The subtitle "Guest &middot; Reservation details" shows the stay type as "Guest", which reads like a label for the person. Billing card shows "1 night" over a bare dash.</td>
-<td>From the detail view, the same actions as the row.</td>
-<td>Add the row menu actions to the sheet footer; hide or fill the empty billing line.</td>
-<td>S</td>
-<td><a href="09-detail-sheet.png">09</a>. Y</td>
-<td>verified</td></tr>
+            <tr>
+              <td>RES-15</td>
+              <td class="sev polish">polish</td>
+              <td>/tr and /ar, dialogs</td>
+              <td>
+                Turkish and Arabic are complete and RTL mirrors correctly (date
+                arrow, columns, buttons). Gaps: the dialog's close control text
+                reads "Close" in English in both (<code>innerText</code> of the
+                dialog); in Turkish the page subtitle repeats the title
+                ("Rezervasyonlar &mdash; Demo Otel Istanbul") where English says
+                "Bookings at ...". Arabic uses two words for the person (Guest
+                vs the helper text "النزيل").
+              </td>
+              <td>No English left in tr/ar; one term per concept.</td>
+              <td>
+                Translate the close label; align subtitle; pick one Arabic term.
+              </td>
+              <td>S</td>
+              <td>
+                <a href="24-tr-list.png">24</a>,
+                <a href="25-ar-list.png">25</a>,
+                <a href="26-ar-dialog.png">26</a>. Y
+              </td>
+              <td>
+                verified (text); the Arabic term choice is inferred (I read it
+                from the strings, not a native review)
+              </td>
+            </tr>
 
-<tr><td>RES-14</td><td class="sev errors">causes errors (data exposure)</td>
-<td>/en/reservations, Housekeeping and Finance</td>
-<td>Neither role is denied. Both get the full page: the same list with each guest's email and phone and the Price column, no New reservation button, no row actions, and <strong>no sentence saying the page is read-only</strong>. The sidebar for Housekeeping shows every module (Finance, People, HR, Analytics, Configuration). The empty "Action" column header remains. The brief expected the page to be absent or denied.</td>
-<td>A housekeeper has no need for guest phone numbers and emails; if the view is intentional it should say "View only".</td>
-<td>Owner decision: either gate the page (or the contact column) by permission, or mask contact details for non-front-desk roles, and show a "View only" note.</td>
-<td>M</td>
-<td><a href="27-housekeeping-reservations.png">27</a>, <a href="28-finance-reservations.png">28</a>. Y</td>
-<td>verified. Intent unknown: RG-S3-02 (approved) says each row carries the guest's email for "the viewer", with no role split.</td></tr>
+            <tr>
+              <td>RES-16</td>
+              <td class="sev polish">polish</td>
+              <td>Wording across the page</td>
+              <td>
+                "Guest" is both the person field and the Stay type value (<em
+                  >Stay type: Guest</em
+                >). "Unit" is the field name but values are "Room" and "Suite"
+                and the notice says "No price is set for Room". Availability
+                words differ between dialogs: New says "Someone is staying then"
+                / "Booked for these nights" (disabled), Change says "Somebody is
+                staying" / "Free" (selectable).
+              </td>
+              <td>One vocabulary.</td>
+              <td>
+                Rename Stay type values or label ("Guest stay" / "Resident
+                stay"); share one availability-label table between both dialogs.
+              </td>
+              <td>S</td>
+              <td>
+                <a href="07-unit-availability.png">07</a>,
+                <a href="15-change-unit-options.png">15</a>. Y
+              </td>
+              <td>verified</td>
+            </tr>
 
-<tr><td>RES-15</td><td class="sev polish">polish</td>
-<td>/tr and /ar, dialogs</td>
-<td>Turkish and Arabic are complete and RTL mirrors correctly (date arrow, columns, buttons). Gaps: the dialog's close control text reads "Close" in English in both (<code>innerText</code> of the dialog); in Turkish the page subtitle repeats the title ("Rezervasyonlar &mdash; Demo Otel Istanbul") where English says "Bookings at ...". Arabic uses two words for the person (Guest vs the helper text "النزيل").</td>
-<td>No English left in tr/ar; one term per concept.</td>
-<td>Translate the close label; align subtitle; pick one Arabic term.</td>
-<td>S</td>
-<td><a href="24-tr-list.png">24</a>, <a href="25-ar-list.png">25</a>, <a href="26-ar-dialog.png">26</a>. Y</td>
-<td>verified (text); the Arabic term choice is inferred (I read it from the strings, not a native review)</td></tr>
+            <tr>
+              <td>RES-17</td>
+              <td class="sev slows">slows me down</td>
+              <td>/en/reservations at scale</td>
+              <td>
+                Not observable with one row. The list query has no LIMIT; every
+                open booking plus everything ending today or later is sent to
+                the browser and searched, sorted and paged client-side (page
+                size 10 by default). Sort is by start date only.
+              </td>
+              <td>Search stays instant with a few hundred rows.</td>
+              <td>
+                Measure with a seeded 500-row Property before rollout;
+                server-side search if it is slow.
+              </td>
+              <td>M</td>
+              <td>Code only</td>
+              <td>inferred; scale performance <em>unknown</em></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-<tr><td>RES-16</td><td class="sev polish">polish</td>
-<td>Wording across the page</td>
-<td>"Guest" is both the person field and the Stay type value (<em>Stay type: Guest</em>). "Unit" is the field name but values are "Room" and "Suite" and the notice says "No price is set for Room". Availability words differ between dialogs: New says "Someone is staying then" / "Booked for these nights" (disabled), Change says "Somebody is staying" / "Free" (selectable).</td>
-<td>One vocabulary.</td>
-<td>Rename Stay type values or label ("Guest stay" / "Resident stay"); share one availability-label table between both dialogs.</td>
-<td>S</td>
-<td><a href="07-unit-availability.png">07</a>, <a href="15-change-unit-options.png">15</a>. Y</td>
-<td>verified</td></tr>
+      <h2>3. Jobs</h2>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Job</th>
+              <th>Pass/fail test (written first)</th>
+              <th>Result</th>
+              <th>Seconds</th>
+              <th>Clicks / keys</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>J1</td>
+              <td>First look: understand the page and its one-booking state</td>
+              <td>
+                I can tell what is booked, what is arriving today, and where New
+                reservation is, without help.
+              </td>
+              <td class="pass">pass</td>
+              <td>not timed</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td>J2</td>
+              <td>
+                Find a booking by guest name, reference or phone (most frequent)
+              </td>
+              <td>
+                Typing part of any of the three shows the booking in one try.
+              </td>
+              <td class="part">
+                partial: name and reference pass; phone with spaces / +90 and
+                dd.mm.yyyy fail (RES-04)
+              </td>
+              <td>not timed</td>
+              <td>1 focus + typing</td>
+            </tr>
+            <tr>
+              <td>J3</td>
+              <td>
+                Take a new booking up to, not including, Create reservation
+              </td>
+              <td>
+                Name, unit, 2-night range, see price/quote and availability,
+                with every choice visible before commit.
+              </td>
+              <td class="part">
+                stopped before submit, not persisted. Fields pass; no price
+                existed to show; dates come after the unit (RES-11)
+              </td>
+              <td>not timed</td>
+              <td>~9 (open 1, unit 2, dates 3, name/phone keys)</td>
+            </tr>
+            <tr>
+              <td>J4</td>
+              <td>Overlap handling: try to book an occupied unit</td>
+              <td>I am told it is taken and cannot proceed with it.</td>
+              <td class="pass">
+                pass: occupied Units are greyed with a reason; a stale chosen
+                Unit gets an amber warning
+              </td>
+              <td>not timed</td>
+              <td>3</td>
+            </tr>
+            <tr>
+              <td>J5</td>
+              <td>Duplicate guest: book someone who already exists</td>
+              <td>The form recognises the existing guest by name or phone.</td>
+              <td class="fail">fail (RES-05)</td>
+              <td>not timed</td>
+              <td>2</td>
+            </tr>
+            <tr>
+              <td>J6</td>
+              <td>Amend: extend a stay by one night (error recovery)</td>
+              <td>
+                Pick new dates, see conflicts before saving, Save only enabled
+                when something changed and no conflict.
+              </td>
+              <td class="pass">
+                pass on conflicts and Save state; no change summary (RES-12).
+                Stopped before Save, not persisted
+              </td>
+              <td>not timed</td>
+              <td>5 to reach a savable state</td>
+            </tr>
+            <tr>
+              <td>J7</td>
+              <td>Cancel with the confirm step</td>
+              <td>
+                The confirm names consequences and the safe button is the
+                default.
+              </td>
+              <td class="pass">
+                pass (RES-10 for reason friction). Stopped before submit, not
+                persisted
+              </td>
+              <td>not timed</td>
+              <td>3 + a typed reason</td>
+            </tr>
+            <tr>
+              <td>J8</td>
+              <td>
+                Under pressure: "the guest in 102 should have left, where is
+                their booking?"
+              </td>
+              <td>
+                I find that guest on Reservations in one search or one tab.
+              </td>
+              <td class="fail">
+                fail: guest not on the list; In house = 0 (RES-01). Only the
+                Room calendar shows them
+              </td>
+              <td>not timed</td>
+              <td>n/a</td>
+            </tr>
+            <tr>
+              <td>J9</td>
+              <td>Roles: Housekeeping and Finance open Reservations</td>
+              <td>
+                Page denied or clearly read-only, with no data the role does not
+                need.
+              </td>
+              <td class="fail">
+                neither: full read access, contact details visible, no read-only
+                note (RES-14)
+              </td>
+              <td>not timed</td>
+              <td>1 navigation each</td>
+            </tr>
+            <tr>
+              <td>J10</td>
+              <td>Large volume: 40 bookings a day</td>
+              <td>Search and paging stay fast; repeat actions are short.</td>
+              <td class="part">
+                not testable on staging (one row); see RES-17 and the note on
+                RES-08
+              </td>
+              <td>n/a</td>
+              <td>n/a</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-<tr><td>RES-17</td><td class="sev slows">slows me down</td>
-<td>/en/reservations at scale</td>
-<td>Not observable with one row. The list query has no LIMIT; every open booking plus everything ending today or later is sent to the browser and searched, sorted and paged client-side (page size 10 by default). Sort is by start date only.</td>
-<td>Search stays instant with a few hundred rows.</td>
-<td>Measure with a seeded 500-row Property before rollout; server-side search if it is slow.</td>
-<td>M</td>
-<td>Code only</td>
-<td>inferred; scale performance <em>unknown</em></td></tr>
+      <h2>4. Top changes</h2>
+      <ol>
+        <li>
+          <strong
+            >I can see every guest who is in the building, including overdue
+            ones, on one list</strong
+          >
+          (RES-01). Highest value: it hides the guests who most need an action.
+        </li>
+        <li>
+          <strong
+            >Check in and the row menu are always on screen at laptop
+            width</strong
+          >
+          (RES-02, RES-03). Used 40+ times a day.
+        </li>
+        <li>
+          <strong
+            >I can find a booking by the phone number or date exactly as the
+            caller says it</strong
+          >
+          (RES-04).
+        </li>
+        <li>
+          <strong>The form tells me when the caller is already a guest</strong>
+          (RES-05), so history and contact data do not split.
+        </li>
+        <li>
+          <strong
+            >I choose dates first and see only the free rooms and what they
+            cost</strong
+          >
+          (RES-11), the order of a phone enquiry.
+        </li>
+        <li>
+          <strong>I cannot take an unpriced booking by accident</strong>
+          (RES-06).
+        </li>
+        <li>
+          <strong>An interrupted call does not wipe the form</strong> (RES-08),
+          and every invalid field says why in one message (RES-07).
+        </li>
+        <li>
+          <strong>I can cancel in two clicks with a quick reason</strong>
+          (RES-10) and amend from the detail sheet (RES-13).
+        </li>
+        <li>
+          <strong>I am sure a housekeeper cannot see guest phone numbers</strong
+          >, or that the page says the view is read-only (RES-14).
+        </li>
+      </ol>
 
-</tbody></table>
-</div>
+      <h2>5. Inconsistencies with sibling screens</h2>
+      <ul>
+        <li>
+          <strong>Reservations vs Room calendar:</strong> the calendar shows
+          ahmed (in house, overdue); Reservations does not (RES-01). The Room
+          calendar's side drawer has Change departure / Move Guest / Open in
+          Departures for that guest, so the calendar is the only place the
+          overdue case can be handled. <em>verified</em>
+        </li>
+        <li>
+          <strong>New booking vs Change booking:</strong> different availability
+          wording and behaviour (RES-16): New disables taken units, Change
+          leaves them selectable and explains after choosing. <em>verified</em>
+        </li>
+        <li>
+          <strong>Reservations vs Room calendar tab chrome:</strong> the
+          calendar has a title, a bold sub-heading and an explanatory line;
+          Reservations has a title and a single grey line. Not wrong, just
+          different.
+        </li>
+        <li>
+          <strong>Native validation tooltips</strong> (RES-07, Cancel reason) vs
+          the inline red messages used in the same dialog.
+        </li>
+        <li>
+          <strong>Back button:</strong> present and correct (&larr; goes to
+          Today, keeping the Property), as ADR 0035 requires. <em>verified</em>
+        </li>
+      </ul>
 
-<h2>3. Jobs</h2>
-<div class="scroll">
-<table>
-<thead><tr><th>#</th><th>Job</th><th>Pass/fail test (written first)</th><th>Result</th><th>Seconds</th><th>Clicks / keys</th></tr></thead>
-<tbody>
-<tr><td>J1</td><td>First look: understand the page and its one-booking state</td><td>I can tell what is booked, what is arriving today, and where New reservation is, without help.</td><td class="pass">pass</td><td>not timed</td><td>0</td></tr>
-<tr><td>J2</td><td>Find a booking by guest name, reference or phone (most frequent)</td><td>Typing part of any of the three shows the booking in one try.</td><td class="part">partial: name and reference pass; phone with spaces / +90 and dd.mm.yyyy fail (RES-04)</td><td>not timed</td><td>1 focus + typing</td></tr>
-<tr><td>J3</td><td>Take a new booking up to, not including, Create reservation</td><td>Name, unit, 2-night range, see price/quote and availability, with every choice visible before commit.</td><td class="part">stopped before submit, not persisted. Fields pass; no price existed to show; dates come after the unit (RES-11)</td><td>not timed</td><td>~9 (open 1, unit 2, dates 3, name/phone keys)</td></tr>
-<tr><td>J4</td><td>Overlap handling: try to book an occupied unit</td><td>I am told it is taken and cannot proceed with it.</td><td class="pass">pass: occupied Units are greyed with a reason; a stale chosen Unit gets an amber warning</td><td>not timed</td><td>3</td></tr>
-<tr><td>J5</td><td>Duplicate guest: book someone who already exists</td><td>The form recognises the existing guest by name or phone.</td><td class="fail">fail (RES-05)</td><td>not timed</td><td>2</td></tr>
-<tr><td>J6</td><td>Amend: extend a stay by one night (error recovery)</td><td>Pick new dates, see conflicts before saving, Save only enabled when something changed and no conflict.</td><td class="pass">pass on conflicts and Save state; no change summary (RES-12). Stopped before Save, not persisted</td><td>not timed</td><td>5 to reach a savable state</td></tr>
-<tr><td>J7</td><td>Cancel with the confirm step</td><td>The confirm names consequences and the safe button is the default.</td><td class="pass">pass (RES-10 for reason friction). Stopped before submit, not persisted</td><td>not timed</td><td>3 + a typed reason</td></tr>
-<tr><td>J8</td><td>Under pressure: "the guest in 102 should have left, where is their booking?"</td><td>I find that guest on Reservations in one search or one tab.</td><td class="fail">fail: guest not on the list; In house = 0 (RES-01). Only the Room calendar shows them</td><td>not timed</td><td>n/a</td></tr>
-<tr><td>J9</td><td>Roles: Housekeeping and Finance open Reservations</td><td>Page denied or clearly read-only, with no data the role does not need.</td><td class="fail">neither: full read access, contact details visible, no read-only note (RES-14)</td><td>not timed</td><td>1 navigation each</td></tr>
-<tr><td>J10</td><td>Large volume: 40 bookings a day</td><td>Search and paging stay fast; repeat actions are short.</td><td class="part">not testable on staging (one row); see RES-17 and the note on RES-08</td><td>n/a</td><td>n/a</td></tr>
-</tbody></table>
-</div>
+      <h2>6. Not built / needs backend work</h2>
+      <ul>
+        <li>
+          <strong
+            >Past, cancelled and no-show bookings are not searchable
+            here.</strong
+          >
+          The list is "ends today or later" plus open bookings by design
+          (RG-S3-02). Looking up last month's stay needs the timeline / Guest
+          360 (RG-DEF-09, RG-DEF-10, both deferred).
+        </li>
+        <li>
+          <strong>Merging duplicate guests and editing a guest profile</strong>
+          (RG-DEF-05, RG-DEF-06, deferred). RES-05 asks for a cheap suggestion
+          at booking time, not the review screen.
+        </li>
+        <li>
+          <strong
+            >Number of guests, notes and special requests, source/channel,
+            deposits, group bookings, quotations</strong
+          >
+          are not on the form (RG-DEF-04, RG-DEF-07 deferred; I did not find any
+          row for the others, so treat them as <em>unknown</em> whether they are
+          planned).
+        </li>
+        <li>
+          <strong>Re-pricing a booking when the unit type changes</strong> is
+          built (RT-DEF-03 approved), but rates themselves are set on
+          Configuration, which this role cannot change. The unpriced state on
+          staging is a data gap, not a code gap.
+        </li>
+        <li>
+          <strong>Reopening a cancelled booking</strong> does not exist; the
+          dialog says it cannot be taken back (by design).
+        </li>
+      </ul>
 
-<h2>4. Top changes</h2>
-<ol>
-  <li><strong>I can see every guest who is in the building, including overdue ones, on one list</strong> (RES-01). Highest value: it hides the guests who most need an action.</li>
-  <li><strong>Check in and the row menu are always on screen at laptop width</strong> (RES-02, RES-03). Used 40+ times a day.</li>
-  <li><strong>I can find a booking by the phone number or date exactly as the caller says it</strong> (RES-04).</li>
-  <li><strong>The form tells me when the caller is already a guest</strong> (RES-05), so history and contact data do not split.</li>
-  <li><strong>I choose dates first and see only the free rooms and what they cost</strong> (RES-11), the order of a phone enquiry.</li>
-  <li><strong>I cannot take an unpriced booking by accident</strong> (RES-06).</li>
-  <li><strong>An interrupted call does not wipe the form</strong> (RES-08), and every invalid field says why in one message (RES-07).</li>
-  <li><strong>I can cancel in two clicks with a quick reason</strong> (RES-10) and amend from the detail sheet (RES-13).</li>
-  <li><strong>I am sure a housekeeper cannot see guest phone numbers</strong>, or that the page says the view is read-only (RES-14).</li>
-</ol>
+      <h2>7. What already works well and must not regress</h2>
+      <ul>
+        <li>
+          Unit list in the booking dialog marks taken units per chosen nights
+          ("Someone is staying then", "Booked for these nights") and refuses
+          them; a stale pick gets a clear amber line. <em>verified</em> (<a
+            href="07-unit-availability.png"
+            >07</a
+          >)
+        </li>
+        <li>
+          Change booking disables Save when nothing changed or on a conflict,
+          with a plain sentence. <em>verified</em>
+        </li>
+        <li>
+          Cancel and no-show name the consequence in the dialog ("freed",
+          "cannot be taken back"), use destructive styling only on the commit
+          button, and put the safe button first. <em>verified</em>
+        </li>
+        <li>
+          Past days are disabled in the date picker, and today is marked.
+          <em>verified</em>
+        </li>
+        <li>
+          Tab counts are static while searching, so a count never moves under
+          the typist. <em>inferred from code and seen in the UI</em>
+        </li>
+        <li>
+          Search covers name, email, phone, unit, type, reference, status and
+          dates in one box; "Clear filters" and a "Nothing matches these
+          filters." empty state exist. <em>verified</em>
+        </li>
+        <li>
+          A Copy reference button on the row and in the sheet. <em>verified</em>
+        </li>
+        <li>
+          The page offers New reservation only to a viewer who may book;
+          read-only roles see no dead buttons. <em>verified</em> (a note saying
+          it is read-only is still missing, RES-14)
+        </li>
+        <li>
+          Turkish and Arabic are fully translated for this page and RTL mirrors,
+          including the date range arrow. <em>verified</em>
+        </li>
+        <li>
+          Expected-arrival field, optional, with the Property's clock named.
+          <em>verified</em>
+        </li>
+      </ul>
 
-<h2>5. Inconsistencies with sibling screens</h2>
-<ul>
-  <li><strong>Reservations vs Room calendar:</strong> the calendar shows ahmed (in house, overdue); Reservations does not (RES-01). The Room calendar's side drawer has Change departure / Move Guest / Open in Departures for that guest, so the calendar is the only place the overdue case can be handled. <em>verified</em></li>
-  <li><strong>New booking vs Change booking:</strong> different availability wording and behaviour (RES-16): New disables taken units, Change leaves them selectable and explains after choosing. <em>verified</em></li>
-  <li><strong>Reservations vs Room calendar tab chrome:</strong> the calendar has a title, a bold sub-heading and an explanatory line; Reservations has a title and a single grey line. Not wrong, just different.</li>
-  <li><strong>Native validation tooltips</strong> (RES-07, Cancel reason) vs the inline red messages used in the same dialog.</li>
-  <li><strong>Back button:</strong> present and correct (&larr; goes to Today, keeping the Property), as ADR 0035 requires. <em>verified</em></li>
-</ul>
+      <h2>Evidence</h2>
+      <div class="shots">
+        <figure>
+          <a href="01-list.png"
+            ><img
+              src="01-list.png"
+              alt="Reservations list at 1200 px, no Check in visible"
+          /></a>
+          <figcaption>01 list at 1200 px: Action column not visible</figcaption>
+        </figure>
+        <figure>
+          <a href="29-room-calendar-102.png"
+            ><img
+              src="29-room-calendar-102.png"
+              alt="Room calendar showing ahmed overdue in 102"
+          /></a>
+          <figcaption>
+            29 Room calendar: overdue guest in 102 (RES-01)
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="07-unit-availability.png"
+            ><img
+              src="07-unit-availability.png"
+              alt="Unit list with availability labels"
+          /></a>
+          <figcaption>07 unit availability labels</figcaption>
+        </figure>
+        <figure>
+          <a href="08-valid-up-to-submit.png"
+            ><img
+              src="08-valid-up-to-submit.png"
+              alt="New reservation form ready up to submit"
+          /></a>
+          <figcaption>
+            08 form up to, not including, submit (unpriced note)
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="20-bad-email-phone.png"
+            ><img
+              src="20-bad-email-phone.png"
+              alt="Browser tooltip over inline email error"
+          /></a>
+          <figcaption>
+            20 native tooltip over inline message (RES-07)
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="12-search-phone-format-miss.png"
+            ><img
+              src="12-search-phone-format-miss.png"
+              alt="Search with +90 phone returns nothing"
+          /></a>
+          <figcaption>
+            12 phone with +90 and spaces finds nothing (RES-04)
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="16-change-conflict.png"
+            ><img src="16-change-conflict.png" alt="Change booking conflict"
+          /></a>
+          <figcaption>16 change conflict, Save disabled</figcaption>
+        </figure>
+        <figure>
+          <a href="19-noshow-dialog.png"
+            ><img src="19-noshow-dialog.png" alt="No-show dialog"
+          /></a>
+          <figcaption>19 no-show dialog, no reason field (RES-09)</figcaption>
+        </figure>
+        <figure>
+          <a href="17-cancel-dialog.png"
+            ><img src="17-cancel-dialog.png" alt="Cancel booking dialog"
+          /></a>
+          <figcaption>17 cancel dialog</figcaption>
+        </figure>
+        <figure>
+          <a href="27-housekeeping-reservations.png"
+            ><img
+              src="27-housekeeping-reservations.png"
+              alt="Housekeeping sees reservations"
+          /></a>
+          <figcaption>27 Housekeeping view (RES-14)</figcaption>
+        </figure>
+        <figure>
+          <a href="21-width-768.png"
+            ><img src="21-width-768.png" alt="768 px width"
+          /></a>
+          <figcaption>21 768 px (RES-03)</figcaption>
+        </figure>
+        <figure>
+          <a href="23-dialog-375.png"
+            ><img src="23-dialog-375.png" alt="375 px dialog cut off"
+          /></a>
+          <figcaption>23 375 px emulated, dialog cut off (RES-03)</figcaption>
+        </figure>
+        <figure>
+          <a href="26-ar-dialog.png"
+            ><img src="26-ar-dialog.png" alt="Arabic dialog"
+          /></a>
+          <figcaption>26 Arabic dialog, RTL</figcaption>
+        </figure>
+        <figure>
+          <a href="24-tr-list.png"
+            ><img src="24-tr-list.png" alt="Turkish list"
+          /></a>
+          <figcaption>24 Turkish list</figcaption>
+        </figure>
+      </div>
 
-<h2>6. Not built / needs backend work</h2>
-<ul>
-  <li><strong>Past, cancelled and no-show bookings are not searchable here.</strong> The list is "ends today or later" plus open bookings by design (RG-S3-02). Looking up last month's stay needs the timeline / Guest 360 (RG-DEF-09, RG-DEF-10, both deferred).</li>
-  <li><strong>Merging duplicate guests and editing a guest profile</strong> (RG-DEF-05, RG-DEF-06, deferred). RES-05 asks for a cheap suggestion at booking time, not the review screen.</li>
-  <li><strong>Number of guests, notes and special requests, source/channel, deposits, group bookings, quotations</strong> are not on the form (RG-DEF-04, RG-DEF-07 deferred; I did not find any row for the others, so treat them as <em>unknown</em> whether they are planned).</li>
-  <li><strong>Re-pricing a booking when the unit type changes</strong> is built (RT-DEF-03 approved), but rates themselves are set on Configuration, which this role cannot change. The unpriced state on staging is a data gap, not a code gap.</li>
-  <li><strong>Reopening a cancelled booking</strong> does not exist; the dialog says it cannot be taken back (by design).</li>
-</ul>
-
-<h2>7. What already works well and must not regress</h2>
-<ul>
-  <li>Unit list in the booking dialog marks taken units per chosen nights ("Someone is staying then", "Booked for these nights") and refuses them; a stale pick gets a clear amber line. <em>verified</em> (<a href="07-unit-availability.png">07</a>)</li>
-  <li>Change booking disables Save when nothing changed or on a conflict, with a plain sentence. <em>verified</em></li>
-  <li>Cancel and no-show name the consequence in the dialog ("freed", "cannot be taken back"), use destructive styling only on the commit button, and put the safe button first. <em>verified</em></li>
-  <li>Past days are disabled in the date picker, and today is marked. <em>verified</em></li>
-  <li>Tab counts are static while searching, so a count never moves under the typist. <em>inferred from code and seen in the UI</em></li>
-  <li>Search covers name, email, phone, unit, type, reference, status and dates in one box; "Clear filters" and a "Nothing matches these filters." empty state exist. <em>verified</em></li>
-  <li>A Copy reference button on the row and in the sheet. <em>verified</em></li>
-  <li>The page offers New reservation only to a viewer who may book; read-only roles see no dead buttons. <em>verified</em> (a note saying it is read-only is still missing, RES-14)</li>
-  <li>Turkish and Arabic are fully translated for this page and RTL mirrors, including the date range arrow. <em>verified</em></li>
-  <li>Expected-arrival field, optional, with the Property's clock named. <em>verified</em></li>
-</ul>
-
-<h2>Evidence</h2>
-<div class="shots">
-<figure><a href="01-list.png"><img src="01-list.png" alt="Reservations list at 1200 px, no Check in visible"></a><figcaption>01 list at 1200 px: Action column not visible</figcaption></figure>
-<figure><a href="29-room-calendar-102.png"><img src="29-room-calendar-102.png" alt="Room calendar showing ahmed overdue in 102"></a><figcaption>29 Room calendar: overdue guest in 102 (RES-01)</figcaption></figure>
-<figure><a href="07-unit-availability.png"><img src="07-unit-availability.png" alt="Unit list with availability labels"></a><figcaption>07 unit availability labels</figcaption></figure>
-<figure><a href="08-valid-up-to-submit.png"><img src="08-valid-up-to-submit.png" alt="New reservation form ready up to submit"></a><figcaption>08 form up to, not including, submit (unpriced note)</figcaption></figure>
-<figure><a href="20-bad-email-phone.png"><img src="20-bad-email-phone.png" alt="Browser tooltip over inline email error"></a><figcaption>20 native tooltip over inline message (RES-07)</figcaption></figure>
-<figure><a href="12-search-phone-format-miss.png"><img src="12-search-phone-format-miss.png" alt="Search with +90 phone returns nothing"></a><figcaption>12 phone with +90 and spaces finds nothing (RES-04)</figcaption></figure>
-<figure><a href="16-change-conflict.png"><img src="16-change-conflict.png" alt="Change booking conflict"></a><figcaption>16 change conflict, Save disabled</figcaption></figure>
-<figure><a href="19-noshow-dialog.png"><img src="19-noshow-dialog.png" alt="No-show dialog"></a><figcaption>19 no-show dialog, no reason field (RES-09)</figcaption></figure>
-<figure><a href="17-cancel-dialog.png"><img src="17-cancel-dialog.png" alt="Cancel booking dialog"></a><figcaption>17 cancel dialog</figcaption></figure>
-<figure><a href="27-housekeeping-reservations.png"><img src="27-housekeeping-reservations.png" alt="Housekeeping sees reservations"></a><figcaption>27 Housekeeping view (RES-14)</figcaption></figure>
-<figure><a href="21-width-768.png"><img src="21-width-768.png" alt="768 px width"></a><figcaption>21 768 px (RES-03)</figcaption></figure>
-<figure><a href="23-dialog-375.png"><img src="23-dialog-375.png" alt="375 px dialog cut off"></a><figcaption>23 375 px emulated, dialog cut off (RES-03)</figcaption></figure>
-<figure><a href="26-ar-dialog.png"><img src="26-ar-dialog.png" alt="Arabic dialog"></a><figcaption>26 Arabic dialog, RTL</figcaption></figure>
-<figure><a href="24-tr-list.png"><img src="24-tr-list.png" alt="Turkish list"></a><figcaption>24 Turkish list</figcaption></figure>
-</div>
-
-<h2>Not done</h2>
-<ul>
-  <li>No valid create, change, cancel or no-show was submitted. J3, J6 and J7 stopped before the final submit; the empty-reason cancel form and the invalid new-booking form were submitted only while invalid (browser blocked them).</li>
-  <li>Keyboard-only use of the date picker was not exercised; focus did land on the Guest field when each dialog opened. The priced quote, the empty state with zero bookings, outside-click discard (RES-08) and a large list were not reachable.</li>
-  <li>The Owner and Manager roles were not checked; the brief named Front Desk, Housekeeping and Finance.</li>
-</ul>
-
-</main>
-</body>
+      <h2>Not done</h2>
+      <ul>
+        <li>
+          No valid create, change, cancel or no-show was submitted. J3, J6 and
+          J7 stopped before the final submit; the empty-reason cancel form and
+          the invalid new-booking form were submitted only while invalid
+          (browser blocked them).
+        </li>
+        <li>
+          Keyboard-only use of the date picker was not exercised; focus did land
+          on the Guest field when each dialog opened. The priced quote, the
+          empty state with zero bookings, outside-click discard (RES-08) and a
+          large list were not reachable.
+        </li>
+        <li>
+          The Owner and Manager roles were not checked; the brief named Front
+          Desk, Housekeeping and Finance.
+        </li>
+      </ul>
+    </main>
+  </body>
 </html>
