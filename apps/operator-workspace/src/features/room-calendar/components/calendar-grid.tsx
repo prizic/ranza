@@ -30,6 +30,7 @@ import { ghostOf, hasEndHandle, type Ghost, type MoveRequest } from "../move";
 import { useHoldText } from "./hold-text";
 import { useBarDrag } from "./use-bar-drag";
 import {
+  BAR_GRIP,
   BAR_ICON,
   BAR_LOOK,
   barLook,
@@ -766,7 +767,9 @@ function BarButton({
   });
 
   return (
-    <>
+    // `contents` keeps the bar and its grip grid items of the row while
+    // giving the grip a hover of its own bar, not of every bar before it.
+    <div className="group/bar contents">
       <button
         aria-label={label}
         data-bar-key={key}
@@ -827,15 +830,20 @@ function BarButton({
         </span>
       </button>
       {mayAmend && hasEndHandle(bar, lastDay) ? (
+        // The end is shown as a pill while the bar is hovered, so pulling it
+        // to change the departure is found rather than guessed at.
         <div
           aria-hidden="true"
-          className="relative z-[2] col-start-(--bar-start) col-end-(--bar-end) row-start-(--bar-lane) my-1 w-2 cursor-ew-resize justify-self-end rounded-e-md hover:bg-foreground/20"
+          className={cn(
+            "relative z-[2] col-start-(--bar-start) col-end-(--bar-end) row-start-(--bar-lane) my-1 w-3 cursor-ew-resize justify-self-end rounded-full bg-clip-content px-1 py-2 group-hover/bar:bg-current/50 hover:bg-current/80",
+            BAR_GRIP[look],
+          )}
           data-end-handle={key}
           {...grip("resize")}
           style={position}
           title={t("resizeHint")}
         />
       ) : null}
-    </>
+    </div>
   );
 }

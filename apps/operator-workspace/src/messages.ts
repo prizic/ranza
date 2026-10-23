@@ -3975,7 +3975,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         out_of_service: "Hizmet dışı",
       },
       moveHint:
-        "Bir rezervasyonu başka bir odaya ya da güne sürükleyerek taşıyın; siz onaylayana kadar hiçbir şey kaydedilmez.",
+        "Bir rezervasyonu başka bir odaya ya da güne sürükleyerek taşıyın, ucunu çekerek çıkış gününü değiştirin; siz onaylayana kadar hiçbir şey kaydedilmez.",
       dragHint:
         "Taşımak için sürükleyin ya da ayrıntılarındaki Taşı… düğmesini kullanın.",
       resizeHint: "Çıkış gününü değiştirmek için sürükleyin",
@@ -7280,7 +7280,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         out_of_service: "Out of order",
       },
       moveHint:
-        "Drag a booking to another room or day to move it; nothing is saved until you confirm.",
+        "Drag a booking to another room or day to move it, or pull its end to change the departure; nothing is saved until you confirm.",
       dragHint: "Drag to move it, or use Move… in its details.",
       resizeHint: "Drag to change the departure",
       dropBlocked: "It cannot go here",
@@ -10557,7 +10557,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         blocked: "مغلقة",
         out_of_service: "خارج الخدمة",
       },
-      moveHint: "اسحب حجزًا إلى غرفة أو يوم آخر لنقله؛ لا يُحفظ شيء حتى تؤكّد.",
+      moveHint:
+        "اسحب حجزًا إلى غرفة أو يوم آخر لنقله، أو اسحب طرفه لتغيير موعد المغادرة؛ لا يُحفظ شيء حتى تؤكّد.",
       dragHint: "اسحبه لنقله، أو استخدم «نقل…» في تفاصيله.",
       resizeHint: "اسحب لتغيير موعد المغادرة",
       dropBlocked: "لا يمكن نقله إلى هنا",

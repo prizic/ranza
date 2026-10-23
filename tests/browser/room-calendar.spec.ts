@@ -985,6 +985,26 @@ test("RC-S3-08: pulling the end of a Guest in house previews the new departure, 
   aBookingOn(rooms.A!, `Next ${tag}`, { from: 4, to: 6 });
   await page.reload();
   await expect(page.locator('[data-end-handle^="stay:"]')).toBeVisible();
+
+  // A grip shows while its own bar is hovered, and only that bar's: each of
+  // the two in the row is hovered, whichever of them comes first.
+  const row = page.locator(`[data-unit-id="${rooms.A!.id}"]`);
+  const unpainted = "rgba(0, 0, 0, 0)";
+  for (const [hovered, other] of [
+    ["stay", "reservation"],
+    ["reservation", "stay"],
+  ]) {
+    await row.locator(`[data-bar-key^="${hovered}:"]`).hover();
+    await expect(row.locator(`[data-end-handle^="${hovered}:"]`)).not.toHaveCSS(
+      "background-color",
+      unpainted,
+    );
+    await expect(row.locator(`[data-end-handle^="${other}:"]`)).toHaveCSS(
+      "background-color",
+      unpainted,
+    );
+  }
+
   await pullEnd(page, rooms.A!, propertyDay(propertyId, 5), "stay");
   const blocked = page.getByRole("dialog", { name: "Change departure" });
   await expect(
