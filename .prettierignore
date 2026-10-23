@@ -8,3 +8,4 @@ pnpm-lock.yaml
 supabase/.temp
 .nodeterm
 **/TRIAL-RECORD*.html
+docs/design/dialogs/*.html

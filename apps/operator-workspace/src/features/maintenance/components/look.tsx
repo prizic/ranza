@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import {
   CalendarClock,
@@ -99,22 +98,4 @@ export function formatInstant(
     hourCycle: "h23",
     timeZone,
   });
-}
-
-/** A titled block of the request drawer. */
-export function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="grid gap-2">
-      <h3 className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-        {title}
-      </h3>
-      {children}
-    </section>
-  );
 }

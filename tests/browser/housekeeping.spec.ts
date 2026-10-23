@@ -204,7 +204,9 @@ test("a check-out leaves the room dirty through the worker, and a cleaner takes 
   // Three nights early on a booking of two, with nothing owed: the
   // acknowledgement is all the dialog asks.
   await checkOut.getByRole("checkbox").click();
-  await checkOut.getByRole("button", { name: "Confirm check-out" }).click();
+  await checkOut
+    .getByRole("button", { name: "Check out", exact: true })
+    .click();
   await expect(checkOut).toBeHidden();
 
   const stayId = psql(

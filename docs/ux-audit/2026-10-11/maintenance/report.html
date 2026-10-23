@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UX audit: Maintenance (2026-10-11)</title>
+<style>
+  :root { --ink:#16211d; --muted:#5b6a64; --line:#d9dfdc; --bg:#fbfaf6; --accent:#14574a; --warn:#8a5a00; --bad:#9b1c1c; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color:var(--ink); background:var(--bg); }
+  main { max-width: 1180px; margin: 0 auto; padding: 24px 16px 80px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 19px; margin: 40px 0 10px; padding-top: 14px; border-top: 2px solid var(--ink); }
+  p.meta { color: var(--muted); margin: 0 0 16px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: #eef1ef; position: sticky; top: 0; }
+  .wrap { overflow-x: auto; }
+  .tag { display:inline-block; padding:0 6px; border-radius:3px; font-size:12px; border:1px solid var(--line); white-space:nowrap; }
+  .sev-errors { color: var(--bad); border-color: var(--bad); }
+  .sev-slow { color: var(--warn); border-color: var(--warn); }
+  .sev-polish { color: var(--muted); }
+  .inferred { color: var(--warn); }
+  .verified { color: var(--accent); }
+  img { max-width: 100%; border: 1px solid var(--line); display:block; margin: 6px 0; }
+  figure { margin: 0 0 14px; }
+  figcaption { font-size: 12px; color: var(--muted); }
+  .shots { display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  ul, ol { padding-inline-start: 20px; }
+  code { background:#eef1ef; padding:0 4px; border-radius:3px; font-size:13px; }
+  .note { border-inline-start: 3px solid var(--warn); padding: 4px 12px; background:#fff7e6; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Maintenance: UX audit</h1>
+<p class="meta">Route <code>/en/maintenance</code> (also <code>/tr</code>, <code>/ar</code>), hosted staging, Property Demo Otel İstanbul, 2026-10-11. Roles used: Manager, Front Desk, Housekeeping, Owner. Mode: audit only, nothing was submitted or changed. Claims are tagged <span class="verified">verified</span> (I saw it), <span class="inferred">inferred</span> (read in code or docs) or <em>unknown</em>.</p>
+
+<div class="note">
+<strong>Data state, read this first.</strong> Staging has zero maintenance requests, zero equipment and three rooms (101, 102, 201). I never saw a board with a card on it, a request drawer, the impact warning, or any status other than the empty state. Everything about cards, drawer, moving, assigning, closing, ageing and 40-request behaviour below is <span class="inferred">inferred</span> from the code (<code>maintenance-board.tsx</code>, <code>request-card.tsx</code>, <code>request-sheet.tsx</code>, the board SQL in <code>packages/ranza/maintenance/src/module.ts</code>) and from <code>docs/features/maintenance/</code>. I could not add data, and the mode forbids a valid submit.
+</div>
+
+<h2>1. Verdict</h2>
+<ol>
+  <li><strong>Reporting is fast and well-scoped.</strong> Two mandatory inputs (room or equipment, plus a 3-character title), urgency defaults to "This week", the whole dialog works by keyboard, and <code>?report=&lt;room&gt;</code> pre-selects the room. The front-desk agent can plausibly do it in about 20 seconds (<span class="verified">verified</span> up to, not including, Send).</li>
+  <li><strong>The front desk is steered to the wrong action first.</strong> Clicking a room on Rooms opens "101 — Block bed" with a placeholder reading "Maintenance or repair"; "Report a problem" is a small secondary button. A blocked room has no request, no assignee and no owner (MAINT-01).</li>
+  <li><strong>The lead cannot be told, and cannot triage a busy board.</strong> Nothing notifies anyone of a new or assigned request and the board does not refresh on its own; with many open requests there is no search, no urgency sort and no age on the card (MAINT-02, 04, 05). All <span class="inferred">inferred</span>.</li>
+  <li><strong>Biggest risk:</strong> an urgent report that nobody sees, or a repair logged as a block. Second: "Move to Done" quietly puts the room back on sale without saying so first (MAINT-03).</li>
+  <li><strong>Could the persona use it unaided?</strong> The reporter, yes. The maintenance lead, probably for 5 requests and increasingly poorly for 40. Photos are not built (documented as deferred, MT-DEF-03).</li>
+</ol>
+
+<h2>2. Findings</h2>
+<p class="meta">Severity: "blocks work" (none found), "causes errors", "slows me down", "polish". 17 findings: 0 blocks work, 4 causes errors, 9 slows me down, 4 polish. Effort S/M/L. "Reproduced" means I did it twice or the code makes it deterministic.</p>
+<div class="wrap">
+<table>
+<thead><tr><th>ID</th><th>Severity</th><th>Where</th><th>What happened</th><th>What I expected</th><th>Suggested fix</th><th>Effort</th><th>Evidence</th><th>Status</th></tr></thead>
+<tbody>
+
+<tr><td>MAINT-01</td><td><span class="tag sev-errors">causes errors</span></td>
+<td>/en/rooms, Front Desk, room tile "101"</td>
+<td>Clicking a room opens a dialog titled "101 — Block bed" ("bed", for a whole room), field "Reason for block", placeholder "Maintenance or repair". "Report a problem" is a small button under the field. A front-desk agent told "the AC is dead" can type that into the block reason and press the red Block button: room unsellable, but no request, no assignee, no urgency, nothing on the Maintenance board.</td>
+<td>A broken room should become a maintenance request. Block should be for non-repair reasons.</td>
+<td>Make "Report a problem" the primary action of the room dialog and Block the secondary one; drop "Maintenance or repair" from the block placeholder; title the dialog "101" for a whole room, not "Block bed".</td>
+<td>S</td><td><a href="14-rooms-unit-dialog-frontdesk.png">14</a>; reproduced Y</td><td class="verified">verified</td></tr>
+
+<tr><td>MAINT-02</td><td><span class="tag sev-errors">causes errors</span></td>
+<td>Report dialog, all roles; Maintenance board, Manager</td>
+<td>The dialog promises "The people who work on maintenance see it straight away." The only event the maintenance module publishes is <code>unit.returned_to_service</code>. No notification on report or assign, no badge on the Maintenance nav item, and the board components have no polling or refresh. Seen only if someone has the page open and reloads it.</td>
+<td>The lead learns of an urgent request without being told verbally; the assignee learns they were assigned.</td>
+<td>At least a count badge on the nav item and a refresh on focus; then notify the assignee on assign and managers on an urgent report. Or reword the promise.</td>
+<td>M (badge and refresh), L (notifications)</td><td>code: <code>module.ts</code> publishes one event; no <code>useQuery</code> in <code>features/maintenance</code></td><td class="inferred">inferred</td></tr>
+
+<tr><td>MAINT-03</td><td><span class="tag sev-errors">causes errors</span></td>
+<td>Request drawer, Manager, any request that holds its room</td>
+<td>The state row is a set of one-click buttons: "Move to In progress / Waiting for parts / Done". "Done" is the primary-coloured one, adjacent to the others, with no confirmation. With the shipped setting ("A room comes back into service: When its request is done", seen on the Settings tab), clicking Done returns the room to sale, dirty. The consequence is named only afterwards ("The room is back in service"). A misclick on Done sells a room that may not be fixed.</td>
+<td>The button says what else it does before I click: "Done: also returns 304 to service (comes back Dirty)."</td>
+<td>When the request holds a room and the setting returns on done, show a one-line hint under the state buttons (or on the Done button).</td>
+<td>S</td><td>code: <code>request-sheet.tsx</code> state section; <a href="08-settings-tab-manager.png">08</a> for the setting</td><td class="inferred">inferred</td></tr>
+
+<tr><td>MAINT-04</td><td><span class="tag sev-slow">slows me down</span></td>
+<td>/en/maintenance Requests tab, Manager, 40 open requests</td>
+<td>The board query loads every open request with no limit, ordered by request number descending. Columns therefore list newest first, not most urgent first. The only filters are priority, assignee, "Out of order only" and "Show cancelled". No search, no room filter, no sort. "Is the AC in 304 already reported?" means scrolling a column of about 40 cards.</td>
+<td>Urgent on top, oldest first within urgency; a search box that takes a room number or a word; duplicate warning when reporting a room that already has an open request.</td>
+<td>Sort by priority then age inside each column; add a search field; in the report form, show open requests for the chosen room.</td>
+<td>M</td><td>code: SQL <code>order by request.number desc</code>, board filters</td><td class="inferred">inferred</td></tr>
+
+<tr><td>MAINT-05</td><td><span class="tag sev-slow">slows me down</span></td>
+<td>Request card, Manager</td>
+<td>A card shows number, location, title, priority badge, out-of-order badge, expected-back date and assignee. It does not show when it was reported or how long it has been in its column. Age exists only in the drawer ("Reported &lt;time&gt;"). Overdue appears only for an out-of-order room past its expected-back date. <code>statusChangedAt</code> is read but not displayed.</td>
+<td>"3 days old" on every card, emphasised for urgent items and for anything stuck in "Waiting for parts".</td>
+<td>Add an age line using <code>reportedAt</code> and, for waiting cards, <code>statusChangedAt</code>.</td>
+<td>S</td><td>code: <code>request-card.tsx</code></td><td class="inferred">inferred</td></tr>
+
+<tr><td>MAINT-06</td><td><span class="tag sev-slow">slows me down</span></td>
+<td>Maintenance board, filters; Today maintenance card</td>
+<td>Filters are component state, not in the URL, so they reset on reload and cannot be linked ("urgent only"). The Today card's figures all open the unfiltered board; the card's own comment says the board has no filter to open at yet (TD-DEF-09), although filters now exist.</td>
+<td>Clicking "Urgent 2" on Today lands on urgent requests; my filters survive a reload.</td>
+<td>Put priority, assignee and out-of-order in the query string and link Today's figures to them.</td>
+<td>S</td><td>code: <code>maintenance-board.tsx</code>, <code>today/components/maintenance-card.tsx</code></td><td class="inferred">inferred</td></tr>
+
+<tr><td>MAINT-07</td><td><span class="tag sev-slow">slows me down</span></td>
+<td>Request drawer, "Waiting for parts"</td>
+<td>"Waiting for parts" is only a column. There is no note, expected date or comment when moving a request there, and the drawer has no activity trail. Why it waits, who ordered what and when it arrives live nowhere. The only free text on a request is Details (set at report) and the cancel reason.</td>
+<td>A short note and an expected date when something is parked, visible on the card.</td>
+<td>Optional note and date on the move to "Waiting for parts"; show them on the card and in the drawer.</td>
+<td>M</td><td>code: <code>request-sheet.tsx</code>; no edge-case row covers it (MT-DEF-05 defers vendors and parts only)</td><td class="inferred">inferred</td></tr>
+
+<tr><td>MAINT-08</td><td><span class="tag sev-slow">slows me down</span></td>
+<td>Report dialog, Front Desk and Manager</td>
+<td>(a) Opened from Rooms with the room pre-selected, focus lands on the Room select, so the reporter must Tab to "What is wrong?" before typing. (b) "Room or bed" is a plain dropdown; <code>Combobox</code> exists in <code>@ranza/ui</code> but is not used. With three rooms it is fine; with 80 it is a scroll to find 304. (c) The select trigger shrinks to its content while every other field is full width.</td>
+<td>Focus on the title when the room is known; room list I can type into.</td>
+<td>Autofocus the title when <code>?report=</code> supplies a room; use the searchable Combobox for rooms.</td>
+<td>S</td><td><a href="15-report-from-room-link.png">15</a>, <a href="03-report-room-list.png">03</a>; focused element id was <code>report-unit</code>; reproduced Y</td><td class="verified">verified</td></tr>
+
+<tr><td>MAINT-09</td><td><span class="tag sev-slow">slows me down</span></td>
+<td>/en/maintenance at 375 px, Manager (empty data)</td>
+<td>The tab list (Requests, Equipment, Service plan, Settings) is 380 px wide in a 343 px column; "Settings" is clipped and the page scrolls sideways (scrollWidth 396 vs 375). The report dialog is shifted off centre for the same reason. The empty-state "New request" button sits half under the bottom navigation bar. 768 px is fine.</td>
+<td>No sideways scroll; the primary button fully visible.</td>
+<td>Let the tab list scroll within itself or shrink its labels; add bottom padding for the bottom nav.</td>
+<td>S</td><td><a href="09-mobile-375-board.png">09</a>, <a href="10-mobile-375-report-dialog.png">10</a>; reproduced Y</td><td class="verified">verified</td></tr>
+
+<tr><td>MAINT-10</td><td><span class="tag sev-slow">slows me down</span></td>
+<td>/en/housekeeping, Housekeeping role</td>
+<td>The Housekeeping screen has no link to report a problem (no reference to maintenance anywhere in <code>features/housekeeping</code>). A housekeeper who finds a leaking tap leaves their screen, finds Maintenance in the nav, presses New request and picks the room again. The Maintenance page and the dialog themselves work for this role (<span class="verified">verified</span>, including the out-of-order tick).</td>
+<td>A "Report a problem" action on the room row they are already looking at, like Rooms has.</td>
+<td>Add the same <code>?report=&lt;room&gt;</code> link on housekeeping room rows.</td>
+<td>S</td><td><a href="16-housekeeping-board.png">16</a>; grep of <code>features/housekeeping</code> returned nothing</td><td class="verified">verified</td></tr>
+
+<tr><td>MAINT-11</td><td><span class="tag sev-slow">slows me down</span></td>
+<td>Report dialog and drawer, Manager</td>
+<td>Assignees appear as email addresses (for example <code>finance@prizic.com</code>), every staff member at the Property is offered including Finance, and there is no "assign to me" shortcut. Reporters are shown by email too.</td>
+<td>Names, ideally only people who can work the board, and a one-tap "me".</td>
+<td>Show display name with email as secondary; add "Assign to me".</td>
+<td>S</td><td><a href="04-report-filled-assignee-list.png">04</a>; reproduced Y</td><td class="verified">verified</td></tr>
+
+<tr><td>MAINT-12</td><td><span class="tag sev-slow">slows me down</span></td>
+<td>Rooms, Room calendar, Maintenance, Arrivals, Guest Experience</td>
+<td>One concept, several words. English: Maintenance, Rooms and Arrivals say "Out of order"; Room calendar says "Out of service" (<code>messages.ts</code> roomCalendar). Turkish and Arabic use "Hizmet dışı" and "خارج الخدمة" (out of service) everywhere. A separate "Blocked" state exists on Rooms and means something else. Priority scales also differ: Maintenance is Urgent / This week / Can wait; Guest Experience is Low / Normal / High / Urgent.</td>
+<td>One word for "cannot be sold because broken", one distinct word for "blocked", one priority scale.</td>
+<td>Pick one term per concept (recommend "Out of order" in EN to match the status the owner approved) and align Calendar; decide whether the two priority scales are intentional.</td>
+<td>S (copy), M (scale)</td><td><code>messages.ts</code> lines 4884 and 5642 ff.; <a href="11-ar-board.png">11</a>, <a href="17-tr-owner-board.png">17</a></td><td><span class="verified">verified</span> (Calendar vs Maintenance strings, TR/AR); Arrivals wording <span class="inferred">inferred</span></td></tr>
+
+<tr><td>MAINT-13</td><td><span class="tag sev-errors">causes errors</span></td>
+<td>Settings tab, Owner (all six selects enabled); Manager and Front Desk see them disabled with a reason</td>
+<td>Every select saves the moment it changes: the Owner's tab has zero submit buttons and the code calls the save action from <code>onValueChange</code>. The "Organization default" row changes the rule for every Property in the Organization with no confirmation and no list of who is affected. The tab does say it applies to the next move only. I did not change anything.</td>
+<td>A change to an Organization-wide default asks me to confirm and names how many Properties follow it.</td>
+<td>Confirm on Organization-default changes only.</td>
+<td>S</td><td>live: 0 submit buttons, 6 enabled selects as Owner; code: <code>maintenance-settings.tsx</code></td><td><span class="verified">verified</span> (control state); <span class="inferred">inferred</span> (what saving does)</td></tr>
+
+<tr><td>MAINT-14</td><td><span class="tag sev-polish">polish</span></td>
+<td>All roles, page header</td>
+<td>The page shows "Maintenance" (h1 in the bar) directly above "Maintenance at Demo Otel İstanbul" (h2). The Property name is already in the top bar.</td>
+<td>One heading.</td>
+<td>Drop the h2 text or make it the one-line summary.</td>
+<td>S</td><td><a href="01-board-manager.png">01</a></td><td class="verified">verified</td></tr>
+
+<tr><td>MAINT-15</td><td><span class="tag sev-polish">polish</span></td>
+<td>/tr/maintenance, Owner</td>
+<td>The sidebar item for Configuration and the Maintenance tab for Settings are both "Ayarlar", on the same screen.</td>
+<td>Two different words.</td>
+<td>Rename the tab (for example "Bakım ayarları").</td>
+<td>S</td><td><a href="17-tr-owner-board.png">17</a></td><td class="verified">verified</td></tr>
+
+<tr><td>MAINT-16</td><td><span class="tag sev-polish">polish</span></td>
+<td>Report dialog, Front Desk</td>
+<td>The out-of-order hint reads "The front desk will not be able to sell it..." and is shown to the front-desk user themselves.</td>
+<td>"You will not be able to sell it..." or a neutral "It cannot be sold or checked into until it returns to service."</td>
+<td>Reword.</td>
+<td>S</td><td><a href="13-frontdesk-report-dialog.png">13</a></td><td class="verified">verified</td></tr>
+
+<tr><td>MAINT-17</td><td><span class="tag sev-polish">polish</span></td>
+<td>Room calendar and Arrivals / Reservations, Front Desk, a room that is out of order</td>
+<td>Rooms shows "Out of order · MT-n" plus the back date. Arrivals and Reservations rows show only a red "Out of order" badge, and the calendar shows "Out of service" with a tooltip that is the status reason. Neither names the request or when the room is expected back, so the desk cannot answer a guest asking "when?" without opening Rooms. No room was out of order on staging.</td>
+<td>The same reference and back date everywhere the room is shown as unavailable.</td>
+<td>Pass the hold reference and expected-back date to the badge in Arrivals and the calendar.</td>
+<td>M</td><td>code: <code>front-office/components/columns.tsx</code>, <code>room-calendar/components/calendar-grid.tsx</code>, <code>rooms-view.tsx</code></td><td class="inferred">inferred</td></tr>
+
+</tbody></table>
+</div>
+
+<h2>3. Jobs</h2>
+<p class="meta">Pass/fail tests written before attempting. Seconds were not stopwatch-timed (tool round-trips are not a user's speed); clicks are counted from the UI. 304 does not exist on staging; I used 101 as the stand-in room.</p>
+<div class="wrap">
+<table>
+<thead><tr><th>#</th><th>Job</th><th>Pass test (written first)</th><th>Result</th><th>Seconds</th><th>Clicks</th></tr></thead>
+<tbody>
+<tr><td>J1</td><td>Front desk reports "AC is dead" from Maintenance</td><td>At most 3 mandatory inputs; at most 5 clicks to Send; no jargon.</td><td><strong>Pass, stopped before submit, not persisted.</strong> Mandatory: room (or equipment) and title of at least 3 characters. Urgency defaults to This week. Send is disabled until a room is chosen, with the hint "Choose a room, equipment or both." Empty title: the native <code>required</code> check blocked it, no request sent (I read the code first, <code>onSubmit</code> with no <code>noValidate</code>). <span class="verified">verified</span></td><td>n/t (about 15 estimated)</td><td>4 clicks plus typing (New request, open room list, pick room, Send)</td></tr>
+<tr><td>J2</td><td>Report from a room context (Rooms to Maintenance)</td><td>Room pre-selected; at most 4 clicks; the first thing offered is reporting.</td><td><strong>Partial pass.</strong> Room is pre-selected (<span class="verified">verified</span>), but the first dialog is "Block bed" (MAINT-01) and focus lands on the room, not the title (MAINT-08).</td><td>n/t</td><td>3 clicks plus typing (room badge, Report a problem, Send)</td></tr>
+<tr><td>J3</td><td>Report and take the room out of order in one step</td><td>One tick; consequence stated; guests affected shown before it takes effect.</td><td><strong>Stopped before submit, not persisted.</strong> Tick and optional "Expected back" date appear only for roles with the permission (Front Desk, Manager and Housekeeping: <span class="verified">verified</span>). The impact warning (guest in house, bookings) is returned by the server after Send and confirmed by a second press: <span class="inferred">inferred</span> from code.</td><td>n/a</td><td>5 to reach the filled form</td></tr>
+<tr><td>J4</td><td>Lead assigns and moves a request</td><td>From the board in at most 3 clicks, without leaving the page.</td><td><strong>Not tested live (no data).</strong> By code: open card, assignee select (saves on change), "Move to ..." button: 3 clicks; no confirmation on Done (MAINT-03). <span class="inferred">inferred</span></td><td>n/a</td><td>3 (inferred)</td></tr>
+<tr><td>J5</td><td>Close the issue when fixed and be sure the room is sellable</td><td>The screen tells me what happens to the room before I click.</td><td><strong>Fail by inference.</strong> It is told only afterwards (MAINT-03). <span class="inferred">inferred</span></td><td>n/a</td><td>2 (inferred)</td></tr>
+<tr><td>J6</td><td>Triage a busy board (40 open)</td><td>Urgent and oldest visible without scrolling; find a room's request in under 10 seconds.</td><td><strong>Fail by inference.</strong> No sort, search or age (MAINT-04, 05). <span class="inferred">inferred</span></td><td>n/a</td><td>n/a</td></tr>
+<tr><td>J7</td><td>First-time setup: empty states of Requests, Equipment, Service plan, Settings</td><td>Each says what to do next.</td><td><strong>Pass.</strong> Each has a sentence and a button where an action exists; Service plan says to set an interval under Equipment. Add equipment form: name and category required, everything else optional. <span class="verified">verified</span></td><td>n/t</td><td>4 tab clicks</td></tr>
+<tr><td>J8</td><td>Reporter-role check: Front Desk and Housekeeping</td><td>Can report; cannot do manager actions; blocked controls explain why.</td><td><strong>Pass.</strong> Both reach the page and the dialog; the Assign field is hidden for them; Settings selects are disabled with "Changing this needs the permission to manage maintenance." Housekeeping holds the out-of-order tick by default (owner-approved, MT-S1-28). <span class="verified">verified</span></td><td>n/t</td><td>5 each</td></tr>
+<tr><td>J9</td><td>Error recovery: stale move, refused cancel, empty title</td><td>Message names what is true, form kept.</td><td>Empty title <span class="verified">verified</span>. Stale move ("Someone else moved this request first. It is now &lt;state&gt;."), the cancel reason rule and refusals are <span class="inferred">inferred</span> from <code>outcome-message.tsx</code> and <code>request-sheet.tsx</code>.</td><td>n/a</td><td>n/a</td></tr>
+<tr><td>J10</td><td>Locales and RTL</td><td>Mirrors; no English leaking.</td><td><strong>Pass</strong> for the empty board and tabs in /ar (RTL, whole shell mirrored) and /tr; the dialog and drawer were not opened in /ar or /tr. See MAINT-12, MAINT-15 for wording. <span class="verified">verified</span> (board only)</td><td>n/t</td><td>n/a</td></tr>
+</tbody></table>
+</div>
+
+<h2>4. Top changes</h2>
+<ol>
+  <li><strong>"A broken room I report from Rooms always becomes a request someone owns."</strong> Make Report a problem the first action of the room dialog and keep Block for non-repair reasons (MAINT-01). Daily, every desk shift, S effort.</li>
+  <li><strong>"The lead knows an urgent request arrived without being told."</strong> Nav badge, refresh on focus, assignee notification (MAINT-02). Daily, M to L.</li>
+  <li><strong>"I can see what is oldest and most urgent at a glance."</strong> Priority-then-age order inside columns, age on every card (MAINT-04, 05). Daily for the lead, S to M.</li>
+  <li><strong>"I know what Done will do to the room before I press it."</strong> One hint line (MAINT-03). Every close, S.</li>
+  <li><strong>"I can tell whether the AC in 304 is already reported."</strong> Search, plus open requests for the chosen room shown in the report form (MAINT-04). M.</li>
+  <li><strong>"A housekeeper reports from the room they are standing in."</strong> Report link on Housekeeping rows (MAINT-10). S.</li>
+  <li><strong>"I type the problem straight away."</strong> Focus the title when the room is known; searchable room list (MAINT-08). S.</li>
+  <li><strong>"I can see why something is parked and when it comes back."</strong> Note and date on "Waiting for parts" (MAINT-07). M.</li>
+  <li><strong>"It works on my phone."</strong> Fix the 375 px overflow (MAINT-09). S.</li>
+  <li><strong>"I link a colleague to the urgent list."</strong> Filters in the URL, Today figures deep-link (MAINT-06). S.</li>
+</ol>
+
+<h2>5. Inconsistencies with sibling screens</h2>
+<ul>
+  <li><strong>Rooms vs Maintenance:</strong> Rooms leads with Block, Maintenance leads with Report; Rooms says "Out of order · MT-n" with a back date where Arrivals shows a bare badge (MAINT-01, 17).</li>
+  <li><strong>Room calendar vs the rest:</strong> "Out of service" (EN) against "Out of order" elsewhere (MAINT-12, <span class="verified">verified</span> in <code>messages.ts</code>).</li>
+  <li><strong>Guest Experience vs Maintenance:</strong> four-level priority (Low, Normal, High, Urgent) against three-level (Urgent, This week, Can wait) (MAINT-12).</li>
+  <li><strong>Arrivals does it better</strong> for refusals: MT-S2-29 requires check-in to be refused with a reason, not a generic failure (<span class="inferred">inferred</span>, not exercised).</li>
+  <li><strong>Settings:</strong> other settings screens in the product I did not compare; here autosave with no confirm on an Organization-wide value (MAINT-13).</li>
+  <li><strong>Heading pattern:</strong> h1 plus a "&lt;Page&gt; at &lt;Property&gt;" h2 (MAINT-14). I did not check whether sibling pages repeat it.</li>
+  <li>The back button is present and goes to Today with the Property kept, as ADR 0035 requires (<span class="verified">verified</span>).</li>
+</ul>
+
+<h2>6. Not built, and documentation drift</h2>
+<p>These are not UX defects. Each is recorded in <code>docs/features/maintenance/edge-cases.csv</code> unless noted.</p>
+<ul>
+  <li><strong>Photos and evidence:</strong> not built, MT-DEF-03 ("no file foundation"). The report form has no attachment control (<span class="verified">verified</span>).</li>
+  <li><strong>Planned out-of-order for future dates:</strong> MT-DEF-01. Out of order starts now and lasts until returned.</li>
+  <li><strong>Technician on a phone, mobile maintenance mode:</strong> MT-DEF-10 (blueprint 4.7).</li>
+  <li><strong>Service-level timers and escalation:</strong> MT-DEF-08. This is why there is no "overdue request" notion, only an overdue return date.</li>
+  <li><strong>Vendor register and parts stock:</strong> MT-DEF-05. Vendor is free text.</li>
+  <li><strong>A Resident or Guest reporting:</strong> MT-DEF-02, MT-DEF-12.</li>
+  <li><strong>Moving an affected booking:</strong> MT-DEF-07 (out of scope). The impact warning lists bookings and links to Change booking.</li>
+  <li><strong>No Maintenance role ships:</strong> MT-DEF-09. A technician is a Staff Member given the permissions by the Organization; I did not see how that reads on staging.</li>
+  <li><strong>Not covered by any row and unknown whether wanted:</strong> notification on report or assignment (MAINT-02); per-room or per-equipment history of past requests (I found no screen for it); a note on moving to "Waiting for parts" (MAINT-07).</li>
+  <li><strong>Doc drift:</strong> MT-DEF-04 says "Open issues on Today ... the Today dashboard's cards are not built", but <code>MaintenanceCard</code> exists on Today (TD-S4-04), so that row is stale. The card's own comment says the board has no filter to open at (TD-DEF-09), while the board has filters that are not URL-addressable (MAINT-06).</li>
+</ul>
+
+<h2>7. What already works well and must not regress</h2>
+<ul>
+  <li>Reporting needs only a room or equipment plus a short title; urgency defaults sensibly; send stays disabled with a visible reason until a target is chosen. <span class="verified">verified</span></li>
+  <li><code>?report=&lt;room&gt;</code> pre-selects the room and opens the form; a stale or foreign room id opens nothing rather than a form that cannot be sent. <span class="verified">verified</span> (valid case); the stale case <span class="inferred">inferred</span>.</li>
+  <li>The dialog is fully keyboard-operable (open, choose room, send), and every priority carries an icon and a word, not colour alone. <span class="verified">verified</span></li>
+  <li>Permissions are explained, not hidden silently: read-only banner for non-managers, disabled Settings selects with a sentence, Assign field absent for reporters. <span class="verified">verified</span> (Settings, Assign); banner <span class="inferred">inferred</span>.</li>
+  <li>Out-of-order is a separate, deliberate tick with an optional expected-back date, and taking out a room that has a guest in house or bookings returns an impact list instead of a refusal. <span class="inferred">inferred</span></li>
+  <li>A request is never deleted; Cancel requires a reason and says "When something is fixed, move it to Done instead". <span class="inferred">inferred</span></li>
+  <li>Concurrent moves are refused with "Someone else moved this request first. It is now &lt;state&gt;." rather than overwritten (MT-S1-14). <span class="inferred">inferred</span></li>
+  <li>RTL mirrors the whole shell and the board in Arabic; Turkish is translated throughout the tabs and empty states. <span class="verified">verified</span></li>
+  <li>Empty states on all four tabs say what to do next. <span class="verified">verified</span></li>
+</ul>
+
+<h2>Evidence index</h2>
+<div class="shots">
+<figure><img src="01-board-manager.png" alt="Manager, empty board"><figcaption>01 Manager, empty board, desktop</figcaption></figure>
+<figure><img src="02-report-dialog-empty.png" alt="Report dialog empty"><figcaption>02 Report dialog, Send disabled until a room is chosen</figcaption></figure>
+<figure><img src="03-report-room-list.png" alt="Room list"><figcaption>03 Room list: a plain dropdown (101, 102, 201)</figcaption></figure>
+<figure><img src="04-report-filled-assignee-list.png" alt="Assignee list"><figcaption>04 Assignees as emails, including Finance</figcaption></figure>
+<figure><img src="05-report-out-of-order-ticked.png" alt="Out of order ticked"><figcaption>05 Filled form, out of order ticked, not submitted</figcaption></figure>
+<figure><img src="06-equipment-tab.png" alt="Equipment tab"><figcaption>06 Equipment tab, empty</figcaption></figure>
+<figure><img src="07-service-plan-tab.png" alt="Service plan tab"><figcaption>07 Service plan tab, empty</figcaption></figure>
+<figure><img src="08-settings-tab-manager.png" alt="Settings tab, Manager"><figcaption>08 Settings tab as Manager: Organization defaults disabled</figcaption></figure>
+<figure><img src="09-mobile-375-board.png" alt="375 px board"><figcaption>09 375 px: tab list clipped, button under nav</figcaption></figure>
+<figure><img src="10-mobile-375-report-dialog.png" alt="375 px dialog"><figcaption>10 375 px report dialog, shifted</figcaption></figure>
+<figure><img src="11-ar-board.png" alt="Arabic board"><figcaption>11 Arabic (RTL) board</figcaption></figure>
+<figure><img src="12-frontdesk-board.png" alt="Front desk board"><figcaption>12 Front Desk board</figcaption></figure>
+<figure><img src="13-frontdesk-report-dialog.png" alt="Front desk dialog"><figcaption>13 Front Desk dialog: out-of-order tick, no Assign</figcaption></figure>
+<figure><img src="14-rooms-unit-dialog-frontdesk.png" alt="Rooms dialog Block bed"><figcaption>14 Rooms: "101 — Block bed" (MAINT-01)</figcaption></figure>
+<figure><img src="15-report-from-room-link.png" alt="Report from room link"><figcaption>15 Report opened from Rooms with 101 chosen</figcaption></figure>
+<figure><img src="16-housekeeping-board.png" alt="Housekeeping board"><figcaption>16 Housekeeping board</figcaption></figure>
+<figure><img src="17-tr-owner-board.png" alt="Turkish owner board"><figcaption>17 Turkish, Owner</figcaption></figure>
+</div>
+
+</main>
+</body>
+</html>

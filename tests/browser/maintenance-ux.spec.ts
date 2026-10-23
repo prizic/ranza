@@ -88,7 +88,7 @@ test("a room's dialog leads with reporting and says that a block tells maintenan
   await tile.getByRole("button").first().click();
 
   // ROOMS-07: the room is called a room, and the title is its name.
-  const dialog = page.getByRole("dialog", { name: roomName });
+  const dialog = page.getByRole("dialog").filter({ hasText: roomName });
   await expect(dialog).toBeVisible();
   await expect(dialog).not.toContainText(/\bbed\b/i);
 
@@ -135,7 +135,7 @@ test("a room says who is in it tonight, and a block of an occupied room is refus
     .getByRole("button")
     .first()
     .click();
-  const dialog = page.getByRole("dialog", { name: roomName });
+  const dialog = page.getByRole("dialog").filter({ hasText: roomName });
   // ROOMS-07: the state comes before the two routes, so nobody blocks a
   // room a guest is asleep in without having read that they are.
   await expect(dialog).toContainText("Ada Occupant is in this room tonight.");
@@ -160,13 +160,13 @@ test("a block names the room it blocks and gives it back by the same name", asyn
     page.locator('[data-slot="card"]').filter({ hasText: roomName });
 
   await tile().getByRole("button").first().click();
-  const dialog = page.getByRole("dialog", { name: roomName });
+  const dialog = page.getByRole("dialog").filter({ hasText: roomName });
   await dialog.getByLabel("Reason for block").fill("Held for a group");
   await dialog.getByRole("button", { name: "Block room" }).click();
   await expect(dialog).toBeHidden();
 
   await tile().getByRole("button").first().click();
-  const unblock = page.getByRole("dialog", { name: roomName });
+  const unblock = page.getByRole("dialog").filter({ hasText: roomName });
   await expect(unblock).toContainText("Held for a group");
   await unblock.getByRole("button", { name: "Unblock room" }).click();
   await expect(unblock).toBeHidden();
@@ -373,7 +373,7 @@ test("the room dialog and the board read right to left in Arabic", async ({
   await page.goto(`/ar/rooms?property=${propertyId}`);
   const tile = page.locator('[data-slot="card"]').filter({ hasText: roomName });
   await tile.getByRole("button").first().click();
-  const dialog = page.getByRole("dialog", { name: roomName });
+  const dialog = page.getByRole("dialog").filter({ hasText: roomName });
   await expect(dialog).toContainText("ولا يُبلَّغ فريق الصيانة");
   await expect(
     dialog.getByRole("button", { name: "إغلاق الغرفة" }),

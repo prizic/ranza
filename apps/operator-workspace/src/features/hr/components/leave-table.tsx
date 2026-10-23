@@ -12,27 +12,30 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  ArrowButton,
+  CancelButton,
+  ChoiceGroup,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
+  DialogSection,
   DialogTrigger,
   EmptyState,
+  Field,
+  FormError,
   Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  OptionList,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
+  dialogFrameClassName,
+  fieldClassName,
 } from "@ranza/ui";
 import { AlertCircle, Check, Plus, X } from "lucide-react";
 import type {
@@ -83,6 +86,7 @@ export function LeaveTable({
   onShowEmployees,
 }: LeaveTableProps) {
   const t = useTranslations("hr.leave");
+  const all = useTranslations();
   const outcomeText = useOutcomeText();
   const [isPending, startTransition] = useTransition();
 
@@ -199,107 +203,129 @@ export function LeaveTable({
                   <span>{t("requestLeave")}</span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <form onSubmit={handleSubmitLeave}>
-                  <DialogHeader>
-                    <DialogTitle>{t("requestLeaveTitle")}</DialogTitle>
-                  </DialogHeader>
+              <DialogContent className={dialogFrameClassName("medium")}>
+                <form className="grid" onSubmit={handleSubmitLeave}>
+                  <DialogMasthead
+                    art="/illustrations/dialogs/leave.svg"
+                    eyebrow={t("requestLeaveTitle")}
+                    heading={t("leaveWhoTitle")}
+                    large
+                  />
+                  <DialogBody>
+                    <DialogDescription className="sr-only">
+                      {t("requestLeaveTitle")}
+                    </DialogDescription>
 
-                  {errorMsg && (
-                    <div
-                      role="alert"
-                      className="mt-3 p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium"
+                    <DialogSection
+                      tag={{ label: all("dialogTagRequired"), required: true }}
+                      title={t("staffMember")}
                     >
-                      {errorMsg}
-                    </div>
-                  )}
-
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="leaveEmployee">{t("staffMember")}</Label>
-                      <Select
+                      <OptionList
+                        emptyLabel={t("leaveNoMatches")}
+                        items={employees.map((emp) => ({
+                          value: emp.id,
+                          title: emp.fullName,
+                          description: emp.department,
+                        }))}
+                        moreLabel={(count) => t("leaveMore", { count })}
+                        name="leaveEmployee"
+                        onChange={setSelectedEmployeeId}
+                        required
+                        searchLabel={t("leaveSearch")}
                         value={selectedEmployeeId}
-                        onValueChange={setSelectedEmployeeId}
-                      >
-                        <SelectTrigger id="leaveEmployee">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {employees.map((emp) => (
-                            <SelectItem key={emp.id} value={emp.id}>
-                              {emp.fullName} ({emp.department})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                      />
+                    </DialogSection>
 
-                    <div className="space-y-1.5">
-                      <Label htmlFor="leaveType">{t("type")}</Label>
-                      <Select
+                    <DialogSection
+                      title={t("leaveWhatTitle")}
+                      titleId="leave-type"
+                    >
+                      <ChoiceGroup
+                        labelledBy="leave-type"
+                        name="leaveType"
+                        onChange={(next) => setLeaveType(next as LeaveType)}
+                        options={LEAVE_TYPES.map((type) => ({
+                          label: t(`types.${type}`),
+                          value: type,
+                        }))}
                         value={leaveType}
-                        onValueChange={(val) => setLeaveType(val as LeaveType)}
-                      >
-                        <SelectTrigger id="leaveType">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {LEAVE_TYPES.map((type) => (
-                            <SelectItem key={type} value={type}>
-                              {t(`types.${type}`)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                      />
+                    </DialogSection>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="startsOn">{t("startsOn")}</Label>
-                        <Input
-                          id="startsOn"
-                          type="date"
-                          required
-                          value={startsOn}
-                          onChange={(e) => setStartsOn(e.target.value)}
-                        />
+                    <DialogSection
+                      tag={{ label: all("dialogTagRequired"), required: true }}
+                      title={t("leaveWhenTitle")}
+                    >
+                      <div className="grid grid-cols-2 gap-4">
+                        <Field htmlFor="startsOn" label={t("startsOn")}>
+                          <Input
+                            className={fieldClassName}
+                            id="startsOn"
+                            onChange={(e) => setStartsOn(e.target.value)}
+                            required
+                            type="date"
+                            value={startsOn}
+                          />
+                        </Field>
+                        <Field htmlFor="endsOn" label={t("endsOn")}>
+                          <Input
+                            className={fieldClassName}
+                            id="endsOn"
+                            min={startsOn}
+                            onChange={(e) => setEndsOn(e.target.value)}
+                            required
+                            type="date"
+                            value={endsOn}
+                          />
+                        </Field>
                       </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="endsOn">{t("endsOn")}</Label>
-                        <Input
-                          id="endsOn"
-                          type="date"
-                          required
-                          min={startsOn}
-                          value={endsOn}
-                          onChange={(e) => setEndsOn(e.target.value)}
-                        />
-                      </div>
-                    </div>
+                    </DialogSection>
 
-                    <div className="space-y-1.5">
-                      <Label htmlFor="leaveNotes">{t("notes")}</Label>
+                    <DialogSection
+                      labelFor="leaveNotes"
+                      tag={{
+                        label: all("dialogTagOptional"),
+                        required: false,
+                      }}
+                      title={t("notes")}
+                    >
                       <Input
+                        className={fieldClassName}
                         id="leaveNotes"
-                        value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         placeholder={t("notesPlaceholder")}
+                        value={notes}
                       />
-                    </div>
-                  </div>
+                    </DialogSection>
 
-                  <DialogFooter>
-                    <Button
-                      type="button"
-                      variant="outline"
+                    {errorMsg ? (
+                      <div aria-live="polite" className="py-5">
+                        <FormError>{errorMsg}</FormError>
+                      </div>
+                    ) : null}
+                  </DialogBody>
+                  <DialogActions
+                    hint={
+                      selectedEmployeeId && startsOn && endsOn
+                        ? null
+                        : t("leaveHintMissing")
+                    }
+                  >
+                    <CancelButton
                       onClick={() => setDialogOpen(false)}
+                      type="button"
                     >
                       {t("cancel")}
-                    </Button>
-                    <Button type="submit" disabled={isPending}>
+                    </CancelButton>
+                    <ArrowButton
+                      disabled={
+                        isPending || !selectedEmployeeId || !startsOn || !endsOn
+                      }
+                      type="submit"
+                    >
                       {isPending ? t("submitting") : t("submit")}
-                    </Button>
-                  </DialogFooter>
+                    </ArrowButton>
+                  </DialogActions>
                 </form>
               </DialogContent>
             </Dialog>
@@ -502,57 +528,64 @@ export function LeaveTable({
         }}
         open={deciding !== null}
       >
-        <DialogContent className="sm:max-w-md" showCloseButton={false}>
+        <DialogContent
+          className={dialogFrameClassName("small")}
+          showCloseButton={false}
+        >
           {deciding ? (
             <>
-              <DialogHeader>
-                <DialogTitle>
-                  {deciding.approved
-                    ? t("confirmApproveTitle", {
-                        name: deciding.leave.employeeName,
-                      })
-                    : t("confirmDeclineTitle", {
-                        name: deciding.leave.employeeName,
-                      })}
-                </DialogTitle>
+              <DialogMasthead
+                art="/illustrations/dialogs/leave.svg"
+                eyebrow={deciding.approved ? t("approve") : t("decline")}
+                heading={deciding.leave.employeeName}
+              />
+              <DialogBody simple>
                 <DialogDescription asChild>
-                  <div className="flex flex-col gap-2">
-                    <p>
+                  <div className="grid gap-3 text-sm">
+                    <p className="m-0 font-medium">
+                      {deciding.approved
+                        ? t("confirmApproveTitle", {
+                            name: deciding.leave.employeeName,
+                          })
+                        : t("confirmDeclineTitle", {
+                            name: deciding.leave.employeeName,
+                          })}
+                    </p>
+                    <p className="m-0">
                       {t("confirmDates", {
                         type: t(`types.${deciding.leave.leaveType}`),
                         from: formatDay(deciding.leave.startsOn),
                         to: formatDay(deciding.leave.endsOn),
                       })}
                     </p>
-                    <p>
+                    <p className="m-0">
                       {deciding.approved
                         ? t("confirmApproveEffect")
                         : t("confirmDeclineEffect")}
                     </p>
-                    <p>{t("confirmFinal")}</p>
+                    <p className="m-0">{t("confirmFinal")}</p>
                   </div>
                 </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button
+              </DialogBody>
+              <DialogActions>
+                <CancelButton
                   disabled={isPending}
                   onClick={() => setDeciding(null)}
                   type="button"
-                  variant="outline"
                 >
                   {t("cancel")}
-                </Button>
-                <Button
+                </CancelButton>
+                <ArrowButton
                   disabled={isPending}
                   onClick={() =>
                     handleDecision(deciding.leave.id, deciding.approved)
                   }
+                  tone={deciding.approved ? "default" : "danger"}
                   type="button"
-                  variant={deciding.approved ? "default" : "destructive"}
                 >
                   {deciding.approved ? t("approve") : t("decline")}
-                </Button>
-              </DialogFooter>
+                </ArrowButton>
+              </DialogActions>
             </>
           ) : null}
         </DialogContent>

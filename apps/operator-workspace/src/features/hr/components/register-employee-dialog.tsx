@@ -4,21 +4,24 @@ import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import type { SupportedLocale } from "@ranza/i18n";
 import {
+  ArrowButton,
   Button,
+  CancelButton,
+  ChoiceGroup,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
+  DialogNotice,
+  DialogSection,
   DialogTrigger,
+  Field,
+  FormError,
   Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  dialogFrameClassName,
+  fieldClassName,
 } from "@ranza/ui";
 import { Plus } from "lucide-react";
 import type { ContractType } from "../../../server/viewer";
@@ -58,6 +61,7 @@ export function RegisterEmployeeDialog({
   prefill,
 }: RegisterEmployeeDialogProps) {
   const t = useTranslations("hr.employees");
+  const all = useTranslations();
   const outcomeText = useOutcomeText();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -87,6 +91,15 @@ export function RegisterEmployeeDialog({
     setHiredOn(today);
     setErrorMessage(null);
   };
+
+  const ready = [
+    firstName,
+    lastName,
+    department,
+    position,
+    grossPay,
+    hiredOn,
+  ].every((value) => value.trim() !== "");
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -140,163 +153,186 @@ export function RegisterEmployeeDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>{t("registerTitle")}</DialogTitle>
-            <DialogDescription>
-              {prefill
-                ? `${t("registerForLogin", { email: prefill.email })} ${t("registerDescription")}`
-                : t("registerDescription")}
+      <DialogContent className={dialogFrameClassName("medium")}>
+        <form className="grid" onSubmit={handleSubmit}>
+          <DialogMasthead
+            art="/illustrations/dialogs/invite.svg"
+            eyebrow={t("registerTitle")}
+            facts={
+              propertyName
+                ? t("registersAt", { property: propertyName })
+                : undefined
+            }
+            heading={t("registerHeading")}
+            large
+          />
+          <DialogBody>
+            <DialogDescription className="sr-only">
+              {t("registerDescription")}
             </DialogDescription>
-          </DialogHeader>
 
-          <p className="mt-3 text-step--1 text-muted-foreground">
-            {propertyName ? t("registersAt", { property: propertyName }) : null}
-          </p>
+            {prefill ? (
+              <div className="py-5">
+                <DialogNotice>
+                  {t("registerForLogin", { email: prefill.email })}
+                </DialogNotice>
+              </div>
+            ) : null}
 
-          {errorMessage && (
-            <div
-              role="alert"
-              className="mt-3 p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium"
+            <DialogSection
+              tag={{ label: all("dialogTagRequired"), required: true }}
+              title={t("registerWhoTitle")}
             >
-              {errorMessage}
-            </div>
-          )}
+              <div className="grid grid-cols-2 gap-4">
+                <Field htmlFor="firstName" label={t("firstName")}>
+                  <Input
+                    className={fieldClassName}
+                    id="firstName"
+                    required
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                  />
+                </Field>
+                <Field htmlFor="lastName" label={t("lastName")}>
+                  <Input
+                    className={fieldClassName}
+                    id="lastName"
+                    required
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                  />
+                </Field>
+              </div>
+            </DialogSection>
 
-          <div className="grid grid-cols-2 gap-4 py-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="firstName">{t("firstName")} *</Label>
-              <Input
-                id="firstName"
-                required
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="lastName">{t("lastName")} *</Label>
-              <Input
-                id="lastName"
-                required
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="department">{t("department")} *</Label>
-              <Input
-                id="department"
-                required
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="position">{t("position")} *</Label>
-              <Input
-                id="position"
-                required
-                value={position}
-                onChange={(e) => setPosition(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="contractType">{t("contract")}</Label>
-              <Select
+            <DialogSection
+              tag={{ label: all("dialogTagRequired"), required: true }}
+              title={t("registerJobTitle")}
+            >
+              <div className="grid grid-cols-2 gap-4">
+                <Field htmlFor="department" label={t("department")}>
+                  <Input
+                    className={fieldClassName}
+                    id="department"
+                    required
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                  />
+                </Field>
+                <Field htmlFor="position" label={t("position")}>
+                  <Input
+                    className={fieldClassName}
+                    id="position"
+                    required
+                    value={position}
+                    onChange={(e) => setPosition(e.target.value)}
+                  />
+                </Field>
+              </div>
+              <p className="m-0 text-sm font-medium" id="contract-label">
+                {t("contract")}
+              </p>
+              <ChoiceGroup
+                labelledBy="contract-label"
+                name="contractType"
+                onChange={(type) => setContractType(type as ContractType)}
+                options={CONTRACT_TYPES.map((type) => ({
+                  label: t(`contracts.${type}`),
+                  value: type,
+                }))}
                 value={contractType}
-                onValueChange={(val) => setContractType(val as ContractType)}
-              >
-                <SelectTrigger id="contractType">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CONTRACT_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {t(`contracts.${type}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="grossPay">
-                {t("grossPayIn", { currency })} *
-              </Label>
-              <Input
-                id="grossPay"
-                inputMode="decimal"
-                required
-                value={grossPay}
-                onChange={(e) => setGrossPay(e.target.value)}
               />
-            </div>
+            </DialogSection>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="hiredOn">{t("startDate")} *</Label>
-              <Input
-                id="hiredOn"
-                max={today}
-                required
-                type="date"
-                value={hiredOn}
-                onChange={(e) => setHiredOn(e.target.value)}
-              />
-            </div>
+            <DialogSection
+              tag={{ label: all("dialogTagRequired"), required: true }}
+              title={t("registerPayTitle")}
+            >
+              <div className="grid grid-cols-2 gap-4">
+                <Field htmlFor="grossPay" label={t("grossPayIn", { currency })}>
+                  <Input
+                    className={fieldClassName}
+                    id="grossPay"
+                    inputMode="decimal"
+                    required
+                    value={grossPay}
+                    onChange={(e) => setGrossPay(e.target.value)}
+                  />
+                </Field>
+                <Field htmlFor="hiredOn" label={t("startDate")}>
+                  <Input
+                    className={fieldClassName}
+                    id="hiredOn"
+                    max={today}
+                    required
+                    type="date"
+                    value={hiredOn}
+                    onChange={(e) => setHiredOn(e.target.value)}
+                  />
+                </Field>
+              </div>
+            </DialogSection>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="email">{t("email")}</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="phone">{t("phone")}</Label>
-              <Input
-                id="phone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
-            </div>
-
-            <div className="col-span-2 space-y-1.5">
-              <Label htmlFor="iban">{t("iban")}</Label>
-              <Input
-                id="iban"
-                dir="ltr"
-                value={iban}
-                onChange={(e) => setIban(e.target.value)}
-                placeholder="TR00 0000 0000 0000 0000 0000 00"
-              />
-              <p className="text-step--2 text-muted-foreground">
+            <DialogSection
+              tag={{ label: all("dialogTagOptional"), required: false }}
+              title={t("registerContactTitle")}
+            >
+              <div className="grid grid-cols-2 gap-4">
+                <Field htmlFor="email" label={t("email")}>
+                  <Input
+                    className={fieldClassName}
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </Field>
+                <Field htmlFor="phone" label={t("phone")}>
+                  <Input
+                    className={fieldClassName}
+                    id="phone"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
+                </Field>
+              </div>
+              <Field htmlFor="iban" label={t("iban")}>
+                <Input
+                  className={fieldClassName}
+                  dir="ltr"
+                  id="iban"
+                  onChange={(e) => setIban(e.target.value)}
+                  placeholder="TR00 0000 0000 0000 0000 0000 00"
+                  value={iban}
+                />
+              </Field>
+              <p className="m-0 text-step--1 text-muted-foreground">
                 {t("ibanHint")}
               </p>
-            </div>
-          </div>
+            </DialogSection>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
+            {errorMessage ? (
+              <div aria-live="polite" className="py-5">
+                <FormError>{errorMessage}</FormError>
+              </div>
+            ) : null}
+          </DialogBody>
+
+          <DialogActions hint={ready ? null : t("registerHintMissing")}>
+            <CancelButton
+              disabled={isPending}
               onClick={() => {
                 setOpen(false);
                 resetForm();
               }}
-              disabled={isPending}
+              type="button"
             >
               {t("cancel")}
-            </Button>
-            <Button type="submit" disabled={isPending}>
+            </CancelButton>
+            <ArrowButton disabled={isPending || !ready} type="submit">
               {isPending ? t("submitting") : t("submit")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </form>
       </DialogContent>
     </Dialog>

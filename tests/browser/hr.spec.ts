@@ -89,11 +89,11 @@ test("HR-S1-44: an Owner registers an employee, ends another's employment, and a
     const dialog = page.getByRole("dialog", {
       name: hr.employees.registerTitle,
     });
-    await dialog.getByLabel(`${hr.employees.firstName} *`).fill(name);
-    await dialog.getByLabel(`${hr.employees.lastName} *`).fill("Tester");
-    await dialog.getByLabel(`${hr.employees.department} *`).fill("Front desk");
-    await dialog.getByLabel(`${hr.employees.position} *`).fill("Agent");
-    await dialog.getByLabel(/^Gross pay \([A-Z]{3}\) \*$/).fill(pay);
+    await dialog.getByLabel(`${hr.employees.firstName}`).fill(name);
+    await dialog.getByLabel(`${hr.employees.lastName}`).fill("Tester");
+    await dialog.getByLabel(`${hr.employees.department}`).fill("Front desk");
+    await dialog.getByLabel(`${hr.employees.position}`).fill("Agent");
+    await dialog.getByLabel(/^Gross pay \([A-Z]{3}\)$/).fill(pay);
     await dialog
       .getByLabel(hr.employees.iban)
       .fill("TR33 0006 1005 1978 6457 8413 26");
@@ -107,11 +107,11 @@ test("HR-S1-44: an Owner registers an employee, ends another's employment, and a
   // A pay that has more decimals than the currency is refused in words.
   await page.getByRole("button", { name: hr.employees.register }).click();
   const bad = page.getByRole("dialog", { name: hr.employees.registerTitle });
-  await bad.getByLabel(`${hr.employees.firstName} *`).fill("Nobody");
-  await bad.getByLabel(`${hr.employees.lastName} *`).fill("Tester");
-  await bad.getByLabel(`${hr.employees.department} *`).fill("Front desk");
-  await bad.getByLabel(`${hr.employees.position} *`).fill("Agent");
-  await bad.getByLabel(/^Gross pay \([A-Z]{3}\) \*$/).fill("100.555");
+  await bad.getByLabel(`${hr.employees.firstName}`).fill("Nobody");
+  await bad.getByLabel(`${hr.employees.lastName}`).fill("Tester");
+  await bad.getByLabel(`${hr.employees.department}`).fill("Front desk");
+  await bad.getByLabel(`${hr.employees.position}`).fill("Agent");
+  await bad.getByLabel(/^Gross pay \([A-Z]{3}\)$/).fill("100.555");
   await bad.getByRole("button", { name: hr.employees.submit }).click();
   await expect(bad.getByRole("alert")).toHaveText(hr.outcomes.invalid.grossPay);
   await bad.getByRole("button", { name: hr.employees.cancel }).click();
@@ -122,9 +122,9 @@ test("HR-S1-44: an Owner registers an employee, ends another's employment, and a
       name: `${hr.employees.terminate}: ${leaves} Tester`,
     })
     .click();
-  const ending = page.getByRole("dialog", {
-    name: `End employment for ${leaves} Tester`,
-  });
+  const ending = page
+    .getByRole("dialog")
+    .filter({ hasText: `${leaves} Tester` });
   await expect(ending).toContainText("does not remove their access");
   await ending
     .getByRole("button", { name: hr.employees.terminateConfirm })
@@ -188,7 +188,9 @@ test("HR-S1-44: an Owner registers an employee, ends another's employment, and a
   await expect(
     locking.getByRole("button", { name: hr.payroll.confirm }),
   ).toBeDisabled();
-  await locking.getByTestId("understood-placeholders").check();
+  await locking
+    .getByRole("checkbox", { name: /unapproved placeholders/ })
+    .check();
   await locking.getByRole("button", { name: hr.payroll.confirm }).click();
   await expect(
     page.getByText(hr.payroll.approved, { exact: true }),
@@ -347,11 +349,11 @@ test("HR-S1-50: an Owner registers a Staff Member's login as an employee, and th
 
   const dialog = page.getByRole("dialog", { name: hr.employees.registerTitle });
   await expect(dialog.getByLabel(hr.employees.email)).toHaveValue(email);
-  await dialog.getByLabel(`${hr.employees.firstName} *`).fill(name);
-  await dialog.getByLabel(`${hr.employees.lastName} *`).fill("Tester");
-  await dialog.getByLabel(`${hr.employees.department} *`).fill("Front desk");
-  await dialog.getByLabel(`${hr.employees.position} *`).fill("Agent");
-  await dialog.getByLabel(/^Gross pay \([A-Z]{3}\) \*$/).fill("30000");
+  await dialog.getByLabel(`${hr.employees.firstName}`).fill(name);
+  await dialog.getByLabel(`${hr.employees.lastName}`).fill("Tester");
+  await dialog.getByLabel(`${hr.employees.department}`).fill("Front desk");
+  await dialog.getByLabel(`${hr.employees.position}`).fill("Agent");
+  await dialog.getByLabel(/^Gross pay \([A-Z]{3}\)$/).fill("30000");
   await dialog.getByRole("button", { name: hr.employees.submit }).click();
 
   await expect(dialog).toBeHidden();

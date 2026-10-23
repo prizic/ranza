@@ -56,6 +56,29 @@ export type {
   DateRangeLabels,
   DateRangePreset,
 } from "./components/date-range-field";
+export {
+  ArrowButton,
+  CancelButton,
+  ChoiceGroup,
+  DialogActions,
+  DialogBody,
+  DialogFacts,
+  DialogFigure,
+  DialogMasthead,
+  DialogNotice,
+  DialogSection,
+  DialogSettled,
+  DialogTag,
+  SuggestionRow,
+  TickRow,
+  dialogFrameClassName,
+  sheetFrameClassName,
+  fieldClassName,
+  OptionList,
+  StayRuler,
+  textareaClassName,
+} from "./components/dialog-frame";
+export type { DialogTagProps, OptionListItem } from "./components/dialog-frame";
 export { StatusBadge } from "./components/status-badge";
 export type { StatusBadgeProps, StatusTone } from "./components/status-badge";
 export { BrandMark } from "./components/brand-mark";

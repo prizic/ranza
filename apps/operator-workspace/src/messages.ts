@@ -146,6 +146,8 @@ export interface Messages {
   reasonTooShort: string;
   reasonTooLong: string;
   undoCheckInRefused: string;
+  undoCheckInWhy: string;
+  undoCheckInReasonExample: string;
   stayHasCharges: string;
   checkInDayClosed: string;
   /** The Guest has been moved since check-in, so it is corrected, not withdrawn. */
@@ -191,6 +193,8 @@ export interface Messages {
   noShowExpectedPassed: string;
   noShowExpectedPending: string;
   noShowExpectedGiven: string;
+  endBookingReasonHint: string;
+  cancelReasonExample: string;
   markNoShow: string;
   keepBooking: string;
   saving: string;
@@ -204,6 +208,10 @@ export interface Messages {
   checkOutRoomDirty: string;
   checkOutOverdue: string;
   checkOutOwesFirst: string;
+  checkOutStatusEarly: string;
+  checkOutStatusOnSchedule: string;
+  checkOutStatusOwed: string;
+  checkOutStatusSettled: string;
   reviewFolioNewTab: string;
   confirmCheckOut: string;
   keepInHouse: string;
@@ -224,6 +232,18 @@ export interface Messages {
   balanceAfterCheckOut: string;
   checkOutBalanceReasonRequired: string;
   checkOutFolioChanged: string;
+  checkOutHintTickAndReason: string;
+  checkOutHintTick: string;
+  dialogHintReason: string;
+  checkOutCreditLabel: string;
+  checkOutDueLabel: string;
+  checkOutNothingOwedTitle: string;
+  checkOutNothingOwedBody: string;
+  checkOutNoFolioBody: string;
+  checkOutReasonPlaceholder: string;
+  checkOutReasonWillPayLater: string;
+  checkOutReasonCompanyInvoice: string;
+  checkOutReasonDisputed: string;
   departuresViews: string;
   departuresFilters: string;
   inHouseAt: string;
@@ -436,13 +456,14 @@ export interface Messages {
     refused: string;
     lastAdministrator: string;
     roleIsHeld: string;
-    confirmRoleTitle: string;
     confirmRoleChange: string;
     confirmRoleSessions: string;
     confirmRoleSelf: string;
     confirmRoleSelfLosesAccess: string;
     confirmRoleConfirm: string;
     confirmRoleClose: string;
+    inviteHintMissing: string;
+    defineRoleHintName: string;
     roleChangedMeanwhile: string;
     roleRetired: string;
     rolesHeading: string;
@@ -563,6 +584,13 @@ export interface Messages {
   keepEditing: string;
   guestLookupTitle: string;
   guestLookupHint: string;
+  newReservationQuestion: string;
+  guestNameTitle: string;
+  guestNamePlaceholder: string;
+  guestEmailPlaceholder: string;
+  guestPhonePlaceholder: string;
+  bookingChooseDatesFirst: string;
+  newReservationHintMissing: string;
   guestNoDetailsOnFile: string;
   guestPhoneInvalid: string;
   bookingUnavailable: string;
@@ -614,6 +642,8 @@ export interface Messages {
   changeBookingNotInService: string;
   changeBookingNoteInvalid: string;
   changeBookingNothing: string;
+  changeBookingHintUnit: string;
+  changeBookingWhichUnit: string;
   changeBookingRefused: string;
 
   /** Changing an in-house Guest's departure (amend-booking slice 2). */
@@ -628,6 +658,14 @@ export interface Messages {
   changeDepartureLongerResident: string;
   changeDepartureShorter: string;
   changeDepartureOpen: string;
+  changeDepartureStayTitle: string;
+  changeDepartureNewTitle: string;
+  changeDepartureCurrent: string;
+  changeDepartureChange: string;
+  changeDepartureRulerHint: string;
+  changeDepartureRulerLabel: string;
+  changeDepartureTodayMark: string;
+  changeDepartureHintDate: string;
   /** A Guest's departure cleared: only a Resident's Stay may be open-ended. */
   changeDepartureNeedsEnd: string;
   changeDepartureBlocked: string;
@@ -649,6 +687,18 @@ export interface Messages {
   moveGuestNoteRequired: string;
   moveGuestNotReady: string;
   moveGuestRefused: string;
+  unitChipFree: string;
+  unitChipBooked: string;
+  unitChipOccupied: string;
+  moveGuestWhichUnit: string;
+  moveGuestWhy: string;
+  unitSearch: string;
+  unitMore: string;
+  unitNoMatches: string;
+  moveGuestNotePlaceholder: string;
+  moveGuestHintUnit: string;
+  moveGuestHintReason: string;
+  moveGuestHintNote: string;
 
   folios: string;
   foliosAt: string;
@@ -761,6 +811,9 @@ export interface Messages {
     closeOwing: string;
     closeCredit: string;
     closeFinal: string;
+    paymentHintMissing: string;
+    paymentHintExtra: string;
+    reverseHintMissing: string;
   };
 
   rooms: string;
@@ -924,6 +977,10 @@ export interface Messages {
     secretCopy: string;
     secretCopied: string;
     secretDone: string;
+    endpointHeading: string;
+    endpointHintMissing: string;
+    operationHeading: string;
+    retryAllHeading: string;
     invalid: {
       name: { empty: string; too_long: string };
       url: {
@@ -1342,6 +1399,18 @@ export interface Messages {
       title: string;
       register: string;
       registerTitle: string;
+      registerHeading: string;
+      registerWhoTitle: string;
+      registerJobTitle: string;
+      registerPayTitle: string;
+      registerContactTitle: string;
+      registerHintMissing: string;
+      editTabDetails: string;
+      editStartTitle: string;
+      editContactBankTitle: string;
+      editPayNowTitle: string;
+      editPayFromTitle: string;
+      editHintNewPay: string;
       registerDescription: string;
       firstName: string;
       lastName: string;
@@ -1439,6 +1508,13 @@ export interface Messages {
       title: string;
       requestLeave: string;
       requestLeaveTitle: string;
+      leaveWhoTitle: string;
+      leaveSearch: string;
+      leaveMore: string;
+      leaveNoMatches: string;
+      leaveWhatTitle: string;
+      leaveWhenTitle: string;
+      leaveHintMissing: string;
       staffMember: string;
       type: string;
       dates: string;
@@ -1479,6 +1555,8 @@ export interface Messages {
       goToEmployees: string;
       confirmPlaceholders: string;
       confirmUnderstood: string;
+      confirmHintMissing: string;
+      payslipDeductionsTitle: string;
       print: string;
       period: string;
       /** `{amount}` and `{total}`, already formatted in the run's currency. */
@@ -1890,6 +1968,11 @@ export interface Messages {
     previewSleeps: string;
     previewBeds: string;
     previewIncomplete: string;
+    addHeading: string;
+    addWhatTitle: string;
+    addNumbersTitle: string;
+    addWhereTitle: string;
+    addHintFirstNumber: string;
     addCount: string;
     firstNumberInvalid: string;
     countInvalid: string;
@@ -2080,6 +2163,8 @@ export interface Messages {
     aGuest: string;
     impactHint: string;
     confirmOutOfOrder: string;
+    reportHeading: string;
+    reportHintMissing: string;
     reported: string;
     saved: string;
     returned: string;
@@ -2123,6 +2208,8 @@ export interface Messages {
     placePlaceholder: string;
     interval: string;
     intervalHint: string;
+    equipmentHeading: string;
+    equipmentHintMissing: string;
     lastServiced: string;
     nextService: string;
     notScheduled: string;
@@ -2428,6 +2515,9 @@ export interface Messages {
     resolutionNotesPlaceholder: string;
     createDialogTitle: string;
     createDialogDesc: string;
+    createHeading: string;
+    createHintMissing: string;
+    reasonHintMissing: string;
     titlePlaceholder: string;
     detailsPlaceholder: string;
     selectCategory: string;
@@ -2748,6 +2838,13 @@ export interface Messages {
     close: string;
     closing: string;
     dialogTitle: string;
+    dialogHeading: string;
+    dialogAllHeading: string;
+    itemsOpenTitle: string;
+    itemsOpenHint: string;
+    reasonQuestion: string;
+    reasonExample: string;
+    quietTitle: string;
     dialogQuiet: string;
     dialogOpen: string;
     final: string;
@@ -2783,6 +2880,10 @@ export interface Messages {
   notEntitledDescription: string;
   /** The name of the control that closes a dialog or a side sheet. */
   closeDialog: string;
+  dialogNoteTitle: string;
+  dialogTagRequired: string;
+  dialogTagOptional: string;
+  dialogQuickPicks: string;
   /**
    * What a destination says when it is closed to the viewer, by the gate that
    * stopped them first. `{permission}` is the name of the thing their role
@@ -3022,6 +3123,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     reasonTooLong:
       "{max, plural, other {Gerekçe en fazla # karakter olabilir.}}",
     undoCheckInRefused: "Bu giriş geri alınamıyor.",
+    undoCheckInWhy: "Neden geri alınıyor?",
+    undoCheckInReasonExample: "Örneğin: Yanlış odaya giriş yapıldı",
     stayHasCharges:
       "Bu konaklamaya tutarlar işlendi; artık gerçekleşmiş sayılır ve giriş geri alınamaz. Tutarları Finans'ta düzeltin.",
     checkInDayClosed:
@@ -3075,6 +3178,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     noShowExpectedPending:
       "Saat {time} civarında geleceklerini söylediler; bu saat henüz geçmedi.",
     noShowExpectedGiven: "Beklenen varış saati: {time}.",
+    endBookingReasonHint: "Rezervasyona işlenir ve saklanır.",
+    cancelReasonExample: "Örneğin: Misafir telefonla iptal etmek istedi",
     markNoShow: "Gelmedi olarak işaretle",
     keepBooking: "Rezervasyonu koru",
     saving: "Kaydediliyor…",
@@ -3094,6 +3199,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Misafir {count, plural, one {# gün} other {# gün}} gecikmiş (planlanan çıkış {date}). Çıkış bugün olarak kaydedilir ve o günden bu yana geçen geceler hesaba işlenir.",
     checkOutOwesFirst:
       "{balance} borç var. Önce hesap üzerinden ödemeyi alın ya da bir gerekçeyle açık bırakın.",
+    checkOutStatusEarly: "Erken ayrılıyor",
+    checkOutStatusOnSchedule: "Planlandığı gibi",
+    checkOutStatusOwed: "Borç var",
+    checkOutStatusSettled: "Borç yok",
     reviewFolioNewTab: "Hesabı yeni sekmede aç",
     confirmCheckOut: "Çıkışı onayla",
     keepInHouse: "Konaklamaya devam",
@@ -3117,6 +3226,19 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Hesapta bakiye var. Açık kalmasının gerekçesini yazın.",
     checkOutFolioChanged:
       "Siz bakarken hesaba yeni bir kayıt eklendi. Hesabı yeniden kontrol edip tekrar deneyin.",
+    checkOutHintTickAndReason: "Kutuyu işaretleyin ve bir neden yazın",
+    checkOutHintTick: "Devam etmek için kutuyu işaretleyin",
+    dialogHintReason: "Devam etmek için bir neden yazın",
+    checkOutCreditLabel: "Hesapta alacak",
+    checkOutDueLabel: "Çıkışta ödenecek",
+    checkOutNothingOwedTitle: "Ödenecek bir şey yok",
+    checkOutNothingOwedBody: "Hesap borçsuz. Bir dokunuşla çıkış yapılır.",
+    checkOutNoFolioBody:
+      "Bu konaklama için hesap yok, kapatılacak bir şey de yok.",
+    checkOutReasonPlaceholder: "Örneğin: Misafir yarın havale ile ödeyecek",
+    checkOutReasonWillPayLater: "Sonra ödeyecek",
+    checkOutReasonCompanyInvoice: "Şirkete fatura",
+    checkOutReasonDisputed: "İtiraz ediyor",
     departuresViews: "Çıkış listesi görünümleri",
     departuresFilters: "Çıkış listesi filtreleri",
     inHouseAt: "Şu anda konaklayanlar:",
@@ -3390,7 +3512,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       lastAdministrator:
         "Bir Kuruluşta ekip ekleyebilen biri kalmalı. Önce başka birine Sahip rolünü verin.",
       roleIsHeld: "Bu rolü tutan kişiler var; önce onları taşıyın.",
-      confirmRoleTitle: "Bu rol değiştirilsin mi?",
       confirmRoleChange: "{member}, {from} rolünden {to} rolüne geçecek.",
       confirmRoleSessions:
         "Sahip olduğu tüm oturumlar sona erecek ve yeniden giriş yapması gerekecek.",
@@ -3399,6 +3520,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{to} ekip yönetemez; bu nedenle artık kimsenin rolünü değiştiremez veya ekip daveti gönderemezsiniz.",
       confirmRoleConfirm: "Rolü değiştir",
       confirmRoleClose: "Kapat",
+      inviteHintMissing: "Bir e-posta ekleyin ve rol seçin",
+      defineRoleHintName: "Devam etmek için role bir ad verin",
       roleChangedMeanwhile:
         "Bu rol siz karar verirken değiştirildi. {member} artık {role} rolünde. Hiçbir şey değişmedi.",
       roleRetired: "Bu rol artık sunulmuyor. Hiçbir şey değişmedi.",
@@ -3523,6 +3646,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     guestLookupTitle: "Kayıtlı misafirler",
     guestLookupHint:
       "Aynı kişi olabilir mi? Birini seçerseniz e-postası ve telefonu doldurulur ve rezervasyon aynı misafire eklenir. E-postası kayıtlı olmayan bir misafir otomatik eşleşmez.",
+    newReservationQuestion: "Kim kalıyor, ne zaman?",
+    guestNameTitle: "Misafir adı",
+    guestNamePlaceholder: "Ad soyad",
+    guestEmailPlaceholder: "ad@ornek.com",
+    guestPhonePlaceholder: "+90 …",
+    bookingChooseDatesFirst: "Boş odaları görmek için önce tarihleri seçin",
+    newReservationHintMissing:
+      "Devam etmek için ad, tarihler ve bir oda ekleyin",
     guestNoDetailsOnFile: "İletişim bilgisi kayıtlı değil",
     guestPhoneInvalid:
       "Telefon numarası yalnızca rakam, boşluk, + ( ) - ve . içerebilir.",
@@ -3585,6 +3716,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeBookingNotInService: "Bu birim şu anda bu rezervasyonu alamaz.",
     changeBookingNoteInvalid: "Not 3 ile 500 karakter arasında olmalı.",
     changeBookingNothing: "Tarihler ve birim aynı; değiştirilecek bir şey yok.",
+    changeBookingHintUnit: "Devam etmek için boş bir oda seçin",
+    changeBookingWhichUnit: "Hangi oda?",
     changeBookingRefused: "Bu rezervasyon değiştirilemiyor.",
     changeDeparture: "Çıkışı değiştir",
     changeDepartureSummary:
@@ -3601,6 +3734,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       "{count, plural, other {# gece daha}}; sakin aylık faturalandırılır",
     changeDepartureShorter: "{count, plural, other {# gece daha az}}",
     changeDepartureOpen: "Çıkış tarihi yok: konaklama açık uçlu kalır.",
+    changeDepartureStayTitle: "Konaklama",
+    changeDepartureNewTitle: "Yeni çıkış günü",
+    changeDepartureCurrent: "Mevcut çıkış günü",
+    changeDepartureChange: "Değişiklik",
+    changeDepartureRulerHint: "Bugün {today}. Mevcut çıkış günü {date}.",
+    changeDepartureRulerLabel: "{from} ile {to} arası konaklama",
+    changeDepartureTodayMark: "Bugün",
+    changeDepartureHintDate: "Devam etmek için yeni çıkış gününü seçin",
     changeDepartureNeedsEnd:
       "Misafirin konaklamasının bir çıkış tarihi olmalı; yalnızca sakinin konaklaması açık uçlu olabilir.",
     changeDepartureBlocked:
@@ -3627,6 +3768,18 @@ export const messages: Record<SupportedLocale, Messages> = {
     moveGuestNotReady:
       "O birim henüz hazır değil. Başka birini seçin ya da önce temizletin.",
     moveGuestRefused: "Bu misafir taşınamıyor.",
+    unitChipFree: "Boş",
+    unitChipBooked: "Rezerve · {reference}",
+    unitChipOccupied: "Dolu",
+    moveGuestWhichUnit: "Hangi odaya taşınıyor?",
+    moveGuestWhy: "Neden taşınıyor?",
+    unitSearch: "Oda numarası veya türüne göre ara",
+    unitMore: "{count} oda daha var. Bulmak için yazın.",
+    unitNoMatches: "Eşleşen oda yok.",
+    moveGuestNotePlaceholder: "Sonraki vardiyanın bilmesi gereken bir şey",
+    moveGuestHintUnit: "Devam etmek için bir oda seçin",
+    moveGuestHintReason: "Devam etmek için nedenini seçin",
+    moveGuestHintNote: "Devam etmek için bir not yazın",
     folios: "Folyolar",
     foliosAt: "Folyolar —",
     noFoliosTitle: "Henüz folyo yok",
@@ -3766,6 +3919,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       closeCredit: "{amount} folyoda alacak olarak kalır.",
       closeFinal:
         "Satırlar olduğu gibi kalır, daha fazla satır işlenemez ve kapalı bir folyo yeniden açılamaz.",
+      paymentHintMissing: "Tutarı girin ve nasıl ödendiğini seçin.",
+      paymentHintExtra: "Borçtan fazlasını almak için kutuyu işaretleyin.",
+      reverseHintMissing: "Nedenini en az 3 karakterle yazın.",
       history: "Geçmiş",
     },
 
@@ -3959,7 +4115,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         out_of_service: "Hizmet dışı",
       },
       moveHint:
-        "Bir rezervasyonu başka bir odaya ya da güne sürükleyerek taşıyın; siz onaylayana kadar hiçbir şey kaydedilmez.",
+        "Bir rezervasyonu başka bir odaya ya da güne sürükleyerek taşıyın, ucunu çekerek çıkış gününü değiştirin; siz onaylayana kadar hiçbir şey kaydedilmez.",
       dragHint:
         "Taşımak için sürükleyin ya da ayrıntılarındaki Taşı… düğmesini kullanın.",
       resizeHint: "Çıkış gününü değiştirmek için sürükleyin",
@@ -4297,6 +4453,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       secretCopy: "Anahtarı kopyala",
       secretCopied: "Kopyalandı",
       secretDone: "Kaydettim",
+      endpointHeading: "Olaylar nereye gitsin?",
+      endpointHintMissing:
+        "Bir ad yazın, HTTPS adresi girin ve en az bir olay seçin.",
+      operationHeading: "Ulaşmayan bir gönderim",
+      retryAllHeading: "Durmuş tüm gönderimler",
       invalid: {
         name: {
           empty: "Uç noktaya bir ad verin.",
@@ -4748,6 +4909,18 @@ export const messages: Record<SupportedLocale, Messages> = {
         title: "Personel listesi",
         register: "Personel ekle",
         registerTitle: "Yeni personel kaydı",
+        registerHeading: "Ekibe kim katılıyor?",
+        registerWhoTitle: "Kimdir?",
+        registerJobTitle: "Görevi nedir?",
+        registerPayTitle: "Ücret ve başlangıç tarihi",
+        registerContactTitle: "İletişim bilgileri",
+        registerHintMissing: "Devam etmek için adı, görevi ve ücreti girin",
+        editTabDetails: "Bilgiler",
+        editStartTitle: "Ne zaman başladı?",
+        editContactBankTitle: "İletişim ve banka",
+        editPayNowTitle: "Şu an ne kadar ücret alıyor?",
+        editPayFromTitle: "Hangi aydan itibaren?",
+        editHintNewPay: "Yeni brüt ücreti girin",
         registerDescription:
           "Personelin sözleşme, görev ve maaş bilgilerini girin.",
         firstName: "Ad",
@@ -4842,6 +5015,13 @@ export const messages: Record<SupportedLocale, Messages> = {
         title: "İzin talepleri",
         requestLeave: "İzin talebi oluştur",
         requestLeaveTitle: "Yeni izin talebi",
+        leaveWhoTitle: "Kimin için?",
+        leaveSearch: "Ada veya bölüme göre ara",
+        leaveMore: "{count} kişi daha var. Bulmak için yazın.",
+        leaveNoMatches: "Eşleşen kişi yok.",
+        leaveWhatTitle: "Ne tür izin?",
+        leaveWhenTitle: "Hangi günler?",
+        leaveHintMissing: "Kimin için olduğunu ve iki tarihi seçin",
         staffMember: "Personel",
         type: "Tür",
         dates: "Tarihler",
@@ -4886,6 +5066,8 @@ export const messages: Record<SupportedLocale, Messages> = {
           "Sosyal güvenlik, gelir vergisi ve damga vergisi tutarları kimsenin onaylamadığı yer tutuculardır. Kimseye ödeme yapmak için kullanılmamalı ve bu kilit kalıcıdır.",
         confirmUnderstood:
           "Kesintilerin onaylanmamış yer tutucular olduğunu ve bu bordroyu kilitlemenin kalıcı olduğunu anlıyorum.",
+        confirmHintMissing: "Onaylamak için kutuyu işaretleyin.",
+        payslipDeductionsTitle: "Brüt ve kesintiler",
         print: "Yazdır",
         period: "Dönem",
         summaryGrossNet: "Brüt {amount}, net {total}",
@@ -4994,6 +5176,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{count, plural, one {odada 1 yatak} other {odada # yatak, A – {last}}}",
       previewIncomplete:
         "Ne oluşturulacağını görmek için ilk oda numarasını girin.",
+      addHeading: "Hangi odaları ekliyorsunuz?",
+      addWhatTitle: "Bunlar nedir?",
+      addNumbersTitle: "Hangi numaralar?",
+      addWhereTitle: "Neredeler?",
+      addHintFirstNumber: "İlk oda numarasını girin",
       addCount: "{count, plural, other {# oda ekle}}",
       firstNumberInvalid:
         "Yalnızca rakam kullanın (en çok 8 hane), örneğin 101. Harf ve tire kabul edilmez.",
@@ -5210,6 +5397,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       impactHint:
         "Hiçbir şey iptal edilmez ya da taşınmaz. Ön büronun onları taşıması gerekecek.",
       confirmOutOfOrder: "Yine de hizmet dışı bırak",
+      reportHeading: "Neyin onarılması gerekiyor?",
+      reportHintMissing:
+        "Bir oda ya da ekipman seçin ve neyin bozuk olduğunu yazın.",
       reported: "MT-{number} talebi gönderildi.",
       saved: "Kaydedildi.",
       returned: "Oda yeniden hizmette.",
@@ -5259,6 +5449,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       placePlaceholder: "Çamaşır odası",
       interval: "Bakım sıklığı (ay)",
       intervalHint: "Düzenli bakımı yoksa boş bırakın.",
+      equipmentHeading: "Neyin kaydını tutuyoruz?",
+      equipmentHintMissing:
+        "Bir ad ve kategori yazın, nerede olduğunu belirtin.",
       lastServiced: "Son bakım",
       nextService: "Sonraki bakım",
       notScheduled: "Planlanmadı",
@@ -5589,6 +5782,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       createDialogTitle: "Yeni Hizmet Talebi Oluştur",
       createDialogDesc:
         "Misafir veya oda için yeni bir operasyonel hizmet talebi kaydedin.",
+      createHeading: "Misafirin neye ihtiyacı var?",
+      createHintMissing:
+        "Misafirin neye ihtiyacı olduğunu birkaç sözcükle yazın.",
+      reasonHintMissing: "Nedenini en az 3 karakterle yazın.",
       titlePlaceholder: "Örn. Ekstra havlu veya yastık talebi",
       detailsPlaceholder: "Talep detaylarını yazınız...",
       selectCategory: "Kategori seçin",
@@ -6008,6 +6205,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       close: "{date} gününü kapat",
       closing: "Kapatılıyor…",
       dialogTitle: "{date} kapatılsın mı?",
+      dialogHeading: "Bu gün kapatılsın mı?",
+      dialogAllHeading: "{n} gün kapatılsın mı?",
+      itemsOpenTitle:
+        "{n, plural, one {# kalem hâlâ açık} other {# kalem hâlâ açık}}",
+      itemsOpenHint: "Kapanışla birlikte, gerekçenizle kaydedilir.",
+      reasonQuestion: "Açık kalemlerle neden kapatılıyor?",
+      reasonExample: "Örneğin: Gece denetiminde halledildi",
+      quietTitle: "Açık kalan bir şey yok",
       dialogQuiet:
         "Açık bir şey kalmadı. Kapanış, günün girişlerini, çıkışlarını ve dolu gecelerini kaydeder.",
       dialogOpen:
@@ -6115,6 +6320,10 @@ export const messages: Record<SupportedLocale, Messages> = {
     notEntitledDescription:
       "Organizasyonunuz bu modüle abone olduğunda ve tesiste etkinleştirildiğinde burada görünür.",
     closeDialog: "Kapat",
+    dialogNoteTitle: "Not",
+    dialogTagRequired: "Zorunlu",
+    dialogTagOptional: "İsteğe bağlı",
+    dialogQuickPicks: "Hızlı seçim",
     denied: {
       notReachableTitle: "Bu tesisi açamazsınız",
       notReachableDescription:
@@ -6307,6 +6516,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     reasonTooLong:
       "{max, plural, one {A reason cannot be longer than # character.} other {A reason cannot be longer than # characters.}}",
     undoCheckInRefused: "That check-in cannot be withdrawn.",
+    undoCheckInWhy: "Why is it being undone?",
+    undoCheckInReasonExample: "For example: Checked in to the wrong room",
     stayHasCharges:
       "Charges have been posted to this Stay, so it counts as having happened and the check-in can't be undone. Correct the charges in Finance.",
     checkInDayClosed:
@@ -6360,6 +6571,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     noShowExpectedPending:
       "They said they would arrive at {time}, which has not passed yet.",
     noShowExpectedGiven: "Their expected arrival was {time}.",
+    endBookingReasonHint: "Recorded with the booking and kept.",
+    cancelReasonExample: "For example: Guest asked to cancel by phone",
     markNoShow: "Mark as no-show",
     keepBooking: "Keep the booking",
     saving: "Saving…",
@@ -6379,6 +6592,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       "This Guest is {count, plural, one {# day} other {# days}} overdue, since {date}. The departure is recorded as today, and the nights since then are charged to the bill.",
     checkOutOwesFirst:
       "{balance} is owed. Collect payment on the Folio first, or leave it open with a reason.",
+    checkOutStatusEarly: "Leaving early",
+    checkOutStatusOnSchedule: "On schedule",
+    checkOutStatusOwed: "Owed",
+    checkOutStatusSettled: "Nothing owed",
     reviewFolioNewTab: "Open the Folio in a new tab",
     confirmCheckOut: "Confirm check-out",
     keepInHouse: "Keep in house",
@@ -6402,6 +6619,21 @@ export const messages: Record<SupportedLocale, Messages> = {
       "The Folio has a balance. Say why it stays open.",
     checkOutFolioChanged:
       "Something was posted to the bill while you were looking. Review it again and try once more.",
+    checkOutHintTickAndReason: "Tick the box and add a reason",
+    checkOutHintTick: "Tick the box to continue",
+    dialogHintReason: "Add a reason to continue",
+    checkOutCreditLabel: "Credit on the Folio",
+    checkOutDueLabel: "Due at check-out",
+    checkOutNothingOwedTitle: "Nothing to pay",
+    checkOutNothingOwedBody:
+      "Their Folio is settled. One press and they are checked out.",
+    checkOutNoFolioBody:
+      "There is no Folio for this stay, so there is nothing to settle.",
+    checkOutReasonPlaceholder:
+      "For example: Guest will pay by transfer tomorrow",
+    checkOutReasonWillPayLater: "Will pay later",
+    checkOutReasonCompanyInvoice: "Company invoice",
+    checkOutReasonDisputed: "Disputed",
     departuresViews: "Departure views",
     departuresFilters: "Departure filters",
     inHouseAt: "In house at",
@@ -6677,7 +6909,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       lastAdministrator:
         "An Organization must keep somebody who can add staff. Give another person the Owner role first.",
       roleIsHeld: "Somebody holds this role. Move them first.",
-      confirmRoleTitle: "Change this role?",
       confirmRoleChange: "{member} will go from {from} to {to}.",
       confirmRoleSessions:
         "Every session they hold will end, and they will need to sign in again.",
@@ -6686,6 +6917,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{to} cannot manage staff, so you will no longer be able to change anyone’s role or invite staff.",
       confirmRoleConfirm: "Change role",
       confirmRoleClose: "Close",
+      inviteHintMissing: "Add an email and choose a role",
+      defineRoleHintName: "Name the role to continue",
       roleChangedMeanwhile:
         "Somebody changed this role while you were deciding. {member} now holds {role}. Nothing was changed.",
       roleRetired: "That role is no longer offered. Nothing was changed.",
@@ -6810,6 +7043,13 @@ export const messages: Record<SupportedLocale, Messages> = {
     guestLookupTitle: "Guests already on file",
     guestLookupHint:
       "Could this be the same person? Pick one to fill in their email and phone so the booking is added to the same Guest. A Guest with no email on file cannot be matched automatically.",
+    newReservationQuestion: "Who is staying, and when?",
+    guestNameTitle: "Guest name",
+    guestNamePlaceholder: "Full name",
+    guestEmailPlaceholder: "name@example.com",
+    guestPhonePlaceholder: "+90 …",
+    bookingChooseDatesFirst: "Choose dates first to see free units",
+    newReservationHintMissing: "Add a name, dates and a unit to continue",
     guestNoDetailsOnFile: "no contact details on file",
     guestPhoneInvalid:
       "A telephone number has only digits, spaces and + ( ) - .",
@@ -6873,6 +7113,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeBookingNoteInvalid: "A note is between 3 and 500 characters.",
     changeBookingNothing:
       "The dates and the Unit are the same: there is nothing to change.",
+    changeBookingHintUnit: "Pick a free unit to continue",
+    changeBookingWhichUnit: "Which unit?",
     changeBookingRefused: "This booking cannot be changed.",
     changeDeparture: "Change departure",
     changeDepartureSummary:
@@ -6890,6 +7132,15 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeDepartureShorter:
       "{count, plural, one {# night fewer} other {# nights fewer}}",
     changeDepartureOpen: "No departure: the stay stays open-ended.",
+    changeDepartureStayTitle: "Stay",
+    changeDepartureNewTitle: "New departure",
+    changeDepartureCurrent: "Current departure",
+    changeDepartureChange: "Change",
+    changeDepartureRulerHint:
+      "Today is {today}. The current departure is {date}.",
+    changeDepartureRulerLabel: "The stay from {from} to {to}",
+    changeDepartureTodayMark: "Today",
+    changeDepartureHintDate: "Pick the new departure to continue",
     changeDepartureNeedsEnd:
       "A Guest's stay needs a departure; only a Resident's may be open-ended.",
     changeDepartureBlocked:
@@ -6916,6 +7167,19 @@ export const messages: Record<SupportedLocale, Messages> = {
     moveGuestNotReady:
       "That Unit is not ready yet. Choose another, or have it cleaned first.",
     moveGuestRefused: "This Guest cannot be moved.",
+    unitChipFree: "Free",
+    unitChipBooked: "Booked · {reference}",
+    unitChipOccupied: "Occupied",
+    moveGuestWhichUnit: "Which unit are they moving to?",
+    moveGuestWhy: "Why are they moving?",
+    unitSearch: "Search by unit number or type",
+    unitMore:
+      "{count, plural, one {# more unit} other {# more units}}. Type to find one.",
+    unitNoMatches: "No unit matches.",
+    moveGuestNotePlaceholder: "Anything the next shift should know",
+    moveGuestHintUnit: "Choose a unit to continue",
+    moveGuestHintReason: "Say why to continue",
+    moveGuestHintNote: "Add a note to continue",
     folios: "Folios",
     foliosAt: "Folios at",
     noFoliosTitle: "No folios yet",
@@ -7055,6 +7319,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       closeCredit: "{amount} is a credit left on the folio.",
       closeFinal:
         "Its lines stay exactly as they are, nothing more can be posted, and a closed folio cannot be reopened.",
+      paymentHintMissing: "Enter the amount and choose how it was paid.",
+      paymentHintExtra: "Tick the box to take more than is owed.",
+      reverseHintMissing: "Say why, in at least 3 characters.",
       history: "History",
     },
 
@@ -7252,7 +7519,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         out_of_service: "Out of order",
       },
       moveHint:
-        "Drag a booking to another room or day to move it; nothing is saved until you confirm.",
+        "Drag a booking to another room or day to move it, or pull its end to change the departure; nothing is saved until you confirm.",
       dragHint: "Drag to move it, or use Move… in its details.",
       resizeHint: "Drag to change the departure",
       dropBlocked: "It cannot go here",
@@ -7600,6 +7867,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       secretCopy: "Copy secret",
       secretCopied: "Copied",
       secretDone: "I have saved it",
+      endpointHeading: "Where should events go?",
+      endpointHintMissing:
+        "Give it a name, an HTTPS address and at least one event.",
+      operationHeading: "A delivery that did not arrive",
+      retryAllHeading: "Every stopped delivery",
       invalid: {
         name: {
           empty: "Give the endpoint a name.",
@@ -8050,6 +8322,18 @@ export const messages: Record<SupportedLocale, Messages> = {
         title: "Employee Directory",
         register: "Add employee",
         registerTitle: "Register employee",
+        registerHeading: "Who is joining the team?",
+        registerWhoTitle: "Who are they?",
+        registerJobTitle: "What is the job?",
+        registerPayTitle: "Pay and start date",
+        registerContactTitle: "How to reach them",
+        registerHintMissing: "Add the name, the job and the pay to continue",
+        editTabDetails: "Details",
+        editStartTitle: "When did they start?",
+        editContactBankTitle: "Contact and bank",
+        editPayNowTitle: "What are they paid now?",
+        editPayFromTitle: "From which month?",
+        editHintNewPay: "Enter the new gross pay",
         registerDescription:
           "Enter the employee's contract, position and salary details.",
         firstName: "First name",
@@ -8144,6 +8428,14 @@ export const messages: Record<SupportedLocale, Messages> = {
         title: "Leave requests",
         requestLeave: "Request leave",
         requestLeaveTitle: "Submit leave request",
+        leaveWhoTitle: "Who is it for?",
+        leaveSearch: "Search by name or department",
+        leaveMore:
+          "{count, plural, one {# more person} other {# more people}}. Type to find one.",
+        leaveNoMatches: "Nobody matches.",
+        leaveWhatTitle: "What kind of leave?",
+        leaveWhenTitle: "Which days?",
+        leaveHintMissing: "Choose who it is for and both dates",
         staffMember: "Staff member",
         type: "Type",
         dates: "Dates",
@@ -8187,6 +8479,8 @@ export const messages: Record<SupportedLocale, Messages> = {
           "The social security, income tax and stamp duty figures are placeholders that nobody has approved. They must not be used to pay anyone, and this lock is permanent.",
         confirmUnderstood:
           "I understand the deductions are unapproved placeholders and that locking this run is permanent.",
+        confirmHintMissing: "Tick the box to approve this run.",
+        payslipDeductionsTitle: "Pay and deductions",
         print: "Print",
         period: "Period",
         summaryGrossNet: "Gross {amount}, net {total}",
@@ -8294,6 +8588,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{count, plural, one {1 bed per room} other {# beds per room, A to {last}}}",
       previewIncomplete:
         "Enter the first room number to see what will be created.",
+      addHeading: "Which rooms are you adding?",
+      addWhatTitle: "What are they?",
+      addNumbersTitle: "Which numbers?",
+      addWhereTitle: "Where are they?",
+      addHintFirstNumber: "Enter the first room number",
       addCount: "{count, plural, one {Add # room} other {Add # rooms}}",
       firstNumberInvalid:
         "Use digits only, 1 to 8 of them, for example 101. Letters and dashes are not accepted.",
@@ -8509,6 +8808,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       impactHint:
         "Nothing will be cancelled or moved. The front desk will need to move them.",
       confirmOutOfOrder: "Take it out of order anyway",
+      reportHeading: "What needs fixing?",
+      reportHintMissing: "Choose a room or equipment and say what is wrong.",
       reported: "Request MT-{number} sent.",
       saved: "Saved.",
       returned: "The room is back in service.",
@@ -8558,6 +8859,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       placePlaceholder: "Laundry room",
       interval: "Serviced every (months)",
       intervalHint: "Leave it empty if it is not serviced on a schedule.",
+      equipmentHeading: "What are we keeping track of?",
+      equipmentHintMissing:
+        "Give it a name and a category, and say where it is.",
       lastServiced: "Last serviced",
       nextService: "Next service",
       notScheduled: "Not scheduled",
@@ -8885,6 +9189,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       createDialogTitle: "Create Service Request",
       createDialogDesc:
         "Log a new service request on behalf of a guest or accommodation unit.",
+      createHeading: "What does the guest need?",
+      createHintMissing: "Say what the guest needs, in a few words.",
+      reasonHintMissing: "Say why, in at least 3 characters.",
       titlePlaceholder: "e.g. Extra towels requested",
       detailsPlaceholder: "Add any specific instructions or details...",
       selectCategory: "Select category",
@@ -9304,6 +9611,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       close: "Close {date}",
       closing: "Closing…",
       dialogTitle: "Close {date}?",
+      dialogHeading: "Close this day?",
+      dialogAllHeading: "Close {n} days?",
+      itemsOpenTitle:
+        "{n, plural, one {# item is still open} other {# items are still open}}",
+      itemsOpenHint: "They are recorded with the close, with your reason.",
+      reasonQuestion: "Why close with items open?",
+      reasonExample: "For example: Handled by the night audit",
+      quietTitle: "Nothing is left open",
       dialogQuiet:
         "Nothing is left open. The close records the day's arrivals, departures and nights occupied.",
       dialogOpen:
@@ -9409,6 +9724,10 @@ export const messages: Record<SupportedLocale, Messages> = {
     notEntitledDescription:
       "It appears here once your Organization subscribes to it and the Property has it enabled.",
     closeDialog: "Close",
+    dialogNoteTitle: "Note",
+    dialogTagRequired: "Required",
+    dialogTagOptional: "Optional",
+    dialogQuickPicks: "Quick picks",
     denied: {
       notReachableTitle: "That Property isn't one you can open",
       notReachableDescription:
@@ -9598,6 +9917,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     reasonTooLong:
       "{max, plural, zero {لا يمكن أن يزيد السبب على حرف واحد.} one {لا يمكن أن يزيد السبب على حرف واحد.} two {لا يمكن أن يزيد السبب على حرفين.} few {لا يمكن أن يزيد السبب على # أحرف.} many {لا يمكن أن يزيد السبب على # حرفًا.} other {لا يمكن أن يزيد السبب على # حرف.}}",
     undoCheckInRefused: "لا يمكن التراجع عن تسجيل الوصول هذا.",
+    undoCheckInWhy: "لماذا يُلغى تسجيل الوصول؟",
+    undoCheckInReasonExample: "مثال: سُجّل الوصول في الغرفة الخطأ",
     stayHasCharges:
       "سُجِّلت مبالغ على هذه الإقامة، لذلك تُعدّ قد حدثت فعلًا ولا يمكن التراجع عن تسجيل الوصول. صحِّح المبالغ من قسم المالية.",
     checkInDayClosed:
@@ -9651,6 +9972,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     noShowExpectedPending:
       "قالوا إنهم سيصلون عند {time}، ولم يمرّ هذا الوقت بعد.",
     noShowExpectedGiven: "وقت الوصول المتوقع: {time}.",
+    endBookingReasonHint: "تُسجَّل مع الحجز وتُحفظ.",
+    cancelReasonExample: "مثال: طلب النزيل الإلغاء هاتفيًا",
     markNoShow: "تسجيل عدم الحضور",
     keepBooking: "إبقاء الحجز",
     saving: "جارٍ الحفظ…",
@@ -9670,6 +9993,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       "تأخر هذا الضيف {count, plural, one {يومًا واحدًا} two {يومين} few {# أيام} many {# يومًا} other {# يوم}} عن موعد {date}. تُسجَّل المغادرة اليوم، وتُحتسب الليالي منذ ذلك الحين على الحساب.",
     checkOutOwesFirst:
       "هناك {balance} مستحق. حصّل الدفعة على الحساب أولًا، أو اتركه مفتوحًا مع ذكر السبب.",
+    checkOutStatusEarly: "مغادرة مبكرة",
+    checkOutStatusOnSchedule: "حسب الموعد",
+    checkOutStatusOwed: "مستحق",
+    checkOutStatusSettled: "لا مبالغ مستحقة",
     reviewFolioNewTab: "فتح الحساب في تبويب جديد",
     confirmCheckOut: "تأكيد المغادرة",
     keepInHouse: "إبقاء الإقامة",
@@ -9690,6 +10017,18 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutBalanceReasonRequired: "على الحساب رصيد. اكتب سبب إبقائه مفتوحًا.",
     checkOutFolioChanged:
       "أُضيف قيد إلى الحساب أثناء مراجعتك. راجعه مرة أخرى ثم أعد المحاولة.",
+    checkOutHintTickAndReason: "ضع علامة في المربع واكتب السبب",
+    checkOutHintTick: "ضع علامة في المربع للمتابعة",
+    dialogHintReason: "اكتب السبب للمتابعة",
+    checkOutCreditLabel: "رصيد لصالح النزيل",
+    checkOutDueLabel: "المستحق عند المغادرة",
+    checkOutNothingOwedTitle: "لا شيء للدفع",
+    checkOutNothingOwedBody: "الحساب مسدد. بضغطة واحدة تتم المغادرة.",
+    checkOutNoFolioBody: "لا يوجد حساب لهذه الإقامة، فلا شيء للتسوية.",
+    checkOutReasonPlaceholder: "مثال: سيدفع النزيل بالتحويل غدًا",
+    checkOutReasonWillPayLater: "سيدفع لاحقًا",
+    checkOutReasonCompanyInvoice: "فاتورة للشركة",
+    checkOutReasonDisputed: "معترض عليه",
     departuresViews: "عروض قائمة المغادرة",
     departuresFilters: "مرشحات المغادرة",
     inHouseAt: "المقيمون حاليًا في",
@@ -9958,7 +10297,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       lastAdministrator:
         "يجب أن يبقى في المؤسسة من يستطيع إضافة الفريق. أعطِ شخصًا آخر دور المالك أولًا.",
       roleIsHeld: "هذا الدور يحمله أحدهم. انقلهم أولًا.",
-      confirmRoleTitle: "تغيير هذا الدور؟",
       confirmRoleChange: "سينتقل {member} من {from} إلى {to}.",
       confirmRoleSessions:
         "ستنتهي جميع جلساته وسيحتاج إلى تسجيل الدخول من جديد.",
@@ -9967,6 +10305,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         "لا يستطيع دور {to} إدارة الفريق، لذلك لن تتمكن بعد الآن من تغيير دور أي شخص أو دعوة أعضاء جدد.",
       confirmRoleConfirm: "تغيير الدور",
       confirmRoleClose: "إغلاق",
+      inviteHintMissing: "أضف بريدًا إلكترونيًا واختر دورًا",
+      defineRoleHintName: "سمِّ الدور للمتابعة",
       roleChangedMeanwhile:
         "غُيّر هذا الدور أثناء اتخاذك القرار. يحمل {member} الآن دور {role}. لم يتغير شيء.",
       roleRetired: "لم يعد هذا الدور متاحًا. لم يتغير شيء.",
@@ -10088,6 +10428,13 @@ export const messages: Record<SupportedLocale, Messages> = {
     guestLookupTitle: "ضيوف مسجلون من قبل",
     guestLookupHint:
       "هل قد يكون الشخص نفسه؟ اختر أحدهم لتعبئة بريده وهاتفه فيُضاف الحجز إلى الضيف نفسه. الضيف بلا بريد مسجل لا يمكن مطابقته تلقائيًا.",
+    newReservationQuestion: "من سيقيم ومتى؟",
+    guestNameTitle: "اسم النزيل",
+    guestNamePlaceholder: "الاسم الكامل",
+    guestEmailPlaceholder: "name@example.com",
+    guestPhonePlaceholder: "+90 …",
+    bookingChooseDatesFirst: "اختر التواريخ أولًا لرؤية الوحدات المتاحة",
+    newReservationHintMissing: "أضف اسمًا وتواريخ ووحدة للمتابعة",
     guestNoDetailsOnFile: "لا بيانات تواصل مسجلة",
     guestPhoneInvalid:
       "يتكون رقم الهاتف من أرقام ومسافات والرموز + ( ) - . فقط.",
@@ -10146,6 +10493,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeBookingNotInService: "لا يمكن لهذه الوحدة استقبال هذا الحجز الآن.",
     changeBookingNoteInvalid: "يجب أن تتراوح الملاحظة بين 3 و500 حرف.",
     changeBookingNothing: "التواريخ والوحدة كما هي: لا يوجد ما يُعدَّل.",
+    changeBookingHintUnit: "اختر وحدة متاحة للمتابعة",
+    changeBookingWhichUnit: "أي وحدة؟",
     changeBookingRefused: "لا يمكن تعديل هذا الحجز.",
     changeDeparture: "تغيير موعد المغادرة",
     changeDepartureSummary:
@@ -10163,6 +10512,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeDepartureShorter:
       "{count, plural, one {ليلة واحدة أقل} two {ليلتان أقل} few {# ليالٍ أقل} many {# ليلة أقل} other {# ليلة أقل}}",
     changeDepartureOpen: "لا موعد مغادرة: تبقى الإقامة مفتوحة.",
+    changeDepartureStayTitle: "الإقامة",
+    changeDepartureNewTitle: "موعد المغادرة الجديد",
+    changeDepartureCurrent: "موعد المغادرة الحالي",
+    changeDepartureChange: "التغيير",
+    changeDepartureRulerHint: "اليوم هو {today}. موعد المغادرة الحالي {date}.",
+    changeDepartureRulerLabel: "الإقامة من {from} إلى {to}",
+    changeDepartureTodayMark: "اليوم",
+    changeDepartureHintDate: "اختر موعد المغادرة الجديد للمتابعة",
     changeDepartureNeedsEnd:
       "تحتاج إقامة الضيف إلى موعد مغادرة؛ الإقامة المفتوحة للمقيم وحده.",
     changeDepartureBlocked:
@@ -10187,6 +10544,19 @@ export const messages: Record<SupportedLocale, Messages> = {
     moveGuestNoteRequired: "لسبب آخر، اذكره في الملاحظة.",
     moveGuestNotReady: "هذه الوحدة ليست جاهزة بعد. اختر غيرها أو نظّفها أولًا.",
     moveGuestRefused: "لا يمكن نقل هذا الضيف.",
+    unitChipFree: "متاحة",
+    unitChipBooked: "محجوزة · {reference}",
+    unitChipOccupied: "مشغولة",
+    moveGuestWhichUnit: "إلى أي وحدة سينتقل؟",
+    moveGuestWhy: "لماذا ينتقل؟",
+    unitSearch: "ابحث برقم الوحدة أو نوعها",
+    unitMore:
+      "{count, plural, one {وحدة أخرى} other {# وحدات أخرى}}. اكتب للعثور عليها.",
+    unitNoMatches: "لا توجد وحدة مطابقة.",
+    moveGuestNotePlaceholder: "أي شيء يجب أن تعرفه الوردية التالية",
+    moveGuestHintUnit: "اختر وحدة للمتابعة",
+    moveGuestHintReason: "اذكر السبب للمتابعة",
+    moveGuestHintNote: "اكتب ملاحظة للمتابعة",
     folios: "الحسابات",
     foliosAt: "الحسابات في",
     noFoliosTitle: "لا توجد حسابات بعد",
@@ -10324,6 +10694,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       closeCredit: "{amount} رصيد دائن يبقى على الحساب.",
       closeFinal:
         "تبقى بنوده كما هي، ولا يمكن قيد أي شيء آخر عليه، ولا يمكن إعادة فتح الحساب بعد إغلاقه.",
+      paymentHintMissing: "أدخل المبلغ واختر طريقة الدفع.",
+      paymentHintExtra: "ضع علامة على المربع لقبول أكثر من المستحق.",
+      reverseHintMissing: "اكتب السبب في 3 أحرف على الأقل.",
       history: "السجل",
     },
 
@@ -10517,7 +10890,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         blocked: "مغلقة",
         out_of_service: "خارج الخدمة",
       },
-      moveHint: "اسحب حجزًا إلى غرفة أو يوم آخر لنقله؛ لا يُحفظ شيء حتى تؤكّد.",
+      moveHint:
+        "اسحب حجزًا إلى غرفة أو يوم آخر لنقله، أو اسحب طرفه لتغيير موعد المغادرة؛ لا يُحفظ شيء حتى تؤكّد.",
       dragHint: "اسحبه لنقله، أو استخدم «نقل…» في تفاصيله.",
       resizeHint: "اسحب لتغيير موعد المغادرة",
       dropBlocked: "لا يمكن نقله إلى هنا",
@@ -10858,6 +11232,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       secretCopy: "نسخ المفتاح",
       secretCopied: "تم النسخ",
       secretDone: "حفظته",
+      endpointHeading: "إلى أين تُرسل الأحداث؟",
+      endpointHintMissing:
+        "اكتب اسمًا وعنوان HTTPS واختر حدثًا واحدًا على الأقل.",
+      operationHeading: "إرسال لم يصل",
+      retryAllHeading: "كل عمليات الإرسال المتوقفة",
       invalid: {
         name: {
           empty: "أعطِ نقطة الاستقبال اسمًا.",
@@ -11299,6 +11678,18 @@ export const messages: Record<SupportedLocale, Messages> = {
         title: "دليل الموظفين",
         register: "إضافة موظف",
         registerTitle: "تسجيل موظف جديد",
+        registerHeading: "من ينضم إلى الفريق؟",
+        registerWhoTitle: "من هو؟",
+        registerJobTitle: "ما هي الوظيفة؟",
+        registerPayTitle: "الأجر وتاريخ البدء",
+        registerContactTitle: "بيانات التواصل",
+        registerHintMissing: "أدخل الاسم والوظيفة والأجر للمتابعة",
+        editTabDetails: "البيانات",
+        editStartTitle: "متى بدأ العمل؟",
+        editContactBankTitle: "التواصل والحساب البنكي",
+        editPayNowTitle: "كم يتقاضى الآن؟",
+        editPayFromTitle: "اعتبارًا من أي شهر؟",
+        editHintNewPay: "أدخل الأجر الإجمالي الجديد",
         registerDescription: "أدخل تفاصيل العقد والمنصب والراتب للموظف.",
         firstName: "الاسم الأول",
         lastName: "اسم العائلة",
@@ -11392,6 +11783,13 @@ export const messages: Record<SupportedLocale, Messages> = {
         title: "طلبات الإجازة",
         requestLeave: "طلب إجازة",
         requestLeaveTitle: "تقديم طلب إجازة",
+        leaveWhoTitle: "لمن؟",
+        leaveSearch: "ابحث بالاسم أو القسم",
+        leaveMore: "{count} آخرين. اكتب للبحث.",
+        leaveNoMatches: "لا أحد مطابق.",
+        leaveWhatTitle: "ما نوع الإجازة؟",
+        leaveWhenTitle: "أي أيام؟",
+        leaveHintMissing: "اختر لمن الإجازة والتاريخين",
         staffMember: "الموظف",
         type: "النوع",
         dates: "التواريخ",
@@ -11435,6 +11833,8 @@ export const messages: Record<SupportedLocale, Messages> = {
           "مبالغ التأمينات الاجتماعية وضريبة الدخل ورسم الدمغة قيم مؤقتة لم يعتمدها أحد. يجب ألا تُستخدم لدفع أجر أي شخص، وهذا القفل دائم.",
         confirmUnderstood:
           "أفهم أن الاستقطاعات قيم مؤقتة غير معتمدة وأن قفل هذا الكشف دائم.",
+        confirmHintMissing: "ضع علامة على المربع لاعتماد هذا التشغيل.",
+        payslipDeductionsTitle: "الراتب والاستقطاعات",
         print: "طباعة",
         period: "الفترة",
         summaryGrossNet: "الإجمالي {amount}، الصافي {total}",
@@ -11538,6 +11938,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       previewBeds:
         "{count, plural, one {سرير واحد في كل غرفة} two {سريران في كل غرفة} few {# أسرّة في كل غرفة، من A إلى {last}} many {# سريرًا في كل غرفة، من A إلى {last}} other {# سرير في كل غرفة، من A إلى {last}}}",
       previewIncomplete: "أدخل رقم أول غرفة لترى ما سيُنشأ.",
+      addHeading: "ما الغرف التي تضيفها؟",
+      addWhatTitle: "ما هي؟",
+      addNumbersTitle: "أي أرقام؟",
+      addWhereTitle: "أين توجد؟",
+      addHintFirstNumber: "أدخل رقم أول غرفة",
       addCount:
         "{count, plural, one {إضافة غرفة} two {إضافة غرفتين} few {إضافة # غرف} many {إضافة # غرفة} other {إضافة # غرفة}}",
       firstNumberInvalid:
@@ -11749,6 +12154,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       aGuest: "ضيف",
       impactHint: "لن يُلغى أو يُنقل أي شيء. سيحتاج المكتب الأمامي إلى نقلهم.",
       confirmOutOfOrder: "إخراجها من الخدمة على أي حال",
+      reportHeading: "ما الذي يحتاج إلى إصلاح؟",
+      reportHintMissing: "اختر غرفة أو معدّة واكتب ما العطل.",
       reported: "أُرسل الطلب MT-{number}.",
       saved: "تم الحفظ.",
       returned: "عادت الغرفة إلى الخدمة.",
@@ -11797,6 +12204,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       placePlaceholder: "غرفة الغسيل",
       interval: "الصيانة كل (أشهر)",
       intervalHint: "اتركه فارغًا إن لم تكن لها صيانة دورية.",
+      equipmentHeading: "ما الذي نتتبعه؟",
+      equipmentHintMissing: "اكتب اسمًا وفئة وحدّد مكانه.",
       lastServiced: "آخر صيانة",
       nextService: "الصيانة التالية",
       notScheduled: "غير مجدولة",
@@ -12120,6 +12529,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       resolutionNotesPlaceholder: "الإجراء الذي تم اتخاذه لإنجاز الطلب...",
       createDialogTitle: "تسجيل طلب خدمة جديد",
       createDialogDesc: "تسجيل طلب خدمة جديد لغرفة أو ضيف في المنشأة.",
+      createHeading: "ماذا يحتاج الضيف؟",
+      createHintMissing: "اكتب ما يحتاجه الضيف في بضع كلمات.",
+      reasonHintMissing: "اكتب السبب في 3 أحرف على الأقل.",
       titlePlaceholder: "مثال: طلب مناشف إضافية",
       detailsPlaceholder: "تفاصيل أو تعليمات إضافية...",
       selectCategory: "اختر الفئة",
@@ -12541,6 +12953,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       close: "إغلاق {date}",
       closing: "جارٍ الإغلاق…",
       dialogTitle: "إغلاق {date}؟",
+      dialogHeading: "هل تُغلق هذا اليوم؟",
+      dialogAllHeading: "هل تُغلق {n} أيام؟",
+      itemsOpenTitle:
+        "{n, plural, one {بند واحد لا يزال مفتوحًا} other {# بنود لا تزال مفتوحة}}",
+      itemsOpenHint: "تُسجَّل مع الإغلاق مع سببك.",
+      reasonQuestion: "لماذا يُغلق اليوم مع بنود مفتوحة؟",
+      reasonExample: "مثال: عولج في تدقيق الليل",
+      quietTitle: "لا شيء مفتوح",
       dialogQuiet:
         "لم يبقَ شيء مفتوح. يسجّل الإغلاق حالات الوصول والمغادرة والليالي المشغولة في هذا اليوم.",
       dialogOpen:
@@ -12647,6 +13067,10 @@ export const messages: Record<SupportedLocale, Messages> = {
     notEntitledDescription:
       "تظهر هنا عندما تشترك مؤسستك فيها ويتم تفعيلها في المنشأة.",
     closeDialog: "إغلاق",
+    dialogNoteTitle: "ملاحظة",
+    dialogTagRequired: "مطلوب",
+    dialogTagOptional: "اختياري",
+    dialogQuickPicks: "اختيارات سريعة",
     denied: {
       notReachableTitle: "لا يمكنك فتح هذه المنشأة",
       notReachableDescription:

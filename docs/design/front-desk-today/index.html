@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Front desk Today · Four directions</title>
+<style>
+:root { --ink: hsl(170 60% 10%); --muted: hsl(170 5% 45%); --accent: hsl(172 65% 20%); --line: hsl(170 10% 90%); --soft: hsl(38 60% 95%); }
+* { box-sizing: border-box; margin: 0; }
+body { font: 15px/1.5 "Geist", ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; color: var(--ink); background: #fff; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 64px 40px 80px; }
+.eyebrow { font: 500 11px/1 ui-monospace, Menlo, monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+h1 { font-size: 56px; font-weight: 300; letter-spacing: -0.04em; line-height: 1.02; margin: 18px 0 22px; max-width: 16ch; }
+h1 b { font-weight: 600; }
+.lead { color: var(--muted); max-width: 62ch; font-size: 17px; }
+.problem { margin: 44px 0 56px; padding: 28px 32px; background: var(--soft); border-radius: 24px; }
+.problem h2 { font-size: 17px; font-weight: 600; margin-bottom: 10px; }
+.problem ul { padding-inline-start: 18px; display: grid; gap: 6px; color: hsl(170 30% 22%); }
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.card { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 24px; padding: 30px 30px 26px; text-decoration: none; color: inherit; box-shadow: 0 4px 14px rgba(10, 41, 36, .04); transition: border-color .15s, transform .15s; }
+.card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.card .n { font-size: 64px; font-weight: 300; letter-spacing: -0.05em; line-height: 1; color: var(--accent); }
+.card h3 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; margin: 16px 0 4px; }
+.card .q { font-size: 17px; font-weight: 300; font-style: italic; color: var(--muted); margin-bottom: 16px; }
+.card p { color: hsl(170 15% 30%); font-size: 14.5px; }
+.card dl { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); display: grid; gap: 8px; font-size: 14px; }
+.card dt { font: 500 10.5px ui-monospace, Menlo, monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.card .go { margin-top: auto; padding-top: 22px; font-weight: 600; color: var(--accent); }
+.pick { margin-top: 56px; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
+.pick h2 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 12px; }
+.pick p, .pick li { color: hsl(170 15% 30%); }
+.pick ul { padding-inline-start: 18px; display: grid; gap: 8px; }
+@media (max-width: 860px) { .cards, .pick { grid-template-columns: 1fr; } h1 { font-size: 40px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="eyebrow">Front desk · Today · design directions</span>
+  <h1>Four ways to answer <b>"what do I do next?"</b></h1>
+  <p class="lead">The current Today page is a grid of equal tiles. A desk agent does not think in tiles. They think in time (who is coming, who is late), in rooms (what can I give this guest), and in decisions (what is blocking me). Each direction below leads with one of those.</p>
+
+  <div class="problem">
+    <h2>What is wrong with the current page, from the 2026-10-11 audit</h2>
+    <ul>
+      <li>Every tile has the same weight, so the one overdue guest looks like the one quiet card (TODAY-08).</li>
+      <li>Two tiles share a title and a number and read as a duplicate (TODAY-11).</li>
+      <li>"Ready rooms" can count a room with a guest in it (TODAY-02).</li>
+      <li>Nothing is organised around rooms, which is how a desk decides where to put someone.</li>
+      <li>The 8 unclosed days sit in the same visual register as a routine notice.</li>
+    </ul>
+  </div>
+
+  <div class="cards">
+    <a class="card" href="1-shift-timeline.html">
+      <span class="n">1</span><h3>Shift timeline</h3><div class="q">"Who is coming, who is leaving, and are the rooms ready in time?"</div>
+      <p>The day as a horizontal line with a NOW marker. Departures on one lane, arrivals on the other, each guest placed at the time on their booking. Late and overdue stretch back to where they should have been. Every arrival shows whether its room is ready, so risk is visible two hours early. Below it, a ranked "Do these in order" list.</p>
+      <dl><div><dt>Strongest at</dt>Shift planning, spotting trouble before it arrives</div><div><dt>Weakest at</dt>Arrivals with no expected time (they fall off the line)</div></dl>
+      <span class="go">Open →</span>
+    </a>
+    <a class="card" href="2-house-map.html">
+      <span class="n">2</span><h3>House map</h3><div class="q">"Which room can I give this guest right now?"</div>
+      <p>Every room as a tile, grouped by floor, with its state shown by colour, icon, text and hatch pattern. Select an arrival and the map answers: the assigned room is ringed, other ready rooms of the same type say "Can take", the rest fade. Select a room for its actions. The filter chips are the counts.</p>
+      <dl><div><dt>Strongest at</dt>Walk-ins, room moves, the "room not ready" problem</div><div><dt>Weakest at</dt>Time. It does not show who is late, only which rooms</div></dl>
+      <span class="go">Open →</span>
+    </a>
+    <a class="card" href="3-next-up.html">
+      <span class="n">3</span><h3>Next up</h3><div class="q">"Just tell me the one thing to do now."</div>
+      <p>One large card for the most urgent item, with a plain checklist of what is blocking it and the button that fixes it. A ranked queue beside it; the arrows step through. Arriving, In house and Leaving sit underneath as three short lanes.</p>
+      <dl><div><dt>Strongest at</dt>A quiet, junior or solo desk. Fewest decisions</div><div><dt>Weakest at</dt>A rush. One card at a time hides the other fifteen</div></dl>
+      <span class="go">Open →</span>
+    </a>
+    <a class="card" href="4-night-desk.html">
+      <span class="n">4</span><h3>Night desk</h3><div class="q">"What happened today, and what do I hand over?"</div>
+      <p>A dark evening layout at 22:47. How the house moved today as a waterfall (12 at the start, 6 left, 6 arrived, 1 still expected, 13 tonight). The unclosed days with the oldest first, the next seven nights, tomorrow's room readiness and a four-item handover list.</p>
+      <dl><div><dt>Strongest at</dt>Closing the day, handover, the night auditor's job</div><div><dt>Weakest at</dt>Daytime. It is retrospective, not operational</div></dl>
+      <span class="go">Open →</span>
+    </a>
+  </div>
+
+  <div class="pick">
+    <div>
+      <h2>My pick: build 1, borrow from the rest</h2>
+      <p>Build the shift timeline as Today for Front Desk. Its question, "what is about to go wrong?", is the one the current page cannot answer, and it needs no new data: <code>expectedArrivalTime</code> and the planned departure are already on the booking. Take the ranked list from 3 (already inside 1) and the room-ready check on each arrival from 2.</p>
+      <p style="margin-top:12px">Do not build 3 as a separate page. A single hero card is the right idea for a quiet desk and the wrong one on a busy afternoon, when the desk needs the whole day in view.</p>
+    </div>
+    <div>
+      <h2>Two things worth deciding</h2>
+      <ul>
+        <li><b>The map (2) belongs on its own route</b>, probably as the default view of Front Office, not on Today. It is the best room-first view and it would make Today too heavy.</li>
+        <li><b>The night desk (4) is a mode, not a role.</b> The same Today page switches to it after a set hour, since the 8 unclosed days and the handover list matter most then. That needs one product decision: which hour, and per Property.</li>
+        <li><b>Arrivals with no expected time</b> have nowhere to sit on a timeline. Today they get a line under it; if that is common in practice, it needs a tray of its own.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="eyebrow" style="margin-top:56px;line-height:1.8">What these previews are not · Demo data: guest names, balances, tomorrow's arrivals, guest requests and the seven-night outlook are invented for the preview, the figures are frozen at 14:32 (22:47 for the night desk), and the sidebar is left out. Geist is not bundled, so a system font stands in. Checked at 1480 px only; narrow widths and Arabic RTL are not designed yet (the timeline places guests by absolute position and would need a mirrored axis).</p>
+</div>
+</body>
+</html>

@@ -83,7 +83,7 @@ describe("the reason field", () => {
   it("stops typing where the module stops accepting", async () => {
     open("en").click();
 
-    const reason = await screen.findByLabelText("Reason");
+    const reason = await screen.findByLabelText("Why is it being undone?");
     // The component restates these rather than importing them, because that
     // module's entry point would bring Prisma into the browser bundle with it.
     // This is what makes the restatement safe.

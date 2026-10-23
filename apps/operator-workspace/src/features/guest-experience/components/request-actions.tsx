@@ -8,17 +8,21 @@ import type {
   ServiceRequestStatus,
 } from "@ranza/guest-services";
 import {
+  ArrowButton,
   Button,
+  CancelButton,
   Dialog,
-  DialogClose,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
+  DialogSection,
   Input,
-  Label,
   Textarea,
+  dialogFrameClassName,
+  fieldClassName,
+  textareaClassName,
 } from "@ranza/ui";
 import {
   updateServiceRequestStatus,
@@ -47,6 +51,7 @@ export function RequestActions({
   request,
 }: RequestActionsProps) {
   const t = useTranslations("guestExperience");
+  const all = useTranslations();
   const [isPending, startTransition] = useTransition();
   const [outcome, setOutcome] =
     useState<ServiceRequestOutcome["status"]>("idle");
@@ -156,49 +161,52 @@ export function RequestActions({
           if (!open) setOutcome("idle");
         }}
       >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("resolve")}</DialogTitle>
-            <DialogDescription>
-              #{request.number} · {request.title}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-3 py-2">
-            <Label htmlFor={`resolve-notes-${request.id}`}>
-              {t("resolutionNotes")}
-            </Label>
-            <Textarea
-              id={`resolve-notes-${request.id}`}
-              placeholder={t("resolutionNotesPlaceholder")}
-              rows={3}
-              value={resolutionNotes}
-              onChange={(e) => setResolutionNotes(e.target.value)}
-            />
-            <p className="text-step--1 text-muted-foreground">
+        <DialogContent className={dialogFrameClassName("small")}>
+          <DialogMasthead
+            art="/illustrations/dialogs/bell.svg"
+            eyebrow={t("resolve")}
+            heading={`#${request.number} · ${request.title}`}
+          />
+          <DialogBody>
+            <DialogDescription className="m-0 py-5 text-sm">
               {t("resolveConsequence")}
-            </p>
-            <RequestOutcome status={outcome} />
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <DialogClose asChild>
-              <Button disabled={isPending} type="button" variant="outline">
-                {t("close")}
-              </Button>
-            </DialogClose>
-            <Button
+            </DialogDescription>
+            <DialogSection
+              labelFor={`resolve-notes-${request.id}`}
+              tag={{ label: all("dialogTagOptional"), required: false }}
+              title={t("resolutionNotes")}
+            >
+              <Textarea
+                className={textareaClassName}
+                id={`resolve-notes-${request.id}`}
+                onChange={(e) => setResolutionNotes(e.target.value)}
+                placeholder={t("resolutionNotesPlaceholder")}
+                rows={3}
+                value={resolutionNotes}
+              />
+            </DialogSection>
+            <div aria-live="polite" className="py-5 empty:hidden">
+              <RequestOutcome status={outcome} />
+            </div>
+          </DialogBody>
+          <DialogActions>
+            <CancelButton
+              disabled={isPending}
+              onClick={() => setResolveOpen(false)}
+              type="button"
+            >
+              {t("close")}
+            </CancelButton>
+            <ArrowButton
               disabled={isPending}
               onClick={() =>
                 move("resolved", resolutionNotes.trim() || null, closeDialogs)
               }
               type="button"
-              className="gap-1.5"
             >
-              {isPending && <Loader2 className="size-3.5 animate-spin" />}
               {t("resolve")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </DialogContent>
       </Dialog>
 
@@ -209,51 +217,54 @@ export function RequestActions({
           if (!open) setOutcome("idle");
         }}
       >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("cancelRequest")}</DialogTitle>
-            <DialogDescription>
-              #{request.number} · {request.title}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-3 py-2">
-            <Label htmlFor={`cancel-reason-${request.id}`}>
-              {t("cancelReason")}
-            </Label>
-            <Input
-              id={`cancel-reason-${request.id}`}
-              minLength={REASON_MIN}
-              maxLength={200}
-              placeholder={t("cancelReasonPlaceholder")}
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-            />
-            <p className="text-step--1 text-muted-foreground">
+        <DialogContent className={dialogFrameClassName("small")}>
+          <DialogMasthead
+            art="/illustrations/dialogs/bell.svg"
+            eyebrow={t("cancelRequest")}
+            heading={`#${request.number} · ${request.title}`}
+          />
+          <DialogBody>
+            <DialogDescription className="m-0 py-5 text-sm">
               {t("cancelConsequence")}
-            </p>
-            <RequestOutcome status={outcome} />
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <DialogClose asChild>
-              <Button disabled={isPending} type="button" variant="outline">
-                {t("keepRequest")}
-              </Button>
-            </DialogClose>
-            <Button
+            </DialogDescription>
+            <DialogSection
+              labelFor={`cancel-reason-${request.id}`}
+              tag={{ label: all("dialogTagRequired"), required: true }}
+              title={t("cancelReason")}
+            >
+              <Input
+                className={fieldClassName}
+                id={`cancel-reason-${request.id}`}
+                maxLength={200}
+                minLength={REASON_MIN}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder={t("cancelReasonPlaceholder")}
+                value={cancelReason}
+              />
+            </DialogSection>
+            <div aria-live="polite" className="py-5 empty:hidden">
+              <RequestOutcome status={outcome} />
+            </div>
+          </DialogBody>
+          <DialogActions hint={reasonValid ? null : t("reasonHintMissing")}>
+            <CancelButton
+              disabled={isPending}
+              onClick={() => setCancelOpen(false)}
+              type="button"
+            >
+              {t("keepRequest")}
+            </CancelButton>
+            <ArrowButton
               disabled={isPending || !reasonValid}
               onClick={() =>
                 move("cancelled", cancelReason.trim(), closeDialogs)
               }
+              tone="danger"
               type="button"
-              variant="destructive"
-              className="gap-1.5"
             >
-              {isPending && <Loader2 className="size-3.5 animate-spin" />}
               {t("cancelRequest")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </DialogContent>
       </Dialog>
     </div>

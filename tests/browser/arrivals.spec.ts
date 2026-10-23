@@ -70,7 +70,7 @@ test("a check-in is withdrawn with a reason, and the Reservation arrives again",
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText(guestName)).toBeVisible();
   await dialog
-    .getByLabel("Reason")
+    .getByLabel("Why is it being undone?")
     .fill("checked in the wrong one of two Guests arriving together");
   await dialog.getByRole("button", { name: "Undo check-in" }).click();
 
@@ -149,7 +149,9 @@ test("a Stay with charges refuses the withdrawal, and says so", async ({
 
   await row.getByRole("button", { name: /Undo check-in for/ }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Reason").fill("checked in the wrong Guest");
+  await dialog
+    .getByLabel("Why is it being undone?")
+    .fill("checked in the wrong Guest");
   await dialog.getByRole("button", { name: "Undo check-in" }).click();
 
   await expect(dialog.getByRole("alert")).toContainText(
@@ -169,15 +171,14 @@ test("a Stay with charges refuses the withdrawal, and says so", async ({
 });
 
 /**
- * A reason the field accepted and the module did not.
+ * A reason that only looks like one.
  *
  * Three spaces pass `required` and `minLength` — they are three characters —
- * and the module measures what it stores, which is the trimmed string. So this
- * is the one refusal that arrives with the dialog's own field at fault rather
- * than the Stay, and the only one where what somebody typed is still worth
- * something: they are going to edit it, not abandon it.
+ * and the module measures what it stores, which is the trimmed string. The
+ * dialog measures the same way, so the button stays muted, the footer says what
+ * is missing, and what was typed is still in the field to be edited.
  */
-test("a reason of spaces is refused, and what was typed survives it", async ({
+test("a reason of spaces cannot be sent, and what was typed stays", async ({
   page,
 }) => {
   const propertyId = testProperty();
@@ -193,13 +194,14 @@ test("a reason of spaces is refused, and what was typed survives it", async ({
 
   await row.getByRole("button", { name: /Undo check-in for/ }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Reason").fill("   ");
-  await dialog.getByRole("button", { name: "Undo check-in" }).click();
+  const reason = dialog.getByLabel("Why is it being undone?");
+  await reason.fill("   ");
 
-  await expect(dialog.getByRole("alert")).toContainText(
-    "A reason of at least 3 characters is needed",
-  );
-  await expect(dialog.getByLabel("Reason")).toHaveValue("   ");
+  await expect(
+    dialog.getByRole("button", { name: "Undo check-in" }),
+  ).toBeDisabled();
+  await expect(dialog.getByText("Add a reason to continue")).toBeVisible();
+  await expect(reason).toHaveValue("   ");
 });
 
 /**
@@ -297,7 +299,9 @@ test("an_expected_time_is_changed_from_change_booking_and_the_row_follows", asyn
   await expect(save).toBeDisabled();
 
   await time.fill("18:30");
-  await dialog.getByLabel("Note (optional)").fill("The Guest called ahead");
+  await dialog
+    .getByLabel("Note", { exact: true })
+    .fill("The Guest called ahead");
   await save.click();
   await expect(dialog).toBeHidden();
 

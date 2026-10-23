@@ -5,18 +5,25 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { CalendarCheck } from "lucide-react";
 import {
+  ArrowButton,
   Button,
+  CancelButton,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogFacts,
+  DialogMasthead,
+  DialogNotice,
+  DialogSection,
+  DialogSettled,
+  dialogFrameClassName,
   DialogTrigger,
-  Field,
   FormError,
   Textarea,
+  textareaClassName,
 } from "@ranza/ui";
 import {
   closeBusinessDay,
@@ -76,7 +83,7 @@ export function CloseDayDialog(props: CloseDayFormProps) {
         </Button>
       </DialogTrigger>
 
-      <DialogContent>
+      <DialogContent className={dialogFrameClassName("small")}>
         <CloseDayForm {...props} />
       </DialogContent>
     </Dialog>
@@ -141,19 +148,22 @@ function CloseDayForm({
                   ? t("closeDay.refused")
                   : null;
 
+  const needsReason = openItems > 0 && reason.trim().length < REASON.min;
+
   return (
-    <form action={act} className="grid gap-4">
-      <DialogHeader>
-        <DialogTitle>
-          {all
-            ? t("closeDay.dialogAllTitle", {
-                n: all.count,
-                from: all.from,
-                to: all.to,
-              })
-            : t("closeDay.dialogTitle", { date: dayLabel })}
-        </DialogTitle>
-        <DialogDescription>
+    <form action={act} className="grid">
+      <DialogMasthead
+        art="/illustrations/dialogs/close-day.svg"
+        eyebrow={
+          all
+            ? t("closeDay.dialogAllHeading", { n: all.count })
+            : t("closeDay.dialogHeading")
+        }
+        heading={all ? `${all.from} – ${all.to}` : dayLabel}
+      />
+
+      <DialogBody simple={openItems === 0}>
+        <DialogDescription className="sr-only">
           {all
             ? openItems > 0
               ? t("closeDay.dialogAllOpen", { n: openItems })
@@ -162,69 +172,71 @@ function CloseDayForm({
               ? t("closeDay.dialogOpen", { n: openItems })
               : t("closeDay.dialogQuiet")}
         </DialogDescription>
-      </DialogHeader>
 
-      {items.length > 0 ? (
-        <div className="grid gap-1.5 text-step--1">
-          <p className="font-medium">{t("closeDay.dialogItems")}</p>
-          <ul className="grid gap-0.5">
-            {items.map((item) => (
-              <li key={`${item.name}:${item.detail}`}>
-                <bdi className="font-medium">{item.name}</bdi>
-                <span className="text-muted-foreground">
-                  {" · "}
-                  {item.detail}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+        <input name="locale" type="hidden" value={locale} />
+        <input name="property" type="hidden" value={propertyId} />
+        <input name="day" type="hidden" value={businessDate} />
 
-      <p className="text-step--1">
-        {t("closeDay.dialogCharges")}
-        {charges ? (
-          <>
-            {" "}
-            <bdi className="font-medium tabular-nums">{charges}</bdi>
-          </>
+        {openItems === 0 ? (
+          <DialogSettled title={t("closeDay.quietTitle")}>
+            {all ? t("closeDay.dialogAllQuiet") : t("closeDay.dialogQuiet")}
+          </DialogSettled>
         ) : null}
-      </p>
 
-      <input name="locale" type="hidden" value={locale} />
-      <input name="property" type="hidden" value={propertyId} />
-      <input name="day" type="hidden" value={businessDate} />
+        {items.length > 0 ? (
+          <DialogSection
+            hint={t("closeDay.itemsOpenHint")}
+            title={t("closeDay.itemsOpenTitle", { n: openItems })}
+          >
+            <DialogFacts rows={items.map((item) => [item.name, item.detail])} />
+          </DialogSection>
+        ) : null}
 
-      {openItems > 0 ? (
-        <>
-          <Field htmlFor="close-day-reason" label={t("reason")}>
+        {openItems > 0 ? (
+          <DialogSection
+            hint={t("closeDay.reasonHint")}
+            labelFor="close-day-reason"
+            tag={{ label: t("dialogTagRequired"), required: true }}
+            title={t("closeDay.reasonQuestion")}
+          >
             <Textarea
-              aria-describedby="close-day-reason-hint"
               autoFocus
+              className={textareaClassName}
+              aria-describedby="close-day-reason-hint"
               id="close-day-reason"
               maxLength={REASON.max}
               minLength={REASON.min}
               name="reason"
               onChange={(event) => setReason(event.target.value)}
+              placeholder={t("closeDay.reasonExample")}
               required
               rows={3}
               value={reason}
             />
-          </Field>
-          <p
-            className="text-step--1 text-muted-foreground"
-            id="close-day-reason-hint"
-          >
-            {t("closeDay.reasonHint")}
-          </p>
-        </>
-      ) : null}
+          </DialogSection>
+        ) : null}
 
-      <p className="text-step--1">{t("closeDay.final")}</p>
+        <div className={openItems > 0 ? "py-5" : undefined}>
+          <DialogNotice>
+            {t("closeDay.dialogCharges")}
+            {charges ? (
+              <>
+                {" "}
+                <bdi className="font-medium tabular-nums">{charges}</bdi>
+              </>
+            ) : null}{" "}
+            {t("closeDay.final")}
+          </DialogNotice>
+        </div>
 
-      {message ? <FormError>{message}</FormError> : null}
+        {message ? (
+          <div className={openItems > 0 ? "pb-5" : undefined}>
+            <FormError>{message}</FormError>
+          </div>
+        ) : null}
+      </DialogBody>
 
-      <DialogFooter>
+      <DialogActions hint={needsReason ? t("dialogHintReason") : null}>
         {dayHasMovedOn ? (
           // The day this was about is closed, or no longer the one waiting:
           // pressing it again could only be refused again, so the only thing
@@ -236,20 +248,20 @@ function CloseDayForm({
         ) : (
           <>
             <DialogClose asChild>
-              <Button type="button" variant="outline">
+              <CancelButton type="button">
                 {t("closeDay.keepOpen")}
-              </Button>
+              </CancelButton>
             </DialogClose>
-            <Button disabled={pending} type="submit">
+            <ArrowButton disabled={pending || needsReason} type="submit">
               {pending
                 ? t("closeDay.closing")
                 : all
                   ? t("closeDay.closeAll", { n: all.count })
                   : t("closeDay.close", { date: dayLabel })}
-            </Button>
+            </ArrowButton>
           </>
         )}
-      </DialogFooter>
+      </DialogActions>
     </form>
   );
 }

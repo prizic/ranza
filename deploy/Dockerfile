@@ -74,8 +74,10 @@ RUN mkdir -p /worker/apps/worker/dist /worker/node_modules \
 # ---------------------------------------------------------------------------
 # Next.js standalone output: server.js plus exactly the traced node_modules.
 # `.next/static` is not part of the trace and is copied beside it, which is the
-# layout server.js expects (apps/<name>/.next/static). Neither application has a
-# public/ directory; add a COPY here the day one does.
+# layout server.js expects (apps/<name>/.next/static). `public/` is not traced
+# either, so it is copied beside server.js too: without it every file in it,
+# from the favicon to the check-out drawings, answers 404 on the host while
+# `next dev` serves it fine.
 #
 # HOSTNAME is set in the image on purpose. Docker injects HOSTNAME=<container id>
 # into every container, and server.js binds to whatever HOSTNAME says; an image
@@ -85,6 +87,7 @@ ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
 WORKDIR /app
 COPY --from=build --chown=node:node /repo/apps/operator-workspace/.next/standalone ./
 COPY --from=build --chown=node:node /repo/apps/operator-workspace/.next/static ./apps/operator-workspace/.next/static
+COPY --from=build --chown=node:node /repo/apps/operator-workspace/public ./apps/operator-workspace/public
 USER node
 EXPOSE 3000
 CMD ["node", "apps/operator-workspace/server.js"]
@@ -94,6 +97,7 @@ ENV NODE_ENV=production PORT=3001 HOSTNAME=0.0.0.0
 WORKDIR /app
 COPY --from=build --chown=node:node /repo/apps/guest-portal/.next/standalone ./
 COPY --from=build --chown=node:node /repo/apps/guest-portal/.next/static ./apps/guest-portal/.next/static
+COPY --from=build --chown=node:node /repo/apps/guest-portal/public ./apps/guest-portal/public
 USER node
 EXPOSE 3001
 CMD ["node", "apps/guest-portal/server.js"]

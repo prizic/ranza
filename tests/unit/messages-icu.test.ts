@@ -215,6 +215,7 @@ describe("every catalogue parses", () => {
                 time: "14:00",
                 timezone: "Europe/Istanbul",
                 to: "20 Sep",
+                today: "16 Sep",
                 total: "₺3.000,00",
                 type: "x",
                 unclosed: 3,

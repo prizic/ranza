@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UX audit: Today (workspace landing dashboard)</title>
+<style>
+  :root { --ink:#1b2a26; --muted:#5d6b66; --line:#d9dfdc; --bg:#fbfaf6; --accent:#14564a; --warn:#8a5a00; --bad:#a3302a; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:24px 16px 64px; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  main { max-width:1180px; margin:0 auto; }
+  h1 { font-size:26px; margin:0 0 4px; }
+  h2 { font-size:20px; margin:40px 0 10px; padding-top:12px; border-top:1px solid var(--line); }
+  p.meta { color:var(--muted); margin:0 0 16px; }
+  table { width:100%; border-collapse:collapse; margin:8px 0 16px; font-size:13.5px; }
+  th, td { border:1px solid var(--line); padding:6px 8px; vertical-align:top; text-align:left; }
+  th { background:#eef1ee; font-weight:600; }
+  .wrap { overflow-x:auto; }
+  .sev-errors { color:var(--bad); font-weight:600; }
+  .sev-slow { color:var(--warn); font-weight:600; }
+  .sev-polish { color:var(--muted); font-weight:600; }
+  .tag { font-size:12px; border:1px solid var(--line); border-radius:3px; padding:0 4px; white-space:nowrap; }
+  figure { margin:12px 0; } figure img { max-width:100%; border:1px solid var(--line); }
+  figcaption { font-size:12.5px; color:var(--muted); }
+  .shots { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
+  .shots img { width:100%; height:auto; }
+  .note { background:#fff6e0; border:1px solid #e8d49a; padding:10px 12px; border-radius:4px; }
+  ul, ol { padding-left:22px; }
+  code { background:#eef1ee; padding:0 3px; border-radius:3px; font-size:12.5px; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>UX audit: Today (workspace landing dashboard)</h1>
+<p class="meta">Route <code>/en/today</code> &middot; hosted staging (main 4b15c30) &middot; 2026-10-11, about 15:05&ndash;15:15 Istanbul &middot; persona: duty manager opening the shift &middot; roles looked at: Manager (primary), Front Desk, Housekeeping, Owner &middot; locales: EN, TR, AR &middot; widths: 1280, 768, 375.</p>
+
+<div class="note">
+<strong>Disclosure about audit mode.</strong> Early on I pressed the <em>Check in</em> button on the arrival row of Today as Manager, expecting it to open a dialog. In the product it is a direct form submit (<code>CheckInAction</code>, one press). The server refused it ("That Reservation cannot be checked in."). Nothing persisted that I can see: Arrivals still read 0 / 1 checked in on every later load, as Manager, Front Desk, Housekeeping and Owner. I cannot see the audit log's view of a refused attempt, so if one was recorded it is mine. I did not press it again, and I pressed no other command button (Check out, Mark inspected, New booking submit). I also ran the browser offline for about 2.5 minutes on my own page (read-only, restored afterwards).
+</div>
+
+<h2>1. Verdict</h2>
+<ol>
+<li><strong>Could the duty manager use it unaided?</strong> Mostly yes. The first screen answers "what needs me" in about two cards, every number is a link, the clock and freshness line are honest, and nothing needed training. I did not hit a dead end or a raw error code.</li>
+<li><strong>Biggest risk: the numbers disagree with each other or mislead.</strong> "Expected tonight 33%" and "Booked ahead, Oct 11: 67%" sit on the same screen for the same night. "Ready rooms 1 / 3" counts a room with a Guest still in it, so the manager is told a room is ready when no vacant ready room exists for the waiting arrival.</li>
+<li><strong>"What happened overnight" is not answerable.</strong> Recent activity is the five newest records of any age (the visible ones go back to Sep 29), with no booking or Guest named, so it never reads as "since I was last here".</li>
+<li><strong>Quick actions are a mixed bag.</strong> The one I tried from the arrival row was refused with a reason-free sentence, while the row itself labelled the room "Not ready".</li>
+<li>The page left open all shift does not warn when the browser is offline (it only warns when a request fails), so a stale 15:12 reading can sit under a 15:40 clock with no warning.</li>
+</ol>
+
+<h2>2. Findings</h2>
+<p class="meta">Severity scale: blocks work / causes errors / slows me down / polish. "Verified" = I saw it. "Inferred" = read in code or docs. Data state found: Property "Demo Otel İstanbul", 3 rooms, 1 Guest in house (overdue since Oct 1), 1 arrival today into a room that is clean and awaiting inspection, 0 maintenance requests, 0 charges, one Property per account (so no switcher and no Organization strip). No finding below is rated "blocks work".</p>
+
+<div class="wrap">
+<table>
+<thead><tr><th>ID</th><th>Severity</th><th>Where</th><th>What happened</th><th>What I expected</th><th>Suggested fix</th><th>Effort</th><th>Evidence</th><th>Basis</th></tr></thead>
+<tbody>
+<tr><td>TODAY-01</td><td class="sev-errors">causes errors</td>
+<td>/en/today &middot; Manager &middot; 1 in house, 1 arrival to come, 1 overdue</td>
+<td>Occupancy tile says "Expected tonight 33%". The Booked ahead card, same page, says Oct 11 = 67% (2 of 3 units held). Arithmetic: expected tonight = in house 1 + to arrive 1 &minus; due out 1 (the overdue Guest counted as leaving) = 1 of 3. Booked ahead counts the overdue Guest's Stay as still holding the night.</td>
+<td>One number for tonight, or a visible reason why they differ.</td>
+<td>Use one definition for both; if "overdue leaves tonight" is an assumption, say so in the tile ("assumes the overdue Guest leaves").</td><td>M</td>
+<td><a href="01-manager-desktop.png">01</a>; reproduced Y (three loads)</td><td>verified numbers; cause inferred from <code>today-derive.ts</code> and TD-S1-20</td></tr>
+
+<tr><td>TODAY-02</td><td class="sev-errors">causes errors</td>
+<td>/en/today &middot; Manager, Owner, Housekeeping &middot; Rooms tile and card</td>
+<td>"Rooms 1 / 3 READY ROOMS" and "Ready 1". The only room counted ready is 102, which has a Guest in house (the overdue one). Following the figure (<code>housekeeping?show=ready</code>) lists exactly 102, "Inspected", "Guest in house". There is no vacant ready room for the arrival waiting for 201.</td>
+<td>"Ready" on a landing page means I can put a Guest in it. Ready and vacant.</td>
+<td>Count ready and unoccupied, or label it "Inspected" and add a "free and ready" figure. Front Desk's tile ("Rooms ready for waiting arrivals 0 / 1") already gets this right.</td><td>S</td>
+<td><a href="02-rooms-tile-landing.png">02</a> (landing list, filter says "1 ready"); the single-row <code>show=ready</code> list was read as text, not screenshotted</td><td>verified</td></tr>
+
+<tr><td>TODAY-03</td><td class="sev-errors">causes errors</td>
+<td>/en/today &middot; Manager &middot; Today's movements, arrival row (room 201 "Not ready")</td>
+<td>One press of <strong>Check in</strong> returned the red sentence "That Reservation cannot be checked in." with no reason. The row had offered the action and carried a "Not ready" badge. By design a not-ready room should answer with a warning and a "Check in anyway" choice (<code>notReady</code> outcome), so this was the generic <code>refused</code> outcome, which the code says covers cancelled, out of reach, already arrived and gone. The Arrivals page also offers Check in for the same row.</td>
+<td>Either the "room not ready, check in anyway?" step, or a plain reason (permission, state, blocker). A button that is offered should not end in a reason-free refusal.</td>
+<td>Find out why the offered action was refused for this role/booking; map that cause to a specific message (the server deliberately merges reasons to avoid leaking existence, but a viewer who can see the row can be told). Docs TD-S2-01 describe a dialog; the product is a one-press button, so align one of them.</td><td>M</td>
+<td><a href="03-checkin-from-today-dialog.png">03</a>; reproduced <strong>N</strong> (pressed once, not repeated because pressing it again is an action)</td><td>verified outcome; <em>unknown</em> why it was refused</td></tr>
+
+<tr><td>TODAY-04</td><td class="sev-errors">causes errors</td>
+<td>/en/finance &middot; Housekeeping &middot; reached from the rail</td>
+<td>Today deliberately sends no money to Housekeeping (TD-S1-03), but the same account opens Finance and sees a Folio list with the Guest name (102, ahmed) and a balance column (TRY 0.00). The rail also offers Finance, People, HR, Analytics to this role.</td>
+<td>Either the role may read Folios (then Today is the odd one) or the Finance route refuses it.</td>
+<td>Owner decision on whether Housekeeping may read Folios; make Today and Finance agree. This is another page's behaviour, noted because it undermines the "hidden on Today" promise.</td><td>unknown</td>
+<td>read as text only, no screenshot; reproduced Y (once, via navigation)</td><td>verified page renders; <em>unknown</em> whether intended</td></tr>
+
+<tr><td>TODAY-05</td><td class="sev-slow">slows me down</td>
+<td>/en/today &middot; Manager &middot; Recent activity</td>
+<td>Five newest records of any age. Right now: one reservation taken today, then three "Role changed" from Sep 29/30 and one "Departure changed" from Sep 29. Entries do not say which booking, Guest or person ("Reservation taken" by "You" tells me nothing new; "Role changed" does not say whose). There is no "since yesterday" or "since I last looked". Actors read "You" (own) but the Owner sees the same entries as "albaraa@prizic.com", and Front Desk shows as an email while the greeting uses a display name.</td>
+<td>The 07:30 question is "what happened overnight". I expect only the last 12&ndash;24 h, grouped, with the booking reference or Guest and the staff display name.</td>
+<td>Window the card to the last day (or since the previous visit); show the subject (reservation code, room) and display name; empty state "Nothing since yesterday evening".</td><td>M</td>
+<td><a href="01-manager-desktop.png">01</a>; reproduced Y; Owner view read as text</td><td>verified</td></tr>
+
+<tr><td>TODAY-06</td><td class="sev-slow">slows me down</td>
+<td>/en/today &middot; Manager, Front Desk &middot; "Needs attention", room 201</td>
+<td>"Room not ready. Arriving today; the room is not ready yet." The Housekeeping board shows 201 is Clean and merely <em>waiting for inspection</em>: one tap for someone, not a cleaning job. The card does not say which, and links to Arrivals, not the board, for Manager/Front Desk. For Housekeeping the same fact appears twice (attention card and "Clean these first").</td>
+<td>"201 clean, waiting for inspection" and the action that fixes it.</td>
+<td>Put the reason in the sentence (dirty / awaiting inspection / being cleaned). For housekeeping, drop the duplicate or fold it into the clean-first row.</td><td>S</td>
+<td><a href="01-manager-desktop.png">01</a>, <a href="11-housekeeping.png">11</a>; reproduced Y</td><td>verified</td></tr>
+
+<tr><td>TODAY-07</td><td class="sev-slow">slows me down</td>
+<td>/en/today &middot; Manager &middot; page left open, browser offline</td>
+<td>I took my tab offline for about 2.5 minutes. The freshness line stayed "Updated 15:12" in the normal muted style while the clock reached 15:14. The warning pill from TD-S1-25 never appeared. On reconnect it refreshed on its own (to 15:14). The pill appears only after a request fails; while the browser is offline the refresh is paused rather than failing.</td>
+<td>A screen left open all shift must say it is not live as soon as it stops being live.</td>
+<td>Treat a paused or offline refresh as stale (use the query's fetch status / online state), and use the same pill.</td><td>S</td>
+<td><a href="12-offline-stale.png">12</a> (taken at the 375-wide layout, shows "Updated 15:12" under a 15:13 clock, no warning); reproduced Y (one run)</td><td>verified</td></tr>
+
+<tr><td>TODAY-08</td><td class="sev-slow">slows me down</td>
+<td>/en/today &middot; Manager &middot; Departures tile and tab</td>
+<td>Tile reads "0 / 0 CHECKED OUT" with a small "1 overdue" under it; the movements tab says "Departures &middot; 1". The guest has been overdue since Oct 1 (ten days) but the red badge only says "Oct 1", and the attention card only "Was due to leave on Oct 1". A first glance reads "no departures".</td>
+<td>"1 to leave, overdue 10 days".</td>
+<td>Include overdue in the headline number or colour the tile; say "10 days overdue".</td><td>S</td>
+<td><a href="01-manager-desktop.png">01</a>, <a href="04-departures-tab.png">04</a>; reproduced Y</td><td>verified</td></tr>
+
+<tr><td>TODAY-09</td><td class="sev-slow">slows me down</td>
+<td>/en/today &middot; Manager &middot; Maintenance card</td>
+<td>Open requests, New, In progress, Waiting for parts and Out of order all link to the same unfiltered <code>/maintenance?property=...</code>. Rooms card figures do narrow (<code>?show=ready</code>, <code>awaiting_inspection</code>, ...), so the page has two behaviours. (All figures are 0 on staging, so the effect on a busy day is inferred.)</td>
+<td>A figure opens exactly the rows it counted (TD-S5-01 intent).</td>
+<td>Add a status filter to the maintenance board and link each figure to it.</td><td>M</td>
+<td>link targets in snapshot; reproduced Y</td><td>hrefs verified; busy-day effect inferred</td></tr>
+
+<tr><td>TODAY-10</td><td class="sev-slow">slows me down</td>
+<td>/en/today &middot; Manager at 375 px and 768 px</td>
+<td>At 375 the page title disappears, attention cards fill the first screen, and the four headline figures (occupancy, arrivals, departures, rooms) are at the very bottom, after Charges today, about 2,900 px down. The bottom bar shows 5 of 14 destinations with clipped labels ("Front Offi...", "Guest Exp...", "Maintena..."). At 768 the breadcrumb truncates to "WORKSPACE &gt; T...". No horizontal scroll at either width (measured: scrollWidth = clientWidth).</td>
+<td>On a phone the shift's headline numbers near the top.</td>
+<td>Reorder on small screens (figures two across directly under attention), shorten bottom-bar labels, let the breadcrumb keep the page name.</td><td>M</td>
+<td><a href="05-manager-375.png">05</a> (full-page capture, the fixed bar overlaps content; that overlap is a capture artefact), <a href="06-manager-375-viewport.png">06</a>, <a href="07-manager-768.png">07</a>; reproduced Y</td><td>verified; order matches TD-S1-28 as written, so this is a design call</td></tr>
+
+<tr><td>TODAY-11</td><td class="sev-slow">slows me down</td>
+<td>/en/today &middot; Front Desk and Housekeeping tiles</td>
+<td>Front Desk: two tiles both titled "Arrivals" and both "0 / 1": one "checked in", one "rooms ready for waiting arrivals". Housekeeping: two tiles titled "Rooms" ("1 / 3 ready rooms" and "1 arrivals waiting on a room"). The title is the link target, not the meaning, so identical titles with identical numbers read as a duplicate.</td>
+<td>Each tile titled by what it counts.</td>
+<td>Title by the metric ("Rooms ready", "Arrival rooms"), not the destination.</td><td>S</td>
+<td><a href="10-frontdesk.png">10</a>, <a href="11-housekeeping.png">11</a></td><td>verified</td></tr>
+
+<tr><td>TODAY-12</td><td class="sev-polish">polish</td>
+<td>/en, /tr, /ar &middot; header</td>
+<td>The time zone shows as raw "EUROPE/ISTANBUL" in capitals in all three languages.</td><td>"Istanbul time" / "Istanbul saati" / localized name.</td><td>Format with <code>Intl.DisplayNames</code> or drop it when it equals the viewer's own zone.</td><td>S</td>
+<td><a href="01-manager-desktop.png">01</a>, <a href="09-manager-turkish.png">09</a>, <a href="08-manager-arabic.png">08</a></td><td>verified</td></tr>
+
+<tr><td>TODAY-13</td><td class="sev-polish">polish</td>
+<td>/ar/today &middot; Manager</td>
+<td>The Housekeeping rail item reads "خدمة الغرف", which literally means room service. The rail label for HR is cut off ("...الموارد البشرية والر"). The two-part figures (for example 1 / 3) render in bidirectional order, so they read "3 / 1" left to right; I could not tell whether that is the intended Arabic reading. Layout otherwise mirrors correctly and nothing scrolls sideways.</td>
+<td>"التدبير المنزلي" or "الإشراف الداخلي"; labels that fit.</td><td>Have a native reviewer check the rail and fraction order.</td><td>S</td>
+<td><a href="08-manager-arabic.png">08</a></td><td>verified text; translation judgement is mine (inferred); fraction order <em>unknown</em></td></tr>
+
+<tr><td>TODAY-14</td><td class="sev-polish">polish</td>
+<td>/en/today &middot; Manager &middot; Booked ahead</td>
+<td>A bare line with only the first and last nights labelled (67% ... 0%); the other 12 nights are in a visually hidden table. On this data it is a cliff from tonight to nothing. Whether it stays readable with real bookings is inferred.</td><td>Hover/tap values, or a few ticks.</td><td>Add day ticks and a value on hover/focus.</td><td>S</td>
+<td><a href="01-manager-desktop.png">01</a></td><td>verified (this data); busy-day inferred</td></tr>
+
+<tr><td>TODAY-15</td><td class="sev-polish">polish</td>
+<td>/ (root URL)</td>
+<td>Signed out, the root goes to <code>/tr/sign-in</code>; signed in it goes to <code>/tr/today</code> (Turkish default). A manager who works in English lands in Turkish at the bare address and has to switch. I did not test whether a switched language is remembered.</td><td>Last-used language.</td><td>Remember the chosen locale on the device.</td><td>S</td>
+<td>URL observed after navigation (no screenshot of the redirect itself)</td><td>verified redirect; remembering unknown</td></tr>
+
+<tr><td>TODAY-16</td><td class="sev-polish">polish</td>
+<td>/en/today &middot; Today's movements</td>
+<td>The Arrivals / Departures switch is exposed as two buttons with a pressed state (accessibility tree), not as tabs. The Property name in the header is plain text with no switcher affordance when there is only one Property.</td><td>Tabs semantics for keyboard/screen reader; a visible hint when more Properties exist.</td><td>Use tablist roles; keep the switcher visible only when it can switch.</td><td>S</td>
+<td>accessibility snapshot</td><td>verified structure; the multi-Property case <em>unknown</em></td></tr>
+</tbody>
+</table>
+</div>
+
+<p class="meta">Counts: blocks work 0 &middot; causes errors 4 &middot; slows me down 7 &middot; polish 5.</p>
+
+<h2>3. Jobs</h2>
+<p class="meta">Pass/fail tests were written before the attempt. I did not time with a stopwatch; where a time is given it was measured by the page itself, otherwise the cell says "not timed". Clicks are counted from the first page load.</p>
+<div class="wrap">
+<table>
+<thead><tr><th>#</th><th>Job (persona: 07:30 duty manager)</th><th>Pass test (written first)</th><th>Result</th><th>Seconds</th><th>Clicks</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Open the app and know what needs me</td><td>From sign-in I reach Today and can name the open problems without scrolling at 1280 px.</td><td>Pass: two cards, "Room not ready 201" and "Overdue departure 102", above the fold.</td><td>not timed</td><td>0 after sign-in (root URL lands on Today)</td></tr>
+<tr><td>2</td><td>Is anything on fire? (numbers consistent with the lists)</td><td>Each headline figure equals the length of the list it opens.</td><td>Partial. Arrivals 0 / 1, Departures (1 overdue), Rooms all match Arrivals, Departures and Housekeeping. Fails on tonight's occupancy (TODAY-01) and on "ready" (TODAY-02).</td><td>not timed</td><td>5 (one per list)</td></tr>
+<tr><td>3</td><td>What happened overnight</td><td>I can see only what changed since yesterday evening, with who and which booking.</td><td>Fail (TODAY-05).</td><td>not timed</td><td>1 (open the audit log link)</td></tr>
+<tr><td>4</td><td>Deal with the arrival whose room is not ready</td><td>From Today I learn why it is not ready and can move it forward (check in anyway, or send housekeeping).</td><td>Fail. The card gives no reason (TODAY-06); the row's Check in was refused with a reason-free sentence (TODAY-03).</td><td>not timed</td><td>1 (the press I should not have made)</td></tr>
+<tr><td>5</td><td>Clear the overdue departure</td><td>Reach the check-out for 102 in two clicks and see the bill review first.</td><td>Reached the Departures tab and the Check out button in 1 click; <strong>stopped before submit: not persisted</strong>. The bill review is <em>inferred</em> from <code>CheckOutDialog</code> in code.</td><td>not timed</td><td>1</td></tr>
+<tr><td>6</td><td>Empty versus busy day, and large volume</td><td>An empty day reads zero and offers a next step; a busy day does not break layout.</td><td>Cannot create data. Empty/quiet-day behaviour and caps are <em>inferred</em> from code (attention shows 4 then "N more", lists capped at 6, activity at 5, the quiet-day lines in TD-S1-19/23). Seen on this data: zero maintenance, zero charges render as zeros, not hidden.</td><td>n/a</td><td>n/a</td></tr>
+<tr><td>7</td><td>"It is broken and I am under pressure": the page goes stale or the network drops</td><td>The page tells me when it is not live and recovers by itself.</td><td>Partial. Recovers by itself on reconnect (verified). Does not warn while offline (TODAY-07). Online refresh runs every 60 s (verified: 15:07 to 15:08).</td><td>about 60 s refresh, 150 s offline test</td><td>0</td></tr>
+<tr><td>8</td><td>Another role: what do Front Desk, Housekeeping and Owner see, and what is hidden without explanation?</td><td>Each role sees a sensible page, and withheld cards do not leave holes.</td><td>Mostly pass. Front Desk: movements, rooms, no maintenance/activity/charges. Housekeeping: attention without the Guest name, clean-first, no money. Owner: same as Manager. The absence is silent: no card says "not shown for your role". By design (TD-S1-03/04), but the viewer cannot tell hidden from zero. Finance exposure from Housekeeping: TODAY-04.</td><td>not timed</td><td>3 sign-ins</td></tr>
+<tr><td>9</td><td>First-time setup / Property switcher</td><td>With several Properties, switch and keep the Property in every link.</td><td>Not testable: every test account reaches one Property. Property is carried in every link I read (<code>?property=</code>) and an unknown <code>?property=</code> goes back to Today (verified). The strip and switcher are <em>unknown</em>.</td><td>n/a</td><td>n/a</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>4. Top changes</h2>
+<ol>
+<li><strong>I see one number for tonight.</strong> Resolve Expected tonight versus Booked ahead (TODAY-01).</li>
+<li><strong>"Ready" means I can put a Guest in it.</strong> Count ready and vacant rooms only (TODAY-02).</li>
+<li><strong>A button on Today never ends in a reason-free refusal.</strong> Offer the not-ready path or say why (TODAY-03).</li>
+<li><strong>I see overnight changes in the first screen.</strong> Window activity to the last day, name the booking and the person (TODAY-05).</li>
+<li><strong>The attention card tells me what to do about the room.</strong> Name the reason (awaiting inspection vs dirty) (TODAY-06).</li>
+<li><strong>I know when the screen has stopped being live.</strong> Show the stale pill when the refresh is paused offline (TODAY-07).</li>
+<li><strong>An overdue guest cannot hide in "0 / 0".</strong> Overdue in the headline, with days overdue (TODAY-08).</li>
+<li><strong>On a phone the shift's numbers are at the top</strong> (TODAY-10).</li>
+<li><strong>Each tile says what it counts</strong> (TODAY-11).</li>
+<li>Maintenance figures open the rows they count (TODAY-09).</li>
+</ol>
+
+<h2>5. Inconsistencies with sibling screens and features</h2>
+<ul>
+<li>Housekeeping page says "Ready to let" / "Clean + Waiting for inspection"; Today says "Ready" / "Clean, awaiting inspection" and "Ready rooms". Same facts, three phrasings (verified).</li>
+<li>Housekeeping's own "Ready to let 1" also counts occupied 102, so TODAY-02 is inherited from that screen's definition, not new on Today.</li>
+<li>Departures page has "Due and overdue / Everybody in house" and a "Left today" section (0, "Nobody has left yet today"). Today's tile denominator excludes the overdue Guest that the list includes.</li>
+<li>Arrivals shows balance "No Folio" for 201; Today's arrival row shows no balance. Not a defect, but Today never says a Folio is missing.</li>
+<li>The Housekeeping page has the back button (seen in screenshot 02); Today (the root) correctly has none (ADR 0035). The Today header actor labels differ from other lists: raw emails here, display names in the greeting.</li>
+<li>Rail shows 14 destinations to Manager but the movements, rooms, maintenance cards cover only 5; Housekeeping sees Finance/People/HR/Analytics in the rail (see TODAY-04).</li>
+<li>Check in from Today is a one-press button; the feature doc (TD-S2-01) calls it "the Arrivals dialog". Check out does open a dialog, so the two commands behave differently under the same pattern.</li>
+</ul>
+
+<h2>6. Not built / needs backend work</h2>
+<ul>
+<li>Open at the booking or Stay (attention items and rows open the list, not the record): deferred, <code>TD-S2-05</code>, <code>TD-DEF-09</code>.</li>
+<li>Guest and Resident requests, shift handover notes, inventory, approvals, integrations, revenue tile, customisable layout, same-day late check-out: deferred rows <code>TD-DEF-01</code> to <code>TD-DEF-07</code>; Guest requests on Today: proposed <code>TD-S6-01</code>.</li>
+<li>Days waiting to be closed (Close the day backlog) are not an attention item on Today. I found no row for it in <code>today-dashboard/edge-cases.csv</code> and no reference in <code>today-derive.ts</code>. <em>Inferred</em>; I did not check the Close the day screen's own state.</li>
+<li>"Since last visit" / overnight window for activity: no row in the edge cases (the closest, <code>TD-S3-01</code>, says "five newest").</li>
+<li>Multi-Property behaviour (switcher, Organization strip <code>TD-S3-03</code>): documented as built, not exercised here because the test accounts reach one Property.</li>
+</ul>
+
+<h2>7. What already works well and must not regress</h2>
+<ul>
+<li>Every figure is a link and carries <code>?property=</code>; narrowed lists (<code>?show=ready</code> etc.) land with a notice naming the filter and "Show all" (verified, <a href="02-rooms-tile-landing.png">02</a>).</li>
+<li>Arrivals, Departures and Rooms figures match their lists to the row (verified).</li>
+<li>Role shaping works as documented: Front Desk and Housekeeping get different leads; Housekeeping's attention card omits the Guest; no money shown without the finance permission (verified on Today).</li>
+<li>Auto-refresh every 60 s, and the page recovers on its own after the network returns (verified).</li>
+<li>Unknown <code>?property=</code> redirects back to Today on a real Property instead of showing another Property's day (verified).</li>
+<li>All three languages render fully; Arabic mirrors by layout alone with no sideways scroll; Turkish and English copy is plain (verified, <a href="08-manager-arabic.png">08</a>, <a href="09-manager-turkish.png">09</a>).</li>
+<li>No horizontal scroll at 375 or 768 px (measured).</li>
+<li>Quiet and zero states show as zeros and calm lines instead of vanishing cards (zero maintenance and zero charges visible on this data).</li>
+</ul>
+
+<h2>Screenshots</h2>
+<div class="shots">
+<figure><a href="01-manager-desktop.png"><img src="01-manager-desktop.png" alt="Manager, desktop"></a><figcaption>01 Manager, desktop, EN</figcaption></figure>
+<figure><a href="02-rooms-tile-landing.png"><img src="02-rooms-tile-landing.png" alt="Rooms tile landing"></a><figcaption>02 Rooms tile landing on Housekeeping</figcaption></figure>
+<figure><a href="03-checkin-from-today-dialog.png"><img src="03-checkin-from-today-dialog.png" alt="Check in refusal"></a><figcaption>03 Check in refusal on Today (TODAY-03)</figcaption></figure>
+<figure><a href="04-departures-tab.png"><img src="04-departures-tab.png" alt="Departures tab"></a><figcaption>04 Departures tab</figcaption></figure>
+<figure><a href="05-manager-375.png"><img src="05-manager-375.png" alt="375 px full page"></a><figcaption>05 375 px, full page</figcaption></figure>
+<figure><a href="06-manager-375-viewport.png"><img src="06-manager-375-viewport.png" alt="375 px viewport"></a><figcaption>06 375 px, first screen</figcaption></figure>
+<figure><a href="07-manager-768.png"><img src="07-manager-768.png" alt="768 px"></a><figcaption>07 768 px</figcaption></figure>
+<figure><a href="08-manager-arabic.png"><img src="08-manager-arabic.png" alt="Arabic"></a><figcaption>08 Arabic (RTL)</figcaption></figure>
+<figure><a href="09-manager-turkish.png"><img src="09-manager-turkish.png" alt="Turkish"></a><figcaption>09 Turkish</figcaption></figure>
+<figure><a href="10-frontdesk.png"><img src="10-frontdesk.png" alt="Front desk"></a><figcaption>10 Front Desk</figcaption></figure>
+<figure><a href="11-housekeeping.png"><img src="11-housekeeping.png" alt="Housekeeping"></a><figcaption>11 Housekeeping</figcaption></figure>
+<figure><a href="12-offline-stale.png"><img src="12-offline-stale.png" alt="Offline, no warning"></a><figcaption>12 Offline for 2+ minutes, no warning (TODAY-07)</figcaption></figure>
+</div>
+
+</main>
+</body>
+</html>

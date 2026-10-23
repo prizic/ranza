@@ -3,7 +3,15 @@ import path from "node:path";
 import { expect } from "@playwright/test";
 import { test } from "./hydration";
 import { psql } from "./local-database";
-import { aStaffMemberHolding, signIn } from "./front-desk";
+import {
+  aStaffMember,
+  aStaffMemberHolding,
+  openTheCalendar,
+  pickDay,
+  pickUnit,
+  propertyDay,
+  signIn,
+} from "./front-desk";
 import {
   aBacklog,
   aBooking,
@@ -154,24 +162,28 @@ test.describe("a backlog held by one overdue Guest (RANZ-63)", () => {
     // One reason, carried across every waiting day.
     await page.getByRole("button", { name: "Close all 4 days" }).click();
     const dialog = page.getByRole("dialog");
-    await expect(dialog.getByText("Still open:")).toBeVisible();
+    await expect(
+      dialog.getByRole("heading", { name: /still open/ }),
+    ).toBeVisible();
     await expect(dialog).toContainText(overdue.guestName);
     await expect(dialog).toContainText(
       "a booking with no price is not charged",
     );
     await dialog
-      .getByLabel("Reason")
+      .getByLabel("Why close with items open?")
       .fill("Guest overstayed, sorted at the desk");
     await dialog.getByRole("button", { name: "Close all 4 days" }).click();
-    await expect(page.getByText(/ is still open$/)).toBeVisible();
+    await expect(dialog).toBeHidden();
 
-    expect(
-      psql(
-        `select count(*) from public.business_day_closes
-          where property_id = '${propertyId}'
-            and reason = 'Guest overstayed, sorted at the desk'`,
-      ),
-    ).toBe("4");
+    await expect
+      .poll(() =>
+        psql(
+          `select count(*) from public.business_day_closes
+            where property_id = '${propertyId}'
+              and reason = 'Guest overstayed, sorted at the desk'`,
+        ),
+      )
+      .toBe("4");
   });
 
   test("a_backlog_held_by_different_items_each_day_offers_no_shared_reason: the days are listed with what holds each", async ({
@@ -233,7 +245,9 @@ test.describe("a backlog held by one overdue Guest (RANZ-63)", () => {
     await row.getByRole("button", { name: /^Check .* out$/ }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toContainText(overdue.guestName);
-    await dialog.getByRole("button", { name: "Confirm check-out" }).click();
+    await dialog
+      .getByRole("button", { name: "Check out", exact: true })
+      .click();
     // The page behind an open dialog is hidden from the accessibility tree, so
     // an empty list means nothing until the dialog has gone.
     await expect(dialog).toBeHidden();
@@ -350,7 +364,7 @@ test.describe("departures say what a Guest owes and what check-out will do (RANZ
     const dialog = page.getByRole("dialog");
     await expect(dialog).toContainText("3 days overdue");
     await expect(dialog).toContainText("marked dirty");
-    await expect(dialog).toContainText("Collect payment on the Folio first");
+    await expect(dialog).toContainText("Due at check-out");
     // The amount the dialog asks about is the amount the row showed.
     await expect(dialog).toContainText(rowAmount!);
     const folio = dialog.getByRole("link", {
@@ -364,7 +378,9 @@ test.describe("departures say what a Guest owes and what check-out will do (RANZ
     await dialog
       .getByLabel("Why the balance stays open")
       .fill("Guest will settle by transfer");
-    await dialog.getByRole("button", { name: "Confirm check-out" }).click();
+    await dialog
+      .getByRole("button", { name: "Check out", exact: true })
+      .click();
     await expect(dialog).toBeHidden();
 
     // Where the room was left: dirty, said beside the Guest who left it.
@@ -393,9 +409,7 @@ test.describe("Reservations take a booking and read one (RANZ-58)", () => {
     await page.goto(`/en/reservations?property=${propertyId}`);
     await page.getByRole("button", { name: "New reservation" }).click();
     const dialog = page.getByRole("dialog", { name: "New reservation" });
-    await dialog
-      .getByLabel("Guest", { exact: true })
-      .fill(known.guestName.slice(0, -3));
+    await dialog.getByLabel("Guest name").fill(known.guestName.slice(0, -3));
     const suggestion = dialog.getByRole("button", {
       name: new RegExp(known.guestName),
     });
@@ -409,7 +423,7 @@ test.describe("Reservations take a booking and read one (RANZ-58)", () => {
     await expect(dialog.getByLabel("Phone")).toHaveValue(`+90 ${number}`);
 
     // A number of the same Guest, typed by its digits, finds them too.
-    await dialog.getByLabel("Guest", { exact: true }).fill(number);
+    await dialog.getByLabel("Guest name").fill(number);
     await expect(
       dialog.getByRole("button", { name: new RegExp(known.guestName) }),
     ).toBeVisible();
@@ -425,7 +439,7 @@ test.describe("Reservations take a booking and read one (RANZ-58)", () => {
     await page.goto(`/en/reservations?property=${propertyId}`);
     await page.getByRole("button", { name: "New reservation" }).click();
     const dialog = page.getByRole("dialog", { name: "New reservation" });
-    const guest = dialog.getByLabel("Guest", { exact: true });
+    const guest = dialog.getByLabel("Guest name");
     await guest.fill("Half Typed");
 
     await page.keyboard.press("Escape");
@@ -444,7 +458,7 @@ test.describe("Reservations take a booking and read one (RANZ-58)", () => {
     await expect(
       page
         .getByRole("dialog", { name: "New reservation" })
-        .getByLabel("Guest", { exact: true }),
+        .getByLabel("Guest name"),
     ).toHaveValue("");
   });
 
@@ -470,14 +484,15 @@ test.describe("Reservations take a booking and read one (RANZ-58)", () => {
     ).toBe("");
 
     // The stay dates come before the room, so availability can mark it.
-    const labels = await dialog.locator("label").allInnerTexts();
-    expect(labels.indexOf("Stay dates")).toBeLessThan(labels.indexOf("Unit"));
-
-    await dialog.getByLabel("Unit").click();
-    await page.getByRole("option", { name: new RegExp(unit.unitName) }).click();
+    await expect(
+      dialog.getByText("Choose dates first to see free units"),
+    ).toBeVisible();
+    await openTheCalendar(page, dialog);
+    await pickDay(page, propertyDay(propertyId, 70));
+    await pickDay(page, propertyDay(propertyId, 71));
+    await pickUnit(dialog, unit.unitName);
     const notice = dialog.locator("p", { hasText: /No price is set for/ });
     await expect(notice).toBeVisible();
-    await expect(notice).toHaveClass(/warning/);
   });
 
   test("a_booking_is_found_by_the_dates_and_the_number_a_desk_types", async ({
@@ -538,7 +553,9 @@ test.describe("Reservations take a booking and read one (RANZ-58)", () => {
     const dialog = page.getByRole("dialog", { name: "Change booking" });
     await expect(dialog).toBeVisible();
     // The room is the editable field, not also a read-only block above it.
-    await expect(dialog.getByText("Unit", { exact: true })).toHaveCount(1);
+    await expect(dialog.getByText("Which unit?", { exact: true })).toHaveCount(
+      1,
+    );
     await expect(
       dialog.getByRole("button", { name: "Keep the booking" }),
     ).toBeVisible();
