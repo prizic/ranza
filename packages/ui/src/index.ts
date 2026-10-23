@@ -70,6 +70,7 @@ export {
   SuggestionRow,
   TickRow,
   dialogFrameClassName,
+  sheetFrameClassName,
   fieldClassName,
   OptionList,
   StayRuler,

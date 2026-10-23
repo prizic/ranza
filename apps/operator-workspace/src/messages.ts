@@ -1941,6 +1941,11 @@ export interface Messages {
     previewSleeps: string;
     previewBeds: string;
     previewIncomplete: string;
+    addHeading: string;
+    addWhatTitle: string;
+    addNumbersTitle: string;
+    addWhereTitle: string;
+    addHintFirstNumber: string;
     addCount: string;
     firstNumberInvalid: string;
     countInvalid: string;
@@ -5113,6 +5118,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{count, plural, one {odada 1 yatak} other {odada # yatak, A – {last}}}",
       previewIncomplete:
         "Ne oluşturulacağını görmek için ilk oda numarasını girin.",
+      addHeading: "Hangi odaları ekliyorsunuz?",
+      addWhatTitle: "Bunlar nedir?",
+      addNumbersTitle: "Hangi numaralar?",
+      addWhereTitle: "Neredeler?",
+      addHintFirstNumber: "İlk oda numarasını girin",
       addCount: "{count, plural, other {# oda ekle}}",
       firstNumberInvalid:
         "Yalnızca rakam kullanın (en çok 8 hane), örneğin 101. Harf ve tire kabul edilmez.",
@@ -8487,6 +8497,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{count, plural, one {1 bed per room} other {# beds per room, A to {last}}}",
       previewIncomplete:
         "Enter the first room number to see what will be created.",
+      addHeading: "Which rooms are you adding?",
+      addWhatTitle: "What are they?",
+      addNumbersTitle: "Which numbers?",
+      addWhereTitle: "Where are they?",
+      addHintFirstNumber: "Enter the first room number",
       addCount: "{count, plural, one {Add # room} other {Add # rooms}}",
       firstNumberInvalid:
         "Use digits only, 1 to 8 of them, for example 101. Letters and dashes are not accepted.",
@@ -11801,6 +11816,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       previewBeds:
         "{count, plural, one {سرير واحد في كل غرفة} two {سريران في كل غرفة} few {# أسرّة في كل غرفة، من A إلى {last}} many {# سريرًا في كل غرفة، من A إلى {last}} other {# سرير في كل غرفة، من A إلى {last}}}",
       previewIncomplete: "أدخل رقم أول غرفة لترى ما سيُنشأ.",
+      addHeading: "ما الغرف التي تضيفها؟",
+      addWhatTitle: "ما هي؟",
+      addNumbersTitle: "أي أرقام؟",
+      addWhereTitle: "أين توجد؟",
+      addHintFirstNumber: "أدخل رقم أول غرفة",
       addCount:
         "{count, plural, one {إضافة غرفة} two {إضافة غرفتين} few {إضافة # غرف} many {إضافة # غرفة} other {إضافة # غرفة}}",
       firstNumberInvalid:

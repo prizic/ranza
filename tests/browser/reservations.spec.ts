@@ -318,7 +318,7 @@ test("a_row_opens_the_bookings_detail_sheet: and the sheet closes back to the li
 
   // Pressed on text in the row, not on a control inside it.
   await row.getByText(booking.unitName).click();
-  const sheet = page.getByRole("dialog", { name: guestName });
+  const sheet = page.getByRole("dialog", { name: "Reservation details" });
   await expect(sheet).toBeVisible();
   await expect(sheet.getByText("Stay timeline")).toBeVisible();
   await expect(sheet.getByText(booking.reference)).toBeVisible();
@@ -374,7 +374,9 @@ test("choosing_from_a_rows_menu_opens_that_action_and_not_the_sheet", async ({
   // on the row either.
   await change.getByText("Stay dates").click();
   await expect(change).toBeVisible();
-  await expect(page.getByRole("dialog", { name: guestName })).toBeHidden();
+  await expect(
+    page.getByRole("dialog", { name: "Reservation details" }),
+  ).toBeHidden();
 });
 
 /**
