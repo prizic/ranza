@@ -92,13 +92,13 @@ test("a price is set on Configuration, and the booking dialog quotes it", async 
   await page.goto(`/en/reservations?property=${propertyId}`);
   await page.getByRole("button", { name: "New reservation" }).click();
   const dialog = page.getByRole("dialog", { name: "New reservation" });
-  await dialog.getByLabel("Unit").click();
-  await page.getByRole("option", { name: new RegExp(room) }).click();
-  await expect(dialog.getByText(/1,500\.50 a night$/)).toBeVisible();
-
   await dialog.getByRole("button", { name: /^Arrival/ }).click();
   await pickDay(page, propertyDay(3));
   await pickDay(page, propertyDay(5));
+  await dialog
+    .getByRole("searchbox", { name: "Search by unit number or type" })
+    .fill(room);
+  await dialog.getByRole("radio", { name: new RegExp(room) }).check();
   await expect(
     dialog.getByText(/1,500\.50 a night · 2 nights: .*3,001\.00 in total$/),
   ).toBeVisible();
@@ -112,8 +112,13 @@ test("a kind with no price says so before a booking is taken", async ({
   await page.goto(`/en/reservations?property=${propertyId}`);
   await page.getByRole("button", { name: "New reservation" }).click();
   const dialog = page.getByRole("dialog", { name: "New reservation" });
-  await dialog.getByLabel("Unit").click();
-  await page.getByRole("option", { name: new RegExp(room) }).click();
+  await dialog.getByRole("button", { name: /^Arrival/ }).click();
+  await pickDay(page, propertyDay(3));
+  await pickDay(page, propertyDay(5));
+  await dialog
+    .getByRole("searchbox", { name: "Search by unit number or type" })
+    .fill(room);
+  await dialog.getByRole("radio", { name: new RegExp(room) }).check();
   await expect(
     dialog.getByText(
       "No price is set for Room here, so this booking is taken without one and its nights are not charged.",
