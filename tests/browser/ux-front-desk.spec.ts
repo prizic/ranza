@@ -714,6 +714,12 @@ test.describe("Arrivals work in the order a desk works them (RANZ-60)", () => {
     await page
       .getByRole("button", { name: `Check in ${leading.guestName}` })
       .click();
+    // Asked after the list has been read again, not in the moment before: the
+    // refresh that shows the Guest checked in re-renders every row, and focus
+    // that is on the next check-in only until then is focus that was lost.
+    await expect(
+      page.getByRole("row").filter({ hasText: leading.guestName }),
+    ).toContainText("Checked in");
     await expect(
       page.getByRole("button", { name: `Check in ${following.guestName}` }),
     ).toBeFocused();

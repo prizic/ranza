@@ -204,6 +204,38 @@
   --font-display: var(--font-display-stack);
 }
 
+/*
+ * The night desk of Today (docs/features/today-layouts): the same tokens,
+ * re-pointed for one subtree, so every component inside it reads them as it
+ * would anywhere else. Near-black with a single mint accent; the red, amber
+ * and blue keep their meaning and are lifted to read on the dark ground.
+ */
+[data-surface="night"] {
+  --background: hsl(170 40% 6%);
+  --foreground: hsl(40 35% 93%);
+  --card: hsl(170 30% 9%);
+  --card-foreground: hsl(40 35% 93%);
+  --muted: hsl(170 25% 11%);
+  --muted-foreground: hsl(170 8% 62%);
+  --border: hsl(170 18% 17%);
+  --line: hsl(170 18% 17%);
+  --line-strong: hsl(170 15% 26%);
+  --primary: hsl(152 52% 62%);
+  --primary-foreground: hsl(170 60% 8%);
+  --accent-background: hsl(152 40% 14%);
+  --accent-foreground: hsl(152 52% 62%);
+  --success: hsl(152 52% 62%);
+  --success-soft: hsl(152 40% 16%);
+  --warning: hsl(38 75% 66%);
+  --warning-soft: hsl(38 40% 16%);
+  --danger: hsl(6 70% 68%);
+  --danger-soft: hsl(6 35% 17%);
+  --info: hsl(205 55% 70%);
+  --info-soft: hsl(205 35% 16%);
+  --ring: hsl(152 52% 62%);
+  color: var(--foreground);
+}
+
 /* The sign-in screen's entrance, once, on arrival, as keyframes. Removed with every other motion when a reader asks
    for less (see the base layer). */
 @theme {

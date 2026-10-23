@@ -45,6 +45,17 @@ async function signInAs(page: Page, focus: Focus, locale = "en") {
   await expect(page.locator("main")).toContainText(/\d/);
 }
 
+/**
+ * The page is left before its session is taken away. Today is still asking its
+ * own questions when a test is done with it, and one that lands after the
+ * cookies are gone is a 401 this file would count as the page's error — which
+ * it is not: a tab signed out underneath keeps its last good rows.
+ */
+async function signOut(page: Page) {
+  await page.goto("about:blank");
+  await page.context().clearCookies();
+}
+
 async function capture(page: Page, name: string): Promise<void> {
   await page.screenshot({
     path: `docs/evidence/ux-audit/RANZ-57/${name}.png`,
@@ -195,7 +206,7 @@ test("recent activity names who and what about, without an address, and starts f
 
   // A check-in at the desk is the first thing to be recorded since.
   psql("delete from public.auth_rate_limit");
-  await page.context().clearCookies();
+  await signOut(page);
   await signIn(page, day.email.front_desk);
   await page.goto(`/en/arrivals?property=${day.propertyId}`);
   const row = page
@@ -206,7 +217,7 @@ test("recent activity names who and what about, without an address, and starts f
   await expect(row.getByText("Checked in")).toBeVisible();
 
   psql("delete from public.auth_rate_limit");
-  await page.context().clearCookies();
+  await signOut(page);
   await signIn(page, day.email.manager);
   await page.goto(`/en/today?property=${day.propertyId}`);
   const rows = page.getByRole("region", { name: "Recent activity" });

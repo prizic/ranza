@@ -6,8 +6,13 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { directionFor, isSupportedLocale, supportedLocales } from "@ranza/i18n";
 import { DirectionProvider, OverlayLabelsProvider } from "@ranza/ui";
-import { NextIntlClientProvider } from "next-intl";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import {
+  getMessages,
+  getTimeZone,
+  getTranslations,
+  setRequestLocale,
+} from "next-intl/server";
+import { StableIntlProvider } from "../../i18n/stable-intl-provider";
 import { LOCATION_HEADER } from "../../lib/return-path";
 
 /**
@@ -98,6 +103,8 @@ export default async function LocaleLayout({
   // generateStaticParams above would be prerendering nothing.
   setRequestLocale(locale);
   const t = await getTranslations();
+  const messages = await getMessages();
+  const timeZone = await getTimeZone();
 
   return (
     <html
@@ -108,13 +115,17 @@ export default async function LocaleLayout({
       <body>
         {/* The catalogue crosses to the client once, here, rather than
             being handed to each client component as a `copy` prop. */}
-        <NextIntlClientProvider>
+        <StableIntlProvider
+          locale={locale}
+          messages={messages}
+          timeZone={timeZone}
+        >
           <DirectionProvider dir={directionFor(locale)}>
             <OverlayLabelsProvider labels={{ close: t("closeDialog") }}>
               {children}
             </OverlayLabelsProvider>
           </DirectionProvider>
-        </NextIntlClientProvider>
+        </StableIntlProvider>
       </body>
     </html>
   );

@@ -107,3 +107,23 @@ export function zoneName(timeZone: string, locale: SupportedLocale): string {
     .find((part) => part.type === "timeZoneName");
   return name?.value ?? timeZone;
 }
+
+/**
+ * A length of time on the desk's scale, "2h 32m": hours and minutes, however
+ * the language writes them, never seconds and never "0m" beside an hour.
+ */
+export function duration(minutes: number, locale: SupportedLocale): string {
+  const whole = Math.max(0, Math.round(minutes));
+  const unit = (value: number, name: "hour" | "minute") =>
+    new Intl.NumberFormat(locale, {
+      style: "unit",
+      unit: name,
+      unitDisplay: "narrow",
+    }).format(value);
+  const hours = Math.floor(whole / 60);
+  const rest = whole % 60;
+  if (hours === 0) return unit(rest, "minute");
+  return rest === 0
+    ? unit(hours, "hour")
+    : `${unit(hours, "hour")} ${unit(rest, "minute")}`;
+}

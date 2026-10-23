@@ -32,10 +32,12 @@ import {
   TabsTrigger,
 } from "@ranza/ui";
 import { ageSince } from "../../../lib/age";
+import type { ServiceRequestOutcome } from "../../../server/guest-services";
 import { CategoryBadge } from "./category-badge";
 import { PriorityBadge } from "./priority-badge";
 import { RequestActions } from "./request-actions";
 import { RequestAssignee } from "./request-assignee";
+import { RequestOutcome } from "./request-outcome";
 import { RequestStatusBadge } from "./status-badge";
 
 export interface RequestsTableProps {
@@ -100,6 +102,8 @@ export function RequestsTable({
   const t = useTranslations("guestExperience");
   const categories = useTranslations("guestExperience.categories");
   const [tab, setTab] = useState<FilterTab>("open");
+  const [refusal, setRefusal] =
+    useState<ServiceRequestOutcome["status"]>("idle");
   const [query, setQuery] = useState("");
   const [assignee, setAssignee] = useState("all");
   const [category, setCategory] = useState<ServiceRequestCategory | "all">(
@@ -195,7 +199,10 @@ export function RequestsTable({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <Tabs
           value={tab}
-          onValueChange={(val) => setTab(val as FilterTab)}
+          onValueChange={(val) => {
+            setTab(val as FilterTab);
+            setRefusal("idle");
+          }}
           className="w-auto max-w-full"
         >
           <TabsList className="max-w-full justify-start overflow-x-auto">
@@ -279,6 +286,13 @@ export function RequestsTable({
         </div>
       </div>
 
+      {/* The reason a command was refused is kept here, not on the row: the
+          refresh that follows can take the row out of the list, and its reason
+          with it (GX-03, GX-08). */}
+      <div aria-live="polite">
+        <RequestOutcome status={refusal} />
+      </div>
+
       {filtered.length === 0 ? (
         <div className="rounded-lg border border-dashed p-8">{empty}</div>
       ) : (
@@ -325,6 +339,7 @@ export function RequestsTable({
                     <TableCell>
                       <RequestAssignee
                         locale={locale}
+                        onOutcome={setRefusal}
                         mayManage={mayManage}
                         propertyId={propertyId}
                         request={req}
@@ -345,6 +360,7 @@ export function RequestsTable({
                       {mayManage ? (
                         <RequestActions
                           locale={locale}
+                          onOutcome={setRefusal}
                           propertyId={propertyId}
                           request={req}
                         />
@@ -388,6 +404,7 @@ export function RequestsTable({
                   </p>
                   <RequestAssignee
                     locale={locale}
+                    onOutcome={setRefusal}
                     mayManage={mayManage}
                     propertyId={propertyId}
                     request={req}
@@ -397,6 +414,7 @@ export function RequestsTable({
                   {mayManage ? (
                     <RequestActions
                       locale={locale}
+                      onOutcome={setRefusal}
                       propertyId={propertyId}
                       request={req}
                     />
