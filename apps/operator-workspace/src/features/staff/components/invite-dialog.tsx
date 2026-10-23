@@ -5,20 +5,26 @@ import { useTranslations } from "next-intl";
 import { TriangleAlert, UserPlus } from "lucide-react";
 import type { SupportedLocale } from "@ranza/i18n";
 import {
+  ArrowButton,
   Button,
+  CancelButton,
   Combobox,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
+  DialogNotice,
+  DialogSection,
   DialogTrigger,
-  Field,
   FormError,
   Input,
   MultiCombobox,
+  TickRow,
+  dialogFrameClassName,
+  fieldClassName,
 } from "@ranza/ui";
 import { inviteStaffMember, type InviteOutcome } from "../../../server/staff";
 import { usePickerLabels } from "../../../lib/picker-labels";
@@ -68,11 +74,7 @@ export function InviteDialog({
           {t("staff.invite")}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{t("staff.inviteTitle")}</DialogTitle>
-          <DialogDescription>{t("staff.inviteDescription")}</DialogDescription>
-        </DialogHeader>
+      <DialogContent className={dialogFrameClassName("medium")}>
         <InviteBody
           locale={locale}
           organizationId={organizationId}
@@ -107,6 +109,7 @@ function InviteBody({
     inviteStaffMember,
     { state: "idle" },
   );
+  const [email, setEmail] = useState("");
   const [role, setRole] = useState("");
   const [reached, setReached] = useState<string[]>([]);
   const [everywhere, setEverywhere] = useState(false);
@@ -122,119 +125,147 @@ function InviteBody({
   const shipped = chosen ? shippedRoleOf(chosen) : null;
   const reachesNothing = !everywhere && reached.length === 0;
 
+  const masthead = (
+    <DialogMasthead
+      art="/illustrations/dialogs/invite.svg"
+      eyebrow={t("staff.invite")}
+      heading={t("staff.inviteTitle")}
+      large
+    />
+  );
+
   if (outcome.state === "done" && outcome.token && outcome.expiresAt) {
     return (
       <>
-        <InvitationLink
-          expiresAt={outcome.expiresAt}
-          locale={locale}
-          token={outcome.token}
-        />
-        <DialogFooter>
+        {masthead}
+        <DialogBody simple>
+          <DialogDescription className="sr-only">
+            {t("staff.inviteDescription")}
+          </DialogDescription>
+          <InvitationLink
+            expiresAt={outcome.expiresAt}
+            locale={locale}
+            token={outcome.token}
+          />
+        </DialogBody>
+        <DialogActions>
           <DialogClose asChild>
-            <Button type="button">{t("staff.done")}</Button>
+            <ArrowButton type="button">{t("staff.done")}</ArrowButton>
           </DialogClose>
-        </DialogFooter>
+        </DialogActions>
       </>
     );
   }
 
+  const ready = email.trim() !== "" && role !== "";
+
   return (
-    <form action={act} className="space-y-4">
-      <input name="locale" type="hidden" value={locale} />
-      <input name="organization" type="hidden" value={organizationId} />
+    <form action={act} className="grid">
+      {masthead}
+      <DialogBody>
+        <DialogDescription className="sr-only">
+          {t("staff.inviteDescription")}
+        </DialogDescription>
+        <input name="locale" type="hidden" value={locale} />
+        <input name="organization" type="hidden" value={organizationId} />
 
-      <Field htmlFor="invite-email" label={t("staff.email")}>
-        <Input
-          required
-          autoComplete="off"
-          id="invite-email"
-          maxLength={254}
-          name="email"
-          type="email"
-        />
-      </Field>
+        <DialogSection
+          labelFor="invite-email"
+          tag={{ label: t("dialogTagRequired"), required: true }}
+          title={t("staff.email")}
+        >
+          <Input
+            required
+            autoComplete="off"
+            className={fieldClassName}
+            id="invite-email"
+            maxLength={254}
+            name="email"
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="name@example.com"
+            type="email"
+            value={email}
+          />
+        </DialogSection>
 
-      <Field htmlFor="invite-role" label={t("staff.role")}>
-        <Combobox
-          required
-          aria-describedby="invite-role-description"
-          id="invite-role"
-          labels={roleLabels}
-          name="role"
-          onValueChange={setRole}
-          options={roleOptions}
-          value={role}
-        />
-        {shipped ? (
-          <p
-            className="text-sm text-muted-foreground"
-            id="invite-role-description"
-          >
-            {t(`staff.roleDescriptions.${shipped}`)}
-          </p>
-        ) : null}
-      </Field>
+        <DialogSection
+          hint={shipped ? t(`staff.roleDescriptions.${shipped}`) : null}
+          labelFor="invite-role"
+          tag={{ label: t("dialogTagRequired"), required: true }}
+          title={t("staff.role")}
+        >
+          <Combobox
+            required
+            aria-describedby="invite-role-hint"
+            id="invite-role"
+            labels={roleLabels}
+            name="role"
+            onValueChange={setRole}
+            options={roleOptions}
+            value={role}
+          />
+        </DialogSection>
 
-      <Field htmlFor="invite-properties" label={t("staff.properties")}>
-        <MultiCombobox
-          disabled={everywhere}
-          id="invite-properties"
-          labels={propertyLabels}
-          name="properties"
-          onValueChange={setReached}
-          options={properties.map((property) => ({
-            value: property.propertyId,
-            label: property.propertyName,
-          }))}
-          value={everywhere ? [] : reached}
-        />
-        {organizationWide ? (
-          <label className="mt-2 flex items-start gap-2 text-sm">
-            <input
+        <DialogSection
+          labelFor="invite-properties"
+          tag={{ label: t("dialogTagOptional"), required: false }}
+          title={t("staff.properties")}
+        >
+          <MultiCombobox
+            disabled={everywhere}
+            id="invite-properties"
+            labels={propertyLabels}
+            name="properties"
+            onValueChange={setReached}
+            options={properties.map((property) => ({
+              value: property.propertyId,
+              label: property.propertyName,
+            }))}
+            value={everywhere ? [] : reached}
+          />
+          {organizationWide ? (
+            <TickRow
               checked={everywhere}
-              className="mt-1"
+              id="invite-everywhere"
               name="scope"
-              onChange={(event) => setEverywhere(event.target.checked)}
-              type="checkbox"
+              onCheckedChange={setEverywhere}
               value="organization_wide"
-            />
-            {t("staff.everyProperty")}
-          </label>
-        ) : null}
-        {reachesNothing ? (
-          <p
-            className="mt-2 flex items-start gap-2 rounded-md border border-warning/40 bg-warning-soft p-3 text-sm text-warning"
-            data-testid="reaches-nothing-warning"
-          >
-            <TriangleAlert
-              aria-hidden="true"
-              className="mt-0.5 size-4 shrink-0"
-            />
-            {t("staff.reachesNothingWarning")}
-          </p>
-        ) : null}
-      </Field>
+            >
+              {t("staff.everyProperty")}
+            </TickRow>
+          ) : null}
+          {reachesNothing ? (
+            <div data-testid="reaches-nothing-warning">
+              <DialogNotice icon={TriangleAlert}>
+                {t("staff.reachesNothingWarning")}
+              </DialogNotice>
+            </div>
+          ) : null}
+        </DialogSection>
 
-      {outcome.state === "alreadyAMember" ? (
-        <FormError>{t("staff.alreadyAMember")}</FormError>
-      ) : null}
-      {outcome.state === "refused" ? (
-        <FormError>{t("staff.refused")}</FormError>
-      ) : null}
+        <div className="grid gap-3 py-5">
+          <DialogNotice>{t("staff.inviteNotice")}</DialogNotice>
+          {outcome.state === "alreadyAMember" ? (
+            <div aria-live="polite">
+              <FormError>{t("staff.alreadyAMember")}</FormError>
+            </div>
+          ) : null}
+          {outcome.state === "refused" ? (
+            <div aria-live="polite">
+              <FormError>{t("staff.refused")}</FormError>
+            </div>
+          ) : null}
+        </div>
+      </DialogBody>
 
-      <p className="text-sm text-muted-foreground">{t("staff.inviteNotice")}</p>
-
-      <DialogFooter>
+      <DialogActions hint={ready ? null : t("staff.inviteHintMissing")}>
         <DialogClose asChild>
-          <Button type="button" variant="outline">
-            {t("staff.cancel")}
-          </Button>
+          <CancelButton type="button">{t("staff.cancel")}</CancelButton>
         </DialogClose>
-        <Button disabled={pending} type="submit">
+        <ArrowButton disabled={pending || !ready} type="submit">
           {t("staff.sendInvitation")}
-        </Button>
-      </DialogFooter>
+        </ArrowButton>
+      </DialogActions>
     </form>
   );
 }

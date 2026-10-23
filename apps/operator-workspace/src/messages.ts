@@ -460,13 +460,14 @@ export interface Messages {
     refused: string;
     lastAdministrator: string;
     roleIsHeld: string;
-    confirmRoleTitle: string;
     confirmRoleChange: string;
     confirmRoleSessions: string;
     confirmRoleSelf: string;
     confirmRoleSelfLosesAccess: string;
     confirmRoleConfirm: string;
     confirmRoleClose: string;
+    inviteHintMissing: string;
+    defineRoleHintName: string;
     roleChangedMeanwhile: string;
     roleRetired: string;
     rolesHeading: string;
@@ -814,6 +815,9 @@ export interface Messages {
     closeOwing: string;
     closeCredit: string;
     closeFinal: string;
+    paymentHintMissing: string;
+    paymentHintExtra: string;
+    reverseHintMissing: string;
   };
 
   rooms: string;
@@ -977,6 +981,10 @@ export interface Messages {
     secretCopy: string;
     secretCopied: string;
     secretDone: string;
+    endpointHeading: string;
+    endpointHintMissing: string;
+    operationHeading: string;
+    retryAllHeading: string;
     invalid: {
       name: { empty: string; too_long: string };
       url: {
@@ -1395,6 +1403,18 @@ export interface Messages {
       title: string;
       register: string;
       registerTitle: string;
+      registerHeading: string;
+      registerWhoTitle: string;
+      registerJobTitle: string;
+      registerPayTitle: string;
+      registerContactTitle: string;
+      registerHintMissing: string;
+      editTabDetails: string;
+      editStartTitle: string;
+      editContactBankTitle: string;
+      editPayNowTitle: string;
+      editPayFromTitle: string;
+      editHintNewPay: string;
       registerDescription: string;
       firstName: string;
       lastName: string;
@@ -1492,6 +1512,13 @@ export interface Messages {
       title: string;
       requestLeave: string;
       requestLeaveTitle: string;
+      leaveWhoTitle: string;
+      leaveSearch: string;
+      leaveMore: string;
+      leaveNoMatches: string;
+      leaveWhatTitle: string;
+      leaveWhenTitle: string;
+      leaveHintMissing: string;
       staffMember: string;
       type: string;
       dates: string;
@@ -1532,6 +1559,8 @@ export interface Messages {
       goToEmployees: string;
       confirmPlaceholders: string;
       confirmUnderstood: string;
+      confirmHintMissing: string;
+      payslipDeductionsTitle: string;
       print: string;
       period: string;
       /** `{amount}` and `{total}`, already formatted in the run's currency. */
@@ -1945,6 +1974,11 @@ export interface Messages {
     previewSleeps: string;
     previewBeds: string;
     previewIncomplete: string;
+    addHeading: string;
+    addWhatTitle: string;
+    addNumbersTitle: string;
+    addWhereTitle: string;
+    addHintFirstNumber: string;
     addCount: string;
     firstNumberInvalid: string;
     countInvalid: string;
@@ -2135,6 +2169,8 @@ export interface Messages {
     aGuest: string;
     impactHint: string;
     confirmOutOfOrder: string;
+    reportHeading: string;
+    reportHintMissing: string;
     reported: string;
     saved: string;
     returned: string;
@@ -2178,6 +2214,8 @@ export interface Messages {
     placePlaceholder: string;
     interval: string;
     intervalHint: string;
+    equipmentHeading: string;
+    equipmentHintMissing: string;
     lastServiced: string;
     nextService: string;
     notScheduled: string;
@@ -2483,6 +2521,9 @@ export interface Messages {
     resolutionNotesPlaceholder: string;
     createDialogTitle: string;
     createDialogDesc: string;
+    createHeading: string;
+    createHintMissing: string;
+    reasonHintMissing: string;
     titlePlaceholder: string;
     detailsPlaceholder: string;
     selectCategory: string;
@@ -3477,7 +3518,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       lastAdministrator:
         "Bir Kuruluşta ekip ekleyebilen biri kalmalı. Önce başka birine Sahip rolünü verin.",
       roleIsHeld: "Bu rolü tutan kişiler var; önce onları taşıyın.",
-      confirmRoleTitle: "Bu rol değiştirilsin mi?",
       confirmRoleChange: "{member}, {from} rolünden {to} rolüne geçecek.",
       confirmRoleSessions:
         "Sahip olduğu tüm oturumlar sona erecek ve yeniden giriş yapması gerekecek.",
@@ -3486,6 +3526,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{to} ekip yönetemez; bu nedenle artık kimsenin rolünü değiştiremez veya ekip daveti gönderemezsiniz.",
       confirmRoleConfirm: "Rolü değiştir",
       confirmRoleClose: "Kapat",
+      inviteHintMissing: "Bir e-posta ekleyin ve rol seçin",
+      defineRoleHintName: "Devam etmek için role bir ad verin",
       roleChangedMeanwhile:
         "Bu rol siz karar verirken değiştirildi. {member} artık {role} rolünde. Hiçbir şey değişmedi.",
       roleRetired: "Bu rol artık sunulmuyor. Hiçbir şey değişmedi.",
@@ -3883,6 +3925,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       closeCredit: "{amount} folyoda alacak olarak kalır.",
       closeFinal:
         "Satırlar olduğu gibi kalır, daha fazla satır işlenemez ve kapalı bir folyo yeniden açılamaz.",
+      paymentHintMissing: "Tutarı girin ve nasıl ödendiğini seçin.",
+      paymentHintExtra: "Borçtan fazlasını almak için kutuyu işaretleyin.",
+      reverseHintMissing: "Nedenini en az 3 karakterle yazın.",
       history: "Geçmiş",
     },
 
@@ -4415,6 +4460,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       secretCopy: "Anahtarı kopyala",
       secretCopied: "Kopyalandı",
       secretDone: "Kaydettim",
+      endpointHeading: "Olaylar nereye gitsin?",
+      endpointHintMissing:
+        "Bir ad yazın, HTTPS adresi girin ve en az bir olay seçin.",
+      operationHeading: "Ulaşmayan bir gönderim",
+      retryAllHeading: "Durmuş tüm gönderimler",
       invalid: {
         name: {
           empty: "Uç noktaya bir ad verin.",
@@ -4866,6 +4916,18 @@ export const messages: Record<SupportedLocale, Messages> = {
         title: "Personel listesi",
         register: "Personel ekle",
         registerTitle: "Yeni personel kaydı",
+        registerHeading: "Ekibe kim katılıyor?",
+        registerWhoTitle: "Kimdir?",
+        registerJobTitle: "Görevi nedir?",
+        registerPayTitle: "Ücret ve başlangıç tarihi",
+        registerContactTitle: "İletişim bilgileri",
+        registerHintMissing: "Devam etmek için adı, görevi ve ücreti girin",
+        editTabDetails: "Bilgiler",
+        editStartTitle: "Ne zaman başladı?",
+        editContactBankTitle: "İletişim ve banka",
+        editPayNowTitle: "Şu an ne kadar ücret alıyor?",
+        editPayFromTitle: "Hangi aydan itibaren?",
+        editHintNewPay: "Yeni brüt ücreti girin",
         registerDescription:
           "Personelin sözleşme, görev ve maaş bilgilerini girin.",
         firstName: "Ad",
@@ -4960,6 +5022,13 @@ export const messages: Record<SupportedLocale, Messages> = {
         title: "İzin talepleri",
         requestLeave: "İzin talebi oluştur",
         requestLeaveTitle: "Yeni izin talebi",
+        leaveWhoTitle: "Kimin için?",
+        leaveSearch: "Ada veya bölüme göre ara",
+        leaveMore: "{count} kişi daha var. Bulmak için yazın.",
+        leaveNoMatches: "Eşleşen kişi yok.",
+        leaveWhatTitle: "Ne tür izin?",
+        leaveWhenTitle: "Hangi günler?",
+        leaveHintMissing: "Kimin için olduğunu ve iki tarihi seçin",
         staffMember: "Personel",
         type: "Tür",
         dates: "Tarihler",
@@ -5004,6 +5073,8 @@ export const messages: Record<SupportedLocale, Messages> = {
           "Sosyal güvenlik, gelir vergisi ve damga vergisi tutarları kimsenin onaylamadığı yer tutuculardır. Kimseye ödeme yapmak için kullanılmamalı ve bu kilit kalıcıdır.",
         confirmUnderstood:
           "Kesintilerin onaylanmamış yer tutucular olduğunu ve bu bordroyu kilitlemenin kalıcı olduğunu anlıyorum.",
+        confirmHintMissing: "Onaylamak için kutuyu işaretleyin.",
+        payslipDeductionsTitle: "Brüt ve kesintiler",
         print: "Yazdır",
         period: "Dönem",
         summaryGrossNet: "Brüt {amount}, net {total}",
@@ -5112,6 +5183,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{count, plural, one {odada 1 yatak} other {odada # yatak, A – {last}}}",
       previewIncomplete:
         "Ne oluşturulacağını görmek için ilk oda numarasını girin.",
+      addHeading: "Hangi odaları ekliyorsunuz?",
+      addWhatTitle: "Bunlar nedir?",
+      addNumbersTitle: "Hangi numaralar?",
+      addWhereTitle: "Neredeler?",
+      addHintFirstNumber: "İlk oda numarasını girin",
       addCount: "{count, plural, other {# oda ekle}}",
       firstNumberInvalid:
         "Yalnızca rakam kullanın (en çok 8 hane), örneğin 101. Harf ve tire kabul edilmez.",
@@ -5328,6 +5404,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       impactHint:
         "Hiçbir şey iptal edilmez ya da taşınmaz. Ön büronun onları taşıması gerekecek.",
       confirmOutOfOrder: "Yine de hizmet dışı bırak",
+      reportHeading: "Neyin onarılması gerekiyor?",
+      reportHintMissing:
+        "Bir oda ya da ekipman seçin ve neyin bozuk olduğunu yazın.",
       reported: "MT-{number} talebi gönderildi.",
       saved: "Kaydedildi.",
       returned: "Oda yeniden hizmette.",
@@ -5377,6 +5456,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       placePlaceholder: "Çamaşır odası",
       interval: "Bakım sıklığı (ay)",
       intervalHint: "Düzenli bakımı yoksa boş bırakın.",
+      equipmentHeading: "Neyin kaydını tutuyoruz?",
+      equipmentHintMissing:
+        "Bir ad ve kategori yazın, nerede olduğunu belirtin.",
       lastServiced: "Son bakım",
       nextService: "Sonraki bakım",
       notScheduled: "Planlanmadı",
@@ -5707,6 +5789,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       createDialogTitle: "Yeni Hizmet Talebi Oluştur",
       createDialogDesc:
         "Misafir veya oda için yeni bir operasyonel hizmet talebi kaydedin.",
+      createHeading: "Misafirin neye ihtiyacı var?",
+      createHintMissing:
+        "Misafirin neye ihtiyacı olduğunu birkaç sözcükle yazın.",
+      reasonHintMissing: "Nedenini en az 3 karakterle yazın.",
       titlePlaceholder: "Örn. Ekstra havlu veya yastık talebi",
       detailsPlaceholder: "Talep detaylarını yazınız...",
       selectCategory: "Kategori seçin",
@@ -6830,7 +6916,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       lastAdministrator:
         "An Organization must keep somebody who can add staff. Give another person the Owner role first.",
       roleIsHeld: "Somebody holds this role. Move them first.",
-      confirmRoleTitle: "Change this role?",
       confirmRoleChange: "{member} will go from {from} to {to}.",
       confirmRoleSessions:
         "Every session they hold will end, and they will need to sign in again.",
@@ -6839,6 +6924,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{to} cannot manage staff, so you will no longer be able to change anyone’s role or invite staff.",
       confirmRoleConfirm: "Change role",
       confirmRoleClose: "Close",
+      inviteHintMissing: "Add an email and choose a role",
+      defineRoleHintName: "Name the role to continue",
       roleChangedMeanwhile:
         "Somebody changed this role while you were deciding. {member} now holds {role}. Nothing was changed.",
       roleRetired: "That role is no longer offered. Nothing was changed.",
@@ -7239,6 +7326,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       closeCredit: "{amount} is a credit left on the folio.",
       closeFinal:
         "Its lines stay exactly as they are, nothing more can be posted, and a closed folio cannot be reopened.",
+      paymentHintMissing: "Enter the amount and choose how it was paid.",
+      paymentHintExtra: "Tick the box to take more than is owed.",
+      reverseHintMissing: "Say why, in at least 3 characters.",
       history: "History",
     },
 
@@ -7785,6 +7875,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       secretCopy: "Copy secret",
       secretCopied: "Copied",
       secretDone: "I have saved it",
+      endpointHeading: "Where should events go?",
+      endpointHintMissing:
+        "Give it a name, an HTTPS address and at least one event.",
+      operationHeading: "A delivery that did not arrive",
+      retryAllHeading: "Every stopped delivery",
       invalid: {
         name: {
           empty: "Give the endpoint a name.",
@@ -8235,6 +8330,18 @@ export const messages: Record<SupportedLocale, Messages> = {
         title: "Employee Directory",
         register: "Add employee",
         registerTitle: "Register employee",
+        registerHeading: "Who is joining the team?",
+        registerWhoTitle: "Who are they?",
+        registerJobTitle: "What is the job?",
+        registerPayTitle: "Pay and start date",
+        registerContactTitle: "How to reach them",
+        registerHintMissing: "Add the name, the job and the pay to continue",
+        editTabDetails: "Details",
+        editStartTitle: "When did they start?",
+        editContactBankTitle: "Contact and bank",
+        editPayNowTitle: "What are they paid now?",
+        editPayFromTitle: "From which month?",
+        editHintNewPay: "Enter the new gross pay",
         registerDescription:
           "Enter the employee's contract, position and salary details.",
         firstName: "First name",
@@ -8329,6 +8436,14 @@ export const messages: Record<SupportedLocale, Messages> = {
         title: "Leave requests",
         requestLeave: "Request leave",
         requestLeaveTitle: "Submit leave request",
+        leaveWhoTitle: "Who is it for?",
+        leaveSearch: "Search by name or department",
+        leaveMore:
+          "{count, plural, one {# more person} other {# more people}}. Type to find one.",
+        leaveNoMatches: "Nobody matches.",
+        leaveWhatTitle: "What kind of leave?",
+        leaveWhenTitle: "Which days?",
+        leaveHintMissing: "Choose who it is for and both dates",
         staffMember: "Staff member",
         type: "Type",
         dates: "Dates",
@@ -8372,6 +8487,8 @@ export const messages: Record<SupportedLocale, Messages> = {
           "The social security, income tax and stamp duty figures are placeholders that nobody has approved. They must not be used to pay anyone, and this lock is permanent.",
         confirmUnderstood:
           "I understand the deductions are unapproved placeholders and that locking this run is permanent.",
+        confirmHintMissing: "Tick the box to approve this run.",
+        payslipDeductionsTitle: "Pay and deductions",
         print: "Print",
         period: "Period",
         summaryGrossNet: "Gross {amount}, net {total}",
@@ -8479,6 +8596,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{count, plural, one {1 bed per room} other {# beds per room, A to {last}}}",
       previewIncomplete:
         "Enter the first room number to see what will be created.",
+      addHeading: "Which rooms are you adding?",
+      addWhatTitle: "What are they?",
+      addNumbersTitle: "Which numbers?",
+      addWhereTitle: "Where are they?",
+      addHintFirstNumber: "Enter the first room number",
       addCount: "{count, plural, one {Add # room} other {Add # rooms}}",
       firstNumberInvalid:
         "Use digits only, 1 to 8 of them, for example 101. Letters and dashes are not accepted.",
@@ -8694,6 +8816,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       impactHint:
         "Nothing will be cancelled or moved. The front desk will need to move them.",
       confirmOutOfOrder: "Take it out of order anyway",
+      reportHeading: "What needs fixing?",
+      reportHintMissing: "Choose a room or equipment and say what is wrong.",
       reported: "Request MT-{number} sent.",
       saved: "Saved.",
       returned: "The room is back in service.",
@@ -8743,6 +8867,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       placePlaceholder: "Laundry room",
       interval: "Serviced every (months)",
       intervalHint: "Leave it empty if it is not serviced on a schedule.",
+      equipmentHeading: "What are we keeping track of?",
+      equipmentHintMissing:
+        "Give it a name and a category, and say where it is.",
       lastServiced: "Last serviced",
       nextService: "Next service",
       notScheduled: "Not scheduled",
@@ -9070,6 +9197,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       createDialogTitle: "Create Service Request",
       createDialogDesc:
         "Log a new service request on behalf of a guest or accommodation unit.",
+      createHeading: "What does the guest need?",
+      createHintMissing: "Say what the guest needs, in a few words.",
+      reasonHintMissing: "Say why, in at least 3 characters.",
       titlePlaceholder: "e.g. Extra towels requested",
       detailsPlaceholder: "Add any specific instructions or details...",
       selectCategory: "Select category",
@@ -10175,7 +10305,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       lastAdministrator:
         "يجب أن يبقى في المؤسسة من يستطيع إضافة الفريق. أعطِ شخصًا آخر دور المالك أولًا.",
       roleIsHeld: "هذا الدور يحمله أحدهم. انقلهم أولًا.",
-      confirmRoleTitle: "تغيير هذا الدور؟",
       confirmRoleChange: "سينتقل {member} من {from} إلى {to}.",
       confirmRoleSessions:
         "ستنتهي جميع جلساته وسيحتاج إلى تسجيل الدخول من جديد.",
@@ -10184,6 +10313,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         "لا يستطيع دور {to} إدارة الفريق، لذلك لن تتمكن بعد الآن من تغيير دور أي شخص أو دعوة أعضاء جدد.",
       confirmRoleConfirm: "تغيير الدور",
       confirmRoleClose: "إغلاق",
+      inviteHintMissing: "أضف بريدًا إلكترونيًا واختر دورًا",
+      defineRoleHintName: "سمِّ الدور للمتابعة",
       roleChangedMeanwhile:
         "غُيّر هذا الدور أثناء اتخاذك القرار. يحمل {member} الآن دور {role}. لم يتغير شيء.",
       roleRetired: "لم يعد هذا الدور متاحًا. لم يتغير شيء.",
@@ -10571,6 +10702,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       closeCredit: "{amount} رصيد دائن يبقى على الحساب.",
       closeFinal:
         "تبقى بنوده كما هي، ولا يمكن قيد أي شيء آخر عليه، ولا يمكن إعادة فتح الحساب بعد إغلاقه.",
+      paymentHintMissing: "أدخل المبلغ واختر طريقة الدفع.",
+      paymentHintExtra: "ضع علامة على المربع لقبول أكثر من المستحق.",
+      reverseHintMissing: "اكتب السبب في 3 أحرف على الأقل.",
       history: "السجل",
     },
 
@@ -11106,6 +11240,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       secretCopy: "نسخ المفتاح",
       secretCopied: "تم النسخ",
       secretDone: "حفظته",
+      endpointHeading: "إلى أين تُرسل الأحداث؟",
+      endpointHintMissing:
+        "اكتب اسمًا وعنوان HTTPS واختر حدثًا واحدًا على الأقل.",
+      operationHeading: "إرسال لم يصل",
+      retryAllHeading: "كل عمليات الإرسال المتوقفة",
       invalid: {
         name: {
           empty: "أعطِ نقطة الاستقبال اسمًا.",
@@ -11547,6 +11686,18 @@ export const messages: Record<SupportedLocale, Messages> = {
         title: "دليل الموظفين",
         register: "إضافة موظف",
         registerTitle: "تسجيل موظف جديد",
+        registerHeading: "من ينضم إلى الفريق؟",
+        registerWhoTitle: "من هو؟",
+        registerJobTitle: "ما هي الوظيفة؟",
+        registerPayTitle: "الأجر وتاريخ البدء",
+        registerContactTitle: "بيانات التواصل",
+        registerHintMissing: "أدخل الاسم والوظيفة والأجر للمتابعة",
+        editTabDetails: "البيانات",
+        editStartTitle: "متى بدأ العمل؟",
+        editContactBankTitle: "التواصل والحساب البنكي",
+        editPayNowTitle: "كم يتقاضى الآن؟",
+        editPayFromTitle: "اعتبارًا من أي شهر؟",
+        editHintNewPay: "أدخل الأجر الإجمالي الجديد",
         registerDescription: "أدخل تفاصيل العقد والمنصب والراتب للموظف.",
         firstName: "الاسم الأول",
         lastName: "اسم العائلة",
@@ -11640,6 +11791,13 @@ export const messages: Record<SupportedLocale, Messages> = {
         title: "طلبات الإجازة",
         requestLeave: "طلب إجازة",
         requestLeaveTitle: "تقديم طلب إجازة",
+        leaveWhoTitle: "لمن؟",
+        leaveSearch: "ابحث بالاسم أو القسم",
+        leaveMore: "{count} آخرين. اكتب للبحث.",
+        leaveNoMatches: "لا أحد مطابق.",
+        leaveWhatTitle: "ما نوع الإجازة؟",
+        leaveWhenTitle: "أي أيام؟",
+        leaveHintMissing: "اختر لمن الإجازة والتاريخين",
         staffMember: "الموظف",
         type: "النوع",
         dates: "التواريخ",
@@ -11683,6 +11841,8 @@ export const messages: Record<SupportedLocale, Messages> = {
           "مبالغ التأمينات الاجتماعية وضريبة الدخل ورسم الدمغة قيم مؤقتة لم يعتمدها أحد. يجب ألا تُستخدم لدفع أجر أي شخص، وهذا القفل دائم.",
         confirmUnderstood:
           "أفهم أن الاستقطاعات قيم مؤقتة غير معتمدة وأن قفل هذا الكشف دائم.",
+        confirmHintMissing: "ضع علامة على المربع لاعتماد هذا التشغيل.",
+        payslipDeductionsTitle: "الراتب والاستقطاعات",
         print: "طباعة",
         period: "الفترة",
         summaryGrossNet: "الإجمالي {amount}، الصافي {total}",
@@ -11786,6 +11946,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       previewBeds:
         "{count, plural, one {سرير واحد في كل غرفة} two {سريران في كل غرفة} few {# أسرّة في كل غرفة، من A إلى {last}} many {# سريرًا في كل غرفة، من A إلى {last}} other {# سرير في كل غرفة، من A إلى {last}}}",
       previewIncomplete: "أدخل رقم أول غرفة لترى ما سيُنشأ.",
+      addHeading: "ما الغرف التي تضيفها؟",
+      addWhatTitle: "ما هي؟",
+      addNumbersTitle: "أي أرقام؟",
+      addWhereTitle: "أين توجد؟",
+      addHintFirstNumber: "أدخل رقم أول غرفة",
       addCount:
         "{count, plural, one {إضافة غرفة} two {إضافة غرفتين} few {إضافة # غرف} many {إضافة # غرفة} other {إضافة # غرفة}}",
       firstNumberInvalid:
@@ -11997,6 +12162,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       aGuest: "ضيف",
       impactHint: "لن يُلغى أو يُنقل أي شيء. سيحتاج المكتب الأمامي إلى نقلهم.",
       confirmOutOfOrder: "إخراجها من الخدمة على أي حال",
+      reportHeading: "ما الذي يحتاج إلى إصلاح؟",
+      reportHintMissing: "اختر غرفة أو معدّة واكتب ما العطل.",
       reported: "أُرسل الطلب MT-{number}.",
       saved: "تم الحفظ.",
       returned: "عادت الغرفة إلى الخدمة.",
@@ -12045,6 +12212,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       placePlaceholder: "غرفة الغسيل",
       interval: "الصيانة كل (أشهر)",
       intervalHint: "اتركه فارغًا إن لم تكن لها صيانة دورية.",
+      equipmentHeading: "ما الذي نتتبعه؟",
+      equipmentHintMissing: "اكتب اسمًا وفئة وحدّد مكانه.",
       lastServiced: "آخر صيانة",
       nextService: "الصيانة التالية",
       notScheduled: "غير مجدولة",
@@ -12368,6 +12537,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       resolutionNotesPlaceholder: "الإجراء الذي تم اتخاذه لإنجاز الطلب...",
       createDialogTitle: "تسجيل طلب خدمة جديد",
       createDialogDesc: "تسجيل طلب خدمة جديد لغرفة أو ضيف في المنشأة.",
+      createHeading: "ماذا يحتاج الضيف؟",
+      createHintMissing: "اكتب ما يحتاجه الضيف في بضع كلمات.",
+      reasonHintMissing: "اكتب السبب في 3 أحرف على الأقل.",
       titlePlaceholder: "مثال: طلب مناشف إضافية",
       detailsPlaceholder: "تفاصيل أو تعليمات إضافية...",
       selectCategory: "اختر الفئة",

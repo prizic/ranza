@@ -4,18 +4,22 @@ import { useState, useTransition } from "react";
 import { Check, Copy, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
+  ArrowButton,
   Button,
-  Checkbox,
+  CancelButton,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
+  DialogSection,
   DialogTrigger,
-  Field,
   FormError,
   Input,
+  TickRow,
+  dialogFrameClassName,
+  fieldClassName,
 } from "@ranza/ui";
 import {
   registerEndpointAction,
@@ -43,6 +47,7 @@ export function AddEndpointDialog({
   propertyId,
 }: AddEndpointDialogProps) {
   const t = useTranslations("integrations");
+  const all = useTranslations();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
@@ -107,6 +112,8 @@ export function AddEndpointDialog({
 
   const failureKey = outcomeKey(outcome);
   const showingSecret = secret !== null;
+  const ready =
+    name.trim() !== "" && url.trim() !== "" && eventTypes.length > 0;
 
   return (
     <Dialog
@@ -124,6 +131,7 @@ export function AddEndpointDialog({
         </Button>
       </DialogTrigger>
       <DialogContent
+        className={dialogFrameClassName("medium")}
         onEscapeKeyDown={(event) => {
           if (showingSecret) event.preventDefault();
         }}
@@ -134,13 +142,17 @@ export function AddEndpointDialog({
       >
         {showingSecret ? (
           <>
-            <DialogHeader>
-              <DialogTitle>{t("secretTitle")}</DialogTitle>
-              <DialogDescription>{t("secretWarning")}</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-3">
+            <DialogMasthead
+              art="/illustrations/dialogs/webhook.svg"
+              eyebrow={t("secretTitle")}
+              heading={name}
+            />
+            <DialogBody simple>
+              <DialogDescription className="m-0 text-sm">
+                {t("secretWarning")}
+              </DialogDescription>
               <code
-                className="rounded-md border border-border bg-muted px-3 py-2 font-mono text-step--1 break-all select-all"
+                className="rounded-2xl border-[1.5px] border-foreground/25 bg-muted px-4 py-3 font-mono text-step--1 break-all select-all"
                 data-testid="webhook-secret"
                 dir="ltr"
               >
@@ -161,12 +173,12 @@ export function AddEndpointDialog({
                   {copied ? t("secretCopied") : t("secretCopy")}
                 </Button>
               </div>
-              <p className="text-step--1 text-muted-foreground">
+              <p className="m-0 text-sm text-muted-foreground">
                 {t("secretUse")}
               </p>
-            </div>
-            <DialogFooter>
-              <Button
+            </DialogBody>
+            <DialogActions>
+              <ArrowButton
                 onClick={() => {
                   setOpen(false);
                   reset();
@@ -174,84 +186,99 @@ export function AddEndpointDialog({
                 type="button"
               >
                 {t("secretDone")}
-              </Button>
-            </DialogFooter>
+              </ArrowButton>
+            </DialogActions>
           </>
         ) : (
-          <form className="grid gap-5" onSubmit={submit}>
-            <DialogHeader>
-              <DialogTitle>{t("addTitle")}</DialogTitle>
-              <DialogDescription>{t("addDescription")}</DialogDescription>
-            </DialogHeader>
-            <Field htmlFor="endpoint-name" label={t("nameLabel")}>
-              <Input
-                autoComplete="off"
-                id="endpoint-name"
-                onChange={(event) => {
-                  setName(event.target.value);
-                  setOutcome({ status: "idle" });
-                }}
-                placeholder={t("namePlaceholder")}
-                required
-                value={name}
-              />
-            </Field>
-            <Field
-              hint={t("urlHint")}
-              htmlFor="endpoint-url"
-              label={t("urlLabel")}
-            >
-              <Input
-                aria-describedby="endpoint-url-hint"
-                autoComplete="off"
-                dir="ltr"
-                id="endpoint-url"
-                inputMode="url"
-                onChange={(event) => {
-                  setUrl(event.target.value);
-                  setOutcome({ status: "idle" });
-                }}
-                placeholder={t("urlPlaceholder")}
-                required
-                type="url"
-                value={url}
-              />
-            </Field>
-            <fieldset className="grid gap-2">
-              <legend className="mb-1 text-step--1 font-medium">
-                {t("eventsLabel")}
-              </legend>
-              {WEBHOOK_EVENT_TYPES.map((eventType) => (
-                <label
-                  className="flex items-center gap-2.5 text-step--1"
-                  key={eventType}
-                >
-                  <Checkbox
-                    checked={eventTypes.includes(eventType)}
-                    name="event"
-                    onCheckedChange={(checked) =>
-                      toggle(eventType, checked === true)
-                    }
-                    value={eventType}
-                  />
-                  {t(`events.${eventKey(eventType)}`)}
-                </label>
-              ))}
-            </fieldset>
-            {failureKey ? <FormError>{t(failureKey)}</FormError> : null}
-            <DialogFooter>
-              <Button
+          <form className="grid" onSubmit={submit}>
+            <DialogMasthead
+              art="/illustrations/dialogs/webhook.svg"
+              eyebrow={t("addTitle")}
+              heading={t("endpointHeading")}
+              large
+            />
+            <DialogBody>
+              <DialogDescription className="sr-only">
+                {t("addDescription")}
+              </DialogDescription>
+              <DialogSection
+                labelFor="endpoint-name"
+                tag={{ label: all("dialogTagRequired"), required: true }}
+                title={t("nameLabel")}
+              >
+                <Input
+                  autoComplete="off"
+                  className={fieldClassName}
+                  id="endpoint-name"
+                  onChange={(event) => {
+                    setName(event.target.value);
+                    setOutcome({ status: "idle" });
+                  }}
+                  placeholder={t("namePlaceholder")}
+                  required
+                  value={name}
+                />
+              </DialogSection>
+              <DialogSection
+                hint={t("urlHint")}
+                labelFor="endpoint-url"
+                tag={{ label: all("dialogTagRequired"), required: true }}
+                title={t("urlLabel")}
+              >
+                <Input
+                  aria-describedby="endpoint-url-hint"
+                  autoComplete="off"
+                  className={fieldClassName}
+                  dir="ltr"
+                  id="endpoint-url"
+                  inputMode="url"
+                  onChange={(event) => {
+                    setUrl(event.target.value);
+                    setOutcome({ status: "idle" });
+                  }}
+                  placeholder={t("urlPlaceholder")}
+                  required
+                  type="url"
+                  value={url}
+                />
+              </DialogSection>
+              <DialogSection
+                tag={{ label: all("dialogTagRequired"), required: true }}
+                title={t("eventsLabel")}
+              >
+                <div className="grid gap-2">
+                  {WEBHOOK_EVENT_TYPES.map((eventType) => (
+                    <TickRow
+                      checked={eventTypes.includes(eventType)}
+                      id={`endpoint-event-${eventType}`}
+                      key={eventType}
+                      name="event"
+                      onCheckedChange={(checked) => toggle(eventType, checked)}
+                      value={eventType}
+                    >
+                      {t(`events.${eventKey(eventType)}`)}
+                    </TickRow>
+                  ))}
+                </div>
+              </DialogSection>
+              {failureKey ? (
+                <div aria-live="polite" className="py-5">
+                  <FormError>{t(failureKey)}</FormError>
+                </div>
+              ) : null}
+            </DialogBody>
+            <DialogActions hint={ready ? null : t("endpointHintMissing")}>
+              <CancelButton
                 disabled={pending}
                 onClick={() => setOpen(false)}
                 type="button"
-                variant="outline"
               >
                 {t("dismiss")}
-              </Button>
-              <Button disabled={pending} type="submit">
+              </CancelButton>
+              <ArrowButton disabled={pending || !ready} type="submit">
                 {pending ? t("registering") : t("register")}
-              </Button>
-            </DialogFooter>
+              </ArrowButton>
+            </DialogActions>
           </form>
         )}
       </DialogContent>

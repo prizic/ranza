@@ -1,18 +1,19 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   Button,
+  DialogBody,
+  DialogMasthead,
+  DialogSection,
   Sheet,
   SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
   cn,
+  sheetFrameClassName,
 } from "@ranza/ui";
 import { formatNumber, type SupportedLocale } from "@ranza/i18n";
 import type { DayDetail, DayDetailStay } from "../../../server/analytics";
@@ -59,8 +60,6 @@ export function DayDetailSheet({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const staysId = useId();
-  const correctionsId = useId();
   const [open, setOpen] = useState(true);
   const month = detail.date.slice(0, 7);
 
@@ -119,7 +118,8 @@ export function DayDetailSheet({
   return (
     <Sheet onOpenChange={close} open={open}>
       <SheetContent
-        className="gap-0 overflow-y-auto data-[side=end]:w-full data-[side=end]:sm:w-3/4"
+        aria-describedby={undefined}
+        className={sheetFrameClassName}
         data-day-detail={detail.date}
         onCloseAutoFocus={(event) => {
           const link = document.querySelector<HTMLElement>(
@@ -131,79 +131,81 @@ export function DayDetailSheet({
         }}
         side="end"
       >
-        <SheetHeader className="pe-14">
-          <SheetTitle>{formatShortDate(detail.date, locale)}</SheetTitle>
-          <SheetDescription>{t("dayDescription")}</SheetDescription>
-          <nav
-            aria-label={t("dayNavigation")}
-            className="flex items-center gap-2 pt-2"
-          >
-            {step(ChevronLeft, t("previousDay"), previousDay)}
-            {step(ChevronRight, t("nextDay"), nextDay)}
-          </nav>
-        </SheetHeader>
+        <DialogMasthead
+          art="/illustrations/dialogs/close-day.svg"
+          eyebrow={formatShortDate(detail.date, locale)}
+          heading={t("dayDescription")}
+          large
+        />
 
-        <div className="grid gap-6 px-6 pb-6">
-          {detail.state === "open" ? (
-            <p
-              className="border-s-2 border-border ps-4 text-sm text-muted-foreground"
-              role="status"
+        <DialogBody>
+          <DialogSection>
+            <nav
+              aria-label={t("dayNavigation")}
+              className="flex items-center gap-2"
             >
-              {t("dayOpenNote")}
-            </p>
-          ) : null}
-
-          <dl className="grid grid-cols-2 gap-x-6">
-            <div>
-              <dt className="text-sm text-muted-foreground">
-                {t("occupiedNights")}
-              </dt>
-              <dd
-                className="mt-1 text-3xl leading-none font-light tabular-nums"
-                data-day-count="occupied"
+              {step(ChevronLeft, t("previousDay"), previousDay)}
+              {step(ChevronRight, t("nextDay"), nextDay)}
+            </nav>
+            {detail.state === "open" ? (
+              <p
+                className="m-0 border-s-2 border-border ps-4 text-sm text-muted-foreground"
+                role="status"
               >
-                {formatNumber(detail.occupiedNights, locale)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm text-muted-foreground">
-                {t("dayCharged")}
-              </dt>
-              <dd
-                className="mt-1 text-3xl leading-none font-light tabular-nums"
-                data-day-count="charged"
-              >
-                {formatNumber(detail.chargedNights, locale)}
-              </dd>
-            </div>
-          </dl>
+                {t("dayOpenNote")}
+              </p>
+            ) : null}
+          </DialogSection>
 
-          <section aria-labelledby={staysId}>
-            <h3
-              className="mb-2 text-xs font-medium tracking-wider text-muted-foreground uppercase"
-              id={staysId}
-            >
-              {t("dayStays")}
-            </h3>
+          <DialogSection>
+            <dl className="m-0 grid grid-cols-2 gap-x-6">
+              <div>
+                <dt className="text-sm text-muted-foreground">
+                  {t("occupiedNights")}
+                </dt>
+                <dd
+                  className="mt-1 ms-0 text-3xl leading-none font-light tabular-nums"
+                  data-day-count="occupied"
+                >
+                  {formatNumber(detail.occupiedNights, locale)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm text-muted-foreground">
+                  {t("dayCharged")}
+                </dt>
+                <dd
+                  className="mt-1 ms-0 text-3xl leading-none font-light tabular-nums"
+                  data-day-count="charged"
+                >
+                  {formatNumber(detail.chargedNights, locale)}
+                </dd>
+              </div>
+            </dl>
+          </DialogSection>
+
+          <DialogSection title={t("dayStays")}>
             {detail.stays.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t("dayNoStays")}</p>
+              <p className="m-0 text-sm text-muted-foreground">
+                {t("dayNoStays")}
+              </p>
             ) : (
-              <ul>
+              <ul className="m-0 list-none p-0">
                 {detail.stays.map((stay) => (
                   <li
-                    className="grid grid-cols-[1fr_auto] items-baseline gap-x-4 gap-y-1 border-b border-border py-3 last:border-b-0"
+                    className="grid grid-cols-[1fr_auto] items-baseline gap-x-4 gap-y-1 border-b border-border py-3 first:pt-0 last:border-b-0"
                     data-stay={stay.stayId}
                     key={stay.stayId}
                   >
                     <div className="min-w-0">
-                      <p className="font-medium">
+                      <p className="m-0 font-medium">
                         <bdi>{place(stay)}</bdi>
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="m-0 text-sm text-muted-foreground">
                         {root(`unitType.${stay.unitType}`)} ·{" "}
                         {root(`stayType.${stay.stayType}`)}
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="m-0 text-sm text-muted-foreground">
                         <bdi>
                           {stay.displayName ??
                             (stay.stayType === "guest"
@@ -213,7 +215,7 @@ export function DayDetailSheet({
                       </p>
                       {reservationsHref && stay.reservationId ? (
                         <Link
-                          className="mt-1 inline-block text-sm font-medium text-primary underline"
+                          className="mt-1 inline-block text-sm font-medium text-primary-text underline"
                           data-booking-link
                           href={`${reservationsHref}&open=${stay.reservationId}`}
                           prefetch={false}
@@ -227,14 +229,14 @@ export function DayDetailSheet({
                     <div className="text-end">
                       <p
                         className={cn(
-                          "text-sm",
+                          "m-0 text-sm",
                           stay.night !== "charged" && "text-muted-foreground",
                         )}
                       >
                         {outcome(stay)}
                       </p>
                       {stay.chargeMinor === undefined ? null : (
-                        <p className="tabular-nums">
+                        <p className="m-0 tabular-nums">
                           <bdi>{money(stay.chargeMinor)}</bdi>
                         </p>
                       )}
@@ -243,42 +245,36 @@ export function DayDetailSheet({
                 ))}
               </ul>
             )}
-          </section>
+          </DialogSection>
 
           {detail.corrections && detail.corrections.length > 0 ? (
-            <section aria-labelledby={correctionsId}>
-              <h3
-                className="mb-2 text-xs font-medium tracking-wider text-muted-foreground uppercase"
-                id={correctionsId}
-              >
-                {t("dayCorrections")}
-              </h3>
-              <ul>
+            <DialogSection title={t("dayCorrections")}>
+              <ul className="m-0 list-none p-0">
                 {detail.corrections.map((correction, index) => (
                   <li
-                    className="grid grid-cols-[1fr_auto] items-baseline gap-x-4 border-b border-border py-3 last:border-b-0"
+                    className="grid grid-cols-[1fr_auto] items-baseline gap-x-4 border-b border-border py-3 first:pt-0 last:border-b-0"
                     data-correction
                     key={`${correction.stayId}-${index}`}
                   >
                     <div>
-                      <p className="font-medium">
+                      <p className="m-0 font-medium">
                         <bdi>{place(correction)}</bdi>
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="m-0 text-sm text-muted-foreground">
                         {t("correctionPosted", {
                           date: formatShortDate(correction.postedOn, locale),
                         })}
                       </p>
                     </div>
-                    <p className="text-end tabular-nums">
+                    <p className="m-0 text-end tabular-nums">
                       <bdi>{money(correction.amountMinor)}</bdi>
                     </p>
                   </li>
                 ))}
               </ul>
-            </section>
+            </DialogSection>
           ) : null}
-        </div>
+        </DialogBody>
       </SheetContent>
     </Sheet>
   );

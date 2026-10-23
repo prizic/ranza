@@ -5,15 +5,18 @@ import { useTranslations } from "next-intl";
 import { Archive, Check, Minus, RotateCcw } from "lucide-react";
 import type { Role } from "@ranza/staff";
 import {
+  ArrowButton,
   Button,
+  CancelButton,
   Checkbox,
   DataTableRowActions,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
+  dialogFrameClassName,
   Select,
   SelectContent,
   SelectItem,
@@ -418,19 +421,27 @@ export function PermissionMatrix({
         }}
         open={pending !== null}
       >
-        <DialogContent showCloseButton={false}>
+        <DialogContent
+          className={dialogFrameClassName("small")}
+          showCloseButton={false}
+        >
           {pending?.kind === "save" ? (
             <>
-              <DialogHeader>
-                <DialogTitle>{t("staff.confirmSaveTitle")}</DialogTitle>
+              <DialogMasthead
+                art="/illustrations/dialogs/role.svg"
+                eyebrow={t("staff.saveChanges")}
+                heading={t("staff.confirmSaveTitle")}
+                large
+              />
+              <DialogBody simple>
                 <DialogDescription asChild>
-                  <div className="flex flex-col gap-2">
-                    <p>
+                  <div className="grid gap-3 text-sm">
+                    <p className="m-0">
                       {t("staff.confirmSaveRoles", {
                         roles: dirty.map(roleName).join(", "),
                       })}
                     </p>
-                    <p>
+                    <p className="m-0">
                       {affectedPeople === 0
                         ? t("staff.confirmSaveNobody")
                         : t("staff.confirmSavePeople", {
@@ -439,34 +450,36 @@ export function PermissionMatrix({
                     </p>
                   </div>
                 </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button
+              </DialogBody>
+              <DialogActions>
+                <CancelButton
                   disabled={working}
                   onClick={() => setPending(null)}
                   type="button"
-                  variant="outline"
                 >
                   {t("staff.cancel")}
-                </Button>
-                <Button
+                </CancelButton>
+                <ArrowButton
                   disabled={working}
                   onClick={() => void save()}
                   type="button"
                 >
                   {t("staff.saveChanges")}
-                </Button>
-              </DialogFooter>
+                </ArrowButton>
+              </DialogActions>
             </>
           ) : pending?.kind === "retire" ? (
             <>
-              <DialogHeader>
-                <DialogTitle>
-                  {t("staff.confirmRetireTitle", {
-                    role: roleName(pending.role),
-                  })}
-                </DialogTitle>
-                <DialogDescription>
+              <DialogMasthead
+                art="/illustrations/dialogs/remove-access.svg"
+                eyebrow={t("staff.retire")}
+                heading={t("staff.confirmRetireTitle", {
+                  role: roleName(pending.role),
+                })}
+                large
+              />
+              <DialogBody simple>
+                <DialogDescription className="m-0 text-sm">
                   {pending.role.heldBy > 0
                     ? t("staff.retireHeld", {
                         role: roleName(pending.role),
@@ -474,29 +487,28 @@ export function PermissionMatrix({
                       })
                     : t("staff.retireBody", { role: roleName(pending.role) })}
                 </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button
+              </DialogBody>
+              <DialogActions>
+                <CancelButton
                   disabled={working}
                   onClick={() => setPending(null)}
                   type="button"
-                  variant="outline"
                 >
                   {pending.role.heldBy > 0
                     ? t("staff.confirmRoleClose")
                     : t("staff.cancel")}
-                </Button>
+                </CancelButton>
                 {pending.role.heldBy > 0 ? null : (
-                  <Button
+                  <ArrowButton
                     disabled={working}
                     onClick={() => void retire(pending.role)}
+                    tone="danger"
                     type="button"
-                    variant="destructive"
                   >
                     {t("staff.retire")}
-                  </Button>
+                  </ArrowButton>
                 )}
-              </DialogFooter>
+              </DialogActions>
             </>
           ) : null}
         </DialogContent>

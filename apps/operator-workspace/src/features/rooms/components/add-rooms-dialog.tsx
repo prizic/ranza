@@ -12,24 +12,25 @@ import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import { bedLetters, roomNumbers } from "../../../server/room-numbers";
 import {
+  ArrowButton,
   Button,
-  Checkbox,
+  CancelButton,
+  ChoiceGroup,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
+  DialogNotice,
+  DialogSection,
   DialogTrigger,
   Field,
   FormError,
   Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  TickRow,
+  dialogFrameClassName,
+  fieldClassName,
 } from "@ranza/ui";
 import { addRooms, type AddRoomsOutcome } from "../../../server/accommodation";
 
@@ -115,12 +116,7 @@ export function AddRoomsDialog({
           {all("addRooms")}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{all("addRooms")}</DialogTitle>
-          <DialogDescription>{t("addDescription")}</DialogDescription>
-        </DialogHeader>
-
+      <DialogContent className={dialogFrameClassName("medium")}>
         <AddRoomsForm
           draft={draft}
           locale={locale}
@@ -181,166 +177,167 @@ function AddRoomsForm({
   const preview = previewOf(draft);
 
   return (
-    <form action={act} className="space-y-4">
-      <input type="hidden" name="locale" value={locale} />
-      <input type="hidden" name="propertyId" value={propertyId} />
-
-      <OutcomeError
-        capacityMax={capacityMax}
-        outcome={outcome}
-        permission={all("staff.permissions.configureAccommodation")}
-        t={t}
+    <form action={act} className="grid">
+      <DialogMasthead
+        art="/illustrations/dialogs/add-rooms.svg"
+        eyebrow={all("addRooms")}
+        heading={t("addHeading")}
+        large
       />
+      <DialogBody>
+        <DialogDescription className="sr-only">
+          {t("addDescription")}
+        </DialogDescription>
+        <input type="hidden" name="locale" value={locale} />
+        <input type="hidden" name="propertyId" value={propertyId} />
 
-      <div className="grid grid-cols-2 items-start gap-4">
-        <Field htmlFor="building" label={all("building")}>
-          <Input
-            id="building"
-            maxLength={BUILDING_MAX}
-            name="building"
-            onChange={(event) => set({ building: event.target.value })}
-            placeholder="Main"
-            value={draft.building}
-          />
-        </Field>
-
-        <Field htmlFor="floor" label={all("floor")}>
-          <Input
-            id="floor"
-            max={FLOOR_RANGE.max}
-            min={FLOOR_RANGE.min}
-            name="floor"
-            onChange={(event) => set({ floor: event.target.value })}
-            placeholder="1"
-            type="number"
-            value={draft.floor}
-            {...saysInOwnWords(t("floorInvalid"))}
-          />
-        </Field>
-      </div>
-
-      <div className="grid grid-cols-2 items-start gap-4">
-        <Field htmlFor="unitType" label={t("roomTypeLabel")}>
-          <Select
+        <DialogSection title={t("addWhatTitle")} titleId="add-rooms-what">
+          <ChoiceGroup
+            labelledBy="add-rooms-what"
             name="unitType"
-            onValueChange={(unitType) =>
+            onChange={(unitType) =>
               set({
                 unitType,
                 letByTheBed: unitType === "room" ? draft.letByTheBed : false,
               })
             }
+            options={[
+              { label: all("unitType.room"), value: "room" },
+              { label: all("unitType.apartment"), value: "apartment" },
+              { label: all("unitType.suite"), value: "suite" },
+            ]}
             value={draft.unitType}
+          />
+          <Field htmlFor="capacity" label={all("capacityPerRoom")}>
+            <Input
+              className={fieldClassName}
+              id="capacity"
+              max={capacityMax}
+              min={1}
+              name="capacity"
+              onChange={(event) => set({ capacity: event.target.value })}
+              required
+              type="number"
+              value={draft.capacity}
+              {...saysInOwnWords(t("capacityInvalid", { max: capacityMax }))}
+            />
+          </Field>
+          <TickRow
+            checked={draft.letByTheBed}
+            disabled={draft.unitType !== "room"}
+            id="letByTheBed"
+            name="letByTheBed"
+            onCheckedChange={(letByTheBed) => set({ letByTheBed })}
+            value="on"
           >
-            <SelectTrigger id="unitType">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="room">{all("unitType.room")}</SelectItem>
-              <SelectItem value="apartment">
-                {all("unitType.apartment")}
-              </SelectItem>
-              <SelectItem value="suite">{all("unitType.suite")}</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
+            <b className="block font-medium">{all("letByTheBed")}</b>
+            <span className="block text-step--1 text-muted-foreground">
+              {all("letByTheBedHint")}
+            </span>
+          </TickRow>
+        </DialogSection>
 
-        <Field
+        <DialogSection
           hint={t("firstNumberHint")}
-          htmlFor="firstNumber"
-          label={all("firstNumber")}
+          tag={{ label: all("dialogTagRequired"), required: true }}
+          title={t("addNumbersTitle")}
         >
-          <Input
-            aria-describedby="firstNumber-hint"
-            id="firstNumber"
-            inputMode="numeric"
-            name="firstNumber"
-            onChange={(event) => set({ firstNumber: event.target.value })}
-            pattern={NUMBER_PATTERN.source}
-            placeholder="101"
-            required
-            value={draft.firstNumber}
-            {...saysInOwnWords(t("firstNumberInvalid"))}
-          />
-        </Field>
-      </div>
+          <div className="grid grid-cols-2 items-start gap-4">
+            <Field htmlFor="firstNumber" label={all("firstNumber")}>
+              <Input
+                className={fieldClassName}
+                id="firstNumber"
+                inputMode="numeric"
+                name="firstNumber"
+                onChange={(event) => set({ firstNumber: event.target.value })}
+                pattern={NUMBER_PATTERN.source}
+                placeholder="101"
+                required
+                value={draft.firstNumber}
+                {...saysInOwnWords(t("firstNumberInvalid"))}
+              />
+            </Field>
+            <Field htmlFor="count" label={all("roomCount")}>
+              <Input
+                className={fieldClassName}
+                id="count"
+                max={BATCH_MAX}
+                min={1}
+                name="count"
+                onChange={(event) => set({ count: event.target.value })}
+                required
+                type="number"
+                value={draft.count}
+                {...saysInOwnWords(t("countInvalid"))}
+              />
+            </Field>
+          </div>
+        </DialogSection>
 
-      <div className="grid grid-cols-2 items-start gap-4">
-        <Field htmlFor="count" label={all("roomCount")}>
-          <Input
-            id="count"
-            max={BATCH_MAX}
-            min={1}
-            name="count"
-            onChange={(event) => set({ count: event.target.value })}
-            required
-            type="number"
-            value={draft.count}
-            {...saysInOwnWords(t("countInvalid"))}
-          />
-        </Field>
+        <DialogSection
+          tag={{ label: all("dialogTagOptional"), required: false }}
+          title={t("addWhereTitle")}
+        >
+          <div className="grid grid-cols-2 items-start gap-4">
+            <Field htmlFor="building" label={all("building")}>
+              <Input
+                className={fieldClassName}
+                id="building"
+                maxLength={BUILDING_MAX}
+                name="building"
+                onChange={(event) => set({ building: event.target.value })}
+                placeholder="Main"
+                value={draft.building}
+              />
+            </Field>
+            <Field htmlFor="floor" label={all("floor")}>
+              <Input
+                className={fieldClassName}
+                id="floor"
+                max={FLOOR_RANGE.max}
+                min={FLOOR_RANGE.min}
+                name="floor"
+                onChange={(event) => set({ floor: event.target.value })}
+                placeholder="1"
+                type="number"
+                value={draft.floor}
+                {...saysInOwnWords(t("floorInvalid"))}
+              />
+            </Field>
+          </div>
+        </DialogSection>
 
-        <Field htmlFor="capacity" label={all("capacityPerRoom")}>
-          <Input
-            id="capacity"
-            max={capacityMax}
-            min={1}
-            name="capacity"
-            onChange={(event) => set({ capacity: event.target.value })}
-            required
-            type="number"
-            value={draft.capacity}
-            {...saysInOwnWords(t("capacityInvalid", { max: capacityMax }))}
+        <div className="py-5">
+          <div aria-live="polite" data-testid="add-rooms-preview">
+            <DialogNotice>
+              {preview ? (
+                <PreviewLine draft={draft} preview={preview} />
+              ) : (
+                t("previewIncomplete")
+              )}
+            </DialogNotice>
+          </div>
+          <OutcomeError
+            capacityMax={capacityMax}
+            outcome={outcome}
+            permission={all("staff.permissions.configureAccommodation")}
+            t={t}
           />
-        </Field>
-      </div>
-
-      <div className="flex items-start gap-3 pt-2">
-        <Checkbox
-          checked={draft.letByTheBed}
-          disabled={draft.unitType !== "room"}
-          id="letByTheBed"
-          name="letByTheBed"
-          onCheckedChange={(checked) => set({ letByTheBed: Boolean(checked) })}
-        />
-        <div className="grid gap-1.5 leading-none">
-          <Label htmlFor="letByTheBed" className="cursor-pointer font-medium">
-            {all("letByTheBed")}
-          </Label>
-          <p className="text-xs text-muted-foreground">
-            {all("letByTheBedHint")}
-          </p>
         </div>
-      </div>
+      </DialogBody>
 
-      <p
-        aria-live="polite"
-        className="min-h-5 rounded-lg bg-muted/60 px-3 py-2 text-step--1"
-        data-testid="add-rooms-preview"
-      >
-        {preview ? (
-          <PreviewLine draft={draft} preview={preview} />
-        ) : (
-          t("previewIncomplete")
-        )}
-      </p>
-
-      <DialogFooter className="pt-2">
-        <Button
-          disabled={pending}
-          onClick={onCancel}
-          type="button"
-          variant="outline"
-        >
+      <DialogActions hint={preview ? null : t("addHintFirstNumber")}>
+        <CancelButton disabled={pending} onClick={onCancel} type="button">
           {all("discardBooking")}
-        </Button>
-        <Button disabled={pending} type="submit">
+        </CancelButton>
+        <ArrowButton disabled={pending || !preview} type="submit">
           {pending
             ? all("addingRooms")
             : preview
               ? t("addCount", { count: preview.count })
               : all("addRooms")}
-        </Button>
-      </DialogFooter>
+        </ArrowButton>
+      </DialogActions>
     </form>
   );
 }

@@ -13,12 +13,15 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  ArrowButton,
+  CancelButton,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
+  DialogNotice,
   EmptyState,
   Table,
   TableBody,
@@ -26,6 +29,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TickRow,
+  dialogFrameClassName,
 } from "@ranza/ui";
 import {
   Check,
@@ -396,11 +401,13 @@ export function PayrollCard({
           if (!isOpen) setUnderstood(false);
         }}
       >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {t("confirmTitle", { period: monthName(payroll.period) })}
-            </DialogTitle>
+        <DialogContent className={dialogFrameClassName("small")}>
+          <DialogMasthead
+            art="/illustrations/dialogs/payslip.svg"
+            eyebrow={t("confirmTitle", { period: monthName(payroll.period) })}
+            heading={monthName(payroll.period)}
+          />
+          <DialogBody simple>
             <DialogDescription>
               {t("confirmBody", {
                 count: payroll.payslips.length,
@@ -409,44 +416,38 @@ export function PayrollCard({
                 total: money(payroll.totalNetMinor),
               })}
             </DialogDescription>
-          </DialogHeader>
-          <div
-            className="flex items-start gap-2 rounded-md border border-border bg-muted/40 p-3 text-step--1"
-            role="note"
-          >
-            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-            <p className="text-muted-foreground">{t("confirmPlaceholders")}</p>
-          </div>
-          <p className="text-step--1 text-muted-foreground">
-            {t("confirmLocked")}
-          </p>
-          <label className="flex items-start gap-2 text-step--1">
-            <input
+            <DialogNotice icon={TriangleAlert}>
+              {t("confirmPlaceholders")}
+            </DialogNotice>
+            <p className="m-0 text-sm text-muted-foreground">
+              {t("confirmLocked")}
+            </p>
+            <TickRow
               checked={understood}
-              className="mt-1"
-              data-testid="understood-placeholders"
-              onChange={(event) => setUnderstood(event.target.checked)}
-              type="checkbox"
-            />
-            {t("confirmUnderstood")}
-          </label>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
+              id="payroll-understood"
+              name="understood"
+              onCheckedChange={setUnderstood}
+              required
+            >
+              {t("confirmUnderstood")}
+            </TickRow>
+          </DialogBody>
+          <DialogActions hint={understood ? null : t("confirmHintMissing")}>
+            <CancelButton
               disabled={isPending}
               onClick={() => setConfirming(false)}
+              type="button"
             >
               {t("cancel")}
-            </Button>
-            <Button
-              type="button"
+            </CancelButton>
+            <ArrowButton
               disabled={isPending || !understood}
               onClick={handleApprovePayroll}
+              type="button"
             >
               {isPending ? t("approving") : t("confirm")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </DialogContent>
       </Dialog>
 

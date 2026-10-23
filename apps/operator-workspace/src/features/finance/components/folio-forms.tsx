@@ -6,25 +6,25 @@ import { useTranslations } from "next-intl";
 import { Undo2 } from "lucide-react";
 import type { FolioLine, PaymentMethod } from "@ranza/folios";
 import {
+  ArrowButton,
   Button,
-  Checkbox,
+  CancelButton,
+  ChoiceGroup,
   Dialog,
-  DialogClose,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
+  DialogNotice,
+  DialogSection,
   DialogTrigger,
   Field,
   FormError,
   Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  TickRow,
+  dialogFrameClassName,
+  fieldClassName,
 } from "@ranza/ui";
 import {
   formatMoney,
@@ -297,6 +297,8 @@ export function PaymentDialog({
   const money = (minor: number) => formatMoney(minor, folio.currency, locale);
   const who = isolate(folio.who);
   const unit = isolate(folio.unit);
+  const complete = typed !== null && method !== "";
+  const extraBlocked = extra > 0 && !extraConfirmed;
 
   return (
     <Dialog
@@ -311,14 +313,14 @@ export function PaymentDialog({
           {t("addPayment")}
         </Button>
       </DialogTrigger>
-      <DialogContent>
-        <form action={act} className="grid gap-4">
-          <DialogHeader>
-            <DialogTitle>{t("addPayment")}</DialogTitle>
-            <DialogDescription>
-              {f("paymentFor", { who, unit })}
-            </DialogDescription>
-          </DialogHeader>
+      <DialogContent className={dialogFrameClassName("medium")}>
+        <form action={act} className="grid">
+          <DialogMasthead
+            art="/illustrations/dialogs/payment.svg"
+            eyebrow={t("addPayment")}
+            facts={unit}
+            heading={who}
+          />
           <input name="folio" type="hidden" value={folio.folioId} />
           <input name="locale" type="hidden" value={locale} />
           <input name="currency" type="hidden" value={folio.currency} />
@@ -329,116 +331,131 @@ export function PaymentDialog({
             value={note.trim() || f("paymentDefaultDescription")}
           />
 
-          <p className="text-step--1 text-muted-foreground">
-            {owedMinor > 0
-              ? f("owesNow", { amount: money(owedMinor) })
-              : f("owesNothing")}
-          </p>
+          <DialogBody>
+            <DialogDescription className="m-0 py-5 text-sm">
+              {owedMinor > 0
+                ? f("owesNow", { amount: money(owedMinor) })
+                : f("owesNothing")}
+            </DialogDescription>
 
-          <Field
-            htmlFor="payment-amount"
-            label={`${t("amount")} (${folio.currency})`}
-          >
-            <Input
-              autoComplete="off"
-              className="text-end tabular-nums"
-              id="payment-amount"
-              inputMode="decimal"
-              name="amount"
-              onChange={(event) => {
-                setAmount(event.target.value);
-                edited();
-              }}
-              required
-              value={amount}
-            />
-          </Field>
-
-          <Field htmlFor="payment-method" label={t("paymentMethod")}>
-            <Select
-              onValueChange={(value) => {
-                setMethod(value as PaymentMethod);
-                edited();
-              }}
-              value={method}
+            <DialogSection
+              labelFor="payment-amount"
+              tag={{ label: t("dialogTagRequired"), required: true }}
+              title={`${t("amount")} (${folio.currency})`}
             >
-              <SelectTrigger className="w-full" id="payment-method">
-                <SelectValue placeholder={f("chooseMethod")} />
-              </SelectTrigger>
-              <SelectContent>
-                {METHODS.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {t(`paymentMethods.${value}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-
-          <Field htmlFor="payment-note" label={f("paymentNote")}>
-            <Input
-              autoComplete="off"
-              id="payment-note"
-              maxLength={200}
-              onChange={(event) => {
-                setNote(event.target.value);
-                edited();
-              }}
-              placeholder={f("paymentNoteHint")}
-              value={note}
-            />
-          </Field>
-
-          <p
-            className="rounded-lg border bg-muted/40 px-4 py-3 text-step--1"
-            data-testid="payment-summary"
-          >
-            {typed !== null && method !== ""
-              ? f("paymentSummary", {
-                  amount: money(typed),
-                  method: t(`paymentMethods.${method}`),
-                  who,
-                  unit,
-                })
-              : f("paymentSummaryIncomplete")}{" "}
-            <span className="text-muted-foreground">{f("paymentRecord")}</span>
-          </p>
-
-          {extra > 0 ? (
-            <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-step--1 text-amber-900">
-              <Checkbox
-                checked={extraConfirmed}
-                id="payment-extra"
-                onCheckedChange={(value) => setExtraConfirmed(value === true)}
+              <Input
+                autoComplete="off"
+                className={`${fieldClassName} text-end tabular-nums`}
+                id="payment-amount"
+                inputMode="decimal"
+                name="amount"
+                onChange={(event) => {
+                  setAmount(event.target.value);
+                  edited();
+                }}
+                required
+                value={amount}
               />
-              <Label className="font-normal" htmlFor="payment-extra">
-                {f("paymentExtra", {
-                  extra: money(extra),
-                  owed: money(Math.max(owedMinor, 0)),
-                })}
-              </Label>
+            </DialogSection>
+
+            <DialogSection
+              tag={{ label: t("dialogTagRequired"), required: true }}
+              title={t("paymentMethod")}
+              titleId="payment-method"
+            >
+              <ChoiceGroup
+                labelledBy="payment-method"
+                name="paymentMethodChoice"
+                onChange={(value) => {
+                  setMethod(value as PaymentMethod);
+                  edited();
+                }}
+                options={METHODS.map((value) => ({
+                  label: t(`paymentMethods.${value}`),
+                  value,
+                }))}
+                value={method}
+              />
+            </DialogSection>
+
+            <DialogSection
+              labelFor="payment-note"
+              tag={{ label: t("dialogTagOptional"), required: false }}
+              title={f("paymentNote")}
+            >
+              <Input
+                autoComplete="off"
+                className={fieldClassName}
+                id="payment-note"
+                maxLength={200}
+                onChange={(event) => {
+                  setNote(event.target.value);
+                  edited();
+                }}
+                placeholder={f("paymentNoteHint")}
+                value={note}
+              />
+            </DialogSection>
+
+            <DialogSection>
+              <div data-testid="payment-summary">
+                <DialogNotice>
+                  {complete
+                    ? f("paymentSummary", {
+                        amount: money(typed),
+                        method: t(`paymentMethods.${method}`),
+                        who,
+                        unit,
+                      })
+                    : f("paymentSummaryIncomplete")}{" "}
+                  <span className="text-muted-foreground">
+                    {f("paymentRecord")}
+                  </span>
+                </DialogNotice>
+              </div>
+              {extra > 0 ? (
+                <TickRow
+                  checked={extraConfirmed}
+                  id="payment-extra"
+                  name="confirmExtra"
+                  onCheckedChange={setExtraConfirmed}
+                >
+                  {f("paymentExtra", {
+                    extra: money(extra),
+                    owed: money(Math.max(owedMinor, 0)),
+                  })}
+                </TickRow>
+              ) : null}
+            </DialogSection>
+
+            <div className="py-5 empty:hidden">
+              <Outcome
+                currency={folio.currency}
+                outcome={outcome}
+                refused={f("whatPayment")}
+              />
             </div>
-          ) : null}
+          </DialogBody>
 
-          <Outcome
-            currency={folio.currency}
-            outcome={outcome}
-            refused={f("whatPayment")}
-          />
-
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="ghost">
-                {f("cancel")}
-              </Button>
-            </DialogClose>
-            <Button
-              disabled={pending || (extra > 0 && !extraConfirmed)}
+          <DialogActions
+            hint={
+              !complete
+                ? f("paymentHintMissing")
+                : extraBlocked
+                  ? f("paymentHintExtra")
+                  : null
+            }
+          >
+            <CancelButton onClick={() => setOpen(false)} type="button">
+              {f("cancel")}
+            </CancelButton>
+            <ArrowButton
+              disabled={pending || !complete || extraBlocked}
               type="submit"
             >
               {pending ? t("posting") : t("addPayment")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </form>
       </DialogContent>
     </Dialog>
@@ -484,6 +501,7 @@ export function ReverseDialog({
     folio.currency,
     locale,
   );
+  const reasonGiven = reason.trim().length >= 3;
 
   return (
     <Dialog
@@ -499,13 +517,20 @@ export function ReverseDialog({
           {t("reverse")}
         </Button>
       </DialogTrigger>
-      <DialogContent>
-        <form action={act} className="grid gap-4">
-          <DialogHeader>
-            <DialogTitle>
-              {isPayment ? f("reversePaymentTitle") : f("reverseChargeTitle")}
-            </DialogTitle>
-            <DialogDescription>
+      <DialogContent className={dialogFrameClassName("medium")}>
+        <form action={act} className="grid">
+          <DialogMasthead
+            art="/illustrations/dialogs/reverse.svg"
+            eyebrow={
+              isPayment ? f("reversePaymentTitle") : f("reverseChargeTitle")
+            }
+            heading={amount}
+          />
+          <input name="line" type="hidden" value={line.lineId} />
+          <input name="locale" type="hidden" value={locale} />
+
+          <DialogBody>
+            <DialogDescription className="m-0 py-5 text-sm">
               {isPayment
                 ? f("reversePaymentSummary", {
                     amount,
@@ -522,48 +547,57 @@ export function ReverseDialog({
                     unit: isolate(folio.unit),
                   })}
             </DialogDescription>
-          </DialogHeader>
-          <input name="line" type="hidden" value={line.lineId} />
-          <input name="locale" type="hidden" value={locale} />
 
-          <p className="rounded-lg border bg-muted/40 px-4 py-3 text-step--1">
-            {isPayment
-              ? f("reversePaymentEffect", { amount })
-              : f("reverseChargeEffect", { amount })}
-          </p>
+            <DialogSection>
+              <DialogNotice>
+                {isPayment
+                  ? f("reversePaymentEffect", { amount })
+                  : f("reverseChargeEffect", { amount })}
+              </DialogNotice>
+            </DialogSection>
 
-          <Field htmlFor={`reverse-${line.lineId}`} label={t("reverseReason")}>
-            <Input
-              autoComplete="off"
-              id={`reverse-${line.lineId}`}
-              maxLength={200}
-              minLength={3}
-              name="reason"
-              onChange={(event) => {
-                setReason(event.target.value);
-                edited();
-              }}
-              required
-              value={reason}
-            />
-          </Field>
+            <DialogSection
+              labelFor={`reverse-${line.lineId}`}
+              tag={{ label: t("dialogTagRequired"), required: true }}
+              title={t("reverseReason")}
+            >
+              <Input
+                autoComplete="off"
+                className={fieldClassName}
+                id={`reverse-${line.lineId}`}
+                maxLength={200}
+                minLength={3}
+                name="reason"
+                onChange={(event) => {
+                  setReason(event.target.value);
+                  edited();
+                }}
+                required
+                value={reason}
+              />
+            </DialogSection>
 
-          <Outcome
-            currency={folio.currency}
-            outcome={outcome}
-            refused={f("whatReverse")}
-          />
+            <div className="py-5 empty:hidden">
+              <Outcome
+                currency={folio.currency}
+                outcome={outcome}
+                refused={f("whatReverse")}
+              />
+            </div>
+          </DialogBody>
 
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="ghost">
-                {f("cancel")}
-              </Button>
-            </DialogClose>
-            <Button disabled={pending} type="submit" variant="destructive">
+          <DialogActions hint={reasonGiven ? null : f("reverseHintMissing")}>
+            <CancelButton onClick={() => setOpen(false)} type="button">
+              {f("cancel")}
+            </CancelButton>
+            <ArrowButton
+              disabled={pending || !reasonGiven}
+              tone="danger"
+              type="submit"
+            >
               {pending ? t("reversing") : t("reverse")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </form>
       </DialogContent>
     </Dialog>
@@ -607,37 +641,40 @@ export function CloseDialog({
           {t("closeFolio")}
         </Button>
       </DialogTrigger>
-      <DialogContent>
-        <form action={act} className="grid gap-4">
-          <DialogHeader>
-            <DialogTitle>{f("closeTitle")}</DialogTitle>
-            <DialogDescription>
+      <DialogContent className={dialogFrameClassName("small")}>
+        <form action={act} className="grid">
+          <DialogMasthead
+            art="/illustrations/dialogs/payment.svg"
+            eyebrow={f("closeTitle")}
+            facts={isolate(folio.unit)}
+            heading={isolate(folio.who)}
+          />
+          <input name="folio" type="hidden" value={folio.folioId} />
+          <input name="locale" type="hidden" value={locale} />
+          <DialogBody simple>
+            <DialogDescription className="m-0 text-sm">
               {f("closeSummary", {
                 who: isolate(folio.who),
                 unit: isolate(folio.unit),
               })}
             </DialogDescription>
-          </DialogHeader>
-          <input name="folio" type="hidden" value={folio.folioId} />
-          <input name="locale" type="hidden" value={locale} />
-          <p className="rounded-lg border bg-muted/40 px-4 py-3 text-step--1">
-            {effect} {f("closeFinal")}
-          </p>
-          <Outcome
-            currency={folio.currency}
-            outcome={outcome}
-            refused={f("whatClose")}
-          />
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="ghost">
-                {f("cancel")}
-              </Button>
-            </DialogClose>
-            <Button disabled={pending} type="submit">
+            <DialogNotice>
+              {effect} {f("closeFinal")}
+            </DialogNotice>
+            <Outcome
+              currency={folio.currency}
+              outcome={outcome}
+              refused={f("whatClose")}
+            />
+          </DialogBody>
+          <DialogActions>
+            <CancelButton onClick={() => setOpen(false)} type="button">
+              {f("cancel")}
+            </CancelButton>
+            <ArrowButton disabled={pending} type="submit">
               {pending ? t("closing") : t("closeFolio")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </form>
       </DialogContent>
     </Dialog>

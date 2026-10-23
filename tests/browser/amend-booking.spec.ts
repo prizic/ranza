@@ -340,7 +340,7 @@ test("change_actions_are_where_the_desk_works: a Guest is moved from the room ca
     name: new RegExp(`^${guestName}, In house`),
   });
   await bar.click();
-  const drawer = page.getByRole("dialog", { name: guestName });
+  const drawer = page.getByRole("dialog", { name: "Reservation details" });
   await expect(drawer.getByText(from, { exact: true })).toBeVisible();
   await drawer.getByRole("button", { name: "Move Guest" }).click();
 

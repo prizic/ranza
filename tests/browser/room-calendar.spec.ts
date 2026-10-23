@@ -178,9 +178,7 @@ test("RC-S1-58 and RC-S1-64: a bar opens its drawer, which points to where the c
   await bar.focus();
   await page.keyboard.press("Enter");
   const drawer = page.getByRole("dialog");
-  await expect(
-    drawer.getByRole("heading", { name: fixture.inHouse }),
-  ).toBeVisible();
+  await expect(drawer.getByText(fixture.inHouse).first()).toBeVisible();
   await expect(
     drawer.getByText("Another booking holds some of these nights"),
   ).toBeVisible();
@@ -835,7 +833,7 @@ for (const viewport of [
       .getByRole("button", { name: new RegExp(`^${guest}, Confirmed`) })
       .click();
     await page
-      .getByRole("dialog", { name: guest })
+      .getByRole("dialog", { name: "Reservation details" })
       .getByRole("button", { name: "Move…" })
       .click();
     const dialog = page.getByRole("dialog", { name: "Move booking" });
@@ -883,7 +881,7 @@ test("RC-S3-12: Move… on a booking's details does the same without a pointer",
   });
   await bar.focus();
   await page.keyboard.press("Enter");
-  const drawer = page.getByRole("dialog", { name: guest });
+  const drawer = page.getByRole("dialog", { name: "Reservation details" });
   await drawer.getByRole("button", { name: "Move…" }).focus();
   await page.keyboard.press("Enter");
 
@@ -1030,7 +1028,9 @@ test("RC-S3-16: Escape drops a drag in progress, and a plain click still opens t
   await page
     .getByRole("button", { name: new RegExp(`^${guest}, Confirmed`) })
     .click();
-  await expect(page.getByRole("dialog", { name: guest })).toBeVisible();
+  await expect(
+    page.getByRole("dialog", { name: "Reservation details" }),
+  ).toBeVisible();
 });
 
 test("RC-S3-11: in Arabic the drag follows the pointer to the left and the dates are the right ones", async ({
@@ -1147,7 +1147,7 @@ test("RC-S3-10: without front_desk.amend a bar has no grip, no end handle, no Mo
 
   // The drawer, opened by a click, offers no Move… either.
   await bar.click();
-  const drawer = page.getByRole("dialog", { name: guest });
+  const drawer = page.getByRole("dialog", { name: "Reservation details" });
   await expect(drawer).toBeVisible();
   await expect(drawer.getByRole("button", { name: "Move…" })).toHaveCount(0);
 });

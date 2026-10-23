@@ -44,6 +44,15 @@ export function dialogFrameClassName(
   );
 }
 
+/**
+ * A side sheet in the same frame. The sheet scrolls as one piece so the sticky
+ * footer stays on screen, and its close control sits on the masthead.
+ */
+export const sheetFrameClassName = cn(
+  "grid w-full grid-rows-[auto_1fr_auto] gap-0 overflow-y-auto p-0 sm:max-w-[32.5rem]",
+  "[&>button:last-child]:end-6 [&>button:last-child]:top-5 [&>button:last-child]:bg-background/60 [&>button:last-child]:hover:bg-background",
+);
+
 /** What is typed into: a visible box, a plain example inside, a clear focus. */
 export const fieldClassName =
   "h-12 rounded-2xl border-[1.5px] border-foreground/25 bg-background px-4 text-[0.95rem] shadow-none focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15";
@@ -203,7 +212,10 @@ export function DialogNotice({
   icon?: LucideIcon;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-primary/10 bg-primary/5 px-4 py-3.5">
+    <div
+      className="flex items-start gap-3 rounded-2xl border border-primary/10 bg-primary/5 px-4 py-3.5"
+      role="note"
+    >
       <span className="grid size-7 shrink-0 place-content-center rounded-full bg-primary/15 text-primary-text">
         <Icon aria-hidden="true" className="size-4" />
       </span>
@@ -306,28 +318,34 @@ export function DialogSettled({
 export function TickRow({
   checked,
   children,
+  disabled = false,
   id,
   name,
   onCheckedChange,
   required = false,
+  value = "yes",
 }: {
   checked: boolean;
   children: ReactNode;
+  disabled?: boolean;
   id: string;
   name: string;
   onCheckedChange: (checked: boolean) => void;
   required?: boolean;
+  /** What the form sends when ticked; the action it posts to decides what it reads. */
+  value?: string;
 }) {
   return (
     <div className="flex items-center gap-3.5 rounded-2xl border-[1.5px] border-foreground/25 px-4 py-3.5">
       <Checkbox
         checked={checked}
         className="size-5.5 rounded-lg border-[1.5px] border-foreground/60 bg-background"
+        disabled={disabled}
         id={id}
         name={name}
         onCheckedChange={(next) => onCheckedChange(next === true)}
         required={required}
-        value="yes"
+        value={value}
       />
       <Label className="leading-snug font-normal" htmlFor={id}>
         <span>{children}</span>

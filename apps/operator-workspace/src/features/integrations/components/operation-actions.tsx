@@ -4,16 +4,20 @@ import { useState, useTransition } from "react";
 import { RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
+  ArrowButton,
   Button,
+  CancelButton,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Field,
+  DialogMasthead,
+  DialogSection,
   FormError,
   Textarea,
+  dialogFrameClassName,
+  textareaClassName,
 } from "@ranza/ui";
 import {
   cancelOperationAction,
@@ -60,6 +64,7 @@ export function OperationActions({
   status,
 }: OperationActionsProps) {
   const t = useTranslations("integrations");
+  const all = useTranslations();
   const [closing, setClosing] = useState<Closing | null>(null);
   const [reason, setReason] = useState("");
   const [outcome, setOutcome] = useState<IntegrationsOutcome>({
@@ -68,6 +73,7 @@ export function OperationActions({
   const [pending, startWorking] = useTransition();
 
   const failureKey = outcomeKey(outcome);
+  const reasonGiven = reason.trim().length >= 3;
 
   function retry() {
     setOutcome({ status: "idle" });
@@ -155,47 +161,62 @@ export function OperationActions({
         }}
         open={closing !== null}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {closing === "cancel" ? t("cancelTitle") : t("resolveTitle")}
-            </DialogTitle>
-            <DialogDescription>
+        <DialogContent className={dialogFrameClassName("medium")}>
+          <DialogMasthead
+            art="/illustrations/dialogs/webhook.svg"
+            eyebrow={
+              closing === "cancel" ? t("cancelTitle") : t("resolveTitle")
+            }
+            heading={t("operationHeading")}
+          />
+          <DialogBody>
+            <DialogDescription className="m-0 py-5 text-sm">
               {closing === "cancel"
                 ? t("cancelDescription")
                 : t("resolveDescription")}
             </DialogDescription>
-          </DialogHeader>
-          <Field
-            hint={t("reasonHint")}
-            htmlFor={`reason-${operationId}`}
-            label={t("reasonLabel")}
+            <DialogSection
+              hint={t("reasonHint")}
+              labelFor={`reason-${operationId}`}
+              tag={{ label: all("dialogTagRequired"), required: true }}
+              title={t("reasonLabel")}
+            >
+              <Textarea
+                aria-describedby={`reason-${operationId}-hint`}
+                className={textareaClassName}
+                id={`reason-${operationId}`}
+                onChange={(event) => {
+                  setReason(event.target.value);
+                  setOutcome({ status: "idle" });
+                }}
+                placeholder={t("reasonPlaceholder")}
+                value={reason}
+              />
+            </DialogSection>
+            {failureKey ? (
+              <div aria-live="polite" className="py-5">
+                <FormError>{t(failureKey)}</FormError>
+              </div>
+            ) : null}
+          </DialogBody>
+          <DialogActions
+            hint={reasonGiven ? null : t("refused.reason_required")}
           >
-            <Textarea
-              aria-describedby={`reason-${operationId}-hint`}
-              id={`reason-${operationId}`}
-              onChange={(event) => {
-                setReason(event.target.value);
-                setOutcome({ status: "idle" });
-              }}
-              placeholder={t("reasonPlaceholder")}
-              value={reason}
-            />
-          </Field>
-          {failureKey ? <FormError>{t(failureKey)}</FormError> : null}
-          <DialogFooter>
-            <Button
+            <CancelButton
               disabled={pending}
               onClick={() => setClosing(null)}
               type="button"
-              variant="outline"
             >
               {t("dismiss")}
-            </Button>
-            <Button disabled={pending} onClick={close} type="button">
+            </CancelButton>
+            <ArrowButton
+              disabled={pending || !reasonGiven}
+              onClick={close}
+              type="button"
+            >
               {closing === "cancel" ? t("cancelConfirm") : t("resolveConfirm")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </DialogContent>
       </Dialog>
     </div>
