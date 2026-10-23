@@ -3,7 +3,13 @@ import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 
 import { psql } from "./local-database";
-import { DESK_EMAIL, OWNER_EMAIL, signIn, testProperty } from "./front-desk";
+import {
+  aStaffMemberHolding,
+  DESK_EMAIL,
+  OWNER_EMAIL,
+  signIn,
+  testProperty,
+} from "./front-desk";
 
 /** Gives the confirmation a role change asks for, and waits for it to close. */
 async function confirmRoleChange(page: Page): Promise<void> {
@@ -333,7 +339,7 @@ test("an Organization's own Front desk is picked apart from the shipped one", as
  * Watched go red first: before the page asked for the permissions, the Front
  * desk case failed on the Invite button being there.
  */
-test("a Front desk Staff Member reads the roster and is offered nothing to change it", async ({
+test("a Front desk Staff Member is not offered People, and the address says which permission it needs", async ({
   page,
 }) => {
   const propertyId = testProperty();
@@ -341,19 +347,34 @@ test("a Front desk Staff Member reads the roster and is offered nothing to chang
   await signIn(page, DESK_EMAIL);
   await page.goto(`/en/people?property=${propertyId}`);
 
-  await expect(page.getByTestId("staff-row").first()).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Your role can't open this page" }),
+  ).toBeVisible();
+  await expect(page.getByTestId("staff-row")).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "People", exact: true }),
+  ).toHaveCount(0);
+});
+
+test("a role that may define roles and not invite is offered the one and not the other", async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  const propertyId = testProperty();
+  const reader = await aStaffMemberHolding(request, baseURL!, propertyId, [
+    "staff.define_roles",
+  ]);
+
+  await signIn(page, reader.email);
+  await page.goto(`/en/people?property=${propertyId}`);
+
+  await expect(
+    page.getByRole("button", { exact: true, name: "Define a role" }),
+  ).toBeVisible();
   await expect(
     page.getByRole("button", { exact: true, name: "Invite" }),
   ).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { exact: true, name: "Define a role" }),
-  ).toHaveCount(0);
-  await expect(page.getByRole("combobox")).toHaveCount(0);
-  await expect(
-    page.getByText(
-      "You can see the team. People who manage staff can change it.",
-    ),
-  ).toBeVisible();
 });
 
 test("an Owner is offered Invite and Define a role", async ({ page }) => {

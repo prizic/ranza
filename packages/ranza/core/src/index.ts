@@ -29,6 +29,7 @@ export type {
   SettingsSaved,
   CapabilityRef,
   EntitledProperty,
+  PermissionGate,
   WorkingDay,
 } from "./contracts";
 export type { AuditLocation, AuditNames } from "./audit-log";

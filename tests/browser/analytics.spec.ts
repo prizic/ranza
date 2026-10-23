@@ -4,7 +4,7 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import { test } from "./hydration";
 
 import { messages } from "../../apps/operator-workspace/src/messages";
-import { aStaffMember, signIn } from "./front-desk";
+import { aStaffMember, aStaffMemberHolding, signIn } from "./front-desk";
 import { aFreshProperty } from "./fresh-property";
 import {
   aSettledMonth,
@@ -419,11 +419,13 @@ test("a reader without finance.manage_folio sees the nights and no money anywher
   baseURL,
 }) => {
   const property = aSettledMonth();
-  const email = await aManagerOf(
+  // Reads the ledger and does not manage Folios: the one role that opens
+  // Analytics with the money withheld (ADR 0056). No shipped role is that.
+  const { email } = await aStaffMemberHolding(
     request,
     baseURL!,
     property.propertyId,
-    "housekeeping",
+    ["finance.view_ledger"],
   );
   await signIn(page, email);
   await page.goto(reportUrl(property.propertyId, "2026-02"));
@@ -481,7 +483,8 @@ test("a Property the viewer is not assigned to is not shown, and the one they ar
   const email = await aManagerOf(request, baseURL!, mine.propertyId);
   await signIn(page, email);
   await expect(
-    page.locator('aside a[href^="/en/analytics"]').first(),
+    // The sidebar, or the chips of a role with few pages (ADR 0056).
+    page.locator('nav a[href^="/en/analytics"]:visible').first(),
   ).toBeVisible();
 
   await page.goto(reportUrl(elsewhere.propertyId, "2026-02"));

@@ -120,19 +120,30 @@ test("an invited colleague opens the link, sets a password and is signed in with
   await invitee.getByRole("button", { name: "Set password and join" }).click();
   await expect(invitee).toHaveURL(/\/en\/today/);
 
-  // Signed in as the invited person, holding the invited role: a Front desk
-  // colleague reads the team and is offered nothing to change it.
+  // Signed in as the invited person, holding the invited role and reach. A
+  // Front desk colleague is not offered People (ADR 0056), so the role and the
+  // reach are read where they are kept.
   await invitee.goto(`/en/people?property=${propertyId}`);
   await expect(
-    invitee.getByText(
-      "You can see the team. People who manage staff can change it.",
-    ),
+    invitee.getByRole("heading", { name: "Your role can't open this page" }),
   ).toBeVisible();
-  const mine = invitee.getByRole("row").filter({ hasText: email });
-  await expect(mine).toContainText("Front desk");
-  await expect(mine).toContainText("E2E Test Property");
-  await expect(mine).toContainText("Active");
-  await expect(mine).not.toContainText("Awaiting a password");
+  expect(
+    psql(
+      `select membership.role || ' ' || membership.status
+         from public.organization_memberships as membership
+         join public.users as person on person.id = membership.user_id
+        where lower(person.email) = '${email}'`,
+    ),
+  ).toBe("front_desk active");
+  expect(
+    psql(
+      `select count(*) from public.property_assignments as assignment
+         join public.users as person on person.id = assignment.user_id
+        where lower(person.email) = '${email}'
+          and assignment.property_id = '${propertyId}'
+          and assignment.status = 'active'`,
+    ),
+  ).toBe("1");
 
   // The login is tied to the person the invitation made, not to a new one.
   expect(

@@ -10,6 +10,7 @@
 import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EntitledProperty } from "../../packages/ranza/core/src";
+import { gateOf } from "../../apps/operator-workspace/src/lib/screens";
 import { aPortfolio, aProperty } from "./portfolio-fixtures";
 
 const viewer = vi.hoisted(() => {
@@ -20,7 +21,7 @@ const viewer = vi.hoisted(() => {
     }
   }
   return {
-    entitledProperties: vi.fn(),
+    screenProperties: vi.fn(),
     portfolio: vi.fn(),
     requireViewer: vi.fn(),
     whyDenied: vi.fn(),
@@ -88,13 +89,13 @@ const open = (property?: string, more: { sort?: string; view?: string } = {}) =>
   }) as Promise<ReactElement<Record<string, unknown>>>;
 
 beforeEach(() => {
-  viewer.entitledProperties.mockReset();
+  viewer.screenProperties.mockReset();
   viewer.portfolio.mockReset();
   viewer.requireViewer.mockReset();
   viewer.whyDenied.mockReset();
   viewer.whyDenied.mockResolvedValue({ reason: "not_reachable" });
   state.remembered = undefined;
-  viewer.entitledProperties.mockResolvedValue([KADIKOY, MODA]);
+  viewer.screenProperties.mockResolvedValue([KADIKOY, MODA]);
 });
 
 describe("all_properties_route", () => {
@@ -123,15 +124,12 @@ describe("all_properties_route", () => {
     // Told why, with what the URL named: a stale link is not "not in your
     // Subscription" (PORTFOLIO-03).
     expect(page.type).toBe(ScreenDenied);
-    expect(viewer.whyDenied).toHaveBeenCalledWith(
-      { capability: { moduleKey: "analytics", capabilityKey: "analytics" } },
-      stale,
-    );
+    expect(viewer.whyDenied).toHaveBeenCalledWith(gateOf("analytics"), stale);
     expect(page.props.denial).toEqual({ reason: "not_reachable" });
   });
 
   it("no_property_with_analytics_reads_no_portfolio", async () => {
-    viewer.entitledProperties.mockResolvedValue([]);
+    viewer.screenProperties.mockResolvedValue([]);
     state.remembered = KADIKOY.propertyId;
     viewer.whyDenied.mockResolvedValue({ reason: "not_enabled" });
     const page = await open(KADIKOY.propertyId);

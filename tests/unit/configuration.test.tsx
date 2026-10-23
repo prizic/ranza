@@ -85,7 +85,7 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
   requireViewer: async () => ({
     userId: "cf000001-0000-4000-8000-000000000001",
   }),
-  entitledProperties: async () => [
+  screenProperties: async () => [
     {
       propertyId: PROPERTY,
       propertyName: "Deniz Otel Kadıköy",

@@ -473,16 +473,17 @@ test("a reader who may not report sees the board and no New request button", asy
   const propertyId = aPropertyWithNothingReported();
   const unitName = aRoom(propertyId);
   requestsInEveryState(propertyId, unitName);
-  // A role of the Organization's own that reaches rooms and nothing of
-  // maintenance's: every shipped role may report, so none can stand for this.
+  // A role of the Organization's own that reaches maintenance through its
+  // equipment register and may not report: every shipped role that reaches
+  // maintenance may report, so none can stand for this (ADR 0056).
   const organizationId = psql(
     `select organization_id from public.properties where id = '${propertyId}'`,
   );
-  const key = `rooms_only_${randomUUID().slice(0, 6)}`;
+  const key = `register_only_${randomUUID().slice(0, 6)}`;
   psql(
     `insert into public.staff_roles (scope_id, key, organization_id, name, permissions)
-     values ('${organizationId}', '${key}', '${organizationId}', 'Rooms only ${key}',
-             array['accommodation.configure'])`,
+     values ('${organizationId}', '${key}', '${organizationId}', 'Register only ${key}',
+             array['maintenance.equipment'])`,
   );
   const reader = await aStaffMember(
     request,

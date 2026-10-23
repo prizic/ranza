@@ -3,7 +3,12 @@ import { expect, test } from "@playwright/test";
 import { psql } from "./local-database";
 import path from "node:path";
 
-import { DESK_EMAIL, OWNER_EMAIL, signIn, testProperty } from "./front-desk";
+import {
+  aStaffMemberHolding,
+  OWNER_EMAIL,
+  signIn,
+  testProperty,
+} from "./front-desk";
 
 /**
  * Configuration through the screen (ADR 0036).
@@ -219,8 +224,15 @@ test("a time zone is found by its country, and named in the reader's language", 
 
 test("a reader is told which permission would let them change each card", async ({
   page,
+  request,
+  baseURL,
 }) => {
-  await signIn(page, DESK_EMAIL);
+  // Reaches Configuration through one of its three permissions and lacks the
+  // others: a role holding none of them is not offered the page (ADR 0056).
+  const reader = await aStaffMemberHolding(request, baseURL!, propertyId, [
+    "rates.manage",
+  ]);
+  await signIn(page, reader.email);
   await page.goto(`/en/configuration?property=${propertyId}`);
   await expect(page.getByLabel("Property name")).toBeDisabled();
 
@@ -231,7 +243,9 @@ test("a reader is told which permission would let them change each card", async 
       line("Change Property and Organization settings"),
     );
   }
-  await expect(page.locator("#rates")).toContainText(line("Set nightly rates"));
+  await expect(page.locator("#rates")).not.toContainText(
+    "To change them, your role needs",
+  );
   await expect(page.locator("#housekeeping")).toContainText(
     line("Configure rooms & beds"),
   );

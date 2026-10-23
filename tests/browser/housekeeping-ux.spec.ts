@@ -121,10 +121,10 @@ test("a phone says a mark landed where it can be seen, and the stale-link page p
     `/en/housekeeping?property=${aPropertyTheViewerDoesNotReach()}`,
   );
   await expect(
-    page.getByText("Housekeeping is not on at this Property"),
+    page.getByRole("heading", { name: "That Property isn't one you can open" }),
   ).toBeVisible();
   await expect(
-    page.getByText(/choose it from the Property control in the bar above/),
+    page.getByText(/Pick one from the Property menu at the top/),
   ).toBeVisible();
 });
 

@@ -6,6 +6,7 @@ import { test } from "./hydration";
 
 import { psql } from "./local-database";
 import {
+  aStaffMemberHolding,
   HOUSEKEEPER_EMAIL,
   pickUnit,
   portfolioProperty,
@@ -769,6 +770,8 @@ test("a_booking_over_the_nights_of_somebody_in_house_cannot_be_chosen", async ({
 
 test("a_viewer_who_may_not_book_or_amend_is_offered_neither (RG-S3-05)", async ({
   page,
+  request,
+  baseURL,
 }) => {
   const propertyId = portfolioProperty();
   const guestName = `Read Only ${randomUUID().slice(0, 8)}`;
@@ -777,7 +780,12 @@ test("a_viewer_who_may_not_book_or_amend_is_offered_neither (RG-S3-05)", async (
     phone: `+90 555 ${sevenDigits()}`,
   });
 
-  await signIn(page, HOUSEKEEPER_EMAIL);
+  // A role that reaches Reservations through one command of its work and holds
+  // neither booking nor amending: no shipped role is that (ADR 0056).
+  const reader = await aStaffMemberHolding(request, baseURL!, propertyId, [
+    "front_desk.check_out",
+  ]);
+  await signIn(page, reader.email);
   await page.goto(`/en/reservations?property=${propertyId}`);
   await page.getByRole("searchbox").fill(guestName);
   const row = page.getByRole("row").filter({ hasText: guestName });

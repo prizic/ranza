@@ -1,20 +1,21 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { HousekeepingBoard } from "../../../../features/housekeeping/components/housekeeping-board";
 import { InspectionSettings } from "../../../../features/housekeeping/components/inspection-settings";
 import {
   arrivals,
   departures,
-  entitledProperties,
-  HOUSEKEEPING_CAPABILITY,
   housekeepingBoard,
   housekeepingInspection,
   MARK_BATCH,
   requireViewer,
   roomsMaintenance,
+  screenProperties,
+  whyDenied,
 } from "../../../../server/viewer";
+import { ScreenDenied } from "../screen-denied";
+import { gateOf } from "../../../../lib/screens";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import { boardByUrgency } from "../../../../server/housekeeping-day";
 import { roomsInFilter } from "../../../../server/today-derive";
@@ -52,7 +53,7 @@ export default async function HousekeepingPage({
   await requireViewer(locale);
 
   const t = await getTranslations();
-  const properties = await entitledProperties(HOUSEKEEPING_CAPABILITY);
+  const properties = await screenProperties(gateOf("housekeeping"));
   const search = await searchParams;
   const property = await frontDeskProperty(
     properties,
@@ -61,15 +62,13 @@ export default async function HousekeepingPage({
   );
 
   if (!property) {
-    // The Properties listed here are those where the viewer has housekeeping:
-    // when there are some, the one named is not among them and the way on is
-    // the Property control in the bar, not a Subscription (HK-12).
-    const another =
-      properties.length > 0 ? ` ${t("housekeeping.unavailablePick")}` : "";
     return (
-      <EmptyState
-        description={`${t("housekeeping.unavailableDescription")}${another}`}
-        title={t("housekeeping.unavailableTitle")}
+      <ScreenDenied
+        denial={await whyDenied(
+          gateOf("housekeeping"),
+          (await searchParams).property,
+        )}
+        locale={locale}
       />
     );
   }

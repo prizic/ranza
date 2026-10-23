@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { CloseDayView } from "../../../../features/front-office/components/close-day-view";
 import {
   closeTheDay,
-  entitledProperties,
-  FRONT_DESK_CAPABILITY,
   requireViewer,
+  screenProperties,
+  whyDenied,
 } from "../../../../server/viewer";
+import { ScreenDenied } from "../screen-denied";
+import { gateOf } from "../../../../lib/screens";
 import { frontDeskProperty } from "../../../../server/front-desk";
 
 export async function generateMetadata({
@@ -45,7 +46,7 @@ export default async function CloseDayPage({
 
   const t = await getTranslations();
   const viewer = await requireViewer(locale);
-  const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
+  const properties = await screenProperties(gateOf("close-day"));
   const property = await frontDeskProperty(
     properties,
     await searchParams,
@@ -55,9 +56,12 @@ export default async function CloseDayPage({
 
   if (!property || !day) {
     return (
-      <EmptyState
-        description={t("noFrontDeskDescription")}
-        title={t("noFrontDeskTitle")}
+      <ScreenDenied
+        denial={await whyDenied(
+          gateOf("close-day"),
+          (await searchParams).property,
+        )}
+        locale={locale}
       />
     );
   }

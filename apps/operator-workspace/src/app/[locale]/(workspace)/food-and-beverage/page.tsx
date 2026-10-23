@@ -5,8 +5,8 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { gateOf, screenFor } from "../../../../lib/screens";
 import { ScreenDenied } from "../screen-denied";
 import {
-  entitledProperties,
   requireViewer,
+  screenProperties,
   whyDenied,
 } from "../../../../server/viewer";
 
@@ -42,10 +42,7 @@ export default async function Page({
   // Same gate as every built screen. Entitlement is not waived because the
   // workflow is unfinished — a Property that has not bought this reaches
   // nothing, and that is what the empty state says.
-  const properties = await entitledProperties({
-    moduleKey: screen.module,
-    capabilityKey: screen.capability,
-  });
+  const properties = await screenProperties(gateOf("food-and-beverage"));
 
   if (properties.length === 0) {
     return (

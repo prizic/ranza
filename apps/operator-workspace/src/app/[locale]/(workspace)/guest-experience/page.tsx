@@ -12,11 +12,10 @@ import { ScreenDenied } from "../screen-denied";
 import { GuestExperienceView } from "../../../../features/guest-experience/components/guest-experience-view";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import {
-  entitledProperties,
-  GUEST_SERVICES_CAPABILITY,
   propertyServiceRequests,
   requireViewer,
   rooms,
+  screenProperties,
   serviceRequestAccess,
   serviceRequestAssignees,
   whyDenied,
@@ -40,7 +39,7 @@ export default async function GuestExperiencePage({
   setRequestLocale(locale);
   const viewer = await requireViewer(locale);
 
-  const properties = await entitledProperties(GUEST_SERVICES_CAPABILITY);
+  const properties = await screenProperties(gateOf("guest-experience"));
   const property = await frontDeskProperty(
     properties,
     await searchParams,

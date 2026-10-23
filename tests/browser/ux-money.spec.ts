@@ -4,7 +4,7 @@ import { test } from "./hydration";
 import { psql } from "./local-database";
 import {
   anArrivalToday,
-  aStaffMember,
+  aStaffMemberHolding,
   portfolioProperty,
   signIn,
   testProperty,
@@ -491,12 +491,9 @@ test.describe("Analytics (RANZ-70)", () => {
   }) => {
     const propertyId = aDeskProperty(ANALYTICS);
     anOverdueGuest(propertyId, { daysOverdue: 1, withFolio: true });
-    const { email } = await aStaffMember(
-      request,
-      baseURL!,
-      propertyId,
-      "housekeeping",
-    );
+    const { email } = await aStaffMemberHolding(request, baseURL!, propertyId, [
+      "finance.view_ledger",
+    ]);
     await signIn(page, email);
     await page.goto(`/en/analytics?property=${propertyId}`);
     const main = page.locator("main");

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { NewReservationDialog } from "../../../../features/front-office/components/new-reservation-dialog";
 import { NoBookableUnit } from "../../../../features/front-office/components/no-bookable-unit";
@@ -9,13 +8,13 @@ import { ReservationsTable } from "../../../../features/front-office/components/
 import {
   bookableUnits,
   bookingDay,
-  entitledProperties,
-  FRONT_DESK_CAPABILITY,
   permittedProperties,
   requireViewer,
   reservations,
   screenProperties,
+  whyDenied,
 } from "../../../../server/viewer";
+import { ScreenDenied } from "../screen-denied";
 import { gateOf } from "../../../../lib/screens";
 import { frontDeskProperty } from "../../../../server/front-desk";
 
@@ -68,7 +67,7 @@ export default async function ReservationsPage({
   await requireViewer(locale);
 
   const t = await getTranslations();
-  const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
+  const properties = await screenProperties(gateOf("reservations"));
   const search = await searchParams;
   const property = await frontDeskProperty(
     properties,
@@ -78,9 +77,12 @@ export default async function ReservationsPage({
 
   if (!property) {
     return (
-      <EmptyState
-        description={t("noFrontDeskDescription")}
-        title={t("noFrontDeskTitle")}
+      <ScreenDenied
+        denial={await whyDenied(
+          gateOf("reservations"),
+          (await searchParams).property,
+        )}
+        locale={locale}
       />
     );
   }

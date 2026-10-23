@@ -53,13 +53,13 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
   },
   bookableUnits,
   bookingDay,
-  entitledProperties: async () => [PROPERTY],
   permittedProperties,
   requireViewer: async () => ({
     userId: "d9000001-0000-4000-8000-000000000001",
   }),
   reservations,
   screenProperties,
+  whyDenied: async () => ({ reason: "not_reachable" as const }),
 }));
 // The dialog is tested on its own in new-reservation.test.tsx; here only the
 // day it is handed matters.
@@ -119,7 +119,13 @@ beforeEach(() => {
     .mockReset()
     .mockImplementation(async (permission: string) => held[permission] ?? []);
   reservations.mockReset().mockResolvedValue([]);
-  screenProperties.mockReset().mockResolvedValue([]);
+  // The page's own gate opens here; the Audit log's, asked for the folio
+  // history link, does not.
+  screenProperties
+    .mockReset()
+    .mockImplementation(async (gate: { permission?: unknown }) =>
+      gate.permission === "audit.read" ? [] : [PROPERTY],
+    );
 });
 afterEach(cleanup);
 

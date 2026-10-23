@@ -75,9 +75,9 @@ test("every rail destination has exactly one h1", async ({ page }) => {
     proves it actually exercised that branch, not the board rendering by
     coincidence. */
 const EMPTY_STATE_TITLE: Record<string, string> = {
-  housekeeping: messages.en.housekeeping.unavailableTitle,
+  housekeeping: messages.en.denied.notReachableTitle,
   maintenance: messages.en.denied.notReachableTitle,
-  "room-calendar": messages.en.noFrontDeskTitle,
+  "room-calendar": messages.en.denied.notReachableTitle,
 };
 
 test("a Property out of reach still has exactly one h1 on the boards' own routes", async ({
