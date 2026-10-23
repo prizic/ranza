@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UX audit: Close the day</title>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; color: #1a1a1a; max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
+  h1 { font-size: 1.6rem; margin-bottom: .2rem; }
+  h2 { font-size: 1.2rem; margin-top: 2.2rem; border-bottom: 1px solid #ccc; padding-bottom: .2rem; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; margin: .8rem 0; }
+  th, td { border: 1px solid #ccc; padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: #f3f3f3; }
+  td.sev { white-space: nowrap; font-weight: 600; }
+  .meta { color: #555; font-size: 13px; }
+  img { max-width: 100%; border: 1px solid #ccc; margin: .4rem 0; }
+  figure { margin: 1rem 0; }
+  figcaption { font-size: 13px; color: #555; }
+  .v { color: #0a5; font-weight: 600; }
+  .i { color: #a60; font-weight: 600; }
+  .u { color: #a00; font-weight: 600; }
+  code { background: #f3f3f3; padding: 0 3px; }
+</style>
+</head>
+<body>
+
+<h1>UX audit: Close the day</h1>
+<p class="meta">Route <code>/en/close-day</code> (also <code>/tr</code>, <code>/ar</code>) &middot; staging, same code as <code>main</code> 4b15c30 &middot; audited 2026-10-11 as Manager, plus Finance and Front Desk &middot; Property "Demo Otel İstanbul", Europe/Istanbul, cutoff 04:00 &middot; mode: audit only, nothing persisted (no close, no extend, no check-out was submitted).</p>
+<p class="meta">Labels: <span class="v">verified</span> = I saw it in the running app; <span class="i">inferred</span> = read in code or feature docs; <span class="u">unknown</span> = could not find out. Timings are rough, from tool-call sequences, not a stopwatch.</p>
+
+<h2>1. Verdict</h2>
+<ol>
+  <li><strong>Mostly yes for one clean day, no for tonight's data.</strong> The page lists its steps, says Done or "N open" on each, links straight to where the blocker is cleared, and the confirm dialog names the date. A tired auditor can close an ordinary day unaided.</li>
+  <li><strong>Biggest risk: the backlog.</strong> Staging shows "10 days waiting" because one Guest (102) is ten days past departure, and the automatic close stops on any day with something open. The page offers only the oldest day and, from the code, each of the ten days will need its own typed reason.</li>
+  <li><strong>Second risk: the wrong fix looks like the right one.</strong> For that overdue Guest the primary button is <em>Extend</em>, which clears the blocker without the Guest being there, and its dialog promises extra nights "at the booking's own price" while the same page says that booking has no price.</li>
+  <li><strong>Consequences are named only partly.</strong> The confirm dialog says the close is final until reopening exists, but with items open it does not name them, and it drops the sentence about what is charged.</li>
+  <li>Nothing here blocks work outright. 12 findings: 0 block work, 3 cause errors, 6 slow me down, 3 polish.</li>
+</ol>
+
+<h2>2. Findings</h2>
+<p class="meta">Data state found: one Property, 10 days waiting (Oct 1 to Oct 10), 0 arrivals not checked in, 1 departure in house past its date (102), 1 Guest night with no price, 0 folios left open, 6 recent automatic closes (Sep 25 to Sep 30). The "nothing due", "quiet day" and "no closes yet" states could not be reached on staging and are judged from code.</p>
+<table>
+<thead><tr><th>ID</th><th>Severity</th><th>Where</th><th>What happened</th><th>What I expected</th><th>Suggested fix</th><th>Effort</th><th>Evidence</th><th>Basis</th></tr></thead>
+<tbody>
+<tr>
+  <td>CLOSE-01</td><td class="sev">slows me down</td>
+  <td>/en/close-day, Manager and Front Desk, 10-day backlog</td>
+  <td>Heading says "Thursday, October 1, 2026 is ready to close" and a badge says "10 days waiting". Only Oct 1 can be closed. The automatic close stopped after Sep 30 because 102 is still in house. The same Guest stays open on every later day, so each of the ten closes asks for a reason, and the dialog is re-keyed per day so a reason is not carried over.</td>
+  <td>To see the range (Oct 1 to Oct 10), which days have blockers, and clear them once.</td>
+  <td>Show the range and the per-day open counts. When the same item is open on several days, offer one close of all of them with one reason. At minimum, say "the same Guest holds all 10 days".</td>
+  <td>M</td><td>01-manager-desktop.png; reproduced Y</td>
+  <td><span class="v">verified</span> for the 10-day count and the single offered day; <span class="i">inferred</span> that ten reasons will be needed (edge-cases CD-S1-07, CD-S1-22; <code>key={day.dayToClose}</code> in close-day-view.tsx). I did not close any day.</td>
+</tr>
+<tr>
+  <td>CLOSE-02</td><td class="sev">causes errors</td>
+  <td>/en/close-day, Manager and Front Desk, overdue departure</td>
+  <td>On the overdue row "ahmed, 102, Due out Oct 1, 2026" the filled primary button is <strong>Extend</strong>; Open departures is the quiet one. The Extend dialog says "A Guest's extra nights are charged at the booking's own price", but the Room nights card on the same page says this booking has "No price on the booking". Extending to clear the blocker would also record a Guest as in house who may have left ten days ago.</td>
+  <td>For a Guest ten days overdue, Check out as the main action; Extend only when the Guest is really staying, with a warning when the booking has no price.</td>
+  <td>Make Open departures primary on overdue rows, show "10 days overdue", and add the no-price warning to the Extend dialog.</td>
+  <td>S</td><td>01-manager-desktop.png, 06-extend-dialog.png; reproduced Y</td>
+  <td><span class="v">verified</span> (dialog opened, not saved).</td>
+</tr>
+<tr>
+  <td>CLOSE-03</td><td class="sev">slows me down</td>
+  <td>Confirm dialog, Manager, items open</td>
+  <td>The dialog says "1 item is still open. It is recorded with the close, with your reason." It does not say which item. The sentence about what the close charges ("charges the night of every Guest whose booking has a price") exists only in the no-items variant, so with items open the one consequence that touches money is not stated. It does say reopening is not available yet.</td>
+  <td>Name the open items, and always say what will be charged and what will not (here: 0 nights charged, 1 not charged, and who).</td>
+  <td>List the open items by name in the dialog. Show the room-night line in both variants.</td>
+  <td>S</td><td>02-confirm-dialog.png; reproduced Y</td>
+  <td><span class="v">verified</span> for the open-items variant; <span class="i">inferred</span> for the no-items variant (<code>dialogQuiet</code> text in messages.ts at HEAD).</td>
+</tr>
+<tr>
+  <td>CLOSE-04</td><td class="sev">slows me down</td>
+  <td>/en/close-day, departures step</td>
+  <td>The row says "102 &middot; Due out Oct 1, 2026". It does not say how late (10 days) and, unlike the arrivals rows, shows no reservation reference. After Open departures and a check-out, the page's Back button goes one level up (Today), not back to Close the day, so the next blocker means going through the rail.</td>
+  <td>"10 days overdue", the reference, and a way back to the close.</td>
+  <td>Add days overdue and the reference to the row. Return to Close the day after a check-out started from it.</td>
+  <td>S</td><td>01-manager-desktop.png, 07-open-departures-landing.png</td>
+  <td><span class="v">verified</span> for the missing age and reference, and that Back on Close the day points to Today; <span class="i">inferred</span> that Back on Departures does the same (ADR 0035).</td>
+</tr>
+<tr>
+  <td>CLOSE-05</td><td class="sev">causes errors</td>
+  <td>/en/close-day, room nights step, Manager</td>
+  <td>"No price on the booking &middot; 1: ahmed &middot; 102" is listed, with no link to the booking or to anywhere a price can be set. Recent closes already show "1 not charged" on Sep 29 and Sep 30 and will show it for each of the ten days waiting. The copy says such a night "never holds the close up", which is a design choice, but the page gives no way to fix it before the closes happen.</td>
+  <td>A link from each uncharged Guest to the booking, before I close ten days of unbilled nights.</td>
+  <td>Link each row to the reservation. Say what happens to a night that was closed without a price.</td>
+  <td>S</td><td>01-manager-desktop.png</td>
+  <td><span class="v">verified</span> for the listing, the missing link and the two earlier "not charged" days; <span class="u">unknown</span> whether a closed, uncharged night can later be charged (I did not find it in the docs).</td>
+</tr>
+<tr>
+  <td>CLOSE-06</td><td class="sev">slows me down</td>
+  <td>/en/today, Manager</td>
+  <td>Today's "Needs attention" shows 2 cards (room not ready, overdue departure). The 10 unclosed days, the thing the night auditor owns, appear nowhere on Today. Numbers that both pages share do agree: Today says "1 overdue", "was due to leave on Oct 1", room 102, Guest ahmed; Close the day says the same.</td>
+  <td>An attention card on Today saying "10 days waiting to be closed" linking to Close the day.</td>
+  <td>Add the card when days are waiting.</td>
+  <td>S</td><td>04-today-for-comparison.png</td>
+  <td><span class="v">verified</span></td>
+</tr>
+<tr>
+  <td>CLOSE-07</td><td class="sev">slows me down</td>
+  <td>/en/close-day, all roles</td>
+  <td>"The day ended at 04:00" gives no time zone and no clock. Today shows 15:07 Europe/Istanbul; Close the day never says what "now" is, which date is the Property's current business date (Oct 11) or that Oct 1 is ten days ago. Dates are always spelled out ("Thursday, October 1, 2026"), never relative.</td>
+  <td>"Oct 1 (10 days ago) &middot; Property time, Europe/Istanbul".</td>
+  <td>State the zone and the current business date in the first card.</td>
+  <td>S</td><td>01-manager-desktop.png, 04-today-for-comparison.png</td>
+  <td><span class="v">verified</span></td>
+</tr>
+<tr>
+  <td>CLOSE-08</td><td class="sev">slows me down</td>
+  <td>/en/close-day, wording</td>
+  <td>The page never says plainly which things hard-block a close. The due-day text says "Clear what is still open, or close it with a reason" (soft). The not-yet-due text (code) says "Anything still open below will hold the close up" (hard). Room nights "never hold the close up"; folios are "Does not hold up the close". A tired reader cannot tell what must be cleared from what only needs a reason.</td>
+  <td>One rule, stated once: open items need a reason, nothing else matters.</td>
+  <td>Replace "hold the close up" in the not-yet-due text; add one sentence in the first card.</td>
+  <td>S</td><td>01-manager-desktop.png (due text)</td>
+  <td><span class="v">verified</span> for the due text; <span class="i">inferred</span> for the not-yet-due text (<code>preparingDescription</code>).</td>
+</tr>
+<tr>
+  <td>CLOSE-09</td><td class="sev">polish</td>
+  <td>Finance</td>
+  <td>Finance sees the whole checklist, no Close button, and "You can see this day, but closing it needs the Close the day permission." It does not say who holds that permission. The departures step still shows Open departures to Finance, but that screen has an empty Action column with no explanation.</td>
+  <td>"Ask an owner, manager or front desk" and no link that leads to a dead end.</td>
+  <td>Name the roles; hide Open departures when the viewer cannot check out.</td>
+  <td>S</td><td>10-finance.png; reproduced Y</td>
+  <td><span class="v">verified</span>. Front Desk can close and extend; that matches CD-S1-29 and is not a defect (11-frontdesk.png).</td>
+</tr>
+<tr>
+  <td>CLOSE-10</td><td class="sev">polish</td>
+  <td>375 px and 768 px, Manager</td>
+  <td>No page-level horizontal scroll. At 375 px the Recently closed table is 750 px wide in a 343 px box, so Room nights, Left open and Folios open sit off-screen with no cue. At 768 px the breadcrumb is cut to "W&hellip; F&hellip;". Buttons are 32 to 36 px high.</td>
+  <td>A visible scroll cue or stacked rows; a back arrow plus the page name.</td>
+  <td>Stack rows below 640 px; allow 44 px targets for Close and Extend.</td>
+  <td>M</td><td>05-manager-375.png, 12-manager-768.png</td>
+  <td><span class="v">verified</span></td>
+</tr>
+<tr>
+  <td>CLOSE-11</td><td class="sev">polish</td>
+  <td>/ar/close-day</td>
+  <td>The layout mirrors correctly. Wording is rough: the column "Closed by" reads "أغلقه" ("close it"/"he closed it"), and the sentence "عالج ما زال مفتوحًا" is awkward. On the rail (not this page) Housekeeping reads "خدمة الغرف", which means room service. Turkish read cleanly.</td>
+  <td>"أُغلق بواسطة" and a smoother sentence.</td>
+  <td>Have an Arabic speaker review the closeDay block.</td>
+  <td>S</td><td>09-arabic.png, 08-turkish.png</td>
+  <td><span class="i">inferred</span> (my reading of Arabic; not reviewed by a native speaker)</td>
+</tr>
+<tr>
+  <td>CLOSE-12</td><td class="sev">causes errors</td>
+  <td>/en/close-day, about 01:00, a Guest still arriving</td>
+  <td>I could not reproduce it (no pending arrivals tonight and the clock was 15:07). By the docs, before the cutoff the screen prepares the current day and lists its open items; a Guest booked for tonight but not yet arrived is listed as "Arrivals not checked in", with Open arrivals, and No-show and Cancel in a row menu. Nothing on the row says the arrival is not yet late.</td>
+  <td>Distinguish "not due yet" from "late", so nobody marks a Guest en route as a no-show at 01:00.</td>
+  <td>On a day that cannot close yet, label arrivals "expected" and keep No-show out of reach.</td>
+  <td>M</td><td>none</td>
+  <td><span class="i">inferred</span> (CD-S1-03, CD-S1-44, close-day-view.tsx); <span class="u">unknown</span> whether the database refuses an early no-show.</td>
+</tr>
+</tbody>
+</table>
+
+<h2>3. Jobs</h2>
+<table>
+<thead><tr><th>Job</th><th>Pass test (written first)</th><th>Result</th><th>Seconds</th><th>Clicks</th></tr></thead>
+<tbody>
+<tr><td>1. Find what blocks tonight's close</td><td>Within 10 s I can name every open item and which are hard blockers.</td><td>Partial. Item named in 5 s; hard versus soft is unclear (CLOSE-08).</td><td>~5</td><td>0</td></tr>
+<tr><td>2. Get to the place where the blocker is cleared</td><td>Check out for that Guest in 2 clicks or fewer.</td><td>Pass. Open departures opens a filtered "Due and overdue" list with the one Guest and a Check out button. Stopped before checking out, not persisted.</td><td>~10</td><td>1</td></tr>
+<tr><td>3. Know what closing will do before the click</td><td>Dialog names the date, the items and the money effect, and says whether it can be undone.</td><td>Partial. Date and finality yes; items and charges no (CLOSE-03). Stopped at the confirm step, not persisted.</td><td>~10</td><td>1</td></tr>
+<tr><td>4. Close with an item open (error path)</td><td>Empty reason is refused with a clear message.</td><td>Pass. The browser's own "Please fill out this field" stops it and the dialog stays open. Message follows the browser language, not the app's. Valid submit not attempted.</td><td>~10</td><td>2</td></tr>
+<tr><td>5. Work through a backlog</td><td>See the range and clear it with a bulk action.</td><td>Fail. Oldest day only, no range, no bulk (CLOSE-01). Not attempted past the confirm step.</td><td>n/a</td><td>n/a</td></tr>
+<tr><td>6. Under pressure at 01:00 with a late arrival</td><td>The screen tells a late Guest from one still expected.</td><td>Not reproducible on staging; judged from code (CLOSE-12).</td><td>n/a</td><td>n/a</td></tr>
+<tr><td>7. Other roles</td><td>Finance cannot close and is told why; Front Desk can.</td><td>Pass with polish (CLOSE-09).</td><td>~60 (incl. sign-in)</td><td>~6 each</td></tr>
+<tr><td>8. Locale, RTL, narrow, keyboard</td><td>TR and AR render with no raw keys; 375 and 768 have no page scroll; dialog is keyboard-safe.</td><td>Pass. Reason field takes focus on open, Escape closes, focus returns to the Close button (all three checked). Polish in CLOSE-10 and CLOSE-11.</td><td>~120</td><td>n/a</td></tr>
+</tbody>
+</table>
+
+<h2>4. Top changes</h2>
+<ol>
+  <li>I can see on Today that days are waiting to be closed (CLOSE-06).</li>
+  <li>I can clear a multi-day backlog with one reason, and see which days hold blockers (CLOSE-01).</li>
+  <li>I check a long-gone Guest out instead of extending them by accident (CLOSE-02, CLOSE-04).</li>
+  <li>The confirm dialog tells me who is left open and what money will and will not post (CLOSE-03, CLOSE-05).</li>
+  <li>I know what is a blocker and what only needs a reason (CLOSE-08).</li>
+  <li>I know the Property's time and today's business date from the page (CLOSE-07).</li>
+  <li>At 01:00 I cannot mistake an expected arrival for a no-show (CLOSE-12).</li>
+</ol>
+
+<h2>5. Inconsistencies with sibling screens</h2>
+<ul>
+  <li>Arrivals rows on this page show the reservation reference; departures rows do not (<span class="v">verified</span> in code and on screen).</li>
+  <li>Today flags the overdue departure with "Open departures"; Close the day does the same but Today never mentions the unclosed days (CLOSE-06).</li>
+  <li>The Departures screen offers Check out with a balance column; the Finance viewer gets the link but no action (CLOSE-09).</li>
+  <li>Arabic rail label for Housekeeping looks like room service (CLOSE-11).</li>
+</ul>
+
+<h2>6. Not built / needs backend work</h2>
+<ul>
+  <li>Reopening a closed day, front_desk.reopen_day (CD-DEF-02, CD-DEF-03). The dialog says so honestly.</li>
+  <li>Marking no-shows automatically at the cutoff (CD-DEF-06), which is why the backlog stops on arrivals too.</li>
+  <li>Changing the cutoff from a screen (CD-DEF-07), so the Property's 04:00 cannot be seen or changed here.</li>
+  <li>Day totals going to Accounting (CD-DEF-04); the page correctly does not mention it.</li>
+  <li>A bulk or multi-day close does not appear in the docs. Treat it as a new feature, not a defect fix.</li>
+  <li>"Unposted charges" as a blocker does not exist in the design: only room nights are charged by the close and nothing but arrivals and departures can block it (use-case.mmd, edge-cases.csv). I looked for it because the brief asked; it is not built.</li>
+</ul>
+
+<h2>7. What works well and must not regress</h2>
+<ul>
+  <li>Each step carries a state badge (Done or "N open") and, where open, a row with a link to the screen that clears it. Open departures lands on a pre-filtered list showing the one Guest and Check out. <span class="v">verified</span></li>
+  <li>The confirm dialog names the date in its title and on the button, offers "Not now", and tells the truth that reopening is not available yet. <span class="v">verified</span></li>
+  <li>A reason is required (native validation) and is explained where it is typed. Keyboard: autofocus, Escape, focus return. <span class="v">verified</span></li>
+  <li>A viewer who cannot close sees the whole checklist and a plain sentence, not a hidden page. <span class="v">verified</span></li>
+  <li>Recent closes show who closed each day (Automatically, or a person) and what was left open. <span class="v">verified</span></li>
+  <li>Turkish and Arabic are complete, and Arabic mirrors correctly. <span class="v">verified</span></li>
+  <li>Numbers agree with Today (102, ahmed, Oct 1, 1 overdue). <span class="v">verified</span></li>
+  <li>The close button is disabled while the request runs, and a refusal because the day moved on swaps to a single Done button. <span class="i">inferred</span> from close-day-dialog.tsx.</li>
+</ul>
+
+<h2>Evidence</h2>
+<figure><img src="01-manager-desktop.png" alt="Close the day, Manager, desktop"><figcaption>01 Manager, desktop, 10 days waiting.</figcaption></figure>
+<figure><img src="02-confirm-dialog.png" alt="Confirm dialog"><figcaption>02 Confirm dialog with one item open (not submitted).</figcaption></figure>
+<figure><img src="04-today-for-comparison.png" alt="Today"><figcaption>04 Today at 15:07, no mention of the unclosed days.</figcaption></figure>
+<figure><img src="05-manager-375.png" alt="375 px"><figcaption>05 375 px; the table scrolls inside its box.</figcaption></figure>
+<figure><img src="06-extend-dialog.png" alt="Extend dialog"><figcaption>06 Extend dialog for the overdue Guest (not saved).</figcaption></figure>
+<figure><img src="07-open-departures-landing.png" alt="Departures landing"><figcaption>07 Where Open departures lands.</figcaption></figure>
+<figure><img src="08-turkish.png" alt="Turkish"><figcaption>08 Turkish.</figcaption></figure>
+<figure><img src="09-arabic.png" alt="Arabic"><figcaption>09 Arabic (RTL).</figcaption></figure>
+<figure><img src="10-finance.png" alt="Finance"><figcaption>10 Finance: read-only with a permission sentence.</figcaption></figure>
+<figure><img src="11-frontdesk.png" alt="Front Desk"><figcaption>11 Front Desk: can close and extend.</figcaption></figure>
+<figure><img src="12-manager-768.png" alt="768 px"><figcaption>12 768 px; breadcrumb truncated.</figcaption></figure>
+
+</body>
+</html>

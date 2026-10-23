@@ -73,19 +73,20 @@ test("HR-S1-56: registering takes a start date, which is recorded, and says wher
 
   await expect(dialog).toContainText("Registers at E2E Test Property.");
   // Today by default, and never later than today.
-  await expect(dialog.getByLabel(`${hr.employees.startDate} *`)).toHaveValue(
+  await expect(dialog.getByLabel(`${hr.employees.startDate}`)).toHaveValue(
     today,
   );
-  await expect(
-    dialog.getByLabel(`${hr.employees.startDate} *`),
-  ).toHaveAttribute("max", today);
+  await expect(dialog.getByLabel(`${hr.employees.startDate}`)).toHaveAttribute(
+    "max",
+    today,
+  );
 
-  await dialog.getByLabel(`${hr.employees.firstName} *`).fill(name);
-  await dialog.getByLabel(`${hr.employees.lastName} *`).fill("Tester");
-  await dialog.getByLabel(`${hr.employees.department} *`).fill("Front desk");
-  await dialog.getByLabel(`${hr.employees.position} *`).fill("Agent");
-  await dialog.getByLabel(/^Gross pay \([A-Z]{3}\) \*$/).fill("30000");
-  await dialog.getByLabel(`${hr.employees.startDate} *`).fill(startedOn);
+  await dialog.getByLabel(`${hr.employees.firstName}`).fill(name);
+  await dialog.getByLabel(`${hr.employees.lastName}`).fill("Tester");
+  await dialog.getByLabel(`${hr.employees.department}`).fill("Front desk");
+  await dialog.getByLabel(`${hr.employees.position}`).fill("Agent");
+  await dialog.getByLabel(/^Gross pay \([A-Z]{3}\)$/).fill("30000");
+  await dialog.getByLabel(`${hr.employees.startDate}`).fill(startedOn);
   await dialog.getByRole("button", { name: hr.employees.submit }).click();
   await expect(dialog).toBeHidden();
 
@@ -117,12 +118,10 @@ test("HR-S1-57: an employee's details are edited, and a raise starts in its mont
   await page
     .getByRole("button", { name: `${hr.employees.edit}: ${name} Tester` })
     .click();
-  const dialog = page.getByRole("dialog", {
-    name: `Edit ${name} Tester`,
-  });
+  const dialog = page.getByRole("dialog").filter({ hasText: `${name} Tester` });
 
   // Details change now.
-  await dialog.getByLabel(`${hr.employees.position} *`).fill("Night manager");
+  await dialog.getByLabel(`${hr.employees.position}`).fill("Night manager");
   await dialog.getByLabel(hr.employees.phone).fill("+90 555 111 2233");
   await dialog.getByRole("button", { name: hr.employees.saveDetails }).click();
   await expect(dialog.getByRole("status")).toHaveText(
@@ -136,8 +135,11 @@ test("HR-S1-57: an employee's details are edited, and a raise starts in its mont
 
   // A raise from a month on. A bad amount is refused in words and keeps what
   // was typed; a good one is recorded.
+  await dialog
+    .getByRole("radio", { name: hr.employees.payHeading })
+    .check({ force: true });
   await dialog.getByLabel(/^New gross pay/).fill("12.345");
-  await dialog.getByLabel(`${hr.employees.effectiveFrom} *`).fill("2000-06");
+  await dialog.getByLabel(hr.employees.editPayFromTitle).fill("2000-06");
   await dialog.getByRole("button", { name: hr.employees.changePay }).click();
   await expect(dialog.getByRole("alert")).toHaveText(
     hr.outcomes.invalid.grossPay,
@@ -198,7 +200,7 @@ test("HR-S1-59: a wage cannot start in a month whose payroll is approved, and th
   await page
     .getByRole("button", { name: `${hr.employees.edit}: ${name} Tester` })
     .click();
-  const dialog = page.getByRole("dialog", { name: `Edit ${name} Tester` });
+  const dialog = page.getByRole("dialog").filter({ hasText: `${name} Tester` });
   // Only a run that is approved closes a month; a draft left from earlier does
   // not, so the refusal needs an approved one.
   psql(
@@ -218,8 +220,11 @@ test("HR-S1-59: a wage cannot start in a month whose payroll is approved, and th
       where organization_id = '${organization}' and period = '${period}' and status = 'draft'`,
   );
 
+  await dialog
+    .getByRole("radio", { name: hr.employees.payHeading })
+    .check({ force: true });
   await dialog.getByLabel(/^New gross pay/).fill("20000");
-  await dialog.getByLabel(`${hr.employees.effectiveFrom} *`).fill("1850-01");
+  await dialog.getByLabel(hr.employees.editPayFromTitle).fill("1850-01");
   await dialog.getByRole("button", { name: hr.employees.changePay }).click();
   await expect(dialog.getByRole("alert")).toHaveText(
     hr.outcomes.refused.wage_period_approved,
@@ -391,12 +396,14 @@ test("HR-S1-74: the rota and the leave form list the people who work at this Pro
 
   await page.getByRole("tab", { name: /Leave/ }).click();
   await page.getByRole("button", { name: hr.leave.requestLeave }).click();
-  await page.getByLabel(hr.leave.staffMember).click();
+  const search = page.getByLabel(hr.leave.leaveSearch);
+  await search.fill(here);
   await expect(
-    page.getByRole("option", { name: new RegExp(here) }),
+    page.getByRole("radio", { name: new RegExp(here) }),
   ).toBeVisible();
+  await search.fill(elsewhere);
   await expect(
-    page.getByRole("option", { name: new RegExp(elsewhere) }),
+    page.getByRole("radio", { name: new RegExp(elsewhere) }),
   ).toHaveCount(0);
 });
 
@@ -421,21 +428,25 @@ test("HR-S1-71: approving leave asks first and says the decision is final, and a
   // Nobody chosen: it says so, and keeps the dates.
   await request.getByLabel(hr.leave.startsOn).fill(today);
   await request.getByLabel(hr.leave.endsOn).fill(today);
-  await request.getByRole("button", { name: hr.leave.submit }).click();
-  await expect(request.getByRole("alert")).toHaveText(hr.leave.incomplete);
+  await expect(
+    request.getByRole("button", { name: hr.leave.submit }),
+  ).toBeDisabled();
+  await expect(request).toContainText(hr.leave.leaveHintMissing);
   await expect(request.getByLabel(hr.leave.startsOn)).toHaveValue(today);
 
-  await request.getByLabel(hr.leave.staffMember).click();
-  await page.getByRole("option", { name: new RegExp(name) }).click();
+  await request.getByLabel(hr.leave.leaveSearch).fill(name);
+  await request
+    .getByRole("radio", { name: new RegExp(name) })
+    .check({ force: true });
   await request.getByRole("button", { name: hr.leave.submit }).click();
   await expect(request).toBeHidden();
 
   const pending = page.getByRole("row").filter({ hasText: name });
   await expect(pending).toContainText(hr.leave.statuses.pending);
   await pending.getByRole("button", { name: hr.leave.approve }).click();
-  const confirm = page.getByRole("dialog", {
-    name: `Approve leave for ${name} Tester?`,
-  });
+  const confirm = page
+    .getByRole("dialog")
+    .filter({ hasText: `${name} Tester` });
   await expect(confirm).toContainText("A decision is final");
   await expect(confirm).toContainText("not told from here");
   await confirm.screenshot({ path: path.join(EVIDENCE, "decide-leave.png") });

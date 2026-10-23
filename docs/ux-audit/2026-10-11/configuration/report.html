@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UX audit: Configuration</title>
+<style>
+  :root { --fg:#1a1f1d; --muted:#5c6662; --line:#d9ddda; --bg:#fff; --soft:#f4f6f5; --warn:#8a4b00; --bad:#9b1c1c; --ok:#14653f; }
+  * { box-sizing: border-box; }
+  body { font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--fg); background: var(--bg); margin: 0 auto; max-width: 1180px; padding: 24px 16px 64px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 20px; margin: 40px 0 12px; padding-top: 12px; border-top: 2px solid var(--fg); }
+  h3 { font-size: 16px; margin: 20px 0 6px; }
+  p, li { max-width: 78ch; }
+  .meta { color: var(--muted); margin: 0 0 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: var(--soft); }
+  .scroll { overflow-x: auto; }
+  .sev-blocks { color: var(--bad); font-weight: 600; }
+  .sev-errors { color: var(--warn); font-weight: 600; }
+  .sev-slows { color: var(--fg); font-weight: 600; }
+  .sev-polish { color: var(--muted); font-weight: 600; }
+  .v { color: var(--ok); font-weight: 600; }
+  .i { color: var(--warn); font-weight: 600; }
+  .pass { color: var(--ok); font-weight: 600; }
+  .fail { color: var(--bad); font-weight: 600; }
+  .part { color: var(--warn); font-weight: 600; }
+  img { max-width: 100%; border: 1px solid var(--line); margin: 6px 0; }
+  .shots { display: flex; flex-wrap: wrap; gap: 12px; }
+  .shots figure { margin: 0; max-width: 340px; }
+  .shots figcaption { font-size: 12.5px; color: var(--muted); }
+  code { background: var(--soft); padding: 1px 4px; border-radius: 3px; font-size: 13px; }
+  .note { background: var(--soft); border-left: 3px solid var(--fg); padding: 8px 12px; margin: 12px 0; }
+</style>
+</head>
+<body>
+
+<h1>UX audit: Configuration</h1>
+<p class="meta">Route <code>/en/configuration</code> (single page, 8 anchored sections, no sub-routes) &middot; audited 2026-10-11 on hosted staging &middot; roles: Owner (full), Manager and Front Desk (read-through) &middot; locales EN, TR, AR &middot; widths 1440 and 375 &middot; mode: AUDIT ONLY, nothing was saved.</p>
+
+<div class="note">
+<strong>Method and limits.</strong> Verified = I saw it in the running app. Inferred = I read it in code or docs and did not press it. No Save, toggle or select-change was pressed anywhere; I opened pickers and typed draft values into the time-zone field only (local state, nothing sent except the read-only business-date preview) and left without saving. Staging data state: one Organization (Prizic Demo), one Property (Demo Otel &#304;stanbul), currency already locked (TRY), 3 sellable units (2 Room, 1 Suite), no nightly prices set. Timings are estimates from the session, not stopwatch readings. Finance and Housekeeping roles were not opened (Unknown).
+</div>
+
+<h2>1. Verdict</h2>
+<ol>
+  <li><strong>Day-to-day changes are usable unaided.</strong> The four Property settings, the Organization name and the nightly prices are clearly labelled, each says what it affects, Save is only enabled by a change, the business-date preview is useful, and read-only roles are told why (verified, all three locales render and Arabic mirrors correctly).</li>
+  <li><strong>First-time setup is not guided.</strong> The page is eight flat cards with no order, no &ldquo;what is still unset&rdquo; state, and no check-in/out times, taxes or default language to set at all. The one unset thing a new owner must act on (every unit type has no price, so bookings are taken free) is shown as quiet grey text.</li>
+  <li><strong>Biggest risk:</strong> two different save models on one page. Four cards need a Save button and silently lose edits when you leave; the Housekeeping and Maintenance cards save the instant a dropdown changes, including &ldquo;Organization default&rdquo; dropdowns that change every Property with no confirmation (inferred from code, not pressed).</li>
+  <li>Smaller friction: the time-zone search cannot find a zone by country (searching &ldquo;Turkey&rdquo; returns Louisville and Yakutat, not Istanbul), the currency warns about permanence only after it is already locked, and at 375&nbsp;px two maintenance dropdowns overflow their card.</li>
+  <li>13 findings: 0 block work, 4 cause errors, 4 slow me down, 5 polish. Eleven are verified in the browser (CONFIG-03 only in part), two (CONFIG-02, CONFIG-04) are inferred from code because pressing the control would have saved a setting or the state is not reachable on staging.</li>
+</ol>
+
+<h2>2. Findings</h2>
+<div class="scroll">
+<table>
+<thead><tr><th>ID</th><th>Severity</th><th>Where</th><th>What happened</th><th>Expected</th><th>Suggested fix</th><th>Effort</th><th>Evidence</th><th>Status</th></tr></thead>
+<tbody>
+
+<tr>
+<td>CONFIG-01</td><td class="sev-errors">causes errors</td>
+<td>Owner, Nightly rates card, Demo Property with 3 units and no prices</td>
+<td>All four unit kinds read &ldquo;No price&rdquo; in muted grey. The only consequence is small grey text: &ldquo;Bookings of this kind are taken without a price, and their nights are not charged.&rdquo; Nothing on the page, the section list or the card header marks the Property as not ready to trade.</td>
+<td>A new owner is told, at the top of the page or on the card, that Room (2 units) and Suite (1 unit) have no price and that every night will be free until they do.</td>
+<td>Warning tone on the card plus a count in the section chip (&ldquo;Nightly rates &middot; 2 unpriced&rdquo;); same treatment for any other unset setting once there are any.</td>
+<td>S</td>
+<td><a href="01-owner-desktop-full.png">01</a>; reproduced Y</td>
+<td class="v">verified</td>
+</tr>
+
+<tr>
+<td>CONFIG-02</td><td class="sev-errors">causes errors</td>
+<td>Owner, Housekeeping card (&ldquo;Check rooms after cleaning&rdquo;) and Maintenance card (3 questions &times; Organization default / This Property)</td>
+<td>These selects write on change: <code>onValueChange</code> calls the server action straight away (<code>inspection-settings.tsx</code>, <code>maintenance-settings.tsx</code>; the comments say &ldquo;Saved on change&rdquo;). The &ldquo;Organization default&rdquo; selects change every Property of the Organization in one click, with no confirmation, no count of Properties affected and no undo. Not pressed.</td>
+<td>Either the same Save/Discard bar as the cards above, or at minimum a confirm step naming the scope (&ldquo;This changes all N Properties&rdquo;) on the Organization-level selects.</td>
+<td>Confirm dialog on the Organization-scope selects; add &ldquo;saves immediately&rdquo; text under the card headings, or move both onto <code>SettingsCard</code> with a footer.</td>
+<td>M</td>
+<td><a href="01-owner-desktop-full.png">01</a> (cards have no footer); code</td>
+<td class="i">inferred</td>
+</tr>
+
+<tr>
+<td>CONFIG-03</td><td class="sev-errors">causes errors</td>
+<td>Owner, any card with a draft; also leaving by sidebar link or browser Back</td>
+<td>With a time-zone draft and an enabled Save button, I clicked &ldquo;Today&rdquo; in the sidebar: navigation happened with no prompt. There is no <code>beforeunload</code> or route guard anywhere in the app (searched: none). Drafts live in <code>useState</code>, so they are gone on return. Four independent Save bars (Organization, Property, Time, Rates) also mean a draft in one card is silently dropped if you press Save in another.</td>
+<td>A warning when leaving with unsaved edits, and some page-level sign that a card still has unsaved changes.</td>
+<td>Route/unload guard while any card is dirty; mark the dirty card&rsquo;s section chip with a dot.</td>
+<td>M</td>
+<td>navigation without prompt seen in session (no screenshot of the dirty draft after leaving); code search</td>
+<td><span class="v">verified</span> (no prompt) / <span class="i">inferred</span> (draft lost on return)</td>
+</tr>
+
+<tr>
+<td>CONFIG-04</td><td class="sev-errors">causes errors</td>
+<td>Owner, Property card, currency, on a Property whose currency is still changeable (not reachable on staging, it is already locked)</td>
+<td>While changeable, the currency is a plain searchable picker with no note. The explanation (&ldquo;Fixed since a folio was opened or a priced booking was taken here&rdquo;) appears only after the lock. ADR 0036 makes the lock one-way and permanent. The locked message also gives no next step (the ADR calls it &ldquo;a finance workflow&rdquo;, which is not built).</td>
+<td>Before the first booking, the owner is told &ldquo;This becomes permanent when the first booking is priced or the first folio opens&rdquo;. After the lock, the message says who to ask or what to do.</td>
+<td>Add a permanence note under the picker when <code>currencyFixed</code> is false; add a next-step line to the locked note.</td>
+<td>S</td>
+<td><a href="01-owner-desktop-full.png">01</a> (locked state only); <code>property-settings-form.tsx</code></td>
+<td class="i">inferred</td>
+</tr>
+
+<tr>
+<td>CONFIG-05</td><td class="sev-slows">slows me down</td>
+<td>Owner, Time zone picker</td>
+<td>Typing &ldquo;Turkey&rdquo; lists Louisville, Monticello, Yekaterinburg, Yakutat and no Istanbul (fuzzy letter matching, and only city and IANA name are searchable). Typing &ldquo;Los Angeles&rdquo; works.</td>
+<td>An owner types their country or the offset (&ldquo;Turkey&rdquo;, &ldquo;T&uuml;rkiye&rdquo;, &ldquo;GMT+3&rdquo;) and finds their zone.</td>
+<td>Add country names (and offsets) to each option&rsquo;s <code>keywords</code> in <code>options.ts</code>; tighten matching to substring.</td>
+<td>S</td>
+<td><a href="03-timezone-search-turkey.png">03</a>; reproduced Y</td>
+<td class="v">verified</td>
+</tr>
+
+<tr>
+<td>CONFIG-06</td><td class="sev-slows">slows me down</td>
+<td>Manager and Front Desk, every read-only card</td>
+<td>Four different explanations for the same state, two of them naming roles: &ldquo;You can see these settings. An Owner or Manager can change them.&rdquo; (Property, Time), &ldquo;A manager can change this.&rdquo; (Housekeeping), &ldquo;Changing this needs the permission to manage maintenance.&rdquo; (Maintenance), &ldquo;Prices are changed by whoever may set rates.&rdquo; (Rates). Organizations can compose <code>configuration.manage</code> into any role (ADR 0026), so the role names can be wrong. The Manager&rsquo;s Organization card is the best: &ldquo;Only someone who reaches every Property can rename the Organization.&rdquo;</td>
+<td>One pattern: what is blocked, and the permission or reach that unlocks it, never a hard-coded role.</td>
+<td>One shared read-only line built from the missing permission.</td>
+<td>S</td>
+<td><a href="11-frontdesk-full.png">11</a>, <a href="10-manager-full.png">10</a>; reproduced Y</td>
+<td class="v">verified</td>
+</tr>
+
+<tr>
+<td>CONFIG-07</td><td class="sev-slows">slows me down</td>
+<td>Owner, 375&nbsp;px, Maintenance card, &ldquo;A room comes back into service&rdquo;</td>
+<td>The Organization-default and This-Property selects run past the card&rsquo;s right edge: text is clipped (&ldquo;Use the Organization&rsquo;s (When its request is done&rdquo;) and the chevron is off-screen (ids <code>returnOnDone-organization</code> and <code>returnOnDone-property</code> measured past the viewport minus gutter). The other two question pairs fit.</td>
+<td>The selected value and chevron are fully visible at 375&nbsp;px.</td>
+<td>Let the trigger shrink and truncate or wrap (<code>min-w-0</code>, <code>truncate</code>) in <code>maintenance-settings.tsx</code>.</td>
+<td>S</td>
+<td><a href="07-owner-375-maintenance.png">07</a>; reproduced Y</td>
+<td class="v">verified</td>
+</tr>
+
+<tr>
+<td>CONFIG-08</td><td class="sev-slows">slows me down</td>
+<td>Owner, 375&nbsp;px, section list</td>
+<td>The eight section chips are 1,507&nbsp;px wide in a 351&nbsp;px scroll strip and are not sticky (<code>lg:sticky</code> only). The page is 4,747&nbsp;px tall, so after the first screen the only way to the Maintenance section is scrolling the whole page. Only two and a half chips are visible with no scroll hint beyond the clipped third chip.</td>
+<td>Jump to any section from anywhere on the page, or a much shorter page.</td>
+<td>Make the chip row sticky under the top bar on narrow screens.</td>
+<td>S</td>
+<td><a href="05-owner-375-top.png">05</a>, <a href="06-owner-375-time.png">06</a>; measured</td>
+<td class="v">verified</td>
+</tr>
+
+<tr>
+<td>CONFIG-09</td><td class="sev-polish">polish</td>
+<td>Owner, Arabic (and by the same code, Turkish)</td>
+<td>The currency is named in the reader&rsquo;s language (&ldquo;&#1604;&#1610;&#1585;&#1577; &#1578;&#1585;&#1603;&#1610;&#1577; (TRY)&rdquo;, &ldquo;T&uuml;rk liras&#305; (TRY)&rdquo;) but the time zone is not: &ldquo;Istanbul (Europe/Istanbul)&rdquo; in Latin script in all three locales. CF-S3-10 says both are named in the reader&rsquo;s language.</td>
+<td>The time-zone trigger and list use a localized city/zone name.</td>
+<td>Use <code>Intl.DisplayNames</code> or <code>timeZoneName: &quot;long&quot;</code> for the label; keep IANA id as the detail.</td>
+<td>S</td>
+<td><a href="08-owner-ar-full.png">08</a>; reproduced Y</td>
+<td class="v">verified</td>
+</tr>
+
+<tr>
+<td>CONFIG-10</td><td class="sev-polish">polish</td>
+<td>Owner, Time and the business day</td>
+<td>&ldquo;Business day ends at 04:00&rdquo; with &ldquo;A night shift before the cutoff is still working the day before&rdquo; is the only explanation. It does not say what moves with it (arrivals, departures, close the day, posted charges).</td>
+<td>A first-time owner understands that this is when &ldquo;today&rdquo; rolls over for the whole product.</td>
+<td>Reword: &ldquo;Today rolls over at 04:00. Anything before that still counts to yesterday&rdquo;. Keep the live preview, which is good.</td>
+<td>S</td>
+<td><a href="04-timezone-draft-preview.png">04</a></td>
+<td class="v">verified</td>
+</tr>
+
+<tr>
+<td>CONFIG-11</td><td class="sev-polish">polish</td>
+<td>All roles, &ldquo;Switched on here&rdquo; card</td>
+<td>Eleven capabilities are listed as read-only tiles that duplicate the sidebar (including &ldquo;Today&rdquo;). The title reads like a set of switches but nothing can be switched (deferred, CF-DEF-02). At 375&nbsp;px it is eleven full-width rows.</td>
+<td>A card whose content either changes a decision or is not there.</td>
+<td>Collapse by default, or drop until switching exists.</td>
+<td>S</td>
+<td><a href="01-owner-desktop-full.png">01</a>, <a href="12-owner-375-bottom.png">12</a></td>
+<td class="v">verified</td>
+</tr>
+
+<tr>
+<td>CONFIG-12</td><td class="sev-polish">polish</td>
+<td>Owner, Nightly rates card</td>
+<td>Price fields are offered for Bed and Apartment, which the Property has none of (&ldquo;None at this Property yet&rdquo;). Nothing says whether pricing them now has any effect.</td>
+<td>Either hidden or labelled &ldquo;applies when you add one&rdquo;.</td>
+<td>One line of copy.</td>
+<td>S</td>
+<td><a href="01-owner-desktop-full.png">01</a></td>
+<td class="v">verified</td>
+</tr>
+
+<tr>
+<td>CONFIG-13</td><td class="sev-polish">polish</td>
+<td>Owner, Housekeeping and Maintenance cards</td>
+<td>These two cards are drawn differently from the four above them: no icon, no header divider, no footer, a different heading level (<code>h2</code>/<code>h3</code> inside a plain <code>Card</code> versus <code>SettingsCard</code>). They share the section list with the others, so the page reads as two designs.</td>
+<td>One card anatomy for every section.</td>
+<td>Wrap both in <code>SettingsCard</code> (their components also serve the Housekeeping and Maintenance screens, so pass a variant).</td>
+<td>M</td>
+<td><a href="01-owner-desktop-full.png">01</a>; code</td>
+<td class="v">verified</td>
+</tr>
+
+</tbody>
+</table>
+</div>
+
+<h3>Checked and found fine</h3>
+<ul>
+  <li><strong>Settings that do nothing:</strong> none found. The four Property settings are read through <code>app.property_today()</code>, the currency by folios and rates, the names by the rail and top bar (visible: &ldquo;Prizic Demo&rdquo; in the rail, Property name in the top bar). The save refreshes the whole workspace (<code>revalidateWorkspace</code>). <span class="i">inferred</span> from ADR 0036 and the server action. The unreadable <code>default_locale</code> is deliberately not shown (CF-DEF-01).</li>
+  <li><strong>Double submit and stale saves:</strong> Save and Discard disable while a save is pending or another card is saving; a stale or refused save keeps the draft or shows what is saved now. <span class="i">inferred</span> from <code>save-bar.tsx</code> and the form.</li>
+  <li><strong>Per-Property vs per-Organization scope:</strong> clear. The Organization card is first, says &ldquo;applies to every Property in your Organization&rdquo;, and the page title names the Property. Verified in all three roles.</li>
+  <li><strong>Consequence of a time-zone or cutoff change after bookings exist:</strong> a live preview of the business date before and after, a red sentence when the date moves backwards, and a server refusal when it would reopen a closed day. The preview and the refusal wording are <span class="i">inferred</span>/seen; I saw the preview with no date change only (<a href="04-timezone-draft-preview.png">04</a>).</li>
+  <li><strong>Back button (ADR 0035):</strong> present at the leading edge of the top bar and mirrors in Arabic (verified).</li>
+</ul>
+
+<h3>Evidence</h3>
+<div class="shots">
+<figure><a href="01-owner-desktop-full.png"><img src="01-owner-desktop-full.png" alt="Owner, full page desktop"></a><figcaption>01 Owner, full page, 1440 px</figcaption></figure>
+<figure><a href="03-timezone-search-turkey.png"><img src="03-timezone-search-turkey.png" alt="Time zone search Turkey"></a><figcaption>03 Search &ldquo;Turkey&rdquo; finds no Istanbul</figcaption></figure>
+<figure><a href="04-timezone-draft-preview.png"><img src="04-timezone-draft-preview.png" alt="Draft time zone with business date preview"></a><figcaption>04 Draft time zone, preview, Save enabled (never pressed)</figcaption></figure>
+<figure><a href="05-owner-375-top.png"><img src="05-owner-375-top.png" alt="375 px top"></a><figcaption>05 375 px, section chips</figcaption></figure>
+<figure><a href="07-owner-375-maintenance.png"><img src="07-owner-375-maintenance.png" alt="375 px maintenance overflow"></a><figcaption>07 375 px, maintenance selects overflow</figcaption></figure>
+<figure><a href="08-owner-ar-full.png"><img src="08-owner-ar-full.png" alt="Arabic full page"></a><figcaption>08 Arabic (RTL), time zone in Latin script</figcaption></figure>
+<figure><a href="10-manager-full.png"><img src="10-manager-full.png" alt="Manager"></a><figcaption>10 Manager: Organization card read-only with reason</figcaption></figure>
+<figure><a href="11-frontdesk-full.png"><img src="11-frontdesk-full.png" alt="Front Desk"></a><figcaption>11 Front Desk: everything read-only, four wordings</figcaption></figure>
+<figure><a href="06-owner-375-time.png"><img src="06-owner-375-time.png" alt="375 px time card"></a><figcaption>06 375 px, time card (works well)</figcaption></figure>
+<figure><a href="12-owner-375-bottom.png"><img src="12-owner-375-bottom.png" alt="375 px bottom"></a><figcaption>12 375 px, page end</figcaption></figure>
+<figure><a href="09-owner-tr-top.png"><img src="09-owner-tr-top.png" alt="Turkish top"></a><figcaption>09 Turkish</figcaption></figure>
+<figure><a href="02-timezone-picker.png"><img src="02-timezone-picker.png" alt="Time zone picker open"></a><figcaption>02 Time zone picker open</figcaption></figure>
+</div>
+
+<h2>3. Jobs</h2>
+<p>Pass/fail tests were written before each attempt. &ldquo;Stopped&rdquo; means stopped before submit, nothing persisted. Seconds are estimates.</p>
+<div class="scroll">
+<table>
+<thead><tr><th>#</th><th>Job</th><th>Pass test (written first)</th><th>Result</th><th>Secs</th><th>Clicks</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>First-time setup: work out what is still unconfigured at a new hotel</td><td>Within 60 s the page itself tells me which settings are unset and in what order to do them</td><td><span class="fail">FAIL</span>. No checklist or order. The only unset thing (unit prices) is quiet grey text (CONFIG-01). Judged on the already-configured demo Property, so a truly empty Property is <span class="i">inferred</span>.</td><td>~60</td><td>1</td></tr>
+<tr><td>2</td><td>Set standard check-in and check-out times</td><td>Find a control for them within 2 clicks</td><td><span class="fail">FAIL</span>. Does not exist; see section 6 (Not built).</td><td>~30</td><td>2</td></tr>
+<tr><td>3</td><td>Change the time zone and see the effect before saving</td><td>Find a zone by typing; see business date before and after; nothing saved</td><td><span class="part">PARTIAL</span>. City search and preview work; country search does not (CONFIG-05). Stopped before Save, discarded by leaving.</td><td>~35</td><td>3 (open, type, Enter)</td></tr>
+<tr><td>4</td><td>Rename the Property quickly (most frequent change)</td><td>At most 3 clicks; Save disabled until a change</td><td><span class="pass">PASS (inferred)</span>. Save and Discard verified disabled on all cards before a change and enabled after the zone draft; rename is click, type, Save = 3. Stopped, not pressed.</td><td>~10</td><td>3</td></tr>
+<tr><td>5</td><td>Change currency after bookings exist</td><td>Told why not, and what to do instead</td><td><span class="part">PARTIAL</span>. Picker disabled with reason (verified); no next step; no pre-lock warning (CONFIG-04).</td><td>~15</td><td>1</td></tr>
+<tr><td>6</td><td>Error recovery: leave with an unsaved edit, then come back</td><td>I am warned, or my edit is still there</td><td><span class="fail">FAIL</span>. Left through the sidebar with an enabled Save: no warning (CONFIG-03).</td><td>~20</td><td>4</td></tr>
+<tr><td>7</td><td>Under pressure, as Front Desk: why can&rsquo;t I change the cutoff and who can?</td><td>Each blocked control says who can change it</td><td><span class="pass">PASS</span> with inconsistent wording (CONFIG-06). Verified on all cards.</td><td>~25</td><td>0</td></tr>
+<tr><td>8</td><td>Phone, 375&nbsp;px: reach the Maintenance setting and read it</td><td>Two taps, value fully readable</td><td><span class="part">PARTIAL</span>. Chips scroll but are not sticky (CONFIG-08); two selects overflow (CONFIG-07).</td><td>~45</td><td>scroll + 1</td></tr>
+</tbody>
+</table>
+</div>
+<p>Bulk/large volume: the largest lists are about 400 time zones and every ISO currency, built only when the picker opens (<code>searchable-picker.tsx</code>), and four unit-type price fields saved as one list with one version. Nothing here grows with data, so I did not look for a large-volume failure. <span class="i">inferred</span>.</p>
+
+<h2>4. Top changes</h2>
+<ol>
+  <li><strong>I can see at a glance what is not set up yet</strong> (unpriced unit types first, a count on the section chip). CONFIG-01.</li>
+  <li><strong>I can&rsquo;t lose an edit by clicking away</strong>, and I can see which card has unsaved changes. CONFIG-03.</li>
+  <li><strong>Every setting saves the same way</strong>, and Organization-wide changes tell me how many Properties they touch before they happen. CONFIG-02, CONFIG-13.</li>
+  <li><strong>I find my time zone by typing my country.</strong> CONFIG-05.</li>
+  <li><strong>I am told the currency becomes permanent before the first booking, not after.</strong> CONFIG-04.</li>
+  <li><strong>On my phone I can jump to any section from anywhere</strong> and every dropdown fits. CONFIG-08, CONFIG-07.</li>
+  <li><strong>When I am blocked, the message is the same everywhere and names the permission, not a job title.</strong> CONFIG-06.</li>
+</ol>
+
+<h2>5. Inconsistencies</h2>
+<ul>
+  <li><strong>Within the page:</strong> Save-button cards versus save-on-change cards (CONFIG-02); two card anatomies (CONFIG-13); four read-only phrasings (CONFIG-06).</li>
+  <li><strong>Pickers:</strong> the time-zone and currency pickers use a local <code>SearchablePicker</code> built from <code>Command</code> and <code>Popover</code>, while Staff, Audit log and Move guest use the shared <code>Combobox</code> from <code>packages/ui</code>. Different keyboard and matching behaviour is likely (<span class="i">inferred</span> from imports; I did not compare them live).</li>
+  <li><strong>Language:</strong> the interface language is chosen with the header &ldquo;Language&rdquo; menu or the URL (<code>/en</code>, <code>/tr</code>, <code>/ar</code>, verified by loading all three). Configuration has no language setting, so there is no confusion between the two today, but the owner who looks here for &ldquo;languages&rdquo; finds nothing. Whether the header choice is remembered across sessions: <span class="i">unknown</span>, not checked.</li>
+</ul>
+
+<h2>6. Not built / needs backend work</h2>
+<p>These are not UX defects. Each is checked against the docs.</p>
+<ul>
+  <li><strong>Guided first-time setup and a readiness checklist.</strong> Blueprint 19.2 specifies one (&ldquo;readiness is visible as a checklist with owners, evidence, blockers&rdquo;); <code>docs/roadmap.md</code> and the screens handover have no row for it. No <code>CF-DEF-*</code> row covers it either, so the gap is not recorded as deferred.</li>
+  <li><strong>Check-in and check-out times, taxes, document settings.</strong> Blueprint 19.2 step 6 lists &ldquo;taxes, accounting, and document settings&rdquo;; blueprint 5.10 puts tax configuration in Accounting and Finance. No column or setting exists for check-in/out times and the Configuration edge cases have no deferred row for them (only <code>CF-DEF-01</code> to <code>CF-DEF-05</code>).</li>
+  <li><strong>Organization default language</strong> (<code>CF-DEF-01</code>): the column exists and nothing reads it.</li>
+  <li><strong>Switching a capability on or off</strong> (<code>CF-DEF-02</code>), <strong>department or outlet scoped values</strong> (<code>CF-DEF-03</code>), <strong>adding or retiring a Property</strong> (<code>CF-DEF-04</code>).</li>
+  <li><strong>Moving a trading Property to a new currency</strong>: ADR 0036 calls it a finance workflow and it does not exist.</li>
+  <li><strong>&ldquo;Rooms policy&rdquo;:</strong> rooms and beds live on the Rooms screen, which Configuration links to (verified link present for Owner, Manager and Front Desk).</li>
+</ul>
+
+<h2>7. What already works well and must not regress</h2>
+<ul>
+  <li>Section list beside the cards on desktop with the current section highlighted; chips on a phone; anchors work as links. Verified.</li>
+  <li>Save and Discard are disabled until a card has a change; a card saves only its own fields plus the other card&rsquo;s saved values. Verified disabled; the rest <span class="i">inferred</span>.</li>
+  <li>The live &ldquo;Business date now / After saving&rdquo; preview for time-zone and cutoff changes, with an explicit sentence for a move backwards. Verified preview; backward sentence inferred from the Turkish and English copy.</li>
+  <li>Currency lock with the reason shown beside the disabled picker. Verified.</li>
+  <li>Read-only roles see every value with a reason rather than a hidden page; the Manager gets a precise reason for the Organization name. Verified for Manager and Front Desk.</li>
+  <li>Turkish, English and Arabic all render fully, Arabic mirrors (back arrow, cards, list arrows), and the 375&nbsp;px layout of the Property, Time and Rates cards is clean with no horizontal page scroll (document width 375 at 375). Verified.</li>
+  <li>Back button on the page, per ADR 0035. Verified.</li>
+</ul>
+
+</body>
+</html>

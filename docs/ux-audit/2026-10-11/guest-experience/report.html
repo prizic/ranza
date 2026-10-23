@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UX audit: Guest Experience (2026-10-11)</title>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; color: #1a1a1a; background: #fff; max-width: 1180px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  h2 { font-size: 19px; margin: 36px 0 10px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+  p.meta { color: #555; margin: 0 0 16px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; margin: 8px 0 16px; }
+  th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #f4f4f4; }
+  td.sev-blocks { background: #fde2e2; font-weight: 600; }
+  td.sev-errors { background: #fdebd2; font-weight: 600; }
+  td.sev-slows { background: #fff6cc; }
+  td.sev-polish { background: #eef2f6; }
+  img { max-width: 100%; border: 1px solid #ccc; margin: 6px 0; }
+  figure { margin: 12px 0; }
+  figcaption { font-size: 12px; color: #555; }
+  code { background: #f1f1f1; padding: 0 3px; }
+  .v { color: #0a6b2a; font-weight: 600; }
+  .i { color: #8a5a00; font-weight: 600; }
+  ul { margin: 6px 0 6px 20px; padding: 0; }
+  @media (max-width: 700px) { table { display: block; overflow-x: auto; } }
+</style>
+</head>
+<body>
+
+<h1>UX audit: Guest Experience</h1>
+<p class="meta">Route <code>/en/guest-experience</code> (also <code>/tr</code>, <code>/ar</code>) &middot; hosted staging, Organization Prizic Demo, Property Demo Otel &#304;stanbul &middot; 2026-10-11 &middot; mode: AUDIT ONLY (nothing submitted or persisted) &middot; roles checked: Front Desk (main), Housekeeping, Manager.<br>
+Labels: <span class="v">verified</span> = I saw it in the running app; <span class="i">inferred</span> = read in code, migrations or docs, not seen.</p>
+
+<h2>0. Data state, and what that does to this audit</h2>
+<p><span class="v">Verified:</span> the Property has <strong>zero</strong> guest service requests (all four counters read 0 for Front Desk, Housekeeping and Manager). I am not allowed to create one, so I never saw a populated table, a row action, a resolve/cancel dialog, or the 50-request case. Everything about rows, ageing, sorting, row actions and what a closed request looks like is <span class="i">inferred</span> from <code>requests-table.tsx</code>, <code>request-actions.tsx</code>, <code>server/guest-services.ts</code>, the module <code>packages/ranza/guest-services</code> and migration <code>20260916009900_guest_service_requests</code>. Where a finding is inferred I say so in the table. These are code-reading findings and I could not reproduce any of them in the browser.</p>
+
+<h2>1. Verdict</h2>
+<ul>
+  <li><strong>Could the front desk agent use it unaided?</strong> To log a request, yes (a short form, three required decisions, clear fields). To run a queue, no: there is no way to give a request an owner or department, no age, and no urgent-first order. Those are the three things the persona said they need.</li>
+  <li><strong>Biggest risk:</strong> actions fail silently. Every status change discards the server's answer (code), so a refused change (permission, a database rule) looks like nothing happened, or like it worked because the dialog closes. Reopening a cancelled request is wrong against the database rule, so it can never succeed (inferred).</li>
+  <li><strong>Loop with the guest is not closed:</strong> the Guest Portal cannot submit or see requests (README and roadmap say so), and resolving a request tells the guest nothing. The front desk must phone or walk to the room by themselves.</li>
+  <li><strong>Sibling screens are ahead:</strong> Maintenance has assignee and priority filters, a read-only notice for people who cannot manage, and equipment context. Guest Experience has none of these, and its categories "Housekeeping" and "Maintenance" do not create or link to anything on those screens.</li>
+  <li>Layout is clean, English/Turkish/Arabic all render and Arabic mirrors correctly; only the 375 px tab strip overflows.</li>
+</ul>
+
+<h2>2. Findings</h2>
+<table>
+<tr><th>ID</th><th>Severity</th><th>Where (route, role, data)</th><th>What happened</th><th>What I expected</th><th>Suggested fix</th><th>Effort</th><th>Evidence / reproduced</th><th>Basis</th></tr>
+
+<tr><td>GX-01</td><td class="sev-blocks">blocks work</td><td>/en/guest-experience, Front Desk &amp; Manager, any data</td>
+<td>No way to assign a request to a person or department. There is no Assignee column and no assign control. The server action <code>assignServiceRequest</code> and the data field <code>assignedToName</code> exist, and the message keys <code>assignee</code> / <code>unassigned</code> exist, but nothing renders or calls them (grep: no consumer outside <code>server/guest-services.ts</code>). Use case <code>use-case.mmd</code> and edge case GX-S1-13 (approved) both say staff can assign.</td>
+<td>See who owns each request; pick a person (or department) from the row; filter "unassigned".</td>
+<td>Assignee column plus assign select in the row; "Unassigned" and "Mine" filters, as Maintenance has. Show a name, not an email (module returns the email as the name).</td>
+<td>M</td><td>02 (create dialog has no assignee either); not reproducible with data</td><td><span class="v">verified</span> (no control in dialog or page) + <span class="i">inferred</span> (grep)</td></tr>
+
+<tr><td>GX-02</td><td class="sev-errors">causes errors</td><td>Row action "Reopen" on a Cancelled request, Front Desk/Manager</td>
+<td>Reopen always sends <code>in_progress</code>. The database trigger rejects that for cancelled rows ("a cancelled request can only be reopened to new"), and the check <code>(status='cancelled') = (cancel_reason is not null)</code> also fails because the UI does not clear the reason. The server action catches the error and returns "refused", which the UI ignores. So Reopen on a cancelled request does nothing and says nothing. Also <code>states.mmd</code> says cancelled reopens to New.</td>
+<td>Request returns to New, cancel reason cleared, and I see it move to Open.</td>
+<td>Send <code>new</code> with <code>cancelReason: null</code> for cancelled; show the result.</td>
+<td>S</td><td>Not reproduced (no data, cannot persist)</td><td><span class="i">inferred</span> (<code>request-actions.tsx</code> handleReopen, migration lines 86-87, 205-207)</td></tr>
+
+<tr><td>GX-03</td><td class="sev-errors">causes errors</td><td>All row actions (Start working, Resolve, Cancel, Reopen), all roles</td>
+<td>Results are never read: <code>await updateServiceRequestStatus(...)</code> is called and its <code>{status}</code> thrown away; the Resolve and Cancel dialogs close afterwards regardless of the outcome. There is no toast, success or error message anywhere on the page. A refusal (no permission, database rule, network) is indistinguishable from success until the list refreshes. Also the Cancel button enables for 1 or 2 characters but the database requires 3-200, so a short reason silently fails.</td>
+<td>A confirmation ("Request #12 resolved") or an error saying why it did not work; dialog stays open on failure with the text kept.</td>
+<td>Use the returned outcome; show toast or <code>FormError</code>; keep dialog open on refusal; validate the 3-character minimum client side; use <code>useActionState</code> as the create dialog does. Per the global observability rule, the console.error in the server action is the only record of failure.</td>
+<td>M</td><td>Not reproduced; code read</td><td><span class="i">inferred</span></td></tr>
+
+<tr><td>GX-04</td><td class="sev-slows">slows me down</td><td>Open tab with many requests, Front Desk</td>
+<td>No age and no priority ordering. The only time shown is "Reported" as a fixed "Oct 11, 14:05". The query sorts <code>status asc, createdAt desc</code>, which is alphabetical status: "in_progress" sorts before "new", so a brand-new request sits <em>below</em> things already being worked on, and an Urgent one is not lifted. There is no "waiting 3h" and no overdue highlight. The only urgency signal is a badge in one of nine columns, and the Urgent stat tile only counts (it is not a filter).</td>
+<td>Open tab sorted urgent first, then oldest first, with "waiting 2h 10m" visible, amber/red after a threshold.</td>
+<td>Sort client or server side by priority then reportedAt asc; show relative age; make the Urgent tile click-filter.</td>
+<td>S-M</td><td>Not reproduced</td><td><span class="i">inferred</span> (<code>module.ts</code> orderBy; <code>requests-table.tsx</code>)</td></tr>
+
+<tr><td>GX-05</td><td class="sev-errors">causes errors</td><td>/en/guest-experience, Housekeeping role</td>
+<td>Housekeeping sees the same page as Front Desk, including "New Request", with no explanation of what they may do. Shipped Housekeeping role may create but not manage requests (migration lines 106-120), yet the row actions (Start working, Resolve, Cancel) are drawn for every role with no permission check, so for Housekeeping they would be buttons that fail silently (see GX-03). Maintenance, by contrast, shows a "read only" notice (<code>board.mayManage</code>). The queue also shows every category to every role, with no "my department" filter.</td>
+<td>Housekeeping sees requests for their category first, and buttons they cannot use are hidden or explained.</td>
+<td>Pass <code>mayManage</code> to the table; hide or disable actions with a reason; add category filter and default it by role.</td>
+<td>M</td><td>Page seen as Housekeeping (same zero-data layout, "New Request" present); buttons not seen</td><td><span class="v">verified</span> (same page, New Request shown) + <span class="i">inferred</span> (actions)</td></tr>
+
+<tr><td>GX-06</td><td class="sev-slows">slows me down</td><td>375 px width, Front Desk</td>
+<td>The filter tab strip (Open / Resolved / All) is wider than the screen: the page scrolls sideways to 424 px and "All Requests" is cut off. The data table has nine columns (#, title, category, priority, room, guest, status, reported, actions) with no card/stacked layout, so with data it will need sideways scrolling too (not seen).</td>
+<td>Everything within 375 px; a request readable as a card.</td>
+<td>Let tabs scroll or shrink; card layout under 640 px.</td>
+<td>S (tabs), M (cards)</td><td>03-frontdesk-375.png. Tab overflow reproduced Y (measured scrollWidth 424 vs 375)</td><td>tabs <span class="v">verified</span>; table <span class="i">inferred</span></td></tr>
+
+<tr><td>GX-07</td><td class="sev-slows">slows me down</td><td>Create dialog, Front Desk</td>
+<td>The request cannot be tied to a guest or stay. The form has Title, Category, Priority, Room (101, 102, 201, bare numbers, no occupant), Details. The server action reads <code>guestId</code> from the form but no field posts it, so the Guest column will be "-" for every request logged here. The front desk picks a room and cannot see who is in it.</td>
+<td>Pick a room and see "Room 102, in house: guest name", with the request linked to that stay so it shows on the guest.</td>
+<td>Prefill guest/stay from the in-house stay of the chosen room.</td>
+<td>M</td><td>02-create-dialog-empty-submit.png (fields); room list seen in the open select</td><td><span class="v">verified</span> (fields) + <span class="i">inferred</span> (Guest column always empty)</td></tr>
+
+<tr><td>GX-08</td><td class="sev-errors">causes errors</td><td>Create dialog failure paths</td>
+<td>When the server refuses (permission, database), the dialog shows <code>FormError</code> text built as "{status} - {cancel}", which reads "Status - Cancel" in English. When the server answers "invalid" (title too long, bad id), nothing is shown at all. Browser validation does show (I saw "Please fill out this field." and "Please lengthen this text to 3 characters or more"), but those are the browser's own English sentences and ignore the page locale.</td>
+<td>A sentence in the page language: "You do not have permission to log requests" / "Title must be 3-200 characters".</td>
+<td>Add message keys for refused and invalid; show them.</td>
+<td>S</td><td>02-create-dialog-empty-submit.png (native message). Refused text not triggered (needs a valid submit)</td><td>native validation <span class="v">verified</span>; refused/invalid copy <span class="i">inferred</span></td></tr>
+
+<tr><td>GX-09</td><td class="sev-errors">causes errors</td><td>Cancel dialog (row action), Front Desk</td>
+<td>The cancel-request dialog has two buttons both labelled "Cancel": the outlined one dismisses the dialog and the red one cancels the guest's request (<code>t("cancel")</code> used for both). The destructive action has no name that says what it cancels and nothing says what the guest is told.</td>
+<td>"Keep request" and "Cancel request".</td>
+<td>Separate keys: <code>keepRequest</code> / <code>cancelRequest</code>. Same for the row button.</td>
+<td>S</td><td>Not reproduced; strings read in <code>messages.ts</code> (<code>cancel: "Cancel"</code>)</td><td><span class="i">inferred</span></td></tr>
+
+<tr><td>GX-10</td><td class="sev-polish">polish</td><td>Header and search, all locales</td>
+<td>(a) The sub-heading is a long sentence rendered as a bold h2 ("Demo Otel &#304;stanbul &middot; Guest and resident service requests, priority tracking, and resolution queue."), four lines at 375 px. (b) The search box placeholder is "Title..." but search also matches number, room and guest. (c) Turkish: page title is "Konuk deneyimi" while the body says "Misafir"; the same word is two different words on one screen. (d) The empty message "No guest service requests have been logged for this property" also shows on the Open tab when only resolved requests exist and when a search matches nothing, which is untrue in both cases.</td>
+<td>Short header; placeholder "Search number, room, guest or title"; one Turkish term; distinct empty states ("Nothing open" vs "No match").</td>
+<td>Copy changes.</td>
+<td>S</td><td>01-frontdesk-open-tab.png, 03-frontdesk-375.png (a, b); Turkish text read from page. (d) not seen</td><td>(a)(b)(c) <span class="v">verified</span>; (d) <span class="i">inferred</span></td></tr>
+
+<tr><td>GX-11</td><td class="sev-polish">polish</td><td>Stat tiles and tabs</td>
+<td>The "Resolved" tile and "Resolved" tab count Cancelled requests as well (code: anything not new/in progress). The "Urgent" tile counts only open urgent ones but its label does not say "open". There is no pagination or limit: all requests for the Property are loaded and filtered in the browser, so a year of history will make every visit heavier, unlike Housekeeping which paginates ("Page 1 of 1, per page 10").</td>
+<td>"Closed" for resolved+cancelled, or a separate Cancelled count; "Urgent open"; paging.</td>
+<td>Rename or split; server-side status filter and paging.</td>
+<td>M</td><td>Housekeeping text read; code read</td><td><span class="i">inferred</span></td></tr>
+
+<tr><td>GX-12</td><td class="sev-slows">slows me down</td><td>Today page and side navigation, Front Desk</td>
+<td>The Guest Experience link in the side navigation has no open-count badge, and nothing on the Today page references guest requests (no import of the module). A front desk agent has to open the page to learn whether a guest is waiting.</td>
+<td>A count on the nav item or a tile on Today for open and urgent requests.</td>
+<td>Reuse the counts the page already computes.</td>
+<td>M</td><td>Navigation snapshot as Front Desk (plain link); grep of Today feature</td><td><span class="v">verified</span> (nav) + <span class="i">inferred</span> (Today)</td></tr>
+</table>
+<p>Not reproduced twice: nothing here was reproduced on populated data, because the staging Property has none and I may not create any. The 375 px overflow and the native validation messages were each seen once and measured, and are stable layout facts.</p>
+
+<figure><img src="01-frontdesk-open-tab.png" alt="Guest Experience as Front Desk, empty"><figcaption>01. Front Desk, English, desktop, zero requests: header sentence, four counters, tabs, "Title..." search, empty state.</figcaption></figure>
+<figure><img src="02-create-dialog-empty-submit.png" alt="Create dialog with browser validation"><figcaption>02. New Request dialog, submitting empty: browser validation tooltip. No assignee, guest or stay field.</figcaption></figure>
+<figure><img src="03-frontdesk-375.png" alt="375 px width"><figcaption>03. 375 px: the tab strip runs off the right edge ("All Requests" cut off).</figcaption></figure>
+<figure><img src="04-frontdesk-ar-768.png" alt="Arabic at 768 px"><figcaption>04. Arabic at 768 px: mirrors correctly (sidebar on the right, counters and tabs reversed). Same long bold sentence as the header.</figcaption></figure>
+<figure><img src="05-maintenance-sibling.png" alt="Maintenance page for comparison"><figcaption>05. Sibling for comparison: Maintenance has a call-to-action in its empty state and tabs for Requests / Equipment / Service plan / Settings; its populated board has assignee and priority filters and a read-only notice (code).</figcaption></figure>
+
+<h2>3. Jobs</h2>
+<p>Pass/fail written before attempting. Times are approximate wall-clock for what I actually did; I did not time jobs I could not complete.</p>
+<table>
+<tr><th>#</th><th>Job</th><th>Pass test (written first)</th><th>Result</th><th>Seconds</th><th>Clicks</th></tr>
+<tr><td>1</td><td>Start of shift: see what is open, how long each has waited, and what is urgent</td><td>Within 5 s, without clicking a row, I can name the oldest open request and every urgent one</td><td><strong>Fail</strong> (cannot be met by design: no age, no urgent-first order; GX-04). Empty on staging, so seen only as zero tiles. <span class="i">inferred</span></td><td>~10</td><td>0</td></tr>
+<tr><td>2</td><td>Guest calls for extra towels: log it</td><td>Under 30 s and 4 clicks, request saved with room and category</td><td><strong>Stopped before submit, not persisted.</strong> Form is short (title, category, priority, room, details); only title is required. No guest/stay link (GX-07). No confirmation step exists to judge.</td><td>~40</td><td>4 to reach a filled form</td></tr>
+<tr><td>3</td><td>Hand a request to housekeeping or a named person</td><td>I can choose an owner from the row or dialog and see it afterwards</td><td><strong>Fail.</strong> No control exists (GX-01). Category "Housekeeping" is only a label.</td><td>~20 searching</td><td>n/a</td></tr>
+<tr><td>4</td><td>Find the request for room 102 or a guest's name among many</td><td>Type a room or name and the list narrows</td><td><span class="i">inferred pass</span>: search matches number, title, room, guest (code). Placeholder misleads (GX-10). Not tried with data.</td><td>n/a</td><td>2</td></tr>
+<tr><td>5</td><td>Resolve a request and tell the guest it is done</td><td>Resolve with a note, see it move to Resolved, and the guest is informed or I am prompted to inform them</td><td><strong>Stopped before submit; fail on the second half.</strong> Resolution notes are stored and displayed in the table, but the guest is not told anything and the Portal has no requests view (Not built). Outcome of Resolve is not reported (GX-03). <span class="i">inferred</span></td><td>n/a</td><td>n/a</td></tr>
+<tr><td>6</td><td>Under pressure: an angry guest complaint arrives, make it impossible to miss</td><td>Create as Urgent, and it is the first thing in the Open list and visible on the Today page</td><td><strong>Fail</strong> (inferred). Priority Urgent exists and counts in a tile, but sort order does not lift it (GX-04) and Today does not show it (GX-12).</td><td>n/a</td><td>n/a</td></tr>
+<tr><td>7</td><td>Error recovery: I cancelled the wrong request; bring it back</td><td>Reopen and see it in Open as New</td><td><strong>Fail</strong> (inferred, GX-02), silently.</td><td>n/a</td><td>n/a</td></tr>
+<tr><td>8</td><td>Housekeeping agent: see what is theirs and what they may do</td><td>Sees their requests, not offered actions that fail</td><td><strong>Partial.</strong> Page opens and offers New Request (verified); actions not seen (GX-05).</td><td>~60 incl. sign-in</td><td>3</td></tr>
+<tr><td>9</td><td>Use it from a phone and in Turkish/Arabic</td><td>No sideways scroll at 375 px; words in the page language; Arabic mirrored</td><td>Arabic and Turkish <strong>pass</strong> on the empty page (verified); 375 px <strong>fails</strong> on the tab strip (GX-06).</td><td>~60</td><td>0</td></tr>
+</table>
+
+<h2>4. Top changes (time saved x frequency)</h2>
+<ol>
+  <li>I can tell who owns each request, and hand one to a person or department in one click (GX-01).</li>
+  <li>The Open list puts urgent and longest-waiting requests first and shows "waiting 2h 10m" (GX-04).</li>
+  <li>When I resolve, cancel or reopen something I am told whether it worked, and a failure keeps my text (GX-03, GX-02, GX-08).</li>
+  <li>I see how many requests are open and urgent without opening the page (GX-12).</li>
+  <li>Picking a room shows who is staying there and attaches the request to that guest (GX-07).</li>
+  <li>A role that cannot manage requests sees no buttons that fail, and sees its own category first (GX-05).</li>
+  <li>The cancel dialog says "Keep request" / "Cancel request" so I cannot cancel by reflex (GX-09).</li>
+  <li>The page works at 375 px (GX-06).</li>
+</ol>
+
+<h2>5. Inconsistencies with sibling screens</h2>
+<ul>
+  <li><strong>Maintenance:</strong> has assignee and priority filters, an Out-of-order concept, a read-only notice for non-managers, and an empty state with an action button. Guest Experience has an empty state with no action, no filters beyond status tabs, and no read-only treatment. <span class="v">verified</span> (empty states, screenshot 05) / <span class="i">inferred</span> (filters, notice).</li>
+  <li><strong>Housekeeping:</strong> paginated table ("Page 1 of 1", per page 10); Guest Experience is not paginated. <span class="v">verified</span> for Housekeeping, <span class="i">inferred</span> for Guest Experience.</li>
+  <li><strong>Overlapping categories:</strong> a Guest Experience request of category "Housekeeping" or "Maintenance" is a separate record that never appears on those screens (no code links them). A leaking tap reported here is invisible to Maintenance unless someone re-types it. <span class="i">inferred</span> (grep found no reference between the modules).</li>
+  <li><strong>Status words:</strong> Guest Experience uses New / In Progress / Resolved / Cancelled; its button reads "Start Working" while the status reads "In Progress". Maintenance and Housekeeping use their own sets (Dirty/Clean/Inspected; waiting for parts, overdue). Not checked in depth.</li>
+  <li><strong>Turkish:</strong> "Konuk" in the title and "Misafir" in the body of the same page. <span class="v">verified</span></li>
+  <li><strong>Back button:</strong> present (top bar arrow, goes to Today), as ADR 0035 asks. There are no detail views to check; all work happens in rows and dialogs. <span class="v">verified</span></li>
+</ul>
+
+<h2>6. Not built / needs backend work</h2>
+<ul>
+  <li><strong>Guest Portal submission and viewing of requests.</strong> The Portal README says: "Blueprint 4.3 lists more (service requests ...) and none of them are built"; <code>docs/roadmap.md</code> says "Missing: Guest Portal submission side". The portal has only the <code>stay</code> page. So there is no arrival path from the Portal today, and I cannot say how it will look when it lands. <span class="i">inferred</span> from README, roadmap and file list.</li>
+  <li><strong>Telling the guest when a request is closed</strong> (message, push, Portal status). No notification code in the module. Real-time guest chat and post-stay survey are marked "Not this slice" in <code>use-case.mmd</code>.</li>
+  <li><strong>Departments/teams as assignees.</strong> The data model only has an assigned user (<code>assignedToUserId</code>); "assign to housekeeping" as a team is not modelled. A person picker is the part that is already half-built (GX-01).</li>
+  <li><strong>Ageing/SLA targets</strong> per priority: no field or configuration exists. Showing relative age (GX-04) needs no backend; "overdue after N minutes" needs a setting.</li>
+  <li><strong>Edit a request</strong> (title, priority, category, room): the module supports it (<code>updateRequest</code> accepts those fields) but there is no UI, and no detail view. Not listed as deferred in <code>edge-cases.csv</code>.</li>
+  <li>Edge-case rows are all slice 1 (GX-S1-01..18); slice 2 "stay link" has no rows in <code>edge-cases.csv</code>, so GX-07 is not covered by an approved row.</li>
+</ul>
+
+<h2>7. What already works well and must not regress</h2>
+<ul>
+  <li>The New Request form is short: only the title is required; category, priority and room default to Other / Normal / No unit; focus lands in the title. <span class="v">verified</span></li>
+  <li>Browser validation stops an empty or 2-character title before anything is sent (message in English only; see GX-08). <span class="v">verified</span></li>
+  <li>Arabic is fully translated and mirrors correctly (sidebar, counters, tabs, search icon); Turkish is fully translated on this page. <span class="v">verified</span></li>
+  <li>Four counters, three tabs with counts and a search field give a clean first read; status badges pair an icon with a label, not colour alone. <span class="v">verified</span> (counters, tabs) / <span class="i">inferred</span> (badges).</li>
+  <li>Requests are never deleted and cancelling needs a reason, enforced by the database (GX-S1-10, GX-S1-16), so history cannot be lost. <span class="i">inferred</span></li>
+  <li>The back button and breadcrumb are present and the Property is named in the top bar. <span class="v">verified</span></li>
+  <li>Access: all three roles reach the page; entitlement is checked on the server and an unentitled Property shows an explicit empty state (<code>notEntitled</code>), not an error. <span class="v">verified</span> (reach) / <span class="i">inferred</span> (entitlement state).</li>
+</ul>
+
+<p class="meta">Not done: no valid create, resolve, cancel, reopen or assign was submitted (MODE). No Guest Portal login. Staging had no data. Credentials were typed into the sign-in forms only and appear nowhere in this report.</p>
+</body>
+</html>

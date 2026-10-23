@@ -4,14 +4,17 @@ import { useState, useTransition } from "react";
 import { RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
+  ArrowButton,
   Button,
+  CancelButton,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
   FormError,
+  dialogFrameClassName,
 } from "@ranza/ui";
 import {
   retryAllOperationsAction,
@@ -73,25 +76,30 @@ export function RetryAllButton({ locale, propertyId }: RetryAllButtonProps) {
         </p>
       ) : null}
       <Dialog onOpenChange={setOpen} open={open}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("retryAllTitle")}</DialogTitle>
-            <DialogDescription>{t("retryAllDescription")}</DialogDescription>
-          </DialogHeader>
-          {failureKey ? <FormError>{t(failureKey)}</FormError> : null}
-          <DialogFooter>
-            <Button
+        <DialogContent className={dialogFrameClassName("small")}>
+          <DialogMasthead
+            art="/illustrations/dialogs/webhook.svg"
+            eyebrow={t("retryAllTitle")}
+            heading={t("retryAllHeading")}
+          />
+          <DialogBody simple>
+            <DialogDescription className="m-0 text-sm">
+              {t("retryAllDescription")}
+            </DialogDescription>
+            {failureKey ? <FormError>{t(failureKey)}</FormError> : null}
+          </DialogBody>
+          <DialogActions>
+            <CancelButton
               disabled={pending}
               onClick={() => setOpen(false)}
               type="button"
-              variant="outline"
             >
               {t("dismiss")}
-            </Button>
-            <Button disabled={pending} onClick={confirm} type="button">
+            </CancelButton>
+            <ArrowButton disabled={pending} onClick={confirm} type="button">
               {pending ? t("retrying") : t("retryAllConfirm")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </DialogContent>
       </Dialog>
     </>

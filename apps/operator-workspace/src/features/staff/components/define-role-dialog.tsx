@@ -4,23 +4,23 @@ import { useActionState, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import {
+  ArrowButton,
   Button,
+  CancelButton,
+  ChoiceGroup,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
+  DialogSection,
   DialogTrigger,
-  Field,
   FormError,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  dialogFrameClassName,
+  fieldClassName,
 } from "@ranza/ui";
 import type { Role } from "@ranza/staff";
 import { defineRole, type StaffOutcome } from "../../../server/staff";
@@ -51,6 +51,8 @@ export function DefineRoleDialog({
 }) {
   const t = useTranslations();
   const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [source, setSource] = useState("");
   const [ticked, setTicked] = useState<readonly string[]>([]);
   const [outcome, act, pending] = useActionState<StaffOutcome, FormData>(
     defineRole,
@@ -61,8 +63,17 @@ export function DefineRoleDialog({
   // grid behind it, which is the answer. An invitation has a token that only
   // exists in that one moment and closing would throw it away.
   useEffect(() => {
-    if (outcome === "done") setOpen(false);
+    if (outcome === "done") {
+      setOpen(false);
+      reset();
+    }
   }, [outcome]);
+
+  function reset(): void {
+    setName("");
+    setSource("");
+    setTicked([]);
+  }
 
   function roleName(role: Role): string {
     const shipped = shippedRoleOf(role);
@@ -70,99 +81,127 @@ export function DefineRoleDialog({
   }
 
   function startFrom(value: string): void {
-    const source = roles.find(
+    setSource(value);
+    const template = roles.find(
       (role) => `${role.organizationId ?? ""}:${role.key}` === value,
     );
-    if (source) setTicked(source.permissions);
+    if (template) setTicked(template.permissions);
   }
 
   return (
-    <Dialog onOpenChange={setOpen} open={open}>
+    <Dialog
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) reset();
+      }}
+      open={open}
+    >
       <DialogTrigger asChild>
         <Button variant="outline">
           <Plus aria-hidden="true" className="size-4" />
           {t("staff.defineRole")}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{t("staff.defineRoleTitle")}</DialogTitle>
-          <DialogDescription>
-            {t("staff.defineRoleDescription")}
-          </DialogDescription>
-        </DialogHeader>
-        <form action={act} className="space-y-4">
-          <input name="locale" type="hidden" value={locale} />
-          <input name="organization" type="hidden" value={organizationId} />
+      <DialogContent className={dialogFrameClassName("medium")}>
+        <form action={act} className="grid">
+          <DialogMasthead
+            art="/illustrations/dialogs/role.svg"
+            eyebrow={t("staff.defineRole")}
+            heading={t("staff.defineRoleTitle")}
+            large
+          />
+          <DialogBody>
+            <DialogDescription className="sr-only">
+              {t("staff.defineRoleDescription")}
+            </DialogDescription>
+            <input name="locale" type="hidden" value={locale} />
+            <input name="organization" type="hidden" value={organizationId} />
 
-          <Field htmlFor="role-name" label={t("staff.roleName")}>
-            <Input required id="role-name" maxLength={80} name="name" />
-          </Field>
+            <DialogSection
+              labelFor="role-name"
+              tag={{ label: t("dialogTagRequired"), required: true }}
+              title={t("staff.roleName")}
+            >
+              <Input
+                required
+                className={fieldClassName}
+                id="role-name"
+                maxLength={80}
+                name="name"
+                onChange={(event) => setName(event.target.value)}
+                value={name}
+              />
+            </DialogSection>
 
-          <Field htmlFor="role-start-from" label={t("staff.startFrom")}>
-            <Select onValueChange={startFrom}>
-              <SelectTrigger id="role-start-from">
-                <SelectValue placeholder={t("staff.startFromPlaceholder")} />
-              </SelectTrigger>
-              <SelectContent>
-                {roles.map((role) => (
-                  <SelectItem
-                    key={`${role.organizationId ?? ""}:${role.key}`}
-                    value={`${role.organizationId ?? ""}:${role.key}`}
-                  >
-                    {roleName(role)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
+            <DialogSection
+              tag={{ label: t("dialogTagOptional"), required: false }}
+              title={t("staff.startFrom")}
+              titleId="role-start-from"
+            >
+              <ChoiceGroup
+                labelledBy="role-start-from"
+                name="startFrom"
+                onChange={startFrom}
+                options={roles.map((role) => ({
+                  label: roleName(role),
+                  value: `${role.organizationId ?? ""}:${role.key}`,
+                }))}
+                value={source}
+              />
+            </DialogSection>
 
-          <div className="space-y-4">
-            <p className="text-sm font-medium">{t("staff.mayDo")}</p>
             {PERMISSION_SECTIONS.map((section) => (
-              <fieldset className="space-y-2" key={section.key}>
-                <legend className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  {t(`staff.sections.${section.key}`)}
-                </legend>
-                {section.permissions.map((permission) => (
-                  <label
-                    className="flex items-center gap-2 text-sm"
-                    key={permission}
-                  >
-                    <input
-                      checked={ticked.includes(permission)}
-                      name="permissions"
-                      onChange={(event) =>
-                        setTicked(
-                          event.target.checked
-                            ? [...ticked, permission]
-                            : ticked.filter((key) => key !== permission),
-                        )
-                      }
-                      type="checkbox"
-                      value={permission}
-                    />
-                    {t(`staff.permissions.${permissionMessageKey(permission)}`)}
-                  </label>
-                ))}
-              </fieldset>
+              <DialogSection
+                key={section.key}
+                title={t(`staff.sections.${section.key}`)}
+              >
+                <fieldset className="m-0 grid gap-2 border-0 p-0">
+                  <legend className="sr-only">{t("staff.mayDo")}</legend>
+                  {section.permissions.map((permission) => (
+                    <label
+                      className="flex items-center gap-3 text-sm"
+                      key={permission}
+                    >
+                      <input
+                        checked={ticked.includes(permission)}
+                        className="size-4.5 accent-primary"
+                        name="permissions"
+                        onChange={(event) =>
+                          setTicked(
+                            event.target.checked
+                              ? [...ticked, permission]
+                              : ticked.filter((key) => key !== permission),
+                          )
+                        }
+                        type="checkbox"
+                        value={permission}
+                      />
+                      {t(
+                        `staff.permissions.${permissionMessageKey(permission)}`,
+                      )}
+                    </label>
+                  ))}
+                </fieldset>
+              </DialogSection>
             ))}
-          </div>
 
-          {outcome === "refused" ? (
-            <FormError>{t("staff.refused")}</FormError>
-          ) : null}
+            {outcome === "refused" ? (
+              <div aria-live="polite" className="py-5">
+                <FormError>{t("staff.refused")}</FormError>
+              </div>
+            ) : null}
+          </DialogBody>
 
-          <DialogFooter>
+          <DialogActions
+            hint={name.trim() === "" ? t("staff.defineRoleHintName") : null}
+          >
             <DialogClose asChild>
-              <Button type="button" variant="outline">
-                {t("staff.cancel")}
-              </Button>
+              <CancelButton type="button">{t("staff.cancel")}</CancelButton>
             </DialogClose>
-            <Button disabled={pending} type="submit">
+            <ArrowButton disabled={pending || name.trim() === ""} type="submit">
               {t("staff.saveRole")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </form>
       </DialogContent>
     </Dialog>

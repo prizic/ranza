@@ -10,21 +10,23 @@ import type {
 } from "@ranza/maintenance";
 import type { SupportedLocale } from "@ranza/i18n";
 import {
+  ArrowButton,
   Button,
+  CancelButton,
   Card,
   Dialog,
-  DialogClose,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
   Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  dialogFrameClassName,
 } from "@ranza/ui";
 import { saveMaintenanceSettings } from "../../../server/maintenance";
 import { OutcomeMessage } from "./outcome-message";
@@ -276,32 +278,39 @@ export function MaintenanceSettingsCard({
       ) : null}
 
       <Dialog onOpenChange={setConfirming} open={confirming}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("confirmOrgTitle")}</DialogTitle>
-            <DialogDescription>{t("orgChangeNote")}</DialogDescription>
-          </DialogHeader>
-          <ul className="grid gap-2 text-step--1">
-            {changedForOrganization.map((question) => (
-              <li key={question}>
-                {t("orgChangeLine", {
-                  setting: labels[question],
-                  from: word(question, settings.organizationDefault[question]),
-                  to: word(question, organizationDraft[question]),
-                })}
-              </li>
-            ))}
-          </ul>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline">
-                {t("keepEditing")}
-              </Button>
-            </DialogClose>
-            <Button onClick={saveOrganization} type="button">
+        <DialogContent className={dialogFrameClassName("small")}>
+          <DialogMasthead
+            art="/illustrations/dialogs/wrench.svg"
+            eyebrow={t("confirmOrgTitle")}
+            heading={t("settingsTitle")}
+          />
+          <DialogBody simple>
+            <DialogDescription className="m-0 text-sm">
+              {t("orgChangeNote")}
+            </DialogDescription>
+            <ul className="m-0 grid list-none gap-2 p-0 text-sm">
+              {changedForOrganization.map((question) => (
+                <li key={question}>
+                  {t("orgChangeLine", {
+                    setting: labels[question],
+                    from: word(
+                      question,
+                      settings.organizationDefault[question],
+                    ),
+                    to: word(question, organizationDraft[question]),
+                  })}
+                </li>
+              ))}
+            </ul>
+          </DialogBody>
+          <DialogActions>
+            <CancelButton onClick={() => setConfirming(false)} type="button">
+              {t("keepEditing")}
+            </CancelButton>
+            <ArrowButton onClick={saveOrganization} type="button">
               {t("confirmOrgChange")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </DialogContent>
       </Dialog>
 

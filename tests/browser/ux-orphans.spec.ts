@@ -271,7 +271,10 @@ test.describe("the Room calendar's details and move dialogs (ROOMCAL-05, ROOMCAL
     const dialog = page.getByRole("dialog").last();
     // Still waiting for the rooms: the field names the room, never an id.
     await expect(
-      dialog.getByRole("combobox").filter({ hasText: booked.unitName }),
+      dialog.getByRole("radio", {
+        name: new RegExp(booked.unitName),
+        checked: true,
+      }),
     ).toHaveCount(1);
     expect(await dialog.innerText()).not.toMatch(UUID);
     await page.screenshot({
