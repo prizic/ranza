@@ -85,12 +85,14 @@ export function createHousekeepingModule(deps: HousekeepingDeps) {
    * above it — with its status and whether it is ready (HK-S1-13).
    *
    * One statement, so the counts and the rows come from one snapshot. The
-   * status is `app.unit_housekeeping_state()`'s: a holder with no row reads as
-   * clean, and one a Guest has left since its status last changed reads as
-   * dirty before the worker has written so (HK-S1-22). Readiness is
-   * `app.unit_is_ready()`, which reads the same state and is the one definition
-   * the arrivals list and check-in read too, so the board cannot call a room
-   * ready — or clean — that check-in then warns about.
+   * status is `app.housekeeping_states()`'s, asked once for every room rather
+   * than once per room: a holder with no row reads as clean, and one a Guest
+   * has left since its status last changed reads as dirty before the worker has
+   * written so (HK-S1-22). Readiness is `app.status_is_ready()` applied to that
+   * state. Both are the definitions `app.unit_housekeeping_state()` and
+   * `app.unit_is_ready()` — which the arrivals list and check-in read — are
+   * built on, so the board cannot call a room ready, or clean, that check-in
+   * then warns about.
    *
    * The commercial gates are in the predicate (HK-S1-15). A Property out of
    * reach, or one without housekeeping, returns no rows rather than a refusal
@@ -114,7 +116,7 @@ export function createHousekeepingModule(deps: HousekeepingDeps) {
                   from public.accommodation_units as bed
                  where bed.parent_id = unit.id) as "bedCount",
                state.status,
-               app.unit_is_ready(unit.id) as ready,
+               app.status_is_ready(unit.property_id, state.status) as ready,
                state.changed_at as "changedAt",
                exists (
                  select 1
@@ -136,7 +138,12 @@ export function createHousekeepingModule(deps: HousekeepingDeps) {
                  unit.organization_id, 'housekeeping.update_status'
                ) as "mayMark"
           from public.accommodation_units as unit
-          cross join app.unit_housekeeping_state(unit.id) as state
+          join app.housekeeping_states(
+                 array(select holder.id
+                         from public.accommodation_units as holder
+                        where holder.property_id = ${propertyId}::uuid
+                          and holder.parent_id is null)
+               ) as state on state.holder_id = unit.id
          where unit.property_id = ${propertyId}::uuid
            and unit.parent_id is null
            and app.can_use_capability(
