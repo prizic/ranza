@@ -15,12 +15,11 @@ import { ScreenDenied } from "../screen-denied";
 import { resolveAnalyticsView } from "../../../../server/analytics";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import {
-  entitledProperties,
-  FRONT_DESK_CAPABILITY,
   propertyDayDetail,
   propertyMonthReport,
   propertyWindowReport,
   requireViewer,
+  screenProperties,
   whyDenied,
 } from "../../../../server/viewer";
 
@@ -62,10 +61,7 @@ export default async function AnalyticsPage({
   const screen = screenFor(SEGMENT);
   if (!screen) notFound();
 
-  const properties = await entitledProperties({
-    moduleKey: screen.module,
-    capabilityKey: screen.capability,
-  });
+  const properties = await screenProperties(gateOf("analytics"));
 
   const property = await frontDeskProperty(
     properties,
@@ -106,7 +102,7 @@ export default async function AnalyticsPage({
     // A Stay is opened where its price is fixed, which is the Reservations
     // screen: offered to a viewer who reaches it and to nobody else.
     const reachesReservations = (
-      await entitledProperties(FRONT_DESK_CAPABILITY)
+      await screenProperties(gateOf("reservations"))
     ).some((reachable) => reachable.propertyId === property.propertyId);
     return (
       <MonthReportView

@@ -1,17 +1,17 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { EmptyState } from "@ranza/ui";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { setRequestLocale } from "next-intl/server";
 import { RoomsView } from "../../../../features/rooms/components/rooms-view";
 import {
-  entitledProperties,
-  FRONT_DESK_CAPABILITY,
-  HOUSEKEEPING_CAPABILITY,
   mayConfigureRooms,
   requireViewer,
   rooms,
   roomsMaintenance,
+  screenProperties,
+  whyDenied,
 } from "../../../../server/viewer";
+import { ScreenDenied } from "../screen-denied";
+import { gateOf } from "../../../../lib/screens";
 import { frontDeskProperty } from "../../../../server/front-desk";
 
 /**
@@ -35,9 +35,8 @@ export default async function RoomsPage({
   if (!isSupportedLocale(locale)) notFound();
   setRequestLocale(locale);
 
-  const t = await getTranslations();
   await requireViewer(locale);
-  const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
+  const properties = await screenProperties(gateOf("rooms"));
   const search = await searchParams;
   const property = await frontDeskProperty(
     properties,
@@ -47,9 +46,9 @@ export default async function RoomsPage({
 
   if (!property) {
     return (
-      <EmptyState
-        description={t("noFrontDeskDescription")}
-        title={t("noFrontDeskTitle")}
+      <ScreenDenied
+        denial={await whyDenied(gateOf("rooms"), (await searchParams).property)}
+        locale={locale}
       />
     );
   }
@@ -58,7 +57,7 @@ export default async function RoomsPage({
     rooms(property.propertyId),
     roomsMaintenance(property.propertyId),
     mayConfigureRooms(property.propertyId),
-    entitledProperties(HOUSEKEEPING_CAPABILITY),
+    screenProperties(gateOf("housekeeping")),
   ]);
   const hasHousekeeping = housekeeping.some(
     (candidate) => candidate.propertyId === property.propertyId,

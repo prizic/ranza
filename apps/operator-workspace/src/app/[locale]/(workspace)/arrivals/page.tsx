@@ -2,17 +2,19 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { Button, EmptyState } from "@ranza/ui";
+import { Button } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { LiveArrivals } from "../../../../features/front-office/components/live-arrivals";
 import { frontOfficeKeys } from "../../../../features/front-office/query-keys";
 import { Hydrated, requestQueryClient } from "../../../providers/hydrate";
 import {
   arrivals,
-  entitledProperties,
-  FRONT_DESK_CAPABILITY,
   requireViewer,
+  screenProperties,
+  whyDenied,
 } from "../../../../server/viewer";
+import { ScreenDenied } from "../screen-denied";
+import { gateOf } from "../../../../lib/screens";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import { parseArrivalFilter } from "../../../../features/today/views";
 
@@ -59,7 +61,7 @@ export default async function ArrivalsPage({
   const t = await getTranslations();
   const viewer = await requireViewer(locale);
   const search = await searchParams;
-  const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
+  const properties = await screenProperties(gateOf("arrivals"));
   const property = await frontDeskProperty(
     properties,
     search,
@@ -68,9 +70,12 @@ export default async function ArrivalsPage({
 
   if (!property) {
     return (
-      <EmptyState
-        description={t("noFrontDeskDescription")}
-        title={t("noFrontDeskTitle")}
+      <ScreenDenied
+        denial={await whyDenied(
+          gateOf("arrivals"),
+          (await searchParams).property,
+        )}
+        locale={locale}
       />
     );
   }

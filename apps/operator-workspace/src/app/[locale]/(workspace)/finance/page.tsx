@@ -6,18 +6,19 @@ import { FoliosTable } from "../../../../features/finance/components/folios-tabl
 import { FolioPanel } from "../../../../features/finance/components/folio-panel";
 import {
   AUDIT_READ_PERMISSION,
-  entitledProperties,
   folio,
-  FOLIO_CAPABILITY,
   folioPage,
-  FRONT_DESK_CAPABILITY,
   permittedProperties,
   POST_CHARGE_PERMISSION,
   POST_PAYMENT_PERMISSION,
   requireViewer,
   REVERSE_CHARGE_PERMISSION,
   REVERSE_PAYMENT_PERMISSION,
+  screenProperties,
+  whyDenied,
 } from "../../../../server/viewer";
+import { gateOf } from "../../../../lib/screens";
+import { ScreenDenied } from "../screen-denied";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import { FolioTabs } from "../../../../features/finance/components/folio-tabs";
 import { FOLIO_TABS, parseFolioTab } from "../../../../features/finance/derive";
@@ -54,7 +55,7 @@ export default async function FinancePage({
 
   const t = await getTranslations();
   const search = await searchParams;
-  const properties = await entitledProperties(FOLIO_CAPABILITY);
+  const properties = await screenProperties(gateOf("finance"));
   const property = await frontDeskProperty(
     properties,
     search,
@@ -62,6 +63,16 @@ export default async function FinancePage({
   );
 
   if (!property) {
+    // A role without the permission is told so; every other reason a Property
+    // does not open answers alike, so a forged `?property=` and a switched-off
+    // one cannot be told apart (FO-S9-01).
+    const denial = await whyDenied(
+      gateOf("finance"),
+      (await searchParams).property,
+    );
+    if (denial.reason === "no_permission") {
+      return <ScreenDenied denial={denial} locale={locale} />;
+    }
     return (
       <EmptyState
         description={t("noFinanceDescription")}
@@ -106,7 +117,7 @@ export default async function FinancePage({
       await permittedProperties(AUDIT_READ_PERMISSION)
     ).some((reachable) => reachable.propertyId === selected.propertyId);
     const mayOpenReservation = (
-      await entitledProperties(FRONT_DESK_CAPABILITY)
+      await screenProperties(gateOf("reservations"))
     ).some((reachable) => reachable.propertyId === selected.propertyId);
     return (
       <>

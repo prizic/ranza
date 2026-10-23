@@ -1,8 +1,7 @@
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { EmptyState } from "@ranza/ui";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { setRequestLocale } from "next-intl/server";
 import { LiveRoomCalendar } from "../../../../features/room-calendar/components/live-room-calendar";
 import { frontOfficeKeys } from "../../../../features/front-office/query-keys";
 import {
@@ -12,13 +11,15 @@ import {
 } from "../../../../features/room-calendar/view";
 import { Hydrated, requestQueryClient } from "../../../providers/hydrate";
 import {
-  entitledProperties,
-  FRONT_DESK_CAPABILITY,
+  requireViewer,
   ROOM_CALENDAR_DEFAULT_LENGTH,
   ROOM_CALENDAR_LENGTHS,
-  requireViewer,
   roomCalendar,
+  screenProperties,
+  whyDenied,
 } from "../../../../server/viewer";
+import { ScreenDenied } from "../screen-denied";
+import { gateOf } from "../../../../lib/screens";
 import { frontDeskProperty } from "../../../../server/front-desk";
 
 /**
@@ -46,10 +47,9 @@ export default async function RoomCalendarPage({
   if (!isSupportedLocale(locale)) notFound();
   setRequestLocale(locale);
 
-  const t = await getTranslations();
   const viewer = await requireViewer(locale);
   const search = await searchParams;
-  const properties = await entitledProperties(FRONT_DESK_CAPABILITY);
+  const properties = await screenProperties(gateOf("room-calendar"));
   const property = await frontDeskProperty(
     properties,
     search,
@@ -58,9 +58,12 @@ export default async function RoomCalendarPage({
 
   if (!property) {
     return (
-      <EmptyState
-        description={t("noFrontDeskDescription")}
-        title={t("noFrontDeskTitle")}
+      <ScreenDenied
+        denial={await whyDenied(
+          gateOf("room-calendar"),
+          [search.property].flat()[0],
+        )}
+        locale={locale}
       />
     );
   }

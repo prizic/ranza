@@ -93,8 +93,6 @@ export interface Messages {
   frontOffice: string;
   arrivalsAt: string;
   departuresAt: string;
-  noFrontDeskTitle: string;
-  noFrontDeskDescription: string;
   /** Finance is off at the Property named, or at every one the viewer reaches. */
   noFinanceTitle: string;
   noFinanceDescription: string;
@@ -2013,8 +2011,6 @@ export interface Messages {
   housekeeping: {
     subtitle: string;
     /** No Property the viewer may use housekeeping at, or not the one named. */
-    unavailableTitle: string;
-    unavailableDescription: string;
     noRoomsTitle: string;
     noRoomsDescription: string;
     statRooms: string;
@@ -2061,7 +2057,6 @@ export interface Messages {
     awaitingInspection: string;
     inspectionReadOnlyOn: string;
     inspectionReadOnlyOff: string;
-    unavailablePick: string;
     todayColumn: string;
     priorityArrival: string;
     priorityInspect: string;
@@ -3069,9 +3064,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     frontOffice: "Ön büro",
     arrivalsAt: "Bugünkü girişler:",
     departuresAt: "Bugünkü çıkışlar:",
-    noFrontDeskTitle: "Ön büro bu tesiste açık değil",
-    noFrontDeskDescription:
-      "Ön büro, organizasyonunuzun aboneliğinde yer aldığında ve tesiste etkinleştirildiğinde burada görünür.",
     noFinanceTitle: "Finans bu tesiste açık değil",
     noFinanceDescription:
       "Finans, organizasyonunuzun aboneliğinde yer aldığında ve tesiste etkinleştirildiğinde burada görünür.",
@@ -5240,9 +5232,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     },
     housekeeping: {
       subtitle: "{property} — tüm odalar",
-      unavailableTitle: "Kat hizmetleri bu tesiste açık değil",
-      unavailableDescription:
-        "Kat hizmetleri, organizasyonunuzun aboneliğinde yer aldığında ve tesiste etkinleştirildiğinde burada görünür.",
       noRoomsTitle: "Henüz oda yok",
       noRoomsDescription:
         "Odalar ve yataklar ekranında eklenen odalar, temizlik durumlarıyla birlikte burada görünür.",
@@ -5297,8 +5286,6 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Bu tesiste temizlenen bir oda, satışa hazır sayılmadan önce kontrol bekler. Bunu bir yönetici değiştirebilir.",
       inspectionReadOnlyOff:
         "Bu tesiste temizlenen bir oda, kontrol edilmeden satışa hazır sayılır. Bunu bir yönetici değiştirebilir.",
-      unavailablePick:
-        "Başka bir tesisin odalarını görmek için yukarıdaki çubuktan o tesisi seçin.",
       todayColumn: "Bugün",
       priorityArrival: "Bugün geliş",
       priorityInspect: "Geliş · kontrol",
@@ -6477,9 +6464,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     frontOffice: "Front Office",
     arrivalsAt: "Arriving today at",
     departuresAt: "Leaving today at",
-    noFrontDeskTitle: "The front desk is not open at this Property",
-    noFrontDeskDescription:
-      "It appears here once your Organization's Subscription includes it and the Property has it enabled.",
     noFinanceTitle: "Finance is not open at this Property",
     noFinanceDescription:
       "It appears here once your Organization's Subscription includes it and the Property has it enabled.",
@@ -8665,9 +8649,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     },
     housekeeping: {
       subtitle: "Every room at {property}",
-      unavailableTitle: "Housekeeping is not on at this Property",
-      unavailableDescription:
-        "It appears here once your Organization's Subscription includes it and the Property has it enabled.",
       noRoomsTitle: "No rooms here yet",
       noRoomsDescription:
         "Rooms added under Rooms & beds appear here, with whether each one needs cleaning.",
@@ -8722,8 +8703,6 @@ export const messages: Record<SupportedLocale, Messages> = {
         "A cleaned room at this Property waits for an inspection before it is ready to let. A manager can change this.",
       inspectionReadOnlyOff:
         "A cleaned room at this Property is ready to let without an inspection. A manager can change this.",
-      unavailablePick:
-        "To see another Property's rooms, choose it from the Property control in the bar above.",
       todayColumn: "Today",
       priorityArrival: "Arrival today",
       priorityInspect: "Arrival · inspect",
@@ -9894,9 +9873,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     frontOffice: "المكتب الأمامي",
     arrivalsAt: "الوصول اليوم في",
     departuresAt: "المغادرة اليوم في",
-    noFrontDeskTitle: "المكتب الأمامي غير مفعّل في هذه المنشأة",
-    noFrontDeskDescription:
-      "يظهر هنا عندما يشمله اشتراك مؤسستك ويتم تفعيله في المنشأة.",
     noFinanceTitle: "المالية غير مفعّلة في هذه المنشأة",
     noFinanceDescription:
       "تظهر هنا عندما يشملها اشتراك مؤسستك ويتم تفعيلها في المنشأة.",
@@ -12029,9 +12005,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     },
     housekeeping: {
       subtitle: "كل الغرف في {property}",
-      unavailableTitle: "التدبير الفندقي غير مفعّل في هذه المنشأة",
-      unavailableDescription:
-        "يظهر هنا عندما يشمله اشتراك مؤسستك ويتم تفعيله في المنشأة.",
       noRoomsTitle: "لا توجد غرف بعد",
       noRoomsDescription:
         "تظهر هنا الغرف المضافة من شاشة الغرف والأسرّة، مع ما إذا كانت كل غرفة تحتاج إلى تنظيف.",
@@ -12085,8 +12058,6 @@ export const messages: Record<SupportedLocale, Messages> = {
         "الغرفة المنظَّفة في هذا العقار تنتظر الفحص قبل أن تصبح جاهزة للتأجير. يمكن للمدير تغيير هذا.",
       inspectionReadOnlyOff:
         "الغرفة المنظَّفة في هذا العقار جاهزة للتأجير دون فحص. يمكن للمدير تغيير هذا.",
-      unavailablePick:
-        "لعرض غرف عقار آخر، اختره من عنصر اختيار العقار في الشريط أعلاه.",
       todayColumn: "اليوم",
       priorityArrival: "وصول اليوم",
       priorityInspect: "وصول · فحص",

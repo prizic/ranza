@@ -24,13 +24,13 @@ import {
 import { frontDeskProperty } from "../../../../server/front-desk";
 import {
   CONFIGURATION_CAPABILITY,
-  entitledProperties,
   entitledPropertiesByCapability,
   housekeepingInspection,
   maintenanceSettings,
   priceList,
   propertySettings,
   requireViewer,
+  screenProperties,
   timezoneNames,
   whyDenied,
 } from "../../../../server/viewer";
@@ -51,10 +51,13 @@ import {
  * and changes none (CF-S3-01).
  */
 
-/** One entry per capability a screen is gated on, parents before children. */
+/**
+ * One entry per capability a screen asks of a Property, parents before
+ * children. A destination decided by a permission alone asks none.
+ */
 const GATED_SCREENS = ALL_SCREENS.filter(
   (screen, index) =>
-    !screen.permission &&
+    !(screen.permission && !screen.requires) &&
     screen.capability !== CONFIGURATION_CAPABILITY.capabilityKey &&
     ALL_SCREENS.findIndex(
       (other) =>
@@ -76,7 +79,7 @@ export default async function ConfigurationPage({
   await requireViewer(locale);
 
   const t = await getTranslations();
-  const properties = await entitledProperties(CONFIGURATION_CAPABILITY);
+  const properties = await screenProperties(gateOf("configuration"));
   const property = await frontDeskProperty(
     properties,
     await searchParams,
@@ -107,7 +110,7 @@ export default async function ConfigurationPage({
       entitledPropertiesByCapability(
         GATED_SCREENS.map((screen) => ({
           moduleKey: screen.module,
-          capabilityKey: screen.capability,
+          capabilityKey: screen.requires ?? screen.capability,
         })),
       ),
     ]);

@@ -115,17 +115,21 @@ export function useFolioColumns(
       meta: { title: t("balance") },
       header: ({ column }) => (
         <DataTableColumnHeader
+          className="justify-end"
           column={column}
           labels={sort}
           title={t("balance")}
         />
       ),
       // Aligned to the end rather than the right, so the column mirrors in
-      // Arabic instead of stranding the figures on the wrong edge.
+      // Arabic instead of stranding the figures on the wrong edge. The block
+      // sits at the end of a cell the table makes far wider than it, and the
+      // header is aligned to it: capped at 9rem only where a phone needs the
+      // line to wrap, not where there is room for "Last posted Oct 19, 2026".
       cell: ({ row }) => {
         const folio = row.original;
         return (
-          <div className="grid max-w-36 justify-items-end gap-0.5 text-end whitespace-normal">
+          <div className="ms-auto grid max-w-36 justify-items-end gap-0.5 text-end whitespace-normal md:max-w-none">
             <span className="font-medium tabular-nums">
               {formatMoney(folio.balanceMinor, folio.currency, locale)}
             </span>

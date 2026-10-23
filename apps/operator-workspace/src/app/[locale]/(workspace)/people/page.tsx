@@ -13,9 +13,9 @@ import { shippedRoleOf } from "../../../../features/staff/labels";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import { readRoles, readRoster } from "../../../../server/staff";
 import {
-  entitledProperties,
   permittedProperties,
   requireViewer,
+  screenProperties,
   whyDenied,
 } from "../../../../server/viewer";
 
@@ -39,16 +39,11 @@ import {
  * A command is offered only to a viewer holding the permission it needs
  * (#80): inviting and changing somebody's role or reach ask for
  * `staff.administer`, defining a role for `staff.define_roles`. A viewer
- * holding neither reads the roster and is told who can change it; one holding
+ * holding neither is not offered the page (`gateOf("people")`); one holding
  * either is offered what it allows and nothing else — and only the roles, and
  * the members, within their own role and reach (SP-S1-35). The policies stay
  * the authority; this only stops offering what they would refuse.
  */
-const STAFF_ADMINISTRATION = {
-  moduleKey: "platform_core",
-  capabilityKey: "staff_administration",
-};
-
 export default async function PeoplePage({
   params,
   searchParams,
@@ -62,7 +57,7 @@ export default async function PeoplePage({
   const viewer = await requireViewer(locale);
 
   const t = await getTranslations();
-  const properties = await entitledProperties(STAFF_ADMINISTRATION);
+  const properties = await screenProperties(gateOf("people"));
   const home = await frontDeskProperty(
     properties,
     await searchParams,

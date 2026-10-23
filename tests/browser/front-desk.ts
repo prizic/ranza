@@ -368,6 +368,36 @@ export async function aStaffMember(
 }
 
 /**
+ * A Staff Member whose role is the Organization's own and holds exactly
+ * `permissions`, for the case no shipped role is: a role that reaches a page
+ * through one permission of its work and lacks another (ADR 0056). Every
+ * shipped role either holds all of a page's permissions or none of them.
+ */
+export async function aStaffMemberHolding(
+  request: APIRequestContext,
+  baseURL: string,
+  propertyId: string,
+  permissions: readonly string[],
+): Promise<{ email: string; userId: string }> {
+  const member = await aStaffMember(request, baseURL, propertyId, "front_desk");
+  const organizationId = psql(
+    `select organization_id from public.properties where id = '${propertyId}'`,
+  );
+  const key = `held_${randomUUID().slice(0, 8)}`;
+  psql(
+    `insert into public.staff_roles (scope_id, key, organization_id, name, permissions)
+     values ('${organizationId}', '${key}', '${organizationId}', 'Holding ${key}',
+             array[${permissions.map((permission) => `'${permission}'`).join(",")}])`,
+  );
+  psql(
+    `update public.organization_memberships
+        set role = '${key}', role_scope_id = '${organizationId}'
+      where user_id = '${member.userId}'`,
+  );
+  return member;
+}
+
+/**
  * Signs in and lands on Today.
  *
  * Today draws itself as the Staff Member last chose, from a cookie of their own

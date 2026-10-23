@@ -27,6 +27,7 @@ import {
   type Denial,
   type DenialQuestion,
   type EntitledProperty,
+  type PermissionGate,
   type WorkingDay,
 } from "./contracts";
 import { createConfiguration } from "./configuration";
@@ -230,6 +231,80 @@ export function createCoreModule(deps: CoreDeps) {
         capability?.moduleKey ?? null,
         capability?.capabilityKey ?? null,
       ),
+    );
+  }
+
+  /**
+   * `listPermittedProperties` for several destinations at once, in one
+   * transaction — one list per gate, in the order asked.
+   *
+   * The shell asks about every destination to build its navigation, and a
+   * transaction per destination and permission is a connection each: with every
+   * destination gated by a role that is dozens at once on a full page load, more
+   * than the pool holds (the reason `listEntitledPropertiesByCapability` exists).
+   * The question is unchanged — reach, `app.has_organization_permission()`, and
+   * `app.can_use_capability()` where a capability is named — so each list is
+   * what `listPermittedProperties` would answer for that gate's permissions
+   * alone, with a Property listed once however many of them the role holds.
+   *
+   * An empty string stands for "no capability" in the arrays: a null inside a
+   * bound array is not reliably carried to the database.
+   */
+  async function listPermittedPropertiesByGate(
+    userId: string,
+    gates: readonly PermissionGate[],
+  ): Promise<EntitledProperty[][]> {
+    const asked = gates.flatMap((gate, position) =>
+      gate.permissions.map((permission) => ({
+        position,
+        permission,
+        moduleKey: gate.capability?.moduleKey ?? "",
+        capabilityKey: gate.capability?.capabilityKey ?? "",
+      })),
+    );
+    if (asked.length === 0) return gates.map(() => []);
+
+    const rows = await withOrganizationContext(
+      deps.db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<(EntitledProperty & { position: number })[]>`
+        select distinct
+          requested.position::int  as "position",
+          property.id              as "propertyId",
+          property.name            as "propertyName",
+          property.timezone        as "timezone",
+          organization.id          as "organizationId",
+          organization.name        as "organizationName"
+        from unnest(
+          ${asked.map((row) => row.position)}::int[],
+          ${asked.map((row) => row.permission)}::text[],
+          ${asked.map((row) => row.moduleKey)}::text[],
+          ${asked.map((row) => row.capabilityKey)}::text[]
+        ) as requested(position, permission, module_key, capability_key)
+        cross join public.properties as property
+        join public.organizations as organization
+          on organization.id = property.organization_id
+        where property.id in (select app.accessible_property_ids())
+          and app.has_organization_permission(
+                property.organization_id, requested.permission)
+          and (requested.module_key = ''
+               or app.can_use_capability(
+                    property.id, requested.module_key, requested.capability_key))
+        order by 1, organization.name, property.name
+      `,
+    );
+
+    return gates.map((_, position) =>
+      rows
+        .filter((row) => row.position === position)
+        .map((row) => ({
+          propertyId: row.propertyId,
+          propertyName: row.propertyName,
+          timezone: row.timezone,
+          organizationId: row.organizationId,
+          organizationName: row.organizationName,
+        })),
     );
   }
 
@@ -520,6 +595,7 @@ export function createCoreModule(deps: CoreDeps) {
     listEntitledProperties,
     listEntitledPropertiesByCapability,
     listPermittedProperties,
+    listPermittedPropertiesByGate,
     explainDenial,
     billingNotices,
     workingDay,

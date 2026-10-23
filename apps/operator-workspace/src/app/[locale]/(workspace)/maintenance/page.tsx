@@ -7,17 +7,16 @@ import { MaintenanceBoard } from "../../../../features/maintenance/components/ma
 import {
   CANCEL_REASON,
   DETAILS,
-  entitledProperties,
   EQUIPMENT_CATEGORY,
   EQUIPMENT_LOCATION,
   EQUIPMENT_NAME,
   equipmentRegister,
-  MAINTENANCE_CAPABILITY,
   maintenanceBoard,
   maintenanceReportOptions,
   maintenanceSettings,
   requireViewer,
   RETURN_NOTE,
+  screenProperties,
   SERVICE_INTERVAL,
   TITLE,
   VENDOR,
@@ -48,7 +47,7 @@ export default async function MaintenancePage({
   const viewer = await requireViewer(locale);
 
   const query = await searchParams;
-  const properties = await entitledProperties(MAINTENANCE_CAPABILITY);
+  const properties = await screenProperties(gateOf("maintenance"));
   const property = await frontDeskProperty(
     properties,
     query,

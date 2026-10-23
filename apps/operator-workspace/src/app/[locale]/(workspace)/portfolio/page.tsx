@@ -13,16 +13,16 @@ import {
   parsePortfolioSort,
   parsePortfolioView,
 } from "../../../../features/portfolio/derive";
-import { PORTFOLIO_GATE } from "../../../../lib/portfolio-offer";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import { ScreenDenied } from "../screen-denied";
 import {
-  entitledProperties,
   portfolio,
   PortfolioTooLargeError,
   requireViewer,
+  screenProperties,
   whyDenied,
 } from "../../../../server/viewer";
+import { gateOf } from "../../../../lib/screens";
 
 const SEGMENT = "portfolio";
 
@@ -53,7 +53,7 @@ export default async function PortfolioPage({
   await requireViewer(locale);
 
   const t = await getTranslations();
-  const properties = await entitledProperties(PORTFOLIO_GATE);
+  const properties = await screenProperties(gateOf("analytics"));
 
   const search = await searchParams;
   const property = await frontDeskProperty(
@@ -64,7 +64,7 @@ export default async function PortfolioPage({
   const notAvailable = (
     <ScreenDenied
       denial={await whyDenied(
-        { capability: PORTFOLIO_GATE },
+        gateOf("analytics"),
         (await searchParams).property,
       )}
       locale={locale}
