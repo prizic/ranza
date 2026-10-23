@@ -30,9 +30,11 @@ import {
   type Money,
   type RoomFilter,
 } from "../features/today/views";
+import { deskFrom, type DeskCard } from "./today-desk";
 
 export { totals };
 export type { Money };
+export type { DeskCard, DeskRoom, RoomState, UnclosedDays } from "./today-desk";
 
 /**
  * The Today dashboard, derived. Pure: no reads, no clock, no session.
@@ -78,6 +80,10 @@ export interface ArrivalRow {
   endsOn: string | null;
   state: ArrivalState;
   blocker: CheckInBlocker | null;
+  /** `HH:MM` the Guest said they would arrive, at the Property; null when unsaid. */
+  expectedArrival: string | null;
+  /** The Property's clock is past `expectedArrival` and the Guest is not in. */
+  expectedArrivalPassed: boolean;
   /**
    * Whether the viewer may check this Guest in from the row (TD-S2-01,
    * TD-S2-04): the command would succeed, and they hold front_desk.check_in.
@@ -326,6 +332,8 @@ export interface TodaySummary {
   activity?: Section<ActivityCard>;
   charges?: Section<ChargesCard>;
   booked?: Section<BookedAheadCard>;
+  /** The fuller answer the desk layouts draw from; see `today-desk.ts`. */
+  desk?: Section<DeskCard>;
   attention: {
     items: readonly AttentionItem[];
     /** False when a section it draws on could not be read. */
@@ -401,6 +409,8 @@ export interface Needs {
   charges: boolean;
   /** Booked occupancy ahead, from the room calendar (TD-S3-04). */
   calendar: boolean;
+  /** Everybody in house, named: what the house map shows in a room. */
+  inHouse: boolean;
   /** How many days wait to be closed: the desk's to close (TD-S7-11). */
   closeDay: boolean;
 }
@@ -435,6 +445,7 @@ export function needsFor(grants: Grants, capabilities: Capabilities): Needs {
     // that merely holds finance.manage_folio.
     charges: money && (focus === "manager" || focus === "finance"),
     calendar: capabilities.frontDesk && focus === "manager",
+    inHouse: capabilities.frontDesk && desk,
     closeDay: capabilities.frontDesk && desk,
   };
 }
@@ -456,6 +467,7 @@ export interface TodayInput {
   charges?: Read<readonly ChargesPosted[]>;
   calendar?: Read<RoomCalendar>;
   daysWaiting?: Read<DaysWaiting | null>;
+  inHouse?: Read<readonly Departure[]>;
 }
 
 /** Rows the clean-first queue and the movements list show, at most. */
@@ -1088,26 +1100,27 @@ export function deriveToday(input: TodayInput): TodaySummary {
     },
   };
 
+  const arrivalRows = (rows: readonly Arrival[]): ArrivalRow[] =>
+    rows.map((row) => ({
+      reservationId: row.reservationId,
+      reference: row.reference,
+      guestName: focus === "housekeeping" ? null : row.guestName,
+      stayType: row.stayType,
+      unit: unitOf(row),
+      startsOn: row.startsOn,
+      endsOn: row.endsOn,
+      state: arrivalState(row),
+      blocker: row.checkInBlocker,
+      expectedArrival: row.expectedArrival,
+      expectedArrivalPassed: row.expectedArrivalPassed,
+      mayCheckIn: row.canCheckIn && row.mayCheckIn,
+    }));
   const arrivalsCard = section(input.arrivals, (rows) => ({
     expected: rows.length,
     checkedIn: rows.filter((row) => row.status === "checked_in").length,
     ready: rows.filter((row) => arrivalState(row) === "ready").length,
     notReady: rows.filter((row) => arrivalState(row) === "not_ready").length,
-    rows: rows
-      .filter(isToCome)
-      .slice(0, LIST_LIMIT)
-      .map((row): ArrivalRow => ({
-        reservationId: row.reservationId,
-        reference: row.reference,
-        guestName: focus === "housekeeping" ? null : row.guestName,
-        stayType: row.stayType,
-        unit: unitOf(row),
-        startsOn: row.startsOn,
-        endsOn: row.endsOn,
-        state: arrivalState(row),
-        blocker: row.checkInBlocker,
-        mayCheckIn: row.canCheckIn && row.mayCheckIn,
-      })),
+    rows: arrivalRows(rows.filter(isToCome).slice(0, LIST_LIMIT)),
   }));
   if (arrivalsCard && focus !== "housekeeping" && focus !== "finance") {
     summary.arrivals = arrivalsCard;
@@ -1195,6 +1208,38 @@ export function deriveToday(input: TodayInput): TodaySummary {
   if (focus === "manager") {
     const booked = section(input.calendar, bookedAheadFrom);
     if (booked) summary.booked = booked;
+  }
+
+  if (focus === "manager" || focus === "front_desk") {
+    // Every read it is made of, or none of it: a map missing the rooms whose
+    // read failed would look like a map of a smaller house (TD-S1-24).
+    const { board, inHouse } = input;
+    if (
+      board &&
+      inHouse &&
+      input.arrivals &&
+      input.departures &&
+      input.departedToday
+    ) {
+      summary.desk =
+        !board.ok ||
+        !inHouse.ok ||
+        [input.arrivals, input.departures, input.departedToday].some(failed)
+          ? { status: "unavailable" }
+          : {
+              status: "ok",
+              data: deskFrom({
+                arrivals: arrivalRows(arrivals),
+                departures: departures.map((row) =>
+                  departureRow(row, money, input.day.businessDate),
+                ),
+                departed,
+                board: board.value,
+                inHouse: inHouse.value,
+                daysWaiting: input.daysWaiting,
+              }),
+            };
+    }
   }
 
   return summary;

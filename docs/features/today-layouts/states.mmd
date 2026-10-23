@@ -1,0 +1,60 @@
+%% Anything not drawn here is forbidden.
+%% Two things have states. The Staff Member's choice of layout, which is theirs
+%% alone and moves nothing at the Property; and the desk section, which is one
+%% card's copy of the day and follows the same rules as every other card
+%% (docs/features/today-dashboard/states.mmd).
+stateDiagram-v2
+  direction LR
+
+  state "a Staff Member's layout" as Choice {
+    state "unchosen" as unchosen
+    state "timeline" as timeline
+    state "house map" as house
+    state "next up" as nextup
+    state "night desk" as night
+    state "overview" as overview
+
+    [*] --> unchosen : first sign-in on this device
+    unchosen --> timeline : open Today (the default)
+    timeline --> house : choose house map
+    timeline --> nextup : choose next up
+    timeline --> night : choose night desk
+    timeline --> overview : choose overview
+    house --> timeline : choose timeline
+    house --> nextup : choose next up
+    house --> night : choose night desk
+    house --> overview : choose overview
+    nextup --> timeline : choose timeline
+    nextup --> house : choose house map
+    nextup --> night : choose night desk
+    nextup --> overview : choose overview
+    night --> timeline : choose timeline
+    night --> house : choose house map
+    night --> nextup : choose next up
+    night --> overview : choose overview
+    overview --> timeline : choose timeline
+    overview --> house : choose house map
+    overview --> nextup : choose next up
+    overview --> night : choose night desk
+    timeline --> unchosen : the cookie is cleared or holds anything else
+    house --> unchosen : the cookie is cleared or holds anything else
+    nextup --> unchosen : the cookie is cleared or holds anything else
+    night --> unchosen : the cookie is cleared or holds anything else
+    overview --> unchosen : the cookie is cleared or holds anything else
+  }
+
+  state "the desk section" as Desk {
+    state "current" as d_current
+    state "stale" as d_stale
+    state "unavailable" as d_unavailable
+
+    [*] --> d_current : the summary answers with every read it is made of
+    [*] --> d_unavailable : any read it is made of failed
+    d_current --> d_current : refresh every 60 s, on focus, after a check-in or check-out
+    d_current --> d_stale : a refresh fails
+    d_stale --> d_current : a later refresh answers
+    d_unavailable --> d_current : retry answers
+    d_current --> [*] : leave the page
+    d_stale --> [*] : leave the page
+    d_unavailable --> [*] : leave the page
+  }

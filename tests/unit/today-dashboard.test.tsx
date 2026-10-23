@@ -192,8 +192,10 @@ function view(summary: TodaySummary, locale: SupportedLocale = "tr") {
           <TodayDashboard
             clock="09:41"
             greeting="morning"
+            initialLayout="overview"
             locale={locale}
             name="Selin"
+            nowMs={0}
             properties={[]}
             scope={SCOPE}
           />
