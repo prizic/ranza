@@ -458,13 +458,14 @@ export interface Messages {
     refused: string;
     lastAdministrator: string;
     roleIsHeld: string;
-    confirmRoleTitle: string;
     confirmRoleChange: string;
     confirmRoleSessions: string;
     confirmRoleSelf: string;
     confirmRoleSelfLosesAccess: string;
     confirmRoleConfirm: string;
     confirmRoleClose: string;
+    inviteHintMissing: string;
+    defineRoleHintName: string;
     roleChangedMeanwhile: string;
     roleRetired: string;
     rolesHeading: string;
@@ -1393,6 +1394,18 @@ export interface Messages {
       title: string;
       register: string;
       registerTitle: string;
+      registerHeading: string;
+      registerWhoTitle: string;
+      registerJobTitle: string;
+      registerPayTitle: string;
+      registerContactTitle: string;
+      registerHintMissing: string;
+      editTabDetails: string;
+      editStartTitle: string;
+      editContactBankTitle: string;
+      editPayNowTitle: string;
+      editPayFromTitle: string;
+      editHintNewPay: string;
       registerDescription: string;
       firstName: string;
       lastName: string;
@@ -1490,6 +1503,13 @@ export interface Messages {
       title: string;
       requestLeave: string;
       requestLeaveTitle: string;
+      leaveWhoTitle: string;
+      leaveSearch: string;
+      leaveMore: string;
+      leaveNoMatches: string;
+      leaveWhatTitle: string;
+      leaveWhenTitle: string;
+      leaveHintMissing: string;
       staffMember: string;
       type: string;
       dates: string;
@@ -1530,6 +1550,8 @@ export interface Messages {
       goToEmployees: string;
       confirmPlaceholders: string;
       confirmUnderstood: string;
+      confirmHintMissing: string;
+      payslipDeductionsTitle: string;
       print: string;
       period: string;
       /** `{amount}` and `{total}`, already formatted in the run's currency. */
@@ -3484,7 +3506,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       lastAdministrator:
         "Bir Kuruluşta ekip ekleyebilen biri kalmalı. Önce başka birine Sahip rolünü verin.",
       roleIsHeld: "Bu rolü tutan kişiler var; önce onları taşıyın.",
-      confirmRoleTitle: "Bu rol değiştirilsin mi?",
       confirmRoleChange: "{member}, {from} rolünden {to} rolüne geçecek.",
       confirmRoleSessions:
         "Sahip olduğu tüm oturumlar sona erecek ve yeniden giriş yapması gerekecek.",
@@ -3493,6 +3514,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{to} ekip yönetemez; bu nedenle artık kimsenin rolünü değiştiremez veya ekip daveti gönderemezsiniz.",
       confirmRoleConfirm: "Rolü değiştir",
       confirmRoleClose: "Kapat",
+      inviteHintMissing: "Bir e-posta ekleyin ve rol seçin",
+      defineRoleHintName: "Devam etmek için role bir ad verin",
       roleChangedMeanwhile:
         "Bu rol siz karar verirken değiştirildi. {member} artık {role} rolünde. Hiçbir şey değişmedi.",
       roleRetired: "Bu rol artık sunulmuyor. Hiçbir şey değişmedi.",
@@ -4872,6 +4895,18 @@ export const messages: Record<SupportedLocale, Messages> = {
         title: "Personel listesi",
         register: "Personel ekle",
         registerTitle: "Yeni personel kaydı",
+        registerHeading: "Ekibe kim katılıyor?",
+        registerWhoTitle: "Kimdir?",
+        registerJobTitle: "Görevi nedir?",
+        registerPayTitle: "Ücret ve başlangıç tarihi",
+        registerContactTitle: "İletişim bilgileri",
+        registerHintMissing: "Devam etmek için adı, görevi ve ücreti girin",
+        editTabDetails: "Bilgiler",
+        editStartTitle: "Ne zaman başladı?",
+        editContactBankTitle: "İletişim ve banka",
+        editPayNowTitle: "Şu an ne kadar ücret alıyor?",
+        editPayFromTitle: "Hangi aydan itibaren?",
+        editHintNewPay: "Yeni brüt ücreti girin",
         registerDescription:
           "Personelin sözleşme, görev ve maaş bilgilerini girin.",
         firstName: "Ad",
@@ -4966,6 +5001,13 @@ export const messages: Record<SupportedLocale, Messages> = {
         title: "İzin talepleri",
         requestLeave: "İzin talebi oluştur",
         requestLeaveTitle: "Yeni izin talebi",
+        leaveWhoTitle: "Kimin için?",
+        leaveSearch: "Ada veya bölüme göre ara",
+        leaveMore: "{count} kişi daha var. Bulmak için yazın.",
+        leaveNoMatches: "Eşleşen kişi yok.",
+        leaveWhatTitle: "Ne tür izin?",
+        leaveWhenTitle: "Hangi günler?",
+        leaveHintMissing: "Kimin için olduğunu ve iki tarihi seçin",
         staffMember: "Personel",
         type: "Tür",
         dates: "Tarihler",
@@ -5010,6 +5052,8 @@ export const messages: Record<SupportedLocale, Messages> = {
           "Sosyal güvenlik, gelir vergisi ve damga vergisi tutarları kimsenin onaylamadığı yer tutuculardır. Kimseye ödeme yapmak için kullanılmamalı ve bu kilit kalıcıdır.",
         confirmUnderstood:
           "Kesintilerin onaylanmamış yer tutucular olduğunu ve bu bordroyu kilitlemenin kalıcı olduğunu anlıyorum.",
+        confirmHintMissing: "Onaylamak için kutuyu işaretleyin.",
+        payslipDeductionsTitle: "Brüt ve kesintiler",
         print: "Yazdır",
         period: "Dönem",
         summaryGrossNet: "Brüt {amount}, net {total}",
@@ -6849,7 +6893,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       lastAdministrator:
         "An Organization must keep somebody who can add staff. Give another person the Owner role first.",
       roleIsHeld: "Somebody holds this role. Move them first.",
-      confirmRoleTitle: "Change this role?",
       confirmRoleChange: "{member} will go from {from} to {to}.",
       confirmRoleSessions:
         "Every session they hold will end, and they will need to sign in again.",
@@ -6858,6 +6901,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{to} cannot manage staff, so you will no longer be able to change anyone’s role or invite staff.",
       confirmRoleConfirm: "Change role",
       confirmRoleClose: "Close",
+      inviteHintMissing: "Add an email and choose a role",
+      defineRoleHintName: "Name the role to continue",
       roleChangedMeanwhile:
         "Somebody changed this role while you were deciding. {member} now holds {role}. Nothing was changed.",
       roleRetired: "That role is no longer offered. Nothing was changed.",
@@ -8253,6 +8298,18 @@ export const messages: Record<SupportedLocale, Messages> = {
         title: "Employee Directory",
         register: "Add employee",
         registerTitle: "Register employee",
+        registerHeading: "Who is joining the team?",
+        registerWhoTitle: "Who are they?",
+        registerJobTitle: "What is the job?",
+        registerPayTitle: "Pay and start date",
+        registerContactTitle: "How to reach them",
+        registerHintMissing: "Add the name, the job and the pay to continue",
+        editTabDetails: "Details",
+        editStartTitle: "When did they start?",
+        editContactBankTitle: "Contact and bank",
+        editPayNowTitle: "What are they paid now?",
+        editPayFromTitle: "From which month?",
+        editHintNewPay: "Enter the new gross pay",
         registerDescription:
           "Enter the employee's contract, position and salary details.",
         firstName: "First name",
@@ -8347,6 +8404,14 @@ export const messages: Record<SupportedLocale, Messages> = {
         title: "Leave requests",
         requestLeave: "Request leave",
         requestLeaveTitle: "Submit leave request",
+        leaveWhoTitle: "Who is it for?",
+        leaveSearch: "Search by name or department",
+        leaveMore:
+          "{count, plural, one {# more person} other {# more people}}. Type to find one.",
+        leaveNoMatches: "Nobody matches.",
+        leaveWhatTitle: "What kind of leave?",
+        leaveWhenTitle: "Which days?",
+        leaveHintMissing: "Choose who it is for and both dates",
         staffMember: "Staff member",
         type: "Type",
         dates: "Dates",
@@ -8390,6 +8455,8 @@ export const messages: Record<SupportedLocale, Messages> = {
           "The social security, income tax and stamp duty figures are placeholders that nobody has approved. They must not be used to pay anyone, and this lock is permanent.",
         confirmUnderstood:
           "I understand the deductions are unapproved placeholders and that locking this run is permanent.",
+        confirmHintMissing: "Tick the box to approve this run.",
+        payslipDeductionsTitle: "Pay and deductions",
         print: "Print",
         period: "Period",
         summaryGrossNet: "Gross {amount}, net {total}",
@@ -10206,7 +10273,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       lastAdministrator:
         "يجب أن يبقى في المؤسسة من يستطيع إضافة الفريق. أعطِ شخصًا آخر دور المالك أولًا.",
       roleIsHeld: "هذا الدور يحمله أحدهم. انقلهم أولًا.",
-      confirmRoleTitle: "تغيير هذا الدور؟",
       confirmRoleChange: "سينتقل {member} من {from} إلى {to}.",
       confirmRoleSessions:
         "ستنتهي جميع جلساته وسيحتاج إلى تسجيل الدخول من جديد.",
@@ -10215,6 +10281,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         "لا يستطيع دور {to} إدارة الفريق، لذلك لن تتمكن بعد الآن من تغيير دور أي شخص أو دعوة أعضاء جدد.",
       confirmRoleConfirm: "تغيير الدور",
       confirmRoleClose: "إغلاق",
+      inviteHintMissing: "أضف بريدًا إلكترونيًا واختر دورًا",
+      defineRoleHintName: "سمِّ الدور للمتابعة",
       roleChangedMeanwhile:
         "غُيّر هذا الدور أثناء اتخاذك القرار. يحمل {member} الآن دور {role}. لم يتغير شيء.",
       roleRetired: "لم يعد هذا الدور متاحًا. لم يتغير شيء.",
@@ -11577,6 +11645,18 @@ export const messages: Record<SupportedLocale, Messages> = {
         title: "دليل الموظفين",
         register: "إضافة موظف",
         registerTitle: "تسجيل موظف جديد",
+        registerHeading: "من ينضم إلى الفريق؟",
+        registerWhoTitle: "من هو؟",
+        registerJobTitle: "ما هي الوظيفة؟",
+        registerPayTitle: "الأجر وتاريخ البدء",
+        registerContactTitle: "بيانات التواصل",
+        registerHintMissing: "أدخل الاسم والوظيفة والأجر للمتابعة",
+        editTabDetails: "البيانات",
+        editStartTitle: "متى بدأ العمل؟",
+        editContactBankTitle: "التواصل والحساب البنكي",
+        editPayNowTitle: "كم يتقاضى الآن؟",
+        editPayFromTitle: "اعتبارًا من أي شهر؟",
+        editHintNewPay: "أدخل الأجر الإجمالي الجديد",
         registerDescription: "أدخل تفاصيل العقد والمنصب والراتب للموظف.",
         firstName: "الاسم الأول",
         lastName: "اسم العائلة",
@@ -11670,6 +11750,13 @@ export const messages: Record<SupportedLocale, Messages> = {
         title: "طلبات الإجازة",
         requestLeave: "طلب إجازة",
         requestLeaveTitle: "تقديم طلب إجازة",
+        leaveWhoTitle: "لمن؟",
+        leaveSearch: "ابحث بالاسم أو القسم",
+        leaveMore: "{count} آخرين. اكتب للبحث.",
+        leaveNoMatches: "لا أحد مطابق.",
+        leaveWhatTitle: "ما نوع الإجازة؟",
+        leaveWhenTitle: "أي أيام؟",
+        leaveHintMissing: "اختر لمن الإجازة والتاريخين",
         staffMember: "الموظف",
         type: "النوع",
         dates: "التواريخ",
@@ -11713,6 +11800,8 @@ export const messages: Record<SupportedLocale, Messages> = {
           "مبالغ التأمينات الاجتماعية وضريبة الدخل ورسم الدمغة قيم مؤقتة لم يعتمدها أحد. يجب ألا تُستخدم لدفع أجر أي شخص، وهذا القفل دائم.",
         confirmUnderstood:
           "أفهم أن الاستقطاعات قيم مؤقتة غير معتمدة وأن قفل هذا الكشف دائم.",
+        confirmHintMissing: "ضع علامة على المربع لاعتماد هذا التشغيل.",
+        payslipDeductionsTitle: "الراتب والاستقطاعات",
         print: "طباعة",
         period: "الفترة",
         summaryGrossNet: "الإجمالي {amount}، الصافي {total}",

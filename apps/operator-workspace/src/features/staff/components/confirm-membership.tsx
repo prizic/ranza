@@ -5,13 +5,15 @@ import { useTranslations } from "next-intl";
 import type { StaffMember } from "@ranza/staff";
 import { formatDate, type SupportedLocale } from "@ranza/i18n";
 import {
-  Button,
+  ArrowButton,
+  CancelButton,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
+  dialogFrameClassName,
 } from "@ranza/ui";
 import {
   addBackStaffMember,
@@ -126,25 +128,37 @@ export function ConfirmMembership({
       open={open}
     >
       <DialogContent
+        className={dialogFrameClassName("small")}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
           cancelButton.current?.focus();
         }}
         showCloseButton={false}
       >
-        <DialogHeader>
-          <DialogTitle>
-            {t(`staff.membership.${kind}.title`, { member: member.email })}
-          </DialogTitle>
+        <DialogMasthead
+          art={
+            kind === "revoke"
+              ? "/illustrations/dialogs/remove-access.svg"
+              : "/illustrations/dialogs/invite.svg"
+          }
+          eyebrow={t(`staff.membership.${kind}.confirm`)}
+          heading={member.email}
+        />
+        <DialogBody simple>
           <DialogDescription asChild>
-            <div className="flex flex-col gap-2">
-              {link && (kind === "renew" || kind === "readd") ? (
-                <p>{t(`staff.membership.${kind}.done`)}</p>
+            <div className="grid gap-3 text-sm">
+              {link && issuesLink ? (
+                <p className="m-0">{t(`staff.membership.${kind}.done`)}</p>
               ) : blocked ? (
-                <p>{t("staff.lastAdministrator")}</p>
+                <p className="m-0">{t("staff.lastAdministrator")}</p>
               ) : (
                 <>
-                  <p>
+                  <p className="m-0 font-medium">
+                    {t(`staff.membership.${kind}.title`, {
+                      member: member.email,
+                    })}
+                  </p>
+                  <p className="m-0">
                     {t(`staff.membership.${kind}.body`, {
                       member: member.email,
                       role: roleNameOf(member, t),
@@ -152,8 +166,10 @@ export function ConfirmMembership({
                   </p>
                   {kind === "revoke" ? (
                     <>
-                      <p>{t("staff.membership.revoke.keeps")}</p>
-                      <p>
+                      <p className="m-0">
+                        {t("staff.membership.revoke.keeps")}
+                      </p>
+                      <p className="m-0">
                         {t("staff.membership.revoke.undo", {
                           hours: UNDO_WINDOW_HOURS,
                         })}
@@ -161,12 +177,12 @@ export function ConfirmMembership({
                     </>
                   ) : null}
                   {kind === "revoke" && self ? (
-                    <p className="font-medium text-destructive">
+                    <p className="m-0 font-medium text-destructive">
                       {t("staff.membership.revoke.self")}
                     </p>
                   ) : null}
                   {kind === "restore" && undoUntil ? (
-                    <p>
+                    <p className="m-0">
                       {t("staff.membership.restore.until", {
                         until: undoUntil,
                       })}
@@ -176,49 +192,52 @@ export function ConfirmMembership({
               )}
             </div>
           </DialogDescription>
-        </DialogHeader>
 
-        {link?.token && link.expiresAt ? (
-          <InvitationLink
-            expiresAt={link.expiresAt}
-            locale={locale}
-            token={link.token}
-          />
-        ) : null}
+          {link?.token && link.expiresAt ? (
+            <InvitationLink
+              expiresAt={link.expiresAt}
+              locale={locale}
+              token={link.token}
+            />
+          ) : null}
 
-        {!link && outcome !== "idle" && outcome !== "done" ? (
-          <p className="text-sm text-destructive" role="alert">
-            {outcome === "lastAdministrator"
-              ? t("staff.lastAdministrator")
-              : t("staff.refused")}
-          </p>
-        ) : null}
+          {!link && outcome !== "idle" && outcome !== "done" ? (
+            <p className="m-0 text-sm text-destructive" role="alert">
+              {outcome === "lastAdministrator"
+                ? t("staff.lastAdministrator")
+                : t("staff.refused")}
+            </p>
+          ) : null}
+        </DialogBody>
 
-        <DialogFooter>
-          <Button
-            disabled={pending}
-            onClick={onClose}
-            ref={cancelButton}
-            type="button"
-            variant={link ? "default" : "outline"}
-          >
-            {link
-              ? t("staff.done")
-              : blocked
-                ? t("staff.confirmRoleClose")
-                : t("staff.cancel")}
-          </Button>
-          {blocked || link ? null : (
-            <Button
-              disabled={pending}
-              onClick={() => void confirm()}
-              type="button"
-              variant={kind === "revoke" ? "destructive" : "default"}
-            >
-              {t(`staff.membership.${kind}.confirm`)}
-            </Button>
+        <DialogActions>
+          {link ? (
+            <ArrowButton onClick={onClose} ref={cancelButton} type="button">
+              {t("staff.done")}
+            </ArrowButton>
+          ) : (
+            <>
+              <CancelButton
+                disabled={pending}
+                onClick={onClose}
+                ref={cancelButton}
+                type="button"
+              >
+                {blocked ? t("staff.confirmRoleClose") : t("staff.cancel")}
+              </CancelButton>
+              {blocked ? null : (
+                <ArrowButton
+                  disabled={pending}
+                  onClick={() => void confirm()}
+                  tone={kind === "revoke" ? "danger" : "default"}
+                  type="button"
+                >
+                  {t(`staff.membership.${kind}.confirm`)}
+                </ArrowButton>
+              )}
+            </>
           )}
-        </DialogFooter>
+        </DialogActions>
       </DialogContent>
     </Dialog>
   );
