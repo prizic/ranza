@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 
 import { psql } from "./local-database";
-import { signIn, testProperty } from "./front-desk";
+import { pickDay, propertyDay, signIn, testProperty } from "./front-desk";
 import { aDeskProperty, archiveMadeProperties } from "./ux-fixtures";
 
 /**
@@ -431,22 +431,23 @@ test("the toolbar names its steps, keeps its two toggles on one line, and marks 
   const departed = await page.getByText("Show departed").boundingBox();
   expect(Math.abs(requested!.y - departed!.y)).toBeLessThan(4);
 
-  const target = psql(
-    `select to_char(app.property_today('${scene.propertyId}') + 9, 'YYYY-MM-DD')`,
-  );
-  const input = page.getByLabel("Go to a date");
+  // The start of a range chosen in the calendar is marked in its column. The
+  // window opens on it, so it is the first day shown.
+  const start = propertyDay(scene.propertyId, 9);
+  const from = page.getByRole("button", { name: /^From:/ });
   await expect
     .poll(() =>
-      input.evaluate((node) =>
+      from.evaluate((node) =>
         Object.keys(node).some((key) => key.startsWith("__reactProps")),
       ),
     )
     .toBe(true);
-  await input.fill(target);
+  await from.click();
+  await pickDay(page, start);
+  await pickDay(page, propertyDay(scene.propertyId, 12));
   const marked = page.locator('[role="columnheader"][data-marked]');
   await expect(marked).toHaveCount(1);
   await expect(marked).toHaveAttribute("aria-label", /date you chose/i);
-  // Three days of lead before it, and then it.
   const heads = page.getByRole("columnheader");
   await expect
     .poll(() =>
@@ -454,7 +455,7 @@ test("the toolbar names its steps, keeps its two toggles on one line, and marks 
         cells.findIndex((cell) => cell.hasAttribute("data-marked")),
       ),
     )
-    .toBe(1 + 3);
+    .toBe(1);
   await capture(page, "jumped-to-date-marked");
 
   // Any other move clears the mark.

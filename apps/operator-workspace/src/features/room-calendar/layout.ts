@@ -39,6 +39,22 @@ export function shiftDay(day: string, count: number): string {
   return moved.toISOString().slice(0, 10);
 }
 
+/**
+ * The shortest offered length that still shows every day asked for, or the
+ * longest when none does. Rounding up and never to the nearest, so a range
+ * somebody chose is never cut short on screen (RC-S1-06 keeps the lengths an
+ * allow-list).
+ */
+export function lengthCovering(
+  days: number,
+  lengths: readonly number[],
+): number {
+  return Math.min(
+    Math.max(...lengths),
+    ...lengths.filter((length) => length >= days),
+  );
+}
+
 export function daysBetween(from: string, to: string): number {
   return Math.round(
     (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) /

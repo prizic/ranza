@@ -1676,7 +1676,12 @@ export interface Messages {
     previous: string;
     next: string;
     today: string;
-    goTo: string;
+    from: string;
+    to: string;
+    emptyFrom: string;
+    emptyTo: string;
+    pickFrom: string;
+    pickTo: string;
     chosenDay: string;
     length: string;
     lengthOption: string;
@@ -4006,7 +4011,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       previous: "Önceki 7 gün",
       next: "Sonraki 7 gün",
       today: "Bugün",
-      goTo: "Tarihe git",
+      from: "Başlangıç",
+      to: "Bitiş",
+      emptyFrom: "Tarih ekle",
+      emptyTo: "Tarih ekle",
+      pickFrom: "Başlangıç gününü seçin",
+      pickTo: "Bitiş gününü seçin",
       chosenDay: "Seçtiğiniz tarih",
       length: "Gösterilen gün",
       lengthOption: "{days, plural, other {# gün}}",
@@ -7416,7 +7426,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       previous: "Previous 7 days",
       next: "Next 7 days",
       today: "Today",
-      goTo: "Go to a date",
+      from: "From",
+      to: "To",
+      emptyFrom: "Add date",
+      emptyTo: "Add date",
+      pickFrom: "Choose start day",
+      pickTo: "Choose end day",
       chosenDay: "The date you chose",
       length: "Days shown",
       lengthOption: "{days, plural, one {# day} other {# days}}",
@@ -10797,7 +10812,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       previous: "الأيام السبعة السابقة",
       next: "الأيام السبعة التالية",
       today: "اليوم",
-      goTo: "الانتقال إلى تاريخ",
+      from: "من",
+      to: "إلى",
+      emptyFrom: "أضف تاريخًا",
+      emptyTo: "أضف تاريخًا",
+      pickFrom: "اختر يوم البدء",
+      pickTo: "اختر يوم الانتهاء",
       chosenDay: "التاريخ الذي اخترته",
       length: "الأيام المعروضة",
       lengthOption:

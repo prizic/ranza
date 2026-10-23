@@ -250,6 +250,36 @@ describe("DateRangeField", () => {
     expect(submitted()).toEqual({ startsOn: "2026-10-06", endsOn: "" });
   });
 
+  it("greys out every end beyond the most days allowed between the ends", () => {
+    const submitted = renderField({ maxSpan: 6 });
+
+    fireEvent.click(half(/^Arrival/));
+    fireEvent.click(day("2026-10-06"));
+    // Six days on is the last end offered; seven is not.
+    expect(day("2026-10-12")).not.toBeDisabled();
+    expect(day("2026-10-13")).toBeDisabled();
+    fireEvent.click(day("2026-10-13"));
+    expect(submitted()).toEqual({ startsOn: "2026-10-06", endsOn: "" });
+
+    fireEvent.click(day("2026-10-12"));
+    expect(submitted()).toEqual({
+      startsOn: "2026-10-06",
+      endsOn: "2026-10-12",
+    });
+  });
+
+  it("drops an end that a moved start would put beyond the most days allowed", () => {
+    const submitted = renderField({
+      defaultValue: { from: "2026-10-05", to: "2026-10-10" },
+      maxSpan: 6,
+    });
+
+    fireEvent.click(half(/^Arrival/));
+    fireEvent.click(day("2026-10-02"));
+    // Eight days to the old end is more than allowed, so it is not kept.
+    expect(submitted()).toEqual({ startsOn: "2026-10-02", endsOn: "" });
+  });
+
   it("with the start locked, picks only the end, and never before the earliest allowed", () => {
     const submitted = renderField({
       defaultValue: { from: "2026-10-05", to: "2026-10-08" },
@@ -276,5 +306,45 @@ describe("DateRangeField", () => {
     fireEvent.click(half(/^Departure/));
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
     expect(submitted()).toEqual({ startsOn: "2026-10-05", endsOn: "" });
+  });
+
+  it("updates range when controlled value prop changes", () => {
+    const { rerender } = render(
+      <DateRangeField
+        id="dates"
+        labels={labels}
+        locale="en"
+        value={{ from: "2026-10-05", to: "2026-10-12" }}
+      />,
+    );
+
+    expect(half(/^Arrival/)).toHaveTextContent(/Oct 5/);
+    expect(half(/^Departure/)).toHaveTextContent(/Oct 12/);
+
+    rerender(
+      <DateRangeField
+        id="dates"
+        labels={labels}
+        locale="en"
+        value={{ from: "2026-10-15", to: "2026-10-22" }}
+      />,
+    );
+
+    expect(half(/^Arrival/)).toHaveTextContent(/Oct 15/);
+    expect(half(/^Departure/)).toHaveTextContent(/Oct 22/);
+  });
+
+  it("renders cleanly without names when not in a form", () => {
+    render(
+      <DateRangeField
+        id="dates-standalone"
+        labels={labels}
+        locale="en"
+        value={{ from: "2026-10-01", to: "2026-10-08" }}
+      />,
+    );
+    expect(document.querySelector('input[type="hidden"]')).toBeNull();
+    expect(half(/^Arrival/)).toBeInTheDocument();
+    expect(half(/^Departure/)).toBeInTheDocument();
   });
 });

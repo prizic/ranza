@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ArrowRight, CalendarDays } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { ar, enGB, tr } from "react-day-picker/locale";
@@ -106,6 +106,10 @@ function latestOf(a: Date | undefined, b: Date | undefined) {
  * opens the calendar at the end, so a form that needs both says so the way it
  * says every other missing field, rather than by a Save that will not press.
  *
+ * `maxSpan` is the most days between the ends, for a range the reader of it
+ * can only take up to a point: once the start is set, every end further out is
+ * greyed rather than accepted and quietly shortened.
+ *
  * `lockFrom` shows the start and never lets it change: a Guest already in
  * house changes when they leave, not when they came. Only the end is picked,
  * the band still runs from the start, and clearing clears the end alone.
@@ -121,6 +125,7 @@ function latestOf(a: Date | undefined, b: Date | undefined) {
  * the wrong day for part of every day at a Property in another timezone.
  */
 export function DateRangeField({
+  className,
   defaultValue,
   earliestFrom,
   earliestTo,
@@ -128,6 +133,7 @@ export function DateRangeField({
   labels,
   locale,
   lockFrom = false,
+  maxSpan,
   minSpan = 0,
   names,
   onChange,
@@ -135,7 +141,9 @@ export function DateRangeField({
   required = false,
   requiredTo = false,
   today,
+  value,
 }: {
+  className?: string;
   defaultValue?: { from?: string | undefined; to?: string | undefined };
   /** The first start that may be chosen, as `YYYY-MM-DD`. */
   earliestFrom?: string | undefined;
@@ -147,8 +155,10 @@ export function DateRangeField({
   locale: SupportedLocale;
   /** Shows the start without letting it change; only the end is picked. */
   lockFrom?: boolean;
+  /** The most days between the ends; later ends are greyed out. */
+  maxSpan?: number;
   minSpan?: number;
-  names: { from: string; to: string };
+  names?: { from: string; to: string };
   /**
    * Told each chosen range as `YYYY-MM-DD`, for a form that says something
    * about the dates before it is sent — a price for the nights chosen. The
@@ -160,14 +170,24 @@ export function DateRangeField({
   /** A missing end stops the submit, as `required` does for the start. */
   requiredTo?: boolean;
   today?: string | undefined;
+  value?: { from?: string | undefined; to?: string | undefined };
 }) {
   const [range, setStoredRange] = useState<DateRange | undefined>(() => {
-    const from = fromIso(defaultValue?.from);
-    const to = fromIso(defaultValue?.to);
+    const initial = value ?? defaultValue;
+    const from = fromIso(initial?.from);
+    const to = fromIso(initial?.to);
     return from || to ? { from, to } : undefined;
   });
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Edge>(lockFrom ? "to" : "from");
+
+  useEffect(() => {
+    if (value !== undefined && !open) {
+      const from = fromIso(value.from);
+      const to = fromIso(value.to);
+      setStoredRange(from || to ? { from, to } : undefined);
+    }
+  }, [value?.from, value?.to, open]);
 
   function setRange(next: DateRange | undefined) {
     setStoredRange(next);
@@ -205,6 +225,15 @@ export function DateRangeField({
     earliestStart,
   );
 
+  const latestEnd =
+    editing === "to" && from && maxSpan !== undefined
+      ? new Date(from.getFullYear(), from.getMonth(), from.getDate() + maxSpan)
+      : undefined;
+  const unavailable = [
+    ...(earliestPick ? [{ before: earliestPick }] : []),
+    ...(latestEnd ? [{ after: latestEnd }] : []),
+  ];
+
   const describe = (date: Date | undefined) => {
     if (!date) return undefined;
     return formatDate(new Date(`${toIso(date)}T00:00:00Z`), locale, {
@@ -224,16 +253,21 @@ export function DateRangeField({
     setOpen(true);
   }
 
+  /** Whether `end` is a permitted end for a range starting on `start`. */
+  function withinSpan(start: Date, end: Date): boolean {
+    const span = daysBetween(start, end);
+    return span >= minSpan && (maxSpan === undefined || span <= maxSpan);
+  }
+
   function pick(day: Date) {
     if (lockFrom) {
-      if (!from || daysBetween(from, day) < minSpan) return;
+      if (!from || !withinSpan(from, day)) return;
       setRange({ from, to: day });
       setOpen(false);
       return;
     }
     const endsRange =
-      editing === "to" &&
-      (from ? daysBetween(from, day) >= minSpan : !required);
+      editing === "to" && (from ? withinSpan(from, day) : !required);
     if (endsRange) {
       // `editing` stays on the end, so focus returns to the half just set.
       setRange({ from, to: day });
@@ -244,7 +278,7 @@ export function DateRangeField({
     // on one never arrives; if one ever did, it would begin a new range from
     // either half, and a day before the earliest start must never do that.
     if (earliestStart && day < earliestStart) return;
-    const keepEnd = to && daysBetween(day, to) >= minSpan;
+    const keepEnd = to && withinSpan(day, to);
     setRange({ from: day, to: keepEnd ? to : undefined });
     setEditing("to");
   }
@@ -309,6 +343,7 @@ export function DateRangeField({
             "group relative flex h-9 w-full min-w-0 items-center gap-1 rounded-2xl border border-input/80 bg-background/90 p-1 ps-2 text-xs font-medium text-foreground transition-all duration-200 hover:border-primary/50 hover:bg-background hover:shadow-xs",
             open && "border-primary shadow-xs ring-2 ring-primary/20",
             (from || to) && "border-primary/40 bg-primary/5",
+            className,
           )}
           ref={anchor}
         >
@@ -332,53 +367,61 @@ export function DateRangeField({
         </div>
       </PopoverAnchor>
 
-      <input name={names.from} type="hidden" value={from ? toIso(from) : ""} />
-      <input name={names.to} type="hidden" value={to ? toIso(to) : ""} />
-      {required && !lockFrom ? (
-        // Hidden inputs are never validated, so a required start is carried by
-        // one out of sight and out of the tab order. Its bubble would point at
-        // nothing, so a blocked submit opens the calendar at the start instead
-        // — but only when this is the form's first problem; an empty name
-        // before it keeps the browser's own message.
-        <input
-          aria-hidden="true"
-          className="sr-only"
-          onChange={() => undefined}
-          onInvalid={(event) => {
-            const input = event.currentTarget;
-            if (input.form?.querySelector(":invalid") !== input) return;
-            event.preventDefault();
-            halves.from.current?.focus();
-            openAt("from");
-          }}
-          ref={requiredFrom}
-          required
-          tabIndex={-1}
-          value={from ? toIso(from) : ""}
-        />
-      ) : null}
-      {requiredTo ? (
-        // The end's twin of the proxy above, after it in the form, so a form
-        // missing both asks for the start first. Then this one stays quiet as
-        // well: the browser focuses the first invalid control nobody claimed,
-        // and focusing this one would close the calendar the start just opened.
-        <input
-          aria-hidden="true"
-          className="sr-only"
-          onChange={() => undefined}
-          onInvalid={(event) => {
-            const input = event.currentTarget;
-            const first = input.form?.querySelector(":invalid");
-            if (first === requiredFrom.current) event.preventDefault();
-            if (first !== input) return;
-            event.preventDefault();
-            halves.to.current?.focus();
-            openAt("to");
-          }}
-          required
-          tabIndex={-1}
-          value={to ? toIso(to) : ""}
-        />
+      {names ? (
+        <>
+          <input
+            name={names.from}
+            type="hidden"
+            value={from ? toIso(from) : ""}
+          />
+          <input name={names.to} type="hidden" value={to ? toIso(to) : ""} />
+          {required && !lockFrom ? (
+            // Hidden inputs are never validated, so a required start is carried by
+            // one out of sight and out of the tab order. Its bubble would point at
+            // nothing, so a blocked submit opens the calendar at the start instead
+            // — but only when this is the form's first problem; an empty name
+            // before it keeps the browser's own message.
+            <input
+              aria-hidden="true"
+              className="sr-only"
+              onChange={() => undefined}
+              onInvalid={(event) => {
+                const input = event.currentTarget;
+                if (input.form?.querySelector(":invalid") !== input) return;
+                event.preventDefault();
+                halves.from.current?.focus();
+                openAt("from");
+              }}
+              ref={requiredFrom}
+              required
+              tabIndex={-1}
+              value={from ? toIso(from) : ""}
+            />
+          ) : null}
+          {requiredTo ? (
+            // The end's twin of the proxy above, after it in the form, so a form
+            // missing both asks for the start first. Then this one stays quiet as
+            // well: the browser focuses the first invalid control nobody claimed,
+            // and focusing this one would close the calendar the start just opened.
+            <input
+              aria-hidden="true"
+              className="sr-only"
+              onChange={() => undefined}
+              onInvalid={(event) => {
+                const input = event.currentTarget;
+                const first = input.form?.querySelector(":invalid");
+                if (first === requiredFrom.current) event.preventDefault();
+                if (first !== input) return;
+                event.preventDefault();
+                halves.to.current?.focus();
+                openAt("to");
+              }}
+              required
+              tabIndex={-1}
+              value={to ? toIso(to) : ""}
+            />
+          ) : null}
+        </>
       ) : null}
 
       <PopoverContent
@@ -448,7 +491,7 @@ export function DateRangeField({
               className="p-4"
               defaultMonth={(lockFrom ? to : from) ?? to ?? todayDate}
               dir={directionFor(locale)}
-              disabled={earliestPick && { before: earliestPick }}
+              disabled={unavailable.length > 0 ? unavailable : undefined}
               locale={calendarLocales[locale]}
               mode="range"
               numberOfMonths={wide ? 2 : 1}
