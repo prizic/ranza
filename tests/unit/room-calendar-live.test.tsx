@@ -323,6 +323,54 @@ describe("what the screen says", () => {
   });
 });
 
+describe("choosing a range", () => {
+  /** A day in the calendar the field has open, not its echo in a neighbouring month. */
+  function pressDay(iso: string) {
+    fireEvent.click(
+      document.querySelector<HTMLButtonElement>(
+        `td:not([data-outside]) [data-day="${iso}"]`,
+      )!,
+    );
+  }
+
+  it("RC-S1-06: a range between two lengths opens the longer, so no chosen day is cut off", async () => {
+    renderCalendar();
+
+    fireEvent.click(screen.getByRole("button", { name: /^From:/ }));
+    pressDay("2026-09-22");
+    pressDay("2026-10-01");
+
+    // Ten days chosen: the 14-day window, not the 7 it is nearest to.
+    await waitFor(() => {
+      expect(window.location.search).toContain("from=2026-09-22");
+    });
+    expect(window.location.search).not.toContain("days=7");
+  });
+
+  it("a start alone is not applied, and no end past the longest length is offered", () => {
+    renderCalendar();
+
+    fireEvent.click(screen.getByRole("button", { name: /^From:/ }));
+    // After the open window's end, so the old end cannot be kept with it.
+    pressDay("2026-10-05");
+
+    expect(window.location.search).not.toContain("from=2026-10-05");
+    const end = (iso: string) => {
+      const found = () =>
+        document.querySelector<HTMLButtonElement>(
+          `td:not([data-outside]) [data-day="${iso}"]`,
+        );
+      for (let turns = 0; turns < 3 && !found(); turns++) {
+        fireEvent.click(screen.getByRole("button", { name: /next month/i }));
+      }
+      return found()!;
+    };
+    // A 30-day window reaches the 29th day after its start, not the 30th.
+    expect(end("2026-11-03")).not.toBeDisabled();
+    expect(end("2026-11-04")).toBeDisabled();
+  });
+});
+
 describe("live", () => {
   it("RC-S1-62: with the tab visible, the calendar is read again every 30 seconds", async () => {
     const fetched = vi.fn(

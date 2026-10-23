@@ -106,6 +106,10 @@ function latestOf(a: Date | undefined, b: Date | undefined) {
  * opens the calendar at the end, so a form that needs both says so the way it
  * says every other missing field, rather than by a Save that will not press.
  *
+ * `maxSpan` is the most days between the ends, for a range the reader of it
+ * can only take up to a point: once the start is set, every end further out is
+ * greyed rather than accepted and quietly shortened.
+ *
  * `lockFrom` shows the start and never lets it change: a Guest already in
  * house changes when they leave, not when they came. Only the end is picked,
  * the band still runs from the start, and clearing clears the end alone.
@@ -129,6 +133,7 @@ export function DateRangeField({
   labels,
   locale,
   lockFrom = false,
+  maxSpan,
   minSpan = 0,
   names,
   onChange,
@@ -150,6 +155,8 @@ export function DateRangeField({
   locale: SupportedLocale;
   /** Shows the start without letting it change; only the end is picked. */
   lockFrom?: boolean;
+  /** The most days between the ends; later ends are greyed out. */
+  maxSpan?: number;
   minSpan?: number;
   names?: { from: string; to: string };
   /**
@@ -218,6 +225,15 @@ export function DateRangeField({
     earliestStart,
   );
 
+  const latestEnd =
+    editing === "to" && from && maxSpan !== undefined
+      ? new Date(from.getFullYear(), from.getMonth(), from.getDate() + maxSpan)
+      : undefined;
+  const unavailable = [
+    ...(earliestPick ? [{ before: earliestPick }] : []),
+    ...(latestEnd ? [{ after: latestEnd }] : []),
+  ];
+
   const describe = (date: Date | undefined) => {
     if (!date) return undefined;
     return formatDate(new Date(`${toIso(date)}T00:00:00Z`), locale, {
@@ -237,16 +253,21 @@ export function DateRangeField({
     setOpen(true);
   }
 
+  /** Whether `end` is a permitted end for a range starting on `start`. */
+  function withinSpan(start: Date, end: Date): boolean {
+    const span = daysBetween(start, end);
+    return span >= minSpan && (maxSpan === undefined || span <= maxSpan);
+  }
+
   function pick(day: Date) {
     if (lockFrom) {
-      if (!from || daysBetween(from, day) < minSpan) return;
+      if (!from || !withinSpan(from, day)) return;
       setRange({ from, to: day });
       setOpen(false);
       return;
     }
     const endsRange =
-      editing === "to" &&
-      (from ? daysBetween(from, day) >= minSpan : !required);
+      editing === "to" && (from ? withinSpan(from, day) : !required);
     if (endsRange) {
       // `editing` stays on the end, so focus returns to the half just set.
       setRange({ from, to: day });
@@ -257,7 +278,7 @@ export function DateRangeField({
     // on one never arrives; if one ever did, it would begin a new range from
     // either half, and a day before the earliest start must never do that.
     if (earliestStart && day < earliestStart) return;
-    const keepEnd = to && daysBetween(day, to) >= minSpan;
+    const keepEnd = to && withinSpan(day, to);
     setRange({ from: day, to: keepEnd ? to : undefined });
     setEditing("to");
   }
@@ -470,7 +491,7 @@ export function DateRangeField({
               className="p-4"
               defaultMonth={(lockFrom ? to : from) ?? to ?? todayDate}
               dir={directionFor(locale)}
-              disabled={earliestPick && { before: earliestPick }}
+              disabled={unavailable.length > 0 ? unavailable : undefined}
               locale={calendarLocales[locale]}
               mode="range"
               numberOfMonths={wide ? 2 : 1}

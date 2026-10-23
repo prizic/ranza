@@ -990,7 +990,6 @@ export interface Messages {
     previous: string;
     next: string;
     today: string;
-    goTo: string;
     from: string;
     to: string;
     emptyFrom: string;
@@ -2654,7 +2653,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       previous: "Önceki hafta",
       next: "Sonraki hafta",
       today: "Bugün",
-      goTo: "Tarihe git",
       from: "Başlangıç",
       to: "Bitiş",
       emptyFrom: "Tarih ekle",
@@ -4849,7 +4847,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       previous: "Previous week",
       next: "Next week",
       today: "Today",
-      goTo: "Go to a date",
       from: "From",
       to: "To",
       emptyFrom: "Add date",
@@ -7025,7 +7022,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       previous: "الأسبوع السابق",
       next: "الأسبوع التالي",
       today: "اليوم",
-      goTo: "الانتقال إلى تاريخ",
       from: "من",
       to: "إلى",
       emptyFrom: "أضف تاريخًا",

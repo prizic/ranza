@@ -315,44 +315,42 @@ test("RC-S1-57: the room column stays pinned while the days scroll", async ({
   expect((await label.boundingBox())!.x).toBe(before!.x);
 });
 
-test("RC-S1-60: a date typed from the keyboard opens that week, and nothing half typed reaches the URL", async ({
+test("RC-S1-06 and RC-S1-60: a range chosen in the calendar opens from its start, in the shortest length that shows it all, and half a range reaches nothing", async ({
   page,
 }) => {
   const fixture = aRoomWithAnOverlap();
   await signIn(page);
   await openCalendar(page, "en", fixture);
 
-  // Every URL the page takes on while the date is typed.
-  const seen: string[] = [];
-  page.on("framenavigated", (frame) => seen.push(frame.url()));
-  await page.exposeFunction("recordUrl", (url: string) => seen.push(url));
-  await page.evaluate(() => {
-    const replace = history.replaceState.bind(history);
-    history.replaceState = (...args: Parameters<History["replaceState"]>) => {
-      replace(...args);
-      (window as unknown as { recordUrl: (u: string) => void }).recordUrl(
-        location.href,
-      );
-    };
-  });
+  const start = propertyDay(fixture.propertyId, 20);
+  // Ten days, which no length on offer is: 14 is the next one up.
+  const end = propertyDay(fixture.propertyId, 29);
 
-  const input = page.getByLabel("Go to a date");
-  await whenHydrated(input);
-  // Focus rather than click: a click lands mid-field, on a later part or the
-  // picker button. The order of the parts is the browser's own, so the date
-  // is read back rather than assumed; the year passes through 0002, 0020 and
-  // 0202 on its way to 2026 whatever the order.
-  await input.focus();
-  await input.pressSequentially("10152026");
-  const typed = await input.inputValue();
-  expect(typed).toMatch(/^2026-\d{2}-\d{2}$/);
+  const from = page.getByRole("button", { name: /^From:/ });
+  await whenHydrated(from);
+  await from.click();
+  await pickDay(page, start);
 
-  const opened = new Date(`${typed}T00:00:00Z`);
-  opened.setUTCDate(opened.getUTCDate() - 3);
-  const from = opened.toISOString().slice(0, 10);
-  await expect(page).toHaveURL(new RegExp(`from=${from}`));
-  expect(seen.filter((url) => /from=0/.test(url))).toEqual([]);
+  // The end is still to be chosen, so the window under the calendar stays.
+  await expect(
+    page.getByRole("button", { name: /^To: Add date/ }),
+  ).toBeVisible();
+  expect(page.url()).not.toContain(`from=${start}`);
+
+  await pickDay(page, end);
+  await expect(page).toHaveURL(new RegExp(`from=${start}`));
+  // 14 is the default length, so it is the one a URL leaves out.
+  expect(page.url()).not.toMatch(/days=/);
 });
+
+/** Presses a day in the open date-range calendar, turning months as needed. */
+async function pickDay(page: Page, iso: string): Promise<void> {
+  const day = page.locator(`td:not([data-outside]) [data-day="${iso}"]`);
+  for (let turns = 0; turns < 12 && !(await day.isVisible()); turns++) {
+    await page.getByRole("button", { name: /next month/i }).click();
+  }
+  await day.click();
+}
 
 /**
  * Moving a bar (RC-S3-*). The unit suite proves what a drag proposes and what

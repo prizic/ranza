@@ -250,6 +250,36 @@ describe("DateRangeField", () => {
     expect(submitted()).toEqual({ startsOn: "2026-10-06", endsOn: "" });
   });
 
+  it("greys out every end beyond the most days allowed between the ends", () => {
+    const submitted = renderField({ maxSpan: 6 });
+
+    fireEvent.click(half(/^Arrival/));
+    fireEvent.click(day("2026-10-06"));
+    // Six days on is the last end offered; seven is not.
+    expect(day("2026-10-12")).not.toBeDisabled();
+    expect(day("2026-10-13")).toBeDisabled();
+    fireEvent.click(day("2026-10-13"));
+    expect(submitted()).toEqual({ startsOn: "2026-10-06", endsOn: "" });
+
+    fireEvent.click(day("2026-10-12"));
+    expect(submitted()).toEqual({
+      startsOn: "2026-10-06",
+      endsOn: "2026-10-12",
+    });
+  });
+
+  it("drops an end that a moved start would put beyond the most days allowed", () => {
+    const submitted = renderField({
+      defaultValue: { from: "2026-10-05", to: "2026-10-10" },
+      maxSpan: 6,
+    });
+
+    fireEvent.click(half(/^Arrival/));
+    fireEvent.click(day("2026-10-02"));
+    // Eight days to the old end is more than allowed, so it is not kept.
+    expect(submitted()).toEqual({ startsOn: "2026-10-02", endsOn: "" });
+  });
+
   it("with the start locked, picks only the end, and never before the earliest allowed", () => {
     const submitted = renderField({
       defaultValue: { from: "2026-10-05", to: "2026-10-08" },

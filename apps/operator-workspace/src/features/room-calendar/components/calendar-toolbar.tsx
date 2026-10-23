@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@ranza/ui";
 import type { RoomCalendar, RoomCalendarUnit } from "../../../server/viewer";
-import { shiftDay } from "../layout";
+import { daysBetween, lengthCovering, shiftDay } from "../layout";
 import { UNIT_STATES, UNIT_TYPES, type RoomCalendarView } from "../view";
 import { Legend } from "./legend";
 
@@ -141,21 +141,20 @@ export function CalendarToolbar({
               span: (days) => t("lengthOption", { days: days + 1 }),
             }}
             locale={locale}
-            onChange={(range) => {
-              if (range.from && range.to) {
-                const fromDate = new Date(`${range.from}T00:00:00Z`);
-                const toDate = new Date(`${range.to}T00:00:00Z`);
-                const span =
-                  Math.round(
-                    (toDate.getTime() - fromDate.getTime()) / 86_400_000,
-                  ) + 1;
-                const closest = lengths.reduce((prev, curr) =>
-                  Math.abs(curr - span) < Math.abs(prev - span) ? curr : prev,
-                );
-                onChange({ from: range.from, days: closest });
-              } else if (range.from && !range.to) {
-                onChange({ from: range.from });
-              } else if (!range.from && !range.to) {
+            maxSpan={Math.max(...lengths) - 1}
+            // Applied once both ends are chosen: the start alone is half a
+            // choice, and reading the grid under an open calendar for it
+            // would only be thrown away by the next press.
+            onChange={(chosen) => {
+              if (chosen.from && chosen.to) {
+                onChange({
+                  from: chosen.from,
+                  days: lengthCovering(
+                    daysBetween(chosen.from, chosen.to) + 1,
+                    lengths,
+                  ),
+                });
+              } else if (!chosen.from && !chosen.to) {
                 onChange({ from: null });
               }
             }}

@@ -13,6 +13,7 @@ import {
   barsByKey,
   bedsTaken,
   calendarRows,
+  lengthCovering,
   outOfUseOn,
   placeBars,
 } from "../../apps/operator-workspace/src/features/room-calendar/layout";
@@ -164,6 +165,23 @@ describe("the view in the URL and the cookie", () => {
     expect(readRemembered("%7B%22days")).toEqual({});
     expect(readRemembered(undefined)).toEqual({});
     expect(parseView({}, readRemembered("90.1.1"), LENGTHS, 14).days).toBe(14);
+  });
+});
+
+describe("the length a chosen range opens", () => {
+  it("RC-S1-06: is the shortest offered length that still shows every chosen day", () => {
+    expect([1, 7].map((days) => lengthCovering(days, LENGTHS))).toEqual([7, 7]);
+    expect([8, 10, 14].map((days) => lengthCovering(days, LENGTHS))).toEqual([
+      14, 14, 14,
+    ]);
+    expect([15, 30].map((days) => lengthCovering(days, LENGTHS))).toEqual([
+      30, 30,
+    ]);
+  });
+
+  it("RC-S1-06: never goes past the longest offered length", () => {
+    expect(lengthCovering(31, LENGTHS)).toBe(30);
+    expect(lengthCovering(31, [30, 7, 14])).toBe(30);
   });
 });
 
