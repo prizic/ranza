@@ -301,6 +301,17 @@ test("RC-S1-57: the room column stays pinned while the days scroll", async ({
   const label = page.getByRole("rowheader", { name: fixture.tag });
   await expect(label).toBeVisible();
   const firstDay = page.getByRole("columnheader").nth(1);
+  // The shell settles into its 900px layout (the sidebar folds) after the
+  // first paint, so the column is measured once two reads agree.
+  let last = Number.NaN;
+  await expect
+    .poll(async () => {
+      const x = (await label.boundingBox())!.x;
+      const settled = x === last;
+      last = x;
+      return settled;
+    })
+    .toBe(true);
   const before = await label.boundingBox();
   const dayBefore = await firstDay.boundingBox();
   const scrolled = await page.getByRole("table").evaluate((grid) => {
